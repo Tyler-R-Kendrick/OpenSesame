@@ -46,8 +46,8 @@ export function UnlockPage() {
         </div>
 
         <p className="unlock-honest">
-          Session unlock only. Sealed OPFS blobs stay ciphertext — this PIN never
-          decrypts secrets into the page.
+          Session unlock only (PIN ≥ 6 chars, salted PBKDF2). Sealed OPFS blobs
+          stay ciphertext — this PIN never decrypts secrets into the page.
         </p>
 
         <label htmlFor="unlock-pin">
