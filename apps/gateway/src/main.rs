@@ -1,3 +1,5 @@
+//! OpenSesame Host API (gateway).
+#![allow(clippy::result_large_err)] // axum handlers return Response in Err
 use axum::{
     extract::{Path, State},
     http::{header, StatusCode},
@@ -998,6 +1000,7 @@ struct SyncPullBody {
 }
 
 /// Requires an active opaque session token (`Authorization: Bearer opaque-session:…`).
+#[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
 fn require_session(
     st: &AppState,
     headers: &axum::http::HeaderMap,
@@ -1058,6 +1061,7 @@ fn session_subject(meta: &Value) -> String {
 }
 
 /// Human/operator mutations: `X-OpenSesame-Operator` or `Authorization: Bearer operator:<token>`.
+#[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
 fn require_operator(st: &AppState, headers: &axum::http::HeaderMap) -> Result<(), Response> {
     if st.operator_token.is_empty() {
         return Err((
@@ -1092,6 +1096,7 @@ fn require_operator(st: &AppState, headers: &axum::http::HeaderMap) -> Result<()
     }
 }
 
+#[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
 fn require_session_or_operator(
     st: &AppState,
     headers: &axum::http::HeaderMap,
@@ -1103,6 +1108,7 @@ fn require_session_or_operator(
 }
 
 /// Session subject when present; operator falls back to seeded `user:demo` (policy bootstrap).
+#[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
 fn resolve_caller_subject(
     st: &AppState,
     headers: &axum::http::HeaderMap,

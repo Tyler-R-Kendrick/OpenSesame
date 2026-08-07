@@ -222,8 +222,7 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
             for src in &src_candidates {
                 if PathBuf::from(src).exists() {
                     let _ = std::fs::create_dir_all(format!("{home}/.local/bin"));
-                    match std::fs::copy(src, &dest) {
-                        Ok(_) => {
+                    if std::fs::copy(src, &dest).is_ok() {
                             installed = true;
                             #[cfg(unix)]
                             {
@@ -235,8 +234,6 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
                             }
                             break;
                         }
-                        Err(_) => {}
-                    }
                 }
             }
             println!(

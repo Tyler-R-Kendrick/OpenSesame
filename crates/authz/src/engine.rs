@@ -105,7 +105,7 @@ impl PolicyEngine {
                     return Ok(deny(req, "audience"));
                 }
             }
-            if g.constraints.raw_credential_export == false && req.action.name == "credential.export"
+            if !g.constraints.raw_credential_export && req.action.name == "credential.export"
             {
                 return Ok(deny(req, "export_default_deny"));
             }

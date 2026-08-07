@@ -2,6 +2,7 @@
 //! Evolved from credential-agent. Never dumps refresh tokens or WebAuthn material.
 //! Listens on TCP (`OPENSESAME_DAEMON_LISTEN`) and optionally Unix socket (`OPENSESAME_AGENT_SOCK`).
 //! Mutating routes require `OPENSESAME_OPERATOR_TOKEN` (`X-OpenSesame-Operator`).
+#![allow(clippy::result_large_err)] // axum handlers return Response in Err
 use axum::{
     extract::State,
     http::{header, HeaderMap, StatusCode},
@@ -124,6 +125,7 @@ fn resolve_operator_token() -> String {
     }
 }
 
+#[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
 fn require_operator(st: &App, headers: &HeaderMap) -> Result<(), Response> {
     if st.operator_token.is_empty() {
         return Err((

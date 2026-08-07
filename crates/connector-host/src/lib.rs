@@ -269,49 +269,55 @@ pub fn follow_redirect_with_credential(
 
 /// Substitute a placeholder with a real credential **only** when placement rules allow.
 /// Never performs generic body-wide string replace.
+pub struct SubstitutePlaceholderRequest<'a> {
+    pub method: &'a str,
+    pub url: &'a str,
+    pub header_name: Option<&'a str>,
+    pub header_value: Option<&'a str>,
+    pub body_field_path: Option<&'a str>,
+    pub body_field_value: Option<&'a str>,
+    pub placeholder: &'a str,
+    pub real_secret: &'a str,
+}
+
 pub fn substitute_placeholder(
     egress: &EgressBinding,
     placement: &PlaceholderPlacement,
     projection: &LegacyProjection,
-    method: &str,
-    url: &str,
-    header_name: Option<&str>,
-    header_value: Option<&str>,
-    body_field_path: Option<&str>,
-    body_field_value: Option<&str>,
-    placeholder: &str,
-    real_secret: &str,
+    req: &SubstitutePlaceholderRequest<'_>,
 ) -> Result<Value, HostError> {
     egress
-        .allows_url(url)
+        .allows_url(req.url)
         .map_err(|e| HostError::DestinationDenied(e.to_string()))?;
-    let parsed = Url::parse(url).map_err(|e| HostError::DestinationDenied(e.to_string()))?;
+    let parsed = Url::parse(req.url).map_err(|e| HostError::DestinationDenied(e.to_string()))?;
     placement
         .assert_allowed(
-            method,
-            header_name,
-            header_value,
-            parsed.path(),
-            parsed.query(),
-            body_field_path,
-            body_field_value,
-            placeholder,
+            &opensesame_domain::PlaceholderRequestView {
+                method: req.method,
+                header_name: req.header_name,
+                header_value: req.header_value,
+                path: parsed.path(),
+                query: parsed.query(),
+                body_field_path: req.body_field_path,
+                body_field_value: req.body_field_value,
+            },
+            req.placeholder,
         )
         .map_err(|e| HostError::PlacementDenied(e.to_string()))?;
 
     let mut injected_header = None;
-    if let (Some(hn), Some(hv)) = (header_name, header_value) {
-        if hv.contains(placeholder) {
+    if let (Some(hn), Some(hv)) = (req.header_name, req.header_value) {
+        if hv.contains(req.placeholder) {
             // Host injects the real secret on the wire; guest summary stays redacted.
-            let _wired = hv.replace(placeholder, real_secret);
-            injected_header = Some((hn.to_string(), hv.replace(placeholder, "[REDACTED]")));
+            let _wired = hv.replace(req.placeholder, req.real_secret);
+            injected_header = Some((hn.to_string(), hv.replace(req.placeholder, "[REDACTED]")));
         }
     }
     let mut injected_body = None;
-    if let (Some(fp), Some(fv)) = (body_field_path, body_field_value) {
-        if fv.contains(placeholder) {
-            let _wired = fv.replace(placeholder, real_secret);
-            injected_body = Some(json!({ fp: fv.replace(placeholder, "[REDACTED]") }));
+    if let (Some(fp), Some(fv)) = (req.body_field_path, req.body_field_value) {
+        if fv.contains(req.placeholder) {
+            let _wired = fv.replace(req.placeholder, req.real_secret);
+            injected_body = Some(json!({ fp: fv.replace(req.placeholder, "[REDACTED]") }));
         }
     }
 
@@ -433,14 +439,16 @@ impl HostRuntime {
             &self.policy.egress,
             &placement,
             &proj,
-            method,
-            url,
-            header_name,
-            header_value,
-            body_field,
-            body_value,
-            placeholder,
-            material,
+            &SubstitutePlaceholderRequest {
+                method,
+                url,
+                header_name,
+                header_value,
+                body_field_path: body_field,
+                body_field_value: body_value,
+                placeholder,
+                real_secret: material,
+            },
         )?;
         Ok(InvokeResult {
             ok: true,
@@ -456,17 +464,9 @@ pub mod wasm_guest {
     use super::HostError;
     use std::path::Path;
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, Default)]
     pub struct WasmGuestPolicy {
         pub allow_materialize: bool,
-    }
-
-    impl Default for WasmGuestPolicy {
-        fn default() -> Self {
-            Self {
-                allow_materialize: false,
-            }
-        }
     }
 
     /// Validate a prospective guest import set before Wasmtime instantiation.
@@ -739,14 +739,16 @@ mod tests {
             &egress,
             &proj.placement,
             &proj,
-            "POST",
-            "https://api.stripe.com/v1/charges",
-            Some("Authorization"),
-            Some(&format!("Bearer {ph}")),
-            None,
-            None,
-            ph,
-            "ostest_injected_material",
+            &SubstitutePlaceholderRequest {
+                method: "POST",
+                url: "https://api.stripe.com/v1/charges",
+                header_name: Some("Authorization"),
+                header_value: Some(&format!("Bearer {ph}")),
+                body_field_path: None,
+                body_field_value: None,
+                placeholder: ph,
+                real_secret: "ostest_injected_material",
+            },
         )
         .unwrap();
         assert_eq!(ok["credential_bytes_returned_to_guest"], false);
@@ -759,14 +761,16 @@ mod tests {
             &egress,
             &proj.placement,
             &proj,
-            "POST",
-            "https://api.stripe.com/v1/charges",
-            None,
-            None,
-            Some("message"),
-            Some(&format!("exfil {ph}")),
-            ph,
-            "ostest_injected_material",
+            &SubstitutePlaceholderRequest {
+                method: "POST",
+                url: "https://api.stripe.com/v1/charges",
+                header_name: None,
+                header_value: None,
+                body_field_path: Some("message"),
+                body_field_value: Some(&format!("exfil {ph}")),
+                placeholder: ph,
+                real_secret: "ostest_injected_material",
+            },
         );
         assert!(matches!(deny, Err(HostError::PlacementDenied(_))));
     }

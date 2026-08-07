@@ -8,6 +8,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 |------|-----|----------------|
 | **cve-lite** | OSV CVE scan + override hygiene (OA*/PD*) | `pnpm run audit:cve-lite` (`scripts/cve-lite-gate.sh`) |
 | **ast-grep** | Structural SAST for XSS/crypto/injection antipatterns | `pnpm run audit:ast-grep` (`security/ast-grep-rules.yml`) |
+| **cargo clippy** | Rust correctness / suspicious patterns (`-D warnings`) | `pnpm run audit:clippy` (matches CI) |
 | **gitleaks** | Secret scanning; catches accidental keys in source | `gitleaks detect --source . --no-git` (ignore `.tools/`) |
 | **cargo-deny** | RustSec advisories, license, source policy | `cargo deny check` + workspace `deny.toml` |
 | **pnpm audit** | npm advisory DB for TS apps/packages | `pnpm audit` after dep bumps |
@@ -49,7 +50,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 5. **Session expiry** — gateway sync auth now enforces opaque-session `expires_at` and evicts expired entries.
 6. **Fail-closed config** — default claim pepper and `prn_` bearer require explicit dev/test mode (`OPENSESAME_ALLOW_DEV_DEFAULTS`, `NODE_ENV`/`OPENSESAME_ENV` development|test, or Vitest); production asserts reject unsafe merges.
 
-Re-run checklist: `pnpm run audit:cve-lite`, `pnpm run audit:ast-grep`, `gitleaks detect --source . --no-git --config .gitleaks.toml`, `cargo deny check`, `pnpm audit`, control-plane + connector-host tests, gateway `cargo check`.
+Re-run checklist: `pnpm run audit:cve-lite`, `pnpm run audit:ast-grep`, `pnpm run audit:clippy`, `gitleaks detect --source . --no-git --config .gitleaks.toml`, `cargo deny check`, `pnpm audit`, control-plane + connector-host tests, gateway `cargo check`.
 
 ## Residual (tracked, not blocking this pass)
 
