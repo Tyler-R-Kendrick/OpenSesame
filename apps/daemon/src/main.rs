@@ -251,8 +251,7 @@ async fn main() -> anyhow::Result<()> {
         );
     }
 
-    opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen)
-        .map_err(anyhow::Error::msg)?;
+    opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
 
     let app_clone = app.clone();
     let tcp = tokio::net::TcpListener::bind(&listen).await?;
