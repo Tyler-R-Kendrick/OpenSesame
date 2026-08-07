@@ -74,7 +74,7 @@ impl CredentialAuthority for MemoryAuthority {
     async fn create_handle(&self, path: &str) -> Result<CredentialHandle, AuthorityError> {
         self.ensure_available()?;
         Ok(CredentialHandle {
-            id: format!("cred:{}", path),
+            id: format!("cred:{path}"),
             mount: "transit".into(),
             key_version: 1,
         })
@@ -276,12 +276,12 @@ impl CredentialAuthority for OpenBaoHttpAuthority {
         let body = self
             .request(reqwest::Method::GET, "/v1/sys/health", None)
             .await
-            .or_else(|e| match e {
+            .map_err(|e| match e {
                 AuthorityError::Provider(msg) if msg.contains("429") || msg.contains("501") => {
                     // Some health responses use non-200 for sealed/uninit — parse if possible
-                    Err(AuthorityError::Unavailable)
+                    AuthorityError::Unavailable
                 }
-                other => Err(other),
+                other => other,
             })?;
         let sealed = body
             .get("sealed")

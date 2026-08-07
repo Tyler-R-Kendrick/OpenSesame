@@ -322,33 +322,40 @@ impl Default for PlaceholderPlacement {
     }
 }
 
+/// Request fragments inspected when enforcing placeholder placement.
+#[derive(Clone, Debug, Default)]
+pub struct PlaceholderRequestView<'a> {
+    pub method: &'a str,
+    pub header_name: Option<&'a str>,
+    pub header_value: Option<&'a str>,
+    pub path: &'a str,
+    pub query: Option<&'a str>,
+    pub body_field_path: Option<&'a str>,
+    pub body_field_value: Option<&'a str>,
+}
+
 impl PlaceholderPlacement {
     /// Count occurrences of `placeholder` in the given request parts and enforce policy.
     pub fn assert_allowed(
         &self,
-        method: &str,
-        header_name: Option<&str>,
-        header_value: Option<&str>,
-        path: &str,
-        query: Option<&str>,
-        body_field_path: Option<&str>,
-        body_field_value: Option<&str>,
+        req: &PlaceholderRequestView<'_>,
         placeholder: &str,
     ) -> Result<(), DomainError> {
         let method_ok = self
             .methods
             .iter()
-            .any(|m| m.eq_ignore_ascii_case(method));
+            .any(|m| m.eq_ignore_ascii_case(req.method));
         if !method_ok {
             return Err(DomainError::GrantAttenuation(format!(
-                "method {method} not allowed for placeholder substitution"
+                "method {} not allowed for placeholder substitution",
+                req.method
             )));
         }
 
         let mut hits = 0u32;
         let mut allowed_hit = false;
 
-        if let (Some(hn), Some(hv)) = (header_name, header_value) {
+        if let (Some(hn), Some(hv)) = (req.header_name, req.header_value) {
             let in_header = hv.contains(placeholder);
             if in_header {
                 hits += 1;
@@ -362,7 +369,7 @@ impl PlaceholderPlacement {
             }
         }
 
-        if path.contains(placeholder) {
+        if req.path.contains(placeholder) {
             hits += 1;
             if self
                 .locations
@@ -373,7 +380,7 @@ impl PlaceholderPlacement {
             }
         }
 
-        if let Some(q) = query {
+        if let Some(q) = req.query {
             if q.contains(placeholder) {
                 hits += 1;
                 for loc in &self.locations {
@@ -386,7 +393,7 @@ impl PlaceholderPlacement {
             }
         }
 
-        if let (Some(fp), Some(fv)) = (body_field_path, body_field_value) {
+        if let (Some(fp), Some(fv)) = (req.body_field_path, req.body_field_value) {
             if fv.contains(placeholder) {
                 hits += 1;
                 for loc in &self.locations {
@@ -605,25 +612,29 @@ mod tests {
         let p = PlaceholderPlacement::default();
         assert!(p
             .assert_allowed(
-                "POST",
-                Some("Authorization"),
-                Some("Bearer sk_test_x"),
-                "/v1/charges",
-                None,
-                None,
-                None,
+                &PlaceholderRequestView {
+                    method: "POST",
+                    header_name: Some("Authorization"),
+                    header_value: Some("Bearer sk_test_x"),
+                    path: "/v1/charges",
+                    query: None,
+                    body_field_path: None,
+                    body_field_value: None,
+                },
                 "sk_test_x",
             )
             .is_ok());
         assert!(p
             .assert_allowed(
-                "POST",
-                None,
-                None,
-                "/v1/charges",
-                None,
-                Some("message"),
-                Some("leak sk_test_x"),
+                &PlaceholderRequestView {
+                    method: "POST",
+                    header_name: None,
+                    header_value: None,
+                    path: "/v1/charges",
+                    query: None,
+                    body_field_path: Some("message"),
+                    body_field_value: Some("leak sk_test_x"),
+                },
                 "sk_test_x",
             )
             .is_err());

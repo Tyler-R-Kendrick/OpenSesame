@@ -63,7 +63,7 @@ impl Invocation {
         if !self.state.can_transition(to) {
             return Err(DomainError::InvalidTransition {
                 from: format!("{:?}", self.state),
-                to: format!("{:?}", to),
+                to: format!("{to:?}"),
             });
         }
         self.state = to;

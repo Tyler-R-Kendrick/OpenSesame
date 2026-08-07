@@ -102,11 +102,13 @@ impl Broker {
             let receipt = self.finish_receipt(
                 &input,
                 &inv,
-                &decision.decision_id,
-                &decision.policy_version_digest,
-                ReceiptOutcome::Denied,
-                json!({"reason": decision.context}),
-                None,
+                FinishReceiptParts {
+                    decision_id: &decision.decision_id,
+                    policy_digest: &decision.policy_version_digest,
+                    outcome: ReceiptOutcome::Denied,
+                    summary: json!({"reason": decision.context}),
+                    ext: None,
+                },
             )?;
             self.db.insert_receipt(&receipt).await?;
             return Ok(receipt);
@@ -142,11 +144,13 @@ impl Broker {
         let receipt = self.finish_receipt(
             &input,
             &inv,
-            &decision.decision_id,
-            &decision.policy_version_digest,
-            outcome,
-            summary,
-            ext,
+            FinishReceiptParts {
+                decision_id: &decision.decision_id,
+                policy_digest: &decision.policy_version_digest,
+                outcome,
+                summary,
+                ext,
+            },
         )?;
         assert!(receipt.assert_no_secret_leak());
         self.db.insert_receipt(&receipt).await?;
@@ -157,11 +161,7 @@ impl Broker {
         &self,
         input: &InvokeInput,
         inv: &Invocation,
-        decision_id: &str,
-        policy_digest: &str,
-        outcome: ReceiptOutcome,
-        summary: Value,
-        ext: Option<String>,
+        parts: FinishReceiptParts<'_>,
     ) -> anyhow::Result<InvocationReceipt> {
         let receipt = InvocationReceipt {
             id: ReceiptId::new(),
@@ -176,20 +176,28 @@ impl Broker {
             connection_id: input.intent.connection_id,
             operation: input.intent.operation.clone(),
             resource: input.intent.resource.clone(),
-            policy_decision_id: decision_id.into(),
-            policy_version_digest: policy_digest.into(),
+            policy_decision_id: parts.decision_id.into(),
+            policy_version_digest: parts.policy_digest.into(),
             approval_id: None,
             credential_handle_id: None,
             connector_component_digest: Some("sha256:mock-connector".into()),
-            external_request_digest: ext,
+            external_request_digest: parts.ext,
             external_response_digest: None,
             started_at: inv.created_at,
             completed_at: Utc::now(),
-            outcome,
-            safe_result_summary: Some(summary),
+            outcome: parts.outcome,
+            safe_result_summary: Some(parts.summary),
             authority_key_id: String::new(),
             signature: String::new(),
         };
         Ok(self.signer.sign_receipt(receipt)?)
     }
+}
+
+struct FinishReceiptParts<'a> {
+    decision_id: &'a str,
+    policy_digest: &'a str,
+    outcome: ReceiptOutcome,
+    summary: Value,
+    ext: Option<String>,
 }

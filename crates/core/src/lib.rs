@@ -5,9 +5,8 @@
 
 pub use opensesame_domain::*;
 
-/// Product-facing alias for the shared core surface.
+/// Product-facing alias for the shared core surface (see `wit/core/world.wit`).
 pub mod wit_contract {
-    //! Documentation mirror of `wit/core/world.wit` — compile-time types live in domain.
     pub const PACKAGE: &str = "opensesame:core@1.0.0";
 }
 

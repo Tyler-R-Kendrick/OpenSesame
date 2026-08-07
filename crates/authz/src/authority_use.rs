@@ -39,12 +39,12 @@ pub fn authorize_authority_use(
         return Err(AuthzError::Denied("invoke level not permitted".into()));
     }
 
-    if op.requires_export_privilege() || level == InvokeLevel::Materialize {
-        if !grant.constraints.raw_credential_export {
-            return Err(AuthzError::Denied(
-                "credential materialization denied by default".into(),
-            ));
-        }
+    if (op.requires_export_privilege() || level == InvokeLevel::Materialize)
+        && !grant.constraints.raw_credential_export
+    {
+        return Err(AuthzError::Denied(
+            "credential materialization denied by default".into(),
+        ));
     }
 
     if level == InvokeLevel::ConstrainedHttp {
