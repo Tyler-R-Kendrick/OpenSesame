@@ -33,3 +33,47 @@ jobs:
       - run: pnpm generate:openapi
       - run: pnpm generate:sbom
     # Testcontainers Postgres / Playwright e2e enabled when Docker is available on runners
+
+  # Local `pnpm audit:*` gates that agents run in the 30m loop — keep CI honest.
+  # cve-lite is omitted (private CLI, not on npm); run it locally via the checklist.
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@1.88.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: security-audit
+          cache-targets: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pnpm install --frozen-lockfile
+      - name: Install gitleaks
+        run: |
+          VER=8.30.1
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+      - name: Install ast-grep
+        run: npm install -g @ast-grep/cli@0.45.1
+      - name: Install semgrep
+        run: pip install --quiet "semgrep==1.169.0"
+      - run: pnpm audit:gitleaks
+      - run: pnpm audit:ast-grep
+      - run: pnpm audit:semgrep
+      - run: pnpm audit:osv
+      - run: pnpm audit:cargo-audit
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          rust-version: "1.88.0"
+          command: check
