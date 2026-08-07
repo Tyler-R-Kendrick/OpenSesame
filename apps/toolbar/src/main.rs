@@ -57,11 +57,7 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         Commands::Status => {
-            let resp = match client
-                .get(format!("{base}/v1/toolbar/status"))
-                .send()
-                .await
-            {
+            let resp = match client.get(format!("{base}/v1/toolbar/status")).send().await {
                 Ok(r) => r,
                 Err(e) => {
                     eprintln!("daemon unreachable at {base}: {e}");
