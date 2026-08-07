@@ -10,7 +10,8 @@ Installable **GitHub Pages PWA** — offline client shell for OpenSesame.
 4. **Task** — live Host inspect or labeled offline demo
 5. **Ratchet** — protocol honesty (Bearer ≠ DPoP)
 
-Offline outbox queues device/claim intents until flush.
+Offline outbox queues device/claim intents until flush (OPFS / memory — never
+`localStorage`). Operator tokens stay session-only.
 
 ## Develop
 

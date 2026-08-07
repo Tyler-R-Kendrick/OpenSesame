@@ -19,8 +19,9 @@ export function SettingsPage() {
     <section className="panel">
       <h1>Settings</h1>
       <p>
-        Base URLs for online calls. Stored only in this browser. GitHub Pages
-        cannot host the Host or Identity planes.
+        Host/Identity URLs persist in OPFS (memory fallback). Operator token is
+        session-only and never written to durable storage. GitHub Pages cannot
+        host the Host or Identity planes.
       </p>
       <form onSubmit={onSubmit}>
         <label htmlFor="host">
@@ -42,7 +43,7 @@ export function SettingsPage() {
           />
         </label>
         <label htmlFor="operator">
-          Operator token (optional, for Host task routes)
+          Operator token (optional, session-only, for Host task routes)
           <input
             id="operator"
             type="password"
@@ -55,7 +56,7 @@ export function SettingsPage() {
         </label>
         <div className="actions">
           <button type="submit" className="primary">
-            Save locally
+            Save
           </button>
         </div>
       </form>

@@ -1,3 +1,5 @@
+import { kvGet, kvSet } from "./kv.js";
+
 export type QueuedActionInput =
   | { kind: "device_approve"; userCode: string }
   | { kind: "claim_complete"; claimToken: string };
@@ -7,11 +9,11 @@ export type QueuedAction = QueuedActionInput & {
   createdAt: string;
 };
 
-const KEY = "opensesame.pages.outbox.v1";
+const KEY = "outbox.v1";
 
 export function loadQueue(): QueuedAction[] {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = kvGet(KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as QueuedAction[];
     return Array.isArray(parsed) ? parsed : [];
@@ -21,7 +23,7 @@ export function loadQueue(): QueuedAction[] {
 }
 
 export function saveQueue(items: QueuedAction[]): void {
-  localStorage.setItem(KEY, JSON.stringify(items));
+  kvSet(KEY, JSON.stringify(items));
 }
 
 export function enqueue(action: QueuedActionInput): QueuedAction {
