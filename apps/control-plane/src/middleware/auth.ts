@@ -4,7 +4,9 @@ import type { Variables } from "./context.js";
 
 /**
  * Resolve principal from Bearer token or provisional cookie.
- * Bearer may be a provisional session token or `prn_…` principal id (dev/tests).
+ * Bearer is a provisional session token (`pst_…`).
+ * `Authorization: Bearer prn_…` is opt-in for local tests only
+ * (`OPENSESAME_ALLOW_PRINCIPAL_BEARER=true`, never in production).
  */
 export function authMiddleware() {
   return createMiddleware<{ Variables: Variables }>(async (c, next) => {
@@ -24,7 +26,7 @@ export function authMiddleware() {
           return;
         }
       }
-      if (token.startsWith("prn_")) {
+      if (ctx.config.allowPrincipalBearer && token.startsWith("prn_")) {
         const principal = await ctx.repos.principals.getById(token);
         if (principal) {
           c.set("principalId", principal.id);

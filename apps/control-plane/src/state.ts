@@ -22,6 +22,8 @@ export interface AppStores {
   usage: Map<string, { temporaryProjects: number; temporaryResources: number; agents: number }>;
   /** Idempotency-Key → response */
   idempotency: Map<string, IdempotencyRecord>;
+  /** principalId → base64 TOTP secret */
+  totpSecrets: Map<string, string>;
 }
 
 export function createAppStores(): AppStores {
@@ -33,6 +35,7 @@ export function createAppStores(): AppStores {
     agentInstances: new Map(),
     usage: new Map(),
     idempotency: new Map(),
+    totpSecrets: new Map(),
   };
 }
 

@@ -2,10 +2,14 @@ import { createLogger } from "@opensesame/observability";
 import { ClaimEngine } from "@opensesame/claims";
 import { createRepositories } from "@opensesame/database";
 import { createOpenSesameProvider } from "@opensesame/oauth-provider";
-import { MemoryPrincipalMappingStore } from "@opensesame/auth-upstream";
+import { MemoryPrincipalMappingStore, createPasskeySeam } from "@opensesame/auth-upstream";
 import { ProvisionalPolicy } from "@opensesame/policy";
 import type { Clock } from "@opensesame/os-domain";
-import { loadConfig, type ControlPlaneConfig } from "./config.js";
+import {
+  assertSecureConfig,
+  loadConfig,
+  type ControlPlaneConfig,
+} from "./config.js";
 import type { AppContext } from "./context.js";
 import { createHonoApp } from "./app.js";
 import { IndexedClaimStore } from "./repos/claim-store.js";
@@ -21,6 +25,7 @@ export interface CreateControlPlaneOptions {
 export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const base = loadConfig(options.processEnv ?? process.env);
   const config: ControlPlaneConfig = { ...base, ...options.config };
+  assertSecureConfig(config);
   const clock: Clock = options.clock ?? (() => new Date());
   const log = createLogger({ name: "control-plane", level: config.logLevel });
 
@@ -40,6 +45,11 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const mappings = new MemoryPrincipalMappingStore();
   const policy = new ProvisionalPolicy();
   const stores = createAppStores();
+  // DEV: accept assertion when credential is registered and signature is non-empty.
+  const passkeys = createPasskeySeam({
+    verifyAssertion: async (assertion, _credential) =>
+      assertion.signature.byteLength > 0,
+  });
 
   const ctx: AppContext = {
     config,
@@ -53,6 +63,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     stores,
     clock,
     ready: options.ready ?? true,
+    passkeys,
   };
 
   const app = createHonoApp(ctx);

@@ -5,36 +5,34 @@ description: Install, configure, initialize, and use OpenSesame MCP servers
 
 # OpenSesame MCP servers
 
-## Client MCP (`opensesame-mcp-client`)
+Ports for upstream APIs: Host **8787**, Identity **8788**, Daemon **18790**.
 
-Tools over Host **api-client**: `host_health`, `list_connections`, `invoke_l1`.
-
-```bash
-pnpm --filter @opensesame/mcp-client start
-```
-
-MCP config example:
-
-```json
-{
-  "mcpServers": {
-    "opensesame-client": {
-      "command": "pnpm",
-      "args": ["--filter", "@opensesame/mcp-client", "start"],
-      "env": { "OPENSESAME_HOST_API": "http://127.0.0.1:8787" }
-    }
-  }
-}
-```
-
-## Host MCP (`opensesame-mcp-host`)
-
-Operator tools: `daemon_status`, `host_ready`.
+## Install
 
 ```bash
-pnpm --filter @opensesame/mcp-host start
+pnpm install
+pnpm --filter @opensesame/mcp-client build
+pnpm --filter @opensesame/mcp-host build
 ```
 
-Env: `OPENSESAME_HOST_API`, `OPENSESAME_DAEMON_URL`.
+## Configure
 
-**Never** expose `getSecret` / materialize tools.
+```bash
+export OPENSESAME_HOST_API=http://127.0.0.1:8787
+export OPENSESAME_DAEMON_URL=http://127.0.0.1:18790
+# MCP never exposes L3 materialize / getSecret
+```
+
+## Init
+
+Register stdio servers in your MCP client config pointing at:
+
+- `apps/mcp-client` — client tools via `api-client` (health, connections, L1 invoke)
+- `apps/mcp-host` — operator tools against Host API / daemon (policy-gated)
+
+## Use
+
+Client tools (examples): `host_health`, `list_connections`, `invoke_l1`.  
+Host tools (examples): `daemon_status`, `host_ready`.
+
+Materialize / credential.resolve is forbidden by default (tests enforce this).

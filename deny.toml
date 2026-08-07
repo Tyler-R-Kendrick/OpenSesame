@@ -12,17 +12,21 @@ allow = [
   "CC0-1.0",
   "MPL-2.0",
   "OpenSSL",
+  "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.8
 
 [bans]
 multiple-versions = "warn"
-wildcards = "deny"
+# Path deps without an explicit version look like wildcards to cargo-deny.
+wildcards = "warn"
 
+# cargo-deny ≥0.18: `vulnerability` lint removed (always enforced via RustSec).
+# `unmaintained` / `unsound` take Scope: all | workspace | transitive | none
 [advisories]
-vulnerability = "deny"
-unmaintained = "warn"
 yanked = "deny"
+unmaintained = "workspace"
+unsound = "workspace"
 
 [sources]
 unknown-registry = "deny"

@@ -283,6 +283,16 @@ export async function runCli(
       return health.ok ? 0 : 1;
     }
 
+    case "host-discover": {
+      const host = createApiClient({
+        baseUrl: command.hostUrl,
+        fetchImpl,
+      });
+      const discovery = await host.discover();
+      emit(command.flags, `Discovery source: ${discovery.source}`, discovery);
+      return discovery.source === "none" ? 1 : 0;
+    }
+
     default: {
       const _exhaustive: never = command;
       void _exhaustive;

@@ -1,30 +1,50 @@
 ---
 name: opensesame-apis
-description: Install, configure, initialize, and use OpenSesame Identity and Host APIs
+description: Install, configure, initialize, and use OpenSesame Host and Identity APIs
 ---
 
-# OpenSesame APIs (separate)
+# OpenSesame APIs
 
-## Host API — `apps/gateway` (:8787)
+| API | Port | App |
+|-----|------|-----|
+| Host / Authority | **8787** | `apps/gateway` |
+| Identity | **8788** | `apps/control-plane` |
+| Daemon (local) | **18790** | `apps/daemon` |
+
+## Install
 
 ```bash
-cargo run -p opensesame-gateway -- --listen 127.0.0.1:8787
+cargo build -p opensesame-gateway -p opensesame-daemon
+pnpm install
+pnpm --filter @opensesame/control-plane build
+```
+
+## Configure
+
+```bash
+export OPENSESAME_LISTEN=127.0.0.1:8787
+export OPENSESAME_ENV=development
+# Production: set OPENSESAME_CLAIM_PEPPER to a unique secret; never ALLOW_PRINCIPAL_BEARER
+```
+
+## Init
+
+```bash
+./target/debug/opensesame-gateway --listen 127.0.0.1:8787
+OPENSESAME_ENV=development pnpm --filter @opensesame/control-plane start
+./target/debug/opensesame-daemon --listen 127.0.0.1:18790
+```
+
+## Use
+
+```bash
 curl -s http://127.0.0.1:8787/health/live
-curl -s http://127.0.0.1:8787/api/v1/connections
-# Encrypted sync (ciphertext only)
-curl -s -X POST http://127.0.0.1:8787/api/v1/sync/push -H 'content-type: application/json' -d '{"blobs":[]}'
-```
-
-Uses **host-core**. ConnectionRef invoke — never SecretRef.
-
-## Identity API — `apps/control-plane` (:8788)
-
-```bash
-pnpm --filter @opensesame/mock-upstream-idp start
-pnpm --filter @opensesame/control-plane start
 curl -s http://127.0.0.1:8788/v1/health/live
-curl -s http://127.0.0.1:8788/auth.md
-curl -s http://127.0.0.1:8788/.well-known/openid-configuration
+curl -s http://127.0.0.1:18790/health
+
+# Host: ConnectionRef invoke (L1) — never getSecret
+# Identity: claims, principals, MFA /v1/mfa/*
+# Sync: POST /api/v1/sync/push|pull with Bearer opaque-session:… (ciphertext only)
 ```
 
-OIDC issuer, principals, claims, passkeys. Do **not** merge with Host API (ADR 0017).
+Agent-facing surface is ConnectionRef + Intent (ADR 0005). No public materialize / `getSecret`.

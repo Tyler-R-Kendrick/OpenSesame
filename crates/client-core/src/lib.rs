@@ -206,4 +206,28 @@ mod tests {
         let json = serde_json::to_string(&blob).unwrap();
         assert!(!json.contains("plaintext-should-not-leak"));
     }
+
+    #[test]
+    fn multi_device_cursor_monotonic() {
+        let key = DeviceKey::generate();
+        let mut a = SyncStore::new("dev-a");
+        let mut b = SyncStore::new("dev-b");
+        let b1 = a.put_local(&key, "n1", b"one").unwrap();
+        b.apply_remote(&[b1]);
+        let e1 = b.cursor.epoch;
+        let b2 = a.put_local(&key, "n2", b"two").unwrap();
+        b.apply_remote(&[b2]);
+        assert!(b.cursor.epoch >= e1);
+        let since = SyncCursor {
+            device_id: "dev-b".into(),
+            epoch: e1,
+        };
+        let out = b.collect_outgoing(&since);
+        assert!(out.iter().all(|x| x.epoch > e1));
+        for blob in &out {
+            let json = serde_json::to_string(blob).unwrap();
+            assert!(!json.contains("one"));
+            assert!(!json.contains("two"));
+        }
+    }
 }

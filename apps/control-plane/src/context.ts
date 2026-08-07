@@ -4,6 +4,7 @@ import type { Repositories } from "@opensesame/database";
 import type { OpenSesameProviderBundle } from "@opensesame/oauth-provider";
 import type {
   MemoryPrincipalMappingStore,
+  PasskeySeam,
 } from "@opensesame/auth-upstream";
 import type { ProvisionalPolicy } from "@opensesame/policy";
 import type { Clock } from "@opensesame/os-domain";
@@ -23,4 +24,5 @@ export interface AppContext {
   stores: AppStores;
   clock: Clock;
   ready: boolean;
+  passkeys: PasskeySeam;
 }

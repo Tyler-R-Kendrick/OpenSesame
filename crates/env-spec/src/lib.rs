@@ -368,17 +368,17 @@ mod tests {
     #[test]
     fn bridge_roundtrip_fixture() {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/demo.env.schema");
-        if !path.exists() {
-            eprintln!("skip: fixture missing at {}", path.display());
-            return;
-        }
-        let doc = match parse_schema_file(&path) {
-            Ok(d) => d,
-            Err(e) => {
-                eprintln!("skip bridge (node/@env-spec): {e}");
-                return;
-            }
-        };
+        assert!(
+            path.exists(),
+            "fixture missing at {}",
+            path.display()
+        );
+        let node_ok = Command::new("node").arg("--version").output().is_ok();
+        assert!(
+            node_ok,
+            "node is required for env-spec bridge roundtrip (install Node.js)"
+        );
+        let doc = parse_schema_file(&path).expect("bridge parse must succeed when node is present");
         assert!(doc.items.iter().any(|i| i.key == "STRIPE_SECRET_KEY"));
         let stripe = doc.items.iter().find(|i| i.key == "STRIPE_SECRET_KEY").unwrap();
         assert!(stripe.sensitive);

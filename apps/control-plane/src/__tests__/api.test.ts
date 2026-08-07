@@ -132,6 +132,57 @@ describe("control-plane API", () => {
     expect((await app.request("/v1/health/ready")).status).toBe(200);
   });
 
+  it("mfa passkey register/assert and totp enroll/verify", async () => {
+    const { app } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+    const reg = await app.request("/v1/mfa/passkey/register", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({
+        credentialId: "cred_test_1",
+        publicKey: Buffer.from("pk").toString("base64"),
+        counter: 0,
+      }),
+    });
+    expect(reg.status).toBe(200);
+
+    const assertRes = await app.request("/v1/mfa/passkey/assert", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        credentialId: "cred_test_1",
+        clientDataJSON: Buffer.from("{}").toString("base64"),
+        authenticatorData: Buffer.from("a").toString("base64"),
+        signature: Buffer.from("sig").toString("base64"),
+      }),
+    });
+    expect(assertRes.status).toBe(200);
+    expect(((await assertRes.json()) as { principalId: string }).principalId).toBe(
+      created.principalId,
+    );
+
+    const enroll = await app.request("/v1/mfa/totp/enroll", {
+      method: "POST",
+      headers: auth,
+    });
+    expect(enroll.status).toBe(200);
+    const { secret } = (await enroll.json()) as { secret: string };
+    expect(secret).toBeTruthy();
+
+    const { totpCode } = await import("../routes/mfa.js");
+    const code = totpCode(secret);
+    const verify = await app.request("/v1/mfa/totp/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ principalId: created.principalId, code }),
+    });
+    expect(verify.status).toBe(200);
+    expect(((await verify.json()) as { ok: boolean }).ok).toBe(true);
+  });
+
   it("HTTP mount does not steal /auth.md from oidc /auth prefix", async () => {
     const { startServer } = await import("../server.js");
     const { server, port } = await startServer({
