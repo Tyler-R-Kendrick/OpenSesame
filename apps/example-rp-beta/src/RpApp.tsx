@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createOpenSesame, type Session } from "@opensesame/sdk-browser";
+import "./rp.css";
 
 const issuer =
   import.meta.env.VITE_OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
@@ -13,6 +14,7 @@ export function RpApp(props: {
   const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mockSub, setMockSub] = useState<string | null>(null);
+  const [phase, setPhase] = useState<"idle" | "completing" | "ready">("idle");
 
   const sesame = useMemo(
     () =>
@@ -27,18 +29,28 @@ export function RpApp(props: {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("code")) {
+      setPhase("completing");
       void sesame
         .handleRedirectCallback(window.location.href)
         .then((s) => {
           setSession(s);
+          setPhase("ready");
           history.replaceState(null, "", "/");
         })
         .catch((e: unknown) => {
-          setError(e instanceof Error ? e.message : String(e));
+          setError(
+            e instanceof Error
+              ? e.message
+              : "Sign-in callback failed. Try signing in again.",
+          );
+          setPhase("idle");
         });
       return;
     }
-    void sesame.getSession().then(setSession);
+    void sesame.getSession().then((s) => {
+      setSession(s);
+      setPhase("ready");
+    });
   }, [sesame]);
 
   function demoMockVerify() {
@@ -51,43 +63,75 @@ export function RpApp(props: {
   }
 
   return (
-    <main style={{ fontFamily: "IBM Plex Sans, sans-serif", padding: "2rem", maxWidth: 640 }}>
+    <main className="shell">
+      <p className="brand">OpenSesame</p>
+      <div className="badge">Example relying party</div>
       <h1>{props.name}</h1>
-      <p>
-        client_id=<code>{props.clientId}</code> · sector=<code>{props.sector}</code>
+      <p className="lede">
+        client_id=<code>{props.clientId}</code> · sector=
+        <code>{props.sector}</code>
       </p>
-      <p>
-        Pairwise <code>sub</code> is sector-specific. Canonical principal ids are never shown.
+      <p className="lede">
+        Pairwise <code>sub</code> is sector-specific. Canonical principal ids
+        are never shown.
       </p>
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-        <button type="button" onClick={() => void sesame.signIn()}>
-          Sign in
-        </button>
-        <button type="button" onClick={demoMockVerify}>
-          Demo pairwise sub (mock verify)
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            void sesame.signOut();
-            setSession(null);
-            setMockSub(null);
-          }}
-        >
-          Sign out
-        </button>
+      <div className="panel">
+        {phase === "completing" ? (
+          <p className="lede" role="status" aria-busy="true">
+            Completing sign-in…
+          </p>
+        ) : null}
+        {phase === "ready" && !session ? (
+          <p className="lede" role="status">
+            Signed out. Sign in to receive a pairwise subject for this sector.
+          </p>
+        ) : null}
+        <div className="actions">
+          <button
+            type="button"
+            className="primary"
+            disabled={phase === "completing"}
+            onClick={() => void sesame.signIn()}
+          >
+            Sign in
+          </button>
+          <button
+            type="button"
+            disabled={phase === "completing"}
+            onClick={demoMockVerify}
+          >
+            Demo pairwise sub (mock)
+          </button>
+          <button
+            type="button"
+            disabled={phase === "completing"}
+            onClick={() => {
+              void sesame.signOut();
+              setSession(null);
+              setMockSub(null);
+              setPhase("ready");
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+        {session ? (
+          <p className="ok" role="status">
+            Session pairwise sub:{" "}
+            <strong>{session.sub ?? "present (opaque token)"}</strong>
+          </p>
+        ) : null}
+        {mockSub ? (
+          <p className="ok" role="status">
+            Mock verified pairwise sub: <strong>{mockSub}</strong>
+          </p>
+        ) : null}
+        {error ? (
+          <p className="err" role="alert">
+            {error}
+          </p>
+        ) : null}
       </div>
-      {session ? (
-        <p>
-          Session pairwise sub: <strong>{session.sub ?? "(from access token)"}</strong>
-        </p>
-      ) : null}
-      {mockSub ? (
-        <p>
-          Mock verified pairwise sub: <strong>{mockSub}</strong>
-        </p>
-      ) : null}
-      {error ? <p style={{ color: "crimson" }}>{error}</p> : null}
     </main>
   );
 }

@@ -7,6 +7,7 @@ const issuer =
 export function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [sessionHint, setSessionHint] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"signIn" | "anon" | null>(null);
 
   const sesame = createOpenSesame({
     issuer,
@@ -26,17 +27,32 @@ export function SignInPage() {
         <button
           type="button"
           className="primary"
+          disabled={busy !== null}
+          aria-busy={busy === "signIn"}
           onClick={() => {
-            void sesame.signIn().catch((e: unknown) => {
-              setError(e instanceof Error ? e.message : String(e));
-            });
+            setError(null);
+            setBusy("signIn");
+            void sesame
+              .signIn()
+              .catch((e: unknown) => {
+                setError(
+                  e instanceof Error
+                    ? e.message
+                    : "Sign-in failed. Check the Identity API and try again.",
+                );
+              })
+              .finally(() => setBusy(null));
           }}
         >
-          Sign in with OpenSesame
+          {busy === "signIn" ? "Opening sign-in…" : "Sign in with OpenSesame"}
         </button>
         <button
           type="button"
+          disabled={busy !== null}
+          aria-busy={busy === "anon"}
           onClick={() => {
+            setError(null);
+            setBusy("anon");
             void sesame
               .continueAnonymously()
               .then((s) => {
@@ -47,24 +63,39 @@ export function SignInPage() {
                 );
               })
               .catch((e: unknown) => {
-                setError(e instanceof Error ? e.message : String(e));
-              });
+                setError(
+                  e instanceof Error
+                    ? e.message
+                    : "Could not start a provisional session.",
+                );
+              })
+              .finally(() => setBusy(null));
           }}
         >
-          Continue anonymously
+          {busy === "anon" ? "Starting…" : "Continue anonymously"}
         </button>
         <button
           type="button"
+          disabled={busy !== null}
           onClick={() => {
             void sesame.signOut();
             setSessionHint(null);
+            setError(null);
           }}
         >
           Sign out
         </button>
       </div>
-      {sessionHint ? <p>{sessionHint}</p> : null}
-      {error ? <p className="err">{error}</p> : null}
+      {sessionHint ? (
+        <p className="ok" role="status">
+          {sessionHint}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="err" role="alert">
+          {error}
+        </p>
+      ) : null}
     </section>
   );
 }

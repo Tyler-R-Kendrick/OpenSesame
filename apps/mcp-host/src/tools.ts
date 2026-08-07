@@ -35,7 +35,7 @@ export function registerHostTools(server: McpServer): void {
 
   server.tool(
     "task_start",
-    "Start a task-scoped authority run via Host API",
+    "Start a task with an immutable capability ceiling (Host API). Returns task_run_id for later invoke.",
     {
       principal_id: z.string(),
       organization_id: z.string(),
@@ -70,7 +70,7 @@ export function registerHostTools(server: McpServer): void {
 
   server.tool(
     "task_status",
-    "Inspect a task run (defaults to active task context)",
+    "Show ceiling vs current capabilities for a task (defaults to active task context)",
     {
       task_run_id: z.string().optional(),
     },

@@ -1,4 +1,4 @@
-import { Link, Route, Routes } from "react-router";
+import { NavLink, Route, Routes } from "react-router";
 import { SignInPage } from "./pages/SignInPage.js";
 import { DevicePage } from "./pages/DevicePage.js";
 import { ClaimPage } from "./pages/ClaimPage.js";
@@ -10,13 +10,19 @@ const issuer =
 export function App() {
   return (
     <div className="shell">
-      <p className="brand">OpenSesame</p>
-      <p className="lede">Identity console · issuer {issuer}</p>
-      <nav className="nav">
-        <Link to="/">Sign in</Link>
-        <Link to="/device">Authorize CLI</Link>
-        <Link to="/claim">Claim ownership</Link>
-        <Link to="/task-access">Task access</Link>
+      <header>
+        <p className="brand" role="banner">
+          OpenSesame
+        </p>
+        <p className="lede">Identity console · issuer {issuer}</p>
+      </header>
+      <nav className="nav" aria-label="Console">
+        <NavLink to="/" end>
+          Sign in
+        </NavLink>
+        <NavLink to="/device">Authorize CLI</NavLink>
+        <NavLink to="/claim">Claim ownership</NavLink>
+        <NavLink to="/task-access">Task access</NavLink>
       </nav>
       <Routes>
         <Route path="/" element={<SignInPage />} />

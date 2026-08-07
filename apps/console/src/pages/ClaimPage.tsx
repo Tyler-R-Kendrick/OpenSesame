@@ -17,6 +17,8 @@ export function ClaimPage() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [completing, setCompleting] = useState(false);
 
   useEffect(() => {
     const hash = window.location.hash.startsWith("#")
@@ -26,13 +28,19 @@ export function ClaimPage() {
     const t = params.get("token");
     if (t) {
       setToken(t);
-      history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+      history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}`,
+      );
     }
   }, []);
 
   useEffect(() => {
     if (!token) return;
     const sesame = createOpenSesame({ issuer });
+    setLoading(true);
+    setError(null);
     void sesame
       .presentClaim(token)
       .then((c) => {
@@ -44,18 +52,31 @@ export function ClaimPage() {
         });
       })
       .catch((e: unknown) => {
-        setError(e instanceof Error ? e.message : String(e));
-      });
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Could not load this claim. Check the token and try again.",
+        );
+      })
+      .finally(() => setLoading(false));
   }, [token]);
 
   async function complete() {
     if (!claim) return;
     const sesame = createOpenSesame({ issuer });
+    setCompleting(true);
+    setError(null);
     try {
       await sesame.completeClaim(claim.id, { acceptedItemIds: ["*"] });
       setDone(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Claim could not be completed. Try again.",
+      );
+    } finally {
+      setCompleting(false);
     }
   }
 
@@ -77,6 +98,11 @@ export function ClaimPage() {
           />
         </>
       ) : null}
+      {token && loading ? (
+        <p className="lede" role="status" aria-busy="true">
+          Loading claim details…
+        </p>
+      ) : null}
       {claim ? (
         <div>
           <p>
@@ -90,16 +116,25 @@ export function ClaimPage() {
             <button
               type="button"
               className="primary"
-              disabled={done}
+              disabled={done || completing}
+              aria-busy={completing}
               onClick={() => void complete()}
             >
-              Complete claim
+              {completing ? "Completing…" : "Complete claim"}
             </button>
           </div>
         </div>
       ) : null}
-      {done ? <p>Claim completed. Ownership is attached to your principal.</p> : null}
-      {error ? <p className="err">{error}</p> : null}
+      {done ? (
+        <p className="ok" role="status">
+          Claim completed. Ownership is attached to your principal.
+        </p>
+      ) : null}
+      {error ? (
+        <p className="err" role="alert">
+          {error}
+        </p>
+      ) : null}
     </section>
   );
 }
