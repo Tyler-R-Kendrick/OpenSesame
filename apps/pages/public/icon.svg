@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="OpenSesame">
+  <rect width="128" height="128" rx="28" fill="#0f1419"/>
+  <rect x="18" y="18" width="92" height="92" rx="18" fill="none" stroke="#3d9cf0" stroke-width="4"/>
+  <text x="64" y="78" text-anchor="middle" font-family="IBM Plex Sans, system-ui, sans-serif" font-size="42" font-weight="700" fill="#e8eef4">OS</text>
+</svg>

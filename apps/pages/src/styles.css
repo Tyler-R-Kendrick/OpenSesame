@@ -1,0 +1,383 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f1419;
+  --fg: #e8eef4;
+  --muted: #9aabbc;
+  --accent: #3d9cf0;
+  --warn: #e6b84d;
+  --err: #ff8f8f;
+  --ok: #8fd4a8;
+  --panel: #1a2330;
+  --line: #2a3848;
+  --band: #f5c518;
+  --band-ink: #121820;
+  --measure: 68ch;
+  font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1100px 520px at 8% -12%, #1c3a5a 0%, transparent 55%),
+    radial-gradient(800px 420px at 100% 0%, #1a2818 0%, transparent 48%),
+    var(--bg);
+  color: var(--fg);
+}
+
+a {
+  color: var(--accent);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.shell {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 1.25rem 1.15rem 4rem;
+}
+
+.brand-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.brand {
+  font-size: clamp(2.4rem, 6.5vw, 3.4rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  margin: 0;
+  line-height: 1.02;
+}
+
+.chip {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 80%, transparent);
+}
+
+.chip.online {
+  border-color: color-mix(in srgb, var(--ok) 50%, var(--line));
+  color: var(--ok);
+}
+
+.chip.offline {
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--line));
+  color: var(--warn);
+}
+
+/* Sticky next-decision band — airport topology, OpenSesame materials */
+.depth-band {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.65rem 0.85rem;
+  margin: 0 0 1.25rem;
+  background: var(--band);
+  color: var(--band-ink);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.depth-band .label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.depth-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.65rem;
+  align-items: center;
+}
+
+.depth-nav a {
+  color: var(--band-ink);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.92rem;
+  opacity: 0.72;
+  border-bottom: 2px solid transparent;
+  padding-bottom: 0.1rem;
+}
+
+.depth-nav a:hover {
+  opacity: 1;
+}
+
+.depth-nav a[aria-current="page"] {
+  opacity: 1;
+  border-bottom-color: var(--band-ink);
+}
+
+.depth-nav .sep {
+  opacity: 0.45;
+  font-weight: 400;
+}
+
+.lede {
+  color: var(--muted);
+  line-height: 1.55;
+  max-width: var(--measure);
+  margin: 0 0 1.25rem;
+}
+
+.panel {
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid var(--line);
+  padding: 1.2rem 1.3rem;
+  margin-bottom: 1rem;
+}
+
+.panel h1,
+.panel h2 {
+  margin: 0 0 0.45rem;
+}
+
+.panel h1 {
+  font-size: 1.35rem;
+}
+
+.panel h2 {
+  font-size: 1.05rem;
+}
+
+.panel p {
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: var(--measure);
+}
+
+.panel p strong,
+.panel code {
+  color: var(--fg);
+}
+
+code,
+.mono {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.9em;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 1.1rem;
+}
+
+button,
+.button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  background: #243246;
+  color: var(--fg);
+  padding: 0.65rem 1.1rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+button.primary,
+.button.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #061018;
+  font-weight: 700;
+}
+
+button.primary:hover,
+.button.primary:hover {
+  background: color-mix(in srgb, var(--accent) 85%, #ffffff);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+button.linkish {
+  display: inline;
+  border: none;
+  background: none;
+  color: var(--accent);
+  padding: 0;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  background: #0c121a;
+  color: var(--fg);
+  font: inherit;
+}
+
+.err {
+  color: var(--err);
+  margin-top: 0.75rem;
+}
+
+.ok {
+  color: var(--ok);
+  margin-top: 0.75rem;
+}
+
+.hint {
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  padding: 0.7rem 0.85rem;
+  margin: 1rem 0;
+  color: var(--fg);
+}
+
+.warn {
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line));
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  padding: 0.7rem 0.85rem;
+  margin: 1rem 0;
+}
+
+.status-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.status-list li {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  background: rgba(12, 18, 26, 0.55);
+}
+
+.status-list .k {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.status-list .v {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.9rem;
+}
+
+.cap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  margin-top: 0.75rem;
+}
+
+.cap-table th,
+.cap-table td {
+  border: 1px solid var(--line);
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+}
+
+.cap-table th {
+  color: var(--muted);
+}
+
+.surface-descent {
+  max-width: 40rem;
+  padding: 0.15rem 0 1.5rem;
+}
+
+.surface-hook {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.55;
+  max-width: var(--measure);
+}
+
+.descent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.5rem 0 1.1rem;
+}
+
+.surface-probe {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.surface-probe .mono {
+  color: var(--fg);
+}
+
+.surface-probe a {
+  font-weight: 600;
+}
+
+.motion-band {
+  animation: band-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes band-in {
+  from {
+    transform: translateY(-8px);
+    opacity: 0.2;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-band {
+    animation: none;
+  }
+}

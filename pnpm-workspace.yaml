@@ -11,6 +11,7 @@ packages:
   - "apps/example-agent"
   - "apps/mock-upstream-idp"
   - "apps/pwa"
+  - "apps/pages"
   - "apps/mobile-mfa"
   - "apps/mcp-client"
   - "apps/mcp-host"
