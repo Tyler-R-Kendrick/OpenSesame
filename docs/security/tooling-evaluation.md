@@ -60,5 +60,9 @@ Re-run checklist: `pnpm run audit:cve-lite`, `pnpm run audit:osv`, `pnpm run aud
 
 ## Residual (tracked, not blocking this pass)
 
-- Prefer UDS-only daemon bind in locked-down environments (TCP still operator-gated).
 - Attestation-verified WebAuthn registration ceremony when Better Auth passkey plugin is fully wired.
+
+## Bind policy (daemon)
+
+- Default TCP is loopback-only; non-loopback requires `OPENSESAME_DAEMON_ALLOW_NONLOCAL=1`.
+- Locked-down hosts: `OPENSESAME_DAEMON_UDS_ONLY=1` + `OPENSESAME_AGENT_SOCK` (no TCP).
