@@ -1,9 +1,16 @@
-import { kvGet, kvSet } from "./kv.js";
+import { kvDelete, kvGet, kvSet } from "./kv.js";
 
 const PIN_HASH_KEY = "unlockHash.v1";
+const ATTEMPT_KEY = "unlockAttempts.v1";
 /** PBKDF2 iterations — session UX unlock, not full vault KDF, but must resist offline guess. */
 const PBKDF2_ITERATIONS = 210_000;
 const MIN_PIN_LEN = 6;
+/** Failures before progressive lockout starts. */
+const LOCK_AFTER_FAILS = 3;
+const BASE_LOCK_MS = 2_000;
+const MAX_LOCK_MS = 15 * 60_000;
+
+type AttemptState = { fails: number; lockedUntil: number };
 
 type StoredPinV1 = {
   v: 1;
@@ -97,6 +104,44 @@ function parseStored(raw: string): StoredPinV1 | { legacySha256: string } {
   throw new Error("Unlock PIN store is corrupted — clear site data and recreate.");
 }
 
+function readAttempts(): AttemptState {
+  try {
+    const raw = kvGet(ATTEMPT_KEY);
+    if (!raw) return { fails: 0, lockedUntil: 0 };
+    const parsed = JSON.parse(raw) as Partial<AttemptState>;
+    return {
+      fails: typeof parsed.fails === "number" ? parsed.fails : 0,
+      lockedUntil: typeof parsed.lockedUntil === "number" ? parsed.lockedUntil : 0,
+    };
+  } catch {
+    return { fails: 0, lockedUntil: 0 };
+  }
+}
+
+function clearAttempts(): void {
+  kvDelete(ATTEMPT_KEY);
+}
+
+function assertNotLocked(): void {
+  const { lockedUntil } = readAttempts();
+  const now = Date.now();
+  if (lockedUntil > now) {
+    const secs = Math.max(1, Math.ceil((lockedUntil - now) / 1000));
+    throw new Error(`Too many unlock attempts. Try again in ${secs}s.`);
+  }
+}
+
+function recordFailure(): void {
+  const prev = readAttempts();
+  const fails = prev.fails + 1;
+  let lockedUntil = 0;
+  if (fails >= LOCK_AFTER_FAILS) {
+    const exp = Math.min(fails - LOCK_AFTER_FAILS, 12);
+    lockedUntil = Date.now() + Math.min(BASE_LOCK_MS * 2 ** exp, MAX_LOCK_MS);
+  }
+  kvSet(ATTEMPT_KEY, JSON.stringify({ fails, lockedUntil }));
+}
+
 export function isUnlocked(): boolean {
   return sessionUnlocked;
 }
@@ -119,10 +164,12 @@ export async function setUnlockPin(pin: string): Promise<void> {
     hash,
   };
   kvSet(PIN_HASH_KEY, JSON.stringify(stored));
+  clearAttempts();
   sessionUnlocked = true;
 }
 
 export async function unlock(pin: string): Promise<void> {
+  assertNotLocked();
   const raw = kvGet(PIN_HASH_KEY);
   if (!raw) {
     throw new Error("No unlock PIN set yet.");
@@ -133,6 +180,7 @@ export async function unlock(pin: string): Promise<void> {
   if ("legacySha256" in stored) {
     const got = await sha256Hex(trimmed);
     if (!timingSafeEqualHex(got, stored.legacySha256)) {
+      recordFailure();
       throw new Error("Unlock PIN did not match.");
     }
     // Upgrade unsalted SHA-256 → salted PBKDF2 on successful unlock.
@@ -143,8 +191,10 @@ export async function unlock(pin: string): Promise<void> {
   const salt = b64ToBytes(stored.salt);
   const got = await pbkdf2Hex(trimmed, salt, stored.iterations);
   if (!timingSafeEqualHex(got, stored.hash)) {
+    recordFailure();
     throw new Error("Unlock PIN did not match.");
   }
+  clearAttempts();
   sessionUnlocked = true;
 }
 
