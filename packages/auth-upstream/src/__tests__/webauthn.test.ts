@@ -3,6 +3,8 @@ import {
   createMemoryChallengeStore,
   createSimpleWebAuthnVerifyFn,
   issueAuthenticationChallenge,
+  issueRegistrationChallenge,
+  verifyRegistrationAttestation,
 } from "../webauthn.js";
 import type { PasskeyAssertion, PasskeyCredential } from "../passkey.js";
 
@@ -15,8 +17,49 @@ describe("webauthn challenge store", () => {
       { principalId: "prn_test" },
     );
     expect(challenge.length).toBeGreaterThan(8);
-    expect(store.consume(challenge)?.principalId).toBe("prn_test");
+    const meta = store.consume(challenge);
+    expect(meta?.principalId).toBe("prn_test");
+    expect(meta?.purpose).toBe("authentication");
     expect(store.consume(challenge)).toBeUndefined();
+  });
+
+  it("issues registration challenges distinct from authentication", async () => {
+    const store = createMemoryChallengeStore();
+    const rp = { rpID: "localhost", origin: "http://127.0.0.1:8788" };
+    const { challenge } = await issueRegistrationChallenge(store, rp, {
+      principalId: "prn_reg",
+    });
+    expect(challenge.length).toBeGreaterThan(8);
+    const meta = store.consume(challenge);
+    expect(meta?.purpose).toBe("registration");
+    expect(meta?.principalId).toBe("prn_reg");
+  });
+
+  it("rejects registration attestation without a matching challenge", async () => {
+    const store = createMemoryChallengeStore();
+    const rp = { rpID: "localhost", origin: "http://127.0.0.1:8788" };
+    const result = await verifyRegistrationAttestation(
+      store,
+      rp,
+      {
+        id: "cred",
+        rawId: "cred",
+        type: "public-key",
+        response: {
+          clientDataJSON: Buffer.from(
+            JSON.stringify({
+              type: "webauthn.create",
+              challenge: "never-issued",
+              origin: rp.origin,
+            }),
+          ).toString("base64url"),
+          attestationObject: Buffer.from("x").toString("base64url"),
+        },
+        clientExtensionResults: {},
+      },
+      "prn_reg",
+    );
+    expect(result).toBeNull();
   });
 
   it("rejects assertion without a matching issued challenge", async () => {

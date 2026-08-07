@@ -1,8 +1,26 @@
 import { Hono } from "hono";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { issueAuthenticationChallenge } from "@opensesame/auth-upstream";
+import {
+  issueAuthenticationChallenge,
+  issueRegistrationChallenge,
+  verifyRegistrationAttestation,
+} from "@opensesame/auth-upstream";
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
+
+/** Minimal WebAuthn registration response shape (SimpleWebAuthn JSON). */
+type RegistrationResponseBody = {
+  id: string;
+  rawId: string;
+  type: "public-key";
+  response: {
+    clientDataJSON: string;
+    attestationObject: string;
+    transports?: string[];
+  };
+  clientExtensionResults: Record<string, unknown>;
+  authenticatorAttachment?: string;
+};
 
 /** DEV/test TOTP: HMAC-SHA1 truncated to 6 digits (RFC 6238-style). */
 function totpCode(secretB64: string, step = 30, digits = 6, at = Date.now()): string {
@@ -40,15 +58,70 @@ function rpFromConfig(publicUrl: string): { rpID: string; origin: string } {
 
 export const mfaRoutes = new Hono<{ Variables: Variables }>();
 
+/** Issue a one-time WebAuthn registration challenge (required in production). */
+mfaRoutes.post("/passkey/registration-options", requirePrincipal(), async (c) => {
+  const ctx = c.get("ctx");
+  const principalId = c.get("principalId")!;
+  const rp = rpFromConfig(ctx.config.publicUrl);
+  const { challenge, options } = await issueRegistrationChallenge(
+    ctx.passkeyChallenges,
+    rp,
+    { principalId },
+  );
+  return c.json({ ok: true, challenge, options });
+});
+
+/**
+ * Register a passkey.
+ * - Dev (`allowDevDefaults`): accepts raw credentialId/publicKey stubs.
+ * - Production: requires a RegistrationResponseJSON verified against a prior
+ *   `/passkey/registration-options` challenge (attestation ceremony).
+ */
 mfaRoutes.post("/passkey/register", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = c.get("principalId")!;
-  const body = await c.req.json<{
-    credentialId: string;
-    publicKey: string;
-    counter?: number;
-  }>();
-  if (!body.credentialId || !body.publicKey) {
+  const body = await c.req.json<
+    | {
+        credentialId: string;
+        publicKey: string;
+        counter?: number;
+      }
+    | { response: RegistrationResponseBody }
+  >();
+
+  if (!ctx.config.allowDevDefaults) {
+    if (!("response" in body) || !body.response) {
+      return c.json(
+        {
+          error: "registration_attestation_required",
+          hint: "POST /v1/mfa/passkey/registration-options then submit response",
+        },
+        400,
+      );
+    }
+    const rp = rpFromConfig(ctx.config.publicUrl);
+    const verified = await verifyRegistrationAttestation(
+      ctx.passkeyChallenges,
+      rp,
+      body.response as Parameters<typeof verifyRegistrationAttestation>[2],
+      principalId,
+    );
+    if (!verified) {
+      return c.json({ error: "registration_verification_failed" }, 401);
+    }
+    const cred = await ctx.passkeys.register(principalId, {
+      credentialId: verified.credentialId,
+      publicKey: verified.publicKey,
+      counter: verified.counter,
+    });
+    return c.json({
+      ok: true,
+      credentialId: cred.credentialId,
+      principalId: cred.principalId,
+    });
+  }
+
+  if (!("credentialId" in body) || !body.credentialId || !body.publicKey) {
     return c.json({ error: "invalid_request" }, 400);
   }
   const cred = await ctx.passkeys.register(principalId, {
