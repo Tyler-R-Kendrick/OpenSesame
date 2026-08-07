@@ -10,7 +10,7 @@ use clap::Parser;
 use opensesame_audit::ReceiptSigner;
 use opensesame_authz::PolicyEngine;
 use opensesame_broker::{Broker, InvokeInput};
-use opensesame_claims::{generate_claim_token, generate_user_code, hash_secret};
+use opensesame_claims::{generate_claim_token, generate_user_code, hash_eq, hash_secret};
 use opensesame_client_core::SyncBlob;
 use opensesame_connector_host::HostRuntime;
 use opensesame_host_core::daemon as host_daemon;
@@ -409,6 +409,18 @@ async fn device_authorize(
     State(st): State<AppState>,
     Json(req): Json<DeviceAuthorizeRequest>,
 ) -> impl IntoResponse {
+    {
+        let mut map = st.device_codes.lock().unwrap();
+        let now = Utc::now();
+        map.retain(|_, p| p.expires_at > now);
+        if map.len() >= 512 {
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(json!({"error":"device_code_capacity"})),
+            )
+                .into_response();
+        }
+    }
     let device_code = format!("dc_{}", uuid::Uuid::new_v4());
     let user_code = generate_user_code();
     let expires_at = Utc::now() + Duration::minutes(15);
@@ -431,6 +443,7 @@ async fn device_authorize(
         "client_id": req.client_id,
         "scope": req.scope.unwrap_or_else(|| "opensesame.session".into())
     }))
+    .into_response()
 }
 
 #[derive(Deserialize)]
@@ -805,6 +818,19 @@ async fn agent_identity(
     State(st): State<AppState>,
     Json(req): Json<AgentIdentityRequest>,
 ) -> impl IntoResponse {
+    // Evict expired claim sessions to bound memory / DoS surface.
+    {
+        let mut map = st.claims.lock().unwrap();
+        let now = Utc::now();
+        map.retain(|_, s| s.expires_at > now);
+        if map.len() >= 256 {
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(json!({"error":"claim_capacity","hint":"too many pending agent claims"})),
+            )
+                .into_response();
+        }
+    }
     let claim_token = generate_claim_token();
     let user_code = generate_user_code();
     let id = ClaimSessionId::new();
@@ -840,13 +866,17 @@ async fn agent_identity(
     };
     let claim_id = session.id.to_string();
     st.claims.lock().unwrap().insert(claim_id.clone(), session);
-    Json(json!({
-        "claim_id": claim_id,
-        "claim_token": claim_token,
-        "user_code": user_code,
-        "verification_uri": format!("{}/claim", st.resource),
-        "expires_in": 900
-    }))
+    (
+        StatusCode::OK,
+        Json(json!({
+            "claim_id": claim_id,
+            "claim_token": claim_token,
+            "user_code": user_code,
+            "verification_uri": format!("{}/claim", st.resource),
+            "expires_in": 900
+        })),
+    )
+        .into_response()
 }
 
 async fn claim_poll(
@@ -880,7 +910,7 @@ async fn claim_complete(
     let Some(session) = map.get_mut(&id) else {
         return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
     };
-    if hash_secret(&req.claim_token) != session.claim_token_hash {
+    if !hash_eq(&hash_secret(&req.claim_token), &session.claim_token_hash) {
         return (
             StatusCode::UNAUTHORIZED,
             Json(json!({"error":"invalid_claim_token"})),
@@ -1052,7 +1082,14 @@ async fn sync_push(
     let mut store = st.sync_blobs.lock().unwrap();
     let mut owners = st.blob_owners.lock().unwrap();
     let mut accepted = 0u32;
+    let mut rejected_foreign = 0u32;
     for blob in body.blobs {
+        if let Some(owner) = owners.get(&blob.id) {
+            if owner != &session_id {
+                rejected_foreign += 1;
+                continue;
+            }
+        }
         match store.get(&blob.id) {
             Some(existing) if existing.epoch > blob.epoch => {}
             _ => {
@@ -1064,7 +1101,11 @@ async fn sync_push(
     }
     (
         StatusCode::OK,
-        Json(json!({"accepted": accepted, "store_size": store.len()})),
+        Json(json!({
+            "accepted": accepted,
+            "rejected_foreign_owner": rejected_foreign,
+            "store_size": store.len()
+        })),
     )
         .into_response()
 }

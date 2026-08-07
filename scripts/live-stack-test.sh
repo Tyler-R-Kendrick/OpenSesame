@@ -9,8 +9,6 @@ source "$ROOT/scripts/start-native-deps.sh"
 source "$ROOT/.tools/run/env.sh"
 
 export OPENSESAME_DEBUG_RUN="${OPENSESAME_DEBUG_RUN:-live-stack}"
-LOG="$ROOT/.cursor/debug-7aa2f5.log"
-mkdir -p "$ROOT/.cursor"
 
 echo "== unit/provider tests =="
 cargo +1.88.0 test --lib -p opensesame-provider-openfga -p opensesame-provider-openbao
@@ -109,13 +107,3 @@ echo "== battle tests =="
 ./scripts/battle-test.sh
 
 echo "LIVE STACK OK"
-# Append summary debug line
-python3 - <<PY
-import json,time
-open("$LOG","a").write(json.dumps({
-  "sessionId":"7aa2f5","runId":"$OPENSESAME_DEBUG_RUN","hypothesisId":"LIVE",
-  "location":"scripts/live-stack-test.sh","message":"live stack ok",
-  "data":{"openfga":True,"openbao":True,"connection_ref":True,"l3_denied":True},
-  "timestamp":int(time.time()*1000)
-})+"\n")
-PY

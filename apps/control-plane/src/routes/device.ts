@@ -27,6 +27,17 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
   }
   const url = `${ctx.config.hostApiUrl}/api/v1/device/approve`;
   try {
+    const parsed = new URL(ctx.config.hostApiUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return c.json({ error: "invalid_host_api_url" }, 500);
+    }
+    if (parsed.username || parsed.password) {
+      return c.json({ error: "invalid_host_api_url", hint: "credentials in URL denied" }, 500);
+    }
+  } catch {
+    return c.json({ error: "invalid_host_api_url" }, 500);
+  }
+  try {
     const res = await fetch(url, {
       method: "POST",
       headers: {
