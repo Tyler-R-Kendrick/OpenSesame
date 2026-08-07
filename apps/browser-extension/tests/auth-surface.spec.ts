@@ -17,7 +17,10 @@ test.describe("opensesame extension surface", () => {
 
   test("connections endpoint returns connection_ref only", async ({ request }) => {
     const base = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:18787";
-    const res = await request.get(`${base}/api/v1/connections`);
+    const op = process.env.OPENSESAME_OPERATOR_TOKEN || "opensesame-dev-operator";
+    const res = await request.get(`${base}/api/v1/connections`, {
+      headers: { "x-opensesame-operator": op },
+    });
     expect(res.ok()).toBeTruthy();
     const json = await res.json();
     expect(json.connections[0].connection_ref).toMatch(/^conn:\/\//);

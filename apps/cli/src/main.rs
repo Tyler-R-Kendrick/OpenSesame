@@ -431,6 +431,24 @@ fn session_path() -> anyhow::Result<PathBuf> {
     Ok(path)
 }
 
+fn load_access_token() -> anyhow::Result<String> {
+    let path = session_path()?;
+    let raw = std::fs::read_to_string(&path)
+        .map_err(|_| anyhow::anyhow!("no local session — run `opensesame login` first"))?;
+    let v: serde_json::Value = serde_json::from_str(&raw)?;
+    if let Some(t) = v.get("access_token").and_then(|x| x.as_str()) {
+        return Ok(t.to_string());
+    }
+    if let Some(id) = v.get("session_id").and_then(|x| x.as_str()) {
+        return Ok(format!("opaque-session:{id}"));
+    }
+    anyhow::bail!("session.json missing access_token / session_id")
+}
+
+fn operator_token() -> String {
+    env::var("OPENSESAME_OPERATOR_TOKEN").unwrap_or_else(|_| "opensesame-dev-operator".into())
+}
+
 async fn login(
     server: &str,
     flow: FlowArg,
@@ -493,8 +511,9 @@ async fn device_login(server: &str) -> anyhow::Result<()> {
     // Never print device_code
     println!("Open {verification_uri} and enter code: {user_code}");
     let approve_body = serde_json::json!({"user_code": user_code});
+    let op = operator_token();
     println!(
-        "(Or approve via: curl -s -X POST {server}/api/v1/device/approve -H 'content-type: application/json' -d '{approve_body}')"
+        "(Or approve via: curl -s -X POST {server}/api/v1/device/approve -H 'content-type: application/json' -H 'x-opensesame-operator: {op}' -d '{approve_body}')"
     );
 
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
@@ -530,10 +549,15 @@ async fn device_login(server: &str) -> anyhow::Result<()> {
                 Ok(_) => unreachable!(),
             }
         } else {
-            let session = body
+            let mut session = body
                 .get("session")
                 .cloned()
                 .ok_or_else(|| anyhow::anyhow!("missing session metadata"))?;
+            if let Some(at) = body.get("access_token").cloned() {
+                if let Some(obj) = session.as_object_mut() {
+                    obj.insert("access_token".into(), at);
+                }
+            }
             // Persist opaque session metadata only — no refresh token field expected
             let path = session_path()?;
             std::fs::write(&path, serde_json::to_vec_pretty(&session)?)?;
@@ -570,9 +594,11 @@ async fn status(server: &str) -> anyhow::Result<()> {
 }
 
 async fn whoami(server: &str) -> anyhow::Result<()> {
+    let token = load_access_token()?;
     let client = reqwest::Client::new();
     let body: WhoAmI = client
         .get(format!("{server}/api/v1/whoami"))
+        .bearer_auth(token)
         .send()
         .await?
         .error_for_status()?
@@ -595,9 +621,11 @@ async fn invoke(
     } else {
         json!({})
     };
+    let token = load_access_token()?;
     let client = reqwest::Client::new();
     let receipt: serde_json::Value = client
         .post(format!("{server}/api/v1/intents"))
+        .bearer_auth(token)
         .json(&json!({
             "connection_ref": connection_ref,
             "operation": operation,

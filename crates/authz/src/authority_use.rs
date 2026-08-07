@@ -3,33 +3,11 @@
 use crate::{
     AuthZenAction, AuthZenRequest, AuthZenResource, AuthZenSubject, AuthzError, PolicyEngine,
 };
+use serde_json::json;
 use opensesame_domain::{
     AuthorityHandle, AuthorityKind, AuthorityOperation, AvailabilityClass,
     ConnectionAuthorityBinding, ConnectionRef, DomainError, EgressBinding, Grant, InvokeLevel,
 };
-use serde_json::json;
-use std::io::Write;
-
-// #region agent log
-fn agent_dbg(hypothesis_id: &str, location: &str, message: &str, data: serde_json::Value) {
-    let payload = json!({
-        "sessionId": "7aa2f5",
-        "runId": std::env::var("OPENSESAME_DEBUG_RUN").unwrap_or_else(|_| "authority-1".into()),
-        "hypothesisId": hypothesis_id,
-        "location": location,
-        "message": message,
-        "data": data,
-        "timestamp": chrono::Utc::now().timestamp_millis(),
-    });
-    if let Ok(mut f) = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/home/codex/.herdr/worktrees/opensesame/.cursor/debug-7aa2f5.log")
-    {
-        let _ = writeln!(f, "{payload}");
-    }
-}
-// #endregion
 
 #[derive(Clone, Debug)]
 pub struct AuthorityDecision {
@@ -50,21 +28,6 @@ pub fn authorize_authority_use(
     level: InvokeLevel,
     requested_url: Option<&str>,
 ) -> Result<AuthorityDecision, AuthzError> {
-    // #region agent log
-    agent_dbg(
-        "AH1",
-        "authority_use.rs:entry",
-        "authority use request",
-        json!({
-            "handle_kind": format!("{:?}", binding.connection_ref.handle.kind),
-            "operation": format!("{:?}", op),
-            "level": level.as_u8(),
-            "requested_url": requested_url,
-            "export_flag": grant.constraints.raw_credential_export,
-            "max_level": binding.max_invoke_level.as_u8(),
-        }),
-    );
-    // #endregion
 
     if binding.connection_ref.handle.kind != AuthorityKind::Connection {
         return Err(AuthzError::Denied(
@@ -73,27 +36,11 @@ pub fn authorize_authority_use(
     }
 
     if level > binding.max_invoke_level {
-        // #region agent log
-        agent_dbg(
-            "AH2",
-            "authority_use.rs:level",
-            "invoke level exceeds connection max",
-            json!({"level": level.as_u8(), "max": binding.max_invoke_level.as_u8()}),
-        );
-        // #endregion
         return Err(AuthzError::Denied("invoke level not permitted".into()));
     }
 
     if op.requires_export_privilege() || level == InvokeLevel::Materialize {
         if !grant.constraints.raw_credential_export {
-            // #region agent log
-            agent_dbg(
-                "AH3",
-                "authority_use.rs:export",
-                "materialize/resolve denied",
-                json!({"op": format!("{:?}", op)}),
-            );
-            // #endregion
             return Err(AuthzError::Denied(
                 "credential materialization denied by default".into(),
             ));
@@ -105,14 +52,6 @@ pub fn authorize_authority_use(
             AuthzError::Denied("constrained HTTP requires URL bound to egress".into())
         })?;
         binding.egress.allows_url(url).map_err(|e| {
-            // #region agent log
-            agent_dbg(
-                "AH4",
-                "authority_use.rs:egress",
-                "egress deny",
-                json!({"url": url, "error": e.to_string()}),
-            );
-            // #endregion
             AuthzError::Denied(e.to_string())
         })?;
     }
@@ -174,14 +113,6 @@ pub fn authorize_authority_use(
 
     match engine.decide(&engine_req, Some(grant), class) {
         Ok(d) if d.decision => {
-            // #region agent log
-            agent_dbg(
-                "AH1",
-                "authority_use.rs:allow",
-                "authority use allowed",
-                json!({"decision_id": d.decision_id, "level": level.as_u8()}),
-            );
-            // #endregion
             Ok(AuthorityDecision {
                 allowed: true,
                 decision_id: d.decision_id,

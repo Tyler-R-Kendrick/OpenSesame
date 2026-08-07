@@ -22,11 +22,13 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{
     collections::HashMap,
+    env,
     net::SocketAddr,
     sync::{Arc, Mutex},
 };
 use tower_http::trace::TraceLayer;
 
+const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
 
 #[derive(Parser, Debug)]
 #[command(name = "opensesame-gateway")]
@@ -56,8 +58,33 @@ struct AppState {
     connection_ref: ConnectionRef,
     /// Opaque ciphertext sync store — server never decrypts (ADR 0017).
     sync_blobs: Arc<Mutex<HashMap<String, SyncBlob>>>,
+    /// blob_id -> owning session_id (tenant/device scoping for sync).
+    blob_owners: Arc<Mutex<HashMap<String, String>>>,
     /// Per-device sync cursors (device_id -> last seen epoch).
     device_cursors: Arc<Mutex<HashMap<String, u64>>>,
+    /// Shared secret for human/operator mutations (approve, claim complete, admin).
+    operator_token: String,
+}
+
+fn resolve_operator_token() -> String {
+    match env::var("OPENSESAME_OPERATOR_TOKEN") {
+        Ok(t) if !t.is_empty() => t,
+        _ => {
+            let prod = env::var("OPENSESAME_ENV").ok().as_deref() == Some("production")
+                || env::var("NODE_ENV").ok().as_deref() == Some("production");
+            if prod {
+                tracing::error!(
+                    "OPENSESAME_OPERATOR_TOKEN unset in production — operator routes will deny"
+                );
+                String::new()
+            } else {
+                tracing::warn!(
+                    "OPENSESAME_OPERATOR_TOKEN unset; using {DEV_OPERATOR_TOKEN} (dev only)"
+                );
+                DEV_OPERATOR_TOKEN.into()
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -185,7 +212,9 @@ async fn main() -> anyhow::Result<()> {
         openbao,
         connection_ref,
         sync_blobs: Arc::new(Mutex::new(HashMap::new())),
+        blob_owners: Arc::new(Mutex::new(HashMap::new())),
         device_cursors: Arc::new(Mutex::new(HashMap::new())),
+        operator_token: resolve_operator_token(),
     };
 
     let app = Router::new()
@@ -275,7 +304,13 @@ async fn health_providers(State(st): State<AppState>) -> impl IntoResponse {
     }))
 }
 
-async fn list_connections(State(st): State<AppState>) -> impl IntoResponse {
+async fn list_connections(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    if let Err(resp) = require_session_or_operator(&st, &headers) {
+        return resp;
+    }
     // Agent surface: ConnectionRef only — never SecretRef / raw credential handles.
     Json(json!({
         "connections": [{
@@ -286,6 +321,7 @@ async fn list_connections(State(st): State<AppState>) -> impl IntoResponse {
             "operations": ["repository.read", "pull_request.create"]
         }]
     }))
+    .into_response()
 }
 
 async fn protected_resource_metadata(State(st): State<AppState>) -> impl IntoResponse {
@@ -465,20 +501,25 @@ struct DeviceApproveRequest {
 
 async fn device_approve(
     State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
     Json(req): Json<DeviceApproveRequest>,
-) -> impl IntoResponse {
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     let mut map = st.device_codes.lock().unwrap();
     for pending in map.values_mut() {
         if pending.user_code == req.user_code {
             pending.approved_principal =
                 Some(req.principal.unwrap_or_else(|| "user:demo".into()));
-            return (StatusCode::OK, Json(json!({"status":"approved"})));
+            return (StatusCode::OK, Json(json!({"status":"approved"}))).into_response();
         }
     }
     (
         StatusCode::NOT_FOUND,
         Json(json!({"error":"unknown_user_code"})),
     )
+        .into_response()
 }
 
 async fn session_status(State(st): State<AppState>) -> impl IntoResponse {
@@ -486,7 +527,13 @@ async fn session_status(State(st): State<AppState>) -> impl IntoResponse {
     Json(json!({"active_sessions": n}))
 }
 
-async fn whoami(State(st): State<AppState>) -> impl IntoResponse {
+async fn whoami(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    if let Err(resp) = require_session_or_operator(&st, &headers) {
+        return resp;
+    }
     let boot = st.bootstrap.lock().unwrap().clone();
     Json(json!({
         "principal_id": boot.principal.to_string(),
@@ -496,6 +543,7 @@ async fn whoami(State(st): State<AppState>) -> impl IntoResponse {
         "assurance": "mfa",
         "context": format!("{}/{}/", boot.org, boot.project)
     }))
+    .into_response()
 }
 
 #[derive(Deserialize)]
@@ -518,11 +566,15 @@ struct InvokeBody {
 
 async fn create_intent_invoke(
     State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
     Json(body): Json<InvokeBody>,
 ) -> Response {
+    if let Err(resp) = require_session_or_operator(&st, &headers) {
+        return resp;
+    }
     let boot = st.bootstrap.lock().unwrap().clone();
     let parameters = body.parameters.unwrap_or_else(|| json!({}));
-    let requested_ref = body
+    let _requested_ref = body
         .connection_ref
         .clone()
         .or_else(|| body.connection.clone())
@@ -790,9 +842,14 @@ struct ClaimCompleteRequest {
 
 async fn claim_complete(
     State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
     Path(id): Path<String>,
     Json(req): Json<ClaimCompleteRequest>,
 ) -> Response {
+    // Operator must approve — claim_token alone must not self-complete (agent cannot).
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     let mut map = st.claims.lock().unwrap();
     let Some(session) = map.get_mut(&id) else {
         return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
@@ -840,10 +897,14 @@ struct AuthorityBody {
 
 async fn set_authority(
     State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
     Json(body): Json<AuthorityBody>,
-) -> impl IntoResponse {
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     st.db.set_authority_quorum(body.quorum_ok).await.ok();
-    Json(json!({"quorum_ok": body.quorum_ok}))
+    Json(json!({"quorum_ok": body.quorum_ok})).into_response()
 }
 
 #[derive(Deserialize)]
@@ -908,20 +969,68 @@ fn require_session(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Str
     Ok(session_id.to_string())
 }
 
+/// Human/operator mutations: `X-OpenSesame-Operator` or `Authorization: Bearer operator:<token>`.
+fn require_operator(st: &AppState, headers: &axum::http::HeaderMap) -> Result<(), Response> {
+    if st.operator_token.is_empty() {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"operator_token_unconfigured"})),
+        )
+            .into_response());
+    }
+    let from_header = headers
+        .get("x-opensesame-operator")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string);
+    let from_bearer = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|a| {
+            a.strip_prefix("Bearer operator:")
+                .or_else(|| a.strip_prefix("bearer operator:"))
+                .map(str::to_string)
+        });
+    let provided = from_header.or(from_bearer);
+    match provided {
+        Some(t) if t == st.operator_token => Ok(()),
+        _ => Err((
+            StatusCode::UNAUTHORIZED,
+            Json(json!({
+                "error":"operator_unauthorized",
+                "hint":"X-OpenSesame-Operator or Bearer operator:<token> required"
+            })),
+        )
+            .into_response()),
+    }
+}
+
+fn require_session_or_operator(
+    st: &AppState,
+    headers: &axum::http::HeaderMap,
+) -> Result<(), Response> {
+    if require_session(st, headers).is_ok() {
+        return Ok(());
+    }
+    require_operator(st, headers)
+}
+
 async fn sync_push(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
     Json(body): Json<SyncPushBody>,
 ) -> Response {
-    if let Err(resp) = require_session(&st, &headers) {
-        return resp;
-    }
+    let session_id = match require_session(&st, &headers) {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
     let mut store = st.sync_blobs.lock().unwrap();
+    let mut owners = st.blob_owners.lock().unwrap();
     let mut accepted = 0u32;
     for blob in body.blobs {
         match store.get(&blob.id) {
             Some(existing) if existing.epoch > blob.epoch => {}
             _ => {
+                owners.insert(blob.id.clone(), session_id.clone());
                 store.insert(blob.id.clone(), blob);
                 accepted += 1;
             }
@@ -939,16 +1048,20 @@ async fn sync_pull(
     headers: axum::http::HeaderMap,
     Json(body): Json<SyncPullBody>,
 ) -> Response {
-    if let Err(resp) = require_session(&st, &headers) {
-        return resp;
-    }
+    let session_id = match require_session(&st, &headers) {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
     let since = body.since_epoch;
     let store = st.sync_blobs.lock().unwrap();
+    let owners = st.blob_owners.lock().unwrap();
     let blobs: Vec<SyncBlob> = store
         .values()
         .filter(|b| b.epoch > since)
+        .filter(|b| owners.get(&b.id).map(|o| o == &session_id).unwrap_or(false))
         .cloned()
         .collect();
+    drop(owners);
     drop(store);
     let mut device_cursor = None;
     if let Some(device_id) = body.device_id.as_ref().filter(|s| !s.is_empty()) {

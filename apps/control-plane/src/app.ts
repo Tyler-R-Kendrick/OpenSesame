@@ -15,7 +15,18 @@ import { mfaRoutes } from "./routes/mfa.js";
 export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   const app = new Hono<{ Variables: Variables }>();
 
-  app.use("*", cors());
+  app.use(
+    "*",
+    cors({
+      origin: (origin) => {
+        if (!origin) return ctx.config.corsOrigins[0] ?? "";
+        return ctx.config.corsOrigins.includes(origin) ? origin : "";
+      },
+      credentials: true,
+      allowHeaders: ["Content-Type", "Authorization", "X-Request-Id", "Idempotency-Key"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    }),
+  );
   app.use("*", withContext(ctx));
   app.use("*", authMiddleware());
 

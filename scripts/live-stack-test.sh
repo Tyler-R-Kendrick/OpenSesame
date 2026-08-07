@@ -29,6 +29,8 @@ rm -f "$DB"
 export OPENSESAME_LISTEN=127.0.0.1:18787
 export OPENSESAME_DB="sqlite://${DB}?mode=rwc"
 export OPENSESAME_RESOURCE=http://127.0.0.1:18787
+export OPENSESAME_OPERATOR_TOKEN="${OPENSESAME_OPERATOR_TOKEN:-opensesame-dev-operator}"
+OP_HDR=(-H "x-opensesame-operator: ${OPENSESAME_OPERATOR_TOKEN}")
 nohup "$ROOT/target/debug/opensesame-gateway" >"$ROOT/.tools/logs/gateway.log" 2>&1 &
 echo $! >"$ROOT/.tools/run/gateway.pid"
 for _ in $(seq 1 40); do
@@ -62,7 +64,7 @@ print("providers_ok")
 PY
 
 echo "== connections (ConnectionRef only) =="
-curl -sf http://127.0.0.1:18787/api/v1/connections | tee /tmp/os-conns.json
+curl -sf "${OP_HDR[@]}" http://127.0.0.1:18787/api/v1/connections | tee /tmp/os-conns.json
 python3 - <<'PY'
 import json
 c=json.load(open("/tmp/os-conns.json"))
@@ -75,7 +77,7 @@ PY
 CREF=$(python3 -c 'import json;print(json.load(open("/tmp/os-conns.json"))["connections"][0]["connection_ref"])')
 
 echo "== L1 invoke via connection_ref =="
-curl -sf -X POST http://127.0.0.1:18787/api/v1/intents \
+curl -sf "${OP_HDR[@]}" -X POST http://127.0.0.1:18787/api/v1/intents \
   -H 'content-type: application/json' \
   -d "{\"connection_ref\":\"$CREF\",\"operation\":\"repository.read\",\"resource\":\"repo:acme/catalog\",\"invoke_level\":1,\"idempotency_key\":\"live-1\"}" \
   | tee /tmp/os-invoke.json
@@ -89,7 +91,7 @@ print("invoke_ok", r.get("outcome") or r.get("status") or "receipt")
 PY
 
 echo "== L3 materialize denied =="
-CODE=$(curl -s -o /tmp/os-l3.json -w "%{http_code}" -X POST http://127.0.0.1:18787/api/v1/intents \
+CODE=$(curl -s -o /tmp/os-l3.json -w "%{http_code}" "${OP_HDR[@]}" -X POST http://127.0.0.1:18787/api/v1/intents \
   -H 'content-type: application/json' \
   -d "{\"connection_ref\":\"$CREF\",\"operation\":\"credential.resolve\",\"resource\":\"x\",\"invoke_level\":3}")
 test "$CODE" = "403"

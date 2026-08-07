@@ -353,22 +353,5 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err, AuthorityError::Denied(_)));
-        // #region agent log
-        {
-            use std::io::Write;
-            let payload = serde_json::json!({
-                "sessionId": "7aa2f5",
-                "runId": std::env::var("OPENSESAME_DEBUG_RUN").unwrap_or_else(|_| "live-1".into()),
-                "hypothesisId": "LIVE-BAO",
-                "location": "provider-openbao/tests",
-                "message": "live openbao bearer denied",
-                "data": {"sealed": health.sealed, "bearer_denied": true, "secret_leaked_to_agent_api": false},
-                "timestamp": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()
-            });
-            if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("/home/codex/.herdr/worktrees/opensesame/.cursor/debug-7aa2f5.log") {
-                let _ = writeln!(f, "{payload}");
-            }
-        }
-        // #endregion
     }
 }

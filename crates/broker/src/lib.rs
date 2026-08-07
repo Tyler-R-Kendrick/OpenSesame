@@ -5,28 +5,6 @@ use opensesame_connector_host::{HostRuntime, InvokeRequest};
 use opensesame_domain::*;
 use opensesame_storage::Db;
 use serde_json::{json, Value};
-use std::io::Write;
-
-// #region agent log
-fn agent_dbg(hypothesis_id: &str, location: &str, message: &str, data: Value) {
-    let payload = json!({
-        "sessionId": "7aa2f5",
-        "runId": std::env::var("OPENSESAME_DEBUG_RUN").unwrap_or_else(|_| "battle-1".into()),
-        "hypothesisId": hypothesis_id,
-        "location": location,
-        "message": message,
-        "data": data,
-        "timestamp": Utc::now().timestamp_millis(),
-    });
-    if let Ok(mut f) = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/home/codex/.herdr/worktrees/opensesame/.cursor/debug-7aa2f5.log")
-    {
-        let _ = writeln!(f, "{payload}");
-    }
-}
-// #endregion
 
 pub struct Broker {
     pub db: Db,
@@ -46,49 +24,14 @@ pub struct InvokeInput {
 impl Broker {
     pub async fn invoke(&self, input: InvokeInput) -> anyhow::Result<InvocationReceipt> {
         let now = Utc::now();
-        // #region agent log
-        agent_dbg(
-            "B",
-            "broker.rs:invoke:entry",
-            "invoke entry org checks",
-            json!({
-                "intent_org": input.intent.organization_id.to_string(),
-                "grant_org": input.grant.organization_id.to_string(),
-                "org_match": input.intent.organization_id == input.grant.organization_id,
-                "idempotency_key_len": input.intent.idempotency_key.len(),
-                "operation": input.intent.operation,
-                "grant_revoked": input.grant.revoked_at.is_some(),
-                "grant_expired": now >= input.grant.constraints.expires_at,
-            }),
-        );
-        // #endregion
         input.intent.assert_fresh(now)?;
         input.grant.assert_active(now)?;
 
         if input.intent.organization_id != input.grant.organization_id {
-            // #region agent log
-            agent_dbg(
-                "B",
-                "broker.rs:invoke:org_mismatch",
-                "rejecting cross-org grant/intent",
-                json!({
-                    "intent_org": input.intent.organization_id.to_string(),
-                    "grant_org": input.grant.organization_id.to_string(),
-                }),
-            );
-            // #endregion
             return Err(DomainError::OrganizationMismatch.into());
         }
 
         if !self.db.authority_quorum_ok().await? {
-            // #region agent log
-            agent_dbg(
-                "C",
-                "broker.rs:invoke:quorum",
-                "authority quorum unavailable",
-                json!({"class": "A3"}),
-            );
-            // #endregion
             return Err(DomainError::AuthorityUnavailable(AvailabilityClass::A3ExternalSideEffect).into());
         }
 
@@ -96,7 +39,7 @@ impl Broker {
             .db
             .find_intent_by_idempotency(&input.intent.organization_id, &input.intent.idempotency_key)
             .await?;
-        if let Some(prior_intent) = existing {
+        if let Some(_prior_intent) = existing {
             if let Some(prior_receipt) = self
                 .db
                 .find_receipt_by_idempotency(
@@ -105,49 +48,10 @@ impl Broker {
                 )
                 .await?
             {
-                // #region agent log
-                agent_dbg(
-                    "A",
-                    "broker.rs:invoke:idempotency",
-                    "returning prior receipt",
-                    json!({
-                        "existing_found": true,
-                        "existing_intent_id": prior_intent.id.to_string(),
-                        "new_intent_id": input.intent.id.to_string(),
-                        "will_reexecute": false,
-                        "prior_receipt_id": prior_receipt.id.to_string(),
-                    }),
-                );
-                // #endregion
                 return Ok(prior_receipt);
             }
-            // #region agent log
-            agent_dbg(
-                "A",
-                "broker.rs:invoke:idempotency",
-                "idempotent intent exists without receipt — conflict",
-                json!({
-                    "existing_found": true,
-                    "existing_intent_id": prior_intent.id.to_string(),
-                    "will_reexecute": false,
-                }),
-            );
-            // #endregion
             anyhow::bail!("idempotency conflict: prior intent has no receipt yet");
         }
-        // #region agent log
-        agent_dbg(
-            "A",
-            "broker.rs:invoke:idempotency",
-            "idempotency lookup",
-            json!({
-                "existing_found": false,
-                "existing_intent_id": null,
-                "new_intent_id": input.intent.id.to_string(),
-                "will_reexecute": true,
-            }),
-        );
-        // #endregion
         self.db.insert_intent(&input.intent).await?;
 
         let expected = Intent::parameters_hash(&input.parameters)?;
@@ -246,19 +150,6 @@ impl Broker {
         )?;
         assert!(receipt.assert_no_secret_leak());
         self.db.insert_receipt(&receipt).await?;
-        // #region agent log
-        agent_dbg(
-            "A",
-            "broker.rs:invoke:exit",
-            "invoke completed new receipt",
-            json!({
-                "receipt_id": receipt.id.to_string(),
-                "invocation_id": receipt.invocation_id.to_string(),
-                "intent_id": input.intent.id.to_string(),
-                "outcome": format!("{:?}", receipt.outcome),
-            }),
-        );
-        // #endregion
         Ok(receipt)
     }
 

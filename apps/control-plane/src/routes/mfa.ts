@@ -47,6 +47,16 @@ mfaRoutes.post("/passkey/register", requirePrincipal(), async (c) => {
 
 mfaRoutes.post("/passkey/assert", async (c) => {
   const ctx = c.get("ctx");
+  if (!ctx.config.allowDevDefaults) {
+    return c.json(
+      {
+        ok: false,
+        error: "passkey_verifier_unconfigured",
+        hint: "Wire a real WebAuthn verifier; stub assert is disabled outside allowDevDefaults",
+      },
+      503,
+    );
+  }
   const body = await c.req.json<{
     credentialId: string;
     clientDataJSON: string;
@@ -81,10 +91,14 @@ mfaRoutes.post("/totp/enroll", requirePrincipal(), async (c) => {
   });
 });
 
-mfaRoutes.post("/totp/verify", async (c) => {
+mfaRoutes.post("/totp/verify", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const body = await c.req.json<{ principalId: string; code: string }>();
-  const secret = ctx.stores.totpSecrets.get(body.principalId);
+  const principalId = c.get("principalId")!;
+  const body = await c.req.json<{ code: string; principalId?: string }>();
+  if (body.principalId && body.principalId !== principalId) {
+    return c.json({ ok: false, error: "principal_mismatch" }, 403);
+  }
+  const secret = ctx.stores.totpSecrets.get(principalId);
   if (!secret) return c.json({ ok: false, error: "not_enrolled" }, 404);
   const expected = totpCode(secret);
   const ok = body.code === expected;

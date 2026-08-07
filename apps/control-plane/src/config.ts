@@ -16,6 +16,8 @@ export interface ControlPlaneConfig {
   /** Explicit opt-in to default claim pepper and other local-only shortcuts. */
   allowDevDefaults: boolean;
   isProduction: boolean;
+  /** Explicit CORS allowlist (comma-separated origins via OPENSESAME_CORS_ORIGINS). */
+  corsOrigins: string[];
 }
 
 const DEV_CLAIM_PEPPER = "dev-claim-pepper-change-me";
@@ -71,6 +73,11 @@ export function loadConfig(
     allowPrincipalBearer,
     allowDevDefaults,
     isProduction,
+    corsOrigins: (env.OPENSESAME_CORS_ORIGINS ??
+      "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5174,http://localhost:5174")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
   };
   if (env.DATABASE_URL) {
     config.databaseUrl = env.DATABASE_URL;

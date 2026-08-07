@@ -176,8 +176,8 @@ describe("control-plane API", () => {
     const code = totpCode(secret);
     const verify = await app.request("/v1/mfa/totp/verify", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ principalId: created.principalId, code }),
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ code }),
     });
     expect(verify.status).toBe(200);
     expect(((await verify.json()) as { ok: boolean }).ok).toBe(true);
