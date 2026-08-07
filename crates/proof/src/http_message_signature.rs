@@ -93,9 +93,10 @@ impl HttpMessageSignatureValidator for LocalHttpMessageSignatureValidator {
             return Err(ProofError::InvalidProof("signature expired".into()));
         }
 
-        let verifying_key = self.keys.get(&parsed.key_id).ok_or_else(|| {
-            ProofError::InvalidProof(format!("unknown keyid: {}", parsed.key_id))
-        })?;
+        let verifying_key = self
+            .keys
+            .get(&parsed.key_id)
+            .ok_or_else(|| ProofError::InvalidProof(format!("unknown keyid: {}", parsed.key_id)))?;
 
         let signature_base =
             build_signature_base(&parsed.covered, request, &request.signature_input)?;
@@ -198,8 +199,7 @@ fn parse_signature_input(input: &str) -> Result<ParsedSignatureInput, ProofError
     Ok(ParsedSignatureInput {
         label,
         covered,
-        created: created
-            .ok_or_else(|| ProofError::InvalidProof("missing created".into()))?,
+        created: created.ok_or_else(|| ProofError::InvalidProof("missing created".into()))?,
         key_id: key_id.ok_or_else(|| ProofError::InvalidProof("missing keyid".into()))?,
         algorithm: algorithm.ok_or_else(|| ProofError::InvalidProof("missing alg".into()))?,
     })
