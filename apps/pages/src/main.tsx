@@ -16,6 +16,7 @@ void (async () => {
     "settings.v1",
     "outbox.v1",
     "unlockHash.v1",
+    "unlockAttempts.v1",
     "vaultItems.v1",
   ]);
   createRoot(root).render(

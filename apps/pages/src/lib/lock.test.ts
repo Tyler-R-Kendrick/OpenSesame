@@ -11,6 +11,7 @@ import {
 beforeEach(() => {
   lock();
   kvDelete("unlockHash.v1");
+  kvDelete("unlockAttempts.v1");
 });
 
 describe("unlock PIN", () => {
@@ -59,5 +60,20 @@ describe("unlock PIN", () => {
     await unlock("legacy-pin");
     const upgraded = JSON.parse(kvGet("unlockHash.v1")!) as { v: number };
     expect(upgraded.v).toBe(1);
+  });
+
+  it("locks out after repeated failed unlocks", async () => {
+    await setUnlockPin("vault-pin-ok");
+    lock();
+    await expect(unlock("wrong-pin-aaaa")).rejects.toThrow(/did not match/);
+    await expect(unlock("wrong-pin-bbbb")).rejects.toThrow(/did not match/);
+    await expect(unlock("wrong-pin-cccc")).rejects.toThrow(/did not match/);
+    await expect(unlock("vault-pin-ok")).rejects.toThrow(/Too many unlock attempts/);
+    const attempts = JSON.parse(kvGet("unlockAttempts.v1")!) as {
+      fails: number;
+      lockedUntil: number;
+    };
+    expect(attempts.fails).toBeGreaterThanOrEqual(3);
+    expect(attempts.lockedUntil).toBeGreaterThan(Date.now());
   });
 });
