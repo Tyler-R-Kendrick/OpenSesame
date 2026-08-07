@@ -35,7 +35,12 @@ This slice adds pure Rust domain types for **task-scoped authority** in `crates/
 ## Wired in this slice
 
 - `Broker::invoke_frozen` — authorize/execute from frozen digest only (no second parameter map)
-- Gateway `POST /api/v1/tasks`, `GET /api/v1/tasks/{id}`, `POST /api/v1/tasks/intents`
+- Gateway `POST /api/v1/tasks`, `GET /api/v1/tasks`, `GET /api/v1/tasks/{id}`, `POST /api/v1/tasks/intents`, `POST /api/v1/tasks/{id}/terminate`
+- WIT `opensesame:task@1.0.0`, `opensesame:proof@1.0.0`, `opensesame:mediation@1.0.0` (host@1.0.0 unchanged)
+- MCP host task tools (`task_start`, `task_status`, `task_invoke`, `task_terminate`) + task-context gating for `operator_invoke_l1`
+- CLI `opensesame task *` and `opensesame intent create`
+- Console task access panel (ceiling vs current)
+- HTTP Message Signatures Ed25519 subset validator in `opensesame-proof`
 - Protected-resource metadata: DPoP advertised only when `OPENSESAME_DPOP_ENABLED=true`
 - Receipt schema v2 optional task binding fields (legacy v1 still verifies)
 

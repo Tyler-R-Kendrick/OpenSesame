@@ -244,42 +244,43 @@ fn subtract_selector(
     cap: &ResourceSelector,
     remove: &ResourceSelector,
 ) -> Option<Vec<ResourceSelector>> {
-    if !cap.is_subset_of(remove) {
-        match (cap, remove) {
-            (
-                ResourceSelector::Enumerated { values: cap_vals },
-                ResourceSelector::Enumerated { values: rem_vals },
-            ) => {
-                let remainder: Vec<String> = cap_vals
-                    .iter()
-                    .filter(|v| !rem_vals.contains(v))
-                    .cloned()
-                    .collect();
-                if remainder.is_empty() {
-                    return None;
-                }
-                return Some(vec![ResourceSelector::Enumerated { values: remainder }.canonicalize()]);
-            }
-            (
-                ResourceSelector::Enumerated { values: cap_vals },
-                ResourceSelector::Exact { value: rem },
-            ) => {
-                let remainder: Vec<String> =
-                    cap_vals.iter().filter(|v| *v != rem).cloned().collect();
-                if remainder.is_empty() {
-                    return None;
-                }
-                if remainder.len() == 1 {
-                    return Some(vec![ResourceSelector::Exact {
-                        value: remainder[0].clone(),
-                    }]);
-                }
-                return Some(vec![ResourceSelector::Enumerated { values: remainder }.canonicalize()]);
-            }
-            _ => return Some(vec![cap.clone()]),
-        }
+    if cap.is_subset_of(remove) {
+        return None;
     }
-    None
+    match (cap, remove) {
+        (
+            ResourceSelector::Enumerated { values: cap_vals },
+            ResourceSelector::Enumerated { values: rem_vals },
+        ) => {
+            let remainder: Vec<String> = cap_vals
+                .iter()
+                .filter(|v| !rem_vals.contains(v))
+                .cloned()
+                .collect();
+            if remainder.is_empty() {
+                None
+            } else {
+                Some(vec![ResourceSelector::Enumerated { values: remainder }.canonicalize()])
+            }
+        }
+        (
+            ResourceSelector::Enumerated { values: cap_vals },
+            ResourceSelector::Exact { value: rem },
+        ) => {
+            let remainder: Vec<String> =
+                cap_vals.iter().filter(|v| *v != rem).cloned().collect();
+            if remainder.is_empty() {
+                None
+            } else if remainder.len() == 1 {
+                Some(vec![ResourceSelector::Exact {
+                    value: remainder[0].clone(),
+                }])
+            } else {
+                Some(vec![ResourceSelector::Enumerated { values: remainder }.canonicalize()])
+            }
+        }
+        _ => Some(vec![cap.clone()]),
+    }
 }
 
 #[cfg(test)]

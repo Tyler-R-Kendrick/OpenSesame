@@ -24,6 +24,23 @@ All built-in profiles use `DowngradePolicy::FailClosed`. Presenting Bearer where
 - **HTTP message signatures** — `LocalHttpMessageSignatureValidator` in `opensesame-proof` implements the OpenSesame subset (Ed25519 over `content-digest`, `@method`, `@target-uri`). Not full RFC 9421 component interoperability; see limitations below.
 - **Token exchange semantics** — Profile id for documentation; no RFC 8693 endpoint.
 
+## HTTP Message Signatures limitations (RFC 9421 subset)
+
+OpenSesame validates only:
+
+- Covered components: `content-digest`, `@method`, `@target-uri`
+- Algorithm: Ed25519 (`alg="ed25519"`)
+- Signature label: `sig`
+
+Not supported in this slice:
+
+- Arbitrary derived component names (`@status`, `@authority`, custom headers beyond `content-digest`)
+- Multiple concurrent signature labels
+- HS256 / RSA / ECDSA algorithms
+- Full `Signature-Agent` / `Expires` / `Nonce` replay policies beyond `created` max-age
+
+Profile id: `http-message-signatures-rfc9421-v1` (`PROFILE_HTTP_MESSAGE_SIGNATURES_RFC9421_V1`).
+
 ## Token passthrough
 
 OpenSesame **never** forwards an inbound presented token as a downstream credential. MCP adapter exposes an explicit rejection path for passthrough attempts. Task-scoped credentials are minted by the credential-agent with digest-only persistence.
@@ -39,6 +56,7 @@ OpenSesame **never** forwards an inbound presented token as a downstream credent
 
 ```bash
 cargo +1.88.0 test -p opensesame-domain
+cargo +1.88.0 test -p opensesame-proof
 cargo +1.88.0 test -p opensesame-protocol-mcp
 cargo +1.88.0 test -p opensesame-protocol-aauth --features experimental-aauth
 ```
