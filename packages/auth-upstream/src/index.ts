@@ -19,6 +19,13 @@ export {
   type PasskeyVerifyFn,
 } from "./passkey.js";
 export {
+  createMemoryChallengeStore,
+  createSimpleWebAuthnVerifyFn,
+  issueAuthenticationChallenge,
+  type PasskeyChallengeStore,
+  type WebAuthnRpConfig,
+} from "./webauthn.js";
+export {
   UpstreamOidcProviderRegistry,
   mockUpstreamProvider,
   type UpstreamOidcProvider,

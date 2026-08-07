@@ -183,6 +183,54 @@ describe("control-plane API", () => {
     expect(((await verify.json()) as { ok: boolean }).ok).toBe(true);
   });
 
+  it("production passkey assert rejects without WebAuthn challenge binding", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+        allowDevDefaults: false,
+        claimPepper: "prod-claim-pepper-for-test-only",
+        isProduction: false,
+      },
+      processEnv: {
+        ...process.env,
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "false",
+        OPENSESAME_CLAIM_PEPPER: "prod-claim-pepper-for-test-only",
+        NODE_ENV: "development",
+      },
+    });
+    // Without allowDevDefaults, provisional creation still works if pepper set;
+    // register+assert with stub signature must fail SimpleWebAuthn verify.
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+    await app.request("/v1/mfa/passkey/register", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({
+        credentialId: "cred_prod_1",
+        publicKey: Buffer.from("pk").toString("base64"),
+      }),
+    });
+    const assertRes = await app.request("/v1/mfa/passkey/assert", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        credentialId: "cred_prod_1",
+        clientDataJSON: Buffer.from(
+          JSON.stringify({
+            type: "webauthn.get",
+            challenge: "not-issued",
+            origin: "http://127.0.0.1:8788",
+          }),
+        ).toString("base64"),
+        authenticatorData: Buffer.from("a").toString("base64"),
+        signature: Buffer.from("sig").toString("base64"),
+      }),
+    });
+    expect(assertRes.status).toBe(401);
+  });
+
   it("HTTP mount does not steal /auth.md from oidc /auth prefix", async () => {
     const { startServer } = await import("../server.js");
     const { server, port } = await startServer({
