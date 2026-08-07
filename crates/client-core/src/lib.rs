@@ -1,6 +1,7 @@
 //! OpenSesame **client-core sdk** — local E2EE + sync cursors (ADR 0017).
 //!
 //! WIT: `wit/client/world.wit`. Server must only ever store ciphertext blobs.
+//! Persist sealed blobs only (native path / JSON); never plaintext on disk.
 
 use blake3::Hasher;
 use chacha20poly1305::{
@@ -16,6 +17,9 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub use opensesame_core as core;
 pub use opensesame_human_vault as human_vault;
 
+#[cfg(feature = "wasm-bindgen")]
+pub mod wasm;
+
 pub mod wit_contract {
     pub const PACKAGE: &str = "opensesame:client@1.0.0";
 }
@@ -28,6 +32,8 @@ pub enum ClientCoreError {
     StaleEpoch { local: u64, remote: u64 },
     #[error("missing device key")]
     MissingKey,
+    #[error("persist io: {0}")]
+    Persist(String),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -44,6 +50,13 @@ pub struct SyncBlob {
     pub ciphertext: Vec<u8>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct PersistedStore {
+    cursor: SyncCursor,
+    /// Sealed entries only.
+    blobs: Vec<SyncBlob>,
+}
+
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct DeviceKey {
     key: [u8; 32],
@@ -58,6 +71,10 @@ impl DeviceKey {
 
     pub fn from_bytes(key: [u8; 32]) -> Self {
         Self { key }
+    }
+
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.key
     }
 }
 
@@ -96,7 +113,7 @@ pub fn open(key: &DeviceKey, sealed: &[u8], aad: &[u8]) -> Result<Vec<u8>, Clien
         .map_err(|_| ClientCoreError::Aead)
 }
 
-/// In-memory encrypted sync store (MVP). Persisted as sealed blobs only.
+/// Encrypted sync store — RAM + optional sealed-blob persistence (ciphertext only).
 pub struct SyncStore {
     /// id -> (epoch, ciphertext)
     entries: BTreeMap<String, (u64, Vec<u8>)>,
@@ -133,7 +150,7 @@ impl SyncStore {
         })
     }
 
-    /// Apply remote blobs. Last-writer-wins by higher epoch; ties prefer lexicographically greater id keep existing.
+    /// Apply remote blobs. Last-writer-wins by higher epoch.
     pub fn apply_remote(&mut self, blobs: &[SyncBlob]) -> SyncCursor {
         for b in blobs {
             match self.entries.get(&b.id) {
@@ -167,6 +184,58 @@ impl SyncStore {
         let mut h = Hasher::new();
         h.update(ct);
         h.finalize().to_hex().to_string()
+    }
+
+    /// Serialize sealed blobs + cursor (never plaintext).
+    pub fn to_persisted_json(&self) -> Result<String, ClientCoreError> {
+        let blobs: Vec<SyncBlob> = self
+            .entries
+            .iter()
+            .map(|(id, (epoch, ct))| SyncBlob {
+                id: id.clone(),
+                epoch: *epoch,
+                ciphertext: ct.clone(),
+            })
+            .collect();
+        let p = PersistedStore {
+            cursor: self.cursor.clone(),
+            blobs,
+        };
+        serde_json::to_string(&p).map_err(|e| ClientCoreError::Persist(e.to_string()))
+    }
+
+    pub fn from_persisted_json(json: &str) -> Result<Self, ClientCoreError> {
+        let p: PersistedStore =
+            serde_json::from_str(json).map_err(|e| ClientCoreError::Persist(e.to_string()))?;
+        let mut store = Self::new(p.cursor.device_id.clone());
+        store.cursor = p.cursor;
+        for b in p.blobs {
+            store.entries.insert(b.id, (b.epoch, b.ciphertext));
+        }
+        Ok(store)
+    }
+
+    /// Native filesystem persistence (OPFS equivalent for browsers lives in packages/client-core).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn save_path(&self, path: &std::path::Path) -> Result<(), ClientCoreError> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| ClientCoreError::Persist(e.to_string()))?;
+        }
+        let json = self.to_persisted_json()?;
+        // Refuse to write if plaintext-looking keys somehow appear (defense in depth).
+        if json.contains("\"plaintext\"") {
+            return Err(ClientCoreError::Persist(
+                "refusing to persist structure with plaintext field".into(),
+            ));
+        }
+        std::fs::write(path, json).map_err(|e| ClientCoreError::Persist(e.to_string()))
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn load_path(path: &std::path::Path) -> Result<Self, ClientCoreError> {
+        let json =
+            std::fs::read_to_string(path).map_err(|e| ClientCoreError::Persist(e.to_string()))?;
+        Self::from_persisted_json(&json)
     }
 }
 
@@ -202,7 +271,9 @@ mod tests {
     fn server_view_is_ciphertext_only() {
         let key = DeviceKey::generate();
         let mut store = SyncStore::new("d");
-        let blob = store.put_local(&key, "x", b"plaintext-should-not-leak").unwrap();
+        let blob = store
+            .put_local(&key, "x", b"plaintext-should-not-leak")
+            .unwrap();
         let json = serde_json::to_string(&blob).unwrap();
         assert!(!json.contains("plaintext-should-not-leak"));
     }
@@ -229,5 +300,27 @@ mod tests {
             assert!(!json.contains("one"));
             assert!(!json.contains("two"));
         }
+    }
+
+    #[test]
+    fn persist_roundtrip_ciphertext_only() {
+        let key = DeviceKey::generate();
+        let mut store = SyncStore::new("persist-dev");
+        store
+            .put_local(&key, "n1", b"secret-payload-xyz")
+            .unwrap();
+        let json = store.to_persisted_json().unwrap();
+        assert!(!json.contains("secret-payload-xyz"));
+        let loaded = SyncStore::from_persisted_json(&json).unwrap();
+        assert_eq!(loaded.cursor.device_id, "persist-dev");
+        assert_eq!(loaded.entries.len(), 1);
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("sync.json");
+        store.save_path(&path).unwrap();
+        let from_disk = SyncStore::load_path(&path).unwrap();
+        assert_eq!(from_disk.cursor.epoch, store.cursor.epoch);
+        let disk_json = std::fs::read_to_string(&path).unwrap();
+        assert!(!disk_json.contains("secret-payload-xyz"));
     }
 }

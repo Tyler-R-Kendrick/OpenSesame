@@ -65,6 +65,9 @@ enum Commands {
         /// Force agent delivery policy (deny materialize).
         #[arg(long, global = true, default_value = "false")]
         agent: bool,
+        /// Delivery mode: agent | development (alias for --agent / default).
+        #[arg(long, global = true, value_enum, default_value = "auto")]
+        mode: DeliveryModeArg,
         #[arg(long, global = true, default_value = ".env.schema")]
         schema: PathBuf,
         #[command(subcommand)]
@@ -118,6 +121,13 @@ enum AuthCmd {
 #[derive(Subcommand, Debug)]
 enum ReceiptCmd {
     Verify { id: String },
+}
+
+#[derive(Clone, ValueEnum, Debug)]
+enum DeliveryModeArg {
+    Auto,
+    Agent,
+    Development,
 }
 
 #[derive(Clone, ValueEnum, Debug)]
@@ -179,8 +189,16 @@ async fn main() -> anyhow::Result<()> {
         Commands::Dev {
             cmd,
             agent,
+            mode,
             schema,
-        } => dev_cmd(cmd, agent, schema)?,
+        } => {
+            let agent = match mode {
+                DeliveryModeArg::Agent => true,
+                DeliveryModeArg::Development => false,
+                DeliveryModeArg::Auto => agent,
+            };
+            dev_cmd(cmd, agent, schema)?
+        }
         Commands::Daemon { url, cmd } => daemon_cmd(&url, cmd).await?,
     }
     Ok(())

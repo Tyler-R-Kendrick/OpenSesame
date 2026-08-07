@@ -3,6 +3,8 @@ export const toolsManifest = [
   "host_health",
   "list_connections",
   "invoke_l1",
+  "whoami",
+  "present_claim",
 ] as const;
 
 export function assertsNoMaterializeTool(names: readonly string[]): void {

@@ -21,6 +21,8 @@ cargo +1.88.0 test --lib \
   -p opensesame-host-core \
   -p opensesame-client-core \
   -p opensesame-env-spec
+echo "== wasm client-core =="
+./scripts/wasm-client-core-smoke.sh
 echo "== broker adversarial =="
 cargo +1.88.0 test -p opensesame-broker --test adversarial_broker
 echo "== api-client + MCP =="

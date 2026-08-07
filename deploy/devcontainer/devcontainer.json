@@ -5,11 +5,13 @@
   "containerEnv": {
     "DEVCONTAINER": "1",
     "OPENSESAME_SERVER": "http://host.docker.internal:8787",
+    "OPENSESAME_ISSUER": "http://host.docker.internal:8788",
     "OPENSESAME_AGENT_SOCK": "/tmp/opensesame-agent.sock",
-    "OPENSESAME_AGENT_URL": "http://host.docker.internal:18790"
+    "OPENSESAME_AGENT_URL": "http://host.docker.internal:18790",
+    "OPENSESAME_DAEMON_URL": "http://host.docker.internal:18790"
   },
-  "forwardPorts": [8787, 18790],
-  "postCreateCommand": "cargo build -p opensesame-cli -p opensesame-gateway -p opensesame-credential-agent && (cd packages/env-spec-bridge && npm install)",
+  "forwardPorts": [8787, 8788, 18790],
+  "postCreateCommand": "cargo build -p opensesame-cli -p opensesame-gateway -p opensesame-daemon && (cd packages/env-spec-bridge && npm install)",
   "customizations": {
     "vscode": {
       "settings": {
