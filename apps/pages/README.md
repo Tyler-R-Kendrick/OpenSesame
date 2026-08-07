@@ -1,17 +1,14 @@
 # `@opensesame/pages`
 
-Installable **GitHub Pages PWA** — offline client shell for OpenSesame.
+Installable **GitHub Pages PWA** — Bitwarden-class **authority vault** for humans and agents.
 
-## Depths
+## Surfaces
 
-1. **Surface** — brand + descent into Vault / Ceremonies
-2. **Vault** — sealed local sync store (OPFS)
-3. **Ceremonies** — Authorize CLI + Claim ownership
-4. **Task** — live Host inspect or labeled offline demo
-5. **Ratchet** — protocol honesty (Bearer ≠ DPoP)
-
-Offline outbox queues device/claim intents until flush (OPFS / memory — never
-`localStorage`). Operator tokens stay session-only.
+1. **Unlock** — session PIN (does not decrypt sealed blobs into the page)
+2. **Vault** — search / filter typed items (connection, task, claim, device, note)
+3. **Agent** — peer view of agent-usable items (no `getSecret()`)
+4. **Tools** — authorize CLI, claim, task ceiling, offline queue, protocol
+5. **Settings** — Host / Identity API bases
 
 ## Develop
 
@@ -20,15 +17,9 @@ pnpm install
 pnpm --filter @opensesame/pages dev
 ```
 
-## Build (project Pages base)
+## Build & deploy (no custom Actions)
 
 ```bash
-VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build
-```
-
-Publish the `dist/` folder yourself (no GitHub Actions). Example:
-
-```bash
-VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build
-# upload apps/pages/dist to GitHub Pages (branch/folder or other host)
+./scripts/deploy-pages.sh
+# → https://tyler-r-kendrick.github.io/OpenSesame/
 ```

@@ -1,91 +1,246 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router";
 import {
   assertNoPlaintextInSealedJson,
   createCursor,
   loadSealedStore,
   persistSealedStore,
 } from "@opensesame/client-core";
+import {
+  IconClaim,
+  IconConnection,
+  IconDevice,
+  IconNote,
+  IconSearch,
+  IconTask,
+} from "../components/Icons.js";
+import {
+  getVaultItem,
+  loadVaultItems,
+  typeLabel,
+  type VaultItem,
+  type VaultItemType,
+} from "../lib/vault-items.js";
+
+const filters: Array<{ id: "all" | VaultItemType; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "connection", label: "Connections" },
+  { id: "task", label: "Tasks" },
+  { id: "claim", label: "Claims" },
+  { id: "device", label: "Devices" },
+  { id: "note", label: "Notes" },
+];
+
+function TypeIcon({ type }: { type: VaultItemType }) {
+  switch (type) {
+    case "connection":
+      return <IconConnection />;
+    case "task":
+      return <IconTask />;
+    case "claim":
+      return <IconClaim />;
+    case "device":
+      return <IconDevice />;
+    case "note":
+      return <IconNote />;
+  }
+}
 
 export function VaultPage() {
-  const [cursor, setCursor] = useState(() => createCursor("pages-device"));
-  const [status, setStatus] = useState("Preparing sealed store…");
-  const [kind, setKind] = useState<"info" | "ok" | "err">("info");
-  const [busy, setBusy] = useState(false);
-
-  async function ensureStore() {
-    setBusy(true);
-    setKind("info");
-    setStatus("Writing sealed sync envelope…");
-    try {
-      const existing = await loadSealedStore(cursor.deviceId);
-      const sealed =
-        existing ??
-        JSON.stringify({
-          cursor: { device_id: cursor.deviceId, epoch: cursor.epoch },
-          blobs: [],
-        });
-      assertNoPlaintextInSealedJson(sealed);
-      await persistSealedStore(cursor.deviceId, sealed);
-      if (existing) {
-        const parsed = JSON.parse(existing) as {
-          cursor?: { device_id?: string; epoch?: number };
-        };
-        if (parsed.cursor?.device_id) {
-          setCursor({
-            deviceId: parsed.cursor.device_id,
-            epoch: parsed.cursor.epoch ?? 0,
-          });
-        }
-      }
-      setKind("ok");
-      setStatus("Sealed store ready. Ciphertext only — no plaintext vault JSON.");
-    } catch (e) {
-      setKind("err");
-      setStatus(e instanceof Error ? e.message : "Vault preparation failed");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { itemId } = useParams();
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | VaultItemType>("all");
+  const [items, setItems] = useState<VaultItem[]>([]);
+  const [sealStatus, setSealStatus] = useState("Checking sealed store…");
 
   useEffect(() => {
-    void ensureStore();
+    setItems(loadVaultItems());
+    void (async () => {
+      try {
+        const cursor = createCursor("pages-device");
+        const existing = await loadSealedStore(cursor.deviceId);
+        const sealed =
+          existing ??
+          JSON.stringify({
+            cursor: { device_id: cursor.deviceId, epoch: cursor.epoch },
+            blobs: [],
+          });
+        assertNoPlaintextInSealedJson(sealed);
+        await persistSealedStore(cursor.deviceId, sealed);
+        setSealStatus("Sealed store ready (ciphertext only)");
+      } catch (e) {
+        setSealStatus(
+          e instanceof Error ? e.message : "Sealed store unavailable",
+        );
+      }
+    })();
   }, []);
 
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items.filter((item) => {
+      if (filter !== "all" && item.type !== filter) return false;
+      if (!q) return true;
+      return (
+        item.name.toLowerCase().includes(q) ||
+        item.subtitle.toLowerCase().includes(q) ||
+        typeLabel(item.type).toLowerCase().includes(q)
+      );
+    });
+  }, [items, query, filter]);
+
+  if (itemId) {
+    const item = getVaultItem(itemId);
+    if (!item) {
+      return (
+        <section className="vault-panel">
+          <h1>Item not found</h1>
+          <Link to="/vault">Back to vault</Link>
+        </section>
+      );
+    }
+    return <VaultItemDetail item={item} sealStatus={sealStatus} />;
+  }
+
   return (
-    <section className="panel">
-      <h1>Vault</h1>
-      <p>
-        Local sealed sync persistence via client-core. Prefer OPFS; fall back to
-        in-memory when the browser blocks storage. Never uses localStorage for
-        sealed payloads.
-      </p>
-      <ul className="status-list">
-        <li>
-          <span className="k">Device id</span>
-          <span className="v">{cursor.deviceId}</span>
-        </li>
-        <li>
-          <span className="k">Epoch</span>
-          <span className="v">{cursor.epoch}</span>
-        </li>
-      </ul>
-      <div className="actions">
-        <button
-          type="button"
-          className="primary"
-          disabled={busy}
-          aria-busy={busy}
-          onClick={() => void ensureStore()}
-        >
-          {busy ? "Sealing…" : "Refresh sealed store"}
-        </button>
+    <section className="vault-panel">
+      <div className="vault-heading-row">
+        <h1>Vault</h1>
+        <p className="seal-chip" role="status">
+          {sealStatus}
+        </p>
       </div>
-      <p
-        className={kind === "ok" ? "ok" : kind === "err" ? "err" : "lede"}
-        role={kind === "err" ? "alert" : "status"}
-      >
-        {status}
+      <p className="lede tight">
+        Search sealed authority items the way you would a password vault — for
+        you or an agent. Secrets never appear here.
       </p>
+
+      <div className="search-row">
+        <IconSearch />
+        <input
+          type="search"
+          placeholder="Search vault"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search vault"
+        />
+      </div>
+
+      <div className="filter-row" role="toolbar" aria-label="Item type">
+        {filters.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            className={filter === f.id ? "filter is-active" : "filter"}
+            onClick={() => setFilter(f.id)}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {visible.length === 0 ? (
+        <p className="empty" role="status">
+          No items match. Clear search or add ceremonies under Tools.
+        </p>
+      ) : (
+        <ul className="vault-list">
+          {visible.map((item) => (
+            <li key={item.id}>
+              <Link className="vault-row" to={`/vault/${item.id}`}>
+                <span className={`type-badge type-${item.type}`}>
+                  <TypeIcon type={item.type} />
+                </span>
+                <span className="vault-row-text">
+                  <span className="vault-row-name">
+                    {item.name}
+                    {item.synthetic ? (
+                      <span className="synthetic-tag">synthetic</span>
+                    ) : null}
+                  </span>
+                  <span className="vault-row-sub">{item.subtitle}</span>
+                </span>
+                <span className="vault-row-meta">{typeLabel(item.type)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function VaultItemDetail({
+  item,
+  sealStatus,
+}: {
+  item: VaultItem;
+  sealStatus: string;
+}) {
+  return (
+    <section className="vault-panel">
+      <p className="crumb">
+        <Link to="/vault">Vault</Link> / {typeLabel(item.type)}
+      </p>
+      <div className="detail-head">
+        <span className={`type-badge large type-${item.type}`}>
+          <TypeIcon type={item.type} />
+        </span>
+        <div>
+          <h1>
+            {item.name}
+            {item.synthetic ? (
+              <span className="synthetic-tag">synthetic</span>
+            ) : null}
+          </h1>
+          <p className="lede tight">{item.subtitle}</p>
+        </div>
+      </div>
+
+      <dl className="detail-grid">
+        <div>
+          <dt>Type</dt>
+          <dd>{typeLabel(item.type)}</dd>
+        </div>
+        <div>
+          <dt>Agent usable</dt>
+          <dd>{item.agentUsable ? "Yes — visible under Agent" : "Human ceremony"}</dd>
+        </div>
+        <div>
+          <dt>Updated</dt>
+          <dd className="mono">{new Date(item.updatedAt).toLocaleString()}</dd>
+        </div>
+        <div>
+          <dt>Sealed store</dt>
+          <dd>{sealStatus}</dd>
+        </div>
+      </dl>
+
+      <div className="actions">
+        {item.type === "device" ? (
+          <Link className="button primary" to="/authorize">
+            Authorize CLI
+          </Link>
+        ) : null}
+        {item.type === "claim" ? (
+          <Link className="button primary" to="/claim">
+            Present claim
+          </Link>
+        ) : null}
+        {item.type === "task" ? (
+          <Link className="button primary" to="/task">
+            Inspect task ceiling
+          </Link>
+        ) : null}
+        {item.agentUsable ? (
+          <Link className="button" to="/agent">
+            Open in Agent
+          </Link>
+        ) : null}
+        <Link className="button" to="/vault">
+          Back
+        </Link>
+      </div>
     </section>
   );
 }
