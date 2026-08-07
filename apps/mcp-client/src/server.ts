@@ -2,6 +2,7 @@
 /**
  * Client MCP server — tools over Host api-client + Identity claim present.
  * Does not expose materialize / getSecret (ADR 0005 / 0017).
+ * Host mutating/session tools require OPENSESAME_ACCESS_TOKEN (opaque-session).
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -11,6 +12,16 @@ import { toolsManifest } from "./tools.js";
 
 const hostUrl = process.env.OPENSESAME_HOST_API ?? "http://127.0.0.1:8787";
 const identityUrl = process.env.OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
+
+function requireAccessToken(): string {
+  const tok = process.env.OPENSESAME_ACCESS_TOKEN?.trim();
+  if (!tok) {
+    throw new Error(
+      "OPENSESAME_ACCESS_TOKEN required (opaque-session from `opensesame login`)",
+    );
+  }
+  return tok;
+}
 
 const server = new McpServer({
   name: "opensesame-mcp-client",
@@ -27,11 +38,11 @@ server.tool("host_health", "Check Host API liveness", {}, async () => {
 });
 
 server.tool("whoami", "Host API whoami (opaque session)", {}, async () => {
-  const client = createApiClient({
-    baseUrl: hostUrl,
-    accessToken: process.env.OPENSESAME_ACCESS_TOKEN,
-  });
   try {
+    const client = createApiClient({
+      baseUrl: hostUrl,
+      accessToken: requireAccessToken(),
+    });
     const data = await client.whoami();
     return { content: [{ type: "text", text: JSON.stringify(data) }] };
   } catch (e) {
@@ -47,8 +58,11 @@ server.tool(
   "List ConnectionRefs from Host API",
   {},
   async () => {
-    const client = createApiClient({ baseUrl: hostUrl });
     try {
+      const client = createApiClient({
+        baseUrl: hostUrl,
+        accessToken: requireAccessToken(),
+      });
       const data = await client.listConnections();
       return { content: [{ type: "text", text: JSON.stringify(data) }] };
     } catch (e) {
@@ -69,8 +83,11 @@ server.tool(
     resource: z.string(),
   },
   async ({ connectionRef, operation, resource }) => {
-    const client = createApiClient({ baseUrl: hostUrl });
     try {
+      const client = createApiClient({
+        baseUrl: hostUrl,
+        accessToken: requireAccessToken(),
+      });
       const data = await client.invoke({
         connectionRef,
         operation,

@@ -260,14 +260,21 @@ claimRoutes.post(
 
 claimRoutes.post("/:id/deny", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
+  const principalId = c.get("principalId")!;
   try {
+    const existing = await ctx.claims.get(c.req.param("id"));
+    if (!existing) return c.json({ error: "not_found" }, 404);
+    if (existing.creatorPrincipalId !== principalId) {
+      return c.json(
+        { error: "forbidden", message: "Only the claim creator can deny" },
+        403,
+      );
+    }
     const session = await ctx.claims.deny(c.req.param("id"));
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "claim.denied",
       outcome: "succeeded",
-      ...(c.get("principalId") !== undefined
-        ? { principalId: c.get("principalId") }
-        : {}),
+      principalId,
       claimId: session.id,
       correlationId: c.get("correlationId"),
       metadata: { action: "claim.deny", state: session.state },

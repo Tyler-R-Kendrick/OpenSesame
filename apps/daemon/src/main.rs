@@ -241,7 +241,10 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn toolbar_status(State(st): State<App>) -> Json<Value> {
+async fn toolbar_status(State(st): State<App>, headers: HeaderMap) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     let sessions = st.sessions.lock().unwrap().len();
     let caps = st.capabilities.lock().unwrap().len();
     Json(json!({
@@ -252,6 +255,7 @@ async fn toolbar_status(State(st): State<App>) -> Json<Value> {
         "approvals": ["approve_device", "approve_claim"],
         "auth": "operator_token_required_for_mutations"
     }))
+    .into_response()
 }
 
 async fn approve_device(

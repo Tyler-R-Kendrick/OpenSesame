@@ -9,6 +9,19 @@ pub fn hash_secret(secret: &str) -> String {
     format!("sha256:{:x}", h.finalize())
 }
 
+/// Constant-time equality for `hash_secret` digests (and other equal-length hex strings).
+pub fn hash_eq(a: &str, b: &str) -> bool {
+    let (aa, bb) = (a.as_bytes(), b.as_bytes());
+    if aa.len() != bb.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in aa.iter().zip(bb.iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
+}
+
 pub fn generate_claim_token() -> String {
     let mut bytes = [0u8; 32];
     rand::thread_rng().fill_bytes(&mut bytes);
@@ -39,7 +52,7 @@ pub fn assert_claim_token(session: &ClaimSession, presented: &str) -> Result<(),
     if Utc::now() >= session.expires_at {
         return Err(DomainError::GrantTimeWindow);
     }
-    if hash_secret(presented) != session.claim_token_hash {
+    if !hash_eq(&hash_secret(presented), &session.claim_token_hash) {
         return Err(DomainError::InvalidId("claim token".into()));
     }
     Ok(())
@@ -98,6 +111,8 @@ mod tests {
         let t = generate_claim_token();
         assert_ne!(hash_secret(&t), t);
         assert!(hash_secret(&t).starts_with("sha256:"));
+        assert!(hash_eq(&hash_secret(&t), &hash_secret(&t)));
+        assert!(!hash_eq(&hash_secret(&t), &hash_secret("other")));
     }
 
     #[test]
