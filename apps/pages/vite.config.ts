@@ -20,9 +20,9 @@ export default defineConfig({
         name: "OpenSesame",
         short_name: "OpenSesame",
         description:
-          "Offline-capable authorization client — sealed store, ceremonies, task ceilings",
-        theme_color: "#0f1419",
-        background_color: "#0f1419",
+          "Authority vault for humans and agents — sealed store, ceremonies, task ceilings",
+        theme_color: "#152033",
+        background_color: "#eef1f6",
         display: "standalone",
         start_url: "./",
         scope: "./",

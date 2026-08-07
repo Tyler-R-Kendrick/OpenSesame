@@ -2,28 +2,28 @@
 version: 1
 slug: "apps-pages"
 primary_target: "apps/pages"
-related_targets: ["apps/pages/index.html","apps/pages/src/pages/SurfacePage.tsx"]
+related_targets: ["apps/pages/index.html","apps/pages/src/pages/VaultPage.tsx","apps/pages/src/pages/UnlockPage.tsx"]
 ---
 
-# Surface brief: apps/pages (GitHub Pages PWA)
+# Surface brief: apps/pages vault
 
 ## Scope & mode
-Operate — offline-first OpenSesame client shell on static hosting.
+Operate — Bitwarden-class authority vault PWA for humans and agents.
 
 ## Audience / job
-Operators and agent builders who need ceremonies, sealed vault, and task-ceiling visibility from a browser (including offline).
+Humans managing sealed authority items; agents consuming the same vault without raw secret export.
 
 ## Task
-Install/open shell → prepare vault → run or queue ceremonies → inspect task ceilings → configure Host/Identity when online.
+Unlock session → search/filter vault → open item or Agent peer view → Tools for ceremonies → Settings for API bases.
 
 ## Constraints
-Static only; remote Host/Identity; no secrets/private keys; synthetic demos labeled; no sudo; ADR 0017 dual-plane.
+Static Pages; remote Host/Identity; no secrets in UI; synthetic labeled; no sudo; OPFS KV (no localStorage); no custom Actions.
 
 ## Direction
-Authority-depth shell #4 (seed c46f17c2): sticky yellow next-decision band; night navy / panel steel / cyan controls; Surface is singular descent (Vault primary, Ceremonies alternate), not a dual-card dashboard.
+User-pinned competitor path: Bitwarden (+ assumed 1Password) craft bar. Light content, navy sidebar, teal accent, unlock-first.
 
 ## Memorable moment
-The yellow junction band naming the next authority depth while the page ground stays navy.
+Unlock card stating session PIN never decrypts sealed OPFS into the page — then a searchable vault list.
 
 ## Unresolved
-QUALITY BAR board assets were never dealt/downloaded this session; craft ceiling scored against OWN-WORLD only.
+Confirm whether 1Password stays as companion craft bar or Bitwarden alone.
