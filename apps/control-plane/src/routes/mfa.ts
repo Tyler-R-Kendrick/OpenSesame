@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { createHmac, randomBytes } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { issueAuthenticationChallenge } from "@opensesame/auth-upstream";
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
@@ -19,6 +19,13 @@ function totpCode(secretB64: string, step = 30, digits = 6, at = Date.now()): st
     (hmac[offset + 3]! & 0xff);
   const otp = bin % 10 ** digits;
   return otp.toString().padStart(digits, "0");
+}
+
+function totpCodesEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
 }
 
 function rpFromConfig(publicUrl: string): { rpID: string; origin: string } {
@@ -115,7 +122,7 @@ mfaRoutes.post("/totp/verify", requirePrincipal(), async (c) => {
   const secret = ctx.stores.totpSecrets.get(principalId);
   if (!secret) return c.json({ ok: false, error: "not_enrolled" }, 404);
   const expected = totpCode(secret);
-  const ok = body.code === expected;
+  const ok = totpCodesEqual(body.code ?? "", expected);
   return c.json({ ok }, ok ? 200 : 401);
 });
 

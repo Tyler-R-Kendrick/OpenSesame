@@ -46,7 +46,8 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
       },
       body: JSON.stringify({
         user_code: userCode,
-        principal: body.principal ?? principalId,
+        // Always bind to the authenticated Identity principal — never trust client-supplied principal.
+        principal: principalId,
       }),
     });
     const text = await res.text();

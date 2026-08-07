@@ -19,6 +19,26 @@ principalRoutes.post(
   async (c) => {
     const ctx = c.get("ctx");
     const now = ctx.clock();
+
+    // Evict expired provisional sessions/tokens, then enforce capacity.
+    const MAX_PROVISIONAL = 1024;
+    for (const [id, session] of ctx.stores.provisionalSessions) {
+      if (session.expiresAt.getTime() <= now.getTime()) {
+        ctx.stores.provisionalSessions.delete(id);
+      }
+    }
+    for (const [token, sessionId] of ctx.stores.provisionalTokens) {
+      if (!ctx.stores.provisionalSessions.has(sessionId)) {
+        ctx.stores.provisionalTokens.delete(token);
+      }
+    }
+    if (ctx.stores.provisionalSessions.size >= MAX_PROVISIONAL) {
+      return c.json(
+        { error: "provisional_capacity", message: "Too many provisional sessions" },
+        429,
+      );
+    }
+
     const { mapping, session } = await createProvisionalPrincipal(ctx.mappings, {
       ttlMs: ctx.config.provisionalTtlMs,
       quotaProfile: "anonymous",
