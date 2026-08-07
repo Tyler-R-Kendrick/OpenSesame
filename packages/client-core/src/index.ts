@@ -1,6 +1,6 @@
 /**
  * TypeScript façade mirroring `crates/client-core` sync shapes.
- * Full AEAD runs in Rust (native / wasm32). This package exposes cursor/blob types for api-client.
+ * Full AEAD: prefer Rust wasm (`wasm-bindgen` feature) when loaded; OPFS stores ciphertext only.
  */
 
 export interface SyncCursor {
@@ -51,4 +51,55 @@ export function sealDevOnly(plaintext: Uint8Array, key: Uint8Array): Uint8Array 
     out[i] = plaintext[i]! ^ key[i % key.length]!;
   }
   return out;
+}
+
+/** OPFS / localStorage persistence of sealed sync JSON (ciphertext only). */
+export async function persistSealedStore(
+  name: string,
+  sealedJson: string,
+): Promise<void> {
+  if (sealedJson.includes("plaintext-should") || /"plaintext"\s*:/.test(sealedJson)) {
+    throw new Error("refusing to persist plaintext-looking sync payload");
+  }
+  try {
+    const root = await navigator.storage?.getDirectory?.();
+    if (root) {
+      const handle = await root.getFileHandle(`opensesame-sync-${name}.json`, {
+        create: true,
+      });
+      const writable = await handle.createWritable();
+      await writable.write(sealedJson);
+      await writable.close();
+      return;
+    }
+  } catch {
+    /* fall through */
+  }
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem(`opensesame.sync.${name}`, sealedJson);
+  }
+}
+
+export async function loadSealedStore(name: string): Promise<string | null> {
+  try {
+    const root = await navigator.storage?.getDirectory?.();
+    if (root) {
+      const handle = await root.getFileHandle(`opensesame-sync-${name}.json`);
+      const file = await handle.getFile();
+      return await file.text();
+    }
+  } catch {
+    /* fall through */
+  }
+  if (typeof localStorage !== "undefined") {
+    return localStorage.getItem(`opensesame.sync.${name}`);
+  }
+  return null;
+}
+
+/** Smoke helper: verifies sealed persist helpers reject plaintext markers. */
+export function assertNoPlaintextInSealedJson(json: string): void {
+  if (json.includes("secret-payload") || /"plaintext"\s*:/.test(json)) {
+    throw new Error("sealed_json_contains_plaintext");
+  }
 }

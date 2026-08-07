@@ -9,7 +9,8 @@
     "test:install": "playwright install chromium"
   },
   "dependencies": {
-    "@opensesame/api-client": "workspace:*"
+    "@opensesame/api-client": "workspace:*",
+    "@opensesame/client-core": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "1.55.1",

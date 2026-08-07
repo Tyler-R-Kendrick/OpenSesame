@@ -1,19 +1,59 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const identityApi = import.meta.env.VITE_IDENTITY_API ?? "http://127.0.0.1:8788";
 const hostApi = import.meta.env.VITE_HOST_API ?? "http://127.0.0.1:8787";
 
+function parseDeepLink(): { userCode?: string; claimId?: string } {
+  if (typeof window === "undefined") return {};
+  const url = new URL(window.location.href);
+  const userCode =
+    url.searchParams.get("user_code") ??
+    url.searchParams.get("code") ??
+    undefined;
+  const claimId = url.searchParams.get("claim_id") ?? undefined;
+  // Custom scheme deep-link: opensesame-mfa://approve?user_code=ABCD
+  if (url.protocol.startsWith("opensesame")) {
+    return {
+      userCode: url.searchParams.get("user_code") ?? userCode,
+      claimId: url.searchParams.get("claim_id") ?? claimId,
+    };
+  }
+  return { userCode: userCode ?? undefined, claimId: claimId ?? undefined };
+}
+
 /**
  * Mobile MFA PWA — passkey + TOTP step-up against Identity API (:8788).
+ * Deep-link: /?user_code=ABCD-EFGH or opensesame-mfa://approve?user_code=…
  */
 export function App() {
-  const [userCode, setUserCode] = useState("");
+  const deep = useMemo(() => parseDeepLink(), []);
+  const [userCode, setUserCode] = useState(deep.userCode ?? "");
   const [principalId, setPrincipalId] = useState("prn_demo");
   const [accessToken, setAccessToken] = useState("");
   const [totpSecret, setTotpSecret] = useState("");
   const [totpCode, setTotpCode] = useState("");
-  const [status, setStatus] = useState("Ready for step-up");
+  const [status, setStatus] = useState(
+    deep.userCode
+      ? `Deep-link user code ${deep.userCode} — review and approve`
+      : "Ready for step-up",
+  );
   const base = useMemo(() => identityApi.replace(/\/$/, ""), []);
+
+  useEffect(() => {
+    const onHash = () => {
+      const next = parseDeepLink();
+      if (next.userCode) {
+        setUserCode(next.userCode);
+        setStatus(`Deep-link user code ${next.userCode}`);
+      }
+    };
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("popstate", onHash);
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("popstate", onHash);
+    };
+  }, []);
 
   async function checkIdentity() {
     try {

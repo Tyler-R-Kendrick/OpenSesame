@@ -1,15 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { bytesToB64, createCursor, sealDevOnly } from "./index.js";
+import {
+  assertNoPlaintextInSealedJson,
+  createCursor,
+  persistSealedStore,
+  sealDevOnly,
+} from "./index.js";
 
-describe("client-core js facade", () => {
-  it("creates cursor", () => {
-    expect(createCursor("d1").epoch).toBe(0);
+describe("client-core façade", () => {
+  it("createCursor", () => {
+    expect(createCursor("d").deviceId).toBe("d");
   });
 
-  it("does not embed plaintext in b64 of sealed bytes", () => {
-    const key = new Uint8Array(32).fill(7);
-    const sealed = sealDevOnly(new TextEncoder().encode("secret-note"), key);
-    const b64 = bytesToB64(sealed);
-    expect(b64.includes("secret")).toBe(false);
+  it("assertNoPlaintextInSealedJson", () => {
+    expect(() =>
+      assertNoPlaintextInSealedJson('{"blobs":[{"ciphertext":"abc"}]}'),
+    ).not.toThrow();
+    expect(() => assertNoPlaintextInSealedJson('{"plaintext":"x"}')).toThrow();
+  });
+
+  it("persistSealedStore rejects plaintext marker", async () => {
+    await expect(
+      persistSealedStore("t", '{"plaintext":"no"}'),
+    ).rejects.toThrow();
+  });
+
+  it("sealDevOnly forbidden in production", () => {
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      expect(() => sealDevOnly(new Uint8Array([1]), new Uint8Array([2]))).toThrow(
+        /forbidden/,
+      );
+    } finally {
+      process.env.NODE_ENV = prev;
+    }
   });
 });

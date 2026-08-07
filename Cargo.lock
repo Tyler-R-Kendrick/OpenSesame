@@ -1513,14 +1513,17 @@ dependencies = [
  "blake3",
  "chacha20poly1305",
  "getrandom 0.2.17",
+ "js-sys",
  "opensesame-core",
  "opensesame-human-vault",
  "rand 0.8.7",
  "serde",
+ "serde-wasm-bindgen",
  "serde_json",
  "sha2",
  "tempfile",
  "thiserror",
+ "wasm-bindgen",
  "zeroize",
 ]
 
@@ -1597,6 +1600,7 @@ dependencies = [
  "chrono",
  "clap",
  "opensesame-host-core",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",
@@ -2440,6 +2444,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-wasm-bindgen"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8302e169f0eddcc139c70f139d19d6467353af16f9fce27e8c30158036a1e16b"
+dependencies = [
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "serde_core"
 version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2870,7 +2885,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -3197,17 +3212,7 @@ dependencies = [
  "getrandom 0.4.3",
  "js-sys",
  "serde_core",
- "uuid-rng-internal",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "uuid-rng-internal"
-version = "1.24.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9dff7387287837acf196f2596a6216f94c555d947d5331e1cc48393131020119"
-dependencies = [
- "getrandom 0.4.3",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Client MCP server — tools over Host api-client.
+ * Client MCP server — tools over Host api-client + Identity claim present.
  * Does not expose materialize / getSecret (ADR 0005 / 0017).
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -10,6 +10,7 @@ import { createApiClient } from "@opensesame/api-client";
 import { toolsManifest } from "./tools.js";
 
 const hostUrl = process.env.OPENSESAME_HOST_API ?? "http://127.0.0.1:8787";
+const identityUrl = process.env.OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
 
 const server = new McpServer({
   name: "opensesame-mcp-client",
@@ -23,6 +24,22 @@ server.tool("host_health", "Check Host API liveness", {}, async () => {
   return {
     content: [{ type: "text", text: JSON.stringify({ health, daemon, tools: toolsManifest }) }],
   };
+});
+
+server.tool("whoami", "Host API whoami (opaque session)", {}, async () => {
+  const client = createApiClient({
+    baseUrl: hostUrl,
+    accessToken: process.env.OPENSESAME_ACCESS_TOKEN,
+  });
+  try {
+    const data = await client.whoami();
+    return { content: [{ type: "text", text: JSON.stringify(data) }] };
+  } catch (e) {
+    return {
+      content: [{ type: "text", text: `error: ${e instanceof Error ? e.message : String(e)}` }],
+      isError: true,
+    };
+  }
 });
 
 server.tool(
@@ -61,6 +78,36 @@ server.tool(
         invokeLevel: 1,
       });
       return { content: [{ type: "text", text: JSON.stringify(data) }] };
+    } catch (e) {
+      return {
+        content: [{ type: "text", text: `error: ${e instanceof Error ? e.message : String(e)}` }],
+        isError: true,
+      };
+    }
+  },
+);
+
+server.tool(
+  "present_claim",
+  "Present / poll an Identity API claim (step-up); never returns secrets",
+  {
+    claimId: z.string(),
+    accessToken: z.string().optional(),
+  },
+  async ({ claimId, accessToken }) => {
+    const base = identityUrl.replace(/\/$/, "");
+    const headers: Record<string, string> = { accept: "application/json" };
+    const tok = accessToken ?? process.env.OPENSESAME_ACCESS_TOKEN;
+    if (tok) headers.authorization = `Bearer ${tok}`;
+    try {
+      const res = await fetch(`${base}/v1/claims/${encodeURIComponent(claimId)}`, {
+        headers,
+      });
+      const text = await res.text();
+      return {
+        content: [{ type: "text", text: JSON.stringify({ status: res.status, body: text }) }],
+        isError: !res.ok,
+      };
     } catch (e) {
       return {
         content: [{ type: "text", text: `error: ${e instanceof Error ? e.message : String(e)}` }],
