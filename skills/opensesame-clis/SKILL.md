@@ -47,7 +47,9 @@ pnpm --filter @opensesame/control-plane start   # :8788
 ./target/debug/opensesame daemon logs
 ./target/debug/opensesame daemon stop
 ./target/debug/opensesame dev check --schema fixtures/demo.env.schema
-./target/debug/opensesame dev resolve --agent --schema fixtures/demo.env.schema
+./target/debug/opensesame dev resolve --mode agent --schema fixtures/demo.env.schema
+./target/debug/opensesame-toolbar approve-device --user-code ABCD-EFGH
+./target/debug/opensesame-toolbar approve-claim --claim-id clm_…
 
 # Client
 pnpm --filter @opensesame/cli start -- login --device --issuer http://127.0.0.1:8788
