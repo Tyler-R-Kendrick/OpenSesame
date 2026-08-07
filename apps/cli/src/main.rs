@@ -770,14 +770,14 @@ async fn doctor(server: &str) -> anyhow::Result<()> {
 }
 
 fn uuid_v4() -> String {
-    format!("{}", uuid::Uuid::new_v4())
+    uuid::Uuid::new_v4().to_string()
 }
 
 fn print_output(output: &str, value: &serde_json::Value) -> anyhow::Result<()> {
     if output == "json" {
         println!("{}", serde_json::to_string_pretty(value)?);
     } else {
-        println!("{}", value);
+        println!("{value}");
     }
     Ok(())
 }
