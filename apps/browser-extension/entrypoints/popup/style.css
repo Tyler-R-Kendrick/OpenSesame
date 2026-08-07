@@ -1,0 +1,93 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: #e8eef4;
+  background: #0f1419;
+}
+
+body {
+  margin: 0;
+  min-width: 280px;
+}
+
+.shell {
+  padding: 1rem 1.1rem 1.25rem;
+}
+
+.brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.2rem;
+}
+
+h1 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.4rem;
+}
+
+.lede,
+.hint {
+  color: #9aabbc;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin: 0 0 0.75rem;
+}
+
+.status {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.status li {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #2a3848;
+  background: #1a2330;
+}
+
+.field {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: #9aabbc;
+  margin-bottom: 0.75rem;
+}
+
+.field input {
+  font: inherit;
+  color: #e8eef4;
+  background: #0c121a;
+  border: 1px solid #2a3848;
+  padding: 0.45rem 0.55rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+button {
+  appearance: none;
+  border: 0;
+  background: #3d9cf0;
+  color: #061018;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #243246;
+  color: #e8eef4;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #3d9cf0;
+  outline-offset: 2px;
+}

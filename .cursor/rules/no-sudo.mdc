@@ -1,0 +1,11 @@
+---
+description: Never use or request sudo; escalate without privilege elevation
+alwaysApply: true
+---
+
+# No sudo
+
+- Never run `sudo`, `sudo -u`, `pkexec`, or equivalent privilege-elevation commands.
+- Never ask the user to run sudo, grant root, or approve a sudo prompt.
+- If a step appears to need elevated privileges, do the work without elevation (user-owned paths, user installs, Docker without root, documented non-root alternatives) or stop with a clear non-sudo blocker.
+- Do not suggest `sudo` in scripts, docs, README steps, or CI unless the repository already hard-requires it in an existing checked-in file you are not expanding.

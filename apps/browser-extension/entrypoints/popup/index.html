@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenSesame</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <p class="brand">OpenSesame</p>
+      <h1>Extension</h1>
+      <p class="lede">Host API health and sealed sync cursor. No secrets.</p>
+      <ul id="status" class="status" aria-live="polite">
+        <li>Checking…</li>
+      </ul>
+      <label class="field">
+        Host API base
+        <input id="host" type="url" placeholder="http://127.0.0.1:8787" />
+      </label>
+      <div class="actions">
+        <button id="save" type="button">Save host</button>
+        <button id="retry" type="button" class="secondary">Retry</button>
+      </div>
+      <p id="hint" class="hint" hidden></p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

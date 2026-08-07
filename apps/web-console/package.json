@@ -2,8 +2,10 @@
   "name": "@opensesame/web-console",
   "version": "0.1.0",
   "private": true,
+  "description": "Stub. Use apps/console (Vite Identity console) until the Next.js console ships.",
   "scripts": {
-    "dev": "echo \"wire Next.js console against gateway OIDC\"",
-    "build": "echo ok"
+    "dev": "node ./scripts/point-to-console.mjs",
+    "build": "node ./scripts/point-to-console.mjs --build",
+    "test": "node ./scripts/point-to-console.mjs --check"
   }
 }
