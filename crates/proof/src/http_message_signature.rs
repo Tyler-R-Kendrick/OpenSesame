@@ -160,9 +160,7 @@ pub fn content_digest_sha256(body: &[u8]) -> String {
     format!("sha-256=:{}:", B64.encode(hash))
 }
 
-fn parse_signature_input(
-    input: &str,
-) -> Result<(String, Vec<String>, i64, String, String), ProofError> {
+fn parse_signature_input(input: &str) -> Result<ParsedSignatureInput, ProofError> {
     let label = input.split('=').next().unwrap_or("sig").trim().to_string();
     let paren_start = input
         .find('(')
@@ -197,13 +195,14 @@ fn parse_signature_input(
         }
     }
 
-    Ok((
+    Ok(ParsedSignatureInput {
         label,
         covered,
-        created.ok_or_else(|| ProofError::InvalidProof("missing created".into()))?,
-        key_id.ok_or_else(|| ProofError::InvalidProof("missing keyid".into()))?,
-        algorithm.ok_or_else(|| ProofError::InvalidProof("missing alg".into()))?,
-    ))
+        created: created
+            .ok_or_else(|| ProofError::InvalidProof("missing created".into()))?,
+        key_id: key_id.ok_or_else(|| ProofError::InvalidProof("missing keyid".into()))?,
+        algorithm: algorithm.ok_or_else(|| ProofError::InvalidProof("missing alg".into()))?,
+    })
 }
 
 fn signature_value(signature_header: &str, label: &str) -> Result<String, ProofError> {
