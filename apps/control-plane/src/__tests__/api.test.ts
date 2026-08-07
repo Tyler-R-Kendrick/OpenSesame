@@ -183,6 +183,39 @@ describe("control-plane API", () => {
     expect(((await verify.json()) as { ok: boolean }).ok).toBe(true);
   });
 
+  it("production rejects stub TOTP enroll/verify", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+        allowDevDefaults: false,
+        claimPepper: "prod-claim-pepper-for-test-only",
+        isProduction: false,
+      },
+      processEnv: {
+        ...process.env,
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "false",
+        OPENSESAME_CLAIM_PEPPER: "prod-claim-pepper-for-test-only",
+        NODE_ENV: "development",
+      },
+    });
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+    const enroll = await app.request("/v1/mfa/totp/enroll", {
+      method: "POST",
+      headers: auth,
+    });
+    expect(enroll.status).toBe(403);
+    expect(((await enroll.json()) as { error: string }).error).toBe("totp_dev_only");
+    const verify = await app.request("/v1/mfa/totp/verify", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ code: "000000" }),
+    });
+    expect(verify.status).toBe(403);
+  });
+
   it("production passkey register requires attestation ceremony", async () => {
     const { app } = createControlPlane({
       config: {

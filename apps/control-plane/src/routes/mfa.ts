@@ -170,8 +170,21 @@ mfaRoutes.post("/passkey/assert", async (c) => {
   return c.json({ ok: true, principalId: result.principalId });
 });
 
+/**
+ * DEV/test TOTP only — not a production MFA factor.
+ * Prefer WebAuthn passkeys (`/passkey/*`) when `allowDevDefaults` is false.
+ */
 mfaRoutes.post("/totp/enroll", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
+  if (!ctx.config.allowDevDefaults) {
+    return c.json(
+      {
+        error: "totp_dev_only",
+        hint: "Use /v1/mfa/passkey/registration-options for production MFA",
+      },
+      403,
+    );
+  }
   const principalId = c.get("principalId")!;
   const secret = randomBytes(20);
   const secretB64 = secret.toString("base64");
@@ -187,6 +200,15 @@ mfaRoutes.post("/totp/enroll", requirePrincipal(), async (c) => {
 
 mfaRoutes.post("/totp/verify", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
+  if (!ctx.config.allowDevDefaults) {
+    return c.json(
+      {
+        error: "totp_dev_only",
+        hint: "Use /v1/mfa/passkey/assert for production MFA",
+      },
+      403,
+    );
+  }
   const principalId = c.get("principalId")!;
   const body = await c.req.json<{ code: string; principalId?: string }>();
   if (body.principalId && body.principalId !== principalId) {
