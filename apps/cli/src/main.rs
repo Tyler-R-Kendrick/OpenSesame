@@ -14,9 +14,17 @@ use std::{
 };
 
 #[derive(Parser, Debug)]
-#[command(name = "opensesame", about = "OpenSesame CLI — credentials as capabilities")]
+#[command(
+    name = "opensesame",
+    about = "OpenSesame CLI — credentials as capabilities"
+)]
 struct Cli {
-    #[arg(long, env = "OPENSESAME_SERVER", global = true, default_value = "http://127.0.0.1:8787")]
+    #[arg(
+        long,
+        env = "OPENSESAME_SERVER",
+        global = true,
+        default_value = "http://127.0.0.1:8787"
+    )]
     server: String,
     #[arg(long, global = true, default_value = "json")]
     output: String,
@@ -84,6 +92,16 @@ enum Commands {
         #[command(subcommand)]
         cmd: DaemonCmd,
     },
+    /// Task-scoped authority (immutable ceiling + trust ratchet).
+    Task {
+        #[command(subcommand)]
+        cmd: TaskCmd,
+    },
+    /// Freeze a task-bound intent via Host API.
+    Intent {
+        #[command(subcommand)]
+        cmd: IntentCmd,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -121,6 +139,53 @@ enum AuthCmd {
 #[derive(Subcommand, Debug)]
 enum ReceiptCmd {
     Verify { id: String },
+}
+
+#[derive(Subcommand, Debug)]
+enum TaskCmd {
+    Start {
+        #[arg(long)]
+        principal: String,
+        #[arg(long)]
+        organization: String,
+        /// Repeatable capability as action=resource
+        #[arg(long = "capability", required = true)]
+        capabilities: Vec<String>,
+        #[arg(long, default_value_t = 3600)]
+        ttl_seconds: i64,
+    },
+    List,
+    Inspect {
+        id: String,
+    },
+    Capabilities {
+        id: String,
+    },
+    Terminate {
+        id: String,
+        #[arg(long)]
+        expected_state_version: Option<u64>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum IntentCmd {
+    Create {
+        #[arg(long)]
+        task: String,
+        #[arg(long)]
+        operation: String,
+        #[arg(long)]
+        resource: String,
+        #[arg(long)]
+        audience: String,
+        #[arg(long, default_value = "{}")]
+        args: String,
+        #[arg(long)]
+        expected_state_version: Option<u64>,
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
 }
 
 #[derive(Clone, ValueEnum, Debug)]
@@ -166,22 +231,26 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Status => status(&cli.server).await?,
         Commands::Whoami => whoami(&cli.server).await?,
-        Commands::Auth { cmd: AuthCmd::Doctor } => doctor(&cli.server).await?,
+        Commands::Auth {
+            cmd: AuthCmd::Doctor,
+        } => doctor(&cli.server).await?,
         Commands::Invoke {
             connection_ref,
             operation,
             resource,
             input,
             invoke_level,
-        } => invoke(
-            &cli.server,
-            &connection_ref,
-            &operation,
-            &resource,
-            input,
-            invoke_level,
-        )
-        .await?,
+        } => {
+            invoke(
+                &cli.server,
+                &connection_ref,
+                &operation,
+                &resource,
+                input,
+                invoke_level,
+            )
+            .await?
+        }
         Commands::Receipt {
             cmd: ReceiptCmd::Verify { id },
         } => verify_receipt(&cli.server, &id).await?,
@@ -200,6 +269,8 @@ async fn main() -> anyhow::Result<()> {
             dev_cmd(cmd, agent, schema)?
         }
         Commands::Daemon { url, cmd } => daemon_cmd(&url, cmd).await?,
+        Commands::Task { cmd } => task_cmd(&cli.server, &cli.output, cmd).await?,
+        Commands::Intent { cmd } => intent_cmd(&cli.server, &cli.output, cmd).await?,
     }
     Ok(())
 }
@@ -223,17 +294,17 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
                 if PathBuf::from(src).exists() {
                     let _ = std::fs::create_dir_all(format!("{home}/.local/bin"));
                     if std::fs::copy(src, &dest).is_ok() {
-                            installed = true;
-                            #[cfg(unix)]
-                            {
-                                use std::os::unix::fs::PermissionsExt;
-                                let _ = std::fs::set_permissions(
-                                    &dest,
-                                    std::fs::Permissions::from_mode(0o755),
-                                );
-                            }
-                            break;
+                        installed = true;
+                        #[cfg(unix)]
+                        {
+                            use std::os::unix::fs::PermissionsExt;
+                            let _ = std::fs::set_permissions(
+                                &dest,
+                                std::fs::Permissions::from_mode(0o755),
+                            );
                         }
+                        break;
+                    }
                 }
             }
             println!(
@@ -270,7 +341,10 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
                     let _ = std::fs::write(&pidfile, format!("{pid}\n"));
                     // Detach: forget Child so Drop doesn't kill it
                     std::mem::forget(c);
-                    println!("{}", json!({"status":"started","pid": pid, "pidfile": pidfile, "logfile": logfile}));
+                    println!(
+                        "{}",
+                        json!({"status":"started","pid": pid, "pidfile": pidfile, "logfile": logfile})
+                    );
                 }
                 Err(e) => println!(
                     "{}",
@@ -287,70 +361,75 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
             match client.get(format!("{base}/health")).send().await {
                 Ok(resp) => {
                     let body: serde_json::Value = resp.json().await.unwrap_or(json!({"raw":"ok"}));
-                    println!("{}", json!({"status":"up","health": body, "pidfile": pidfile}));
+                    println!(
+                        "{}",
+                        json!({"status":"up","health": body, "pidfile": pidfile})
+                    );
                 }
                 Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
             }
         }
-        DaemonCmd::Logs => {
-            match std::fs::read_to_string(&logfile) {
-                Ok(content) => {
-                    let lines: Vec<&str> = content.lines().rev().take(40).collect();
-                    let out: Vec<&str> = lines.into_iter().rev().collect();
-                    println!("{}", out.join("\n"));
-                    if out.is_empty() {
-                        println!("{}", json!({"status":"empty","logfile": logfile, "hint":"start daemon to capture logs"}));
-                    }
+        DaemonCmd::Logs => match std::fs::read_to_string(&logfile) {
+            Ok(content) => {
+                let lines: Vec<&str> = content.lines().rev().take(40).collect();
+                let out: Vec<&str> = lines.into_iter().rev().collect();
+                println!("{}", out.join("\n"));
+                if out.is_empty() {
+                    println!(
+                        "{}",
+                        json!({"status":"empty","logfile": logfile, "hint":"start daemon to capture logs"})
+                    );
                 }
-                Err(_) => {
-                    let client = reqwest::Client::new();
-                    match client.get(format!("{base}/health")).send().await {
-                        Ok(resp) => {
-                            let body: serde_json::Value =
-                                resp.json().await.unwrap_or(json!({"raw":"ok"}));
-                            println!(
-                                "{}",
-                                json!({"status":"up","health": body, "hint": format!("no logfile at {logfile}")})
-                            );
-                        }
-                        Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
+            }
+            Err(_) => {
+                let client = reqwest::Client::new();
+                match client.get(format!("{base}/health")).send().await {
+                    Ok(resp) => {
+                        let body: serde_json::Value =
+                            resp.json().await.unwrap_or(json!({"raw":"ok"}));
+                        println!(
+                            "{}",
+                            json!({"status":"up","health": body, "hint": format!("no logfile at {logfile}")})
+                        );
+                    }
+                    Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
+                }
+            }
+        },
+        DaemonCmd::Stop => match std::fs::read_to_string(&pidfile) {
+            Ok(raw) => {
+                let pid: u32 = raw.trim().parse().unwrap_or(0);
+                if pid == 0 {
+                    println!("{}", json!({"status":"error","error":"invalid pidfile"}));
+                } else {
+                    #[cfg(unix)]
+                    {
+                        let status = StdCommand::new("kill")
+                            .args(["-TERM", &pid.to_string()])
+                            .status();
+                        let _ = std::fs::remove_file(&pidfile);
+                        println!(
+                            "{}",
+                            json!({
+                                "status": if status.map(|s| s.success()).unwrap_or(false) { "stopped" } else { "error" },
+                                "pid": pid
+                            })
+                        );
+                    }
+                    #[cfg(not(unix))]
+                    {
+                        println!(
+                            "{}",
+                            json!({"status":"error","error":"stop requires unix SIGTERM"})
+                        );
                     }
                 }
             }
-        }
-        DaemonCmd::Stop => {
-            match std::fs::read_to_string(&pidfile) {
-                Ok(raw) => {
-                    let pid: u32 = raw.trim().parse().unwrap_or(0);
-                    if pid == 0 {
-                        println!("{}", json!({"status":"error","error":"invalid pidfile"}));
-                    } else {
-                        #[cfg(unix)]
-                        {
-                            let status = StdCommand::new("kill")
-                                .args(["-TERM", &pid.to_string()])
-                                .status();
-                            let _ = std::fs::remove_file(&pidfile);
-                            println!(
-                                "{}",
-                                json!({
-                                    "status": if status.map(|s| s.success()).unwrap_or(false) { "stopped" } else { "error" },
-                                    "pid": pid
-                                })
-                            );
-                        }
-                        #[cfg(not(unix))]
-                        {
-                            println!("{}", json!({"status":"error","error":"stop requires unix SIGTERM"}));
-                        }
-                    }
-                }
-                Err(_) => println!(
-                    "{}",
-                    json!({"status":"not_running","hint":"no pidfile; kill opensesame-daemon manually"})
-                ),
-            }
-        }
+            Err(_) => println!(
+                "{}",
+                json!({"status":"not_running","hint":"no pidfile; kill opensesame-daemon manually"})
+            ),
+        },
     }
     Ok(())
 }
@@ -483,7 +562,9 @@ async fn login(
             device_login(server).await?;
         }
         LoginFlow::Ciba => anyhow::bail!("CIBA not enabled by issuer profile"),
-        LoginFlow::Workload => anyhow::bail!("configure OPENSESAME_WORKLOAD_IDENTITY for workload flow"),
+        LoginFlow::Workload => {
+            anyhow::bail!("configure OPENSESAME_WORKLOAD_IDENTITY for workload flow")
+        }
     }
     Ok(())
 }
@@ -689,5 +770,159 @@ async fn doctor(server: &str) -> anyhow::Result<()> {
 }
 
 fn uuid_v4() -> String {
-    format!("{}", uuid::Uuid::new_v4())
+    uuid::Uuid::new_v4().to_string()
+}
+
+fn print_output(output: &str, value: &serde_json::Value) -> anyhow::Result<()> {
+    if output == "json" {
+        println!("{}", serde_json::to_string_pretty(value)?);
+    } else {
+        println!("{value}");
+    }
+    Ok(())
+}
+
+fn parse_capability(raw: &str) -> anyhow::Result<serde_json::Value> {
+    let (action, resource) = raw
+        .split_once('=')
+        .ok_or_else(|| anyhow::anyhow!("capability must be action=resource, got {raw}"))?;
+    Ok(json!({ "action": action, "resource": resource }))
+}
+
+async fn task_cmd(server: &str, output: &str, cmd: TaskCmd) -> anyhow::Result<()> {
+    let client = reqwest::Client::new();
+    let base = server.trim_end_matches('/');
+    match cmd {
+        TaskCmd::Start {
+            principal,
+            organization,
+            capabilities,
+            ttl_seconds,
+        } => {
+            let caps: Vec<serde_json::Value> = capabilities
+                .iter()
+                .map(|c| parse_capability(c))
+                .collect::<anyhow::Result<_>>()?;
+            let body: serde_json::Value = client
+                .post(format!("{base}/api/v1/tasks"))
+                .json(&json!({
+                    "principal_id": principal,
+                    "organization_id": organization,
+                    "capabilities": caps,
+                    "ttl_seconds": ttl_seconds,
+                }))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            print_output(output, &body)?;
+        }
+        TaskCmd::List => {
+            let body: serde_json::Value = client
+                .get(format!("{base}/api/v1/tasks"))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            print_output(output, &body)?;
+        }
+        TaskCmd::Inspect { id } => {
+            let body: serde_json::Value = client
+                .get(format!("{base}/api/v1/tasks/{id}"))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            print_output(output, &body)?;
+        }
+        TaskCmd::Capabilities { id } => {
+            let body: serde_json::Value = client
+                .get(format!("{base}/api/v1/tasks/{id}"))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            let out = json!({
+                "task_run_id": body.get("task_run_id").cloned().unwrap_or(json!(id)),
+                "state_version": body.get("state_version"),
+                "capability_ceiling": body.get("capability_ceiling"),
+                "current_capabilities": body.get("current_capabilities"),
+            });
+            print_output(output, &out)?;
+        }
+        TaskCmd::Terminate {
+            id,
+            expected_state_version,
+        } => {
+            let body: serde_json::Value = client
+                .post(format!("{base}/api/v1/tasks/{id}/terminate"))
+                .json(&json!({
+                    "expected_state_version": expected_state_version,
+                }))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            print_output(output, &body)?;
+        }
+    }
+    Ok(())
+}
+
+async fn intent_cmd(server: &str, output: &str, cmd: IntentCmd) -> anyhow::Result<()> {
+    let client = reqwest::Client::new();
+    let base = server.trim_end_matches('/');
+    match cmd {
+        IntentCmd::Create {
+            task,
+            operation,
+            resource,
+            audience,
+            args,
+            expected_state_version,
+            idempotency_key,
+        } => {
+            let arguments: serde_json::Value = serde_json::from_str(&args)
+                .map_err(|e| anyhow::anyhow!("invalid --args JSON: {e}"))?;
+            let state_version = match expected_state_version {
+                Some(v) => v,
+                None => {
+                    let status: serde_json::Value = client
+                        .get(format!("{base}/api/v1/tasks/{task}"))
+                        .send()
+                        .await?
+                        .error_for_status()?
+                        .json()
+                        .await?;
+                    status
+                        .get("state_version")
+                        .and_then(|v| v.as_u64())
+                        .ok_or_else(|| anyhow::anyhow!("task missing state_version"))?
+                }
+            };
+            let body: serde_json::Value = client
+                .post(format!("{base}/api/v1/tasks/intents"))
+                .json(&json!({
+                    "task_run_id": task,
+                    "expected_state_version": state_version,
+                    "operation": operation,
+                    "resource": resource,
+                    "audience": audience,
+                    "arguments": arguments,
+                    "idempotency_key": idempotency_key.unwrap_or_else(uuid_v4),
+                }))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            print_output(output, &body)?;
+        }
+    }
+    Ok(())
 }

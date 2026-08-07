@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use opensesame_domain::{ClaimSession, ClaimState, DomainError};
-use sha2::{Digest, Sha256};
 use rand::{Rng, RngCore};
+use sha2::{Digest, Sha256};
 
 pub fn hash_secret(secret: &str) -> String {
     let mut h = Sha256::new();

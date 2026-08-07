@@ -111,6 +111,15 @@ class MemoryStore {
   outbox = new Map<string, OutboxEvent>();
 }
 
+
+function applyNowOrDefer(uow: UnitOfWork | undefined, apply: () => void) {
+  if (uow instanceof MemoryUnitOfWork) {
+    uow.defer(apply);
+  } else {
+    apply();
+  }
+}
+
 export class MemoryRepositories implements Repositories {
   readonly #store = new MemoryStore();
 
@@ -123,11 +132,7 @@ export class MemoryRepositories implements Repositories {
       const apply = () => {
         this.#store.principals.set(row.id, { ...row });
       };
-      if (uow instanceof MemoryUnitOfWork) {
-        uow.defer(apply);
-      } else {
-        apply();
-      }
+      applyNowOrDefer(uow, apply);
       return { ...row };
     },
 
@@ -157,11 +162,7 @@ export class MemoryRepositories implements Repositories {
       const apply = () => {
         this.#store.principals.set(id, { ...next });
       };
-      if (uow instanceof MemoryUnitOfWork) {
-        uow.defer(apply);
-      } else {
-        apply();
-      }
+      applyNowOrDefer(uow, apply);
       return { ...next };
     },
   };
@@ -190,11 +191,7 @@ export class MemoryRepositories implements Repositories {
         });
         this.#store.identityKeys.set(key, row.id);
       };
-      if (uow instanceof MemoryUnitOfWork) {
-        uow.defer(apply);
-      } else {
-        apply();
-      }
+      applyNowOrDefer(uow, apply);
       return { ...row, metadata: { ...row.metadata } };
     },
 
@@ -221,6 +218,18 @@ export class MemoryRepositories implements Repositories {
         .filter((row) => row.emailNormalized === email)
         .map((row) => ({ ...row, metadata: { ...row.metadata } }));
     },
+
+    deleteById: async (id, uow) => {
+      const row = this.#store.identities.get(id);
+      if (!row) return false;
+      const key = identityKey(row);
+      const apply = () => {
+        this.#store.identities.delete(id);
+        this.#store.identityKeys.delete(key);
+      };
+      applyNowOrDefer(uow, apply);
+      return true;
+    },
   };
 
   readonly betterAuthSubjects: BetterAuthSubjectRepository = {
@@ -234,11 +243,7 @@ export class MemoryRepositories implements Repositories {
       const apply = () => {
         this.#store.betterAuth.set(next.betterAuthUserId, { ...next });
       };
-      if (uow instanceof MemoryUnitOfWork) {
-        uow.defer(apply);
-      } else {
-        apply();
-      }
+      applyNowOrDefer(uow, apply);
       return { ...next };
     },
 
@@ -257,11 +262,7 @@ export class MemoryRepositories implements Repositories {
       const apply = () => {
         this.#store.claims.set(row.id, cloneClaim(row));
       };
-      if (uow instanceof MemoryUnitOfWork) {
-        uow.defer(apply);
-      } else {
-        apply();
-      }
+      applyNowOrDefer(uow, apply);
       return cloneClaim(row);
     },
 
@@ -301,11 +302,7 @@ export class MemoryRepositories implements Repositories {
       const apply = () => {
         this.#store.claims.set(id, cloneClaim(next));
       };
-      if (uow instanceof MemoryUnitOfWork) {
-        uow.defer(apply);
-      } else {
-        apply();
-      }
+      applyNowOrDefer(uow, apply);
       return cloneClaim(next);
     },
   };
@@ -325,11 +322,7 @@ export class MemoryRepositories implements Repositories {
           dependencies: [...row.dependencies],
         });
       };
-      if (uow instanceof MemoryUnitOfWork) {
-        uow.defer(apply);
-      } else {
-        apply();
-      }
+      applyNowOrDefer(uow, apply);
       return { ...row, dependencies: [...row.dependencies] };
     },
 
@@ -352,12 +345,20 @@ export class MemoryRepositories implements Repositories {
           metadata: { ...row.metadata },
         });
       };
-      if (uow instanceof MemoryUnitOfWork) {
-        uow.defer(apply);
-      } else {
-        apply();
-      }
+      applyNowOrDefer(uow, apply);
       return { ...row, metadata: { ...row.metadata } };
+    },
+    list: async (filter) => {
+      let rows = [...this.#store.audit.values()];
+      if (filter?.principalId) {
+        rows = rows.filter((r) => r.principalId === filter.principalId);
+      }
+      rows.sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+      const limit = filter?.limit ?? 50;
+      return rows.slice(0, limit).map((r) => ({
+        ...r,
+        metadata: { ...r.metadata },
+      }));
     },
   };
 

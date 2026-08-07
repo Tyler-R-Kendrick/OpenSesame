@@ -79,6 +79,10 @@ mod tests {
                 safe_result_summary: Some(serde_json::json!({ key: "LEAK" })),
                 authority_key_id: "k".into(),
                 signature: "s".into(),
+                receipt_schema_version: 1,
+                task_run_id: None,
+                task_state_version: None,
+                task_state_digest: None,
             };
             assert!(!r.assert_no_secret_leak(), "must detect {key}");
         }

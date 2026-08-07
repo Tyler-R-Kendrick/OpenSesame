@@ -1,6 +1,6 @@
 use crate::{
     ActorId, ActorInstanceId, ApprovalId, ClientId, ConnectionId, CredentialHandleId, GrantId,
-    InvocationId, OperatorId, PrincipalId, ReceiptId,
+    InvocationId, OperatorId, PrincipalId, ReceiptId, TaskRunId,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -41,6 +41,19 @@ pub struct InvocationReceipt {
     pub safe_result_summary: Option<serde_json::Value>,
     pub authority_key_id: String,
     pub signature: String,
+    /// Schema 1 = legacy; schema 2+ includes task binding fields.
+    #[serde(default = "default_receipt_schema_version")]
+    pub receipt_schema_version: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_run_id: Option<TaskRunId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_state_version: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_state_digest: Option<String>,
+}
+
+fn default_receipt_schema_version() -> u32 {
+    1
 }
 
 impl InvocationReceipt {
@@ -96,6 +109,10 @@ mod tests {
             safe_result_summary: Some(serde_json::json!({"access_token": "nope"})),
             authority_key_id: "k".into(),
             signature: "s".into(),
+            receipt_schema_version: 1,
+            task_run_id: None,
+            task_state_version: None,
+            task_state_digest: None,
         };
         assert!(!r.assert_no_secret_leak());
         r.safe_result_summary = Some(serde_json::json!({"pr_number": 12}));

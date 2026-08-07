@@ -256,6 +256,151 @@ describe("control-plane API", () => {
     expect(body.toLowerCase()).not.toContain("x-opensesame-operator");
   });
 
+  it("links and lists identities without email auto-link; collision returns 409", async () => {
+    const { app } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+    const a = await provisional(app);
+    const b = await provisional(app);
+    const authA = { authorization: `Bearer ${a.accessToken}` };
+    const authB = { authorization: `Bearer ${b.accessToken}` };
+
+    const linkA = await app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: {
+        ...authA,
+        "content-type": "application/json",
+        "idempotency-key": "link-a",
+      },
+      body: JSON.stringify({
+        kind: "oidc",
+        issuer: "https://mock.example",
+        subject: "sub-shared-email-case",
+        emailNormalized: "same@example.com",
+        assurance: "verified",
+      }),
+    });
+    expect(linkA.status).toBe(201);
+
+    const list = await app.request("/v1/principals/identities", { headers: authA });
+    expect(list.status).toBe(200);
+    const listed = (await list.json()) as { identities: Array<{ subject: string }> };
+    expect(listed.identities).toHaveLength(1);
+    expect(listed.identities[0]?.subject).toBe("sub-shared-email-case");
+
+    // Same email on a different subject must not auto-merge; linking a new subject succeeds.
+    const linkBEmail = await app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: {
+        ...authB,
+        "content-type": "application/json",
+        "idempotency-key": "link-b-email",
+      },
+      body: JSON.stringify({
+        kind: "oidc",
+        issuer: "https://mock.example",
+        subject: "sub-other",
+        emailNormalized: "same@example.com",
+        assurance: "verified",
+      }),
+    });
+    expect(linkBEmail.status).toBe(201);
+
+    // Same kind+issuer+subject cannot bind to a second principal.
+    const collision = await app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: {
+        ...authB,
+        "content-type": "application/json",
+        "idempotency-key": "link-collision",
+      },
+      body: JSON.stringify({
+        kind: "oidc",
+        issuer: "https://mock.example",
+        subject: "sub-shared-email-case",
+        assurance: "verified",
+      }),
+    });
+    expect(collision.status).toBe(409);
+    expect(((await collision.json()) as { error: string }).error).toBe(
+      "identity_collision",
+    );
+
+    const me = await app.request("/v1/principals/me", { headers: authA });
+    expect(me.status).toBe(200);
+    const meBody = (await me.json()) as { id: string; assurance: string };
+    expect(meBody.id).toBe(a.principalId);
+    expect(meBody.assurance).not.toBe("provisional");
+  });
+
+  it("creates organization and oauth client; lists scoped audit events", async () => {
+    const { app } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+
+    await app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: {
+        ...auth,
+        "content-type": "application/json",
+        "idempotency-key": "link-verified",
+      },
+      body: JSON.stringify({
+        kind: "oidc",
+        issuer: "https://mock.example",
+        subject: "org-admin",
+        assurance: "verified",
+      }),
+    });
+
+    const orgRes = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...auth,
+        "content-type": "application/json",
+        "idempotency-key": "org-1",
+      },
+      body: JSON.stringify({ slug: "acme-labs", displayName: "Acme Labs" }),
+    });
+    expect(orgRes.status).toBe(201);
+    const org = (await orgRes.json()) as { id: string; slug: string };
+    expect(org.slug).toBe("acme-labs");
+
+    const clientRes = await app.request("/v1/oauth/clients", {
+      method: "POST",
+      headers: {
+        ...auth,
+        "content-type": "application/json",
+        "idempotency-key": "cli-1",
+      },
+      body: JSON.stringify({
+        displayName: "RP Alpha",
+        redirectUris: ["http://127.0.0.1:5173/callback"],
+        sectorIdentifier: "https://rp-alpha.example",
+      }),
+    });
+    expect(clientRes.status).toBe(201);
+    const client = (await clientRes.json()) as { id: string; admissionMode: string };
+    expect(client.admissionMode).toBe("pre_registered");
+
+    const audit = await app.request("/v1/audit/events?limit=20", { headers: auth });
+    expect(audit.status).toBe(200);
+    const events = (await audit.json()) as {
+      events: Array<{ eventType: string; principalId?: string }>;
+    };
+    expect(events.events.length).toBeGreaterThan(0);
+    expect(
+      events.events.every(
+        (e) => e.principalId === undefined || e.principalId === created.principalId,
+      ),
+    ).toBe(true);
+    expect(events.events.some((e) => e.eventType === "organization.created")).toBe(
+      true,
+    );
+  });
+
   it("rejects provisional create when session capacity is exhausted", async () => {
     const { app, ctx } = createControlPlane({
       config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },

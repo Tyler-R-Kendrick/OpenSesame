@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use opensesame_domain::*;
     use chrono::{Duration, Utc};
+    use opensesame_domain::*;
     use serde_json::json;
 
     fn engine() -> PolicyEngine {
@@ -20,8 +20,7 @@ mod tests {
         e.relationships
             .write("connection:connA", "user", "agent:helper");
         e.assurance.insert("user:alice".into(), "mfa".into());
-        e.assurance
-            .insert("agent:helper".into(), "pwd".into());
+        e.assurance.insert("agent:helper".into(), "pwd".into());
         e
     }
 
@@ -81,20 +80,17 @@ mod tests {
             },
             context: json!({}),
         };
-        assert!(!e
-            .decide(&req, None, AvailabilityClass::A2AuthorityRequired)
-            .unwrap()
-            .decision);
+        assert!(
+            !e.decide(&req, None, AvailabilityClass::A2AuthorityRequired)
+                .unwrap()
+                .decision
+        );
     }
 
     #[test]
     fn discovery_only_not_executable() {
         let e = engine();
-        let g = grant_for(
-            &["pull_request.create"],
-            &["https://api.github.com"],
-            "mfa",
-        );
+        let g = grant_for(&["pull_request.create"], &["https://api.github.com"], "mfa");
         let req = AuthZenRequest {
             subject: AuthZenSubject {
                 type_: "user".into(),
@@ -123,11 +119,7 @@ mod tests {
     #[test]
     fn wrong_audience_denied() {
         let e = engine();
-        let g = grant_for(
-            &["pull_request.create"],
-            &["https://api.github.com"],
-            "mfa",
-        );
+        let g = grant_for(&["pull_request.create"], &["https://api.github.com"], "mfa");
         let req = AuthZenRequest {
             subject: AuthZenSubject {
                 type_: "user".into(),
@@ -146,10 +138,11 @@ mod tests {
                 "audience": "https://evil.example"
             }),
         };
-        assert!(!e
-            .decide(&req, Some(&g), AvailabilityClass::A3ExternalSideEffect)
-            .unwrap()
-            .decision);
+        assert!(
+            !e.decide(&req, Some(&g), AvailabilityClass::A3ExternalSideEffect)
+                .unwrap()
+                .decision
+        );
     }
 
     #[test]

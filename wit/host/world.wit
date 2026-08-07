@@ -2,6 +2,11 @@ package opensesame:host@1.0.0;
 
 /// Host capability world for daemon / gateway / connector host.
 /// Possessing a handle never implies permission to materialize secrets.
+///
+/// Optional future imports (not part of host@1.0.0 guest ABI — comments only):
+///   import opensesame:task/task-access@1.0.0;
+///   import opensesame:proof/proof-execution@1.0.0;
+///   import opensesame:mediation/mediation@1.0.0;
 
 interface session {
   record capability {

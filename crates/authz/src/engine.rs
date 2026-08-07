@@ -1,4 +1,4 @@
-use crate::{AuthZenDecision, AuthZenObligation, AuthZenRequest, policy_version_digest};
+use crate::{policy_version_digest, AuthZenDecision, AuthZenObligation, AuthZenRequest};
 use opensesame_domain::{AvailabilityClass, Grant, OfflineUse};
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
@@ -17,7 +17,7 @@ pub enum AuthzError {
 
 #[derive(Clone, Debug, Default)]
 pub struct RelationshipStore {
-    /// tuple key "object#relation@user" 
+    /// tuple key "object#relation@user"
     tuples: HashSet<String>,
 }
 
@@ -78,7 +78,8 @@ impl PolicyEngine {
                     .get("connection_id")
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
-                self.relationships.check(&format!("connection:{conn}"), "user", subject)
+                self.relationships
+                    .check(&format!("connection:{conn}"), "user", subject)
                     || self.relationships.check(&object, "executor", subject)
             }
             "project" => {
@@ -105,8 +106,7 @@ impl PolicyEngine {
                     return Ok(deny(req, "audience"));
                 }
             }
-            if !g.constraints.raw_credential_export && req.action.name == "credential.export"
-            {
+            if !g.constraints.raw_credential_export && req.action.name == "credential.export" {
                 return Ok(deny(req, "export_default_deny"));
             }
             if let Some(required) = &g.constraints.required_assurance {
@@ -172,15 +172,19 @@ fn assurance_satisfies(have: &str, required: &str) -> bool {
 mod tests {
     use super::*;
     use crate::{AuthZenAction, AuthZenResource, AuthZenSubject};
-    use opensesame_domain::*;
     use chrono::{Duration, Utc};
+    use opensesame_domain::*;
 
     fn engine_two_orgs() -> PolicyEngine {
         let mut e = PolicyEngine::default();
-        e.relationships.write("organization:orgA", "member", "user:alice");
-        e.relationships.write("organization:orgB", "member", "user:bob");
-        e.relationships.write("project:projA", "developer", "user:alice");
-        e.relationships.write("project:projB", "developer", "user:bob");
+        e.relationships
+            .write("organization:orgA", "member", "user:alice");
+        e.relationships
+            .write("organization:orgB", "member", "user:bob");
+        e.relationships
+            .write("project:projA", "developer", "user:alice");
+        e.relationships
+            .write("project:projB", "developer", "user:bob");
         e.relationships
             .write("connection:connA", "user", "user:alice");
         e.assurance.insert("user:alice".into(), "mfa".into());
@@ -205,7 +209,9 @@ mod tests {
             },
             context: json!({}),
         };
-        let d = e.decide(&req, None, AvailabilityClass::A2AuthorityRequired).unwrap();
+        let d = e
+            .decide(&req, None, AvailabilityClass::A2AuthorityRequired)
+            .unwrap();
         assert!(!d.decision);
     }
 
@@ -227,7 +233,9 @@ mod tests {
             },
             context: json!({}),
         };
-        let d = e.decide(&req, None, AvailabilityClass::A2AuthorityRequired).unwrap();
+        let d = e
+            .decide(&req, None, AvailabilityClass::A2AuthorityRequired)
+            .unwrap();
         assert!(!d.decision);
     }
 

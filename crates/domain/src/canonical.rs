@@ -101,7 +101,10 @@ mod tests {
     fn object_key_order_stable() {
         let a = json!({"b": 1, "a": 2});
         let b = json!({"a": 2, "b": 1});
-        assert_eq!(canonicalize_json(&a).unwrap(), canonicalize_json(&b).unwrap());
+        assert_eq!(
+            canonicalize_json(&a).unwrap(),
+            canonicalize_json(&b).unwrap()
+        );
         assert_eq!(digest_json(&a).unwrap(), digest_json(&b).unwrap());
     }
 

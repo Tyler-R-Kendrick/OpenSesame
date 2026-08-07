@@ -13,7 +13,11 @@ opensesame-domain = { path = "../../crates/domain" }
 opensesame-authn = { path = "../../crates/authn" }
 opensesame-authz = { path = "../../crates/authz" }
 opensesame-broker = { path = "../../crates/broker" }
+opensesame-task-access = { path = "../../crates/task-access" }
+opensesame-proof = { path = "../../crates/proof" }
+opensesame-protocol-aauth = { path = "../../crates/protocol-aauth", features = ["experimental-aauth"] }
 opensesame-audit = { path = "../../crates/audit" }
+base64 = { workspace = true }
 opensesame-storage = { path = "../../crates/storage" }
 opensesame-claims = { path = "../../crates/claims" }
 opensesame-connector-host = { path = "../../crates/connector-host" }

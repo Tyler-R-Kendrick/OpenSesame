@@ -1,5 +1,5 @@
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 
 static SENSITIVE_KEYS: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)(password|secret|token|authorization|refresh_token|access_token|client_secret|private_key|device_code|claim_token|cookie|set-cookie)").unwrap()

@@ -20,6 +20,8 @@
     "audit:cve-lite": "bash ./scripts/cve-lite-gate.sh",
     "audit:ast-grep": "bash ./scripts/ast-grep-security-gate.sh",
     "audit:clippy": "bash ./scripts/clippy-gate.sh",
+    "audit:osv": "bash ./scripts/osv-scanner-gate.sh",
+    "test:task-access": "bash ./scripts/task-security-battle-test.sh",
     "test:all": "pnpm typecheck && pnpm test && pnpm test:integration",
     "db:migrate": "pnpm --filter @opensesame/database db:migrate",
     "db:reset": "pnpm --filter @opensesame/database db:reset",

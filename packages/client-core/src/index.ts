@@ -19,31 +19,35 @@ export function createCursor(deviceId: string): SyncCursor {
   return { deviceId, epoch: 0 };
 }
 
-/** Encode UTF-8 bytes to base64 (browser + node). */
-export function bytesToB64(bytes: Uint8Array): string {
-  if (typeof Buffer !== "undefined") {
-    return Buffer.from(bytes).toString("base64");
-  }
+function latin1FromBytes(bytes: Uint8Array): string {
   let s = "";
   for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s);
+  return s;
+}
+
+/** Encode UTF-8 bytes to base64 (browser + node via global btoa). */
+export function bytesToB64(bytes: Uint8Array): string {
+  return btoa(latin1FromBytes(bytes));
 }
 
 export function b64ToBytes(b64: string): Uint8Array {
-  if (typeof Buffer !== "undefined") {
-    return new Uint8Array(Buffer.from(b64, "base64"));
-  }
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
 
+function isProductionEnv(): boolean {
+  const env = (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process
+    ?.env;
+  return env?.NODE_ENV === "production";
+}
+
 /**
  * @deprecated DEV-ONLY insecure XOR. Do not use in production — call Rust client-core / wasm AEAD.
  */
 export function sealDevOnly(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
-  if (process.env.NODE_ENV === "production") {
+  if (isProductionEnv()) {
     throw new Error("sealDevOnly is forbidden in production; use Rust client-core AEAD");
   }
   const out = new Uint8Array(plaintext.length);

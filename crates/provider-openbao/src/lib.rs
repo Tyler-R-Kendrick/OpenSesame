@@ -26,8 +26,12 @@ pub struct CredentialHandle {
 
 #[derive(Clone, Debug)]
 pub enum CredentialOperation {
-    Sign { digest: Vec<u8> },
-    Decrypt { ciphertext: Vec<u8> },
+    Sign {
+        digest: Vec<u8>,
+    },
+    Decrypt {
+        ciphertext: Vec<u8>,
+    },
     /// Explicitly denied for agent paths — use ConnectionRef invoke instead.
     BearerHttpPlaceholder,
 }
@@ -217,10 +221,7 @@ impl OpenBaoHttpAuthority {
                 None,
             )
             .await?;
-        Ok(body
-            .pointer("/data/data")
-            .cloned()
-            .unwrap_or(Value::Null))
+        Ok(body.pointer("/data/data").cloned().unwrap_or(Value::Null))
     }
 }
 

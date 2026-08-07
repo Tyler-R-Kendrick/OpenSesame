@@ -10,6 +10,7 @@ opensesame-authz = { path = "../authz" }
 opensesame-audit = { path = "../audit" }
 opensesame-storage = { path = "../storage" }
 opensesame-connector-host = { path = "../connector-host" }
+opensesame-task-access = { path = "../task-access" }
 anyhow = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true }

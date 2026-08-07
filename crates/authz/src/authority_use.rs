@@ -3,11 +3,11 @@
 use crate::{
     AuthZenAction, AuthZenRequest, AuthZenResource, AuthZenSubject, AuthzError, PolicyEngine,
 };
-use serde_json::json;
 use opensesame_domain::{
     AuthorityHandle, AuthorityKind, AuthorityOperation, AvailabilityClass,
     ConnectionAuthorityBinding, ConnectionRef, DomainError, EgressBinding, Grant, InvokeLevel,
 };
+use serde_json::json;
 
 #[derive(Clone, Debug)]
 pub struct AuthorityDecision {
@@ -28,7 +28,6 @@ pub fn authorize_authority_use(
     level: InvokeLevel,
     requested_url: Option<&str>,
 ) -> Result<AuthorityDecision, AuthzError> {
-
     if binding.connection_ref.handle.kind != AuthorityKind::Connection {
         return Err(AuthzError::Denied(
             "agent API accepts ConnectionRef only".into(),
@@ -51,9 +50,10 @@ pub fn authorize_authority_use(
         let url = requested_url.ok_or_else(|| {
             AuthzError::Denied("constrained HTTP requires URL bound to egress".into())
         })?;
-        binding.egress.allows_url(url).map_err(|e| {
-            AuthzError::Denied(e.to_string())
-        })?;
+        binding
+            .egress
+            .allows_url(url)
+            .map_err(|e| AuthzError::Denied(e.to_string()))?;
     }
 
     // Knowing a SecretRef URI is not enough — never authorize Resolve from Secret kind alone.
@@ -112,14 +112,12 @@ pub fn authorize_authority_use(
     }
 
     match engine.decide(&engine_req, Some(grant), class) {
-        Ok(d) if d.decision => {
-            Ok(AuthorityDecision {
-                allowed: true,
-                decision_id: d.decision_id,
-                policy_version_digest: d.policy_version_digest,
-                reason: None,
-            })
-        }
+        Ok(d) if d.decision => Ok(AuthorityDecision {
+            allowed: true,
+            decision_id: d.decision_id,
+            policy_version_digest: d.policy_version_digest,
+            reason: None,
+        }),
         Ok(d) => Ok(AuthorityDecision {
             allowed: false,
             decision_id: d.decision_id,
@@ -224,8 +222,7 @@ mod tests {
 
     fn binding() -> ConnectionAuthorityBinding {
         let org = OrganizationId::new();
-        let cref =
-            ConnectionRef::new(org, None, "github/main", ConnectionId::new()).unwrap();
+        let cref = ConnectionRef::new(org, None, "github/main", ConnectionId::new()).unwrap();
         github_binding(cref, "github/legacy-token")
     }
 
@@ -297,10 +294,7 @@ mod tests {
         let b = binding();
         assert!(b
             .egress
-            .allows_redirect(
-                "https://api.github.com/repos/x",
-                "https://evil.example/x"
-            )
+            .allows_redirect("https://api.github.com/repos/x", "https://evil.example/x")
             .is_err());
     }
 }

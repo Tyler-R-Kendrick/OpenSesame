@@ -23,11 +23,9 @@ macro_rules! opaque_id {
             }
 
             pub fn parse(s: &str) -> Result<Self, DomainError> {
-                let rest = s
-                    .strip_prefix(concat!($prefix, ":"))
-                    .unwrap_or(s);
-                let id = Uuid::parse_str(rest)
-                    .map_err(|_| DomainError::InvalidId(s.to_string()))?;
+                let rest = s.strip_prefix(concat!($prefix, ":")).unwrap_or(s);
+                let id =
+                    Uuid::parse_str(rest).map_err(|_| DomainError::InvalidId(s.to_string()))?;
                 Ok(Self(id))
             }
         }
@@ -70,6 +68,64 @@ opaque_id!(RotationPolicyId, "rotpol");
 opaque_id!(RotationRunId, "rotrun");
 opaque_id!(CertificateId, "cert");
 opaque_id!(ActionId, "action");
+opaque_id!(TaskTemplateId, "tasktpl");
+opaque_id!(TaskRunId, "taskrun");
+opaque_id!(CapabilityStateTransitionId, "captrans");
+opaque_id!(AuthorityContextId, "authctx");
+opaque_id!(ProofKeyId, "proofkey");
+opaque_id!(ProtectedResourceId, "resource");
+opaque_id!(ResourceAccountRefId, "acctref");
+opaque_id!(MediationPointId, "mediation");
+opaque_id!(EnforcementAcknowledgementId, "enfack");
+opaque_id!(DelegationChainId, "delchain");
+opaque_id!(VerificationEvidenceId, "verevid");
+opaque_id!(TaskCredentialId, "taskcred");
+
+/// Stable profile IDs derived from slug strings.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct ProtocolProfileId(Uuid);
+
+impl ProtocolProfileId {
+    pub fn from_slug(slug: &str) -> Self {
+        let hash = blake3::hash(slug.as_bytes());
+        let mut uuid_bytes = [0u8; 16];
+        uuid_bytes.copy_from_slice(&hash.as_bytes()[..16]);
+        uuid_bytes[6] = (uuid_bytes[6] & 0x0f) | 0x40;
+        uuid_bytes[8] = (uuid_bytes[8] & 0x3f) | 0x80;
+        Self(Uuid::from_bytes(uuid_bytes))
+    }
+
+    pub fn new() -> Self {
+        Self(Uuid::now_v7())
+    }
+
+    pub fn from_uuid(id: Uuid) -> Self {
+        Self(id)
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
+    }
+
+    pub fn parse(s: &str) -> Result<Self, DomainError> {
+        let rest = s.strip_prefix("profile:").unwrap_or(s);
+        let id = Uuid::parse_str(rest).map_err(|_| DomainError::InvalidId(s.to_string()))?;
+        Ok(Self(id))
+    }
+}
+
+impl Default for ProtocolProfileId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl fmt::Display for ProtocolProfileId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "profile:{}", self.0)
+    }
+}
 
 #[cfg(test)]
 mod tests {

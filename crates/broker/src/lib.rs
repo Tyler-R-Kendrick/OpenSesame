@@ -1,6 +1,12 @@
+mod frozen;
+
+pub use frozen::FrozenInvokeInput;
+
 use chrono::Utc;
 use opensesame_audit::ReceiptSigner;
-use opensesame_authz::{AuthZenAction, AuthZenRequest, AuthZenResource, AuthZenSubject, PolicyEngine};
+use opensesame_authz::{
+    AuthZenAction, AuthZenRequest, AuthZenResource, AuthZenSubject, PolicyEngine,
+};
 use opensesame_connector_host::{HostRuntime, InvokeRequest};
 use opensesame_domain::*;
 use opensesame_storage::Db;
@@ -32,14 +38,19 @@ impl Broker {
         }
 
         if !self.db.authority_quorum_ok().await? {
-            return Err(DomainError::AuthorityUnavailable(AvailabilityClass::A3ExternalSideEffect).into());
+            return Err(
+                DomainError::AuthorityUnavailable(AvailabilityClass::A3ExternalSideEffect).into(),
+            );
         }
 
         let existing = self
             .db
-            .find_intent_by_idempotency(&input.intent.organization_id, &input.intent.idempotency_key)
+            .find_intent_by_idempotency(
+                &input.intent.organization_id,
+                &input.intent.idempotency_key,
+            )
             .await?;
-        if let Some(_prior_intent) = existing {
+        if existing.is_some() {
             if let Some(prior_receipt) = self
                 .db
                 .find_receipt_by_idempotency(
@@ -133,11 +144,19 @@ impl Broker {
         let (outcome, summary, ext) = match result {
             Ok(r) => {
                 inv.transition(InvocationState::Succeeded, Utc::now())?;
-                (ReceiptOutcome::Succeeded, r.safe_summary, r.external_request_digest)
+                (
+                    ReceiptOutcome::Succeeded,
+                    r.safe_summary,
+                    r.external_request_digest,
+                )
             }
             Err(e) => {
                 inv.transition(InvocationState::Failed, Utc::now())?;
-                (ReceiptOutcome::Failed, json!({"error": e.to_string()}), None)
+                (
+                    ReceiptOutcome::Failed,
+                    json!({"error": e.to_string()}),
+                    None,
+                )
             }
         };
 
@@ -189,12 +208,16 @@ impl Broker {
             safe_result_summary: Some(parts.summary),
             authority_key_id: String::new(),
             signature: String::new(),
+            receipt_schema_version: 1,
+            task_run_id: None,
+            task_state_version: None,
+            task_state_digest: None,
         };
         Ok(self.signer.sign_receipt(receipt)?)
     }
 }
 
-struct FinishReceiptParts<'a> {
+pub(crate) struct FinishReceiptParts<'a> {
     decision_id: &'a str,
     policy_digest: &'a str,
     outcome: ReceiptOutcome,

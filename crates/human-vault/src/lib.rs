@@ -212,7 +212,10 @@ pub fn unwrap_vrk_with_password(
 }
 
 /// PRF output must never leave the client. Derive KEK with domain separation.
-pub fn kek_from_webauthn_prf(prf_output: &[u8], public_salt: &[u8]) -> Result<[u8; 32], VaultCryptoError> {
+pub fn kek_from_webauthn_prf(
+    prf_output: &[u8],
+    public_salt: &[u8],
+) -> Result<[u8; 32], VaultCryptoError> {
     let hk = Hkdf::<Sha256>::new(Some(public_salt), prf_output);
     let mut out = [0u8; 32];
     hk.expand(b"opensesame/vault/webauthn-prf/v1", &mut out)
@@ -223,7 +226,8 @@ pub fn kek_from_webauthn_prf(prf_output: &[u8], public_salt: &[u8]) -> Result<[u
 fn hkdf_expand(ikm: &[u8], info: &[u8]) -> Result<[u8; 32], VaultCryptoError> {
     let hk = Hkdf::<Sha256>::new(None, ikm);
     let mut out = [0u8; 32];
-    hk.expand(info, &mut out).map_err(|_| VaultCryptoError::Kdf)?;
+    hk.expand(info, &mut out)
+        .map_err(|_| VaultCryptoError::Kdf)?;
     Ok(out)
 }
 

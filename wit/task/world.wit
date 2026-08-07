@@ -1,0 +1,39 @@
+package opensesame:task@1.0.0;
+
+/// Task-scoped authority world. Opaque handles only — no secret materialization.
+interface types {
+  resource task-handle;
+  resource intent-handle;
+}
+
+interface task-access {
+  use types.{task-handle, intent-handle};
+
+  record invoke-binding {
+    task: borrow<task-handle>,
+    intent: borrow<intent-handle>,
+  }
+
+  /// Authorize and invoke under frozen task + intent binding.
+  authorize-and-invoke: func(
+    binding: invoke-binding,
+    connection-ref: string,
+    operation: string,
+    resource: string,
+    idempotency-key: string,
+  ) -> result<string, string>;
+
+  /// Propose a capability restriction (ratchet shrink only).
+  restrict: func(
+    task: borrow<task-handle>,
+    proposed-capabilities-digest: string,
+    expected-state-version: u64,
+  ) -> result<string, string>;
+
+  /// Terminate task — no further invocations permitted.
+  terminate: func(task: borrow<task-handle>) -> result<_, string>;
+}
+
+world task {
+  export task-access;
+}

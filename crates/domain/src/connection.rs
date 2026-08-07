@@ -67,6 +67,8 @@ mod tests {
             permitted_audiences: vec![],
             raw_credential_export_allowed: false,
         };
-        assert!(Connection::personal_oauth_is_not_org_shareable_by_default(&p));
+        assert!(Connection::personal_oauth_is_not_org_shareable_by_default(
+            &p
+        ));
     }
 }
