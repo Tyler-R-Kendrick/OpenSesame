@@ -1681,6 +1681,7 @@ dependencies = [
  "axum",
  "chrono",
  "clap",
+ "opensesame-host-core",
  "serde",
  "serde_json",
  "tokio",
