@@ -1,3 +1,4 @@
+//! DEPRECATED: use `opensesame-daemon` (apps/daemon). Kept for OPENSESAME_AGENT_LISTEN compat.
 //! Host credential agent — issues short-lived session capabilities to WSL/devcontainers.
 //! Never dumps refresh tokens or WebAuthn material.
 use axum::{
@@ -71,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
         capabilities: Arc::new(Mutex::new(HashMap::new())),
     };
     let app = Router::new()
-        .route("/health", get(|| async { "ok" }))
+        .route("/health", get(|| async { axum::Json(serde_json::json!({"status":"ok","deprecated":true,"use":"opensesame-daemon"})) }))
         .route("/v1/list_sessions", post(list_sessions))
         .route("/v1/get_access_token", post(get_access_token))
         .route("/v1/mint_capability", post(mint_capability))

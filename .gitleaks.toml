@@ -1,0 +1,9 @@
+# Gitleaks config — path allowlists for local tool logs and prior scan reports.
+title = "opensesame"
+
+[allowlist]
+description = "Local tooling artifacts (gitignored) and scan report echoes"
+paths = [
+  '''(^|/)\.tools/''',
+  '''(^|/)artifacts/''',
+]

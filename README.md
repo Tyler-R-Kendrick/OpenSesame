@@ -14,6 +14,9 @@ Identity and Host APIs stay **separate**. Canonical principals live in OpenSesam
 pnpm install
 pnpm --filter @opensesame/mock-upstream-idp build
 pnpm --filter @opensesame/mock-upstream-idp start   # :9090
+# Local/dev: either set a real pepper or allow defaults
+export OPENSESAME_ENV=development   # or OPENSESAME_ALLOW_DEV_DEFAULTS=true
+# export OPENSESAME_CLAIM_PEPPER=…  # required outside development/test
 pnpm --filter @opensesame/control-plane start       # :8788
 
 curl -s http://127.0.0.1:8788/v1/health/live

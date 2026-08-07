@@ -91,8 +91,9 @@ enum DaemonCmd {
     Start,
     /// Probe daemon /health.
     Status,
-    /// Alias for status (logs not tailed in this stub).
+    /// Tail daemon logfile (`~/.opensesame/daemon.log`).
     Logs,
+    /// SIGTERM via pidfile.
     Stop,
 }
 
@@ -187,25 +188,75 @@ async fn main() -> anyhow::Result<()> {
 
 async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
     let base = url.trim_end_matches('/');
+    let home = env::var("HOME").unwrap_or_else(|_| ".".into());
+    let pidfile = env::var("OPENSESAME_DAEMON_PIDFILE")
+        .unwrap_or_else(|_| format!("{home}/.opensesame/daemon.pid"));
+    let logfile = env::var("OPENSESAME_DAEMON_LOGFILE")
+        .unwrap_or_else(|_| format!("{home}/.opensesame/daemon.log"));
     match cmd {
         DaemonCmd::Install => {
+            let dest = format!("{home}/.local/bin/opensesame-daemon");
+            let src_candidates = [
+                "target/debug/opensesame-daemon".to_string(),
+                "target/release/opensesame-daemon".to_string(),
+            ];
+            let mut installed = false;
+            for src in &src_candidates {
+                if PathBuf::from(src).exists() {
+                    let _ = std::fs::create_dir_all(format!("{home}/.local/bin"));
+                    match std::fs::copy(src, &dest) {
+                        Ok(_) => {
+                            installed = true;
+                            #[cfg(unix)]
+                            {
+                                use std::os::unix::fs::PermissionsExt;
+                                let _ = std::fs::set_permissions(
+                                    &dest,
+                                    std::fs::Permissions::from_mode(0o755),
+                                );
+                            }
+                            break;
+                        }
+                        Err(_) => {}
+                    }
+                }
+            }
             println!(
                 "{}",
                 json!({
-                    "status": "ok",
-                    "hint": "cargo build -p opensesame-daemon && install target/debug/opensesame-daemon on PATH",
+                    "status": if installed { "installed" } else { "ok" },
+                    "path": dest,
+                    "hint": "cargo build -p opensesame-daemon && opensesame daemon install",
                     "listen_default": "127.0.0.1:18790",
-                    "env": ["OPENSESAME_DAEMON_LISTEN", "OPENSESAME_AGENT_LISTEN"]
+                    "env": ["OPENSESAME_DAEMON_LISTEN", "OPENSESAME_AGENT_LISTEN", "OPENSESAME_DAEMON_PIDFILE"]
                 })
             );
         }
         DaemonCmd::Start => {
+            let _ = std::fs::create_dir_all(format!("{home}/.opensesame"));
+            let log = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&logfile);
+            let (stdout, stderr) = match log {
+                Ok(f) => {
+                    let f2 = f.try_clone().ok();
+                    (Stdio::from(f), f2.map(Stdio::from).unwrap_or(Stdio::null()))
+                }
+                Err(_) => (Stdio::null(), Stdio::null()),
+            };
             let child = StdCommand::new("opensesame-daemon")
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
+                .stdout(stdout)
+                .stderr(stderr)
                 .spawn();
             match child {
-                Ok(c) => println!("{}", json!({"status":"started","pid": c.id()})),
+                Ok(c) => {
+                    let pid = c.id();
+                    let _ = std::fs::write(&pidfile, format!("{pid}\n"));
+                    // Detach: forget Child so Drop doesn't kill it
+                    std::mem::forget(c);
+                    println!("{}", json!({"status":"started","pid": pid, "pidfile": pidfile, "logfile": logfile}));
+                }
                 Err(e) => println!(
                     "{}",
                     json!({
@@ -216,24 +267,74 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
                 ),
             }
         }
-        DaemonCmd::Status | DaemonCmd::Logs => {
+        DaemonCmd::Status => {
             let client = reqwest::Client::new();
             match client.get(format!("{base}/health")).send().await {
                 Ok(resp) => {
                     let body: serde_json::Value = resp.json().await.unwrap_or(json!({"raw":"ok"}));
-                    println!("{}", json!({"status":"up","health": body}));
+                    println!("{}", json!({"status":"up","health": body, "pidfile": pidfile}));
                 }
                 Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
             }
         }
+        DaemonCmd::Logs => {
+            match std::fs::read_to_string(&logfile) {
+                Ok(content) => {
+                    let lines: Vec<&str> = content.lines().rev().take(40).collect();
+                    let out: Vec<&str> = lines.into_iter().rev().collect();
+                    println!("{}", out.join("\n"));
+                    if out.is_empty() {
+                        println!("{}", json!({"status":"empty","logfile": logfile, "hint":"start daemon to capture logs"}));
+                    }
+                }
+                Err(_) => {
+                    let client = reqwest::Client::new();
+                    match client.get(format!("{base}/health")).send().await {
+                        Ok(resp) => {
+                            let body: serde_json::Value =
+                                resp.json().await.unwrap_or(json!({"raw":"ok"}));
+                            println!(
+                                "{}",
+                                json!({"status":"up","health": body, "hint": format!("no logfile at {logfile}")})
+                            );
+                        }
+                        Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
+                    }
+                }
+            }
+        }
         DaemonCmd::Stop => {
-            println!(
-                "{}",
-                json!({
-                    "status": "not_implemented",
-                    "hint": "send SIGTERM to opensesame-daemon pid (no pidfile in this slice)"
-                })
-            );
+            match std::fs::read_to_string(&pidfile) {
+                Ok(raw) => {
+                    let pid: u32 = raw.trim().parse().unwrap_or(0);
+                    if pid == 0 {
+                        println!("{}", json!({"status":"error","error":"invalid pidfile"}));
+                    } else {
+                        #[cfg(unix)]
+                        {
+                            let status = StdCommand::new("kill")
+                                .args(["-TERM", &pid.to_string()])
+                                .status();
+                            let _ = std::fs::remove_file(&pidfile);
+                            println!(
+                                "{}",
+                                json!({
+                                    "status": if status.map(|s| s.success()).unwrap_or(false) { "stopped" } else { "error" },
+                                    "pid": pid
+                                })
+                            );
+                        }
+                        #[cfg(not(unix))]
+                        {
+                            println!("{}", json!({"status":"error","error":"stop requires unix SIGTERM"}));
+                        }
+                    }
+                }
+                Err(_) => println!(
+                    "{}",
+                    json!({"status":"not_running","hint":"no pidfile; kill opensesame-daemon manually"})
+                ),
+            }
         }
     }
     Ok(())

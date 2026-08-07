@@ -13,6 +13,7 @@ use opensesame_broker::{Broker, InvokeInput};
 use opensesame_claims::{generate_claim_token, generate_user_code, hash_secret};
 use opensesame_client_core::SyncBlob;
 use opensesame_connector_host::HostRuntime;
+use opensesame_host_core::daemon as host_daemon;
 use opensesame_domain::*;
 use opensesame_provider_openbao::{CredentialAuthority, OpenBaoHttpAuthority};
 use opensesame_provider_openfga::{OpenFgaClient, TupleKey};
@@ -21,32 +22,11 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{
     collections::HashMap,
-    io::Write,
     net::SocketAddr,
     sync::{Arc, Mutex},
 };
 use tower_http::trace::TraceLayer;
 
-// #region agent log
-fn agent_dbg(hypothesis_id: &str, location: &str, message: &str, data: Value) {
-    let payload = json!({
-        "sessionId": "7aa2f5",
-        "runId": std::env::var("OPENSESAME_DEBUG_RUN").unwrap_or_else(|_| "live-1".into()),
-        "hypothesisId": hypothesis_id,
-        "location": location,
-        "message": message,
-        "data": data,
-        "timestamp": chrono::Utc::now().timestamp_millis(),
-    });
-    if let Ok(mut f) = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/home/codex/.herdr/worktrees/opensesame/.cursor/debug-7aa2f5.log")
-    {
-        let _ = writeln!(f, "{payload}");
-    }
-}
-// #endregion
 
 #[derive(Parser, Debug)]
 #[command(name = "opensesame-gateway")]
@@ -76,6 +56,8 @@ struct AppState {
     connection_ref: ConnectionRef,
     /// Opaque ciphertext sync store — server never decrypts (ADR 0017).
     sync_blobs: Arc<Mutex<HashMap<String, SyncBlob>>>,
+    /// Per-device sync cursors (device_id -> last seen epoch).
+    device_cursors: Arc<Mutex<HashMap<String, u64>>>,
 }
 
 #[derive(Clone)]
@@ -175,19 +157,7 @@ async fn main() -> anyhow::Result<()> {
 
     let openfga = OpenFgaClient::from_env().ok().flatten();
     let openbao = OpenBaoHttpAuthority::from_env().ok().flatten();
-    // #region agent log
-    agent_dbg(
-        "LIVE1",
-        "gateway.rs:boot",
-        "provider wiring",
-        json!({
-            "openfga": openfga.is_some(),
-            "openbao": openbao.is_some(),
-            "connection_ref": connection_ref.handle.uri(),
-        }),
-    );
-    // #endregion
-
+    
     let broker = Arc::new(Broker {
         db: db.clone(),
         policy,
@@ -215,6 +185,7 @@ async fn main() -> anyhow::Result<()> {
         openbao,
         connection_ref,
         sync_blobs: Arc::new(Mutex::new(HashMap::new())),
+        device_cursors: Arc::new(Mutex::new(HashMap::new())),
     };
 
     let app = Router::new()
@@ -557,31 +528,9 @@ async fn create_intent_invoke(
         .or_else(|| body.connection.clone())
         .unwrap_or_else(|| st.connection_ref.handle.uri());
     let level = body.invoke_level.unwrap_or(1);
-    // #region agent log
-    agent_dbg(
-        "LIVE2",
-        "gateway.rs:invoke",
-        "connection_ref invoke",
-        json!({
-            "requested_ref": requested_ref,
-            "canonical_ref": st.connection_ref.handle.uri(),
-            "invoke_level": level,
-            "operation": body.operation,
-            "has_secret_ref_field": false
-        }),
-    );
-    // #endregion
-
+    
     if level >= 3 || body.operation == "credential.resolve" || body.operation.contains("secret") {
-        // #region agent log
-        agent_dbg(
-            "LIVE3",
-            "gateway.rs:invoke",
-            "materialize denied at gateway",
-            json!({"level": level, "operation": body.operation}),
-        );
-        // #endregion
-        return (
+                return (
             StatusCode::FORBIDDEN,
             Json(json!({
                 "error": "materialize_denied",
@@ -902,8 +851,71 @@ struct SyncPushBody {
     blobs: Vec<SyncBlob>,
 }
 
+#[derive(Deserialize)]
+struct SyncPullBody {
+    #[serde(default)]
+    since_epoch: u64,
+    #[serde(default)]
+    device_id: Option<String>,
+}
+
 /// Store opaque ciphertext only — never attempt decryption.
-async fn sync_push(State(st): State<AppState>, Json(body): Json<SyncPushBody>) -> impl IntoResponse {
+/// Requires an active opaque session token (`Authorization: Bearer opaque-session:…`).
+fn require_session(st: &AppState, headers: &axum::http::HeaderMap) -> Result<String, Response> {
+    let auth = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    let Some(token) = auth
+        .strip_prefix("Bearer ")
+        .or_else(|| auth.strip_prefix("bearer "))
+    else {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error":"unauthorized","hint":"Bearer opaque-session:<id> required"})),
+        )
+            .into_response());
+    };
+    let Some(session_id) = token.strip_prefix("opaque-session:") else {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error":"unauthorized","hint":"expected opaque-session token"})),
+        )
+            .into_response());
+    };
+    let mut sessions = st.sessions.lock().unwrap();
+    let Some(meta) = sessions.get(session_id).cloned() else {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error":"invalid_session"})),
+        )
+            .into_response());
+    };
+    let expired = meta
+        .get("expires_at")
+        .and_then(|v| v.as_str())
+        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+        .map(|dt| Utc::now() >= dt.with_timezone(&Utc))
+        .unwrap_or(true);
+    if expired {
+        sessions.remove(session_id);
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error":"session_expired"})),
+        )
+            .into_response());
+    }
+    Ok(session_id.to_string())
+}
+
+async fn sync_push(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<SyncPushBody>,
+) -> Response {
+    if let Err(resp) = require_session(&st, &headers) {
+        return resp;
+    }
     let mut store = st.sync_blobs.lock().unwrap();
     let mut accepted = 0u32;
     for blob in body.blobs {
@@ -922,21 +934,39 @@ async fn sync_push(State(st): State<AppState>, Json(body): Json<SyncPushBody>) -
         .into_response()
 }
 
-#[derive(Deserialize)]
-struct SyncPullBody {
-    #[serde(default)]
-    since_epoch: u64,
-}
-
-async fn sync_pull(State(st): State<AppState>, Json(body): Json<SyncPullBody>) -> impl IntoResponse {
+async fn sync_pull(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<SyncPullBody>,
+) -> Response {
+    if let Err(resp) = require_session(&st, &headers) {
+        return resp;
+    }
+    let since = body.since_epoch;
     let store = st.sync_blobs.lock().unwrap();
-    let blobs: Vec<&SyncBlob> = store
+    let blobs: Vec<SyncBlob> = store
         .values()
-        .filter(|b| b.epoch > body.since_epoch)
+        .filter(|b| b.epoch > since)
+        .cloned()
         .collect();
+    drop(store);
+    let mut device_cursor = None;
+    if let Some(device_id) = body.device_id.as_ref().filter(|s| !s.is_empty()) {
+        let mut cursors = st.device_cursors.lock().unwrap();
+        let max_epoch = blobs.iter().map(|b| b.epoch).max().unwrap_or(since);
+        let entry = cursors.entry(device_id.clone()).or_insert(0);
+        if max_epoch > *entry {
+            *entry = max_epoch;
+        }
+        device_cursor = Some(*entry);
+    }
+    let _ = host_daemon::DEFAULT_LISTEN;
     Json(json!({
         "blobs": blobs,
         "plaintext": null,
-        "note": "ciphertext only"
+        "note": "ciphertext only",
+        "device_cursor": device_cursor,
+        "daemon_default_listen": host_daemon::DEFAULT_LISTEN,
     }))
+    .into_response()
 }

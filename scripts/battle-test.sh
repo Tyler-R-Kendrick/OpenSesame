@@ -15,6 +15,16 @@ cargo +1.88.0 test --lib \
   -p opensesame-claims \
   -p opensesame-storage \
   -p opensesame-provider-openbao
+echo "== topology cores =="
+cargo +1.88.0 test --lib \
+  -p opensesame-core \
+  -p opensesame-host-core \
+  -p opensesame-client-core \
+  -p opensesame-env-spec
 echo "== broker adversarial =="
 cargo +1.88.0 test -p opensesame-broker --test adversarial_broker
+echo "== api-client + MCP =="
+pnpm --filter @opensesame/api-client test
+pnpm --filter @opensesame/mcp-client test
+pnpm --filter @opensesame/mcp-host test
 echo "ALL BATTLE TESTS PASSED"

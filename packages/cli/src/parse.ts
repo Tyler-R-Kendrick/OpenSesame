@@ -32,7 +32,8 @@ export type ParsedCommand =
       displayName: string;
       flags: GlobalFlags;
     }
-  | { name: "host-health"; hostUrl: string; flags: GlobalFlags };
+  | { name: "host-health"; hostUrl: string; flags: GlobalFlags }
+  | { name: "host-discover"; hostUrl: string; flags: GlobalFlags };
 
 function takeFlag(args: string[], name: string): boolean {
   const idx = args.indexOf(name);
@@ -122,6 +123,15 @@ export function parseArgs(argv: string[]): ParsedCommand {
     return { name: "host-health", hostUrl, flags };
   }
 
+  if (cmd === "host" && args[0] === "discover") {
+    args.shift();
+    const hostUrl =
+      takeOption(args, "--host") ??
+      process.env.OPENSESAME_HOST_API ??
+      "http://127.0.0.1:8787";
+    return { name: "host-discover", hostUrl, flags };
+  }
+
   throw new Error(`Unknown command: ${cmd}`);
 }
 
@@ -147,6 +157,7 @@ Commands:
   claim poll <claimId>
   agent init --anonymous [--name <name>]
   host health [--host <url>]   Host API (:8787) via api-client
+  host discover [--host <url>] Host PRM / readiness discovery
 
 Global:
   --json          Machine-readable output (secrets redacted)

@@ -1512,6 +1512,7 @@ dependencies = [
  "base64",
  "blake3",
  "chacha20poly1305",
+ "getrandom 0.2.17",
  "opensesame-core",
  "opensesame-human-vault",
  "rand 0.8.7",
@@ -1697,6 +1698,7 @@ dependencies = [
  "base64",
  "blake3",
  "chacha20poly1305",
+ "getrandom 0.2.17",
  "hkdf",
  "rand 0.8.7",
  "serde",
@@ -3195,7 +3197,17 @@ dependencies = [
  "getrandom 0.4.3",
  "js-sys",
  "serde_core",
+ "uuid-rng-internal",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "uuid-rng-internal"
+version = "1.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9dff7387287837acf196f2596a6216f94c555d947d5331e1cc48393131020119"
+dependencies = [
+ "getrandom 0.4.3",
 ]
 
 [[package]]

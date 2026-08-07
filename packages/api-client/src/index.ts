@@ -5,6 +5,8 @@ export interface ApiClientOptions {
   baseUrl: string;
   /** Optional bearer / capability token */
   accessToken?: string;
+  /** When true, attach DPoP proofs (ES256) on mutating/authenticated calls */
+  dpop?: boolean;
   fetchImpl?: typeof fetch;
 }
 
@@ -22,9 +24,79 @@ export interface DaemonProbe {
   health?: unknown;
 }
 
+export interface HostDiscovery {
+  resource?: string;
+  authorizationServers?: string[];
+  dpopBound?: boolean;
+  ready?: boolean;
+  source: "prm" | "ready" | "none";
+}
+
+function b64url(bytes: ArrayBuffer | Uint8Array): string {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let s = "";
+  for (const b of u8) s += String.fromCharCode(b);
+  const b64 =
+    typeof btoa !== "undefined"
+      ? btoa(s)
+      : Buffer.from(u8).toString("base64");
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function getSubtle(): Promise<SubtleCrypto> {
+  if (globalThis.crypto?.subtle) return globalThis.crypto.subtle;
+  const { webcrypto } = await import("node:crypto");
+  return webcrypto.subtle as SubtleCrypto;
+}
+
+/** Create an in-memory ES256 keypair and DPoP proof factory. */
+export async function createDpopKeyPair() {
+  const subtle = await getSubtle();
+  const keyPair = await subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["sign", "verify"],
+  );
+  const jwk = (await subtle.exportKey("jwk", keyPair.publicKey)) as JsonWebKey;
+  const { kty, crv, x, y } = jwk;
+
+  async function createDpopProof(htu: string, htm: string): Promise<string> {
+    const header = {
+      alg: "ES256",
+      typ: "dpop+jwt",
+      jwk: { kty, crv, x, y },
+    };
+    const payload = {
+      iat: Math.floor(Date.now() / 1000),
+      jti: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
+      htu,
+      htm: htm.toUpperCase(),
+    };
+    const enc = new TextEncoder();
+    const h = b64url(enc.encode(JSON.stringify(header)));
+    const p = b64url(enc.encode(JSON.stringify(payload)));
+    const data = enc.encode(`${h}.${p}`);
+    const sig = await subtle.sign(
+      { name: "ECDSA", hash: "SHA-256" },
+      keyPair.privateKey,
+      data,
+    );
+    return `${h}.${p}.${b64url(sig)}`;
+  }
+
+  return { createDpopProof, jwk: { kty, crv, x, y } };
+}
+
 export function createApiClient(options: ApiClientOptions) {
   const fetchFn = options.fetchImpl ?? fetch;
   const base = options.baseUrl.replace(/\/$/, "");
+  let dpopFactory: Awaited<ReturnType<typeof createDpopKeyPair>> | null = null;
+
+  async function ensureDpop() {
+    if (!options.dpop) return null;
+    if (!dpopFactory) dpopFactory = await createDpopKeyPair();
+    return dpopFactory;
+  }
 
   async function request(path: string, init: RequestInit = {}): Promise<Response> {
     const headers = new Headers(init.headers);
@@ -35,7 +107,13 @@ export function createApiClient(options: ApiClientOptions) {
     if (init.body && !headers.has("content-type")) {
       headers.set("content-type", "application/json");
     }
-    return fetchFn(`${base}${path}`, { ...init, headers });
+    const method = (init.method ?? "GET").toUpperCase();
+    const url = `${base}${path}`;
+    const dpop = await ensureDpop();
+    if (dpop) {
+      headers.set("DPoP", await dpop.createDpopProof(url, method));
+    }
+    return fetchFn(url, { ...init, headers });
   }
 
   return {
@@ -44,6 +122,34 @@ export function createApiClient(options: ApiClientOptions) {
     async health(): Promise<{ ok: boolean; body: string }> {
       const res = await request("/health/live");
       return { ok: res.ok, body: await res.text() };
+    },
+
+    async discover(): Promise<HostDiscovery> {
+      try {
+        const prm = await request("/.well-known/oauth-protected-resource");
+        if (prm.ok) {
+          const body = (await prm.json()) as Record<string, unknown>;
+          return {
+            resource: typeof body.resource === "string" ? body.resource : undefined,
+            authorizationServers: Array.isArray(body.authorization_servers)
+              ? (body.authorization_servers as string[])
+              : undefined,
+            dpopBound: Boolean(body.dpop_bound ?? body.dpop_bound_access_tokens_required),
+            source: "prm",
+          };
+        }
+      } catch {
+        /* fall through */
+      }
+      try {
+        const ready = await request("/health/ready");
+        if (ready.ok) {
+          return { ready: true, source: "ready" };
+        }
+      } catch {
+        /* fall through */
+      }
+      return { source: "none" };
     },
 
     async whoami(): Promise<unknown> {
@@ -99,7 +205,10 @@ export function createApiClient(options: ApiClientOptions) {
     async syncPull(since: SyncCursor): Promise<unknown> {
       const res = await request("/api/v1/sync/pull", {
         method: "POST",
-        body: JSON.stringify({ since_epoch: since.epoch }),
+        body: JSON.stringify({
+          since_epoch: since.epoch,
+          device_id: since.deviceId,
+        }),
       });
       if (!res.ok) throw new Error(`sync_pull_failed:${res.status}`);
       return res.json();

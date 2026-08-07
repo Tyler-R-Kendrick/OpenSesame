@@ -325,74 +325,97 @@ impl HostRuntime {
                 _ => InvokeLevel::Materialize,
             })
             .unwrap_or(InvokeLevel::TypedOperation);
-        // #region agent log
-        {
-            use std::io::Write;
-            let payload = serde_json::json!({
-                "sessionId": "7aa2f5",
-                "runId": std::env::var("OPENSESAME_DEBUG_RUN").unwrap_or_else(|_| "authority-2".into()),
-                "hypothesisId": "AH-A",
-                "location": "connector-host/lib.rs:invoke_mock",
-                "message": "host invoke_mock level gate",
-                "data": {
-                    "operation": req.operation,
-                    "invoke_level_raw": req.invoke_level,
-                    "level_u8": level.as_u8(),
-                    "max_u8": self.policy.max_invoke_level.as_u8(),
-                    "level_gt_max": level > self.policy.max_invoke_level,
-                    "is_resolve_op": req.operation == "credential.resolve"
-                },
-                "timestamp": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()
-            });
-            if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("/home/codex/.herdr/worktrees/opensesame/.cursor/debug-7aa2f5.log") {
-                let _ = writeln!(f, "{payload}");
-            }
-        }
-        // #endregion
-        // Materialize / resolve is denied at the host boundary before mock execution.
+                // Materialize / resolve is denied at the host boundary before mock execution.
         // Prefer MaterializeDenied over InvokeLevelDenied so agents cannot confuse
         // "raise connection max" with "export is allowed".
         if level == InvokeLevel::Materialize || req.operation == "credential.resolve" {
-            // #region agent log
-            {
-                use std::io::Write;
-                let payload = serde_json::json!({
-                    "sessionId": "7aa2f5",
-                    "runId": std::env::var("OPENSESAME_DEBUG_RUN").unwrap_or_else(|_| "authority-2".into()),
-                    "hypothesisId": "AH-C",
-                    "location": "connector-host/lib.rs:invoke_mock",
-                    "message": "materialize denied at host",
-                    "data": {"operation": req.operation, "level_u8": level.as_u8()},
-                    "timestamp": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()
-                });
-                if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("/home/codex/.herdr/worktrees/opensesame/.cursor/debug-7aa2f5.log") {
-                    let _ = writeln!(f, "{payload}");
-                }
-            }
-            // #endregion
-            return Err(HostError::MaterializeDenied);
+                        return Err(HostError::MaterializeDenied);
         }
         if level > self.policy.max_invoke_level {
-            // #region agent log
-            {
-                use std::io::Write;
-                let payload = serde_json::json!({
-                    "sessionId": "7aa2f5",
-                    "runId": std::env::var("OPENSESAME_DEBUG_RUN").unwrap_or_else(|_| "authority-2".into()),
-                    "hypothesisId": "AH-A",
-                    "location": "connector-host/lib.rs:invoke_mock",
-                    "message": "invoke level denied",
-                    "data": {"level_u8": level.as_u8(), "max_u8": self.policy.max_invoke_level.as_u8()},
-                    "timestamp": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()
-                });
-                if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("/home/codex/.herdr/worktrees/opensesame/.cursor/debug-7aa2f5.log") {
-                    let _ = writeln!(f, "{payload}");
-                }
-            }
-            // #endregion
-            return Err(HostError::InvokeLevelDenied);
+                        return Err(HostError::InvokeLevelDenied);
+        }
+        // L2 constrained HTTP with placement-bound placeholder substitution.
+        if level == InvokeLevel::ConstrainedHttp
+            && (req.operation == "http.authorized" || req.parameters.get("placeholder").is_some())
+        {
+            return self.invoke_l2_placeholder(req);
         }
         self.mock.invoke(req)
+    }
+
+    fn invoke_l2_placeholder(&self, req: &InvokeRequest) -> Result<InvokeResult, HostError> {
+        use opensesame_domain::CredentialDeliveryMode;
+
+        let url = req
+            .parameters
+            .get("url")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| HostError::Connector("url required for L2".into()))?;
+        let method = req
+            .parameters
+            .get("method")
+            .and_then(|v| v.as_str())
+            .unwrap_or("GET");
+        let placeholder = req
+            .parameters
+            .get("placeholder")
+            .and_then(|v| v.as_str())
+            .unwrap_or("ostest_placeholder_key0");
+        let material = req
+            .parameters
+            .get("material")
+            .and_then(|v| v.as_str())
+            .unwrap_or("ostest_injected_material");
+        let header_name = req
+            .parameters
+            .get("header_name")
+            .and_then(|v| v.as_str());
+        let header_value = req
+            .parameters
+            .get("header_value")
+            .and_then(|v| v.as_str());
+        let body_field = req
+            .parameters
+            .get("body_field")
+            .and_then(|v| v.as_str());
+        let body_value = req
+            .parameters
+            .get("body_value")
+            .and_then(|v| v.as_str());
+
+        let placement = PlaceholderPlacement::default();
+
+        let proj = LegacyProjection {
+            env_var: "OPENSESAME_PLACEHOLDER".into(),
+            connection_ref_uri: req
+                .parameters
+                .get("connection_ref")
+                .and_then(|v| v.as_str())
+                .unwrap_or("conn://demo")
+                .into(),
+            placeholder_pattern: "ostest_*".into(),
+            placement: placement.clone(),
+            delivery: CredentialDeliveryMode::Placeholder,
+        };
+
+        let injected = substitute_placeholder(
+            &self.policy.egress,
+            &placement,
+            &proj,
+            method,
+            url,
+            header_name,
+            header_value,
+            body_field,
+            body_value,
+            placeholder,
+            material,
+        )?;
+        Ok(InvokeResult {
+            ok: true,
+            safe_summary: injected,
+            external_request_digest: Some("sha256:l2-placeholder".into()),
+        })
     }
 }
 
@@ -680,7 +703,7 @@ mod tests {
             placement: PlaceholderPlacement::default(),
             delivery: CredentialDeliveryMode::Placeholder,
         };
-        let ph = "sk_test_opensesame0";
+        let ph = "ostest_placeholder_key0";
         let ok = substitute_placeholder(
             &egress,
             &proj.placement,
@@ -692,11 +715,11 @@ mod tests {
             None,
             None,
             ph,
-            "sk_live_REAL",
+            "ostest_injected_material",
         )
         .unwrap();
         assert_eq!(ok["credential_bytes_returned_to_guest"], false);
-        assert!(ok["header"][1].as_str().unwrap().contains("sk_live_REAL"));
+        assert!(ok["header"][1].as_str().unwrap().contains("ostest_injected_material"));
 
         let deny = substitute_placeholder(
             &egress,
@@ -709,8 +732,35 @@ mod tests {
             Some("message"),
             Some(&format!("exfil {ph}")),
             ph,
-            "sk_live_REAL",
+            "ostest_injected_material",
         );
         assert!(matches!(deny, Err(HostError::PlacementDenied(_))));
+    }
+
+    #[test]
+    fn invoke_mock_l2_wrong_placement_denied() {
+        let rt = HostRuntime::default();
+        let ph = "ostest_placeholder_key0";
+        // Default placement is Authorization header only — body occurrence is denied.
+        let params = json!({
+            "url": "https://api.github.com/repos/acme/x",
+            "method": "POST",
+            "placeholder": ph,
+            "material": "ostest_injected_material",
+            "body_field": "message",
+            "body_value": format!("exfil {ph}"),
+        });
+        let err = rt
+            .invoke_mock(&InvokeRequest {
+                operation: "http.authorized".into(),
+                resource: "r".into(),
+                audience: "https://api.github.com".into(),
+                parameters: params.clone(),
+                parameters_digest: opensesame_param_digest(&params),
+                authorized_operation: "http.authorized".into(),
+                invoke_level: Some(2),
+            })
+            .unwrap_err();
+        assert!(matches!(err, HostError::PlacementDenied(_)), "{err:?}");
     }
 }
