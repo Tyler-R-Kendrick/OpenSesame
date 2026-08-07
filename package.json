@@ -21,13 +21,16 @@
     "audit:ast-grep": "bash ./scripts/ast-grep-security-gate.sh",
     "audit:clippy": "bash ./scripts/clippy-gate.sh",
     "audit:osv": "bash ./scripts/osv-scanner-gate.sh",
+    "audit:cargo-audit": "bash ./scripts/cargo-audit-gate.sh",
+    "audit:gitleaks": "bash ./scripts/gitleaks-gate.sh",
+    "audit:semgrep": "bash ./scripts/semgrep-gate.sh",
     "test:task-access": "bash ./scripts/task-security-battle-test.sh",
     "test:all": "pnpm typecheck && pnpm test && pnpm test:integration",
     "db:migrate": "pnpm --filter @opensesame/database db:migrate",
     "db:reset": "pnpm --filter @opensesame/database db:reset",
     "generate:openapi": "pnpm --filter @opensesame/control-plane generate:openapi",
     "generate:sbom": "pnpm dlx @cyclonedx/cdxgen -o sbom/bom.json || mkdir -p sbom && echo '{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.5\",\"components\":[]}' > sbom/bom.json",
-    "verify": "pnpm test:all && cargo +1.88.0 test --workspace --lib && ./scripts/battle-test.sh"
+    "verify": "pnpm test:all && cargo +1.94.0 test --workspace --lib && ./scripts/battle-test.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
