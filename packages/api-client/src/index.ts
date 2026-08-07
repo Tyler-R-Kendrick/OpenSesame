@@ -43,6 +43,18 @@ function b64url(bytes: ArrayBuffer | Uint8Array): string {
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
+/** Cryptographically strong jti — never Math.random. */
+function randomJti(): string {
+  const c = globalThis.crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  if (c?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    c.getRandomValues(bytes);
+    return b64url(bytes);
+  }
+  throw new Error("crypto_unavailable_for_dpop_jti");
+}
+
 async function getSubtle(): Promise<SubtleCrypto> {
   if (globalThis.crypto?.subtle) return globalThis.crypto.subtle;
   const { webcrypto } = await import("node:crypto");
@@ -68,7 +80,7 @@ export async function createDpopKeyPair() {
     };
     const payload = {
       iat: Math.floor(Date.now() / 1000),
-      jti: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
+      jti: randomJti(),
       htu,
       htm: htm.toUpperCase(),
     };

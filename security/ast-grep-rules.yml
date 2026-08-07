@@ -1,0 +1,89 @@
+# OpenSesame ast-grep security rules (error-level findings must stay at zero).
+id: sql-format-injection
+language: rust
+severity: error
+message: Possible SQL string formatting / injection
+rule:
+  any:
+    - pattern: sqlx::query(&format!($A))
+    - pattern: sqlx::query(format!($A))
+---
+id: rust-command-injection
+language: rust
+severity: error
+message: shell -c with format! risks command injection
+rule:
+  any:
+    - pattern: Command::new("sh").arg("-c").arg(format!($A))
+    - pattern: Command::new("bash").arg("-c").arg(format!($A))
+---
+id: ts-math-random-security
+language: typescript
+severity: error
+message: Math.random is not cryptographically secure
+rule:
+  pattern: Math.random()
+---
+id: ts-eval
+language: typescript
+severity: error
+message: eval / Function constructor is dangerous
+rule:
+  any:
+    - pattern: eval($A)
+    - pattern: new Function($A)
+---
+id: ts-innerhtml
+language: typescript
+severity: error
+message: innerHTML assignment risks XSS
+rule:
+  pattern: $EL.innerHTML = $X
+---
+id: tsx-innerhtml
+language: tsx
+severity: error
+message: innerHTML assignment risks XSS
+rule:
+  pattern: $EL.innerHTML = $X
+---
+id: tsx-dangerously-set-html
+language: tsx
+severity: error
+message: dangerouslySetInnerHTML without sanitization
+rule:
+  pattern: dangerouslySetInnerHTML={$A}
+---
+id: ts-document-write
+language: typescript
+severity: error
+message: document.write is dangerous
+rule:
+  pattern: document.write($A)
+---
+id: ts-localstorage-set
+language: typescript
+severity: error
+message: localStorage/sessionStorage can be exfiltrated via XSS — avoid for secrets/sealed material
+rule:
+  any:
+    - pattern: localStorage.setItem($K, $V)
+    - pattern: sessionStorage.setItem($K, $V)
+---
+id: tsx-localstorage-set
+language: tsx
+severity: error
+message: localStorage/sessionStorage can be exfiltrated via XSS — avoid for secrets/sealed material
+rule:
+  any:
+    - pattern: localStorage.setItem($K, $V)
+    - pattern: sessionStorage.setItem($K, $V)
+---
+id: ts-child-process-exec
+language: typescript
+severity: error
+message: child_process exec with dynamic input
+rule:
+  any:
+    - pattern: exec($A)
+    - pattern: execSync($A)

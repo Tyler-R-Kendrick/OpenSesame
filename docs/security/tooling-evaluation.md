@@ -7,6 +7,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 | Tool | Why | How we use it |
 |------|-----|----------------|
 | **cve-lite** | OSV CVE scan + override hygiene (OA*/PD*) | `pnpm run audit:cve-lite` (`scripts/cve-lite-gate.sh`) |
+| **ast-grep** | Structural SAST for XSS/crypto/injection antipatterns | `pnpm run audit:ast-grep` (`security/ast-grep-rules.yml`) |
 | **gitleaks** | Secret scanning; catches accidental keys in source | `gitleaks detect --source . --no-git` (ignore `.tools/`) |
 | **cargo-deny** | RustSec advisories, license, source policy | `cargo deny check` + workspace `deny.toml` |
 | **pnpm audit** | npm advisory DB for TS apps/packages | `pnpm audit` after dep bumps |
