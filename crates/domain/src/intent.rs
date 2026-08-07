@@ -1,7 +1,7 @@
 use crate::{
-    ActorId, ActorInstanceId, ClientId, ConnectionId, GrantId, IntentId, InvocationId,
-    OperatorId, OrganizationId, PrincipalId, ProjectId, canonicalize_json, digest_sha256,
-    DomainError,
+    canonicalize_json, digest_sha256, ActorId, ActorInstanceId, ClientId, ConnectionId,
+    DomainError, GrantId, IntentId, InvocationId, OperatorId, OrganizationId, PrincipalId,
+    ProjectId,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -53,8 +53,8 @@ impl Intent {
     }
 
     pub fn digest(&self) -> Result<String, DomainError> {
-        let v = serde_json::to_value(self)
-            .map_err(|e| DomainError::Canonicalization(e.to_string()))?;
+        let v =
+            serde_json::to_value(self).map_err(|e| DomainError::Canonicalization(e.to_string()))?;
         crate::digest_json(&v)
     }
 }

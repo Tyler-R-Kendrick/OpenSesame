@@ -6,8 +6,8 @@ use chrono::{Duration, Utc};
 use opensesame_domain::{
     AuthorityContext, AuthorityContextId, AuthorityContextMode, Capability, CapabilitySet,
     CeilingInput, DomainError, EnforcementAcknowledgement, EnforcementAcknowledgementId,
-    MediationPointId, OrganizationId, PrincipalId, ResourceSelector, TaskRunStatus,
-    TaskTemplateId, VerificationEvidenceId,
+    MediationPointId, OrganizationId, PrincipalId, ResourceSelector, TaskRunStatus, TaskTemplateId,
+    VerificationEvidenceId,
 };
 
 fn cap(action: &str, resource: &str) -> Capability {
@@ -37,10 +37,7 @@ fn start_sample_task(
 fn ceiling_immutability_after_start() {
     let store = InMemoryTaskStore::new();
     let engine = TaskAccessEngine::new(store);
-    let run = start_sample_task(
-        &engine,
-        vec![cap("read", "repo:a"), cap("write", "repo:a")],
-    );
+    let run = start_sample_task(&engine, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
 
     let mut tampered = run.clone();
     tampered.capability_ceiling = CapabilitySet::new(vec![cap("admin", "repo:a")]);
@@ -52,10 +49,7 @@ fn ceiling_immutability_after_start() {
 fn renewal_after_ratchet_uses_new_state_version() {
     let store = InMemoryTaskStore::new();
     let engine = TaskAccessEngine::new(store);
-    let run = start_sample_task(
-        &engine,
-        vec![cap("read", "repo:a"), cap("write", "repo:a")],
-    );
+    let run = start_sample_task(&engine, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
     let now = Utc::now();
     let mediation = MediationPointId::new();
 
@@ -103,10 +97,7 @@ fn renewal_after_ratchet_uses_new_state_version() {
 fn missing_ack_holds_result_buffer() {
     let store = InMemoryTaskStore::new();
     let engine = TaskAccessEngine::new(store);
-    let run = start_sample_task(
-        &engine,
-        vec![cap("read", "repo:a"), cap("write", "repo:a")],
-    );
+    let run = start_sample_task(&engine, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
     let now = Utc::now();
     let mediation = MediationPointId::new();
 
@@ -193,10 +184,7 @@ fn authority_context_switch_after_activation_fails() {
 fn commit_releases_result_buffer() {
     let store = InMemoryTaskStore::new();
     let engine = TaskAccessEngine::new(store);
-    let run = start_sample_task(
-        &engine,
-        vec![cap("read", "repo:a"), cap("write", "repo:a")],
-    );
+    let run = start_sample_task(&engine, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
     let now = Utc::now();
     let mediation = MediationPointId::new();
 
@@ -235,10 +223,7 @@ fn commit_releases_result_buffer() {
 fn active_task_has_pending_status_during_restriction() {
     let store = InMemoryTaskStore::new();
     let engine = TaskAccessEngine::new(store);
-    let run = start_sample_task(
-        &engine,
-        vec![cap("read", "repo:a"), cap("write", "repo:a")],
-    );
+    let run = start_sample_task(&engine, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
     let now = Utc::now();
 
     engine
@@ -261,10 +246,7 @@ fn multi_node_stale_commit_rejected_after_fencing() {
     let store = SharedTaskStore::new(InMemoryTaskStore::new());
     let node_a = TaskAccessEngine::new(store.clone());
     let node_b = TaskAccessEngine::new(store);
-    let run = start_sample_task_on(
-        &node_a,
-        vec![cap("read", "repo:a"), cap("write", "repo:a")],
-    );
+    let run = start_sample_task_on(&node_a, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
     let now = Utc::now();
     let mediation = MediationPointId::new();
 

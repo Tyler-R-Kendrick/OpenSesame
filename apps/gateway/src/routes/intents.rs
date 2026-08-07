@@ -92,7 +92,9 @@ pub async fn create(
             Err(e) => {
                 return (
                     StatusCode::SERVICE_UNAVAILABLE,
-                    Json(json!({"error": format!("openfga_unavailable: {e}"), "type":"about:blank"})),
+                    Json(
+                        json!({"error": format!("openfga_unavailable: {e}"), "type":"about:blank"}),
+                    ),
                 )
                     .into_response();
             }
@@ -172,10 +174,7 @@ pub async fn create(
             let mut body = serde_json::to_value(&receipt).unwrap_or(json!({}));
             if let Some(obj) = body.as_object_mut() {
                 if let Some(connection_ref) = &st.connection_ref {
-                    obj.insert(
-                        "connection_ref".into(),
-                        json!(connection_ref.handle.uri()),
-                    );
+                    obj.insert("connection_ref".into(), json!(connection_ref.handle.uri()));
                 }
                 obj.insert("invoke_level".into(), json!(level));
                 obj.insert("credential_bytes_returned".into(), json!(false));

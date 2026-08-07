@@ -90,7 +90,9 @@ impl Grant {
             return Err(DomainError::GrantAttenuation("lifetime expanded".into()));
         }
         if child.constraints.raw_credential_export && !parent.constraints.raw_credential_export {
-            return Err(DomainError::GrantAttenuation("export privilege expanded".into()));
+            return Err(DomainError::GrantAttenuation(
+                "export privilege expanded".into(),
+            ));
         }
         if !is_subset(&child.actions, &parent.actions) {
             return Err(DomainError::GrantAttenuation("actions expanded".into()));

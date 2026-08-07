@@ -1,9 +1,4 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use opensesame_provider_openbao::CredentialAuthority;
 use serde_json::json;
 

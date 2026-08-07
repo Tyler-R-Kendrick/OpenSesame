@@ -340,7 +340,9 @@ pub struct HostRuntime {
 impl Default for HostRuntime {
     fn default() -> Self {
         let mut policy = HostPolicy::default();
-        policy.trusted_digests.insert("sha256:mock-connector".into());
+        policy
+            .trusted_digests
+            .insert("sha256:mock-connector".into());
         Self {
             policy,
             mock: MockConnector,
@@ -362,14 +364,14 @@ impl HostRuntime {
                 _ => InvokeLevel::Materialize,
             })
             .unwrap_or(InvokeLevel::TypedOperation);
-                // Materialize / resolve is denied at the host boundary before mock execution.
+        // Materialize / resolve is denied at the host boundary before mock execution.
         // Prefer MaterializeDenied over InvokeLevelDenied so agents cannot confuse
         // "raise connection max" with "export is allowed".
         if level == InvokeLevel::Materialize || req.operation == "credential.resolve" {
-                        return Err(HostError::MaterializeDenied);
+            return Err(HostError::MaterializeDenied);
         }
         if level > self.policy.max_invoke_level {
-                        return Err(HostError::InvokeLevelDenied);
+            return Err(HostError::InvokeLevelDenied);
         }
         // L2 constrained HTTP with placement-bound placeholder substitution.
         if level == InvokeLevel::ConstrainedHttp
@@ -403,22 +405,10 @@ impl HostRuntime {
             .get("material")
             .and_then(|v| v.as_str())
             .unwrap_or("ostest_injected_material");
-        let header_name = req
-            .parameters
-            .get("header_name")
-            .and_then(|v| v.as_str());
-        let header_value = req
-            .parameters
-            .get("header_value")
-            .and_then(|v| v.as_str());
-        let body_field = req
-            .parameters
-            .get("body_field")
-            .and_then(|v| v.as_str());
-        let body_value = req
-            .parameters
-            .get("body_value")
-            .and_then(|v| v.as_str());
+        let header_name = req.parameters.get("header_name").and_then(|v| v.as_str());
+        let header_value = req.parameters.get("header_value").and_then(|v| v.as_str());
+        let body_field = req.parameters.get("body_field").and_then(|v| v.as_str());
+        let body_value = req.parameters.get("body_value").and_then(|v| v.as_str());
 
         let placement = PlaceholderPlacement::default();
 

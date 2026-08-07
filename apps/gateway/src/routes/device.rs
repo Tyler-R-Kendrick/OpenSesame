@@ -64,10 +64,7 @@ pub struct DeviceTokenRequest {
     grant_type: String,
 }
 
-pub async fn token(
-    State(st): State<AppState>,
-    Json(req): Json<DeviceTokenRequest>,
-) -> Response {
+pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenRequest>) -> Response {
     if req.grant_type != "urn:ietf:params:oauth:grant-type:device_code" {
         return (
             StatusCode::BAD_REQUEST,
@@ -166,8 +163,7 @@ pub async fn approve(
     let mut map = st.device_codes.lock().unwrap();
     for pending in map.values_mut() {
         if pending.user_code == req.user_code {
-            pending.approved_principal =
-                Some(req.principal.unwrap_or_else(|| "user:demo".into()));
+            pending.approved_principal = Some(req.principal.unwrap_or_else(|| "user:demo".into()));
             return (StatusCode::OK, Json(json!({"status":"approved"}))).into_response();
         }
     }

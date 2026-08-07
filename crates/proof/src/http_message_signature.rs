@@ -64,10 +64,8 @@ impl HttpMessageSignatureValidator for LocalHttpMessageSignatureValidator {
         &self,
         request: &HttpSignedRequest,
     ) -> Result<ValidatedHttpMessageSignature, ProofError> {
-        let profile =
-            ProtocolProfile::parse_slug(PROFILE_HTTP_MESSAGE_SIGNATURES_RFC9421_V1).map_err(
-                |e| ProofError::Domain(e),
-            )?;
+        let profile = ProtocolProfile::parse_slug(PROFILE_HTTP_MESSAGE_SIGNATURES_RFC9421_V1)
+            .map_err(|e| ProofError::Domain(e))?;
         crate::validator::assert_token_presentation(
             &profile,
             TokenPresentation::HttpMessageSignature,
@@ -87,22 +85,18 @@ impl HttpMessageSignatureValidator for LocalHttpMessageSignatureValidator {
             return Err(ProofError::InvalidProof("signature expired".into()));
         }
 
-        let verifying_key = self.keys.get(&key_id).ok_or_else(|| {
-            ProofError::InvalidProof(format!("unknown keyid: {key_id}"))
-        })?;
+        let verifying_key = self
+            .keys
+            .get(&key_id)
+            .ok_or_else(|| ProofError::InvalidProof(format!("unknown keyid: {key_id}")))?;
 
-        let signature_base = build_signature_base(
-            &covered,
-            request,
-            &request.signature_input,
-        )?;
+        let signature_base = build_signature_base(&covered, request, &request.signature_input)?;
 
-        let sig_bytes = B64.decode(signature_value(&request.signature, &label)?).map_err(
-            |e| ProofError::InvalidProof(format!("signature base64: {e}")),
-        )?;
-        let signature = Signature::from_slice(&sig_bytes).map_err(|e| {
-            ProofError::InvalidProof(format!("signature bytes: {e}"))
-        })?;
+        let sig_bytes = B64
+            .decode(signature_value(&request.signature, &label)?)
+            .map_err(|e| ProofError::InvalidProof(format!("signature base64: {e}")))?;
+        let signature = Signature::from_slice(&sig_bytes)
+            .map_err(|e| ProofError::InvalidProof(format!("signature bytes: {e}")))?;
 
         verifying_key
             .verify(signature_base.as_bytes(), &signature)
@@ -149,10 +143,7 @@ pub fn sign_request(
     let signature_base = build_signature_base(&covered, &req, &signature_input).unwrap();
     let sig = signing_key.sign(signature_base.as_bytes());
     let signature = format!("sig=:{}:", B64.encode(sig.to_bytes()));
-    HttpSignedRequest {
-        signature,
-        ..req
-    }
+    HttpSignedRequest { signature, ..req }
 }
 
 pub fn content_digest_sha256(body: &[u8]) -> String {
@@ -164,18 +155,13 @@ pub fn content_digest_sha256(body: &[u8]) -> String {
 fn parse_signature_input(
     input: &str,
 ) -> Result<(String, Vec<String>, i64, String, String), ProofError> {
-    let label = input
-        .split('=')
-        .next()
-        .unwrap_or("sig")
-        .trim()
-        .to_string();
-    let paren_start = input.find('(').ok_or_else(|| {
-        ProofError::InvalidProof("missing covered components".into())
-    })?;
-    let paren_end = input.find(')').ok_or_else(|| {
-        ProofError::InvalidProof("missing covered components end".into())
-    })?;
+    let label = input.split('=').next().unwrap_or("sig").trim().to_string();
+    let paren_start = input
+        .find('(')
+        .ok_or_else(|| ProofError::InvalidProof("missing covered components".into()))?;
+    let paren_end = input
+        .find(')')
+        .ok_or_else(|| ProofError::InvalidProof("missing covered components end".into()))?;
     let inner = &input[paren_start + 1..paren_end];
     let covered: Vec<String> = inner
         .split_whitespace()
@@ -192,9 +178,10 @@ fn parse_signature_input(
     for part in input[paren_end + 1..].split(';') {
         let part = part.trim();
         if let Some(v) = part.strip_prefix("created=") {
-            created = Some(v.parse::<i64>().map_err(|e| {
-                ProofError::InvalidProof(format!("created: {e}"))
-            })?);
+            created = Some(
+                v.parse::<i64>()
+                    .map_err(|e| ProofError::InvalidProof(format!("created: {e}")))?,
+            );
         } else if let Some(v) = part.strip_prefix("keyid=") {
             key_id = Some(v.trim_matches('"').to_string());
         } else if let Some(v) = part.strip_prefix("alg=") {
@@ -313,6 +300,9 @@ mod tests {
     fn profile_registered() {
         let profile =
             ProtocolProfile::parse_slug(PROFILE_HTTP_MESSAGE_SIGNATURES_RFC9421_V1).unwrap();
-        assert_eq!(profile.minimum_presentation, TokenPresentation::HttpMessageSignature);
+        assert_eq!(
+            profile.minimum_presentation,
+            TokenPresentation::HttpMessageSignature
+        );
     }
 }

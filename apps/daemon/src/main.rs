@@ -48,10 +48,18 @@ struct Args {
     #[arg(long, env = "OPENSESAME_AGENT_SOCK")]
     sock: Option<String>,
     /// Host API base for toolbar approve forwarding.
-    #[arg(long, env = "OPENSESAME_SERVER", default_value = "http://127.0.0.1:8787")]
+    #[arg(
+        long,
+        env = "OPENSESAME_SERVER",
+        default_value = "http://127.0.0.1:8787"
+    )]
     host_api: String,
     /// Identity API base for claim helpers.
-    #[arg(long, env = "OPENSESAME_ISSUER", default_value = "http://127.0.0.1:8788")]
+    #[arg(
+        long,
+        env = "OPENSESAME_ISSUER",
+        default_value = "http://127.0.0.1:8788"
+    )]
     identity_api: String,
 }
 
@@ -166,9 +174,7 @@ async fn main() -> anyhow::Result<()> {
     let listen = env::var("OPENSESAME_DAEMON_LISTEN")
         .or_else(|_| env::var("OPENSESAME_AGENT_LISTEN"))
         .unwrap_or_else(|_| args.listen.clone());
-    let sock = args
-        .sock
-        .or_else(|| env::var("OPENSESAME_AGENT_SOCK").ok());
+    let sock = args.sock.or_else(|| env::var("OPENSESAME_AGENT_SOCK").ok());
 
     let mut sessions = HashMap::new();
     sessions.insert(
@@ -351,7 +357,10 @@ async fn operator_invoke_l1(
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
-    let level = body.get("invoke_level").and_then(|v| v.as_u64()).unwrap_or(1);
+    let level = body
+        .get("invoke_level")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(1);
     if level >= 3 {
         return Json(json!({"error":"materialize_denied","invoke_level": level})).into_response();
     }
@@ -373,10 +382,7 @@ async fn operator_invoke_l1(
     }
 }
 
-async fn list_sessions(
-    State(st): State<App>,
-    headers: HeaderMap,
-) -> Response {
+async fn list_sessions(State(st): State<App>, headers: HeaderMap) -> Response {
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
@@ -407,7 +413,8 @@ async fn mint_capability(
     }
     let sessions = st.sessions.lock().unwrap();
     let Some(session) = sessions.values().next() else {
-        return Json(json!({"error":"no_session","hint":"use opensesame login on host"})).into_response();
+        return Json(json!({"error":"no_session","hint":"use opensesame login on host"}))
+            .into_response();
     };
     let cap = SessionCapability {
         id: format!("cap:{}", Uuid::new_v4()),
@@ -461,11 +468,7 @@ async fn introspect_capability(
     }
 }
 
-async fn revoke(
-    State(st): State<App>,
-    headers: HeaderMap,
-    Json(body): Json<Value>,
-) -> Response {
+async fn revoke(State(st): State<App>, headers: HeaderMap, Json(body): Json<Value>) -> Response {
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }

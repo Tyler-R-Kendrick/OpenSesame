@@ -6,12 +6,11 @@ use axum::{
 use serde_json::json;
 
 use crate::app_state::AppState;
-use crate::middleware::auth::{require_demo_bootstrap, require_session_or_operator, resolve_caller_subject};
+use crate::middleware::auth::{
+    require_demo_bootstrap, require_session_or_operator, resolve_caller_subject,
+};
 
-pub async fn status(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Response {
+pub async fn status(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
     if let Err(resp) = require_session_or_operator(&st, &headers) {
         return resp;
     }
@@ -19,10 +18,7 @@ pub async fn status(
     Json(json!({"active_sessions": n})).into_response()
 }
 
-pub async fn whoami(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Response {
+pub async fn whoami(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
     let subject = match resolve_caller_subject(&st, &headers) {
         Ok(s) => s,
         Err(resp) => return resp,

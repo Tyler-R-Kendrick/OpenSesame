@@ -36,7 +36,10 @@ pub fn router(state: AppState) -> Router {
             get(protected_resource::metadata),
         )
         .route("/auth.md", get(protected_resource::auth_md))
-        .route("/.well-known/agent-card.json", get(protected_resource::agent_card))
+        .route(
+            "/.well-known/agent-card.json",
+            get(protected_resource::agent_card),
+        )
         .route("/api/v1/device/authorize", post(device::authorize))
         .route("/api/v1/device/token", post(device::token))
         .route("/api/v1/device/approve", post(device::approve))

@@ -21,11 +21,7 @@ pub async fn get(
     let rid = match ReceiptId::parse(&id) {
         Ok(r) => r,
         Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"invalid id"})),
-            )
-                .into_response();
+            return (StatusCode::BAD_REQUEST, Json(json!({"error":"invalid id"}))).into_response();
         }
     };
     match st.db.get_receipt(&rid).await {
@@ -50,11 +46,7 @@ pub async fn verify(
     let rid = match ReceiptId::parse(&id) {
         Ok(r) => r,
         Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"invalid id"})),
-            )
-                .into_response();
+            return (StatusCode::BAD_REQUEST, Json(json!({"error":"invalid id"}))).into_response();
         }
     };
     match st.db.get_receipt(&rid).await {

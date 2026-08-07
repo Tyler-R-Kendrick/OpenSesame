@@ -71,7 +71,10 @@ impl OpenFgaClient {
         if resp.status().is_success() {
             Ok(())
         } else {
-            Err(OpenFgaError::Unavailable(format!("status {}", resp.status())))
+            Err(OpenFgaError::Unavailable(format!(
+                "status {}",
+                resp.status()
+            )))
         }
     }
 

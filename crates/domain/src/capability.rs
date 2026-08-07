@@ -118,18 +118,18 @@ impl CapabilitySet {
                 .then_with(|| selector_sort_key(&a.resource).cmp(&selector_sort_key(&b.resource)))
         });
         caps.dedup_by(|a, b| a.action == b.action && a.resource == b.resource);
-        Self {
-            capabilities: caps,
-        }
+        Self { capabilities: caps }
     }
 
     pub fn is_subset_of(&self, other: &Self) -> bool {
         let self_c = self.canonicalize();
         let other_c = other.canonicalize();
-        self_c
-            .capabilities
-            .iter()
-            .all(|c| other_c.capabilities.iter().any(|p| c.is_attenuation_of(p) == AttenuationResult::Proven))
+        self_c.capabilities.iter().all(|c| {
+            other_c
+                .capabilities
+                .iter()
+                .any(|p| c.is_attenuation_of(p) == AttenuationResult::Proven)
+        })
     }
 
     pub fn intersection(&self, other: &Self) -> Self {
@@ -222,11 +222,7 @@ fn intersect_selectors(a: &ResourceSelector, b: &ResourceSelector) -> Option<Res
             ResourceSelector::Enumerated { values: va },
             ResourceSelector::Enumerated { values: vb },
         ) => {
-            let inter: Vec<String> = va
-                .iter()
-                .filter(|v| vb.contains(v))
-                .cloned()
-                .collect();
+            let inter: Vec<String> = va.iter().filter(|v| vb.contains(v)).cloned().collect();
             if inter.is_empty() {
                 None
             } else if inter.len() == 1 {
@@ -260,15 +256,16 @@ fn subtract_selector(
             if remainder.is_empty() {
                 None
             } else {
-                Some(vec![ResourceSelector::Enumerated { values: remainder }.canonicalize()])
+                Some(vec![
+                    ResourceSelector::Enumerated { values: remainder }.canonicalize()
+                ])
             }
         }
         (
             ResourceSelector::Enumerated { values: cap_vals },
             ResourceSelector::Exact { value: rem },
         ) => {
-            let remainder: Vec<String> =
-                cap_vals.iter().filter(|v| *v != rem).cloned().collect();
+            let remainder: Vec<String> = cap_vals.iter().filter(|v| *v != rem).cloned().collect();
             if remainder.is_empty() {
                 None
             } else if remainder.len() == 1 {
@@ -276,7 +273,9 @@ fn subtract_selector(
                     value: remainder[0].clone(),
                 }])
             } else {
-                Some(vec![ResourceSelector::Enumerated { values: remainder }.canonicalize()])
+                Some(vec![
+                    ResourceSelector::Enumerated { values: remainder }.canonicalize()
+                ])
             }
         }
         _ => Some(vec![cap.clone()]),
@@ -304,10 +303,7 @@ mod tests {
     fn attenuation_proven() {
         let parent = cap("read", "repo:a");
         let child = cap("read", "repo:a");
-        assert_eq!(
-            child.is_attenuation_of(&parent),
-            AttenuationResult::Proven
-        );
+        assert_eq!(child.is_attenuation_of(&parent), AttenuationResult::Proven);
     }
 
     #[test]
@@ -337,10 +333,7 @@ mod tests {
 
     #[test]
     fn remove_never_adds() {
-        let set = CapabilitySet::new(vec![
-            cap("read", "repo:a"),
-            cap("read", "repo:b"),
-        ]);
+        let set = CapabilitySet::new(vec![cap("read", "repo:a"), cap("read", "repo:b")]);
         let before = set.digest().unwrap();
         let after = set.remove("read", &ResourceSelector::exact("repo:a"));
         assert!(after.capabilities.len() <= set.capabilities.len());

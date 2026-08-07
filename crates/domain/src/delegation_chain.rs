@@ -29,9 +29,10 @@ impl DelegationChain {
         let mut seen_grants = std::collections::HashSet::new();
         for (i, hop) in self.hops.iter().enumerate() {
             if hop.index != i as u32 {
-                return Err(DomainError::DelegationChainInvalid(
-                    format!("hop index {i} expected, got {}", hop.index),
-                ));
+                return Err(DomainError::DelegationChainInvalid(format!(
+                    "hop index {i} expected, got {}",
+                    hop.index
+                )));
             }
             if !seen_grants.insert(hop.grant_id) {
                 return Err(DomainError::DelegationChainCycle);
@@ -115,13 +116,7 @@ mod tests {
         let chain = DelegationChain {
             id: DelegationChainId::new(),
             hops: (0..5)
-                .map(|i| {
-                    hop(
-                        i,
-                        PrincipalId::new(),
-                        PrincipalId::new(),
-                    )
-                })
+                .map(|i| hop(i, PrincipalId::new(), PrincipalId::new()))
                 .collect(),
         };
         assert!(chain.validate(3).is_err());

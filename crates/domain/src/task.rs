@@ -201,10 +201,7 @@ mod tests {
             created_at: now,
             updated_at: now,
         };
-        let wider = CapabilitySet::new(vec![
-            cap("read", "repo:a"),
-            cap("write", "repo:a"),
-        ]);
+        let wider = CapabilitySet::new(vec![cap("read", "repo:a"), cap("write", "repo:a")]);
         assert!(run.validate_restriction(&wider).is_err());
     }
 

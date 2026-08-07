@@ -1,9 +1,4 @@
-use axum::{
-    extract::State,
-    http::header,
-    response::IntoResponse,
-    Json,
-};
+use axum::{extract::State, http::header, response::IntoResponse, Json};
 use serde_json::json;
 
 use crate::app_state::AppState;
@@ -55,7 +50,10 @@ pub async fn auth_md(State(st): State<AppState>) -> impl IntoResponse {
         resource = st.resource,
         issuer = st.issuer
     );
-    ([(header::CONTENT_TYPE, "text/markdown; charset=utf-8")], body)
+    (
+        [(header::CONTENT_TYPE, "text/markdown; charset=utf-8")],
+        body,
+    )
 }
 
 pub async fn agent_card(State(st): State<AppState>) -> impl IntoResponse {

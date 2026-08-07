@@ -1,8 +1,7 @@
 //! Authorization requirements derived from protected resources and protocol profiles.
 
 use crate::{
-    CapabilitySet, DomainError, ProofPurpose, ProtocolProfile, ProtectedResource,
-    TokenPresentation,
+    CapabilitySet, DomainError, ProofPurpose, ProtectedResource, ProtocolProfile, TokenPresentation,
 };
 use serde::{Deserialize, Serialize};
 
@@ -41,9 +40,7 @@ impl AuthorizationRequirement {
                 "capability subset not satisfied".into(),
             ));
         }
-        if presentation_strength(presentation)
-            < presentation_strength(self.minimum_presentation)
-        {
+        if presentation_strength(presentation) < presentation_strength(self.minimum_presentation) {
             return Err(DomainError::TokenPresentationDowngrade);
         }
         Ok(())

@@ -6,12 +6,10 @@ use serde::{Deserialize, Serialize};
 /// Built-in profile identifiers (stable strings).
 pub const PROFILE_OPENSESAME_TASK_DPOP_RFC9449_V1: &str = "opensesame-task-dpop-rfc9449-v1";
 pub const PROFILE_OAUTH_BEARER_RFC6750_V1: &str = "oauth-bearer-rfc6750-v1";
-pub const PROFILE_MCP_AUTHORIZATION_2026_07_28_BEARER: &str =
-    "mcp-authorization-2026-07-28-bearer";
+pub const PROFILE_MCP_AUTHORIZATION_2026_07_28_BEARER: &str = "mcp-authorization-2026-07-28-bearer";
 pub const PROFILE_OAUTH_TOKEN_EXCHANGE_RFC8693_SEMANTICS_V1: &str =
     "oauth-token-exchange-rfc8693-semantics-v1";
-pub const PROFILE_HTTP_MESSAGE_SIGNATURES_RFC9421_V1: &str =
-    "http-message-signatures-rfc9421-v1";
+pub const PROFILE_HTTP_MESSAGE_SIGNATURES_RFC9421_V1: &str = "http-message-signatures-rfc9421-v1";
 pub const PROFILE_AAUTH_DRAFT_10_EXPERIMENTAL: &str = "aauth-draft-10-experimental";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -1,8 +1,8 @@
 //! Verification evidence attached to ratchet transitions and proofs.
 
 use crate::{
-    DomainError, ProtocolProfileId, TaskRunId, VerificationEvidenceId, canonicalize_json,
-    digest_sha256,
+    canonicalize_json, digest_sha256, DomainError, ProtocolProfileId, TaskRunId,
+    VerificationEvidenceId,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -31,8 +31,8 @@ pub struct VerificationEvidence {
 
 impl VerificationEvidence {
     pub fn digest(&self) -> Result<String, DomainError> {
-        let v = serde_json::to_value(self)
-            .map_err(|e| DomainError::Canonicalization(e.to_string()))?;
+        let v =
+            serde_json::to_value(self).map_err(|e| DomainError::Canonicalization(e.to_string()))?;
         Ok(digest_sha256(&canonicalize_json(&v)?))
     }
 

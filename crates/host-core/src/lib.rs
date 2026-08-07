@@ -2,13 +2,13 @@
 //!
 //! WIT: `wit/host/world.wit`.
 
-pub use opensesame_core as core;
-pub use opensesame_broker as broker;
-pub use opensesame_authz as authz;
-pub use opensesame_authn as authn;
-pub use opensesame_connector_host as connector_host;
-pub use opensesame_env_spec as env_spec;
 pub use opensesame_audit as audit;
+pub use opensesame_authn as authn;
+pub use opensesame_authz as authz;
+pub use opensesame_broker as broker;
+pub use opensesame_connector_host as connector_host;
+pub use opensesame_core as core;
+pub use opensesame_env_spec as env_spec;
 
 pub mod wit_contract {
     pub const PACKAGE: &str = "opensesame:host@1.0.0";
@@ -23,7 +23,6 @@ pub mod daemon {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::path::PathBuf;
 
     #[test]

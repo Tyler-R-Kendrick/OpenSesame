@@ -106,10 +106,7 @@ pub fn open(key: &DeviceKey, sealed: &[u8], aad: &[u8]) -> Result<Vec<u8>, Clien
     let cipher = XChaCha20Poly1305::new(Key::from_slice(&key.key));
     let nonce = XNonce::from_slice(nonce_bytes);
     cipher
-        .decrypt(
-            nonce,
-            chacha20poly1305::aead::Payload { msg: ct, aad },
-        )
+        .decrypt(nonce, chacha20poly1305::aead::Payload { msg: ct, aad })
         .map_err(|_| ClientCoreError::Aead)
 }
 
@@ -306,9 +303,7 @@ mod tests {
     fn persist_roundtrip_ciphertext_only() {
         let key = DeviceKey::generate();
         let mut store = SyncStore::new("persist-dev");
-        store
-            .put_local(&key, "n1", b"secret-payload-xyz")
-            .unwrap();
+        store.put_local(&key, "n1", b"secret-payload-xyz").unwrap();
         let json = store.to_persisted_json().unwrap();
         assert!(!json.contains("secret-payload-xyz"));
         let loaded = SyncStore::from_persisted_json(&json).unwrap();

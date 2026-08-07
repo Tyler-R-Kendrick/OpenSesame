@@ -1,6 +1,6 @@
 use base64::{engine::general_purpose::STANDARD, Engine};
-use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey, Signature};
-use opensesame_domain::{InvocationReceipt, DomainError, digest_json};
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use opensesame_domain::{digest_json, DomainError, InvocationReceipt};
 use rand::rngs::OsRng;
 use serde_json::Value;
 
@@ -13,7 +13,10 @@ impl ReceiptSigner {
     pub fn generate() -> Self {
         let signing_key = SigningKey::generate(&mut OsRng);
         Self {
-            key_id: format!("receipt-key:{}", hex::encode(signing_key.verifying_key().as_bytes())),
+            key_id: format!(
+                "receipt-key:{}",
+                hex::encode(signing_key.verifying_key().as_bytes())
+            ),
             signing_key,
         }
     }
@@ -22,7 +25,10 @@ impl ReceiptSigner {
         self.signing_key.verifying_key()
     }
 
-    pub fn sign_receipt(&self, mut receipt: InvocationReceipt) -> Result<InvocationReceipt, DomainError> {
+    pub fn sign_receipt(
+        &self,
+        mut receipt: InvocationReceipt,
+    ) -> Result<InvocationReceipt, DomainError> {
         if !receipt.assert_no_secret_leak() {
             return Err(DomainError::Canonicalization(
                 "receipt summary contains secret material".into(),
@@ -39,10 +45,7 @@ impl ReceiptSigner {
         Ok(receipt)
     }
 
-    pub fn verify_receipt(
-        &self,
-        receipt: &InvocationReceipt,
-    ) -> Result<(), DomainError> {
+    pub fn verify_receipt(&self, receipt: &InvocationReceipt) -> Result<(), DomainError> {
         let mut clone = receipt.clone();
         let sig_b64 = clone.signature.clone();
         clone.signature = String::new();

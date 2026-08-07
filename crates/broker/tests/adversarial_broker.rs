@@ -93,9 +93,7 @@ async fn setup() -> (Broker, OrganizationId, PrincipalId, ActorId) {
     policy
         .relationships
         .write("connection:demo-conn", "user", "user:demo");
-    policy
-        .assurance
-        .insert("user:demo".into(), "mfa".into());
+    policy.assurance.insert("user:demo".into(), "mfa".into());
     let broker = Broker {
         db,
         policy,
@@ -110,7 +108,14 @@ async fn idempotency_must_not_duplicate_side_effects() {
     let (broker, org, principal, actor) = setup().await;
     let grant = sample_grant(org, principal);
     let params = json!({"title": "once"});
-    let intent1 = sample_intent(org, principal, actor, "pull_request.create", "idem-1", &params);
+    let intent1 = sample_intent(
+        org,
+        principal,
+        actor,
+        "pull_request.create",
+        "idem-1",
+        &params,
+    );
     let r1 = broker
         .invoke(InvokeInput {
             intent: intent1.clone(),
@@ -124,7 +129,14 @@ async fn idempotency_must_not_duplicate_side_effects() {
     assert_eq!(r1.outcome, ReceiptOutcome::Succeeded);
 
     // Same idempotency key, new intent id — MUST return prior receipt, not re-execute.
-    let mut intent2 = sample_intent(org, principal, actor, "pull_request.create", "idem-1", &params);
+    let mut intent2 = sample_intent(
+        org,
+        principal,
+        actor,
+        "pull_request.create",
+        "idem-1",
+        &params,
+    );
     intent2.id = IntentId::new();
     let r2 = broker
         .invoke(InvokeInput {
@@ -143,12 +155,12 @@ async fn idempotency_must_not_duplicate_side_effects() {
         .count_invocations_for_intent(&intent1.id)
         .await
         .unwrap();
-    assert_eq!(
-        r1.id, r2.id,
-        "idempotent retry must return same receipt id"
-    );
+    assert_eq!(r1.id, r2.id, "idempotent retry must return same receipt id");
     assert_eq!(receipts, 1, "must not create a second receipt");
-    assert_eq!(inv_count, 1, "must not create a second invocation for first intent");
+    assert_eq!(
+        inv_count, 1,
+        "must not create a second invocation for first intent"
+    );
 }
 
 #[tokio::test]
@@ -158,7 +170,14 @@ async fn cross_org_grant_must_be_rejected() {
     broker.db.create_organization(&org_b, "evil").await.unwrap();
     let grant = sample_grant(org_b, principal); // grant in B
     let params = json!({});
-    let intent = sample_intent(org_a, principal, actor, "repository.read", "xorg-1", &params);
+    let intent = sample_intent(
+        org_a,
+        principal,
+        actor,
+        "repository.read",
+        "xorg-1",
+        &params,
+    );
     let result = broker
         .invoke(InvokeInput {
             intent,
@@ -257,7 +276,14 @@ async fn parameter_digest_tamper_rejected() {
     let (broker, org, principal, actor) = setup().await;
     let grant = sample_grant(org, principal);
     let params = json!({"a": 1});
-    let mut intent = sample_intent(org, principal, actor, "repository.read", "tamper-1", &params);
+    let mut intent = sample_intent(
+        org,
+        principal,
+        actor,
+        "repository.read",
+        "tamper-1",
+        &params,
+    );
     intent.normalized_parameters_hash = "sha256:deadbeef".into();
     let err = broker
         .invoke(InvokeInput {
@@ -311,6 +337,9 @@ async fn receipt_roundtrip_prefixed_and_bare_id() {
     assert!(by_prefixed.is_some());
     let bare = ReceiptId::parse(&receipt.id.as_uuid().to_string()).unwrap();
     let by_bare = broker.db.get_receipt(&bare).await.unwrap();
-    assert!(by_bare.is_some(), "hypothesis D: bare uuid lookup must work");
+    assert!(
+        by_bare.is_some(),
+        "hypothesis D: bare uuid lookup must work"
+    );
     broker.signer.verify_receipt(&receipt).unwrap();
 }

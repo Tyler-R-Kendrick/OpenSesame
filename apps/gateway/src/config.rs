@@ -20,9 +20,17 @@ pub fn constant_time_eq(a: &str, b: &str) -> bool {
 pub struct Args {
     #[arg(long, env = "OPENSESAME_LISTEN", default_value = "127.0.0.1:8787")]
     pub listen: SocketAddr,
-    #[arg(long, env = "OPENSESAME_RESOURCE", default_value = "https://opensesame.local")]
+    #[arg(
+        long,
+        env = "OPENSESAME_RESOURCE",
+        default_value = "https://opensesame.local"
+    )]
     pub resource: String,
-    #[arg(long, env = "OPENSESAME_ISSUER", default_value = "https://keycloak.local/realms/opensesame")]
+    #[arg(
+        long,
+        env = "OPENSESAME_ISSUER",
+        default_value = "https://keycloak.local/realms/opensesame"
+    )]
     pub issuer: String,
     #[arg(long, env = "OPENSESAME_DB", default_value = "sqlite::memory:")]
     pub database_url: String,

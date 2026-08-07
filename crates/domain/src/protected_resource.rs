@@ -1,8 +1,8 @@
 //! Protected resources and external capability mappings.
 
 use crate::{
-    CapabilitySet, DomainError, OrganizationId, ProjectId, ProtectedResourceId,
-    ProtocolProfileId, ResourceAccountRefId,
+    CapabilitySet, DomainError, OrganizationId, ProjectId, ProtectedResourceId, ProtocolProfileId,
+    ResourceAccountRefId,
 };
 use serde::{Deserialize, Serialize};
 

@@ -4,9 +4,8 @@ use crate::credential::{ProtectedResultBuffer, TaskCredentialRecord};
 use crate::engine::TaskStore;
 use crate::TaskAccessError;
 use opensesame_domain::{
-    AcknowledgementSet, CapabilitySet, CapabilityStateTransition,
-    CapabilityStateTransitionId, CapabilityTransitionStatus, DomainError, TaskRun, TaskRunId,
-    TaskRunStatus,
+    AcknowledgementSet, CapabilitySet, CapabilityStateTransition, CapabilityStateTransitionId,
+    CapabilityTransitionStatus, DomainError, TaskRun, TaskRunId, TaskRunStatus,
 };
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{PgPool, Row};
@@ -22,20 +21,18 @@ pub enum TaskAuthorityBackend {
     InMemory,
     SqliteLocal,
     /// PostgreSQL configured; `migrated` is true after `0001_task_access.sql` applied.
-    Postgres { migrated: bool },
+    Postgres {
+        migrated: bool,
+    },
 }
 
 /// Returns true only when distributed Postgres task authority is configured and migrated.
 pub fn distributed_task_authority_ok(backend: TaskAuthorityBackend) -> bool {
-    matches!(
-        backend,
-        TaskAuthorityBackend::Postgres { migrated: true }
-    )
+    matches!(backend, TaskAuthorityBackend::Postgres { migrated: true })
 }
 
 pub fn is_postgres_database_url(url: &str) -> bool {
-    !url.is_empty()
-        && (url.starts_with("postgres://") || url.starts_with("postgresql://"))
+    !url.is_empty() && (url.starts_with("postgres://") || url.starts_with("postgresql://"))
 }
 
 pub fn task_authority_backend_from_url(url: &str) -> TaskAuthorityBackend {
@@ -79,9 +76,8 @@ impl PostgresTaskStore {
             .connect(database_url)
             .await
             .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
-        let runtime = Arc::new(
-            Runtime::new().map_err(|e| TaskAccessError::Storage(e.to_string()))?,
-        );
+        let runtime =
+            Arc::new(Runtime::new().map_err(|e| TaskAccessError::Storage(e.to_string()))?);
         let store = Self {
             pool,
             runtime,
@@ -147,7 +143,9 @@ fn status_from_str(s: &str) -> Result<TaskRunStatus, TaskAccessError> {
         "completed" => Ok(TaskRunStatus::Completed),
         "failed" => Ok(TaskRunStatus::Failed),
         "cancelled" => Ok(TaskRunStatus::Cancelled),
-        other => Err(TaskAccessError::Storage(format!("unknown task status: {other}"))),
+        other => Err(TaskAccessError::Storage(format!(
+            "unknown task status: {other}"
+        ))),
     }
 }
 
@@ -183,7 +181,9 @@ fn row_to_run(row: &sqlx::postgres::PgRow) -> Result<TaskRun, TaskAccessError> {
     let current: serde_json::Value = row.get("current_capabilities");
     Ok(TaskRun {
         id: TaskRunId::parse(&row.get::<String, _>("id"))?,
-        template_id: opensesame_domain::TaskTemplateId::parse(&row.get::<String, _>("template_id"))?,
+        template_id: opensesame_domain::TaskTemplateId::parse(
+            &row.get::<String, _>("template_id"),
+        )?,
         organization_id: opensesame_domain::OrganizationId::parse(
             &row.get::<String, _>("organization_id"),
         )?,
@@ -270,9 +270,10 @@ impl TaskStore for PostgresTaskStore {
             )
             .bind(run.id.to_string())
             .bind(status_to_str(run.status))
-            .bind(serde_json::to_value(&run.current_capabilities).map_err(|e| {
-                TaskAccessError::Storage(e.to_string())
-            })?)
+            .bind(
+                serde_json::to_value(&run.current_capabilities)
+                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
+            )
             .bind(run.state_version as i64)
             .bind(&run.state_digest)
             .bind(run.updated_at)
@@ -323,10 +324,7 @@ impl TaskStore for PostgresTaskStore {
             .fetch_optional(&pool)
             .await
             .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
-            match row {
-                Some(row) => Ok(Some(row_to_transition(&row)?)),
-                None => Ok(None),
-            }
+            row.as_ref().map(row_to_transition).transpose()
         })
     }
 
@@ -360,10 +358,7 @@ impl TaskStore for PostgresTaskStore {
             .fetch_optional(&pool)
             .await
             .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
-            match row {
-                Some(row) => Ok(Some(row_to_transition(&row)?)),
-                None => Ok(None),
-            }
+            row.as_ref().map(row_to_transition).transpose()
         })
     }
 
@@ -374,11 +369,12 @@ impl TaskStore for PostgresTaskStore {
         let pool = self.pool.clone();
         let id_str = transition_id.to_string();
         self.block_on(async move {
-            let row = sqlx::query("SELECT required, received FROM ack_sets WHERE transition_id = $1")
-                .bind(&id_str)
-                .fetch_optional(&pool)
-                .await
-                .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
+            let row =
+                sqlx::query("SELECT required, received FROM ack_sets WHERE transition_id = $1")
+                    .bind(&id_str)
+                    .fetch_optional(&pool)
+                    .await
+                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
             match row {
                 Some(row) => {
                     let required: serde_json::Value = row.get("required");
@@ -414,12 +410,14 @@ impl TaskStore for PostgresTaskStore {
                 "#,
             )
             .bind(&transition_id)
-            .bind(serde_json::to_value(&set.required).map_err(|e| {
-                TaskAccessError::Storage(e.to_string())
-            })?)
-            .bind(serde_json::to_value(&set.received).map_err(|e| {
-                TaskAccessError::Storage(e.to_string())
-            })?)
+            .bind(
+                serde_json::to_value(&set.required)
+                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
+            )
+            .bind(
+                serde_json::to_value(&set.received)
+                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
+            )
             .execute(&pool)
             .await
             .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
@@ -445,8 +443,8 @@ impl TaskStore for PostgresTaskStore {
             .fetch_optional(&pool)
             .await
             .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
-            match row {
-                Some(row) => Ok(Some(ProtectedResultBuffer {
+            row.map(|row| {
+                Ok(ProtectedResultBuffer {
                     task_run_id: TaskRunId::parse(&row.get::<String, _>("task_run_id"))?,
                     transition_id: row.get("transition_id"),
                     state_version: row.get::<i64, _>("state_version") as u64,
@@ -454,16 +452,13 @@ impl TaskStore for PostgresTaskStore {
                     payload: row.get("payload"),
                     created_at: row.get("created_at"),
                     released: row.get("released"),
-                })),
-                None => Ok(None),
-            }
+                })
+            })
+            .transpose()
         })
     }
 
-    fn save_result_buffer(
-        &self,
-        buffer: &ProtectedResultBuffer,
-    ) -> Result<(), TaskAccessError> {
+    fn save_result_buffer(&self, buffer: &ProtectedResultBuffer) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let buffer = buffer.clone();
         self.block_on(async move {
@@ -515,24 +510,21 @@ impl TaskStore for PostgresTaskStore {
             .fetch_optional(&pool)
             .await
             .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
-            match row {
-                Some(row) => Ok(Some(TaskCredentialRecord {
+            row.map(|row| {
+                Ok(TaskCredentialRecord {
                     id: opensesame_domain::TaskCredentialId::parse(&row.get::<String, _>("id"))?,
                     task_run_id: TaskRunId::parse(&row.get::<String, _>("task_run_id"))?,
                     credential_digest: row.get("credential_digest"),
                     state_version: row.get::<i64, _>("state_version") as u64,
                     issued_at: row.get("issued_at"),
                     expires_at: row.get("expires_at"),
-                })),
-                None => Ok(None),
-            }
+                })
+            })
+            .transpose()
         })
     }
 
-    fn save_credential(
-        &self,
-        record: &TaskCredentialRecord,
-    ) -> Result<(), TaskAccessError> {
+    fn save_credential(&self, record: &TaskCredentialRecord) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let record = record.clone();
         self.block_on(async move {
@@ -561,7 +553,10 @@ impl TaskStore for PostgresTaskStore {
         })
     }
 
-    fn get_ceiling_digest(&self, task_run_id: TaskRunId) -> Result<Option<String>, TaskAccessError> {
+    fn get_ceiling_digest(
+        &self,
+        task_run_id: TaskRunId,
+    ) -> Result<Option<String>, TaskAccessError> {
         let pool = self.pool.clone();
         let id_str = task_run_id.to_string();
         self.block_on(async move {
@@ -641,7 +636,9 @@ impl TaskStore for PostgresTaskStore {
     }
 }
 
-fn row_to_transition(row: &sqlx::postgres::PgRow) -> Result<CapabilityStateTransition, TaskAccessError> {
+fn row_to_transition(
+    row: &sqlx::postgres::PgRow,
+) -> Result<CapabilityStateTransition, TaskAccessError> {
     let removed: serde_json::Value = row.get("removed");
     let resulting: serde_json::Value = row.get("resulting_capabilities");
     Ok(CapabilityStateTransition {
@@ -690,12 +687,14 @@ async fn upsert_task_run(
     .bind(run.principal_id.to_string())
     .bind(run.authority_context_id.to_string())
     .bind(status_to_str(run.status))
-    .bind(serde_json::to_value(&run.capability_ceiling).map_err(|e| {
-        TaskAccessError::Storage(e.to_string())
-    })?)
-    .bind(serde_json::to_value(&run.current_capabilities).map_err(|e| {
-        TaskAccessError::Storage(e.to_string())
-    })?)
+    .bind(
+        serde_json::to_value(&run.capability_ceiling)
+            .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
+    )
+    .bind(
+        serde_json::to_value(&run.current_capabilities)
+            .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
+    )
     .bind(run.state_version as i64)
     .bind(&run.state_digest)
     .bind(ceiling_digest)
@@ -732,12 +731,14 @@ async fn upsert_transition(
     .bind(transition.from_state_version as i64)
     .bind(transition.to_state_version as i64)
     .bind(transition_status_to_str(transition.status))
-    .bind(serde_json::to_value(&transition.removed).map_err(|e| {
-        TaskAccessError::Storage(e.to_string())
-    })?)
-    .bind(serde_json::to_value(&transition.resulting_capabilities).map_err(|e| {
-        TaskAccessError::Storage(e.to_string())
-    })?)
+    .bind(
+        serde_json::to_value(&transition.removed)
+            .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
+    )
+    .bind(
+        serde_json::to_value(&transition.resulting_capabilities)
+            .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
+    )
     .bind(&transition.trigger_evidence_digest)
     .bind(transition.created_at)
     .bind(transition.committed_at)
@@ -766,8 +767,12 @@ mod tests {
 
     #[test]
     fn distributed_task_authority_ok_only_postgres() {
-        assert!(!distributed_task_authority_ok(TaskAuthorityBackend::InMemory));
-        assert!(!distributed_task_authority_ok(TaskAuthorityBackend::SqliteLocal));
+        assert!(!distributed_task_authority_ok(
+            TaskAuthorityBackend::InMemory
+        ));
+        assert!(!distributed_task_authority_ok(
+            TaskAuthorityBackend::SqliteLocal
+        ));
         assert!(!distributed_task_authority_ok(
             TaskAuthorityBackend::Postgres { migrated: false }
         ));
@@ -785,14 +790,12 @@ mod tests {
     #[tokio::test]
     #[ignore = "requires OPENSESAME_TEST_DATABASE_URL"]
     async fn postgres_store_round_trip_and_cas() {
-        use crate::{
-            ProposeRestrictionParams, StartTaskParams, TaskAccessEngine, TaskAccessError,
-        };
+        use crate::{ProposeRestrictionParams, StartTaskParams, TaskAccessEngine, TaskAccessError};
         use chrono::{Duration, Utc};
         use opensesame_domain::{
-            AuthorityContext, AuthorityContextId, AuthorityContextMode, Capability,
-            CapabilitySet, CeilingInput, DomainError, OrganizationId, PrincipalId,
-            ResourceSelector, TaskTemplateId,
+            AuthorityContext, AuthorityContextId, AuthorityContextMode, Capability, CapabilitySet,
+            CeilingInput, DomainError, OrganizationId, PrincipalId, ResourceSelector,
+            TaskTemplateId,
         };
 
         let url = std::env::var("OPENSESAME_TEST_DATABASE_URL")

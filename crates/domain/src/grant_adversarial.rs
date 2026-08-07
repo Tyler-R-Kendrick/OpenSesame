@@ -139,7 +139,10 @@ mod tests {
     fn not_before_future() {
         let mut g = parent();
         g.constraints.not_before = Some(Utc::now() + Duration::hours(1));
-        assert_eq!(g.assert_active(Utc::now()), Err(DomainError::GrantTimeWindow));
+        assert_eq!(
+            g.assert_active(Utc::now()),
+            Err(DomainError::GrantTimeWindow)
+        );
     }
 
     #[test]

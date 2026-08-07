@@ -227,9 +227,7 @@ impl EgressBinding {
         }
         // Never allow credential-bearing userinfo
         if !parsed.username().is_empty() || parsed.password().is_some() {
-            return Err(DomainError::GrantAttenuation(
-                "userinfo URLs denied".into(),
-            ));
+            return Err(DomainError::GrantAttenuation("userinfo URLs denied".into()));
         }
         Ok(())
     }
@@ -361,7 +359,11 @@ impl PlaceholderPlacement {
                 hits += 1;
                 for loc in &self.locations {
                     if let PlaceholderLocation::Header { name } = loc {
-                        if name.as_ref().map(|n| n.eq_ignore_ascii_case(hn)).unwrap_or(true) {
+                        if name
+                            .as_ref()
+                            .map(|n| n.eq_ignore_ascii_case(hn))
+                            .unwrap_or(true)
+                        {
                             allowed_hit = true;
                         }
                     }
@@ -520,7 +522,8 @@ mod tests {
 
     #[test]
     fn secret_uri_is_internal_kind() {
-        let h = AuthorityHandle::secret_internal(OrganizationId::new(), None, "github/legacy-token");
+        let h =
+            AuthorityHandle::secret_internal(OrganizationId::new(), None, "github/legacy-token");
         assert_eq!(h.kind, AuthorityKind::Secret);
         assert!(h.uri().starts_with("secret://"));
     }
@@ -592,7 +595,9 @@ mod tests {
         let p = DevDeliveryPolicy::agent_default();
         assert!(!p.allows(CredentialDeliveryMode::Materialize));
         assert!(p.allows(CredentialDeliveryMode::Placeholder));
-        assert!(p.assert_allows(CredentialDeliveryMode::Materialize).is_err());
+        assert!(p
+            .assert_allows(CredentialDeliveryMode::Materialize)
+            .is_err());
     }
 
     #[test]

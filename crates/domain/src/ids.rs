@@ -23,11 +23,9 @@ macro_rules! opaque_id {
             }
 
             pub fn parse(s: &str) -> Result<Self, DomainError> {
-                let rest = s
-                    .strip_prefix(concat!($prefix, ":"))
-                    .unwrap_or(s);
-                let id = Uuid::parse_str(rest)
-                    .map_err(|_| DomainError::InvalidId(s.to_string()))?;
+                let rest = s.strip_prefix(concat!($prefix, ":")).unwrap_or(s);
+                let id =
+                    Uuid::parse_str(rest).map_err(|_| DomainError::InvalidId(s.to_string()))?;
                 Ok(Self(id))
             }
         }

@@ -91,10 +91,8 @@ mod tests {
 
     #[test]
     fn cannot_revoke_before_verify() {
-        assert!(!RotationState::CandidateInstalled
-            .can_transition(RotationState::PreviousRevoked));
-        assert!(!RotationState::CandidateGenerated
-            .can_transition(RotationState::PreviousRevoked));
+        assert!(!RotationState::CandidateInstalled.can_transition(RotationState::PreviousRevoked));
+        assert!(!RotationState::CandidateGenerated.can_transition(RotationState::PreviousRevoked));
     }
 
     #[test]
@@ -114,10 +112,12 @@ mod tests {
 
     #[test]
     fn indeterminate_requires_reconcile() {
-        assert!(RotationState::CandidateInstalled
-            .can_transition(RotationState::ReconciliationRequired));
-        assert!(RotationState::CandidateActivated
-            .can_transition(RotationState::ReconciliationRequired));
+        assert!(
+            RotationState::CandidateInstalled.can_transition(RotationState::ReconciliationRequired)
+        );
+        assert!(
+            RotationState::CandidateActivated.can_transition(RotationState::ReconciliationRequired)
+        );
         assert!(!RotationState::Completed.can_transition(RotationState::Scheduled));
     }
 

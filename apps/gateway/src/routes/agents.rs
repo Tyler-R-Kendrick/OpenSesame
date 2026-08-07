@@ -88,10 +88,7 @@ pub async fn create_identity(
         .into_response()
 }
 
-pub async fn poll(
-    State(st): State<AppState>,
-    Path(id): Path<String>,
-) -> impl IntoResponse {
+pub async fn poll(State(st): State<AppState>, Path(id): Path<String>) -> impl IntoResponse {
     let map = st.claims.lock().unwrap();
     match map.get(&id) {
         Some(s) => Json(json!({"state": s.state, "claim_id": id})),
@@ -140,7 +137,10 @@ pub async fn complete(
     // Claiming must not silently widen the requested grant.
     if let Some(actions) = &req.narrow_actions {
         let parent_actions = &boot.grant.actions;
-        if actions.iter().any(|a| !parent_actions.iter().any(|p| p == a)) {
+        if actions
+            .iter()
+            .any(|a| !parent_actions.iter().any(|p| p == a))
+        {
             return (
                 StatusCode::BAD_REQUEST,
                 Json(json!({"error":"cannot_widen_grant"})),

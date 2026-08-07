@@ -59,7 +59,11 @@ pub struct Invocation {
 }
 
 impl Invocation {
-    pub fn transition(&mut self, to: InvocationState, now: DateTime<Utc>) -> Result<(), DomainError> {
+    pub fn transition(
+        &mut self,
+        to: InvocationState,
+        now: DateTime<Utc>,
+    ) -> Result<(), DomainError> {
         if !self.state.can_transition(to) {
             return Err(DomainError::InvalidTransition {
                 from: format!("{:?}", self.state),

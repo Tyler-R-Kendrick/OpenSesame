@@ -2,8 +2,8 @@
 
 use crate::error::AAuthError;
 use opensesame_domain::{
-    ActorId, ActorInstanceId, Capability, CapabilitySet, PrincipalId, ResourceSelector,
-    digest_sha256,
+    digest_sha256, ActorId, ActorInstanceId, Capability, CapabilitySet, PrincipalId,
+    ResourceSelector,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -104,12 +104,7 @@ pub fn mission_to_governance_context(mission: &Mission) -> GovernanceContext {
 pub fn scopes_to_capability_set(scopes: &[impl AsRef<str>]) -> CapabilitySet {
     let capabilities = scopes
         .iter()
-        .map(|scope| {
-            Capability::new(
-                scope.as_ref().to_string(),
-                ResourceSelector::exact("*"),
-            )
-        })
+        .map(|scope| Capability::new(scope.as_ref().to_string(), ResourceSelector::exact("*")))
         .collect();
     CapabilitySet::new(capabilities).canonicalize()
 }

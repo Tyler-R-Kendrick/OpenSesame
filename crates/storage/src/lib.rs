@@ -1,9 +1,7 @@
 use anyhow::Context;
 use async_trait::async_trait;
 use chrono::Utc;
-use opensesame_domain::{
-    Grant, Intent, Invocation, InvocationReceipt, OrganizationId, ProjectId,
-};
+use opensesame_domain::{Grant, Intent, Invocation, InvocationReceipt, OrganizationId, ProjectId};
 use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
 use std::path::Path;
 
@@ -34,7 +32,10 @@ impl Db {
             if stmt.is_empty() {
                 continue;
             }
-            sqlx::query(stmt).execute(&self.pool).await.with_context(|| format!("migrating: {stmt}"))?;
+            sqlx::query(stmt)
+                .execute(&self.pool)
+                .await
+                .with_context(|| format!("migrating: {stmt}"))?;
         }
         Ok(())
     }

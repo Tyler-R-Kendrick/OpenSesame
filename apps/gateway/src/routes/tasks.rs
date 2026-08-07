@@ -8,9 +8,7 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use opensesame_domain::*;
-use opensesame_task_access::{
-    InMemoryTaskStore, StartTaskParams, TaskAccessEngine, TaskStore,
-};
+use opensesame_task_access::{InMemoryTaskStore, StartTaskParams, TaskAccessEngine, TaskStore};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
@@ -190,9 +188,7 @@ pub struct TerminateTaskBody {
     pub expected_state_version: Option<u64>,
 }
 
-pub async fn list_tasks(
-    State(engine): State<SharedTaskEngine>,
-) -> Result<Response, Response> {
+pub async fn list_tasks(State(engine): State<SharedTaskEngine>) -> Result<Response, Response> {
     let eng = engine.lock().map_err(|_| internal("lock"))?;
     let runs = eng.list_runs().map_err(internal)?;
     let items: Vec<Value> = runs
@@ -221,9 +217,7 @@ pub async fn terminate_task(
         .get_run(tid)
         .map_err(internal)?
         .ok_or_else(|| not_found("task"))?;
-    let expected = body
-        .expected_state_version
-        .unwrap_or(run.state_version);
+    let expected = body.expected_state_version.unwrap_or(run.state_version);
     let terminated = eng
         .terminate_task(tid, expected, Utc::now())
         .map_err(|e| err_json(StatusCode::CONFLICT, "terminate_failed", e))?;

@@ -1,10 +1,10 @@
 use crate::ProofError;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use ed25519_dalek::SigningKey;
+use jsonwebtoken::jwk::Jwk;
 use jsonwebtoken::jwk::{
     AlgorithmParameters, CommonParameters, EllipticCurve, OctetKeyPairParameters, OctetKeyPairType,
 };
-use jsonwebtoken::jwk::Jwk;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -70,8 +70,8 @@ pub fn jwk_thumbprint(jwk: &Jwk) -> Result<String, ProofError> {
             ));
         }
     };
-    let bytes = serde_json::to_vec(&canonical)
-        .map_err(|e| ProofError::InvalidProof(e.to_string()))?;
+    let bytes =
+        serde_json::to_vec(&canonical).map_err(|e| ProofError::InvalidProof(e.to_string()))?;
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     Ok(URL_SAFE_NO_PAD.encode(hasher.finalize()))
@@ -109,7 +109,10 @@ pub fn decode_dpop_proof(
     }
 
     if header.alg != Algorithm::EdDSA && header.alg != Algorithm::RS256 {
-        return Err(ProofError::UnsupportedAlgorithm(format!("{:?}", header.alg)));
+        return Err(ProofError::UnsupportedAlgorithm(format!(
+            "{:?}",
+            header.alg
+        )));
     }
 
     let jwk = header
@@ -118,8 +121,8 @@ pub fn decode_dpop_proof(
         .ok_or_else(|| ProofError::InvalidProof("missing jwk header".into()))?;
     let jkt = jwk_thumbprint(&jwk)?;
 
-    let decoding_key = DecodingKey::from_jwk(&jwk)
-        .map_err(|e| ProofError::InvalidProof(e.to_string()))?;
+    let decoding_key =
+        DecodingKey::from_jwk(&jwk).map_err(|e| ProofError::InvalidProof(e.to_string()))?;
     let mut validation = Validation::default();
     validation.validate_exp = false;
     validation.required_spec_claims.clear();
@@ -151,9 +154,7 @@ pub fn decode_dpop_proof(
         (Some(expected), Some(actual)) if expected == actual => {}
         (None, None) => {}
         (None, Some(_)) => {
-            return Err(ProofError::InvalidProof(
-                "unexpected ath on proof".into(),
-            ));
+            return Err(ProofError::InvalidProof("unexpected ath on proof".into()));
         }
         (Some(_), None) | (Some(_), Some(_)) => {
             return Err(ProofError::AccessTokenHashMismatch);
@@ -180,8 +181,8 @@ pub fn ed25519_jwk_from_seed(seed: &[u8; 32]) -> (Jwk, EncodingKey) {
 
 fn ed25519_private_der(seed: &[u8; 32]) -> Vec<u8> {
     let mut der = vec![
-        0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22,
-        0x04, 0x20,
+        0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04,
+        0x20,
     ];
     der.extend_from_slice(seed);
     der

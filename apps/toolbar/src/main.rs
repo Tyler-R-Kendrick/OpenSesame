@@ -46,7 +46,10 @@ async fn main() -> anyhow::Result<()> {
             print_json_or_text(resp.text().await?).await?;
         }
         Commands::Status => {
-            let resp = client.get(format!("{base}/v1/toolbar/status")).send().await?;
+            let resp = client
+                .get(format!("{base}/v1/toolbar/status"))
+                .send()
+                .await?;
             if !resp.status().is_success() {
                 let health = client
                     .get(format!("{base}/health"))
@@ -66,7 +69,10 @@ async fn main() -> anyhow::Result<()> {
             let v: Value = resp.json().await?;
             println!("{}", serde_json::to_string_pretty(&v)?);
         }
-        Commands::ApproveDevice { user_code, principal } => {
+        Commands::ApproveDevice {
+            user_code,
+            principal,
+        } => {
             let resp = client
                 .post(format!("{base}/v1/toolbar/approve_device"))
                 .json(&json!({ "user_code": user_code, "principal": principal }))

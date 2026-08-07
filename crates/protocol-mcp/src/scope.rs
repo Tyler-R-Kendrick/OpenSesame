@@ -7,12 +7,7 @@ use opensesame_domain::{Capability, CapabilitySet, ResourceSelector};
 pub fn scopes_to_capability_set(scopes: &[impl AsRef<str>]) -> CapabilitySet {
     let capabilities = scopes
         .iter()
-        .map(|scope| {
-            Capability::new(
-                scope.as_ref().to_string(),
-                ResourceSelector::exact("*"),
-            )
-        })
+        .map(|scope| Capability::new(scope.as_ref().to_string(), ResourceSelector::exact("*")))
         .collect();
     CapabilitySet::new(capabilities).canonicalize()
 }

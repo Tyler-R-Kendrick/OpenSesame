@@ -29,7 +29,9 @@ pub async fn maybe_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts>
         });
     }
 
-    tracing::warn!("OPENSESAME_DEV_BOOTSTRAP enabled — seeding demo org/grant (non-production only)");
+    tracing::warn!(
+        "OPENSESAME_DEV_BOOTSTRAP enabled — seeding demo org/grant (non-production only)"
+    );
     create_demo_bootstrap(db).await
 }
 
@@ -91,8 +93,8 @@ async fn create_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
     };
     db.insert_grant(&grant).await?;
 
-    let connection_ref = ConnectionRef::new(org, Some(project), "github/main", connection)
-        .expect("connection ref");
+    let connection_ref =
+        ConnectionRef::new(org, Some(project), "github/main", connection).expect("connection ref");
 
     let broker = Broker {
         db: db.clone(),

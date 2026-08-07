@@ -106,10 +106,7 @@ mod hex {
     }
 }
 
-pub fn validate_verification_uri_complete(
-    complete: &str,
-    issuer_origin: &str,
-) -> Option<String> {
+pub fn validate_verification_uri_complete(complete: &str, issuer_origin: &str) -> Option<String> {
     if complete.starts_with(issuer_origin) {
         Some(complete.to_string())
     } else {

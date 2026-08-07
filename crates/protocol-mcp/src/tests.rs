@@ -24,8 +24,7 @@ fn bearer_vs_dpop_confusion_rejected_for_mcp() {
 
 #[test]
 fn dpop_profile_rejects_bearer_confusion() {
-    let task_dpop =
-        ProtocolProfile::parse_slug(PROFILE_OPENSESAME_TASK_DPOP_RFC9449_V1).unwrap();
+    let task_dpop = ProtocolProfile::parse_slug(PROFILE_OPENSESAME_TASK_DPOP_RFC9449_V1).unwrap();
     assert!(task_dpop
         .assert_presentation_allowed(TokenPresentation::Bearer)
         .is_err());
@@ -75,7 +74,9 @@ fn sample_resource(audience: &str) -> ProtectedResource {
         name: "mcp-server".into(),
         audience: audience.into(),
         required_capabilities: CapabilitySet::new(vec![]),
-        protocol_profile_id: ProtocolProfileId::from_slug(PROFILE_MCP_AUTHORIZATION_2026_07_28_BEARER),
+        protocol_profile_id: ProtocolProfileId::from_slug(
+            PROFILE_MCP_AUTHORIZATION_2026_07_28_BEARER,
+        ),
         account_ref: None,
         external_mappings: vec![],
     }

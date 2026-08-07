@@ -63,10 +63,7 @@ mod tests {
             device_endpoint_available: true,
             ..Default::default()
         };
-        assert_eq!(
-            resolve_login_flow(LoginFlow::Device, &s),
-            LoginFlow::Device
-        );
+        assert_eq!(resolve_login_flow(LoginFlow::Device, &s), LoginFlow::Device);
     }
 
     #[test]

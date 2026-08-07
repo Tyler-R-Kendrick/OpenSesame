@@ -53,8 +53,9 @@ impl Broker {
         tasks.assert_ceiling_unchanged(&run)?;
 
         if !self.db.authority_quorum_ok().await? {
-            return Err(DomainError::AuthorityUnavailable(AvailabilityClass::A3ExternalSideEffect)
-                .into());
+            return Err(
+                DomainError::AuthorityUnavailable(AvailabilityClass::A3ExternalSideEffect).into(),
+            );
         }
 
         // Compatibility: store a V1 projection for idempotency tables that expect Intent.
@@ -273,8 +274,8 @@ impl Broker {
 mod tests {
     use super::*;
     use chrono::Duration;
-    use opensesame_task_access::{InMemoryTaskStore, StartTaskParams};
     use opensesame_domain::{AuthorityContext, AuthorityContextMode, ResourceSelector};
+    use opensesame_task_access::{InMemoryTaskStore, StartTaskParams};
 
     #[allow(dead_code)]
     fn sample_grant(org: OrganizationId, principal: PrincipalId) -> Grant {

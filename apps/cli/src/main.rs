@@ -14,9 +14,17 @@ use std::{
 };
 
 #[derive(Parser, Debug)]
-#[command(name = "opensesame", about = "OpenSesame CLI — credentials as capabilities")]
+#[command(
+    name = "opensesame",
+    about = "OpenSesame CLI — credentials as capabilities"
+)]
 struct Cli {
-    #[arg(long, env = "OPENSESAME_SERVER", global = true, default_value = "http://127.0.0.1:8787")]
+    #[arg(
+        long,
+        env = "OPENSESAME_SERVER",
+        global = true,
+        default_value = "http://127.0.0.1:8787"
+    )]
     server: String,
     #[arg(long, global = true, default_value = "json")]
     output: String,
@@ -147,8 +155,12 @@ enum TaskCmd {
         ttl_seconds: i64,
     },
     List,
-    Inspect { id: String },
-    Capabilities { id: String },
+    Inspect {
+        id: String,
+    },
+    Capabilities {
+        id: String,
+    },
     Terminate {
         id: String,
         #[arg(long)]
@@ -219,22 +231,26 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Status => status(&cli.server).await?,
         Commands::Whoami => whoami(&cli.server).await?,
-        Commands::Auth { cmd: AuthCmd::Doctor } => doctor(&cli.server).await?,
+        Commands::Auth {
+            cmd: AuthCmd::Doctor,
+        } => doctor(&cli.server).await?,
         Commands::Invoke {
             connection_ref,
             operation,
             resource,
             input,
             invoke_level,
-        } => invoke(
-            &cli.server,
-            &connection_ref,
-            &operation,
-            &resource,
-            input,
-            invoke_level,
-        )
-        .await?,
+        } => {
+            invoke(
+                &cli.server,
+                &connection_ref,
+                &operation,
+                &resource,
+                input,
+                invoke_level,
+            )
+            .await?
+        }
         Commands::Receipt {
             cmd: ReceiptCmd::Verify { id },
         } => verify_receipt(&cli.server, &id).await?,
@@ -278,17 +294,17 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
                 if PathBuf::from(src).exists() {
                     let _ = std::fs::create_dir_all(format!("{home}/.local/bin"));
                     if std::fs::copy(src, &dest).is_ok() {
-                            installed = true;
-                            #[cfg(unix)]
-                            {
-                                use std::os::unix::fs::PermissionsExt;
-                                let _ = std::fs::set_permissions(
-                                    &dest,
-                                    std::fs::Permissions::from_mode(0o755),
-                                );
-                            }
-                            break;
+                        installed = true;
+                        #[cfg(unix)]
+                        {
+                            use std::os::unix::fs::PermissionsExt;
+                            let _ = std::fs::set_permissions(
+                                &dest,
+                                std::fs::Permissions::from_mode(0o755),
+                            );
                         }
+                        break;
+                    }
                 }
             }
             println!(
@@ -325,7 +341,10 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
                     let _ = std::fs::write(&pidfile, format!("{pid}\n"));
                     // Detach: forget Child so Drop doesn't kill it
                     std::mem::forget(c);
-                    println!("{}", json!({"status":"started","pid": pid, "pidfile": pidfile, "logfile": logfile}));
+                    println!(
+                        "{}",
+                        json!({"status":"started","pid": pid, "pidfile": pidfile, "logfile": logfile})
+                    );
                 }
                 Err(e) => println!(
                     "{}",
@@ -342,70 +361,75 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
             match client.get(format!("{base}/health")).send().await {
                 Ok(resp) => {
                     let body: serde_json::Value = resp.json().await.unwrap_or(json!({"raw":"ok"}));
-                    println!("{}", json!({"status":"up","health": body, "pidfile": pidfile}));
+                    println!(
+                        "{}",
+                        json!({"status":"up","health": body, "pidfile": pidfile})
+                    );
                 }
                 Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
             }
         }
-        DaemonCmd::Logs => {
-            match std::fs::read_to_string(&logfile) {
-                Ok(content) => {
-                    let lines: Vec<&str> = content.lines().rev().take(40).collect();
-                    let out: Vec<&str> = lines.into_iter().rev().collect();
-                    println!("{}", out.join("\n"));
-                    if out.is_empty() {
-                        println!("{}", json!({"status":"empty","logfile": logfile, "hint":"start daemon to capture logs"}));
-                    }
+        DaemonCmd::Logs => match std::fs::read_to_string(&logfile) {
+            Ok(content) => {
+                let lines: Vec<&str> = content.lines().rev().take(40).collect();
+                let out: Vec<&str> = lines.into_iter().rev().collect();
+                println!("{}", out.join("\n"));
+                if out.is_empty() {
+                    println!(
+                        "{}",
+                        json!({"status":"empty","logfile": logfile, "hint":"start daemon to capture logs"})
+                    );
                 }
-                Err(_) => {
-                    let client = reqwest::Client::new();
-                    match client.get(format!("{base}/health")).send().await {
-                        Ok(resp) => {
-                            let body: serde_json::Value =
-                                resp.json().await.unwrap_or(json!({"raw":"ok"}));
-                            println!(
-                                "{}",
-                                json!({"status":"up","health": body, "hint": format!("no logfile at {logfile}")})
-                            );
-                        }
-                        Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
+            }
+            Err(_) => {
+                let client = reqwest::Client::new();
+                match client.get(format!("{base}/health")).send().await {
+                    Ok(resp) => {
+                        let body: serde_json::Value =
+                            resp.json().await.unwrap_or(json!({"raw":"ok"}));
+                        println!(
+                            "{}",
+                            json!({"status":"up","health": body, "hint": format!("no logfile at {logfile}")})
+                        );
+                    }
+                    Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
+                }
+            }
+        },
+        DaemonCmd::Stop => match std::fs::read_to_string(&pidfile) {
+            Ok(raw) => {
+                let pid: u32 = raw.trim().parse().unwrap_or(0);
+                if pid == 0 {
+                    println!("{}", json!({"status":"error","error":"invalid pidfile"}));
+                } else {
+                    #[cfg(unix)]
+                    {
+                        let status = StdCommand::new("kill")
+                            .args(["-TERM", &pid.to_string()])
+                            .status();
+                        let _ = std::fs::remove_file(&pidfile);
+                        println!(
+                            "{}",
+                            json!({
+                                "status": if status.map(|s| s.success()).unwrap_or(false) { "stopped" } else { "error" },
+                                "pid": pid
+                            })
+                        );
+                    }
+                    #[cfg(not(unix))]
+                    {
+                        println!(
+                            "{}",
+                            json!({"status":"error","error":"stop requires unix SIGTERM"})
+                        );
                     }
                 }
             }
-        }
-        DaemonCmd::Stop => {
-            match std::fs::read_to_string(&pidfile) {
-                Ok(raw) => {
-                    let pid: u32 = raw.trim().parse().unwrap_or(0);
-                    if pid == 0 {
-                        println!("{}", json!({"status":"error","error":"invalid pidfile"}));
-                    } else {
-                        #[cfg(unix)]
-                        {
-                            let status = StdCommand::new("kill")
-                                .args(["-TERM", &pid.to_string()])
-                                .status();
-                            let _ = std::fs::remove_file(&pidfile);
-                            println!(
-                                "{}",
-                                json!({
-                                    "status": if status.map(|s| s.success()).unwrap_or(false) { "stopped" } else { "error" },
-                                    "pid": pid
-                                })
-                            );
-                        }
-                        #[cfg(not(unix))]
-                        {
-                            println!("{}", json!({"status":"error","error":"stop requires unix SIGTERM"}));
-                        }
-                    }
-                }
-                Err(_) => println!(
-                    "{}",
-                    json!({"status":"not_running","hint":"no pidfile; kill opensesame-daemon manually"})
-                ),
-            }
-        }
+            Err(_) => println!(
+                "{}",
+                json!({"status":"not_running","hint":"no pidfile; kill opensesame-daemon manually"})
+            ),
+        },
     }
     Ok(())
 }
@@ -538,7 +562,9 @@ async fn login(
             device_login(server).await?;
         }
         LoginFlow::Ciba => anyhow::bail!("CIBA not enabled by issuer profile"),
-        LoginFlow::Workload => anyhow::bail!("configure OPENSESAME_WORKLOAD_IDENTITY for workload flow"),
+        LoginFlow::Workload => {
+            anyhow::bail!("configure OPENSESAME_WORKLOAD_IDENTITY for workload flow")
+        }
     }
     Ok(())
 }

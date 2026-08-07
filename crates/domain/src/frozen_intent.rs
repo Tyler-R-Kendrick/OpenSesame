@@ -4,9 +4,8 @@
 //! intents as fully task-secured without explicit migration.
 
 use crate::{
-    ActorId, ActorInstanceId, ClientId, ConnectionId, DomainError, Intent, IntentId,
-    OperatorId, OrganizationId, PrincipalId, ProjectId, TaskRunId, canonicalize_json,
-    digest_sha256,
+    canonicalize_json, digest_sha256, ActorId, ActorInstanceId, ClientId, ConnectionId,
+    DomainError, Intent, IntentId, OperatorId, OrganizationId, PrincipalId, ProjectId, TaskRunId,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

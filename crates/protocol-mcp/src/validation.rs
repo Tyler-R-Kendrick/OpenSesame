@@ -3,7 +3,10 @@ use opensesame_domain::ProtectedResource;
 use url::Url;
 
 /// Validate token audience matches the protected resource audience.
-pub fn validate_audience(token_audience: &str, resource: &ProtectedResource) -> Result<(), McpError> {
+pub fn validate_audience(
+    token_audience: &str,
+    resource: &ProtectedResource,
+) -> Result<(), McpError> {
     if token_audience != resource.audience {
         return Err(McpError::AudienceMismatch {
             expected: resource.audience.clone(),
@@ -14,7 +17,10 @@ pub fn validate_audience(token_audience: &str, resource: &ProtectedResource) -> 
 }
 
 /// Validate request URI is same-origin with the resource audience (scheme + host).
-pub fn validate_resource_uri(request_uri: &str, resource: &ProtectedResource) -> Result<(), McpError> {
+pub fn validate_resource_uri(
+    request_uri: &str,
+    resource: &ProtectedResource,
+) -> Result<(), McpError> {
     let request = Url::parse(request_uri).map_err(|_| McpError::ResourceNotAuthorized {
         resource_name: resource.name.clone(),
     })?;

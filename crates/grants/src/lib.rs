@@ -1,4 +1,4 @@
-pub use opensesame_domain::{Grant, DomainError};
+pub use opensesame_domain::{DomainError, Grant};
 
 pub fn delegate(parent: &Grant, mut child: Grant) -> Result<Grant, DomainError> {
     child.parent_grant_id = Some(parent.id);

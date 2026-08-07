@@ -1,6 +1,6 @@
-use chrono::{DateTime, Utc};
 use crate::credential::{ProtectedResultBuffer, TaskCredentialRecord};
 use crate::TaskAccessError;
+use chrono::{DateTime, Utc};
 use opensesame_domain::{
     AcknowledgementSet, AuthorityContext, Capability, CapabilitySet, CapabilityStateTransition,
     CapabilityStateTransitionId, CapabilityTransitionStatus, CeilingCompilation, CeilingInput,
@@ -30,8 +30,10 @@ pub trait TaskStore: Send + Sync {
         &self,
         task_run_id: TaskRunId,
     ) -> Result<Option<CapabilityStateTransition>, TaskAccessError>;
-    fn get_ack_set(&self, transition_id: CapabilityStateTransitionId)
-        -> Result<AcknowledgementSet, TaskAccessError>;
+    fn get_ack_set(
+        &self,
+        transition_id: CapabilityStateTransitionId,
+    ) -> Result<AcknowledgementSet, TaskAccessError>;
     fn save_ack_set(
         &self,
         transition_id: CapabilityStateTransitionId,
@@ -41,19 +43,14 @@ pub trait TaskStore: Send + Sync {
         &self,
         task_run_id: TaskRunId,
     ) -> Result<Option<ProtectedResultBuffer>, TaskAccessError>;
-    fn save_result_buffer(
-        &self,
-        buffer: &ProtectedResultBuffer,
-    ) -> Result<(), TaskAccessError>;
+    fn save_result_buffer(&self, buffer: &ProtectedResultBuffer) -> Result<(), TaskAccessError>;
     fn get_credential(
         &self,
         task_run_id: TaskRunId,
     ) -> Result<Option<TaskCredentialRecord>, TaskAccessError>;
-    fn save_credential(
-        &self,
-        record: &TaskCredentialRecord,
-    ) -> Result<(), TaskAccessError>;
-    fn get_ceiling_digest(&self, task_run_id: TaskRunId) -> Result<Option<String>, TaskAccessError>;
+    fn save_credential(&self, record: &TaskCredentialRecord) -> Result<(), TaskAccessError>;
+    fn get_ceiling_digest(&self, task_run_id: TaskRunId)
+        -> Result<Option<String>, TaskAccessError>;
     fn save_ceiling_digest(
         &self,
         task_run_id: TaskRunId,
@@ -67,7 +64,6 @@ pub trait TaskStore: Send + Sync {
     fn clear_pending_transition(&self, task_run_id: TaskRunId) -> Result<(), TaskAccessError>;
     fn list_runs(&self) -> Result<Vec<TaskRun>, TaskAccessError>;
 }
-
 
 fn lock_err() -> TaskAccessError {
     TaskAccessError::Domain(DomainError::Canonicalization("lock".into()))
@@ -98,14 +94,11 @@ impl InMemoryTaskStore {
 
 impl TaskStore for InMemoryTaskStore {
     fn get_run(&self, id: TaskRunId) -> Result<Option<TaskRun>, TaskAccessError> {
-        Ok(lock_map(&self.runs)?
-            .get(&id)
-            .cloned())
+        Ok(lock_map(&self.runs)?.get(&id).cloned())
     }
 
     fn save_run(&self, run: &TaskRun) -> Result<(), TaskAccessError> {
-        lock_map(&self.runs)?
-            .insert(run.id, run.clone());
+        lock_map(&self.runs)?.insert(run.id, run.clone());
         Ok(())
     }
 
@@ -134,17 +127,14 @@ impl TaskStore for InMemoryTaskStore {
         &self,
         id: CapabilityStateTransitionId,
     ) -> Result<Option<CapabilityStateTransition>, TaskAccessError> {
-        Ok(lock_map(&self.transitions)?
-            .get(&id)
-            .cloned())
+        Ok(lock_map(&self.transitions)?.get(&id).cloned())
     }
 
     fn save_transition(
         &self,
         transition: &CapabilityStateTransition,
     ) -> Result<(), TaskAccessError> {
-        lock_map(&self.transitions)?
-            .insert(transition.id, transition.clone());
+        lock_map(&self.transitions)?.insert(transition.id, transition.clone());
         Ok(())
     }
 
@@ -164,8 +154,7 @@ impl TaskStore for InMemoryTaskStore {
         transition_id: CapabilityStateTransitionId,
         set: &AcknowledgementSet,
     ) -> Result<(), TaskAccessError> {
-        lock_map(&self.ack_sets)?
-            .insert(transition_id, set.clone());
+        lock_map(&self.ack_sets)?.insert(transition_id, set.clone());
         Ok(())
     }
 
@@ -183,17 +172,11 @@ impl TaskStore for InMemoryTaskStore {
         &self,
         task_run_id: TaskRunId,
     ) -> Result<Option<ProtectedResultBuffer>, TaskAccessError> {
-        Ok(lock_map(&self.result_buffers)?
-            .get(&task_run_id)
-            .cloned())
+        Ok(lock_map(&self.result_buffers)?.get(&task_run_id).cloned())
     }
 
-    fn save_result_buffer(
-        &self,
-        buffer: &ProtectedResultBuffer,
-    ) -> Result<(), TaskAccessError> {
-        lock_map(&self.result_buffers)?
-            .insert(buffer.task_run_id, buffer.clone());
+    fn save_result_buffer(&self, buffer: &ProtectedResultBuffer) -> Result<(), TaskAccessError> {
+        lock_map(&self.result_buffers)?.insert(buffer.task_run_id, buffer.clone());
         Ok(())
     }
 
@@ -201,24 +184,19 @@ impl TaskStore for InMemoryTaskStore {
         &self,
         task_run_id: TaskRunId,
     ) -> Result<Option<TaskCredentialRecord>, TaskAccessError> {
-        Ok(lock_map(&self.credentials)?
-            .get(&task_run_id)
-            .cloned())
+        Ok(lock_map(&self.credentials)?.get(&task_run_id).cloned())
     }
 
-    fn save_credential(
-        &self,
-        record: &TaskCredentialRecord,
-    ) -> Result<(), TaskAccessError> {
-        lock_map(&self.credentials)?
-            .insert(record.task_run_id, record.clone());
+    fn save_credential(&self, record: &TaskCredentialRecord) -> Result<(), TaskAccessError> {
+        lock_map(&self.credentials)?.insert(record.task_run_id, record.clone());
         Ok(())
     }
 
-    fn get_ceiling_digest(&self, task_run_id: TaskRunId) -> Result<Option<String>, TaskAccessError> {
-        Ok(lock_map(&self.ceiling_digests)?
-            .get(&task_run_id)
-            .cloned())
+    fn get_ceiling_digest(
+        &self,
+        task_run_id: TaskRunId,
+    ) -> Result<Option<String>, TaskAccessError> {
+        Ok(lock_map(&self.ceiling_digests)?.get(&task_run_id).cloned())
     }
 
     fn save_ceiling_digest(
@@ -226,8 +204,7 @@ impl TaskStore for InMemoryTaskStore {
         task_run_id: TaskRunId,
         digest: &str,
     ) -> Result<(), TaskAccessError> {
-        lock_map(&self.ceiling_digests)?
-            .insert(task_run_id, digest.to_string());
+        lock_map(&self.ceiling_digests)?.insert(task_run_id, digest.to_string());
         Ok(())
     }
 
@@ -236,22 +213,17 @@ impl TaskStore for InMemoryTaskStore {
         task_run_id: TaskRunId,
         transition_id: CapabilityStateTransitionId,
     ) -> Result<(), TaskAccessError> {
-        lock_map(&self.pending_by_run)?
-            .insert(task_run_id, transition_id);
+        lock_map(&self.pending_by_run)?.insert(task_run_id, transition_id);
         Ok(())
     }
 
     fn clear_pending_transition(&self, task_run_id: TaskRunId) -> Result<(), TaskAccessError> {
-        lock_map(&self.pending_by_run)?
-            .remove(&task_run_id);
+        lock_map(&self.pending_by_run)?.remove(&task_run_id);
         Ok(())
     }
 
     fn list_runs(&self) -> Result<Vec<TaskRun>, TaskAccessError> {
-        Ok(lock_map(&self.runs)?
-            .values()
-            .cloned()
-            .collect())
+        Ok(lock_map(&self.runs)?.values().cloned().collect())
     }
 }
 
@@ -286,7 +258,6 @@ impl<S: TaskStore> SharedTaskStore<S> {
         let mut guard = self.inner.lock().map_err(|_| lock_err())?;
         f(&mut *guard)
     }
-
 }
 
 impl<S: TaskStore> TaskStore for SharedTaskStore<S> {
@@ -349,10 +320,7 @@ impl<S: TaskStore> TaskStore for SharedTaskStore<S> {
         self.with_inner(|s| s.get_result_buffer(task_run_id))
     }
 
-    fn save_result_buffer(
-        &self,
-        buffer: &ProtectedResultBuffer,
-    ) -> Result<(), TaskAccessError> {
+    fn save_result_buffer(&self, buffer: &ProtectedResultBuffer) -> Result<(), TaskAccessError> {
         self.with_inner(|s| s.save_result_buffer(buffer))
     }
 
@@ -363,14 +331,14 @@ impl<S: TaskStore> TaskStore for SharedTaskStore<S> {
         self.with_inner(|s| s.get_credential(task_run_id))
     }
 
-    fn save_credential(
-        &self,
-        record: &TaskCredentialRecord,
-    ) -> Result<(), TaskAccessError> {
+    fn save_credential(&self, record: &TaskCredentialRecord) -> Result<(), TaskAccessError> {
         self.with_inner(|s| s.save_credential(record))
     }
 
-    fn get_ceiling_digest(&self, task_run_id: TaskRunId) -> Result<Option<String>, TaskAccessError> {
+    fn get_ceiling_digest(
+        &self,
+        task_run_id: TaskRunId,
+    ) -> Result<Option<String>, TaskAccessError> {
         self.with_inner(|s| s.get_ceiling_digest(task_run_id))
     }
 
@@ -397,7 +365,6 @@ impl<S: TaskStore> TaskStore for SharedTaskStore<S> {
     fn list_runs(&self) -> Result<Vec<TaskRun>, TaskAccessError> {
         self.with_inner(|s| s.list_runs())
     }
-
 }
 
 pub struct StartTaskParams {
@@ -448,7 +415,9 @@ impl<S: TaskStore> TaskAccessEngine<S> {
     }
 
     pub fn start_task(&self, params: StartTaskParams) -> Result<TaskRun, TaskAccessError> {
-        params.authority_context.assert_single_effective_principal()?;
+        params
+            .authority_context
+            .assert_single_effective_principal()?;
         let mut run = TaskRun {
             id: TaskRunId::new(),
             template_id: params.template_id,
@@ -554,8 +523,7 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         };
         self.store.save_ack_set(transition.id, &ack_set)?;
         self.store.save_transition(&transition)?;
-        self.store
-            .set_pending_transition(run.id, transition.id)?;
+        self.store.set_pending_transition(run.id, transition.id)?;
 
         run.status = TaskRunStatus::Restricting;
         run.updated_at = params.now;
@@ -598,7 +566,9 @@ impl<S: TaskStore> TaskAccessEngine<S> {
             .get_transition(transition_id)?
             .ok_or_else(|| TaskAccessError::TransitionNotFound(transition_id.to_string()))?;
         if transition.task_run_id != task_run_id {
-            return Err(TaskAccessError::TransitionNotFound(transition_id.to_string()));
+            return Err(TaskAccessError::TransitionNotFound(
+                transition_id.to_string(),
+            ));
         }
 
         let ack_set = self.store.get_ack_set(transition_id)?;
@@ -682,9 +652,7 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         proposed: &AuthorityContext,
     ) -> Result<(), TaskAccessError> {
         if run.authority_context_id != proposed.id {
-            return Err(TaskAccessError::Domain(
-                DomainError::AuthorityContextLocked,
-            ));
+            return Err(TaskAccessError::Domain(DomainError::AuthorityContextLocked));
         }
         Ok(())
     }

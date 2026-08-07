@@ -5,7 +5,9 @@ use opensesame_domain::{
 
 /// MCP Authorization spec date profile (Bearer-only).
 pub fn mcp_bearer_profile() -> Result<ProtocolProfile, McpError> {
-    Ok(ProtocolProfile::parse_slug(PROFILE_MCP_AUTHORIZATION_2026_07_28_BEARER)?)
+    Ok(ProtocolProfile::parse_slug(
+        PROFILE_MCP_AUTHORIZATION_2026_07_28_BEARER,
+    )?)
 }
 
 /// Assert presentation matches MCP Bearer profile (rejects DPoP and stronger bindings).

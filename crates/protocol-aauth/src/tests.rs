@@ -49,11 +49,8 @@ fn mission_byte_mutation_changes_digest() {
 
 #[test]
 fn scope_outside_ceiling_rejected() {
-    let ceiling = CapabilitySet::new(vec![Capability::new(
-        "read",
-        ResourceSelector::exact("*"),
-    )])
-    .canonicalize();
+    let ceiling = CapabilitySet::new(vec![Capability::new("read", ResourceSelector::exact("*"))])
+        .canonicalize();
     assert!(assert_scopes_within_ceiling(&["read"], &ceiling).is_ok());
     assert_eq!(
         assert_scopes_within_ceiling(&["write"], &ceiling),

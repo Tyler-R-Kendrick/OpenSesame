@@ -19,7 +19,11 @@ use uuid::Uuid;
 
 #[derive(Parser)]
 struct Args {
-    #[arg(long, env = "OPENSESAME_AGENT_LISTEN", default_value = "127.0.0.1:18790")]
+    #[arg(
+        long,
+        env = "OPENSESAME_AGENT_LISTEN",
+        default_value = "127.0.0.1:18790"
+    )]
     listen: SocketAddr,
 }
 
@@ -72,7 +76,14 @@ async fn main() -> anyhow::Result<()> {
         capabilities: Arc::new(Mutex::new(HashMap::new())),
     };
     let app = Router::new()
-        .route("/health", get(|| async { axum::Json(serde_json::json!({"status":"ok","deprecated":true,"use":"opensesame-daemon"})) }))
+        .route(
+            "/health",
+            get(|| async {
+                axum::Json(
+                    serde_json::json!({"status":"ok","deprecated":true,"use":"opensesame-daemon"}),
+                )
+            }),
+        )
         .route("/v1/list_sessions", post(list_sessions))
         .route("/v1/get_access_token", post(get_access_token))
         .route("/v1/mint_capability", post(mint_capability))
