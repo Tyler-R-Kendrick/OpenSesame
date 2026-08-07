@@ -17,3 +17,9 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+tempfile = { workspace = true }
+
+[features]
+default = []
+## Compile/run live Postgres integration tests (requires OPENSESAME_TEST_DATABASE_URL).
+postgres-integration = []

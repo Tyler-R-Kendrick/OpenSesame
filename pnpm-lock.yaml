@@ -493,6 +493,9 @@ importers:
         specifier: workspace:*
         version: link:../client-core
     devDependencies:
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -668,6 +671,9 @@ importers:
         specifier: workspace:*
         version: link:../os-domain
     devDependencies:
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -681,6 +687,9 @@ importers:
         specifier: workspace:*
         version: link:../os-domain
     devDependencies:
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
       typescript:
         specifier: 5.8.3
         version: 5.8.3

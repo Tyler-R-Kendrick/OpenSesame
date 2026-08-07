@@ -36,11 +36,7 @@ function b64url(bytes: ArrayBuffer | Uint8Array): string {
   const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   let s = "";
   for (const b of u8) s += String.fromCharCode(b);
-  const b64 =
-    typeof btoa !== "undefined"
-      ? btoa(s)
-      : Buffer.from(u8).toString("base64");
-  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 /** Cryptographically strong jti — never Math.random. */
@@ -57,8 +53,12 @@ function randomJti(): string {
 
 async function getSubtle(): Promise<SubtleCrypto> {
   if (globalThis.crypto?.subtle) return globalThis.crypto.subtle;
-  const { webcrypto } = await import("node:crypto");
-  return webcrypto.subtle as SubtleCrypto;
+  // Dynamic node import via Function so browser packages (PWA) typecheck without node types.
+  const loadNodeCrypto = new Function(
+    "return import('node:crypto')",
+  ) as () => Promise<{ webcrypto: { subtle: SubtleCrypto } }>;
+  const { webcrypto } = await loadNodeCrypto();
+  return webcrypto.subtle;
 }
 
 /** Create an in-memory ES256 keypair and DPoP proof factory. */
@@ -141,14 +141,17 @@ export function createApiClient(options: ApiClientOptions) {
         const prm = await request("/.well-known/oauth-protected-resource");
         if (prm.ok) {
           const body = (await prm.json()) as Record<string, unknown>;
-          return {
-            resource: typeof body.resource === "string" ? body.resource : undefined,
-            authorizationServers: Array.isArray(body.authorization_servers)
-              ? (body.authorization_servers as string[])
-              : undefined,
+          const discovery: HostDiscovery = {
             dpopBound: Boolean(body.dpop_bound ?? body.dpop_bound_access_tokens_required),
             source: "prm",
           };
+          if (typeof body.resource === "string") {
+            discovery.resource = body.resource;
+          }
+          if (Array.isArray(body.authorization_servers)) {
+            discovery.authorizationServers = body.authorization_servers as string[];
+          }
+          return discovery;
         }
       } catch {
         /* fall through */
@@ -203,9 +206,7 @@ export function createApiClient(options: ApiClientOptions) {
             id: b.id,
             epoch: b.epoch,
             ciphertext: Array.from(
-              typeof Buffer !== "undefined"
-                ? Buffer.from(b.ciphertextB64, "base64")
-                : Uint8Array.from(atob(b.ciphertextB64), (c) => c.charCodeAt(0)),
+              Uint8Array.from(atob(b.ciphertextB64), (c) => c.charCodeAt(0)),
             ),
           })),
         }),

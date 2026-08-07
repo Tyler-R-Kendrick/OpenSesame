@@ -59,7 +59,7 @@ export function registerHostTools(server: McpServer): void {
           updateTaskFromResponse(body);
         }
         return {
-          content: [{ type: "text", text: JSON.stringify(body) }],
+          content: textContent(JSON.stringify(body)),
           isError: !res.ok,
         };
       } catch (e) {
@@ -83,7 +83,7 @@ export function registerHostTools(server: McpServer): void {
           updateTaskFromResponse(body);
         }
         return {
-          content: [{ type: "text", text: JSON.stringify(body) }],
+          content: textContent(JSON.stringify(body)),
           isError: !res.ok,
         };
       } catch (e) {
@@ -137,7 +137,7 @@ export function registerHostTools(server: McpServer): void {
           });
         }
         return {
-          content: [{ type: "text", text: JSON.stringify(body) }],
+          content: textContent(JSON.stringify(body)),
           isError: !res.ok,
         };
       } catch (e) {
@@ -170,7 +170,7 @@ export function registerHostTools(server: McpServer): void {
           setTaskContext(null);
         }
         return {
-          content: [{ type: "text", text: JSON.stringify(body) }],
+          content: textContent(JSON.stringify(body)),
           isError: !res.ok,
         };
       } catch (e) {
@@ -183,7 +183,7 @@ export function registerHostTools(server: McpServer): void {
     try {
       const res = await daemonFetch("/v1/toolbar/status");
       const body = await res.json();
-      return { content: [{ type: "text", text: JSON.stringify(body) }] };
+      return { content: textContent(JSON.stringify(body)) };
     } catch (e) {
       return toolError("daemon_unavailable", e);
     }
@@ -194,12 +194,9 @@ export function registerHostTools(server: McpServer): void {
       const res = await hostFetch("/health/ready");
       const text = await res.text();
       return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ status: res.status, body: text, tools: hostTools }),
-          },
-        ],
+        content: textContent(
+          JSON.stringify({ status: res.status, body: text, tools: hostTools }),
+        ),
       };
     } catch (e) {
       return toolError("host_unavailable", e);
@@ -237,7 +234,7 @@ export function registerHostTools(server: McpServer): void {
         });
         const body = await res.json();
         return {
-          content: [{ type: "text", text: JSON.stringify(body) }],
+          content: textContent(JSON.stringify(body)),
           isError: !res.ok || body?.error === "materialize_denied",
         };
       } catch (e) {
@@ -247,10 +244,14 @@ export function registerHostTools(server: McpServer): void {
   );
 }
 
+function textContent(text: string) {
+  return [{ type: "text" as const, text }];
+}
+
 function toolError(label: string, e: unknown) {
   const message = e instanceof Error ? e.message : String(e);
   return {
-    content: [{ type: "text", text: `${label}: ${message}` }],
+    content: textContent(`${label}: ${message}`),
     isError: true,
   };
 }

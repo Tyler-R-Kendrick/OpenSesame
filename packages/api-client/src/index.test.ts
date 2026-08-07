@@ -49,9 +49,8 @@ describe("api-client", () => {
     const { createDpopProof } = await createDpopKeyPair();
     const proof = await createDpopProof("https://host.test/api", "POST");
     const [h] = proof.split(".");
-    const json = JSON.parse(
-      Buffer.from(h!.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"),
-    );
+    const padded = h!.replace(/-/g, "+").replace(/_/g, "/");
+    const json = JSON.parse(atob(padded.padEnd(Math.ceil(padded.length / 4) * 4, "=")));
     expect(json.alg).toBe("ES256");
     expect(json.typ).toBe("dpop+jwt");
   });

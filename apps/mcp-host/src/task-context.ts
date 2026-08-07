@@ -44,9 +44,12 @@ export function updateTaskFromResponse(body: {
   if (!body.task_run_id || body.state_version === undefined) {
     return;
   }
-  current = {
+  const next: TaskContext = {
     taskRunId: body.task_run_id,
     stateVersion: body.state_version,
-    frozenIntent: current?.taskRunId === body.task_run_id ? current.frozenIntent : undefined,
   };
+  if (current?.taskRunId === body.task_run_id && current.frozenIntent) {
+    next.frozenIntent = current.frozenIntent;
+  }
+  current = next;
 }
