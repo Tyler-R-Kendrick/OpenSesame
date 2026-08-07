@@ -59,6 +59,14 @@ impl LocalHttpMessageSignatureValidator {
     }
 }
 
+struct ParsedSignatureInput {
+    label: String,
+    covered: Vec<String>,
+    created: i64,
+    key_id: String,
+    algorithm: String,
+}
+
 impl HttpMessageSignatureValidator for LocalHttpMessageSignatureValidator {
     fn validate(
         &self,
@@ -71,29 +79,29 @@ impl HttpMessageSignatureValidator for LocalHttpMessageSignatureValidator {
             TokenPresentation::HttpMessageSignature,
         )?;
 
-        let (label, covered, created, key_id, algorithm) =
-            parse_signature_input(&request.signature_input)?;
+        let parsed = parse_signature_input(&request.signature_input)?;
 
-        if algorithm != "ed25519" {
+        if parsed.algorithm != "ed25519" {
             return Err(ProofError::InvalidProof(format!(
-                "unsupported algorithm: {algorithm}"
+                "unsupported algorithm: {}",
+                parsed.algorithm
             )));
         }
 
         let now = chrono::Utc::now().timestamp();
-        if created + self.max_age_secs < now {
+        if parsed.created + self.max_age_secs < now {
             return Err(ProofError::InvalidProof("signature expired".into()));
         }
 
-        let verifying_key = self
-            .keys
-            .get(&key_id)
-            .ok_or_else(|| ProofError::InvalidProof(format!("unknown keyid: {key_id}")))?;
+        let verifying_key = self.keys.get(&parsed.key_id).ok_or_else(|| {
+            ProofError::InvalidProof(format!("unknown keyid: {}", parsed.key_id))
+        })?;
 
-        let signature_base = build_signature_base(&covered, request, &request.signature_input)?;
+        let signature_base =
+            build_signature_base(&parsed.covered, request, &request.signature_input)?;
 
         let sig_bytes = B64
-            .decode(signature_value(&request.signature, &label)?)
+            .decode(signature_value(&request.signature, &parsed.label)?)
             .map_err(|e| ProofError::InvalidProof(format!("signature base64: {e}")))?;
         let signature = Signature::from_slice(&sig_bytes)
             .map_err(|e| ProofError::InvalidProof(format!("signature bytes: {e}")))?;
@@ -103,9 +111,9 @@ impl HttpMessageSignatureValidator for LocalHttpMessageSignatureValidator {
             .map_err(|_| ProofError::InvalidProof("signature verification failed".into()))?;
 
         Ok(ValidatedHttpMessageSignature {
-            key_id,
-            created,
-            algorithm,
+            key_id: parsed.key_id,
+            created: parsed.created,
+            algorithm: parsed.algorithm,
         })
     }
 }

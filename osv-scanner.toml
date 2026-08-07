@@ -1,0 +1,9 @@
+# OSV-Scanner config for workspace lockfiles (Cargo.lock / pnpm-lock.yaml).
+# Place next to scanned lockfiles; does not recurse to child dirs.
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2023-0071"
+# No patched rsa release (patched = []). Pulled only via sqlx-postgres for
+# Postgres wire auth helpers — not used for OpenSesame JWT/DPoP (jsonwebtoken
+# uses aws_lc_rs). Revisit when sqlx drops rsa or rsa ships a constant-time fix.
+reason = "Unpatched transitive rsa via sqlx-postgres; no OpenSesame RSA private-key ops over observable timing channels"

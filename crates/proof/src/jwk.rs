@@ -123,11 +123,12 @@ pub fn decode_dpop_proof(
 
     let decoding_key =
         DecodingKey::from_jwk(&jwk).map_err(|e| ProofError::InvalidProof(e.to_string()))?;
-    let mut validation = Validation::default();
+    // DPoP proofs use iat (not exp/nbf); clear JWT defaults and pin alg to header.
+    let mut validation = Validation::new(header.alg);
     validation.validate_exp = false;
+    validation.validate_nbf = false;
     validation.required_spec_claims.clear();
     validation.validate_aud = false;
-    validation.algorithms = vec![header.alg];
 
     let token_data = jsonwebtoken::decode::<DpopClaims>(proof_jwt, &decoding_key, &validation)
         .map_err(|e| ProofError::InvalidProof(e.to_string()))?;

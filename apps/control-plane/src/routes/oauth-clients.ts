@@ -131,23 +131,25 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
   }
 
   const now = ctx.clock();
-  const next: OAuthClientRecord = {
+  let next: OAuthClientRecord = {
     ...client,
-    ...(parsed.data.displayName !== undefined
-      ? { displayName: parsed.data.displayName }
-      : {}),
-    ...(parsed.data.redirectUris !== undefined
-      ? { redirectUris: parsed.data.redirectUris }
-      : {}),
-    ...(parsed.data.allowedScopes !== undefined
-      ? { allowedScopes: parsed.data.allowedScopes }
-      : {}),
-    ...(parsed.data.allowedResources !== undefined
-      ? { allowedResources: parsed.data.allowedResources }
-      : {}),
-    ...(parsed.data.state !== undefined ? { state: parsed.data.state } : {}),
     updatedAt: now,
   };
+  if (parsed.data.displayName !== undefined) {
+    next.displayName = parsed.data.displayName;
+  }
+  if (parsed.data.redirectUris !== undefined) {
+    next.redirectUris = parsed.data.redirectUris;
+  }
+  if (parsed.data.allowedScopes !== undefined) {
+    next.allowedScopes = parsed.data.allowedScopes;
+  }
+  if (parsed.data.allowedResources !== undefined) {
+    next.allowedResources = parsed.data.allowedResources;
+  }
+  if (parsed.data.state !== undefined) {
+    next.state = parsed.data.state;
+  }
   ctx.stores.oauthClients.set(next.id, next);
 
   await appendAuditEvent(ctx.repos.auditEvents, {
