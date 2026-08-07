@@ -183,6 +183,72 @@ describe("control-plane API", () => {
     expect(((await verify.json()) as { ok: boolean }).ok).toBe(true);
   });
 
+  it("production passkey register requires attestation ceremony", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+        allowDevDefaults: false,
+        claimPepper: "prod-claim-pepper-for-test-only",
+        isProduction: false,
+      },
+      processEnv: {
+        ...process.env,
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "false",
+        OPENSESAME_CLAIM_PEPPER: "prod-claim-pepper-for-test-only",
+        NODE_ENV: "development",
+      },
+    });
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+
+    const stubReg = await app.request("/v1/mfa/passkey/register", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({
+        credentialId: "cred_prod_1",
+        publicKey: Buffer.from("pk").toString("base64"),
+      }),
+    });
+    expect(stubReg.status).toBe(400);
+    expect(((await stubReg.json()) as { error: string }).error).toBe(
+      "registration_attestation_required",
+    );
+
+    const opts = await app.request("/v1/mfa/passkey/registration-options", {
+      method: "POST",
+      headers: auth,
+    });
+    expect(opts.status).toBe(200);
+    const { challenge } = (await opts.json()) as { challenge: string };
+    expect(challenge.length).toBeGreaterThan(8);
+
+    const badAttest = await app.request("/v1/mfa/passkey/register", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({
+        response: {
+          id: "cred_prod_1",
+          rawId: "cred_prod_1",
+          type: "public-key",
+          response: {
+            clientDataJSON: Buffer.from(
+              JSON.stringify({
+                type: "webauthn.create",
+                challenge,
+                origin: "http://127.0.0.1:8788",
+              }),
+            ).toString("base64url"),
+            attestationObject: Buffer.from("not-real").toString("base64url"),
+          },
+          clientExtensionResults: {},
+        },
+      }),
+    });
+    expect(badAttest.status).toBe(401);
+  });
+
   it("production passkey assert rejects without WebAuthn challenge binding", async () => {
     const { app } = createControlPlane({
       config: {
@@ -200,23 +266,12 @@ describe("control-plane API", () => {
         NODE_ENV: "development",
       },
     });
-    // Without allowDevDefaults, provisional creation still works if pepper set;
-    // register+assert with stub signature must fail SimpleWebAuthn verify.
     const created = await provisional(app);
-    const auth = { authorization: `Bearer ${created.accessToken}` };
-    await app.request("/v1/mfa/passkey/register", {
-      method: "POST",
-      headers: { ...auth, "content-type": "application/json" },
-      body: JSON.stringify({
-        credentialId: "cred_prod_1",
-        publicKey: Buffer.from("pk").toString("base64"),
-      }),
-    });
     const assertRes = await app.request("/v1/mfa/passkey/assert", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        credentialId: "cred_prod_1",
+        credentialId: "cred_missing",
         clientDataJSON: Buffer.from(
           JSON.stringify({
             type: "webauthn.get",
@@ -229,6 +284,7 @@ describe("control-plane API", () => {
       }),
     });
     expect(assertRes.status).toBe(401);
+    expect(created.principalId).toBeTruthy();
   });
 
   it("device approve requires authentication and never exposes operator token", async () => {

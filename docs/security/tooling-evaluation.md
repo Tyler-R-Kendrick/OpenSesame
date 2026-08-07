@@ -51,6 +51,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0e. **ast-grep after UX (#23)** — extension popup `innerHTML` → `textContent` — see `audit-2026-08-07-ast-grep-popup.md`.
 0f. **Pages PWA (#25)** — removed `localStorage` for settings/outbox; OPFS + session-only operator token — see `audit-2026-08-07-pages-localstorage.md`.
 0g. **sdk-browser storage** — default `sessionStorage` (not `localStorage`); strip refresh tokens from persisted session — see `audit-2026-08-07-sdk-browser-storage.md`.
+0h. **WebAuthn registration** — production passkey enroll requires attestation ceremony + challenge — see `audit-2026-08-07-webauthn-registration.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
@@ -63,7 +64,7 @@ Re-run checklist: `pnpm run audit:cve-lite`, `pnpm run audit:osv`, `pnpm run aud
 
 ## Residual (tracked, not blocking this pass)
 
-- Attestation-verified WebAuthn registration ceremony when Better Auth passkey plugin is fully wired.
+- Wire Better Auth passkey plugin UI end-to-end against `/v1/mfa/passkey/registration-options` (server ceremony is in place).
 
 ## Bind policy (daemon)
 

@@ -22,7 +22,10 @@ export {
   createMemoryChallengeStore,
   createSimpleWebAuthnVerifyFn,
   issueAuthenticationChallenge,
+  issueRegistrationChallenge,
+  verifyRegistrationAttestation,
   type PasskeyChallengeStore,
+  type VerifiedRegistration,
   type WebAuthnRpConfig,
 } from "./webauthn.js";
 export {
