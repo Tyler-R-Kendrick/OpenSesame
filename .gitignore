@@ -22,3 +22,4 @@ artifacts/
 test-results/
 .output/
 .wxt/
+package-lock.json

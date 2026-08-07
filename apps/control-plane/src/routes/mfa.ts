@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { createHmac, randomBytes } from "node:crypto";
+import { issueAuthenticationChallenge } from "@opensesame/auth-upstream";
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 
@@ -18,6 +19,16 @@ function totpCode(secretB64: string, step = 30, digits = 6, at = Date.now()): st
     (hmac[offset + 3]! & 0xff);
   const otp = bin % 10 ** digits;
   return otp.toString().padStart(digits, "0");
+}
+
+function rpFromConfig(publicUrl: string): { rpID: string; origin: string } {
+  let hostname = "localhost";
+  try {
+    hostname = new URL(publicUrl).hostname;
+  } catch {
+    /* keep default */
+  }
+  return { rpID: hostname, origin: publicUrl.replace(/\/$/, "") };
 }
 
 export const mfaRoutes = new Hono<{ Variables: Variables }>();
@@ -45,18 +56,21 @@ mfaRoutes.post("/passkey/register", requirePrincipal(), async (c) => {
   });
 });
 
+/** Issue a one-time WebAuthn challenge (required for production assert). */
+mfaRoutes.post("/passkey/authentication-options", requirePrincipal(), async (c) => {
+  const ctx = c.get("ctx");
+  const principalId = c.get("principalId")!;
+  const rp = rpFromConfig(ctx.config.publicUrl);
+  const { challenge, options } = await issueAuthenticationChallenge(
+    ctx.passkeyChallenges,
+    rp,
+    { principalId },
+  );
+  return c.json({ ok: true, challenge, options });
+});
+
 mfaRoutes.post("/passkey/assert", async (c) => {
   const ctx = c.get("ctx");
-  if (!ctx.config.allowDevDefaults) {
-    return c.json(
-      {
-        ok: false,
-        error: "passkey_verifier_unconfigured",
-        hint: "Wire a real WebAuthn verifier; stub assert is disabled outside allowDevDefaults",
-      },
-      503,
-    );
-  }
   const body = await c.req.json<{
     credentialId: string;
     clientDataJSON: string;

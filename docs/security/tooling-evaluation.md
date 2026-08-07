@@ -51,5 +51,5 @@ Re-run checklist: `gitleaks detect --source . --no-git --config .gitleaks.toml`,
 
 ## Residual (tracked, not blocking this pass)
 
-- **react-router** 7.18.x still has one high (RSC CSRF; patched in ≥8.3). Console stays on v7 for now — major bump deferred.
-- Global gateway `sync_blobs` is session-gated but not yet tenant-scoped (pre-existing design debt).
+- Prefer UDS-only daemon bind in locked-down environments (TCP still operator-gated).
+- Attestation-verified WebAuthn registration ceremony when Better Auth passkey plugin is fully wired.

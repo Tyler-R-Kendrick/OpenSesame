@@ -2,7 +2,12 @@ import { createLogger } from "@opensesame/observability";
 import { ClaimEngine } from "@opensesame/claims";
 import { createRepositories } from "@opensesame/database";
 import { createOpenSesameProvider } from "@opensesame/oauth-provider";
-import { MemoryPrincipalMappingStore, createPasskeySeam } from "@opensesame/auth-upstream";
+import {
+  MemoryPrincipalMappingStore,
+  createMemoryChallengeStore,
+  createPasskeySeam,
+  createSimpleWebAuthnVerifyFn,
+} from "@opensesame/auth-upstream";
 import { ProvisionalPolicy } from "@opensesame/policy";
 import type { Clock } from "@opensesame/os-domain";
 import {
@@ -20,6 +25,14 @@ export interface CreateControlPlaneOptions {
   clock?: Clock;
   ready?: boolean;
   processEnv?: NodeJS.ProcessEnv;
+}
+
+function rpIdFromUrl(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "localhost";
+  }
 }
 
 export function createControlPlane(options: CreateControlPlaneOptions = {}) {
@@ -45,11 +58,17 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const mappings = new MemoryPrincipalMappingStore();
   const policy = new ProvisionalPolicy();
   const stores = createAppStores();
-  // Stub verifier only when allowDevDefaults (tests/local). Otherwise fail closed.
+  const passkeyChallenges = createMemoryChallengeStore();
+  const rp = {
+    rpID: rpIdFromUrl(config.publicUrl),
+    origin: config.publicUrl.replace(/\/$/, ""),
+  };
+
+  // Tests/dev: stub signature length check. Production: SimpleWebAuthn + challenge binding.
   const passkeys = createPasskeySeam({
     verifyAssertion: config.allowDevDefaults
       ? async (assertion, _credential) => assertion.signature.byteLength > 0
-      : async () => false,
+      : createSimpleWebAuthnVerifyFn(rp, passkeyChallenges),
   });
 
   const ctx: AppContext = {
@@ -65,6 +84,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     clock,
     ready: options.ready ?? true,
     passkeys,
+    passkeyChallenges,
   };
 
   const app = createHonoApp(ctx);
