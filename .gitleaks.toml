@@ -1,9 +1,33 @@
-# Gitleaks config — path allowlists for local tool logs and prior scan reports.
+# Gitleaks config — prune build/vendor dirs so `--no-git` filesystem scans finish.
+# Without these path allowlists, `detect --no-git` walks `target/` (~18GB) and hangs.
 title = "opensesame"
 
+[extend]
+useDefault = true
+
 [allowlist]
-description = "Local tooling artifacts (gitignored) and scan report echoes"
+description = "Build outputs, package stores, and local tooling (must prune for dir scans)"
 paths = [
-  '''(^|/)\.tools/''',
-  '''(^|/)artifacts/''',
+  '''(^|/)\.git(?:/|$)''',
+  '''(^|/)\.tools(?:/|$)''',
+  '''(^|/)artifacts(?:/|$)''',
+  '''(^|/)target(?:/|$)''',
+  '''(^|/)node_modules(?:/|$)''',
+  '''(^|/)\.pnpm-store(?:/|$)''',
+  '''(^|/)dist(?:/|$)''',
+  '''(^|/)coverage(?:/|$)''',
+  '''(^|/)\.turbo(?:/|$)''',
+  '''(^|/)\.output(?:/|$)''',
+  '''(^|/)\.wxt(?:/|$)''',
+  '''(^|/)sbom(?:/|$)''',
+  '''(^|/)test-results(?:/|$)''',
+  '''(^|/)\.headroom-cache(?:/|$)''',
+  '''(^|/)\.superpowers(?:/|$)''',
+  '''(?i)\.(?:log|sqlite|sqlite-.*)$''',
+]
+
+# Remediated historical commits that still contain old sk_test_* test placeholders.
+commits = [
+  '''9b15cdf5f97ab761f5324d9d69865e064e700663''',
+  '''ff63081de227dc7573698504cf50b30fe57989da''',
 ]

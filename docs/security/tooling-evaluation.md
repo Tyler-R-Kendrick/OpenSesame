@@ -8,12 +8,13 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 |------|-----|----------------|
 | **cve-lite** | OSV CVE scan + override hygiene (OA*/PD*) | `pnpm run audit:cve-lite` (`scripts/cve-lite-gate.sh`) |
 | **OSV-Scanner** | Google OSV across Cargo + pnpm lockfiles (catches GHSA not yet in RustSec) | `pnpm run audit:osv` (`scripts/osv-scanner-gate.sh`, `osv-scanner.toml`) |
+| **cargo-audit** | RustSec advisory scan of `Cargo.lock` (dedicated CLI) | `pnpm run audit:cargo-audit` (`scripts/cargo-audit-gate.sh`) |
 | **ast-grep** | Structural SAST for XSS/crypto/injection antipatterns | `pnpm run audit:ast-grep` (`security/ast-grep-rules.yml`) |
 | **cargo clippy** | Rust correctness / suspicious patterns (`-D warnings`) | `pnpm run audit:clippy` (matches CI) |
-| **gitleaks** | Secret scanning; catches accidental keys in source | `gitleaks detect --source . --no-git` (ignore `.tools/`) |
+| **gitleaks** | Secret scanning; catches accidental keys in source | `pnpm run audit:gitleaks` (`.gitleaks.toml` prunes `target`/`node_modules`) |
 | **cargo-deny** | RustSec advisories, license, source policy | `cargo deny check` + workspace `deny.toml` |
 | **pnpm audit** | npm advisory DB for TS apps/packages | `pnpm audit` after dep bumps |
-| **Semgrep** | Static rules (`p/rust`, `p/typescript`) on auth paths | Focused scans of control-plane / gateway |
+| **Semgrep** | Static rules (`p/rust`, `p/typescript`) on source trees | `pnpm run audit:semgrep` (apps/crates/packages only) |
 | **Manual auth-path review** | Catches design bugs scanners miss | Bearer bypass, unauthenticated sync, prod fail-closed |
 
 ## Adopt later (CI / when credentials exist)
@@ -44,7 +45,8 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 
 ## Findings applied from this pass
 
-0. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
+0. **cargo-audit loop (2026-08-07)** — `RUSTSEC-2023-0071` (`rsa` via sqlx 0.8) → sqlx 0.9 + Rust 1.94; gate at `pnpm run audit:cargo-audit` (see `audit-2026-08-07-cargo-audit.md`).
+0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
 3. **gitleaks noise** — connector-host test placeholders renamed off `sk_test_*` / `sk_live_*` patterns.
@@ -52,7 +54,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 5. **Session expiry** — gateway sync auth now enforces opaque-session `expires_at` and evicts expired entries.
 6. **Fail-closed config** — default claim pepper and `prn_` bearer require explicit dev/test mode (`OPENSESAME_ALLOW_DEV_DEFAULTS`, `NODE_ENV`/`OPENSESAME_ENV` development|test, or Vitest); production asserts reject unsafe merges.
 
-Re-run checklist: `pnpm run audit:cve-lite`, `pnpm run audit:osv`, `pnpm run audit:ast-grep`, `pnpm run audit:clippy`, `gitleaks detect --source . --no-git --config .gitleaks.toml`, `cargo deny check`, `pnpm audit`, control-plane + connector-host tests, gateway `cargo check`.
+Re-run checklist: `pnpm run audit:cve-lite`, `pnpm run audit:osv`, `pnpm run audit:cargo-audit`, `pnpm run audit:ast-grep`, `pnpm run audit:clippy`, `pnpm run audit:gitleaks`, `pnpm run audit:semgrep`, `cargo deny check`, `pnpm audit`, control-plane + connector-host tests, gateway `cargo check`.
 
 ## Residual (tracked, not blocking this pass)
 
