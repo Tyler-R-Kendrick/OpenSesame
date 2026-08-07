@@ -30,7 +30,7 @@
     "db:reset": "pnpm --filter @opensesame/database db:reset",
     "generate:openapi": "pnpm --filter @opensesame/control-plane generate:openapi",
     "generate:sbom": "pnpm dlx @cyclonedx/cdxgen -o sbom/bom.json || mkdir -p sbom && echo '{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.5\",\"components\":[]}' > sbom/bom.json",
-    "verify": "pnpm test:all && cargo +1.94.0 test --workspace --lib && ./scripts/battle-test.sh"
+    "verify": "pnpm test:all && cargo +1.88.0 test --workspace --lib && ./scripts/battle-test.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

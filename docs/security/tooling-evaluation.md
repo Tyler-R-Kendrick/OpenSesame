@@ -46,6 +46,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 ## Findings applied from this pass
 
 0. **cargo-audit loop (2026-08-07)** — restored missing `scripts/cargo-audit-gate.sh`; `RUSTSEC-2023-0071` (`rsa` via sqlx lockfile edge, no fixed release) ignored in `.cargo/audit.toml` (aligned with `osv-scanner.toml`). sqlx 0.9 / Rust 1.94 upgrade still tracked — see `audit-2026-08-07-cargo-audit.md`.
+0c. **clippy/semgrep/ast-grep loop (2026-08-07)** — removed `new Function` crypto fallback in `@opensesame/api-client`; restored `pnpm verify` to Rust 1.88.0 — see `audit-2026-08-07-clippy-semgrep.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
