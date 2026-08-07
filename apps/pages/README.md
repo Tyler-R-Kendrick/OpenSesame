@@ -25,4 +25,9 @@ pnpm --filter @opensesame/pages dev
 VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build
 ```
 
-Deployed by `.github/workflows/pages.yml` on `main`. Enable GitHub Pages → **GitHub Actions** as the source.
+Publish the `dist/` folder yourself (no GitHub Actions). Example:
+
+```bash
+VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build
+# upload apps/pages/dist to GitHub Pages (branch/folder or other host)
+```
