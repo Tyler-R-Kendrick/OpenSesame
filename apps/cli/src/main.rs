@@ -644,9 +644,11 @@ async fn invoke(
 }
 
 async fn verify_receipt(server: &str, id: &str) -> anyhow::Result<()> {
+    let token = load_access_token()?;
     let client = reqwest::Client::new();
     let body: serde_json::Value = client
         .post(format!("{server}/api/v1/receipts/{id}/verify"))
+        .bearer_auth(token)
         .send()
         .await?
         .error_for_status()?
