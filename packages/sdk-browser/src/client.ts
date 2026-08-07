@@ -26,12 +26,35 @@ class MemoryStorage implements StorageLike {
   }
 }
 
+/**
+ * Default away from localStorage: tokens/PKCE must not survive as durable
+ * XSS-exfiltrable material across browser restarts. sessionStorage still
+ * survives the OAuth redirect in the same tab; memory is last resort.
+ */
 function resolveStorage(storage?: StorageLike): StorageLike {
   if (storage) return storage;
-  if (typeof globalThis !== "undefined" && "localStorage" in globalThis) {
-    return globalThis.localStorage;
+  if (typeof globalThis !== "undefined" && "sessionStorage" in globalThis) {
+    try {
+      const ss = globalThis.sessionStorage;
+      // Touch to ensure the Storage is usable (private mode quirks).
+      ss.getItem("opensesame:probe");
+      return ss;
+    } catch {
+      /* fall through */
+    }
   }
   return new MemoryStorage();
+}
+
+/** Persist session without refresh tokens (keep those in-process only). */
+function sessionForStorage(session: Session): Session {
+  const { refreshToken: _drop, ...rest } = session;
+  if (rest.raw && typeof rest.raw === "object") {
+    const raw = { ...rest.raw } as TokenResponse & Record<string, unknown>;
+    delete raw.refresh_token;
+    return { ...rest, raw };
+  }
+  return rest;
 }
 
 function trimSlash(url: string): string {
@@ -95,15 +118,25 @@ export function createOpenSesame(
     return discoveryCache;
   }
 
+  /** In-tab refresh token; never written to StorageLike. */
+  let refreshTokenMemory: string | undefined;
+
   function saveSession(session: Session): void {
-    storage.setItem(SESSION_KEY, JSON.stringify(session));
+    if (session.refreshToken) {
+      refreshTokenMemory = session.refreshToken;
+    }
+    storage.setItem(SESSION_KEY, JSON.stringify(sessionForStorage(session)));
   }
 
   function readSession(): Session | null {
     const raw = storage.getItem(SESSION_KEY);
     if (!raw) return null;
     try {
-      return JSON.parse(raw) as Session;
+      const session = JSON.parse(raw) as Session;
+      if (!session.refreshToken && refreshTokenMemory) {
+        session.refreshToken = refreshTokenMemory;
+      }
+      return session;
     } catch {
       storage.removeItem(SESSION_KEY);
       return null;
@@ -265,6 +298,7 @@ export function createOpenSesame(
     },
 
     async signOut() {
+      refreshTokenMemory = undefined;
       storage.removeItem(SESSION_KEY);
       storage.removeItem(PKCE_KEY);
       try {

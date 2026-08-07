@@ -205,6 +205,41 @@ describe("createOpenSesame", () => {
     expect(done.state).toBe("completed");
   });
 
+  it("defaults to sessionStorage rather than localStorage", async () => {
+    const local = new MemStorage();
+    const sessionStore = new MemStorage();
+    vi.stubGlobal("localStorage", local);
+    vi.stubGlobal("sessionStorage", sessionStore);
+
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/principals/anonymous")) {
+        return new Response(
+          JSON.stringify({
+            access_token: "at",
+            token_type: "Bearer",
+            expires_in: 3600,
+            refresh_token: "rt-secret",
+          }),
+          { status: 200 },
+        );
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const sesame = createOpenSesame({
+      issuer: "http://127.0.0.1:8788",
+      apiBase: "http://127.0.0.1:8788",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    await sesame.continueAnonymously();
+    expect(local.getItem("opensesame:session")).toBeNull();
+    const stored = sessionStore.getItem("opensesame:session");
+    expect(stored).toBeTruthy();
+    expect(stored).not.toContain("rt-secret");
+    expect(stored).not.toContain("refresh_token");
+  });
+
   it("signOut clears session", async () => {
     const storage = new MemStorage();
     storage.setItem(

@@ -50,6 +50,11 @@ export interface OpenSesameBrowserConfig {
   clientId?: string;
   redirectUri?: string;
   scopes?: string[];
+  /**
+   * Session/PKCE store. Defaults to `sessionStorage` (not `localStorage`) so
+   * tokens do not persist across browser restarts. Inject memory or custom
+   * storage in tests / locked-down embeds.
+   */
   storage?: StorageLike;
   fetchImpl?: typeof fetch;
   /** Control-plane origin for claim/anonymous APIs (defaults to issuer). */
