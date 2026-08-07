@@ -45,6 +45,7 @@ cargo build -p opensesame-gateway -p opensesame-cli -p opensesame-daemon
 | `apps/toolbar` | Daemon control stub |
 | `apps/control-plane` | Identity API (:8788) |
 | `apps/pwa` / `apps/mobile-mfa` | Client PWA + MFA |
+| `apps/pages` | GitHub Pages installable offline PWA shell |
 | `apps/mcp-client` / `apps/mcp-host` | MCP servers |
 | `packages/api-client` | Host API TypeScript client |
 | `packages/cli` | Client CLI `opensesame-id` |
