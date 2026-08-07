@@ -1,0 +1,157 @@
+import type { ControlPlaneConfig } from "./config.js";
+
+/** Minimal OpenAPI 3.1 document for product APIs. */
+export function buildOpenApiDocument(config: ControlPlaneConfig) {
+  return {
+    openapi: "3.1.0",
+    info: {
+      title: "OpenSesame Control Plane",
+      version: "0.1.0",
+      description: "Identity, claims, provisional principals, and agent registration APIs",
+    },
+    servers: [{ url: config.publicUrl }],
+    paths: {
+      "/v1/health/live": {
+        get: {
+          summary: "Liveness probe",
+          responses: { "200": { description: "Alive" } },
+        },
+      },
+      "/v1/health/ready": {
+        get: {
+          summary: "Readiness probe",
+          responses: {
+            "200": { description: "Ready" },
+            "503": { description: "Not ready" },
+          },
+        },
+      },
+      "/v1/principals/provisional": {
+        post: {
+          summary: "Create provisional principal + session",
+          responses: { "201": { description: "Created" } },
+        },
+      },
+      "/v1/principals/me": {
+        get: {
+          summary: "Current principal",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": { description: "Principal" },
+            "401": { description: "Unauthorized" },
+          },
+        },
+      },
+      "/v1/projects/temporary": {
+        post: {
+          summary: "Create temporary provisional project",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "Idempotency-Key",
+              in: "header",
+              schema: { type: "string" },
+            },
+          ],
+          responses: { "201": { description: "Created" } },
+        },
+      },
+      "/v1/claims": {
+        post: {
+          summary: "Create claim",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "Idempotency-Key",
+              in: "header",
+              schema: { type: "string" },
+            },
+          ],
+          responses: { "201": { description: "Created" } },
+        },
+      },
+      "/v1/claims/{id}": {
+        get: {
+          summary: "Get claim",
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+          responses: { "200": { description: "Claim" } },
+        },
+      },
+      "/v1/claims/present": {
+        post: {
+          summary: "Present claim token",
+          responses: { "200": { description: "Presented" } },
+        },
+      },
+      "/v1/claims/{id}/complete": {
+        post: {
+          summary: "Complete claim",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+            { name: "Idempotency-Key", in: "header", schema: { type: "string" } },
+          ],
+          responses: { "200": { description: "Completed" } },
+        },
+      },
+      "/v1/claims/{id}/deny": {
+        post: {
+          summary: "Deny claim",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+          responses: { "200": { description: "Denied" } },
+        },
+      },
+      "/v1/claims/{id}/poll": {
+        get: {
+          summary: "Poll claim status",
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+          responses: { "200": { description: "Status" } },
+        },
+      },
+      "/v1/agents": {
+        post: {
+          summary: "Register provisional agent",
+          security: [{ bearerAuth: [] }],
+          responses: { "201": { description: "Created" } },
+        },
+      },
+      "/v1/agents/{id}/claim": {
+        post: {
+          summary: "Start claim for agent",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+          responses: { "201": { description: "Claim started" } },
+        },
+      },
+      "/auth.md": {
+        get: {
+          summary: "Generated auth surface markdown",
+          responses: { "200": { description: "Markdown" } },
+        },
+      },
+      "/.well-known/agent-card.json": {
+        get: {
+          summary: "A2A agent card",
+          responses: { "200": { description: "Agent card" } },
+        },
+      },
+      "/.well-known/oauth-protected-resource": {
+        get: {
+          summary: "RFC 9728 protected resource metadata",
+          responses: { "200": { description: "Metadata" } },
+        },
+      },
+    },
+    components: {
+      securitySchemes: {
+        bearerAuth: { type: "http", scheme: "bearer" },
+        provisionalCookie: {
+          type: "apiKey",
+          in: "cookie",
+          name: "os_provisional",
+        },
+      },
+    },
+  };
+}

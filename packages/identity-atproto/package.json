@@ -1,0 +1,24 @@
+{
+  "name": "@opensesame/identity-atproto",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Experimental AT Protocol identity adapter (disabled by default)",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opensesame/os-domain": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  }
+}

@@ -1,0 +1,85 @@
+# OpenSesame local/HA-capable compose profile.
+# Requires Docker. Images pinned by tag; replace with digests in production.
+services:
+  postgres:
+    image: postgres:16.9
+    environment:
+      POSTGRES_USER: opensesame
+      POSTGRES_PASSWORD: change-me-in-real-deploy
+      POSTGRES_DB: opensesame
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opensesame"]
+      interval: 5s
+      retries: 10
+
+  openfga-migrate:
+    image: openfga/openfga:v1.8.12
+    command: ["migrate"]
+    environment:
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: postgres://opensesame:change-me-in-real-deploy@postgres:5432/opensesame?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  openfga:
+    image: openfga/openfga:v1.8.12
+    command: ["run"]
+    environment:
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: postgres://opensesame:change-me-in-real-deploy@postgres:5432/opensesame?sslmode=disable
+    ports: ["8081:8080"]
+    depends_on: [openfga-migrate]
+
+  openbao:
+    image: openbao/openbao:2.2.2
+    cap_add: [IPC_LOCK]
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: "dev-only-not-for-prod"
+      BAO_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    ports: ["8200:8200"]
+    command: ["server", "-dev"]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2.5
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: change-me-in-real-deploy
+    volumes:
+      - ./keycloak/realm-opensesame.json:/opt/keycloak/data/import/realm-opensesame.json:ro
+    ports: ["8080:8080"]
+
+  nats:
+    image: nats:2.11.4
+    command: ["-js", "-m", "8222"]
+    ports: ["4222:4222"]
+
+  gateway:
+    build:
+      context: ../..
+      dockerfile: deploy/compose/Dockerfile.gateway
+    environment:
+      OPENSESAME_LISTEN: "0.0.0.0:8787"
+      OPENSESAME_ISSUER: "http://keycloak:8080/realms/opensesame"
+      OPENSESAME_RESOURCE: "http://gateway:8787"
+      OPENSESAME_DB: "postgres://opensesame:change-me-in-real-deploy@postgres:5432/opensesame"
+    ports: ["8787:8787"]
+    depends_on: [postgres, openfga, keycloak, openbao, nats]
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: deploy/compose/Dockerfile.worker
+    depends_on: [gateway, nats]
+
+  callback-edge:
+    build:
+      context: ../..
+      dockerfile: deploy/compose/Dockerfile.callback-edge
+    ports: ["8791:8791"]
+    profiles: ["public-edge"]
+
+volumes:
+  pgdata:

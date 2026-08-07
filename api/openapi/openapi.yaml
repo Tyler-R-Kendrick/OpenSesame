@@ -1,0 +1,44 @@
+openapi: 3.1.0
+info:
+  title: OpenSesame API
+  version: 0.1.0
+  license:
+    name: MIT
+servers:
+  - url: /api/v1
+paths:
+  /device/authorize:
+    post:
+      summary: Start RFC 8628 device authorization
+      responses:
+        "200":
+          description: Device codes (device_code to client memory only)
+  /device/token:
+    post:
+      summary: Poll device token endpoint
+      responses:
+        "200":
+          description: Opaque session metadata
+  /intents:
+    post:
+      summary: Create intent and invoke brokered operation
+      responses:
+        "200":
+          description: Signed InvocationReceipt
+  /receipts/{id}/verify:
+    post:
+      summary: Verify receipt signature
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Validity
+  /agent-identities:
+    post:
+      summary: Register agent instance and start claim ceremony
+      responses:
+        "200":
+          description: Claim session (token once)

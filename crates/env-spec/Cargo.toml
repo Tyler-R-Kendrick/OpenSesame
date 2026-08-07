@@ -1,0 +1,15 @@
+[package]
+name = "opensesame-env-spec"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "OpenSesame consumer of @env-spec JSON (via env-spec-bridge)"
+
+[dependencies]
+opensesame-domain = { path = "../domain" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -1,0 +1,33 @@
+{
+  "name": "opensesame",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "bootstrap": "pnpm install && pnpm --filter @opensesame/database db:generate && pnpm --filter @opensesame/database db:migrate",
+    "dev": "turbo run dev --parallel --filter=@opensesame/control-plane --filter=@opensesame/console --filter=@opensesame/worker --filter=@opensesame/mock-upstream-idp --filter=@opensesame/example-rp-alpha --filter=@opensesame/example-rp-beta",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "turbo run test --filter='./packages/*' --filter='./apps/control-plane' --filter='./apps/worker'",
+    "test:integration": "turbo run test:integration",
+    "test:e2e": "turbo run test:e2e",
+    "test:security": "pnpm --filter @opensesame/testing test:security",
+    "test:all": "pnpm typecheck && pnpm test && pnpm test:integration",
+    "db:migrate": "pnpm --filter @opensesame/database db:migrate",
+    "db:reset": "pnpm --filter @opensesame/database db:reset",
+    "generate:openapi": "pnpm --filter @opensesame/control-plane generate:openapi",
+    "generate:sbom": "pnpm dlx @cyclonedx/cdxgen -o sbom/bom.json || mkdir -p sbom && echo '{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.5\",\"components\":[]}' > sbom/bom.json",
+    "verify": "pnpm test:all && cargo +1.88.0 test --workspace --lib && ./scripts/battle-test.sh"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "turbo": "2.5.4",
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  }
+}

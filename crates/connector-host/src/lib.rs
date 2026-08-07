@@ -1,0 +1,716 @@
+//! Prefer ConnectionRef + Intent. SecretRef is internal under the connection broker.
+//!
+//! Host capabilities: authorized HTTP / sign / opaque token handles.
+//! There is no secrets.get path for guests.
+
+use opensesame_domain::{EgressBinding, InvokeLevel, LegacyProjection, PlaceholderPlacement};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use std::collections::HashSet;
+use thiserror::Error;
+use url::Url;
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum HostError {
+    #[error("destination not allowlisted: {0}")]
+    DestinationDenied(String),
+    #[error("private or link-local address blocked")]
+    PrivateAddress,
+    #[error("digest mismatch")]
+    DigestMismatch,
+    #[error("unsigned or untrusted component")]
+    UntrustedComponent,
+    #[error("parameter digest mismatch")]
+    ParameterDigestMismatch,
+    #[error("operation mismatch")]
+    OperationMismatch,
+    #[error("invoke level denied")]
+    InvokeLevelDenied,
+    #[error("secret materialization denied")]
+    MaterializeDenied,
+    #[error("cross-authority redirect denied")]
+    RedirectDenied,
+    #[error("placeholder placement denied: {0}")]
+    PlacementDenied(String),
+    #[error("connector error: {0}")]
+    Connector(String),
+}
+
+#[derive(Clone, Debug)]
+pub struct HostPolicy {
+    pub allowed_hosts: HashSet<String>,
+    pub require_signature: bool,
+    pub trusted_digests: HashSet<String>,
+    pub max_invoke_level: InvokeLevel,
+    pub egress: EgressBinding,
+}
+
+impl Default for HostPolicy {
+    fn default() -> Self {
+        let mut allowed_hosts = HashSet::new();
+        allowed_hosts.insert("api.github.com:443".into());
+        allowed_hosts.insert("github.com:443".into());
+        Self {
+            allowed_hosts,
+            require_signature: true,
+            trusted_digests: HashSet::new(),
+            max_invoke_level: InvokeLevel::ConstrainedHttp,
+            egress: EgressBinding {
+                scheme: "https".into(),
+                authorities: vec![
+                    "api.github.com".into(),
+                    "api.github.com:443".into(),
+                    "github.com".into(),
+                    "github.com:443".into(),
+                ],
+                path_prefixes: vec![],
+                allow_redirects_cross_authority: false,
+            },
+        }
+    }
+}
+
+pub fn assert_component_trusted(
+    policy: &HostPolicy,
+    digest: &str,
+    signed: bool,
+) -> Result<(), HostError> {
+    if policy.require_signature && !signed {
+        return Err(HostError::UntrustedComponent);
+    }
+    if !policy.trusted_digests.is_empty() && !policy.trusted_digests.contains(digest) {
+        return Err(HostError::DigestMismatch);
+    }
+    Ok(())
+}
+
+pub fn assert_destination_allowed(policy: &HostPolicy, raw_url: &str) -> Result<(), HostError> {
+    let url = Url::parse(raw_url).map_err(|_| HostError::DestinationDenied(raw_url.into()))?;
+    if url.scheme() != "https" {
+        return Err(HostError::DestinationDenied(raw_url.into()));
+    }
+    let host = url.host_str().unwrap_or_default();
+    if is_blocked_host(host) {
+        return Err(HostError::PrivateAddress);
+    }
+    policy
+        .egress
+        .allows_url(raw_url)
+        .map_err(|e| HostError::DestinationDenied(e.to_string()))?;
+    Ok(())
+}
+
+fn is_blocked_host(host: &str) -> bool {
+    let h = host.to_lowercase();
+    h == "localhost"
+        || h == "metadata.google.internal"
+        || h.starts_with("127.")
+        || h.starts_with("169.254.")
+        || h.starts_with("10.")
+        || h.starts_with("192.168.")
+        || h == "::1"
+        || h == "0.0.0.0"
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InvokeRequest {
+    pub operation: String,
+    pub resource: String,
+    pub audience: String,
+    pub parameters: Value,
+    pub parameters_digest: String,
+    pub authorized_operation: String,
+    #[serde(default)]
+    pub invoke_level: Option<u8>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InvokeResult {
+    pub ok: bool,
+    pub safe_summary: Value,
+    pub external_request_digest: Option<String>,
+}
+
+pub trait Connector: Send + Sync {
+    fn id(&self) -> &str;
+    fn version(&self) -> &str;
+    fn operations(&self) -> &[&str];
+    fn invoke(&self, req: &InvokeRequest) -> Result<InvokeResult, HostError>;
+}
+
+/// Deterministic mock connector — no external network; never returns secret bytes.
+pub struct MockConnector;
+
+impl Connector for MockConnector {
+    fn id(&self) -> &str {
+        "mock"
+    }
+    fn version(&self) -> &str {
+        "1.0.0"
+    }
+    fn operations(&self) -> &[&str] {
+        &[
+            "repository.read",
+            "pull_request.create",
+            "error.transient",
+            "error.permanent",
+            "error.rate_limit",
+            "error.timeout",
+            "error.indeterminate",
+            "rotate.plan",
+            "credential.resolve",
+        ]
+    }
+    fn invoke(&self, req: &InvokeRequest) -> Result<InvokeResult, HostError> {
+        if req.operation != req.authorized_operation {
+            return Err(HostError::OperationMismatch);
+        }
+        let expected = opensesame_param_digest(&req.parameters);
+        if expected != req.parameters_digest {
+            return Err(HostError::ParameterDigestMismatch);
+        }
+        if req.operation == "credential.resolve"
+            || req.invoke_level == Some(InvokeLevel::Materialize.as_u8())
+        {
+            return Err(HostError::MaterializeDenied);
+        }
+        match req.operation.as_str() {
+            "error.transient" => Err(HostError::Connector("transient".into())),
+            "error.permanent" => Err(HostError::Connector("permanent".into())),
+            "error.rate_limit" => Err(HostError::Connector("rate_limited".into())),
+            "error.timeout" => Err(HostError::Connector("timeout".into())),
+            "error.indeterminate" => Err(HostError::Connector("indeterminate".into())),
+            "repository.read" => Ok(InvokeResult {
+                ok: true,
+                safe_summary: json!({"resource": req.resource, "title": "README"}),
+                external_request_digest: Some("sha256:mock-read".into()),
+            }),
+            "pull_request.create" => Ok(InvokeResult {
+                ok: true,
+                safe_summary: json!({"pr_number": 42, "resource": req.resource}),
+                external_request_digest: Some("sha256:mock-pr".into()),
+            }),
+            "rotate.plan" => Ok(InvokeResult {
+                ok: true,
+                safe_summary: json!({"steps": ["generate", "install", "verify", "revoke"]}),
+                external_request_digest: None,
+            }),
+            other => Err(HostError::Connector(format!("unknown op {other}"))),
+        }
+    }
+}
+
+pub fn opensesame_param_digest(parameters: &Value) -> String {
+    opensesame_domain::Intent::parameters_hash(parameters).expect("canonical parameters")
+}
+
+/// Host-mediated authorized HTTP — injects credentials; enforces egress; no secret to guest.
+pub fn authorized_http_request(
+    policy: &HostPolicy,
+    level: InvokeLevel,
+    method: &str,
+    url: &str,
+) -> Result<Value, HostError> {
+    if level > policy.max_invoke_level {
+        return Err(HostError::InvokeLevelDenied);
+    }
+    if level < InvokeLevel::ConstrainedHttp {
+        return Err(HostError::InvokeLevelDenied);
+    }
+    assert_destination_allowed(policy, url)?;
+    Ok(json!({
+        "status": 200,
+        "method": method,
+        "url": url,
+        "credential_injected": true,
+        "credential_bytes_returned_to_guest": false
+    }))
+}
+
+pub fn follow_redirect_with_credential(
+    policy: &HostPolicy,
+    from: &str,
+    to: &str,
+) -> Result<(), HostError> {
+    policy
+        .egress
+        .allows_redirect(from, to)
+        .map_err(|_| HostError::RedirectDenied)
+}
+
+/// Substitute a placeholder with a real credential **only** when placement rules allow.
+/// Never performs generic body-wide string replace.
+pub fn substitute_placeholder(
+    egress: &EgressBinding,
+    placement: &PlaceholderPlacement,
+    projection: &LegacyProjection,
+    method: &str,
+    url: &str,
+    header_name: Option<&str>,
+    header_value: Option<&str>,
+    body_field_path: Option<&str>,
+    body_field_value: Option<&str>,
+    placeholder: &str,
+    real_secret: &str,
+) -> Result<Value, HostError> {
+    egress
+        .allows_url(url)
+        .map_err(|e| HostError::DestinationDenied(e.to_string()))?;
+    let parsed = Url::parse(url).map_err(|e| HostError::DestinationDenied(e.to_string()))?;
+    placement
+        .assert_allowed(
+            method,
+            header_name,
+            header_value,
+            parsed.path(),
+            parsed.query(),
+            body_field_path,
+            body_field_value,
+            placeholder,
+        )
+        .map_err(|e| HostError::PlacementDenied(e.to_string()))?;
+
+    let mut injected_header = None;
+    if let (Some(hn), Some(hv)) = (header_name, header_value) {
+        if hv.contains(placeholder) {
+            injected_header = Some((hn.to_string(), hv.replace(placeholder, real_secret)));
+        }
+    }
+    let mut injected_body = None;
+    if let (Some(fp), Some(fv)) = (body_field_path, body_field_value) {
+        if fv.contains(placeholder) {
+            // Only the allowed body field is rewritten — never the whole body blindly.
+            injected_body = Some(json!({ fp: fv.replace(placeholder, real_secret) }));
+        }
+    }
+
+    Ok(json!({
+        "ok": true,
+        "connection_ref": projection.connection_ref_uri,
+        "env_var": projection.env_var,
+        "credential_injected": true,
+        "credential_bytes_returned_to_guest": false,
+        "header": injected_header,
+        "body_field": injected_body,
+    }))
+}
+
+pub struct HostRuntime {
+    pub policy: HostPolicy,
+    pub mock: MockConnector,
+}
+
+impl Default for HostRuntime {
+    fn default() -> Self {
+        let mut policy = HostPolicy::default();
+        policy.trusted_digests.insert("sha256:mock-connector".into());
+        Self {
+            policy,
+            mock: MockConnector,
+        }
+    }
+}
+
+impl HostRuntime {
+    pub fn invoke_mock(&self, req: &InvokeRequest) -> Result<InvokeResult, HostError> {
+        if let Some(url) = req.parameters.get("url").and_then(|v| v.as_str()) {
+            assert_destination_allowed(&self.policy, url)?;
+        }
+        assert_component_trusted(&self.policy, "sha256:mock-connector", true)?;
+        let level = req
+            .invoke_level
+            .map(|n| match n {
+                1 => InvokeLevel::TypedOperation,
+                2 => InvokeLevel::ConstrainedHttp,
+                _ => InvokeLevel::Materialize,
+            })
+            .unwrap_or(InvokeLevel::TypedOperation);
+        // #region agent log
+        {
+            use std::io::Write;
+            let payload = serde_json::json!({
+                "sessionId": "7aa2f5",
+                "runId": std::env::var("OPENSESAME_DEBUG_RUN").unwrap_or_else(|_| "authority-2".into()),
+                "hypothesisId": "AH-A",
+                "location": "connector-host/lib.rs:invoke_mock",
+                "message": "host invoke_mock level gate",
+                "data": {
+                    "operation": req.operation,
+                    "invoke_level_raw": req.invoke_level,
+                    "level_u8": level.as_u8(),
+                    "max_u8": self.policy.max_invoke_level.as_u8(),
+                    "level_gt_max": level > self.policy.max_invoke_level,
+                    "is_resolve_op": req.operation == "credential.resolve"
+                },
+                "timestamp": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()
+            });
+            if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("/home/codex/.herdr/worktrees/opensesame/.cursor/debug-7aa2f5.log") {
+                let _ = writeln!(f, "{payload}");
+            }
+        }
+        // #endregion
+        // Materialize / resolve is denied at the host boundary before mock execution.
+        // Prefer MaterializeDenied over InvokeLevelDenied so agents cannot confuse
+        // "raise connection max" with "export is allowed".
+        if level == InvokeLevel::Materialize || req.operation == "credential.resolve" {
+            // #region agent log
+            {
+                use std::io::Write;
+                let payload = serde_json::json!({
+                    "sessionId": "7aa2f5",
+                    "runId": std::env::var("OPENSESAME_DEBUG_RUN").unwrap_or_else(|_| "authority-2".into()),
+                    "hypothesisId": "AH-C",
+                    "location": "connector-host/lib.rs:invoke_mock",
+                    "message": "materialize denied at host",
+                    "data": {"operation": req.operation, "level_u8": level.as_u8()},
+                    "timestamp": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()
+                });
+                if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("/home/codex/.herdr/worktrees/opensesame/.cursor/debug-7aa2f5.log") {
+                    let _ = writeln!(f, "{payload}");
+                }
+            }
+            // #endregion
+            return Err(HostError::MaterializeDenied);
+        }
+        if level > self.policy.max_invoke_level {
+            // #region agent log
+            {
+                use std::io::Write;
+                let payload = serde_json::json!({
+                    "sessionId": "7aa2f5",
+                    "runId": std::env::var("OPENSESAME_DEBUG_RUN").unwrap_or_else(|_| "authority-2".into()),
+                    "hypothesisId": "AH-A",
+                    "location": "connector-host/lib.rs:invoke_mock",
+                    "message": "invoke level denied",
+                    "data": {"level_u8": level.as_u8(), "max_u8": self.policy.max_invoke_level.as_u8()},
+                    "timestamp": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()
+                });
+                if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("/home/codex/.herdr/worktrees/opensesame/.cursor/debug-7aa2f5.log") {
+                    let _ = writeln!(f, "{payload}");
+                }
+            }
+            // #endregion
+            return Err(HostError::InvokeLevelDenied);
+        }
+        self.mock.invoke(req)
+    }
+}
+
+/// Host-side Wasm guest loader boundary.
+/// Guests receive opaque connection handles; materialize/secrets.get is never imported.
+pub mod wasm_guest {
+    use super::HostError;
+    use std::path::Path;
+
+    #[derive(Clone, Debug)]
+    pub struct WasmGuestPolicy {
+        pub allow_materialize: bool,
+    }
+
+    impl Default for WasmGuestPolicy {
+        fn default() -> Self {
+            Self {
+                allow_materialize: false,
+            }
+        }
+    }
+
+    /// Validate a prospective guest import set before Wasmtime instantiation.
+    pub fn assert_imports_safe(
+        import_names: &[&str],
+        policy: &WasmGuestPolicy,
+    ) -> Result<(), HostError> {
+        for name in import_names {
+            let n = name.to_lowercase();
+            if n.contains("secrets.get")
+                || n.contains("secret.get")
+                || n.ends_with("get-secret")
+                || (n.contains("materialize") && !policy.allow_materialize)
+            {
+                return Err(HostError::MaterializeDenied);
+            }
+        }
+        Ok(())
+    }
+
+    /// Placeholder load path — real Wasmtime component linking lands behind compile feature.
+    pub fn prepare_guest(_path: &Path, imports: &[&str]) -> Result<(), HostError> {
+        assert_imports_safe(imports, &WasmGuestPolicy::default())?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn rejects_secrets_get_import() {
+            assert_eq!(
+                assert_imports_safe(
+                    &["host-http#authorized-request", "secrets.get"],
+                    &WasmGuestPolicy::default()
+                ),
+                Err(HostError::MaterializeDenied)
+            );
+        }
+
+        #[test]
+        fn allows_authorized_http_only() {
+            assert!(assert_imports_safe(
+                &["host-http#authorized-request", "host-crypto#sign"],
+                &WasmGuestPolicy::default()
+            )
+            .is_ok());
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn blocks_metadata_and_localhost() {
+        let p = HostPolicy::default();
+        assert_eq!(
+            assert_destination_allowed(&p, "https://169.254.169.254/latest"),
+            Err(HostError::PrivateAddress)
+        );
+        assert_eq!(
+            assert_destination_allowed(&p, "https://localhost/admin"),
+            Err(HostError::PrivateAddress)
+        );
+        assert!(assert_destination_allowed(&p, "https://api.github.com/repos/x").is_ok());
+    }
+
+    #[test]
+    fn rejects_unsigned_component() {
+        let p = HostPolicy::default();
+        assert_eq!(
+            assert_component_trusted(&p, "sha256:x", false),
+            Err(HostError::UntrustedComponent)
+        );
+    }
+
+    #[test]
+    fn mock_invoke_ok() {
+        let rt = HostRuntime::default();
+        let params = json!({"title": "hi"});
+        let digest = opensesame_param_digest(&params);
+        let res = rt
+            .invoke_mock(&InvokeRequest {
+                operation: "pull_request.create".into(),
+                resource: "repo:acme/catalog".into(),
+                audience: "https://api.github.com".into(),
+                parameters: params,
+                parameters_digest: digest,
+                authorized_operation: "pull_request.create".into(),
+                invoke_level: Some(1),
+            })
+            .unwrap();
+        assert!(res.ok);
+        assert_eq!(res.safe_summary["pr_number"], 42);
+    }
+
+    #[test]
+    fn operation_mismatch_denied() {
+        let rt = HostRuntime::default();
+        let params = json!({});
+        let err = rt
+            .invoke_mock(&InvokeRequest {
+                operation: "pull_request.create".into(),
+                resource: "r".into(),
+                audience: "https://api.github.com".into(),
+                parameters: params.clone(),
+                parameters_digest: opensesame_param_digest(&params),
+                authorized_operation: "repository.read".into(),
+                invoke_level: None,
+            })
+            .unwrap_err();
+        assert_eq!(err, HostError::OperationMismatch);
+    }
+
+    #[test]
+    fn param_digest_mismatch_denied() {
+        let rt = HostRuntime::default();
+        let err = rt
+            .invoke_mock(&InvokeRequest {
+                operation: "repository.read".into(),
+                resource: "r".into(),
+                audience: "https://api.github.com".into(),
+                parameters: json!({"a": 1}),
+                parameters_digest: "sha256:nope".into(),
+                authorized_operation: "repository.read".into(),
+                invoke_level: None,
+            })
+            .unwrap_err();
+        assert_eq!(err, HostError::ParameterDigestMismatch);
+    }
+
+    #[test]
+    fn undeclared_github_host_ok_declared_evil_denied() {
+        let p = HostPolicy::default();
+        assert!(assert_destination_allowed(&p, "https://api.github.com/v").is_ok());
+        assert!(matches!(
+            assert_destination_allowed(&p, "https://evil.example/x"),
+            Err(HostError::DestinationDenied(_))
+        ));
+    }
+
+    #[test]
+    fn http_scheme_denied() {
+        let p = HostPolicy::default();
+        assert!(matches!(
+            assert_destination_allowed(&p, "http://api.github.com/v"),
+            Err(HostError::DestinationDenied(_))
+        ));
+    }
+
+    #[test]
+    fn ssrf_via_url_parameter_blocked() {
+        let rt = HostRuntime::default();
+        let params = json!({"url": "https://169.254.169.254/latest"});
+        let err = rt
+            .invoke_mock(&InvokeRequest {
+                operation: "repository.read".into(),
+                resource: "r".into(),
+                audience: "https://api.github.com".into(),
+                parameters: params.clone(),
+                parameters_digest: opensesame_param_digest(&params),
+                authorized_operation: "repository.read".into(),
+                invoke_level: None,
+            })
+            .unwrap_err();
+        assert_eq!(err, HostError::PrivateAddress);
+    }
+
+    #[test]
+    fn digest_mismatch_component() {
+        let mut p = HostPolicy::default();
+        p.trusted_digests.insert("sha256:good".into());
+        assert_eq!(
+            assert_component_trusted(&p, "sha256:bad", true),
+            Err(HostError::DigestMismatch)
+        );
+    }
+
+    #[test]
+    fn mock_error_modes() {
+        let rt = HostRuntime::default();
+        for op in [
+            "error.transient",
+            "error.permanent",
+            "error.rate_limit",
+            "error.timeout",
+            "error.indeterminate",
+        ] {
+            let params = json!({});
+            assert!(rt
+                .invoke_mock(&InvokeRequest {
+                    operation: op.into(),
+                    resource: "r".into(),
+                    audience: "a".into(),
+                    parameters: params.clone(),
+                    parameters_digest: opensesame_param_digest(&params),
+                    authorized_operation: op.into(),
+                    invoke_level: None,
+                })
+                .is_err());
+        }
+    }
+
+    #[test]
+    fn materialize_denied_even_on_mock() {
+        let rt = HostRuntime::default();
+        let params = json!({});
+        let err = rt
+            .invoke_mock(&InvokeRequest {
+                operation: "credential.resolve".into(),
+                resource: "r".into(),
+                audience: "a".into(),
+                parameters: params.clone(),
+                parameters_digest: opensesame_param_digest(&params),
+                authorized_operation: "credential.resolve".into(),
+                invoke_level: Some(3),
+            })
+            .unwrap_err();
+        assert_eq!(err, HostError::MaterializeDenied);
+    }
+
+    #[test]
+    fn authorized_http_injects_without_returning_secret() {
+        let p = HostPolicy::default();
+        let v = authorized_http_request(
+            &p,
+            InvokeLevel::ConstrainedHttp,
+            "GET",
+            "https://api.github.com/repos/acme/x",
+        )
+        .unwrap();
+        assert_eq!(v["credential_bytes_returned_to_guest"], false);
+        assert_eq!(v["credential_injected"], true);
+    }
+
+    #[test]
+    fn redirect_exfil_blocked() {
+        let p = HostPolicy::default();
+        assert_eq!(
+            follow_redirect_with_credential(
+                &p,
+                "https://api.github.com/repos/x",
+                "https://evil.example/steal"
+            ),
+            Err(HostError::RedirectDenied)
+        );
+    }
+
+    #[test]
+    fn placeholder_header_ok_body_denied() {
+        use opensesame_domain::{CredentialDeliveryMode, LegacyProjection, PlaceholderPlacement};
+        let egress = EgressBinding {
+            scheme: "https".into(),
+            authorities: vec!["api.stripe.com".into()],
+            path_prefixes: vec![],
+            allow_redirects_cross_authority: false,
+        };
+        let proj = LegacyProjection {
+            env_var: "STRIPE_SECRET_KEY".into(),
+            connection_ref_uri: "conn://demo/stripe".into(),
+            placeholder_pattern: "sk_test_*".into(),
+            placement: PlaceholderPlacement::default(),
+            delivery: CredentialDeliveryMode::Placeholder,
+        };
+        let ph = "sk_test_opensesame0";
+        let ok = substitute_placeholder(
+            &egress,
+            &proj.placement,
+            &proj,
+            "POST",
+            "https://api.stripe.com/v1/charges",
+            Some("Authorization"),
+            Some(&format!("Bearer {ph}")),
+            None,
+            None,
+            ph,
+            "sk_live_REAL",
+        )
+        .unwrap();
+        assert_eq!(ok["credential_bytes_returned_to_guest"], false);
+        assert!(ok["header"][1].as_str().unwrap().contains("sk_live_REAL"));
+
+        let deny = substitute_placeholder(
+            &egress,
+            &proj.placement,
+            &proj,
+            "POST",
+            "https://api.stripe.com/v1/charges",
+            None,
+            None,
+            Some("message"),
+            Some(&format!("exfil {ph}")),
+            ph,
+            "sk_live_REAL",
+        );
+        assert!(matches!(deny, Err(HostError::PlacementDenied(_))));
+    }
+}

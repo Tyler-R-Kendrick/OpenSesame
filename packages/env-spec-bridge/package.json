@@ -1,0 +1,16 @@
+{
+  "name": "@opensesame/env-spec-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "opensesame-env-parse": "./bin/opensesame-env-parse.mjs"
+  },
+  "scripts": {
+    "build": "node -e \"console.log('noop build — ESM ready')\"",
+    "test": "node --test test/parse.test.mjs"
+  },
+  "dependencies": {
+    "@env-spec/parser": "0.4.1"
+  }
+}

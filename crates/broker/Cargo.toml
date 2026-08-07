@@ -1,0 +1,26 @@
+[package]
+name = "opensesame-broker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+opensesame-domain = { path = "../domain" }
+opensesame-authz = { path = "../authz" }
+opensesame-audit = { path = "../audit" }
+opensesame-storage = { path = "../storage" }
+opensesame-connector-host = { path = "../connector-host" }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }

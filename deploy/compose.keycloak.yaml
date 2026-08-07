@@ -1,0 +1,9 @@
+# Optional Keycloak-only convenience file.
+# Full stack: deploy/compose/docker-compose.yml (already includes Keycloak).
+#
+# Example:
+#   docker compose -f deploy/compose/docker-compose.yml up postgres keycloak
+#
+# OpenSesame identity plane then configures a generic OIDC upstream pointing at:
+#   http://localhost:8080/realms/opensesame
+services: {}

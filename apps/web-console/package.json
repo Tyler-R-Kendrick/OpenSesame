@@ -1,0 +1,9 @@
+{
+  "name": "@opensesame/web-console",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo \"wire Next.js console against gateway OIDC\"",
+    "build": "echo ok"
+  }
+}
