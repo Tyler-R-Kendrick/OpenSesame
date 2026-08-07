@@ -18,7 +18,7 @@
     "generate:openapi": "tsx src/generate-openapi.ts"
   },
   "dependencies": {
-    "@hono/node-server": "1.14.4",
+    "@hono/node-server": "2.0.10",
     "@opensesame/audit": "workspace:*",
     "@opensesame/auth-upstream": "workspace:*",
     "@opensesame/claims": "workspace:*",
@@ -29,14 +29,14 @@
     "@opensesame/observability": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/policy": "workspace:*",
-    "hono": "4.8.3",
+    "hono": "4.12.34",
     "zod": "3.25.67"
   },
   "devDependencies": {
     "@types/node": "22.15.29",
     "tsx": "4.19.4",
     "typescript": "5.8.3",
-    "vitest": "3.2.4"
+    "vitest": "3.2.6"
   },
   "engines": {
     "node": ">=22"
