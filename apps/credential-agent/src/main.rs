@@ -90,7 +90,13 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/introspect_capability", post(introspect_capability))
         .route("/v1/revoke", post(revoke))
         .with_state(state);
-    tracing::info!(%args.listen, "credential-agent listening (session capabilities; no dump_refresh_token)");
+    let listen = args.listen.to_string();
+    // Same bind fence as opensesame-daemon (legacy binary still ships for compat).
+    opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
+    tracing::info!(
+        %listen,
+        "credential-agent listening (deprecated; prefer opensesame-daemon)"
+    );
     let listener = tokio::net::TcpListener::bind(args.listen).await?;
     axum::serve(listener, app).await?;
     Ok(())

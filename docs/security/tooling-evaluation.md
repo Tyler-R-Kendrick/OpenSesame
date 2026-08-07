@@ -52,6 +52,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0f. **Pages PWA (#25)** — removed `localStorage` for settings/outbox; OPFS + session-only operator token — see `audit-2026-08-07-pages-localstorage.md`.
 0g. **sdk-browser storage** — default `sessionStorage` (not `localStorage`); strip refresh tokens from persisted session — see `audit-2026-08-07-sdk-browser-storage.md`.
 0h. **WebAuthn registration** — production passkey enroll requires attestation ceremony + challenge — see `audit-2026-08-07-webauthn-registration.md`.
+0i. **credential-agent bind** — legacy agent gets same loopback TCP fence as daemon — see `audit-2026-08-07-credential-agent-bind.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
@@ -66,7 +67,8 @@ Re-run checklist: `pnpm run audit:cve-lite`, `pnpm run audit:osv`, `pnpm run aud
 
 - Wire Better Auth passkey plugin UI end-to-end against `/v1/mfa/passkey/registration-options` (server ceremony is in place).
 
-## Bind policy (daemon)
+## Bind policy (daemon / credential-agent)
 
 - Default TCP is loopback-only; non-loopback requires `OPENSESAME_DAEMON_ALLOW_NONLOCAL=1`.
 - Locked-down hosts: `OPENSESAME_DAEMON_UDS_ONLY=1` + `OPENSESAME_AGENT_SOCK` (no TCP).
+- Legacy `opensesame-credential-agent` uses the same loopback fence.

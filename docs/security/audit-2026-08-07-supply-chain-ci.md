@@ -16,11 +16,12 @@ Branch: `chore/audit-supply-chain`
 
 | Severity | Finding | Fix |
 |----------|---------|-----|
-| Process | CI ran clippy only; local `pnpm audit:*` gates were not enforced on PRs | New `security` job in `.github/workflows/ci.yml` runs gitleaks, ast-grep, semgrep, osv, cargo-audit, cargo-deny |
+| Process | CI ran clippy only; local `pnpm audit:*` gates were not enforced on PRs | Added `security` job in `.github/workflows/ci.yml` (later removed with Actions in #26 — run gates locally via checklist) |
 
 ## Residual
 
-- `cve-lite` not wired in CI (private CLI). Keep on the local re-run checklist.
+- Prefer restoring a CI `security` job if/when Actions return; until then `pnpm audit:*` + `cargo deny check` are local-only.
+- `cve-lite` not on npm (private CLI). Keep on the local re-run checklist.
 - cargo-deny duplicate `windows_*` crate noise — non-blocking.
 
 ## Gate
