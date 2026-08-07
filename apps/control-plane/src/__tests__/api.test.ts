@@ -256,6 +256,28 @@ describe("control-plane API", () => {
     expect(body.toLowerCase()).not.toContain("x-opensesame-operator");
   });
 
+  it("rejects provisional create when session capacity is exhausted", async () => {
+    const { app, ctx } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+    const far = new Date(Date.now() + 86_400_000);
+    for (let i = 0; i < 1024; i++) {
+      const id = `ps_cap_${i}`;
+      ctx.stores.provisionalSessions.set(id, {
+        id,
+        principalId: `prn_cap_${i}`,
+        createdAt: new Date(),
+        expiresAt: far,
+        quotaProfile: "anonymous",
+        allowedActions: [],
+      });
+    }
+    const res = await app.request("/v1/principals/provisional", { method: "POST" });
+    expect(res.status).toBe(429);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe("provisional_capacity");
+  });
+
   it("HTTP mount does not steal /auth.md from oidc /auth prefix", async () => {
     const { startServer } = await import("../server.js");
     const { server, port } = await startServer({

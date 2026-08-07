@@ -293,13 +293,14 @@ claimRoutes.get("/:id/poll", async (c) => {
   const session = await ctx.claims.get(c.req.param("id"));
   if (!session) return c.json({ error: "not_found" }, 404);
 
-  // Device-auth style poll projection for claim waiting clients
+  // Device-auth style poll projection for claim waiting clients.
+  // Digests stay off the wire; placeholders satisfy the poll interval state machine only.
   const interval = initialPollInterval(5);
   const deviceLike = {
     id: session.id,
     clientId: "claim-poll",
-    deviceCodeDigest: session.tokenDigest,
-    userCodeDigest: session.userCodeDigest ?? session.tokenDigest,
+    deviceCodeDigest: new Uint8Array(32),
+    userCodeDigest: new Uint8Array(32),
     requestedScopes: ["openid"],
     requestedResources: [],
     state:

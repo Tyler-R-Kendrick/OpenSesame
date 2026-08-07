@@ -488,9 +488,10 @@ async fn device_token(
     let session_id = format!("sess_{}", uuid::Uuid::new_v4());
     let handle = format!("handle_{}", uuid::Uuid::new_v4());
     let boot = st.bootstrap.lock().unwrap().clone();
+    // Bind session to the *approved* principal — never the bootstrap demo id alone.
     let meta = json!({
         "session_id": session_id,
-        "principal_id": boot.principal.to_string(),
+        "principal_id": principal.clone(),
         "actor_id": boot.actor.to_string(),
         "issuer": st.issuer,
         "assurance": "mfa",
@@ -500,10 +501,25 @@ async fn device_token(
         "approved_as": principal,
         "expires_at": (Utc::now() + Duration::hours(8)).to_rfc3339()
     });
-    st.sessions
-        .lock()
-        .unwrap()
-        .insert(session_id.clone(), meta.clone());
+    {
+        let mut sessions = st.sessions.lock().unwrap();
+        let now = Utc::now();
+        sessions.retain(|_, m| {
+            m.get("expires_at")
+                .and_then(|v| v.as_str())
+                .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+                .map(|dt| now < dt.with_timezone(&Utc))
+                .unwrap_or(false)
+        });
+        if sessions.len() >= 1024 {
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(json!({"error":"session_capacity"})),
+            )
+                .into_response();
+        }
+        sessions.insert(session_id.clone(), meta.clone());
+    }
     map.remove(&req.device_code);
     // Never return refresh token bytes — opaque handle only
     (
@@ -562,12 +578,13 @@ async fn whoami(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
 ) -> Response {
-    if let Err(resp) = require_session_or_operator(&st, &headers) {
-        return resp;
-    }
+    let subject = match resolve_caller_subject(&st, &headers) {
+        Ok(s) => s,
+        Err(resp) => return resp,
+    };
     let boot = st.bootstrap.lock().unwrap().clone();
     Json(json!({
-        "principal_id": boot.principal.to_string(),
+        "principal_id": subject,
         "actor_id": boot.actor.to_string(),
         "client_id": "cli:opensesame",
         "issuer": st.issuer,
@@ -600,9 +617,10 @@ async fn create_intent_invoke(
     headers: axum::http::HeaderMap,
     Json(body): Json<InvokeBody>,
 ) -> Response {
-    if let Err(resp) = require_session_or_operator(&st, &headers) {
-        return resp;
-    }
+    let subject = match resolve_caller_subject(&st, &headers) {
+        Ok(s) => s,
+        Err(resp) => return resp,
+    };
     let boot = st.bootstrap.lock().unwrap().clone();
     let parameters = body.parameters.unwrap_or_else(|| json!({}));
     let _requested_ref = body
@@ -624,11 +642,11 @@ async fn create_intent_invoke(
             .into_response();
     }
 
-    // Optional live OpenFGA check when configured
+    // Optional live OpenFGA check when configured — subject from session/operator, not a hard-coded demo user.
     if let Some(fga) = &st.openfga {
         match fga
             .check_tuple(&TupleKey {
-                user: "user:demo".into(),
+                user: subject.clone(),
                 relation: "user".into(),
                 object: "connection:demo-conn".into(),
             })
@@ -712,7 +730,7 @@ async fn create_intent_invoke(
         .invoke(InvokeInput {
             intent,
             grant: boot.grant.clone(),
-            subject: "user:demo".into(),
+            subject,
             connection_policy_id: "demo-conn".into(),
             parameters,
         })
@@ -976,9 +994,11 @@ struct SyncPullBody {
     device_id: Option<String>,
 }
 
-/// Store opaque ciphertext only — never attempt decryption.
 /// Requires an active opaque session token (`Authorization: Bearer opaque-session:…`).
-fn require_session(st: &AppState, headers: &axum::http::HeaderMap) -> Result<String, Response> {
+fn require_session(
+    st: &AppState,
+    headers: &axum::http::HeaderMap,
+) -> Result<(String, Value), Response> {
     let auth = headers
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
@@ -1022,7 +1042,16 @@ fn require_session(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Str
         )
             .into_response());
     }
-    Ok(session_id.to_string())
+    Ok((session_id.to_string(), meta))
+}
+
+fn session_subject(meta: &Value) -> String {
+    meta.get("approved_as")
+        .or_else(|| meta.get("principal_id"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("user:demo")
+        .to_string()
 }
 
 /// Human/operator mutations: `X-OpenSesame-Operator` or `Authorization: Bearer operator:<token>`.
@@ -1070,19 +1099,32 @@ fn require_session_or_operator(
     require_operator(st, headers)
 }
 
+/// Session subject when present; operator falls back to seeded `user:demo` (policy bootstrap).
+fn resolve_caller_subject(
+    st: &AppState,
+    headers: &axum::http::HeaderMap,
+) -> Result<String, Response> {
+    if let Ok((_, meta)) = require_session(st, headers) {
+        return Ok(session_subject(&meta));
+    }
+    require_operator(st, headers)?;
+    Ok("user:demo".into())
+}
+
 async fn sync_push(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
     Json(body): Json<SyncPushBody>,
 ) -> Response {
     let session_id = match require_session(&st, &headers) {
-        Ok(id) => id,
+        Ok((id, _)) => id,
         Err(resp) => return resp,
     };
-    let mut store = st.sync_blobs.lock().unwrap();
+    const mut store = st.sync_blobs.lock().unwrap();
     let mut owners = st.blob_owners.lock().unwrap();
     let mut accepted = 0u32;
     let mut rejected_foreign = 0u32;
+    const MAX_SYNC_BLOBS: usize = 4096;
     for blob in body.blobs {
         if let Some(owner) = owners.get(&blob.id) {
             if owner != &session_id {
@@ -1093,6 +1135,10 @@ async fn sync_push(
         match store.get(&blob.id) {
             Some(existing) if existing.epoch > blob.epoch => {}
             _ => {
+                let is_new = !store.contains_key(&blob.id);
+                if is_new && store.len() >= MAX_SYNC_BLOBS {
+                    continue;
+                }
                 owners.insert(blob.id.clone(), session_id.clone());
                 store.insert(blob.id.clone(), blob);
                 accepted += 1;
@@ -1104,7 +1150,8 @@ async fn sync_push(
         Json(json!({
             "accepted": accepted,
             "rejected_foreign_owner": rejected_foreign,
-            "store_size": store.len()
+            "store_size": store.len(),
+            "capacity": MAX_SYNC_BLOBS
         })),
     )
         .into_response()
@@ -1116,7 +1163,7 @@ async fn sync_pull(
     Json(body): Json<SyncPullBody>,
 ) -> Response {
     let session_id = match require_session(&st, &headers) {
-        Ok(id) => id,
+        Ok((id, _)) => id,
         Err(resp) => return resp,
     };
     let since = body.since_epoch;
