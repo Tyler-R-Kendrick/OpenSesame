@@ -14,20 +14,69 @@ pub mod wit_contract {
     pub const PACKAGE: &str = "opensesame:host@1.0.0";
 }
 
-/// Daemon listen defaults (HTTP loopback).
+/// Daemon listen defaults (HTTP loopback) and bind policy helpers.
 pub mod daemon {
     pub const DEFAULT_LISTEN: &str = "127.0.0.1:18790";
     pub const ENV_LISTEN: &str = "OPENSESAME_AGENT_LISTEN";
     pub const ENV_LISTEN_ALIAS: &str = "OPENSESAME_DAEMON_LISTEN";
+    /// When `1`, skip TCP and serve Unix socket only (`OPENSESAME_AGENT_SOCK` required).
+    pub const ENV_UDS_ONLY: &str = "OPENSESAME_DAEMON_UDS_ONLY";
+    /// When `1`, allow non-loopback TCP binds (explicit operator override).
+    pub const ENV_ALLOW_NONLOCAL: &str = "OPENSESAME_DAEMON_ALLOW_NONLOCAL";
+
+    /// True when `host` of `host:port` (or bare host) is loopback.
+    pub fn listen_host_is_loopback(listen: &str) -> bool {
+        let host = match listen.rsplit_once(':') {
+            Some((h, port)) if !port.is_empty() && port.chars().all(|c| c.is_ascii_digit()) => {
+                h.trim_start_matches('[').trim_end_matches(']')
+            }
+            _ => listen.trim_start_matches('[').trim_end_matches(']'),
+        };
+        matches!(host, "127.0.0.1" | "localhost" | "::1" | "0:0:0:0:0:0:0:1")
+    }
+
+    /// Refuse non-loopback TCP unless `OPENSESAME_DAEMON_ALLOW_NONLOCAL=1`.
+    pub fn assert_tcp_listen_allowed(listen: &str) -> Result<(), String> {
+        let allow = std::env::var(ENV_ALLOW_NONLOCAL).ok().as_deref() == Some("1");
+        if allow || listen_host_is_loopback(listen) {
+            return Ok(());
+        }
+        Err(format!(
+            "daemon TCP listen `{listen}` is not loopback; set {ENV_ALLOW_NONLOCAL}=1 to override"
+        ))
+    }
+
+    pub fn uds_only_requested() -> bool {
+        std::env::var(ENV_UDS_ONLY).ok().as_deref() == Some("1")
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
+    use super::daemon::{assert_tcp_listen_allowed, listen_host_is_loopback, ENV_ALLOW_NONLOCAL};
+
     #[test]
     fn wit_package_pinned() {
         assert!(super::wit_contract::PACKAGE.contains("host"));
+    }
+
+    #[test]
+    fn loopback_listen_hosts() {
+        assert!(listen_host_is_loopback("127.0.0.1:18790"));
+        assert!(listen_host_is_loopback("localhost:18790"));
+        assert!(listen_host_is_loopback("[::1]:18790"));
+        assert!(!listen_host_is_loopback("0.0.0.0:18790"));
+        assert!(!listen_host_is_loopback("192.168.1.10:18790"));
+    }
+
+    #[test]
+    fn nonlocal_tcp_denied_without_override() {
+        // Ensure override unset for this process check.
+        std::env::remove_var(ENV_ALLOW_NONLOCAL);
+        assert!(assert_tcp_listen_allowed("127.0.0.1:18790").is_ok());
+        assert!(assert_tcp_listen_allowed("0.0.0.0:18790").is_err());
     }
 
     fn repo_root() -> PathBuf {

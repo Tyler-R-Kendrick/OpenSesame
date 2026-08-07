@@ -215,12 +215,44 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/operator/invoke_l1", post(operator_invoke_l1))
         .with_state(state);
 
+    let uds_only = opensesame_host_core::daemon::uds_only_requested();
     tracing::info!(
         %listen,
         sock = ?sock,
+        uds_only,
         wit = opensesame_host_core::wit_contract::PACKAGE,
-        "daemon listening"
+        "daemon starting"
     );
+
+    #[cfg(unix)]
+    if uds_only {
+        let sock_path = sock.ok_or_else(|| {
+            anyhow::anyhow!(
+                "{}=1 requires {}",
+                opensesame_host_core::daemon::ENV_UDS_ONLY,
+                "OPENSESAME_AGENT_SOCK"
+            )
+        })?;
+        let _ = std::fs::remove_file(&sock_path);
+        if let Some(parent) = std::path::Path::new(&sock_path).parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let uds = tokio::net::UnixListener::bind(&sock_path)?;
+        tracing::info!(%sock_path, "daemon UDS-only listening (TCP disabled)");
+        axum::serve(uds, app).await?;
+        return Ok(());
+    }
+
+    #[cfg(not(unix))]
+    if uds_only {
+        anyhow::bail!(
+            "{}=1 is not supported on non-unix platforms",
+            opensesame_host_core::daemon::ENV_UDS_ONLY
+        );
+    }
+
+    opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen)
+        .map_err(anyhow::Error::msg)?;
 
     let app_clone = app.clone();
     let tcp = tokio::net::TcpListener::bind(&listen).await?;
@@ -245,6 +277,7 @@ async fn main() -> anyhow::Result<()> {
         tracing::warn!("OPENSESAME_AGENT_SOCK ignored on non-unix platforms");
     }
 
+    tracing::info!(%listen, "daemon TCP listening");
     axum::serve(tcp, app).await?;
     Ok(())
 }
