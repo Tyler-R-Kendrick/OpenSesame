@@ -673,12 +673,15 @@ async fn create_intent_invoke(
     // Prove OpenBao path never materializes bearer to agent
     if let Some(bao) = &st.openbao {
         if let Ok(h) = bao.create_handle("github/acme").await {
-            let _ = bao
+            if let Err(e) = bao
                 .use_credential(
                     &h,
                     opensesame_provider_openbao::CredentialOperation::BearerHttpPlaceholder,
                 )
-                .await;
+                .await
+            {
+                tracing::warn!(error = %e, "openbao use_credential failed (non-fatal for invoke)");
+            }
         }
     }
 
@@ -1120,7 +1123,7 @@ async fn sync_push(
         Ok((id, _)) => id,
         Err(resp) => return resp,
     };
-    const mut store = st.sync_blobs.lock().unwrap();
+    let mut store = st.sync_blobs.lock().unwrap();
     let mut owners = st.blob_owners.lock().unwrap();
     let mut accepted = 0u32;
     let mut rejected_foreign = 0u32;

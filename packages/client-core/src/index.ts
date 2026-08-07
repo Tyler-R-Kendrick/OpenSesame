@@ -53,7 +53,10 @@ export function sealDevOnly(plaintext: Uint8Array, key: Uint8Array): Uint8Array 
   return out;
 }
 
-/** OPFS / localStorage persistence of sealed sync JSON (ciphertext only). */
+/** In-memory fallback when OPFS is unavailable — never localStorage (XSS-exfiltrable). */
+const memorySealed = new Map<string, string>();
+
+/** OPFS / memory persistence of sealed sync JSON (ciphertext only). */
 export async function persistSealedStore(
   name: string,
   sealedJson: string,
@@ -75,9 +78,7 @@ export async function persistSealedStore(
   } catch {
     /* fall through */
   }
-  if (typeof localStorage !== "undefined") {
-    localStorage.setItem(`opensesame.sync.${name}`, sealedJson);
-  }
+  memorySealed.set(name, sealedJson);
 }
 
 export async function loadSealedStore(name: string): Promise<string | null> {
@@ -91,10 +92,7 @@ export async function loadSealedStore(name: string): Promise<string | null> {
   } catch {
     /* fall through */
   }
-  if (typeof localStorage !== "undefined") {
-    return localStorage.getItem(`opensesame.sync.${name}`);
-  }
-  return null;
+  return memorySealed.get(name) ?? null;
 }
 
 /** Smoke helper: verifies sealed persist helpers reject plaintext markers. */
