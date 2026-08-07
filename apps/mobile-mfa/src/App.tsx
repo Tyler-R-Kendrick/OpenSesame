@@ -125,10 +125,15 @@ export function App() {
   }
 
   async function verifyTotp() {
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+    };
+    if (accessToken) headers.authorization = `Bearer ${accessToken}`;
+    else headers.authorization = `Bearer ${principalId}`;
     const res = await fetch(`${base}/v1/mfa/totp/verify`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ principalId, code: totpCode }),
+      headers,
+      body: JSON.stringify({ code: totpCode }),
     });
     const body = await res.json().catch(() => ({}));
     setStatus(res.ok && body.ok ? "TOTP verified" : `TOTP failed: ${JSON.stringify(body)}`);
@@ -136,9 +141,14 @@ export function App() {
 
   async function approveDevice() {
     try {
+      const op =
+        import.meta.env.VITE_OPENSESAME_OPERATOR_TOKEN ?? "opensesame-dev-operator";
       const res = await fetch(`${hostApi.replace(/\/$/, "")}/api/v1/device/approve`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "x-opensesame-operator": op,
+        },
         body: JSON.stringify({ user_code: userCode, principal: principalId }),
       });
       setStatus(

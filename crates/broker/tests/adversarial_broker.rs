@@ -143,14 +143,12 @@ async fn idempotency_must_not_duplicate_side_effects() {
         .count_invocations_for_intent(&intent1.id)
         .await
         .unwrap();
-    // #region agent log — assertions encode hypothesis A
     assert_eq!(
         r1.id, r2.id,
-        "idempotent retry must return same receipt id (hypothesis A)"
+        "idempotent retry must return same receipt id"
     );
     assert_eq!(receipts, 1, "must not create a second receipt");
     assert_eq!(inv_count, 1, "must not create a second invocation for first intent");
-    // #endregion
 }
 
 #[tokio::test]

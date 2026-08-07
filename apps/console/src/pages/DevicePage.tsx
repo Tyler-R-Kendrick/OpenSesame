@@ -1,9 +1,12 @@
 import { useState } from "react";
 
-const api =
+const hostApi =
+  import.meta.env.VITE_OPENSESAME_HOST_API ??
   import.meta.env.VITE_OPENSESAME_API_URL ??
-  import.meta.env.VITE_OPENSESAME_ISSUER ??
-  "http://127.0.0.1:8788";
+  "http://127.0.0.1:8787";
+
+const operatorToken =
+  import.meta.env.VITE_OPENSESAME_OPERATOR_TOKEN ?? "opensesame-dev-operator";
 
 /**
  * Device authorization approval — distinct from claim ownership.
@@ -17,11 +20,13 @@ export function DevicePage() {
   async function approve() {
     setError(null);
     try {
-      const res = await fetch(`${api}/api/v1/device/approve`, {
+      const res = await fetch(`${hostApi.replace(/\/$/, "")}/api/v1/device/approve`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "x-opensesame-operator": operatorToken,
+        },
         body: JSON.stringify({ user_code: userCode.trim() }),
-        credentials: "include",
       });
       if (!res.ok) {
         throw new Error(`Approval failed (${res.status})`);

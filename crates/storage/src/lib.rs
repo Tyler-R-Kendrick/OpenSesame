@@ -160,28 +160,6 @@ impl Db {
             .bind(&bare)
             .fetch_optional(&self.pool)
             .await?;
-        // #region agent log
-        {
-            use std::io::Write;
-            let found = row.is_some();
-            let payload = serde_json::json!({
-                "sessionId": "7aa2f5",
-                "runId": std::env::var("OPENSESAME_DEBUG_RUN").unwrap_or_else(|_| "battle-1".into()),
-                "hypothesisId": "D",
-                "location": "storage.rs:get_receipt",
-                "message": "receipt lookup",
-                "data": {"keyed": keyed, "bare": bare, "found": found},
-                "timestamp": chrono::Utc::now().timestamp_millis(),
-            });
-            if let Ok(mut f) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("/home/codex/.herdr/worktrees/opensesame/.cursor/debug-7aa2f5.log")
-            {
-                let _ = writeln!(f, "{payload}");
-            }
-        }
-        // #endregion
         Ok(match row {
             Some(r) => {
                 let body: String = r.get("body_json");

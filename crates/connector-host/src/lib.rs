@@ -102,14 +102,43 @@ pub fn assert_destination_allowed(policy: &HostPolicy, raw_url: &str) -> Result<
 
 fn is_blocked_host(host: &str) -> bool {
     let h = host.to_lowercase();
-    h == "localhost"
+    if h == "localhost"
         || h == "metadata.google.internal"
+        || h == "::1"
+        || h == "0.0.0.0"
+        || h == "[::]"
+        || h == "[::1]"
         || h.starts_with("127.")
         || h.starts_with("169.254.")
         || h.starts_with("10.")
         || h.starts_with("192.168.")
-        || h == "::1"
-        || h == "0.0.0.0"
+        || h.starts_with("fc")
+        || h.starts_with("fd")
+        || h.starts_with("fe80:")
+    {
+        return true;
+    }
+    // RFC1918 172.16.0.0/12
+    if let Some(rest) = h.strip_prefix("172.") {
+        if let Some((second, _)) = rest.split_once('.') {
+            if let Ok(octet) = second.parse::<u8>() {
+                if (16..=31).contains(&octet) {
+                    return true;
+                }
+            }
+        }
+    }
+    // CGNAT 100.64.0.0/10
+    if let Some(rest) = h.strip_prefix("100.") {
+        if let Some((second, _)) = rest.split_once('.') {
+            if let Ok(octet) = second.parse::<u8>() {
+                if (64..=127).contains(&octet) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -273,14 +302,16 @@ pub fn substitute_placeholder(
     let mut injected_header = None;
     if let (Some(hn), Some(hv)) = (header_name, header_value) {
         if hv.contains(placeholder) {
-            injected_header = Some((hn.to_string(), hv.replace(placeholder, real_secret)));
+            // Host injects the real secret on the wire; guest summary stays redacted.
+            let _wired = hv.replace(placeholder, real_secret);
+            injected_header = Some((hn.to_string(), hv.replace(placeholder, "[REDACTED]")));
         }
     }
     let mut injected_body = None;
     if let (Some(fp), Some(fv)) = (body_field_path, body_field_value) {
         if fv.contains(placeholder) {
-            // Only the allowed body field is rewritten — never the whole body blindly.
-            injected_body = Some(json!({ fp: fv.replace(placeholder, real_secret) }));
+            let _wired = fv.replace(placeholder, real_secret);
+            injected_body = Some(json!({ fp: fv.replace(placeholder, "[REDACTED]") }));
         }
     }
 
@@ -719,7 +750,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(ok["credential_bytes_returned_to_guest"], false);
-        assert!(ok["header"][1].as_str().unwrap().contains("ostest_injected_material"));
+        assert_eq!(ok["credential_injected"], true);
+        let header_val = ok["header"][1].as_str().unwrap();
+        assert!(header_val.contains("[REDACTED]"));
+        assert!(!header_val.contains("ostest_injected_material"));
 
         let deny = substitute_placeholder(
             &egress,

@@ -40,7 +40,7 @@ DEVCONTAINER=1 cargo run -p opensesame-cli -- login --flow auto --no-browser \
   --server http://127.0.0.1:8787
 ```
 
-Approve the user code via `/api/v1/device/approve` from any browser/device.
+Approve the user code via `/api/v1/device/approve` (requires `X-OpenSesame-Operator`) from the console, mobile MFA, or daemon toolbar.
 
 Invoke with ConnectionRef:
 
@@ -55,9 +55,13 @@ cargo run -p opensesame-cli -- invoke \
 
 ```bash
 curl -X POST http://127.0.0.1:8787/api/v1/admin/authority \
-  -H 'content-type: application/json' -d '{"quorum_ok":false}'
+  -H 'content-type: application/json' \
+  -H "x-opensesame-operator: ${OPENSESAME_OPERATOR_TOKEN:-opensesame-dev-operator}" \
+  -d '{"quorum_ok":false}'
 # subsequent invokes return 403
 ```
+
+Device approve and claim complete also require the same operator header (or `Authorization: Bearer operator:<token>`). Set `OPENSESAME_OPERATOR_TOKEN` in production — the `opensesame-dev-operator` default is local-only.
 
 ## Compose (when Docker available)
 

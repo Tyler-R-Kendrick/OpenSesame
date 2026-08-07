@@ -1,8 +1,11 @@
 //! OpenSesame host daemon — local session capabilities for WSL/devcontainers/toolbar/PWA.
 //! Evolved from credential-agent. Never dumps refresh tokens or WebAuthn material.
 //! Listens on TCP (`OPENSESAME_DAEMON_LISTEN`) and optionally Unix socket (`OPENSESAME_AGENT_SOCK`).
+//! Mutating routes require `OPENSESAME_OPERATOR_TOKEN` (`X-OpenSesame-Operator`).
 use axum::{
     extract::State,
+    http::{header, HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
@@ -16,6 +19,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 use uuid::Uuid;
+
+const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
 
 #[derive(Parser)]
 #[command(name = "opensesame-daemon", about = "OpenSesame host daemon")]
@@ -44,6 +49,7 @@ struct App {
     host_api: String,
     identity_api: String,
     http: reqwest::Client,
+    operator_token: String,
 }
 
 #[derive(Clone, Debug)]
@@ -81,6 +87,62 @@ struct ApproveClaimReq {
     claim_id: String,
     #[serde(default)]
     access_token: Option<String>,
+    #[serde(default)]
+    claim_token: Option<String>,
+}
+
+fn resolve_operator_token() -> String {
+    match env::var("OPENSESAME_OPERATOR_TOKEN") {
+        Ok(t) if !t.is_empty() => t,
+        _ => {
+            let prod = env::var("OPENSESAME_ENV").ok().as_deref() == Some("production")
+                || env::var("NODE_ENV").ok().as_deref() == Some("production");
+            if prod {
+                tracing::error!(
+                    "OPENSESAME_OPERATOR_TOKEN unset in production — mutating routes will deny"
+                );
+                String::new()
+            } else {
+                tracing::warn!(
+                    "OPENSESAME_OPERATOR_TOKEN unset; using {DEV_OPERATOR_TOKEN} (dev only)"
+                );
+                DEV_OPERATOR_TOKEN.into()
+            }
+        }
+    }
+}
+
+fn require_operator(st: &App, headers: &HeaderMap) -> Result<(), Response> {
+    if st.operator_token.is_empty() {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"operator_token_unconfigured"})),
+        )
+            .into_response());
+    }
+    let from_header = headers
+        .get("x-opensesame-operator")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string);
+    let from_bearer = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|a| {
+            a.strip_prefix("Bearer operator:")
+                .or_else(|| a.strip_prefix("bearer operator:"))
+                .map(str::to_string)
+        });
+    match from_header.or(from_bearer) {
+        Some(t) if t == st.operator_token => Ok(()),
+        _ => Err((
+            StatusCode::UNAUTHORIZED,
+            Json(json!({
+                "error":"operator_unauthorized",
+                "hint":"X-OpenSesame-Operator or Bearer operator:<token> required"
+            })),
+        )
+            .into_response()),
+    }
 }
 
 #[tokio::main]
@@ -109,6 +171,7 @@ async fn main() -> anyhow::Result<()> {
         host_api: args.host_api.trim_end_matches('/').to_string(),
         identity_api: args.identity_api.trim_end_matches('/').to_string(),
         http: reqwest::Client::new(),
+        operator_token: resolve_operator_token(),
     };
     let app = Router::new()
         .route(
@@ -174,15 +237,24 @@ async fn toolbar_status(State(st): State<App>) -> Json<Value> {
         "sessions": sessions,
         "capabilities": caps,
         "materialize": "denied_by_default",
-        "approvals": ["approve_device", "approve_claim"]
+        "approvals": ["approve_device", "approve_claim"],
+        "auth": "operator_token_required_for_mutations"
     }))
 }
 
-async fn approve_device(State(st): State<App>, Json(req): Json<ApproveDeviceReq>) -> Json<Value> {
+async fn approve_device(
+    State(st): State<App>,
+    headers: HeaderMap,
+    Json(req): Json<ApproveDeviceReq>,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     let url = format!("{}/api/v1/device/approve", st.host_api);
     match st
         .http
         .post(&url)
+        .header("x-opensesame-operator", &st.operator_token)
         .json(&json!({
             "user_code": req.user_code,
             "principal": req.principal.unwrap_or_else(|| "user:demo".into()),
@@ -193,14 +265,46 @@ async fn approve_device(State(st): State<App>, Json(req): Json<ApproveDeviceReq>
         Ok(resp) => {
             let status = resp.status().as_u16();
             let body = resp.json::<Value>().await.unwrap_or(json!({}));
-            Json(json!({"forwarded_to": url, "status": status, "body": body}))
+            Json(json!({"forwarded_to": url, "status": status, "body": body})).into_response()
         }
-        Err(e) => Json(json!({"error": e.to_string(), "hint": "is Host API up on OPENSESAME_SERVER?"})),
+        Err(e) => Json(json!({
+            "error": e.to_string(),
+            "hint": "is Host API up on OPENSESAME_SERVER?"
+        }))
+        .into_response(),
     }
 }
 
-async fn approve_claim(State(st): State<App>, Json(req): Json<ApproveClaimReq>) -> Json<Value> {
-    // Identity claim complete — best-effort POST; surfaces path for toolbar.
+async fn approve_claim(
+    State(st): State<App>,
+    headers: HeaderMap,
+    Json(req): Json<ApproveClaimReq>,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
+    // Prefer Host API agent-claim complete (operator + claim_token). Fallback: Identity API.
+    if let Some(claim_token) = req.claim_token {
+        let url = format!(
+            "{}/api/v1/agent-claims/{}/complete",
+            st.host_api, req.claim_id
+        );
+        return match st
+            .http
+            .post(&url)
+            .header("x-opensesame-operator", &st.operator_token)
+            .json(&json!({"claim_token": claim_token}))
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                let status = resp.status().as_u16();
+                let body = resp.text().await.unwrap_or_default();
+                Json(json!({"forwarded_to": url, "status": status, "body": body})).into_response()
+            }
+            Err(e) => Json(json!({"error": e.to_string()})).into_response(),
+        };
+    }
     let url = format!("{}/v1/claims/{}/complete", st.identity_api, req.claim_id);
     let mut builder = st.http.post(&url).json(&json!({}));
     if let Some(tok) = req.access_token {
@@ -210,29 +314,44 @@ async fn approve_claim(State(st): State<App>, Json(req): Json<ApproveClaimReq>) 
         Ok(resp) => {
             let status = resp.status().as_u16();
             let body = resp.text().await.unwrap_or_default();
-            Json(json!({"forwarded_to": url, "status": status, "body": body}))
+            Json(json!({"forwarded_to": url, "status": status, "body": body})).into_response()
         }
         Err(e) => Json(json!({
             "error": e.to_string(),
-            "hint": "claim complete requires authenticated Identity API session"
-        })),
+            "hint": "claim complete requires authenticated Identity API session or claim_token"
+        }))
+        .into_response(),
     }
 }
 
 /// Policy-gated operator L1 invoke via Host API (never materialize).
-async fn operator_invoke_l1(State(st): State<App>, Json(body): Json<Value>) -> Json<Value> {
+async fn operator_invoke_l1(
+    State(st): State<App>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     let level = body.get("invoke_level").and_then(|v| v.as_u64()).unwrap_or(1);
     if level >= 3 {
-        return Json(json!({"error":"materialize_denied","invoke_level": level}));
+        return Json(json!({"error":"materialize_denied","invoke_level": level})).into_response();
     }
     let url = format!("{}/api/v1/intents", st.host_api);
-    match st.http.post(&url).json(&body).send().await {
+    match st
+        .http
+        .post(&url)
+        .header("x-opensesame-operator", &st.operator_token)
+        .json(&body)
+        .send()
+        .await
+    {
         Ok(resp) => {
             let status = resp.status().as_u16();
             let body = resp.json::<Value>().await.unwrap_or(json!({}));
-            Json(json!({"status": status, "body": body, "materialize": false}))
+            Json(json!({"status": status, "body": body, "materialize": false})).into_response()
         }
-        Err(e) => Json(json!({"error": e.to_string()})),
+        Err(e) => Json(json!({"error": e.to_string()})).into_response(),
     }
 }
 
@@ -254,10 +373,17 @@ async fn get_access_token(Json(_v): Json<Value>) -> Json<Value> {
     }))
 }
 
-async fn mint_capability(State(st): State<App>, Json(req): Json<MintCapReq>) -> Json<Value> {
+async fn mint_capability(
+    State(st): State<App>,
+    headers: HeaderMap,
+    Json(req): Json<MintCapReq>,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     let sessions = st.sessions.lock().unwrap();
     let Some(session) = sessions.values().next() else {
-        return Json(json!({"error":"no_session","hint":"use opensesame login on host"}));
+        return Json(json!({"error":"no_session","hint":"use opensesame login on host"})).into_response();
     };
     let cap = SessionCapability {
         id: format!("cap:{}", Uuid::new_v4()),
@@ -286,6 +412,7 @@ async fn mint_capability(State(st): State<App>, Json(req): Json<MintCapReq>) -> 
         "webauthn_material": null,
         "secrets": null
     }))
+    .into_response()
 }
 
 async fn introspect_capability(State(st): State<App>, Json(body): Json<Value>) -> Json<Value> {
@@ -302,9 +429,16 @@ async fn introspect_capability(State(st): State<App>, Json(body): Json<Value>) -
     }
 }
 
-async fn revoke(State(st): State<App>, Json(body): Json<Value>) -> Json<Value> {
+async fn revoke(
+    State(st): State<App>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     if let Some(id) = body.get("id").and_then(|v| v.as_str()) {
         st.capabilities.lock().unwrap().remove(id);
     }
-    Json(json!({"ok": true}))
+    Json(json!({"ok": true})).into_response()
 }

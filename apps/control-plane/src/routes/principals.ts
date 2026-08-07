@@ -63,6 +63,7 @@ principalRoutes.post(
       sameSite: "Lax",
       path: "/",
       maxAge: Math.floor(ctx.config.provisionalTtlMs / 1000),
+      secure: ctx.config.publicUrl.startsWith("https://"),
     });
 
     await appendAuditEvent(ctx.repos.auditEvents, {

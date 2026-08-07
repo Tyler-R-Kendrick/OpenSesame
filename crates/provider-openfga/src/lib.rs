@@ -255,23 +255,6 @@ mod tests {
     async fn live_openfga_check_demo_conn() {
         let base = std::env::var("OPENSESAME_OPENFGA_URL").expect("OPENSESAME_OPENFGA_URL");
         let (client, _sid) = bootstrap_demo_store(&base).await.expect("bootstrap");
-        // #region agent log
-        {
-            use std::io::Write;
-            let payload = serde_json::json!({
-                "sessionId": "7aa2f5",
-                "runId": std::env::var("OPENSESAME_DEBUG_RUN").unwrap_or_else(|_| "live-1".into()),
-                "hypothesisId": "LIVE-FGA",
-                "location": "provider-openfga/tests",
-                "message": "live openfga bootstrap",
-                "data": {"store_bootstrapped": true},
-                "timestamp": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()
-            });
-            if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("/home/codex/.herdr/worktrees/opensesame/.cursor/debug-7aa2f5.log") {
-                let _ = writeln!(f, "{payload}");
-            }
-        }
-        // #endregion
         let allowed = client
             .check_tuple(&TupleKey {
                 user: "user:demo".into(),

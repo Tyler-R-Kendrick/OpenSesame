@@ -45,10 +45,11 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const mappings = new MemoryPrincipalMappingStore();
   const policy = new ProvisionalPolicy();
   const stores = createAppStores();
-  // DEV: accept assertion when credential is registered and signature is non-empty.
+  // Stub verifier only when allowDevDefaults (tests/local). Otherwise fail closed.
   const passkeys = createPasskeySeam({
-    verifyAssertion: async (assertion, _credential) =>
-      assertion.signature.byteLength > 0,
+    verifyAssertion: config.allowDevDefaults
+      ? async (assertion, _credential) => assertion.signature.byteLength > 0
+      : async () => false,
   });
 
   const ctx: AppContext = {
