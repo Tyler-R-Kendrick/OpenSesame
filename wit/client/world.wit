@@ -1,0 +1,31 @@
+package opensesame:client@1.0.0;
+
+/// Client vault + encrypted sync. Server stores opaque ciphertext only.
+
+interface vault {
+  /// Seal plaintext under client-held keys. Returns sealed blob bytes.
+  seal: func(plaintext: list<u8>, aad: list<u8>) -> result<list<u8>, string>;
+  open: func(sealed: list<u8>, aad: list<u8>) -> result<list<u8>, string>;
+}
+
+interface sync {
+  record cursor {
+    device-id: string,
+    epoch: u64,
+  }
+
+  record blob {
+    id: string,
+    epoch: u64,
+    ciphertext: list<u8>,
+  }
+
+  /// Local apply after pull; conflict policy is last-writer-wins by epoch then id.
+  apply-remote: func(blobs: list<blob>) -> result<cursor, string>;
+  collect-outgoing: func(since: cursor) -> result<list<blob>, string>;
+}
+
+world client {
+  export vault;
+  export sync;
+}

@@ -1,0 +1,23 @@
+[package]
+name = "opensesame-daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "OpenSesame host daemon — local session capabilities (ADR 0017)"
+
+[[bin]]
+name = "opensesame-daemon"
+path = "src/main.rs"
+
+[dependencies]
+opensesame-host-core = { path = "../../crates/host-core" }
+anyhow = { workspace = true }
+axum = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }

@@ -1,0 +1,19 @@
+[package]
+name = "opensesame-host-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Host-core SDK facade — broker, authz, connector-host, env-spec"
+
+[dependencies]
+opensesame-core = { path = "../core" }
+opensesame-broker = { path = "../broker" }
+opensesame-authz = { path = "../authz" }
+opensesame-authn = { path = "../authn" }
+opensesame-connector-host = { path = "../connector-host" }
+opensesame-env-spec = { path = "../env-spec" }
+opensesame-audit = { path = "../audit" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]

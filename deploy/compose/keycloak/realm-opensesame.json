@@ -1,0 +1,19 @@
+{
+  "realm": "opensesame",
+  "enabled": true,
+  "registrationAllowed": false,
+  "clients": [
+    {
+      "clientId": "opensesame-cli",
+      "publicClient": true,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": true,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "oauth2.device.authorization.grant.enabled": "true"
+      },
+      "redirectUris": ["http://127.0.0.1:*", "http://[::1]:*"],
+      "webOrigins": ["+"]
+    }
+  ]
+}

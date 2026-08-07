@@ -1,0 +1,14 @@
+[package]
+name = "opensesame-grants"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Grant compiler"
+
+[dependencies]
+opensesame-domain = { path = "../domain" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }

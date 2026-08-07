@@ -1,0 +1,13 @@
+[package]
+name = "opensesame-claims"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+opensesame-domain = { path = "../domain" }
+chrono = { workspace = true }
+rand = { workspace = true }
+sha2 = { workspace = true }
+serde_json = { workspace = true }
+data-encoding = "2.9.0"

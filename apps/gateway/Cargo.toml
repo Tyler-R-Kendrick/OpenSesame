@@ -1,0 +1,36 @@
+[package]
+name = "opensesame-gateway"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "opensesame-gateway"
+path = "src/main.rs"
+
+[dependencies]
+opensesame-domain = { path = "../../crates/domain" }
+opensesame-authn = { path = "../../crates/authn" }
+opensesame-authz = { path = "../../crates/authz" }
+opensesame-broker = { path = "../../crates/broker" }
+opensesame-audit = { path = "../../crates/audit" }
+opensesame-storage = { path = "../../crates/storage" }
+opensesame-claims = { path = "../../crates/claims" }
+opensesame-connector-host = { path = "../../crates/connector-host" }
+opensesame-client-core = { path = "../../crates/client-core" }
+opensesame-host-core = { path = "../../crates/host-core" }
+opensesame-redaction = { path = "../../crates/redaction" }
+opensesame-provider-openfga = { path = "../../crates/provider-openfga" }
+opensesame-provider-openbao = { path = "../../crates/provider-openbao" }
+anyhow = { workspace = true }
+reqwest = { workspace = true }
+axum = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+clap = { workspace = true }

@@ -1,0 +1,26 @@
+apiVersion: opensesame.dev/v1alpha1
+kind: ConnectorDefinition
+metadata:
+  id: mock
+  version: 1.0.0
+  publisher: https://github.com/Tyler-R-Kendrick/OpenSesame
+spec:
+  component:
+    oci: ghcr.io/tyler-r-kendrick/opensesame/connectors/mock@sha256:mock-connector
+    witWorld: opensesame:connector/connector@1.0.0
+    signaturesRequired: true
+  authModes: [brokered_session]
+  outbound:
+    hosts: []
+  operations:
+    - id: repository.read
+      risk: read
+      sideEffect: false
+    - id: pull_request.create
+      risk: write
+      sideEffect: true
+      approvalRecommended: true
+  rotation:
+    supportsOverlap: true
+    supportsVerify: true
+    supportsRollback: true

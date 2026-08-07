@@ -1,0 +1,88 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderAgentCard > matches snapshot without credentials 1`] = `
+{
+  "additionalInterfaces": [],
+  "authentication": {
+    "schemes": [
+      "openid",
+      "oauth2_device",
+      "claim_session",
+    ],
+  },
+  "capabilities": {
+    "claimSupport": true,
+    "features": [
+      "anonymous_register",
+      "claim_poll",
+    ],
+  },
+  "description": "OpenSesame agent-facing identity and claim service",
+  "documentationUrl": "http://127.0.0.1:8788/auth.md",
+  "name": "OpenSesame Agent API",
+  "preferredTransport": "http",
+  "url": "http://127.0.0.1:8788",
+  "version": "0.1.0",
+}
+`;
+
+exports[`renderAuthMd > matches snapshot and omits secrets 1`] = `
+"# OpenSesame authentication
+
+This document is generated from live OpenSesame configuration.
+
+## Protected resource
+
+\`https://api.opensesame.test\`
+
+## Authorization server
+
+\`http://127.0.0.1:8788\`
+
+OIDC discovery: \`http://127.0.0.1:8788/.well-known/openid-configuration\`
+
+## Client registration modes
+
+anonymous, pre_registered
+
+## Anonymous agent bootstrap
+
+\`POST http://127.0.0.1:8788/api/v1/agents/register\`
+
+Agents may register with a proof key (JWK thumbprint (publicKeyJkt)) and receive a claim session.
+No long-lived secrets are returned in this document.
+
+## Claim ceremony
+
+Human claim UI: \`http://127.0.0.1:5173/claim\`
+
+Claim tokens use fragment transport (\`#token=\`) and must be POSTed — never logged.
+
+Claim TTL: 900s · recommended poll interval: 5s
+
+## Device / headless UX
+
+Device approval UI: \`http://127.0.0.1:5173/device\`
+
+CLIs should use RFC 8628 device authorization or RFC 8252 loopback.
+Never print \`device_code\` values.
+
+## Pre-claim restrictions
+
+- short-lived credentials only
+- no durable ownership
+- resource-limited grants
+
+## Post-claim behavior
+
+Human principal owns or delegates to the agent actor; principal id stays distinct from agent id.
+
+## Token / resource audiences
+
+https://api.opensesame.test, rp-alpha
+
+## Secrets policy
+
+This document must never embed client secrets, private keys, bearer tokens, or reusable credentials.
+"
+`;

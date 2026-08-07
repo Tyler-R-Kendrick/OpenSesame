@@ -1,0 +1,26 @@
+{
+  "name": "OpenSesame",
+  "image": "mcr.microsoft.com/devcontainers/rust:1-1.88-bookworm",
+  "features": {},
+  "containerEnv": {
+    "DEVCONTAINER": "1",
+    "OPENSESAME_SERVER": "http://host.docker.internal:8787",
+    "OPENSESAME_AGENT_SOCK": "/tmp/opensesame-agent.sock",
+    "OPENSESAME_AGENT_URL": "http://host.docker.internal:18790"
+  },
+  "forwardPorts": [8787, 18790],
+  "postCreateCommand": "cargo build -p opensesame-cli -p opensesame-gateway -p opensesame-credential-agent && (cd packages/env-spec-bridge && npm install)",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.env.linux": {
+          "DEVCONTAINER": "1"
+        }
+      }
+    }
+  },
+  "remoteUser": "vscode",
+  "mounts": [
+    "source=${localEnv:HOME}/.opensesame-agent,target=/tmp/opensesame-host-agent,type=bind,optional=true"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@opensesame/client-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "JS bindings facade for client-core sync (ADR 0017). Native crypto via companion Rust crate.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  }
+}

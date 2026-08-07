@@ -1,0 +1,44 @@
+:root {
+  color-scheme: dark;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at 20% 0%, #1e293b, #0f172a 55%);
+  color: #e2e8f0;
+  min-height: 100%;
+}
+body {
+  margin: 0;
+}
+.shell {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem;
+}
+.brand {
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin: 0 0 0.5rem;
+}
+h1 {
+  font-family: "IBM Plex Serif", Georgia, serif;
+  font-weight: 600;
+  font-size: 2.4rem;
+  margin: 0 0 0.75rem;
+}
+.lede {
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+.status {
+  margin-top: 2rem;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+.status li {
+  padding: 0.75rem 1rem;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid #334155;
+}

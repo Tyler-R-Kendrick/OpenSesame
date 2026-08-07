@@ -1,0 +1,35 @@
+{
+  "name": "@opensesame/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./schema": {
+      "types": "./src/schema/index.ts",
+      "default": "./src/schema/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/migrate.ts",
+    "db:reset": "tsx src/reset.ts"
+  },
+  "dependencies": {
+    "@opensesame/os-domain": "workspace:*",
+    "drizzle-orm": "0.44.2",
+    "postgres": "3.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "drizzle-kit": "0.31.1",
+    "tsx": "4.19.4",
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  }
+}

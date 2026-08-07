@@ -1,0 +1,23 @@
+{
+  "name": "@opensesame/example-headless",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "opensesame-example-headless": "./src/main.ts"
+  },
+  "scripts": {
+    "start": "node --import tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opensesame/sdk-cli": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "tsx": "4.19.4",
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  }
+}

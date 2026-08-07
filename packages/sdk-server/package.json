@@ -1,0 +1,39 @@
+{
+  "name": "@opensesame/sdk-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./hono": {
+      "types": "./src/hono.ts",
+      "default": "./src/hono.ts"
+    }
+  },
+  "files": ["src", "dist"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "jose": "6.2.8"
+  },
+  "peerDependencies": {
+    "hono": "^4.7.0"
+  },
+  "peerDependenciesMeta": {
+    "hono": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "hono": "4.7.10",
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  }
+}

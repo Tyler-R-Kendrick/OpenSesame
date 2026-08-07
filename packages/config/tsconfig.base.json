@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "OpenSesame shared base (re-export of repo root)",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false
+  }
+}

@@ -1,0 +1,6 @@
+OpenSesame
+Copyright 2026 Tyler Kendrick
+
+This product includes software developed by third parties.
+See Cargo.lock (once generated) and REUSE.md for dependency licenses.
+Dependency policy is enforced via deny.toml.

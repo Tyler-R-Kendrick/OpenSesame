@@ -1,0 +1,64 @@
+model
+  schema 1.1
+
+type user
+
+type service
+
+type workload
+
+type agent
+  relations
+    define owner: [user, organization]
+    define operator: [organization]
+
+type team
+  relations
+    define parent: [team]
+    define member: [user, service, workload, agent, team#member]
+
+type organization
+  relations
+    define owner: [user]
+    define admin: [user, team#member] or owner
+    define member: [user, team#member] or admin
+
+type project
+  relations
+    define organization: [organization]
+    define owner: [user, team#member]
+    define admin: [user, team#member] or owner
+    define developer: [user, team#member, workload, agent] or admin
+    define viewer: [user, team#member, workload, agent] or developer
+
+type environment
+  relations
+    define project: [project]
+    define admin: [user, team#member] or admin from project
+    define operator: [user, team#member, workload, agent] or developer from project
+    define viewer: [user, team#member, workload, agent] or viewer from project
+
+type connection
+  relations
+    define organization: [organization]
+    define project: [project]
+    define owner: [user, organization, project]
+    define admin: [user, team#member] or admin from project
+    define user: [user, team#member, workload, agent] or owner
+
+type connector_operation
+  relations
+    define connection: [connection]
+    define executor: [user, team#member, workload, agent] and user from connection
+
+type vault_collection
+  relations
+    define project: [project]
+    define owner: [user, project]
+    define reader: [user, team#member, workload, agent] or owner
+    define writer: [user, team#member, workload, agent] or owner
+
+type certificate_role
+  relations
+    define project: [project]
+    define issuer: [user, team#member, workload, agent]

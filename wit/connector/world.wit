@@ -1,0 +1,107 @@
+package opensesame:connector@1.0.0;
+
+/// Connector world: exercise ConnectionRef via host capabilities.
+/// There is intentionally NO secrets.get import — guests receive opaque handles only.
+
+interface types {
+  resource connection-handle;
+  resource credential-handle;
+  resource key-handle;
+  /// Host-side access token that never enters guest linear memory as UTF-8 secret.
+  resource access-token-handle;
+
+  record connector-info {
+    id: string,
+    version: string,
+    operations: list<string>,
+  }
+
+  record intent {
+    id: string,
+    operation: string,
+    resource: string,
+    audience: string,
+    parameters: list<u8>,
+    parameters-digest: string,
+    expires-at-unix-ms: u64,
+    idempotency-key: string,
+  }
+
+  variant invoke-error {
+    invalid-input(string),
+    unauthorized(string),
+    approval-required(string),
+    rate-limited(option<u64>),
+    provider-error(tuple<u16, string>),
+    transient(string),
+    permanent(string),
+  }
+}
+
+interface host-http {
+  use types.{connection-handle};
+
+  record request {
+    method: string,
+    /// Must be relative path or absolute URL within connection egress allowlist.
+    url: string,
+    headers: list<tuple<string, string>>,
+    body: list<u8>,
+  }
+
+  record response {
+    status: u16,
+    headers: list<tuple<string, string>>,
+    body: list<u8>,
+  }
+
+  /// Level-2 constrained HTTP: host injects credentials and enforces egress.
+  authorized-request: func(
+    connection: borrow<connection-handle>,
+    req: request
+  ) -> result<response, string>;
+}
+
+interface host-crypto {
+  use types.{key-handle};
+
+  sign: func(
+    key: borrow<key-handle>,
+    purpose: string,
+    digest: list<u8>
+  ) -> result<list<u8>, string>;
+}
+
+interface host-oauth {
+  use types.{connection-handle, access-token-handle};
+
+  record token-request {
+    resource: option<string>,
+    audience: option<string>,
+    scopes: list<string>,
+  }
+
+  /// Returns an opaque handle — not token bytes.
+  acquire: func(
+    connection: borrow<connection-handle>,
+    request: token-request
+  ) -> result<access-token-handle, string>;
+
+  authenticated-request: func(
+    connection: borrow<connection-handle>,
+    token: borrow<access-token-handle>,
+    request: host-http.request
+  ) -> result<host-http.response, string>;
+}
+
+world connector {
+  import host-http;
+  import host-crypto;
+  import host-oauth;
+
+  export describe: func() -> types.connector-info;
+  export invoke: func(
+    connection: borrow<types.connection-handle>,
+    intent: types.intent
+  ) -> result<list<u8>, types.invoke-error>;
+}

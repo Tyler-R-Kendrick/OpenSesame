@@ -1,0 +1,25 @@
+{
+  "name": "@opensesame/mcp-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "opensesame-mcp-client": "./src/server.ts"
+  },
+  "scripts": {
+    "start": "node --import tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opensesame/api-client": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.12.1",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "tsx": "4.19.4",
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "@opensesame/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "opensesame-id": "./src/bin.ts",
+    "opensesame-identity": "./src/bin.ts"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": ["src"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "start": "node --import tsx src/bin.ts"
+  },
+  "dependencies": {
+    "@opensesame/api-client": "workspace:*",
+    "@opensesame/contracts": "workspace:*",
+    "@opensesame/sdk-cli": "workspace:*",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "tsx": "4.19.4",
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  }
+}

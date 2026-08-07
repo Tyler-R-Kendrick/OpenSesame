@@ -1,0 +1,45 @@
+package opensesame:host@1.0.0;
+
+/// Host capability world for daemon / gateway / connector host.
+/// Possessing a handle never implies permission to materialize secrets.
+
+interface session {
+  record capability {
+    id: string,
+    session-id: string,
+    audience: string,
+    expires-at-unix-ms: u64,
+    scopes: list<string>,
+  }
+
+  mint-capability: func(
+    audience: string,
+    scopes: list<string>,
+    ttl-seconds: u64
+  ) -> result<capability, string>;
+
+  revoke-capability: func(id: string) -> result<_, string>;
+}
+
+interface invoke {
+  record invoke-request {
+    connection-ref: string,
+    operation: string,
+    resource: string,
+    invoke-level: u8,
+    idempotency-key: string,
+  }
+
+  record invoke-result {
+    receipt-id: string,
+    outcome: string,
+  }
+
+  /// L1 typed invoke. L3 materialize is denied by default.
+  authorize-and-invoke: func(req: invoke-request) -> result<invoke-result, string>;
+}
+
+world host {
+  export session;
+  export invoke;
+}

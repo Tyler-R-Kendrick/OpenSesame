@@ -1,0 +1,37 @@
+package opensesame:core@1.0.0;
+
+/// Shared IR: opaque handles and invoke shapes. No I/O.
+
+interface types {
+  /// Opaque connection reference — never a SecretRef.
+  type connection-ref = string;
+  type principal-id = string;
+  type grant-id = string;
+  type receipt-id = string;
+
+  enum availability {
+    a0-local,
+    a1-single,
+    a2-regional,
+    a3-quorum,
+  }
+
+  record intent {
+    id: string,
+    operation: string,
+    resource: string,
+    audience: string,
+    parameters-digest: string,
+    idempotency-key: string,
+  }
+
+  record receipt-summary {
+    id: receipt-id,
+    outcome: string,
+    correlation-id: string,
+  }
+}
+
+world core {
+  export types;
+}
