@@ -65,7 +65,7 @@ impl HttpMessageSignatureValidator for LocalHttpMessageSignatureValidator {
         request: &HttpSignedRequest,
     ) -> Result<ValidatedHttpMessageSignature, ProofError> {
         let profile = ProtocolProfile::parse_slug(PROFILE_HTTP_MESSAGE_SIGNATURES_RFC9421_V1)
-            .map_err(|e| ProofError::Domain(e))?;
+            .map_err(ProofError::Domain)?;
         crate::validator::assert_token_presentation(
             &profile,
             TokenPresentation::HttpMessageSignature,

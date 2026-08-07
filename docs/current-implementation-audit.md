@@ -1,60 +1,41 @@
 # Current implementation audit — task-scoped authority
 
 **Baseline commit:** `8c27f0afe861aab065f5f3e0d874dfe1bdf6fb9f`  
+**Branch:** `feat/task-access-model`  
 **Audit date:** 2026-08-07
 
 ## Summary
 
-This slice adds pure Rust domain types for **task-scoped authority** in `crates/domain`, the Trust Ratchet engine in `crates/task-access`, DPoP validation in `crates/proof`, and protocol profile adapters for MCP (Bearer) and experimental AAuth (draft-10).
+Task-scoped authority is integrated end-to-end: domain algebra, Trust Ratchet engine, durable SQLite CAS store, Postgres distributed store + readiness, DPoP + HTTP Message Signatures proof profiles, MCP Bearer adapter, experimental AAuth HTTP (env-gated), gateway modular Host API, WIT contracts, MCP-host tools, CLI, and console ratchet UI.
 
-## New modules
+## Crates / surfaces
 
-| Module / crate | Purpose |
-|----------------|---------|
-| `capability.rs` | Capability algebra (Exact/Enumerated selectors), fail-closed attenuation |
-| `authority_context.rs` | Single-principal and conservative common-grant modes |
-| `task.rs` | Task template/run lifecycle, ceiling compilation, ratchet transitions |
-| `delegation_chain.rs` | Ordered delegation hops with cycle/depth validation |
-| `proof.rs` | Proof keys, purposes, bindings |
-| `protocol_profile.rs` | Built-in profile constants (DPoP, Bearer, MCP, etc.) |
-| `protected_resource.rs` | Protected resources and external capability mappings |
-| `authorization_requirement.rs` | Derived authorization requirements |
-| `mediation.rs` | Mediation points and enforcement acknowledgements |
-| `verification_evidence.rs` | Evidence records for validation and ratchet commits |
-| `frozen_intent.rs` | `FrozenIntentV2` with domain-separated digest |
-| `crates/task-access` | Trust Ratchet engine, credential metadata, result buffers |
-| `crates/proof` | RFC 9449 DPoP validation and constrained key custody |
-| `crates/protocol-mcp` | MCP 2026-07-28 Bearer profile; audience/resource validation; passthrough rejection |
-| `crates/protocol-aauth` | Feature-gated (`experimental-aauth`) AAuth draft-10 lossless mappings |
+| Area | Status |
+|------|--------|
+| `opensesame-domain` task/capability/frozen intent | Done |
+| `opensesame-task-access` ratchet + credentials | Done |
+| `SqliteTaskStore` durable CAS (mandatory tests) | Done |
+| `PostgresTaskStore` + `distributed_task_authority` | Done (`postgres-integration` feature for live URL) |
+| `opensesame-proof` DPoP + HMS Ed25519 subset | Done |
+| `opensesame-protocol-mcp` Bearer / no passthrough | Done |
+| `opensesame-protocol-aauth` + gateway `/experimental/aauth/v1/*` | Done (requires `OPENSESAME_AAUTH_EXPERIMENTAL=true`) |
+| Gateway modular routes + bootstrap gate | Done (`OPENSESAME_DEV_BOOTSTRAP`) |
+| Broker `invoke_frozen` | Done |
+| WIT `task` / `proof` / `mediation` @1.0.0 | Done (host@1.0.0 preserved) |
+| MCP host task tools | Done |
+| CLI `task` / `intent` | Done |
+| Console TaskAccessPanel | Done |
+| ADRs 0018–0031 | Done |
 
-## Legacy compatibility
+## Residuals
 
-- `Intent` remains V1; `Intent::compatibility_notes()` marks non-task-secured legacy intents.
-- `FrozenIntentV2::from_legacy` migrates explicitly; digest computed over `b"OpenSesame/FrozenIntent/v2\0" || canonical bytes`.
-
-## Wired in this slice
-
-- `Broker::invoke_frozen` — authorize/execute from frozen digest only (no second parameter map)
-- Gateway `POST /api/v1/tasks`, `GET /api/v1/tasks`, `GET /api/v1/tasks/{id}`, `POST /api/v1/tasks/intents`, `POST /api/v1/tasks/{id}/terminate`
-- WIT `opensesame:task@1.0.0`, `opensesame:proof@1.0.0`, `opensesame:mediation@1.0.0` (host@1.0.0 unchanged)
-- MCP host task tools (`task_start`, `task_status`, `task_invoke`, `task_terminate`) + task-context gating for `operator_invoke_l1`
-- CLI `opensesame task *` and `opensesame intent create`
-- Console task access panel (ceiling vs current)
-- HTTP Message Signatures Ed25519 subset validator in `opensesame-proof`
-- Protected-resource metadata: DPoP advertised only when `OPENSESAME_DPOP_ENABLED=true`
-- Receipt schema v2 optional task binding fields (legacy v1 still verifies)
-
-## Residual / next
-
-- Live Postgres multi-node fence E2E against `OPENSESAME_TEST_DATABASE_URL` (in-memory CAS/fence covered; ignored integration test present)
-- Public AAuth endpoints (adapter only; feature-gated)
-
-## ADRs (this slice)
-
-- ADR 0018–0031 — standing grants, immutable ceiling, trust ratchet, frozen intent, proof custody, MCP Bearer, credential issuer, AAuth experimental, mission vs task policy, one effective authority, enforcement fencing, protocol token identity, verification evidence, SQLite vs Postgres task store
+None for this slice. Live Postgres multi-node against a real cluster is exercised when `OPENSESAME_TEST_DATABASE_URL` is set with `--features postgres-integration`; mandatory CI uses SQLite CAS + in-memory multi-node fence tests.
 
 ## Verification
 
 ```bash
 ./scripts/task-security-battle-test.sh
+pnpm --filter @opensesame/mcp-host test
+pnpm --filter @opensesame/console test
+pnpm --filter @opensesame/control-plane test
 ```

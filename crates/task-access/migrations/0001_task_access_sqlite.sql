@@ -1,4 +1,4 @@
--- SQLite dialect of task access schema (local/dev; not distributed HA — ADR 0031)
+-- SQLite dialect of task access schema (local/dev, not distributed HA - ADR 0031)
 
 CREATE TABLE IF NOT EXISTS task_runs (
     id TEXT PRIMARY KEY,

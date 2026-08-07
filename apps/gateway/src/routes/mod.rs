@@ -1,3 +1,4 @@
+mod aauth;
 mod admin;
 mod agents;
 mod device;
@@ -56,6 +57,23 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/sync/push", post(sync::push))
         .route("/api/v1/sync/pull", post(sync::pull))
         .nest("/api/v1/tasks", task_routes)
+        .route("/experimental/aauth/v1/status", get(aauth::status))
+        .route(
+            "/experimental/aauth/v1/map/person",
+            post(aauth::map_person_handler),
+        )
+        .route(
+            "/experimental/aauth/v1/map/agent",
+            post(aauth::map_agent_handler),
+        )
+        .route(
+            "/experimental/aauth/v1/mission/digest",
+            post(aauth::mission_digest),
+        )
+        .route(
+            "/experimental/aauth/v1/scope/check",
+            post(aauth::scope_check),
+        )
         .with_state(state)
         .layer(TraceLayer::new_for_http())
 }

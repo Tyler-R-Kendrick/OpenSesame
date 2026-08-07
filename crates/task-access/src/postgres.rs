@@ -10,8 +10,6 @@ use opensesame_domain::{
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{PgPool, Row};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use tokio::runtime::Runtime;
 
 const MIGRATION_0001: &str = include_str!("../migrations/0001_task_access.sql");
 
@@ -60,7 +58,6 @@ impl PostgresTaskAuthorityConfig {
 /// PostgreSQL implementation of [`TaskStore`] with compare-and-swap on `state_version`.
 pub struct PostgresTaskStore {
     pool: PgPool,
-    runtime: Arc<Runtime>,
     migrated: AtomicBool,
 }
 
@@ -76,11 +73,8 @@ impl PostgresTaskStore {
             .connect(database_url)
             .await
             .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
-        let runtime =
-            Arc::new(Runtime::new().map_err(|e| TaskAccessError::Storage(e.to_string()))?);
         let store = Self {
             pool,
-            runtime,
             migrated: AtomicBool::new(false),
         };
         store.migrate().await?;
@@ -117,7 +111,12 @@ impl PostgresTaskStore {
     }
 
     fn block_on<F: std::future::Future<Output = T>, T>(&self, fut: F) -> T {
-        self.runtime.block_on(fut)
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) => tokio::task::block_in_place(|| handle.block_on(fut)),
+            Err(_) => tokio::runtime::Runtime::new()
+                .expect("postgres task store runtime")
+                .block_on(fut),
+        }
     }
 }
 
@@ -787,8 +786,11 @@ mod tests {
         assert_store_object_safe::<PostgresTaskStore>();
     }
 
+    /// Live Postgres CAS — enabled with `--features postgres-integration` and
+    /// `OPENSESAME_TEST_DATABASE_URL`. Durable CAS is covered mandatorily by
+    /// `sqlite_store::tests::sqlite_store_round_trip_cas_and_fence`.
     #[tokio::test]
-    #[ignore = "requires OPENSESAME_TEST_DATABASE_URL"]
+    #[cfg(feature = "postgres-integration")]
     async fn postgres_store_round_trip_and_cas() {
         use crate::{ProposeRestrictionParams, StartTaskParams, TaskAccessEngine, TaskAccessError};
         use chrono::{Duration, Utc};
@@ -799,8 +801,9 @@ mod tests {
         };
 
         let url = std::env::var("OPENSESAME_TEST_DATABASE_URL")
-            .expect("set OPENSESAME_TEST_DATABASE_URL for postgres integration tests");
+            .expect("set OPENSESAME_TEST_DATABASE_URL for postgres-integration feature");
         let store = PostgresTaskStore::connect(&url).await.unwrap();
+        assert!(distributed_task_authority_ok(store.authority_backend()));
         let engine = TaskAccessEngine::new(store);
         let now = Utc::now();
         let principal = PrincipalId::new();

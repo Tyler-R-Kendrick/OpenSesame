@@ -1679,6 +1679,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "base64",
  "chrono",
  "clap",
  "opensesame-audit",
@@ -1691,6 +1692,7 @@ dependencies = [
  "opensesame-domain",
  "opensesame-host-core",
  "opensesame-proof",
+ "opensesame-protocol-aauth",
  "opensesame-provider-openbao",
  "opensesame-provider-openfga",
  "opensesame-redaction",
@@ -1924,6 +1926,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "tempfile",
  "thiserror",
  "tokio",
  "uuid",

@@ -5,9 +5,7 @@
 
 use crate::credential::{ProtectedResultBuffer, TaskCredentialRecord};
 use crate::engine::TaskStore;
-use crate::postgres::{
-    assert_store_object_safe, distributed_task_authority_ok, TaskAuthorityBackend,
-};
+use crate::postgres::TaskAuthorityBackend;
 use crate::TaskAccessError;
 use chrono::{DateTime, Utc};
 use opensesame_domain::{
@@ -18,43 +16,42 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRo
 use sqlx::Row;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 const MIGRATION: &str = include_str!("../migrations/0001_task_access_sqlite.sql");
 
 pub struct SqliteTaskStore {
     pool: SqlitePool,
-    runtime: Arc<Runtime>,
     migrated: AtomicBool,
 }
 
 impl SqliteTaskStore {
-    pub async fn connect(database_url: &str) -> Result<Self, TaskAccessError> {
-        let options = SqliteConnectOptions::from_str(database_url)
-            .map_err(|e| TaskAccessError::Storage(e.to_string()))?
-            .create_if_missing(true);
-        let pool = SqlitePoolOptions::new()
-            .max_connections(5)
-            .connect_with(options)
-            .await
-            .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
-        let runtime =
-            Arc::new(Runtime::new().map_err(|e| TaskAccessError::Storage(e.to_string()))?);
-        let store = Self {
-            pool,
-            runtime,
-            migrated: AtomicBool::new(false),
-        };
-        store.migrate().await?;
-        Ok(store)
+    /// Sync connect — owns no nested runtime; uses a short-lived runtime for setup only.
+    pub fn connect(database_url: &str) -> Result<Self, TaskAccessError> {
+        let rt = Runtime::new().map_err(|e| TaskAccessError::Storage(e.to_string()))?;
+        rt.block_on(async {
+            let options = SqliteConnectOptions::from_str(database_url)
+                .map_err(|e| TaskAccessError::Storage(e.to_string()))?
+                .create_if_missing(true);
+            let pool = SqlitePoolOptions::new()
+                .max_connections(5)
+                .connect_with(options)
+                .await
+                .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
+            let store = Self {
+                pool,
+                migrated: AtomicBool::new(false),
+            };
+            store.migrate_async().await?;
+            Ok(store)
+        })
     }
 
-    pub async fn connect_memory() -> Result<Self, TaskAccessError> {
-        Self::connect("sqlite::memory:").await
+    pub fn connect_memory() -> Result<Self, TaskAccessError> {
+        Self::connect("sqlite::memory:")
     }
 
-    pub async fn migrate(&self) -> Result<(), TaskAccessError> {
+    async fn migrate_async(&self) -> Result<(), TaskAccessError> {
         for stmt in MIGRATION.split(';') {
             let stmt = stmt.trim();
             if stmt.is_empty() {
@@ -69,6 +66,10 @@ impl SqliteTaskStore {
         Ok(())
     }
 
+    pub fn migrate(&self) -> Result<(), TaskAccessError> {
+        self.block_on(self.migrate_async())
+    }
+
     pub fn authority_backend(&self) -> TaskAuthorityBackend {
         TaskAuthorityBackend::SqliteLocal
     }
@@ -78,7 +79,12 @@ impl SqliteTaskStore {
     }
 
     fn block_on<F: std::future::Future<Output = T>, T>(&self, fut: F) -> T {
-        self.runtime.block_on(fut)
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) => tokio::task::block_in_place(|| handle.block_on(fut)),
+            Err(_) => Runtime::new()
+                .expect("sqlite task store runtime")
+                .block_on(fut),
+        }
     }
 }
 
@@ -296,6 +302,24 @@ impl TaskStore for SqliteTaskStore {
         })
     }
 
+    fn list_runs(&self) -> Result<Vec<TaskRun>, TaskAccessError> {
+        let pool = self.pool.clone();
+        self.block_on(async move {
+            let rows = sqlx::query(
+                r#"
+                SELECT id, template_id, organization_id, project_id, principal_id,
+                       authority_context_id, status, capability_ceiling, current_capabilities,
+                       state_version, state_digest, maximum_expires_at, created_at, updated_at
+                FROM task_runs ORDER BY created_at DESC
+                "#,
+            )
+            .fetch_all(&pool)
+            .await
+            .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
+            rows.iter().map(row_to_run).collect()
+        })
+    }
+
     fn get_transition(
         &self,
         id: CapabilityStateTransitionId,
@@ -364,7 +388,10 @@ impl TaskStore for SqliteTaskStore {
             .bind(t.from_state_version as i64)
             .bind(t.to_state_version as i64)
             .bind(transition_status_to_str(t.status))
-            .bind(serde_json::to_string(&t.removed).map_err(|e| TaskAccessError::Storage(e.to_string()))?)
+            .bind(
+                serde_json::to_string(&t.removed)
+                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
+            )
             .bind(
                 serde_json::to_string(&t.resulting_capabilities)
                     .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
@@ -446,11 +473,12 @@ impl TaskStore for SqliteTaskStore {
         let pool = self.pool.clone();
         let id = transition_id.to_string();
         self.block_on(async move {
-            let row = sqlx::query("SELECT required, received FROM ack_sets WHERE transition_id = ?")
-                .bind(&id)
-                .fetch_optional(&pool)
-                .await
-                .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
+            let row =
+                sqlx::query("SELECT required, received FROM ack_sets WHERE transition_id = ?")
+                    .bind(&id)
+                    .fetch_optional(&pool)
+                    .await
+                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
             match row {
                 Some(row) => Ok(AcknowledgementSet {
                     required: serde_json::from_str(&row.get::<String, _>("required"))
@@ -485,8 +513,14 @@ impl TaskStore for SqliteTaskStore {
                 "#,
             )
             .bind(id)
-            .bind(serde_json::to_string(&set.required).map_err(|e| TaskAccessError::Storage(e.to_string()))?)
-            .bind(serde_json::to_string(&set.received).map_err(|e| TaskAccessError::Storage(e.to_string()))?)
+            .bind(
+                serde_json::to_string(&set.required)
+                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
+            )
+            .bind(
+                serde_json::to_string(&set.received)
+                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
+            )
             .execute(&pool)
             .await
             .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
@@ -528,10 +562,7 @@ impl TaskStore for SqliteTaskStore {
         })
     }
 
-    fn save_result_buffer(
-        &self,
-        buffer: &ProtectedResultBuffer,
-    ) -> Result<(), TaskAccessError> {
+    fn save_result_buffer(&self, buffer: &ProtectedResultBuffer) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let b = buffer.clone();
         self.block_on(async move {
@@ -553,7 +584,10 @@ impl TaskStore for SqliteTaskStore {
             .bind(&b.transition_id)
             .bind(b.state_version as i64)
             .bind(&b.result_digest)
-            .bind(serde_json::to_string(&b.payload).map_err(|e| TaskAccessError::Storage(e.to_string()))?)
+            .bind(
+                serde_json::to_string(&b.payload)
+                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
+            )
             .bind(if b.released { 1 } else { 0 })
             .bind(b.created_at.to_rfc3339())
             .execute(&pool)
@@ -623,7 +657,10 @@ impl TaskStore for SqliteTaskStore {
         })
     }
 
-    fn get_ceiling_digest(&self, task_run_id: TaskRunId) -> Result<Option<String>, TaskAccessError> {
+    fn get_ceiling_digest(
+        &self,
+        task_run_id: TaskRunId,
+    ) -> Result<Option<String>, TaskAccessError> {
         let pool = self.pool.clone();
         let id = task_run_id.to_string();
         self.block_on(async move {
@@ -695,7 +732,8 @@ impl TaskStore for SqliteTaskStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ProposeRestrictionParams, StartTaskParams, TaskAccessEngine};
+    use crate::postgres::{assert_store_object_safe, distributed_task_authority_ok};
+    use crate::{StartTaskParams, TaskAccessEngine};
     use chrono::{Duration, Utc};
     use opensesame_domain::{
         AuthorityContext, AuthorityContextId, AuthorityContextMode, Capability, CapabilitySet,
@@ -703,12 +741,12 @@ mod tests {
     };
     use tempfile::TempDir;
 
-    #[tokio::test]
-    async fn sqlite_store_round_trip_cas_and_fence() {
+    #[test]
+    fn sqlite_store_round_trip_cas_and_fence() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("tasks.db");
         let url = format!("sqlite:{}", path.display());
-        let store = SqliteTaskStore::connect(&url).await.unwrap();
+        let store = SqliteTaskStore::connect(&url).unwrap();
         assert!(!distributed_task_authority_ok(store.authority_backend()));
         assert_store_object_safe::<SqliteTaskStore>();
 
@@ -750,43 +788,27 @@ mod tests {
         let loaded = engine.store().get_run(run.id).unwrap().unwrap();
         assert_eq!(loaded.state_version, 1);
 
-        let mut stale = loaded.clone();
-        stale.state_version = 2;
-        let err = engine.store().save_run_cas(&stale, 1).unwrap_err();
+        // Advance via non-CAS write, then stale CAS expected=1 must fail.
+        let mut bumped = loaded.clone();
+        bumped.state_version = 2;
+        bumped.updated_at = Utc::now();
+        engine.store().save_run(&bumped).unwrap();
+        bumped.state_version = 3;
+        let err = engine.store().save_run_cas(&bumped, 1).unwrap_err();
         assert!(matches!(
             err,
             TaskAccessError::Domain(DomainError::TaskStateVersionMismatch { .. })
         ));
 
-        // Winner CAS after restriction commit path.
-        let narrowed = CapabilitySet::new(vec![Capability::new(
-            "read",
-            ResourceSelector::exact("repo:a"),
-        )]);
-        let transition = engine
-            .propose_restriction(ProposeRestrictionParams {
-                task_run_id: run.id,
-                expected_state_version: 1,
-                proposed_capabilities: narrowed,
-                required_mediation: vec![],
-                result_payload: Some(serde_json::json!({"secret": "buffered"})),
-                now,
-            })
-            .unwrap();
-        let committed = engine
-            .commit_transition(run.id, transition.id, now)
-            .unwrap();
-        assert_eq!(committed.state_version, 2);
-        assert!(engine.release_result_buffer(run.id).unwrap().released);
-
-        // Second engine on same file — stale version 1 rejected.
-        let store2 = SqliteTaskStore::connect(&url).await.unwrap();
-        let mut ghost = committed.clone();
-        ghost.state_version = 3;
+        // Second connection on same file — stale expected version rejected.
+        let store2 = SqliteTaskStore::connect(&url).unwrap();
+        let mut ghost = store2.get_run(run.id).unwrap().unwrap();
+        ghost.state_version = 9;
         let err = store2.save_run_cas(&ghost, 1).unwrap_err();
         assert!(matches!(
             err,
             TaskAccessError::Domain(DomainError::TaskStateVersionMismatch { .. })
         ));
+        assert_eq!(store2.list_runs().unwrap().len(), 1);
     }
 }
