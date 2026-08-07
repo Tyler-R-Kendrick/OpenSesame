@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 const identityApi = import.meta.env.VITE_IDENTITY_API ?? "http://127.0.0.1:8788";
-const hostApi = import.meta.env.VITE_HOST_API ?? "http://127.0.0.1:8787";
 
 function parseDeepLink(): { userCode?: string; claimId?: string } {
   if (typeof window === "undefined") return {};
@@ -141,23 +140,24 @@ export function App() {
 
   async function approveDevice() {
     try {
-      const op =
-        import.meta.env.VITE_OPENSESAME_OPERATOR_TOKEN ?? "opensesame-dev-operator";
-      const res = await fetch(`${hostApi.replace(/\/$/, "")}/api/v1/device/approve`, {
+      const headers: Record<string, string> = {
+        "content-type": "application/json",
+      };
+      if (accessToken) headers.authorization = `Bearer ${accessToken}`;
+      else headers.authorization = `Bearer ${principalId}`;
+      const res = await fetch(`${base}/v1/device/approve`, {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-opensesame-operator": op,
-        },
+        headers,
+        credentials: "include",
         body: JSON.stringify({ user_code: userCode, principal: principalId }),
       });
       setStatus(
         res.ok
-          ? `Device code ${userCode} approved on Host API`
+          ? `Device code ${userCode} approved via Identity API`
           : `Approve failed: ${res.status}`,
       );
     } catch (e) {
-      setStatus(`Host API offline: ${e instanceof Error ? e.message : e}`);
+      setStatus(`Identity API offline: ${e instanceof Error ? e.message : e}`);
     }
   }
 

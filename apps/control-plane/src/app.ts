@@ -11,6 +11,7 @@ import { claimRoutes } from "./routes/claims.js";
 import { agentRoutes } from "./routes/agents.js";
 import { discoveryRoutes } from "./routes/discovery.js";
 import { mfaRoutes } from "./routes/mfa.js";
+import { deviceRoutes } from "./routes/device.js";
 
 export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   const app = new Hono<{ Variables: Variables }>();
@@ -36,6 +37,7 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/v1/claims", claimRoutes);
   app.route("/v1/agents", agentRoutes);
   app.route("/v1/mfa", mfaRoutes);
+  app.route("/v1/device", deviceRoutes);
   app.route("/", discoveryRoutes);
 
   app.onError((err, c) => {

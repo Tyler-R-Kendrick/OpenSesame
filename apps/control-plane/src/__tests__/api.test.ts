@@ -231,6 +231,31 @@ describe("control-plane API", () => {
     expect(assertRes.status).toBe(401);
   });
 
+  it("device approve requires authentication and never exposes operator token", async () => {
+    const { app, config } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+    expect(config.operatorToken).toBeTruthy();
+    const unauth = await app.request("/v1/device/approve", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ user_code: "ABCD-EFGH" }),
+    });
+    expect(unauth.status).toBe(401);
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+    const res = await app.request("/v1/device/approve", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ user_code: "ABCD-EFGH" }),
+    });
+    // Host may be down in unit tests → 502, but never leak operator token in body.
+    expect([200, 404, 502]).toContain(res.status);
+    const body = await res.text();
+    expect(body).not.toContain(config.operatorToken);
+    expect(body.toLowerCase()).not.toContain("x-opensesame-operator");
+  });
+
   it("HTTP mount does not steal /auth.md from oidc /auth prefix", async () => {
     const { startServer } = await import("../server.js");
     const { server, port } = await startServer({
