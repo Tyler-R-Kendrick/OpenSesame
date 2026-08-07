@@ -52,13 +52,11 @@ function randomJti(): string {
 }
 
 async function getSubtle(): Promise<SubtleCrypto> {
-  if (globalThis.crypto?.subtle) return globalThis.crypto.subtle;
-  // Dynamic node import via Function so browser packages (PWA) typecheck without node types.
-  const loadNodeCrypto = new Function(
-    "return import('node:crypto')",
-  ) as () => Promise<{ webcrypto: { subtle: SubtleCrypto } }>;
-  const { webcrypto } = await loadNodeCrypto();
-  return webcrypto.subtle;
+  // Prefer Web Crypto (browsers + Node 19+). Avoid new Function / eval for node:crypto
+  // fallback — that trips structural SAST and is unnecessary once subtle is global.
+  const subtle = globalThis.crypto?.subtle;
+  if (subtle) return subtle;
+  throw new Error("crypto_subtle_unavailable");
 }
 
 /** Create an in-memory ES256 keypair and DPoP proof factory. */
