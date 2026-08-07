@@ -36,11 +36,21 @@ async function saveHost() {
   await loadStatus();
 }
 
+function setStatusItems(list: HTMLElement, items: string[]) {
+  list.replaceChildren(
+    ...items.map((text) => {
+      const li = document.createElement("li");
+      li.textContent = text;
+      return li;
+    }),
+  );
+}
+
 async function loadStatus() {
   const list = document.getElementById("status");
   const hint = document.getElementById("hint");
   if (!list) return;
-  list.innerHTML = "<li>Checking…</li>";
+  setStatusItems(list, ["Checking…"]);
   if (hint) {
     hint.hidden = true;
     hint.textContent = "";
@@ -60,17 +70,17 @@ async function loadStatus() {
       ? `${res.cursor.deviceId ?? "?"} @ epoch ${res.cursor.epoch ?? 0}`
       : "n/a";
     const base = res.hostBase ?? DEFAULT_HOST;
-    list.innerHTML = `
-      <li>Host API (${base}): ${host}</li>
-      <li>Daemon: ${daemon}</li>
-      <li>Sync cursor: ${cursor}</li>
-    `;
+    setStatusItems(list, [
+      `Host API (${base}): ${host}`,
+      `Daemon: ${daemon}`,
+      `Sync cursor: ${cursor}`,
+    ]);
     if (host === "down" && hint) {
       hint.hidden = false;
       hint.textContent = `Start the Host API on ${base}, then retry.`;
     }
   } catch (e) {
-    list.innerHTML = `<li>Could not load status</li>`;
+    setStatusItems(list, ["Could not load status"]);
     if (hint) {
       hint.hidden = false;
       hint.textContent =
