@@ -47,8 +47,6 @@ This slice adds pure Rust domain types for **task-scoped authority** in `crates/
 ## Residual / next
 
 - Live Postgres multi-node fence E2E against `OPENSESAME_TEST_DATABASE_URL` (in-memory CAS/fence covered; ignored integration test present)
-- CLI `opensesame task *` commands; console ratchet UI
-- HTTP Message Signatures validator (profile registered, crypto not yet)
 - Public AAuth endpoints (adapter only; feature-gated)
 
 ## ADRs (this slice)

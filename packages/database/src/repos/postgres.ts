@@ -36,6 +36,32 @@ function normalizeTenant(tenant?: string | null): string {
   return tenant ?? "";
 }
 
+function mapAuditEvent(row: typeof schema.auditEvents.$inferSelect): AuditEvent {
+  const mapped: AuditEvent = {
+    id: row.id,
+    occurredAt: row.occurredAt,
+    eventType: row.eventType,
+    outcome: row.outcome as AuditEvent["outcome"],
+    correlationId: row.correlationId,
+    metadata: (row.metadata ?? {}) as Record<string, unknown>,
+  };
+  if (row.principalId) mapped.principalId = row.principalId;
+  if (row.actorType) {
+    mapped.actorType = row.actorType as NonNullable<AuditEvent["actorType"]>;
+  }
+  if (row.actorId) mapped.actorId = row.actorId;
+  if (row.agentInstanceId) mapped.agentInstanceId = row.agentInstanceId;
+  if (row.clientId) mapped.clientId = row.clientId;
+  if (row.organizationId) mapped.organizationId = row.organizationId;
+  if (row.projectId) mapped.projectId = row.projectId;
+  if (row.claimId) mapped.claimId = row.claimId;
+  if (row.sessionId) mapped.sessionId = row.sessionId;
+  if (row.targetType) mapped.targetType = row.targetType;
+  if (row.targetId) mapped.targetId = row.targetId;
+  if (row.causationId) mapped.causationId = row.causationId;
+  return mapped;
+}
+
 function mapPrincipal(row: typeof schema.principals.$inferSelect): Principal {
   return {
     id: row.id,
