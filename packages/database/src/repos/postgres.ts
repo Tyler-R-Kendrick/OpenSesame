@@ -600,71 +600,21 @@ export class PostgresRepositories implements Repositories {
         })
         .returning();
       if (!row) throw new Error("insert audit event failed");
-      const mapped: AuditEvent = {
-        id: row.id,
-        occurredAt: row.occurredAt,
-        eventType: row.eventType,
-        outcome: row.outcome as AuditEvent["outcome"],
-        correlationId: row.correlationId,
-        metadata: (row.metadata ?? {}) as Record<string, unknown>,
-      };
-      if (row.principalId) mapped.principalId = row.principalId;
-      if (row.actorType) {
-        mapped.actorType = row.actorType as NonNullable<AuditEvent["actorType"]>;
-      }
-      if (row.actorId) mapped.actorId = row.actorId;
-      if (row.agentInstanceId) mapped.agentInstanceId = row.agentInstanceId;
-      if (row.clientId) mapped.clientId = row.clientId;
-      if (row.organizationId) mapped.organizationId = row.organizationId;
-      if (row.projectId) mapped.projectId = row.projectId;
-      if (row.claimId) mapped.claimId = row.claimId;
-      if (row.sessionId) mapped.sessionId = row.sessionId;
-      if (row.targetType) mapped.targetType = row.targetType;
-      if (row.targetId) mapped.targetId = row.targetId;
-      if (row.causationId) mapped.causationId = row.causationId;
-      return mapped;
+      return mapAuditEvent(row);
     },
     list: async (filter) => {
       const limit = filter?.limit ?? 50;
-      const rows = filter?.principalId
-        ? await this.db
-            .select()
-            .from(schema.auditEvents)
-            .where(eq(schema.auditEvents.principalId, filter.principalId))
-            .orderBy(desc(schema.auditEvents.occurredAt))
-            .limit(limit)
-        : await this.db
-            .select()
-            .from(schema.auditEvents)
-            .orderBy(desc(schema.auditEvents.occurredAt))
-            .limit(limit);
-      return rows.map((row) => {
-        const mapped: AuditEvent = {
-          id: row.id,
-          occurredAt: row.occurredAt,
-          eventType: row.eventType,
-          outcome: row.outcome as AuditEvent["outcome"],
-          correlationId: row.correlationId,
-          metadata: (row.metadata ?? {}) as Record<string, unknown>,
-        };
-        if (row.principalId) mapped.principalId = row.principalId;
-        if (row.actorType) {
-          mapped.actorType = row.actorType as NonNullable<
-            AuditEvent["actorType"]
-          >;
-        }
-        if (row.actorId) mapped.actorId = row.actorId;
-        if (row.agentInstanceId) mapped.agentInstanceId = row.agentInstanceId;
-        if (row.clientId) mapped.clientId = row.clientId;
-        if (row.organizationId) mapped.organizationId = row.organizationId;
-        if (row.projectId) mapped.projectId = row.projectId;
-        if (row.claimId) mapped.claimId = row.claimId;
-        if (row.sessionId) mapped.sessionId = row.sessionId;
-        if (row.targetType) mapped.targetType = row.targetType;
-        if (row.targetId) mapped.targetId = row.targetId;
-        if (row.causationId) mapped.causationId = row.causationId;
-        return mapped;
-      });
+      let query = this.db
+        .select()
+        .from(schema.auditEvents)
+        .orderBy(desc(schema.auditEvents.occurredAt))
+        .limit(limit)
+        .$dynamic();
+      if (filter?.principalId) {
+        query = query.where(eq(schema.auditEvents.principalId, filter.principalId));
+      }
+      const rows = await query;
+      return rows.map(mapAuditEvent);
     },
   };
 
