@@ -30,6 +30,18 @@ use tower_http::trace::TraceLayer;
 
 const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
 
+fn constant_time_eq(a: &str, b: &str) -> bool {
+    let (aa, bb) = (a.as_bytes(), b.as_bytes());
+    if aa.len() != bb.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in aa.iter().zip(bb.iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
+}
+
 #[derive(Parser, Debug)]
 #[command(name = "opensesame-gateway")]
 struct Args {
@@ -522,9 +534,15 @@ async fn device_approve(
         .into_response()
 }
 
-async fn session_status(State(st): State<AppState>) -> impl IntoResponse {
+async fn session_status(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    if let Err(resp) = require_session_or_operator(&st, &headers) {
+        return resp;
+    }
     let n = st.sessions.lock().unwrap().len();
-    Json(json!({"active_sessions": n}))
+    Json(json!({"active_sessions": n})).into_response()
 }
 
 async fn whoami(
@@ -712,8 +730,12 @@ async fn create_intent_invoke(
 
 async fn get_receipt(
     State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
     Path(id): Path<String>,
 ) -> Response {
+    if let Err(resp) = require_session_or_operator(&st, &headers) {
+        return resp;
+    }
     let rid = match ReceiptId::parse(&id) {
         Ok(r) => r,
         Err(_) => {
@@ -737,8 +759,12 @@ async fn get_receipt(
 
 async fn verify_receipt(
     State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
     Path(id): Path<String>,
 ) -> Response {
+    if let Err(resp) = require_session_or_operator(&st, &headers) {
+        return resp;
+    }
     let rid = match ReceiptId::parse(&id) {
         Ok(r) => r,
         Err(_) => {
@@ -992,7 +1018,7 @@ fn require_operator(st: &AppState, headers: &axum::http::HeaderMap) -> Result<()
         });
     let provided = from_header.or(from_bearer);
     match provided {
-        Some(t) if t == st.operator_token => Ok(()),
+        Some(t) if constant_time_eq(&t, &st.operator_token) => Ok(()),
         _ => Err((
             StatusCode::UNAUTHORIZED,
             Json(json!({

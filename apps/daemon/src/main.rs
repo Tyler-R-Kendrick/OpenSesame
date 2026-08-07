@@ -22,6 +22,18 @@ use uuid::Uuid;
 
 const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
 
+fn constant_time_eq(a: &str, b: &str) -> bool {
+    let (aa, bb) = (a.as_bytes(), b.as_bytes());
+    if aa.len() != bb.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in aa.iter().zip(bb.iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
+}
+
 #[derive(Parser)]
 #[command(name = "opensesame-daemon", about = "OpenSesame host daemon")]
 struct Args {
@@ -133,7 +145,7 @@ fn require_operator(st: &App, headers: &HeaderMap) -> Result<(), Response> {
                 .map(str::to_string)
         });
     match from_header.or(from_bearer) {
-        Some(t) if t == st.operator_token => Ok(()),
+        Some(t) if constant_time_eq(&t, &st.operator_token) => Ok(()),
         _ => Err((
             StatusCode::UNAUTHORIZED,
             Json(json!({
@@ -355,7 +367,13 @@ async fn operator_invoke_l1(
     }
 }
 
-async fn list_sessions(State(st): State<App>) -> Json<Value> {
+async fn list_sessions(
+    State(st): State<App>,
+    headers: HeaderMap,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     let sessions: Vec<_> = st
         .sessions
         .lock()
@@ -363,7 +381,7 @@ async fn list_sessions(State(st): State<App>) -> Json<Value> {
         .values()
         .map(|s| json!({"id": s.id, "principal": s.principal}))
         .collect();
-    Json(json!({"sessions": sessions}))
+    Json(json!({"sessions": sessions})).into_response()
 }
 
 async fn get_access_token(Json(_v): Json<Value>) -> Json<Value> {
@@ -415,7 +433,14 @@ async fn mint_capability(
     .into_response()
 }
 
-async fn introspect_capability(State(st): State<App>, Json(body): Json<Value>) -> Json<Value> {
+async fn introspect_capability(
+    State(st): State<App>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     let id = body.get("id").and_then(|v| v.as_str()).unwrap_or("");
     let caps = st.capabilities.lock().unwrap();
     match caps.get(id) {
@@ -424,8 +449,9 @@ async fn introspect_capability(State(st): State<App>, Json(body): Json<Value>) -
             "audience": c.audience,
             "scopes": c.scopes,
             "expires_at": c.expires_at
-        })),
-        _ => Json(json!({"active": false})),
+        }))
+        .into_response(),
+        _ => Json(json!({"active": false})).into_response(),
     }
 }
 

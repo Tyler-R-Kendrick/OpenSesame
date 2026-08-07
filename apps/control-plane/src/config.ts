@@ -18,6 +18,10 @@ export interface ControlPlaneConfig {
   isProduction: boolean;
   /** Explicit CORS allowlist (comma-separated origins via OPENSESAME_CORS_ORIGINS). */
   corsOrigins: string[];
+  /** Host API base for server-side device approve proxy (never expose operator token to browsers). */
+  hostApiUrl: string;
+  /** Server-only operator token for Host API mutations. Empty in production if unset. */
+  operatorToken: string;
 }
 
 const DEV_CLAIM_PEPPER = "dev-claim-pepper-change-me";
@@ -78,6 +82,17 @@ export function loadConfig(
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
+    hostApiUrl: (
+      env.OPENSESAME_HOST_API ??
+      env.OPENSESAME_SERVER ??
+      "http://127.0.0.1:8787"
+    ).replace(/\/$/, ""),
+    operatorToken: (() => {
+      const t = env.OPENSESAME_OPERATOR_TOKEN ?? "";
+      if (t) return t;
+      if (isProduction) return "";
+      return "opensesame-dev-operator";
+    })(),
   };
   if (env.DATABASE_URL) {
     config.databaseUrl = env.DATABASE_URL;
@@ -95,5 +110,10 @@ export function assertSecureConfig(config: ControlPlaneConfig): void {
   }
   if (config.isProduction && config.allowDevDefaults) {
     throw new Error("allowDevDefaults must be false in production");
+  }
+  if (config.isProduction && !config.operatorToken) {
+    throw new Error(
+      "OPENSESAME_OPERATOR_TOKEN must be set in production for Host API device-approve proxy",
+    );
   }
 }

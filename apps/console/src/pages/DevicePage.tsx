@@ -1,16 +1,13 @@
 import { useState } from "react";
 
-const hostApi =
-  import.meta.env.VITE_OPENSESAME_HOST_API ??
-  import.meta.env.VITE_OPENSESAME_API_URL ??
-  "http://127.0.0.1:8787";
-
-const operatorToken =
-  import.meta.env.VITE_OPENSESAME_OPERATOR_TOKEN ?? "opensesame-dev-operator";
+const identityApi =
+  import.meta.env.VITE_OPENSESAME_ISSUER ??
+  import.meta.env.VITE_IDENTITY_API ??
+  "http://127.0.0.1:8788";
 
 /**
  * Device authorization approval — distinct from claim ownership.
- * Copy must say "Authorize CLI", never "Claim".
+ * Approves via Identity API (authenticated); operator token stays server-side.
  */
 export function DevicePage() {
   const [userCode, setUserCode] = useState("");
@@ -20,13 +17,12 @@ export function DevicePage() {
   async function approve() {
     setError(null);
     try {
-      const res = await fetch(`${hostApi.replace(/\/$/, "")}/api/v1/device/approve`, {
+      const base = identityApi.replace(/\/$/, "");
+      const res = await fetch(`${base}/v1/device/approve`, {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-opensesame-operator": operatorToken,
-        },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ user_code: userCode.trim() }),
+        credentials: "include",
       });
       if (!res.ok) {
         throw new Error(`Approval failed (${res.status})`);
@@ -44,7 +40,8 @@ export function DevicePage() {
       <p>
         Enter the user code shown in your terminal. This grants a short-lived
         client session only — it does <strong>not</strong> transfer ownership of
-        agents, projects, or resources.
+        agents, projects, or resources. Sign in first so the Identity API can
+        approve on your behalf (operator credentials never ship to the browser).
       </p>
       <label htmlFor="user-code">User code</label>
       <input
