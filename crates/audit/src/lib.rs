@@ -112,6 +112,10 @@ mod tests {
             safe_result_summary: Some(serde_json::json!({"ok": true})),
             authority_key_id: String::new(),
             signature: String::new(),
+            receipt_schema_version: 1,
+            task_run_id: None,
+            task_state_version: None,
+            task_state_digest: None,
         };
         let signed = signer.sign_receipt(receipt).unwrap();
         signer.verify_receipt(&signed).unwrap();
@@ -146,6 +150,10 @@ mod tests {
             safe_result_summary: Some(serde_json::json!({"ok": true})),
             authority_key_id: String::new(),
             signature: String::new(),
+            receipt_schema_version: 1,
+            task_run_id: None,
+            task_state_version: None,
+            task_state_digest: None,
         };
         let mut signed = signer.sign_receipt(receipt).unwrap();
         signed.operation = "admin.destroy".into();
@@ -181,6 +189,10 @@ mod tests {
             safe_result_summary: Some(serde_json::json!({"refresh_token": "nope"})),
             authority_key_id: String::new(),
             signature: String::new(),
+            receipt_schema_version: 1,
+            task_run_id: None,
+            task_state_version: None,
+            task_state_digest: None,
         };
         assert!(signer.sign_receipt(receipt).is_err());
     }

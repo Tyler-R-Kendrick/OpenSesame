@@ -38,3 +38,49 @@ export const PrincipalMeResponseSchema = z.object({
     .default([]),
 });
 export type PrincipalMeResponse = z.infer<typeof PrincipalMeResponseSchema>;
+
+export const ExternalIdentityKindSchema = z.enum([
+  "oidc",
+  "oauth_profile",
+  "passkey",
+  "atproto",
+  "nostr",
+  "spiffe",
+  "auth_md",
+  "enterprise_directory",
+]);
+
+export const IdentitySummarySchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  issuer: z.string(),
+  subject: z.string().optional(),
+  displayHint: z.string().optional(),
+  assurance: AssuranceLevelSchema,
+  linkedAt: z.string().datetime().optional(),
+});
+export type IdentitySummary = z.infer<typeof IdentitySummarySchema>;
+
+export const LinkIdentityRequestSchema = z.object({
+  kind: ExternalIdentityKindSchema,
+  issuer: z.string().min(1),
+  subject: z.string().min(1),
+  tenant: z.string().optional(),
+  displayHint: z.string().optional(),
+  /** Email is never used for auto-link; accepted only as a display hint. */
+  emailNormalized: z.string().email().optional(),
+  emailVerified: z.boolean().optional(),
+  assurance: AssuranceLevelSchema.default("verified"),
+});
+export type LinkIdentityRequest = z.infer<typeof LinkIdentityRequestSchema>;
+
+export const LinkIdentityResponseSchema = z.object({
+  identity: IdentitySummarySchema,
+  principalId: z.string(),
+});
+export type LinkIdentityResponse = z.infer<typeof LinkIdentityResponseSchema>;
+
+export const IdentityListResponseSchema = z.object({
+  identities: z.array(IdentitySummarySchema),
+});
+export type IdentityListResponse = z.infer<typeof IdentityListResponseSchema>;

@@ -57,6 +57,7 @@ export interface ExternalIdentityRepository {
   }): Promise<ExternalIdentity | null>;
   listByPrincipal(principalId: string): Promise<ExternalIdentity[]>;
   listByEmailNormalized(email: string): Promise<ExternalIdentity[]>;
+  deleteById(id: string, uow?: UnitOfWork): Promise<boolean>;
 }
 
 export interface BetterAuthSubjectRepository {
@@ -86,6 +87,10 @@ export interface ClaimItemRepository {
 
 export interface AuditEventRepository {
   append(event: AuditEvent, uow?: UnitOfWork): Promise<AuditEvent>;
+  list(filter?: {
+    principalId?: string;
+    limit?: number;
+  }): Promise<AuditEvent[]>;
 }
 
 export interface OutboxRepository {

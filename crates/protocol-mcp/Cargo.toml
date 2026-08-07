@@ -1,0 +1,13 @@
+[package]
+name = "opensesame-protocol-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "MCP Authorization 2026-07-28 Bearer profile adapter for OpenSesame"
+
+[dependencies]
+opensesame-domain = { path = "../domain" }
+thiserror = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]

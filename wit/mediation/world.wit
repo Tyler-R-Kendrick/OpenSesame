@@ -1,0 +1,31 @@
+package opensesame:mediation@1.0.0;
+
+/// Mediation classification and ratchet transition acknowledgements.
+interface mediation {
+  record classify-result {
+    mediation-point-id: string,
+    kind: string,
+    required: bool,
+    logical-name: string,
+  }
+
+  record transition-ref {
+    task-run-id: string,
+    transition-id: string,
+    state-version: u64,
+  }
+
+  classify: func(
+    task-run-id: string,
+    operation: string,
+  ) -> result<classify-result, string>;
+
+  acknowledge-transition: func(
+    transition: transition-ref,
+    evidence-digest: string,
+  ) -> result<_, string>;
+}
+
+world mediation {
+  export mediation;
+}

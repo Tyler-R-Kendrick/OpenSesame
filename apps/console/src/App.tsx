@@ -2,6 +2,7 @@ import { Link, Route, Routes } from "react-router";
 import { SignInPage } from "./pages/SignInPage.js";
 import { DevicePage } from "./pages/DevicePage.js";
 import { ClaimPage } from "./pages/ClaimPage.js";
+import { TaskAccessPage } from "./pages/TaskAccessPage.js";
 
 const issuer =
   import.meta.env.VITE_OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
@@ -15,11 +16,13 @@ export function App() {
         <Link to="/">Sign in</Link>
         <Link to="/device">Authorize CLI</Link>
         <Link to="/claim">Claim ownership</Link>
+        <Link to="/task-access">Task access</Link>
       </nav>
       <Routes>
         <Route path="/" element={<SignInPage />} />
         <Route path="/device" element={<DevicePage />} />
         <Route path="/claim" element={<ClaimPage />} />
+        <Route path="/task-access" element={<TaskAccessPage />} />
       </Routes>
     </div>
   );

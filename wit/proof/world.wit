@@ -1,0 +1,26 @@
+package opensesame:proof@1.0.0;
+
+/// Proof execution world — task/intent binding required for authorized proofs.
+interface types {
+  resource proof-handle;
+}
+
+interface proof-execution {
+  use types.{proof-handle};
+
+  record authorized-proof-request {
+    proof: borrow<proof-handle>,
+    task-run-id: string,
+    intent-digest: string,
+    task-state-version: u64,
+    purpose: string,
+  }
+
+  execute-authorized-proof: func(
+    req: authorized-proof-request
+  ) -> result<string, string>;
+}
+
+world proof {
+  export proof-execution;
+}

@@ -8,7 +8,7 @@ import type {
   OutboxEvent,
   Principal,
 } from "@opensesame/os-domain";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type postgres from "postgres";
 import * as schema from "../schema/index.js";
@@ -315,6 +315,14 @@ export class PostgresRepositories implements Repositories {
         .where(eq(schema.externalIdentities.emailNormalized, email));
       return rows.map(mapIdentity);
     },
+
+    deleteById: async (id, uow) => {
+      const rows = await dbOf(uow, this.db)
+        .delete(schema.externalIdentities)
+        .where(eq(schema.externalIdentities.id, id))
+        .returning({ id: schema.externalIdentities.id });
+      return rows.length > 0;
+    },
   };
 
   readonly betterAuthSubjects: BetterAuthSubjectRepository = {
@@ -589,6 +597,48 @@ export class PostgresRepositories implements Repositories {
       if (row.targetId) mapped.targetId = row.targetId;
       if (row.causationId) mapped.causationId = row.causationId;
       return mapped;
+    },
+    list: async (filter) => {
+      const limit = filter?.limit ?? 50;
+      const rows = filter?.principalId
+        ? await this.db
+            .select()
+            .from(schema.auditEvents)
+            .where(eq(schema.auditEvents.principalId, filter.principalId))
+            .orderBy(desc(schema.auditEvents.occurredAt))
+            .limit(limit)
+        : await this.db
+            .select()
+            .from(schema.auditEvents)
+            .orderBy(desc(schema.auditEvents.occurredAt))
+            .limit(limit);
+      return rows.map((row) => {
+        const mapped: AuditEvent = {
+          id: row.id,
+          occurredAt: row.occurredAt,
+          eventType: row.eventType,
+          outcome: row.outcome as AuditEvent["outcome"],
+          correlationId: row.correlationId,
+          metadata: (row.metadata ?? {}) as Record<string, unknown>,
+        };
+        if (row.principalId) mapped.principalId = row.principalId;
+        if (row.actorType) {
+          mapped.actorType = row.actorType as NonNullable<
+            AuditEvent["actorType"]
+          >;
+        }
+        if (row.actorId) mapped.actorId = row.actorId;
+        if (row.agentInstanceId) mapped.agentInstanceId = row.agentInstanceId;
+        if (row.clientId) mapped.clientId = row.clientId;
+        if (row.organizationId) mapped.organizationId = row.organizationId;
+        if (row.projectId) mapped.projectId = row.projectId;
+        if (row.claimId) mapped.claimId = row.claimId;
+        if (row.sessionId) mapped.sessionId = row.sessionId;
+        if (row.targetType) mapped.targetType = row.targetType;
+        if (row.targetId) mapped.targetId = row.targetId;
+        if (row.causationId) mapped.causationId = row.causationId;
+        return mapped;
+      });
     },
   };
 

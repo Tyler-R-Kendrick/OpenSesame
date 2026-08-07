@@ -221,6 +221,22 @@ export class MemoryRepositories implements Repositories {
         .filter((row) => row.emailNormalized === email)
         .map((row) => ({ ...row, metadata: { ...row.metadata } }));
     },
+
+    deleteById: async (id, uow) => {
+      const row = this.#store.identities.get(id);
+      if (!row) return false;
+      const key = identityKey(row);
+      const apply = () => {
+        this.#store.identities.delete(id);
+        this.#store.identityKeys.delete(key);
+      };
+      if (uow instanceof MemoryUnitOfWork) {
+        uow.defer(apply);
+      } else {
+        apply();
+      }
+      return true;
+    },
   };
 
   readonly betterAuthSubjects: BetterAuthSubjectRepository = {
@@ -358,6 +374,18 @@ export class MemoryRepositories implements Repositories {
         apply();
       }
       return { ...row, metadata: { ...row.metadata } };
+    },
+    list: async (filter) => {
+      let rows = [...this.#store.audit.values()];
+      if (filter?.principalId) {
+        rows = rows.filter((r) => r.principalId === filter.principalId);
+      }
+      rows.sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+      const limit = filter?.limit ?? 50;
+      return rows.slice(0, limit).map((r) => ({
+        ...r,
+        metadata: { ...r.metadata },
+      }));
     },
   };
 

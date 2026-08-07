@@ -117,3 +117,54 @@ input {
   color: #ff8f8f;
   margin-top: 0.75rem;
 }
+
+.warn-banner {
+  border-left: 3px solid var(--warn);
+  padding: 0.65rem 0.85rem;
+  margin: 1rem 0;
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  color: var(--fg);
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.meta-grid dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.meta-grid dd {
+  margin: 0.15rem 0 0;
+  font-family: ui-monospace, monospace;
+  font-size: 0.9rem;
+}
+
+.cap-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+
+.cap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.cap-table th,
+.cap-table td {
+  border: 1px solid var(--line);
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+}
+
+.cap-table th {
+  color: var(--muted);
+  font-weight: 600;
+}

@@ -84,6 +84,16 @@ enum Commands {
         #[command(subcommand)]
         cmd: DaemonCmd,
     },
+    /// Task-scoped authority (immutable ceiling + trust ratchet).
+    Task {
+        #[command(subcommand)]
+        cmd: TaskCmd,
+    },
+    /// Freeze a task-bound intent via Host API.
+    Intent {
+        #[command(subcommand)]
+        cmd: IntentCmd,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -121,6 +131,49 @@ enum AuthCmd {
 #[derive(Subcommand, Debug)]
 enum ReceiptCmd {
     Verify { id: String },
+}
+
+#[derive(Subcommand, Debug)]
+enum TaskCmd {
+    Start {
+        #[arg(long)]
+        principal: String,
+        #[arg(long)]
+        organization: String,
+        /// Repeatable capability as action=resource
+        #[arg(long = "capability", required = true)]
+        capabilities: Vec<String>,
+        #[arg(long, default_value_t = 3600)]
+        ttl_seconds: i64,
+    },
+    List,
+    Inspect { id: String },
+    Capabilities { id: String },
+    Terminate {
+        id: String,
+        #[arg(long)]
+        expected_state_version: Option<u64>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum IntentCmd {
+    Create {
+        #[arg(long)]
+        task: String,
+        #[arg(long)]
+        operation: String,
+        #[arg(long)]
+        resource: String,
+        #[arg(long)]
+        audience: String,
+        #[arg(long, default_value = "{}")]
+        args: String,
+        #[arg(long)]
+        expected_state_version: Option<u64>,
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
 }
 
 #[derive(Clone, ValueEnum, Debug)]
@@ -200,6 +253,8 @@ async fn main() -> anyhow::Result<()> {
             dev_cmd(cmd, agent, schema)?
         }
         Commands::Daemon { url, cmd } => daemon_cmd(&url, cmd).await?,
+        Commands::Task { cmd } => task_cmd(&cli.server, &cli.output, cmd).await?,
+        Commands::Intent { cmd } => intent_cmd(&cli.server, &cli.output, cmd).await?,
     }
     Ok(())
 }
@@ -690,4 +745,158 @@ async fn doctor(server: &str) -> anyhow::Result<()> {
 
 fn uuid_v4() -> String {
     format!("{}", uuid::Uuid::new_v4())
+}
+
+fn print_output(output: &str, value: &serde_json::Value) -> anyhow::Result<()> {
+    if output == "json" {
+        println!("{}", serde_json::to_string_pretty(value)?);
+    } else {
+        println!("{}", value);
+    }
+    Ok(())
+}
+
+fn parse_capability(raw: &str) -> anyhow::Result<serde_json::Value> {
+    let (action, resource) = raw
+        .split_once('=')
+        .ok_or_else(|| anyhow::anyhow!("capability must be action=resource, got {raw}"))?;
+    Ok(json!({ "action": action, "resource": resource }))
+}
+
+async fn task_cmd(server: &str, output: &str, cmd: TaskCmd) -> anyhow::Result<()> {
+    let client = reqwest::Client::new();
+    let base = server.trim_end_matches('/');
+    match cmd {
+        TaskCmd::Start {
+            principal,
+            organization,
+            capabilities,
+            ttl_seconds,
+        } => {
+            let caps: Vec<serde_json::Value> = capabilities
+                .iter()
+                .map(|c| parse_capability(c))
+                .collect::<anyhow::Result<_>>()?;
+            let body: serde_json::Value = client
+                .post(format!("{base}/api/v1/tasks"))
+                .json(&json!({
+                    "principal_id": principal,
+                    "organization_id": organization,
+                    "capabilities": caps,
+                    "ttl_seconds": ttl_seconds,
+                }))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            print_output(output, &body)?;
+        }
+        TaskCmd::List => {
+            let body: serde_json::Value = client
+                .get(format!("{base}/api/v1/tasks"))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            print_output(output, &body)?;
+        }
+        TaskCmd::Inspect { id } => {
+            let body: serde_json::Value = client
+                .get(format!("{base}/api/v1/tasks/{id}"))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            print_output(output, &body)?;
+        }
+        TaskCmd::Capabilities { id } => {
+            let body: serde_json::Value = client
+                .get(format!("{base}/api/v1/tasks/{id}"))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            let out = json!({
+                "task_run_id": body.get("task_run_id").cloned().unwrap_or(json!(id)),
+                "state_version": body.get("state_version"),
+                "capability_ceiling": body.get("capability_ceiling"),
+                "current_capabilities": body.get("current_capabilities"),
+            });
+            print_output(output, &out)?;
+        }
+        TaskCmd::Terminate {
+            id,
+            expected_state_version,
+        } => {
+            let body: serde_json::Value = client
+                .post(format!("{base}/api/v1/tasks/{id}/terminate"))
+                .json(&json!({
+                    "expected_state_version": expected_state_version,
+                }))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            print_output(output, &body)?;
+        }
+    }
+    Ok(())
+}
+
+async fn intent_cmd(server: &str, output: &str, cmd: IntentCmd) -> anyhow::Result<()> {
+    let client = reqwest::Client::new();
+    let base = server.trim_end_matches('/');
+    match cmd {
+        IntentCmd::Create {
+            task,
+            operation,
+            resource,
+            audience,
+            args,
+            expected_state_version,
+            idempotency_key,
+        } => {
+            let arguments: serde_json::Value = serde_json::from_str(&args)
+                .map_err(|e| anyhow::anyhow!("invalid --args JSON: {e}"))?;
+            let state_version = match expected_state_version {
+                Some(v) => v,
+                None => {
+                    let status: serde_json::Value = client
+                        .get(format!("{base}/api/v1/tasks/{task}"))
+                        .send()
+                        .await?
+                        .error_for_status()?
+                        .json()
+                        .await?;
+                    status
+                        .get("state_version")
+                        .and_then(|v| v.as_u64())
+                        .ok_or_else(|| anyhow::anyhow!("task missing state_version"))?
+                }
+            };
+            let body: serde_json::Value = client
+                .post(format!("{base}/api/v1/tasks/intents"))
+                .json(&json!({
+                    "task_run_id": task,
+                    "expected_state_version": state_version,
+                    "operation": operation,
+                    "resource": resource,
+                    "audience": audience,
+                    "arguments": arguments,
+                    "idempotency_key": idempotency_key.unwrap_or_else(uuid_v4),
+                }))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            print_output(output, &body)?;
+        }
+    }
+    Ok(())
 }

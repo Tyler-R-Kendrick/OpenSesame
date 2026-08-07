@@ -1,0 +1,20 @@
+[package]
+name = "opensesame-protocol-aauth"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Experimental AAuth draft-10 adapter for OpenSesame (disabled by default)"
+
+[features]
+default = []
+experimental-aauth = []
+
+[dependencies]
+opensesame-domain = { path = "../domain" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+blake3 = { workspace = true }
+
+[dev-dependencies]
