@@ -199,13 +199,23 @@ impl TaskStore for InMemoryTaskStore {
         Ok(lock_map(&self.ceiling_digests)?.get(&task_run_id).cloned())
     }
 
+    /// Write-once: a ceiling digest may be set, and may be set again to the same
+    /// value, but never changed. Immutability that only holds on the read path is
+    /// one stray writer away from not holding at all.
     fn save_ceiling_digest(
         &self,
         task_run_id: TaskRunId,
         digest: &str,
     ) -> Result<(), TaskAccessError> {
-        lock_map(&self.ceiling_digests)?.insert(task_run_id, digest.to_string());
-        Ok(())
+        let mut digests = lock_map(&self.ceiling_digests)?;
+        match digests.get(&task_run_id) {
+            Some(existing) if existing != digest => Err(TaskAccessError::CeilingImmutable),
+            Some(_) => Ok(()),
+            None => {
+                digests.insert(task_run_id, digest.to_string());
+                Ok(())
+            }
+        }
     }
 
     fn set_pending_transition(
