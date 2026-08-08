@@ -266,10 +266,15 @@ claimRoutes.post(
       if (projectId) {
         const project = ctx.stores.projects.get(projectId);
         if (project && project.state === "provisional") {
+          const now = ctx.clock();
+          // A claim can be completed after the project it names has run out of
+          // time. Activating it then would hand back a project that is past its
+          // own TTL and that nothing will expire again.
+          const lapsed = project.expiresAt !== undefined && project.expiresAt <= now;
           ctx.stores.projects.set(projectId, {
             ...project,
-            state: "active",
-            updatedAt: ctx.clock(),
+            state: lapsed ? "expired" : "active",
+            updatedAt: now,
             ownerPrincipalId: project.ownerPrincipalId ?? principalId,
           });
         }

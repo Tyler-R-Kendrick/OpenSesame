@@ -47,8 +47,16 @@ export interface CleanupResult {
   expiredClaims: number;
   expiredSessions: number;
   expiredProjects: number;
+  reapedProjects: number;
   outboxPublished: number;
 }
+
+/**
+ * How long an expired project is kept for inspection before it is dropped.
+ * Without a bound the map only ever grows, so a long-lived process accumulates
+ * every temporary project it ever issued.
+ */
+export const EXPIRED_PROJECT_RETENTION_MS = 60 * 60 * 1000;
 
 /**
  * One cleanup tick: expire claims past TTL, drop provisional sessions/projects,
@@ -59,6 +67,7 @@ export async function runCleanupTick(deps: CleanupDeps): Promise<CleanupResult> 
   let expiredClaims = 0;
   let expiredSessions = 0;
   let expiredProjects = 0;
+  let reapedProjects = 0;
   let outboxPublished = 0;
 
   for (const id of deps.claimStore.listIds()) {
@@ -93,17 +102,24 @@ export async function runCleanupTick(deps: CleanupDeps): Promise<CleanupResult> 
   }
 
   for (const [id, project] of deps.projects) {
-    if (
-      project.expiresAt &&
-      project.expiresAt <= now &&
-      project.state === "provisional"
-    ) {
+    // An activated project expires too: checking only `provisional` left every
+    // temporary project that reached `active` alive past its own TTL.
+    const live = project.state === "provisional" || project.state === "active";
+    if (live && project.expiresAt && project.expiresAt <= now) {
       deps.projects.set(id, {
         ...project,
         state: "expired",
         updatedAt: now,
       });
       expiredProjects += 1;
+      continue;
+    }
+    if (
+      (project.state === "expired" || project.state === "deleted") &&
+      now.getTime() - project.updatedAt.getTime() >= EXPIRED_PROJECT_RETENTION_MS
+    ) {
+      deps.projects.delete(id);
+      reapedProjects += 1;
     }
   }
 
@@ -116,11 +132,23 @@ export async function runCleanupTick(deps: CleanupDeps): Promise<CleanupResult> 
   }
 
   deps.log?.info(
-    { expiredClaims, expiredSessions, expiredProjects, outboxPublished },
+    {
+      expiredClaims,
+      expiredSessions,
+      expiredProjects,
+      reapedProjects,
+      outboxPublished,
+    },
     "cleanup tick",
   );
 
-  return { expiredClaims, expiredSessions, expiredProjects, outboxPublished };
+  return {
+    expiredClaims,
+    expiredSessions,
+    expiredProjects,
+    reapedProjects,
+    outboxPublished,
+  };
 }
 
 export interface CleanupLoopOptions extends CleanupDeps {
