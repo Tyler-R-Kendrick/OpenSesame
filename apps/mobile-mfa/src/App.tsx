@@ -1,4 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  assertionPayload,
+  creationOptionsFromJson,
+  registrationResponseJson,
+  requestOptionsFromJson,
+  type PublicKeyCredentialCreationOptionsJSON,
+  type PublicKeyCredentialRequestOptionsJSON,
+} from "./webauthn.js";
 
 const identityApi = import.meta.env.VITE_IDENTITY_API ?? "http://127.0.0.1:8788";
 
@@ -29,7 +37,7 @@ export function App() {
   const deep = useMemo(() => parseDeepLink(), []);
   const [userCode, setUserCode] = useState(deep.userCode ?? "");
   const [claimId] = useState(deep.claimId ?? "");
-  const [principalId, setPrincipalId] = useState("prn_demo");
+  const [principalId, setPrincipalId] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [totpSecret, setTotpSecret] = useState("");
   const [totpCode, setTotpCode] = useState("");
@@ -83,36 +91,96 @@ export function App() {
     }
   }
 
+  function authHeaders(): Record<string, string> | null {
+    const token = accessToken.trim();
+    if (!token) {
+      report("err", "Paste a session access token (pst_…) first — principal Bearer is not accepted.");
+      return null;
+    }
+    return {
+      "content-type": "application/json",
+      authorization: `Bearer ${token}`,
+    };
+  }
+
   async function registerPasskey() {
     setBusy("passkey");
-    const credentialId = `cred_${crypto.randomUUID?.() ?? Date.now()}`;
-    const publicKey = btoa("dev-public-key");
-    const headers: Record<string, string> = {
-      "content-type": "application/json",
-    };
-    if (accessToken) headers.authorization = `Bearer ${accessToken}`;
-    else headers.authorization = `Bearer ${principalId}`;
+    const headers = authHeaders();
+    if (!headers) {
+      setBusy(null);
+      return;
+    }
+    if (!window.PublicKeyCredential) {
+      report("err", "This browser does not support WebAuthn.");
+      setBusy(null);
+      return;
+    }
 
     try {
-      const res = await fetch(`${base}/v1/mfa/passkey/register`, {
+      const optsRes = await fetch(`${base}/v1/mfa/passkey/registration-options`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ credentialId, publicKey, counter: 0 }),
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        report("err", `Passkey register failed (${res.status})`);
+      const optsBody = (await optsRes.json().catch(() => ({}))) as {
+        options?: PublicKeyCredentialCreationOptionsJSON;
+        error?: string;
+        hint?: string;
+      };
+      if (!optsRes.ok || !optsBody.options) {
+        report(
+          "err",
+          optsBody.hint ?? optsBody.error ?? `Registration options failed (${optsRes.status})`,
+        );
+        return;
+      }
+      const cred = (await navigator.credentials.create(
+        creationOptionsFromJson(optsBody.options),
+      )) as PublicKeyCredential | null;
+      if (!cred) {
+        report("err", "Passkey creation was cancelled.");
+        return;
+      }
+      const reg = await fetch(`${base}/v1/mfa/passkey/register`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ response: registrationResponseJson(cred) }),
+      });
+      const regBody = (await reg.json().catch(() => ({}))) as {
+        principalId?: string;
+        error?: string;
+        hint?: string;
+      };
+      if (!reg.ok) {
+        report("err", regBody.hint ?? regBody.error ?? `Passkey register failed (${reg.status})`);
+        return;
+      }
+
+      const authOptsRes = await fetch(`${base}/v1/mfa/passkey/authentication-options`, {
+        method: "POST",
+        headers,
+      });
+      const authOptsBody = (await authOptsRes.json().catch(() => ({}))) as {
+        options?: PublicKeyCredentialRequestOptionsJSON;
+        error?: string;
+      };
+      if (!authOptsRes.ok || !authOptsBody.options) {
+        report(
+          "ok",
+          `Passkey registered for ${regBody.principalId ?? "session"} — assert options unavailable`,
+        );
+        return;
+      }
+      const assertion = (await navigator.credentials.get(
+        requestOptionsFromJson(authOptsBody.options),
+      )) as PublicKeyCredential | null;
+      if (!assertion) {
+        report("ok", `Passkey registered for ${regBody.principalId ?? "session"}`);
         return;
       }
       const assertRes = await fetch(`${base}/v1/mfa/passkey/assert`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          credentialId,
-          clientDataJSON: btoa("{}"),
-          authenticatorData: btoa("auth"),
-          signature: btoa("sig-bytes"),
-        }),
+        body: JSON.stringify(assertionPayload(assertion)),
       });
       const assertBody = (await assertRes.json().catch(() => ({}))) as {
         principalId?: string;
@@ -120,9 +188,11 @@ export function App() {
       report(
         assertRes.ok ? "ok" : "err",
         assertRes.ok
-          ? `Passkey registered for ${assertBody.principalId ?? principalId} (dev fixture)`
+          ? `Passkey registered and asserted for ${assertBody.principalId ?? regBody.principalId}`
           : "Passkey assert failed",
       );
+    } catch (e) {
+      report("err", e instanceof Error ? e.message : "Passkey ceremony failed");
     } finally {
       setBusy(null);
     }
@@ -130,11 +200,11 @@ export function App() {
 
   async function enrollTotp() {
     setBusy("enroll");
-    const headers: Record<string, string> = {
-      "content-type": "application/json",
-    };
-    if (accessToken) headers.authorization = `Bearer ${accessToken}`;
-    else headers.authorization = `Bearer ${principalId}`;
+    const headers = authHeaders();
+    if (!headers) {
+      setBusy(null);
+      return;
+    }
     try {
       const res = await fetch(`${base}/v1/mfa/totp/enroll`, {
         method: "POST",
@@ -144,9 +214,11 @@ export function App() {
       const body = (await res.json().catch(() => ({}))) as {
         secret?: string;
         otpauthUrl?: string;
+        error?: string;
+        hint?: string;
       };
       if (!res.ok) {
-        report("err", `TOTP enroll failed (${res.status})`);
+        report("err", body.hint ?? body.error ?? `TOTP enroll failed (${res.status})`);
         return;
       }
       setTotpSecret(body.secret ?? "");
@@ -158,11 +230,11 @@ export function App() {
 
   async function verifyTotp() {
     setBusy("verify");
-    const headers: Record<string, string> = {
-      "content-type": "application/json",
-    };
-    if (accessToken) headers.authorization = `Bearer ${accessToken}`;
-    else headers.authorization = `Bearer ${principalId}`;
+    const headers = authHeaders();
+    if (!headers) {
+      setBusy(null);
+      return;
+    }
     try {
       const res = await fetch(`${base}/v1/mfa/totp/verify`, {
         method: "POST",
@@ -186,11 +258,11 @@ export function App() {
     }
     setBusy("approve");
     try {
-      const headers: Record<string, string> = {
-        "content-type": "application/json",
-      };
-      if (accessToken) headers.authorization = `Bearer ${accessToken}`;
-      else headers.authorization = `Bearer ${principalId}`;
+      const headers = authHeaders();
+      if (!headers) {
+        setBusy(null);
+        return;
+      }
       const res = await fetch(`${base}/v1/device/approve`, {
         method: "POST",
         headers,
@@ -223,8 +295,9 @@ export function App() {
       <h1>Mobile MFA</h1>
       <p className="lede">
         Passkey / TOTP step-up and CLI device approval against the Identity API
-        ({base}). Passkey register here uses a <strong>dev fixture</strong>, not
-        a platform authenticator.
+        ({base}). Passkeys use the platform authenticator via
+        <code>/v1/mfa/passkey/registration-options</code>. TOTP enroll is
+        dev-defaults only.
       </p>
 
       {claimId ? (
@@ -264,7 +337,7 @@ export function App() {
       <section>
         <h2>Session</h2>
         <label>
-          Principal id
+          Principal id (device approve only)
           <input
             value={principalId}
             onChange={(e) => setPrincipalId(e.target.value)}
@@ -272,11 +345,12 @@ export function App() {
           />
         </label>
         <label>
-          Access token (optional pst_…)
+          Access token (required for MFA)
           <input
             value={accessToken}
             onChange={(e) => setAccessToken(e.target.value)}
             disabled={busy !== null}
+            autoComplete="off"
           />
         </label>
       </section>
