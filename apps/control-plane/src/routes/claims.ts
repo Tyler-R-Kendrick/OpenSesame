@@ -12,6 +12,7 @@ import {
   DomainError,
   parseClaimToken,
   verifyClaimToken,
+  verifyUserCode,
   type ClaimSession,
 } from "@opensesame/os-domain";
 import type { CompleteDecision } from "@opensesame/claims";
@@ -28,6 +29,9 @@ import {
   claimPageSecurityHeaders,
   escapeHtml,
 } from "../middleware/security-headers.js";
+
+/** Wrong user codes tolerated per claim before approval is refused outright. */
+const MAX_CLAIM_APPROVAL_ATTEMPTS = 5;
 
 function toClaimResponse(session: ClaimSession) {
   return ClaimSessionResponseSchema.parse({
@@ -208,6 +212,22 @@ claimRoutes.post(
     try {
       let session = await ctx.claims.get(id);
       if (!session) return c.json({ error: "not_found" }, 404);
+
+      // Approval is the human consent step. Being *some* authenticated principal
+      // proves nothing about the device being claimed, so require the user code
+      // it displayed, with a per-claim attempt fence behind it.
+      const attempts = ctx.stores.claimApprovalAttempts.get(id) ?? 0;
+      if (attempts >= MAX_CLAIM_APPROVAL_ATTEMPTS) {
+        return c.json({ error: "too_many_attempts" }, 429);
+      }
+      if (
+        !session.userCodeDigest ||
+        !verifyUserCode(ctx.config.claimPepper, parsed.data.userCode, session.userCodeDigest)
+      ) {
+        ctx.stores.claimApprovalAttempts.set(id, attempts + 1);
+        return c.json({ error: "invalid_user_code" }, 401);
+      }
+      ctx.stores.claimApprovalAttempts.delete(id);
 
       if (session.state === "pending") {
         return c.json({ error: "INVALID_TRANSITION", message: "Claim must be presented first" }, 422);

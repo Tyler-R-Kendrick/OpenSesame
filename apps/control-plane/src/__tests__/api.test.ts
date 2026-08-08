@@ -72,6 +72,7 @@ describe("control-plane API", () => {
       projectId: string;
       claimId: string;
       claimToken: string;
+      userCode: string;
       targetManifestDigest: string;
     };
     expect(project.projectId.startsWith("prj_")).toBe(true);
@@ -94,10 +95,18 @@ describe("control-plane API", () => {
     });
     expect(present.status).toBe(200);
 
+    // Approval without the device's user code is not consent.
+    const noCode = await app.request(`/v1/claims/${project.claimId}/complete`, {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ acceptedItemIds: [], userCode: "0000-0000" }),
+    });
+    expect(noCode.status).toBe(401);
+
     const complete = await app.request(`/v1/claims/${project.claimId}/complete`, {
       method: "POST",
       headers: { ...auth, "content-type": "application/json", "idempotency-key": "complete-1" },
-      body: JSON.stringify({ acceptedItemIds: [] }),
+      body: JSON.stringify({ acceptedItemIds: [], userCode: project.userCode }),
     });
     expect(complete.status).toBe(200);
     const done = (await complete.json()) as {
@@ -734,6 +743,66 @@ describe("control-plane API", () => {
     expect(res.status).toBe(429);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe("provisional_capacity");
+  });
+
+  it("never replays another principal's idempotent response", async () => {
+    const { app } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+
+    const victim = await provisional(app);
+    const attacker = await provisional(app);
+    const sharedKey = "signup-1";
+
+    const register = (token: string) =>
+      app.request("/v1/agents", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+          "idempotency-key": sharedKey,
+        },
+        body: JSON.stringify({ displayName: "worker", publicKeyJkt: "jkt_abcdefgh" }),
+      });
+
+    const first = await register(victim.accessToken);
+    expect(first.status).toBe(201);
+    const mine = (await first.json()) as { agentId: string; claimToken: string };
+
+    // Same key, different caller: must not hand over the victim's claim token.
+    const second = await register(attacker.accessToken);
+    expect(second.status).toBe(201);
+    expect(second.headers.get("idempotency-replayed")).toBeNull();
+    const theirs = (await second.json()) as { agentId: string; claimToken: string };
+    expect(theirs.agentId).not.toBe(mine.agentId);
+    expect(theirs.claimToken).not.toBe(mine.claimToken);
+
+    // The owner still gets a replay for their own key.
+    const replay = await register(victim.accessToken);
+    expect(replay.headers.get("idempotency-replayed")).toBe("true");
+    expect(((await replay.json()) as { agentId: string }).agentId).toBe(mine.agentId);
+  });
+
+  it("does not replay unauthenticated provisional signups across callers", async () => {
+    const { app } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+
+    const signup = () =>
+      app.request("/v1/principals/provisional", {
+        method: "POST",
+        headers: { "idempotency-key": "shared" },
+      });
+
+    const a = await signup();
+    const b = await signup();
+    expect(a.status).toBe(201);
+    expect(b.status).toBe(201);
+    expect(b.headers.get("idempotency-replayed")).toBeNull();
+    const first = (await a.json()) as { accessToken: string; principalId: string };
+    const second = (await b.json()) as { accessToken: string; principalId: string };
+    expect(second.accessToken).not.toBe(first.accessToken);
+    expect(second.principalId).not.toBe(first.principalId);
   });
 
   it("fences agent claim ceremonies to the registering principal", async () => {
