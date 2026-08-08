@@ -91,9 +91,14 @@ OpenSesame is a **resolver/broker**, not exclusive shell magic — mise/direnv/d
 
 Host credential-agent (`OPENSESAME_AGENT_URL`, default `127.0.0.1:18790`) issues short-lived session capabilities into WSL/devcontainers; containers do not receive refresh tokens or WebAuthn material.
 
+It is superseded by `opensesame-daemon`: it refuses to start without
+`OPENSESAME_LEGACY_CREDENTIAL_AGENT=1`, and every `/v1/*` route requires the
+operator bearer, since any co-resident process can reach loopback.
+
 ```bash
-cargo run -p opensesame-credential-agent
+OPENSESAME_LEGACY_CREDENTIAL_AGENT=1 cargo run -p opensesame-credential-agent
 curl -s -X POST http://127.0.0.1:18790/v1/mint_capability \
+  -H "authorization: Bearer operator:${OPENSESAME_OPERATOR_TOKEN}" \
   -H 'content-type: application/json' -d '{"audience":"devcontainer"}'
 ```
 
