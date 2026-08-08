@@ -40,6 +40,11 @@ describe("SafeMetadataFetcher SSRF denylist", () => {
       "http://[fe80::1]/meta.json",
       "http://[ff02::1]/meta.json",
       "http://224.0.0.1/meta.json",
+      // NAT64 and 6to4 wrappers: the network unwraps these to 127.0.0.1 and
+      // 169.254.169.254 respectively.
+      "http://[64:ff9b::7f00:1]/meta.json",
+      "http://[64:ff9b::127.0.0.1]/meta.json",
+      "http://[2002:a9fe:a9fe::1]/latest/meta-data",
     ];
     for (const url of blocked) {
       expect(() => assertSafeMetadataUrl(url), url).toThrow(UnsafeMetadataUrlError);
