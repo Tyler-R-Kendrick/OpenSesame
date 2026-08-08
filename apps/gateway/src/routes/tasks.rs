@@ -8,16 +8,12 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use opensesame_domain::*;
-use opensesame_task_access::{InMemoryTaskStore, StartTaskParams, TaskAccessEngine, TaskStore};
+use opensesame_task_access::{StartTaskParams, TaskStore};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use std::sync::{Arc, Mutex};
 
-pub type SharedTaskEngine = Arc<Mutex<TaskAccessEngine<InMemoryTaskStore>>>;
-
-pub fn new_task_engine() -> SharedTaskEngine {
-    Arc::new(Mutex::new(TaskAccessEngine::new(InMemoryTaskStore::new())))
-}
+use crate::app_state::AppState;
+use crate::middleware::auth::require_session_or_operator;
 
 #[derive(Deserialize)]
 pub struct StartTaskBody {
@@ -50,9 +46,11 @@ pub struct FreezeIntentBody {
 }
 
 pub async fn start_task(
-    State(engine): State<SharedTaskEngine>,
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
     Json(body): Json<StartTaskBody>,
 ) -> Result<Response, Response> {
+    require_session_or_operator(&st, &headers)?;
     let principal = PrincipalId::parse(&body.principal_id).map_err(bad_req)?;
     let org = OrganizationId::parse(&body.organization_id).map_err(bad_req)?;
     let caps = CapabilitySet::new(
@@ -71,7 +69,7 @@ pub async fn start_task(
         capability_ceiling: caps.clone(),
         compiled_at: now,
     };
-    let eng = engine.lock().map_err(|_| internal("lock"))?;
+    let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
     let ceiling = eng
         .compile_ceiling(
             vec![CeilingInput {
@@ -105,11 +103,13 @@ pub async fn start_task(
 }
 
 pub async fn get_task(
-    State(engine): State<SharedTaskEngine>,
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Response, Response> {
+    require_session_or_operator(&st, &headers)?;
     let tid = TaskRunId::parse(&id).map_err(bad_req)?;
-    let eng = engine.lock().map_err(|_| internal("lock"))?;
+    let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
     let run = eng
         .store()
         .get_run(tid)
@@ -129,11 +129,13 @@ pub async fn get_task(
 }
 
 pub async fn freeze_intent(
-    State(engine): State<SharedTaskEngine>,
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
     Json(body): Json<FreezeIntentBody>,
 ) -> Result<Response, Response> {
+    require_session_or_operator(&st, &headers)?;
     let tid = TaskRunId::parse(&body.task_run_id).map_err(bad_req)?;
-    let eng = engine.lock().map_err(|_| internal("lock"))?;
+    let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
     let required = Capability::new(
         body.operation.clone(),
         ResourceSelector::exact(body.resource.clone()),
@@ -188,8 +190,12 @@ pub struct TerminateTaskBody {
     pub expected_state_version: Option<u64>,
 }
 
-pub async fn list_tasks(State(engine): State<SharedTaskEngine>) -> Result<Response, Response> {
-    let eng = engine.lock().map_err(|_| internal("lock"))?;
+pub async fn list_tasks(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Result<Response, Response> {
+    require_session_or_operator(&st, &headers)?;
+    let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
     let runs = eng.list_runs().map_err(internal)?;
     let items: Vec<Value> = runs
         .into_iter()
@@ -206,12 +212,14 @@ pub async fn list_tasks(State(engine): State<SharedTaskEngine>) -> Result<Respon
 }
 
 pub async fn terminate_task(
-    State(engine): State<SharedTaskEngine>,
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
     axum::extract::Path(id): axum::extract::Path<String>,
     Json(body): Json<TerminateTaskBody>,
 ) -> Result<Response, Response> {
+    require_session_or_operator(&st, &headers)?;
     let tid = TaskRunId::parse(&id).map_err(bad_req)?;
-    let eng = engine.lock().map_err(|_| internal("lock"))?;
+    let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
     let run = eng
         .store()
         .get_run(tid)

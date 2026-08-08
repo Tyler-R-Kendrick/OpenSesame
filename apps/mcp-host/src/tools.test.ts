@@ -58,9 +58,14 @@ describe("mcp-host tools", () => {
 
   it("task_start calls Host API when OPENSESAME_SERVER set", async () => {
     process.env.OPENSESAME_SERVER = "http://127.0.0.1:8787";
-    const calls: string[] = [];
+    process.env.OPENSESAME_OPERATOR_TOKEN = "opensesame-dev-operator";
+    const calls: Array<{ url: string; auth?: string | null }> = [];
     setFetchForTests(async (input, init) => {
-      calls.push(String(input));
+      const headers = new Headers(init?.headers);
+      calls.push({
+        url: String(input),
+        auth: headers.get("authorization"),
+      });
       return new Response(
         JSON.stringify({
           task_run_id: "task-1",
@@ -86,9 +91,11 @@ describe("mcp-host tools", () => {
     });
     const body = await res.json();
     expect(hostApiBase()).toBe("http://127.0.0.1:8787");
-    expect(calls[0]).toBe("http://127.0.0.1:8787/api/v1/tasks");
+    expect(calls[0]?.url).toBe("http://127.0.0.1:8787/api/v1/tasks");
+    expect(calls[0]?.auth).toBe("Bearer operator:opensesame-dev-operator");
     expect(body.task_run_id).toBe("task-1");
     delete process.env.OPENSESAME_SERVER;
+    delete process.env.OPENSESAME_OPERATOR_TOKEN;
   });
 
   it("task context tracks active run", () => {

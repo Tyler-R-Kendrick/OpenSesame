@@ -792,6 +792,7 @@ fn parse_capability(raw: &str) -> anyhow::Result<serde_json::Value> {
 async fn task_cmd(server: &str, output: &str, cmd: TaskCmd) -> anyhow::Result<()> {
     let client = reqwest::Client::new();
     let base = server.trim_end_matches('/');
+    let op = operator_token();
     match cmd {
         TaskCmd::Start {
             principal,
@@ -805,6 +806,7 @@ async fn task_cmd(server: &str, output: &str, cmd: TaskCmd) -> anyhow::Result<()
                 .collect::<anyhow::Result<_>>()?;
             let body: serde_json::Value = client
                 .post(format!("{base}/api/v1/tasks"))
+                .header("authorization", format!("Bearer operator:{op}"))
                 .json(&json!({
                     "principal_id": principal,
                     "organization_id": organization,
@@ -821,6 +823,7 @@ async fn task_cmd(server: &str, output: &str, cmd: TaskCmd) -> anyhow::Result<()
         TaskCmd::List => {
             let body: serde_json::Value = client
                 .get(format!("{base}/api/v1/tasks"))
+                .header("authorization", format!("Bearer operator:{op}"))
                 .send()
                 .await?
                 .error_for_status()?
@@ -831,6 +834,7 @@ async fn task_cmd(server: &str, output: &str, cmd: TaskCmd) -> anyhow::Result<()
         TaskCmd::Inspect { id } => {
             let body: serde_json::Value = client
                 .get(format!("{base}/api/v1/tasks/{id}"))
+                .header("authorization", format!("Bearer operator:{op}"))
                 .send()
                 .await?
                 .error_for_status()?
@@ -841,6 +845,7 @@ async fn task_cmd(server: &str, output: &str, cmd: TaskCmd) -> anyhow::Result<()
         TaskCmd::Capabilities { id } => {
             let body: serde_json::Value = client
                 .get(format!("{base}/api/v1/tasks/{id}"))
+                .header("authorization", format!("Bearer operator:{op}"))
                 .send()
                 .await?
                 .error_for_status()?
@@ -860,6 +865,7 @@ async fn task_cmd(server: &str, output: &str, cmd: TaskCmd) -> anyhow::Result<()
         } => {
             let body: serde_json::Value = client
                 .post(format!("{base}/api/v1/tasks/{id}/terminate"))
+                .header("authorization", format!("Bearer operator:{op}"))
                 .json(&json!({
                     "expected_state_version": expected_state_version,
                 }))
@@ -877,6 +883,7 @@ async fn task_cmd(server: &str, output: &str, cmd: TaskCmd) -> anyhow::Result<()
 async fn intent_cmd(server: &str, output: &str, cmd: IntentCmd) -> anyhow::Result<()> {
     let client = reqwest::Client::new();
     let base = server.trim_end_matches('/');
+    let op = operator_token();
     match cmd {
         IntentCmd::Create {
             task,
@@ -894,6 +901,7 @@ async fn intent_cmd(server: &str, output: &str, cmd: IntentCmd) -> anyhow::Resul
                 None => {
                     let status: serde_json::Value = client
                         .get(format!("{base}/api/v1/tasks/{task}"))
+                        .header("authorization", format!("Bearer operator:{op}"))
                         .send()
                         .await?
                         .error_for_status()?
@@ -907,6 +915,7 @@ async fn intent_cmd(server: &str, output: &str, cmd: IntentCmd) -> anyhow::Resul
             };
             let body: serde_json::Value = client
                 .post(format!("{base}/api/v1/tasks/intents"))
+                .header("authorization", format!("Bearer operator:{op}"))
                 .json(&json!({
                     "task_run_id": task,
                     "expected_state_version": state_version,

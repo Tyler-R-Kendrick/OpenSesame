@@ -19,13 +19,6 @@ use tower_http::trace::TraceLayer;
 use crate::app_state::AppState;
 
 pub fn router(state: AppState) -> Router {
-    let task_routes = Router::new()
-        .route("/", get(tasks::list_tasks).post(tasks::start_task))
-        .route("/{id}", get(tasks::get_task))
-        .route("/{id}/terminate", post(tasks::terminate_task))
-        .route("/intents", post(tasks::freeze_intent))
-        .with_state(tasks::new_task_engine());
-
     Router::new()
         .route("/health/live", get(health::live))
         .route("/health/ready", get(health::ready))
@@ -56,7 +49,13 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/admin/authority", post(admin::set_authority))
         .route("/api/v1/sync/push", post(sync::push))
         .route("/api/v1/sync/pull", post(sync::pull))
-        .nest("/api/v1/tasks", task_routes)
+        .route(
+            "/api/v1/tasks",
+            get(tasks::list_tasks).post(tasks::start_task),
+        )
+        .route("/api/v1/tasks/intents", post(tasks::freeze_intent))
+        .route("/api/v1/tasks/{id}", get(tasks::get_task))
+        .route("/api/v1/tasks/{id}/terminate", post(tasks::terminate_task))
         .route("/experimental/aauth/v1/status", get(aauth::status))
         .route(
             "/experimental/aauth/v1/map/person",

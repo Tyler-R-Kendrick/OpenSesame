@@ -1,5 +1,6 @@
 use crate::bootstrap;
 use crate::config::{self, Args};
+use crate::task_engine::{new_task_engine, SharedTaskEngine};
 use opensesame_broker::Broker;
 use opensesame_domain::*;
 use opensesame_provider_openbao::OpenBaoHttpAuthority;
@@ -56,6 +57,8 @@ pub struct AppState {
     pub operator_token: String,
     /// Distributed task authority readiness (ADR 0031).
     pub distributed_task_authority: bool,
+    /// In-memory task access engine (immutable ceiling + frozen intents).
+    pub task_engine: SharedTaskEngine,
 }
 
 impl AppState {
@@ -105,6 +108,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         device_cursors: Arc::new(Mutex::new(HashMap::new())),
         operator_token: config::resolve_operator_token(),
         distributed_task_authority,
+        task_engine: new_task_engine(),
     })
 }
 
