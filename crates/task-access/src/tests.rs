@@ -34,6 +34,38 @@ fn start_sample_task(
 }
 
 #[test]
+fn a_ceiling_digest_cannot_be_rewritten_in_the_store() {
+    let store = InMemoryTaskStore::new();
+    let engine = TaskAccessEngine::new(store);
+    let run = start_sample_task(&engine, vec![cap("read", "repo:a")]);
+    let recorded = engine
+        .store()
+        .get_ceiling_digest(run.id)
+        .unwrap()
+        .expect("digest recorded at start");
+
+    // Re-recording the same digest is a no-op, not a conflict.
+    assert!(engine
+        .store()
+        .save_ceiling_digest(run.id, &recorded)
+        .is_ok());
+
+    // A different digest is refused at the store, not merely noticed on read:
+    // an immutability that only holds on the read path is one stray writer away
+    // from not holding at all.
+    assert!(matches!(
+        engine
+            .store()
+            .save_ceiling_digest(run.id, "sha256:some-wider-ceiling"),
+        Err(TaskAccessError::CeilingImmutable)
+    ));
+    assert_eq!(
+        engine.store().get_ceiling_digest(run.id).unwrap(),
+        Some(recorded)
+    );
+}
+
+#[test]
 fn ceiling_immutability_after_start() {
     let store = InMemoryTaskStore::new();
     let engine = TaskAccessEngine::new(store);

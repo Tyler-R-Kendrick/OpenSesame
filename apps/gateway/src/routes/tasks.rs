@@ -229,6 +229,28 @@ pub struct InvokeTaskBody {
 /// sends, so a task-bound caller that used it spent no ceiling at all. Here the
 /// digest names bytes the server already holds, and the broker re-asserts the
 /// capability, task state version, and ceiling before anything executes.
+/// Take a frozen intent for the caller, spending it only when it is theirs.
+///
+/// Single use: a spent digest cannot be replayed into a second invocation. The
+/// ownership question is settled before the digest is spent — removing first
+/// would let anyone who learned a digest burn another principal's intent and
+/// collect a 404 for it, leaving the owner with nothing to invoke.
+///
+/// An intent that is absent and one that belongs to someone else are the same
+/// answer here, so a caller cannot use this to enumerate other principals' work.
+fn claim_frozen_intent(
+    pending: &mut std::collections::HashMap<String, FrozenIntentV2>,
+    digest: &str,
+    caller: &crate::middleware::auth::Caller,
+    now: chrono::DateTime<Utc>,
+) -> Option<FrozenIntentV2> {
+    pending.retain(|_, i| i.expires_at > now);
+    if !caller.owns(&pending.get(digest)?.principal_id) {
+        return None;
+    }
+    pending.remove(digest)
+}
+
 pub async fn invoke_task(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -237,18 +259,11 @@ pub async fn invoke_task(
     let caller = resolve_caller(&st, &headers)?;
     let subject = resolve_caller_subject(&st, &headers)?;
     let boot = require_demo_bootstrap(&st)?;
-    // Single use: a spent digest cannot be replayed into a second invocation.
     let intent = {
         let mut pending = st.frozen_intents.lock().map_err(|_| internal("lock"))?;
-        let now = Utc::now();
-        pending.retain(|_, i| i.expires_at > now);
-        pending
-            .remove(&body.intent_digest)
+        claim_frozen_intent(&mut pending, &body.intent_digest, &caller, Utc::now())
             .ok_or_else(|| not_found("frozen intent"))?
     };
-    if !caller.owns(&intent.principal_id) {
-        return Err(not_found("frozen intent"));
-    }
     let required = Capability::new(
         intent.operation.clone(),
         ResourceSelector::exact(intent.resource.clone()),
@@ -356,8 +371,87 @@ fn internal(e: impl std::fmt::Display) -> Response {
 
 #[cfg(test)]
 mod tests {
+    use super::claim_frozen_intent;
     use crate::middleware::auth::Caller;
-    use opensesame_domain::PrincipalId;
+    use chrono::{Duration, Utc};
+    use opensesame_domain::{
+        FrozenIntentV2, IntentId, OrganizationId, PrincipalId, TaskRunId, ActorId,
+        FROZEN_INTENT_SCHEMA_VERSION,
+    };
+    use std::collections::HashMap;
+
+    fn intent(principal: PrincipalId, expires_in_minutes: i64) -> FrozenIntentV2 {
+        FrozenIntentV2 {
+            schema_version: FROZEN_INTENT_SCHEMA_VERSION,
+            id: IntentId::new(),
+            task_run_id: TaskRunId::new(),
+            task_state_version: 1,
+            task_state_digest: "sha256:state".into(),
+            organization_id: OrganizationId::new(),
+            project_id: None,
+            principal_id: principal,
+            actor_id: ActorId::new(),
+            actor_instance_id: None,
+            client_id: None,
+            operator_id: None,
+            connection_id: None,
+            operation: "read".into(),
+            resource: "repo:a".into(),
+            audience: "https://api.example.com".into(),
+            canonical_arguments: serde_json::json!({}),
+            body_hash: None,
+            nonce: "nonce".into(),
+            idempotency_key: "idem".into(),
+            issued_at: Utc::now(),
+            expires_at: Utc::now() + Duration::minutes(expires_in_minutes),
+            intent_digest: "sha256:intent".into(),
+        }
+    }
+
+    #[test]
+    fn another_principal_cannot_burn_an_intent_it_does_not_own() {
+        let owner = PrincipalId::new();
+        let mut pending = HashMap::new();
+        pending.insert("sha256:intent".to_string(), intent(owner, 5));
+
+        let stranger = Caller::Principal(PrincipalId::new());
+        assert!(
+            claim_frozen_intent(&mut pending, "sha256:intent", &stranger, Utc::now()).is_none()
+        );
+        // The refusal must not have spent it.
+        assert!(pending.contains_key("sha256:intent"));
+
+        let owner_caller = Caller::Principal(owner);
+        assert!(claim_frozen_intent(&mut pending, "sha256:intent", &owner_caller, Utc::now())
+            .is_some());
+        assert!(pending.is_empty(), "the owner's invocation spends it");
+    }
+
+    #[test]
+    fn an_unbound_session_claims_nothing() {
+        let mut pending = HashMap::new();
+        pending.insert("sha256:intent".to_string(), intent(PrincipalId::new(), 5));
+        assert!(
+            claim_frozen_intent(&mut pending, "sha256:intent", &Caller::Unbound, Utc::now())
+                .is_none()
+        );
+        assert!(pending.contains_key("sha256:intent"));
+    }
+
+    #[test]
+    fn expired_intents_are_dropped_rather_than_invoked() {
+        let owner = PrincipalId::new();
+        let mut pending = HashMap::new();
+        pending.insert("sha256:intent".to_string(), intent(owner, -1));
+        assert!(claim_frozen_intent(
+            &mut pending,
+            "sha256:intent",
+            &Caller::Principal(owner),
+            Utc::now()
+        )
+        .is_none());
+        assert!(pending.is_empty());
+    }
 
     #[test]
     fn operator_owns_every_principal() {
