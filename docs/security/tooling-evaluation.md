@@ -69,6 +69,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0w. **Identity claim get/poll** — `GET /v1/claims/{id}` and `/poll` require claim bearer; `/health/providers` operator-only — see `audit-2026-08-07-identity-claim-poll.md`.
 0x. **Claim verify page** — landing page no longer discloses claim existence/state — see `audit-2026-08-08-claim-verify-disclosure.md`.
 0y. **Device code custody** — Host API stores device/user code digests only; approval is constant-time with a 5-attempt burn — see `audit-2026-08-08-device-code-digests.md`.
+0z. **Sync quotas** — per-session blob ceiling, per-blob ciphertext cap, bounded device cursors — see `audit-2026-08-08-sync-quotas.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
