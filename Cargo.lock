@@ -1552,6 +1552,7 @@ dependencies = [
  "anyhow",
  "axum",
  "clap",
+ "opensesame-host-core",
  "serde_json",
  "tokio",
  "tracing",

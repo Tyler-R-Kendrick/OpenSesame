@@ -21,6 +21,29 @@ export interface MockIdpKeys {
   kid: string;
 }
 
+function listenHostIsLoopback(host: string): boolean {
+  const h = host.trim().replace(/^\[/, "").replace(/\]$/, "");
+  return (
+    h === "127.0.0.1" ||
+    h === "localhost" ||
+    h === "::1" ||
+    h === "0:0:0:0:0:0:0:1"
+  );
+}
+
+export function assertMockIdpListenAllowed(
+  host: string,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  const allow =
+    env.OPENSESAME_ALLOW_NONLOCAL === "1" ||
+    env.OPENSESAME_DAEMON_ALLOW_NONLOCAL === "1";
+  if (allow || listenHostIsLoopback(host)) return;
+  throw new Error(
+    `mock-idp listen host \`${host}\` is not loopback; set OPENSESAME_ALLOW_NONLOCAL=1 to override`,
+  );
+}
+
 export function readMockIdpConfig(env: NodeJS.ProcessEnv = process.env): MockIdpConfig {
   return {
     issuer: env.OPENSESAME_MOCK_IDP_ISSUER ?? `http://127.0.0.1:${env.OPENSESAME_MOCK_IDP_PORT ?? "9090"}`,
