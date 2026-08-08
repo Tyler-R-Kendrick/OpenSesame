@@ -71,6 +71,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0y. **Device code custody** — Host API stores device/user code digests only; approval is constant-time with a 5-attempt burn — see `audit-2026-08-08-device-code-digests.md`.
 0z. **Sync quotas** — per-session blob ceiling, per-blob ciphertext cap, bounded device cursors — see `audit-2026-08-08-sync-quotas.md`.
 0aa. **SSRF denylist** — IPv4-mapped/compatible IPv6 literals no longer bypass the metadata denylist — see `audit-2026-08-08-ssrf-ipv6-bypass.md`.
+0ab. **Extension host fence** — `hostApiBase` must be loopback; also unbroke `wxt build` — see `audit-2026-08-08-extension-host-fence.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
