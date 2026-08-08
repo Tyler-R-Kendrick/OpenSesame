@@ -131,7 +131,17 @@ export interface CleanupLoopOptions extends CleanupDeps {
 export async function startCleanupLoop(options: CleanupLoopOptions): Promise<void> {
   const intervalMs = options.intervalMs ?? 5_000;
   while (!options.signal?.aborted) {
-    await runCleanupTick(options);
+    // A throwing tick used to end the loop, which quietly stops expiring claims,
+    // sessions, and projects — credentials would then outlive their TTL for as
+    // long as the process stayed up. Survive the tick, retry on the next one.
+    try {
+      await runCleanupTick(options);
+    } catch (err) {
+      options.log?.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        "cleanup tick failed; retrying next interval",
+      );
+    }
     await new Promise<void>((resolve) => {
       const timer = setTimeout(resolve, intervalMs);
       options.signal?.addEventListener(
