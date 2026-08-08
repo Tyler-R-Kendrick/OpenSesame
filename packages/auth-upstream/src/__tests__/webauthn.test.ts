@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_OUTSTANDING_CHALLENGES,
   createMemoryChallengeStore,
   createSimpleWebAuthnVerifyFn,
   issueAuthenticationChallenge,
@@ -9,6 +10,31 @@ import {
 import type { PasskeyAssertion, PasskeyCredential } from "../passkey.js";
 
 describe("webauthn challenge store", () => {
+  it("drops expired rows and refuses to grow without bound", () => {
+    const store = createMemoryChallengeStore();
+    // An expired row must not survive the next issuance.
+    store.set("stale", {
+      principalId: null,
+      purpose: "authentication",
+      expiresAt: Date.now() - 1,
+    });
+    store.set("fresh", {
+      principalId: null,
+      purpose: "authentication",
+      expiresAt: Date.now() + 60_000,
+    });
+    expect(store.consume("stale")).toBeUndefined();
+    expect(store.consume("fresh")).toBeDefined();
+
+    // Issuing is cheap for the caller, so the store caps itself.
+    const expiresAt = Date.now() + 60_000;
+    for (let i = 0; i <= MAX_OUTSTANDING_CHALLENGES; i += 1) {
+      store.set(`c${i}`, { principalId: null, purpose: "authentication", expiresAt });
+    }
+    expect(store.consume("c0")).toBeUndefined();
+    expect(store.consume(`c${MAX_OUTSTANDING_CHALLENGES}`)).toBeDefined();
+  });
+
   it("issues and consumes a one-time challenge", async () => {
     const store = createMemoryChallengeStore();
     const { challenge } = await issueAuthenticationChallenge(

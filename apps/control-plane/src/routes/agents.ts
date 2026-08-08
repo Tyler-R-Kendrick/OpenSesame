@@ -9,7 +9,7 @@ import type { Agent, AgentInstance } from "@opensesame/os-domain";
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
-import { bumpUsage, getUsage } from "../state.js";
+import { getUsage } from "../state.js";
 
 export const agentRoutes = new Hono<{ Variables: Variables }>();
 
@@ -35,7 +35,7 @@ agentRoutes.post(
         action: "agent.register_ephemeral",
         resource: { type: "agent", id: "*" },
       },
-      getUsage(ctx.stores, principalId),
+      getUsage(ctx.stores, principalId, ctx.clock()),
     );
     if (decision.effect === "deny") {
       return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
@@ -84,8 +84,6 @@ agentRoutes.post(
       creatorInstanceId: instanceId,
       proofKeyJkt: parsed.data.publicKeyJkt,
     });
-
-    bumpUsage(ctx.stores, principalId, { agents: 1 });
 
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "agent.registered",

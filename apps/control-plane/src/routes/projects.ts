@@ -9,7 +9,7 @@ import type { Project } from "@opensesame/os-domain";
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
-import { bumpUsage, getUsage } from "../state.js";
+import { getUsage } from "../state.js";
 
 export const projectRoutes = new Hono<{ Variables: Variables }>();
 
@@ -37,7 +37,7 @@ projectRoutes.post(
         action: "project.create_temporary",
         resource: { type: "project", id: "*" },
       },
-      getUsage(ctx.stores, principalId),
+      getUsage(ctx.stores, principalId, ctx.clock()),
     );
     if (decision.effect === "deny") {
       return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
@@ -78,8 +78,6 @@ projectRoutes.post(
       creatorPrincipalId: principalId,
       ttlMs: Math.min(ttlSeconds * 1000, 600_000),
     });
-
-    bumpUsage(ctx.stores, principalId, { temporaryProjects: 1 });
 
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "project.temporary_created",
