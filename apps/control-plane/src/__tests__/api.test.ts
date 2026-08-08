@@ -156,6 +156,33 @@ describe("control-plane API", () => {
     expect((await app.request("/v1/health/ready")).status).toBe(200);
   });
 
+  it("escapes claim verify HTML and sets API security headers", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "https://id.example",
+        issuer: "https://id.example",
+      },
+    });
+    const live = await app.request("/v1/health/live");
+    expect(live.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(live.headers.get("x-frame-options")).toBe("DENY");
+    expect(live.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(live.headers.get("cache-control")).toBe("no-store");
+    expect(live.headers.get("strict-transport-security")).toContain("max-age=");
+
+    const verify = await app.request(
+      "/v1/claims/%3Cscript%3Ealert(1)%3C%2Fscript%3E/verify",
+    );
+    expect(verify.status).toBe(200);
+    const html = await verify.text();
+    expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(verify.headers.get("content-security-policy")).toContain(
+      "frame-ancestors 'none'",
+    );
+  });
+
   it("mfa passkey register/assert and totp enroll/verify", async () => {
     const { app } = createControlPlane({
       config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
