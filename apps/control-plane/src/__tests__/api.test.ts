@@ -763,6 +763,61 @@ describe("control-plane API", () => {
     expect((await createClient("RP Three", "q-cli-3")).status).toBe(201);
   });
 
+  it("does not let a second principal claim a sector identifier", async () => {
+    const { app } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+
+    async function verified(subject: string) {
+      const created = await provisional(app);
+      const auth = { authorization: `Bearer ${created.accessToken}` };
+      await app.request("/v1/principals/link-identities", {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json", "idempotency-key": subject },
+        body: JSON.stringify({
+          kind: "oidc",
+          issuer: "https://mock.example",
+          subject,
+          assurance: "verified",
+        }),
+      });
+      return auth;
+    }
+
+    const register = (
+      auth: Record<string, string>,
+      key: string,
+      sectorIdentifier: string,
+    ) =>
+      app.request("/v1/oauth/clients", {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json", "idempotency-key": key },
+        body: JSON.stringify({
+          displayName: "RP",
+          redirectUris: ["https://rp.example/cb"],
+          sectorIdentifier,
+        }),
+      });
+
+    const owner = await verified("sector-owner");
+    const intruder = await verified("sector-intruder");
+    expect((await register(owner, "sec-1", "https://rp.example")).status).toBe(201);
+    // Same sector, same owner: a legitimate choice, two clients that mean to share
+    // one subject.
+    expect((await register(owner, "sec-2", "https://rp.example")).status).toBe(201);
+
+    // Another principal taking the sector would see the very subject the owner's
+    // clients see for the same person, which is the linkage pairwise prevents.
+    const taken = await register(intruder, "sec-3", "https://rp.example");
+    expect(taken.status).toBe(409);
+    expect(((await taken.json()) as { error: string }).error).toBe(
+      "sector_identifier_taken",
+    );
+    expect((await register(intruder, "sec-4", "https://other.example")).status).toBe(
+      201,
+    );
+  });
+
   it("fences oauth clients to their owning principal", async () => {
     const { app } = createControlPlane({
       config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },

@@ -7,9 +7,58 @@ import {
   PrincipalMeResponseSchema,
   RegisterAgentRequestSchema,
   isAllowedRedirectUri,
+  isAllowedSectorIdentifier,
 } from "../index.js";
 
 describe("contracts schemas", () => {
+  it("refuses a client registration that widens its own flows", () => {
+    const base = {
+      displayName: "RP",
+      redirectUris: ["https://rp.example/cb"],
+      sectorIdentifier: "https://rp.example",
+    };
+    expect(CreateOAuthClientRequestSchema.parse(base).responseTypes).toEqual(["code"]);
+
+    // A record that can name `implicit` or `client_credentials` for itself is a
+    // token in a URL fragment, or a client acting with no user behind it.
+    for (const grantTypes of [
+      ["implicit"],
+      ["authorization_code", "client_credentials"],
+      ["urn:ietf:params:oauth:grant-type:token-exchange"],
+    ]) {
+      expect(
+        CreateOAuthClientRequestSchema.safeParse({ ...base, grantTypes }).success,
+      ).toBe(false);
+    }
+    expect(
+      CreateOAuthClientRequestSchema.safeParse({ ...base, responseTypes: ["token"] })
+        .success,
+    ).toBe(false);
+    expect(
+      CreateOAuthClientRequestSchema.safeParse({
+        ...base,
+        tokenEndpointAuthMethod: "client_secret_jwt_but_made_up",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("holds a sector identifier to a form a registrant can be held to", () => {
+    expect(isAllowedSectorIdentifier("https://rp.example")).toBe(true);
+    expect(isAllowedSectorIdentifier("https://rp.example/clients")).toBe(true);
+    // A sector decides which pairwise subject a client sees, so a bare label, a
+    // plaintext origin, or one dressed in credentials will not do.
+    for (const bad of [
+      "rp.example",
+      "sector-a",
+      "http://rp.example",
+      "https://rp.example?x=1",
+      "https://rp.example#f",
+      "https://user@rp.example",
+    ]) {
+      expect(isAllowedSectorIdentifier(bad), bad).toBe(false);
+    }
+  });
+
   it("parses create claim request/response", () => {
     const req = CreateClaimRequestSchema.parse({
       type: "project",
