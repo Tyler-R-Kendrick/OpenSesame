@@ -205,16 +205,17 @@ export function registerHostTools(server: McpServer): void {
 
   server.tool(
     "operator_invoke_l1",
-    "Policy-gated L1 invoke via daemon (requires task context + frozen intent)",
+    "Policy-gated L1 invoke via daemon — executes the frozen intent in task context, nothing else",
     {
       connection_ref: z.string(),
-      operation: z.string().optional(),
-      resource: z.string().optional(),
     },
-    async ({ connection_ref, operation, resource }) => {
+    async ({ connection_ref }) => {
       try {
         const taskRunId = requireTaskRunId();
         const intent = requireFrozenIntent();
+        // Operation, resource, and arguments are whatever was frozen: letting the
+        // model restate them here would execute one call while presenting another
+        // call's digest.
         const res = await daemonFetch("/v1/operator/invoke_l1", {
           method: "POST",
           headers: {
@@ -224,10 +225,7 @@ export function registerHostTools(server: McpServer): void {
           },
           body: JSON.stringify({
             connection_ref,
-            operation: operation ?? intent.operation,
-            resource: resource ?? intent.resource,
             invoke_level: 1,
-            input: intent.canonicalArguments ?? {},
             task_run_id: taskRunId,
             intent_digest: intent.intentDigest,
           }),

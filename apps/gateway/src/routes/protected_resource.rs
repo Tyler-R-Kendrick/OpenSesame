@@ -42,7 +42,7 @@ pub async fn auth_md(State(st): State<AppState>) -> impl IntoResponse {
 - Connections: GET {resource}/api/v1/connections
 - Supported grants: authorization_code+PKCE (S256), urn:ietf:params:oauth:grant-type:device_code
 - Pre-claim authority: none beyond draft metadata / poll
-- Task API: POST {resource}/api/v1/tasks (immutable ceiling); POST {resource}/api/v1/tasks/intents (freeze)
+- Task API: POST {resource}/api/v1/tasks (immutable ceiling); POST {resource}/api/v1/tasks/intents (freeze); POST {resource}/api/v1/tasks/invoke (execute a frozen digest — the only task-bound execution path)
 - Proof: DPoP advertised only when OPENSESAME_DPOP_ENABLED=true; MCP Bearer is a separate profile
 - Examples use placeholders only — never paste live credentials
 - Agents exercise ConnectionRef + Intent; credential materialization is denied by default
