@@ -59,20 +59,31 @@ export function createAppStores(): AppStores {
 const LIVE_PROJECT_STATES = new Set(["provisional", "active"]);
 /** Agent states that still occupy a quota slot. */
 const LIVE_AGENT_STATES = new Set(["provisional", "claimed", "suspended"]);
+/** Organization states that still occupy a quota slot. */
+const LIVE_ORGANIZATION_STATES = new Set(["provisional", "active", "suspended"]);
+/** OAuth client states that still occupy a quota slot. */
+const LIVE_OAUTH_CLIENT_STATES = new Set(["active", "suspended"]);
 
 /**
  * Live quota usage for a principal.
  *
- * Projects and agents are counted from the stores rather than from a running
- * total: a cumulative counter turns a quota into a lifetime cap, so a
- * provisional principal stayed blocked after three temporary projects even once
- * they had all expired. Resources have no store yet and keep the counter.
+ * Projects, agents, organizations and OAuth clients are counted from the stores
+ * rather than from a running total: a cumulative counter turns a quota into a
+ * lifetime cap, so a provisional principal stayed blocked after three temporary
+ * projects even once they had all expired. Resources have no store yet and keep
+ * the counter.
  */
 export function getUsage(
   stores: AppStores,
   principalId: string,
   now: Date = new Date(),
-): { temporaryProjects: number; temporaryResources: number; agents: number } {
+): {
+  temporaryProjects: number;
+  temporaryResources: number;
+  agents: number;
+  organizations: number;
+  oauthClients: number;
+} {
   let temporaryProjects = 0;
   for (const project of stores.projects.values()) {
     if (project.ownerPrincipalId !== principalId) continue;
@@ -88,10 +99,26 @@ export function getUsage(
     agents += 1;
   }
 
+  let organizations = 0;
+  for (const org of stores.organizations.values()) {
+    if (org.createdBy !== principalId) continue;
+    if (!LIVE_ORGANIZATION_STATES.has(org.state)) continue;
+    organizations += 1;
+  }
+
+  let oauthClients = 0;
+  for (const client of stores.oauthClients.values()) {
+    if (client.ownerPrincipalId !== principalId) continue;
+    if (!LIVE_OAUTH_CLIENT_STATES.has(client.state)) continue;
+    oauthClients += 1;
+  }
+
   return {
     temporaryProjects,
     temporaryResources: stores.usage.get(principalId)?.temporaryResources ?? 0,
     agents,
+    organizations,
+    oauthClients,
   };
 }
 

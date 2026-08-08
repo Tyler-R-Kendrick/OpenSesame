@@ -9,6 +9,7 @@ import type { Organization } from "@opensesame/os-domain";
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { getUsage } from "../state.js";
 
 export const organizationRoutes = new Hono<{ Variables: Variables }>();
 
@@ -52,6 +53,25 @@ organizationRoutes.post(
         },
         403,
       );
+    }
+
+    // Assurance says who someone is; it does not say they may mint organizations
+    // forever. Without this the store grew for as long as a caller kept asking.
+    const decision = ctx.policy.evaluate(
+      principal,
+      {
+        subject: {
+          type: "principal",
+          id: principal.id,
+          assurance: principal.assurance,
+        },
+        action: "organization.create",
+        resource: { type: "organization", id: "*" },
+      },
+      getUsage(ctx.stores, principalId, ctx.clock()),
+    );
+    if (decision.effect === "deny") {
+      return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
     }
 
     const parsed = CreateOrganizationRequestSchema.safeParse(await c.req.json());

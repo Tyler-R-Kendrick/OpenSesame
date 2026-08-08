@@ -41,12 +41,21 @@ export interface ProvisionalQuota {
   maxTemporaryProjects: number;
   maxTemporaryResources: number;
   maxAgents: number;
+  maxOrganizations: number;
+  maxOAuthClients: number;
 }
 
+/**
+ * A provisional principal may not create organizations or OAuth clients at all,
+ * so these limits are zero rather than absent — an unlisted action would spend
+ * nothing and be capped by nothing.
+ */
 export const DEFAULT_PROVISIONAL_QUOTA: ProvisionalQuota = {
   maxTemporaryProjects: 3,
   maxTemporaryResources: 10,
   maxAgents: 2,
+  maxOrganizations: 0,
+  maxOAuthClients: 0,
 };
 
 /**
@@ -57,6 +66,8 @@ export const DEFAULT_VERIFIED_QUOTA: ProvisionalQuota = {
   maxTemporaryProjects: 50,
   maxTemporaryResources: 500,
   maxAgents: 25,
+  maxOrganizations: 10,
+  maxOAuthClients: 25,
 };
 
 const HIGH_RISK_ACTIONS = new Set([
@@ -81,6 +92,8 @@ export interface ProvisionalUsage {
   temporaryProjects: number;
   temporaryResources: number;
   agents: number;
+  organizations: number;
+  oauthClients: number;
 }
 
 /** Which quota field, if any, a given action spends. */
@@ -102,6 +115,18 @@ function quotaFieldFor(
       };
     case "agent.register_ephemeral":
       return { usage: "agents", limit: "maxAgents", reason: "quota_agents" };
+    case "organization.create":
+      return {
+        usage: "organizations",
+        limit: "maxOrganizations",
+        reason: "quota_organizations",
+      };
+    case "oauth.client.register":
+      return {
+        usage: "oauthClients",
+        limit: "maxOAuthClients",
+        reason: "quota_oauth_clients",
+      };
     default:
       return null;
   }
@@ -120,6 +145,8 @@ export class ProvisionalPolicy {
       temporaryProjects: 0,
       temporaryResources: 0,
       agents: 0,
+      organizations: 0,
+      oauthClients: 0,
     },
   ): AuthorizationDecision {
     // High-risk actions are denied for every subject. Nothing in this system
