@@ -108,6 +108,27 @@ async function assertRegistrationQuota(
   return null;
 }
 
+/**
+ * A sector identifier may not be claimed across owners.
+ *
+ * Two clients sharing a sector see the same pairwise subject for the same
+ * person, which is exactly the linkage pairwise subjects exist to prevent.
+ * Sharing one between a single owner's clients is a legitimate choice; taking
+ * another owner's sector is a way to learn the `sub` they see.
+ */
+function sectorClaimedByAnother(
+  ctx: AppContext,
+  principalId: string,
+  sectorIdentifier: string,
+): boolean {
+  for (const client of ctx.stores.oauthClients.values()) {
+    if (client.state === "revoked") continue;
+    if (client.ownerPrincipalId === principalId) continue;
+    if (client.sectorIdentifier === sectorIdentifier) return true;
+  }
+  return false;
+}
+
 oauthClientRoutes.get("/", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = c.get("principalId")!;
@@ -145,6 +166,17 @@ oauthClientRoutes.post(
             "Only pre_registered clients may be created via this API; DCR/CIMD/origin profiles are feature-gated",
         },
         400,
+      );
+    }
+
+    if (sectorClaimedByAnother(ctx, principalId, parsed.data.sectorIdentifier)) {
+      return c.json(
+        {
+          error: "sector_identifier_taken",
+          message:
+            "another principal already registered a client under this sectorIdentifier",
+        },
+        409,
       );
     }
 
