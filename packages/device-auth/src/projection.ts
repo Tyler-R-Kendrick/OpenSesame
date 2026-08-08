@@ -13,7 +13,9 @@ export type DevicePollError =
   | "authorization_pending"
   | "slow_down"
   | "access_denied"
-  | "expired_token";
+  | "expired_token"
+  /** The device code was already redeemed; it is single use. */
+  | "invalid_grant";
 
 export interface DeviceAuthProjection {
   id: string;
@@ -103,7 +105,16 @@ export function evaluateDevicePoll(
       projection: projectDeviceAuth(current),
     };
   }
-  if (current.state === "approved" || current.state === "consumed") {
+  // A consumed device code must not poll clean, or a caller that reads "no
+  // error" as "issue tokens" would mint a second set from one approval.
+  if (current.state === "consumed") {
+    return {
+      session: current,
+      error: "invalid_grant",
+      projection: projectDeviceAuth(current),
+    };
+  }
+  if (current.state === "approved") {
     return {
       session: current,
       projection: projectDeviceAuth(current),
