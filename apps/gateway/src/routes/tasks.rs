@@ -13,7 +13,11 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::app_state::AppState;
-use crate::middleware::auth::resolve_caller;
+use crate::middleware::auth::{require_demo_bootstrap, resolve_caller, resolve_caller_subject};
+
+/// Frozen intents awaiting execution; they expire in five minutes, so the map is
+/// small by construction and capped to keep a chatty agent from growing it.
+const MAX_FROZEN_INTENTS: usize = 512;
 
 #[derive(Deserialize)]
 pub struct StartTaskBody {
@@ -77,7 +81,7 @@ pub async fn start_task(
         capability_ceiling: caps.clone(),
         compiled_at: now,
     };
-    let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
+    let eng = &st.task_engine;
     let ceiling = eng
         .compile_ceiling(
             vec![CeilingInput {
@@ -117,7 +121,7 @@ pub async fn get_task(
 ) -> Result<Response, Response> {
     let caller = resolve_caller(&st, &headers)?;
     let tid = TaskRunId::parse(&id).map_err(bad_req)?;
-    let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
+    let eng = &st.task_engine;
     let run = eng
         .store()
         .get_run(tid)
@@ -144,7 +148,7 @@ pub async fn freeze_intent(
 ) -> Result<Response, Response> {
     let caller = resolve_caller(&st, &headers)?;
     let tid = TaskRunId::parse(&body.task_run_id).map_err(bad_req)?;
-    let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
+    let eng = &st.task_engine;
     // Freezing an intent spends another principal's ceiling unless we fence it here.
     eng.store()
         .get_run(tid)
@@ -186,6 +190,20 @@ pub async fn freeze_intent(
     }
     .with_computed_digest()
     .map_err(bad_req)?;
+    // Custody of the frozen bytes stays here: execution later names the digest,
+    // it does not restate operation/resource/arguments.
+    {
+        let mut pending = st.frozen_intents.lock().map_err(|_| internal("lock"))?;
+        pending.retain(|_, i| i.expires_at > now);
+        if pending.len() >= MAX_FROZEN_INTENTS {
+            return Err(err_json(
+                StatusCode::TOO_MANY_REQUESTS,
+                "frozen_intent_capacity",
+                "too many unspent frozen intents",
+            ));
+        }
+        pending.insert(intent.intent_digest.clone(), intent.clone());
+    }
     Ok((
         StatusCode::CREATED,
         Json(json!({
@@ -200,6 +218,65 @@ pub async fn freeze_intent(
 }
 
 #[derive(Deserialize)]
+pub struct InvokeTaskBody {
+    /// Digest returned by `POST /api/v1/tasks/intents`.
+    pub intent_digest: String,
+}
+
+/// Execute a frozen intent under its task ceiling.
+///
+/// The legacy `/api/v1/intents` path builds an intent from whatever the caller
+/// sends, so a task-bound caller that used it spent no ceiling at all. Here the
+/// digest names bytes the server already holds, and the broker re-asserts the
+/// capability, task state version, and ceiling before anything executes.
+pub async fn invoke_task(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<InvokeTaskBody>,
+) -> Result<Response, Response> {
+    let caller = resolve_caller(&st, &headers)?;
+    let subject = resolve_caller_subject(&st, &headers)?;
+    let boot = require_demo_bootstrap(&st)?;
+    // Single use: a spent digest cannot be replayed into a second invocation.
+    let intent = {
+        let mut pending = st.frozen_intents.lock().map_err(|_| internal("lock"))?;
+        let now = Utc::now();
+        pending.retain(|_, i| i.expires_at > now);
+        pending
+            .remove(&body.intent_digest)
+            .ok_or_else(|| not_found("frozen intent"))?
+    };
+    if !caller.owns(&intent.principal_id) {
+        return Err(not_found("frozen intent"));
+    }
+    let required = Capability::new(
+        intent.operation.clone(),
+        ResourceSelector::exact(intent.resource.clone()),
+    );
+    let receipt = st
+        .broker
+        .invoke_frozen(
+            &st.task_engine,
+            opensesame_broker::FrozenInvokeInput {
+                intent,
+                grant: boot.grant.clone(),
+                subject,
+                connection_policy_id: "demo-conn".into(),
+                required_capability: required,
+            },
+        )
+        .await
+        .map_err(|e| {
+            err_json(
+                StatusCode::FORBIDDEN,
+                "frozen_invoke_denied",
+                opensesame_redaction::redact_text(&e.to_string()),
+            )
+        })?;
+    Ok((StatusCode::OK, Json(receipt)).into_response())
+}
+
+#[derive(Deserialize)]
 pub struct TerminateTaskBody {
     #[serde(default)]
     pub expected_state_version: Option<u64>,
@@ -210,7 +287,7 @@ pub async fn list_tasks(
     headers: axum::http::HeaderMap,
 ) -> Result<Response, Response> {
     let caller = resolve_caller(&st, &headers)?;
-    let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
+    let eng = &st.task_engine;
     let runs = eng.list_runs().map_err(internal)?;
     let items: Vec<Value> = runs
         .into_iter()
@@ -235,7 +312,7 @@ pub async fn terminate_task(
 ) -> Result<Response, Response> {
     let caller = resolve_caller(&st, &headers)?;
     let tid = TaskRunId::parse(&id).map_err(bad_req)?;
-    let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
+    let eng = &st.task_engine;
     let run = eng
         .store()
         .get_run(tid)

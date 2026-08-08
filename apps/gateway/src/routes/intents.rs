@@ -31,6 +31,19 @@ pub struct InvokeBody {
     /// 1=typed, 2=constrained HTTP, 3=materialize (denied by default).
     #[serde(default)]
     invoke_level: Option<u8>,
+    /// Present when the caller believes it is executing under task authority.
+    #[serde(default)]
+    task_run_id: Option<String>,
+    #[serde(default)]
+    intent_digest: Option<String>,
+}
+
+/// True when the caller claims task authority, in headers or body.
+fn claims_task_authority(body: &InvokeBody, headers: &axum::http::HeaderMap) -> bool {
+    body.task_run_id.is_some()
+        || body.intent_digest.is_some()
+        || headers.contains_key("x-opensesame-task-run-id")
+        || headers.contains_key("x-opensesame-intent-digest")
 }
 
 pub async fn create(
@@ -38,6 +51,20 @@ pub async fn create(
     headers: axum::http::HeaderMap,
     Json(body): Json<InvokeBody>,
 ) -> Response {
+    // This route builds an intent from the request body, so it cannot honour a
+    // task ceiling or a frozen digest. Accepting those fields anyway would let a
+    // task-bound agent execute outside what it froze while looking fenced.
+    if claims_task_authority(&body, &headers) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "task_authority_requires_frozen_invoke",
+                "detail": "Freeze at POST /api/v1/tasks/intents, then execute at POST /api/v1/tasks/invoke",
+                "type": "about:blank"
+            })),
+        )
+            .into_response();
+    }
     let subject = match resolve_caller_subject(&st, &headers) {
         Ok(s) => s,
         Err(resp) => return resp,
@@ -186,5 +213,57 @@ pub async fn create(
             )
                 .into_response()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::{HeaderMap, HeaderValue};
+
+    fn body() -> InvokeBody {
+        InvokeBody {
+            connection_ref: None,
+            connection: None,
+            operation: "read".into(),
+            resource: "doc:1".into(),
+            audience: None,
+            parameters: None,
+            idempotency_key: None,
+            invoke_level: None,
+            task_run_id: None,
+            intent_digest: None,
+        }
+    }
+
+    #[test]
+    fn a_plain_invoke_is_not_task_bound() {
+        assert!(!claims_task_authority(&body(), &HeaderMap::new()));
+    }
+
+    #[test]
+    fn task_fields_in_the_body_are_detected() {
+        let mut b = body();
+        b.task_run_id = Some("tsk_1".into());
+        assert!(claims_task_authority(&b, &HeaderMap::new()));
+        let mut b = body();
+        b.intent_digest = Some("sha256:abc".into());
+        assert!(claims_task_authority(&b, &HeaderMap::new()));
+    }
+
+    #[test]
+    fn task_headers_cannot_smuggle_past_the_body_check() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-opensesame-intent-digest",
+            HeaderValue::from_static("sha256:abc"),
+        );
+        assert!(claims_task_authority(&body(), &headers));
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-opensesame-task-run-id",
+            HeaderValue::from_static("tsk_1"),
+        );
+        assert!(claims_task_authority(&body(), &headers));
     }
 }

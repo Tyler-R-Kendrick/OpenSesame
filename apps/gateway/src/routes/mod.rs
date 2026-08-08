@@ -54,6 +54,7 @@ pub fn router(state: AppState) -> Router {
             get(tasks::list_tasks).post(tasks::start_task),
         )
         .route("/api/v1/tasks/intents", post(tasks::freeze_intent))
+        .route("/api/v1/tasks/invoke", post(tasks::invoke_task))
         .route("/api/v1/tasks/{id}", get(tasks::get_task))
         .route("/api/v1/tasks/{id}/terminate", post(tasks::terminate_task))
         .route("/experimental/aauth/v1/status", get(aauth::status))

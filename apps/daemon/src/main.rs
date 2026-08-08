@@ -420,21 +420,50 @@ async fn operator_invoke_l1(
     if level >= 3 {
         return Json(json!({"error":"materialize_denied","invoke_level": level})).into_response();
     }
-    let url = format!("{}/api/v1/intents", st.host_api);
+    // A task-bound caller must execute the intent it froze: forward the digest to
+    // the fenced route instead of re-describing the call on the legacy path,
+    // which would spend no ceiling.
+    let digest = body
+        .get("intent_digest")
+        .and_then(|v| v.as_str())
+        .map(str::to_owned)
+        .or_else(|| {
+            headers
+                .get("x-opensesame-intent-digest")
+                .and_then(|v| v.to_str().ok())
+                .map(str::to_owned)
+        });
+    let (url, forwarded) = match &digest {
+        Some(d) => (
+            format!("{}/api/v1/tasks/invoke", st.host_api),
+            json!({"intent_digest": d}),
+        ),
+        None => (format!("{}/api/v1/intents", st.host_api), body),
+    };
     match st
         .http
         .post(&url)
         .header("x-opensesame-operator", &st.operator_token)
-        .json(&body)
+        .json(&forwarded)
         .send()
         .await
     {
         Ok(resp) => {
             let status = resp.status().as_u16();
             let body = resp.json::<Value>().await.unwrap_or(json!({}));
-            Json(json!({"status": status, "body": body, "materialize": false})).into_response()
+            Json(json!({
+                "status": status,
+                "body": body,
+                "materialize": false,
+                "task_bound": digest.is_some(),
+            }))
+            .into_response()
         }
-        Err(e) => Json(json!({"error": e.to_string()})).into_response(),
+        // The transport error carries the Host API address.
+        Err(e) => {
+            tracing::warn!(error = %e, "host api invoke failed");
+            Json(json!({"error": "host_api_unreachable"})).into_response()
+        }
     }
 }
 

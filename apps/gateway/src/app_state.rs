@@ -64,6 +64,10 @@ pub struct AppState {
     pub distributed_task_authority: bool,
     /// In-memory task access engine (immutable ceiling + frozen intents).
     pub task_engine: SharedTaskEngine,
+    /// intent_digest -> frozen intent awaiting execution. Server-side custody is
+    /// what makes the digest enforceable: the caller cannot restate the frozen
+    /// bytes, so it cannot execute anything other than what it froze.
+    pub frozen_intents: Arc<Mutex<HashMap<String, FrozenIntentV2>>>,
 }
 
 impl AppState {
@@ -116,6 +120,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         operator_token: config::resolve_operator_token(),
         distributed_task_authority,
         task_engine: new_task_engine(),
+        frozen_intents: Arc::new(Mutex::new(HashMap::new())),
     })
 }
 
