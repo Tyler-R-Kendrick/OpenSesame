@@ -50,9 +50,9 @@ function resolveStorage(storage?: StorageLike): StorageLike {
 function sessionForStorage(session: Session): Session {
   const { refreshToken: _drop, ...rest } = session;
   if (rest.raw && typeof rest.raw === "object") {
-    const raw = { ...rest.raw } as TokenResponse & Record<string, unknown>;
-    delete raw.refresh_token;
-    return { ...rest, raw };
+    const { refresh_token: _omit, ...raw } = rest.raw as TokenResponse &
+      Record<string, unknown>;
+    return { ...rest, raw: raw as TokenResponse };
   }
   return rest;
 }
@@ -86,7 +86,8 @@ function toSession(tokens: TokenResponse, anonymous: boolean): Session {
     raw: tokens,
   };
   if (tokens.id_token !== undefined) session.idToken = tokens.id_token;
-  if (tokens.refresh_token !== undefined) session.refreshToken = tokens.refresh_token;
+  if (tokens.refresh_token !== undefined)
+    session.refreshToken = tokens.refresh_token;
   if (expiresAt !== undefined) session.expiresAt = expiresAt;
   if (sub !== undefined) session.sub = sub;
   return session;
@@ -143,7 +144,10 @@ export function createOpenSesame(
     }
   }
 
-  async function exchangeCode(code: string, codeVerifier: string): Promise<Session> {
+  async function exchangeCode(
+    code: string,
+    codeVerifier: string,
+  ): Promise<Session> {
     const meta = await discovery();
     const body = new URLSearchParams({
       grant_type: "authorization_code",
@@ -213,7 +217,10 @@ export function createOpenSesame(
       if (!code || !state || !rawPkce) {
         throw new Error("Missing authorization code or PKCE state");
       }
-      const pkce = JSON.parse(rawPkce) as { state: string; codeVerifier: string };
+      const pkce = JSON.parse(rawPkce) as {
+        state: string;
+        codeVerifier: string;
+      };
       if (pkce.state !== state) {
         throw new Error("OAuth state mismatch");
       }
@@ -222,9 +229,12 @@ export function createOpenSesame(
     },
 
     async continueAnonymously() {
-      const res = await fetchImpl(`${apiBase}/api/v1/principals/anonymous`, {
+      const res = await fetchImpl(`${apiBase}/v1/principals/anonymous`, {
         method: "POST",
-        headers: { "content-type": "application/json", accept: "application/json" },
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json",
+        },
         body: JSON.stringify({ clientId }),
       });
       if (!res.ok) {
@@ -255,7 +265,7 @@ export function createOpenSesame(
       if (session?.accessToken) {
         headers.authorization = `Bearer ${session.accessToken}`;
       }
-      const res = await fetchImpl(`${apiBase}/api/v1/claims/present`, {
+      const res = await fetchImpl(`${apiBase}/v1/claims/present`, {
         method: "POST",
         headers,
         body: JSON.stringify({ token }),
@@ -274,11 +284,12 @@ export function createOpenSesame(
       const body: Record<string, unknown> = {
         acceptedItemIds: decision.acceptedItemIds,
       };
-      if (decision.destination !== undefined) body.destination = decision.destination;
+      if (decision.destination !== undefined)
+        body.destination = decision.destination;
       if (decision.idempotencyKey !== undefined) {
         body.idempotencyKey = decision.idempotencyKey;
       }
-      const res = await fetchImpl(`${apiBase}/api/v1/claims/${claimId}/complete`, {
+      const res = await fetchImpl(`${apiBase}/v1/claims/${claimId}/complete`, {
         method: "POST",
         headers: {
           "content-type": "application/json",

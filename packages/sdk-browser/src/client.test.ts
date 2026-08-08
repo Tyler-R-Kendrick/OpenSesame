@@ -65,7 +65,7 @@ describe("createOpenSesame", () => {
 
     await sesame.signIn();
     expect(assigned).toHaveLength(1);
-    const authUrl = new URL(assigned[0]!);
+    const authUrl = new URL(assigned[0] as string);
     expect(authUrl.searchParams.get("code_challenge_method")).toBe("S256");
     expect(authUrl.searchParams.get("client_id")).toBe("rp-alpha");
     expect(storage.getItem("opensesame:pkce")).toBeTruthy();
@@ -75,7 +75,7 @@ describe("createOpenSesame", () => {
     const storage = new MemStorage();
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.endsWith("/api/v1/principals/anonymous")) {
+      if (url.endsWith("/v1/principals/anonymous")) {
         return new Response(
           JSON.stringify({
             access_token: "anon-token",
@@ -100,6 +100,42 @@ describe("createOpenSesame", () => {
     expect((await sesame.getSession())?.accessToken).toBe("anon-token");
   });
 
+  // The control plane mounts these under /v1 (apps/control-plane/src/app.ts).
+  // Pin the paths here: a prefix that does not exist on the server makes every
+  // claim ceremony fail with a 404 that looks like a permissions problem.
+  it("calls the control plane paths the server actually mounts", async () => {
+    const storage = new MemStorage();
+    storage.setItem(
+      "opensesame:session",
+      JSON.stringify({
+        accessToken: "at",
+        anonymous: false,
+        raw: { access_token: "at", token_type: "Bearer" },
+      }),
+    );
+    const seen: string[] = [];
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      seen.push(new URL(String(input)).pathname);
+      return new Response(
+        JSON.stringify({ id: "clm_1", type: "project", state: "presented" }),
+        {
+          status: 200,
+        },
+      );
+    });
+
+    const sesame = createOpenSesame({
+      issuer: "http://127.0.0.1:8788",
+      storage,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    await sesame.presentClaim("osc_clm_token");
+    await sesame.completeClaim("clm_1", { acceptedItemIds: [] });
+
+    expect(seen).toEqual(["/v1/claims/present", "/v1/claims/clm_1/complete"]);
+  });
+
   it("handleRedirectCallback exchanges code", async () => {
     const storage = new MemStorage();
     const pkce = await createPkcePair();
@@ -108,38 +144,39 @@ describe("createOpenSesame", () => {
       JSON.stringify({ ...pkce, state: "st", codeVerifier: pkce.codeVerifier }),
     );
 
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes("openid-configuration")) {
-        return new Response(
-          JSON.stringify({
-            issuer: "http://127.0.0.1:8788",
-            authorization_endpoint: "http://127.0.0.1:8788/auth",
-            token_endpoint: "http://127.0.0.1:8788/token",
-            jwks_uri: "http://127.0.0.1:8788/jwks",
-          }),
-          { status: 200 },
-        );
-      }
-      if (url.endsWith("/token") && init?.method === "POST") {
-        return new Response(
-          JSON.stringify({
-            access_token: "at",
-            id_token:
-              "eyJhbGciOiJub25lIn0." +
-              btoa(JSON.stringify({ sub: "pairwise-alpha" }))
+    const fetchImpl = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("openid-configuration")) {
+          return new Response(
+            JSON.stringify({
+              issuer: "http://127.0.0.1:8788",
+              authorization_endpoint: "http://127.0.0.1:8788/auth",
+              token_endpoint: "http://127.0.0.1:8788/token",
+              jwks_uri: "http://127.0.0.1:8788/jwks",
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.endsWith("/token") && init?.method === "POST") {
+          return new Response(
+            JSON.stringify({
+              access_token: "at",
+              id_token: `eyJhbGciOiJub25lIn0.${btoa(
+                JSON.stringify({ sub: "pairwise-alpha" }),
+              )
                 .replace(/\+/g, "-")
                 .replace(/\//g, "_")
-                .replace(/=+$/u, "") +
-              ".",
-            token_type: "Bearer",
-            expires_in: 60,
-          }),
-          { status: 200 },
-        );
-      }
-      throw new Error(`unexpected ${url}`);
-    });
+                .replace(/=+$/u, "")}.`,
+              token_type: "Bearer",
+              expires_in: 60,
+            }),
+            { status: 200 },
+          );
+        }
+        throw new Error(`unexpected ${url}`);
+      },
+    );
 
     const sesame = createOpenSesame({
       issuer: "http://127.0.0.1:8788",
@@ -164,34 +201,36 @@ describe("createOpenSesame", () => {
         raw: { access_token: "at", token_type: "Bearer" },
       }),
     );
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.endsWith("/claims/present") && init?.method === "POST") {
-        return new Response(
-          JSON.stringify({
-            id: "clm_1",
-            type: "agent",
-            state: "presented",
-            targetManifestDigest: "abc",
-            expiresAt: new Date().toISOString(),
-          }),
-          { status: 200 },
-        );
-      }
-      if (url.endsWith("/claims/clm_1/complete")) {
-        return new Response(
-          JSON.stringify({
-            id: "clm_1",
-            type: "agent",
-            state: "completed",
-            targetManifestDigest: "abc",
-            expiresAt: new Date().toISOString(),
-          }),
-          { status: 200 },
-        );
-      }
-      throw new Error(url);
-    });
+    const fetchImpl = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/claims/present") && init?.method === "POST") {
+          return new Response(
+            JSON.stringify({
+              id: "clm_1",
+              type: "agent",
+              state: "presented",
+              targetManifestDigest: "abc",
+              expiresAt: new Date().toISOString(),
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.endsWith("/claims/clm_1/complete")) {
+          return new Response(
+            JSON.stringify({
+              id: "clm_1",
+              type: "agent",
+              state: "completed",
+              targetManifestDigest: "abc",
+              expiresAt: new Date().toISOString(),
+            }),
+            { status: 200 },
+          );
+        }
+        throw new Error(url);
+      },
+    );
 
     const sesame = createOpenSesame({
       issuer: "http://127.0.0.1:8788",
@@ -201,7 +240,9 @@ describe("createOpenSesame", () => {
 
     const presented = await sesame.presentClaim("osc_clm_x.secret");
     expect(presented.state).toBe("presented");
-    const done = await sesame.completeClaim("clm_1", { acceptedItemIds: ["a"] });
+    const done = await sesame.completeClaim("clm_1", {
+      acceptedItemIds: ["a"],
+    });
     expect(done.state).toBe("completed");
   });
 
@@ -213,7 +254,7 @@ describe("createOpenSesame", () => {
 
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.endsWith("/api/v1/principals/anonymous")) {
+      if (url.endsWith("/v1/principals/anonymous")) {
         return new Response(
           JSON.stringify({
             access_token: "at",

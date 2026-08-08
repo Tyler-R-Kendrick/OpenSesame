@@ -151,10 +151,9 @@ function looksLikeClaimToken(token: string): boolean {
 type TransportFailure = { status: number | null; code: string | null };
 
 /**
- * `createOpenSesame` defaults its session store to sessionStorage and hardcodes
- * an `/api/v1` claim prefix; the control-plane mounts claims at `/v1`. Inject a
- * memory store seeded from the identity session and rewrite the path, so the
- * ceremony authenticates without any web storage being touched.
+ * `createOpenSesame` defaults its session store to sessionStorage, which this
+ * app does not use. Inject a memory store seeded from the identity session so
+ * the ceremony authenticates without any web storage being touched.
  */
 function createClaimClient(session: IdentitySession | null) {
   const base = identityBase().replace(/\/+$/u, "");
@@ -188,10 +187,7 @@ function createClaimClient(session: IdentitySession | null) {
         : input instanceof URL
           ? input.href
           : input.url;
-    const res = await fetch(href.replace("/api/v1/claims", "/v1/claims"), {
-      ...init,
-      credentials: "include",
-    });
+    const res = await fetch(href, { ...init, credentials: "include" });
     if (!res.ok) {
       failure.status = res.status;
       failure.code = await readErrorCode(res.clone());
