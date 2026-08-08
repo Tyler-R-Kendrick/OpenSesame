@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import { SignJWT } from "jose";
 import {
@@ -14,8 +14,7 @@ type AuthCode = {
   redirectUri: string;
   nonce?: string;
   scope: string;
-  codeChallenge?: string;
-  codeChallengeMethod?: string;
+  codeChallenge: string;
 };
 
 export interface MockUpstreamIdp {
@@ -66,6 +65,17 @@ function parseForm(body: string): URLSearchParams {
   return new URLSearchParams(body);
 }
 
+function s256Challenge(verifier: string): string {
+  return createHash("sha256").update(verifier).digest("base64url");
+}
+
+function pkceChallengesEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
+}
+
 /**
  * Minimal deterministic OIDC provider for local OpenSesame tests.
  * Auto-approves the seeded test user on /authorize.
@@ -88,7 +98,7 @@ export async function createMockUpstreamIdp(
     id_token_signing_alg_values_supported: ["RS256"],
     scopes_supported: ["openid", "profile", "email"],
     token_endpoint_auth_methods_supported: ["client_secret_post", "client_secret_basic"],
-    code_challenge_methods_supported: ["S256", "plain"],
+    code_challenge_methods_supported: ["S256"],
     grant_types_supported: ["authorization_code", "refresh_token"],
     claims_supported: ["sub", "email", "name", "iss", "aud", "exp", "iat", "nonce"],
   };
@@ -156,15 +166,25 @@ export async function createMockUpstreamIdp(
         if (responseType !== "code") {
           return sendJson(res, 400, { error: "unsupported_response_type" }, config.issuer);
         }
+        if (!codeChallenge || (codeChallengeMethod ?? "") !== "S256") {
+          return sendJson(
+            res,
+            400,
+            {
+              error: "invalid_request",
+              error_description: "PKCE S256 required",
+            },
+            config.issuer,
+          );
+        }
 
         const code = `code_${cryptoRandom()}`;
         const entry: AuthCode = {
           clientId,
           redirectUri,
           scope,
+          codeChallenge,
           ...(nonce !== undefined ? { nonce } : {}),
-          ...(codeChallenge !== undefined ? { codeChallenge } : {}),
-          ...(codeChallengeMethod !== undefined ? { codeChallengeMethod } : {}),
         };
         codes.set(code, entry);
 
@@ -195,6 +215,21 @@ export async function createMockUpstreamIdp(
           codes.delete(code);
           if (!stored || stored.redirectUri !== redirectUri) {
             return sendJson(res, 400, { error: "invalid_grant" }, config.issuer);
+          }
+          const verifier = body.get("code_verifier") ?? "";
+          if (
+            !verifier ||
+            !pkceChallengesEqual(s256Challenge(verifier), stored.codeChallenge)
+          ) {
+            return sendJson(
+              res,
+              400,
+              {
+                error: "invalid_grant",
+                error_description: "PKCE verification failed",
+              },
+              config.issuer,
+            );
           }
           const tokens = await issueTokens({
             clientId,
