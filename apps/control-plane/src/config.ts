@@ -116,4 +116,11 @@ export function assertSecureConfig(config: ControlPlaneConfig): void {
       "OPENSESAME_OPERATOR_TOKEN must be set in production for Host API device-approve proxy",
     );
   }
+  if (config.isProduction && !config.corsOrigins.length) {
+    throw new Error("OPENSESAME_CORS_ORIGINS must list at least one origin in production");
+  }
+  const wildcardCors = config.corsOrigins.some((o) => o === "*" || o === "null");
+  if (config.isProduction && wildcardCors) {
+    throw new Error("OPENSESAME_CORS_ORIGINS must not include * or null in production");
+  }
 }

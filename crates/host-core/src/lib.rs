@@ -22,7 +22,10 @@ pub mod daemon {
     /// When `1`, skip TCP and serve Unix socket only (`OPENSESAME_AGENT_SOCK` required).
     pub const ENV_UDS_ONLY: &str = "OPENSESAME_DAEMON_UDS_ONLY";
     /// When `1`, allow non-loopback TCP binds (explicit operator override).
-    pub const ENV_ALLOW_NONLOCAL: &str = "OPENSESAME_DAEMON_ALLOW_NONLOCAL";
+    /// Shared by daemon, credential-agent, and gateway.
+    pub const ENV_ALLOW_NONLOCAL: &str = "OPENSESAME_ALLOW_NONLOCAL";
+    /// Legacy alias kept for daemon/operator docs.
+    pub const ENV_ALLOW_NONLOCAL_DAEMON: &str = "OPENSESAME_DAEMON_ALLOW_NONLOCAL";
 
     /// True when `host` of `host:port` (or bare host) is loopback.
     pub fn listen_host_is_loopback(listen: &str) -> bool {
@@ -35,14 +38,20 @@ pub mod daemon {
         matches!(host, "127.0.0.1" | "localhost" | "::1" | "0:0:0:0:0:0:0:1")
     }
 
-    /// Refuse non-loopback TCP unless `OPENSESAME_DAEMON_ALLOW_NONLOCAL=1`.
+    fn nonlocal_override_enabled() -> bool {
+        [ENV_ALLOW_NONLOCAL, ENV_ALLOW_NONLOCAL_DAEMON]
+            .iter()
+            .any(|k| std::env::var(k).ok().as_deref() == Some("1"))
+    }
+
+    /// Refuse non-loopback TCP unless `OPENSESAME_ALLOW_NONLOCAL=1`
+    /// (or legacy `OPENSESAME_DAEMON_ALLOW_NONLOCAL=1`).
     pub fn assert_tcp_listen_allowed(listen: &str) -> Result<(), String> {
-        let allow = std::env::var(ENV_ALLOW_NONLOCAL).ok().as_deref() == Some("1");
-        if allow || listen_host_is_loopback(listen) {
+        if nonlocal_override_enabled() || listen_host_is_loopback(listen) {
             return Ok(());
         }
         Err(format!(
-            "daemon TCP listen `{listen}` is not loopback; set {ENV_ALLOW_NONLOCAL}=1 to override"
+            "TCP listen `{listen}` is not loopback; set {ENV_ALLOW_NONLOCAL}=1 to override"
         ))
     }
 
@@ -55,7 +64,10 @@ pub mod daemon {
 mod tests {
     use std::path::PathBuf;
 
-    use super::daemon::{assert_tcp_listen_allowed, listen_host_is_loopback, ENV_ALLOW_NONLOCAL};
+    use super::daemon::{
+        assert_tcp_listen_allowed, listen_host_is_loopback, ENV_ALLOW_NONLOCAL,
+        ENV_ALLOW_NONLOCAL_DAEMON,
+    };
 
     #[test]
     fn wit_package_pinned() {
@@ -75,6 +87,7 @@ mod tests {
     fn nonlocal_tcp_denied_without_override() {
         // Ensure override unset for this process check.
         std::env::remove_var(ENV_ALLOW_NONLOCAL);
+        std::env::remove_var(ENV_ALLOW_NONLOCAL_DAEMON);
         assert!(assert_tcp_listen_allowed("127.0.0.1:18790").is_ok());
         assert!(assert_tcp_listen_allowed("0.0.0.0:18790").is_err());
     }

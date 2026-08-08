@@ -56,6 +56,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0j. **Pages unlock PIN (#31)** — salted PBKDF2 instead of bare SHA-256 — see `audit-2026-08-07-pages-unlock-pin.md`.
 0k. **Pages unlock lockout** — progressive fail lockout after 3 bad PINs — see `audit-2026-08-07-pages-unlock-lockout.md`.
 0l. **TOTP stub** — `/v1/mfa/totp/*` gated to `allowDevDefaults` only — see `audit-2026-08-07-totp-dev-only.md`.
+0m. **Gateway bind + CORS** — loopback fence on Host API; production CORS fail-closed — see `audit-2026-08-07-gateway-bind-cors.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
@@ -72,6 +73,6 @@ Re-run checklist: `pnpm run audit:cve-lite`, `pnpm run audit:osv`, `pnpm run aud
 
 ## Bind policy (daemon / credential-agent)
 
-- Default TCP is loopback-only; non-loopback requires `OPENSESAME_DAEMON_ALLOW_NONLOCAL=1`.
+- Default TCP is loopback-only; non-loopback requires `OPENSESAME_ALLOW_NONLOCAL=1` (legacy alias `OPENSESAME_DAEMON_ALLOW_NONLOCAL=1`).
 - Locked-down hosts: `OPENSESAME_DAEMON_UDS_ONLY=1` + `OPENSESAME_AGENT_SOCK` (no TCP).
 - Legacy `opensesame-credential-agent` uses the same loopback fence.
