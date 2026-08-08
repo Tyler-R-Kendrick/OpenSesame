@@ -162,6 +162,12 @@ pub mod http_security {
                     HeaderName::from_static("x-permitted-cross-domain-policies"),
                     HeaderValue::from_static("none"),
                 );
+                headers.insert(
+                    HeaderName::from_static("permissions-policy"),
+                    HeaderValue::from_static(
+                        "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+                    ),
+                );
                 if hsts {
                     headers.insert(
                         header::STRICT_TRANSPORT_SECURITY,
