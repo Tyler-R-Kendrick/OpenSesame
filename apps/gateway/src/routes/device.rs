@@ -8,7 +8,7 @@ use chrono::{Duration, Utc};
 use serde::Deserialize;
 use serde_json::json;
 
-use opensesame_claims::{hash_eq, hash_secret};
+use opensesame_claims::{hash_eq, hash_low_entropy, hash_secret};
 
 use crate::app_state::AppState;
 use crate::middleware::auth::{require_demo_bootstrap, require_operator};
@@ -54,11 +54,14 @@ pub async fn authorize(
     let device_code = format!("dc_{}", uuid::Uuid::new_v4());
     let user_code = opensesame_claims::generate_user_code();
     let expires_at = Utc::now() + Duration::minutes(15);
-    // Keyed and matched by digest — neither bearer is retained in cleartext.
+    let device_digest = hash_secret(&device_code);
+    // Keyed and matched by digest — neither bearer is retained in cleartext. The
+    // user code is low entropy, so its digest is keyed by the server pepper and
+    // bound to this device code.
     st.device_codes.lock().unwrap().insert(
-        hash_secret(&device_code),
+        device_digest.clone(),
         crate::app_state::DevicePending {
-            user_code_hash: hash_secret(&user_code),
+            user_code_hash: user_code_digest(&st.claim_pepper, &device_digest, &user_code),
             expires_at,
             approved_principal: None,
         },
@@ -187,6 +190,11 @@ pub struct DeviceApproveRequest {
     principal: Option<String>,
 }
 
+/// Keyed, per-device digest of a user code.
+fn user_code_digest(pepper: &str, device_digest: &str, user_code: &str) -> String {
+    hash_low_entropy(pepper, device_digest, user_code)
+}
+
 pub async fn approve(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -210,10 +218,12 @@ pub async fn approve(
         }
     }
 
-    let attempt_hash = hash_secret(&req.user_code);
     let mut map = st.device_codes.lock().unwrap();
     map.retain(|_, p| p.expires_at > now);
-    for pending in map.values_mut() {
+    // The digest is bound per device code, so the attempt is recomputed for each
+    // candidate rather than compared against one global hash.
+    for (device_digest, pending) in map.iter_mut() {
+        let attempt_hash = user_code_digest(&st.claim_pepper, device_digest, &req.user_code);
         if hash_eq(&attempt_hash, &pending.user_code_hash) {
             pending.approved_principal = Some(req.principal.unwrap_or_else(|| "user:demo".into()));
             return (StatusCode::OK, Json(json!({"status":"approved"}))).into_response();
@@ -234,9 +244,11 @@ mod tests {
     use crate::app_state::DevicePending;
     use std::collections::HashMap;
 
-    fn pending(user_code: &str) -> DevicePending {
+    const TEST_PEPPER: &str = "test-pepper";
+
+    fn pending(device_digest: &str, user_code: &str) -> DevicePending {
         DevicePending {
-            user_code_hash: hash_secret(user_code),
+            user_code_hash: user_code_digest(TEST_PEPPER, device_digest, user_code),
             expires_at: Utc::now() + Duration::minutes(15),
             approved_principal: None,
         }
@@ -245,20 +257,35 @@ mod tests {
     #[test]
     fn codes_are_stored_as_digests_only() {
         let device_code = "dc_secret";
+        let digest = hash_secret(device_code);
         let mut map: HashMap<String, DevicePending> = HashMap::new();
-        map.insert(hash_secret(device_code), pending("BCDFGHJK"));
+        map.insert(digest.clone(), pending(&digest, "BCDFGHJK"));
 
         assert!(!map.contains_key(device_code), "plaintext key must not hit");
-        let entry = map.get(&hash_secret(device_code)).expect("digest key hits");
+        let entry = map.get(&digest).expect("digest key hits");
         assert!(!entry.user_code_hash.contains("BCDFGHJK"));
-        assert!(hash_eq(&hash_secret("BCDFGHJK"), &entry.user_code_hash));
-        assert!(!hash_eq(&hash_secret("BCDFGHJL"), &entry.user_code_hash));
+        assert!(hash_eq(
+            &user_code_digest(TEST_PEPPER, &digest, "BCDFGHJK"),
+            &entry.user_code_hash
+        ));
+        assert!(!hash_eq(
+            &user_code_digest(TEST_PEPPER, &digest, "BCDFGHJL"),
+            &entry.user_code_hash
+        ));
+        // Keyless SHA-256 over ~2^35 codes is exhaustible; the stored digest is not
+        // that, and it is not the same digest another device code would hold.
+        assert!(!hash_eq(&hash_secret("BCDFGHJK"), &entry.user_code_hash));
+        assert!(!hash_eq(
+            &user_code_digest(TEST_PEPPER, "other-device", "BCDFGHJK"),
+            &entry.user_code_hash
+        ));
     }
 
     #[test]
     fn wrong_guesses_never_invalidate_pending_authorizations() {
         let mut map: HashMap<String, DevicePending> = HashMap::new();
-        map.insert(hash_secret("dc_1"), pending("BCDF-GHJK"));
+        let digest = hash_secret("dc_1");
+        map.insert(digest.clone(), pending(&digest, "BCDF-GHJK"));
         let mut failures: Vec<chrono::DateTime<Utc>> = Vec::new();
 
         for _ in 0..(MAX_APPROVE_FAILURES * 3) {
@@ -272,7 +299,10 @@ mod tests {
         assert_eq!(map.len(), 1, "guessing must not burn live authorizations");
         // The legitimate code still approves once the cooldown has elapsed.
         let entry = map.values().next().expect("entry");
-        assert!(hash_eq(&hash_secret("BCDF-GHJK"), &entry.user_code_hash));
+        assert!(hash_eq(
+            &user_code_digest(TEST_PEPPER, &digest, "BCDF-GHJK"),
+            &entry.user_code_hash
+        ));
     }
 
     #[test]

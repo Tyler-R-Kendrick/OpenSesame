@@ -222,7 +222,12 @@ claimRoutes.post(
       }
       if (
         !session.userCodeDigest ||
-        !verifyUserCode(ctx.config.claimPepper, parsed.data.userCode, session.userCodeDigest)
+        !verifyUserCode(
+          ctx.config.claimPepper,
+          id,
+          parsed.data.userCode,
+          session.userCodeDigest,
+        )
       ) {
         ctx.stores.claimApprovalAttempts.set(id, attempts + 1);
         return c.json({ error: "invalid_user_code" }, 401);
