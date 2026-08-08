@@ -1536,6 +1536,7 @@ dependencies = [
  "opensesame-authz",
  "opensesame-connector-host",
  "opensesame-domain",
+ "opensesame-redaction",
  "opensesame-storage",
  "opensesame-task-access",
  "serde",

@@ -46,6 +46,8 @@ pub struct AppState {
     /// Timestamps of failed `user_code` approval guesses (global cooldown fence).
     pub device_approve_failures: Arc<Mutex<Vec<chrono::DateTime<chrono::Utc>>>>,
     pub claims: Arc<Mutex<HashMap<String, ClaimSession>>>,
+    /// claim_id -> failed user-code attempts on completion (brute-force fence).
+    pub claim_user_code_attempts: Arc<Mutex<HashMap<String, u32>>>,
     pub bootstrap: Arc<Mutex<Option<Bootstrap>>>,
     pub openfga: Option<OpenFgaClient>,
     pub openbao: Option<OpenBaoHttpAuthority>,
@@ -103,6 +105,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         device_codes: Arc::new(Mutex::new(HashMap::new())),
         device_approve_failures: Arc::new(Mutex::new(Vec::new())),
         claims: Arc::new(Mutex::new(HashMap::new())),
+        claim_user_code_attempts: Arc::new(Mutex::new(HashMap::new())),
         bootstrap: Arc::new(Mutex::new(boot.demo)),
         openfga,
         openbao,

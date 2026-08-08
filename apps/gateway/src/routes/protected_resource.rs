@@ -37,6 +37,7 @@ pub async fn auth_md(State(st): State<AppState>) -> impl IntoResponse {
 - Device Authorization: POST {resource}/api/v1/device/authorize
 - Agent identity: POST {resource}/api/v1/agent-identities
 - Claim poll: POST {resource}/api/v1/agent-claims/{{id}}/poll (body: claim_token)
+- Claim complete: POST {resource}/api/v1/agent-claims/{{id}}/complete (operator + claim_token + user_code)
 - Invoke: POST {resource}/api/v1/intents with connection_ref (never SecretRef)
 - Connections: GET {resource}/api/v1/connections
 - Supported grants: authorization_code+PKCE (S256), urn:ietf:params:oauth:grant-type:device_code

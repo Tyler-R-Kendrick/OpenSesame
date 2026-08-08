@@ -351,6 +351,15 @@ async fn approve_claim(
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
+    // Both paths need the device's user code: the operator token proves a human
+    // is driving, the code proves which device they are approving.
+    let Some(user_code) = req.user_code.clone() else {
+        return Json(json!({
+            "error": "user_code_required",
+            "hint": "claim complete requires the user code shown by the device"
+        }))
+        .into_response();
+    };
     // Prefer Host API agent-claim complete (operator + claim_token). Fallback: Identity API.
     if let Some(claim_token) = req.claim_token {
         let url = format!(
@@ -361,7 +370,7 @@ async fn approve_claim(
             .http
             .post(&url)
             .header("x-opensesame-operator", &st.operator_token)
-            .json(&json!({"claim_token": claim_token}))
+            .json(&json!({"claim_token": claim_token, "user_code": user_code}))
             .send()
             .await
         {
@@ -374,14 +383,6 @@ async fn approve_claim(
         };
     }
     let url = format!("{}/v1/claims/{}/complete", st.identity_api, req.claim_id);
-    // Identity API approval is a consent step: it needs the device's user code.
-    let Some(user_code) = req.user_code.clone() else {
-        return Json(json!({
-            "error": "user_code_required",
-            "hint": "Identity API claim complete requires the user code shown by the device"
-        }))
-        .into_response();
-    };
     let mut builder = st
         .http
         .post(&url)
