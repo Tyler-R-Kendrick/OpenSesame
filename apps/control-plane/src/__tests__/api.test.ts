@@ -31,6 +31,30 @@ describe("control-plane API", () => {
     expect(body.state).toBe("provisional");
   });
 
+  it("rejects provisional session id as Bearer or cookie credential", async () => {
+    const { app } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+    const created = await provisional(app);
+    expect(created.sessionId.startsWith("ps_")).toBe(true);
+    expect(created.accessToken.startsWith("pst_")).toBe(true);
+
+    const bySessionBearer = await app.request("/v1/principals/me", {
+      headers: { authorization: `Bearer ${created.sessionId}` },
+    });
+    expect(bySessionBearer.status).toBe(401);
+
+    const bySessionCookie = await app.request("/v1/principals/me", {
+      headers: { cookie: `os_provisional=${created.sessionId}` },
+    });
+    expect(bySessionCookie.status).toBe(401);
+
+    const byAccessCookie = await app.request("/v1/principals/me", {
+      headers: { cookie: `os_provisional=${created.accessToken}` },
+    });
+    expect(byAccessCookie.status).toBe(200);
+  });
+
   it("creates temporary project and completes claim preserving ids", async () => {
     const { app } = createControlPlane({
       config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },

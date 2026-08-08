@@ -59,6 +59,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0m. **Gateway bind + CORS** — loopback fence on Host API; production CORS fail-closed — see `audit-2026-08-07-gateway-bind-cors.md`.
 0n. **Listen fences** — control-plane, callback-edge, mock-idp share `OPENSESAME_ALLOW_NONLOCAL` — see `audit-2026-08-07-listen-fence-remaining.md`.
 0o. **Mobile MFA** — real WebAuthn ceremony + session token required — see `audit-2026-08-07-mobile-mfa-webauthn.md`.
+0p. **Provisional auth** — session ids (`ps_…`) are not credentials; only `pst_…` access tokens authenticate — see `audit-2026-08-07-provisional-session-id.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
@@ -71,7 +72,7 @@ Re-run checklist: `pnpm run audit:cve-lite`, `pnpm run audit:osv`, `pnpm run aud
 
 ## Residual (tracked, not blocking this pass)
 
-- Console Better Auth passkey plugin UI (mobile MFA now uses `/registration-options`).
+- Console has no Better Auth passkey UI yet (mobile MFA uses `/registration-options`; console is sign-in / device / claim / task-access only).
 
 ## Bind policy (daemon / credential-agent)
 
