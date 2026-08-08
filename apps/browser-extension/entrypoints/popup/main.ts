@@ -1,3 +1,5 @@
+import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
+
 type HealthResponse = {
   health?: { ok?: boolean };
   daemon?: { available?: boolean };
@@ -26,7 +28,16 @@ async function saveHost() {
   const input = document.getElementById("host") as HTMLInputElement | null;
   const hint = document.getElementById("hint");
   if (!input) return;
-  const value = input.value.trim().replace(/\/$/, "") || DEFAULT_HOST;
+  const raw = input.value.trim() || DEFAULT_HOST;
+  const value = normalizeLoopbackBaseUrl(raw);
+  if (!value) {
+    if (hint) {
+      hint.hidden = false;
+      hint.textContent =
+        "Host API must be a loopback URL (http://127.0.0.1:8787 or http://localhost:8787).";
+    }
+    return;
+  }
   input.value = value;
   await chrome.storage.local.set({ hostApiBase: value });
   if (hint) {

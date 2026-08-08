@@ -68,7 +68,12 @@ export async function createDpopKeyPair() {
     ["sign", "verify"],
   );
   const jwk = (await subtle.exportKey("jwk", keyPair.publicKey)) as JsonWebKey;
-  const { kty, crv, x, y } = jwk;
+  // Explicit reads (not destructuring): the extension bundler targets firefox78,
+  // where esbuild refuses to transform this destructuring pattern.
+  const kty = jwk.kty;
+  const crv = jwk.crv;
+  const x = jwk.x;
+  const y = jwk.y;
 
   async function createDpopProof(htu: string, htm: string): Promise<string> {
     const header = {
@@ -95,6 +100,28 @@ export async function createDpopKeyPair() {
   }
 
   return { createDpopProof, jwk: { kty, crv, x, y } };
+}
+
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
+
+/**
+ * Host API base URLs must stay on loopback for local-first clients (extension,
+ * PWA, toolbar) — the same fence the daemon and gateway enforce on bind.
+ * Returns a normalized origin+path, or null when the value is not loopback http(s).
+ */
+export function normalizeLoopbackBaseUrl(raw: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  if (url.username || url.password) return null;
+  const host = url.hostname.toLowerCase().replace(/\.$/, "");
+  if (!LOOPBACK_HOSTS.has(host) && !host.endsWith(".localhost")) return null;
+  if (url.search || url.hash) return null;
+  return `${url.origin}${url.pathname.replace(/\/$/, "")}`;
 }
 
 export function createApiClient(options: ApiClientOptions) {

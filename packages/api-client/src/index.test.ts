@@ -1,5 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { createApiClient, createDpopKeyPair } from "./index.js";
+import {
+  createApiClient,
+  createDpopKeyPair,
+  normalizeLoopbackBaseUrl,
+} from "./index.js";
+
+describe("normalizeLoopbackBaseUrl", () => {
+  it("accepts loopback origins and strips trailing slash", () => {
+    expect(normalizeLoopbackBaseUrl("http://127.0.0.1:8787/")).toBe("http://127.0.0.1:8787");
+    expect(normalizeLoopbackBaseUrl(" http://localhost:8787 ")).toBe("http://localhost:8787");
+    expect(normalizeLoopbackBaseUrl("https://[::1]:8787")).toBe("https://[::1]:8787");
+    expect(normalizeLoopbackBaseUrl("http://api.localhost:8787")).toBe(
+      "http://api.localhost:8787",
+    );
+  });
+
+  it("rejects remote hosts, odd schemes, and credential/query smuggling", () => {
+    for (const bad of [
+      "http://evil.example",
+      "http://10.0.0.5:8787",
+      "http://127.0.0.1.evil.example",
+      "javascript:alert(1)",
+      "file:///etc/passwd",
+      "http://user:pass@127.0.0.1:8787",
+      "http://127.0.0.1:8787/?next=http://evil.example",
+      "http://127.0.0.1:8787/#x",
+      "not a url",
+      "",
+    ]) {
+      expect(normalizeLoopbackBaseUrl(bad), bad).toBeNull();
+    }
+  });
+});
 
 describe("api-client", () => {
   it("builds requests against host base url", async () => {
