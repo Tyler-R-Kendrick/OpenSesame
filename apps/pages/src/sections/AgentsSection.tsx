@@ -598,9 +598,6 @@ function RegisterAgent({ online }: { online: boolean }) {
   const [claim, setClaim] = useState<ClaimResult | null>(null);
   const { copy, copied } = useCopy();
 
-  // Held for this tab only; never persisted, never sent anywhere.
-  const keyPair = useRef<CryptoKeyPair | null>(null);
-
   async function generateKey() {
     setError(null);
     setKeying(true);
@@ -613,7 +610,6 @@ function RegisterAgent({ online }: { online: boolean }) {
         ["sign", "verify"],
       );
       const jwk = await crypto.subtle.exportKey("jwk", pair.publicKey);
-      keyPair.current = pair;
       setJkt(await thumbprintOf(jwk));
       setClaim(null);
     } catch {

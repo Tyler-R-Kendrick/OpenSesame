@@ -1,8 +1,8 @@
+import { createOpenSesame } from "@opensesame/sdk-browser";
+import type { ClaimPresentation, StorageLike } from "@opensesame/sdk-browser";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { Link } from "react-router";
-import { createOpenSesame } from "@opensesame/sdk-browser";
-import type { ClaimPresentation, StorageLike } from "@opensesame/sdk-browser";
 import {
   IconAlert,
   IconCheck,
@@ -18,6 +18,10 @@ import {
   IconX,
 } from "../components/Icons.js";
 import {
+  type HealthState,
+  IdentityError,
+  type IdentitySession,
+  type Principal,
   adoptToken,
   clearSession,
   connectProvisional,
@@ -25,16 +29,17 @@ import {
   identityBase,
   identityFetch,
   identityJson,
-  IdentityError,
   probeHost,
   probeIdentity,
   useIdentitySession,
-  type HealthState,
-  type IdentitySession,
-  type Principal,
 } from "../lib/identity.js";
+import {
+  type QueuedAction,
+  dequeue,
+  enqueue,
+  loadQueue,
+} from "../lib/queue.js";
 import { useOnline } from "../lib/use-online.js";
-import { dequeue, enqueue, loadQueue, type QueuedAction } from "../lib/queue.js";
 import "./authority.css";
 
 /* ------------------------------------------------------------------ */
@@ -124,13 +129,18 @@ function formatUserCode(raw: string): string {
     .filter((ch) => CROCKFORD.includes(ch))
     .join("")
     .slice(0, 8);
-  return cleaned.length > 4 ? `${cleaned.slice(0, 4)}-${cleaned.slice(4)}` : cleaned;
+  return cleaned.length > 4
+    ? `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`
+    : cleaned;
 }
 
 const CLAIM_TOKEN_PREFIX = "osc_clm_";
 
 function looksLikeClaimToken(token: string): boolean {
-  return token.startsWith(CLAIM_TOKEN_PREFIX) && token.slice(CLAIM_TOKEN_PREFIX.length).includes(".");
+  return (
+    token.startsWith(CLAIM_TOKEN_PREFIX) &&
+    token.slice(CLAIM_TOKEN_PREFIX.length).includes(".")
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -173,7 +183,11 @@ function createClaimClient(session: IdentitySession | null) {
 
   const fetchImpl: typeof fetch = async (input, init) => {
     const href =
-      typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
     const res = await fetch(href.replace("/api/v1/claims", "/v1/claims"), {
       ...init,
       credentials: "include",
@@ -185,13 +199,22 @@ function createClaimClient(session: IdentitySession | null) {
     return res;
   };
 
-  const client = createOpenSesame({ issuer: base, apiBase: base, storage, fetchImpl });
+  const client = createOpenSesame({
+    issuer: base,
+    apiBase: base,
+    storage,
+    fetchImpl,
+  });
   return { client, failure };
 }
 
 async function readErrorCode(res: Response): Promise<string | null> {
   try {
-    const body = (await res.json()) as { error?: unknown; message?: unknown; hint?: unknown };
+    const body = (await res.json()) as {
+      error?: unknown;
+      message?: unknown;
+      hint?: unknown;
+    };
     if (typeof body.error === "string") return body.error;
     if (typeof body.message === "string") return body.message;
     if (typeof body.hint === "string") return body.hint;
@@ -217,7 +240,10 @@ export function AuthoritySection() {
 
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+  function onTabKeyDown(
+    event: KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) {
     const last = TABS.length - 1;
     let target = -1;
     if (event.key === "ArrowRight") target = index === last ? 0 : index + 1;
@@ -237,9 +263,9 @@ export function AuthoritySection() {
       <header className="section__head">
         <h1>Authority</h1>
         <p>
-          Prove who you are to the OpenSesame identity plane, authorize the devices and
-          agents acting for you, take ownership of what they created, and read what the
-          protocol actually guarantees.
+          Prove who you are to the OpenSesame identity plane, authorize the
+          devices and agents acting for you, take ownership of what they
+          created, and read what the protocol actually guarantees.
         </p>
       </header>
 
@@ -254,7 +280,11 @@ export function AuthoritySection() {
         />
       ) : null}
 
-      <div className="authority-tabs" role="tablist" aria-label="Authority areas">
+      <div
+        className="authority-tabs"
+        role="tablist"
+        aria-label="Authority areas"
+      >
         {TABS.map((entry, index) => {
           const selected = entry.id === tab;
           return (
@@ -284,12 +314,15 @@ export function AuthoritySection() {
         role="tabpanel"
         id={`authority-panel-${tab}`}
         aria-labelledby={`authority-tab-${tab}`}
-        tabIndex={0}
         className="authority-panelwrap"
       >
         {tab === "session" ? <SessionArea session={session} /> : null}
         {tab === "device" ? (
-          <DeviceArea session={session} online={online} onQueue={refreshQueue} />
+          <DeviceArea
+            session={session}
+            online={online}
+            onQueue={refreshQueue}
+          />
         ) : null}
         {tab === "claim" ? (
           <ClaimArea session={session} online={online} onQueue={refreshQueue} />
@@ -311,7 +344,10 @@ function PlaneStatus() {
 
   const run = useCallback(async () => {
     setProbing(true);
-    const [nextIdentity, nextHost] = await Promise.all([probeIdentity(), probeHost()]);
+    const [nextIdentity, nextHost] = await Promise.all([
+      probeIdentity(),
+      probeHost(),
+    ]);
     setIdentity(nextIdentity);
     setHost(nextHost);
     setProbing(false);
@@ -343,22 +379,34 @@ function PlaneStatus() {
       </div>
       <div className="panel__body">
         <div className="authority-planes">
-          <PlaneCard name="Identity API" url={identityBase()} probe={identity} />
+          <PlaneCard
+            name="Identity API"
+            url={identityBase()}
+            probe={identity}
+          />
           <PlaneCard name="Host API" url={hostBase()} probe={host} />
         </div>
         <p className="hint">
           Both addresses come from your settings.{" "}
-          <Link to="/settings">Change them in Settings</Link> if you run these services
-          somewhere other than the loopback defaults.
+          <Link to="/settings">Change them in Settings</Link> if you run these
+          services somewhere other than the loopback defaults.
         </p>
       </div>
     </section>
   );
 }
 
-function PlaneCard({ name, url, probe }: { name: string; url: string; probe: HealthState }) {
+function PlaneCard({
+  name,
+  url,
+  probe,
+}: { name: string; url: string; probe: HealthState }) {
   const dot =
-    probe === "reachable" ? "dot dot--ok" : probe === "unreachable" ? "dot dot--warn" : "dot";
+    probe === "reachable"
+      ? "dot dot--ok"
+      : probe === "unreachable"
+        ? "dot dot--warn"
+        : "dot";
   const label =
     probe === "reachable"
       ? "Reachable"
@@ -490,7 +538,9 @@ function SessionArea({ session }: { session: IdentitySession | null }) {
                   <dd>
                     <span
                       className={`chip ${
-                        principal.assurance === "provisional" ? "chip--warn" : "chip--ok"
+                        principal.assurance === "provisional"
+                          ? "chip--warn"
+                          : "chip--ok"
                       }`}
                     >
                       {principal.assurance}
@@ -517,18 +567,19 @@ function SessionArea({ session }: { session: IdentitySession | null }) {
                 <p className="note note--warn">
                   <IconAlert size={18} />
                   <span>
-                    This is a provisional principal. It can approve devices and complete
-                    claims, but the Identity API refuses OAuth client registration at this
-                    assurance level (<code>403 assurance_too_low</code>). Link a real
-                    identity with the <code>opensesame-id</code> CLI to raise it.
+                    This is a provisional principal. It can approve devices and
+                    complete claims, but the Identity API refuses OAuth client
+                    registration at this assurance level (
+                    <code>403 assurance_too_low</code>). Link a real identity
+                    with the <code>opensesame-id</code> CLI to raise it.
                   </span>
                 </p>
               ) : null}
 
               <p className="hint">
-                Session expires {formatWhen(session.expiresAt)}. The access token lives in
-                this tab&rsquo;s memory only — it is never written to storage, so closing
-                the tab ends the session.
+                Session expires {formatWhen(session.expiresAt)}. The access
+                token lives in this tab&rsquo;s memory only — it is never
+                written to storage, so closing the tab ends the session.
               </p>
             </>
           ) : loading ? (
@@ -537,7 +588,9 @@ function SessionArea({ session }: { session: IdentitySession | null }) {
         </div>
       </section>
 
-      {principal ? <IdentitiesPanel principal={principal} details={details} /> : null}
+      {principal ? (
+        <IdentitiesPanel principal={principal} details={details} />
+      ) : null}
     </>
   );
 }
@@ -557,8 +610,8 @@ function IdentitiesPanel({
         <div>
           <h2>Linked identities</h2>
           <p>
-            Upstream accounts folded into this principal. Each one carries its own
-            assurance; the principal takes the strongest.
+            Upstream accounts folded into this principal. Each one carries its
+            own assurance; the principal takes the strongest.
           </p>
         </div>
       </div>
@@ -570,9 +623,10 @@ function IdentitiesPanel({
             </div>
             <h3>No upstream identity linked</h3>
             <p>
-              Nothing is federated into this principal yet. Linking one is an OAuth
-              redirect the identity plane owns — run <code>opensesame-id link</code> from
-              a terminal, or sign in through a provider on the Identity API.
+              Nothing is federated into this principal yet. Linking one is an
+              OAuth redirect the identity plane owns — run{" "}
+              <code>opensesame-id link</code> from a terminal, or sign in
+              through a provider on the Identity API.
             </p>
           </div>
         </div>
@@ -604,12 +658,22 @@ function IdentitiesPanel({
                       </td>
                       <td className="authority-wrap">{identity.issuer}</td>
                       <td className="authority-wrap">
-                        {detail ? <code>{detail.subject}</code> : <span className="hint">—</span>}
+                        {detail ? (
+                          <code>{detail.subject}</code>
+                        ) : (
+                          <span className="hint">—</span>
+                        )}
                       </td>
                       <td>
                         <span className="chip">{identity.assurance}</span>
                       </td>
-                      <td>{detail ? formatWhen(detail.linkedAt) : <span className="hint">—</span>}</td>
+                      <td>
+                        {detail ? (
+                          formatWhen(detail.linkedAt)
+                        ) : (
+                          <span className="hint">—</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -651,7 +715,9 @@ function ConnectArea() {
       adoptToken(trimmed);
       setToken("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not adopt that token.");
+      setError(
+        err instanceof Error ? err.message : "Could not adopt that token.",
+      );
     } finally {
       setBusy(null);
     }
@@ -663,86 +729,90 @@ function ConnectArea() {
         <div>
           <h2>Not connected</h2>
           <p>
-            Nothing else in this section works until this tab is acting as a principal.
-            Two ways in, both real.
+            Nothing else in this section works until this tab is acting as a
+            principal. Two ways in, both real.
           </p>
         </div>
       </div>
       <div className="panel__body">
-          <div className="authority-onramps">
-            <div className="authority-onramp">
-              <h3>Start anonymously</h3>
-              <p>
-                Creates a provisional principal on the Identity API. You get an identity
-                immediately with no account and no email.
-              </p>
-              <p className="note note--warn">
-                <IconAlert size={18} />
-                <span>
-                  A provisional principal has reduced authority. It can approve devices
-                  and complete claims, but it cannot register OAuth clients — the Identity
-                  API answers <code>403 assurance_too_low</code>. Raise assurance later by
-                  linking a real identity.
-                </span>
-              </p>
-              <div className="actions">
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={() => void connect()}
-                  disabled={busy !== null}
-                  aria-busy={busy === "provisional"}
-                >
-                  {busy === "provisional" ? "Connecting…" : "Create provisional principal"}
-                </button>
-              </div>
-            </div>
-
-            <div className="authority-onramp">
-              <h3>Adopt a token you already have</h3>
-              <p>
-                If <code>opensesame-id</code> already signed you in on this machine, paste
-                the access token it printed and this tab will act as that principal.
-              </p>
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  adopt();
-                }}
+        <div className="authority-onramps">
+          <div className="authority-onramp">
+            <h3>Start anonymously</h3>
+            <p>
+              Creates a provisional principal on the Identity API. You get an
+              identity immediately with no account and no email.
+            </p>
+            <p className="note note--warn">
+              <IconAlert size={18} />
+              <span>
+                A provisional principal has reduced authority. It can approve
+                devices and complete claims, but it cannot register OAuth
+                clients — the Identity API answers{" "}
+                <code>403 assurance_too_low</code>. Raise assurance later by
+                linking a real identity.
+              </span>
+            </p>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => void connect()}
+                disabled={busy !== null}
+                aria-busy={busy === "provisional"}
               >
-                <div className="field">
-                  <label className="label" htmlFor="authority-adopt-token">
-                    Access token
-                  </label>
-                  <input
-                    id="authority-adopt-token"
-                    type="password"
-                    autoComplete="off"
-                    spellCheck={false}
-                    placeholder="Paste the token from your terminal"
-                    value={token}
-                    disabled={busy !== null}
-                    onChange={(event) => setToken(event.target.value)}
-                  />
-                  <p className="hint">
-                    Held in memory for this tab only. It is never written to storage, never
-                    sent anywhere except the Identity API at {identityBase()}, and it is
-                    gone when you close the tab.
-                  </p>
-                </div>
-                <div className="actions">
-                  <button
-                    type="submit"
-                    className="btn"
-                    disabled={busy !== null || token.trim().length === 0}
-                    aria-busy={busy === "adopt"}
-                  >
-                    Use this token
-                  </button>
-                </div>
-              </form>
+                {busy === "provisional"
+                  ? "Connecting…"
+                  : "Create provisional principal"}
+              </button>
             </div>
           </div>
+
+          <div className="authority-onramp">
+            <h3>Adopt a token you already have</h3>
+            <p>
+              If <code>opensesame-id</code> already signed you in on this
+              machine, paste the access token it printed and this tab will act
+              as that principal.
+            </p>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                adopt();
+              }}
+            >
+              <div className="field">
+                <label className="label" htmlFor="authority-adopt-token">
+                  Access token
+                </label>
+                <input
+                  id="authority-adopt-token"
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="Paste the token from your terminal"
+                  value={token}
+                  disabled={busy !== null}
+                  onChange={(event) => setToken(event.target.value)}
+                />
+                <p className="hint">
+                  Held in memory for this tab only. It is never written to
+                  storage, never sent anywhere except the Identity API at{" "}
+                  {identityBase()}, and it is gone when you close the tab.
+                </p>
+              </div>
+              <div className="actions">
+                <button
+                  type="submit"
+                  className="btn"
+                  disabled={busy !== null || token.trim().length === 0}
+                  aria-busy={busy === "adopt"}
+                >
+                  Use this token
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
 
         {error ? (
           <p className="note note--err" role="alert">
@@ -779,7 +849,10 @@ function DeviceArea({
   async function submit() {
     setOutcome(null);
     if (!code) {
-      setOutcome({ tone: "err", message: "Enter the user code your terminal is showing." });
+      setOutcome({
+        tone: "err",
+        message: "Enter the user code your terminal is showing.",
+      });
       return;
     }
 
@@ -833,8 +906,8 @@ function DeviceArea({
         <div>
           <h2>Authorize a device</h2>
           <p>
-            A device or CLI showed you an eight-character code. Typing it here tells the
-            identity plane that the person at that terminal is you.
+            A device or CLI showed you an eight-character code. Typing it here
+            tells the identity plane that the person at that terminal is you.
           </p>
         </div>
       </div>
@@ -842,28 +915,31 @@ function DeviceArea({
         <p className="note">
           <IconShield size={18} />
           <span>
-            This grants a <strong>short-lived client session</strong> and nothing more. It
-            does not transfer ownership of anything, and it does not give the device your
-            credentials — for durable ownership, use the Claim ownership tab.
+            This grants a <strong>short-lived client session</strong> and
+            nothing more. It does not transfer ownership of anything, and it
+            does not give the device your credentials — for durable ownership,
+            use the Claim ownership tab.
           </span>
         </p>
 
         {!online ? (
-          <p className="note note--warn" role="status">
+          <output className="note note--warn">
             <IconClock size={18} />
             <span>
-              You are offline. Submitting will stage the code in the outbox instead of
-              approving it now. User codes expire, so flush the outbox promptly.
+              You are offline. Submitting will stage the code in the outbox
+              instead of approving it now. User codes expire, so flush the
+              outbox promptly.
             </span>
-          </p>
+          </output>
         ) : !session ? (
-          <p className="note note--warn" role="status">
+          <output className="note note--warn">
             <IconAlert size={18} />
             <span>
-              Approving needs a principal. Connect one on the <strong>Session</strong> tab
-              first — the Identity API will reject an unauthenticated approval.
+              Approving needs a principal. Connect one on the{" "}
+              <strong>Session</strong> tab first — the Identity API will reject
+              an unauthenticated approval.
             </span>
-          </p>
+          </output>
         ) : null}
 
         <form
@@ -890,9 +966,9 @@ function DeviceArea({
               onChange={(event) => setCode(formatUserCode(event.target.value))}
             />
             <p className="hint" id="authority-user-code-hint">
-              Eight characters, Crockford Base32. Spaces and dashes are ignored, and the
-              ambiguous glyphs are folded for you — type O and you get 0, type I or L and
-              you get 1.
+              Eight characters, Crockford Base32. Spaces and dashes are ignored,
+              and the ambiguous glyphs are folded for you — type O and you get
+              0, type I or L and you get 1.
             </p>
           </div>
           <div className="actions">
@@ -902,7 +978,11 @@ function DeviceArea({
               disabled={busy || !complete}
               aria-busy={busy}
             >
-              {busy ? "Authorizing…" : online ? "Authorize device" : "Stage for later"}
+              {busy
+                ? "Authorizing…"
+                : online
+                  ? "Authorize device"
+                  : "Stage for later"}
             </button>
           </div>
         </form>
@@ -912,7 +992,11 @@ function DeviceArea({
             className={`note note--${outcome.tone}`}
             role={outcome.tone === "err" ? "alert" : "status"}
           >
-            {outcome.tone === "ok" ? <IconCheck size={18} /> : <IconAlert size={18} />}
+            {outcome.tone === "ok" ? (
+              <IconCheck size={18} />
+            ) : (
+              <IconAlert size={18} />
+            )}
             <span>{outcome.message}</span>
           </p>
         ) : null}
@@ -953,7 +1037,11 @@ function ClaimArea({
     setOutcome(null);
     const trimmed = token.trim();
     if (!trimmed) {
-      setOutcome({ tone: "err", message: "Paste the claim token printed by the tool that created the claim." });
+      setOutcome({
+        tone: "err",
+        message:
+          "Paste the claim token printed by the tool that created the claim.",
+      });
       return;
     }
     if (!looksLikeClaimToken(trimmed)) {
@@ -1005,11 +1093,16 @@ function ClaimArea({
     const { client, failure } = createClaimClient(session);
     try {
       setCompleted(
-        (await client.completeClaim(presented.id, { acceptedItemIds: ["*"] })) as ClaimView,
+        (await client.completeClaim(presented.id, {
+          acceptedItemIds: ["*"],
+        })) as ClaimView,
       );
       setToken("");
     } catch (err) {
-      setOutcome({ tone: "err", message: describeCompleteFailure(failure, err) });
+      setOutcome({
+        tone: "err",
+        message: describeCompleteFailure(failure, err),
+      });
     } finally {
       setBusy(null);
     }
@@ -1023,13 +1116,17 @@ function ClaimArea({
         <div>
           <h2>Claim ownership</h2>
           <p>
-            Attaches durable ownership of an agent, project, or connection to your
-            principal. Unlike authorizing a device, this does not expire.
+            Attaches durable ownership of an agent, project, or connection to
+            your principal. Unlike authorizing a device, this does not expire.
           </p>
         </div>
         {presented || completed ? (
           <div className="actions actions--end">
-            <button type="button" className="btn btn--sm btn--ghost" onClick={reset}>
+            <button
+              type="button"
+              className="btn btn--sm btn--ghost"
+              onClick={reset}
+            >
               Start over
             </button>
           </div>
@@ -1037,17 +1134,19 @@ function ClaimArea({
       </div>
       <div className="panel__body">
         {!online ? (
-          <p className="note note--warn" role="status">
+          <output className="note note--warn">
             <IconClock size={18} />
             <span>
-              You are offline. A token submitted now is staged whole and completed later
-              without a review step.
+              You are offline. A token submitted now is staged whole and
+              completed later without a review step.
             </span>
-          </p>
+          </output>
         ) : null}
 
         <ol className="authority-steps">
-          <li className={`authority-step${step === 1 ? " is-current" : step > 1 ? " is-done" : ""}`}>
+          <li
+            className={`authority-step${step === 1 ? " is-current" : step > 1 ? " is-done" : ""}`}
+          >
             <span className="authority-step__n" aria-hidden="true">
               {step > 1 ? <IconCheck size={15} /> : "1"}
             </span>
@@ -1056,8 +1155,8 @@ function ClaimArea({
               {step === 1 ? (
                 <>
                   <p>
-                    Presenting reads the claim without accepting it. Nothing changes
-                    hands at this step.
+                    Presenting reads the claim without accepting it. Nothing
+                    changes hands at this step.
                   </p>
                   <form
                     onSubmit={(event) => {
@@ -1085,14 +1184,20 @@ function ClaimArea({
                           className={`icon-btn${revealed ? " is-on" : ""}`}
                           onClick={() => setRevealed((value) => !value)}
                           aria-pressed={revealed}
-                          aria-label={revealed ? "Hide claim token" : "Reveal claim token"}
+                          aria-label={
+                            revealed ? "Hide claim token" : "Reveal claim token"
+                          }
                         >
-                          {revealed ? <IconEyeOff size={17} /> : <IconEye size={17} />}
+                          {revealed ? (
+                            <IconEyeOff size={17} />
+                          ) : (
+                            <IconEye size={17} />
+                          )}
                         </button>
                       </div>
                       <p className="hint">
-                        The token is a bearer credential for this one claim. It is masked
-                        by default, held in memory, and not stored.
+                        The token is a bearer credential for this one claim. It
+                        is masked by default, held in memory, and not stored.
                       </p>
                     </div>
                     <div className="actions">
@@ -1112,12 +1217,16 @@ function ClaimArea({
                   </form>
                 </>
               ) : (
-                <p className="hint">Presented. The claim below is what the token unlocked.</p>
+                <p className="hint">
+                  Presented. The claim below is what the token unlocked.
+                </p>
               )}
             </div>
           </li>
 
-          <li className={`authority-step${step === 2 ? " is-current" : step > 2 ? " is-done" : ""}`}>
+          <li
+            className={`authority-step${step === 2 ? " is-current" : step > 2 ? " is-done" : ""}`}
+          >
             <span className="authority-step__n" aria-hidden="true">
               {step > 2 ? <IconCheck size={15} /> : "2"}
             </span>
@@ -1135,7 +1244,9 @@ function ClaimArea({
                     <div>
                       <dt>Type</dt>
                       <dd>
-                        <span className="chip chip--accent">{presented.type}</span>
+                        <span className="chip chip--accent">
+                          {presented.type}
+                        </span>
                       </dd>
                     </div>
                     <div>
@@ -1158,13 +1269,15 @@ function ClaimArea({
 
                   <div className="field">
                     <span className="label">Target manifest digest</span>
-                    <p className="authority-digest">{presented.targetManifestDigest}</p>
+                    <p className="authority-digest">
+                      {presented.targetManifestDigest}
+                    </p>
                     <p className="hint">
-                      This digest is the claim&rsquo;s subject. The manifest itself stays
-                      server-side — the identity plane returns the digest, not its
-                      contents, so this page cannot enumerate the individual items.
-                      Compare it against the digest your tool printed when it created the
-                      claim.
+                      This digest is the claim&rsquo;s subject. The manifest
+                      itself stays server-side — the identity plane returns the
+                      digest, not its contents, so this page cannot enumerate
+                      the individual items. Compare it against the digest your
+                      tool printed when it created the claim.
                     </p>
                   </div>
 
@@ -1193,10 +1306,11 @@ function ClaimArea({
                     <p className="note">
                       <IconShield size={18} />
                       <span>
-                        Completing accepts the claim in full (<code>acceptedItemIds: ["*"]</code>).
-                        Per-item selection is not offered because this deployment does not
-                        return an item list to choose from. If the digest is not the one
-                        you expect, stop here — presenting changed nothing.
+                        Completing accepts the claim in full (
+                        <code>acceptedItemIds: ["*"]</code>). Per-item selection
+                        is not offered because this deployment does not return
+                        an item list to choose from. If the digest is not the
+                        one you expect, stop here — presenting changed nothing.
                       </span>
                     </p>
                   )}
@@ -1210,9 +1324,15 @@ function ClaimArea({
                         disabled={busy !== null || !online}
                         aria-busy={busy === "complete"}
                       >
-                        {busy === "complete" ? "Completing…" : "Accept and take ownership"}
+                        {busy === "complete"
+                          ? "Completing…"
+                          : "Accept and take ownership"}
                       </button>
-                      <button type="button" className="btn btn--ghost" onClick={reset}>
+                      <button
+                        type="button"
+                        className="btn btn--ghost"
+                        onClick={reset}
+                      >
                         Discard
                       </button>
                     </div>
@@ -1220,14 +1340,16 @@ function ClaimArea({
                 </>
               ) : (
                 <p className="hint">
-                  Present a token first. This is where you check the claim&rsquo;s type and
-                  digest before anything is accepted.
+                  Present a token first. This is where you check the
+                  claim&rsquo;s type and digest before anything is accepted.
                 </p>
               )}
             </div>
           </li>
 
-          <li className={`authority-step${step === 3 ? " is-current is-done" : ""}`}>
+          <li
+            className={`authority-step${step === 3 ? " is-current is-done" : ""}`}
+          >
             <span className="authority-step__n" aria-hidden="true">
               {step > 2 ? <IconCheck size={15} /> : "3"}
             </span>
@@ -1235,7 +1357,7 @@ function ClaimArea({
               <h3>Ownership attached</h3>
               {completed ? (
                 <>
-                  <p className="note note--ok" role="status">
+                  <output className="note note--ok">
                     <IconCheck size={18} />
                     <span>
                       Claim <code>{completed.id}</code> is {completed.state}.
@@ -1243,14 +1365,16 @@ function ClaimArea({
                         ? " Another principal completed this claim first, so ownership did not move to you."
                         : " Ownership is attached to your principal."}
                     </span>
-                  </p>
+                  </output>
                   {completed.preserved ? (
                     <dl className="kv">
                       {completed.preserved.principalId ? (
                         <div>
                           <dt>Owner</dt>
                           <dd>
-                            <CopyableId value={completed.preserved.principalId} />
+                            <CopyableId
+                              value={completed.preserved.principalId}
+                            />
                           </dd>
                         </div>
                       ) : null}
@@ -1275,8 +1399,9 @@ function ClaimArea({
                 </>
               ) : (
                 <p className="hint">
-                  Nothing is accepted until you complete step 2. Completion is recorded in
-                  your audit trail and cannot be undone from this page.
+                  Nothing is accepted until you complete step 2. Completion is
+                  recorded in your audit trail and cannot be undone from this
+                  page.
                 </p>
               )}
             </div>
@@ -1320,7 +1445,8 @@ const ASSERTIONS: Assertion[] = [
   },
   {
     id: "mcp",
-    claim: "MCP revision 2026-07-28 uses Authorization: Bearer \u2014 not DPoP.",
+    claim:
+      "MCP revision 2026-07-28 uses Authorization: Bearer \u2014 not DPoP.",
     detail:
       "The mcp-authorization-2026-07-28-bearer profile is marked Draft and is Bearer-only here: no task binding, no replay protection. There is no DPoP profile for MCP in this repository, and confusing the two is exactly the mistake the profile matrix exists to prevent.",
     source: "docs/protocol-profiles.md \u00b7 ADR 0023",
@@ -1372,9 +1498,18 @@ const DISCOVERY_URLS: Array<{ key: string; label: string }> = [
 
 const DISCOVERY_LISTS: Array<{ key: string; label: string }> = [
   { key: "grant_types_supported", label: "Grant types" },
-  { key: "code_challenge_methods_supported", label: "PKCE code challenge methods" },
-  { key: "dpop_signing_alg_values_supported", label: "DPoP signing algorithms" },
-  { key: "token_endpoint_auth_methods_supported", label: "Token endpoint auth methods" },
+  {
+    key: "code_challenge_methods_supported",
+    label: "PKCE code challenge methods",
+  },
+  {
+    key: "dpop_signing_alg_values_supported",
+    label: "DPoP signing algorithms",
+  },
+  {
+    key: "token_endpoint_auth_methods_supported",
+    label: "Token endpoint auth methods",
+  },
   { key: "response_types_supported", label: "Response types" },
   { key: "scopes_supported", label: "Scopes" },
 ];
@@ -1424,12 +1559,13 @@ function ProtocolArea() {
         </div>
         <div className="panel__body">
           <p className="authority-prose">
-            Every protocol adapter maps onto one canonical core: an identity produces an
-            authority context, a task template compiles an immutable ceiling, current
-            capabilities ratchet downward inside it, a frozen intent pins the exact
-            operation, mediation issues a proof-bound credential, and enforcement leaves
-            evidence. Adapters differ in how a caller presents a token. They do not differ
-            in what authority means.
+            Every protocol adapter maps onto one canonical core: an identity
+            produces an authority context, a task template compiles an immutable
+            ceiling, current capabilities ratchet downward inside it, a frozen
+            intent pins the exact operation, mediation issues a proof-bound
+            credential, and enforcement leaves evidence. Adapters differ in how
+            a caller presents a token. They do not differ in what authority
+            means.
           </p>
 
           <dl className="authority-asserts">
@@ -1451,8 +1587,9 @@ function ProtocolArea() {
           <div>
             <h2>Advertised by the running identity plane</h2>
             <p>
-              Live OIDC discovery from {identityBase()}, so you can check the deployment
-              against the claims above rather than trusting the prose.
+              Live OIDC discovery from {identityBase()}, so you can check the
+              deployment against the claims above rather than trusting the
+              prose.
             </p>
           </div>
           <div className="actions actions--end">
@@ -1470,32 +1607,34 @@ function ProtocolArea() {
         </div>
         <div className="panel__body">
           {error ? (
-            <p className="note note--warn" role="status">
+            <output className="note note--warn">
               <IconAlert size={18} />
               <span>{error}</span>
-            </p>
+            </output>
           ) : null}
 
           {doc ? (
             <>
               <dl className="kv">
-                {DISCOVERY_URLS.filter((entry) => typeof doc[entry.key] === "string").map(
-                  (entry) => (
-                    <div key={entry.key}>
-                      <dt>{entry.label}</dt>
-                      <dd className="authority-wrap">
-                        <code>{doc[entry.key] as string}</code>
-                      </dd>
-                    </div>
-                  ),
-                )}
+                {DISCOVERY_URLS.filter(
+                  (entry) => typeof doc[entry.key] === "string",
+                ).map((entry) => (
+                  <div key={entry.key}>
+                    <dt>{entry.label}</dt>
+                    <dd className="authority-wrap">
+                      <code>{doc[entry.key] as string}</code>
+                    </dd>
+                  </div>
+                ))}
               </dl>
 
               <div className="authority-lists">
                 {DISCOVERY_LISTS.map((entry) => {
                   const value = doc[entry.key];
                   const values = Array.isArray(value)
-                    ? value.filter((item): item is string => typeof item === "string")
+                    ? value.filter(
+                        (item): item is string => typeof item === "string",
+                      )
                     : null;
                   return (
                     <div className="authority-list" key={entry.key}>
@@ -1512,7 +1651,9 @@ function ProtocolArea() {
                           ))}
                         </div>
                       ) : (
-                        <p className="hint">Not advertised by this deployment.</p>
+                        <p className="hint">
+                          Not advertised by this deployment.
+                        </p>
                       )}
                     </div>
                   );
@@ -1521,11 +1662,11 @@ function ProtocolArea() {
 
               <p className="hint">
                 Read this against the assertions: a{" "}
-                <code>code_challenge_methods_supported</code> without <code>S256</code>{" "}
-                would contradict the PKCE requirement, and DPoP signing algorithms appear
-                here only when the provider has the DPoP feature on. Absent keys mean the
-                deployment does not advertise the capability — not that this page failed
-                to read it.
+                <code>code_challenge_methods_supported</code> without{" "}
+                <code>S256</code> would contradict the PKCE requirement, and
+                DPoP signing algorithms appear here only when the provider has
+                the DPoP feature on. Absent keys mean the deployment does not
+                advertise the capability — not that this page failed to read it.
               </p>
             </>
           ) : !error && loading ? (
@@ -1582,11 +1723,21 @@ function Outbox({
             body: JSON.stringify({ user_code: item.userCode }),
           });
           if (!res.ok) {
-            collected.push({ id: item.id, label, ok: false, message: await describeApproveFailure(res) });
+            collected.push({
+              id: item.id,
+              label,
+              ok: false,
+              message: await describeApproveFailure(res),
+            });
             continue;
           }
           dequeue(item.id);
-          collected.push({ id: item.id, label, ok: true, message: "Device authorized." });
+          collected.push({
+            id: item.id,
+            label,
+            ok: true,
+            message: "Device authorized.",
+          });
         } else {
           if (!session) {
             collected.push({
@@ -1614,7 +1765,10 @@ function Outbox({
           id: item.id,
           label,
           ok: false,
-          message: err instanceof Error ? `${err.message}. Still staged — flush again once that is fixed.` : "Failed for an unknown reason. Still staged.",
+          message:
+            err instanceof Error
+              ? `${err.message}. Still staged — flush again once that is fixed.`
+              : "Failed for an unknown reason. Still staged.",
         });
       }
     }
@@ -1632,11 +1786,14 @@ function Outbox({
         <div>
           <h2>
             Outbox
-            <span className="chip chip--warn authority-outbox__count">{items.length}</span>
+            <span className="chip chip--warn authority-outbox__count">
+              {items.length}
+            </span>
           </h2>
           <p>
-            Ceremonies you started while offline. Nothing here has happened yet — these are
-            codes and tokens you already typed, held so they are not lost.
+            Ceremonies you started while offline. Nothing here has happened yet
+            — these are codes and tokens you already typed, held so they are not
+            lost.
           </p>
         </div>
         <div className="actions actions--end">
@@ -1654,7 +1811,9 @@ function Outbox({
       </div>
       <div className="panel__body">
         {!online ? (
-          <p className="hint">Still offline. These will send when connectivity returns.</p>
+          <p className="hint">
+            Still offline. These will send when connectivity returns.
+          </p>
         ) : null}
 
         <ul className="authority-outbox__list">
@@ -1663,7 +1822,9 @@ function Outbox({
             return (
               <li key={item.id} className="authority-outbox__row">
                 <div>
-                  <p className="authority-outbox__label">{describeQueued(item)}</p>
+                  <p className="authority-outbox__label">
+                    {describeQueued(item)}
+                  </p>
                   <p className="hint">Staged {formatWhen(item.createdAt)}</p>
                   {result && !result.ok ? (
                     <p className="authority-outbox__error">{result.message}</p>
@@ -1686,10 +1847,7 @@ function Outbox({
         </ul>
 
         {results.length > 0 ? (
-          <p
-            className={`note note--${failed === 0 ? "ok" : "warn"}`}
-            role="status"
-          >
+          <output className={`note note--${failed === 0 ? "ok" : "warn"}`}>
             {failed === 0 ? <IconCheck size={18} /> : <IconAlert size={18} />}
             <span>
               {results.length - failed} of {results.length} sent.
@@ -1697,7 +1855,7 @@ function Outbox({
                 ? " The ones that failed are still listed above with the reason; the rest were cleared."
                 : ""}
             </span>
-          </p>
+          </output>
         ) : null}
       </div>
     </section>
@@ -1731,7 +1889,9 @@ function CopyableId({ value }: { value: string }) {
         className={`icon-btn${copied ? " is-on" : ""}`}
         aria-label={copied ? "Copied" : `Copy ${value}`}
         onClick={() => {
-          void navigator.clipboard?.writeText(value).then(() => setCopied(true));
+          void navigator.clipboard
+            ?.writeText(value)
+            .then(() => setCopied(true));
         }}
       >
         {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
@@ -1837,7 +1997,10 @@ function describePresentFailure(failure: TransportFailure): string {
   return `The Identity API answered ${status}${code ? ` (${code})` : ""} when presenting the claim. Nothing was accepted; check its logs and try again.`;
 }
 
-function describeCompleteFailure(failure: TransportFailure, err: unknown): string {
+function describeCompleteFailure(
+  failure: TransportFailure,
+  err: unknown,
+): string {
   if (err instanceof Error && err.message.includes("Authentication required")) {
     return "Completing needs a principal, and the session was lost between presenting and completing. Connect on the Session tab and present the token again.";
   }

@@ -20,9 +20,9 @@ export default defineConfig({
         name: "OpenSesame",
         short_name: "OpenSesame",
         description:
-          "Authority vault for humans and agents — sealed store, ceremonies, task ceilings",
-        theme_color: "#152033",
-        background_color: "#eef1f6",
+          "End-to-end-encrypted vault for passwords, passkeys, and agent secrets",
+        theme_color: "#101a2b",
+        background_color: "#f2f5f9",
         display: "standalone",
         start_url: "./",
         scope: "./",
@@ -38,21 +38,6 @@ export default defineConfig({
       workbox: {
         navigateFallback: "index.html",
         globPatterns: ["**/*.{js,css,html,svg,ico,webp,woff2}"],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) =>
-              url.origin.includes("fonts.googleapis.com") ||
-              url.origin.includes("fonts.gstatic.com"),
-            handler: "CacheFirst",
-            options: {
-              cacheName: "opensesame-fonts",
-              expiration: {
-                maxEntries: 20,
-                maxAgeSeconds: 60 * 60 * 24 * 365,
-              },
-            },
-          },
-        ],
       },
       devOptions: { enabled: true },
     }),

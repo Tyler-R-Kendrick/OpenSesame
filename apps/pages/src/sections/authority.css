@@ -28,10 +28,8 @@
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition:
-    background var(--ease),
-    color var(--ease),
-    border-color var(--ease);
+  transition: background var(--ease), color var(--ease), border-color
+    var(--ease);
 }
 
 .authority-tab:hover:not(.is-active) {
@@ -58,12 +56,6 @@
 .authority-panelwrap {
   display: grid;
   gap: 1.5rem;
-}
-
-.authority-panelwrap:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-  border-radius: var(--radius);
 }
 
 /* —— Plane reachability ——————————————————————————————————————— */
