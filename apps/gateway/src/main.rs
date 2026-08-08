@@ -21,7 +21,9 @@ async fn main() -> anyhow::Result<()> {
     let state = app_state::build(args.clone()).await?;
     let app = routes::router(state);
 
-    tracing::info!(%args.listen, "opensesame gateway listening");
+    let listen = args.listen.to_string();
+    opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
+    tracing::info!(%listen, "opensesame gateway listening");
     let listener = tokio::net::TcpListener::bind(args.listen).await?;
     axum::serve(listener, app).await?;
     Ok(())

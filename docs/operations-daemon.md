@@ -6,7 +6,7 @@ Legacy: `opensesame-credential-agent` remains for compatibility; prefer daemon.
 
 | Item | Value |
 |------|-------|
-| Default TCP listen | `127.0.0.1:18790` (non-loopback refused unless `OPENSESAME_DAEMON_ALLOW_NONLOCAL=1`) |
+| Default TCP listen | `127.0.0.1:18790` (non-loopback refused unless `OPENSESAME_ALLOW_NONLOCAL=1`; legacy alias `OPENSESAME_DAEMON_ALLOW_NONLOCAL=1`) |
 | Env TCP | `OPENSESAME_DAEMON_LISTEN` (alias `OPENSESAME_AGENT_LISTEN`) |
 | Unix socket (optional) | `OPENSESAME_AGENT_SOCK` (e.g. `/tmp/opensesame-agent.sock`) |
 | UDS-only | `OPENSESAME_DAEMON_UDS_ONLY=1` — skip TCP; requires `OPENSESAME_AGENT_SOCK` |
