@@ -2,7 +2,12 @@ import { createMockUpstreamIdp } from "./server.js";
 import { readMockIdpConfig } from "./config.js";
 
 export { createMockUpstreamIdp } from "./server.js";
-export { readMockIdpConfig, createMockIdpKeys, type MockIdpConfig } from "./config.js";
+export {
+  readMockIdpConfig,
+  createMockIdpKeys,
+  assertMockIdpListenAllowed,
+  type MockIdpConfig,
+} from "./config.js";
 
 export async function main(): Promise<void> {
   const config = readMockIdpConfig();

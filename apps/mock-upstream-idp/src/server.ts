@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import { SignJWT } from "jose";
 import {
+  assertMockIdpListenAllowed,
   createMockIdpKeys,
   readMockIdpConfig,
   type MockIdpConfig,
@@ -224,6 +225,12 @@ export async function createMockUpstreamIdp(
     server,
     listen() {
       return new Promise((resolve, reject) => {
+        try {
+          assertMockIdpListenAllowed(config.host);
+        } catch (err) {
+          reject(err);
+          return;
+        }
         server.once("error", reject);
         server.listen(config.port, config.host, () => {
           resolve(config.issuer);

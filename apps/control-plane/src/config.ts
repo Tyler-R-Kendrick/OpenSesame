@@ -30,6 +30,31 @@ function truthy(v: string | undefined): boolean {
   return v === "true" || v === "1";
 }
 
+/** True when a bind host is loopback (matches Rust host-core daemon policy). */
+export function listenHostIsLoopback(host: string): boolean {
+  const h = host.trim().replace(/^\[/, "").replace(/\]$/, "");
+  return (
+    h === "127.0.0.1" ||
+    h === "localhost" ||
+    h === "::1" ||
+    h === "0:0:0:0:0:0:0:1"
+  );
+}
+
+/** Refuse non-loopback listen unless OPENSESAME_ALLOW_NONLOCAL=1. */
+export function assertListenHostAllowed(
+  host: string,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  const allow =
+    env.OPENSESAME_ALLOW_NONLOCAL === "1" ||
+    env.OPENSESAME_DAEMON_ALLOW_NONLOCAL === "1";
+  if (allow || listenHostIsLoopback(host)) return;
+  throw new Error(
+    `listen host \`${host}\` is not loopback; set OPENSESAME_ALLOW_NONLOCAL=1 to override`,
+  );
+}
+
 export function loadConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): ControlPlaneConfig {
@@ -101,7 +126,10 @@ export function loadConfig(
 }
 
 /** Fail closed after Partial\<ControlPlaneConfig\> merges (tests may override). */
-export function assertSecureConfig(config: ControlPlaneConfig): void {
+export function assertSecureConfig(
+  config: ControlPlaneConfig,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
   if (config.isProduction && config.allowPrincipalBearer) {
     throw new Error("allowPrincipalBearer must be false in production");
   }
@@ -123,4 +151,5 @@ export function assertSecureConfig(config: ControlPlaneConfig): void {
   if (config.isProduction && wildcardCors) {
     throw new Error("OPENSESAME_CORS_ORIGINS must not include * or null in production");
   }
+  assertListenHostAllowed(config.host, env);
 }

@@ -36,9 +36,10 @@ function rpIdFromUrl(url: string): string {
 }
 
 export function createControlPlane(options: CreateControlPlaneOptions = {}) {
-  const base = loadConfig(options.processEnv ?? process.env);
+  const processEnv = options.processEnv ?? process.env;
+  const base = loadConfig(processEnv);
   const config: ControlPlaneConfig = { ...base, ...options.config };
-  assertSecureConfig(config);
+  assertSecureConfig(config, processEnv);
   const clock: Clock = options.clock ?? (() => new Date());
   const log = createLogger({ name: "control-plane", level: config.logLevel });
 

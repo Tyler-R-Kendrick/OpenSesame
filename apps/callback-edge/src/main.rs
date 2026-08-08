@@ -22,7 +22,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/health/live", get(|| async { "ok" }))
         .route("/oauth/callback/{profile}", post(oauth_callback))
         .route("/webhooks/{connection_public_id}/{route}", post(webhook));
-    tracing::info!(%args.listen, "callback-edge listening (no vault read API)");
+    let listen = args.listen.to_string();
+    opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
+    tracing::info!(%listen, "callback-edge listening (no vault read API)");
     let listener = tokio::net::TcpListener::bind(args.listen).await?;
     axum::serve(listener, app).await?;
     Ok(())
