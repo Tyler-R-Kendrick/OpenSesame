@@ -25,6 +25,54 @@ pub struct SyncPullBody {
     device_id: Option<String>,
 }
 
+/// Global blob ceiling (shared store).
+const MAX_SYNC_BLOBS: usize = 4096;
+/// Per-session blob ceiling so one session cannot evict/starve every tenant.
+const MAX_BLOBS_PER_SESSION: usize = 512;
+/// Per-blob ciphertext ceiling — sync carries sealed records, not file payloads.
+const MAX_CIPHERTEXT_BYTES: usize = 256 * 1024;
+/// Cursor table ceiling and device id length cap (client-supplied keys).
+const MAX_DEVICE_CURSORS: usize = 4096;
+const MAX_DEVICE_ID_LEN: usize = 128;
+
+/// Why a pushed blob was not stored (each maps to a response counter).
+#[derive(Debug, PartialEq, Eq)]
+enum PushOutcome {
+    Accept,
+    Oversize,
+    ForeignOwner,
+    SessionQuota,
+    StoreFull,
+    StaleEpoch,
+}
+
+/// Admission decision for one blob — pure so quotas are testable without a live store.
+fn push_outcome(
+    ciphertext_len: usize,
+    current_owner: Option<&str>,
+    session_id: &str,
+    existing_epoch: Option<u64>,
+    incoming_epoch: u64,
+    store_len: usize,
+    session_owned: usize,
+) -> PushOutcome {
+    if ciphertext_len > MAX_CIPHERTEXT_BYTES {
+        return PushOutcome::Oversize;
+    }
+    if let Some(owner) = current_owner {
+        if owner != session_id {
+            return PushOutcome::ForeignOwner;
+        }
+    }
+    match existing_epoch {
+        Some(epoch) if epoch > incoming_epoch => PushOutcome::StaleEpoch,
+        Some(_) => PushOutcome::Accept,
+        None if store_len >= MAX_SYNC_BLOBS => PushOutcome::StoreFull,
+        None if session_owned >= MAX_BLOBS_PER_SESSION => PushOutcome::SessionQuota,
+        None => PushOutcome::Accept,
+    }
+}
+
 pub async fn push(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -38,20 +86,28 @@ pub async fn push(
     let mut owners = st.blob_owners.lock().unwrap();
     let mut accepted = 0u32;
     let mut rejected_foreign = 0u32;
-    const MAX_SYNC_BLOBS: usize = 4096;
+    let mut rejected_oversize = 0u32;
+    let mut rejected_quota = 0u32;
+    let mut owned = owners.values().filter(|o| *o == &session_id).count();
     for blob in body.blobs {
-        if let Some(owner) = owners.get(&blob.id) {
-            if owner != &session_id {
-                rejected_foreign += 1;
-                continue;
-            }
-        }
-        match store.get(&blob.id) {
-            Some(existing) if existing.epoch > blob.epoch => {}
-            _ => {
-                let is_new = !store.contains_key(&blob.id);
-                if is_new && store.len() >= MAX_SYNC_BLOBS {
-                    continue;
+        let existing_epoch = store.get(&blob.id).map(|b| b.epoch);
+        let outcome = push_outcome(
+            blob.ciphertext.len(),
+            owners.get(&blob.id).map(String::as_str),
+            &session_id,
+            existing_epoch,
+            blob.epoch,
+            store.len(),
+            owned,
+        );
+        match outcome {
+            PushOutcome::Oversize => rejected_oversize += 1,
+            PushOutcome::ForeignOwner => rejected_foreign += 1,
+            PushOutcome::SessionQuota => rejected_quota += 1,
+            PushOutcome::StoreFull | PushOutcome::StaleEpoch => {}
+            PushOutcome::Accept => {
+                if existing_epoch.is_none() {
+                    owned += 1;
                 }
                 owners.insert(blob.id.clone(), session_id.clone());
                 store.insert(blob.id.clone(), blob);
@@ -64,8 +120,12 @@ pub async fn push(
         Json(json!({
             "accepted": accepted,
             "rejected_foreign_owner": rejected_foreign,
+            "rejected_oversize": rejected_oversize,
+            "rejected_session_quota": rejected_quota,
             "store_size": store.len(),
-            "capacity": MAX_SYNC_BLOBS
+            "capacity": MAX_SYNC_BLOBS,
+            "session_capacity": MAX_BLOBS_PER_SESSION,
+            "max_ciphertext_bytes": MAX_CIPHERTEXT_BYTES
         })),
     )
         .into_response()
@@ -92,14 +152,21 @@ pub async fn pull(
     drop(owners);
     drop(store);
     let mut device_cursor = None;
-    if let Some(device_id) = body.device_id.as_ref().filter(|s| !s.is_empty()) {
+    if let Some(device_id) = body
+        .device_id
+        .as_ref()
+        .filter(|s| !s.is_empty() && s.len() <= MAX_DEVICE_ID_LEN)
+    {
         let mut cursors = st.device_cursors.lock().unwrap();
         let max_epoch = blobs.iter().map(|b| b.epoch).max().unwrap_or(since);
-        let entry = cursors.entry(device_id.clone()).or_insert(0);
-        if max_epoch > *entry {
-            *entry = max_epoch;
+        // Client-supplied keys: only track new devices while under the ceiling.
+        if cursors.contains_key(device_id) || cursors.len() < MAX_DEVICE_CURSORS {
+            let entry = cursors.entry(device_id.clone()).or_insert(0);
+            if max_epoch > *entry {
+                *entry = max_epoch;
+            }
+            device_cursor = Some(*entry);
         }
-        device_cursor = Some(*entry);
     }
     let _ = host_daemon::DEFAULT_LISTEN;
     Json(json!({
@@ -110,4 +177,69 @@ pub async fn pull(
         "daemon_default_listen": host_daemon::DEFAULT_LISTEN,
     }))
     .into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn outcome(
+        len: usize,
+        owner: Option<&str>,
+        existing: Option<u64>,
+        owned: usize,
+    ) -> PushOutcome {
+        push_outcome(len, owner, "sess_a", existing, 7, 0, owned)
+    }
+
+    #[test]
+    fn oversize_ciphertext_is_rejected() {
+        assert_eq!(
+            outcome(MAX_CIPHERTEXT_BYTES + 1, None, None, 0),
+            PushOutcome::Oversize
+        );
+        assert_eq!(
+            outcome(MAX_CIPHERTEXT_BYTES, None, None, 0),
+            PushOutcome::Accept
+        );
+    }
+
+    #[test]
+    fn foreign_owner_cannot_overwrite() {
+        assert_eq!(
+            outcome(16, Some("sess_b"), Some(1), 0),
+            PushOutcome::ForeignOwner
+        );
+        assert_eq!(outcome(16, Some("sess_a"), Some(1), 0), PushOutcome::Accept);
+    }
+
+    #[test]
+    fn session_quota_stops_new_blobs_but_allows_updates() {
+        assert_eq!(
+            outcome(16, None, None, MAX_BLOBS_PER_SESSION),
+            PushOutcome::SessionQuota
+        );
+        // Updating an already-owned blob is still allowed at quota.
+        assert_eq!(
+            outcome(16, Some("sess_a"), Some(1), MAX_BLOBS_PER_SESSION),
+            PushOutcome::Accept
+        );
+    }
+
+    #[test]
+    fn one_session_cannot_fill_the_shared_store() {
+        assert_eq!(
+            push_outcome(16, None, "sess_a", None, 1, MAX_SYNC_BLOBS, 0),
+            PushOutcome::StoreFull
+        );
+        assert!(MAX_BLOBS_PER_SESSION.saturating_mul(2) <= MAX_SYNC_BLOBS);
+    }
+
+    #[test]
+    fn stale_epochs_do_not_overwrite() {
+        assert_eq!(
+            outcome(16, Some("sess_a"), Some(9), 0),
+            PushOutcome::StaleEpoch
+        );
+    }
 }
