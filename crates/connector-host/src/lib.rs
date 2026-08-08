@@ -110,6 +110,8 @@ pub fn assert_destination_allowed(policy: &HostPolicy, raw_url: &str) -> Result<
 pub fn is_blocked_host(host: &str) -> bool {
     let h = host.trim().to_lowercase();
     let h = h.trim_start_matches('[').trim_end_matches(']');
+    // A trailing dot is the DNS root: `localhost.` and `127.0.0.1.` both resolve.
+    let h = h.strip_suffix('.').unwrap_or(h);
     if h.is_empty() {
         return true;
     }
@@ -127,27 +129,64 @@ pub fn is_blocked_host(host: &str) -> bool {
 /// Accept the forms a URL host can take, including the integer and hex spellings
 /// `Ipv4Addr::from_str` rejects but resolvers accept.
 fn parse_host_ip(h: &str) -> Option<IpAddr> {
+    // A zone id is not part of the address: `fe80::1%eth0` is still link-local.
+    let h = h.split('%').next().unwrap_or(h);
     if let Ok(ip) = h.parse::<IpAddr>() {
         return Some(ip);
     }
-    if let Some(hex) = h.strip_prefix("0x") {
-        if let Ok(raw) = u32::from_str_radix(hex, 16) {
-            return Some(IpAddr::V4(Ipv4Addr::from(raw)));
-        }
+    parse_inet_aton(h).map(IpAddr::V4)
+}
+
+/// `inet_aton` spellings: one to four parts, each decimal, octal (leading zero) or
+/// hex (`0x`), where the final part absorbs the remaining bytes. `getaddrinfo`
+/// accepts all of them, so `127.1`, `0177.0.0.1` and `0x7f.1` are 127.0.0.1.
+fn parse_inet_aton(h: &str) -> Option<Ipv4Addr> {
+    let parts: Vec<&str> = h.split('.').collect();
+    if parts.is_empty() || parts.len() > 4 {
         return None;
     }
-    if h.len() > 1 && h.starts_with('0') && h.chars().skip(1).all(|c| c.is_digit(8)) {
-        if let Ok(raw) = u32::from_str_radix(&h[1..], 8) {
-            return Some(IpAddr::V4(Ipv4Addr::from(raw)));
+    let mut values = Vec::with_capacity(parts.len());
+    for part in &parts {
+        values.push(parse_inet_part(part)?);
+    }
+    let last_index = values.len() - 1;
+    let mut raw: u64 = 0;
+    for value in &values[..last_index] {
+        if *value > 0xff {
+            return None;
         }
+        raw = (raw << 8) | value;
+    }
+    // With n parts the last one covers the remaining 4 - (n - 1) bytes.
+    let trailing_bits = 8 * (4 - last_index as u32);
+    let last = values[last_index];
+    if last >= (1u64 << trailing_bits) {
         return None;
     }
-    if h.chars().all(|c| c.is_ascii_digit()) {
-        if let Ok(raw) = h.parse::<u32>() {
-            return Some(IpAddr::V4(Ipv4Addr::from(raw)));
-        }
+    let raw = (raw << trailing_bits) | last;
+    u32::try_from(raw).ok().map(Ipv4Addr::from)
+}
+
+fn parse_inet_part(part: &str) -> Option<u64> {
+    if part.is_empty() {
+        return None;
     }
-    None
+    if let Some(hex) = part.strip_prefix("0x") {
+        if hex.is_empty() || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+            return None;
+        }
+        return u64::from_str_radix(hex, 16).ok();
+    }
+    if part.len() > 1 && part.starts_with('0') {
+        if !part[1..].chars().all(|c| c.is_digit(8)) {
+            return None;
+        }
+        return u64::from_str_radix(&part[1..], 8).ok();
+    }
+    if !part.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    part.parse::<u64>().ok()
 }
 
 fn is_blocked_v4(ip: Ipv4Addr) -> bool {
@@ -170,12 +209,10 @@ fn is_blocked_v4(ip: Ipv4Addr) -> bool {
 }
 
 fn is_blocked_v6(ip: Ipv6Addr) -> bool {
-    // IPv4-mapped / IPv4-compatible carry a v4 address; judge that instead.
-    if let Some(v4) = ip.to_ipv4() {
-        return is_blocked_v4(v4);
-    }
     let seg = ip.segments();
-    ip.is_loopback()
+    // The v6 rules come first. `Ipv6Addr::to_ipv4` reads ::1 as 0.0.0.1, so
+    // judging only the v4 view would wave IPv6 loopback through.
+    if ip.is_loopback()
         || ip.is_unspecified()
         || ip.is_multicast()
         // fc00::/7 unique local
@@ -184,6 +221,32 @@ fn is_blocked_v6(ip: Ipv6Addr) -> bool {
         || (seg[0] & 0xffc0) == 0xfe80
         // 2001:db8::/32 documentation
         || (seg[0] == 0x2001 && seg[1] == 0x0db8)
+    {
+        return true;
+    }
+    // IPv4-mapped / IPv4-compatible carry a v4 address; judge that too.
+    if let Some(v4) = ip.to_ipv4() {
+        if is_blocked_v4(v4) {
+            return true;
+        }
+    }
+    // 64:ff9b::/96 NAT64 and 2002::/16 6to4 embed a v4 destination.
+    if let Some(embedded) = embedded_v4(seg) {
+        return is_blocked_v4(embedded);
+    }
+    false
+}
+
+/// The v4 address carried by a NAT64 or 6to4 address, if any.
+fn embedded_v4(seg: [u16; 8]) -> Option<Ipv4Addr> {
+    let from_pair = |hi: u16, lo: u16| Ipv4Addr::from(((hi as u32) << 16) | lo as u32);
+    if seg[0] == 0x0064 && seg[1] == 0xff9b && seg[2..6] == [0, 0, 0, 0] {
+        return Some(from_pair(seg[6], seg[7]));
+    }
+    if seg[0] == 0x2002 {
+        return Some(from_pair(seg[1], seg[2]));
+    }
+    None
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -602,6 +665,56 @@ mod tests {
         assert!(is_blocked_host("app.localhost"));
     }
 
+
+    #[test]
+    fn short_and_zoned_spellings_of_private_addresses_are_blocked() {
+        for host in [
+            // getaddrinfo fills the missing bytes: all of these are 127.0.0.1.
+            "127.1",
+            "0177.0.0.1",
+            "0x7f.1",
+            "127.0.1",
+            "10.1",
+            "0xa.0.0.1",
+            // A trailing dot is the DNS root, not a different name.
+            "127.0.0.1.",
+            "localhost.",
+            // IPv6 loopback: to_ipv4 reads ::1 as 0.0.0.1, which is routable.
+            "::1",
+            "[::1]",
+            // A zone id does not make a link-local address public.
+            "fe80::1%eth0",
+            // NAT64 and 6to4 wrappers around 127.0.0.1 / 169.254.169.254.
+            "64:ff9b::7f00:1",
+            "2002:a9fe:a9fe::1",
+        ] {
+            assert!(is_blocked_host(host), "{host} should be blocked");
+        }
+    }
+
+    #[test]
+    fn short_spellings_of_public_addresses_still_pass() {
+        for host in ["8.8.8.8", "1.1.1.1", "0x08080808", "134744072"] {
+            assert!(!is_blocked_host(host), "{host} should not be blocked");
+        }
+        // Not an address at all — names are the egress allowlist's problem.
+        for host in ["10th.example.com", "127.example.com", "0x.example.com"] {
+            assert!(!is_blocked_host(host), "{host} should not be blocked");
+        }
+    }
+
+    #[test]
+    fn malformed_numeric_hosts_are_not_read_as_addresses() {
+        // Out-of-range parts are not an address, so they fall to the allowlist
+        // rather than silently wrapping into one.
+        for host in ["300.1", "127.0.0.256", "1.2.3.4.5", "0x1g.1", "09.1"] {
+            assert_eq!(parse_host_ip(host), None, "{host} parsed as an address");
+        }
+        assert_eq!(
+            parse_host_ip("127.1"),
+            Some(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)))
+        );
+    }
     #[test]
     fn rejects_unsigned_component() {
         let p = HostPolicy::default();

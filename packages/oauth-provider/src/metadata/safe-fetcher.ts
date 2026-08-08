@@ -100,7 +100,29 @@ function isPrivateOrSpecialIpv6(ip: string): boolean {
   if ((first & 0xfe00) === 0xfc00) return true; // fc00::/7 unique-local
   if ((first & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
   if ((first & 0xff00) === 0xff00) return true; // ff00::/8 multicast
+
+  // NAT64 (64:ff9b::/96) and 6to4 (2002::/16) wrap an IPv4 destination that the
+  // network will unwrap for us, so judge the address inside.
+  const embedded = embeddedIpv4(parts);
+  if (embedded) return isPrivateOrSpecialIpv4(embedded);
   return false;
+}
+
+/** The IPv4 address carried by a NAT64 or 6to4 address, if any. */
+function embeddedIpv4(parts: number[]): string | null {
+  const dotted = (hi: number, lo: number) =>
+    `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`;
+  if (
+    parts[0] === 0x0064 &&
+    parts[1] === 0xff9b &&
+    parts.slice(2, 6).every((h) => h === 0)
+  ) {
+    return dotted(parts[6]!, parts[7]!);
+  }
+  if (parts[0] === 0x2002) {
+    return dotted(parts[1]!, parts[2]!);
+  }
+  return null;
 }
 
 function isPrivateOrSpecialIpv4(ip: string): boolean {
