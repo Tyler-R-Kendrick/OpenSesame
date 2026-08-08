@@ -26,6 +26,63 @@ export interface OpenSesameVerifierConfig {
   jwks?: { keys: unknown[] };
   clockToleranceSeconds?: number;
   requiredScopes?: string[];
+  /**
+   * Signature algorithms this resource server accepts. Defaults to the
+   * asymmetric set below — a token is only as trustworthy as the algorithm it
+   * was signed with, and that choice belongs to the verifier, not the token.
+   */
+  algorithms?: string[];
+  /**
+   * Require the RFC 9068 `typ` header (`at+jwt`) when the issuer stamps one.
+   * Off by default: not every issuer emits it.
+   */
+  requireAccessTokenTypeHeader?: boolean;
+}
+
+/**
+ * Asymmetric algorithms only. A JWKS the verifier fetched over the network is a
+ * set of public keys; accepting a MAC algorithm would let whatever is in that
+ * set double as a signing secret.
+ */
+export const DEFAULT_ALLOWED_ALGORITHMS = [
+  "RS256",
+  "RS384",
+  "RS512",
+  "PS256",
+  "PS384",
+  "PS512",
+  "ES256",
+  "ES384",
+  "ES512",
+  "EdDSA",
+  "Ed25519",
+] as const;
+
+/** Claims a resource server has no business inferring. `exp` above all: a token without one never stops. */
+const REQUIRED_CLAIMS = ["iss", "sub", "aud", "exp"];
+
+function isLoopbackHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost")) return true;
+  if (host === "::1") return true;
+  return /^127(?:\.\d{1,3}){3}$/u.test(host);
+}
+
+/**
+ * Keys and issuer names must arrive over a channel someone cannot rewrite.
+ * A JWKS fetched over cleartext is a JWKS an attacker on the path chooses, and
+ * then every signature check below is theatre.
+ */
+export function assertSecureUrl(raw: string, what: string): URL {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`${what} must be an absolute URL`);
+  }
+  if (url.protocol === "https:") return url;
+  if (url.protocol === "http:" && isLoopbackHost(url.hostname)) return url;
+  throw new Error(`${what} must use https (http is allowed only on loopback for local development)`);
 }
 
 export interface OpenSesameVerifier {
@@ -51,27 +108,34 @@ export function createOpenSesameVerifier(
 ): OpenSesameVerifier {
   const issuer = trimSlash(config.issuer);
   const audiences = asAudienceList(config.audience);
+  assertSecureUrl(issuer, "issuer");
+  const algorithms = config.algorithms ?? [...DEFAULT_ALLOWED_ALGORITHMS];
 
   const getKey: JWTVerifyGetKey = config.jwks
     ? createLocalJWKSet(config.jwks as Parameters<typeof createLocalJWKSet>[0])
-    : createRemoteJWKSet(new URL(config.jwksUri ?? `${issuer}/jwks`));
+    : createRemoteJWKSet(assertSecureUrl(config.jwksUri ?? `${issuer}/jwks`, "jwksUri"));
 
   return {
     async verifyAccessToken(token: string): Promise<VerifiedIdentity> {
+      const common = {
+        issuer,
+        clockTolerance: config.clockToleranceSeconds ?? 5,
+        algorithms,
+        requiredClaims: REQUIRED_CLAIMS,
+      };
       const verifyOptions =
         audiences.length === 1
-          ? {
-              issuer,
-              audience: audiences[0]!,
-              clockTolerance: config.clockToleranceSeconds ?? 5,
-            }
-          : {
-              issuer,
-              audience: audiences,
-              clockTolerance: config.clockToleranceSeconds ?? 5,
-            };
+          ? { ...common, audience: audiences[0]! }
+          : { ...common, audience: audiences };
 
-      const { payload } = await jwtVerify(token, getKey, verifyOptions);
+      const { payload, protectedHeader } = await jwtVerify(token, getKey, verifyOptions);
+
+      if (
+        config.requireAccessTokenTypeHeader === true &&
+        protectedHeader.typ?.toLowerCase() !== "at+jwt"
+      ) {
+        throw new Error("Token is not an RFC 9068 access token");
+      }
 
       if (payload.sub === undefined || payload.sub === "") {
         throw new Error("Token missing sub");

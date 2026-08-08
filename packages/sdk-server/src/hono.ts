@@ -20,6 +20,13 @@ function defaultToken(c: Context): string | undefined {
   return token;
 }
 
+/** RFC 6750 says a 401 from a bearer-protected resource carries the challenge. */
+function unauthorized(c: Context, error: string, description: string): Response {
+  return c.json({ error, error_description: description }, 401, {
+    "WWW-Authenticate": `Bearer error="${error}", error_description="${description}"`,
+  });
+}
+
 /** Hono middleware that verifies OpenSesame access tokens and sets `c.get('identity')`. */
 export function openSesameAuth(options: OpenSesameAuthOptions): MiddlewareHandler {
   const getToken = options.getToken ?? defaultToken;
@@ -29,23 +36,23 @@ export function openSesameAuth(options: OpenSesameAuthOptions): MiddlewareHandle
       if (options.onError) {
         return options.onError(c, new Error("Missing bearer token"));
       }
-      return c.json({ error: "unauthorized", error_description: "Missing bearer token" }, 401);
+      return unauthorized(c, "unauthorized", "Missing bearer token");
     }
+    let identity: VerifiedIdentity;
     try {
-      const identity = await options.verifier.verifyAccessToken(token);
-      c.set("identity", identity);
-      await next();
+      identity = await options.verifier.verifyAccessToken(token);
     } catch (error) {
       if (options.onError) {
         return options.onError(c, error);
       }
-      return c.json(
-        {
-          error: "invalid_token",
-          error_description: error instanceof Error ? error.message : "invalid token",
-        },
-        401,
-      );
+      // The reason a token failed is for the resource server's own logs. Handing
+      // it back describes the verifier's internals to whoever is probing it.
+      return unauthorized(c, "invalid_token", "The access token is not valid");
     }
+    c.set("identity", identity);
+    // Outside the catch: a handler's own failure is not an authentication
+    // failure, and returning 401 for it both misleads the caller and can echo
+    // an internal error message back out.
+    await next();
   };
 }
