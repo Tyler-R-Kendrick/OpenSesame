@@ -192,6 +192,10 @@ describe("control-plane API", () => {
     expect(verify.headers.get("content-security-policy")).toContain(
       "frame-ancestors 'none'",
     );
+    // Landing page must not disclose claim existence or state.
+    for (const leak of ["pending", "completed", "denied", "expired", "unknown"]) {
+      expect(html).not.toContain(leak);
+    }
   });
 
   it("mfa passkey register/assert and totp enroll/verify", async () => {
