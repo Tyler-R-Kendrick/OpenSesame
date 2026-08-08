@@ -367,6 +367,19 @@ describe("control-plane API", () => {
     const { totpCode } = await import("../routes/mfa.js");
     // Even the right code is refused while the fence is closed.
     expect((await attempt(totpCode(secret))).status).toBe(429);
+
+    // The refusals are in the trail. A trail of successes only would read as one
+    // ordinary login rather than as six guesses against a six-digit code.
+    const audit = await app.request("/v1/audit/events?limit=50", { headers: auth });
+    const events = (await audit.json()) as {
+      events: Array<{ eventType: string; outcome: string; metadata: { reason?: string } }>;
+    };
+    const denials = events.events.filter(
+      (e) => e.eventType === "mfa.totp.verify" && e.outcome === "denied",
+    );
+    expect(denials.length).toBeGreaterThanOrEqual(6);
+    expect(denials.map((e) => e.metadata.reason)).toContain("bad_code");
+    expect(denials.map((e) => e.metadata.reason)).toContain("too_many_attempts");
   });
 
   it("fences repeated failing passkey assertions per credential", async () => {

@@ -22,6 +22,7 @@ import {
   applySlowDown,
 } from "@opensesame/device-auth";
 import type { Context } from "hono";
+import type { AppContext } from "../context.js";
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
@@ -81,6 +82,28 @@ async function loadClaimWithToken(
     return c.json({ error: "invalid_claim_token" }, 401);
   }
   return session;
+}
+
+/** A refused approval is the event a reviewer needs; success alone shows nothing. */
+async function auditClaimDenial(
+  ctx: AppContext,
+  input: {
+    claimId: string;
+    principalId: string;
+    reason: string;
+    correlationId?: string;
+  },
+): Promise<void> {
+  await appendAuditEvent(ctx.repos.auditEvents, {
+    eventType: "claim.complete",
+    outcome: "denied",
+    principalId: input.principalId,
+    claimId: input.claimId,
+    ...(input.correlationId !== undefined
+      ? { correlationId: input.correlationId }
+      : {}),
+    metadata: { action: "claim.complete", reason: input.reason },
+  });
 }
 
 function domainErrorStatus(err: DomainError): ContentfulStatusCode {
@@ -218,6 +241,12 @@ claimRoutes.post(
       // it displayed, with a per-claim attempt fence behind it.
       const attempts = ctx.stores.claimApprovalAttempts.get(id) ?? 0;
       if (attempts >= MAX_CLAIM_APPROVAL_ATTEMPTS) {
+        await auditClaimDenial(ctx, {
+          claimId: id,
+          principalId,
+          reason: "too_many_attempts",
+          correlationId: c.get("correlationId"),
+        });
         return c.json({ error: "too_many_attempts" }, 429);
       }
       if (
@@ -230,6 +259,14 @@ claimRoutes.post(
         )
       ) {
         ctx.stores.claimApprovalAttempts.set(id, attempts + 1);
+        // Guesses against a ~40-bit user code are the attack this fence exists for,
+        // and a trail of successes only would show none of them.
+        await auditClaimDenial(ctx, {
+          claimId: id,
+          principalId,
+          reason: "invalid_user_code",
+          correlationId: c.get("correlationId"),
+        });
         return c.json({ error: "invalid_user_code" }, 401);
       }
       ctx.stores.claimApprovalAttempts.delete(id);
