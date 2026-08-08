@@ -73,8 +73,17 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
       "/v1/claims/{id}": {
         get: {
           summary: "Get claim",
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-          responses: { "200": { description: "Claim" } },
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+            {
+              name: "X-Claim-Token",
+              in: "header",
+              required: true,
+              schema: { type: "string", pattern: "^osc_clm_" },
+              description: "Claim bearer (or Authorization: Bearer osc_clm_…)",
+            },
+          ],
+          responses: { "200": { description: "Claim" }, "401": { description: "Missing/invalid claim token" } },
         },
       },
       "/v1/claims/present": {
@@ -105,8 +114,17 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
       "/v1/claims/{id}/poll": {
         get: {
           summary: "Poll claim status",
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-          responses: { "200": { description: "Status" } },
+          parameters: [
+            { name: "id", in: "path", required: true, schema: { type: "string" } },
+            {
+              name: "X-Claim-Token",
+              in: "header",
+              required: true,
+              schema: { type: "string", pattern: "^osc_clm_" },
+              description: "Claim bearer (or Authorization: Bearer osc_clm_…)",
+            },
+          ],
+          responses: { "200": { description: "Status" }, "401": { description: "Missing/invalid claim token" } },
         },
       },
       "/v1/agents": {

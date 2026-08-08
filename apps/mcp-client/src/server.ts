@@ -109,11 +109,15 @@ server.tool(
   "Present / poll an Identity API claim (step-up); never returns secrets",
   {
     claimId: z.string(),
+    claimToken: z.string().describe("osc_clm_… claim bearer (required)"),
     accessToken: z.string().optional(),
   },
-  async ({ claimId, accessToken }) => {
+  async ({ claimId, claimToken, accessToken }) => {
     const base = identityUrl.replace(/\/$/, "");
-    const headers: Record<string, string> = { accept: "application/json" };
+    const headers: Record<string, string> = {
+      accept: "application/json",
+      "x-claim-token": claimToken,
+    };
     const tok = accessToken ?? process.env.OPENSESAME_ACCESS_TOKEN;
     if (tok) headers.authorization = `Bearer ${tok}`;
     try {

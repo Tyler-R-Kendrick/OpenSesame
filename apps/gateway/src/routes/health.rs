@@ -3,6 +3,7 @@ use opensesame_provider_openbao::CredentialAuthority;
 use serde_json::json;
 
 use crate::app_state::AppState;
+use crate::middleware::auth::require_operator;
 
 pub async fn live() -> impl IntoResponse {
     "ok"
@@ -51,7 +52,14 @@ pub async fn degraded(State(st): State<AppState>) -> impl IntoResponse {
     }))
 }
 
-pub async fn providers(State(st): State<AppState>) -> impl IntoResponse {
+pub async fn providers(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> impl IntoResponse {
+    // Provider wiring + backend errors are operator diagnostics, not public health.
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     let mut openfga = json!({"configured": false});
     if let Some(c) = &st.openfga {
         openfga = match c.health().await {
@@ -72,4 +80,5 @@ pub async fn providers(State(st): State<AppState>) -> impl IntoResponse {
         "agent_api": "connection_ref",
         "secret_ref_agent_facing": false
     }))
+    .into_response()
 }

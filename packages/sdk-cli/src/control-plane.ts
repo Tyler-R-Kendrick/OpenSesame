@@ -59,11 +59,12 @@ export function createControlPlaneClient(config: ControlPlaneClientConfig) {
       return res.json();
     },
 
-    async pollClaim(claimId: string, claimToken?: string) {
-      const headers: Record<string, string> = {};
-      if (claimToken) headers["x-claim-token"] = claimToken;
+    async pollClaim(claimId: string, claimToken: string) {
+      if (!claimToken.startsWith("osc_clm_")) {
+        throw new Error("claimToken required (osc_clm_…)");
+      }
       const res = await request(`/api/v1/claims/${claimId}`, {
-        headers,
+        headers: { "x-claim-token": claimToken },
       });
       if (!res.ok) throw new Error(`claim poll failed: ${res.status}`);
       return res.json();

@@ -124,11 +124,24 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Claim-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^osc_clm_"
+            },
+            "description": "Claim bearer (or Authorization: Bearer osc_clm_…)"
           }
         ],
         "responses": {
           "200": {
             "description": "Claim"
+          },
+          "401": {
+            "description": "Missing/invalid claim token"
           }
         }
       }
@@ -211,11 +224,24 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Claim-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^osc_clm_"
+            },
+            "description": "Claim bearer (or Authorization: Bearer osc_clm_…)"
           }
         ],
         "responses": {
           "200": {
             "description": "Status"
+          },
+          "401": {
+            "description": "Missing/invalid claim token"
           }
         }
       }

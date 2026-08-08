@@ -50,7 +50,7 @@ if ! curl -sf http://127.0.0.1:18787/health/live >/dev/null; then
 fi
 
 echo "== provider health =="
-curl -sf http://127.0.0.1:18787/health/providers | tee /tmp/os-providers.json
+curl -sf "${OP_HDR[@]}" http://127.0.0.1:18787/health/providers | tee /tmp/os-providers.json
 python3 - <<'PY'
 import json
 p=json.load(open("/tmp/os-providers.json"))
