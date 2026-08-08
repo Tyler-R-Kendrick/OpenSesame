@@ -60,6 +60,128 @@ pub mod daemon {
     }
 }
 
+/// Browser CORS allowlist + baseline response headers (`OPENSESAME_CORS_ORIGINS`).
+pub mod http_security {
+    use axum::{
+        extract::Request,
+        http::{header, HeaderName, HeaderValue, Method},
+        middleware::{self, Next},
+        Router,
+    };
+    use tower_http::cors::{AllowOrigin, CorsLayer};
+
+    pub const ENV_CORS_ORIGINS: &str = "OPENSESAME_CORS_ORIGINS";
+    /// Vite apps that call Host API / daemon from the browser.
+    pub const DEV_CORS_ORIGINS: &str = concat!(
+        "http://127.0.0.1:5173,http://localhost:5173,",
+        "http://127.0.0.1:5174,http://localhost:5174,",
+        "http://127.0.0.1:5175,http://localhost:5175,",
+        "http://127.0.0.1:5176,http://localhost:5176,",
+        "http://127.0.0.1:5177,http://localhost:5177,",
+        "http://127.0.0.1:5180,http://localhost:5180"
+    );
+
+    pub fn parse_cors_origins(raw: Option<&str>) -> Vec<String> {
+        raw.unwrap_or(DEV_CORS_ORIGINS)
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+            .collect()
+    }
+
+    pub fn cors_origins_from_env() -> Vec<String> {
+        parse_cors_origins(std::env::var(ENV_CORS_ORIGINS).ok().as_deref())
+    }
+
+    /// Production must list explicit origins; `*` / `null` are never allowed.
+    pub fn assert_cors_origins_allowed(
+        origins: &[String],
+        is_production: bool,
+    ) -> Result<(), String> {
+        if origins
+            .iter()
+            .any(|o| o == "*" || o.eq_ignore_ascii_case("null"))
+        {
+            return Err(format!("{ENV_CORS_ORIGINS} must not include * or null"));
+        }
+        if is_production && origins.is_empty() {
+            return Err(format!(
+                "{ENV_CORS_ORIGINS} must list at least one origin in production"
+            ));
+        }
+        Ok(())
+    }
+
+    fn cors_layer(origins: &[String]) -> CorsLayer {
+        let allow = origins
+            .iter()
+            .filter_map(|o| HeaderValue::from_str(o).ok())
+            .collect::<Vec<_>>();
+        CorsLayer::new()
+            .allow_origin(AllowOrigin::list(allow))
+            .allow_methods([
+                Method::GET,
+                Method::POST,
+                Method::PUT,
+                Method::PATCH,
+                Method::DELETE,
+                Method::OPTIONS,
+            ])
+            .allow_headers([
+                header::AUTHORIZATION,
+                header::CONTENT_TYPE,
+                HeaderName::from_static("x-request-id"),
+                HeaderName::from_static("idempotency-key"),
+                HeaderName::from_static("dpop"),
+                HeaderName::from_static("x-opensesame-operator"),
+            ])
+            .allow_credentials(true)
+    }
+
+    /// nosniff / DENY frame / no-referrer / no-store (+ optional HSTS).
+    pub fn apply_security_headers<S>(router: Router<S>, hsts: bool) -> Router<S>
+    where
+        S: Clone + Send + Sync + 'static,
+    {
+        router.layer(middleware::from_fn(
+            move |req: Request, next: Next| async move {
+                let mut res = next.run(req).await;
+                let headers = res.headers_mut();
+                headers.insert(
+                    header::X_CONTENT_TYPE_OPTIONS,
+                    HeaderValue::from_static("nosniff"),
+                );
+                headers.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
+                headers.insert(
+                    header::REFERRER_POLICY,
+                    HeaderValue::from_static("no-referrer"),
+                );
+                headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+                headers.insert(
+                    HeaderName::from_static("x-permitted-cross-domain-policies"),
+                    HeaderValue::from_static("none"),
+                );
+                if hsts {
+                    headers.insert(
+                        header::STRICT_TRANSPORT_SECURITY,
+                        HeaderValue::from_static("max-age=63072000; includeSubDomains"),
+                    );
+                }
+                res
+            },
+        ))
+    }
+
+    /// Security headers + fail-closed CORS allowlist for browser-facing host APIs.
+    pub fn apply_http_security<S>(router: Router<S>, origins: &[String], hsts: bool) -> Router<S>
+    where
+        S: Clone + Send + Sync + 'static,
+    {
+        apply_security_headers(router, hsts).layer(cors_layer(origins))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -68,6 +190,7 @@ mod tests {
         assert_tcp_listen_allowed, listen_host_is_loopback, ENV_ALLOW_NONLOCAL,
         ENV_ALLOW_NONLOCAL_DAEMON,
     };
+    use super::http_security::{assert_cors_origins_allowed, parse_cors_origins};
 
     #[test]
     fn wit_package_pinned() {
@@ -90,6 +213,22 @@ mod tests {
         std::env::remove_var(ENV_ALLOW_NONLOCAL_DAEMON);
         assert!(assert_tcp_listen_allowed("127.0.0.1:18790").is_ok());
         assert!(assert_tcp_listen_allowed("0.0.0.0:18790").is_err());
+    }
+
+    #[test]
+    fn cors_origins_default_includes_vite_apps() {
+        let origins = parse_cors_origins(None);
+        assert!(origins.contains(&"http://127.0.0.1:5173".into()));
+        assert!(origins.contains(&"http://127.0.0.1:5180".into()));
+        assert!(assert_cors_origins_allowed(&origins, false).is_ok());
+    }
+
+    #[test]
+    fn cors_origins_reject_wildcard_and_empty_prod() {
+        assert!(assert_cors_origins_allowed(&["*".into()], true).is_err());
+        assert!(assert_cors_origins_allowed(&["null".into()], true).is_err());
+        assert!(assert_cors_origins_allowed(&[], true).is_err());
+        assert!(assert_cors_origins_allowed(&["https://app.example".into()], true).is_ok());
     }
 
     fn repo_root() -> PathBuf {
@@ -152,5 +291,69 @@ mod tests {
         assert!(src.contains("export session"));
         assert!(src.contains("export invoke"));
         assert!(src.contains("opensesame:host@1.0.0"));
+    }
+}
+
+#[cfg(test)]
+mod http_security_layer_tests {
+    use axum::{
+        body::Body,
+        http::{header, Request, StatusCode},
+        routing::get,
+        Router,
+    };
+    use tower::ServiceExt;
+
+    use super::http_security::apply_http_security;
+
+    #[tokio::test]
+    async fn sets_baseline_headers_cors_and_hsts() {
+        let app = apply_http_security(
+            Router::new().route("/health/live", get(|| async { "ok" })),
+            &["http://127.0.0.1:5173".into()],
+            true,
+        );
+        let res = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health/live")
+                    .header(header::ORIGIN, "http://127.0.0.1:5173")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(
+            res.headers().get("x-content-type-options").unwrap(),
+            "nosniff"
+        );
+        assert_eq!(res.headers().get("x-frame-options").unwrap(), "DENY");
+        assert!(res.headers().get("strict-transport-security").is_some());
+        assert_eq!(
+            res.headers().get("access-control-allow-origin").unwrap(),
+            "http://127.0.0.1:5173"
+        );
+    }
+
+    #[tokio::test]
+    async fn disallowed_origin_has_no_acao() {
+        let app = apply_http_security(
+            Router::new().route("/health/live", get(|| async { "ok" })),
+            &["http://127.0.0.1:5173".into()],
+            false,
+        );
+        let res = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health/live")
+                    .header(header::ORIGIN, "https://evil.example")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(res.headers().get("access-control-allow-origin").is_none());
+        assert!(res.headers().get("strict-transport-security").is_none());
     }
 }

@@ -90,6 +90,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/introspect_capability", post(introspect_capability))
         .route("/v1/revoke", post(revoke))
         .with_state(state);
+    let app = opensesame_host_core::http_security::apply_security_headers(app, false);
     let listen = args.listen.to_string();
     // Same bind fence as opensesame-daemon (legacy binary still ships for compat).
     opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;

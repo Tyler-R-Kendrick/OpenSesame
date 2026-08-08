@@ -61,6 +61,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0o. **Mobile MFA** — real WebAuthn ceremony + session token required — see `audit-2026-08-07-mobile-mfa-webauthn.md`.
 0p. **Provisional auth** — session ids (`ps_…`) are not credentials; only `pst_…` access tokens authenticate — see `audit-2026-08-07-provisional-session-id.md`.
 0q. **Claim verify + API headers** — escape HTML on `/v1/claims/:id/verify`; nosniff/frame/HSTS on Identity API — see `audit-2026-08-07-claim-verify-xss.md`.
+0r. **Host API CORS + headers** — gateway/daemon get nosniff/frame + fail-closed `OPENSESAME_CORS_ORIGINS` (same env as Identity) — see `audit-2026-08-07-gateway-cors-headers.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
@@ -78,5 +79,6 @@ Re-run checklist: `pnpm run audit:cve-lite`, `pnpm run audit:osv`, `pnpm run aud
 ## Bind policy (daemon / credential-agent)
 
 - Default TCP is loopback-only; non-loopback requires `OPENSESAME_ALLOW_NONLOCAL=1` (legacy alias `OPENSESAME_DAEMON_ALLOW_NONLOCAL=1`).
+- Browser CORS: `OPENSESAME_CORS_ORIGINS` (Identity + Host API + daemon). Production must list explicit origins; `*`/`null` rejected.
 - Locked-down hosts: `OPENSESAME_DAEMON_UDS_ONLY=1` + `OPENSESAME_AGENT_SOCK` (no TCP).
 - Legacy `opensesame-credential-agent`, gateway, callback-edge, control-plane, and mock-idp use the same loopback fence.

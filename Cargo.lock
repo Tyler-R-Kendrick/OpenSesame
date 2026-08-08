@@ -1786,6 +1786,7 @@ dependencies = [
 name = "opensesame-host-core"
 version = "0.1.0"
 dependencies = [
+ "axum",
  "opensesame-audit",
  "opensesame-authn",
  "opensesame-authz",
@@ -1795,6 +1796,9 @@ dependencies = [
  "opensesame-env-spec",
  "serde",
  "serde_json",
+ "tokio",
+ "tower",
+ "tower-http",
 ]
 
 [[package]]
