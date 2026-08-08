@@ -63,6 +63,20 @@ curl -X POST http://127.0.0.1:8787/api/v1/admin/authority \
 
 Device approve and claim complete also require the same operator header (or `Authorization: Bearer operator:<token>`). Set `OPENSESAME_OPERATOR_TOKEN` in production — the `opensesame-dev-operator` default is local-only.
 
+### Receipt signing key
+
+Receipts are the non-repudiation record and the receipt store outlives the process,
+so the signing key must too. Set `OPENSESAME_RECEIPT_SIGNING_KEY` to a base64
+32-byte ed25519 seed; the gateway refuses to start without it when
+`OPENSESAME_ENV=production`, because an ephemeral key makes every receipt written
+before a restart verify as `valid: false` — indistinguishable from tampering.
+
+```bash
+export OPENSESAME_RECEIPT_SIGNING_KEY="$(openssl rand -base64 32)"
+```
+
+Locally the key may be omitted; the gateway logs a warning and generates one per run.
+
 ## Compose (when Docker available)
 
 See `deploy/compose/docker-compose.yml` for Keycloak, Postgres, OpenFGA, OpenBao, NATS, gateway, worker, callback-edge.
