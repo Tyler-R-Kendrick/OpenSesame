@@ -17,5 +17,11 @@ export function readOAuthProviderEnv(
     dcrEnabled: truthy(env.OPENSESAME_DCR_ENABLED),
     cimdEnabled: truthy(env.OPENSESAME_CIMD_ENABLED),
     issuer: env.OPENSESAME_ISSUER ?? "http://127.0.0.1:3000",
+    allowedResources: (env.OPENSESAME_ALLOWED_RESOURCES ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+    isProduction:
+      (env.NODE_ENV ?? "") === "production" || env.OPENSESAME_ENV === "production",
   };
 }

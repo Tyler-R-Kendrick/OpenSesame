@@ -75,6 +75,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0ac. **DPoP replay cache** — `jti` entries expire with the proof window and the cache fails closed at capacity — see `audit-2026-08-08-dpop-replay-cache.md`.
 0ad. **Log redaction depth** — pino path wildcards only matched one level; secrets are now censored at any depth — see `audit-2026-08-08-log-redaction-depth.md`.
 0ae. **Task/receipt ownership** — authenticated sessions were fenced to their own principal on task runs, frozen intents and receipts — see `audit-2026-08-08-task-receipt-ownership.md`.
+0af. **OAuth provider fail-closed** — resource indicators are allowlisted and production refuses ephemeral signing keys / memory grant state — see `audit-2026-08-08-oauth-provider-fail-closed.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.

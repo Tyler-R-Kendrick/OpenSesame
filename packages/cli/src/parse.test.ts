@@ -40,10 +40,15 @@ describe("parseArgs", () => {
   });
 
   it("parses claim poll and agent init --anonymous", () => {
-    expect(parseArgs(["claim", "poll", "clm_1"])).toMatchObject({
+    expect(
+      parseArgs(["claim", "poll", "clm_1", "--token", "osc_clm_abc"]),
+    ).toMatchObject({
       name: "claim-poll",
       claimId: "clm_1",
+      claimToken: "osc_clm_abc",
     });
+    // Claim state is not readable by id alone.
+    expect(() => parseArgs(["claim", "poll", "clm_1"])).toThrow(/claim token/);
     expect(parseArgs(["agent", "init", "--anonymous", "--name", "bot"])).toMatchObject({
       name: "agent-init",
       anonymous: true,

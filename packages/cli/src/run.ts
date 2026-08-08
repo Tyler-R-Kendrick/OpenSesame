@@ -243,7 +243,7 @@ export async function runCli(
         ...(session ? { accessToken: session.accessToken } : {}),
         fetchImpl,
       });
-      const claim = await cp.pollClaim(command.claimId);
+      const claim = await cp.pollClaim(command.claimId, command.claimToken);
       emit(command.flags, JSON.stringify(claim, null, 2), redactSecrets(claim));
       return 0;
     }
