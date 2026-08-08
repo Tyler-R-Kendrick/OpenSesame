@@ -31,10 +31,15 @@ pub async fn ready(State(st): State<AppState>) -> impl IntoResponse {
             StatusCode::SERVICE_UNAVAILABLE,
             Json(json!({"status":"not_ready","reason":"authority_quorum"})),
         ),
-        Err(e) => (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({"status":"not_ready","reason":e.to_string()})),
-        ),
+        Err(e) => {
+            // `/health/ready` is public: a backend error string can carry the DSN
+            // (host, user, password) or an upstream URL. Log it, answer a code.
+            tracing::warn!(error = %e, "authority quorum probe failed");
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"status":"not_ready","reason":"authority_unavailable"})),
+            )
+        }
     }
 }
 
@@ -64,14 +69,22 @@ pub async fn providers(
     if let Some(c) = &st.openfga {
         openfga = match c.health().await {
             Ok(()) => json!({"configured": true, "status": "ok"}),
-            Err(e) => json!({"configured": true, "status": "error", "error": e.to_string()}),
+            Err(e) => json!({
+                "configured": true,
+                "status": "error",
+                "error": opensesame_redaction::redact_text(&e.to_string()),
+            }),
         };
     }
     let mut openbao = json!({"configured": false});
     if let Some(a) = &st.openbao {
         openbao = match a.health().await {
             Ok(h) => json!({"configured": true, "sealed": h.sealed, "quorum_ok": h.quorum_ok}),
-            Err(e) => json!({"configured": true, "status": "error", "error": e.to_string()}),
+            Err(e) => json!({
+                "configured": true,
+                "status": "error",
+                "error": opensesame_redaction::redact_text(&e.to_string()),
+            }),
         };
     }
     Json(json!({
