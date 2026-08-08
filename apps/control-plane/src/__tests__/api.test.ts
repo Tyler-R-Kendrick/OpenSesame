@@ -556,6 +556,85 @@ describe("control-plane API", () => {
     );
   });
 
+  it("fences oauth clients to their owning principal", async () => {
+    const { app } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+
+    async function verifiedPrincipal(subject: string) {
+      const created = await provisional(app);
+      const auth = { authorization: `Bearer ${created.accessToken}` };
+      const linked = await app.request("/v1/principals/link-identities", {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json", "idempotency-key": subject },
+        body: JSON.stringify({
+          kind: "oidc",
+          issuer: "https://mock.example",
+          subject,
+          assurance: "verified",
+        }),
+      });
+      expect(linked.status).toBe(201);
+      return { ...created, auth };
+    }
+
+    const owner = await verifiedPrincipal("client-owner");
+    const other = await verifiedPrincipal("client-intruder");
+
+    const createRes = await app.request("/v1/oauth/clients", {
+      method: "POST",
+      headers: {
+        ...owner.auth,
+        "content-type": "application/json",
+        "idempotency-key": "cli-owned",
+      },
+      body: JSON.stringify({
+        displayName: "RP Owned",
+        redirectUris: ["https://rp.example.test/cb"],
+        sectorIdentifier: "https://rp.example.test",
+      }),
+    });
+    expect(createRes.status).toBe(201);
+    const client = (await createRes.json()) as {
+      id: string;
+      ownerPrincipalId: string;
+    };
+    expect(client.ownerPrincipalId).toBe(owner.principalId);
+
+    // A different principal cannot see it…
+    const otherList = await app.request("/v1/oauth/clients", { headers: other.auth });
+    expect(((await otherList.json()) as { clients: unknown[] }).clients).toEqual([]);
+
+    // …nor repoint its redirect URIs, rotate it, or revoke it.
+    const hijack = await app.request(`/v1/oauth/clients/${client.id}`, {
+      method: "PATCH",
+      headers: { ...other.auth, "content-type": "application/json" },
+      body: JSON.stringify({ redirectUris: ["https://attacker.test/cb"] }),
+    });
+    expect(hijack.status).toBe(404);
+    for (const action of ["rotate", "revoke"]) {
+      const res = await app.request(`/v1/oauth/clients/${client.id}/${action}`, {
+        method: "POST",
+        headers: other.auth,
+      });
+      expect(res.status).toBe(404);
+    }
+
+    // The owner still can, and a javascript: redirect URI is refused outright.
+    const patched = await app.request(`/v1/oauth/clients/${client.id}`, {
+      method: "PATCH",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ displayName: "RP Renamed" }),
+    });
+    expect(patched.status).toBe(200);
+    const badUri = await app.request(`/v1/oauth/clients/${client.id}`, {
+      method: "PATCH",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ redirectUris: ["javascript:alert(1)"] }),
+    });
+    expect(badUri.status).toBe(400);
+  });
+
   it("rejects provisional create when session capacity is exhausted", async () => {
     const { app, ctx } = createControlPlane({
       config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },

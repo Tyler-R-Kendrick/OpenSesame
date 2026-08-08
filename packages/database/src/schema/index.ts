@@ -314,6 +314,8 @@ export const oauthClients = pgTable(
   "oauth_clients",
   {
     id: text("id").primaryKey(),
+    /** Registering principal — reads and mutations are fenced to them. */
+    ownerPrincipalId: text("owner_principal_id").references(() => principals.id),
     admissionMode: text("admission_mode").notNull(),
     displayName: text("display_name").notNull(),
     redirectUris: jsonb("redirect_uris").$type<string[]>().notNull().default([]),
@@ -337,6 +339,7 @@ export const oauthClients = pgTable(
       "oauth_clients_state_check",
       sql`${t.state} in ('active','suspended','revoked')`,
     ),
+    index("oauth_clients_owner_principal_id_idx").on(t.ownerPrincipalId),
   ],
 );
 
