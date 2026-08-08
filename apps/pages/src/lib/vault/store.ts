@@ -1,0 +1,422 @@
+/**
+ * Vault session store. Holds the unlocked collection in memory, seals every
+ * mutation straight back to OPFS, and drops the key on lock.
+ */
+
+import { kvDelete, kvGet, kvSet } from "../kv.js";
+import {
+  assertSealed,
+  createVault,
+  openJson,
+  rewrapVaultKey,
+  sealJson,
+  unlockVaultKey,
+  VaultCorruptError,
+  WrongPasswordError,
+  type SealedBlob,
+  type VaultHeader,
+} from "./crypto.js";
+import {
+  emptyBody,
+  type Folder,
+  type VaultBody,
+  type VaultItem,
+} from "./model.js";
+
+export const HEADER_KEY = "vault.header.v1";
+export const BODY_KEY = "vault.body.v1";
+export const ATTEMPTS_KEY = "vault.attempts.v1";
+export const PREFS_KEY = "vault.prefs.v1";
+
+export type VaultStatus = "empty" | "locked" | "unlocked";
+
+export type VaultPrefs = {
+  /** Minutes of inactivity before the vault locks. 0 disables the timer. */
+  autoLockMinutes: number;
+  /** Lock as soon as the tab is hidden. */
+  lockOnHide: boolean;
+  /** Seconds before a copied secret is cleared from the clipboard. 0 disables. */
+  clipboardClearSeconds: number;
+  theme: "system" | "light" | "dark";
+};
+
+export const defaultPrefs: VaultPrefs = {
+  autoLockMinutes: 15,
+  lockOnHide: false,
+  clipboardClearSeconds: 30,
+  theme: "system",
+};
+
+export type VaultState = {
+  status: VaultStatus;
+  header: VaultHeader | null;
+  items: VaultItem[];
+  folders: Folder[];
+  prefs: VaultPrefs;
+  /** Milliseconds until auto-lock, or null when no timer is armed. */
+  lockedOutUntil: number | null;
+  failedAttempts: number;
+};
+
+type Listener = () => void;
+
+const LOCK_AFTER_FAILS = 5;
+const BASE_LOCKOUT_MS = 5_000;
+const MAX_LOCKOUT_MS = 15 * 60_000;
+
+function readJson<T>(key: string, fallback: T): T {
+  const raw = kvGet(key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+export class VaultStore {
+  #vaultKey: CryptoKey | null = null;
+  #body: VaultBody = emptyBody();
+  #header: VaultHeader | null = null;
+  #prefs: VaultPrefs = defaultPrefs;
+  #listeners = new Set<Listener>();
+  #snapshot: VaultState;
+  #idleTimer: ReturnType<typeof setTimeout> | null = null;
+  #lastActivity = Date.now();
+
+  constructor() {
+    this.#header = readJson<VaultHeader | null>(HEADER_KEY, null);
+    this.#prefs = { ...defaultPrefs, ...readJson<Partial<VaultPrefs>>(PREFS_KEY, {}) };
+    this.#snapshot = this.#build();
+  }
+
+  /** Re-read plaintext state once OPFS hydration has filled the KV cache. */
+  rehydrate(): void {
+    if (this.#vaultKey) return;
+    this.#header = readJson<VaultHeader | null>(HEADER_KEY, null);
+    this.#prefs = { ...defaultPrefs, ...readJson<Partial<VaultPrefs>>(PREFS_KEY, {}) };
+    this.#emit();
+  }
+
+  #build(): VaultState {
+    const attempts = readJson<{ fails: number; until: number }>(ATTEMPTS_KEY, {
+      fails: 0,
+      until: 0,
+    });
+    return {
+      status: this.#vaultKey ? "unlocked" : this.#header ? "locked" : "empty",
+      header: this.#header,
+      items: this.#body.items,
+      folders: this.#body.folders,
+      prefs: this.#prefs,
+      lockedOutUntil: attempts.until > Date.now() ? attempts.until : null,
+      failedAttempts: attempts.fails,
+    };
+  }
+
+  #emit(): void {
+    this.#snapshot = this.#build();
+    for (const listener of this.#listeners) listener();
+  }
+
+  subscribe = (listener: Listener): (() => void) => {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
+  };
+
+  getSnapshot = (): VaultState => this.#snapshot;
+
+  // —— session ——————————————————————————————————————————————
+
+  async create(password: string, hint?: string): Promise<void> {
+    if (password.length < 12) {
+      throw new Error("Use at least 12 characters. This key protects everything.");
+    }
+    const { header, vaultKey } = await createVault(password, hint);
+    this.#header = header;
+    this.#vaultKey = vaultKey;
+    this.#body = emptyBody();
+    kvSet(HEADER_KEY, JSON.stringify(header));
+    await this.#persist();
+    kvDelete(ATTEMPTS_KEY);
+    this.#armIdleTimer();
+    this.#emit();
+  }
+
+  async unlock(password: string): Promise<void> {
+    const attempts = readJson<{ fails: number; until: number }>(ATTEMPTS_KEY, {
+      fails: 0,
+      until: 0,
+    });
+    if (attempts.until > Date.now()) {
+      const seconds = Math.ceil((attempts.until - Date.now()) / 1000);
+      throw new Error(`Too many attempts. Try again in ${seconds}s.`);
+    }
+    if (!this.#header) throw new Error("There is no vault on this device yet.");
+
+    let vaultKey: CryptoKey;
+    try {
+      vaultKey = await unlockVaultKey(this.#header, password);
+    } catch (error) {
+      const fails = attempts.fails + 1;
+      const until =
+        fails >= LOCK_AFTER_FAILS
+          ? Date.now() +
+            Math.min(BASE_LOCKOUT_MS * 2 ** (fails - LOCK_AFTER_FAILS), MAX_LOCKOUT_MS)
+          : 0;
+      kvSet(ATTEMPTS_KEY, JSON.stringify({ fails, until }));
+      this.#emit();
+      throw error;
+    }
+
+    this.#vaultKey = vaultKey;
+    const sealed = readJson<SealedBlob | null>(BODY_KEY, null);
+    if (sealed) {
+      try {
+        const body = await openJson<VaultBody>(vaultKey, sealed);
+        this.#body = { v: 1, items: body.items ?? [], folders: body.folders ?? [] };
+      } catch (error) {
+        this.#vaultKey = null;
+        throw error instanceof VaultCorruptError
+          ? error
+          : new VaultCorruptError("unreadable body");
+      }
+    } else {
+      this.#body = emptyBody();
+    }
+    kvDelete(ATTEMPTS_KEY);
+    this.#armIdleTimer();
+    this.#emit();
+  }
+
+  lock = (): void => {
+    this.#vaultKey = null;
+    this.#body = emptyBody();
+    if (this.#idleTimer) clearTimeout(this.#idleTimer);
+    this.#idleTimer = null;
+    this.#emit();
+  };
+
+  isUnlocked(): boolean {
+    return this.#vaultKey !== null;
+  }
+
+  async changeMasterPassword(
+    current: string,
+    next: string,
+    hint?: string,
+  ): Promise<void> {
+    if (!this.#header) throw new Error("There is no vault to re-key.");
+    if (next.length < 12) {
+      throw new Error("Use at least 12 characters. This key protects everything.");
+    }
+    const header = await rewrapVaultKey(this.#header, current, next, hint);
+    this.#header = header;
+    kvSet(HEADER_KEY, JSON.stringify(header));
+    this.#emit();
+  }
+
+  // —— persistence ——————————————————————————————————————————
+
+  async #persist(): Promise<void> {
+    if (!this.#vaultKey) throw new Error("The vault is locked.");
+    const sealed = await sealJson(this.#vaultKey, this.#body);
+    assertSealed(sealed);
+    kvSet(BODY_KEY, JSON.stringify(sealed));
+  }
+
+  async #mutate(change: (body: VaultBody) => void): Promise<void> {
+    if (!this.#vaultKey) throw new Error("The vault is locked.");
+    change(this.#body);
+    await this.#persist();
+    this.touch();
+    this.#emit();
+  }
+
+  // —— items ————————————————————————————————————————————————
+
+  async saveItem(item: VaultItem): Promise<void> {
+    await this.#mutate((body) => {
+      const next = { ...item, updatedAt: new Date().toISOString() };
+      const index = body.items.findIndex((candidate) => candidate.id === item.id);
+      if (index === -1) body.items = [...body.items, next];
+      else body.items = body.items.map((c, i) => (i === index ? next : c));
+    });
+  }
+
+  async trashItem(id: string): Promise<void> {
+    await this.#mutate((body) => {
+      body.items = body.items.map((item) =>
+        item.id === id ? { ...item, deletedAt: new Date().toISOString() } : item,
+      );
+    });
+  }
+
+  async restoreItem(id: string): Promise<void> {
+    await this.#mutate((body) => {
+      body.items = body.items.map((item) =>
+        item.id === id ? { ...item, deletedAt: null } : item,
+      );
+    });
+  }
+
+  async purgeItem(id: string): Promise<void> {
+    await this.#mutate((body) => {
+      body.items = body.items.filter((item) => item.id !== id);
+    });
+  }
+
+  async emptyTrash(): Promise<void> {
+    await this.#mutate((body) => {
+      body.items = body.items.filter((item) => item.deletedAt === null);
+    });
+  }
+
+  async toggleFavorite(id: string): Promise<void> {
+    await this.#mutate((body) => {
+      body.items = body.items.map((item) =>
+        item.id === id ? { ...item, favorite: !item.favorite } : item,
+      );
+    });
+  }
+
+  async replaceAll(items: VaultItem[], folders: Folder[]): Promise<void> {
+    await this.#mutate((body) => {
+      body.items = items;
+      body.folders = folders;
+    });
+  }
+
+  async addItems(items: VaultItem[]): Promise<void> {
+    await this.#mutate((body) => {
+      body.items = [...body.items, ...items];
+    });
+  }
+
+  // —— folders ——————————————————————————————————————————————
+
+  async addFolder(name: string): Promise<Folder> {
+    const folder: Folder = {
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    await this.#mutate((body) => {
+      body.folders = [...body.folders, folder];
+    });
+    return folder;
+  }
+
+  async renameFolder(id: string, name: string): Promise<void> {
+    await this.#mutate((body) => {
+      body.folders = body.folders.map((folder) =>
+        folder.id === id ? { ...folder, name: name.trim() } : folder,
+      );
+    });
+  }
+
+  async deleteFolder(id: string): Promise<void> {
+    await this.#mutate((body) => {
+      body.folders = body.folders.filter((folder) => folder.id !== id);
+      body.items = body.items.map((item) =>
+        item.folderId === id ? { ...item, folderId: null } : item,
+      );
+    });
+  }
+
+  // —— export / import ——————————————————————————————————————
+
+  /** Encrypted export — the sealed body plus its header, portable to another device. */
+  exportSealed(): string {
+    if (!this.#header) throw new Error("There is no vault to export.");
+    const body = kvGet(BODY_KEY);
+    if (!body) throw new Error("There is nothing stored to export yet.");
+    return JSON.stringify(
+      {
+        format: "opensesame-vault-export",
+        v: 1,
+        exportedAt: new Date().toISOString(),
+        header: this.#header,
+        body: JSON.parse(body) as SealedBlob,
+      },
+      null,
+      2,
+    );
+  }
+
+  /** Import a sealed export using the master password it was sealed under. */
+  async importSealed(fileText: string, password: string): Promise<number> {
+    let parsed: {
+      format?: string;
+      header?: VaultHeader;
+      body?: SealedBlob;
+    };
+    try {
+      parsed = JSON.parse(fileText) as typeof parsed;
+    } catch {
+      throw new Error("That file is not valid JSON.");
+    }
+    if (parsed.format !== "opensesame-vault-export" || !parsed.header || !parsed.body) {
+      throw new Error("That file is not an OpenSesame vault export.");
+    }
+    const key = await unlockVaultKey(parsed.header, password);
+    const incoming = await openJson<VaultBody>(key, parsed.body);
+
+    if (!this.#vaultKey) throw new Error("Unlock this vault before importing.");
+    const existing = new Set(this.#body.items.map((item) => item.id));
+    const merged = (incoming.items ?? []).filter((item) => !existing.has(item.id));
+    const folderIds = new Set(this.#body.folders.map((folder) => folder.id));
+    const mergedFolders = (incoming.folders ?? []).filter(
+      (folder) => !folderIds.has(folder.id),
+    );
+    await this.#mutate((body) => {
+      body.items = [...body.items, ...merged];
+      body.folders = [...body.folders, ...mergedFolders];
+    });
+    return merged.length;
+  }
+
+  /** Irreversibly remove the vault from this device. */
+  destroy(): void {
+    this.#vaultKey = null;
+    this.#body = emptyBody();
+    this.#header = null;
+    kvDelete(HEADER_KEY);
+    kvDelete(BODY_KEY);
+    kvDelete(ATTEMPTS_KEY);
+    this.#emit();
+  }
+
+  // —— preferences and auto-lock ————————————————————————————
+
+  setPrefs(next: Partial<VaultPrefs>): void {
+    this.#prefs = { ...this.#prefs, ...next };
+    kvSet(PREFS_KEY, JSON.stringify(this.#prefs));
+    this.#armIdleTimer();
+    this.#emit();
+  }
+
+  touch = (): void => {
+    this.#lastActivity = Date.now();
+  };
+
+  #armIdleTimer(): void {
+    if (this.#idleTimer) clearTimeout(this.#idleTimer);
+    this.#idleTimer = null;
+    if (!this.#vaultKey || this.#prefs.autoLockMinutes <= 0) return;
+    const windowMs = this.#prefs.autoLockMinutes * 60_000;
+    const tick = () => {
+      const idleFor = Date.now() - this.#lastActivity;
+      if (idleFor >= windowMs) {
+        this.lock();
+        return;
+      }
+      this.#idleTimer = setTimeout(tick, Math.max(1_000, windowMs - idleFor));
+    };
+    this.#idleTimer = setTimeout(tick, windowMs);
+  }
+}
+
+export const vaultStore = new VaultStore();
+
+export { WrongPasswordError, VaultCorruptError };
