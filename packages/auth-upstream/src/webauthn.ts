@@ -224,7 +224,10 @@ export function createSimpleWebAuthnVerifyFn(
         },
         requireUserVerification: false,
       });
-      return result.verified;
+      if (!result.verified) return false;
+      // Hand the fresh counter back so the seam can persist it; without this the
+      // stored counter stays at its registration value and clone detection is dead.
+      return { ok: true, newCounter: result.authenticationInfo?.newCounter };
     } catch {
       return false;
     }

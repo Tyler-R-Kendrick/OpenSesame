@@ -78,6 +78,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0af. **OAuth provider fail-closed** — resource indicators are allowlisted and production refuses ephemeral signing keys / memory grant state — see `audit-2026-08-08-oauth-provider-fail-closed.md`.
 0ag. **OAuth client ownership** — clients are fenced to the registering principal and redirect URIs reject `javascript:`/`data:`/`file:` — see `audit-2026-08-08-oauth-client-ownership.md`.
 0ah. **Identity link assurance** — self-asserted identity links no longer promote principals to `verified` outside dev — see `audit-2026-08-08-identity-link-assurance.md`.
+0ai. **Passkey counter + device fence** — assertions persist the signature counter (clone detection) and wrong `user_code` guesses no longer cancel every pending device login — see `audit-2026-08-08-passkey-counter-device-fence.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
