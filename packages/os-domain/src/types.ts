@@ -150,6 +150,8 @@ export type AgentState = "provisional" | "claimed" | "suspended" | "revoked";
 
 export interface Agent {
   id: string;
+  /** Principal that registered the agent — only they may claim or mutate it. */
+  ownerPrincipalId: string;
   displayName: string;
   provider?: string;
   softwareIdentity?: string;

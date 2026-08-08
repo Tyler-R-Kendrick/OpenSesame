@@ -34,8 +34,11 @@ pub fn require_session(
         )
             .into_response());
     };
+    // Sessions are keyed by digest; the presented bearer is never stored, and the
+    // handle returned here (used for sync-blob ownership) is the digest too.
+    let session_digest = opensesame_claims::hash_secret(session_id);
     let mut sessions = st.sessions.lock().unwrap();
-    let Some(meta) = sessions.get(session_id).cloned() else {
+    let Some(meta) = sessions.get(&session_digest).cloned() else {
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(json!({"error":"invalid_session"})),
@@ -49,14 +52,14 @@ pub fn require_session(
         .map(|dt| chrono::Utc::now() >= dt.with_timezone(&chrono::Utc))
         .unwrap_or(true);
     if expired {
-        sessions.remove(session_id);
+        sessions.remove(&session_digest);
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(json!({"error":"session_expired"})),
         )
             .into_response());
     }
-    Ok((session_id.to_string(), meta))
+    Ok((session_digest, meta))
 }
 
 pub fn session_subject(meta: &Value) -> String {

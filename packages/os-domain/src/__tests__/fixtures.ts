@@ -90,6 +90,7 @@ export const fixtures = {
   agent(overrides: Partial<Agent> = {}): Agent {
     return {
       id: "agt_001",
+      ownerPrincipalId: "prn_test_provisional_001",
       displayName: "Example Agent",
       provider: "example",
       state: "provisional",

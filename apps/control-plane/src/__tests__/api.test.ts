@@ -736,6 +736,50 @@ describe("control-plane API", () => {
     expect(body.error).toBe("provisional_capacity");
   });
 
+  it("fences agent claim ceremonies to the registering principal", async () => {
+    const { app } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+
+    const owner = await provisional(app);
+    const intruder = await provisional(app);
+
+    const registered = await app.request("/v1/agents", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${owner.accessToken}`,
+        "content-type": "application/json",
+        "idempotency-key": "agent-owned",
+      },
+      body: JSON.stringify({ displayName: "worker", publicKeyJkt: "jkt_abcdefgh" }),
+    });
+    expect(registered.status).toBe(201);
+    const { agentId } = (await registered.json()) as { agentId: string };
+
+    // A foreign caller may not start a claim that would name them owner.
+    const stolen = await app.request(`/v1/agents/${agentId}/claim`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${intruder.accessToken}`,
+        "content-type": "application/json",
+        "idempotency-key": "agent-steal",
+      },
+      body: JSON.stringify({}),
+    });
+    expect(stolen.status).toBe(404);
+
+    const mine = await app.request(`/v1/agents/${agentId}/claim`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${owner.accessToken}`,
+        "content-type": "application/json",
+        "idempotency-key": "agent-own-claim",
+      },
+      body: JSON.stringify({}),
+    });
+    expect(mine.status).toBe(201);
+  });
+
   it("HTTP mount does not steal /auth.md from oidc /auth prefix", async () => {
     const { startServer } = await import("../server.js");
     const { server, port } = await startServer({

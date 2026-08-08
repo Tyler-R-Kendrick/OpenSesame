@@ -47,6 +47,7 @@ agentRoutes.post(
 
     const agent: Agent = {
       id: agentId,
+      ownerPrincipalId: principalId,
       displayName: parsed.data.displayName,
       state: "provisional",
       createdAt: now,
@@ -119,7 +120,13 @@ agentRoutes.post(
     const principalId = c.get("principalId")!;
     const agentId = c.req.param("id");
     const agent = ctx.stores.agents.get(agentId);
-    if (!agent) return c.json({ error: "not_found" }, 404);
+    // A claim asserts `ownerPrincipalId` in its manifest and flips the agent to
+    // `claimed` on completion, so an unfenced claim would let any caller take
+    // over someone else's agent. Foreign ids answer 404, not 403: the id space
+    // must not be enumerable either.
+    if (!agent || agent.ownerPrincipalId !== principalId) {
+      return c.json({ error: "not_found" }, 404);
+    }
 
     const claim = await ctx.claims.createClaim({
       type: "agent",

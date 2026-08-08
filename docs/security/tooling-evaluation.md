@@ -81,6 +81,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0ai. **Passkey counter + device fence** — assertions persist the signature counter (clone detection) and wrong `user_code` guesses no longer cancel every pending device login — see `audit-2026-08-08-passkey-counter-device-fence.md`.
 0aj. **Error-string disclosure** — public `/health/ready` no longer echoes DSNs, `redact_text` covers URL userinfo/`Basic`/labelled secrets, and the device proxy stops advertising the Host API address — see `audit-2026-08-08-error-string-disclosure.md`.
 0ak. **Task authority expiry** — `maximum_expires_at` now bounds every capability assertion, superseded result buffers stay fenced, and task writes are CAS — see `audit-2026-08-08-task-authority-expiry.md`.
+0al. **Session digests + agent ownership** — Host API sessions are stored by digest only, and agent claim ceremonies are fenced to the registering principal — see `audit-2026-08-08-session-digest-agent-ownership.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
