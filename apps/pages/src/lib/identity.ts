@@ -157,7 +157,9 @@ export async function probeIdentity(): Promise<HealthState> {
 
 export async function probeHost(): Promise<HealthState> {
   try {
-    const res = await fetch(`${hostBase()}/api/v1/health`, { credentials: "omit" });
+    const res = await fetch(`${hostBase()}/api/v1/health`, {
+      credentials: "omit",
+    });
     return res.ok ? "reachable" : "unreachable";
   } catch {
     return "unreachable";

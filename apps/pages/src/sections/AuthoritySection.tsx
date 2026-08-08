@@ -271,14 +271,12 @@ export function AuthoritySection() {
 
       <PlaneStatus />
 
-      {queue.length > 0 ? (
-        <Outbox
-          items={queue}
-          online={online}
-          session={session}
-          onChange={refreshQueue}
-        />
-      ) : null}
+      <Outbox
+        items={queue}
+        online={online}
+        session={session}
+        onChange={refreshQueue}
+      />
 
       <div
         className="authority-tabs"
@@ -310,25 +308,37 @@ export function AuthoritySection() {
         })}
       </div>
 
-      <div
-        role="tabpanel"
-        id={`authority-panel-${tab}`}
-        aria-labelledby={`authority-tab-${tab}`}
-        className="authority-panelwrap"
-      >
-        {tab === "session" ? <SessionArea session={session} /> : null}
-        {tab === "device" ? (
-          <DeviceArea
-            session={session}
-            online={online}
-            onQueue={refreshQueue}
-          />
-        ) : null}
-        {tab === "claim" ? (
-          <ClaimArea session={session} online={online} onQueue={refreshQueue} />
-        ) : null}
-        {tab === "protocol" ? <ProtocolArea /> : null}
-      </div>
+      {/* Panels stay mounted and hidden: a half-finished ceremony must survive
+          a trip to the Session tab, because its claim token is already spent. */}
+      {TABS.map((entry) => (
+        <div
+          key={entry.id}
+          role="tabpanel"
+          id={`authority-panel-${entry.id}`}
+          aria-labelledby={`authority-tab-${entry.id}`}
+          hidden={entry.id !== tab}
+          className="authority-panelwrap"
+        >
+          {entry.id === "session" ? <SessionArea session={session} /> : null}
+          {entry.id === "device" ? (
+            <DeviceArea
+              session={session}
+              online={online}
+              onQueue={refreshQueue}
+            />
+          ) : null}
+          {entry.id === "claim" ? (
+            <ClaimArea
+              session={session}
+              online={online}
+              onQueue={refreshQueue}
+            />
+          ) : null}
+          {entry.id === "protocol" ? (
+            <ProtocolArea active={tab === "protocol"} />
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 }
@@ -1084,7 +1094,7 @@ function ClaimArea({
       setOutcome({
         tone: "err",
         message:
-          "Completing a claim attaches it to a principal, and this tab does not have one. Connect on the Session tab, then present the token again.",
+          "Completing attaches the claim to a principal, and this tab no longer has one. Connect on the Session tab and come back — the presented claim is held here, so you can accept it without spending another token.",
       });
       return;
     }
@@ -1139,6 +1149,16 @@ function ClaimArea({
             <span>
               You are offline. A token submitted now is staged whole and
               completed later without a review step.
+            </span>
+          </output>
+        ) : !session ? (
+          <output className="note note--warn">
+            <IconAlert size={18} />
+            <span>
+              Connect a principal on the <strong>Session</strong> tab first.
+              Claim tokens are single-use, so presenting one without somewhere
+              to attach it would spend the token and leave you nothing to
+              complete.
             </span>
           </output>
         ) : null}
@@ -1204,7 +1224,11 @@ function ClaimArea({
                       <button
                         type="submit"
                         className="btn btn--primary"
-                        disabled={busy !== null || token.trim().length === 0}
+                        disabled={
+                          busy !== null ||
+                          token.trim().length === 0 ||
+                          (online && !session)
+                        }
                         aria-busy={busy === "present"}
                       >
                         {busy === "present"
@@ -1514,10 +1538,11 @@ const DISCOVERY_LISTS: Array<{ key: string; label: string }> = [
   { key: "scopes_supported", label: "Scopes" },
 ];
 
-function ProtocolArea() {
+function ProtocolArea({ active }: { active: boolean }) {
   const [doc, setDoc] = useState<Discovery | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const fetched = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1545,8 +1570,10 @@ function ProtocolArea() {
   }, []);
 
   useEffect(() => {
+    if (!active || fetched.current) return;
+    fetched.current = true;
     void load();
-  }, [load]);
+  }, [active, load]);
 
   return (
     <>
@@ -1705,78 +1732,84 @@ function Outbox({
 
     for (const item of loadQueue()) {
       const label = describeQueued(item);
-      try {
-        if (item.kind === "device_approve") {
-          if (!session) {
-            collected.push({
-              id: item.id,
-              label,
-              ok: false,
-              message:
-                "Needs a principal. Connect on the Session tab, then flush again — the code is still staged.",
-            });
-            continue;
-          }
+      const staged = (message: string): FlushResult => ({
+        id: item.id,
+        label,
+        ok: false,
+        message,
+      });
+
+      if (!session) {
+        collected.push(
+          staged(
+            "Needs a principal. Connect on the Session tab, then flush again — this is still staged.",
+          ),
+        );
+        continue;
+      }
+
+      if (item.kind === "device_approve") {
+        try {
           const res = await identityFetch("/v1/device/approve", {
             method: "POST",
-            headers: { "content-type": "application/json" },
             body: JSON.stringify({ user_code: item.userCode }),
           });
           if (!res.ok) {
-            collected.push({
-              id: item.id,
-              label,
-              ok: false,
-              message: await describeApproveFailure(res),
-            });
+            collected.push(staged(await describeApproveFailure(res)));
             continue;
           }
-          dequeue(item.id);
-          collected.push({
-            id: item.id,
-            label,
-            ok: true,
-            message: "Device authorized.",
-          });
-        } else {
-          if (!session) {
-            collected.push({
-              id: item.id,
-              label,
-              ok: false,
-              message:
-                "Needs a principal. Connect on the Session tab, then flush again — the token is still staged.",
-            });
-            continue;
-          }
-          const { client } = createClaimClient(session);
-          const claim = await client.presentClaim(item.claimToken);
-          await client.completeClaim(claim.id, { acceptedItemIds: ["*"] });
-          dequeue(item.id);
-          collected.push({
-            id: item.id,
-            label,
-            ok: true,
-            message: `Claim ${claim.id} completed.`,
-          });
+        } catch {
+          collected.push(staged(unreachableMessage()));
+          continue;
         }
-      } catch (err) {
+        dequeue(item.id);
         collected.push({
           id: item.id,
           label,
-          ok: false,
-          message:
-            err instanceof Error
-              ? `${err.message}. Still staged — flush again once that is fixed.`
-              : "Failed for an unknown reason. Still staged.",
+          ok: true,
+          message: "Device authorized.",
         });
+        continue;
       }
+
+      const { client, failure } = createClaimClient(session);
+      let claim: ClaimPresentation;
+      try {
+        claim = await client.presentClaim(item.claimToken);
+      } catch {
+        collected.push(staged(describePresentFailure(failure)));
+        continue;
+      }
+
+      try {
+        await client.completeClaim(claim.id, { acceptedItemIds: ["*"] });
+      } catch (err) {
+        // Presenting consumed the token, so re-flushing could only fail again.
+        dequeue(item.id);
+        collected.push(
+          staged(
+            `Presented, but completing failed. ${describeCompleteFailure(failure, err)} The token is now spent, so it has been dropped from the outbox — start a fresh claim on the Claim ownership tab.`,
+          ),
+        );
+        continue;
+      }
+
+      dequeue(item.id);
+      collected.push({
+        id: item.id,
+        label,
+        ok: true,
+        message: `Claim ${claim.id} completed.`,
+      });
     }
 
     setResults(collected);
     onChange();
     setFlushing(false);
   }
+
+  // Stay mounted after a clean flush so the report is not yanked away with the list.
+  if (items.length === 0 && results.length === 0) return null;
 
   const failed = results.filter((result) => !result.ok).length;
 
@@ -1786,49 +1819,57 @@ function Outbox({
         <div>
           <h2>
             Outbox
-            <span className="chip chip--warn authority-outbox__count">
-              {items.length}
-            </span>
+            {items.length > 0 ? (
+              <span className="chip chip--warn authority-outbox__count">
+                {items.length}
+              </span>
+            ) : null}
           </h2>
           <p>
-            Ceremonies you started while offline. Nothing here has happened yet
-            — these are codes and tokens you already typed, held so they are not
-            lost.
+            {items.length > 0
+              ? "Ceremonies you started while offline. Nothing here has happened yet — these are codes and tokens you already typed, held so they are not lost."
+              : "Everything staged offline has been sent."}
           </p>
         </div>
         <div className="actions actions--end">
-          <button
-            type="button"
-            className="btn btn--sm btn--primary"
-            onClick={() => void flush()}
-            disabled={!online || flushing}
-            aria-busy={flushing}
-          >
-            <IconUpload size={16} />
-            {flushing ? "Flushing…" : "Flush"}
-          </button>
+          {items.length > 0 ? (
+            <button
+              type="button"
+              className="btn btn--sm btn--primary"
+              onClick={() => void flush()}
+              disabled={!online || flushing}
+              aria-busy={flushing}
+            >
+              <IconUpload size={16} />
+              {flushing ? "Flushing…" : "Flush"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--sm btn--ghost"
+              onClick={() => setResults([])}
+            >
+              Dismiss
+            </button>
+          )}
         </div>
       </div>
       <div className="panel__body">
-        {!online ? (
+        {items.length > 0 && !online ? (
           <p className="hint">
             Still offline. These will send when connectivity returns.
           </p>
         ) : null}
 
-        <ul className="authority-outbox__list">
-          {items.map((item) => {
-            const result = results.find((entry) => entry.id === item.id);
-            return (
+        {items.length > 0 ? (
+          <ul className="authority-outbox__list">
+            {items.map((item) => (
               <li key={item.id} className="authority-outbox__row">
                 <div>
                   <p className="authority-outbox__label">
                     {describeQueued(item)}
                   </p>
                   <p className="hint">Staged {formatWhen(item.createdAt)}</p>
-                  {result && !result.ok ? (
-                    <p className="authority-outbox__error">{result.message}</p>
-                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -1842,20 +1883,42 @@ function Outbox({
                   <IconX size={17} />
                 </button>
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </ul>
+        ) : null}
 
         {results.length > 0 ? (
-          <output className={`note note--${failed === 0 ? "ok" : "warn"}`}>
-            {failed === 0 ? <IconCheck size={18} /> : <IconAlert size={18} />}
-            <span>
-              {results.length - failed} of {results.length} sent.
-              {failed > 0
-                ? " The ones that failed are still listed above with the reason; the rest were cleared."
-                : ""}
-            </span>
-          </output>
+          <div className="authority-results">
+            <output className={`note note--${failed === 0 ? "ok" : "warn"}`}>
+              {failed === 0 ? <IconCheck size={18} /> : <IconAlert size={18} />}
+              <span>
+                {results.length - failed} of {results.length} sent
+                {failed > 0
+                  ? ". Each failure is listed below with what to do about it; the rest were cleared."
+                  : "."}
+              </span>
+            </output>
+            <ul className="authority-results__list">
+              {results.map((result) => (
+                <li
+                  key={result.id}
+                  className={`authority-result${result.ok ? " is-ok" : " is-err"}`}
+                >
+                  {result.ok ? (
+                    <IconCheck size={16} />
+                  ) : (
+                    <IconAlert size={16} />
+                  )}
+                  <div>
+                    <p className="authority-result__label">{result.label}</p>
+                    <p className="authority-result__message">
+                      {result.message}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
       </div>
     </section>
@@ -2002,14 +2065,14 @@ function describeCompleteFailure(
   err: unknown,
 ): string {
   if (err instanceof Error && err.message.includes("Authentication required")) {
-    return "Completing needs a principal, and the session was lost between presenting and completing. Connect on the Session tab and present the token again.";
+    return "The session was lost between presenting and completing. Connect on the Session tab and come back — the presented claim is held here, so accepting it again costs no new token.";
   }
   const { status, code } = failure;
   if (status === null) {
     return unreachableMessage();
   }
   if (status === 401 || status === 403) {
-    return "Your principal is not allowed to complete this claim. Connect a principal with the right authority, then present the token again.";
+    return "Your principal is not allowed to complete this claim. Connect one with the right authority on the Session tab, then accept again.";
   }
   if (status === 404) {
     return "The claim disappeared between presenting and completing. Present the token again to see its current state.";

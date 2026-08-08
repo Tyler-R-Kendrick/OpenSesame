@@ -5,6 +5,8 @@ export type ItemKind = "login" | "passkey" | "card" | "secret" | "note";
 export type UriMatch = "domain" | "host" | "exact" | "never";
 
 export type LoginUri = {
+  /** Stable across edits so the editor can key rows by identity, not position. */
+  id: string;
   uri: string;
   match: UriMatch;
 };
@@ -65,6 +67,8 @@ export type CardItem = BaseItem & {
 };
 
 export type CapabilityGrant = {
+  /** Stable across edits so the editor can key rows by identity, not position. */
+  id: string;
   action: string;
   resource: string;
 };
@@ -125,6 +129,14 @@ export function newId(): string {
 
 export function emptyBody(): VaultBody {
   return { v: 1, items: [], folders: [] };
+}
+
+export function newUri(uri = "", match: UriMatch = "domain"): LoginUri {
+  return { id: newId(), uri, match };
+}
+
+export function newGrant(action = "", resource = ""): CapabilityGrant {
+  return { id: newId(), action, resource };
 }
 
 function base(kind: ItemKind, name: string): BaseItem {
@@ -214,6 +226,22 @@ export function hostOf(uri: string | undefined): string {
     return new URL(uri.includes("://") ? uri : `https://${uri}`).host;
   } catch {
     return "";
+  }
+}
+
+/**
+ * Only http(s) may become a real link. An imported item could carry a
+ * `javascript:` or `data:` URI, which would run in the unlocked vault origin.
+ */
+export function browsableUrl(uri: string | undefined): string | null {
+  if (!uri) return null;
+  try {
+    const url = new URL(uri.includes("://") ? uri : `https://${uri}`);
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.href
+      : null;
+  } catch {
+    return null;
   }
 }
 

@@ -1,18 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  WORDS,
   defaultCharOptions,
   defaultPassphraseOptions,
   estimateStrength,
   generateCharacters,
   generatePassphrase,
   generatorEntropyBits,
-  WORDS,
 } from "./password.js";
 
 describe("character generator", () => {
   it("honours the requested length", () => {
     for (const length of [8, 16, 20, 64]) {
-      expect(generateCharacters({ ...defaultCharOptions, length })).toHaveLength(length);
+      expect(
+        generateCharacters({ ...defaultCharOptions, length }),
+      ).toHaveLength(length);
     }
   });
 
@@ -100,7 +102,10 @@ describe("passphrase generator", () => {
   });
 
   it("respects the separator", () => {
-    const value = generatePassphrase({ ...defaultPassphraseOptions, separator: "." });
+    const value = generatePassphrase({
+      ...defaultPassphraseOptions,
+      separator: ".",
+    });
     expect(value.split(".")).toHaveLength(defaultPassphraseOptions.words);
   });
 });
@@ -120,8 +125,14 @@ describe("entropy accounting", () => {
   });
 
   it("scales with word count for passphrases", () => {
-    const four = generatorEntropyBits({ ...defaultPassphraseOptions, words: 4 });
-    const eight = generatorEntropyBits({ ...defaultPassphraseOptions, words: 8 });
+    const four = generatorEntropyBits({
+      ...defaultPassphraseOptions,
+      words: 4,
+    });
+    const eight = generatorEntropyBits({
+      ...defaultPassphraseOptions,
+      words: 8,
+    });
     expect(eight).toBeGreaterThan(four * 1.8);
   });
 });
@@ -138,7 +149,9 @@ describe("strength estimation", () => {
   });
 
   it("punishes repetition", () => {
-    expect(estimateStrength("aaaaaaaaaaaaaaaaaaaa").score).toBeLessThanOrEqual(1);
+    expect(estimateStrength("aaaaaaaaaaaaaaaaaaaa").score).toBeLessThanOrEqual(
+      1,
+    );
   });
 
   it("punishes keyboard runs", () => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   IconChevronLeft,
@@ -11,13 +11,15 @@ import {
 import { PasswordGenerator } from "../../components/PasswordGenerator.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
-  createItem,
-  KIND_LABEL,
-  newId,
   type CustomField,
   type ItemKind,
+  KIND_LABEL,
   type UriMatch,
   type VaultItem,
+  createItem,
+  newGrant,
+  newId,
+  newUri,
 } from "../../lib/vault/model.js";
 
 const KINDS: ItemKind[] = ["login", "passkey", "card", "secret", "note"];
@@ -66,7 +68,9 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
   }
 
   const patch = (changes: Partial<VaultItem>) =>
-    setDraft((current) => (current ? ({ ...current, ...changes } as VaultItem) : current));
+    setDraft((current) =>
+      current ? ({ ...current, ...changes } as VaultItem) : current,
+    );
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -89,7 +93,9 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
       await store.saveItem(next);
       navigate(`/vault/${next.id}`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not save this item.");
+      setError(
+        caught instanceof Error ? caught.message : "Could not save this item.",
+      );
     } finally {
       setSaving(false);
     }
@@ -116,11 +122,13 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
 
       <div className="detail__heading">
         <h1>
-          {mode === "new" ? `New ${KIND_LABEL[draft.kind].toLowerCase()}` : "Edit item"}
+          {mode === "new"
+            ? `New ${KIND_LABEL[draft.kind].toLowerCase()}`
+            : "Edit item"}
         </h1>
         <p className="hint">
-          Saving re-seals the whole vault under your master key. Nothing leaves this
-          device.
+          Saving re-seals the whole vault under your master key. Nothing leaves
+          this device.
         </p>
       </div>
 
@@ -132,8 +140,15 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
               id="kind"
               value={draft.kind}
               onChange={(event) => {
-                const next = createItem(event.target.value as ItemKind, draft.name);
-                setDraft({ ...next, folderId: draft.folderId, notes: draft.notes });
+                const next = createItem(
+                  event.target.value as ItemKind,
+                  draft.name,
+                );
+                setDraft({
+                  ...next,
+                  folderId: draft.folderId,
+                  notes: draft.notes,
+                });
               }}
             >
               {KINDS.map((kind) => (
@@ -150,6 +165,7 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
           <input
             id="name"
             value={draft.name}
+            // biome-ignore lint/a11y/noAutofocus: reached only by an explicit "new item" or "edit" action, where the name is the first thing to type
             autoFocus
             onChange={(event) => patch({ name: event.target.value })}
           />
@@ -220,22 +236,23 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                 onChange={(event) => patch({ totp: event.target.value })}
               />
               <p className="hint">
-                Codes are computed here from this seed. Nothing is sent anywhere.
+                Codes are computed here from this seed. Nothing is sent
+                anywhere.
               </p>
             </div>
 
             <div className="field">
               <span className="label">Websites</span>
               {draft.uris.map((uri, index) => (
-                <div className="editor__uri" key={index}>
+                <div className="editor__uri" key={uri.id}>
                   <input
                     value={uri.uri}
                     placeholder="https://example.com"
                     aria-label={`Address ${index + 1}`}
                     onChange={(event) =>
                       patch({
-                        uris: draft.uris.map((candidate, i) =>
-                          i === index
+                        uris: draft.uris.map((candidate) =>
+                          candidate.id === uri.id
                             ? { ...candidate, uri: event.target.value }
                             : candidate,
                         ),
@@ -247,9 +264,12 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                     aria-label={`Match rule ${index + 1}`}
                     onChange={(event) =>
                       patch({
-                        uris: draft.uris.map((candidate, i) =>
-                          i === index
-                            ? { ...candidate, match: event.target.value as UriMatch }
+                        uris: draft.uris.map((candidate) =>
+                          candidate.id === uri.id
+                            ? {
+                                ...candidate,
+                                match: event.target.value as UriMatch,
+                              }
                             : candidate,
                         ),
                       })
@@ -266,7 +286,11 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                     className="icon-btn"
                     aria-label={`Remove address ${index + 1}`}
                     onClick={() =>
-                      patch({ uris: draft.uris.filter((_, i) => i !== index) })
+                      patch({
+                        uris: draft.uris.filter(
+                          (candidate) => candidate.id !== uri.id,
+                        ),
+                      })
                     }
                   >
                     <IconX size={17} />
@@ -276,9 +300,7 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
               <button
                 type="button"
                 className="btn btn--sm"
-                onClick={() =>
-                  patch({ uris: [...draft.uris, { uri: "", match: "domain" }] })
-                }
+                onClick={() => patch({ uris: [...draft.uris, newUri()] })}
               >
                 <IconPlus size={15} />
                 Add address
@@ -315,12 +337,16 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                 value={draft.authenticator}
                 onChange={(event) =>
                   patch({
-                    authenticator: event.target.value as "platform" | "cross-platform",
+                    authenticator: event.target.value as
+                      | "platform"
+                      | "cross-platform",
                   })
                 }
               >
                 <option value="platform">This device</option>
-                <option value="cross-platform">Security key or another device</option>
+                <option value="cross-platform">
+                  Security key or another device
+                </option>
               </select>
             </div>
             <div className="field">
@@ -329,13 +355,15 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                 id="credid"
                 spellCheck={false}
                 value={draft.credentialIdB64}
-                onChange={(event) => patch({ credentialIdB64: event.target.value })}
+                onChange={(event) =>
+                  patch({ credentialIdB64: event.target.value })
+                }
               />
             </div>
             <p className="note">
               <span>
-                This records a credential; it does not create one. The private key
-                stays in the authenticator and never enters the vault.
+                This records a credential; it does not create one. The private
+                key stays in the authenticator and never enters the vault.
               </span>
             </p>
           </div>
@@ -350,7 +378,9 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                   id="cardholder"
                   autoComplete="off"
                   value={draft.cardholder}
-                  onChange={(event) => patch({ cardholder: event.target.value })}
+                  onChange={(event) =>
+                    patch({ cardholder: event.target.value })
+                  }
                 />
               </div>
               <div className="field">
@@ -385,7 +415,9 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                     placeholder="MM"
                     maxLength={2}
                     value={draft.expMonth}
-                    onChange={(event) => patch({ expMonth: event.target.value })}
+                    onChange={(event) =>
+                      patch({ expMonth: event.target.value })
+                    }
                   />
                   <input
                     inputMode="numeric"
@@ -442,15 +474,19 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                 spellCheck={false}
                 placeholder="conn_…"
                 value={draft.connectionRef}
-                onChange={(event) => patch({ connectionRef: event.target.value })}
+                onChange={(event) =>
+                  patch({ connectionRef: event.target.value })
+                }
               />
               <p className="hint">
-                What the Host plane invokes with. Agents pass the reference; they never
-                see the value.
+                What the Host plane invokes with. Agents pass the reference;
+                they never see the value.
               </p>
             </div>
             <div className="field">
-              <label htmlFor="grantees">Agents permitted to request a grant</label>
+              <label htmlFor="grantees">
+                Agents permitted to request a grant
+              </label>
               <input
                 id="grantees"
                 spellCheck={false}
@@ -469,19 +505,19 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
             <div className="field">
               <span className="label">Capability ceiling</span>
               <p className="hint">
-                The outer bound of what any grant against this secret may do. A task
-                can hold less than this; it can never hold more.
+                The outer bound of what any grant against this secret may do. A
+                task can hold less than this; it can never hold more.
               </p>
               {draft.ceiling.map((grant, index) => (
-                <div className="editor__ceiling" key={index}>
+                <div className="editor__ceiling" key={grant.id}>
                   <input
                     value={grant.action}
                     placeholder="http.post"
                     aria-label={`Action ${index + 1}`}
                     onChange={(event) =>
                       patch({
-                        ceiling: draft.ceiling.map((candidate, i) =>
-                          i === index
+                        ceiling: draft.ceiling.map((candidate) =>
+                          candidate.id === grant.id
                             ? { ...candidate, action: event.target.value }
                             : candidate,
                         ),
@@ -494,8 +530,8 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                     aria-label={`Resource ${index + 1}`}
                     onChange={(event) =>
                       patch({
-                        ceiling: draft.ceiling.map((candidate, i) =>
-                          i === index
+                        ceiling: draft.ceiling.map((candidate) =>
+                          candidate.id === grant.id
                             ? { ...candidate, resource: event.target.value }
                             : candidate,
                         ),
@@ -507,7 +543,11 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                     className="icon-btn"
                     aria-label={`Remove capability ${index + 1}`}
                     onClick={() =>
-                      patch({ ceiling: draft.ceiling.filter((_, i) => i !== index) })
+                      patch({
+                        ceiling: draft.ceiling.filter(
+                          (candidate) => candidate.id !== grant.id,
+                        ),
+                      })
                     }
                   >
                     <IconX size={17} />
@@ -518,9 +558,7 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                 type="button"
                 className="btn btn--sm"
                 onClick={() =>
-                  patch({
-                    ceiling: [...draft.ceiling, { action: "", resource: "" }],
-                  })
+                  patch({ ceiling: [...draft.ceiling, newGrant()] })
                 }
               >
                 <IconPlus size={15} />
@@ -548,14 +586,18 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                 value={field.name}
                 placeholder="Field name"
                 aria-label="Field name"
-                onChange={(event) => setField(field.id, { name: event.target.value })}
+                onChange={(event) =>
+                  setField(field.id, { name: event.target.value })
+                }
               />
               <input
                 type={field.hidden ? "password" : "text"}
                 value={field.value}
                 placeholder="Value"
                 aria-label="Field value"
-                onChange={(event) => setField(field.id, { value: event.target.value })}
+                onChange={(event) =>
+                  setField(field.id, { value: event.target.value })
+                }
               />
               <div className="editor__inline">
                 <button
@@ -566,7 +608,11 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                   title="Conceal this field"
                   onClick={() => setField(field.id, { hidden: !field.hidden })}
                 >
-                  {field.hidden ? <IconEyeOff size={17} /> : <IconEye size={17} />}
+                  {field.hidden ? (
+                    <IconEyeOff size={17} />
+                  ) : (
+                    <IconEye size={17} />
+                  )}
                 </button>
                 <button
                   type="button"
@@ -608,7 +654,9 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
             <select
               id="folder"
               value={draft.folderId ?? ""}
-              onChange={(event) => patch({ folderId: event.target.value || null })}
+              onChange={(event) =>
+                patch({ folderId: event.target.value || null })
+              }
             >
               <option value="">No folder</option>
               {folders.map((folder) => (

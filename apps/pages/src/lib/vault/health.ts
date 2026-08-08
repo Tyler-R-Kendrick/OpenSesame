@@ -1,5 +1,5 @@
+import { type LoginItem, type VaultItem, hostOf } from "./model.js";
 import { estimateStrength } from "./password.js";
-import { hostOf, type LoginItem, type VaultItem } from "./model.js";
 
 export type HealthIssue = "weak" | "reused" | "old" | "no-2fa";
 
@@ -74,7 +74,9 @@ export function buildHealthReport(items: VaultItem[]): HealthReport {
       findings.push({
         item: login,
         issues,
-        sharedWith: shared.map((other) => other.name || hostOf(other.uris[0]?.uri)),
+        sharedWith: shared.map(
+          (other) => other.name || hostOf(other.uris[0]?.uri),
+        ),
         bits: strength.bits,
       });
     }

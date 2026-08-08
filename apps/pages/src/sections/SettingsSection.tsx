@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import {
   IconDownload,
   IconFolder,
@@ -10,9 +10,14 @@ import {
   IconUpload,
   IconX,
 } from "../components/Icons.js";
-import { useVault, useVaultStore } from "../lib/vault/hooks.js";
-import { buildSample, SAMPLE_FOLDER_NAME, sampleFolder } from "../lib/vault/sample.js";
 import { loadSettings, saveSettings } from "../lib/settings.js";
+import { useVault, useVaultStore } from "../lib/vault/hooks.js";
+import { estimateStrength } from "../lib/vault/password.js";
+import {
+  SAMPLE_FOLDER_NAME,
+  buildSample,
+  sampleFolder,
+} from "../lib/vault/sample.js";
 import "./settings.css";
 
 const THEMES = [
@@ -37,7 +42,9 @@ const CLIPBOARD = [
   { value: 0, label: "Never clear" },
 ];
 
-function Status({ message }: { message: { tone: "ok" | "err"; text: string } | null }) {
+function Status({
+  message,
+}: { message: { tone: "ok" | "err"; text: string } | null }) {
   if (!message) return null;
   return (
     <p
@@ -59,19 +66,26 @@ export function SettingsSection() {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [rekey, setRekey] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+  const [rekey, setRekey] = useState<{
+    tone: "ok" | "err";
+    text: string;
+  } | null>(null);
   const [rekeying, setRekeying] = useState(false);
 
   const [importPassword, setImportPassword] = useState("");
-  const [dataMessage, setDataMessage] = useState<
-    { tone: "ok" | "err"; text: string } | null
-  >(null);
+  const [dataMessage, setDataMessage] = useState<{
+    tone: "ok" | "err";
+    text: string;
+  } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [newFolder, setNewFolder] = useState("");
   const [confirmDestroy, setConfirmDestroy] = useState(false);
 
   const sampleCount = items.filter((item) => item.sample).length;
+  // Same gate as first-run create, so a re-key cannot weaken the KDF input.
+  const nextStrength = estimateStrength(next);
+  const nextTooWeak = next.length < 12 || nextStrength.score < 2;
 
   function saveEndpoints(event: FormEvent) {
     event.preventDefault();
@@ -165,7 +179,8 @@ export function SettingsSection() {
   }
 
   async function loadSample() {
-    const folder = folders.find((f) => f.name === SAMPLE_FOLDER_NAME) ?? sampleFolder();
+    const folder =
+      folders.find((f) => f.name === SAMPLE_FOLDER_NAME) ?? sampleFolder();
     if (!folders.some((f) => f.id === folder.id)) {
       await store.addFolder(folder.name).then(async (created) => {
         await store.addItems(buildSample(created.id));
@@ -191,8 +206,9 @@ export function SettingsSection() {
       <div className="section__head">
         <h1>Settings</h1>
         <p>
-          Everything on this page is stored on this device. Preferences and endpoint
-          URLs sit outside the encrypted vault; the operator token never leaves memory.
+          Everything on this page is stored on this device. Preferences and
+          endpoint URLs sit outside the encrypted vault; the operator token
+          never leaves memory.
         </p>
       </div>
 
@@ -204,7 +220,7 @@ export function SettingsSection() {
           </div>
         </div>
         <div className="panel__body">
-          <div className="set__themes" role="group" aria-label="Theme">
+          <fieldset className="set__themes" aria-label="Theme">
             {THEMES.map(({ id, label, Icon }) => (
               <button
                 key={id}
@@ -217,7 +233,7 @@ export function SettingsSection() {
                 {label}
               </button>
             ))}
-          </div>
+          </fieldset>
         </div>
       </section>
 
@@ -226,8 +242,8 @@ export function SettingsSection() {
           <div>
             <h2>Locking</h2>
             <p>
-              Locking discards the decryption key from memory. Reopening needs the
-              master password again.
+              Locking discards the decryption key from memory. Reopening needs
+              the master password again.
             </p>
           </div>
         </div>
@@ -239,7 +255,9 @@ export function SettingsSection() {
                 id="autolock"
                 value={prefs.autoLockMinutes}
                 onChange={(event) =>
-                  store.setPrefs({ autoLockMinutes: Number(event.target.value) })
+                  store.setPrefs({
+                    autoLockMinutes: Number(event.target.value),
+                  })
                 }
               >
                 {AUTO_LOCK.map((option) => (
@@ -255,7 +273,9 @@ export function SettingsSection() {
                 id="clipboard"
                 value={prefs.clipboardClearSeconds}
                 onChange={(event) =>
-                  store.setPrefs({ clipboardClearSeconds: Number(event.target.value) })
+                  store.setPrefs({
+                    clipboardClearSeconds: Number(event.target.value),
+                  })
                 }
               >
                 {CLIPBOARD.map((option) => (
@@ -270,13 +290,16 @@ export function SettingsSection() {
             <input
               type="checkbox"
               checked={prefs.lockOnHide}
-              onChange={(event) => store.setPrefs({ lockOnHide: event.target.checked })}
+              onChange={(event) =>
+                store.setPrefs({ lockOnHide: event.target.checked })
+              }
             />
             <span>Lock as soon as this tab goes to the background</span>
           </label>
           <p className="hint">
-            Clearing the clipboard only overwrites it if it still holds the value
-            OpenSesame put there, and some browsers refuse the read that check needs.
+            Clearing the clipboard only overwrites it if it still holds the
+            value OpenSesame put there, and some browsers refuse the read that
+            check needs.
           </p>
         </div>
       </section>
@@ -286,12 +309,16 @@ export function SettingsSection() {
           <div>
             <h2>Master password</h2>
             <p>
-              Changing it re-wraps the vault key under a new derivation. Your items are
-              not re-encrypted and nothing is re-uploaded, because nothing was uploaded.
+              Changing it re-wraps the vault key under a new derivation. Your
+              items are not re-encrypted and nothing is re-uploaded, because
+              nothing was uploaded.
             </p>
           </div>
         </div>
-        <form className="panel__body" onSubmit={(event) => void changeMaster(event)}>
+        <form
+          className="panel__body"
+          onSubmit={(event) => void changeMaster(event)}
+        >
           <div className="field">
             <label htmlFor="current-master">Current master password</label>
             <input
@@ -311,7 +338,13 @@ export function SettingsSection() {
                 autoComplete="new-password"
                 value={next}
                 onChange={(event) => setNext(event.target.value)}
+                aria-describedby="next-master-strength"
               />
+              <span className="hint" id="next-master-strength">
+                {next
+                  ? `${nextStrength.label} · ${nextStrength.bits} bits`
+                  : "At least 12 characters, Fair or better"}
+              </span>
             </div>
             <div className="field">
               <label htmlFor="confirm-master">Confirm</label>
@@ -329,14 +362,15 @@ export function SettingsSection() {
             <button
               type="submit"
               className="btn btn--primary"
-              disabled={rekeying || !current || next.length < 12}
+              disabled={rekeying || !current || nextTooWeak}
               aria-busy={rekeying}
             >
               {rekeying ? "Re-wrapping…" : "Change master password"}
             </button>
             {header ? (
               <span className="hint">
-                {header.kdf.iterations.toLocaleString()} PBKDF2-SHA256 iterations
+                {header.kdf.iterations.toLocaleString()} PBKDF2-SHA256
+                iterations
               </span>
             ) : null}
           </div>
@@ -357,11 +391,17 @@ export function SettingsSection() {
                 <li key={folder.id}>
                   <IconFolder size={17} />
                   <input
-                    value={folder.name}
+                    defaultValue={folder.name}
                     aria-label={`Rename ${folder.name}`}
-                    onChange={(event) =>
-                      void store.renameFolder(folder.id, event.target.value)
-                    }
+                    onBlur={(event) => {
+                      const name = event.target.value.trim();
+                      if (name && name !== folder.name) {
+                        void store.renameFolder(folder.id, name);
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.currentTarget.blur();
+                    }}
                   />
                   <button
                     type="button"
@@ -416,8 +456,8 @@ export function SettingsSection() {
           <div>
             <h2>Planes</h2>
             <p>
-              Where the Identity and Host APIs live. This page is static hosting; it
-              cannot run either plane.
+              Where the Identity and Host APIs live. This page is static
+              hosting; it cannot run either plane.
             </p>
           </div>
         </div>
@@ -430,7 +470,10 @@ export function SettingsSection() {
                 type="url"
                 value={endpoints.identityApi}
                 onChange={(event) =>
-                  setEndpoints({ ...endpoints, identityApi: event.target.value })
+                  setEndpoints({
+                    ...endpoints,
+                    identityApi: event.target.value,
+                  })
                 }
               />
             </div>
@@ -454,12 +497,15 @@ export function SettingsSection() {
               autoComplete="off"
               value={endpoints.operatorToken}
               onChange={(event) =>
-                setEndpoints({ ...endpoints, operatorToken: event.target.value })
+                setEndpoints({
+                  ...endpoints,
+                  operatorToken: event.target.value,
+                })
               }
             />
             <p className="hint">
-              Used for Host task routes. Held in memory for this tab only — reloading
-              clears it.
+              Used for Host task routes. Held in memory for this tab only —
+              reloading clears it.
             </p>
           </div>
           <div className="actions">
@@ -467,9 +513,7 @@ export function SettingsSection() {
               Save endpoints
             </button>
             {endpointSaved ? (
-              <span className="chip chip--ok" role="status">
-                Saved
-              </span>
+              <output className="chip chip--ok">Saved</output>
             ) : null}
           </div>
         </form>
@@ -480,8 +524,8 @@ export function SettingsSection() {
           <div>
             <h2>Backup and transfer</h2>
             <p>
-              An export is the sealed body plus its key-wrapping header. Anyone holding
-              it still needs the master password.
+              An export is the sealed body plus its key-wrapping header. Anyone
+              holding it still needs the master password.
             </p>
           </div>
         </div>
@@ -525,25 +569,35 @@ export function SettingsSection() {
             </div>
           </div>
           <p className="hint">
-            Importing merges items this vault does not already have by id. Nothing is
-            overwritten.
+            Importing merges items this vault does not already have by id.
+            Nothing is overwritten.
           </p>
 
           <hr className="set__rule" />
 
           <div className="actions">
             {sampleCount > 0 ? (
-              <button type="button" className="btn" onClick={() => void purgeSample()}>
-                Remove {sampleCount} sample {sampleCount === 1 ? "item" : "items"}
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void purgeSample()}
+              >
+                Remove {sampleCount} sample{" "}
+                {sampleCount === 1 ? "item" : "items"}
               </button>
             ) : (
-              <button type="button" className="btn" onClick={() => void loadSample()}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void loadSample()}
+              >
                 Load sample vault
               </button>
             )}
             <span className="hint">
-              Seven labelled items — including a deliberately weak and a deliberately
-              reused password — so the health report has something true to say.
+              Seven labelled items — including a deliberately weak and a
+              deliberately reused password — so the health report has something
+              true to say.
             </span>
           </div>
 
@@ -556,8 +610,8 @@ export function SettingsSection() {
           <div>
             <h2>Delete this vault</h2>
             <p>
-              Removes the encrypted file from this browser. There is no copy anywhere
-              else unless you exported one.
+              Removes the encrypted file from this browser. There is no copy
+              anywhere else unless you exported one.
             </p>
           </div>
         </div>

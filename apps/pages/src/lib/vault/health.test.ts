@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildHealthReport } from "./health.js";
-import { createItem, type LoginItem, type VaultItem } from "./model.js";
+import { type LoginItem, type VaultItem, createItem } from "./model.js";
 
 function login(
   name: string,
@@ -35,7 +35,7 @@ describe("password health", () => {
       login("Shop", shared),
     ]);
     expect(report.counts.reused).toBe(2);
-    const names = report.findings.map((finding) => finding.sharedWith).flat();
+    const names = report.findings.flatMap((finding) => finding.sharedWith);
     expect(names).toContain("Bank");
     expect(names).toContain("Shop");
   });
@@ -50,14 +50,18 @@ describe("password health", () => {
 
   it("flags a password older than a year", () => {
     const report = buildHealthReport([
-      login("Old", "Fjord-Lantern-Cobalt-7", { passwordChangedAt: daysAgo(400) }),
+      login("Old", "Fjord-Lantern-Cobalt-7", {
+        passwordChangedAt: daysAgo(400),
+      }),
     ]);
     expect(report.findings[0]?.issues).toContain("old");
   });
 
   it("does not flag a recent password as old", () => {
     const report = buildHealthReport([
-      login("Fresh", "Fjord-Lantern-Cobalt-7", { passwordChangedAt: daysAgo(10) }),
+      login("Fresh", "Fjord-Lantern-Cobalt-7", {
+        passwordChangedAt: daysAgo(10),
+      }),
     ]);
     expect(report.counts.old).toBe(0);
   });

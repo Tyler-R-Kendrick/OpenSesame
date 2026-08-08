@@ -11,6 +11,9 @@ export default defineConfig({
     // to Vite's default legacy browser set; GitHub Pages clients are modern.
     target: ["es2022", "chrome100", "firefox100", "safari15"],
   },
+  // Dependency pre-bundling in dev has its own target and hits the same limitation.
+  esbuild: { target: "es2022" },
+  optimizeDeps: { esbuildOptions: { target: "es2022" } },
   plugins: [
     react(),
     VitePWA({

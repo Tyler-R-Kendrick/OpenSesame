@@ -1,19 +1,11 @@
 import {
+  type FormEvent,
   useCallback,
   useEffect,
   useId,
   useMemo,
   useState,
-  type FormEvent,
 } from "react";
-import {
-  identityBase,
-  identityFetch,
-  useConnect,
-  useIdentitySession,
-  fetchPrincipal,
-} from "../lib/identity.js";
-import { useOnline } from "../lib/use-online.js";
 import {
   IconAlert,
   IconCheck,
@@ -27,6 +19,14 @@ import {
   IconTrash,
   IconX,
 } from "../components/Icons.js";
+import {
+  fetchPrincipal,
+  identityBase,
+  identityFetch,
+  useConnect,
+  useIdentitySession,
+} from "../lib/identity.js";
+import { useOnline } from "../lib/use-online.js";
 import "./sites.css";
 
 type OAuthClient = {
@@ -59,10 +59,22 @@ type Flash = { tone: "ok" | "warn" | "err"; text: string };
 
 /** Scopes this form can request. `openid` is mandatory for an OIDC client. */
 const SCOPE_CHOICES = [
-  { value: "openid", hint: "Required. Issues an ID token for the signed-in principal." },
-  { value: "profile", hint: "Display name and profile claims on the ID token." },
-  { value: "email", hint: "Email claim, when the principal has a verified email identity." },
-  { value: "offline_access", hint: "Refresh token, so the site can stay signed in." },
+  {
+    value: "openid",
+    hint: "Required. Issues an ID token for the signed-in principal.",
+  },
+  {
+    value: "profile",
+    hint: "Display name and profile claims on the ID token.",
+  },
+  {
+    value: "email",
+    hint: "Email claim, when the principal has a verified email identity.",
+  },
+  {
+    value: "offline_access",
+    hint: "Refresh token, so the site can stay signed in.",
+  },
 ];
 
 /** Stands in for the client id until the origin has actually been registered. */
@@ -112,7 +124,9 @@ function fieldErrorsFrom(body: unknown): string[] {
   }
   const fields = (details as { fieldErrors?: unknown }).fieldErrors;
   if (fields && typeof fields === "object") {
-    for (const [key, value] of Object.entries(fields as Record<string, unknown>)) {
+    for (const [key, value] of Object.entries(
+      fields as Record<string, unknown>,
+    )) {
       if (Array.isArray(value)) {
         for (const item of value) {
           if (typeof item === "string") out.push(`${key}: ${item}`);
@@ -181,7 +195,11 @@ type OriginCheck =
 function checkOrigin(raw: string): OriginCheck {
   const value = raw.trim();
   if (!value) {
-    return { ok: false, message: "Enter the origin your site is served from, for example https://example.com." };
+    return {
+      ok: false,
+      message:
+        "Enter the origin your site is served from, for example https://example.com.",
+    };
   }
   if (!/^https?:\/\//i.test(value)) {
     return {
@@ -193,10 +211,17 @@ function checkOrigin(raw: string): OriginCheck {
   try {
     url = new URL(value);
   } catch {
-    return { ok: false, message: `“${value}” is not a URL the browser can parse.` };
+    return {
+      ok: false,
+      message: `“${value}” is not a URL the browser can parse.`,
+    };
   }
   if (url.username || url.password) {
-    return { ok: false, message: "Remove the credentials (the user:password@ part) — an origin carries none." };
+    return {
+      ok: false,
+      message:
+        "Remove the credentials (the user:password@ part) — an origin carries none.",
+    };
   }
   const loopback =
     url.hostname === "localhost" ||
@@ -209,19 +234,36 @@ function checkOrigin(raw: string): OriginCheck {
     };
   }
   if (url.pathname !== "/" && url.pathname !== "") {
-    return { ok: false, message: `An origin has no path — drop “${url.pathname}”. The callback path is a separate field below.` };
+    return {
+      ok: false,
+      message: `An origin has no path — drop “${url.pathname}”. The callback path is a separate field below.`,
+    };
   }
   if (url.search) {
-    return { ok: false, message: `An origin has no query string — drop “${url.search}”.` };
+    return {
+      ok: false,
+      message: `An origin has no query string — drop “${url.search}”.`,
+    };
   }
   if (url.hash) {
-    return { ok: false, message: `An origin has no fragment — drop “${url.hash}”.` };
+    return {
+      ok: false,
+      message: `An origin has no fragment — drop “${url.hash}”.`,
+    };
   }
   if (url.protocol === "https:" && /:443(?:\/|$)/.test(value)) {
-    return { ok: false, message: "Drop the default port :443 — https://host already means that, and the browser will send the origin without it." };
+    return {
+      ok: false,
+      message:
+        "Drop the default port :443 — https://host already means that, and the browser will send the origin without it.",
+    };
   }
   if (url.protocol === "http:" && /:80(?:\/|$)/.test(value)) {
-    return { ok: false, message: "Drop the default port :80 — http://host already means that, and the browser will send the origin without it." };
+    return {
+      ok: false,
+      message:
+        "Drop the default port :80 — http://host already means that, and the browser will send the origin without it.",
+    };
   }
   return { ok: true, origin: url.origin, host: url.host };
 }
@@ -306,7 +348,9 @@ export function SitesSection() {
   const loadClients = useCallback(async () => {
     setLoadingClients(true);
     try {
-      const data = await callIdentity<{ clients: OAuthClient[] }>("/v1/oauth/clients");
+      const data = await callIdentity<{ clients: OAuthClient[] }>(
+        "/v1/oauth/clients",
+      );
       setClients(data.clients);
       setClientsError(null);
     } catch (error) {
@@ -391,22 +435,21 @@ export function SitesSection() {
               </span>
               <h3>Connect to manage your sites</h3>
               <p>
-                Every part of this section is a live read or write against the Identity
-                plane at <code>{base}</code>: the OAuth clients it will accept, the
-                registration of a new one for an origin you control, and the sign-in
-                events those clients produced. None of it can be shown without a
-                principal session.
+                Your clients, registrations, and sign-in events all live on the
+                Identity plane at <code>{base}</code>, and none of it can be
+                read without a session.
               </p>
               {online ? null : (
                 <p className="note note--warn">
-                  <IconAlert /> This browser is offline. Connecting needs a reachable
-                  Identity plane — reconnect and try again.
+                  <IconAlert /> This browser is offline. Connecting needs a
+                  reachable Identity plane — reconnect and try again.
                 </p>
               )}
               {connectError ? (
                 <p className="note note--err">
-                  <IconAlert /> {errorText(connectError)} Check that the Identity API is
-                  running at <code>{base}</code>, or change the address under Settings.
+                  <IconAlert /> {errorText(connectError)} Check that the
+                  Identity API is running at <code>{base}</code>, or change the
+                  address under Settings.
                 </p>
               ) : null}
               <button
@@ -418,9 +461,8 @@ export function SitesSection() {
                 {connecting ? "Connecting…" : "Connect a provisional session"}
               </button>
               <p className="hint">
-                A provisional session can list clients and read your audit trail.
-                Registering a new client needs a verified identity — the Identity plane
-                rejects registration below that bar.
+                Lists clients and reads your audit trail. Registering a new
+                client needs a verified identity.
               </p>
             </div>
           </div>
@@ -434,7 +476,7 @@ export function SitesSection() {
       <SitesHead base={base} />
 
       {flash ? (
-        <div className={`note note--${flash.tone} sites-flash`} role="status">
+        <output className={`note note--${flash.tone} sites-flash`}>
           {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
           <p>{flash.text}</p>
           <button
@@ -445,7 +487,7 @@ export function SitesSection() {
           >
             <IconX />
           </button>
-        </div>
+        </output>
       ) : null}
 
       <ClientsPanel
@@ -483,7 +525,11 @@ export function SitesSection() {
         onSelect={setSnippetClientId}
       />
 
-      <ActivityPanel events={events} error={eventsError} clients={clients ?? []} />
+      <ActivityPanel
+        events={events}
+        error={eventsError}
+        clients={clients ?? []}
+      />
     </div>
   );
 }
@@ -493,10 +539,9 @@ function SitesHead({ base }: { base: string }) {
     <header className="section__head">
       <h1>Sites</h1>
       <p>
-        A website uses OpenSesame as its auth broker: a static page adds a sign-in
-        button and gets an OAuth 2.0 authorization-code flow with PKCE S256 against{" "}
-        <code>{base}</code>, using a public client pinned to that site&rsquo;s own
-        origin. Register those clients here, retire them, and watch them being used.
+        A static page adds a sign-in button and gets an OAuth 2.0
+        authorization-code flow with PKCE S256 against <code>{base}</code>, on a
+        public client pinned to that site&rsquo;s own origin.
       </p>
     </header>
   );
@@ -528,7 +573,9 @@ function ClientsPanel({
   const [confirm, setConfirm] = useState<ConfirmTarget | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const revoked = (clients ?? []).filter((client) => client.state === "revoked");
+  const revoked = (clients ?? []).filter(
+    (client) => client.state === "revoked",
+  );
 
   async function run(client: OAuthClient, action: "rotate" | "revoke") {
     setBusy(client.id);
@@ -572,8 +619,9 @@ function ClientsPanel({
         <div>
           <h2>Registered clients</h2>
           <p>
-            Every client the Identity plane will accept an authorization request from.
-            Revoked clients are dropped by the API and never returned here.
+            Every client the Identity plane will accept an authorization request
+            from. Revoked clients are dropped by the API and never returned
+            here.
           </p>
         </div>
         <div className="actions">
@@ -600,9 +648,9 @@ function ClientsPanel({
             </div>
           </div>
         ) : clients === null ? (
-          <p className="sites-pad hint" role="status">
+          <output className="sites-pad hint">
             Reading clients from the Identity plane…
-          </p>
+          </output>
         ) : activeClients.length === 0 && revoked.length === 0 ? (
           <div className="empty">
             <span className="empty__mark">
@@ -610,8 +658,8 @@ function ClientsPanel({
             </span>
             <h3>No clients registered</h3>
             <p>
-              This Identity plane has no OAuth client yet, so no website can start a
-              sign-in against it. Register the first origin below.
+              This Identity plane has no OAuth client yet, so no website can
+              start a sign-in against it. Register the first origin below.
             </p>
           </div>
         ) : (
@@ -703,46 +751,62 @@ function ClientRow({
         <div>
           <dt>Updated</dt>
           <dd>
-            <time dateTime={client.updatedAt}>{formatWhen(client.updatedAt)}</time>
+            <time dateTime={client.updatedAt}>
+              {formatWhen(client.updatedAt)}
+            </time>
           </dd>
         </div>
       </dl>
 
       {dead ? (
         <p className="hint">
-          Revoked {formatWhen(client.updatedAt)}. Kept visible only until the next
-          refresh — the list endpoint omits revoked clients.
+          Revoked {formatWhen(client.updatedAt)}. Kept visible only until the
+          next refresh — the list endpoint omits revoked clients.
         </p>
       ) : confirm ? (
-        <div className="sites-confirm" role="group" aria-label={`Confirm ${confirm}`}>
+        <fieldset className="sites-confirm" aria-label={`Confirm ${confirm}`}>
           <p>
             {confirm === "rotate" ? (
               <>
-                <strong>Rotating issues a new client id and revokes {client.id} in
-                the same step.</strong>{" "}
-                The site keeps its redirect URI, scopes, and sector identifier, but
-                every page still sending the old id will be rejected at the
+                <strong>
+                  Rotating issues a new client id and revokes {client.id} in the
+                  same step.
+                </strong>{" "}
+                The site keeps its redirect URI, scopes, and sector identifier,
+                but every page still sending the old id will be rejected at the
                 authorization endpoint until you paste the new snippet.
               </>
             ) : (
               <>
-                <strong>Revoking ends sign-in through {client.displayName}
-                immediately.</strong>{" "}
-                Access tokens already issued stay valid until they expire; no new
-                authorization will succeed. This cannot be undone — restoring the site
-                means registering the origin again as a new client id.
+                <strong>
+                  Revoking ends sign-in through {client.displayName}
+                  immediately.
+                </strong>{" "}
+                Access tokens already issued stay valid until they expire; no
+                new authorization will succeed. This cannot be undone —
+                restoring the site means registering the origin again as a new
+                client id.
               </>
             )}
           </p>
           <div className="actions actions--end">
-            <button type="button" className="btn btn--sm btn--ghost" onClick={onCancel}>
+            <button
+              type="button"
+              className="btn btn--sm btn--ghost"
+              onClick={onCancel}
+            >
               Cancel
             </button>
             <button
               type="button"
-              className={confirm === "revoke" ? "btn btn--sm btn--danger" : "btn btn--sm btn--primary"}
+              className={
+                confirm === "revoke"
+                  ? "btn btn--sm btn--danger"
+                  : "btn btn--sm btn--primary"
+              }
               onClick={() => onRun(confirm)}
               disabled={busy || !online}
+              // biome-ignore lint/a11y/noAutofocus: the strip appears only after the user asks to rotate or revoke, so focus belongs on the action being confirmed
               autoFocus
             >
               {busy
@@ -754,10 +818,14 @@ function ClientRow({
                   : "Revoke this client"}
             </button>
           </div>
-        </div>
+        </fieldset>
       ) : (
         <div className="actions actions--end">
-          <button type="button" className="btn btn--sm btn--ghost" onClick={onUseSnippet}>
+          <button
+            type="button"
+            className="btn btn--sm btn--ghost"
+            onClick={onUseSnippet}
+          >
             <IconCopy /> Use in snippet
           </button>
           <button
@@ -837,11 +905,15 @@ function RegisterPanel({
       return;
     }
     if (!displayName.trim()) {
-      setFormError("Give the site a display name — it is what a person sees on the consent screen.");
+      setFormError(
+        "Give the site a display name — it is what a person sees on the consent screen.",
+      );
       return;
     }
     if (!sectorIdentifier.trim()) {
-      setFormError("The sector identifier cannot be empty; it groups redirect URIs that share one subject.");
+      setFormError(
+        "The sector identifier cannot be empty; it groups redirect URIs that share one subject.",
+      );
       return;
     }
     setSubmitting(true);
@@ -893,18 +965,19 @@ function RegisterPanel({
         <div>
           <h2>Register a site</h2>
           <p>
-            Pins a public client to one origin. Everything except the name and scopes is
-            derived from that origin, because the origin is what the authorization
-            endpoint checks.
+            Pins a public client to one origin. Everything except the name and
+            scopes is derived from that origin, because the origin is what the
+            authorization endpoint checks.
           </p>
         </div>
       </div>
       <div className="panel__body">
         {provisional ? (
           <p className="note note--warn">
-            <IconShield /> This session is provisional. The Identity plane will reject
-            the registration below with <code>assurance_too_low</code> until a real
-            identity is linked on the Identity plane. Reading clients still works.
+            <IconShield /> This session is provisional. The Identity plane will
+            reject the registration below with <code>assurance_too_low</code>{" "}
+            until a real identity is linked on the Identity plane. Reading
+            clients still works.
           </p>
         ) : null}
 
@@ -952,8 +1025,9 @@ function RegisterPanel({
                 aria-describedby={`${fieldId}-path-hint`}
               />
               <p className="hint" id={`${fieldId}-path-hint`}>
-                The page that calls <code>handleRedirectCallback()</code>. It must exist
-                on the site; the SDK defaults to <code>/callback</code>.
+                The page that calls <code>handleRedirectCallback()</code>. It
+                must exist on the site; the SDK defaults to{" "}
+                <code>/callback</code>.
               </p>
             </div>
 
@@ -974,7 +1048,8 @@ function RegisterPanel({
                 aria-describedby={`${fieldId}-name-hint`}
               />
               <p className="hint" id={`${fieldId}-name-hint`}>
-                Shown to the person being asked to sign in. Defaults to the host.
+                Shown to the person being asked to sign in. Defaults to the
+                host.
               </p>
             </div>
 
@@ -995,8 +1070,9 @@ function RegisterPanel({
                 aria-describedby={`${fieldId}-sector-hint`}
               />
               <p className="hint" id={`${fieldId}-sector-hint`}>
-                Clients sharing a sector see the same subject for one principal. Keep the
-                origin unless you run several origins that must look like one site.
+                Clients sharing a sector see the same subject for one principal.
+                Keep the origin unless you run several origins that must look
+                like one site.
               </p>
             </div>
 
@@ -1006,7 +1082,11 @@ function RegisterPanel({
                 <label className="check" key={scope.value}>
                   <input
                     type="checkbox"
-                    checked={scope.value === "openid" ? true : scopes.includes(scope.value)}
+                    checked={
+                      scope.value === "openid"
+                        ? true
+                        : scopes.includes(scope.value)
+                    }
                     disabled={scope.value === "openid"}
                     onChange={() => toggleScope(scope.value)}
                   />
@@ -1019,7 +1099,10 @@ function RegisterPanel({
             </fieldset>
           </div>
 
-          <aside className="sites-derived" aria-label="Values that will be sent">
+          <aside
+            className="sites-derived"
+            aria-label="Values that will be sent"
+          >
             <h3>What gets registered</h3>
             <dl className="kv">
               <div>
@@ -1048,10 +1131,10 @@ function RegisterPanel({
               </div>
             </dl>
             <p className="hint">
-              <IconInfo /> Dynamic registration, client metadata documents, and origin
-              profiles are rejected by this API with{" "}
-              <code>admission_mode_disabled</code>, so this form only offers the mode
-              that works.
+              <IconInfo /> Dynamic registration, client metadata documents, and
+              origin profiles are rejected by this API with{" "}
+              <code>admission_mode_disabled</code>, so this form only offers the
+              mode that works.
             </p>
           </aside>
 
@@ -1068,7 +1151,8 @@ function RegisterPanel({
             ) : null}
             {online ? null : (
               <p className="note note--warn">
-                <IconAlert /> Offline — registration needs a reachable Identity plane.
+                <IconAlert /> Offline — registration needs a reachable Identity
+                plane.
               </p>
             )}
             <button
@@ -1160,11 +1244,17 @@ function SnippetPanel({
               id={selectId}
               value={client ? client.id : DRAFT_OPTION}
               onChange={(event) =>
-                onSelect(event.target.value === DRAFT_OPTION ? null : event.target.value)
+                onSelect(
+                  event.target.value === DRAFT_OPTION
+                    ? null
+                    : event.target.value,
+                )
               }
             >
               {draftIsNew && draft ? (
-                <option value={DRAFT_OPTION}>{draft.host} — not registered</option>
+                <option value={DRAFT_OPTION}>
+                  {draft.host} — not registered
+                </option>
               ) : null}
               {clients.map((option) => (
                 <option key={option.id} value={option.id}>
@@ -1183,9 +1273,9 @@ function SnippetPanel({
             </span>
             <h3>Type an origin to see its snippet</h3>
             <p>
-              The code needs a redirect URI, and the redirect URI comes from the origin.
-              Enter one in the form above — or register it — and the snippet appears here
-              with the real values in place.
+              The code needs a redirect URI, and the redirect URI comes from the
+              origin. Enter one in the form above — or register it — and the
+              snippet appears here with the real values in place.
             </p>
           </div>
         ) : (
@@ -1193,12 +1283,17 @@ function SnippetPanel({
             {unregistered && draft ? (
               <p className="note note--warn">
                 <IconAlert /> {draft.host} is not registered yet, so{" "}
-                <code>{CLIENT_ID_SLOT}</code> is standing in for a client id that does
-                not exist. Register the origin above and the real id replaces it here.
+                <code>{CLIENT_ID_SLOT}</code> is standing in for a client id
+                that does not exist. Register the origin above and the real id
+                replaces it here.
               </p>
             ) : null}
             <div className="sites-toolbar">
-              <div className="sites-tabs" role="tablist" aria-label="Integration snippet">
+              <div
+                className="sites-tabs"
+                role="tablist"
+                aria-label="Integration snippet"
+              >
                 <button
                   type="button"
                   role="tab"
@@ -1214,7 +1309,9 @@ function SnippetPanel({
                   role="tab"
                   aria-selected={tab === "callback"}
                   aria-controls={panelId}
-                  className={tab === "callback" ? "sites-tab is-on" : "sites-tab"}
+                  className={
+                    tab === "callback" ? "sites-tab is-on" : "sites-tab"
+                  }
                   onClick={() => setTab("callback")}
                 >
                   Callback page
@@ -1225,7 +1322,8 @@ function SnippetPanel({
                 className="btn btn--sm sites-copy"
                 onClick={() => void copy()}
               >
-                {copied ? <IconCheck /> : <IconCopy />} {copied ? "Copied" : "Copy"}
+                {copied ? <IconCheck /> : <IconCopy />}{" "}
+                {copied ? "Copied" : "Copy"}
               </button>
             </div>
             <pre
@@ -1233,6 +1331,7 @@ function SnippetPanel({
               id={panelId}
               role="tabpanel"
               aria-label={tab === "signin" ? "Sign-in module" : "Callback page"}
+              // biome-ignore lint/a11y/noNoninteractiveTabindex: the snippet scrolls, and a scrollable region must be reachable by keyboard
               tabIndex={0}
             >
               <code>{code}</code>
@@ -1244,10 +1343,10 @@ function SnippetPanel({
             ) : null}
             <p className="hint">
               <code>@opensesame/sdk-browser</code> ships as ESM source in this
-              repository and has no script-tag or CDN build, so the site needs a bundler
-              (Vite, esbuild, Rollup) to use it. It keeps PKCE state and the session in{" "}
-              <code>sessionStorage</code>, never <code>localStorage</code>; pass{" "}
-              <code>storage</code> to override.
+              repository and has no script-tag or CDN build, so the site needs a
+              bundler (Vite, esbuild, Rollup) to use it. It keeps PKCE state and
+              the session in <code>sessionStorage</code>, never{" "}
+              <code>localStorage</code>; pass <code>storage</code> to override.
             </p>
           </>
         )}
@@ -1274,7 +1373,9 @@ function ActivityPanel({
   const rows = useMemo(
     () =>
       (events ?? []).filter(
-        (event) => event.eventType.startsWith("oauth_client.") || Boolean(event.clientId),
+        (event) =>
+          event.eventType.startsWith("oauth_client.") ||
+          Boolean(event.clientId),
       ),
     [events],
   );
@@ -1285,8 +1386,8 @@ function ActivityPanel({
         <div>
           <h2>Sign-in activity</h2>
           <p>
-            Your last 50 audit entries, narrowed to the ones a client is party to. The
-            Identity plane only returns your own trail.
+            Your last 50 audit entries, narrowed to the ones a client is party
+            to. The Identity plane only returns your own trail.
           </p>
         </div>
       </div>
@@ -1296,9 +1397,7 @@ function ActivityPanel({
             <IconAlert /> {error}
           </p>
         ) : events === null ? (
-          <p className="sites-pad hint" role="status">
-            Reading the audit trail…
-          </p>
+          <output className="sites-pad hint">Reading the audit trail…</output>
         ) : rows.length === 0 ? (
           <div className="empty">
             <span className="empty__mark">
@@ -1306,8 +1405,9 @@ function ActivityPanel({
             </span>
             <h3>No client activity yet</h3>
             <p>
-              Nothing in your last 50 audit entries involves an OAuth client. Registering
-              one, rotating it, or completing a sign-in through it will show up here.
+              Nothing in your last 50 audit entries involves an OAuth client.
+              Registering one, rotating it, or completing a sign-in through it
+              will show up here.
             </p>
           </div>
         ) : (
@@ -1325,13 +1425,17 @@ function ActivityPanel({
                 {rows.map((event) => (
                   <tr key={event.id}>
                     <td>
-                      <time dateTime={event.occurredAt}>{formatWhen(event.occurredAt)}</time>
+                      <time dateTime={event.occurredAt}>
+                        {formatWhen(event.occurredAt)}
+                      </time>
                     </td>
                     <td>{event.eventType}</td>
                     <td>
                       <span
                         className={
-                          event.outcome === "succeeded" ? "chip chip--ok" : "chip chip--err"
+                          event.outcome === "succeeded"
+                            ? "chip chip--ok"
+                            : "chip chip--err"
                         }
                       >
                         {event.outcome}
@@ -1340,8 +1444,13 @@ function ActivityPanel({
                     <td>
                       {event.clientId ? (
                         <span className="sites-event-client">
-                          <span>{names.get(event.clientId) ?? "Revoked or unknown client"}</span>
-                          <span className="sites-client__id">{event.clientId}</span>
+                          <span>
+                            {names.get(event.clientId) ??
+                              "Revoked or unknown client"}
+                          </span>
+                          <span className="sites-client__id">
+                            {event.clientId}
+                          </span>
                         </span>
                       ) : (
                         "—"

@@ -139,7 +139,10 @@ export function IconSearch(props: IconProps) {
   );
 }
 
-export function IconStar({ filled, ...props }: IconProps & { filled?: boolean }) {
+export function IconStar({
+  filled,
+  ...props
+}: IconProps & { filled?: boolean }) {
   return (
     <svg
       className={props.className}

@@ -49,10 +49,11 @@ function randomIndex(max: number): number {
   if (max <= 0) throw new Error("randomIndex needs a positive bound");
   const limit = Math.floor(0xffffffff / max) * max;
   const buf = new Uint32Array(1);
+  const view = new DataView(buf.buffer);
   let value: number;
   do {
     crypto.getRandomValues(buf);
-    value = buf[0]!;
+    value = view.getUint32(0);
   } while (value >= limit);
   return value % max;
 }
@@ -65,7 +66,10 @@ function shuffle<T>(input: T[]): T[] {
   const out = [...input];
   for (let i = out.length - 1; i > 0; i -= 1) {
     const j = randomIndex(i + 1);
-    [out[i], out[j]] = [out[j]!, out[i]!];
+    const a = out[i] as T;
+    const b = out[j] as T;
+    out[i] = b;
+    out[j] = a;
   }
   return out;
 }
@@ -103,39 +107,273 @@ export function generateCharacters(options: CharOptions): string {
  * which the strength readout reports honestly rather than overstating.
  */
 export const WORDS: readonly string[] = [
-  "acorn","agile","album","alloy","amber","anchor","angle","ankle","apple","apron",
-  "arbor","arena","armor","arrow","aspen","atlas","attic","auburn","audio","autumn",
-  "bacon","badge","bagel","baker","balsa","bamboo","banjo","barge","basil","basin",
-  "batch","beach","beacon","beagle","beam","bean","bebop","bedrock","beech","beetle",
-  "bellow","bench","berry","bison","blade","blaze","bloom","blossom","bluff","blush",
-  "boat","bobcat","bolt","bonsai","boulder","bounce","bramble","branch","brass","bread",
-  "breeze","bridge","bright","bronze","brook","broom","brush","bubble","bucket","buffalo",
-  "bugle","bundle","bunker","burrow","butter","button","cabin","cactus","camel","canal",
-  "candle","canopy","canyon","carbon","cargo","carrot","castle","cattle","cavern","cedar",
-  "cellar","cement","cherry","chess","chime","chisel","cider","cinder","circus","citrus",
-  "clamp","clarity","clay","cliff","cloak","clover","cobalt","cocoa","comet","compass",
-  "copper","coral","cork","cotton","cougar","cove","crater","crayon","creek","crescent",
-  "crisp","crown","crystal","cumin","curry","cypress","dagger","dahlia","daisy","damper",
-  "dapple","dawn","decoy","delta","denim","desert","diner","dingo","dolphin","domino",
-  "donut","dragon","drift","drum","dune","dusk","eagle","earth","easel","echo",
-  "eclipse","elder","ember","emerald","engine","ermine","escape","ether","fable","falcon",
-  "fathom","feather","fennel","fern","ferry","fiber","fiddle","filter","finch","fjord",
-  "flame","flannel","flask","flint","floral","flute","forest","fossil","fox","frost",
-  "galaxy","garden","garnet","gazelle","geode","ginger","glacier","glider","gopher","granite",
-  "grape","gravel","grotto","grove","guitar","gully","gusto","gypsum","hammock","harbor",
-  "harvest","hazel","heather","hedge","helix","hemlock","heron","hickory","hollow","honey",
-  "hornet","hurdle","husky","indigo","inkwell","iris","island","ivory","jacket","jasmine",
-  "jetty","jigsaw","jungle","juniper","kayak","kelp","kernel","kettle","keystone","kindle",
-  "kite","koala","lagoon","lantern","larch","lattice","lava","lavender","ledger","lemon",
-  "lentil","levee","lichen","lilac","linen","lobster","locket","lotus","lumber","lunar",
-  "lyric","magnet","mahogany","mallard","mango","maple","marble","marina",
+  "acorn",
+  "agile",
+  "album",
+  "alloy",
+  "amber",
+  "anchor",
+  "angle",
+  "ankle",
+  "apple",
+  "apron",
+  "arbor",
+  "arena",
+  "armor",
+  "arrow",
+  "aspen",
+  "atlas",
+  "attic",
+  "auburn",
+  "audio",
+  "autumn",
+  "bacon",
+  "badge",
+  "bagel",
+  "baker",
+  "balsa",
+  "bamboo",
+  "banjo",
+  "barge",
+  "basil",
+  "basin",
+  "batch",
+  "beach",
+  "beacon",
+  "beagle",
+  "beam",
+  "bean",
+  "bebop",
+  "bedrock",
+  "beech",
+  "beetle",
+  "bellow",
+  "bench",
+  "berry",
+  "bison",
+  "blade",
+  "blaze",
+  "bloom",
+  "blossom",
+  "bluff",
+  "blush",
+  "boat",
+  "bobcat",
+  "bolt",
+  "bonsai",
+  "boulder",
+  "bounce",
+  "bramble",
+  "branch",
+  "brass",
+  "bread",
+  "breeze",
+  "bridge",
+  "bright",
+  "bronze",
+  "brook",
+  "broom",
+  "brush",
+  "bubble",
+  "bucket",
+  "buffalo",
+  "bugle",
+  "bundle",
+  "bunker",
+  "burrow",
+  "butter",
+  "button",
+  "cabin",
+  "cactus",
+  "camel",
+  "canal",
+  "candle",
+  "canopy",
+  "canyon",
+  "carbon",
+  "cargo",
+  "carrot",
+  "castle",
+  "cattle",
+  "cavern",
+  "cedar",
+  "cellar",
+  "cement",
+  "cherry",
+  "chess",
+  "chime",
+  "chisel",
+  "cider",
+  "cinder",
+  "circus",
+  "citrus",
+  "clamp",
+  "clarity",
+  "clay",
+  "cliff",
+  "cloak",
+  "clover",
+  "cobalt",
+  "cocoa",
+  "comet",
+  "compass",
+  "copper",
+  "coral",
+  "cork",
+  "cotton",
+  "cougar",
+  "cove",
+  "crater",
+  "crayon",
+  "creek",
+  "crescent",
+  "crisp",
+  "crown",
+  "crystal",
+  "cumin",
+  "curry",
+  "cypress",
+  "dagger",
+  "dahlia",
+  "daisy",
+  "damper",
+  "dapple",
+  "dawn",
+  "decoy",
+  "delta",
+  "denim",
+  "desert",
+  "diner",
+  "dingo",
+  "dolphin",
+  "domino",
+  "donut",
+  "dragon",
+  "drift",
+  "drum",
+  "dune",
+  "dusk",
+  "eagle",
+  "earth",
+  "easel",
+  "echo",
+  "eclipse",
+  "elder",
+  "ember",
+  "emerald",
+  "engine",
+  "ermine",
+  "escape",
+  "ether",
+  "fable",
+  "falcon",
+  "fathom",
+  "feather",
+  "fennel",
+  "fern",
+  "ferry",
+  "fiber",
+  "fiddle",
+  "filter",
+  "finch",
+  "fjord",
+  "flame",
+  "flannel",
+  "flask",
+  "flint",
+  "floral",
+  "flute",
+  "forest",
+  "fossil",
+  "fox",
+  "frost",
+  "galaxy",
+  "garden",
+  "garnet",
+  "gazelle",
+  "geode",
+  "ginger",
+  "glacier",
+  "glider",
+  "gopher",
+  "granite",
+  "grape",
+  "gravel",
+  "grotto",
+  "grove",
+  "guitar",
+  "gully",
+  "gusto",
+  "gypsum",
+  "hammock",
+  "harbor",
+  "harvest",
+  "hazel",
+  "heather",
+  "hedge",
+  "helix",
+  "hemlock",
+  "heron",
+  "hickory",
+  "hollow",
+  "honey",
+  "hornet",
+  "hurdle",
+  "husky",
+  "indigo",
+  "inkwell",
+  "iris",
+  "island",
+  "ivory",
+  "jacket",
+  "jasmine",
+  "jetty",
+  "jigsaw",
+  "jungle",
+  "juniper",
+  "kayak",
+  "kelp",
+  "kernel",
+  "kettle",
+  "keystone",
+  "kindle",
+  "kite",
+  "koala",
+  "lagoon",
+  "lantern",
+  "larch",
+  "lattice",
+  "lava",
+  "lavender",
+  "ledger",
+  "lemon",
+  "lentil",
+  "levee",
+  "lichen",
+  "lilac",
+  "linen",
+  "lobster",
+  "locket",
+  "lotus",
+  "lumber",
+  "lunar",
+  "lyric",
+  "magnet",
+  "mahogany",
+  "mallard",
+  "mango",
+  "maple",
+  "marble",
+  "marina",
 ] as const;
 
 export function generatePassphrase(options: PassphraseOptions): string {
   const count = Math.max(3, Math.min(options.words, 12));
   const parts = Array.from({ length: count }, () => {
-    const word = WORDS[randomIndex(WORDS.length)]!;
-    return options.capitalize ? word.charAt(0).toUpperCase() + word.slice(1) : word;
+    const word = WORDS[randomIndex(WORDS.length)] as string;
+    return options.capitalize
+      ? word.charAt(0).toUpperCase() + word.slice(1)
+      : word;
   });
   if (options.includeNumber) {
     const at = randomIndex(parts.length);
@@ -153,7 +391,8 @@ export function generate(options: GeneratorOptions): string {
 /** Entropy of a generator's own configuration — exact, not estimated. */
 export function generatorEntropyBits(options: GeneratorOptions): number {
   if (options.mode === "passphrase") {
-    const base = Math.max(3, Math.min(options.words, 12)) * Math.log2(WORDS.length);
+    const base =
+      Math.max(3, Math.min(options.words, 12)) * Math.log2(WORDS.length);
     return Math.round(base + (options.includeNumber ? Math.log2(10) : 0));
   }
   let alphabet = 0;
@@ -172,12 +411,38 @@ export type Strength = {
 };
 
 const COMMON = new Set([
-  "password","123456","123456789","qwerty","111111","12345678","abc123","1234567",
-  "password1","12345","1234567890","letmein","welcome","monkey","dragon","admin",
-  "iloveyou","sunshine","princess","football","charlie","aa123456","donald","qwerty123",
+  "password",
+  "123456",
+  "123456789",
+  "qwerty",
+  "111111",
+  "12345678",
+  "abc123",
+  "1234567",
+  "password1",
+  "12345",
+  "1234567890",
+  "letmein",
+  "welcome",
+  "monkey",
+  "dragon",
+  "admin",
+  "iloveyou",
+  "sunshine",
+  "princess",
+  "football",
+  "charlie",
+  "aa123456",
+  "donald",
+  "qwerty123",
 ]);
 
-const SEQUENCES = ["abcdefghijklmnopqrstuvwxyz", "01234567890", "qwertyuiop", "asdfghjkl"];
+const SEQUENCES = [
+  "abcdefghijklmnopqrstuvwxyz",
+  "01234567890",
+  "qwertyuiop",
+  "asdfghjkl",
+];
 
 /**
  * Entropy estimate for a password we did not generate. Deliberately pessimistic:
@@ -198,7 +463,8 @@ export function estimateStrength(password: string): Strength {
 
   const unique = new Set(password).size;
   const repetitionFactor = unique / password.length;
-  let bits = password.length * Math.log2(Math.max(alphabet, 2)) * repetitionFactor;
+  let bits =
+    password.length * Math.log2(Math.max(alphabet, 2)) * repetitionFactor;
 
   for (const sequence of SEQUENCES) {
     for (let i = 0; i + 3 <= sequence.length; i += 1) {
@@ -214,6 +480,8 @@ export function estimateStrength(password: string): Strength {
   bits = Math.max(0, Math.round(bits));
   const score: Strength["score"] =
     bits < 28 ? 0 : bits < 48 ? 1 : bits < 68 ? 2 : bits < 96 ? 3 : 4;
-  const label = (["Very weak", "Weak", "Fair", "Strong", "Excellent"] as const)[score];
+  const label = (["Very weak", "Weak", "Fair", "Strong", "Excellent"] as const)[
+    score
+  ];
   return { bits, score, label };
 }

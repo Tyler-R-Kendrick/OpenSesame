@@ -4,8 +4,7 @@
   grid-template-columns: 1fr;
   place-items: center;
   padding: 2rem 1.25rem;
-  background:
-    radial-gradient(120% 80% at 12% -10%, #1a3a4d 0%, transparent 58%),
+  background: radial-gradient(120% 80% at 12% -10%, #1a3a4d 0%, transparent 58%),
     radial-gradient(90% 70% at 100% 108%, #113b38 0%, transparent 55%),
     var(--rail);
   color: var(--rail-fg);
@@ -39,7 +38,8 @@
 .unlock__brand p {
   color: var(--ink-2);
   font-size: 0.875rem;
-  max-width: 30ch;
+  max-width: 34ch;
+  text-wrap: balance;
 }
 
 .unlock__form {

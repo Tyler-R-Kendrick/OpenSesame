@@ -5,23 +5,24 @@
 
 import { kvDelete, kvGet, kvSet } from "../kv.js";
 import {
+  type SealedBlob,
+  VaultCorruptError,
+  type VaultHeader,
+  WrongPasswordError,
   assertSealed,
   createVault,
   openJson,
   rewrapVaultKey,
   sealJson,
   unlockVaultKey,
-  VaultCorruptError,
-  WrongPasswordError,
-  type SealedBlob,
-  type VaultHeader,
 } from "./crypto.js";
 import {
-  emptyBody,
   type Folder,
   type VaultBody,
   type VaultItem,
+  emptyBody,
 } from "./model.js";
+import { estimateStrength } from "./password.js";
 
 export const HEADER_KEY = "vault.header.v1";
 export const BODY_KEY = "vault.body.v1";
@@ -74,6 +75,20 @@ function readJson<T>(key: string, fallback: T): T {
   }
 }
 
+/** Create and re-key share one policy so a change cannot weaken the KDF input. */
+export function assertMasterPasswordPolicy(password: string): void {
+  if (password.length < 12) {
+    throw new Error(
+      "Use at least 12 characters. This key protects everything.",
+    );
+  }
+  if (estimateStrength(password).score < 2) {
+    throw new Error(
+      "That master password is too easy to guess. Aim for Fair or better.",
+    );
+  }
+}
+
 export class VaultStore {
   #vaultKey: CryptoKey | null = null;
   #body: VaultBody = emptyBody();
@@ -83,10 +98,16 @@ export class VaultStore {
   #snapshot: VaultState;
   #idleTimer: ReturnType<typeof setTimeout> | null = null;
   #lastActivity = Date.now();
+  /** Serializes body writes so overlapping mutations cannot land out of order. */
+  #writeChain: Promise<unknown> = Promise.resolve();
+  #lockHandlers = new Set<() => void>();
 
   constructor() {
     this.#header = readJson<VaultHeader | null>(HEADER_KEY, null);
-    this.#prefs = { ...defaultPrefs, ...readJson<Partial<VaultPrefs>>(PREFS_KEY, {}) };
+    this.#prefs = {
+      ...defaultPrefs,
+      ...readJson<Partial<VaultPrefs>>(PREFS_KEY, {}),
+    };
     this.#snapshot = this.#build();
   }
 
@@ -94,7 +115,10 @@ export class VaultStore {
   rehydrate(): void {
     if (this.#vaultKey) return;
     this.#header = readJson<VaultHeader | null>(HEADER_KEY, null);
-    this.#prefs = { ...defaultPrefs, ...readJson<Partial<VaultPrefs>>(PREFS_KEY, {}) };
+    this.#prefs = {
+      ...defaultPrefs,
+      ...readJson<Partial<VaultPrefs>>(PREFS_KEY, {}),
+    };
     this.#emit();
   }
 
@@ -129,9 +153,7 @@ export class VaultStore {
   // —— session ——————————————————————————————————————————————
 
   async create(password: string, hint?: string): Promise<void> {
-    if (password.length < 12) {
-      throw new Error("Use at least 12 characters. This key protects everything.");
-    }
+    assertMasterPasswordPolicy(password);
     const { header, vaultKey } = await createVault(password, hint);
     this.#header = header;
     this.#vaultKey = vaultKey;
@@ -139,6 +161,7 @@ export class VaultStore {
     kvSet(HEADER_KEY, JSON.stringify(header));
     await this.#persist();
     kvDelete(ATTEMPTS_KEY);
+    this.touch();
     this.#armIdleTimer();
     this.#emit();
   }
@@ -162,7 +185,10 @@ export class VaultStore {
       const until =
         fails >= LOCK_AFTER_FAILS
           ? Date.now() +
-            Math.min(BASE_LOCKOUT_MS * 2 ** (fails - LOCK_AFTER_FAILS), MAX_LOCKOUT_MS)
+            Math.min(
+              BASE_LOCKOUT_MS * 2 ** (fails - LOCK_AFTER_FAILS),
+              MAX_LOCKOUT_MS,
+            )
           : 0;
       kvSet(ATTEMPTS_KEY, JSON.stringify({ fails, until }));
       this.#emit();
@@ -174,7 +200,11 @@ export class VaultStore {
     if (sealed) {
       try {
         const body = await openJson<VaultBody>(vaultKey, sealed);
-        this.#body = { v: 1, items: body.items ?? [], folders: body.folders ?? [] };
+        this.#body = {
+          v: 1,
+          items: body.items ?? [],
+          folders: body.folders ?? [],
+        };
       } catch (error) {
         this.#vaultKey = null;
         throw error instanceof VaultCorruptError
@@ -185,15 +215,23 @@ export class VaultStore {
       this.#body = emptyBody();
     }
     kvDelete(ATTEMPTS_KEY);
+    this.touch();
     this.#armIdleTimer();
     this.#emit();
   }
+
+  /** Run on every lock — used to wipe secrets that left the vault (clipboard). */
+  onLock = (handler: () => void): (() => void) => {
+    this.#lockHandlers.add(handler);
+    return () => this.#lockHandlers.delete(handler);
+  };
 
   lock = (): void => {
     this.#vaultKey = null;
     this.#body = emptyBody();
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
+    for (const handler of this.#lockHandlers) handler();
     this.#emit();
   };
 
@@ -207,9 +245,7 @@ export class VaultStore {
     hint?: string,
   ): Promise<void> {
     if (!this.#header) throw new Error("There is no vault to re-key.");
-    if (next.length < 12) {
-      throw new Error("Use at least 12 characters. This key protects everything.");
-    }
+    assertMasterPasswordPolicy(next);
     const header = await rewrapVaultKey(this.#header, current, next, hint);
     this.#header = header;
     kvSet(HEADER_KEY, JSON.stringify(header));
@@ -225,12 +261,20 @@ export class VaultStore {
     kvSet(BODY_KEY, JSON.stringify(sealed));
   }
 
+  /**
+   * Apply a mutation and seal it. Writes are chained so rapid edits (folder
+   * rename on every keystroke) persist in the order they were requested.
+   */
   async #mutate(change: (body: VaultBody) => void): Promise<void> {
-    if (!this.#vaultKey) throw new Error("The vault is locked.");
-    change(this.#body);
-    await this.#persist();
-    this.touch();
-    this.#emit();
+    const run = this.#writeChain.then(async () => {
+      if (!this.#vaultKey) throw new Error("The vault is locked.");
+      change(this.#body);
+      await this.#persist();
+      this.touch();
+      this.#emit();
+    });
+    this.#writeChain = run.catch(() => undefined);
+    return run;
   }
 
   // —— items ————————————————————————————————————————————————
@@ -238,7 +282,9 @@ export class VaultStore {
   async saveItem(item: VaultItem): Promise<void> {
     await this.#mutate((body) => {
       const next = { ...item, updatedAt: new Date().toISOString() };
-      const index = body.items.findIndex((candidate) => candidate.id === item.id);
+      const index = body.items.findIndex(
+        (candidate) => candidate.id === item.id,
+      );
       if (index === -1) body.items = [...body.items, next];
       else body.items = body.items.map((c, i) => (i === index ? next : c));
     });
@@ -247,7 +293,9 @@ export class VaultStore {
   async trashItem(id: string): Promise<void> {
     await this.#mutate((body) => {
       body.items = body.items.map((item) =>
-        item.id === id ? { ...item, deletedAt: new Date().toISOString() } : item,
+        item.id === id
+          ? { ...item, deletedAt: new Date().toISOString() }
+          : item,
       );
     });
   }
@@ -356,7 +404,11 @@ export class VaultStore {
     } catch {
       throw new Error("That file is not valid JSON.");
     }
-    if (parsed.format !== "opensesame-vault-export" || !parsed.header || !parsed.body) {
+    if (
+      parsed.format !== "opensesame-vault-export" ||
+      !parsed.header ||
+      !parsed.body
+    ) {
       throw new Error("That file is not an OpenSesame vault export.");
     }
     const key = await unlockVaultKey(parsed.header, password);
@@ -364,7 +416,9 @@ export class VaultStore {
 
     if (!this.#vaultKey) throw new Error("Unlock this vault before importing.");
     const existing = new Set(this.#body.items.map((item) => item.id));
-    const merged = (incoming.items ?? []).filter((item) => !existing.has(item.id));
+    const merged = (incoming.items ?? []).filter(
+      (item) => !existing.has(item.id),
+    );
     const folderIds = new Set(this.#body.folders.map((folder) => folder.id));
     const mergedFolders = (incoming.folders ?? []).filter(
       (folder) => !folderIds.has(folder.id),

@@ -1,5 +1,9 @@
-import { useMemo, type ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import { NavLink, useLocation, useSearchParams } from "react-router";
+import { useIdentitySession } from "../lib/identity.js";
+import { useOnline } from "../lib/use-online.js";
+import { useVault, useVaultStore } from "../lib/vault/hooks.js";
+import type { ItemKind } from "../lib/vault/model.js";
 import {
   IconAgent,
   IconAuthority,
@@ -16,10 +20,6 @@ import {
   IconTrash,
   IconVault,
 } from "./Icons.js";
-import { useOnline } from "../lib/use-online.js";
-import { useIdentitySession } from "../lib/identity.js";
-import { useVault, useVaultStore } from "../lib/vault/hooks.js";
-import type { ItemKind } from "../lib/vault/model.js";
 
 const SECTIONS = [
   { to: "/vault", label: "Vault", Icon: IconVault },
@@ -29,7 +29,11 @@ const SECTIONS = [
   { to: "/settings", label: "Settings", Icon: IconSettings },
 ] as const;
 
-const KIND_FILTERS: Array<{ id: ItemKind; label: string; Icon: typeof IconLogin }> = [
+const KIND_FILTERS: Array<{
+  id: ItemKind;
+  label: string;
+  Icon: typeof IconLogin;
+}> = [
   { id: "login", label: "Logins", Icon: IconLogin },
   { id: "passkey", label: "Passkeys", Icon: IconPasskey },
   { id: "card", label: "Cards", Icon: IconCard },
@@ -64,6 +68,7 @@ function VaultFilters() {
 
   const link = (query: string, isActive: boolean, children: ReactNode) => (
     <NavLink
+      key={query || "all"}
       to={`/vault${query}`}
       className={`rail__link${isActive ? " is-active" : ""}`}
       end
@@ -139,7 +144,9 @@ function VaultFilters() {
         <p className="rail__group-label">Review</p>
         <NavLink
           to="/vault/health"
-          className={({ isActive }) => `rail__link${isActive ? " is-active" : ""}`}
+          className={({ isActive }) =>
+            `rail__link${isActive ? " is-active" : ""}`
+          }
         >
           <IconShield size={18} />
           <span>Password health</span>
@@ -210,9 +217,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           <p className="topbar__title">OpenSesame</p>
           <span className="topbar__spacer" />
-          <span
+          <output
             className={`dot ${online ? "dot--ok" : "dot--warn"}`}
-            role="status"
             aria-label={online ? "Online" : "Offline"}
           />
           <button type="button" className="rail__lock" onClick={store.lock}>

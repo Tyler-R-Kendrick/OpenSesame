@@ -41,16 +41,19 @@
   --radius-lg: 14px;
   --radius-pill: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(14, 24, 38, 0.06), 0 1px 1px rgba(14, 24, 38, 0.04);
-  --shadow: 0 6px 16px -4px rgba(14, 24, 38, 0.12), 0 2px 6px -2px rgba(14, 24, 38, 0.08);
-  --shadow-lg: 0 24px 48px -12px rgba(14, 24, 38, 0.22), 0 8px 20px -8px rgba(14, 24, 38, 0.12);
+  --shadow-sm: 0 1px 2px rgba(14, 24, 38, 0.06), 0 1px 1px
+    rgba(14, 24, 38, 0.04);
+  --shadow: 0 6px 16px -4px rgba(14, 24, 38, 0.12), 0 2px 6px -2px
+    rgba(14, 24, 38, 0.08);
+  --shadow-lg: 0 24px 48px -12px rgba(14, 24, 38, 0.22), 0 8px 20px -8px
+    rgba(14, 24, 38, 0.12);
 
   --rail-w: 15.5rem;
   --list-w: 21rem;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, "Noto Sans", sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
     "Liberation Mono", monospace;
 
@@ -98,8 +101,10 @@
     --s-4: #2fb3a3;
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.5), 0 2px 6px -2px rgba(0, 0, 0, 0.35);
-    --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6), 0 8px 20px -8px rgba(0, 0, 0, 0.4);
+    --shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.5), 0 2px 6px -2px
+      rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6), 0 8px 20px -8px
+      rgba(0, 0, 0, 0.4);
 
     color-scheme: dark;
   }
@@ -142,8 +147,10 @@
   --s-4: #2fb3a3;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.5), 0 2px 6px -2px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6), 0 8px 20px -8px rgba(0, 0, 0, 0.4);
+  --shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.5), 0 2px 6px -2px
+    rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6), 0 8px 20px -8px
+    rgba(0, 0, 0, 0.4);
 
   color-scheme: dark;
 }
@@ -156,6 +163,19 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+/* Live regions and control groups are written as <output> and <fieldset> so the
+   role comes from the element. Both need their user-agent looks removed. */
+output {
+  display: block;
+}
+
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 body {
@@ -485,13 +505,16 @@ input[type="radio"] {
   border-color: var(--accent-line);
 }
 
+/* Labels demonstration data without competing with the item's own name. */
 .chip--sample {
-  color: var(--warn);
-  background: var(--warn-wash);
-  border-color: color-mix(in srgb, var(--warn) 30%, var(--line));
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 0.65rem;
+  color: var(--ink-3);
+  background: transparent;
+  border-color: var(--line-strong);
+  border-style: dashed;
+  letter-spacing: 0.03em;
+  font-size: 0.6563rem;
+  font-weight: 600;
+  padding: 0.05rem 0.35rem;
 }
 
 /* ——— App frame ——————————————————————————————————————————— */
@@ -843,7 +866,8 @@ input[type="radio"] {
 
 .empty p {
   font-size: 0.9rem;
-  max-width: 38ch;
+  max-width: 48ch;
+  text-wrap: pretty;
 }
 
 .empty__mark {

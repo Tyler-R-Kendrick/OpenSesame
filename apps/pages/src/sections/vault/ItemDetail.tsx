@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
+  ConcealedValue,
+  CopyButton,
+  FieldRow,
+  RevealButton,
+  useCopyFeedback,
+} from "../../components/FieldRow.js";
+import {
   IconCard,
   IconCheck,
   IconChevronLeft,
@@ -13,22 +20,16 @@ import {
   IconStar,
   IconTrash,
 } from "../../components/Icons.js";
-import {
-  ConcealedValue,
-  CopyButton,
-  FieldRow,
-  RevealButton,
-  useCopyFeedback,
-} from "../../components/FieldRow.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import { estimateStrength } from "../../lib/vault/password.js";
 import {
-  KIND_LABEL,
-  hostOf,
   type ItemKind,
+  KIND_LABEL,
   type VaultItem,
+  browsableUrl,
+  hostOf,
 } from "../../lib/vault/model.js";
+import { estimateStrength } from "../../lib/vault/password.js";
 
 const KIND_ICON: Record<ItemKind, typeof IconLogin> = {
   login: IconLogin,
@@ -49,7 +50,9 @@ function StrengthBar({ password }: { password: string }) {
         {[0, 1, 2, 3].map((index) => (
           <span
             key={index}
-            style={index <= strength.score - 1 ? { background: color } : undefined}
+            style={
+              index <= strength.score - 1 ? { background: color } : undefined
+            }
           />
         ))}
       </div>
@@ -79,6 +82,7 @@ export function ItemDetail() {
   const item = items.find((candidate) => candidate.id === itemId);
 
   // Re-conceal every value when the selected item changes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: itemId is the trigger, not an input — a revealed secret must not survive a move to another item
   useEffect(() => {
     setRevealed(new Set());
     setConfirmPurge(false);
@@ -89,7 +93,10 @@ export function ItemDetail() {
       <div className="detail">
         <div className="empty">
           <h3>That item is not in this vault</h3>
-          <p>It may have been purged, or the link points at another device's vault.</p>
+          <p>
+            It may have been purged, or the link points at another device's
+            vault.
+          </p>
           <Link className="btn btn--sm" to="/vault">
             Back to the vault
           </Link>
@@ -125,15 +132,11 @@ export function ItemDetail() {
           <h1>{item.name || "Untitled"}</h1>
           <div className="detail__meta">
             <span>{KIND_LABEL[item.kind]}</span>
-            {folder ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>{folder.name}</span>
-              </>
-            ) : null}
-            <span aria-hidden="true">·</span>
+            {folder ? <span>{folder.name}</span> : null}
             <span>Updated {formatDate(item.updatedAt)}</span>
-            {item.sample ? <span className="chip chip--sample">sample</span> : null}
+            {item.sample ? (
+              <span className="chip chip--sample">sample</span>
+            ) : null}
             {inTrash ? <span className="chip chip--warn">In trash</span> : null}
           </div>
         </div>
@@ -143,7 +146,9 @@ export function ItemDetail() {
             className={`icon-btn${item.favorite ? " is-on" : ""}`}
             onClick={() => void store.toggleFavorite(item.id)}
             aria-pressed={item.favorite}
-            aria-label={item.favorite ? "Remove from favorites" : "Add to favorites"}
+            aria-label={
+              item.favorite ? "Remove from favorites" : "Add to favorites"
+            }
             title={item.favorite ? "Remove from favorites" : "Add to favorites"}
           >
             <IconStar size={17} filled={item.favorite} />
@@ -292,7 +297,14 @@ type FieldsProps = {
   copy: (key: string, value: string) => Promise<void>;
 };
 
-function ItemFields({ item, revealed, toggle, copied, failed, copy }: FieldsProps) {
+function ItemFields({
+  item,
+  revealed,
+  toggle,
+  copied,
+  failed,
+  copy,
+}: FieldsProps) {
   switch (item.kind) {
     case "login":
       return (
@@ -364,7 +376,11 @@ function ItemFields({ item, revealed, toggle, copied, failed, copy }: FieldsProp
                     aria-label="Copy current code"
                     title="Copy current code"
                   >
-                    {copied === "totp" ? <IconCheck size={17} /> : <IconCopy size={17} />}
+                    {copied === "totp" ? (
+                      <IconCheck size={17} />
+                    ) : (
+                      <IconCopy size={17} />
+                    )}
                   </button>
                 }
               >
@@ -376,36 +392,41 @@ function ItemFields({ item, revealed, toggle, copied, failed, copy }: FieldsProp
           {item.uris.length > 0 ? (
             <section className="detail__group">
               <h2 className="detail__grouphead">Websites</h2>
-              {item.uris.map((uri, index) => (
-                <FieldRow
-                  key={`${uri.uri}-${index}`}
-                  label={`Match: ${uri.match}`}
-                  actions={
-                    <>
-                      <a
-                        className="icon-btn"
-                        href={uri.uri}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        aria-label={`Open ${hostOf(uri.uri) || uri.uri}`}
-                        title="Open in a new tab"
-                      >
-                        <IconExternal size={17} />
-                      </a>
-                      <CopyButton
-                        value={uri.uri}
-                        label="address"
-                        fieldKey={`uri-${index}`}
-                        copied={copied}
-                        failed={failed}
-                        onCopy={copy}
-                      />
-                    </>
-                  }
-                >
-                  <span className="frow__value">{uri.uri}</span>
-                </FieldRow>
-              ))}
+              {item.uris.map((uri) => {
+                const href = browsableUrl(uri.uri);
+                return (
+                  <FieldRow
+                    key={uri.id}
+                    label={`Match: ${uri.match}`}
+                    actions={
+                      <>
+                        {href ? (
+                          <a
+                            className="icon-btn"
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            aria-label={`Open ${hostOf(uri.uri) || uri.uri}`}
+                            title="Open in a new tab"
+                          >
+                            <IconExternal size={17} />
+                          </a>
+                        ) : null}
+                        <CopyButton
+                          value={uri.uri}
+                          label="address"
+                          fieldKey={`uri-${uri.id}`}
+                          copied={copied}
+                          failed={failed}
+                          onCopy={copy}
+                        />
+                      </>
+                    }
+                  >
+                    <span className="frow__value">{uri.uri}</span>
+                  </FieldRow>
+                );
+              })}
             </section>
           ) : null}
 
@@ -463,8 +484,9 @@ function ItemFields({ item, revealed, toggle, copied, failed, copy }: FieldsProp
           <div className="note">
             <span>
               A passkey's private key lives in the authenticator and cannot be
-              exported. This record is the public half plus the metadata needed to
-              recognise the credential — the vault never holds the key itself.
+              exported. This record is the public half plus the metadata needed
+              to recognise the credential — the vault never holds the key
+              itself.
             </span>
           </div>
         </>
@@ -510,7 +532,9 @@ function ItemFields({ item, revealed, toggle, copied, failed, copy }: FieldsProp
                   {item.number.replace(/(.{4})/g, "$1 ").trim()}
                 </span>
               ) : (
-                <span className="conceal">•••• •••• •••• {item.number.slice(-4)}</span>
+                <span className="conceal">
+                  •••• •••• •••• {item.number.slice(-4)}
+                </span>
               )}
             </FieldRow>
           ) : null}
@@ -614,26 +638,25 @@ function ItemFields({ item, revealed, toggle, copied, failed, copy }: FieldsProp
             {item.ceiling.length === 0 ? (
               <div className="frow">
                 <p className="frow__notes">
-                  No ceiling set. An agent cannot obtain any grant against this secret
-                  until you define what it may do.
+                  No ceiling set. An agent cannot obtain any grant against this
+                  secret until you define what it may do.
                 </p>
               </div>
             ) : (
               item.ceiling.map((grant, index) => (
-                <FieldRow key={`${grant.action}-${index}`} label={grant.action}>
-                  <span className="frow__value frow__value--mono">
-                    {grant.resource}
-                  </span>
-                </FieldRow>
+                <div className="ceil" key={`${grant.action}-${index}`}>
+                  <span className="ceil__action">{grant.action}</span>
+                  <span className="ceil__resource">{grant.resource}</span>
+                </div>
               ))
             )}
           </section>
 
           <div className="note">
             <span>
-              You revealed this value; an agent never can. Agents receive a grant
-              bounded by the ceiling above and invoke through the Host plane, which
-              returns a receipt. Authority inside an active task only narrows.
+              You can reveal this value; an agent never can. An agent receives a
+              grant bounded by the ceiling above and invokes through the Host,
+              which returns a receipt.
             </span>
           </div>
         </>

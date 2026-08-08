@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { IconCheck, IconCopy, IconRefresh } from "./Icons.js";
-import { useCopyFeedback } from "./FieldRow.js";
 import {
+  type CharOptions,
+  type GeneratorOptions,
+  type PassphraseOptions,
   defaultCharOptions,
   defaultPassphraseOptions,
   generate,
   generatorEntropyBits,
-  type CharOptions,
-  type GeneratorOptions,
-  type PassphraseOptions,
 } from "../lib/vault/password.js";
+import { useCopyFeedback } from "./FieldRow.js";
+import { IconCheck, IconCopy, IconRefresh } from "./Icons.js";
 
 function Check({
   label,
@@ -43,30 +43,35 @@ export function PasswordGenerator({
   onUse: (value: string) => void;
   onDismiss?: () => void;
 }) {
-  const [charOptions, setCharOptions] = useState<CharOptions>(defaultCharOptions);
-  const [phraseOptions, setPhraseOptions] =
-    useState<PassphraseOptions>(defaultPassphraseOptions);
+  const [charOptions, setCharOptions] =
+    useState<CharOptions>(defaultCharOptions);
+  const [phraseOptions, setPhraseOptions] = useState<PassphraseOptions>(
+    defaultPassphraseOptions,
+  );
   const [mode, setMode] = useState<GeneratorOptions["mode"]>("characters");
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { copied, copy } = useCopyFeedback();
 
-  const options: GeneratorOptions = mode === "characters" ? charOptions : phraseOptions;
+  const options: GeneratorOptions =
+    mode === "characters" ? charOptions : phraseOptions;
 
   const roll = useCallback((next: GeneratorOptions) => {
     try {
       setValue(generate(next));
       setError(null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not generate.");
+      setError(
+        caught instanceof Error ? caught.message : "Could not generate.",
+      );
       setValue("");
     }
   }, []);
 
+  // Regenerate whenever the configuration changes.
   useEffect(() => {
     roll(options);
-    // Regenerate whenever the configuration changes.
-  }, [roll, mode, charOptions, phraseOptions]);
+  }, [roll, options]);
 
   const bits = generatorEntropyBits(options);
 
@@ -95,7 +100,7 @@ export function PasswordGenerator({
         </button>
       </div>
 
-      <div className="gen__modes" role="group" aria-label="Generator type">
+      <fieldset className="gen__modes" aria-label="Generator type">
         <button
           type="button"
           className="gen__mode"
@@ -112,7 +117,7 @@ export function PasswordGenerator({
         >
           Passphrase
         </button>
-      </div>
+      </fieldset>
 
       <div className="gen__opts">
         {mode === "characters" ? (
@@ -128,7 +133,10 @@ export function PasswordGenerator({
                 max={64}
                 value={charOptions.length}
                 onChange={(e) =>
-                  setCharOptions({ ...charOptions, length: Number(e.target.value) })
+                  setCharOptions({
+                    ...charOptions,
+                    length: Number(e.target.value),
+                  })
                 }
               />
               <span className="gen__num">{charOptions.length}</span>
@@ -147,12 +155,16 @@ export function PasswordGenerator({
               <Check
                 label="0–9"
                 checked={charOptions.digits}
-                onChange={(digits) => setCharOptions({ ...charOptions, digits })}
+                onChange={(digits) =>
+                  setCharOptions({ ...charOptions, digits })
+                }
               />
               <Check
                 label="Symbols"
                 checked={charOptions.symbols}
-                onChange={(symbols) => setCharOptions({ ...charOptions, symbols })}
+                onChange={(symbols) =>
+                  setCharOptions({ ...charOptions, symbols })
+                }
               />
               <Check
                 label="Avoid l1IO0"
@@ -176,7 +188,10 @@ export function PasswordGenerator({
                 max={10}
                 value={phraseOptions.words}
                 onChange={(e) =>
-                  setPhraseOptions({ ...phraseOptions, words: Number(e.target.value) })
+                  setPhraseOptions({
+                    ...phraseOptions,
+                    words: Number(e.target.value),
+                  })
                 }
               />
               <span className="gen__num">{phraseOptions.words}</span>
@@ -204,7 +219,10 @@ export function PasswordGenerator({
                   maxLength={1}
                   style={{ width: "3rem" }}
                   onChange={(e) =>
-                    setPhraseOptions({ ...phraseOptions, separator: e.target.value })
+                    setPhraseOptions({
+                      ...phraseOptions,
+                      separator: e.target.value,
+                    })
                   }
                 />
               </label>
@@ -219,7 +237,8 @@ export function PasswordGenerator({
         </p>
       ) : (
         <p className="hint">
-          {bits} bits of entropy — the generator's own configuration, not an estimate.
+          {bits} bits of entropy — the generator's own configuration, not an
+          estimate.
         </p>
       )}
 
@@ -233,7 +252,11 @@ export function PasswordGenerator({
           Use this password
         </button>
         {onDismiss ? (
-          <button type="button" className="btn btn--ghost btn--sm" onClick={onDismiss}>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={onDismiss}
+          >
             Close generator
           </button>
         ) : null}

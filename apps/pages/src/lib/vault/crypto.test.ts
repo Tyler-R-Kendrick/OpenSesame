@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  VaultCorruptError,
+  WrongPasswordError,
   b64ToBytes,
   bytesToB64,
   createVault,
@@ -8,8 +10,6 @@ import {
   rewrapVaultKey,
   sealJson,
   unlockVaultKey,
-  VaultCorruptError,
-  WrongPasswordError,
 } from "./crypto.js";
 
 // A low iteration count keeps the suite fast; the production floor is asserted separately.
@@ -28,7 +28,9 @@ describe("vault key lifecycle", () => {
     const sealed = await sealJson(vaultKey, { hello: "world" });
 
     const reopened = await unlockVaultKey(header, PASSWORD);
-    await expect(openJson(reopened, sealed)).resolves.toEqual({ hello: "world" });
+    await expect(openJson(reopened, sealed)).resolves.toEqual({
+      hello: "world",
+    });
   });
 
   it("rejects the wrong password without leaking the key", async () => {
@@ -77,7 +79,7 @@ describe("vault key lifecycle", () => {
     const { vaultKey } = await createVault(PASSWORD);
     const sealed = await sealJson(vaultKey, { balance: 10 });
     const bytes = b64ToBytes(sealed.ctB64);
-    bytes[0] = bytes[0]! ^ 0xff;
+    bytes[0] ^= 0xff;
 
     await expect(
       openJson(vaultKey, { ivB64: sealed.ivB64, ctB64: bytesToB64(bytes) }),
@@ -97,7 +99,11 @@ describe("changing the master password", () => {
     const { header, vaultKey } = await createVault(PASSWORD);
     const sealed = await sealJson(vaultKey, { kept: true });
 
-    const next = await rewrapVaultKey(header, PASSWORD, "a whole new passphrase here");
+    const next = await rewrapVaultKey(
+      header,
+      PASSWORD,
+      "a whole new passphrase here",
+    );
 
     const reopened = await unlockVaultKey(next, "a whole new passphrase here");
     await expect(openJson(reopened, sealed)).resolves.toEqual({ kept: true });
@@ -105,7 +111,11 @@ describe("changing the master password", () => {
 
   it("retires the old password", async () => {
     const { header } = await createVault(PASSWORD);
-    const next = await rewrapVaultKey(header, PASSWORD, "a whole new passphrase here");
+    const next = await rewrapVaultKey(
+      header,
+      PASSWORD,
+      "a whole new passphrase here",
+    );
     await expect(unlockVaultKey(next, PASSWORD)).rejects.toBeInstanceOf(
       WrongPasswordError,
     );
@@ -120,7 +130,11 @@ describe("changing the master password", () => {
 
   it("rotates the salt so the two derivations are unrelated", async () => {
     const { header } = await createVault(PASSWORD);
-    const next = await rewrapVaultKey(header, PASSWORD, "a whole new passphrase here");
+    const next = await rewrapVaultKey(
+      header,
+      PASSWORD,
+      "a whole new passphrase here",
+    );
     expect(next.kdf.saltB64).not.toBe(header.kdf.saltB64);
   });
 });

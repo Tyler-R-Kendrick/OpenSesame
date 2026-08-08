@@ -186,6 +186,7 @@ export async function rewrapVaultKey(
   header: VaultHeader,
   currentPassword: string,
   nextPassword: string,
+  /** Omit to keep the existing hint; pass "" to clear it. */
   hint?: string,
 ): Promise<VaultHeader> {
   const currentMaster = await deriveMasterKey(
@@ -201,10 +202,15 @@ export async function rewrapVaultKey(
   }
 
   const salt = randomBytes(SALT_BYTES);
-  const nextMaster = await deriveMasterKey(nextPassword, salt, PBKDF2_ITERATIONS);
+  const nextMaster = await deriveMasterKey(
+    nextPassword,
+    salt,
+    PBKDF2_ITERATIONS,
+  );
   const wrap = await encrypt(nextMaster, rawVaultKey);
   zero(rawVaultKey);
 
+  const nextHint = hint === undefined ? header.hint : hint;
   return {
     v: 1,
     kdf: {
@@ -214,7 +220,7 @@ export async function rewrapVaultKey(
     },
     wrap,
     createdAt: header.createdAt,
-    ...(hint ? { hint } : {}),
+    ...(nextHint ? { hint: nextHint } : {}),
   };
 }
 

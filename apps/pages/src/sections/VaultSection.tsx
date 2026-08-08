@@ -1,26 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, Outlet, useLocation, useParams, useSearchParams } from "react-router";
+import {
+  Link,
+  Outlet,
+  useLocation,
+  useParams,
+  useSearchParams,
+} from "react-router";
 import {
   IconCard,
+  IconChevronRight,
   IconLogin,
   IconNote,
   IconPasskey,
   IconPlus,
   IconSearch,
   IconSecret,
+  IconShield,
   IconStar,
+  IconVault,
 } from "../components/Icons.js";
+import { buildHealthReport } from "../lib/vault/health.js";
 import { useVault } from "../lib/vault/hooks.js";
 import {
+  type Folder,
+  type ItemKind,
+  KIND_LABEL,
+  KIND_PLURAL,
+  type VaultItem,
   initialOf,
   itemSubtitle,
-  KIND_LABEL,
   searchMatches,
   sortItems,
-  type ItemKind,
-  type VaultItem,
 } from "../lib/vault/model.js";
 import "./vault.css";
+
+const KIND_ORDER: ItemKind[] = ["login", "passkey", "card", "secret", "note"];
 
 const KIND_ICON: Record<ItemKind, typeof IconLogin> = {
   login: IconLogin,
@@ -40,6 +54,55 @@ const FILTER_TITLE: Record<string, string> = {
   secret: "Agent secrets",
   note: "Secure notes",
 };
+
+/**
+ * The rail carries these filters on desktop, but it is hidden on a phone — so the
+ * list header grows a scrolling chip row and nothing becomes unreachable there.
+ */
+function MobileFilters({
+  items,
+  folders,
+  filter,
+  folderId,
+}: {
+  items: VaultItem[];
+  folders: Folder[];
+  filter: string;
+  folderId: string | null;
+}) {
+  const live = items.filter((item) => item.deletedAt === null);
+  const chip = (query: string, isActive: boolean, label: string) => (
+    <Link
+      key={query || "all"}
+      to={`/vault${query}`}
+      className={`vault__chip${isActive ? " is-active" : ""}`}
+      aria-current={isActive ? "true" : undefined}
+    >
+      {label}
+    </Link>
+  );
+
+  return (
+    <fieldset className="vault__chips" aria-label="Filter items">
+      {chip("", filter === "all" && !folderId, "All")}
+      {chip("?f=favorites", filter === "favorites", "Favorites")}
+      {KIND_ORDER.filter((kind) => live.some((item) => item.kind === kind)).map(
+        (kind) => chip(`?f=${kind}`, filter === kind, KIND_PLURAL[kind]),
+      )}
+      {folders.map((folder) =>
+        chip(
+          `?folder=${encodeURIComponent(folder.id)}`,
+          folderId === folder.id,
+          folder.name,
+        ),
+      )}
+      {chip("?f=trash", filter === "trash", "Trash")}
+      <Link className="vault__chip" to="/vault/health">
+        Health
+      </Link>
+    </fieldset>
+  );
+}
 
 function ItemRow({ item, active }: { item: VaultItem; active: boolean }) {
   const Icon = KIND_ICON[item.kind];
@@ -62,7 +125,9 @@ function ItemRow({ item, active }: { item: VaultItem; active: boolean }) {
           <span className="vault__sub">{itemSubtitle(item)}</span>
         </span>
         <span className="vault__rowmeta">
-          {item.sample ? <span className="chip chip--sample">sample</span> : null}
+          {item.sample ? (
+            <span className="chip chip--sample">sample</span>
+          ) : null}
           {item.favorite ? (
             <IconStar size={15} filled className="is-fav" title="Favorite" />
           ) : null}
@@ -76,7 +141,7 @@ export function VaultSection() {
   const [params] = useSearchParams();
   const location = useLocation();
   const { itemId } = useParams();
-  const { items } = useVault();
+  const { items, folders } = useVault();
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -104,7 +169,8 @@ export function VaultSection() {
     const inTrash = filter === "trash";
     return sortItems(
       items.filter((item) => {
-        if (inTrash ? item.deletedAt === null : item.deletedAt !== null) return false;
+        if (inTrash ? item.deletedAt === null : item.deletedAt !== null)
+          return false;
         if (folderId && item.folderId !== folderId) return false;
         if (filter === "favorites" && !item.favorite) return false;
         if (
@@ -121,9 +187,7 @@ export function VaultSection() {
   }, [items, filter, folderId, query]);
 
   const detailOpen = location.pathname !== "/vault";
-  const title = folderId
-    ? "Folder"
-    : (FILTER_TITLE[filter] ?? "All items");
+  const title = folderId ? "Folder" : (FILTER_TITLE[filter] ?? "All items");
 
   return (
     <div className="vault" data-pane={detailOpen ? "detail" : "list"}>
@@ -151,10 +215,16 @@ export function VaultSection() {
             />
             {query ? null : <kbd>/</kbd>}
           </div>
-          <p className="vault__count" role="status">
+          <MobileFilters
+            items={items}
+            folders={folders}
+            filter={filter}
+            folderId={folderId}
+          />
+          <output className="vault__count">
             {visible.length} {visible.length === 1 ? "item" : "items"}
             {query ? ` matching “${query}”` : ""}
-          </p>
+          </output>
         </div>
 
         {visible.length === 0 ? (
@@ -193,34 +263,110 @@ export function VaultSection() {
   );
 }
 
+/**
+ * The detail pane before anything is selected. Rather than a rack of buttons, it
+ * answers the question the list cannot: what is in here, and what needs doing.
+ */
 export function VaultWelcome() {
-  const { items } = useVault();
+  const { items, header } = useVault();
   const live = items.filter((item) => item.deletedAt === null);
+  const report = useMemo(() => buildHealthReport(items), [items]);
+
+  if (live.length === 0) {
+    return (
+      <div className="detail">
+        <div className="empty">
+          <span className="empty__mark" aria-hidden="true">
+            <IconVault size={22} />
+          </span>
+          <h3>Your vault is empty</h3>
+          <p>
+            Items are sealed with AES-256-GCM under a key derived from your
+            master password, then written to this device as ciphertext.
+          </p>
+          <div className="actions">
+            <Link className="btn btn--primary btn--sm" to="/vault/new/login">
+              <IconPlus size={16} />
+              Add your first login
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const counts = KIND_ORDER.map((kind) => ({
+    kind,
+    label: KIND_PLURAL[kind],
+    count: live.filter((item) => item.kind === kind).length,
+  })).filter((entry) => entry.count > 0);
+
+  const recent = [...live]
+    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+    .slice(0, 4);
+
   return (
     <div className="detail">
-      <div className="empty">
-        <span className="empty__mark" aria-hidden="true">
-          <IconSecret size={22} />
-        </span>
-        <h3>{live.length > 0 ? "Select an item" : "Your vault is empty"}</h3>
-        <p>
-          {live.length > 0
-            ? "Everything here is decrypted in memory only. Locking the vault discards the key."
-            : "Nothing has been stored yet. Items are sealed with AES-256-GCM under a key derived from your master password."}
+      <div className="detail__heading">
+        <h1>{live.length} items, sealed</h1>
+        <p className="hint">
+          Decrypted in memory for this session only. Locking discards the key
+          {header
+            ? `; it is re-derived with ${header.kdf.iterations.toLocaleString()} PBKDF2 iterations`
+            : ""}
+          .
         </p>
-        <div className="actions">
-          <Link className="btn btn--primary btn--sm" to="/vault/new/login">
-            <IconPlus size={16} />
-            New login
-          </Link>
-          {Object.entries(KIND_LABEL)
-            .filter(([kind]) => kind !== "login")
-            .map(([kind, label]) => (
-              <Link key={kind} className="btn btn--sm" to={`/vault/new/${kind}`}>
-                {label}
-              </Link>
-            ))}
+      </div>
+
+      <section className="detail__group">
+        <h2 className="detail__grouphead">What is in here</h2>
+        <div className="wel__counts">
+          {counts.map(({ kind, label, count }) => (
+            <Link key={kind} className="wel__count" to={`/vault?f=${kind}`}>
+              <span className="wel__countnum">{count}</span>
+              <span className="wel__countlabel">{label}</span>
+            </Link>
+          ))}
         </div>
+      </section>
+
+      {report.scored > 0 ? (
+        <Link
+          className={`wel__health${report.findings.length > 0 ? " is-warn" : " is-ok"}`}
+          to="/vault/health"
+        >
+          <IconShield size={20} />
+          <span>
+            {report.findings.length === 0
+              ? `All ${report.scored} passwords are strong, unique, and current.`
+              : `${report.findings.length} of ${report.scored} passwords need attention.`}
+          </span>
+          <IconChevronRight size={17} />
+        </Link>
+      ) : null}
+
+      <section className="detail__group">
+        <h2 className="detail__grouphead">Recently changed</h2>
+        {recent.map((item) => (
+          <Link className="wel__recent" key={item.id} to={`/vault/${item.id}`}>
+            <span className="wel__recentname">{item.name || "Untitled"}</span>
+            <span className="wel__recentmeta">
+              {new Date(item.updatedAt).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+          </Link>
+        ))}
+      </section>
+
+      <div className="actions">
+        {KIND_ORDER.map((kind) => (
+          <Link key={kind} className="btn btn--sm" to={`/vault/new/${kind}`}>
+            <IconPlus size={15} />
+            {KIND_LABEL[kind]}
+          </Link>
+        ))}
       </div>
     </div>
   );

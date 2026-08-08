@@ -1,10 +1,10 @@
 import {
+  type FormEvent,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type FormEvent,
 } from "react";
 import { Link } from "react-router";
 import {
@@ -43,10 +43,7 @@ export function AgentsSection() {
         <h1>Agents</h1>
         <p>
           An agent never reads a secret out of this vault. It is handed a scoped
-          grant bounded by a capability ceiling, it invokes through the Host
-          plane, and the Host hands back a receipt. Everything below is built on
-          that: what the ceilings are, how a running task has narrowed inside
-          one, and how an agent gets an identity in the first place.
+          grant, it invokes through the Host, and the Host hands back a receipt.
         </p>
       </header>
 
@@ -101,10 +98,9 @@ function SecretsAndCeilings() {
           secrets.length > 0 ? (
             <>
               <p className="agents-thesis">
-                The values below are never rendered here and are never handed to
-                an agent. What an agent receives is authority to act — an{" "}
-                <em>action</em> against a <em>resource</em>, capped by the
-                ceiling — which the Host redeems on its behalf.
+                These values are never rendered here and never handed to an
+                agent. An agent receives authority to act — an <em>action</em>{" "}
+                against a <em>resource</em> — which the Host redeems for it.
               </p>
               <ul className="agents-secrets">
                 {secrets.map((item) => (
@@ -200,7 +196,10 @@ function SecretRow({ item }: { item: SecretItem }) {
         {item.ceiling.length > 0 ? (
           <ul className="agents-caps">
             {item.ceiling.map((grant, i) => (
-              <li className="agents-cap" key={`${grant.action}:${grant.resource}:${i}`}>
+              <li
+                className="agents-cap"
+                key={`${grant.action}:${grant.resource}:${i}`}
+              >
                 <span className="agents-cap__action">{grant.action}</span>
                 <span className="agents-cap__arrow" aria-hidden="true">
                   →
@@ -240,7 +239,9 @@ function readCap(raw: unknown): Cap | null {
       return { action, resource: sel.value, values: [sel.value] };
     }
     if (Array.isArray(sel.values)) {
-      const values = sel.values.filter((v): v is string => typeof v === "string");
+      const values = sel.values.filter(
+        (v): v is string => typeof v === "string",
+      );
       if (values.length > 0) {
         return { action, resource: values.join(", "), values };
       }
@@ -278,13 +279,21 @@ function compareCeiling(ceiling: Cap[], current: Cap[]): CompareRow[] {
         held.values.some((v) => cap.values.includes(v)),
     );
     if (!match) {
-      return { ...at, state: "released", detail: "Released — not held in this task" };
+      return {
+        ...at,
+        state: "released",
+        detail: "Released — not held in this task",
+      };
     }
     const kept = match.values.filter((v) => cap.values.includes(v));
     if (kept.length === cap.values.length) {
       return { ...at, state: "held", detail: "Held in full" };
     }
-    return { ...at, state: "narrowed", detail: `Narrowed to ${kept.join(", ")}` };
+    return {
+      ...at,
+      state: "narrowed",
+      detail: `Narrowed to ${kept.join(", ")}`,
+    };
   });
 
   current.forEach((held, i) => {
@@ -412,17 +421,17 @@ function TaskInspector({ online }: { online: boolean }) {
         </form>
 
         {!online ? (
-          <p className="note note--warn" role="status">
+          <output className="note note--warn">
             <IconAlert /> You are offline. A task&apos;s current capabilities
             only exist on the Host, so there is nothing local to read — this
             lookup stays disabled until the browser is back online.
-          </p>
+          </output>
         ) : !hasToken ? (
-          <p className="note note--warn" role="status">
+          <output className="note note--warn">
             <IconAlert /> Reading a task is an operator action. Set an operator
             token under Settings and it will be held in memory for this tab
             only.
-          </p>
+          </output>
         ) : (
           <p className="hint">
             Queried against <code>{base}</code> with your operator token.
@@ -501,10 +510,10 @@ function TaskInspector({ online }: { online: boolean }) {
                 </table>
               </div>
             ) : (
-              <p className="note" role="status">
+              <output className="note">
                 This task carries no capabilities at all — neither a ceiling nor
                 anything held. It can invoke nothing.
-              </p>
+              </output>
             )}
 
             <p className="hint">
@@ -688,7 +697,11 @@ function RegisterAgent({ online }: { online: boolean }) {
                 disabled={keying || busy}
                 aria-busy={keying}
               >
-                {keying ? "Generating…" : jkt ? "Regenerate" : "Generate keypair"}
+                {keying
+                  ? "Generating…"
+                  : jkt
+                    ? "Regenerate"
+                    : "Generate keypair"}
               </button>
             </div>
             {jkt ? (
@@ -704,14 +717,15 @@ function RegisterAgent({ online }: { online: boolean }) {
                   {copied === "jkt" ? <IconCheck /> : <IconCopy />}
                 </button>
               </div>
-            ) : (
-              <p className="hint">
-                An ECDSA P-256 keypair is generated in this page. The private
-                key is marked non-extractable, is never sent and is never
-                stored — it dies with this tab, so this instance is only durable
-                if you hand the thumbprint to a runtime that holds its own key.
-              </p>
-            )}
+            ) : null}
+            <p className="hint">
+              WebCrypto generates an ECDSA P-256 keypair here. The private key
+              is non-extractable and is dropped as soon as the thumbprint is
+              computed — it is never sent, never written to disk, and cannot be
+              recovered. Only the thumbprint leaves this page, so an agent that
+              needs to keep proving who it is must register with a key its own
+              runtime holds.
+            </p>
           </div>
 
           <div className="actions actions--end">
@@ -727,10 +741,10 @@ function RegisterAgent({ online }: { online: boolean }) {
         </form>
 
         {!online ? (
-          <p className="note note--warn" role="status">
+          <output className="note note--warn">
             <IconAlert /> Offline. Registration writes to the Identity service,
             so it has to wait until you are back online.
-          </p>
+          </output>
         ) : null}
 
         {error ? (
@@ -853,6 +867,7 @@ function AgentActivity({
     }
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sessionKey is the trigger — a new principal has a different trail and must not show the previous one
   useEffect(() => {
     if (!online) return;
     void load();
@@ -879,18 +894,16 @@ function AgentActivity({
 
       <div className="panel__body panel__body--tight">
         {!online ? (
-          <p className="note note--warn" role="status">
+          <output className="note note--warn">
             <IconAlert /> Offline. The trail is held by Identity, not by this
             page, so there is nothing cached to show.
-          </p>
+          </output>
         ) : error ? (
           <p className="note note--err" role="alert">
             <IconAlert /> {error}
           </p>
         ) : busy && events === null ? (
-          <p className="note" role="status">
-            Reading the trail…
-          </p>
+          <output className="note">Reading the trail…</output>
         ) : events && events.length > 0 ? (
           <ul className="agents-trail">
             {events.map((event) => (
@@ -971,10 +984,10 @@ function ConnectPrincipal({ online }: { online: boolean }) {
           </button>
         </div>
         {!online ? (
-          <p className="note note--warn" role="status">
+          <output className="note note--warn">
             <IconAlert /> Offline — connecting needs the Identity service to
             answer.
-          </p>
+          </output>
         ) : null}
         {error ? (
           <p className="note note--err" role="alert">

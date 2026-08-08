@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { parseTotp, secondsRemaining, totpCode, TotpParseError } from "../lib/vault/totp.js";
+import {
+  type TotpConfig,
+  TotpParseError,
+  parseTotp,
+  secondsRemaining,
+  totpCode,
+} from "../lib/vault/totp.js";
 
 const RADIUS = 8;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -18,7 +24,7 @@ export function TotpCode({ secret }: { secret: string }) {
     // Never show the previous item's code while the new one is generating.
     setState({ kind: "error", message: "" });
 
-    let config;
+    let config: TotpConfig;
     try {
       config = parseTotp(secret);
     } catch (error) {
@@ -39,7 +45,10 @@ export function TotpCode({ secret }: { secret: string }) {
         const remaining = secondsRemaining(config.period);
         setState({ kind: "code", code, remaining, period: config.period });
         // Land on the period boundary, then tick once per second within it.
-        timer = window.setTimeout(() => void tick(), remaining > 1 ? 1000 : 250);
+        timer = window.setTimeout(
+          () => void tick(),
+          remaining > 1 ? 1000 : 250,
+        );
       } catch {
         if (cancelled) return;
         setState({
@@ -57,7 +66,9 @@ export function TotpCode({ secret }: { secret: string }) {
   }, [secret]);
 
   if (state.kind === "error") {
-    return <span className="frow__value frow__value--muted">{state.message}</span>;
+    return (
+      <span className="frow__value frow__value--muted">{state.message}</span>
+    );
   }
 
   const fraction = state.remaining / state.period;

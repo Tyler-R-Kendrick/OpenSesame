@@ -58,6 +58,11 @@
   gap: 1.5rem;
 }
 
+/* `display: grid` would otherwise defeat the hidden attribute. */
+.authority-panelwrap[hidden] {
+  display: none;
+}
+
 /* —— Plane reachability ——————————————————————————————————————— */
 
 .authority-planes {
@@ -302,10 +307,59 @@
   overflow-wrap: anywhere;
 }
 
-.authority-outbox__error {
-  margin: 0.4rem 0 0;
-  font-size: 0.8125rem;
+.authority-results {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.authority-results__list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.authority-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.authority-result > svg {
+  flex: none;
+  margin-top: 0.15rem;
+}
+
+.authority-result.is-ok > svg {
+  color: var(--ok);
+}
+
+.authority-result.is-err > svg {
   color: var(--err);
+}
+
+.authority-result > div {
+  min-width: 0;
+}
+
+.authority-result__label {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.authority-result__message {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ink-2);
 }
 
 /* —— Protocol reading ————————————————————————————————————————— */

@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState, type ReactNode } from "react";
-import { IconCheck, IconCopy, IconEye, IconEyeOff } from "./Icons.js";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 import { useCopySecret } from "../lib/vault/hooks.js";
+import { IconCheck, IconCopy, IconEye, IconEyeOff } from "./Icons.js";
 
 export function useCopyFeedback(): {
   copied: string | null;

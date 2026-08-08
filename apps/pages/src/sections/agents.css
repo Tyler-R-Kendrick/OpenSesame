@@ -7,7 +7,6 @@
   background: var(--accent-wash);
   border-radius: 0 var(--radius) var(--radius) 0;
   color: var(--ink-2);
-  max-width: 68ch;
 }
 
 .agents-thesis em {

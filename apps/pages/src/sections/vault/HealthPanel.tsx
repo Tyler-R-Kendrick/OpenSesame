@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import { Link } from "react-router";
 import { IconChevronLeft, IconShield } from "../../components/Icons.js";
-import { useVault } from "../../lib/vault/hooks.js";
 import {
-  buildHealthReport,
+  type HealthIssue,
   ISSUE_EXPLANATION,
   ISSUE_LABEL,
-  type HealthIssue,
+  buildHealthReport,
 } from "../../lib/vault/health.js";
+import { useVault } from "../../lib/vault/hooks.js";
 
 const ISSUE_TONE: Record<HealthIssue, string> = {
   weak: "chip--err",
@@ -34,8 +34,9 @@ export function HealthPanel() {
         <div className="detail__heading">
           <h1>Password health</h1>
           <p className="hint">
-            Computed here, over the decrypted collection. No password, and no hash of
-            one, leaves this device — this report never contacts a breach service.
+            Computed here, over the decrypted collection. No password, and no
+            hash of one, leaves this device — this report never contacts a
+            breach service.
           </p>
         </div>
       </div>
@@ -47,8 +48,8 @@ export function HealthPanel() {
           </span>
           <h3>No passwords to review</h3>
           <p>
-            Add a login with a password and it will be scored for strength, reuse, and
-            age.
+            Add a login with a password and it will be scored for strength,
+            reuse, and age.
           </p>
           <Link className="btn btn--primary btn--sm" to="/vault/new/login">
             New login
@@ -64,7 +65,10 @@ export function HealthPanel() {
             <div className="health__stat">
               <p
                 className="health__statnum"
-                style={{ color: report.clean === report.scored ? "var(--ok)" : undefined }}
+                style={{
+                  color:
+                    report.clean === report.scored ? "var(--ok)" : undefined,
+                }}
               >
                 {report.clean}
               </p>
@@ -73,7 +77,9 @@ export function HealthPanel() {
             <div className="health__stat">
               <p
                 className="health__statnum"
-                style={{ color: report.counts.weak > 0 ? "var(--err)" : undefined }}
+                style={{
+                  color: report.counts.weak > 0 ? "var(--err)" : undefined,
+                }}
               >
                 {report.counts.weak}
               </p>
@@ -82,7 +88,9 @@ export function HealthPanel() {
             <div className="health__stat">
               <p
                 className="health__statnum"
-                style={{ color: report.counts.reused > 0 ? "var(--err)" : undefined }}
+                style={{
+                  color: report.counts.reused > 0 ? "var(--err)" : undefined,
+                }}
               >
                 {report.counts.reused}
               </p>
@@ -93,15 +101,16 @@ export function HealthPanel() {
           {report.findings.length === 0 ? (
             <div className="note note--ok">
               <span>
-                Every password here is strong, unique, and under a year old. Nothing to
-                do.
+                Every password here is strong, unique, and under a year old.
+                Nothing to do.
               </span>
             </div>
           ) : (
             <section className="detail__group">
               <h2 className="detail__grouphead">
                 {report.findings.length}{" "}
-                {report.findings.length === 1 ? "item needs" : "items need"} attention
+                {report.findings.length === 1 ? "item needs" : "items need"}{" "}
+                attention
               </h2>
               {report.findings.map((finding) => (
                 <article className="health__finding" key={finding.item.id}>
@@ -111,19 +120,20 @@ export function HealthPanel() {
                     </Link>
                     <span className="hint">≈{finding.bits} bits</span>
                   </div>
-                  <div className="health__issues">
+                  <ul className="health__issues">
                     {finding.issues.map((issue) => (
-                      <span key={issue} className={`chip ${ISSUE_TONE[issue]}`}>
-                        {ISSUE_LABEL[issue]}
-                      </span>
+                      <li key={issue}>
+                        <span className={`chip ${ISSUE_TONE[issue]}`}>
+                          {ISSUE_LABEL[issue]}
+                        </span>
+                        <span className="health__why">
+                          {issue === "reused" && finding.sharedWith.length > 0
+                            ? `Also used for ${finding.sharedWith.join(", ")}. One breach there unlocks this too.`
+                            : ISSUE_EXPLANATION[issue]}
+                        </span>
+                      </li>
                     ))}
-                  </div>
-                  <p className="health__why">
-                    {finding.issues.map((issue) => ISSUE_EXPLANATION[issue]).join(" ")}
-                    {finding.sharedWith.length > 0
-                      ? ` Shared with ${finding.sharedWith.join(", ")}.`
-                      : ""}
-                  </p>
+                  </ul>
                   <div className="actions">
                     <Link
                       className="btn btn--sm"

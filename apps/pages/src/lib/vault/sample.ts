@@ -4,7 +4,13 @@
  * action removes them all.
  */
 
-import { createItem, type Folder, type VaultItem } from "./model.js";
+import {
+  type Folder,
+  type VaultItem,
+  createItem,
+  newGrant,
+  newUri,
+} from "./model.js";
 
 function daysAgo(days: number): string {
   return new Date(Date.now() - days * 86_400_000).toISOString();
@@ -20,7 +26,7 @@ export function buildSample(folderId: string): VaultItem[] {
     bank.username = "avery@example.com";
     bank.password = "Fjord-Lantern-Cobalt-7";
     bank.totp = "JBSWY3DPEHPK3PXP";
-    bank.uris = [{ uri: "https://northwind.example.com", match: "domain" }];
+    bank.uris = [newUri("https://northwind.example.com")];
     bank.passwordChangedAt = daysAgo(40);
     bank.favorite = true;
   }
@@ -30,9 +36,10 @@ export function buildSample(folderId: string): VaultItem[] {
   if (forum.kind === "login") {
     forum.username = "avery";
     forum.password = "summer2019";
-    forum.uris = [{ uri: "https://forum.example.org", match: "domain" }];
+    forum.uris = [newUri("https://forum.example.org")];
     forum.passwordChangedAt = daysAgo(1_400);
-    forum.notes = "Kept only for the archive. Flagged by the health report on purpose.";
+    forum.notes =
+      "Kept only for the archive. Flagged by the health report on purpose.";
   }
   items.push(forum);
 
@@ -40,9 +47,10 @@ export function buildSample(folderId: string): VaultItem[] {
   if (shop.kind === "login") {
     shop.username = "avery@example.com";
     shop.password = "summer2019";
-    shop.uris = [{ uri: "https://parts.example.net", match: "host" }];
+    shop.uris = [newUri("https://parts.example.net", "host")];
     shop.passwordChangedAt = daysAgo(600);
-    shop.notes = "Shares a password with the forum account — that is the point.";
+    shop.notes =
+      "Shares a password with the forum account — that is the point.";
   }
   items.push(shop);
 
@@ -73,8 +81,8 @@ export function buildSample(folderId: string): VaultItem[] {
     secret.connectionRef = "conn_deploy_webhook";
     secret.grantees = ["agt_release_bot"];
     secret.ceiling = [
-      { action: "http.post", resource: "https://deploy.example.com/hooks/release" },
-      { action: "http.get", resource: "https://deploy.example.com/status" },
+      newGrant("http.post", "https://deploy.example.com/hooks/release"),
+      newGrant("http.get", "https://deploy.example.com/status"),
     ];
     secret.notes =
       "The release agent may invoke these two calls through the Host plane. It cannot read this value.";

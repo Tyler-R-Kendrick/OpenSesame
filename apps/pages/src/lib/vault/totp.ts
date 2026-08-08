@@ -24,7 +24,8 @@ export function decodeBase32(input: string): Uint8Array {
   const out: number[] = [];
   for (const char of clean) {
     const index = BASE32.indexOf(char);
-    if (index === -1) throw new TotpParseError(`unexpected character "${char}"`);
+    if (index === -1)
+      throw new TotpParseError(`unexpected character "${char}"`);
     value = (value << 5) | index;
     bits += 5;
     if (bits >= 8) {
@@ -32,7 +33,8 @@ export function decodeBase32(input: string): Uint8Array {
       out.push((value >>> bits) & 0xff);
     }
   }
-  if (out.length === 0) throw new TotpParseError("the secret decodes to no bytes");
+  if (out.length === 0)
+    throw new TotpParseError("the secret decodes to no bytes");
   return new Uint8Array(out);
 }
 
@@ -64,12 +66,14 @@ export function parseTotp(raw: string): TotpConfig {
       throw new TotpParseError("the otpauth URI is malformed");
     }
     const secret = url.searchParams.get("secret");
-    if (!secret) throw new TotpParseError("the otpauth URI has no secret parameter");
+    if (!secret)
+      throw new TotpParseError("the otpauth URI has no secret parameter");
     const digits = Number(url.searchParams.get("digits") ?? 6);
     const period = Number(url.searchParams.get("period") ?? 30);
     return {
       secret: decodeBase32(secret),
-      digits: Number.isFinite(digits) && digits >= 6 && digits <= 10 ? digits : 6,
+      digits:
+        Number.isFinite(digits) && digits >= 6 && digits <= 10 ? digits : 6,
       period: Number.isFinite(period) && period > 0 ? period : 30,
       algorithm: normalizeAlgorithm(url.searchParams.get("algorithm")),
     };
@@ -100,13 +104,11 @@ export async function totpCode(
     false,
     ["sign"],
   );
-  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, buffer));
-  const offset = mac[mac.length - 1]! & 0x0f;
-  const binary =
-    ((mac[offset]! & 0x7f) << 24) |
-    (mac[offset + 1]! << 16) |
-    (mac[offset + 2]! << 8) |
-    mac[offset + 3]!;
+  const mac = new DataView(await crypto.subtle.sign("HMAC", key, buffer));
+  // RFC 4226 dynamic truncation: the low nibble of the last byte picks the
+  // four-byte window, whose high bit is masked off.
+  const offset = mac.getUint8(mac.byteLength - 1) & 0x0f;
+  const binary = mac.getUint32(offset) & 0x7fff_ffff;
   return String(binary % 10 ** config.digits).padStart(config.digits, "0");
 }
 

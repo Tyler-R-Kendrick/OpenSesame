@@ -1,16 +1,16 @@
 import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router";
 import { AppShell } from "./components/AppShell.js";
+import { useSessionGuards, useTheme, useVault } from "./lib/vault/hooks.js";
 import { UnlockScreen } from "./screens/UnlockScreen.js";
-import { VaultSection, VaultWelcome } from "./sections/VaultSection.js";
-import { ItemDetail } from "./sections/vault/ItemDetail.js";
-import { ItemEditor } from "./sections/vault/ItemEditor.js";
-import { HealthPanel } from "./sections/vault/HealthPanel.js";
 import { AgentsSection } from "./sections/AgentsSection.js";
-import { SitesSection } from "./sections/SitesSection.js";
 import { AuthoritySection } from "./sections/AuthoritySection.js";
 import { SettingsSection } from "./sections/SettingsSection.js";
-import { useSessionGuards, useTheme, useVault } from "./lib/vault/hooks.js";
+import { SitesSection } from "./sections/SitesSection.js";
+import { VaultSection, VaultWelcome } from "./sections/VaultSection.js";
+import { HealthPanel } from "./sections/vault/HealthPanel.js";
+import { ItemDetail } from "./sections/vault/ItemDetail.js";
+import { ItemEditor } from "./sections/vault/ItemEditor.js";
 
 /** Scrolling frame for every section except the vault, which owns its own panes. */
 function Framed({ children }: { children: ReactNode }) {

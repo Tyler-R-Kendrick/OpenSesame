@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { decodeBase32, parseTotp, secondsRemaining, totpCode, TotpParseError } from "./totp.js";
+import {
+  TotpParseError,
+  decodeBase32,
+  parseTotp,
+  secondsRemaining,
+  totpCode,
+} from "./totp.js";
 
 /** RFC 6238 Appendix B seed: the ASCII string "12345678901234567890". */
 const RFC_SEED_BASE32 = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";

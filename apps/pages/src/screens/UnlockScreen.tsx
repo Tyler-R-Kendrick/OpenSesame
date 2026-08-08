@@ -1,5 +1,10 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { IconEye, IconEyeOff, IconLock, IconVault } from "../components/Icons.js";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import {
+  IconEye,
+  IconEyeOff,
+  IconLock,
+  IconVault,
+} from "../components/Icons.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { estimateStrength } from "../lib/vault/password.js";
 import "./unlock.css";
@@ -41,7 +46,8 @@ function useCountdown(until: number | null): number {
       setRemaining(0);
       return;
     }
-    const tick = () => setRemaining(Math.max(0, Math.ceil((until - Date.now()) / 1000)));
+    const tick = () =>
+      setRemaining(Math.max(0, Math.ceil((until - Date.now()) / 1000)));
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
@@ -66,6 +72,7 @@ export function UnlockScreen() {
 
   const lockedFor = useCountdown(lockedOutUntil);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: firstRun is the trigger — focus has to move back to the field when the screen swaps between create and unlock
   useEffect(() => {
     passwordRef.current?.focus();
   }, [firstRun]);
@@ -96,8 +103,12 @@ export function UnlockScreen() {
 
   const strength = estimateStrength(password);
   const createBlocked =
-    password.length < 12 || password !== confirm || !accepted || strength.score < 2;
-  const disabled = busy || lockedFor > 0 || (firstRun ? createBlocked : !password);
+    password.length < 12 ||
+    password !== confirm ||
+    !accepted ||
+    strength.score < 2;
+  const disabled =
+    busy || lockedFor > 0 || (firstRun ? createBlocked : !password);
 
   return (
     <div className="unlock">
@@ -164,15 +175,15 @@ export function UnlockScreen() {
                   onChange={(e) => setHint(e.target.value)}
                 />
                 <p className="hint">
-                  Stored unencrypted beside the vault so it can be shown before you
-                  unlock. Never put the password itself here.
+                  Stored unencrypted beside the vault so it can be shown before
+                  you unlock. Never put the password itself here.
                 </p>
               </div>
               <div className="unlock__terms">
                 <p id="master-help">
-                  There is no recovery. The key exists only while this password is in
-                  your head — forget it and the encrypted items on this device are
-                  unreadable, by you and by us.
+                  There is no recovery. The key exists only while this password
+                  is in your head — forget it and the encrypted items on this
+                  device are unreadable, by you and by us.
                 </p>
                 <label className="check">
                   <input
@@ -197,11 +208,11 @@ export function UnlockScreen() {
           ) : null}
 
           {lockedFor > 0 ? (
-            <p className="note note--warn" role="status">
+            <output className="note note--warn">
               <span>
                 {failedAttempts} failed attempts. Try again in {lockedFor}s.
               </span>
-            </p>
+            </output>
           ) : null}
 
           <button
@@ -222,8 +233,8 @@ export function UnlockScreen() {
 
           {firstRun && password.length > 0 && strength.score < 2 ? (
             <p className="hint">
-              Aim for a passphrase of four or more unrelated words. This one would not
-              survive an offline attack on the encrypted file.
+              Aim for a passphrase of four or more unrelated words. This one
+              would not survive an offline attack on the encrypted file.
             </p>
           ) : null}
         </div>
@@ -238,9 +249,10 @@ export function UnlockScreen() {
             showReset ? (
               <div className="unlock__danger">
                 <p>
-                  Deleting removes the encrypted vault from this browser. Without the
-                  master password its contents are already unrecoverable — this only
-                  clears the file so you can start again.
+                  Deleting removes the encrypted vault from this browser.
+                  Without the master password its contents are already
+                  unrecoverable — this only clears the file so you can start
+                  again.
                 </p>
                 <div className="actions">
                   <button
