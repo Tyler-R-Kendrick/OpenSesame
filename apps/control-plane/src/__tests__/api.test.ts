@@ -55,6 +55,50 @@ describe("control-plane API", () => {
     expect(byAccessCookie.status).toBe(200);
   });
 
+  it("does not activate a project whose TTL ran out before the claim completed", async () => {
+    const now = new Date("2026-08-08T12:00:00Z");
+    const { app, ctx } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      clock: () => now,
+    });
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+
+    const projectRes = await app.request("/v1/projects/temporary", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ name: "Short Lived", ttlSeconds: 600 }),
+    });
+    const project = (await projectRes.json()) as {
+      projectId: string;
+      claimId: string;
+      claimToken: string;
+      userCode: string;
+    };
+
+    await app.request("/v1/claims/present", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ token: project.claimToken }),
+    });
+
+    // Today the claim never outlives the project, so force the case directly:
+    // approval must not resurrect a project that is already past its own TTL.
+    const stored = ctx.stores.projects.get(project.projectId)!;
+    ctx.stores.projects.set(project.projectId, {
+      ...stored,
+      expiresAt: new Date(now.getTime() - 1_000),
+    });
+
+    const complete = await app.request(`/v1/claims/${project.claimId}/complete`, {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ acceptedItemIds: [], userCode: project.userCode }),
+    });
+    expect(complete.status).toBe(200);
+    expect(ctx.stores.projects.get(project.projectId)?.state).toBe("expired");
+  });
+
   it("frees a provisional quota slot when a temporary project lapses", async () => {
     let now = new Date("2026-08-08T10:00:00Z");
     const { app, ctx } = createControlPlane({

@@ -24,12 +24,27 @@ describe("client-core façade", () => {
     ).rejects.toThrow();
   });
 
-  it("sealDevOnly forbidden in production", () => {
+  it("sealDevOnly refuses anywhere it cannot prove it is dev", () => {
     const prev = process.env.NODE_ENV;
-    process.env.NODE_ENV = "production";
     try {
+      process.env.NODE_ENV = "production";
       expect(() => sealDevOnly(new Uint8Array([1]), new Uint8Array([2]))).toThrow(
         /forbidden/,
+      );
+
+      // A browser bundle has no NODE_ENV at all; that used to read as "not
+      // production" and let the XOR run in the environment that matters most.
+      delete process.env.NODE_ENV;
+      expect(() => sealDevOnly(new Uint8Array([1]), new Uint8Array([2]))).toThrow(
+        /forbidden/,
+      );
+
+      process.env.NODE_ENV = "test";
+      expect(sealDevOnly(new Uint8Array([1]), new Uint8Array([2]))).toEqual(
+        new Uint8Array([3]),
+      );
+      expect(() => sealDevOnly(new Uint8Array([1]), new Uint8Array())).toThrow(
+        /requires a key/,
       );
     } finally {
       process.env.NODE_ENV = prev;

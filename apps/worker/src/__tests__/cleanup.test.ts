@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { ClaimEngine, MemoryClaimStore } from "@opensesame/claims";
 import { createRepositories } from "@opensesame/database";
 import { fixtures } from "@opensesame/os-domain";
-import { createFakeClock, runCleanupTick, startCleanupLoop } from "../cleanup.js";
+import {
+  EXPIRED_PROJECT_RETENTION_MS,
+  createFakeClock,
+  runCleanupTick,
+  startCleanupLoop,
+} from "../cleanup.js";
+import type { Project } from "@opensesame/os-domain";
 
 describe("cleanup worker", () => {
   it("expires claim via fake clock", async () => {
@@ -37,6 +43,47 @@ describe("cleanup worker", () => {
 
     expect(result.expiredClaims).toBe(1);
     expect((await claims.get(created.session.id))?.state).toBe("expired");
+  });
+
+  it("expires an activated temporary project and reaps it later", async () => {
+    const clock = createFakeClock(fixtures.now);
+    const project: Project = {
+      id: "proj_1",
+      ownerPrincipalId: "prn_1",
+      slug: "temp",
+      displayName: "Temp",
+      // Activated, not provisional — this is the case that used to be skipped.
+      state: "active",
+      expiresAt: new Date(fixtures.now.getTime() + 1_000),
+      createdAt: fixtures.now,
+      updatedAt: fixtures.now,
+    };
+    const projects = new Map([[project.id, project]]);
+    const deps = {
+      claims: new ClaimEngine({
+        pepper: fixtures.pepper,
+        store: new MemoryClaimStore(),
+        clock: clock.asClock(),
+      }),
+      claimStore: { listIds: () => [] },
+      repos: createRepositories(),
+      provisionalSessions: new Map(),
+      projects,
+      clock: clock.asClock(),
+    };
+
+    clock.advance(2_000);
+    const expired = await runCleanupTick(deps);
+    expect(expired.expiredProjects).toBe(1);
+    expect(projects.get(project.id)?.state).toBe("expired");
+
+    // Kept briefly for inspection, then dropped so the map cannot grow forever.
+    const stillThere = await runCleanupTick(deps);
+    expect(stillThere.reapedProjects).toBe(0);
+    clock.advance(EXPIRED_PROJECT_RETENTION_MS + 1);
+    const reaped = await runCleanupTick(deps);
+    expect(reaped.reapedProjects).toBe(1);
+    expect(projects.size).toBe(0);
   });
 
   it("keeps expiring after a failing tick", async () => {

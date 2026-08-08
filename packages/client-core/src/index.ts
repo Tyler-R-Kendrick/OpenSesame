@@ -37,18 +37,33 @@ export function b64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
-function isProductionEnv(): boolean {
-  const env = (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process
-    ?.env;
-  return env?.NODE_ENV === "production";
+/**
+ * True only when this is demonstrably a development or test run.
+ *
+ * A browser bundle has no `process.env`, so asking "is this production?" answered
+ * "no" in exactly the environment that matters and the XOR below ran anyway. Ask
+ * the opposite question instead: an environment that cannot prove it is dev is
+ * treated as production.
+ */
+function isDevOrTestEnv(): boolean {
+  const g = globalThis as {
+    process?: { env?: { NODE_ENV?: string } };
+    __OPENSESAME_ALLOW_DEV_SEAL__?: boolean;
+  };
+  if (g.__OPENSESAME_ALLOW_DEV_SEAL__ === true) return true;
+  const nodeEnv = g.process?.env?.NODE_ENV;
+  return nodeEnv === "development" || nodeEnv === "test";
 }
 
 /**
  * @deprecated DEV-ONLY insecure XOR. Do not use in production — call Rust client-core / wasm AEAD.
  */
 export function sealDevOnly(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
-  if (isProductionEnv()) {
-    throw new Error("sealDevOnly is forbidden in production; use Rust client-core AEAD");
+  if (!isDevOrTestEnv()) {
+    throw new Error("sealDevOnly is forbidden outside dev/test; use Rust client-core AEAD");
+  }
+  if (key.length === 0) {
+    throw new Error("sealDevOnly requires a key");
   }
   const out = new Uint8Array(plaintext.length);
   for (let i = 0; i < plaintext.length; i++) {
