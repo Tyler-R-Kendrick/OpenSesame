@@ -193,6 +193,8 @@ export type OAuthClientState = "active" | "suspended" | "revoked";
 
 export interface OAuthClientRecord {
   id: string;
+  /** Principal that registered the client — only they may read or mutate it. */
+  ownerPrincipalId: string;
   admissionMode: ClientAdmissionMode;
   displayName: string;
   redirectUris: string[];

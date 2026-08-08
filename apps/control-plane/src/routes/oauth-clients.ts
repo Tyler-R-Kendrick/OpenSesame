@@ -7,6 +7,7 @@ import {
   PatchOAuthClientRequestSchema,
 } from "@opensesame/contracts";
 import type { OAuthClientRecord } from "@opensesame/os-domain";
+import type { AppContext } from "../context.js";
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
@@ -16,6 +17,7 @@ export const oauthClientRoutes = new Hono<{ Variables: Variables }>();
 function toResponse(client: OAuthClientRecord) {
   return OAuthClientResponseSchema.parse({
     id: client.id,
+    ownerPrincipalId: client.ownerPrincipalId,
     admissionMode: client.admissionMode,
     displayName: client.displayName,
     redirectUris: client.redirectUris,
@@ -31,10 +33,50 @@ function toResponse(client: OAuthClientRecord) {
   });
 }
 
+/**
+ * Loads a client the caller owns. Foreign or unknown ids both answer 404 so the
+ * endpoint is not an existence oracle for other principals' client registrations.
+ */
+function loadOwnedClient(
+  ctx: AppContext,
+  principalId: string,
+  id: string,
+  { includeRevoked = false }: { includeRevoked?: boolean } = {},
+): OAuthClientRecord | null {
+  const client = ctx.stores.oauthClients.get(id);
+  if (!client) return null;
+  if (client.ownerPrincipalId !== principalId) return null;
+  if (!includeRevoked && client.state === "revoked") return null;
+  return client;
+}
+
+/** Client registration and mutation require a verified (non-provisional) identity. */
+async function assertVerified(
+  ctx: AppContext,
+  principalId: string,
+  action: string,
+): Promise<Response | null> {
+  const principal = await ctx.repos.principals.getById(principalId);
+  if (!principal) {
+    return Response.json({ error: "not_found" }, { status: 404 });
+  }
+  if (principal.assurance === "provisional") {
+    return Response.json(
+      {
+        error: "assurance_too_low",
+        message: `Verified identity required to ${action} OAuth clients`,
+      },
+      { status: 403 },
+    );
+  }
+  return null;
+}
+
 oauthClientRoutes.get("/", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
+  const principalId = c.get("principalId")!;
   const clients = [...ctx.stores.oauthClients.values()].filter(
-    (client) => client.state !== "revoked",
+    (client) => client.ownerPrincipalId === principalId && client.state !== "revoked",
   );
   return c.json({ clients: clients.map(toResponse) });
 });
@@ -46,19 +88,8 @@ oauthClientRoutes.post(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = c.get("principalId")!;
-    const principal = await ctx.repos.principals.getById(principalId);
-    if (!principal) {
-      return c.json({ error: "not_found" }, 404);
-    }
-    if (principal.assurance === "provisional") {
-      return c.json(
-        {
-          error: "assurance_too_low",
-          message: "Verified identity required to register OAuth clients",
-        },
-        403,
-      );
-    }
+    const denied = await assertVerified(ctx, principalId, "register");
+    if (denied) return denied;
 
     const parsed = CreateOAuthClientRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
@@ -82,6 +113,7 @@ oauthClientRoutes.post(
     const now = ctx.clock();
     const client: OAuthClientRecord = {
       id: `cli_${randomUUID()}`,
+      ownerPrincipalId: principalId,
       admissionMode: "pre_registered",
       displayName: parsed.data.displayName,
       redirectUris: parsed.data.redirectUris,
@@ -117,8 +149,10 @@ oauthClientRoutes.post(
 oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = c.get("principalId")!;
-  const client = ctx.stores.oauthClients.get(c.req.param("id"));
-  if (!client || client.state === "revoked") {
+  const denied = await assertVerified(ctx, principalId, "modify");
+  if (denied) return denied;
+  const client = loadOwnedClient(ctx, principalId, c.req.param("id"));
+  if (!client) {
     return c.json({ error: "not_found" }, 404);
   }
 
@@ -167,8 +201,10 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
 oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = c.get("principalId")!;
-  const client = ctx.stores.oauthClients.get(c.req.param("id"));
-  if (!client || client.state === "revoked") {
+  const denied = await assertVerified(ctx, principalId, "rotate");
+  if (denied) return denied;
+  const client = loadOwnedClient(ctx, principalId, c.req.param("id"));
+  if (!client) {
     return c.json({ error: "not_found" }, 404);
   }
   const now = ctx.clock();
@@ -203,7 +239,11 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
 oauthClientRoutes.post("/:id/revoke", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = c.get("principalId")!;
-  const client = ctx.stores.oauthClients.get(c.req.param("id"));
+  const denied = await assertVerified(ctx, principalId, "revoke");
+  if (denied) return denied;
+  const client = loadOwnedClient(ctx, principalId, c.req.param("id"), {
+    includeRevoked: true,
+  });
   if (!client) {
     return c.json({ error: "not_found" }, 404);
   }
