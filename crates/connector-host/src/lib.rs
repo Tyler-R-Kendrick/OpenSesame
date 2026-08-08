@@ -33,6 +33,8 @@ pub enum HostError {
     RedirectDenied,
     #[error("placeholder placement denied: {0}")]
     PlacementDenied(String),
+    #[error("placeholder is not the one this projection issued")]
+    PlaceholderMismatch,
     #[error("connector error: {0}")]
     Connector(String),
 }
@@ -394,6 +396,13 @@ pub fn substitute_placeholder(
     projection: &LegacyProjection,
     req: &SubstitutePlaceholderRequest<'_>,
 ) -> Result<Value, HostError> {
+    // The placeholder is the whole key to the substitution: whatever text is named
+    // here gets the real credential written over it. Accept only a placeholder this
+    // projection could have issued, so a caller cannot name a string of its own
+    // choosing — or another connection's — and have a secret filled in behind it.
+    if !projection.accepts_placeholder(req.placeholder) {
+        return Err(HostError::PlaceholderMismatch);
+    }
     egress
         .allows_url(req.url)
         .map_err(|e| HostError::DestinationDenied(e.to_string()))?;
@@ -529,6 +538,7 @@ impl HostRuntime {
                 .unwrap_or("conn://demo")
                 .into(),
             placeholder_pattern: "ostest_*".into(),
+            issued_placeholder: None,
             placement: placement.clone(),
             delivery: CredentialDeliveryMode::Placeholder,
         };
@@ -664,7 +674,6 @@ mod tests {
         }
         assert!(is_blocked_host("app.localhost"));
     }
-
 
     #[test]
     fn short_and_zoned_spellings_of_private_addresses_are_blocked() {
@@ -909,10 +918,12 @@ mod tests {
             env_var: "STRIPE_SECRET_KEY".into(),
             connection_ref_uri: "conn://demo/stripe".into(),
             placeholder_pattern: "sk_test_*".into(),
+            issued_placeholder: None,
             placement: PlaceholderPlacement::default(),
             delivery: CredentialDeliveryMode::Placeholder,
         };
-        let ph = "ostest_placeholder_key0";
+        let ph = proj.shaped_placeholder("0123456789abcdef");
+        let ph = ph.as_str();
         let ok = substitute_placeholder(
             &egress,
             &proj.placement,
@@ -951,6 +962,76 @@ mod tests {
             },
         );
         assert!(matches!(deny, Err(HostError::PlacementDenied(_))));
+
+        // A placeholder the projection never issued is refused before anything else.
+        let foreign = substitute_placeholder(
+            &egress,
+            &proj.placement,
+            &proj,
+            &SubstitutePlaceholderRequest {
+                method: "POST",
+                url: "https://api.stripe.com/v1/charges",
+                header_name: Some("Authorization"),
+                header_value: Some("Bearer oslive_someone_elses"),
+                body_field_path: None,
+                body_field_value: None,
+                placeholder: "oslive_someone_elses",
+                real_secret: "ostest_injected_material",
+            },
+        );
+        assert!(
+            matches!(foreign, Err(HostError::PlaceholderMismatch)),
+            "{foreign:?}"
+        );
+
+        // Repeating an accepted placeholder in the allowed header still trips the
+        // occurrence bound — substitution replaces every appearance.
+        let doubled = substitute_placeholder(
+            &egress,
+            &proj.placement,
+            &proj,
+            &SubstitutePlaceholderRequest {
+                method: "POST",
+                url: "https://api.stripe.com/v1/charges",
+                header_name: Some("Authorization"),
+                header_value: Some(&format!("Bearer {ph} {ph}")),
+                body_field_path: None,
+                body_field_value: None,
+                placeholder: ph,
+                real_secret: "ostest_injected_material",
+            },
+        );
+        assert!(
+            matches!(doubled, Err(HostError::PlacementDenied(_))),
+            "{doubled:?}"
+        );
+
+        // Once the issued placeholder is recorded, a neighbour's placeholder of the
+        // same shape is refused too.
+        let bound = LegacyProjection {
+            issued_placeholder: Some(ph.to_string()),
+            ..proj.clone()
+        };
+        let neighbour = bound.shaped_placeholder("fedcba9876543210");
+        let refused = substitute_placeholder(
+            &egress,
+            &bound.placement,
+            &bound,
+            &SubstitutePlaceholderRequest {
+                method: "POST",
+                url: "https://api.stripe.com/v1/charges",
+                header_name: Some("Authorization"),
+                header_value: Some(&format!("Bearer {neighbour}")),
+                body_field_path: None,
+                body_field_value: None,
+                placeholder: &neighbour,
+                real_secret: "ostest_injected_material",
+            },
+        );
+        assert!(
+            matches!(refused, Err(HostError::PlaceholderMismatch)),
+            "{refused:?}"
+        );
     }
 
     #[test]
