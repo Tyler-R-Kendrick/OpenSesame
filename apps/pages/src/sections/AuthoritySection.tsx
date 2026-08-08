@@ -29,6 +29,7 @@ import {
   probeHost,
   probeIdentity,
   useIdentitySession,
+  type HealthState,
   type IdentitySession,
   type Principal,
 } from "../lib/identity.js";
@@ -39,8 +40,6 @@ import "./authority.css";
 /* ------------------------------------------------------------------ */
 /* Types the shared modules do not model                              */
 /* ------------------------------------------------------------------ */
-
-type Probe = "unknown" | "reachable" | "unreachable";
 
 /** GET /v1/principals/identities — superset of the identities on /me. */
 type IdentityDetail = {
@@ -306,8 +305,8 @@ export function AuthoritySection() {
 /* ------------------------------------------------------------------ */
 
 function PlaneStatus() {
-  const [identity, setIdentity] = useState<Probe>("unknown");
-  const [host, setHost] = useState<Probe>("unknown");
+  const [identity, setIdentity] = useState<HealthState>("unknown");
+  const [host, setHost] = useState<HealthState>("unknown");
   const [probing, setProbing] = useState(false);
 
   const run = useCallback(async () => {
@@ -357,7 +356,7 @@ function PlaneStatus() {
   );
 }
 
-function PlaneCard({ name, url, probe }: { name: string; url: string; probe: Probe }) {
+function PlaneCard({ name, url, probe }: { name: string; url: string; probe: HealthState }) {
   const dot =
     probe === "reachable" ? "dot dot--ok" : probe === "unreachable" ? "dot dot--warn" : "dot";
   const label =
@@ -663,13 +662,13 @@ function ConnectArea() {
       <div className="panel__head">
         <div>
           <h2>Not connected</h2>
-            <p>
-              Nothing else in this section works until this tab is acting as a principal.
-              Two ways in, both real.
-            </p>
-          </div>
+          <p>
+            Nothing else in this section works until this tab is acting as a principal.
+            Two ways in, both real.
+          </p>
         </div>
-        <div className="panel__body">
+      </div>
+      <div className="panel__body">
           <div className="authority-onramps">
             <div className="authority-onramp">
               <h3>Start anonymously</h3>
@@ -745,15 +744,14 @@ function ConnectArea() {
             </div>
           </div>
 
-          {error ? (
-            <p className="note note--err" role="alert">
-              <IconAlert size={18} />
-              <span>{error}</span>
-            </p>
-          ) : null}
-        </div>
-      </section>
-    </>
+        {error ? (
+          <p className="note note--err" role="alert">
+            <IconAlert size={18} />
+            <span>{error}</span>
+          </p>
+        ) : null}
+      </div>
+    </section>
   );
 }
 

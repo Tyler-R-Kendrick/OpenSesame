@@ -25,6 +25,7 @@ import {
   IconShield,
   IconSite,
   IconTrash,
+  IconX,
 } from "../components/Icons.js";
 import "./sites.css";
 
@@ -384,7 +385,7 @@ export function SitesSection() {
         <SitesHead base={base} />
         <div className="panel">
           <div className="panel__body">
-            <div className="empty">
+            <div className="empty sites-connect">
               <span className="empty__mark">
                 <IconSite />
               </span>
@@ -433,9 +434,18 @@ export function SitesSection() {
       <SitesHead base={base} />
 
       {flash ? (
-        <p className={`note note--${flash.tone}`} role="status">
-          {flash.tone === "ok" ? <IconCheck /> : <IconAlert />} {flash.text}
-        </p>
+        <div className={`note note--${flash.tone} sites-flash`} role="status">
+          {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
+          <p>{flash.text}</p>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => setFlash(null)}
+            aria-label="Dismiss"
+          >
+            <IconX />
+          </button>
+        </div>
       ) : null}
 
       <ClientsPanel
@@ -1091,6 +1101,7 @@ function SnippetPanel({
   onSelect: (id: string | null) => void;
 }) {
   const selectId = useId();
+  const panelId = `${selectId}-code`;
   const [tab, setTab] = useState<"signin" | "callback">("signin");
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
@@ -1186,30 +1197,44 @@ function SnippetPanel({
                 not exist. Register the origin above and the real id replaces it here.
               </p>
             ) : null}
-            <div className="sites-tabs" role="tablist" aria-label="Integration snippet">
+            <div className="sites-toolbar">
+              <div className="sites-tabs" role="tablist" aria-label="Integration snippet">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "signin"}
+                  aria-controls={panelId}
+                  className={tab === "signin" ? "sites-tab is-on" : "sites-tab"}
+                  onClick={() => setTab("signin")}
+                >
+                  Sign-in
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "callback"}
+                  aria-controls={panelId}
+                  className={tab === "callback" ? "sites-tab is-on" : "sites-tab"}
+                  onClick={() => setTab("callback")}
+                >
+                  Callback page
+                </button>
+              </div>
               <button
                 type="button"
-                role="tab"
-                aria-selected={tab === "signin"}
-                className={tab === "signin" ? "sites-tab is-on" : "sites-tab"}
-                onClick={() => setTab("signin")}
+                className="btn btn--sm sites-copy"
+                onClick={() => void copy()}
               >
-                Sign-in
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "callback"}
-                className={tab === "callback" ? "sites-tab is-on" : "sites-tab"}
-                onClick={() => setTab("callback")}
-              >
-                Callback page
-              </button>
-              <button type="button" className="btn btn--sm sites-copy" onClick={() => void copy()}>
                 {copied ? <IconCheck /> : <IconCopy />} {copied ? "Copied" : "Copy"}
               </button>
             </div>
-            <pre className="sites-code" tabIndex={0}>
+            <pre
+              className="sites-code"
+              id={panelId}
+              role="tabpanel"
+              aria-label={tab === "signin" ? "Sign-in module" : "Callback page"}
+              tabIndex={0}
+            >
               <code>{code}</code>
             </pre>
             {copyError ? (

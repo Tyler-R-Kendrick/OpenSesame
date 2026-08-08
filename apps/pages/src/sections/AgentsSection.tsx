@@ -162,7 +162,7 @@ function SecretsAndCeilings() {
 }
 
 function SecretRow({ item }: { item: SecretItem }) {
-  const ref = item.connectionRef?.trim();
+  const ref = item.connectionRef.trim();
   return (
     <li className="agents-secret">
       <div className="agents-secret__top">
