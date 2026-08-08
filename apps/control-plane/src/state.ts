@@ -10,7 +10,8 @@ import type {
 export interface IdempotencyRecord {
   status: number;
   body: unknown;
-  headers?: Record<string, string>;
+  /** Epoch ms after which the cached response is discarded. */
+  expiresAt: number;
 }
 
 export interface AppStores {
@@ -30,6 +31,8 @@ export interface AppStores {
   idempotency: Map<string, IdempotencyRecord>;
   /** principalId → base64 TOTP secret */
   totpSecrets: Map<string, string>;
+  /** claimId → failed user-code approval attempts (brute-force fence) */
+  claimApprovalAttempts: Map<string, number>;
 }
 
 export function createAppStores(): AppStores {
@@ -45,6 +48,7 @@ export function createAppStores(): AppStores {
     usage: new Map(),
     idempotency: new Map(),
     totpSecrets: new Map(),
+    claimApprovalAttempts: new Map(),
   };
 }
 
