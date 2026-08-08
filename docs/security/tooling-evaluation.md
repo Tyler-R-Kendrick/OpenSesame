@@ -89,6 +89,8 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0ao. **Frozen intent enforcement** — frozen intents are held server-side and executed by digest at `POST /api/v1/tasks/invoke` (capability, state version, and ceiling all asserted), and the legacy invoke path refuses task fields instead of ignoring them — see `audit-2026-08-08-frozen-intent-enforcement.md`.
 
 0ap. **Legacy credential agent fenced** — the deprecated host agent required no auth for session listing, capability minting, and revocation; it now needs the operator bearer, refuses to start without an explicit opt-in, and shares one tested operator check with the daemon — see `audit-2026-08-08-legacy-credential-agent.md`.
+
+0aq. **Vault KDF parameter band** — the password wrapper's Argon2 parameters come back through an untrusted server, so unwrap now bounds them (and stops panicking on odd key lengths), and the worker's cleanup loop survives a failing tick instead of silently ending expiry — see `audit-2026-08-08-vault-kdf-params.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
