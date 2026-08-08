@@ -52,6 +52,23 @@ pub async fn get(
     }
 }
 
+/// Public keys that may have signed a receipt.
+///
+/// Receipts are evidence, and evidence nobody else can check is not evidence:
+/// publishing the public halves lets a holder verify a receipt without the
+/// gateway's word for it. Nothing secret is exposed.
+pub async fn keys(State(st): State<AppState>) -> Response {
+    let keys: Vec<_> = st
+        .receipt_verifier
+        .published_keys()
+        .into_iter()
+        .map(|(key_id, public_key)| {
+            json!({"key_id": key_id, "algorithm": "ed25519", "public_key_b64": public_key})
+        })
+        .collect();
+    (StatusCode::OK, Json(json!({"keys": keys}))).into_response()
+}
+
 pub async fn verify(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -61,7 +78,7 @@ pub async fn verify(
         Ok(r) => r,
         Err(resp) => return resp,
     };
-    match st.broker.signer.verify_receipt(&receipt) {
+    match st.receipt_verifier.verify(&receipt) {
         Ok(()) => (StatusCode::OK, Json(json!({"valid": true}))).into_response(),
         Err(e) => {
             let msg = opensesame_redaction::redact_text(&e.to_string());

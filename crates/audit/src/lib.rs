@@ -6,6 +6,101 @@ use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use opensesame_domain::{digest_json, DomainError, InvocationReceipt};
 use rand::rngs::OsRng;
 use serde_json::Value;
+use std::collections::BTreeMap;
+
+/// Decode a base64 (standard or URL-safe, padded or not) 32-byte value.
+fn decode_key_bytes(encoded: &str, what: &str) -> Result<[u8; 32], DomainError> {
+    let trimmed = encoded.trim();
+    let bytes = STANDARD
+        .decode(trimmed)
+        .or_else(|_| URL_SAFE_NO_PAD.decode(trimmed.trim_end_matches('=')))
+        .map_err(|_| DomainError::Canonicalization(format!("{what} is not valid base64")))?;
+    bytes
+        .try_into()
+        .map_err(|_| DomainError::Canonicalization(format!("{what} must be 32 bytes")))
+}
+
+/// `receipt-key:<hex public key>` — the id is derived from the key, so it cannot
+/// name a key other than the one that will check the signature.
+pub fn receipt_key_id(key: &VerifyingKey) -> String {
+    format!("receipt-key:{}", hex::encode(key.as_bytes()))
+}
+
+/// Signature check shared by the signer and the verifier registry.
+fn verify_with(key: &VerifyingKey, receipt: &InvocationReceipt) -> Result<(), DomainError> {
+    let mut clone = receipt.clone();
+    let sig_b64 = clone.signature.clone();
+    clone.signature = String::new();
+    let digest = digest_json(
+        &serde_json::to_value(&clone).map_err(|e| DomainError::Canonicalization(e.to_string()))?,
+    )?;
+    let bytes = STANDARD
+        .decode(sig_b64)
+        .map_err(|e| DomainError::Canonicalization(e.to_string()))?;
+    let sig = Signature::from_slice(&bytes)
+        .map_err(|e| DomainError::Canonicalization(e.to_string()))?;
+    key.verify(digest.as_bytes(), &sig)
+        .map_err(|e| DomainError::Canonicalization(e.to_string()))
+}
+
+/// Public keys trusted to have signed receipts, keyed by `authority_key_id`.
+///
+/// Verification needs no secret, so a retired signing key is retired by keeping
+/// only its public half here: rotation stops stranding the receipts it signed.
+#[derive(Clone, Default)]
+pub struct ReceiptVerifier {
+    keys: BTreeMap<String, VerifyingKey>,
+}
+
+impl ReceiptVerifier {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn trust(&mut self, key: VerifyingKey) -> String {
+        let id = receipt_key_id(&key);
+        self.keys.insert(id.clone(), key);
+        id
+    }
+
+    /// Trust a public key given as base64 32 bytes.
+    pub fn trust_b64(&mut self, encoded: &str) -> Result<String, DomainError> {
+        let bytes = decode_key_bytes(encoded, "receipt verification key")?;
+        let key = VerifyingKey::from_bytes(&bytes)
+            .map_err(|e| DomainError::Canonicalization(e.to_string()))?;
+        Ok(self.trust(key))
+    }
+
+    /// Key ids this verifier will accept, for publication.
+    pub fn key_ids(&self) -> Vec<String> {
+        self.keys.keys().cloned().collect()
+    }
+
+    /// Public keys as base64, paired with their ids, for publication.
+    pub fn published_keys(&self) -> Vec<(String, String)> {
+        self.keys
+            .iter()
+            .map(|(id, key)| (id.clone(), STANDARD.encode(key.as_bytes())))
+            .collect()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.keys.is_empty()
+    }
+
+    /// Verify against the key the receipt names. An unknown key is reported as
+    /// unknown rather than as a bad signature: a rotated or ephemeral key is a
+    /// key-management fact, not tamper evidence.
+    pub fn verify(&self, receipt: &InvocationReceipt) -> Result<(), DomainError> {
+        let Some(key) = self.keys.get(&receipt.authority_key_id) else {
+            return Err(DomainError::Canonicalization(format!(
+                "no trusted receipt key matches {}",
+                receipt.authority_key_id
+            )));
+        };
+        verify_with(key, receipt)
+    }
+}
 
 pub struct ReceiptSigner {
     pub key_id: String,
@@ -26,25 +121,13 @@ impl ReceiptSigner {
 
     /// `from_seed` over a base64 (standard or URL-safe, padded or not) 32-byte seed.
     pub fn from_seed_b64(encoded: &str) -> Result<Self, DomainError> {
-        let trimmed = encoded.trim();
-        let bytes = STANDARD
-            .decode(trimmed)
-            .or_else(|_| URL_SAFE_NO_PAD.decode(trimmed.trim_end_matches('=')))
-            .map_err(|_| {
-                DomainError::Canonicalization("receipt signing key is not valid base64".into())
-            })?;
-        let seed: [u8; 32] = bytes.try_into().map_err(|_| {
-            DomainError::Canonicalization("receipt signing key must be 32 bytes".into())
-        })?;
+        let seed = decode_key_bytes(encoded, "receipt signing key")?;
         Ok(Self::from_seed(&seed))
     }
 
     fn from_signing_key(signing_key: SigningKey) -> Self {
         Self {
-            key_id: format!(
-                "receipt-key:{}",
-                hex::encode(signing_key.verifying_key().as_bytes())
-            ),
+            key_id: receipt_key_id(&signing_key.verifying_key()),
             signing_key,
         }
     }
@@ -83,21 +166,7 @@ impl ReceiptSigner {
                 receipt.authority_key_id
             )));
         }
-        let mut clone = receipt.clone();
-        let sig_b64 = clone.signature.clone();
-        clone.signature = String::new();
-        let digest = digest_json(
-            &serde_json::to_value(&clone)
-                .map_err(|e| DomainError::Canonicalization(e.to_string()))?,
-        )?;
-        let bytes = STANDARD
-            .decode(sig_b64)
-            .map_err(|e| DomainError::Canonicalization(e.to_string()))?;
-        let sig = Signature::from_slice(&bytes)
-            .map_err(|e| DomainError::Canonicalization(e.to_string()))?;
-        self.verifying_key()
-            .verify(digest.as_bytes(), &sig)
-            .map_err(|e| DomainError::Canonicalization(e.to_string()))
+        verify_with(&self.verifying_key(), receipt)
     }
 }
 
@@ -249,6 +318,59 @@ mod tests {
         let ephemeral = ReceiptSigner::generate();
         let err = ephemeral.verify_receipt(&signed).unwrap_err().to_string();
         assert!(err.contains("another authority key"), "{err}");
+    }
+
+    #[test]
+    fn a_retired_key_keeps_verifying_the_receipts_it_signed() {
+        let retired = ReceiptSigner::from_seed(&[9u8; 32]);
+        let old_receipt = retired.sign_receipt(sample_receipt()).unwrap();
+        let active = ReceiptSigner::from_seed(&[11u8; 32]);
+        let new_receipt = active.sign_receipt(sample_receipt()).unwrap();
+
+        // Rotation keeps only the public half of the old key.
+        let mut verifier = ReceiptVerifier::new();
+        verifier.trust(active.verifying_key());
+        verifier
+            .trust_b64(&STANDARD.encode(retired.verifying_key().as_bytes()))
+            .unwrap();
+
+        verifier.verify(&old_receipt).unwrap();
+        verifier.verify(&new_receipt).unwrap();
+        assert_eq!(verifier.key_ids().len(), 2);
+
+        // A key that was never trusted is reported as unknown, not as tampering.
+        let stranger = ReceiptSigner::generate();
+        let foreign = stranger.sign_receipt(sample_receipt()).unwrap();
+        let err = verifier.verify(&foreign).unwrap_err().to_string();
+        assert!(err.contains("no trusted receipt key"), "{err}");
+
+        // Tampering under a trusted key still fails the signature check.
+        let mut tampered = old_receipt.clone();
+        tampered.operation = "admin.destroy".into();
+        assert!(verifier.verify(&tampered).is_err());
+    }
+
+    #[test]
+    fn published_keys_round_trip_into_a_fresh_verifier() {
+        let signer = ReceiptSigner::from_seed(&[5u8; 32]);
+        let receipt = signer.sign_receipt(sample_receipt()).unwrap();
+        let mut source = ReceiptVerifier::new();
+        source.trust(signer.verifying_key());
+
+        // A holder can rebuild the verifier from the published material alone.
+        let mut rebuilt = ReceiptVerifier::new();
+        for (key_id, public_key) in source.published_keys() {
+            assert_eq!(rebuilt.trust_b64(&public_key).unwrap(), key_id);
+        }
+        rebuilt.verify(&receipt).unwrap();
+        assert!(!rebuilt.is_empty());
+    }
+
+    #[test]
+    fn an_empty_verifier_trusts_nothing() {
+        let signer = ReceiptSigner::generate();
+        let receipt = signer.sign_receipt(sample_receipt()).unwrap();
+        assert!(ReceiptVerifier::new().verify(&receipt).is_err());
     }
 
     #[test]

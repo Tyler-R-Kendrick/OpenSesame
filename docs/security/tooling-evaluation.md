@@ -99,6 +99,8 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0at. **Live quotas + MFA fences** — quota usage is counted from live projects/agents instead of a counter that never came down, TOTP and passkey verification get a five-try fence, and the WebAuthn challenge store prunes and caps itself — see `audit-2026-08-08-live-quotas-mfa-fences.md`.
 
 0au. **Receipt signing key** — the gateway minted an ephemeral receipt key per boot, so persisted receipts verified as invalid after any restart; the key now comes from `OPENSESAME_RECEIPT_SIGNING_KEY` and production refuses to start without it — see `audit-2026-08-08-receipt-signing-key.md`.
+
+0av. **Receipt verifier registry** — verification is keyed by `authority_key_id` against trusted public keys so rotation no longer strands old receipts, and `GET /api/v1/receipts/keys` publishes them for independent verification — see `audit-2026-08-08-receipt-verifier-registry.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
