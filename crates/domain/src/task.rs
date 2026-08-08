@@ -135,6 +135,15 @@ impl TaskRun {
         Ok(())
     }
 
+    /// Task authority is time-boxed: `maximum_expires_at` is a hard ceiling on
+    /// every capability assertion, not merely on credential renewal.
+    pub fn assert_not_expired(&self, now: DateTime<Utc>) -> Result<(), DomainError> {
+        if now > self.maximum_expires_at {
+            return Err(DomainError::TaskExpired);
+        }
+        Ok(())
+    }
+
     /// Fail closed: proposed capabilities must be subset of current (no widen).
     pub fn validate_restriction(&self, proposed: &CapabilitySet) -> Result<(), DomainError> {
         if !proposed.is_subset_of(&self.current_capabilities) {

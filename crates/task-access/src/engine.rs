@@ -459,12 +459,16 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         task_run_id: TaskRunId,
         required: &Capability,
         expected_state_version: u64,
+        now: DateTime<Utc>,
     ) -> Result<TaskRun, TaskAccessError> {
         let run = self
             .store
             .get_run(task_run_id)?
             .ok_or_else(|| TaskAccessError::TaskNotFound(task_run_id.to_string()))?;
         run.assert_active()?;
+        // Status alone never expires: without this the ceiling would authorize
+        // work indefinitely past `maximum_expires_at`.
+        run.assert_not_expired(now)?;
         run.assert_state_version(expected_state_version)?;
         self.assert_ceiling_unchanged(&run)?;
         let held = CapabilitySet::new(vec![required.clone()]);
@@ -527,7 +531,10 @@ impl<S: TaskStore> TaskAccessEngine<S> {
 
         run.status = TaskRunStatus::Restricting;
         run.updated_at = params.now;
-        self.store.save_run(&run)?;
+        // CAS so a concurrent commit/terminate is not silently overwritten with
+        // this stale copy (which would restore the wider capability set).
+        self.store
+            .save_run_cas(&run, params.expected_state_version)?;
 
         Ok(transition)
     }
@@ -594,9 +601,16 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         self.store
             .save_run_cas(&run, transition.from_state_version)?;
 
+        // Release only the buffer this transition fenced. A buffer left behind by
+        // a superseded proposal has not had its own acknowledgements, and
+        // releasing it here would let a result escape the fence that held it.
         if let Some(mut buffer) = self.store.get_result_buffer(task_run_id)? {
-            buffer.released = true;
-            self.store.save_result_buffer(&buffer)?;
+            if buffer.transition_id == transition.id.to_string()
+                && buffer.state_version == transition.to_state_version
+            {
+                buffer.released = true;
+                self.store.save_result_buffer(&buffer)?;
+            }
         }
 
         self.store.clear_pending_transition(task_run_id)?;
@@ -627,6 +641,7 @@ impl<S: TaskStore> TaskAccessEngine<S> {
             .get_run(params.task_run_id)?
             .ok_or_else(|| TaskAccessError::TaskNotFound(params.task_run_id.to_string()))?;
         run.assert_active()?;
+        run.assert_not_expired(params.now)?;
         run.assert_state_version(params.expected_state_version)?;
         self.assert_ceiling_unchanged(&run)?;
 
@@ -676,7 +691,7 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         run.state_version += 1;
         run.state_digest = run.compute_state_digest()?;
         run.updated_at = now;
-        self.store.save_run(&run)?;
+        self.store.save_run_cas(&run, expected_state_version)?;
         Ok(run)
     }
 

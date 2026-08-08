@@ -42,6 +42,7 @@ impl Broker {
             intent.task_run_id,
             &input.required_capability,
             intent.task_state_version,
+            now,
         )?;
         if run.state_digest != intent.task_state_digest {
             return Err(DomainError::TaskStateVersionMismatch {
