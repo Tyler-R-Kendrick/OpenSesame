@@ -91,7 +91,8 @@ impl<R: ReplayCache> DpopValidator<R> {
             }
         }
 
-        self.replay_cache.check_and_record(&claims.jti)?;
+        // Pass the request clock so replay entries expire with the proof window.
+        self.replay_cache.check_and_record_at(&claims.jti, now)?;
 
         Ok(ValidatedDpopProof {
             jti: claims.jti,
