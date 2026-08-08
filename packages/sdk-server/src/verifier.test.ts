@@ -58,6 +58,85 @@ describe("createOpenSesameVerifier", () => {
     await expect(verifier.verifyAccessToken(token)).rejects.toThrow();
   });
 
+  it("rejects a token that never expires", async () => {
+    const { privateKey, jwks } = await mintKeys();
+    const verifier = createOpenSesameVerifier({ issuer: ISSUER, audience: AUDIENCE, jwks });
+    const token = await new SignJWT({ scope: "openid" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject("x")
+      .setIssuedAt()
+      .sign(privateKey);
+
+    await expect(verifier.verifyAccessToken(token)).rejects.toThrow(/exp/i);
+  });
+
+  it("rejects a signature algorithm it does not accept", async () => {
+    const { privateKey, jwks } = await mintKeys();
+    const verifier = createOpenSesameVerifier({
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      jwks,
+      algorithms: ["ES256"],
+    });
+    const token = await new SignJWT({ scope: "openid" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject("x")
+      .setExpirationTime("5m")
+      .sign(privateKey);
+
+    await expect(verifier.verifyAccessToken(token)).rejects.toThrow();
+  });
+
+  it("refuses to take keys or an issuer over cleartext", async () => {
+    const { jwks } = await mintKeys();
+    expect(() =>
+      createOpenSesameVerifier({ issuer: "http://idp.example", audience: AUDIENCE, jwks }),
+    ).toThrow(/https/i);
+    expect(() =>
+      createOpenSesameVerifier({
+        issuer: "https://idp.example",
+        audience: AUDIENCE,
+        jwksUri: "http://idp.example/jwks",
+      }),
+    ).toThrow(/https/i);
+    // Loopback stays usable for local development.
+    expect(() =>
+      createOpenSesameVerifier({ issuer: ISSUER, audience: AUDIENCE, jwks }),
+    ).not.toThrow();
+  });
+
+  it("requires the RFC 9068 type header when asked to", async () => {
+    const { privateKey, jwks } = await mintKeys();
+    const verifier = createOpenSesameVerifier({
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      jwks,
+      requireAccessTokenTypeHeader: true,
+    });
+    const plain = new SignJWT({ scope: "openid" })
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject("x")
+      .setExpirationTime("5m");
+    await expect(
+      verifier.verifyAccessToken(
+        await plain.setProtectedHeader({ alg: "RS256", kid: "test-1" }).sign(privateKey),
+      ),
+    ).rejects.toThrow(/9068/);
+    const typed = await new SignJWT({ scope: "openid" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1", typ: "at+jwt" })
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject("x")
+      .setExpirationTime("5m")
+      .sign(privateKey);
+    await expect(verifier.verifyAccessToken(typed)).resolves.toMatchObject({ sub: "x" });
+  });
+
   it("enforces required scopes", async () => {
     const { privateKey, jwks } = await mintKeys();
     const verifier = createOpenSesameVerifier({
@@ -106,5 +185,48 @@ describe("openSesameAuth hono middleware", () => {
     });
     expect(ok.status).toBe(200);
     expect(await ok.json()).toEqual({ sub: "pairwise-alpha-sub" });
+  });
+
+  it("challenges without describing why the token failed", async () => {
+    const { jwks } = await mintKeys();
+    const verifier = createOpenSesameVerifier({ issuer: ISSUER, audience: AUDIENCE, jwks });
+    const app = new Hono<{ Variables: OpenSesameAuthVariables }>();
+    app.use("/me", openSesameAuth({ verifier }));
+    app.get("/me", (c) => c.json({ sub: c.get("identity").sub }));
+
+    const res = await app.request("http://localhost/me", {
+      headers: { authorization: "Bearer not.a.token" },
+    });
+    expect(res.status).toBe(401);
+    expect(res.headers.get("www-authenticate")).toContain("Bearer");
+    const body = (await res.json()) as { error: string; error_description: string };
+    expect(body.error).toBe("invalid_token");
+    // No verifier internals in the answer.
+    expect(body.error_description).toBe("The access token is not valid");
+  });
+
+  it("does not report a handler's own failure as an invalid token", async () => {
+    const { privateKey, jwks } = await mintKeys();
+    const verifier = createOpenSesameVerifier({ issuer: ISSUER, audience: AUDIENCE, jwks });
+    const app = new Hono<{ Variables: OpenSesameAuthVariables }>();
+    app.use("/boom", openSesameAuth({ verifier }));
+    app.get("/boom", () => {
+      throw new Error("connection string leaked here");
+    });
+    app.onError((_e, c) => c.json({ error: "internal" }, 500));
+
+    const token = await new SignJWT({ scope: "openid" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject("pairwise-alpha-sub")
+      .setExpirationTime("5m")
+      .sign(privateKey);
+
+    const res = await app.request("http://localhost/boom", {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(500);
+    expect(await res.text()).not.toContain("connection string leaked here");
   });
 });
