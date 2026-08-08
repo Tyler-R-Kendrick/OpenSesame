@@ -59,6 +59,18 @@ impl LocalHttpMessageSignatureValidator {
     }
 }
 
+/// Components a signature must cover before this validator will accept it.
+///
+/// RFC 9421 leaves the required set to the verifier, and a verifier that requires
+/// nothing accepts a signature that binds nothing: omit `content-digest` and the
+/// body is free to change under the same signature, omit `@target-uri` and the
+/// signature travels to another endpoint.
+pub const REQUIRED_COVERED_COMPONENTS: [&str; 3] =
+    ["@method", "@target-uri", "content-digest"];
+
+/// Tolerance for a `created` timestamp ahead of our clock.
+const MAX_CREATED_SKEW_SECS: i64 = 60;
+
 struct ParsedSignatureInput {
     label: String,
     covered: Vec<String>,
@@ -92,6 +104,12 @@ impl HttpMessageSignatureValidator for LocalHttpMessageSignatureValidator {
         if parsed.created + self.max_age_secs < now {
             return Err(ProofError::InvalidProof("signature expired".into()));
         }
+        // A signature dated far ahead would otherwise outlive its window.
+        if parsed.created > now + MAX_CREATED_SKEW_SECS {
+            return Err(ProofError::InvalidProof("created in future".into()));
+        }
+
+        assert_required_components(&parsed.covered)?;
 
         let verifying_key = self
             .keys
@@ -205,6 +223,19 @@ fn parse_signature_input(input: &str) -> Result<ParsedSignatureInput, ProofError
     })
 }
 
+/// Refuse a signature that leaves any of the required components uncovered.
+fn assert_required_components(covered: &[String]) -> Result<(), ProofError> {
+    let present: Vec<String> = covered.iter().map(|c| c.to_ascii_lowercase()).collect();
+    for required in REQUIRED_COVERED_COMPONENTS {
+        if !present.iter().any(|c| c == required) {
+            return Err(ProofError::InvalidProof(format!(
+                "signature does not cover {required}"
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn signature_value(signature_header: &str, label: &str) -> Result<String, ProofError> {
     let prefix = format!("{label}=:");
     let start = signature_header
@@ -301,6 +332,87 @@ mod tests {
             ..signed
         };
         assert!(validator.validate(&replay).is_err());
+    }
+
+    /// Sign with an arbitrary covered set, the way a permissive signer would.
+    fn sign_covering(
+        signing_key: &SigningKey,
+        covered: &[&str],
+        body: &[u8],
+        created: i64,
+    ) -> HttpSignedRequest {
+        let covered: Vec<String> = covered.iter().map(|c| (*c).to_string()).collect();
+        let signature_input = format!(
+            "sig=({});created={created};keyid=\"test-key\";alg=\"ed25519\"",
+            covered
+                .iter()
+                .map(|c| format!("\"{c}\""))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
+        let req = HttpSignedRequest {
+            method: "POST".into(),
+            target_uri: "https://host.example/api/v1/tasks".into(),
+            content_digest: content_digest_sha256(body),
+            signature_input: signature_input.clone(),
+            signature: String::new(),
+        };
+        let base = build_signature_base(&covered, &req, &signature_input).unwrap();
+        let sig = signing_key.sign(base.as_bytes());
+        HttpSignedRequest {
+            signature: format!("sig=:{}:", B64.encode(sig.to_bytes())),
+            ..req
+        }
+    }
+
+    #[test]
+    fn a_signature_that_covers_too_little_is_refused() {
+        let (signing_key, validator) = fixture();
+        let now = chrono::Utc::now().timestamp();
+
+        // Each of these verifies arithmetically; none of them binds enough. Without
+        // a required set, dropping content-digest leaves the body free to change
+        // and dropping @target-uri lets the signature travel to another endpoint.
+        for covered in [
+            vec!["@method"],
+            vec!["@method", "@target-uri"],
+            vec!["content-digest"],
+            vec!["content-digest", "@method"],
+        ] {
+            let signed = sign_covering(&signing_key, &covered, b"{}", now);
+            let err = validator.validate(&signed).unwrap_err();
+            assert!(
+                matches!(&err, ProofError::InvalidProof(m) if m.contains("does not cover")),
+                "{covered:?} -> {err:?}"
+            );
+        }
+
+        // All three covered: accepted.
+        let full = sign_covering(
+            &signing_key,
+            &["content-digest", "@method", "@target-uri"],
+            b"{}",
+            now,
+        );
+        assert!(validator.validate(&full).is_ok());
+    }
+
+    #[test]
+    fn a_future_dated_signature_is_refused() {
+        let (signing_key, validator) = fixture();
+        let signed = sign_request(
+            &signing_key,
+            "test-key",
+            "POST",
+            "https://host.example/api/v1/tasks",
+            b"{}",
+            chrono::Utc::now().timestamp() + 3_600,
+        );
+        let err = validator.validate(&signed).unwrap_err();
+        assert!(
+            matches!(&err, ProofError::InvalidProof(m) if m.contains("future")),
+            "{err:?}"
+        );
     }
 
     #[test]
