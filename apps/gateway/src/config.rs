@@ -84,6 +84,28 @@ pub fn resolve_receipt_signer() -> Result<opensesame_audit::ReceiptSigner, Strin
     }
 }
 
+/// Keys trusted to have signed a receipt: the active signer plus any retired
+/// public keys from `OPENSESAME_RECEIPT_VERIFY_KEYS` (comma or whitespace
+/// separated base64 32-byte ed25519 public keys).
+///
+/// Verification needs no secret, so rotating the signer does not require keeping
+/// the old seed — only its public half — and old receipts stay verifiable.
+pub fn resolve_receipt_verifier(
+    signer: &opensesame_audit::ReceiptSigner,
+) -> Result<opensesame_audit::ReceiptVerifier, String> {
+    let mut verifier = opensesame_audit::ReceiptVerifier::new();
+    verifier.trust(signer.verifying_key());
+    let retired = env::var("OPENSESAME_RECEIPT_VERIFY_KEYS").unwrap_or_default();
+    for entry in retired.split([',', ' ', '\n', '\t']) {
+        let entry = entry.trim();
+        if entry.is_empty() {
+            continue;
+        }
+        verifier.trust_b64(entry).map_err(|e| e.to_string())?;
+    }
+    Ok(verifier)
+}
+
 pub fn resolve_operator_token() -> String {
     match env::var("OPENSESAME_OPERATOR_TOKEN") {
         Ok(t) if !t.is_empty() => t,

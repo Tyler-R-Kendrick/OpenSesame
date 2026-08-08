@@ -68,6 +68,9 @@ pub struct AppState {
     /// what makes the digest enforceable: the caller cannot restate the frozen
     /// bytes, so it cannot execute anything other than what it froze.
     pub frozen_intents: Arc<Mutex<HashMap<String, FrozenIntentV2>>>,
+    /// Public keys trusted to have signed a receipt, including retired ones, so a
+    /// key rotation does not strand the receipts the old key signed.
+    pub receipt_verifier: Arc<opensesame_audit::ReceiptVerifier>,
 }
 
 impl AppState {
@@ -95,6 +98,8 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
     };
 
     let boot = bootstrap::maybe_demo_bootstrap(&db).await?;
+    let receipt_verifier =
+        config::resolve_receipt_verifier(&boot.broker.signer).map_err(anyhow::Error::msg)?;
     let openfga = OpenFgaClient::from_env().ok().flatten();
     let openbao = OpenBaoHttpAuthority::from_env().ok().flatten();
     let distributed_task_authority =
@@ -121,6 +126,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         distributed_task_authority,
         task_engine: new_task_engine(),
         frozen_intents: Arc::new(Mutex::new(HashMap::new())),
+        receipt_verifier: Arc::new(receipt_verifier),
     })
 }
 

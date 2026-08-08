@@ -77,6 +77,13 @@ export OPENSESAME_RECEIPT_SIGNING_KEY="$(openssl rand -base64 32)"
 
 Locally the key may be omitted; the gateway logs a warning and generates one per run.
 
+To rotate, move the old key's *public* half into
+`OPENSESAME_RECEIPT_VERIFY_KEYS` (comma-separated base64 32-byte ed25519 public
+keys) and set a new `OPENSESAME_RECEIPT_SIGNING_KEY`. Verification needs no secret,
+so the retired seed can be destroyed while the receipts it signed stay verifiable.
+`GET /api/v1/receipts/keys` publishes the accepted keys so a receipt holder can
+check one without taking the gateway's word for it.
+
 ## Compose (when Docker available)
 
 See `deploy/compose/docker-compose.yml` for Keycloak, Postgres, OpenFGA, OpenBao, NATS, gateway, worker, callback-edge.

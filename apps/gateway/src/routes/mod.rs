@@ -41,6 +41,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/whoami", get(session::whoami))
         .route("/api/v1/connections", get(session::list_connections))
         .route("/api/v1/intents", post(intents::create))
+        .route("/api/v1/receipts/keys", get(receipts::keys))
         .route("/api/v1/receipts/{id}", get(receipts::get))
         .route("/api/v1/receipts/{id}/verify", post(receipts::verify))
         .route("/api/v1/agent-identities", post(agents::create_identity))
