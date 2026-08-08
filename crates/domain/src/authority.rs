@@ -334,13 +334,45 @@ pub struct PlaceholderRequestView<'a> {
     pub body_field_value: Option<&'a str>,
 }
 
+/// How many times `needle` occurs in `haystack`. An empty needle occurs nowhere:
+/// `contains("")` is true of every string, and a substitution driven by it would
+/// write the credential between every character.
+fn occurrences(haystack: &str, needle: &str) -> u32 {
+    if needle.is_empty() {
+        return 0;
+    }
+    u32::try_from(haystack.matches(needle).count()).unwrap_or(u32::MAX)
+}
+
+/// Occurrences inside the values of the named query parameter only.
+fn query_pair_occurrences(query: &str, name: &str, needle: &str) -> u32 {
+    query
+        .split('&')
+        .filter_map(|pair| {
+            let (k, v) = pair.split_once('=')?;
+            (k == name).then_some(v)
+        })
+        .map(|v| occurrences(v, needle))
+        .sum()
+}
+
 impl PlaceholderPlacement {
     /// Count occurrences of `placeholder` in the given request parts and enforce policy.
+    ///
+    /// Every site the placeholder appears at must be an allowed one, and the total
+    /// number of appearances — not the number of request parts touched — is what
+    /// `max_occurrences` bounds. Substitution replaces every occurrence, so counting
+    /// parts let a caller multiply the credential inside one allowed header.
     pub fn assert_allowed(
         &self,
         req: &PlaceholderRequestView<'_>,
         placeholder: &str,
     ) -> Result<(), DomainError> {
+        if placeholder.is_empty() {
+            return Err(DomainError::GrantAttenuation(
+                "empty placeholder is not substitutable".into(),
+            ));
+        }
         let method_ok = self
             .methods
             .iter()
@@ -353,59 +385,67 @@ impl PlaceholderPlacement {
         }
 
         let mut hits = 0u32;
-        let mut allowed_hit = false;
+        let mut denied_site: Option<&'static str> = None;
 
         if let (Some(hn), Some(hv)) = (req.header_name, req.header_value) {
-            let in_header = hv.contains(placeholder);
-            if in_header {
-                hits += 1;
-                for loc in &self.locations {
-                    if let PlaceholderLocation::Header { name } = loc {
-                        if name
-                            .as_ref()
-                            .map(|n| n.eq_ignore_ascii_case(hn))
-                            .unwrap_or(true)
-                        {
-                            allowed_hit = true;
-                        }
-                    }
+            let found = occurrences(hv, placeholder);
+            if found > 0 {
+                hits += found;
+                let allowed = self.locations.iter().any(|loc| {
+                    matches!(loc, PlaceholderLocation::Header { name }
+                        if name.as_ref().map(|n| n.eq_ignore_ascii_case(hn)).unwrap_or(true))
+                });
+                if !allowed {
+                    denied_site = Some("header");
                 }
             }
         }
 
-        if req.path.contains(placeholder) {
-            hits += 1;
-            if self
+        let in_path = occurrences(req.path, placeholder);
+        if in_path > 0 {
+            hits += in_path;
+            if !self
                 .locations
                 .iter()
                 .any(|l| matches!(l, PlaceholderLocation::Path))
             {
-                allowed_hit = true;
+                denied_site = Some("path");
             }
         }
 
         if let Some(q) = req.query {
-            if q.contains(placeholder) {
-                hits += 1;
-                for loc in &self.locations {
-                    if let PlaceholderLocation::Query { name } = loc {
-                        if name.is_none() || q.contains(placeholder) {
-                            allowed_hit = true;
+            let found = occurrences(q, placeholder);
+            if found > 0 {
+                hits += found;
+                // A named query location covers its own parameter and nothing else,
+                // so an appearance elsewhere in the query string is its own site.
+                let covered: u32 = self
+                    .locations
+                    .iter()
+                    .filter_map(|loc| match loc {
+                        PlaceholderLocation::Query { name: None } => Some(found),
+                        PlaceholderLocation::Query { name: Some(n) } => {
+                            Some(query_pair_occurrences(q, n, placeholder))
                         }
-                    }
+                        _ => None,
+                    })
+                    .max()
+                    .unwrap_or(0);
+                if covered < found {
+                    denied_site = Some("query");
                 }
             }
         }
 
         if let (Some(fp), Some(fv)) = (req.body_field_path, req.body_field_value) {
-            if fv.contains(placeholder) {
-                hits += 1;
-                for loc in &self.locations {
-                    if let PlaceholderLocation::BodyField { path: p } = loc {
-                        if p == fp {
-                            allowed_hit = true;
-                        }
-                    }
+            let found = occurrences(fv, placeholder);
+            if found > 0 {
+                hits += found;
+                let allowed = self.locations.iter().any(
+                    |loc| matches!(loc, PlaceholderLocation::BodyField { path: p } if p == fp),
+                );
+                if !allowed {
+                    denied_site = Some("body field");
                 }
             }
         }
@@ -413,10 +453,10 @@ impl PlaceholderPlacement {
         if hits == 0 {
             return Ok(());
         }
-        if !allowed_hit {
-            return Err(DomainError::GrantAttenuation(
-                "placeholder appeared outside allowed placement".into(),
-            ));
+        if let Some(site) = denied_site {
+            return Err(DomainError::GrantAttenuation(format!(
+                "placeholder appeared outside allowed placement ({site})"
+            )));
         }
         if hits > self.max_occurrences {
             return Err(DomainError::GrantAttenuation(format!(
@@ -435,19 +475,86 @@ pub struct LegacyProjection {
     pub connection_ref_uri: String,
     /// Pattern hint, e.g. `sk_test_*` or exact placeholder string.
     pub placeholder_pattern: String,
+    /// The placeholder this projection actually handed out, when it is known.
+    /// Substitution is bound to it exactly; the pattern only bounds shape.
+    #[serde(default)]
+    pub issued_placeholder: Option<String>,
     pub placement: PlaceholderPlacement,
     pub delivery: CredentialDeliveryMode,
 }
 
 impl LegacyProjection {
     /// Generate a unique shaped placeholder from pattern (`sk_test_*` → `sk_test_` + hex).
+    ///
+    /// The suffix is what makes a placeholder one connection's own. A pattern with
+    /// no `*` used to be returned verbatim, which handed every projection sharing
+    /// that pattern the same placeholder: egress substitution matches on the
+    /// placeholder text, so identical placeholders mean one connection's request
+    /// can be filled with another's credential. The suffix is appended instead.
+    /// Shortest fill a `*` may stand for. A placeholder is a token the guest can
+    /// see; substitution keys off its text, so a short one is guessable and a
+    /// guessed one is a request the guest can have a credential written into.
+    pub const MIN_PLACEHOLDER_FILL: usize = 8;
+
+    /// Whether `placeholder` is one this projection could have issued.
+    ///
+    /// Substitution matches on placeholder text alone. Without this check a caller
+    /// naming any string — `"a"`, or another connection's placeholder — has the
+    /// real credential written wherever that string appears.
+    pub fn accepts_placeholder(&self, placeholder: &str) -> bool {
+        if placeholder.is_empty() {
+            return false;
+        }
+        // When the issued placeholder is recorded, that one string is the whole
+        // answer — the pattern is only a shape and several connections can share it.
+        if let Some(issued) = &self.issued_placeholder {
+            return placeholder == issued.as_str();
+        }
+        let pattern = self.placeholder_pattern.as_str();
+        if pattern.is_empty() {
+            return placeholder
+                .strip_prefix("vlk_ph_")
+                .is_some_and(|fill| fill.len() >= Self::MIN_PLACEHOLDER_FILL);
+        }
+        if !pattern.contains('*') {
+            return placeholder
+                .strip_prefix(pattern)
+                .is_some_and(|fill| fill.len() >= Self::MIN_PLACEHOLDER_FILL);
+        }
+        let segments: Vec<&str> = pattern.split('*').collect();
+        let last = segments.len() - 1;
+        let mut rest = placeholder;
+        for (i, seg) in segments.iter().enumerate() {
+            if seg.is_empty() {
+                continue;
+            }
+            if i == 0 {
+                match rest.strip_prefix(seg) {
+                    Some(r) => rest = r,
+                    None => return false,
+                }
+            } else if i == last {
+                match rest.strip_suffix(seg) {
+                    Some(r) => rest = r,
+                    None => return false,
+                }
+            } else {
+                match rest.find(seg) {
+                    Some(at) => rest = &rest[at + seg.len()..],
+                    None => return false,
+                }
+            }
+        }
+        rest.len() >= Self::MIN_PLACEHOLDER_FILL
+    }
+
     pub fn shaped_placeholder(&self, unique_suffix: &str) -> String {
         if self.placeholder_pattern.contains('*') {
             self.placeholder_pattern.replace('*', unique_suffix)
         } else if self.placeholder_pattern.is_empty() {
             format!("vlk_ph_{unique_suffix}")
         } else {
-            self.placeholder_pattern.clone()
+            format!("{}{unique_suffix}", self.placeholder_pattern)
         }
     }
 }
@@ -626,10 +733,170 @@ mod tests {
             env_var: "STRIPE_SECRET_KEY".into(),
             connection_ref_uri: "conn://demo/stripe".into(),
             placeholder_pattern: "sk_test_*".into(),
+            issued_placeholder: None,
             placement: PlaceholderPlacement::default(),
             delivery: CredentialDeliveryMode::Placeholder,
         };
         assert_eq!(lp.shaped_placeholder("abc"), "sk_test_abc");
+
+        // A pattern with no wildcard still gets the suffix. Returning it verbatim
+        // gave every projection with that pattern one shared placeholder, and
+        // substitution matches on placeholder text.
+        let fixed = LegacyProjection {
+            placeholder_pattern: "sk_live".into(),
+            ..lp.clone()
+        };
+        assert_eq!(fixed.shaped_placeholder("abc"), "sk_liveabc");
+        let empty = LegacyProjection {
+            placeholder_pattern: String::new(),
+            ..lp
+        };
+        assert_eq!(empty.shaped_placeholder("abc"), "vlk_ph_abc");
+    }
+
+    #[test]
+    fn a_projection_only_accepts_a_placeholder_it_could_have_issued() {
+        let lp = LegacyProjection {
+            env_var: "STRIPE_SECRET_KEY".into(),
+            connection_ref_uri: "conn://demo/stripe".into(),
+            placeholder_pattern: "ostest_*".into(),
+            issued_placeholder: None,
+            placement: PlaceholderPlacement::default(),
+            delivery: CredentialDeliveryMode::Placeholder,
+        };
+        assert!(lp.accepts_placeholder(&lp.shaped_placeholder("0123456789abcdef")));
+        // Someone else's placeholder, a bare word, a short fill, or nothing at all.
+        for bad in [
+            "",
+            "a",
+            "Bearer ",
+            "ostest_",
+            "ostest_1",
+            "oslive_0123456789abcdef",
+        ] {
+            assert!(!lp.accepts_placeholder(bad), "{bad} should not be accepted");
+        }
+
+        let unpatterned = LegacyProjection {
+            placeholder_pattern: String::new(),
+            ..lp
+        };
+        assert!(
+            unpatterned.accepts_placeholder(&unpatterned.shaped_placeholder("0123456789abcdef"))
+        );
+        assert!(!unpatterned.accepts_placeholder("vlk_ph_1"));
+    }
+
+    #[test]
+    fn a_recorded_placeholder_admits_only_itself() {
+        let mine = LegacyProjection {
+            env_var: "STRIPE_SECRET_KEY".into(),
+            connection_ref_uri: "conn://demo/stripe".into(),
+            placeholder_pattern: "ostest_*".into(),
+            issued_placeholder: Some("ostest_0123456789abcdef".into()),
+            placement: PlaceholderPlacement::default(),
+            delivery: CredentialDeliveryMode::Placeholder,
+        };
+        assert!(mine.accepts_placeholder("ostest_0123456789abcdef"));
+        // Right shape, another connection's placeholder.
+        assert!(!mine.accepts_placeholder("ostest_fedcba9876543210"));
+        assert!(!mine.accepts_placeholder(""));
+    }
+
+    #[test]
+    fn placement_counts_every_appearance_not_every_part() {
+        let p = PlaceholderPlacement::default();
+        let ph = "ostest_0123456789abcdef";
+        // One allowed header, but the credential would be written twice.
+        let err = p
+            .assert_allowed(
+                &PlaceholderRequestView {
+                    method: "POST",
+                    header_name: Some("Authorization"),
+                    header_value: Some(&format!("Bearer {ph} {ph}")),
+                    ..Default::default()
+                },
+                ph,
+            )
+            .unwrap_err();
+        assert!(format!("{err}").contains("max_occurrences"), "{err}");
+    }
+
+    #[test]
+    fn placement_denies_a_second_site_even_beside_an_allowed_one() {
+        let p = PlaceholderPlacement {
+            max_occurrences: 4,
+            ..PlaceholderPlacement::default()
+        };
+        let ph = "ostest_0123456789abcdef";
+        let err = p
+            .assert_allowed(
+                &PlaceholderRequestView {
+                    method: "POST",
+                    header_name: Some("Authorization"),
+                    header_value: Some(&format!("Bearer {ph}")),
+                    query: Some(&format!("callback=https://evil.example/?t={ph}")),
+                    ..Default::default()
+                },
+                ph,
+            )
+            .unwrap_err();
+        assert!(
+            format!("{err}").contains("outside allowed placement"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn a_named_query_location_covers_only_its_own_parameter() {
+        let p = PlaceholderPlacement {
+            locations: vec![PlaceholderLocation::Query {
+                name: Some("key".into()),
+            }],
+            methods: vec!["GET".into()],
+            max_occurrences: 1,
+        };
+        let ph = "ostest_0123456789abcdef";
+        assert!(p
+            .assert_allowed(
+                &PlaceholderRequestView {
+                    method: "GET",
+                    query: Some(&format!("key={ph}")),
+                    ..Default::default()
+                },
+                ph,
+            )
+            .is_ok());
+        let err = p
+            .assert_allowed(
+                &PlaceholderRequestView {
+                    method: "GET",
+                    query: Some(&format!("redirect_uri=https://evil.example/?t={ph}")),
+                    ..Default::default()
+                },
+                ph,
+            )
+            .unwrap_err();
+        assert!(
+            format!("{err}").contains("outside allowed placement"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn an_empty_placeholder_is_not_substitutable() {
+        let p = PlaceholderPlacement::default();
+        assert!(p
+            .assert_allowed(
+                &PlaceholderRequestView {
+                    method: "POST",
+                    header_name: Some("Authorization"),
+                    header_value: Some("Bearer x"),
+                    ..Default::default()
+                },
+                "",
+            )
+            .is_err());
     }
 
     #[test]
