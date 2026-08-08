@@ -182,6 +182,20 @@ principalRoutes.post(
       return c.json({ error: "principal_inactive" }, 403);
     }
 
+    // Nothing in this request proves the caller controls `issuer`/`subject`, and a
+    // successful link promotes a provisional principal to `verified` — the very
+    // assurance that gates organizations, projects and OAuth client registration.
+    // Caller-asserted links are therefore a dev seam only, like stub TOTP.
+    if (!ctx.config.allowDevDefaults) {
+      return c.json(
+        {
+          error: "identity_link_requires_upstream",
+          hint: "Complete an upstream authentication ceremony; self-asserted identity links are dev-only",
+        },
+        403,
+      );
+    }
+
     const parsed = LinkIdentityRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
       return c.json(
@@ -215,12 +229,13 @@ principalRoutes.post(
           }),
         );
       }
+      // Deliberately does not echo the bound principal id: that would let any
+      // caller enumerate which principal owns an upstream identity.
       return c.json(
         {
           error: "identity_collision",
           message:
             "External identity already bound to another principal; merge requires dual authentication",
-          boundPrincipalId: existing.principalId,
         },
         409,
       );

@@ -635,6 +635,85 @@ describe("control-plane API", () => {
     expect(badUri.status).toBe(400);
   });
 
+  it("refuses self-asserted identity links outside dev and hides the bound principal", async () => {
+    const prod = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+        allowDevDefaults: false,
+        claimPepper: "prod-claim-pepper-for-test-only",
+        isProduction: false,
+      },
+      processEnv: {
+        ...process.env,
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "false",
+        OPENSESAME_CLAIM_PEPPER: "prod-claim-pepper-for-test-only",
+        NODE_ENV: "development",
+      },
+    });
+    const created = await provisional(prod.app);
+    const escalate = await prod.app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${created.accessToken}`,
+        "content-type": "application/json",
+        "idempotency-key": "link-prod",
+      },
+      body: JSON.stringify({
+        kind: "oidc",
+        issuer: "https://accounts.example",
+        subject: "victim",
+        assurance: "verified",
+      }),
+    });
+    expect(escalate.status).toBe(403);
+    expect(((await escalate.json()) as { error: string }).error).toBe(
+      "identity_link_requires_upstream",
+    );
+    // The principal must not have been promoted.
+    const me = await prod.app.request("/v1/principals/me", {
+      headers: { authorization: `Bearer ${created.accessToken}` },
+    });
+    expect(((await me.json()) as { assurance: string }).assurance).toBe("provisional");
+
+    // In dev the link works, but a collision never reveals the bound principal.
+    const { app } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+    const a = await provisional(app);
+    const b = await provisional(app);
+    const identity = {
+      kind: "oidc",
+      issuer: "https://accounts.example",
+      subject: "shared-subject",
+      assurance: "verified",
+    };
+    const first = await app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${a.accessToken}`,
+        "content-type": "application/json",
+        "idempotency-key": "link-first",
+      },
+      body: JSON.stringify(identity),
+    });
+    expect(first.status).toBe(201);
+    const collision = await app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${b.accessToken}`,
+        "content-type": "application/json",
+        "idempotency-key": "link-collide",
+      },
+      body: JSON.stringify(identity),
+    });
+    expect(collision.status).toBe(409);
+    const body = await collision.text();
+    expect(body).toContain("identity_collision");
+    expect(body).not.toContain(a.principalId);
+  });
+
   it("rejects provisional create when session capacity is exhausted", async () => {
     const { app, ctx } = createControlPlane({
       config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
