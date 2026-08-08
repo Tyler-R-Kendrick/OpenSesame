@@ -5,7 +5,7 @@
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 use axum::{
     extract::State,
-    http::{header, HeaderMap, StatusCode},
+    http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -22,18 +22,6 @@ use std::{
 use uuid::Uuid;
 
 const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
-
-fn constant_time_eq(a: &str, b: &str) -> bool {
-    let (aa, bb) = (a.as_bytes(), b.as_bytes());
-    if aa.len() != bb.len() {
-        return false;
-    }
-    let mut diff = 0u8;
-    for (x, y) in aa.iter().zip(bb.iter()) {
-        diff |= x ^ y;
-    }
-    diff == 0
-}
 
 #[derive(Parser)]
 #[command(name = "opensesame-daemon", about = "OpenSesame host daemon")]
@@ -138,28 +126,15 @@ fn resolve_operator_token() -> String {
 
 #[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
 fn require_operator(st: &App, headers: &HeaderMap) -> Result<(), Response> {
-    if st.operator_token.is_empty() {
-        return Err((
+    use opensesame_host_core::operator::{check, OperatorDenial};
+    match check(&st.operator_token, headers) {
+        Ok(()) => Ok(()),
+        Err(OperatorDenial::Unconfigured) => Err((
             StatusCode::SERVICE_UNAVAILABLE,
             Json(json!({"error":"operator_token_unconfigured"})),
         )
-            .into_response());
-    }
-    let from_header = headers
-        .get("x-opensesame-operator")
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
-    let from_bearer = headers
-        .get(header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|a| {
-            a.strip_prefix("Bearer operator:")
-                .or_else(|| a.strip_prefix("bearer operator:"))
-                .map(str::to_string)
-        });
-    match from_header.or(from_bearer) {
-        Some(t) if constant_time_eq(&t, &st.operator_token) => Ok(()),
-        _ => Err((
+            .into_response()),
+        Err(OperatorDenial::Unauthorized) => Err((
             StatusCode::UNAUTHORIZED,
             Json(json!({
                 "error":"operator_unauthorized",

@@ -186,6 +186,12 @@ enum IntentCmd {
         #[arg(long)]
         idempotency_key: Option<String>,
     },
+    /// Spend a frozen intent under its task ceiling. The digest names bytes the
+    /// Host API already holds, so the call cannot be restated here.
+    Invoke {
+        #[arg(long = "digest")]
+        intent_digest: String,
+    },
 }
 
 #[derive(Clone, ValueEnum, Debug)]
@@ -925,6 +931,18 @@ async fn intent_cmd(server: &str, output: &str, cmd: IntentCmd) -> anyhow::Resul
                     "arguments": arguments,
                     "idempotency_key": idempotency_key.unwrap_or_else(uuid_v4),
                 }))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            print_output(output, &body)?;
+        }
+        IntentCmd::Invoke { intent_digest } => {
+            let body: serde_json::Value = client
+                .post(format!("{base}/api/v1/tasks/invoke"))
+                .header("authorization", format!("Bearer operator:{op}"))
+                .json(&json!({ "intent_digest": intent_digest }))
                 .send()
                 .await?
                 .error_for_status()?
