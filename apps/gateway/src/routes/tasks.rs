@@ -163,6 +163,10 @@ pub async fn freeze_intent(
     let run = eng
         .assert_capability(tid, &required, body.expected_state_version, now)
         .map_err(|e| err_json(StatusCode::FORBIDDEN, "task_ceiling_exceeded", e))?;
+    // Name the authority this intent will execute under. A fresh `ActorId::new()`
+    // named nothing, so the receipt's actor was meaningless and a grant narrowed to
+    // one actor, project or connection could not tell whether it covered the call.
+    let boot = require_demo_bootstrap(&st)?;
     let intent = FrozenIntentV2 {
         schema_version: FROZEN_INTENT_SCHEMA_VERSION,
         id: IntentId::new(),
@@ -170,13 +174,13 @@ pub async fn freeze_intent(
         task_state_version: run.state_version,
         task_state_digest: run.state_digest.clone(),
         organization_id: run.organization_id,
-        project_id: run.project_id,
+        project_id: run.project_id.or(Some(boot.project)),
         principal_id: run.principal_id,
-        actor_id: ActorId::new(),
+        actor_id: boot.actor,
         actor_instance_id: None,
         client_id: None,
         operator_id: None,
-        connection_id: None,
+        connection_id: Some(boot.connection),
         operation: body.operation,
         resource: body.resource,
         audience: body.audience,
@@ -375,7 +379,7 @@ mod tests {
     use crate::middleware::auth::Caller;
     use chrono::{Duration, Utc};
     use opensesame_domain::{
-        FrozenIntentV2, IntentId, OrganizationId, PrincipalId, TaskRunId, ActorId,
+        ActorId, FrozenIntentV2, IntentId, OrganizationId, PrincipalId, TaskRunId,
         FROZEN_INTENT_SCHEMA_VERSION,
     };
     use std::collections::HashMap;
@@ -422,8 +426,9 @@ mod tests {
         assert!(pending.contains_key("sha256:intent"));
 
         let owner_caller = Caller::Principal(owner);
-        assert!(claim_frozen_intent(&mut pending, "sha256:intent", &owner_caller, Utc::now())
-            .is_some());
+        assert!(
+            claim_frozen_intent(&mut pending, "sha256:intent", &owner_caller, Utc::now()).is_some()
+        );
         assert!(pending.is_empty(), "the owner's invocation spends it");
     }
 
