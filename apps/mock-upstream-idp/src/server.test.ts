@@ -35,6 +35,9 @@ describe("mock-upstream-idp", () => {
     try {
       const discovery = await fetch(`${base}/.well-known/openid-configuration`);
       expect(discovery.status).toBe(200);
+      expect(discovery.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(discovery.headers.get("x-frame-options")).toBe("DENY");
+      expect(discovery.headers.get("cache-control")).toBe("no-store");
       const meta = (await discovery.json()) as { issuer: string; jwks_uri: string };
       expect(meta.jwks_uri).toContain("/jwks");
 
