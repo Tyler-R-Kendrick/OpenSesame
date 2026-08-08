@@ -18,6 +18,24 @@ fn one_person_maps_to_one_principal() {
 }
 
 #[test]
+fn a_resource_scoped_ceiling_does_not_admit_a_scope_request() {
+    // The scope mapping is a stub that cannot name a resource, so it asks for the
+    // literal `*`. Pin the fail-closed reading before the draft settles: a ceiling
+    // confined to real resources must not answer for a resource-blind request.
+    let scoped = CapabilitySet::new(vec![Capability::new(
+        "tools:call",
+        ResourceSelector::exact("repo:a"),
+    )]);
+    assert_eq!(
+        assert_scopes_within_ceiling(&["tools:call"], &scoped),
+        Err(AAuthError::ScopeOutsideCeiling)
+    );
+    // An empty request asks for nothing and is inside every ceiling.
+    let nothing: [&str; 0] = [];
+    assert!(assert_scopes_within_ceiling(&nothing, &scoped).is_ok());
+}
+
+#[test]
 fn multiple_persons_rejected() {
     let p1 = Person {
         id: "p1".into(),
