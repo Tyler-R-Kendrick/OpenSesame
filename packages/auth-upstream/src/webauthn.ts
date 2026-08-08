@@ -58,10 +58,12 @@ export function createMemoryChallengeStore(): PasskeyChallengeStore {
         if (now > row.expiresAt) map.delete(key);
       }
       if (map.size >= MAX_OUTSTANDING_CHALLENGES) {
-        // Drop the oldest insertion rather than unbounded growth; a challenge
-        // that never comes back is not worth remembering forever.
-        const oldest = map.keys().next();
-        if (!oldest.done) map.delete(oldest.value);
+        // Evict the issuer's own oldest challenge first. Dropping whatever is
+        // oldest globally would let one principal, by asking for challenges in
+        // bulk, knock another principal's ceremony out of the store mid-login.
+        const own = [...map].find(([, row]) => row.principalId === meta.principalId);
+        const victim = own?.[0] ?? map.keys().next().value;
+        if (victim !== undefined) map.delete(victim);
       }
       map.set(challenge, meta);
     },
@@ -85,7 +87,10 @@ export async function issueAuthenticationChallenge(
 }> {
   const genArgs: GenerateAuthenticationOptionsOpts = {
     rpID: rp.rpID,
-    userVerification: "preferred",
+    // Required, not preferred: a passkey is this system's production MFA factor,
+    // and an assertion that skipped user verification proves possession of the
+    // authenticator only — one factor wearing two factors' name.
+    userVerification: "required",
   };
   if (opts?.allowCredentials && opts.allowCredentials.length > 0) {
     const transports: AuthenticatorTransportFuture[] = [
@@ -131,7 +136,9 @@ export async function issueRegistrationChallenge(
     attestationType: "direct",
     authenticatorSelection: {
       residentKey: "preferred",
-      userVerification: "preferred",
+      // Enrol only authenticators that can verify their user; otherwise the
+      // credential can never satisfy the assertion requirement below.
+      userVerification: "required",
     },
   });
   store.set(options.challenge, {
@@ -180,7 +187,7 @@ export async function verifyRegistrationAttestation(
       expectedChallenge: challenge,
       expectedOrigin: rp.origin,
       expectedRPID: rp.rpID,
-      requireUserVerification: false,
+      requireUserVerification: true,
     });
     if (!result.verified || !result.registrationInfo) return null;
     const { credential } = result.registrationInfo;
@@ -238,7 +245,7 @@ export function createSimpleWebAuthnVerifyFn(
           publicKey: credential.publicKey,
           counter: credential.counter,
         },
-        requireUserVerification: false,
+        requireUserVerification: true,
       });
       if (!result.verified) return false;
       // Hand the fresh counter back so the seam can persist it; without this the
