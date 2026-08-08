@@ -13,8 +13,21 @@ use opensesame_claims::{hash_eq, hash_secret};
 use crate::app_state::AppState;
 use crate::middleware::auth::{require_demo_bootstrap, require_operator};
 
-/// Approval attempts allowed per pending device code before it is burned.
-const MAX_APPROVE_ATTEMPTS: u32 = 5;
+/// Failed `user_code` guesses tolerated across the whole instance per window.
+///
+/// A guess cannot be attributed to a particular pending authorization, so the
+/// fence has to be global. It is a cooldown rather than an invalidation: a wrong
+/// guess must never destroy in-flight device authorizations (that would let any
+/// caller cancel every pending login).
+const MAX_APPROVE_FAILURES: usize = 10;
+const APPROVE_FAILURE_WINDOW_SECS: i64 = 60;
+
+/// Drops failures older than the window and reports how many remain.
+fn prune_failures(failures: &mut Vec<chrono::DateTime<Utc>>, now: chrono::DateTime<Utc>) -> usize {
+    let cutoff = now - Duration::seconds(APPROVE_FAILURE_WINDOW_SECS);
+    failures.retain(|at| *at > cutoff);
+    failures.len()
+}
 
 #[derive(Deserialize)]
 pub struct DeviceAuthorizeRequest {
@@ -48,7 +61,6 @@ pub async fn authorize(
             user_code_hash: hash_secret(&user_code),
             expires_at,
             approved_principal: None,
-            approve_attempts: 0,
         },
     );
     // device_code returned once to client process — never logged
@@ -168,20 +180,32 @@ pub async fn approve(
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
+    let now = Utc::now();
+    {
+        let mut failures = st.device_approve_failures.lock().unwrap();
+        if prune_failures(&mut failures, now) >= MAX_APPROVE_FAILURES {
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(json!({
+                    "error": "too_many_attempts",
+                    "retry_after_seconds": APPROVE_FAILURE_WINDOW_SECS,
+                })),
+            )
+                .into_response();
+        }
+    }
+
     let attempt_hash = hash_secret(&req.user_code);
     let mut map = st.device_codes.lock().unwrap();
-    let now = Utc::now();
-    map.retain(|_, p| p.expires_at > now && p.approve_attempts < MAX_APPROVE_ATTEMPTS);
+    map.retain(|_, p| p.expires_at > now);
     for pending in map.values_mut() {
         if hash_eq(&attempt_hash, &pending.user_code_hash) {
             pending.approved_principal = Some(req.principal.unwrap_or_else(|| "user:demo".into()));
             return (StatusCode::OK, Json(json!({"status":"approved"}))).into_response();
         }
     }
-    // Count the miss against every live code so guessing burns the pending set.
-    for pending in map.values_mut() {
-        pending.approve_attempts += 1;
-    }
+    // A miss costs the guesser budget, not the pending authorizations.
+    st.device_approve_failures.lock().unwrap().push(now);
     (
         StatusCode::NOT_FOUND,
         Json(json!({"error":"unknown_user_code"})),
@@ -200,7 +224,6 @@ mod tests {
             user_code_hash: hash_secret(user_code),
             expires_at: Utc::now() + Duration::minutes(15),
             approved_principal: None,
-            approve_attempts: 0,
         }
     }
 
@@ -218,21 +241,49 @@ mod tests {
     }
 
     #[test]
-    fn wrong_codes_burn_pending_entry_after_max_attempts() {
+    fn wrong_guesses_never_invalidate_pending_authorizations() {
         let mut map: HashMap<String, DevicePending> = HashMap::new();
-        map.insert(hash_secret("dc_1"), pending("BCDFGHJK"));
+        map.insert(hash_secret("dc_1"), pending("BCDF-GHJK"));
+        let mut failures: Vec<chrono::DateTime<Utc>> = Vec::new();
 
-        for _ in 0..MAX_APPROVE_ATTEMPTS {
+        for _ in 0..(MAX_APPROVE_FAILURES * 3) {
             let now = Utc::now();
-            map.retain(|_, p| p.expires_at > now && p.approve_attempts < MAX_APPROVE_ATTEMPTS);
-            assert!(!map.is_empty(), "entry should survive until cap");
-            for p in map.values_mut() {
-                p.approve_attempts += 1;
-            }
+            map.retain(|_, p| p.expires_at > now);
+            failures.push(now);
         }
 
         let now = Utc::now();
-        map.retain(|_, p| p.expires_at > now && p.approve_attempts < MAX_APPROVE_ATTEMPTS);
-        assert!(map.is_empty(), "entry burned after cap");
+        map.retain(|_, p| p.expires_at > now);
+        assert_eq!(map.len(), 1, "guessing must not burn live authorizations");
+        // The legitimate code still approves once the cooldown has elapsed.
+        let entry = map.values().next().expect("entry");
+        assert!(hash_eq(&hash_secret("BCDF-GHJK"), &entry.user_code_hash));
+    }
+
+    #[test]
+    fn failure_window_prunes_and_caps() {
+        let now = Utc::now();
+        let mut failures: Vec<chrono::DateTime<Utc>> = vec![
+            now - Duration::seconds(APPROVE_FAILURE_WINDOW_SECS + 5),
+            now - Duration::seconds(APPROVE_FAILURE_WINDOW_SECS + 1),
+        ];
+        assert_eq!(
+            prune_failures(&mut failures, now),
+            0,
+            "stale failures pruned"
+        );
+
+        for _ in 0..MAX_APPROVE_FAILURES {
+            failures.push(now);
+        }
+        assert_eq!(prune_failures(&mut failures, now), MAX_APPROVE_FAILURES);
+        assert!(
+            prune_failures(&mut failures, now) >= MAX_APPROVE_FAILURES,
+            "locked out"
+        );
+
+        // Everything ages out after the window.
+        let later = now + Duration::seconds(APPROVE_FAILURE_WINDOW_SECS + 1);
+        assert_eq!(prune_failures(&mut failures, later), 0);
     }
 }

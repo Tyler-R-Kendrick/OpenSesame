@@ -17,6 +17,7 @@ export {
   type PasskeyCredential,
   type PasskeySeam,
   type PasskeyVerifyFn,
+  type PasskeyVerifyResult,
 } from "./passkey.js";
 export {
   createMemoryChallengeStore,

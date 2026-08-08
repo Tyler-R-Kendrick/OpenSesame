@@ -23,8 +23,6 @@ pub struct DevicePending {
     pub user_code_hash: String,
     pub expires_at: chrono::DateTime<chrono::Utc>,
     pub approved_principal: Option<String>,
-    /// Failed approval attempts against this code (brute-force fence).
-    pub approve_attempts: u32,
 }
 
 #[derive(Clone)]
@@ -45,6 +43,8 @@ pub struct AppState {
     pub broker: Arc<Broker>,
     pub sessions: Arc<Mutex<HashMap<String, Value>>>,
     pub device_codes: Arc<Mutex<HashMap<String, DevicePending>>>,
+    /// Timestamps of failed `user_code` approval guesses (global cooldown fence).
+    pub device_approve_failures: Arc<Mutex<Vec<chrono::DateTime<chrono::Utc>>>>,
     pub claims: Arc<Mutex<HashMap<String, ClaimSession>>>,
     pub bootstrap: Arc<Mutex<Option<Bootstrap>>>,
     pub openfga: Option<OpenFgaClient>,
@@ -101,6 +101,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         broker: Arc::new(boot.broker),
         sessions: Arc::new(Mutex::new(HashMap::new())),
         device_codes: Arc::new(Mutex::new(HashMap::new())),
+        device_approve_failures: Arc::new(Mutex::new(Vec::new())),
         claims: Arc::new(Mutex::new(HashMap::new())),
         bootstrap: Arc::new(Mutex::new(boot.demo)),
         openfga,
