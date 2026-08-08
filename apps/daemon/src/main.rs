@@ -145,6 +145,32 @@ fn require_operator(st: &App, headers: &HeaderMap) -> Result<(), Response> {
     }
 }
 
+/// A forward that carries the operator token, refused when the target is not on
+/// this machine.
+///
+/// The token is a shared secret for this host. `OPENSESAME_SERVER` is
+/// configuration, so a remote value would hand it to whoever answers there —
+/// over cleartext, at that. Deny the forward instead: nothing about being unable
+/// to reach a remote Host API justifies giving away the local secret.
+#[allow(clippy::result_large_err)]
+fn operator_forward(st: &App, url: &str) -> Result<reqwest::RequestBuilder, Response> {
+    if !opensesame_host_core::daemon::base_url_is_local(&st.host_api) {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "remote_host_api",
+                "hint": "the operator token is local to this machine; \
+                         point OPENSESAME_SERVER at loopback to forward"
+            })),
+        )
+            .into_response());
+    }
+    Ok(st
+        .http
+        .post(url)
+        .header("x-opensesame-operator", &st.operator_token))
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().init();
@@ -294,10 +320,11 @@ async fn approve_device(
         return resp;
     }
     let url = format!("{}/api/v1/device/approve", st.host_api);
-    match st
-        .http
-        .post(&url)
-        .header("x-opensesame-operator", &st.operator_token)
+    let forward = match operator_forward(&st, &url) {
+        Ok(f) => f,
+        Err(resp) => return resp,
+    };
+    match forward
         .json(&json!({
             "user_code": req.user_code,
             "principal": req.principal.unwrap_or_else(|| "user:demo".into()),
@@ -341,10 +368,11 @@ async fn approve_claim(
             "{}/api/v1/agent-claims/{}/complete",
             st.host_api, req.claim_id
         );
-        return match st
-            .http
-            .post(&url)
-            .header("x-opensesame-operator", &st.operator_token)
+        let forward = match operator_forward(&st, &url) {
+            Ok(f) => f,
+            Err(resp) => return resp,
+        };
+        return match forward
             .json(&json!({"claim_token": claim_token, "user_code": user_code}))
             .send()
             .await
@@ -415,14 +443,11 @@ async fn operator_invoke_l1(
         ),
         None => (format!("{}/api/v1/intents", st.host_api), body),
     };
-    match st
-        .http
-        .post(&url)
-        .header("x-opensesame-operator", &st.operator_token)
-        .json(&forwarded)
-        .send()
-        .await
-    {
+    let forward = match operator_forward(&st, &url) {
+        Ok(f) => f,
+        Err(resp) => return resp,
+    };
+    match forward.json(&forwarded).send().await {
         Ok(resp) => {
             let status = resp.status().as_u16();
             let body = resp.json::<Value>().await.unwrap_or(json!({}));
@@ -488,10 +513,14 @@ async fn mint_capability(
         },
     };
     drop(sessions);
-    st.capabilities
-        .lock()
-        .unwrap()
-        .insert(cap.id.clone(), cap.clone());
+    {
+        // An expired capability is already inert on introspect; keeping it only
+        // grows the daemon for as long as it runs.
+        let mut caps = st.capabilities.lock().unwrap();
+        let now = Utc::now();
+        caps.retain(|_, c| c.expires_at > now);
+        caps.insert(cap.id.clone(), cap.clone());
+    }
     Json(json!({
         "capability": {
             "id": cap.id,
