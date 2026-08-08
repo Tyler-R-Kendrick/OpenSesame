@@ -3,6 +3,11 @@ import {
   createPairwiseIdentifierCallback,
   MemoryPairwiseSubjectStore,
 } from "@opensesame/oauth-provider";
+import {
+  DEFAULT_PROVISIONAL_QUOTA,
+  DEFAULT_VERIFIED_QUOTA,
+  ProvisionalPolicy,
+} from "@opensesame/policy";
 import { createControlPlane } from "../create-app.js";
 
 async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
@@ -690,6 +695,72 @@ describe("control-plane API", () => {
     expect(events.events.some((e) => e.eventType === "organization.created")).toBe(
       true,
     );
+  });
+
+  it("holds a verified principal to an organization and client quota", async () => {
+    const { app, ctx } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+    // A small allowance so the fence is reached in a couple of requests.
+    ctx.policy = new ProvisionalPolicy(DEFAULT_PROVISIONAL_QUOTA, {
+      ...DEFAULT_VERIFIED_QUOTA,
+      maxOrganizations: 1,
+      maxOAuthClients: 1,
+    });
+
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+    await app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json", "idempotency-key": "link-q" },
+      body: JSON.stringify({
+        kind: "oidc",
+        issuer: "https://mock.example",
+        subject: "quota-admin",
+        assurance: "verified",
+      }),
+    });
+
+    const createOrg = (slug: string, key: string) =>
+      app.request("/v1/organizations", {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json", "idempotency-key": key },
+        body: JSON.stringify({ slug, displayName: slug }),
+      });
+    expect((await createOrg("quota-one", "q-org-1")).status).toBe(201);
+    const secondOrg = await createOrg("quota-two", "q-org-2");
+    expect(secondOrg.status).toBe(403);
+    expect(((await secondOrg.json()) as { reasons: string[] }).reasons).toContain(
+      "quota_organizations",
+    );
+
+    const createClient = (name: string, key: string) =>
+      app.request("/v1/oauth/clients", {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json", "idempotency-key": key },
+        body: JSON.stringify({
+          displayName: name,
+          redirectUris: ["https://rp.example/callback"],
+          sectorIdentifier: "https://rp.example",
+        }),
+      });
+    const firstClient = await createClient("RP One", "q-cli-1");
+    expect(firstClient.status).toBe(201);
+    const clientId = ((await firstClient.json()) as { id: string }).id;
+    const secondClient = await createClient("RP Two", "q-cli-2");
+    expect(secondClient.status).toBe(403);
+    expect(((await secondClient.json()) as { reasons: string[] }).reasons).toContain(
+      "quota_oauth_clients",
+    );
+
+    // Revoking frees the slot: a quota counted from the store is a live limit,
+    // not a lifetime cap.
+    const revoked = await app.request(`/v1/oauth/clients/${clientId}/revoke`, {
+      method: "POST",
+      headers: auth,
+    });
+    expect(revoked.status).toBe(200);
+    expect((await createClient("RP Three", "q-cli-3")).status).toBe(201);
   });
 
   it("fences oauth clients to their owning principal", async () => {

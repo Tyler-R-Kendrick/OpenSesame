@@ -1,9 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { fixtures } from "@opensesame/os-domain";
-import { DEFAULT_VERIFIED_QUOTA, ProvisionalPolicy } from "../index.js";
+import {
+  DEFAULT_VERIFIED_QUOTA,
+  ProvisionalPolicy,
+  type ProvisionalUsage,
+} from "../index.js";
 
 describe("ProvisionalPolicy", () => {
   const policy = new ProvisionalPolicy();
+
+  const usage = (over: Partial<ProvisionalUsage>): ProvisionalUsage => ({
+    temporaryProjects: 0,
+    temporaryResources: 0,
+    agents: 0,
+    organizations: 0,
+    oauthClients: 0,
+    ...over,
+  });
 
   it("allows provisional low-risk actions under quota", () => {
     const d = policy.evaluate(
@@ -13,7 +26,7 @@ describe("ProvisionalPolicy", () => {
         action: "project.create_temporary",
         resource: { type: "project", id: "new" },
       },
-      { temporaryProjects: 0, temporaryResources: 0, agents: 0 },
+      usage({}),
     );
     expect(d.effect).toBe("allow");
   });
@@ -53,17 +66,13 @@ describe("ProvisionalPolicy", () => {
     };
     const verified = fixtures.verifiedPrincipal();
     expect(
-      policy.evaluate(verified, request, {
-        temporaryProjects: 4,
-        temporaryResources: 0,
-        agents: 0,
-      }).effect,
+      policy.evaluate(verified, request, usage({ temporaryProjects: 4 })).effect,
     ).toBe("allow");
-    const d = policy.evaluate(verified, request, {
-      temporaryProjects: DEFAULT_VERIFIED_QUOTA.maxTemporaryProjects,
-      temporaryResources: 0,
-      agents: 0,
-    });
+    const d = policy.evaluate(
+      verified,
+      request,
+      usage({ temporaryProjects: DEFAULT_VERIFIED_QUOTA.maxTemporaryProjects }),
+    );
     expect(d.effect).toBe("deny");
     expect(d.reasons).toContain("quota_projects");
   });
@@ -76,10 +85,60 @@ describe("ProvisionalPolicy", () => {
         action: "project.create_temporary",
         resource: { type: "project", id: "new" },
       },
-      { temporaryProjects: 3, temporaryResources: 0, agents: 0 },
+      usage({ temporaryProjects: 3 }),
     );
     expect(d.effect).toBe("deny");
     expect(d.reasons).toContain("provisional_quota_projects");
+  });
+
+  it("caps organizations and OAuth clients for verified principals", () => {
+    const verified = fixtures.verifiedPrincipal();
+    const orgRequest = {
+      subject: { type: "principal" as const, id: "prn_v" },
+      action: "organization.create",
+      resource: { type: "organization", id: "*" },
+    };
+    expect(
+      policy.evaluate(verified, orgRequest, usage({ organizations: 1 })).effect,
+    ).toBe("allow");
+    const orgDenied = policy.evaluate(
+      verified,
+      orgRequest,
+      usage({ organizations: DEFAULT_VERIFIED_QUOTA.maxOrganizations }),
+    );
+    expect(orgDenied.effect).toBe("deny");
+    expect(orgDenied.reasons).toContain("quota_organizations");
+
+    const clientRequest = {
+      subject: { type: "principal" as const, id: "prn_v" },
+      action: "oauth.client.register",
+      resource: { type: "oauth_client", id: "*" },
+    };
+    expect(
+      policy.evaluate(verified, clientRequest, usage({ oauthClients: 3 })).effect,
+    ).toBe("allow");
+    const clientDenied = policy.evaluate(
+      verified,
+      clientRequest,
+      usage({ oauthClients: DEFAULT_VERIFIED_QUOTA.maxOAuthClients }),
+    );
+    expect(clientDenied.effect).toBe("deny");
+    expect(clientDenied.reasons).toContain("quota_oauth_clients");
+  });
+
+  it("gives a provisional principal no organization or client allowance", () => {
+    for (const action of ["organization.create", "oauth.client.register"]) {
+      const d = policy.evaluate(
+        fixtures.provisionalPrincipal(),
+        {
+          subject: { type: "principal", id: "prn_x" },
+          action,
+          resource: { type: "organization", id: "*" },
+        },
+        usage({}),
+      );
+      expect(d.effect, action).toBe("deny");
+    }
   });
 
   it("allows unlisted low-risk actions for verified principals", () => {

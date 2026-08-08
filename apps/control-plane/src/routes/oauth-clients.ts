@@ -11,6 +11,7 @@ import type { AppContext } from "../context.js";
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { getUsage } from "../state.js";
 
 export const oauthClientRoutes = new Hono<{ Variables: Variables }>();
 
@@ -72,6 +73,41 @@ async function assertVerified(
   return null;
 }
 
+/**
+ * Registration spends a quota slot. Assurance says who someone is; it does not
+ * say they may register clients forever, and without this the client store grew
+ * for as long as a caller kept asking.
+ */
+async function assertRegistrationQuota(
+  ctx: AppContext,
+  principalId: string,
+): Promise<Response | null> {
+  const principal = await ctx.repos.principals.getById(principalId);
+  if (!principal) {
+    return Response.json({ error: "not_found" }, { status: 404 });
+  }
+  const decision = ctx.policy.evaluate(
+    principal,
+    {
+      subject: {
+        type: "principal",
+        id: principal.id,
+        assurance: principal.assurance,
+      },
+      action: "oauth.client.register",
+      resource: { type: "oauth_client", id: "*" },
+    },
+    getUsage(ctx.stores, principalId, ctx.clock()),
+  );
+  if (decision.effect === "deny") {
+    return Response.json(
+      { error: "forbidden", reasons: decision.reasons },
+      { status: 403 },
+    );
+  }
+  return null;
+}
+
 oauthClientRoutes.get("/", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = c.get("principalId")!;
@@ -90,6 +126,8 @@ oauthClientRoutes.post(
     const principalId = c.get("principalId")!;
     const denied = await assertVerified(ctx, principalId, "register");
     if (denied) return denied;
+    const overQuota = await assertRegistrationQuota(ctx, principalId);
+    if (overQuota) return overQuota;
 
     const parsed = CreateOAuthClientRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
