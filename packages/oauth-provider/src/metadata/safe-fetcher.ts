@@ -41,38 +41,87 @@ export function assertSafeMetadataUrl(rawUrl: string): URL {
     throw new UnsafeMetadataUrlError(`Blocked metadata host: ${host}`);
   }
 
-  const ipVersion = isIP(host);
-  if (ipVersion && isPrivateOrSpecialIp(host)) {
+  // WHATWG URL already normalizes decimal/octal/hex IPv4 (e.g. 2130706433) and
+  // collapses IPv6, so literal checks run on the canonical host.
+  if (isIP(host) && isPrivateOrSpecialIp(host)) {
     throw new UnsafeMetadataUrlError(`Blocked address: ${host}`);
   }
 
   return url;
 }
 
-function isPrivateOrSpecialIp(ip: string): boolean {
-  if (ip === "0.0.0.0" || ip === "::" || ip === "::1") return true;
-
-  if (ip.includes(":")) {
-    const normalized = ip.toLowerCase();
-    if (normalized.startsWith("fc") || normalized.startsWith("fd")) return true; // ULA
-    if (normalized.startsWith("fe80")) return true; // link-local
-    if (normalized.startsWith("::ffff:")) {
-      return isPrivateOrSpecialIp(normalized.slice("::ffff:".length));
-    }
-    return false;
+/** Expand any IPv6 text form to exactly 8 numeric hextets. */
+function expandIpv6(ip: string): number[] | null {
+  let text = ip.toLowerCase();
+  // Trailing dotted-quad (::ffff:127.0.0.1) becomes two hextets.
+  const dotted = /^(.*:)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(text);
+  if (dotted) {
+    const octets = dotted[2]!.split(".").map(Number);
+    if (octets.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
+    const hi = ((octets[0]! << 8) | octets[1]!).toString(16);
+    const lo = ((octets[2]! << 8) | octets[3]!).toString(16);
+    text = `${dotted[1]}${hi}:${lo}`;
   }
 
+  const [head, tail, ...rest] = text.split("::");
+  if (rest.length > 0) return null;
+  const parse = (part: string) =>
+    part === "" ? [] : part.split(":").map((h) => Number.parseInt(h, 16));
+  const left = parse(head ?? "");
+  const right = tail === undefined ? [] : parse(tail);
+  if ([...left, ...right].some((n) => Number.isNaN(n) || n < 0 || n > 0xffff)) {
+    return null;
+  }
+  if (tail === undefined) {
+    return left.length === 8 ? left : null;
+  }
+  const fill = 8 - left.length - right.length;
+  if (fill < 0) return null;
+  return [...left, ...Array.from({ length: fill }, () => 0), ...right];
+}
+
+function isPrivateOrSpecialIpv6(ip: string): boolean {
+  const parts = expandIpv6(ip);
+  // Unparseable IPv6 is treated as unsafe rather than allowed through.
+  if (!parts) return true;
+
+  const isZeroPrefix = parts.slice(0, 5).every((h) => h === 0);
+  // IPv4-mapped (::ffff:0:0/96) and IPv4-compatible (::/96) carry an IPv4 target.
+  if (isZeroPrefix && (parts[5] === 0xffff || parts[5] === 0)) {
+    const hi = parts[6]!;
+    const lo = parts[7]!;
+    const embedded = `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`;
+    if (embedded === "0.0.0.0") return true; // :: unspecified
+    if (hi === 0 && lo === 1) return true; // ::1 loopback
+    return isPrivateOrSpecialIpv4(embedded);
+  }
+
+  const first = parts[0]!;
+  if ((first & 0xfe00) === 0xfc00) return true; // fc00::/7 unique-local
+  if ((first & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
+  if ((first & 0xff00) === 0xff00) return true; // ff00::/8 multicast
+  return false;
+}
+
+function isPrivateOrSpecialIpv4(ip: string): boolean {
   const parts = ip.split(".").map((p) => Number(p));
-  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return true;
+  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n))) return true;
   const [a, b] = parts as [number, number, number, number];
+  if (a === 0) return true;
   if (a === 10) return true;
   if (a === 127) return true;
-  if (a === 0) return true;
   if (a === 169 && b === 254) return true;
   if (a === 172 && b >= 16 && b <= 31) return true;
   if (a === 192 && b === 168) return true;
+  if (a === 192 && b === 0) return true; // 192.0.0.0/24 protocol assignments
+  if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking
   if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+  if (a >= 224) return true; // multicast + reserved + broadcast
   return false;
+}
+
+function isPrivateOrSpecialIp(ip: string): boolean {
+  return ip.includes(":") ? isPrivateOrSpecialIpv6(ip) : isPrivateOrSpecialIpv4(ip);
 }
 
 export interface MetadataFetchResult {
