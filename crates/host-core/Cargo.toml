@@ -13,7 +13,11 @@ opensesame-authn = { path = "../authn" }
 opensesame-connector-host = { path = "../connector-host" }
 opensesame-env-spec = { path = "../env-spec" }
 opensesame-audit = { path = "../audit" }
+axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tower-http = { workspace = true }
 
 [dev-dependencies]
+tokio = { workspace = true }
+tower = { workspace = true }

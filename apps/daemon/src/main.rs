@@ -185,10 +185,12 @@ async fn main() -> anyhow::Result<()> {
             _refresh_sealed: true,
         },
     );
+    let host_api = args.host_api.trim_end_matches('/').to_string();
+    let hsts = host_api.starts_with("https://");
     let state = App {
         sessions: Arc::new(Mutex::new(sessions)),
         capabilities: Arc::new(Mutex::new(HashMap::new())),
-        host_api: args.host_api.trim_end_matches('/').to_string(),
+        host_api,
         identity_api: args.identity_api.trim_end_matches('/').to_string(),
         http: reqwest::Client::new(),
         operator_token: resolve_operator_token(),
@@ -214,6 +216,13 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/toolbar/approve_claim", post(approve_claim))
         .route("/v1/operator/invoke_l1", post(operator_invoke_l1))
         .with_state(state);
+
+    let cors_origins = opensesame_host_core::http_security::cors_origins_from_env();
+    let is_production = std::env::var("OPENSESAME_ENV").ok().as_deref() == Some("production")
+        || std::env::var("NODE_ENV").ok().as_deref() == Some("production");
+    opensesame_host_core::http_security::assert_cors_origins_allowed(&cors_origins, is_production)
+        .map_err(anyhow::Error::msg)?;
+    let app = opensesame_host_core::http_security::apply_http_security(app, &cors_origins, hsts);
 
     let uds_only = opensesame_host_core::daemon::uds_only_requested();
     tracing::info!(

@@ -49,6 +49,17 @@ pub fn dev_bootstrap_enabled() -> bool {
         .is_some_and(|v| v == "true" || v == "1")
 }
 
+pub fn cors_origins() -> Vec<String> {
+    opensesame_host_core::http_security::cors_origins_from_env()
+}
+
+pub fn assert_cors_origins() -> Result<(), String> {
+    opensesame_host_core::http_security::assert_cors_origins_allowed(
+        &cors_origins(),
+        is_production_env(),
+    )
+}
+
 pub fn resolve_operator_token() -> String {
     match env::var("OPENSESAME_OPERATOR_TOKEN") {
         Ok(t) if !t.is_empty() => t,

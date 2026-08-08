@@ -18,8 +18,14 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let args = Args::parse();
+    config::assert_cors_origins().map_err(anyhow::Error::msg)?;
     let state = app_state::build(args.clone()).await?;
-    let app = routes::router(state);
+    let hsts = args.resource.starts_with("https://");
+    let app = opensesame_host_core::http_security::apply_http_security(
+        routes::router(state),
+        &config::cors_origins(),
+        hsts,
+    );
 
     let listen = args.listen.to_string();
     opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;

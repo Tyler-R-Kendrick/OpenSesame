@@ -18,10 +18,13 @@ struct Args {
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().init();
     let args = Args::parse();
-    let app = Router::new()
-        .route("/health/live", get(|| async { "ok" }))
-        .route("/oauth/callback/{profile}", post(oauth_callback))
-        .route("/webhooks/{connection_public_id}/{route}", post(webhook));
+    let app = opensesame_host_core::http_security::apply_security_headers(
+        Router::new()
+            .route("/health/live", get(|| async { "ok" }))
+            .route("/oauth/callback/{profile}", post(oauth_callback))
+            .route("/webhooks/{connection_public_id}/{route}", post(webhook)),
+        false,
+    );
     let listen = args.listen.to_string();
     opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
     tracing::info!(%listen, "callback-edge listening (no vault read API)");
