@@ -391,12 +391,10 @@ claimRoutes.get("/:id/poll", async (c) => {
 });
 
 claimRoutes.get("/:id/verify", claimPageSecurityHeaders(), async (c) => {
-  const ctx = c.get("ctx");
+  // Verification landing page is reached by URL alone, so it must not disclose
+  // whether the claim exists or its state — approval happens in the console.
   const id = c.req.param("id");
-  const session = await ctx.claims.get(id);
-  const state = session?.state ?? "unknown";
   const safeId = escapeHtml(id);
-  const safeState = escapeHtml(state);
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -412,8 +410,8 @@ claimRoutes.get("/:id/verify", claimPageSecurityHeaders(), async (c) => {
 <body>
   <main>
     <h1>OpenSesame</h1>
-    <p>Claim <code>${safeId}</code> is <strong>${safeState}</strong>.</p>
-    <p>Present your claim token via the API or continue in the console.</p>
+    <p>Continue claim <code>${safeId}</code> in the console.</p>
+    <p>Approving requires signing in and entering the user code shown by your device.</p>
   </main>
 </body>
 </html>`;
