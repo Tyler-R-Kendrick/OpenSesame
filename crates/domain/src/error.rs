@@ -30,6 +30,8 @@ pub enum DomainError {
     TaskCeilingEmpty,
     #[error("task run is not active")]
     TaskNotActive,
+    #[error("task authority expired")]
+    TaskExpired,
     #[error("capability widen forbidden")]
     CapabilityWidenForbidden,
     #[error("task state version mismatch: expected {expected}, actual {actual}")]

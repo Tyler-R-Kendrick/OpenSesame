@@ -132,7 +132,7 @@ fn stale_version_rejected() {
     let run = start_sample_task(&engine, vec![cap("read", "repo:a")]);
 
     let err = engine
-        .assert_capability(run.id, &cap("read", "repo:a"), 99)
+        .assert_capability(run.id, &cap("read", "repo:a"), 99, Utc::now())
         .unwrap_err();
     assert!(matches!(
         err,
@@ -304,6 +304,74 @@ fn save_run_cas_rejects_stale_version() {
             actual: 2,
         })
     ));
+}
+
+#[test]
+fn capability_assertion_expires_with_the_task() {
+    let engine = TaskAccessEngine::new(InMemoryTaskStore::new());
+    let run = start_sample_task(&engine, vec![cap("read", "repo:a")]);
+
+    // Inside the window the capability holds.
+    engine
+        .assert_capability(run.id, &cap("read", "repo:a"), 1, Utc::now())
+        .expect("live task authorizes");
+
+    let after = run.maximum_expires_at + Duration::seconds(1);
+    let err = engine
+        .assert_capability(run.id, &cap("read", "repo:a"), 1, after)
+        .unwrap_err();
+    assert_eq!(err, TaskAccessError::Domain(DomainError::TaskExpired));
+
+    // Renewal past the deadline is refused for the same reason.
+    let err = engine
+        .renew_credential(RenewCredentialParams {
+            task_run_id: run.id,
+            expected_state_version: 1,
+            credential_digest: "sha256:x".into(),
+            expires_at: run.maximum_expires_at,
+            now: after,
+        })
+        .unwrap_err();
+    assert_eq!(err, TaskAccessError::Domain(DomainError::TaskExpired));
+}
+
+#[test]
+fn superseded_result_buffer_stays_held_after_a_later_commit() {
+    let engine = TaskAccessEngine::new(InMemoryTaskStore::new());
+    let run = start_sample_task(&engine, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
+    let now = Utc::now();
+    let mediation = MediationPointId::new();
+
+    // Proposal A carries a payload and demands an acknowledgement it never gets.
+    engine
+        .propose_restriction(ProposeRestrictionParams {
+            task_run_id: run.id,
+            expected_state_version: 1,
+            proposed_capabilities: CapabilitySet::new(vec![cap("read", "repo:a")]),
+            required_mediation: vec![mediation],
+            result_payload: Some(serde_json::json!({"secret": "held"})),
+            now,
+        })
+        .unwrap();
+
+    // Proposal B supersedes it with no payload and no required acknowledgements.
+    let b = engine
+        .propose_restriction(ProposeRestrictionParams {
+            task_run_id: run.id,
+            expected_state_version: 1,
+            proposed_capabilities: CapabilitySet::new(vec![cap("read", "repo:a")]),
+            required_mediation: vec![],
+            result_payload: None,
+            now,
+        })
+        .unwrap();
+
+    engine.commit_transition(run.id, b.id, now).unwrap();
+
+    // A's payload was fenced by A's acknowledgements, which never arrived.
+    assert!(engine.release_result_buffer(run.id).is_err());
+    let buffer = engine.store().get_result_buffer(run.id).unwrap().unwrap();
+    assert!(buffer.is_held());
 }
 
 fn start_sample_task_on<S: TaskStore>(

@@ -155,10 +155,10 @@ pub async fn freeze_intent(
         body.operation.clone(),
         ResourceSelector::exact(body.resource.clone()),
     );
-    let run = eng
-        .assert_capability(tid, &required, body.expected_state_version)
-        .map_err(|e| err_json(StatusCode::FORBIDDEN, "task_ceiling_exceeded", e))?;
     let now = Utc::now();
+    let run = eng
+        .assert_capability(tid, &required, body.expected_state_version, now)
+        .map_err(|e| err_json(StatusCode::FORBIDDEN, "task_ceiling_exceeded", e))?;
     let intent = FrozenIntentV2 {
         schema_version: FROZEN_INTENT_SCHEMA_VERSION,
         id: IntentId::new(),
