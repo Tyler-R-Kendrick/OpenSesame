@@ -26,12 +26,30 @@ export interface MockUpstreamIdp {
   close(): Promise<void>;
 }
 
-function sendJson(res: ServerResponse, status: number, body: unknown): void {
-  const payload = JSON.stringify(body);
-  res.writeHead(status, {
-    "content-type": "application/json",
+function securityHeaders(
+  extra: Record<string, string> = {},
+  issuer = "",
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "no-referrer",
     "cache-control": "no-store",
-  });
+    "x-permitted-cross-domain-policies": "none",
+    ...extra,
+  };
+  if (issuer.startsWith("https://")) {
+    headers["strict-transport-security"] = "max-age=63072000; includeSubDomains";
+  }
+  return headers;
+}
+
+function sendJson(res: ServerResponse, status: number, body: unknown, issuer = ""): void {
+  const payload = JSON.stringify(body);
+  res.writeHead(
+    status,
+    securityHeaders({ "content-type": "application/json" }, issuer),
+  );
   res.end(payload);
 }
 
@@ -111,11 +129,11 @@ export async function createMockUpstreamIdp(
       const path = url.pathname;
 
       if (req.method === "GET" && path === "/.well-known/openid-configuration") {
-        return sendJson(res, 200, discovery);
+        return sendJson(res, 200, discovery, config.issuer);
       }
 
       if (req.method === "GET" && path === "/jwks") {
-        return sendJson(res, 200, { keys: [keys.publicJwk] });
+        return sendJson(res, 200, { keys: [keys.publicJwk] }, config.issuer);
       }
 
       if (req.method === "GET" && path === "/authorize") {
@@ -130,13 +148,13 @@ export async function createMockUpstreamIdp(
           url.searchParams.get("code_challenge_method") ?? undefined;
 
         if (clientId !== config.clientId) {
-          return sendJson(res, 400, { error: "invalid_client" });
+          return sendJson(res, 400, { error: "invalid_client" }, config.issuer);
         }
         if (!config.redirectUris.includes(redirectUri)) {
-          return sendJson(res, 400, { error: "invalid_redirect_uri" });
+          return sendJson(res, 400, { error: "invalid_redirect_uri" }, config.issuer);
         }
         if (responseType !== "code") {
-          return sendJson(res, 400, { error: "unsupported_response_type" });
+          return sendJson(res, 400, { error: "unsupported_response_type" }, config.issuer);
         }
 
         const code = `code_${cryptoRandom()}`;
@@ -153,7 +171,10 @@ export async function createMockUpstreamIdp(
         const target = new URL(redirectUri);
         target.searchParams.set("code", code);
         if (state) target.searchParams.set("state", state);
-        res.writeHead(302, { location: target.toString() });
+        res.writeHead(
+          302,
+          securityHeaders({ location: target.toString() }, config.issuer),
+        );
         return res.end();
       }
 
@@ -164,7 +185,7 @@ export async function createMockUpstreamIdp(
         const clientSecret = body.get("client_secret") ?? basicClientSecret(req) ?? "";
 
         if (clientId !== config.clientId || clientSecret !== config.clientSecret) {
-          return sendJson(res, 401, { error: "invalid_client" });
+          return sendJson(res, 401, { error: "invalid_client" }, config.issuer);
         }
 
         if (grantType === "authorization_code") {
@@ -173,14 +194,14 @@ export async function createMockUpstreamIdp(
           const stored = codes.get(code);
           codes.delete(code);
           if (!stored || stored.redirectUri !== redirectUri) {
-            return sendJson(res, 400, { error: "invalid_grant" });
+            return sendJson(res, 400, { error: "invalid_grant" }, config.issuer);
           }
           const tokens = await issueTokens({
             clientId,
             scope: stored.scope,
             ...(stored.nonce !== undefined ? { nonce: stored.nonce } : {}),
           });
-          return sendJson(res, 200, tokens);
+          return sendJson(res, 200, tokens, config.issuer);
         }
 
         if (grantType === "refresh_token") {
@@ -188,34 +209,34 @@ export async function createMockUpstreamIdp(
             clientId,
             scope: "openid profile email",
           });
-          return sendJson(res, 200, tokens);
+          return sendJson(res, 200, tokens, config.issuer);
         }
 
-        return sendJson(res, 400, { error: "unsupported_grant_type" });
+        return sendJson(res, 400, { error: "unsupported_grant_type" }, config.issuer);
       }
 
       if (req.method === "GET" && path === "/userinfo") {
         const auth = req.headers.authorization ?? "";
         if (!auth.startsWith("Bearer ")) {
-          return sendJson(res, 401, { error: "invalid_token" });
+          return sendJson(res, 401, { error: "invalid_token" }, config.issuer);
         }
         return sendJson(res, 200, {
           sub: config.testUser.sub,
           email: config.testUser.email,
           name: config.testUser.name,
-        });
+        }, config.issuer);
       }
 
       if (req.method === "GET" && path === "/health") {
-        return sendJson(res, 200, { ok: true, issuer: config.issuer });
+        return sendJson(res, 200, { ok: true, issuer: config.issuer }, config.issuer);
       }
 
-      sendJson(res, 404, { error: "not_found" });
+      sendJson(res, 404, { error: "not_found" }, config.issuer);
     } catch (err) {
       sendJson(res, 500, {
         error: "server_error",
         error_description: err instanceof Error ? err.message : String(err),
-      });
+      }, config.issuer);
     }
   });
 
