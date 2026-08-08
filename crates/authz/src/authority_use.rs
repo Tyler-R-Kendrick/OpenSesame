@@ -105,10 +105,10 @@ pub fn authorize_authority_use(
             .first()
             .cloned()
             .unwrap_or_else(|| "connection.invoke".into());
-        engine_req.resource = AuthZenResource {
-            type_: "connector_operation".into(),
-            id: "op".into(),
-        };
+        // The request stays connection-scoped. It used to be relabelled as a
+        // `connector_operation` with a placeholder id, which would now slip past
+        // the grant's resource scope on the strength of a resource nobody named;
+        // on this path the target is the URL, fenced by the egress binding above.
     }
 
     match engine.decide(&engine_req, Some(grant), class) {

@@ -164,7 +164,8 @@ mod tests {
             },
             resource: AuthZenResource {
                 type_: "connector_operation".into(),
-                id: "x".into(),
+                // Inside the grant's resource scope, so assurance is what decides.
+                id: "repo:acme/catalog".into(),
             },
             context: json!({
                 "connection_id": "connA",
