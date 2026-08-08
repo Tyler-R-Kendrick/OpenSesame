@@ -10,8 +10,13 @@ import {
   setTaskContext,
 } from "./task-context.js";
 import {
+  daemonBase,
+  daemonFetch,
   hostApiBase,
+  hostAuthHeaders,
   hostFetch,
+  isLoopbackBase,
+  normalizeBase,
   resetFetchForTests,
   setFetchForTests,
 } from "./host-api.js";
@@ -95,6 +100,55 @@ describe("mcp-host tools", () => {
     expect(calls[0]?.auth).toBe("Bearer operator:opensesame-dev-operator");
     expect(body.task_run_id).toBe("task-1");
     delete process.env.OPENSESAME_SERVER;
+    delete process.env.OPENSESAME_OPERATOR_TOKEN;
+  });
+
+  it("refuses a Host API base that would carry credentials off the machine", () => {
+    expect(isLoopbackBase("http://127.0.0.1:8787")).toBe(true);
+    expect(isLoopbackBase("http://127.9.9.9:8787")).toBe(true);
+    expect(isLoopbackBase("http://[::1]:8787")).toBe(true);
+    expect(isLoopbackBase("https://attacker.example")).toBe(false);
+
+    expect(() => normalizeBase("http://attacker.example", "X")).toThrow("https off loopback");
+    expect(() => normalizeBase("ftp://127.0.0.1", "X")).toThrow("http or https");
+    expect(() => normalizeBase("http://user:pw@127.0.0.1:8787", "X")).toThrow("credentials");
+    expect(() => normalizeBase("nonsense", "X")).toThrow("valid URL");
+    expect(normalizeBase("https://api.example.test/base/", "X")).toBe(
+      "https://api.example.test/base",
+    );
+  });
+
+  it("never offers the local operator secret to a remote Host API", () => {
+    process.env.OPENSESAME_OPERATOR_TOKEN = "local-only-secret";
+    process.env.OPENSESAME_ACCESS_TOKEN = "sess-1";
+    expect(hostAuthHeaders("http://127.0.0.1:8787").authorization).toBe(
+      "Bearer operator:local-only-secret",
+    );
+    // A remote Host API gets the session bearer instead — the operator token is a
+    // secret shared with this machine's own processes.
+    expect(hostAuthHeaders("https://api.example.test").authorization).toBe(
+      "Bearer opaque-session:sess-1",
+    );
+    delete process.env.OPENSESAME_ACCESS_TOKEN;
+    expect(hostAuthHeaders("https://api.example.test").authorization).toBeUndefined();
+    delete process.env.OPENSESAME_OPERATOR_TOKEN;
+  });
+
+  it("authenticates daemon calls and confines the daemon to loopback", async () => {
+    process.env.OPENSESAME_OPERATOR_TOKEN = "op-token";
+    const calls: Array<{ url: string; auth: string | null }> = [];
+    setFetchForTests(async (input, init) => {
+      const headers = new Headers(init?.headers);
+      calls.push({ url: String(input), auth: headers.get("authorization") });
+      return new Response("{}", { status: 200 });
+    });
+    await daemonFetch("/v1/toolbar/status");
+    // Every daemon /v1/* route requires this bearer; without it the call 401s.
+    expect(calls[0]?.auth).toBe("Bearer operator:op-token");
+
+    process.env.OPENSESAME_DAEMON_URL = "https://daemon.example.test";
+    expect(() => daemonBase()).toThrow("loopback");
+    delete process.env.OPENSESAME_DAEMON_URL;
     delete process.env.OPENSESAME_OPERATOR_TOKEN;
   });
 

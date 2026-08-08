@@ -109,6 +109,29 @@ const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
  * PWA, toolbar) — the same fence the daemon and gateway enforce on bind.
  * Returns a normalized origin+path, or null when the value is not loopback http(s).
  */
+/**
+ * Base URL for a service that may legitimately be remote (an issuer, a hosted Host
+ * API). Plaintext HTTP is confined to loopback, because these clients send a
+ * session bearer with every call and cleartext hands it to the network.
+ * Returns a normalized origin+path, or null when the value is unusable.
+ */
+export function normalizeHttpBaseUrl(raw: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  if (url.username || url.password) return null;
+  if (url.search || url.hash) return null;
+  const normalized = `${url.origin}${url.pathname.replace(/\/$/, "")}`;
+  if (url.protocol === "http:" && normalizeLoopbackBaseUrl(normalized) === null) {
+    return null;
+  }
+  return normalized;
+}
+
 export function normalizeLoopbackBaseUrl(raw: string): string | null {
   let url: URL;
   try {
@@ -119,7 +142,10 @@ export function normalizeLoopbackBaseUrl(raw: string): string | null {
   if (url.protocol !== "http:" && url.protocol !== "https:") return null;
   if (url.username || url.password) return null;
   const host = url.hostname.toLowerCase().replace(/\.$/, "");
-  if (!LOOPBACK_HOSTS.has(host) && !host.endsWith(".localhost")) return null;
+  const isLoopbackV4 = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
+  if (!LOOPBACK_HOSTS.has(host) && !host.endsWith(".localhost") && !isLoopbackV4) {
+    return null;
+  }
   if (url.search || url.hash) return null;
   return `${url.origin}${url.pathname.replace(/\/$/, "")}`;
 }
