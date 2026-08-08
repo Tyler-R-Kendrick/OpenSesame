@@ -4,6 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import type { AppContext } from "./context.js";
 import { withContext, type Variables } from "./middleware/context.js";
 import { authMiddleware } from "./middleware/auth.js";
+import { apiSecurityHeaders } from "./middleware/security-headers.js";
 import { healthRoutes } from "./routes/health.js";
 import { principalRoutes } from "./routes/principals.js";
 import { projectRoutes } from "./routes/projects.js";
@@ -32,6 +33,7 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
     }),
   );
   app.use("*", withContext(ctx));
+  app.use("*", apiSecurityHeaders());
   app.use("*", authMiddleware());
 
   app.route("/v1/health", healthRoutes);

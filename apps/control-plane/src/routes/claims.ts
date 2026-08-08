@@ -22,7 +22,10 @@ import {
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
-import { claimPageSecurityHeaders } from "../middleware/security-headers.js";
+import {
+  claimPageSecurityHeaders,
+  escapeHtml,
+} from "../middleware/security-headers.js";
 
 function toClaimResponse(session: ClaimSession) {
   return ClaimSessionResponseSchema.parse({
@@ -354,6 +357,8 @@ claimRoutes.get("/:id/verify", claimPageSecurityHeaders(), async (c) => {
   const id = c.req.param("id");
   const session = await ctx.claims.get(id);
   const state = session?.state ?? "unknown";
+  const safeId = escapeHtml(id);
+  const safeState = escapeHtml(state);
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -369,7 +374,7 @@ claimRoutes.get("/:id/verify", claimPageSecurityHeaders(), async (c) => {
 <body>
   <main>
     <h1>OpenSesame</h1>
-    <p>Claim <code>${id}</code> is <strong>${state}</strong>.</p>
+    <p>Claim <code>${safeId}</code> is <strong>${safeState}</strong>.</p>
     <p>Present your claim token via the API or continue in the console.</p>
   </main>
 </body>
