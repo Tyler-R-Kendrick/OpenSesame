@@ -152,11 +152,10 @@ impl Broker {
             }
             Err(e) => {
                 inv.transition(InvocationState::Failed, Utc::now())?;
-                (
-                    ReceiptOutcome::Failed,
-                    json!({"error": e.to_string()}),
-                    None,
-                )
+                // Connector errors echo upstream URLs and headers; receipts are
+                // durable and readable, so the text is redacted before it lands.
+                let msg = opensesame_redaction::redact_text(&e.to_string());
+                (ReceiptOutcome::Failed, json!({"error": msg}), None)
             }
         };
 
@@ -171,7 +170,11 @@ impl Broker {
                 ext,
             },
         )?;
-        assert!(receipt.assert_no_secret_leak());
+        // Fail the invocation instead of panicking the process: a summary that
+        // trips the leak check must never be persisted, but it is not a crash.
+        if !receipt.assert_no_secret_leak() {
+            anyhow::bail!("receipt summary rejected by secret-leak check");
+        }
         self.db.insert_receipt(&receipt).await?;
         Ok(receipt)
     }
