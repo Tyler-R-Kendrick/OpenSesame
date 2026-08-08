@@ -1566,6 +1566,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "data-encoding",
+ "hmac",
  "opensesame-domain",
  "rand 0.8.7",
  "serde_json",

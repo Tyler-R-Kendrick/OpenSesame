@@ -63,6 +63,11 @@ curl -X POST http://127.0.0.1:8787/api/v1/admin/authority \
 
 Device approve and claim complete also require the same operator header (or `Authorization: Bearer operator:<token>`). Set `OPENSESAME_OPERATOR_TOKEN` in production — the `opensesame-dev-operator` default is local-only.
 
+Set `OPENSESAME_CLAIM_PEPPER` in production too. User codes are eight characters
+from a twenty-letter alphabet — roughly 2^35 possibilities — so their stored
+digests are only out of reach while they are keyed by a server-held pepper. The
+Host logs an error and runs without one if it is unset in production.
+
 ### Receipt signing key
 
 Receipts are the non-repudiation record and the receipt store outlives the process,

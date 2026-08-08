@@ -3,10 +3,34 @@ use opensesame_domain::{ClaimSession, ClaimState, DomainError};
 use rand::{Rng, RngCore};
 use sha2::{Digest, Sha256};
 
+/// Digest for a *high-entropy* secret (32 random bytes: claim tokens, device
+/// codes, session ids). A bare hash is enough there because the preimage space is
+/// not searchable.
 pub fn hash_secret(secret: &str) -> String {
     let mut h = Sha256::new();
     h.update(secret.as_bytes());
     format!("sha256:{:x}", h.finalize())
+}
+
+/// Domain separator for low-entropy digests.
+const LOW_ENTROPY_PURPOSE: &str = "opensesame:low-entropy:v1";
+
+/// Digest for a *low-entropy* secret such as a user code.
+///
+/// `generate_user_code` draws 8 characters from a 20-letter alphabet — about 2^35
+/// possibilities, which an unsalted SHA-256 gives up almost immediately. Keying
+/// the digest with a server-held pepper puts it out of reach, and binding the
+/// context (claim or device id) means one recovered code says nothing about
+/// any other.
+pub fn hash_low_entropy(pepper: &str, context: &str, secret: &str) -> String {
+    use hmac::{Mac, SimpleHmac};
+    let mut mac = SimpleHmac::<Sha256>::new_from_slice(pepper.as_bytes())
+        .expect("SimpleHmac accepts any key length");
+    for part in [LOW_ENTROPY_PURPOSE, context, secret] {
+        mac.update(&(part.len() as u32).to_be_bytes());
+        mac.update(part.as_bytes());
+    }
+    format!("hmac-sha256:{:x}", mac.finalize().into_bytes())
 }
 
 /// Constant-time equality for `hash_secret` digests (and other equal-length hex strings).
@@ -81,6 +105,31 @@ mod tests {
     use chrono::Duration;
     use opensesame_domain::*;
     use serde_json::json;
+
+    #[test]
+    fn low_entropy_digests_are_keyed_and_bound() {
+        let code = generate_user_code();
+        let bound = hash_low_entropy("pepper", "clm_1", &code);
+
+        // Not the keyless hash: ~2^35 codes are exhaustible against SHA-256.
+        assert!(!hash_eq(&bound, &hash_secret(&code)));
+        // Not reusable against another claim.
+        assert!(!hash_eq(&bound, &hash_low_entropy("pepper", "clm_2", &code)));
+        // Not reproducible without the pepper.
+        assert!(!hash_eq(&bound, &hash_low_entropy("other", "clm_1", &code)));
+        // Deterministic for the same inputs, and not the code itself.
+        assert!(hash_eq(&bound, &hash_low_entropy("pepper", "clm_1", &code)));
+        assert!(!bound.contains(&code.replace('-', "")));
+    }
+
+    #[test]
+    fn user_codes_carry_the_expected_shape() {
+        let code = generate_user_code();
+        assert_eq!(code.len(), 9, "XXXX-XXXX");
+        assert!(code
+            .chars()
+            .all(|c| c == '-' || "BCDFGHJKLMNPQRSTVWXZ".contains(c)));
+    }
 
     fn pending_session(token: &str) -> ClaimSession {
         ClaimSession {

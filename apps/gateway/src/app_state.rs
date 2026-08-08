@@ -60,6 +60,8 @@ pub struct AppState {
     pub device_cursors: Arc<Mutex<HashMap<String, u64>>>,
     /// Shared secret for human/operator mutations (approve, claim complete, admin).
     pub operator_token: String,
+    /// Pepper for low-entropy (user code) digests.
+    pub claim_pepper: String,
     /// Distributed task authority readiness (ADR 0031).
     pub distributed_task_authority: bool,
     /// In-memory task access engine (immutable ceiling + frozen intents).
@@ -123,6 +125,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         blob_owners: Arc::new(Mutex::new(HashMap::new())),
         device_cursors: Arc::new(Mutex::new(HashMap::new())),
         operator_token: config::resolve_operator_token(),
+        claim_pepper: config::resolve_claim_pepper(),
         distributed_task_authority,
         task_engine: new_task_engine(),
         frozen_intents: Arc::new(Mutex::new(HashMap::new())),

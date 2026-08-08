@@ -66,7 +66,11 @@ pub async fn create_identity(
         operator_id: None,
         instance_public_key_jwk: req.instance_public_key_jwk,
         claim_token_hash: hash_secret(&claim_token),
-        user_code_hash: Some(hash_secret(&user_code)),
+        user_code_hash: Some(claim_user_code_digest(
+            &st.claim_pepper,
+            &id.to_string(),
+            &user_code,
+        )),
         claim_attempt_token_hash: None,
         provider_assertion_digest: None,
         attestation_digest: None,
@@ -139,8 +143,16 @@ enum CompleteGate {
     Allowed,
 }
 
+/// Keyed, per-claim digest of a user code. A user code is ~2^35 possibilities, so
+/// a keyless digest of one is recoverable by exhaustion.
+fn claim_user_code_digest(pepper: &str, claim_id: &str, user_code: &str) -> String {
+    opensesame_claims::hash_low_entropy(pepper, claim_id, user_code)
+}
+
 fn complete_gate(
     session: &ClaimSession,
+    pepper: &str,
+    claim_id: &str,
     claim_token: &str,
     user_code: &str,
     attempts: u32,
@@ -154,7 +166,7 @@ fn complete_gate(
     let Some(expected) = session.user_code_hash.as_ref() else {
         return CompleteGate::NoUserCode;
     };
-    if !hash_eq(&hash_secret(user_code), expected) {
+    if !hash_eq(&claim_user_code_digest(pepper, claim_id, user_code), expected) {
         return CompleteGate::BadUserCode;
     }
     CompleteGate::Allowed
@@ -178,7 +190,14 @@ pub async fn complete(
     // The operator token proves *a* human is driving the console; the user code
     // proves they are looking at the device that asked to be claimed.
     let prior = attempts.get(&id).copied().unwrap_or(0);
-    match complete_gate(session, &req.claim_token, &req.user_code, prior) {
+    match complete_gate(
+        session,
+        &st.claim_pepper,
+        &id,
+        &req.claim_token,
+        &req.user_code,
+        prior,
+    ) {
         CompleteGate::Allowed => {
             attempts.remove(&id);
         }
@@ -251,6 +270,9 @@ pub async fn complete(
 mod tests {
     use super::*;
 
+    const TEST_PEPPER: &str = "test-pepper";
+    const TEST_CLAIM_ID: &str = "clm_test_1";
+
     fn session(user_code: Option<&str>, claim_token: &str) -> ClaimSession {
         ClaimSession {
             id: ClaimSessionId::new(),
@@ -262,7 +284,8 @@ mod tests {
             operator_id: None,
             instance_public_key_jwk: json!({}),
             claim_token_hash: hash_secret(claim_token),
-            user_code_hash: user_code.map(hash_secret),
+            user_code_hash: user_code
+                .map(|c| claim_user_code_digest(TEST_PEPPER, TEST_CLAIM_ID, c)),
             claim_attempt_token_hash: None,
             provider_assertion_digest: None,
             attestation_digest: None,
@@ -279,11 +302,11 @@ mod tests {
     fn operator_plus_claim_token_is_not_enough_without_the_user_code() {
         let s = session(Some("ABCD-1234"), "tok");
         assert_eq!(
-            complete_gate(&s, "tok", "WRON-GXXX", 0),
+            complete_gate(&s, TEST_PEPPER, TEST_CLAIM_ID, "tok", "WRON-GXXX", 0),
             CompleteGate::BadUserCode
         );
         assert_eq!(
-            complete_gate(&s, "tok", "ABCD-1234", 0),
+            complete_gate(&s, TEST_PEPPER, TEST_CLAIM_ID, "tok", "ABCD-1234", 0),
             CompleteGate::Allowed
         );
     }
@@ -292,7 +315,7 @@ mod tests {
     fn wrong_claim_token_is_refused_before_the_user_code_is_examined() {
         let s = session(Some("ABCD-1234"), "tok");
         assert_eq!(
-            complete_gate(&s, "other", "ABCD-1234", 0),
+            complete_gate(&s, TEST_PEPPER, TEST_CLAIM_ID, "other", "ABCD-1234", 0),
             CompleteGate::BadClaimToken
         );
     }
@@ -301,14 +324,40 @@ mod tests {
     fn guessing_the_user_code_locks_the_claim() {
         let s = session(Some("ABCD-1234"), "tok");
         assert_eq!(
-            complete_gate(&s, "tok", "ABCD-1234", MAX_CLAIM_USER_CODE_ATTEMPTS),
+            complete_gate(
+                &s,
+                TEST_PEPPER,
+                TEST_CLAIM_ID,
+                "tok",
+                "ABCD-1234",
+                MAX_CLAIM_USER_CODE_ATTEMPTS
+            ),
             CompleteGate::Locked
         );
     }
 
     #[test]
+    fn a_user_code_digest_is_useless_against_another_claim() {
+        let s = session(Some("ABCD-1234"), "tok");
+        // Same code, different claim: the digest must not carry over, so one
+        // recovered code says nothing about any other claim.
+        assert_eq!(
+            complete_gate(&s, TEST_PEPPER, "clm_other", "tok", "ABCD-1234", 0),
+            CompleteGate::BadUserCode
+        );
+        // And a keyless digest of the same code is not what is stored.
+        assert!(!hash_eq(
+            &hash_secret("ABCD-1234"),
+            s.user_code_hash.as_deref().expect("hash")
+        ));
+    }
+
+    #[test]
     fn a_claim_without_a_user_code_cannot_be_completed() {
         let s = session(None, "tok");
-        assert_eq!(complete_gate(&s, "tok", "", 0), CompleteGate::NoUserCode);
+        assert_eq!(
+            complete_gate(&s, TEST_PEPPER, TEST_CLAIM_ID, "tok", "", 0),
+            CompleteGate::NoUserCode
+        );
     }
 }

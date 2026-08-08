@@ -123,19 +123,35 @@ export function normalizeUserCode(code: string): string {
     .replace(/[IL]/g, "1");
 }
 
+/**
+ * Digest a user code, bound to the claim it belongs to.
+ *
+ * A user code carries roughly 40 bits. With a fixed label every claim's digest
+ * came from the same tiny keyspace, so one precomputation over it would recover
+ * every code ever issued. Binding the claim id makes each claim its own search.
+ */
 export function digestUserCode(
   pepper: Uint8Array | string,
+  claimId: string,
   code: string,
 ): Uint8Array {
+  if (!claimId) {
+    throw new Error("digestUserCode requires the claim id");
+  }
   const normalized = normalizeUserCode(code);
-  return hmacDigest(pepper, USER_CODE_PURPOSE, "user-code", normalized);
+  return hmacDigest(pepper, USER_CODE_PURPOSE, claimId, normalized);
 }
 
+/** Device codes are bound to their session for the same reason. */
 export function digestDeviceCode(
   pepper: Uint8Array | string,
+  sessionId: string,
   code: string,
 ): Uint8Array {
-  return hmacDigest(pepper, DEVICE_CODE_PURPOSE, "device-code", code);
+  if (!sessionId) {
+    throw new Error("digestDeviceCode requires the session id");
+  }
+  return hmacDigest(pepper, DEVICE_CODE_PURPOSE, sessionId, code);
 }
 
 export function generateUserCode(byteCount = 5): string {
@@ -161,9 +177,10 @@ export function generateUserCode(byteCount = 5): string {
 
 export function verifyUserCode(
   pepper: Uint8Array | string,
+  claimId: string,
   code: string,
   expectedDigest: Uint8Array,
 ): boolean {
-  const digest = digestUserCode(pepper, code);
+  const digest = digestUserCode(pepper, claimId, code);
   return constantTimeEqual(digest, expectedDigest);
 }

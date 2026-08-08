@@ -2,6 +2,7 @@ use clap::Parser;
 use std::{env, net::SocketAddr};
 
 pub const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
+pub const DEV_CLAIM_PEPPER: &str = "opensesame-dev-claim-pepper";
 
 pub fn constant_time_eq(a: &str, b: &str) -> bool {
     let (aa, bb) = (a.as_bytes(), b.as_bytes());
@@ -104,6 +105,28 @@ pub fn resolve_receipt_verifier(
         verifier.trust_b64(entry).map_err(|e| e.to_string())?;
     }
     Ok(verifier)
+}
+
+/// Pepper for low-entropy digests (user codes).
+///
+/// A user code is ~2^35 possibilities, so a keyless digest of one is recoverable
+/// by exhaustion; the pepper is what makes the stored digest worth storing.
+pub fn resolve_claim_pepper() -> String {
+    match env::var("OPENSESAME_CLAIM_PEPPER") {
+        Ok(p) if !p.is_empty() => p,
+        _ => {
+            if is_production_env() {
+                tracing::error!(
+                    "OPENSESAME_CLAIM_PEPPER unset in production — user codes would be \
+                     recoverable from their digests"
+                );
+                String::new()
+            } else {
+                tracing::warn!("OPENSESAME_CLAIM_PEPPER unset; using a dev pepper (dev only)");
+                DEV_CLAIM_PEPPER.into()
+            }
+        }
+    }
 }
 
 pub fn resolve_operator_token() -> String {

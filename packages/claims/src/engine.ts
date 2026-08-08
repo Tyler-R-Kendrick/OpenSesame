@@ -64,7 +64,7 @@ export class ClaimEngine {
       type: input.type,
       state: "pending",
       tokenDigest: generated.digest,
-      userCodeDigest: digestUserCode(this.pepper, userCode),
+      userCodeDigest: digestUserCode(this.pepper, generated.publicId, userCode),
       targetManifest: structuredClone(input.targetManifest),
       targetManifestDigest: digest,
       createdAt: now,
@@ -106,12 +106,13 @@ export class ClaimEngine {
     }
     const maybe = maybeExpireClaim(existing, this.clock);
     if (maybe.state === "expired" && existing.state !== "expired") {
-      const { session, won } = await this.store.compareAndSwap(
+      // Whether or not this writer won, the store's version is authoritative.
+      const { session } = await this.store.compareAndSwap(
         id,
         existing.version,
         maybe,
       );
-      return won ? session : session;
+      return session;
     }
     return maybe;
   }
@@ -162,11 +163,20 @@ export class ClaimEngine {
     );
   }
 
+  /** Bound on `completeClaim` retries, matching `applyTransition`. */
+  private static readonly MAX_COMPLETE_ATTEMPTS = 8;
+
   async completeClaim(
     id: string,
     completedByPrincipalId: string,
     decision: CompleteDecision,
+    attempt = 0,
   ): Promise<{ session: ClaimSession; won: boolean }> {
+    // Losing the review CAS re-enters this method. Without a bound, concurrent
+    // completers could recurse until the stack gave out.
+    if (attempt >= ClaimEngine.MAX_COMPLETE_ATTEMPTS) {
+      throw new DomainError("CONFLICT", "Claim CAS retries exhausted", { id });
+    }
     const current = await this.loadFresh(id);
     if (current.state === "expired") {
       throw new DomainError("EXPIRED", "Claim expired", { id });
@@ -212,7 +222,12 @@ export class ClaimEngine {
       );
       if (!cas.won) {
         // Concurrent writer — reload and handle
-        return this.completeClaim(id, completedByPrincipalId, decision);
+        return this.completeClaim(
+          id,
+          completedByPrincipalId,
+          decision,
+          attempt + 1,
+        );
       }
       base = cas.session;
     }

@@ -126,7 +126,7 @@ export const fixtures = {
       state: "pending",
       creatorPrincipalId: "prn_test_provisional_001",
       tokenDigest: generated.digest,
-      userCodeDigest: digestUserCode(PEPPER, userCode),
+      userCodeDigest: digestUserCode(PEPPER, generated.publicId, userCode),
       targetManifest: manifest,
       targetManifestDigest: digestManifest(manifest),
       createdAt: FIXED_NOW,
