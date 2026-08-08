@@ -43,10 +43,26 @@ export interface PasskeyChallengeStore {
   consume(challenge: string): ChallengeMeta | undefined;
 }
 
+/**
+ * Outstanding challenges kept in memory. Issuing is cheap and unbounded from the
+ * caller's side, so the store prunes expired rows and refuses to grow past this.
+ */
+export const MAX_OUTSTANDING_CHALLENGES = 4096;
+
 export function createMemoryChallengeStore(): PasskeyChallengeStore {
   const map = new Map<string, ChallengeMeta>();
   return {
     set(challenge, meta) {
+      const now = Date.now();
+      for (const [key, row] of map) {
+        if (now > row.expiresAt) map.delete(key);
+      }
+      if (map.size >= MAX_OUTSTANDING_CHALLENGES) {
+        // Drop the oldest insertion rather than unbounded growth; a challenge
+        // that never comes back is not worth remembering forever.
+        const oldest = map.keys().next();
+        if (!oldest.done) map.delete(oldest.value);
+      }
       map.set(challenge, meta);
     },
     consume(challenge) {

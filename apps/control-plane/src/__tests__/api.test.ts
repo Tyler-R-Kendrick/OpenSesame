@@ -55,6 +55,38 @@ describe("control-plane API", () => {
     expect(byAccessCookie.status).toBe(200);
   });
 
+  it("frees a provisional quota slot when a temporary project lapses", async () => {
+    let now = new Date("2026-08-08T10:00:00Z");
+    const { app, ctx } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      clock: () => now,
+    });
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+
+    const create = async (name: string) =>
+      app.request("/v1/projects/temporary", {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json" },
+        body: JSON.stringify({ name, ttlSeconds: 60 }),
+      });
+
+    for (const name of ["one", "two", "three"]) {
+      expect((await create(name)).status).toBe(201);
+    }
+    // Quota of three is spent.
+    const overQuota = await create("four");
+    expect(overQuota.status).toBe(403);
+    expect(((await overQuota.json()) as { reasons: string[] }).reasons).toContain(
+      "provisional_quota_projects",
+    );
+
+    // Once they lapse the slots come back: the cap is live, not lifetime.
+    now = new Date(now.getTime() + 120_000);
+    expect(ctx.stores.projects.size).toBe(3);
+    expect((await create("five")).status).toBe(201);
+  });
+
   it("creates temporary project and completes claim preserving ids", async () => {
     const { app } = createControlPlane({
       config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
@@ -256,6 +288,57 @@ describe("control-plane API", () => {
     });
     expect(verify.status).toBe(200);
     expect(((await verify.json()) as { ok: boolean }).ok).toBe(true);
+  });
+
+  it("fences wrong TOTP codes after five tries", async () => {
+    const { app } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+    const enroll = await app.request("/v1/mfa/totp/enroll", {
+      method: "POST",
+      headers: auth,
+    });
+    const { secret } = (await enroll.json()) as { secret: string };
+
+    const attempt = (code: string) =>
+      app.request("/v1/mfa/totp/verify", {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+
+    for (let i = 0; i < 5; i += 1) {
+      expect((await attempt("000000")).status).toBe(401);
+    }
+    // Six digits is a million guesses; the fence closes before that.
+    expect((await attempt("000000")).status).toBe(429);
+
+    const { totpCode } = await import("../routes/mfa.js");
+    // Even the right code is refused while the fence is closed.
+    expect((await attempt(totpCode(secret))).status).toBe(429);
+  });
+
+  it("fences repeated failing passkey assertions per credential", async () => {
+    const { app } = createControlPlane({
+      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    });
+    const attempt = () =>
+      app.request("/v1/mfa/passkey/assert", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentialId: "cred_unknown",
+          clientDataJSON: Buffer.from("{}").toString("base64"),
+          authenticatorData: Buffer.from("a").toString("base64"),
+          signature: Buffer.from("sig").toString("base64"),
+        }),
+      });
+    for (let i = 0; i < 5; i += 1) {
+      expect((await attempt()).status).toBe(401);
+    }
+    expect((await attempt()).status).toBe(429);
   });
 
   it("production rejects stub TOTP enroll/verify", async () => {

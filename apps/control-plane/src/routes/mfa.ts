@@ -56,6 +56,12 @@ function rpFromConfig(publicUrl: string): { rpID: string; origin: string } {
   return { rpID: hostname, origin: publicUrl.replace(/\/$/, "") };
 }
 
+/**
+ * A six-digit code is 10^6 guesses; a passkey assertion is not guessable but its
+ * verification is not free. Both get the same small fence.
+ */
+const MAX_MFA_FAILURES = 5;
+
 export const mfaRoutes = new Hono<{ Variables: Variables }>();
 
 /** Issue a one-time WebAuthn registration challenge (required in production). */
@@ -160,13 +166,24 @@ mfaRoutes.post("/passkey/assert", async (c) => {
   if (!body.credentialId || !body.signature) {
     return c.json({ error: "invalid_request" }, 400);
   }
+  const fenceKey = `passkey:${body.credentialId}`;
+  if ((ctx.stores.mfaFailures.get(fenceKey) ?? 0) >= MAX_MFA_FAILURES) {
+    return c.json({ ok: false, error: "too_many_attempts" }, 429);
+  }
   const result = await ctx.passkeys.verify({
     credentialId: body.credentialId,
     clientDataJSON: Buffer.from(body.clientDataJSON ?? "", "base64"),
     authenticatorData: Buffer.from(body.authenticatorData ?? "", "base64"),
     signature: Buffer.from(body.signature, "base64"),
   });
-  if (!result.ok) return c.json({ ok: false }, 401);
+  if (!result.ok) {
+    ctx.stores.mfaFailures.set(
+      fenceKey,
+      (ctx.stores.mfaFailures.get(fenceKey) ?? 0) + 1,
+    );
+    return c.json({ ok: false }, 401);
+  }
+  ctx.stores.mfaFailures.delete(fenceKey);
   return c.json({ ok: true, principalId: result.principalId });
 });
 
@@ -216,9 +233,21 @@ mfaRoutes.post("/totp/verify", requirePrincipal(), async (c) => {
   }
   const secret = ctx.stores.totpSecrets.get(principalId);
   if (!secret) return c.json({ ok: false, error: "not_enrolled" }, 404);
+  const fenceKey = `totp:${principalId}`;
+  if ((ctx.stores.mfaFailures.get(fenceKey) ?? 0) >= MAX_MFA_FAILURES) {
+    return c.json({ ok: false, error: "too_many_attempts" }, 429);
+  }
   const expected = totpCode(secret);
   const ok = totpCodesEqual(body.code ?? "", expected);
-  return c.json({ ok }, ok ? 200 : 401);
+  if (!ok) {
+    ctx.stores.mfaFailures.set(
+      fenceKey,
+      (ctx.stores.mfaFailures.get(fenceKey) ?? 0) + 1,
+    );
+    return c.json({ ok }, 401);
+  }
+  ctx.stores.mfaFailures.delete(fenceKey);
+  return c.json({ ok }, 200);
 });
 
 export { totpCode };
