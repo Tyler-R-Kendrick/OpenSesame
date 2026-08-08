@@ -19,9 +19,12 @@ use opensesame_client_core::SyncBlob;
 
 #[derive(Clone)]
 pub struct DevicePending {
-    pub user_code: String,
+    /// `hash_secret(user_code)` — the low-entropy code is never held in cleartext.
+    pub user_code_hash: String,
     pub expires_at: chrono::DateTime<chrono::Utc>,
     pub approved_principal: Option<String>,
+    /// Failed approval attempts against this code (brute-force fence).
+    pub approve_attempts: u32,
 }
 
 #[derive(Clone)]

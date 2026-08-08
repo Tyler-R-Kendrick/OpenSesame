@@ -8,8 +8,13 @@ use chrono::{Duration, Utc};
 use serde::Deserialize;
 use serde_json::json;
 
+use opensesame_claims::{hash_eq, hash_secret};
+
 use crate::app_state::AppState;
 use crate::middleware::auth::{require_demo_bootstrap, require_operator};
+
+/// Approval attempts allowed per pending device code before it is burned.
+const MAX_APPROVE_ATTEMPTS: u32 = 5;
 
 #[derive(Deserialize)]
 pub struct DeviceAuthorizeRequest {
@@ -36,12 +41,14 @@ pub async fn authorize(
     let device_code = format!("dc_{}", uuid::Uuid::new_v4());
     let user_code = opensesame_claims::generate_user_code();
     let expires_at = Utc::now() + Duration::minutes(15);
+    // Keyed and matched by digest — neither bearer is retained in cleartext.
     st.device_codes.lock().unwrap().insert(
-        device_code.clone(),
+        hash_secret(&device_code),
         crate::app_state::DevicePending {
-            user_code: user_code.clone(),
+            user_code_hash: hash_secret(&user_code),
             expires_at,
             approved_principal: None,
+            approve_attempts: 0,
         },
     );
     // device_code returned once to client process — never logged
@@ -72,8 +79,9 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
         )
             .into_response();
     }
+    let device_code_hash = hash_secret(&req.device_code);
     let mut map = st.device_codes.lock().unwrap();
-    let Some(pending) = map.get_mut(&req.device_code) else {
+    let Some(pending) = map.get_mut(&device_code_hash) else {
         return (
             StatusCode::BAD_REQUEST,
             Json(json!({"error":"invalid_grant"})),
@@ -132,7 +140,7 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
         }
         sessions.insert(session_id.clone(), meta.clone());
     }
-    map.remove(&req.device_code);
+    map.remove(&device_code_hash);
     // Never return refresh token bytes — opaque handle only
     (
         StatusCode::OK,
@@ -160,16 +168,71 @@ pub async fn approve(
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
+    let attempt_hash = hash_secret(&req.user_code);
     let mut map = st.device_codes.lock().unwrap();
+    let now = Utc::now();
+    map.retain(|_, p| p.expires_at > now && p.approve_attempts < MAX_APPROVE_ATTEMPTS);
     for pending in map.values_mut() {
-        if pending.user_code == req.user_code {
+        if hash_eq(&attempt_hash, &pending.user_code_hash) {
             pending.approved_principal = Some(req.principal.unwrap_or_else(|| "user:demo".into()));
             return (StatusCode::OK, Json(json!({"status":"approved"}))).into_response();
         }
+    }
+    // Count the miss against every live code so guessing burns the pending set.
+    for pending in map.values_mut() {
+        pending.approve_attempts += 1;
     }
     (
         StatusCode::NOT_FOUND,
         Json(json!({"error":"unknown_user_code"})),
     )
         .into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app_state::DevicePending;
+    use std::collections::HashMap;
+
+    fn pending(user_code: &str) -> DevicePending {
+        DevicePending {
+            user_code_hash: hash_secret(user_code),
+            expires_at: Utc::now() + Duration::minutes(15),
+            approved_principal: None,
+            approve_attempts: 0,
+        }
+    }
+
+    #[test]
+    fn codes_are_stored_as_digests_only() {
+        let device_code = "dc_secret";
+        let mut map: HashMap<String, DevicePending> = HashMap::new();
+        map.insert(hash_secret(device_code), pending("BCDFGHJK"));
+
+        assert!(!map.contains_key(device_code), "plaintext key must not hit");
+        let entry = map.get(&hash_secret(device_code)).expect("digest key hits");
+        assert!(!entry.user_code_hash.contains("BCDFGHJK"));
+        assert!(hash_eq(&hash_secret("BCDFGHJK"), &entry.user_code_hash));
+        assert!(!hash_eq(&hash_secret("BCDFGHJL"), &entry.user_code_hash));
+    }
+
+    #[test]
+    fn wrong_codes_burn_pending_entry_after_max_attempts() {
+        let mut map: HashMap<String, DevicePending> = HashMap::new();
+        map.insert(hash_secret("dc_1"), pending("BCDFGHJK"));
+
+        for _ in 0..MAX_APPROVE_ATTEMPTS {
+            let now = Utc::now();
+            map.retain(|_, p| p.expires_at > now && p.approve_attempts < MAX_APPROVE_ATTEMPTS);
+            assert!(!map.is_empty(), "entry should survive until cap");
+            for p in map.values_mut() {
+                p.approve_attempts += 1;
+            }
+        }
+
+        let now = Utc::now();
+        map.retain(|_, p| p.expires_at > now && p.approve_attempts < MAX_APPROVE_ATTEMPTS);
+        assert!(map.is_empty(), "entry burned after cap");
+    }
 }
