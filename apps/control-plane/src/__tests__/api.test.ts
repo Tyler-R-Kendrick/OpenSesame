@@ -169,6 +169,7 @@ describe("control-plane API", () => {
     expect(live.headers.get("x-frame-options")).toBe("DENY");
     expect(live.headers.get("referrer-policy")).toBe("no-referrer");
     expect(live.headers.get("cache-control")).toBe("no-store");
+    expect(live.headers.get("permissions-policy")).toContain("camera=()");
     expect(live.headers.get("strict-transport-security")).toContain("max-age=");
 
     const verify = await app.request(

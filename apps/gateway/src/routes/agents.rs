@@ -88,12 +88,28 @@ pub async fn create_identity(
         .into_response()
 }
 
-pub async fn poll(State(st): State<AppState>, Path(id): Path<String>) -> impl IntoResponse {
+#[derive(Deserialize)]
+pub struct ClaimPollRequest {
+    claim_token: String,
+}
+
+pub async fn poll(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<ClaimPollRequest>,
+) -> impl IntoResponse {
     let map = st.claims.lock().unwrap();
-    match map.get(&id) {
-        Some(s) => Json(json!({"state": s.state, "claim_id": id})),
-        None => Json(json!({"error":"not_found"})),
+    let Some(session) = map.get(&id) else {
+        return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
+    };
+    if !hash_eq(&hash_secret(&req.claim_token), &session.claim_token_hash) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error":"invalid_claim_token"})),
+        )
+            .into_response();
     }
+    Json(json!({"state": session.state, "claim_id": id})).into_response()
 }
 
 #[derive(Deserialize)]

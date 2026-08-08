@@ -2,8 +2,9 @@
 //!
 //! Disabled unless `OPENSESAME_AAUTH_EXPERIMENTAL=true`. Never claims protocol
 //! conformance — only exposes lossless mapping helpers for interoperability experiments.
+//! Mapping helpers require session or operator auth when enabled.
 
-use axum::{http::StatusCode, response::IntoResponse, Json};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use opensesame_domain::{Capability, CapabilitySet, ResourceSelector};
 use opensesame_protocol_aauth::{
@@ -12,6 +13,9 @@ use opensesame_protocol_aauth::{
 };
 use serde::Deserialize;
 use serde_json::json;
+
+use crate::app_state::AppState;
+use crate::middleware::auth::require_session_or_operator;
 
 fn aauth_enabled() -> bool {
     std::env::var("OPENSESAME_AAUTH_EXPERIMENTAL")
@@ -74,9 +78,16 @@ pub async fn status() -> impl IntoResponse {
     .into_response()
 }
 
-pub async fn map_person_handler(Json(body): Json<MapPersonBody>) -> impl IntoResponse {
+pub async fn map_person_handler(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<MapPersonBody>,
+) -> impl IntoResponse {
     if !aauth_enabled() {
         return disabled();
+    }
+    if let Err(resp) = require_session_or_operator(&st, &headers) {
+        return resp;
     }
     let mapped = map_person(&Person {
         id: body.id,
@@ -89,9 +100,16 @@ pub async fn map_person_handler(Json(body): Json<MapPersonBody>) -> impl IntoRes
     .into_response()
 }
 
-pub async fn map_agent_handler(Json(body): Json<MapAgentBody>) -> impl IntoResponse {
+pub async fn map_agent_handler(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<MapAgentBody>,
+) -> impl IntoResponse {
     if !aauth_enabled() {
         return disabled();
+    }
+    if let Err(resp) = require_session_or_operator(&st, &headers) {
+        return resp;
     }
     let mapped = map_agent(&Agent {
         id: body.id,
@@ -106,9 +124,16 @@ pub async fn map_agent_handler(Json(body): Json<MapAgentBody>) -> impl IntoRespo
     .into_response()
 }
 
-pub async fn mission_digest(Json(body): Json<MissionBody>) -> impl IntoResponse {
+pub async fn mission_digest(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<MissionBody>,
+) -> impl IntoResponse {
     if !aauth_enabled() {
         return disabled();
+    }
+    if let Err(resp) = require_session_or_operator(&st, &headers) {
+        return resp;
     }
     let Ok(bytes) = STANDARD.decode(body.bytes_b64.as_bytes()) else {
         return (
@@ -135,9 +160,16 @@ pub async fn mission_digest(Json(body): Json<MissionBody>) -> impl IntoResponse 
     .into_response()
 }
 
-pub async fn scope_check(Json(body): Json<ScopeCeilingBody>) -> impl IntoResponse {
+pub async fn scope_check(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<ScopeCeilingBody>,
+) -> impl IntoResponse {
     if !aauth_enabled() {
         return disabled();
+    }
+    if let Err(resp) = require_session_or_operator(&st, &headers) {
+        return resp;
     }
     let ceiling = CapabilitySet::new(
         body.current_actions
