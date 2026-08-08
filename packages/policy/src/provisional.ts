@@ -49,6 +49,16 @@ export const DEFAULT_PROVISIONAL_QUOTA: ProvisionalQuota = {
   maxAgents: 2,
 };
 
+/**
+ * Verified principals get a larger allowance, not an unlimited one: assurance
+ * says who someone is, it does not say they may mint resources forever.
+ */
+export const DEFAULT_VERIFIED_QUOTA: ProvisionalQuota = {
+  maxTemporaryProjects: 50,
+  maxTemporaryResources: 500,
+  maxAgents: 25,
+};
+
 const HIGH_RISK_ACTIONS = new Set([
   "organization.delete",
   "principal.merge",
@@ -73,9 +83,34 @@ export interface ProvisionalUsage {
   agents: number;
 }
 
+/** Which quota field, if any, a given action spends. */
+function quotaFieldFor(
+  action: string,
+): { usage: keyof ProvisionalUsage; limit: keyof ProvisionalQuota; reason: string } | null {
+  switch (action) {
+    case "project.create_temporary":
+      return {
+        usage: "temporaryProjects",
+        limit: "maxTemporaryProjects",
+        reason: "quota_projects",
+      };
+    case "resource.create_temporary":
+      return {
+        usage: "temporaryResources",
+        limit: "maxTemporaryResources",
+        reason: "quota_resources",
+      };
+    case "agent.register_ephemeral":
+      return { usage: "agents", limit: "maxAgents", reason: "quota_agents" };
+    default:
+      return null;
+  }
+}
+
 export class ProvisionalPolicy {
   constructor(
     private readonly quota: ProvisionalQuota = DEFAULT_PROVISIONAL_QUOTA,
+    private readonly verifiedQuota: ProvisionalQuota = DEFAULT_VERIFIED_QUOTA,
   ) {}
 
   evaluate(
@@ -87,61 +122,45 @@ export class ProvisionalPolicy {
       agents: 0,
     },
   ): AuthorizationDecision {
-    if (!isProvisionalPrincipal(principal)) {
-      // Non-provisional principals are out of scope for this policy module.
-      return { effect: "allow", reasons: ["not_provisional"] };
-    }
-
+    // High-risk actions are denied for every subject. Nothing in this system
+    // grants them yet, and a PEP that answers "allow" because it has no rule is
+    // worse than no PEP at all.
     if (HIGH_RISK_ACTIONS.has(request.action)) {
       return {
         effect: "deny",
-        reasons: ["provisional_denies_high_risk", request.action],
+        reasons: ["high_risk_requires_explicit_authority", request.action],
       };
     }
 
-    if (!PROVISIONAL_ALLOWED.has(request.action)) {
+    const provisional = isProvisionalPrincipal(principal);
+    if (provisional && !PROVISIONAL_ALLOWED.has(request.action)) {
       return {
         effect: "deny",
         reasons: ["provisional_action_not_permitted", request.action],
       };
     }
 
-    if (
-      request.action === "project.create_temporary" &&
-      usage.temporaryProjects >= this.quota.maxTemporaryProjects
-    ) {
-      return {
-        effect: "deny",
-        reasons: ["provisional_quota_projects"],
-        obligations: ["upgrade_identity"],
-      };
-    }
-
-    if (
-      request.action === "resource.create_temporary" &&
-      usage.temporaryResources >= this.quota.maxTemporaryResources
-    ) {
-      return {
-        effect: "deny",
-        reasons: ["provisional_quota_resources"],
-        obligations: ["upgrade_identity"],
-      };
-    }
-
-    if (
-      request.action === "agent.register_ephemeral" &&
-      usage.agents >= this.quota.maxAgents
-    ) {
-      return {
-        effect: "deny",
-        reasons: ["provisional_quota_agents"],
-        obligations: ["upgrade_identity"],
-      };
+    const spend = quotaFieldFor(request.action);
+    if (spend) {
+      const quota = provisional ? this.quota : this.verifiedQuota;
+      if (usage[spend.usage] >= quota[spend.limit]) {
+        const denial: AuthorizationDecision = {
+          effect: "deny",
+          reasons: provisional
+            ? [`provisional_${spend.reason}`, spend.reason]
+            : [spend.reason],
+        };
+        // Only a provisional principal can clear the denial by upgrading.
+        if (provisional) {
+          denial.obligations = ["upgrade_identity"];
+        }
+        return denial;
+      }
     }
 
     return {
       effect: "allow",
-      reasons: ["provisional_policy_allow"],
+      reasons: [provisional ? "provisional_policy_allow" : "assurance_not_provisional"],
     };
   }
 }
