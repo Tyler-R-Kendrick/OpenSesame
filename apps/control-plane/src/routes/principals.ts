@@ -86,7 +86,6 @@ principalRoutes.post(
     const accessToken = `pst_${randomBytes(24).toString("base64url")}`;
     ctx.stores.provisionalSessions.set(provisionalSession.id, provisionalSession);
     ctx.stores.provisionalTokens.set(accessToken, provisionalSession.id);
-    ctx.stores.provisionalTokens.set(provisionalSession.id, provisionalSession.id);
 
     setCookie(c, ctx.config.provisionalCookieName, accessToken, {
       httpOnly: true,
