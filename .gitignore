@@ -13,6 +13,7 @@ dist/
 *.key
 !**/fixtures/**/*.pem
 coverage/
+*.tsbuildinfo
 .turbo/
 .headroom-cache/
 .superpowers/

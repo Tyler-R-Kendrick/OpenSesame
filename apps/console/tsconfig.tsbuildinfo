@@ -1,1 +1,0 @@
-{"root":["./src/copy.test.ts","./src/vite-env.d.ts","./src/App.tsx","./src/main.tsx","./src/components/TaskAccessPanel.test.tsx","./src/components/TaskAccessPanel.tsx","./src/pages/ClaimPage.tsx","./src/pages/DevicePage.tsx","./src/pages/SignInPage.tsx","./src/pages/TaskAccessPage.tsx","./vite.config.ts"],"version":"5.8.3"}
