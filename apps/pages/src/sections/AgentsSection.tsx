@@ -30,7 +30,11 @@ import {
 import { loadSettings } from "../lib/settings.js";
 import { useOnline } from "../lib/use-online.js";
 import { useVault } from "../lib/vault/hooks.js";
-import type { SecretItem, VaultItem } from "../lib/vault/model.js";
+import {
+  type SecretItem,
+  type VaultItem,
+  browsableUrl,
+} from "../lib/vault/model.js";
 import "./agents.css";
 
 export function AgentsSection() {
@@ -606,6 +610,8 @@ function RegisterAgent({ online }: { online: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [claim, setClaim] = useState<ClaimResult | null>(null);
   const { copy, copied } = useCopy();
+  // The Identity API is configurable, so its URI is not trusted as a link target.
+  const verificationUrl = claim ? browsableUrl(claim.verificationUri) : null;
 
   async function generateKey() {
     setError(null);
@@ -777,14 +783,23 @@ function RegisterAgent({ online }: { online: boolean }) {
                 {copied === "code" ? <IconCheck /> : <IconCopy />}
               </button>
             </div>
-            <a
-              className="btn"
-              href={claim.verificationUri}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              <IconExternal /> Open verification page
-            </a>
+            {verificationUrl ? (
+              <a
+                className="btn"
+                href={verificationUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <IconExternal /> Open verification page
+              </a>
+            ) : (
+              <p className="note note--err" role="alert">
+                <span>
+                  The Identity API returned a verification address this app will
+                  not open: <code>{claim.verificationUri}</code>
+                </span>
+              </p>
+            )}
             <p className="hint">
               Instance <code>{claim.instanceId}</code> · expires{" "}
               {formatTime(claim.expiresAt)}

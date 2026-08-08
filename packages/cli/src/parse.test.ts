@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { helpText, parseArgs, SessionFileSchema } from "./parse.js";
+import { SessionFileSchema, helpText, parseArgs } from "./parse.js";
 
 describe("parseArgs", () => {
   it("parses login --device --json", () => {
@@ -40,19 +40,33 @@ describe("parseArgs", () => {
   });
 
   it("parses claim poll and agent init --anonymous", () => {
-    expect(parseArgs(["claim", "poll", "clm_1"])).toMatchObject({
+    expect(
+      parseArgs(["claim", "poll", "clm_1", "--token", "osc_clm_abc"]),
+    ).toMatchObject({
       name: "claim-poll",
       claimId: "clm_1",
+      claimToken: "osc_clm_abc",
     });
-    expect(parseArgs(["agent", "init", "--anonymous", "--name", "bot"])).toMatchObject({
+    expect(
+      parseArgs(["agent", "init", "--anonymous", "--name", "bot"]),
+    ).toMatchObject({
       name: "agent-init",
       anonymous: true,
       displayName: "bot",
     });
   });
 
+  it("refuses to poll a claim without its token", () => {
+    expect(() => parseArgs(["claim", "poll", "clm_1"])).toThrow(/claim token/);
+  });
+
   it("parses host health", () => {
-    const cmd = parseArgs(["host", "health", "--host", "http://127.0.0.1:8787"]);
+    const cmd = parseArgs([
+      "host",
+      "health",
+      "--host",
+      "http://127.0.0.1:8787",
+    ]);
     expect(cmd).toMatchObject({
       name: "host-health",
       hostUrl: "http://127.0.0.1:8787",

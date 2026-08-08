@@ -25,7 +25,12 @@ export type ParsedCommand =
       projectName: string;
       flags: GlobalFlags;
     }
-  | { name: "claim-poll"; claimId: string; flags: GlobalFlags }
+  | {
+      name: "claim-poll";
+      claimId: string;
+      claimToken: string;
+      flags: GlobalFlags;
+    }
   | {
       name: "agent-init";
       anonymous: boolean;
@@ -103,7 +108,18 @@ export function parseArgs(argv: string[]): ParsedCommand {
     args.shift();
     const claimId = takeOption(args, "--id") ?? args.shift();
     if (!claimId) throw new Error("claim poll requires claim id");
-    return { name: "claim-poll", claimId, flags };
+    // The claim token is the bearer for this endpoint: the control plane will
+    // not answer without it, so fail here rather than at the request.
+    const claimToken =
+      takeOption(args, "--token") ??
+      process.env.OPENSESAME_CLAIM_TOKEN ??
+      args.shift();
+    if (!claimToken) {
+      throw new Error(
+        "claim poll requires the claim token (--token osc_clm_… or OPENSESAME_CLAIM_TOKEN)",
+      );
+    }
+    return { name: "claim-poll", claimId, claimToken, flags };
   }
 
   if (cmd === "agent" && args[0] === "init") {
@@ -154,7 +170,7 @@ Commands:
   logout
   whoami
   project create --temporary [--name <name>]
-  claim poll <claimId>
+  claim poll <claimId> --token <osc_clm_…>
   agent init --anonymous [--name <name>]
   host health [--host <url>]   Host API (:8787) via api-client
   host discover [--host <url>] Host PRM / readiness discovery

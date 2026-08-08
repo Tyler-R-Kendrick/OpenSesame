@@ -104,12 +104,21 @@ function MobileFilters({
   );
 }
 
-function ItemRow({ item, active }: { item: VaultItem; active: boolean }) {
+function ItemRow({
+  item,
+  active,
+  search,
+}: {
+  item: VaultItem;
+  active: boolean;
+  /** Carried into the detail route so the filter survives a round trip. */
+  search: string;
+}) {
   const Icon = KIND_ICON[item.kind];
   return (
     <li>
       <Link
-        to={`/vault/${item.id}`}
+        to={`/vault/${item.id}${search}`}
         className={`vault__row${active ? " is-active" : ""}`}
         aria-current={active ? "true" : undefined}
       >
@@ -250,7 +259,12 @@ export function VaultSection() {
         ) : (
           <ul className="vault__rows">
             {visible.map((item) => (
-              <ItemRow key={item.id} item={item} active={item.id === itemId} />
+              <ItemRow
+                key={item.id}
+                item={item}
+                active={item.id === itemId}
+                search={location.search}
+              />
             ))}
           </ul>
         )}

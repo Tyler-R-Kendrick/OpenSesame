@@ -74,7 +74,13 @@ export function CopyButton({
       type="button"
       className={`icon-btn${isCopied ? " is-on" : ""}`}
       onClick={() => void onCopy(fieldKey, value)}
-      aria-label={isFailed ? `Could not copy ${label}` : `Copy ${label}`}
+      aria-label={
+        isFailed
+          ? `Could not copy ${label}`
+          : isCopied
+            ? `Copied ${label}`
+            : `Copy ${label}`
+      }
       title={
         isFailed
           ? "Your browser blocked clipboard access"
@@ -84,6 +90,13 @@ export function CopyButton({
       }
     >
       {isCopied ? <IconCheck size={17} /> : <IconCopy size={17} />}
+      <span className="visually-hidden" aria-live="polite">
+        {isFailed
+          ? `Could not copy ${label}`
+          : isCopied
+            ? `${label} copied to the clipboard`
+            : ""}
+      </span>
     </button>
   );
 }

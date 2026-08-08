@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import {
   ConcealedValue,
   CopyButton,
@@ -73,6 +73,9 @@ function formatDate(iso: string): string {
 export function ItemDetail() {
   const { itemId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // The active filter travels in the query string, so going back keeps it.
+  const listPath = `/vault${location.search}`;
   const { items, folders } = useVault();
   const store = useVaultStore();
   const { copied, failed, copy } = useCopyFeedback();
@@ -97,7 +100,7 @@ export function ItemDetail() {
             It may have been purged, or the link points at another device's
             vault.
           </p>
-          <Link className="btn btn--sm" to="/vault">
+          <Link className="btn btn--sm" to={listPath}>
             Back to the vault
           </Link>
         </div>
@@ -119,9 +122,9 @@ export function ItemDetail() {
 
   return (
     <div className="detail">
-      <Link className="btn btn--ghost btn--sm detail__back" to="/vault">
+      <Link className="btn btn--ghost btn--sm detail__back" to={listPath}>
         <IconChevronLeft size={16} />
-        All items
+        {listPath === "/vault" ? "All items" : "Back to list"}
       </Link>
 
       <div className="detail__head">
@@ -275,7 +278,7 @@ export function ItemDetail() {
               className="btn btn--danger"
               onClick={() => {
                 void store.trashItem(item.id);
-                navigate("/vault");
+                navigate(listPath);
               }}
             >
               <IconTrash size={16} />

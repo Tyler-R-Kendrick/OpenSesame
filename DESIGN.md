@@ -1,151 +1,212 @@
 ---
 name: OpenSesame
-description: Bitwarden-class authority vault for humans and agents
+description: End-to-end encrypted vault for humans, agents, websites, and developers
 colors:
-  sidebar-navy: "#152033"
-  content-mist: "#eef1f6"
-  elevated: "#ffffff"
-  ink: "#1a2230"
-  muted: "#5c6b7e"
-  line: "#d5dde8"
-  accent-teal: "#0f766e"
-  accent-ink: "#f0fdfa"
-  accent-soft: "#ccfbf1"
-  ok: "#047857"
-  warn: "#b45309"
-  err: "#b91c1c"
+  canvas: "#f2f5f9"
+  surface: "#ffffff"
+  surface-2: "#f7f9fc"
+  surface-3: "#eef2f8"
+  rail: "#101a2b"
+  rail-fg: "#dbe6f4"
+  ink: "#0e1826"
+  ink-2: "#566880"
+  ink-3: "#7e8fa6"
+  line: "#dce4ef"
+  line-strong: "#c4d1e2"
+  accent: "#0d7268"
+  accent-ink: "#ffffff"
+  accent-wash: "#e4f6f3"
+  ok: "#0f7a51"
+  warn: "#a25a05"
+  err: "#b32424"
 typography:
   display:
-    fontFamily: "Source Sans 3, Segoe UI, system-ui, sans-serif"
-    fontSize: "1.85rem"
-    fontWeight: 700
-    letterSpacing: "-0.03em"
+    fontFamily: "system-ui stack (-apple-system, Segoe UI, Roboto, …)"
+    fontSize: "1.4rem"
+    fontWeight: 650
+    letterSpacing: "-0.021em"
   headline:
-    fontFamily: "Source Sans 3, Segoe UI, system-ui, sans-serif"
-    fontSize: "1.45rem"
-    fontWeight: 700
+    fontFamily: "system-ui stack"
+    fontSize: "1.0625rem"
+    fontWeight: 650
   body:
-    fontFamily: "Source Sans 3, Segoe UI, system-ui, sans-serif"
-    fontSize: "1rem"
+    fontFamily: "system-ui stack"
+    fontSize: "15px"
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: "Source Sans 3, Segoe UI, system-ui, sans-serif"
-    fontSize: "0.72rem"
-    fontWeight: 700
-    letterSpacing: "0.04em"
+    fontFamily: "system-ui stack"
+    fontSize: "0.6875rem"
+    fontWeight: 600
+    letterSpacing: "0.06em"
+    textTransform: "uppercase"
   mono:
-    fontFamily: "IBM Plex Mono, ui-monospace, monospace"
-    fontSize: "0.9rem"
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    fontSize: "0.8125rem"
 rounded:
-  sm: "8px"
   md: "10px"
+  lg: "14px"
   pill: "999px"
 spacing:
-  sm: "0.45rem"
-  md: "0.85rem"
-  lg: "1.25rem"
+  sm: "0.4rem"
+  md: "0.9rem"
+  lg: "1.5rem"
 components:
   button-primary:
-    backgroundColor: "{colors.accent-teal}"
+    backgroundColor: "{colors.accent}"
     textColor: "{colors.accent-ink}"
     rounded: "{rounded.md}"
-    padding: "0.55rem 0.95rem"
+    padding: "0.45rem 0.85rem"
   button-secondary:
-    backgroundColor: "{colors.content-mist}"
+    backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
+    borderColor: "{colors.line-strong}"
     rounded: "{rounded.md}"
-    padding: "0.55rem 0.95rem"
-  unlock-card:
-    backgroundColor: "{colors.elevated}"
-    textColor: "{colors.ink}"
-    rounded: "14px"
-    padding: "1.75rem 1.5rem"
-  vault-row:
-    backgroundColor: "{colors.content-mist}"
-    textColor: "{colors.ink}"
+    padding: "0.45rem 0.85rem"
+  panel:
+    backgroundColor: "{colors.surface}"
+    borderColor: "{colors.line}"
+    rounded: "{rounded.lg}"
+  item-row:
+    backgroundColor: "transparent"
+    activeColor: "{colors.accent-wash}"
     rounded: "{rounded.md}"
-    padding: "0.75rem 0.85rem"
+    padding: "0.55rem 0.6rem"
 ---
 
 # Design System: OpenSesame
 
 ## Overview
 
-**Creative North Star: "Authority Vault"**
+**Creative North Star: "One vault, four readings."**
 
-OpenSesame’s Pages client is a Bitwarden-class vault for sealed authority — not a protocol dashboard and not a password manager clone. Humans unlock, search, and open typed items; agents use the same catalog through a peer view. Craft bar (user-pinned): Bitwarden; companion assumed: 1Password. OpenSesame teal + navy replace competitor purple.
+OpenSesame is an end-to-end encrypted vault. A human uses it as a password
+manager and passkey store, an agent as a secret store it can never read out, a
+website as an auth broker, and a developer as an authority. The same encrypted
+store underlies all four, and the interface has to make each one feel like the
+product was built for them.
 
-**Key Characteristics:**
-- Unlock-first session gate
-- Navy sidebar + light content shell
-- Search + type filters over a dense item list
-- Teal primary actions; soft 10px radius
-- Synthetic items always labeled
+The craft bar is Bitwarden and 1Password. Password-manager canon — unlock gate,
+list and detail, conceal by default, copy without revealing — is followed
+because users already know it, in OpenSesame navy and teal rather than
+competitor brand color.
+
+**Key characteristics:**
+- Master-password gate, no PIN theater, no recovery path
+- Navy rail, light canvas, teal for exactly one thing: the primary action
+- List-and-detail spine for the vault; full-width panels for the plane-backed
+  sections
+- System font stack — no webfont request, no flash, no third-party origin
+- Sample data always badged
 
 ## Colors
 
-Restrained: neutrals carry the vault; teal is the control accent.
+Neutrals carry the interface. Teal is scarce enough to mean something.
 
 ### Primary
-- **Accent Teal** (#0f766e): Primary buttons, active nav, focus, type badges for connections.
+- **Accent** (#0d7268): primary buttons, active navigation, focus rings,
+  strongest step of the strength meter. In dark mode it lifts to #2fb3a3.
 
 ### Neutral
-- **Sidebar Navy** (#152033): Primary navigation plane.
-- **Content Mist** (#eef1f6): App ground and row fills.
-- **Elevated** (#ffffff): Cards, panels, unlock surface.
-- **Ink** (#1a2230) / **Muted** (#5c6b7e) / **Line** (#d5dde8).
+- **Rail** (#101a2b): the navigation plane, dark in both themes.
+- **Canvas** (#f2f5f9): the ground everything sits on.
+- **Surface** (#ffffff): panels and cards.
+- **Ink / Ink-2 / Ink-3** (#0e1826 / #566880 / #7e8fa6): primary, secondary,
+  and placeholder text.
 
-### Named Rules
-**The Competitor Marks Rule.** Match Bitwarden vault habits, never Bitwarden brand purple or wordmarks.
+### Status
+**ok** #0f7a51, **warn** #a25a05, **err** #b32424, each with a wash for filled
+callouts. The password strength ramp (`--s-0` … `--s-4`) runs red → amber →
+green → teal so "excellent" lands on the brand color.
 
-**The Unlock Honesty Rule.** Copy must state session unlock does not decrypt sealed blobs into the page.
+### Named rules
+
+**The Competitor Marks Rule.** Match Bitwarden's habits, never its brand.
+
+**The Honest Crypto Rule.** Every claim in the interface is one the code makes
+true. If copy says nothing leaves the device, nothing leaves the device — the
+health report is computed locally and contacts no breach service, and TOTP codes
+are derived in the page.
+
+**The No-Recovery Rule.** The absence of a recovery path is stated before the
+vault is created, acknowledged with a checkbox, and repeated where it matters.
+Never soften it.
 
 ## Typography
 
-**Display / Body:** Source Sans 3  
-**Mono:** IBM Plex Mono (codes, digests, status chips only)
+System font stack for UI, system mono for anything a machine produced: codes,
+identifiers, connection references, capability actions, snippets. Mono is a
+signal that a value is literal, so never use it for prose.
 
 ### Hierarchy
-- Unlock product name ~1.85rem bold
-- Vault page titles ~1.45rem
-- Row names bold; subtitles muted 0.9rem
-- Filter chips 0.88rem semibold
+- Page and detail titles ~1.4rem, weight 650, tight tracking
+- Panel headings ~1.0625rem
+- Body 15px / 1.5
+- Field labels 0.6875rem uppercase with 0.06em tracking
+- Numbers that change in place use `font-variant-numeric: tabular-nums`
 
 ## Layout
 
-Desktop: 15.5rem sidebar + content (`max-width` ~52rem). Mobile: sticky top bar + 4-tab nav (Vault / Agent / Tools / Settings). Vault home is search → filters → list — never twin marketing cards.
+Desktop is a 15.5rem rail plus content. The vault adds a 21rem list column
+between rail and detail, giving the familiar three-pane shape; the other
+sections use a single 60rem column of panels.
 
-## Elevation & Depth
+Below 900px the rail is replaced by a sticky top bar and a five-item tab bar,
+and the vault collapses to one pane at a time with a back link. Because the
+rail carries the vault's filters, the list header grows a scrolling chip row at
+that breakpoint — nothing in the rail may become unreachable.
 
-Soft ambient shadow on unlock card and panels (`0 8px 24px rgba(21, 32, 51, 0.08)`). Rows are flat tonal fills with 1px lines.
+Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
+
+## Elevation & depth
+
+Three shadow steps, all cool-tinted. Panels take the smallest; the unlock card
+takes the largest. Rows are flat with hairline separators — depth marks
+containers, not list items.
 
 ## Shapes
 
-Radius 10px on controls/panels; 8px on type badges; pills for filters and status chips.
+10px on controls and rows, 14px on panels and cards, pills for chips and
+filters.
 
 ## Components
 
 ### Buttons
-Primary teal fill; secondary mist fill + line; compact variants in agent rows.
+Teal fill for the primary action, surface fill with a hairline for secondary,
+ghost for tertiary, and a red-tinted variant for anything destructive. One
+primary per view.
+
+### Field rows
+The vault's atom: uppercase label, value, and right-aligned actions. Secrets
+render as dots with a reveal toggle, and copy never requires revealing first.
 
 ### Navigation
-Sidebar links with icons; active state mixes teal into navy. Mobile icon+label grid.
+Rail links carry an icon, a label, and a count. Active state is a teal wash. The
+mobile tab bar mirrors the five sections and nothing else.
 
-### Vault rows
-Icon badge + name/subtitle + type meta. Hover softens toward accent-soft.
+### Callouts
+`note` with `--ok`, `--warn`, `--err` variants for a stated condition. Live
+regions are `<output>`, control groups are `<fieldset>`, so the accessibility
+role comes from the element rather than an attribute.
 
-### Unlock card
-Centered elevated card; mark + product + honest PIN copy + primary CTA.
+### Empty states
+An empty state must say what would be here and why it is not — offline,
+unauthenticated, or genuinely empty — and offer the action that fills it. The
+vault's unselected detail pane goes further and reports what the vault holds,
+what changed recently, and what needs attention.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep Vault as the home after unlock.
-- **Do** label synthetic demo items.
-- **Do** offer Agent as a peer of Vault, not a separate product.
+- **Do** conceal secret values by default and allow copying without revealing.
+- **Do** state what a network-backed surface cannot show while offline or
+  unauthenticated.
+- **Do** badge sample data on every item and keep removing it to one action.
+- **Do** treat a reload re-locking the vault as correct behavior and say so.
 
 ### Don't:
-- **Don't** revive the yellow airport depth-band world on this surface.
-- **Don't** show raw secrets, private keys, or `getSecret()` affordances.
-- **Don't** clone Bitwarden’s purple brand identity.
+- **Don't** add a shortcut around the master password. There is no PIN, no
+  "remember this device," no recovery.
+- **Don't** put a secret, or a hash of one, on the network.
+- **Don't** let prose run the full width of a panel.
+- **Don't** clone Bitwarden's brand identity.
