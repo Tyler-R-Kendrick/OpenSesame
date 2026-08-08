@@ -8,6 +8,9 @@ import {
 
 const gateway =
   import.meta.env.VITE_OPENSESAME_GATEWAY ?? "http://127.0.0.1:8787";
+/** Local/dev operator bearer — never bake production secrets into the console build. */
+const operatorToken =
+  import.meta.env.VITE_OPENSESAME_OPERATOR_TOKEN?.trim() ?? "";
 
 export function TaskAccessPage() {
   const [params] = useSearchParams();
@@ -34,8 +37,13 @@ export function TaskAccessPage() {
     setError(null);
     (async () => {
       try {
+        const headers: Record<string, string> = {};
+        if (operatorToken) {
+          headers.authorization = `Bearer operator:${operatorToken}`;
+        }
         const res = await fetch(
           `${gateway.replace(/\/$/, "")}/api/v1/tasks/${encodeURIComponent(taskId)}`,
+          { headers },
         );
         if (!res.ok) {
           if (res.status === 404) {

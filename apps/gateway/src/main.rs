@@ -6,6 +6,7 @@ mod bootstrap;
 mod config;
 mod middleware;
 mod routes;
+mod task_engine;
 
 use clap::Parser;
 use config::Args;
