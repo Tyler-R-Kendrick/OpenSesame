@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createApiClient,
   createDpopKeyPair,
+  normalizeHttpBaseUrl,
   normalizeLoopbackBaseUrl,
 } from "./index.js";
 
@@ -99,5 +100,20 @@ describe("api-client", () => {
     await client.syncPull({ deviceId: "dev-a", epoch: 3 });
     expect(body).toContain("dev-a");
     expect(body).toContain('"since_epoch":3');
+  });
+});
+
+describe("normalizeHttpBaseUrl", () => {
+  it("allows https anywhere and http only on loopback", () => {
+    expect(normalizeHttpBaseUrl("https://issuer.example.test/")).toBe(
+      "https://issuer.example.test",
+    );
+    expect(normalizeHttpBaseUrl("http://127.0.0.1:8788")).toBe("http://127.0.0.1:8788");
+    expect(normalizeHttpBaseUrl("http://127.5.5.5:8788")).toBe("http://127.5.5.5:8788");
+    // Cleartext to another host would hand the session bearer to the network.
+    expect(normalizeHttpBaseUrl("http://issuer.example.test")).toBeNull();
+    expect(normalizeHttpBaseUrl("https://user:pw@issuer.example.test")).toBeNull();
+    expect(normalizeHttpBaseUrl("file:///etc/passwd")).toBeNull();
+    expect(normalizeHttpBaseUrl("not a url")).toBeNull();
   });
 });
