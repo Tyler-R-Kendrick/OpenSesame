@@ -76,4 +76,4 @@ Re-run checklist: `pnpm run audit:cve-lite`, `pnpm run audit:osv`, `pnpm run aud
 
 - Default TCP is loopback-only; non-loopback requires `OPENSESAME_ALLOW_NONLOCAL=1` (legacy alias `OPENSESAME_DAEMON_ALLOW_NONLOCAL=1`).
 - Locked-down hosts: `OPENSESAME_DAEMON_UDS_ONLY=1` + `OPENSESAME_AGENT_SOCK` (no TCP).
-- Legacy `opensesame-credential-agent` uses the same loopback fence.
+- Legacy `opensesame-credential-agent`, gateway, callback-edge, control-plane, and mock-idp use the same loopback fence.
