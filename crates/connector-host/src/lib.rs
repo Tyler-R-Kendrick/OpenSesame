@@ -7,6 +7,7 @@ use opensesame_domain::{EgressBinding, InvokeLevel, LegacyProjection, Placeholde
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashSet;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use thiserror::Error;
 use url::Url;
 
@@ -100,45 +101,89 @@ pub fn assert_destination_allowed(policy: &HostPolicy, raw_url: &str) -> Result<
     Ok(())
 }
 
-fn is_blocked_host(host: &str) -> bool {
-    let h = host.to_lowercase();
-    if h == "localhost"
-        || h == "metadata.google.internal"
-        || h == "::1"
-        || h == "0.0.0.0"
-        || h == "[::]"
-        || h == "[::1]"
-        || h.starts_with("127.")
-        || h.starts_with("169.254.")
-        || h.starts_with("10.")
-        || h.starts_with("192.168.")
-        || h.starts_with("fc")
-        || h.starts_with("fd")
-        || h.starts_with("fe80:")
-    {
+/// True when the host names a loopback, private, link-local, or otherwise
+/// non-routable address, or a known metadata endpoint.
+///
+/// Literals are parsed rather than prefix-matched: `2130706433` and
+/// `::ffff:127.0.0.1` are both 127.0.0.1, and `fcbank.example.com` is not a
+/// unique-local address just because it starts with `fc`.
+pub fn is_blocked_host(host: &str) -> bool {
+    let h = host.trim().to_lowercase();
+    let h = h.trim_start_matches('[').trim_end_matches(']');
+    if h.is_empty() {
         return true;
     }
-    // RFC1918 172.16.0.0/12
-    if let Some(rest) = h.strip_prefix("172.") {
-        if let Some((second, _)) = rest.split_once('.') {
-            if let Ok(octet) = second.parse::<u8>() {
-                if (16..=31).contains(&octet) {
-                    return true;
-                }
-            }
+    if h == "localhost" || h.ends_with(".localhost") || h == "metadata.google.internal" {
+        return true;
+    }
+    match parse_host_ip(h) {
+        Some(IpAddr::V4(v4)) => is_blocked_v4(v4),
+        Some(IpAddr::V6(v6)) => is_blocked_v6(v6),
+        // A name we cannot resolve here: the egress allowlist is the fence.
+        None => false,
+    }
+}
+
+/// Accept the forms a URL host can take, including the integer and hex spellings
+/// `Ipv4Addr::from_str` rejects but resolvers accept.
+fn parse_host_ip(h: &str) -> Option<IpAddr> {
+    if let Ok(ip) = h.parse::<IpAddr>() {
+        return Some(ip);
+    }
+    if let Some(hex) = h.strip_prefix("0x") {
+        if let Ok(raw) = u32::from_str_radix(hex, 16) {
+            return Some(IpAddr::V4(Ipv4Addr::from(raw)));
+        }
+        return None;
+    }
+    if h.len() > 1 && h.starts_with('0') && h.chars().skip(1).all(|c| c.is_digit(8)) {
+        if let Ok(raw) = u32::from_str_radix(&h[1..], 8) {
+            return Some(IpAddr::V4(Ipv4Addr::from(raw)));
+        }
+        return None;
+    }
+    if h.chars().all(|c| c.is_ascii_digit()) {
+        if let Ok(raw) = h.parse::<u32>() {
+            return Some(IpAddr::V4(Ipv4Addr::from(raw)));
         }
     }
-    // CGNAT 100.64.0.0/10
-    if let Some(rest) = h.strip_prefix("100.") {
-        if let Some((second, _)) = rest.split_once('.') {
-            if let Ok(octet) = second.parse::<u8>() {
-                if (64..=127).contains(&octet) {
-                    return true;
-                }
-            }
-        }
+    None
+}
+
+fn is_blocked_v4(ip: Ipv4Addr) -> bool {
+    let o = ip.octets();
+    ip.is_loopback()
+        || ip.is_private()
+        || ip.is_link_local()
+        || ip.is_unspecified()
+        || ip.is_broadcast()
+        || ip.is_multicast()
+        || ip.is_documentation()
+        // 100.64.0.0/10 CGNAT
+        || (o[0] == 100 && (64..=127).contains(&o[1]))
+        // 192.0.0.0/24 IETF protocol assignments
+        || (o[0] == 192 && o[1] == 0 && o[2] == 0)
+        // 198.18.0.0/15 benchmarking
+        || (o[0] == 198 && (o[1] == 18 || o[1] == 19))
+        // 240.0.0.0/4 reserved
+        || o[0] >= 240
+}
+
+fn is_blocked_v6(ip: Ipv6Addr) -> bool {
+    // IPv4-mapped / IPv4-compatible carry a v4 address; judge that instead.
+    if let Some(v4) = ip.to_ipv4() {
+        return is_blocked_v4(v4);
     }
-    false
+    let seg = ip.segments();
+    ip.is_loopback()
+        || ip.is_unspecified()
+        || ip.is_multicast()
+        // fc00::/7 unique local
+        || (seg[0] & 0xfe00) == 0xfc00
+        // fe80::/10 link local
+        || (seg[0] & 0xffc0) == 0xfe80
+        // 2001:db8::/32 documentation
+        || (seg[0] == 0x2001 && seg[1] == 0x0db8)
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -525,6 +570,36 @@ mod tests {
             Err(HostError::PrivateAddress)
         );
         assert!(assert_destination_allowed(&p, "https://api.github.com/repos/x").is_ok());
+    }
+
+    #[test]
+    fn integer_and_mapped_spellings_of_loopback_are_blocked() {
+        // 2130706433 == 0x7f000001 == 127.0.0.1; resolvers accept all three.
+        for host in [
+            "2130706433",
+            "0x7f000001",
+            "017700000001",
+            "::ffff:127.0.0.1",
+            "::ffff:7f00:1",
+            "[::ffff:169.254.169.254]",
+            "0.0.0.0",
+            "172.16.0.5",
+            "100.64.1.1",
+            "198.18.0.1",
+            "fd00::1",
+            "fe80::1",
+        ] {
+            assert!(is_blocked_host(host), "{host} should be blocked");
+        }
+    }
+
+    #[test]
+    fn names_that_merely_look_like_private_ranges_are_not_blocked_here() {
+        // The old prefix test blocked these outright.
+        for host in ["fcbank.example.com", "fdic.example.gov", "10th.example.com"] {
+            assert!(!is_blocked_host(host), "{host} should not be blocked");
+        }
+        assert!(is_blocked_host("app.localhost"));
     }
 
     #[test]
