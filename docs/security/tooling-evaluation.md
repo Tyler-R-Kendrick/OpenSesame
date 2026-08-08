@@ -63,6 +63,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0q. **Claim verify + API headers** — escape HTML on `/v1/claims/:id/verify`; nosniff/frame/HSTS on Identity API — see `audit-2026-08-07-claim-verify-xss.md`.
 0r. **Host API CORS + headers** — gateway/daemon get nosniff/frame + fail-closed `OPENSESAME_CORS_ORIGINS` (same env as Identity) — see `audit-2026-08-07-gateway-cors-headers.md`.
 0s. **SPA CSP + mock IdP** — Vite apps ship a baseline Content-Security-Policy; mock upstream IdP gets nosniff/frame — see `audit-2026-08-07-spa-csp-mock-idp.md`.
+0t. **Mock IdP PKCE** — S256-only; `code_verifier` required on token exchange — see `audit-2026-08-07-mock-idp-pkce.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.
