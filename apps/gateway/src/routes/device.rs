@@ -77,6 +77,16 @@ pub async fn authorize(
     .into_response()
 }
 
+/// Server-side copy of the session metadata with the bearer swapped for its
+/// digest — the token returned to the client is never held at rest.
+fn stored_session_meta(meta: &serde_json::Value, session_digest: &str) -> serde_json::Value {
+    let mut stored = meta.clone();
+    if let Some(obj) = stored.as_object_mut() {
+        obj.insert("session_id".into(), json!(session_digest));
+    }
+    stored
+}
+
 #[derive(Deserialize)]
 pub struct DeviceTokenRequest {
     device_code: String,
@@ -119,6 +129,8 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
         Err(resp) => return resp,
     };
     let session_id = format!("sess_{}", uuid::Uuid::new_v4());
+    // The session id *is* the bearer; only its digest is retained server-side.
+    let session_digest = hash_secret(&session_id);
     let handle = format!("handle_{}", uuid::Uuid::new_v4());
     // Bind session to the *approved* principal — never the bootstrap demo id alone.
     let meta = json!({
@@ -150,7 +162,10 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
             )
                 .into_response();
         }
-        sessions.insert(session_id.clone(), meta.clone());
+        sessions.insert(
+            session_digest.clone(),
+            stored_session_meta(&meta, &session_digest),
+        );
     }
     map.remove(&device_code_hash);
     // Never return refresh token bytes — opaque handle only
@@ -258,6 +273,30 @@ mod tests {
         // The legitimate code still approves once the cooldown has elapsed.
         let entry = map.values().next().expect("entry");
         assert!(hash_eq(&hash_secret("BCDF-GHJK"), &entry.user_code_hash));
+    }
+
+    #[test]
+    fn session_bearer_is_never_retained() {
+        let session_id = "sess_11111111-2222-3333-4444-555555555555";
+        let digest = hash_secret(session_id);
+        let meta = json!({"session_id": session_id, "approved_as": "prn_abc"});
+        let stored = stored_session_meta(&meta, &digest);
+
+        let mut sessions: HashMap<String, serde_json::Value> = HashMap::new();
+        sessions.insert(digest.clone(), stored);
+
+        assert!(
+            !sessions.contains_key(session_id),
+            "cleartext bearer must not be a key"
+        );
+        let found = sessions.get(&digest).expect("digest key hits");
+        assert_eq!(found["session_id"], json!(digest));
+        assert!(
+            !serde_json::to_string(found).unwrap().contains(session_id),
+            "stored metadata must not echo the bearer"
+        );
+        // The response copy still hands the caller its own token.
+        assert_eq!(meta["session_id"], json!(session_id));
     }
 
     #[test]

@@ -242,6 +242,7 @@ export const agents = pgTable(
   "agents",
   {
     id: text("id").primaryKey(),
+    ownerPrincipalId: text("owner_principal_id").references(() => principals.id),
     displayName: text("display_name").notNull(),
     provider: text("provider"),
     softwareIdentity: text("software_identity"),
@@ -255,6 +256,7 @@ export const agents = pgTable(
       "agents_state_check",
       sql`${t.state} in ('provisional','claimed','suspended','revoked')`,
     ),
+    index("agents_owner_principal_id_idx").on(t.ownerPrincipalId),
   ],
 );
 
