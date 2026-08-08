@@ -128,6 +128,49 @@ pub fn resolve_caller_subject(
     Ok("user:demo".into())
 }
 
+/// Which principal a request may act on behalf of.
+///
+/// Operators are unfenced. A session is fenced to the principal it was approved
+/// as; a dev session that was never bound to a real principal id falls back to
+/// the bootstrap principal, which is exactly the principal its invocations are
+/// stamped with.
+pub enum Caller {
+    Operator,
+    Principal(opensesame_domain::PrincipalId),
+    /// Authenticated session with no resolvable principal — owns nothing.
+    Unbound,
+}
+
+impl Caller {
+    pub fn owns(&self, principal: &opensesame_domain::PrincipalId) -> bool {
+        match self {
+            Caller::Operator => true,
+            Caller::Principal(mine) => mine == principal,
+            Caller::Unbound => false,
+        }
+    }
+}
+
+/// Resolves the caller once: session first (fenced), operator second (unfenced).
+#[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
+pub fn resolve_caller(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, Response> {
+    if let Ok((_, meta)) = require_session(st, headers) {
+        let subject = session_subject(&meta);
+        if let Ok(principal) = opensesame_domain::PrincipalId::parse(&subject) {
+            return Ok(Caller::Principal(principal));
+        }
+        return Ok(st
+            .bootstrap
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|boot| Caller::Principal(boot.principal))
+            .unwrap_or(Caller::Unbound));
+    }
+    require_operator(st, headers)?;
+    Ok(Caller::Operator)
+}
+
 #[allow(clippy::result_large_err)]
 pub fn require_demo_bootstrap(st: &AppState) -> Result<crate::app_state::Bootstrap, Response> {
     st.bootstrap

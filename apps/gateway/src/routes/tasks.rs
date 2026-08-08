@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::app_state::AppState;
-use crate::middleware::auth::require_session_or_operator;
+use crate::middleware::auth::resolve_caller;
 
 #[derive(Deserialize)]
 pub struct StartTaskBody {
@@ -50,8 +50,16 @@ pub async fn start_task(
     headers: axum::http::HeaderMap,
     Json(body): Json<StartTaskBody>,
 ) -> Result<Response, Response> {
-    require_session_or_operator(&st, &headers)?;
+    let caller = resolve_caller(&st, &headers)?;
     let principal = PrincipalId::parse(&body.principal_id).map_err(bad_req)?;
+    // A session cannot mint task authority for someone else's principal.
+    if !caller.owns(&principal) {
+        return Err(err_json(
+            StatusCode::FORBIDDEN,
+            "principal_mismatch",
+            "task authority must be started for the calling principal",
+        ));
+    }
     let org = OrganizationId::parse(&body.organization_id).map_err(bad_req)?;
     let caps = CapabilitySet::new(
         body.capabilities
@@ -107,13 +115,14 @@ pub async fn get_task(
     headers: axum::http::HeaderMap,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Response, Response> {
-    require_session_or_operator(&st, &headers)?;
+    let caller = resolve_caller(&st, &headers)?;
     let tid = TaskRunId::parse(&id).map_err(bad_req)?;
     let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
     let run = eng
         .store()
         .get_run(tid)
         .map_err(internal)?
+        .filter(|run| caller.owns(&run.principal_id))
         .ok_or_else(|| not_found("task"))?;
     Ok(Json(json!({
         "task_run_id": run.id.to_string(),
@@ -133,9 +142,15 @@ pub async fn freeze_intent(
     headers: axum::http::HeaderMap,
     Json(body): Json<FreezeIntentBody>,
 ) -> Result<Response, Response> {
-    require_session_or_operator(&st, &headers)?;
+    let caller = resolve_caller(&st, &headers)?;
     let tid = TaskRunId::parse(&body.task_run_id).map_err(bad_req)?;
     let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
+    // Freezing an intent spends another principal's ceiling unless we fence it here.
+    eng.store()
+        .get_run(tid)
+        .map_err(internal)?
+        .filter(|run| caller.owns(&run.principal_id))
+        .ok_or_else(|| not_found("task"))?;
     let required = Capability::new(
         body.operation.clone(),
         ResourceSelector::exact(body.resource.clone()),
@@ -194,11 +209,12 @@ pub async fn list_tasks(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
 ) -> Result<Response, Response> {
-    require_session_or_operator(&st, &headers)?;
+    let caller = resolve_caller(&st, &headers)?;
     let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
     let runs = eng.list_runs().map_err(internal)?;
     let items: Vec<Value> = runs
         .into_iter()
+        .filter(|run| caller.owns(&run.principal_id))
         .map(|run| {
             json!({
                 "task_run_id": run.id.to_string(),
@@ -217,13 +233,14 @@ pub async fn terminate_task(
     axum::extract::Path(id): axum::extract::Path<String>,
     Json(body): Json<TerminateTaskBody>,
 ) -> Result<Response, Response> {
-    require_session_or_operator(&st, &headers)?;
+    let caller = resolve_caller(&st, &headers)?;
     let tid = TaskRunId::parse(&id).map_err(bad_req)?;
     let eng = st.task_engine.lock().map_err(|_| internal("lock"))?;
     let run = eng
         .store()
         .get_run(tid)
         .map_err(internal)?
+        .filter(|run| caller.owns(&run.principal_id))
         .ok_or_else(|| not_found("task"))?;
     let expected = body.expected_state_version.unwrap_or(run.state_version);
     let terminated = eng
@@ -258,4 +275,29 @@ fn not_found(what: &str) -> Response {
 
 fn internal(e: impl std::fmt::Display) -> Response {
     err_json(StatusCode::INTERNAL_SERVER_ERROR, "internal_error", e)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::middleware::auth::Caller;
+    use opensesame_domain::PrincipalId;
+
+    #[test]
+    fn operator_owns_every_principal() {
+        assert!(Caller::Operator.owns(&PrincipalId::new()));
+    }
+
+    #[test]
+    fn session_owns_only_its_own_principal() {
+        let mine = PrincipalId::new();
+        let theirs = PrincipalId::new();
+        let caller = Caller::Principal(mine);
+        assert!(caller.owns(&mine));
+        assert!(!caller.owns(&theirs));
+    }
+
+    #[test]
+    fn unbound_session_owns_nothing() {
+        assert!(!Caller::Unbound.owns(&PrincipalId::new()));
+    }
 }
