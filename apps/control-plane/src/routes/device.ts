@@ -57,21 +57,25 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
     } catch {
       /* keep text */
     }
+    // `url` is deliberately not echoed: the Host API address is internal
+    // topology, and callers only need the approval outcome.
     return c.json(
       {
         ok: res.ok,
         status: res.status,
-        forwarded_to: url,
         body: payload,
       },
       res.ok ? 200 : res.status === 404 ? 404 : 502,
     );
   } catch (err) {
+    ctx.log.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "device approve proxy failed",
+    );
     return c.json(
       {
         error: "host_api_unreachable",
         hint: "Is Host API up on OPENSESAME_HOST_API / OPENSESAME_SERVER?",
-        detail: err instanceof Error ? err.message : String(err),
       },
       502,
     );

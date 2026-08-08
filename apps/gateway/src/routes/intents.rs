@@ -90,11 +90,11 @@ pub async fn create(
                     .into_response();
             }
             Err(e) => {
+                // The transport error can embed the store URL and its bearer.
+                tracing::warn!(error = %e, "openfga check failed");
                 return (
                     StatusCode::SERVICE_UNAVAILABLE,
-                    Json(
-                        json!({"error": format!("openfga_unavailable: {e}"), "type":"about:blank"}),
-                    ),
+                    Json(json!({"error": "openfga_unavailable", "type":"about:blank"})),
                 )
                     .into_response();
             }
@@ -119,11 +119,8 @@ pub async fn create(
     let param_hash = match Intent::parameters_hash(&parameters) {
         Ok(h) => h,
         Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error": e.to_string()})),
-            )
-                .into_response();
+            let msg = opensesame_redaction::redact_text(&e.to_string());
+            return (StatusCode::BAD_REQUEST, Json(json!({"error": msg}))).into_response();
         }
     };
     let now = Utc::now();

@@ -5,15 +5,38 @@ static SENSITIVE_KEYS: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)(password|secret|token|authorization|refresh_token|access_token|client_secret|private_key|device_code|claim_token|cookie|set-cookie)").unwrap()
 });
 
-pub fn redact_text(input: &str) -> String {
-    let mut out = input.to_string();
-    for pat in [
+/// Prefix-preserving patterns: the captured label survives, the value does not.
+static TEXT_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
+    [
         r"(?i)(Bearer\s+)[A-Za-z0-9\-_./+=]+",
-        r"(?i)(device_code=)[^&\s]+",
-        r"(?i)(refresh_token=)[^&\s]+",
-    ] {
-        let re = Regex::new(pat).unwrap();
-        out = re.replace_all(&out, "$1[REDACTED]").into_owned();
+        r"(?i)(Basic\s+)[A-Za-z0-9+/=]+",
+        // Any `key=value` / `key: value` pair whose label looks secret. Backend
+        // errors routinely echo the query string or header that failed.
+        r#"(?i)\b(password|passwd|secret|client[_-]?secret|api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|id[_-]?token|device[_-]?code|user[_-]?code|claim[_-]?token|code[_-]?verifier|private[_-]?key|token|authorization|cookie)\b(["']?\s*[=:]\s*["']?)[^&\s,;)\]}"']+"#,
+    ]
+    .into_iter()
+    .map(|p| Regex::new(p).expect("static redaction pattern"))
+    .collect()
+});
+
+/// `scheme://user:pass@host` — DSNs in connection errors are the usual carrier.
+static URL_USERINFO: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?i)([a-z][a-z0-9+.\-]*://)[^/\s@]*@").unwrap());
+
+pub fn redact_text(input: &str) -> String {
+    let mut out = URL_USERINFO
+        .replace_all(input, "${1}[REDACTED]@")
+        .into_owned();
+    for re in TEXT_PATTERNS.iter() {
+        out = re
+            .replace_all(&out, |caps: &regex::Captures<'_>| {
+                // Group 1 is the label (or auth scheme); the optional group 2 is
+                // the `=` / `:` separator we must keep to stay readable.
+                let label = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                let sep = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                format!("{label}{sep}[REDACTED]")
+            })
+            .into_owned();
     }
     out
 }
@@ -71,6 +94,47 @@ mod tests {
         assert!(s.contains("ok=1"));
         assert!(!s.contains("ABC"));
         assert!(!s.contains("ZZZ"));
+    }
+
+    #[test]
+    fn redacts_dsn_credentials() {
+        // The usual carrier: a connection error echoing its own DSN.
+        let s = redact_text(
+            "error connecting to postgres://os_app:sup3r-s3cret@db.internal:5432/opensesame",
+        );
+        assert!(!s.contains("sup3r-s3cret"), "{s}");
+        assert!(!s.contains("os_app"), "{s}");
+        assert!(
+            s.contains("postgres://[REDACTED]@db.internal:5432/opensesame"),
+            "{s}"
+        );
+
+        let redis = redact_text("redis://:hunter2@cache:6379 refused");
+        assert!(!redis.contains("hunter2"), "{redis}");
+    }
+
+    #[test]
+    fn redacts_labelled_values_beyond_the_original_three() {
+        let s = redact_text("GET /x?api_key=AKIA123&user_code=BCDF-GHJK&page=2 failed");
+        assert!(!s.contains("AKIA123"), "{s}");
+        assert!(!s.contains("BCDF-GHJK"), "{s}");
+        assert!(s.contains("page=2"), "{s}");
+
+        let basic = redact_text("Authorization: Basic dXNlcjpwYXNz");
+        assert!(!basic.contains("dXNlcjpwYXNz"), "{basic}");
+
+        let header = redact_text("upstream rejected header authorization: Bearer eyJhbGciOi");
+        assert!(!header.contains("eyJhbGciOi"), "{header}");
+
+        let json_ish = redact_text("{\"client_secret\":\"cs_live_abc\",\"ok\":true}");
+        assert!(!json_ish.contains("cs_live_abc"), "{json_ish}");
+        assert!(json_ish.contains("\"ok\":true"), "{json_ish}");
+    }
+
+    #[test]
+    fn leaves_innocuous_text_intact() {
+        let s = redact_text("authority quorum degraded: 1 of 3 nodes reachable");
+        assert_eq!(s, "authority quorum degraded: 1 of 3 nodes reachable");
     }
 
     #[test]

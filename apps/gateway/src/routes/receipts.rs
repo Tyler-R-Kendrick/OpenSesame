@@ -63,10 +63,13 @@ pub async fn verify(
     };
     match st.broker.signer.verify_receipt(&receipt) {
         Ok(()) => (StatusCode::OK, Json(json!({"valid": true}))).into_response(),
-        Err(e) => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"valid": false, "error": e.to_string()})),
-        )
-            .into_response(),
+        Err(e) => {
+            let msg = opensesame_redaction::redact_text(&e.to_string());
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"valid": false, "error": msg})),
+            )
+                .into_response()
+        }
     }
 }
