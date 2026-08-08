@@ -11,6 +11,7 @@ import {
 import {
   DomainError,
   parseClaimToken,
+  verifyClaimToken,
   type ClaimSession,
 } from "@opensesame/os-domain";
 import type { CompleteDecision } from "@opensesame/claims";
@@ -19,6 +20,7 @@ import {
   initialPollInterval,
   applySlowDown,
 } from "@opensesame/device-auth";
+import type { Context } from "hono";
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
@@ -39,6 +41,42 @@ function toClaimResponse(session: ClaimSession) {
       ? { completedByPrincipalId: session.completedByPrincipalId }
       : {}),
   });
+}
+
+/** Claim status surfaces require the claim bearer (id alone must not reveal state). */
+function extractClaimToken(c: Context<{ Variables: Variables }>): string | null {
+  const header = c.req.header("x-claim-token");
+  if (header?.startsWith("osc_clm_")) return header;
+  const auth = c.req.header("authorization");
+  if (!auth) return null;
+  const m = /^Bearer\s+(osc_clm_\S+)$/i.exec(auth);
+  return m?.[1] ?? null;
+}
+
+async function loadClaimWithToken(
+  c: Context<{ Variables: Variables }>,
+  id: string,
+): Promise<ClaimSession | Response> {
+  const token = extractClaimToken(c);
+  if (!token) {
+    return c.json(
+      {
+        error: "unauthorized",
+        hint: "X-Claim-Token or Bearer osc_clm_… required",
+      },
+      401,
+    );
+  }
+  const parts = parseClaimToken(token);
+  if (!parts || parts.publicId !== id) {
+    return c.json({ error: "invalid_claim_token" }, 401);
+  }
+  const ctx = c.get("ctx");
+  const session = await ctx.claims.get(id);
+  if (!session || !verifyClaimToken(ctx.config.claimPepper, token, session.tokenDigest)) {
+    return c.json({ error: "invalid_claim_token" }, 401);
+  }
+  return session;
 }
 
 function domainErrorStatus(err: DomainError): ContentfulStatusCode {
@@ -117,10 +155,9 @@ claimRoutes.post(
 );
 
 claimRoutes.get("/:id", async (c) => {
-  const ctx = c.get("ctx");
-  const session = await ctx.claims.get(c.req.param("id"));
-  if (!session) return c.json({ error: "not_found" }, 404);
-  return c.json(toClaimResponse(session));
+  const loaded = await loadClaimWithToken(c, c.req.param("id"));
+  if (loaded instanceof Response) return loaded;
+  return c.json(toClaimResponse(loaded));
 });
 
 claimRoutes.post("/present", async (c) => {
@@ -293,8 +330,9 @@ claimRoutes.post("/:id/deny", requirePrincipal(), async (c) => {
 
 claimRoutes.get("/:id/poll", async (c) => {
   const ctx = c.get("ctx");
-  const session = await ctx.claims.get(c.req.param("id"));
-  if (!session) return c.json({ error: "not_found" }, 404);
+  const loaded = await loadClaimWithToken(c, c.req.param("id"));
+  if (loaded instanceof Response) return loaded;
+  const session = loaded;
 
   // Device-auth style poll projection for claim waiting clients.
   // Digests stay off the wire; placeholders satisfy the poll interval state machine only.

@@ -77,6 +77,16 @@ describe("control-plane API", () => {
     expect(project.projectId.startsWith("prj_")).toBe(true);
     expect(project.claimToken.startsWith("osc_clm_")).toBe(true);
 
+    const bareGet = await app.request(`/v1/claims/${project.claimId}`);
+    expect(bareGet.status).toBe(401);
+    const barePoll = await app.request(`/v1/claims/${project.claimId}/poll`);
+    expect(barePoll.status).toBe(401);
+    const withToken = await app.request(`/v1/claims/${project.claimId}`, {
+      headers: { "x-claim-token": project.claimToken },
+    });
+    expect(withToken.status).toBe(200);
+    expect(((await withToken.json()) as { state: string }).state).toBe("pending");
+
     const present = await app.request("/v1/claims/present", {
       method: "POST",
       headers: { ...auth, "content-type": "application/json" },

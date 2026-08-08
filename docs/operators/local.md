@@ -30,7 +30,7 @@ Health:
 - `/health/ready` — accepts traffic only when authority quorum OK
 - `/health/authority` — quorum status
 - `/health/degraded` — structured degradation (A0 still available)
-- `/health/providers` — OpenFGA/OpenBao wiring; confirms agent API is `connection_ref`
+- `/health/providers` — OpenFGA/OpenBao wiring (operator bearer / `X-OpenSesame-Operator`); confirms agent API is `connection_ref`
 - `/api/v1/connections` — agent-facing ConnectionRef list (never SecretRef)
 
 ## Headless login
