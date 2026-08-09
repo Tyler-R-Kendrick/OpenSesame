@@ -45,8 +45,10 @@ change this note has been deferring — but it no longer claims to have happened
 
 - Provisional sessions and temporary projects still have no repository, so their
   expiry is only enforced where the maps live.
-- `oidc_payloads` rows past their TTL are refused on read but only removed by
-  `pruneExpired`, which nothing calls on a schedule yet.
+- ~~`oidc_payloads` rows past their TTL are refused on read but only removed by
+  `pruneExpired`, which nothing calls on a schedule yet.~~ — closed: the cleanup
+  tick prunes them every interval, and the standalone worker now constructs the
+  store to do it.
 
 ## Verification
 

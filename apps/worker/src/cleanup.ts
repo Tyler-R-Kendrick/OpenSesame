@@ -1,5 +1,5 @@
 import type { ClaimEngine } from "@opensesame/claims";
-import type { Repositories } from "@opensesame/database";
+import type { OidcStore, Repositories } from "@opensesame/database";
 import type { Logger } from "@opensesame/observability";
 import type { Clock, Project, ProvisionalSession } from "@opensesame/os-domain";
 
@@ -46,6 +46,15 @@ export interface CleanupDeps {
   claimStore?: ClaimListStore;
   provisionalSessions?: Map<string, ProvisionalSession>;
   projects?: Map<string, Project>;
+  /**
+   * The issuer's own models — sessions, authorization codes, refresh tokens,
+   * device flows, grants. Reads already refuse a row past its TTL, so nothing is
+   * honoured late, but until something calls `pruneExpired` the rows stay: a
+   * table that only grows, holding authorization state long after it stopped
+   * meaning anything. Optional because a deployment without Postgres has no such
+   * table.
+   */
+  oidcStore?: Pick<OidcStore, "pruneExpired">;
   repos: Repositories;
   clock: Clock;
   log?: Logger;
@@ -57,6 +66,8 @@ export interface CleanupResult {
   expiredProjects: number;
   reapedProjects: number;
   outboxPublished: number;
+  /** Expired issuer rows removed, or undefined when there is no such store. */
+  prunedOidcRows?: number;
   /**
    * Whether this tick had the in-process state needed to expire anything. False
    * means the counts above are zero because nothing was inspected, not because
@@ -151,6 +162,20 @@ export async function runCleanupTick(
     }
   }
 
+  // Pruning is best-effort: a failure here must not stop the outbox from being
+  // published, and the next tick will try again.
+  let prunedOidcRows: number | undefined;
+  if (deps.oidcStore) {
+    try {
+      prunedOidcRows = await deps.oidcStore.pruneExpired(now);
+    } catch (err) {
+      deps.log?.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        "pruning expired issuer rows failed",
+      );
+    }
+  }
+
   const pending = await deps.repos.outbox.listUnpublished(100);
   for (const event of pending) {
     if (event.availableAt <= now) {
@@ -167,6 +192,7 @@ export async function runCleanupTick(
       reapedProjects,
       outboxPublished,
       expiryEnforced,
+      ...(prunedOidcRows === undefined ? {} : { prunedOidcRows }),
     },
     "cleanup tick",
   );
@@ -178,6 +204,7 @@ export async function runCleanupTick(
     reapedProjects,
     outboxPublished,
     expiryEnforced,
+    ...(prunedOidcRows === undefined ? {} : { prunedOidcRows }),
   };
 }
 
