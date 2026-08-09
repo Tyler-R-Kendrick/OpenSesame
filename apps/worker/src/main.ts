@@ -1,4 +1,3 @@
-import { ClaimEngine, MemoryClaimStore } from "@opensesame/claims";
 import { createRepositories } from "@opensesame/database";
 import { createLogger } from "@opensesame/observability";
 import { startCleanupLoop } from "./cleanup.js";
@@ -10,30 +9,23 @@ import { startCleanupLoop } from "./cleanup.js";
 async function main(): Promise<void> {
   const log = createLogger({ name: "worker" });
   const repos = createRepositories();
-  // Standalone mode: empty claim store unless shared via process integration.
-  // In-process tests inject IndexedClaimStore + ClaimEngine directly.
-  const claimStore = Object.assign(new MemoryClaimStore(), {
-    listIds(): string[] {
-      return [];
-    },
-  });
-  const claims = new ClaimEngine({
-    pepper: process.env.OPENSESAME_CLAIM_PEPPER ?? "dev-claim-pepper-change-me",
-    store: claimStore,
-  });
-
-  const intervalMs = Number(process.env.OPENSESAME_WORKER_INTERVAL_MS ?? "5000");
+  const intervalMs = Number(
+    process.env.OPENSESAME_WORKER_INTERVAL_MS ?? "5000",
+  );
   const ac = new AbortController();
   process.on("SIGINT", () => ac.abort());
   process.on("SIGTERM", () => ac.abort());
 
-  log.info({ intervalMs }, "identity cleanup worker starting");
+  // Claims, provisional sessions and temporary projects live in the control
+  // plane's process. This worker cannot see them, and it used to be handed empty
+  // maps — reporting successful ticks while expiring nothing, which reads as TTL
+  // enforcement that is not happening. It publishes the outbox and says so.
+  log.warn(
+    { intervalMs },
+    "standalone cleanup worker: outbox only — claim, session and project expiry run in-process in the control plane",
+  );
   await startCleanupLoop({
-    claims,
-    claimStore,
     repos,
-    provisionalSessions: new Map(),
-    projects: new Map(),
     clock: () => new Date(),
     log,
     intervalMs,

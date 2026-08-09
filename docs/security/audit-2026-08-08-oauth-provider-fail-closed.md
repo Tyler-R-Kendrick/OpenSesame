@@ -61,10 +61,11 @@ silently skipped.
 
 ## Follow-up
 
-`apps/control-plane/src/create-app.ts` still constructs the provider without a
-`jwks` or adapter, so it is dev-only by construction now — wiring the Postgres
-OIDC store and JWKS into the control plane is the next step and is a change to
-the app's boot path rather than to the provider.
+~~`apps/control-plane/src/create-app.ts` still constructs the provider without a
+`jwks` or adapter~~ — closed in `audit-2026-08-08-issuer-persistence-and-worker.md`:
+`createPostgresOidcStore` backs the adapter and the control plane wires it whenever
+a database is configured. Signing keys already came from `OPENSESAME_JWKS_JSON`
+with production refusing an ephemeral keypair.
 
 ## Also fixed — `pnpm run test:all` was red
 
