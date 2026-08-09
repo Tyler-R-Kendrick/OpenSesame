@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
 import { createApiClient } from "@opensesame/api-client";
 import {
   assertNoPlaintextInSealedJson,
   createCursor,
   loadSealedStore,
+  parseSealedStore,
   persistSealedStore,
 } from "@opensesame/client-core";
+import { useCallback, useEffect, useState } from "react";
 
 const hostApi = import.meta.env.VITE_HOST_API ?? "http://127.0.0.1:8787";
 
@@ -46,13 +47,13 @@ export function App() {
         setPersistOk("Sealed local store ready");
         setPersistErr(false);
         if (existing) {
-          const parsed = JSON.parse(existing) as {
-            cursor?: { device_id?: string; epoch?: number };
-          };
-          if (parsed.cursor?.device_id) {
+          // Validated by the sealed-store schema, not by hand: this device id ends
+          // up as a file name and as the identity this client syncs under.
+          const parsed = parseSealedStore(existing);
+          if (parsed) {
             setCursor({
               deviceId: parsed.cursor.device_id,
-              epoch: parsed.cursor.epoch ?? 0,
+              epoch: parsed.cursor.epoch,
             });
           }
         }
@@ -98,7 +99,11 @@ export function App() {
             {cursor.deviceId} @ epoch {cursor.epoch}
           </span>
         </li>
-        <li className={persistErr ? "is-down" : persistOk.includes("ready") ? "is-up" : ""}>
+        <li
+          className={
+            persistErr ? "is-down" : persistOk.includes("ready") ? "is-up" : ""
+          }
+        >
           <span className="label">Local store</span>
           <span className="value">{persistOk}</span>
         </li>
