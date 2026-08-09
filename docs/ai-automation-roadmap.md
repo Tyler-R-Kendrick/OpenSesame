@@ -24,9 +24,11 @@ This repo is already AI-native in authoring: `.agents/skills/` + `skills/` agent
 
 ### Drift found while auditing
 
-- `docs/security/tooling-evaluation.md` (finding 0d) says gates were "wired into CI `security` job" — but there is **no `.github/` directory in the repo**. The CI wiring either never landed or was lost.
-- `PRODUCT.md` references `scripts/deploy-pages.sh`, which does not exist in `scripts/`.
-- `skills/` and `.agents/skills/` are duplicate trees; there is **no root `CLAUDE.md`/`AGENTS.md`** pointing agents at them, so most tools never load them.
+Verified at commit `0608ccc` (the base of this branch); reproduce each claim with the command shown.
+
+- `docs/security/tooling-evaluation.md` (finding 0d) says gates were "wired into CI `security` job" — but there is **no `.github/` directory in the repo** (`git ls-files .github` returns nothing). The CI wiring either never landed or was lost.
+- `PRODUCT.md` references `scripts/deploy-pages.sh`, which does not exist (`git ls-files scripts/deploy-pages.sh` returns nothing).
+- `skills/` and `.agents/skills/` are duplicate trees (`diff -r skills .agents/skills`); there is **no root `CLAUDE.md`/`AGENTS.md`** (`git ls-files CLAUDE.md AGENTS.md` returns nothing) pointing agents at them, so most tools never load them.
 
 ## 2. Highest-leverage gaps (priority order)
 
@@ -43,20 +45,20 @@ Do:
 
 The emerging cross-tool standard is a root `AGENTS.md` (adopted by Cursor, Codex, and others; Claude Code reads `CLAUDE.md`). Without it, every session re-derives the port map, the "no Better Auth imports in domain" rule, the Rust 1.88 pin, and which of the 21 apps matter — token-expensive and error-prone.
 
-Do: write one root file (symlink the other name) containing: plane topology + ports, build/test one-liners per plane, design rules from `CONTRIBUTING.md`, ADR index pointer, and pointers into `.agents/skills/*`. Deduplicate `skills/` vs `.agents/skills/`. Add a `session-start-hook` so Claude Code web sessions bootstrap (`pnpm install`, db generate) automatically.
+Do: write one root file (symlink the other name) containing: plane topology + ports, build/test one-liners per plane, design rules from `CONTRIBUTING.md`, ADR index pointer, and pointers into `.agents/skills/*`. Deduplicate `skills/` vs `.agents/skills/`. Add a `session-start-hook` so Claude Code web sessions bootstrap automatically — **trust-gated**: opt-in (or restricted to ephemeral, isolated agent workspaces), `pnpm install --frozen-lockfile` only, and a bootstrap environment that carries no production credentials (dev defaults per `.env.schema`; the hook must never read real peppers, signing keys, or database URLs). A repo-controlled hook runs before a human has reviewed the checkout, so it gets the same scrutiny as CI config.
 
 ### P1 — Automate the security-audit loop you already run by hand
 
 The `audit-2026-08-0*` docs show a manual cadence of "run gates → agent reviews a surface → PR". Convert to standing automation on the Claude subscription:
 
-1. **PR-triggered review:** `anthropics/claude-code-action` (pin to a reviewed SHA) running `/security-review` plus a custom checklist derived from `docs/security/security-boundaries.md` (bind fences, fail-closed prod paths, token custody, DPoP binding). This encodes the exact bug classes of PRs #92–#106 as a permanent reviewer.
+1. **PR-triggered review:** use `anthropics/claude-code-security-review` (pin to a reviewed SHA), which accepts `custom-security-scan-instructions` — point that input at a checked-in checklist file derived from `docs/security/security-boundaries.md` (bind fences, fail-closed prod paths, token custody, DPoP binding). (Alternative: `anthropics/claude-code-action` with the checklist injected via its `prompt` input — it does not accept slash-command-only invocations.) Add a CI smoke step that fails the job if the checklist file is missing or the action cannot resolve it. This encodes the exact bug classes of PRs #92–#106 as a permanent reviewer.
 2. **Scheduled deep loops:** Claude Code Routines / scheduled cloud sessions — nightly dependency-advisory triage (cargo-audit/osv output → triaged issue or fix PR), weekly "attack one surface" audit continuing the `docs/security/` series, weekly doc-drift check (the kind that found the two drift items above).
 3. **Second-model review diversity:** the GitHub subscription includes Copilot review (`request_copilot_review`) — cheap heterogeneous second opinion on auth-critical diffs; disagreement between reviewers is signal.
-4. **Caution (relevant to us specifically):** treat issue/PR text as untrusted input to CI agents — scope the Action's token minimally, no secrets in env, gate on `pull_request` not `pull_request_target`. Microsoft's 2026 analysis of agent CI secret-exfiltration applies verbatim, and OpenSesame is itself an authority product — dogfood the threat model.
+4. **Caution (relevant to us specifically):** treat issue/PR text as untrusted input to CI agents — scope the Action's token minimally and keep secrets out of the job env. For fork PRs, `pull_request` gets no repository secrets (so the Claude review simply can't run there), and `pull_request_target` would hand secrets to a workflow adjacent to untrusted code — so use a **two-stage flow**: stage 1 runs only no-secret checks (build, tests, gates) on the fork PR; stage 2, the credentialed Claude review, runs only after explicit maintainer approval (environment approval or a maintainer-applied label), against the immutable head SHA that was approved, with least-privilege permissions and a short-lived credential. Microsoft's 2026 analysis of agent CI secret-exfiltration applies verbatim, and OpenSesame is itself an authority product — dogfood the threat model.
 
 ### P1 — Wire Linear as the agent work queue
 
-Create an OpenSesame team in Linear; move the "Residual" lists (`docs/testing-evidence.md`), `docs/brief-implementation-status.md` gaps, and audit-doc follow-ups into issues. Then use agent delegation: Linear issues can be assigned to agents (Claude via the Linear integration, or `assign_copilot_to_issue` for mechanical fixes), giving you an auditable **intent → agent → PR → review** pipeline instead of chat-session archaeology. Linear's git-branch-name convention also ties each PR to its issue automatically.
+Create an OpenSesame team in Linear; move the "Residual" lists (`docs/testing-evidence.md`), `docs/brief-implementation-status.md` gaps, and audit-doc follow-ups into issues. Then use agent delegation, matching each agent's native queue: Claude takes work directly from Linear via the Linear agent integration; Copilot only takes GitHub issues (`assign_copilot_to_issue` requires `owner`/`repo`/`issue_number`), so enable Linear's GitHub Issues sync (or an equivalent one-way mirror) and keep the Linear issue canonical — delegate to Copilot against the mirrored GitHub issue number. Either path gives an auditable **intent → agent → PR → review** pipeline instead of chat-session archaeology, and Linear's git-branch-name convention ties each PR to its issue automatically.
 
 ### P2 — PostHog: product + MCP analytics (currently pointed at the wrong product)
 
@@ -65,10 +67,11 @@ The connected project carries QuickDeployAI events. Create a dedicated OpenSesam
 - **Client surfaces** (`apps/pages` PWA, console, extension): pageviews, web vitals, error tracking, funnels on the unlock → search → item ceremony path. The PWA's privacy posture is compatible with self-limiting capture (no autocapture of vault content; capture ceremony outcomes, not payloads).
 - **MCP servers** (`apps/mcp-host`, `apps/mcp-client`): PostHog now has first-class MCP analytics (`$mcp_tool_call`, `$mcp_initialize`, tool failure/latency breakdowns). Instrumenting our own MCP servers tells us which tools agents actually call, failure rates per harness, and where agents report missing capabilities — direct product feedback from agent users, which **is** our target market.
 - **LLM analytics** (`$ai_generation`/`$ai_trace`) if/when the credential-agent or example agents call models.
+- **Telemetry contract (decide before creating the project):** an explicit property **allowlist** — tool name, client/harness name+version, duration, outcome, coarse error class, and coarse geo at most. Explicitly prohibited from ever reaching PostHog: MCP tool arguments and results, authorization headers or tokens, vault/ceremony content, prompts, and user identifiers (pairwise-pseudonymous IDs only, consistent with ADR 0011). Align the instrumentation with the connector SDK and `skills/opensesame-mcps` guidance so the allowlist is enforced at the capture call site, not by convention. Fix retention, hosting region, project access, and a no-session-replay-on-vault-surfaces rule up front.
 
 ### P2 — Evals and red-teaming for the agent-facing surfaces
 
-`tooling-evaluation.md` already shortlists promptfoo as "adopt later" — the blocker (needs eval suites + keys) is now met by existing subscriptions. Stand up a small promptfoo suite red-teaming `mcp-host`/`mcp-client` for prompt-injection and confused-deputy behavior (upstream body relaying was already a real bug — #102), run it in the nightly Routine. This is the same "adversarial verification" pattern used in multi-agent review: generators propose attacks, a judge verifies refusals.
+`tooling-evaluation.md` already shortlists promptfoo as "adopt later" — the blocker (needs eval suites + keys) is now largely met, with one caveat: a Claude Code/claude.ai plan is interactive usage, **not** Anthropic Console API access, and promptfoo needs model access one of two ways. Either (a) an Anthropic Console API key with its own prepaid budget, stored in the CI secret store, or (b) promptfoo's Claude Code session path (`apiKeyRequired: false` on the `anthropic:` provider, `ANTHROPIC_API_KEY` unset), which reuses the subscription's OAuth credential and therefore requires running inside an authenticated Claude Code session — a natural fit for the scheduled Routine. Pick one and document it in the suite. Stand up a small promptfoo suite red-teaming `mcp-host`/`mcp-client` for prompt-injection and confused-deputy behavior (upstream body relaying was already a real bug — #102), run it in the nightly Routine. This is the same "adversarial verification" pattern used in multi-agent review: generators propose attacks, a judge verifies refusals.
 
 ### P3 — UX loop: Impeccable + Playwright + Figma + previews
 
