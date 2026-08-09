@@ -39,3 +39,25 @@ export function operatorHeadersFor(
   if (!operatorToken || !isLoopbackUrl(base)) return {};
   return { authorization: `Bearer operator:${operatorToken}` };
 }
+
+/**
+ * Whether a base URL is this page's own origin.
+ *
+ * The session cookie is `SameSite=Lax`, so a browser drops it from a cross-site
+ * POST anyway. Asking for it regardless invites a CSRF story nobody wrote: the
+ * page would be relying on ambient credentials it cannot see travelling to an
+ * origin it does not control.
+ */
+export function isSameOrigin(base: string): boolean {
+  if (typeof location === "undefined") return false;
+  try {
+    return new URL(base, location.href).origin === location.origin;
+  } catch {
+    return false;
+  }
+}
+
+/** Send the ambient session only where it can legitimately be used. */
+export function credentialsFor(base: string): RequestCredentials {
+  return isSameOrigin(base) ? "include" : "omit";
+}

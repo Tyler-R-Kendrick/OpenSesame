@@ -39,5 +39,6 @@ address anything but its own file.
 - The store is still sealed by whatever the caller sealed it with; `sealDevOnly`
   remains an XOR fenced to dev/test, and the real AEAD lives in the Rust
   `client-core` wasm build. This tick checked the container, not the cipher.
-- Nothing binds a sealed store to the device that wrote it. Validation stops a
-  malformed file, not a well-formed one copied from another profile.
+- ~~Nothing binds a sealed store to the device that wrote it.~~ — closed: a store's
+  cursor must name the device it is stored under, so a well-formed file copied from
+  another profile is refused on write and read as absent.

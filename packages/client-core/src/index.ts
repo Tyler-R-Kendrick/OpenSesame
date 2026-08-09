@@ -176,8 +176,15 @@ export async function persistSealedStore(
   name: string,
   sealedJson: string,
 ): Promise<void> {
-  if (parseSealedStore(sealedJson) === null) {
+  const parsed = parseSealedStore(sealedJson);
+  if (parsed === null) {
     throw new Error("refusing to persist a payload that is not a sealed store");
+  }
+  // A store is bound to the device it belongs to. Without this a well-formed file
+  // copied from another profile is adopted whole — its device id and epoch become
+  // this client's, which is an identity handed over by a file copy.
+  if (parsed.cursor.device_id !== name) {
+    throw new Error("refusing to persist a sealed store for another device");
   }
   try {
     const root = await navigator.storage?.getDirectory?.();
@@ -204,20 +211,25 @@ export async function persistSealedStore(
  * as absent and replaced rather than trusted.
  */
 export async function loadSealedStore(name: string): Promise<string | null> {
+  // Bound to the device asking, not merely well formed: a store naming another
+  // device is somebody else's, however intact it looks.
+  const forThisDevice = (text: string): string | null => {
+    const parsed = parseSealedStore(text);
+    if (parsed === null) return null;
+    return parsed.cursor.device_id === name ? text : null;
+  };
   try {
     const root = await navigator.storage?.getDirectory?.();
     if (root) {
       const handle = await root.getFileHandle(sealedFileName(name));
       const file = await handle.getFile();
-      const text = await file.text();
-      return parseSealedStore(text) === null ? null : text;
+      return forThisDevice(await file.text());
     }
   } catch {
     /* fall through */
   }
   const held = memorySealed.get(name) ?? null;
-  if (held === null) return null;
-  return parseSealedStore(held) === null ? null : held;
+  return held === null ? null : forThisDevice(held);
 }
 
 /**

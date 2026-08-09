@@ -1,5 +1,5 @@
-import { createMiddleware } from "hono/factory";
 import { getCookie } from "hono/cookie";
+import { createMiddleware } from "hono/factory";
 import type { AppContext } from "../context.js";
 import type { Variables } from "./context.js";
 
@@ -21,6 +21,36 @@ function resolveProvisionalSession(
     return undefined;
   }
   return { principalId: session.principalId, sessionId: session.id };
+}
+
+/** Methods that only read. A forged read is not a forged write. */
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/**
+ * Whether an ambient cookie may authenticate this request.
+ *
+ * A cookie is sent by the browser whether or not the page meant to send it, so on
+ * its own it says nothing about who asked. `SameSite=Lax` stops the obvious
+ * cross-site form post, but it is a browser default, it does not separate
+ * sibling origins on the same site, and it is not a rule this service enforces.
+ *
+ * So a mutation authenticated by cookie must also carry an `Origin` this
+ * deployment listed, or the service's own origin. A bearer token is unaffected:
+ * a caller that had to attach a token was not tricked into attaching it.
+ */
+function cookieAuthAllowed(
+  ctx: AppContext,
+  method: string,
+  origin: string | undefined,
+): boolean {
+  if (SAFE_METHODS.has(method.toUpperCase())) return true;
+  if (!origin) return false;
+  if (ctx.config.corsOrigins.includes(origin)) return true;
+  try {
+    return new URL(ctx.config.publicUrl).origin === origin;
+  } catch {
+    return false;
+  }
 }
 
 export function authMiddleware() {
@@ -49,7 +79,10 @@ export function authMiddleware() {
     }
 
     const cookieVal = getCookie(c, cookieName);
-    if (cookieVal) {
+    if (
+      cookieVal &&
+      cookieAuthAllowed(ctx, c.req.method, c.req.header("origin"))
+    ) {
       const resolved = resolveProvisionalSession(ctx, cookieVal);
       if (resolved) {
         c.set("principalId", resolved.principalId);
@@ -64,7 +97,10 @@ export function authMiddleware() {
 export function requirePrincipal() {
   return createMiddleware<{ Variables: Variables }>(async (c, next) => {
     if (!c.get("principalId")) {
-      return c.json({ error: "unauthorized", message: "Authentication required" }, 401);
+      return c.json(
+        { error: "unauthorized", message: "Authentication required" },
+        401,
+      );
     }
     await next();
   });

@@ -50,5 +50,6 @@ query or fragment was accepted and would have swallowed every path joined to it.
 - Client-side lockout state is advisory; anything that can write our storage can
   reset the counter, and nothing in a browser can prevent that. It costs an
   attacker the derivation work, which is why the iteration floor matters.
-- The legacy unsalted SHA-256 record is still accepted (and upgraded) forever.
-  Retiring it needs a migration deadline someone owns.
+- ~~The legacy unsalted SHA-256 record is still accepted (and upgraded) forever.~~
+  — closed: `LEGACY_PIN_RETIRED_AFTER_MS` (2027-01-01) refuses the record past that
+  date instead of upgrading it again.
