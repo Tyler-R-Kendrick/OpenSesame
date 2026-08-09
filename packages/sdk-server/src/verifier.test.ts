@@ -1,8 +1,8 @@
-import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { describe, expect, it } from "vitest";
 import { Hono } from "hono";
+import { SignJWT, exportJWK, generateKeyPair } from "jose";
+import { describe, expect, it } from "vitest";
+import { type OpenSesameAuthVariables, openSesameAuth } from "./hono.js";
 import { createOpenSesameVerifier } from "./verifier.js";
-import { openSesameAuth, type OpenSesameAuthVariables } from "./hono.js";
 
 const ISSUER = "http://127.0.0.1:8788";
 const AUDIENCE = "rp-alpha";
@@ -25,7 +25,10 @@ describe("createOpenSesameVerifier", () => {
       jwks,
     });
 
-    const token = await new SignJWT({ scope: "openid profile", token_use: "access" })
+    const token = await new SignJWT({
+      scope: "openid profile",
+      token_use: "access",
+    })
       .setProtectedHeader({ alg: "RS256", kid: "test-1" })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
@@ -60,7 +63,11 @@ describe("createOpenSesameVerifier", () => {
 
   it("rejects a token that never expires", async () => {
     const { privateKey, jwks } = await mintKeys();
-    const verifier = createOpenSesameVerifier({ issuer: ISSUER, audience: AUDIENCE, jwks });
+    const verifier = createOpenSesameVerifier({
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      jwks,
+    });
     const token = await new SignJWT({ scope: "openid" })
       .setProtectedHeader({ alg: "RS256", kid: "test-1" })
       .setIssuer(ISSUER)
@@ -94,7 +101,11 @@ describe("createOpenSesameVerifier", () => {
   it("refuses to take keys or an issuer over cleartext", async () => {
     const { jwks } = await mintKeys();
     expect(() =>
-      createOpenSesameVerifier({ issuer: "http://idp.example", audience: AUDIENCE, jwks }),
+      createOpenSesameVerifier({
+        issuer: "http://idp.example",
+        audience: AUDIENCE,
+        jwks,
+      }),
     ).toThrow(/https/i);
     expect(() =>
       createOpenSesameVerifier({
@@ -107,6 +118,90 @@ describe("createOpenSesameVerifier", () => {
     expect(() =>
       createOpenSesameVerifier({ issuer: ISSUER, audience: AUDIENCE, jwks }),
     ).not.toThrow();
+  });
+
+  it("takes the key set from the issuer's own metadata", async () => {
+    const { privateKey, jwks } = await mintKeys();
+    const asked: string[] = [];
+    const verifier = createOpenSesameVerifier({
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      fetchImpl: async (input) => {
+        const url = String(input);
+        asked.push(url);
+        if (url.endsWith("/.well-known/openid-configuration")) {
+          return new Response(
+            JSON.stringify({ issuer: ISSUER, jwks_uri: `${ISSUER}/oidc/keys` }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        return new Response(JSON.stringify(jwks), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    });
+    const token = await new SignJWT({ token_use: "access" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject("sub-1")
+      .setIssuedAt()
+      .setExpirationTime("5m")
+      .sign(privateKey);
+    // jose fetches the JWKS itself, so we only assert the document was consulted
+    // and the URI it named was used rather than {issuer}/jwks being guessed.
+    await verifier.verifyAccessToken(token).catch(() => undefined);
+    expect(asked[0]).toBe(`${ISSUER}/.well-known/openid-configuration`);
+    expect(asked.some((u) => u.endsWith("/jwks"))).toBe(false);
+  });
+
+  it("refuses a discovery document that names another issuer", async () => {
+    const verifier = createOpenSesameVerifier({
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            issuer: "https://elsewhere.example",
+            jwks_uri: "https://elsewhere.example/keys",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    });
+    await expect(verifier.verifyAccessToken("x.y.z")).rejects.toThrow(
+      /does not name the configured issuer/,
+    );
+  });
+
+  it("refuses a key set the issuer publishes over cleartext", async () => {
+    const verifier = createOpenSesameVerifier({
+      issuer: "https://idp.example",
+      audience: AUDIENCE,
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            issuer: "https://idp.example",
+            jwks_uri: "http://idp.example/keys",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    });
+    await expect(verifier.verifyAccessToken("x.y.z")).rejects.toThrow(/https/i);
+  });
+
+  it("falls back to {issuer}/jwks when there is no metadata to read", async () => {
+    const asked: string[] = [];
+    const verifier = createOpenSesameVerifier({
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      fetchImpl: async (input) => {
+        asked.push(String(input));
+        return new Response("not found", { status: 404 });
+      },
+    });
+    await verifier.verifyAccessToken("x.y.z").catch(() => undefined);
+    expect(asked[0]).toBe(`${ISSUER}/.well-known/openid-configuration`);
   });
 
   it("requires the RFC 9068 type header when asked to", async () => {
@@ -124,7 +219,9 @@ describe("createOpenSesameVerifier", () => {
       .setExpirationTime("5m");
     await expect(
       verifier.verifyAccessToken(
-        await plain.setProtectedHeader({ alg: "RS256", kid: "test-1" }).sign(privateKey),
+        await plain
+          .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+          .sign(privateKey),
       ),
     ).rejects.toThrow(/9068/);
     const typed = await new SignJWT({ scope: "openid" })
@@ -134,7 +231,9 @@ describe("createOpenSesameVerifier", () => {
       .setSubject("x")
       .setExpirationTime("5m")
       .sign(privateKey);
-    await expect(verifier.verifyAccessToken(typed)).resolves.toMatchObject({ sub: "x" });
+    await expect(verifier.verifyAccessToken(typed)).resolves.toMatchObject({
+      sub: "x",
+    });
   });
 
   it("enforces required scopes", async () => {
@@ -189,7 +288,11 @@ describe("openSesameAuth hono middleware", () => {
 
   it("challenges without describing why the token failed", async () => {
     const { jwks } = await mintKeys();
-    const verifier = createOpenSesameVerifier({ issuer: ISSUER, audience: AUDIENCE, jwks });
+    const verifier = createOpenSesameVerifier({
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      jwks,
+    });
     const app = new Hono<{ Variables: OpenSesameAuthVariables }>();
     app.use("/me", openSesameAuth({ verifier }));
     app.get("/me", (c) => c.json({ sub: c.get("identity").sub }));
@@ -199,7 +302,10 @@ describe("openSesameAuth hono middleware", () => {
     });
     expect(res.status).toBe(401);
     expect(res.headers.get("www-authenticate")).toContain("Bearer");
-    const body = (await res.json()) as { error: string; error_description: string };
+    const body = (await res.json()) as {
+      error: string;
+      error_description: string;
+    };
     expect(body.error).toBe("invalid_token");
     // No verifier internals in the answer.
     expect(body.error_description).toBe("The access token is not valid");
@@ -207,7 +313,11 @@ describe("openSesameAuth hono middleware", () => {
 
   it("does not report a handler's own failure as an invalid token", async () => {
     const { privateKey, jwks } = await mintKeys();
-    const verifier = createOpenSesameVerifier({ issuer: ISSUER, audience: AUDIENCE, jwks });
+    const verifier = createOpenSesameVerifier({
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      jwks,
+    });
     const app = new Hono<{ Variables: OpenSesameAuthVariables }>();
     app.use("/boom", openSesameAuth({ verifier }));
     app.get("/boom", () => {

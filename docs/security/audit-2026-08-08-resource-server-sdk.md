@@ -30,5 +30,7 @@ not reported as an invalid token.
 
 ## Not fixed
 
-- The JWKS URI still defaults to `{issuer}/jwks` rather than being read from the
-  issuer's discovery document. Correct for this deployment, wrong in general.
+- ~~The JWKS URI still defaults to `{issuer}/jwks`~~ — closed: the verifier reads the
+  issuer's discovery document, believes it only if it names the configured issuer, and
+  requires the `jwks_uri` it gives to be https (or loopback). `{issuer}/jwks` is now
+  only a last resort for an issuer that publishes no metadata.

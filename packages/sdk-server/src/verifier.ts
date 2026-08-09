@@ -1,9 +1,9 @@
 import {
+  type JWTPayload,
+  type JWTVerifyGetKey,
   createLocalJWKSet,
   createRemoteJWKSet,
   jwtVerify,
-  type JWTPayload,
-  type JWTVerifyGetKey,
 } from "jose";
 
 export interface VerifiedIdentity {
@@ -20,8 +20,14 @@ export interface VerifiedIdentity {
 export interface OpenSesameVerifierConfig {
   issuer: string;
   audience: string | string[];
-  /** Override JWKS URI (defaults to {issuer}/jwks). */
+  /**
+   * Override the JWKS URI. When absent the issuer's discovery document is read
+   * and its `jwks_uri` used; `{issuer}/jwks` is only a last resort for an issuer
+   * that publishes no metadata.
+   */
   jwksUri?: string;
+  /** Injected for tests, and for a deployment that cannot reach discovery at boot. */
+  fetchImpl?: typeof fetch;
   /** Inject local JWKS for tests. */
   jwks?: { keys: unknown[] };
   clockToleranceSeconds?: number;
@@ -82,7 +88,9 @@ export function assertSecureUrl(raw: string, what: string): URL {
   }
   if (url.protocol === "https:") return url;
   if (url.protocol === "http:" && isLoopbackHost(url.hostname)) return url;
-  throw new Error(`${what} must use https (http is allowed only on loopback for local development)`);
+  throw new Error(
+    `${what} must use https (http is allowed only on loopback for local development)`,
+  );
 }
 
 export interface OpenSesameVerifier {
@@ -97,7 +105,10 @@ function asAudienceList(aud: string | string[]): string[] {
   return Array.isArray(aud) ? aud : [aud];
 }
 
-function hasRequiredScopes(scope: string | undefined, required: string[]): boolean {
+function hasRequiredScopes(
+  scope: string | undefined,
+  required: string[],
+): boolean {
   if (required.length === 0) return true;
   const have = new Set((scope ?? "").split(/\s+/u).filter(Boolean));
   return required.every((s) => have.has(s));
@@ -110,10 +121,66 @@ export function createOpenSesameVerifier(
   const audiences = asAudienceList(config.audience);
   assertSecureUrl(issuer, "issuer");
   const algorithms = config.algorithms ?? [...DEFAULT_ALLOWED_ALGORITHMS];
+  // An explicit JWKS URI is checked while the verifier is being built, not on the
+  // first request: a misconfigured resource server should fail to start.
+  const configuredJwksUri =
+    config.jwksUri === undefined
+      ? undefined
+      : assertSecureUrl(config.jwksUri, "jwksUri");
 
-  const getKey: JWTVerifyGetKey = config.jwks
-    ? createLocalJWKSet(config.jwks as Parameters<typeof createLocalJWKSet>[0])
-    : createRemoteJWKSet(assertSecureUrl(config.jwksUri ?? `${issuer}/jwks`, "jwksUri"));
+  /**
+   * Where this issuer says its keys are.
+   *
+   * Guessing `{issuer}/jwks` is right for this deployment and wrong in general:
+   * an issuer names its own key set in its discovery document. The document is
+   * only believed if it names the issuer we were configured with, and the URI it
+   * gives must still arrive over a channel nobody can rewrite.
+   */
+  async function discoverJwksUri(): Promise<URL> {
+    const fetchImpl = config.fetchImpl ?? globalThis.fetch;
+    const fallback = (): URL => assertSecureUrl(`${issuer}/jwks`, "jwksUri");
+    if (!fetchImpl) return fallback();
+    let meta: { issuer?: unknown; jwks_uri?: unknown };
+    try {
+      const res = await fetchImpl(
+        `${issuer}/.well-known/openid-configuration`,
+        { headers: { accept: "application/json" } },
+      );
+      if (!res.ok) return fallback();
+      meta = (await res.json()) as { issuer?: unknown; jwks_uri?: unknown };
+    } catch {
+      return fallback();
+    }
+    if (typeof meta.issuer !== "string" || trimSlash(meta.issuer) !== issuer) {
+      throw new Error("Discovery document does not name the configured issuer");
+    }
+    if (typeof meta.jwks_uri !== "string") return fallback();
+    return assertSecureUrl(meta.jwks_uri, "jwks_uri");
+  }
+
+  let remoteKeys: JWTVerifyGetKey | undefined;
+  let pending: Promise<JWTVerifyGetKey> | undefined;
+  async function keySource(): Promise<JWTVerifyGetKey> {
+    if (config.jwks) {
+      return createLocalJWKSet(
+        config.jwks as Parameters<typeof createLocalJWKSet>[0],
+      );
+    }
+    if (configuredJwksUri) {
+      remoteKeys ??= createRemoteJWKSet(configuredJwksUri);
+      return remoteKeys;
+    }
+    if (remoteKeys) return remoteKeys;
+    pending ??= discoverJwksUri()
+      .then((uri) => {
+        remoteKeys = createRemoteJWKSet(uri);
+        return remoteKeys;
+      })
+      .finally(() => {
+        pending = undefined;
+      });
+    return pending;
+  }
 
   return {
     async verifyAccessToken(token: string): Promise<VerifiedIdentity> {
@@ -128,7 +195,11 @@ export function createOpenSesameVerifier(
           ? { ...common, audience: audiences[0]! }
           : { ...common, audience: audiences };
 
-      const { payload, protectedHeader } = await jwtVerify(token, getKey, verifyOptions);
+      const { payload, protectedHeader } = await jwtVerify(
+        token,
+        await keySource(),
+        verifyOptions,
+      );
 
       if (
         config.requireAccessTokenTypeHeader === true &&

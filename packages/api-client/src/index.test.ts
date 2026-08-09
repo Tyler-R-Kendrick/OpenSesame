@@ -185,6 +185,79 @@ describe("api-client", () => {
     expect(called).toBe(false);
   });
 
+  it("answers a server that demands its own nonce, once", async () => {
+    const proofs: string[] = [];
+    let calls = 0;
+    const client = createApiClient({
+      baseUrl: "https://host.test:8787",
+      accessToken: "opaque",
+      dpop: true,
+      fetchImpl: async (_input, init) => {
+        calls += 1;
+        proofs.push(String(new Headers(init?.headers).get("dpop") ?? ""));
+        if (calls === 1) {
+          return new Response("{}", {
+            status: 401,
+            headers: {
+              "www-authenticate": 'DPoP error="use_dpop_nonce"',
+              "dpop-nonce": "n-from-server",
+            },
+          });
+        }
+        return new Response("{}", { status: 200 });
+      },
+    });
+    expect(await client.whoami()).toEqual({});
+    expect(calls).toBe(2);
+    const nonceOf = (proof: string) =>
+      (
+        JSON.parse(
+          Buffer.from(proof.split(".")[1]!, "base64url").toString("utf8"),
+        ) as { nonce?: string }
+      ).nonce;
+    expect(nonceOf(proofs[0]!)).toBeUndefined();
+    expect(nonceOf(proofs[1]!)).toBe("n-from-server");
+  });
+
+  it("does not retry a refusal that is not about the nonce", async () => {
+    let calls = 0;
+    const client = createApiClient({
+      baseUrl: "https://host.test:8787",
+      accessToken: "opaque",
+      dpop: true,
+      fetchImpl: async () => {
+        calls += 1;
+        return new Response("no", {
+          status: 401,
+          headers: { "www-authenticate": 'DPoP error="invalid_token"' },
+        });
+      },
+    });
+    await expect(client.whoami()).rejects.toThrow(/whoami_failed:401/);
+    expect(calls).toBe(1);
+  });
+
+  it("remembers a nonce a server offered on a good response", async () => {
+    const proofs: string[] = [];
+    const client = createApiClient({
+      baseUrl: "https://host.test:8787",
+      dpop: true,
+      fetchImpl: async (_input, init) => {
+        proofs.push(String(new Headers(init?.headers).get("dpop") ?? ""));
+        return new Response("{}", {
+          status: 200,
+          headers: { "dpop-nonce": "n-1" },
+        });
+      },
+    });
+    await client.health();
+    await client.health();
+    const second = JSON.parse(
+      Buffer.from(proofs[1]!.split(".")[1]!, "base64url").toString("utf8"),
+    ) as { nonce?: string };
+    expect(second.nonce).toBe("n-1");
+  });
+
   it("syncPull sends device_id", async () => {
     let body = "";
     const client = createApiClient({

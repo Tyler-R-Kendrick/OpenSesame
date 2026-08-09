@@ -20,11 +20,10 @@ Scanners: cve-lite, semgrep, clippy, gitleaks, ast-grep, cargo-audit, osv-scanne
 
 ## Follow-up
 
-- Usage counters are cumulative and never decremented when a temporary project expires
-  or an agent is removed, so the quota is a lifetime cap rather than a live one. A
-  provisional principal is therefore permanently blocked after three temporary projects
-  even once they lapse. Fixing it means counting live rows instead of a counter; tracked
-  for a later tick.
+- ~~Usage counters are cumulative and never decremented~~ — closed: `getUsage` counts
+  live projects, agents, organizations and OAuth clients from the stores, so an expired
+  temporary project releases its slot. Only `temporaryResources` still uses a counter,
+  because resources have no store to count from yet.
 
 ## Verification
 
