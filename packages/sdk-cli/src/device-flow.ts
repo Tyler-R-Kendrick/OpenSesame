@@ -1,3 +1,5 @@
+import { assertDiscoveryBelongsToIssuer, assertSecureUrl, trimSlash } from "./secure-url.js";
+
 export interface DeviceAuthorizationResponse {
   device_code: string;
   user_code: string;
@@ -24,6 +26,9 @@ export type DevicePollResult =
   | { status: "expired_token" }
   | { status: "error"; error: string; description?: string };
 
+/** A server may ask the client to slow down; it may not ask it to stop polling. */
+const MAX_POLL_INTERVAL_SECONDS = 60;
+
 export interface DeviceFlowClientConfig {
   issuer: string;
   clientId: string;
@@ -43,10 +48,6 @@ export interface SafeDeviceStart {
   intervalSeconds: number;
 }
 
-function trimSlash(url: string): string {
-  return url.replace(/\/+$/u, "");
-}
-
 async function defaultSleep(ms: number): Promise<void> {
   await new Promise((r) => setTimeout(r, ms));
 }
@@ -59,6 +60,8 @@ export class DeviceFlowClient {
   readonly #sleep: (ms: number) => Promise<void>;
   #deviceCode: string | undefined;
   #intervalSeconds: number;
+  /** When the device code the server issued stops being usable. */
+  #expiresAt: number | undefined;
   #meta:
     | {
         device_authorization_endpoint: string;
@@ -67,7 +70,7 @@ export class DeviceFlowClient {
     | undefined;
 
   constructor(private readonly config: DeviceFlowClientConfig) {
-    this.#issuer = trimSlash(config.issuer);
+    this.#issuer = assertSecureUrl(trimSlash(config.issuer), "issuer");
     this.#clientId = config.clientId;
     this.#scopes = (config.scopes ?? ["openid", "profile"]).join(" ");
     this.#fetch = config.fetchImpl ?? fetch;
@@ -87,12 +90,16 @@ export class DeviceFlowClient {
     );
     if (!res.ok) throw new Error(`discovery failed: ${res.status}`);
     const doc = (await res.json()) as {
+      issuer?: string;
       device_authorization_endpoint?: string;
       token_endpoint: string;
     };
+    assertDiscoveryBelongsToIssuer(doc, this.#issuer);
     if (!doc.device_authorization_endpoint) {
       throw new Error("issuer does not advertise device_authorization_endpoint");
     }
+    assertSecureUrl(doc.device_authorization_endpoint, "device_authorization_endpoint");
+    assertSecureUrl(doc.token_endpoint, "token_endpoint");
     this.#meta = {
       device_authorization_endpoint: doc.device_authorization_endpoint,
       token_endpoint: doc.token_endpoint,
@@ -117,8 +124,18 @@ export class DeviceFlowClient {
       throw new Error(`device authorize failed: ${res.status}`);
     }
     const data = (await res.json()) as DeviceAuthorizationResponse;
+    // These are the URIs the CLI prints for a person to open and type a code into.
+    // Whatever answered here chooses them, so they are held to the same bar as the
+    // endpoints: a device flow that sends the user to an attacker's page is a
+    // phishing page with the CLI's own voice behind it.
+    assertSecureUrl(data.verification_uri, "verification_uri");
+    if (data.verification_uri_complete !== undefined) {
+      assertSecureUrl(data.verification_uri_complete, "verification_uri_complete");
+    }
     this.#deviceCode = data.device_code;
-    this.#intervalSeconds = data.interval ?? 5;
+    this.#intervalSeconds = Math.min(data.interval ?? 5, MAX_POLL_INTERVAL_SECONDS);
+    this.#expiresAt =
+      typeof data.expires_in === "number" ? Date.now() + data.expires_in * 1000 : undefined;
     const safe: SafeDeviceStart = {
       userCode: data.user_code,
       verificationUri: data.verification_uri,
@@ -157,7 +174,7 @@ export class DeviceFlowClient {
       return { status: "authorization_pending", intervalSeconds: this.#intervalSeconds };
     }
     if (error === "slow_down") {
-      this.#intervalSeconds += 5;
+      this.#intervalSeconds = Math.min(this.#intervalSeconds + 5, MAX_POLL_INTERVAL_SECONDS);
       return { status: "slow_down", intervalSeconds: this.#intervalSeconds };
     }
     if (error === "access_denied") return { status: "access_denied" };
@@ -173,6 +190,11 @@ export class DeviceFlowClient {
     for (;;) {
       if (this.config.signal?.aborted) {
         throw new Error("aborted");
+      }
+      // The server told us when the device code dies. Polling past that is a loop
+      // that never ends on a server that never says so.
+      if (this.#expiresAt !== undefined && Date.now() >= this.#expiresAt) {
+        throw new Error("expired_token");
       }
       const result = await this.pollOnce();
       switch (result.status) {
@@ -219,7 +241,7 @@ export function redactSecrets<T>(value: T): T {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
     if (
-      /device_code|access_token|refresh_token|id_token|client_secret|claimToken|claim_token/iu.test(
+      /device_code|access_token|refresh_token|id_token|code_verifier|client_secret|client_assertion|claimToken|claim_token|operator|password|secret|cookie|authorization|api[-_]?key/iu.test(
         k,
       )
     ) {
