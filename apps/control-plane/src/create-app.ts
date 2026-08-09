@@ -1,22 +1,23 @@
-import { createLogger } from "@opensesame/observability";
-import { ClaimEngine } from "@opensesame/claims";
-import { createRepositories } from "@opensesame/database";
-import { createOpenSesameProvider } from "@opensesame/oauth-provider";
+import { createChainedAuditSink } from "@opensesame/audit";
 import {
   MemoryPrincipalMappingStore,
   createMemoryChallengeStore,
   createPasskeySeam,
   createSimpleWebAuthnVerifyFn,
 } from "@opensesame/auth-upstream";
-import { ProvisionalPolicy } from "@opensesame/policy";
+import { ClaimEngine } from "@opensesame/claims";
+import { createRepositories } from "@opensesame/database";
+import { createOpenSesameProvider } from "@opensesame/oauth-provider";
+import { createLogger } from "@opensesame/observability";
 import type { Clock } from "@opensesame/os-domain";
+import { ProvisionalPolicy } from "@opensesame/policy";
+import { createHonoApp } from "./app.js";
 import {
+  type ControlPlaneConfig,
   assertSecureConfig,
   loadConfig,
-  type ControlPlaneConfig,
 } from "./config.js";
 import type { AppContext } from "./context.js";
-import { createHonoApp } from "./app.js";
 import { IndexedClaimStore } from "./repos/claim-store.js";
 import { createAppStores } from "./state.js";
 
@@ -43,9 +44,22 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const clock: Clock = options.clock ?? (() => new Date());
   const log = createLogger({ name: "control-plane", level: config.logLevel });
 
-  const repos = createRepositories(
+  const baseRepos = createRepositories(
     config.databaseUrl ? { databaseUrl: config.databaseUrl } : undefined,
   );
+  // Every audit write goes through the chain, so a trail cannot be quietly
+  // rewritten by anything that cannot recompute every later digest.
+  const chainedAudit = createChainedAuditSink(baseRepos.auditEvents);
+  const repos: typeof baseRepos = {
+    ...baseRepos,
+    auditEvents: {
+      append: (event, uow) =>
+        uow === undefined
+          ? chainedAudit.append(event)
+          : baseRepos.auditEvents.append(event, uow),
+      list: (filter) => baseRepos.auditEvents.list(filter),
+    },
+  };
   const claimStore = new IndexedClaimStore();
   const claims = new ClaimEngine({
     pepper: config.claimPepper,

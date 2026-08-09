@@ -373,6 +373,10 @@ export interface AuditEvent {
   correlationId: string;
   causationId?: string;
   metadata: Record<string, unknown>;
+  /** Digest of the preceding event in the trail — tamper evidence, not a signature. */
+  previousDigest?: string;
+  /** Digest of this event over its own fields and `previousDigest`. */
+  digest?: string;
 }
 
 export interface OutboxEvent {

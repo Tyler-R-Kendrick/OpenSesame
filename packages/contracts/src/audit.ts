@@ -17,12 +17,26 @@ export const AuditEventResponseSchema = z.object({
   outcome: z.enum(["succeeded", "failed", "denied"]),
   correlationId: z.string(),
   metadata: z.record(z.string(), z.unknown()),
+  /** Tamper evidence: this event's digest and the one it follows. */
+  previousDigest: z.string().optional(),
+  digest: z.string().optional(),
 });
 export type AuditEventResponse = z.infer<typeof AuditEventResponseSchema>;
 
 export const AuditEventListResponseSchema = z.object({
   events: z.array(AuditEventResponseSchema),
 });
+
+/** Result of re-walking a stored trail's hash chain. */
+export const AuditChainVerifyResponseSchema = z.object({
+  ok: z.boolean(),
+  checked: z.number().int().nonnegative(),
+  reason: z.enum(["unlinked", "altered", "broken"]).optional(),
+  eventId: z.string().optional(),
+});
+export type AuditChainVerifyResponse = z.infer<
+  typeof AuditChainVerifyResponseSchema
+>;
 export type AuditEventListResponse = z.infer<
   typeof AuditEventListResponseSchema
 >;

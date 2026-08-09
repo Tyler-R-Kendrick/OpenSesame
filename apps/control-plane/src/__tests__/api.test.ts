@@ -1,17 +1,19 @@
-import { describe, expect, it } from "vitest";
 import {
-  createPairwiseIdentifierCallback,
   MemoryPairwiseSubjectStore,
+  createPairwiseIdentifierCallback,
 } from "@opensesame/oauth-provider";
 import {
   DEFAULT_PROVISIONAL_QUOTA,
   DEFAULT_VERIFIED_QUOTA,
   ProvisionalPolicy,
 } from "@opensesame/policy";
+import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 
 async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
-  const res = await app.request("/v1/principals/provisional", { method: "POST" });
+  const res = await app.request("/v1/principals/provisional", {
+    method: "POST",
+  });
   expect(res.status).toBe(201);
   const body = (await res.json()) as {
     principalId: string;
@@ -24,7 +26,11 @@ async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
 describe("control-plane API", () => {
   it("creates provisional principal and returns /me", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const created = await provisional(app);
     const me = await app.request("/v1/principals/me", {
@@ -38,7 +44,11 @@ describe("control-plane API", () => {
 
   it("rejects provisional session id as Bearer or cookie credential", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const created = await provisional(app);
     expect(created.sessionId.startsWith("ps_")).toBe(true);
@@ -63,7 +73,11 @@ describe("control-plane API", () => {
   it("does not activate a project whose TTL ran out before the claim completed", async () => {
     const now = new Date("2026-08-08T12:00:00Z");
     const { app, ctx } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
       clock: () => now,
     });
     const created = await provisional(app);
@@ -95,11 +109,17 @@ describe("control-plane API", () => {
       expiresAt: new Date(now.getTime() - 1_000),
     });
 
-    const complete = await app.request(`/v1/claims/${project.claimId}/complete`, {
-      method: "POST",
-      headers: { ...auth, "content-type": "application/json" },
-      body: JSON.stringify({ acceptedItemIds: [], userCode: project.userCode }),
-    });
+    const complete = await app.request(
+      `/v1/claims/${project.claimId}/complete`,
+      {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json" },
+        body: JSON.stringify({
+          acceptedItemIds: [],
+          userCode: project.userCode,
+        }),
+      },
+    );
     expect(complete.status).toBe(200);
     expect(ctx.stores.projects.get(project.projectId)?.state).toBe("expired");
   });
@@ -107,7 +127,11 @@ describe("control-plane API", () => {
   it("frees a provisional quota slot when a temporary project lapses", async () => {
     let now = new Date("2026-08-08T10:00:00Z");
     const { app, ctx } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
       clock: () => now,
     });
     const created = await provisional(app);
@@ -126,9 +150,9 @@ describe("control-plane API", () => {
     // Quota of three is spent.
     const overQuota = await create("four");
     expect(overQuota.status).toBe(403);
-    expect(((await overQuota.json()) as { reasons: string[] }).reasons).toContain(
-      "provisional_quota_projects",
-    );
+    expect(
+      ((await overQuota.json()) as { reasons: string[] }).reasons,
+    ).toContain("provisional_quota_projects");
 
     // Once they lapse the slots come back: the cap is live, not lifetime.
     now = new Date(now.getTime() + 120_000);
@@ -138,14 +162,22 @@ describe("control-plane API", () => {
 
   it("creates temporary project and completes claim preserving ids", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const created = await provisional(app);
     const auth = { authorization: `Bearer ${created.accessToken}` };
 
     const projectRes = await app.request("/v1/projects/temporary", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json", "idempotency-key": "proj-1" },
+      headers: {
+        ...auth,
+        "content-type": "application/json",
+        "idempotency-key": "proj-1",
+      },
       body: JSON.stringify({ name: "Temp Demo", ttlSeconds: 3600 }),
     });
     expect(projectRes.status).toBe(201);
@@ -167,7 +199,9 @@ describe("control-plane API", () => {
       headers: { "x-claim-token": project.claimToken },
     });
     expect(withToken.status).toBe(200);
-    expect(((await withToken.json()) as { state: string }).state).toBe("pending");
+    expect(((await withToken.json()) as { state: string }).state).toBe(
+      "pending",
+    );
 
     const present = await app.request("/v1/claims/present", {
       method: "POST",
@@ -184,11 +218,21 @@ describe("control-plane API", () => {
     });
     expect(noCode.status).toBe(401);
 
-    const complete = await app.request(`/v1/claims/${project.claimId}/complete`, {
-      method: "POST",
-      headers: { ...auth, "content-type": "application/json", "idempotency-key": "complete-1" },
-      body: JSON.stringify({ acceptedItemIds: [], userCode: project.userCode }),
-    });
+    const complete = await app.request(
+      `/v1/claims/${project.claimId}/complete`,
+      {
+        method: "POST",
+        headers: {
+          ...auth,
+          "content-type": "application/json",
+          "idempotency-key": "complete-1",
+        },
+        body: JSON.stringify({
+          acceptedItemIds: [],
+          userCode: project.userCode,
+        }),
+      },
+    );
     expect(complete.status).toBe(200);
     const done = (await complete.json()) as {
       state: string;
@@ -201,7 +245,11 @@ describe("control-plane API", () => {
     // Replay idempotency
     const replay = await app.request("/v1/projects/temporary", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json", "idempotency-key": "proj-1" },
+      headers: {
+        ...auth,
+        "content-type": "application/json",
+        "idempotency-key": "proj-1",
+      },
       body: JSON.stringify({ name: "Temp Demo", ttlSeconds: 3600 }),
     });
     expect(replay.status).toBe(201);
@@ -212,7 +260,11 @@ describe("control-plane API", () => {
 
   it("serves discovery documents", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const authMd = await app.request("/auth.md");
     expect(authMd.status).toBe(200);
@@ -224,7 +276,9 @@ describe("control-plane API", () => {
 
     const prm = await app.request("/.well-known/oauth-protected-resource");
     expect(prm.status).toBe(200);
-    expect(((await prm.json()) as { resource: string }).resource).toContain("8788");
+    expect(((await prm.json()) as { resource: string }).resource).toContain(
+      "8788",
+    );
   });
 
   it("pairwise subjects differ across sectors via oauth-provider", async () => {
@@ -242,7 +296,11 @@ describe("control-plane API", () => {
     expect(a).not.toBe("prn_same");
 
     const { ctx } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     expect(ctx.oauth.env.issuer).toBe("http://127.0.0.1:8788");
     expect(ctx.oauth.configuration.subjectTypes).toContain("pairwise");
@@ -283,14 +341,24 @@ describe("control-plane API", () => {
       "frame-ancestors 'none'",
     );
     // Landing page must not disclose claim existence or state.
-    for (const leak of ["pending", "completed", "denied", "expired", "unknown"]) {
+    for (const leak of [
+      "pending",
+      "completed",
+      "denied",
+      "expired",
+      "unknown",
+    ]) {
       expect(html).not.toContain(leak);
     }
   });
 
   it("mfa passkey register/assert and totp enroll/verify", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const created = await provisional(app);
     const auth = { authorization: `Bearer ${created.accessToken}` };
@@ -316,9 +384,9 @@ describe("control-plane API", () => {
       }),
     });
     expect(assertRes.status).toBe(200);
-    expect(((await assertRes.json()) as { principalId: string }).principalId).toBe(
-      created.principalId,
-    );
+    expect(
+      ((await assertRes.json()) as { principalId: string }).principalId,
+    ).toBe(created.principalId);
 
     const enroll = await app.request("/v1/mfa/totp/enroll", {
       method: "POST",
@@ -341,7 +409,11 @@ describe("control-plane API", () => {
 
   it("fences wrong TOTP codes after five tries", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const created = await provisional(app);
     const auth = { authorization: `Bearer ${created.accessToken}` };
@@ -370,21 +442,33 @@ describe("control-plane API", () => {
 
     // The refusals are in the trail. A trail of successes only would read as one
     // ordinary login rather than as six guesses against a six-digit code.
-    const audit = await app.request("/v1/audit/events?limit=50", { headers: auth });
+    const audit = await app.request("/v1/audit/events?limit=50", {
+      headers: auth,
+    });
     const events = (await audit.json()) as {
-      events: Array<{ eventType: string; outcome: string; metadata: { reason?: string } }>;
+      events: Array<{
+        eventType: string;
+        outcome: string;
+        metadata: { reason?: string };
+      }>;
     };
     const denials = events.events.filter(
       (e) => e.eventType === "mfa.totp.verify" && e.outcome === "denied",
     );
     expect(denials.length).toBeGreaterThanOrEqual(6);
     expect(denials.map((e) => e.metadata.reason)).toContain("bad_code");
-    expect(denials.map((e) => e.metadata.reason)).toContain("too_many_attempts");
+    expect(denials.map((e) => e.metadata.reason)).toContain(
+      "too_many_attempts",
+    );
   });
 
   it("fences repeated failing passkey assertions per credential", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const attempt = () =>
       app.request("/v1/mfa/passkey/assert", {
@@ -427,7 +511,9 @@ describe("control-plane API", () => {
       headers: auth,
     });
     expect(enroll.status).toBe(403);
-    expect(((await enroll.json()) as { error: string }).error).toBe("totp_dev_only");
+    expect(((await enroll.json()) as { error: string }).error).toBe(
+      "totp_dev_only",
+    );
     const verify = await app.request("/v1/mfa/totp/verify", {
       method: "POST",
       headers: { ...auth, "content-type": "application/json" },
@@ -542,7 +628,11 @@ describe("control-plane API", () => {
 
   it("device approve requires authentication and never exposes operator token", async () => {
     const { app, config } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     expect(config.operatorToken).toBeTruthy();
     const unauth = await app.request("/v1/device/approve", {
@@ -567,7 +657,11 @@ describe("control-plane API", () => {
 
   it("links and lists identities without email auto-link; collision returns 409", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const a = await provisional(app);
     const b = await provisional(app);
@@ -591,9 +685,13 @@ describe("control-plane API", () => {
     });
     expect(linkA.status).toBe(201);
 
-    const list = await app.request("/v1/principals/identities", { headers: authA });
+    const list = await app.request("/v1/principals/identities", {
+      headers: authA,
+    });
     expect(list.status).toBe(200);
-    const listed = (await list.json()) as { identities: Array<{ subject: string }> };
+    const listed = (await list.json()) as {
+      identities: Array<{ subject: string }>;
+    };
     expect(listed.identities).toHaveLength(1);
     expect(listed.identities[0]?.subject).toBe("sub-shared-email-case");
 
@@ -644,7 +742,11 @@ describe("control-plane API", () => {
 
   it("creates organization and oauth client; lists scoped audit events", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const created = await provisional(app);
     const auth = { authorization: `Bearer ${created.accessToken}` };
@@ -691,10 +793,15 @@ describe("control-plane API", () => {
       }),
     });
     expect(clientRes.status).toBe(201);
-    const client = (await clientRes.json()) as { id: string; admissionMode: string };
+    const client = (await clientRes.json()) as {
+      id: string;
+      admissionMode: string;
+    };
     expect(client.admissionMode).toBe("pre_registered");
 
-    const audit = await app.request("/v1/audit/events?limit=20", { headers: auth });
+    const audit = await app.request("/v1/audit/events?limit=20", {
+      headers: auth,
+    });
     expect(audit.status).toBe(200);
     const events = (await audit.json()) as {
       events: Array<{ eventType: string; principalId?: string }>;
@@ -702,17 +809,37 @@ describe("control-plane API", () => {
     expect(events.events.length).toBeGreaterThan(0);
     expect(
       events.events.every(
-        (e) => e.principalId === undefined || e.principalId === created.principalId,
+        (e) =>
+          e.principalId === undefined || e.principalId === created.principalId,
       ),
     ).toBe(true);
-    expect(events.events.some((e) => e.eventType === "organization.created")).toBe(
+    expect(
+      events.events.some((e) => e.eventType === "organization.created"),
+    ).toBe(true);
+
+    // Every event carries the digest of the one before it, and the trail says so.
+    const chained = (await (
+      await app.request("/v1/audit/events?limit=20", { headers: auth })
+    ).json()) as {
+      events: Array<{ digest?: string; previousDigest?: string }>;
+    };
+    expect(chained.events.every((e) => e.digest && e.previousDigest)).toBe(
       true,
     );
+    const verify = await app.request("/v1/audit/events/verify", {
+      headers: auth,
+    });
+    expect(verify.status).toBe(200);
+    expect(await verify.json()).toMatchObject({ ok: true });
   });
 
   it("holds a verified principal to an organization and client quota", async () => {
     const { app, ctx } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     // A small allowance so the fence is reached in a couple of requests.
     ctx.policy = new ProvisionalPolicy(DEFAULT_PROVISIONAL_QUOTA, {
@@ -725,7 +852,11 @@ describe("control-plane API", () => {
     const auth = { authorization: `Bearer ${created.accessToken}` };
     await app.request("/v1/principals/link-identities", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json", "idempotency-key": "link-q" },
+      headers: {
+        ...auth,
+        "content-type": "application/json",
+        "idempotency-key": "link-q",
+      },
       body: JSON.stringify({
         kind: "oidc",
         issuer: "https://mock.example",
@@ -737,20 +868,28 @@ describe("control-plane API", () => {
     const createOrg = (slug: string, key: string) =>
       app.request("/v1/organizations", {
         method: "POST",
-        headers: { ...auth, "content-type": "application/json", "idempotency-key": key },
+        headers: {
+          ...auth,
+          "content-type": "application/json",
+          "idempotency-key": key,
+        },
         body: JSON.stringify({ slug, displayName: slug }),
       });
     expect((await createOrg("quota-one", "q-org-1")).status).toBe(201);
     const secondOrg = await createOrg("quota-two", "q-org-2");
     expect(secondOrg.status).toBe(403);
-    expect(((await secondOrg.json()) as { reasons: string[] }).reasons).toContain(
-      "quota_organizations",
-    );
+    expect(
+      ((await secondOrg.json()) as { reasons: string[] }).reasons,
+    ).toContain("quota_organizations");
 
     const createClient = (name: string, key: string) =>
       app.request("/v1/oauth/clients", {
         method: "POST",
-        headers: { ...auth, "content-type": "application/json", "idempotency-key": key },
+        headers: {
+          ...auth,
+          "content-type": "application/json",
+          "idempotency-key": key,
+        },
         body: JSON.stringify({
           displayName: name,
           redirectUris: ["https://rp.example/callback"],
@@ -762,9 +901,9 @@ describe("control-plane API", () => {
     const clientId = ((await firstClient.json()) as { id: string }).id;
     const secondClient = await createClient("RP Two", "q-cli-2");
     expect(secondClient.status).toBe(403);
-    expect(((await secondClient.json()) as { reasons: string[] }).reasons).toContain(
-      "quota_oauth_clients",
-    );
+    expect(
+      ((await secondClient.json()) as { reasons: string[] }).reasons,
+    ).toContain("quota_oauth_clients");
 
     // Revoking frees the slot: a quota counted from the store is a live limit,
     // not a lifetime cap.
@@ -778,7 +917,11 @@ describe("control-plane API", () => {
 
   it("does not let a second principal claim a sector identifier", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
 
     async function verified(subject: string) {
@@ -786,7 +929,11 @@ describe("control-plane API", () => {
       const auth = { authorization: `Bearer ${created.accessToken}` };
       await app.request("/v1/principals/link-identities", {
         method: "POST",
-        headers: { ...auth, "content-type": "application/json", "idempotency-key": subject },
+        headers: {
+          ...auth,
+          "content-type": "application/json",
+          "idempotency-key": subject,
+        },
         body: JSON.stringify({
           kind: "oidc",
           issuer: "https://mock.example",
@@ -804,7 +951,11 @@ describe("control-plane API", () => {
     ) =>
       app.request("/v1/oauth/clients", {
         method: "POST",
-        headers: { ...auth, "content-type": "application/json", "idempotency-key": key },
+        headers: {
+          ...auth,
+          "content-type": "application/json",
+          "idempotency-key": key,
+        },
         body: JSON.stringify({
           displayName: "RP",
           redirectUris: ["https://rp.example/cb"],
@@ -814,10 +965,14 @@ describe("control-plane API", () => {
 
     const owner = await verified("sector-owner");
     const intruder = await verified("sector-intruder");
-    expect((await register(owner, "sec-1", "https://rp.example")).status).toBe(201);
+    expect((await register(owner, "sec-1", "https://rp.example")).status).toBe(
+      201,
+    );
     // Same sector, same owner: a legitimate choice, two clients that mean to share
     // one subject.
-    expect((await register(owner, "sec-2", "https://rp.example")).status).toBe(201);
+    expect((await register(owner, "sec-2", "https://rp.example")).status).toBe(
+      201,
+    );
 
     // Another principal taking the sector would see the very subject the owner's
     // clients see for the same person, which is the linkage pairwise prevents.
@@ -826,14 +981,18 @@ describe("control-plane API", () => {
     expect(((await taken.json()) as { error: string }).error).toBe(
       "sector_identifier_taken",
     );
-    expect((await register(intruder, "sec-4", "https://other.example")).status).toBe(
-      201,
-    );
+    expect(
+      (await register(intruder, "sec-4", "https://other.example")).status,
+    ).toBe(201);
   });
 
   it("fences oauth clients to their owning principal", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
 
     async function verifiedPrincipal(subject: string) {
@@ -841,7 +1000,11 @@ describe("control-plane API", () => {
       const auth = { authorization: `Bearer ${created.accessToken}` };
       const linked = await app.request("/v1/principals/link-identities", {
         method: "POST",
-        headers: { ...auth, "content-type": "application/json", "idempotency-key": subject },
+        headers: {
+          ...auth,
+          "content-type": "application/json",
+          "idempotency-key": subject,
+        },
         body: JSON.stringify({
           kind: "oidc",
           issuer: "https://mock.example",
@@ -877,8 +1040,12 @@ describe("control-plane API", () => {
     expect(client.ownerPrincipalId).toBe(owner.principalId);
 
     // A different principal cannot see it…
-    const otherList = await app.request("/v1/oauth/clients", { headers: other.auth });
-    expect(((await otherList.json()) as { clients: unknown[] }).clients).toEqual([]);
+    const otherList = await app.request("/v1/oauth/clients", {
+      headers: other.auth,
+    });
+    expect(
+      ((await otherList.json()) as { clients: unknown[] }).clients,
+    ).toEqual([]);
 
     // …nor repoint its redirect URIs, rotate it, or revoke it.
     const hijack = await app.request(`/v1/oauth/clients/${client.id}`, {
@@ -888,10 +1055,13 @@ describe("control-plane API", () => {
     });
     expect(hijack.status).toBe(404);
     for (const action of ["rotate", "revoke"]) {
-      const res = await app.request(`/v1/oauth/clients/${client.id}/${action}`, {
-        method: "POST",
-        headers: other.auth,
-      });
+      const res = await app.request(
+        `/v1/oauth/clients/${client.id}/${action}`,
+        {
+          method: "POST",
+          headers: other.auth,
+        },
+      );
       expect(res.status).toBe(404);
     }
 
@@ -950,11 +1120,17 @@ describe("control-plane API", () => {
     const me = await prod.app.request("/v1/principals/me", {
       headers: { authorization: `Bearer ${created.accessToken}` },
     });
-    expect(((await me.json()) as { assurance: string }).assurance).toBe("provisional");
+    expect(((await me.json()) as { assurance: string }).assurance).toBe(
+      "provisional",
+    );
 
     // In dev the link works, but a collision never reveals the bound principal.
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const a = await provisional(app);
     const b = await provisional(app);
@@ -991,7 +1167,11 @@ describe("control-plane API", () => {
 
   it("rejects provisional create when session capacity is exhausted", async () => {
     const { app, ctx } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const far = new Date(Date.now() + 86_400_000);
     for (let i = 0; i < 1024; i++) {
@@ -1005,7 +1185,9 @@ describe("control-plane API", () => {
         allowedActions: [],
       });
     }
-    const res = await app.request("/v1/principals/provisional", { method: "POST" });
+    const res = await app.request("/v1/principals/provisional", {
+      method: "POST",
+    });
     expect(res.status).toBe(429);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe("provisional_capacity");
@@ -1013,7 +1195,11 @@ describe("control-plane API", () => {
 
   it("never replays another principal's idempotent response", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
 
     const victim = await provisional(app);
@@ -1028,30 +1214,45 @@ describe("control-plane API", () => {
           "content-type": "application/json",
           "idempotency-key": sharedKey,
         },
-        body: JSON.stringify({ displayName: "worker", publicKeyJkt: "jkt_abcdefgh" }),
+        body: JSON.stringify({
+          displayName: "worker",
+          publicKeyJkt: "jkt_abcdefgh",
+        }),
       });
 
     const first = await register(victim.accessToken);
     expect(first.status).toBe(201);
-    const mine = (await first.json()) as { agentId: string; claimToken: string };
+    const mine = (await first.json()) as {
+      agentId: string;
+      claimToken: string;
+    };
 
     // Same key, different caller: must not hand over the victim's claim token.
     const second = await register(attacker.accessToken);
     expect(second.status).toBe(201);
     expect(second.headers.get("idempotency-replayed")).toBeNull();
-    const theirs = (await second.json()) as { agentId: string; claimToken: string };
+    const theirs = (await second.json()) as {
+      agentId: string;
+      claimToken: string;
+    };
     expect(theirs.agentId).not.toBe(mine.agentId);
     expect(theirs.claimToken).not.toBe(mine.claimToken);
 
     // The owner still gets a replay for their own key.
     const replay = await register(victim.accessToken);
     expect(replay.headers.get("idempotency-replayed")).toBe("true");
-    expect(((await replay.json()) as { agentId: string }).agentId).toBe(mine.agentId);
+    expect(((await replay.json()) as { agentId: string }).agentId).toBe(
+      mine.agentId,
+    );
   });
 
   it("does not replay unauthenticated provisional signups across callers", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
 
     const signup = () =>
@@ -1065,15 +1266,25 @@ describe("control-plane API", () => {
     expect(a.status).toBe(201);
     expect(b.status).toBe(201);
     expect(b.headers.get("idempotency-replayed")).toBeNull();
-    const first = (await a.json()) as { accessToken: string; principalId: string };
-    const second = (await b.json()) as { accessToken: string; principalId: string };
+    const first = (await a.json()) as {
+      accessToken: string;
+      principalId: string;
+    };
+    const second = (await b.json()) as {
+      accessToken: string;
+      principalId: string;
+    };
     expect(second.accessToken).not.toBe(first.accessToken);
     expect(second.principalId).not.toBe(first.principalId);
   });
 
   it("fences agent claim ceremonies to the registering principal", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
 
     const owner = await provisional(app);
@@ -1086,7 +1297,10 @@ describe("control-plane API", () => {
         "content-type": "application/json",
         "idempotency-key": "agent-owned",
       },
-      body: JSON.stringify({ displayName: "worker", publicKeyJkt: "jkt_abcdefgh" }),
+      body: JSON.stringify({
+        displayName: "worker",
+        publicKeyJkt: "jkt_abcdefgh",
+      }),
     });
     expect(registered.status).toBe(201);
     const { agentId } = (await registered.json()) as { agentId: string };
