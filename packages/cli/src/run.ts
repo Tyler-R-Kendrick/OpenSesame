@@ -94,6 +94,33 @@ export async function runCli(
   const clientId = command.flags.clientId ?? "opensesame-cli";
   const fetchImpl = deps?.fetchImpl ?? fetch;
 
+  try {
+    return await dispatch(command, { issuer, api, clientId, fetchImpl, deps });
+  } catch (err) {
+    // A refused endpoint or a failed exchange is a message, not a stack trace.
+    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+    return 1;
+  }
+}
+
+async function dispatch(
+  command: Exclude<ParsedCommand, { name: "help" }>,
+  ctx: {
+    issuer: string;
+    api: string;
+    clientId: string;
+    fetchImpl: typeof fetch;
+    deps:
+      | {
+          fetchImpl?: typeof fetch;
+          sleep?: (ms: number) => Promise<void>;
+          openBrowser?: (url: string) => void;
+        }
+      | undefined;
+  },
+): Promise<number> {
+  const { issuer, api, clientId, fetchImpl, deps } = ctx;
+
   switch (command.name) {
     case "login": {
       if (command.mode === "loopback") {
