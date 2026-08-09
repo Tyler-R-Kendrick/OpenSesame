@@ -83,6 +83,18 @@ pub async fn start_task(
         ));
     }
     let org = OrganizationId::parse(&body.organization_id).map_err(bad_req)?;
+    // A task may only be labelled with an organization this caller holds authority
+    // in. Invocation was already closed — `invoke_frozen` compares the intent's
+    // organization against the grant's — but an unverified label still travelled
+    // into the task record and its audit trail.
+    let boot = require_demo_bootstrap(&st)?;
+    if org != boot.org {
+        return Err(err_json(
+            StatusCode::FORBIDDEN,
+            "organization_mismatch",
+            "task authority must be started in an organization the caller belongs to",
+        ));
+    }
     let ttl = bounded_ttl(body.ttl_seconds).ok_or_else(|| {
         err_json(
             StatusCode::BAD_REQUEST,

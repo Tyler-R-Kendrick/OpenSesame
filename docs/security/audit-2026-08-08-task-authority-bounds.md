@@ -18,9 +18,10 @@ a model gets a clear local refusal rather than a 400 from the far end.
 
 ## Not fixed
 
-`start_task` still takes `organization_id` from the body and checks only that the
-caller owns the `principal_id`. A caller can therefore label its own task with another
-organization's id. Invocation stays closed — `invoke_frozen` compares the intent's
-organization against the grant's — but the task record and its audit trail carry a
-label nobody verified. Closing it needs an organization-membership lookup the gateway
-does not have; that is a data-model change, not an audit patch.
+~~`start_task` still takes `organization_id` from the body~~ — closed in
+`audit-2026-08-08-authority-bounds.md`: the organization must be one the caller holds
+authority in (the bootstrap organization in this deployment), or the call is `403
+organization_mismatch`.
+
+Task ceilings are still not bounded against issued grants; that needs a grant issuance
+path for ordinary principals.

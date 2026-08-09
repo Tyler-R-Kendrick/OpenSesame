@@ -32,7 +32,8 @@ written behind it.
 
 ## Not fixed
 
-- `HostRuntime::invoke_l2_placeholder` still takes `placeholder` and `material` from
-  request parameters. It is a demo path — the "secret" is the caller's own string — so
-  it leaks nothing, but a real L2 path must resolve both from the connection rather
-  than from the request.
+- ~~`HostRuntime::invoke_l2_placeholder` still takes `placeholder` and `material` from
+  request parameters~~ — closed in `audit-2026-08-08-authority-bounds.md`: the host
+  holds a projection and credential per connection reference, refuses a request that
+  names `material`, refuses a placeholder other than the issued one, and refuses a
+  connection it holds nothing for.
