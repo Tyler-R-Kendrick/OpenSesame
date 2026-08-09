@@ -61,24 +61,85 @@ function trimSlash(url: string): string {
   return url.replace(/\/+$/u, "");
 }
 
-function toSession(tokens: TokenResponse, anonymous: boolean): Session {
+function isLoopbackHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost")) return true;
+  if (host === "::1") return true;
+  return /^127(?:\.\d{1,3}){3}$/u.test(host);
+}
+
+/**
+ * Every URL this client sends a code, a verifier, or a token to must be one an
+ * onlooker cannot rewrite. http is tolerated only on loopback, where the
+ * development server lives.
+ */
+export function assertSecureUrl(raw: string, what: string): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`${what} must be an absolute URL`);
+  }
+  if (url.protocol === "https:") return raw;
+  if (url.protocol === "http:" && isLoopbackHost(url.hostname)) return raw;
+  throw new Error(`${what} must use https (http is allowed only on loopback)`);
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | undefined {
+  const part = token.split(".")[1];
+  if (!part) return undefined;
+  try {
+    return JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/"))) as Record<
+      string,
+      unknown
+    >;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * What the client is required to check about an id_token it asked for.
+ *
+ * The browser cannot verify the signature, so the access token — not this — is
+ * the authority. But an id_token whose audience, issuer, or nonce is not the one
+ * this ceremony asked for is somebody else's token, and caching a `sub` from it
+ * would hand the application the wrong identity.
+ */
+function assertIdTokenAddressedToUs(
+  idToken: string,
+  expect: { issuer: string; clientId: string; nonce?: string },
+): Record<string, unknown> | undefined {
+  const payload = decodeJwtPayload(idToken);
+  if (!payload) return undefined;
+  const iss = typeof payload.iss === "string" ? trimSlash(payload.iss) : undefined;
+  if (iss !== undefined && iss !== expect.issuer) {
+    throw new Error("id_token issued by a different issuer");
+  }
+  const aud = payload.aud;
+  const audiences = Array.isArray(aud) ? aud.map(String) : typeof aud === "string" ? [aud] : [];
+  if (audiences.length > 0 && !audiences.includes(expect.clientId)) {
+    throw new Error("id_token addressed to a different client");
+  }
+  if (expect.nonce !== undefined && payload.nonce !== expect.nonce) {
+    throw new Error("id_token nonce mismatch");
+  }
+  return payload;
+}
+
+function toSession(
+  tokens: TokenResponse,
+  anonymous: boolean,
+  expect: { issuer: string; clientId: string; nonce?: string },
+): Session {
   const expiresAt =
     typeof tokens.expires_in === "number"
       ? Date.now() + tokens.expires_in * 1000
       : undefined;
   let sub: string | undefined;
   if (tokens.id_token) {
-    try {
-      const payload = tokens.id_token.split(".")[1];
-      if (payload) {
-        const json = JSON.parse(
-          atob(payload.replace(/-/g, "+").replace(/_/g, "/")),
-        ) as { sub?: string };
-        sub = json.sub;
-      }
-    } catch {
-      // ignore malformed id_token for session cache
-    }
+    const payload = assertIdTokenAddressedToUs(tokens.id_token, expect);
+    sub = typeof payload?.sub === "string" ? payload.sub : undefined;
   }
   const session: Session = {
     accessToken: tokens.access_token,
@@ -96,6 +157,7 @@ export function createOpenSesame(
   config: OpenSesameBrowserConfig,
 ): OpenSesameBrowserClient {
   const issuer = trimSlash(config.issuer);
+  assertSecureUrl(issuer, "issuer");
   const clientId = config.clientId ?? "opensesame-browser";
   const redirectUri =
     config.redirectUri ??
@@ -105,7 +167,7 @@ export function createOpenSesame(
   const scopes = (config.scopes ?? ["openid", "profile"]).join(" ");
   const storage = resolveStorage(config.storage);
   const fetchImpl = config.fetchImpl ?? fetch;
-  const apiBase = trimSlash(config.apiBase ?? issuer);
+  const apiBase = assertSecureUrl(trimSlash(config.apiBase ?? issuer), "apiBase");
   let discoveryCache: OidcDiscoveryDocument | undefined;
 
   async function discovery(): Promise<OidcDiscoveryDocument> {
@@ -114,7 +176,19 @@ export function createOpenSesame(
     if (!res.ok) {
       throw new Error(`OIDC discovery failed: ${res.status}`);
     }
-    discoveryCache = (await res.json()) as OidcDiscoveryDocument;
+    const meta = (await res.json()) as OidcDiscoveryDocument;
+    // The discovery document decides where the code and the verifier are sent.
+    // An issuer that does not name itself, or an endpoint reachable over
+    // cleartext, is a document that hands the ceremony to whoever answered.
+    if (trimSlash(meta.issuer ?? "") !== issuer) {
+      throw new Error("OIDC discovery issuer does not match the configured issuer");
+    }
+    assertSecureUrl(meta.authorization_endpoint, "authorization_endpoint");
+    assertSecureUrl(meta.token_endpoint, "token_endpoint");
+    if (meta.end_session_endpoint) {
+      assertSecureUrl(meta.end_session_endpoint, "end_session_endpoint");
+    }
+    discoveryCache = meta;
     return discoveryCache;
   }
 
@@ -143,7 +217,11 @@ export function createOpenSesame(
     }
   }
 
-  async function exchangeCode(code: string, codeVerifier: string): Promise<Session> {
+  async function exchangeCode(
+    code: string,
+    codeVerifier: string,
+    nonce: string | undefined,
+  ): Promise<Session> {
     const meta = await discovery();
     const body = new URLSearchParams({
       grant_type: "authorization_code",
@@ -161,7 +239,7 @@ export function createOpenSesame(
       throw new Error(`Token exchange failed: ${res.status}`);
     }
     const tokens = (await res.json()) as TokenResponse;
-    const session = toSession(tokens, false);
+    const session = toSession(tokens, false, { issuer, clientId, ...(nonce ? { nonce } : {}) });
     saveSession(session);
     return session;
   }
@@ -205,6 +283,7 @@ export function createOpenSesame(
       const url = new URL(href);
       const error = url.searchParams.get("error");
       if (error) {
+        storage.removeItem(PKCE_KEY);
         throw new Error(`Authorization error: ${error}`);
       }
       const code = url.searchParams.get("code");
@@ -213,12 +292,20 @@ export function createOpenSesame(
       if (!code || !state || !rawPkce) {
         throw new Error("Missing authorization code or PKCE state");
       }
-      const pkce = JSON.parse(rawPkce) as { state: string; codeVerifier: string };
+      let pkce: { state: string; codeVerifier: string; nonce?: string };
+      try {
+        pkce = JSON.parse(rawPkce) as { state: string; codeVerifier: string; nonce?: string };
+      } catch {
+        storage.removeItem(PKCE_KEY);
+        throw new Error("Stored PKCE state is unreadable");
+      }
+      // One verifier, one callback. A verifier left in storage after a failed or
+      // refused callback is one a second attempt can still spend.
+      storage.removeItem(PKCE_KEY);
       if (pkce.state !== state) {
         throw new Error("OAuth state mismatch");
       }
-      storage.removeItem(PKCE_KEY);
-      return exchangeCode(code, pkce.codeVerifier);
+      return exchangeCode(code, pkce.codeVerifier, pkce.nonce);
     },
 
     async continueAnonymously() {
@@ -231,7 +318,7 @@ export function createOpenSesame(
         throw new Error(`Anonymous session failed: ${res.status}`);
       }
       const tokens = (await res.json()) as TokenResponse;
-      const session = toSession(tokens, true);
+      const session = toSession(tokens, true, { issuer, clientId });
       saveSession(session);
       return session;
     },

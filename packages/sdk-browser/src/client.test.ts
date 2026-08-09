@@ -15,6 +15,29 @@ class MemStorage {
   }
 }
 
+const ISSUER = "http://127.0.0.1:8788";
+
+function b64url(value: string): string {
+  return btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/u, "");
+}
+
+function idToken(claims: Record<string, unknown>): string {
+  return `${b64url(JSON.stringify({ alg: "none" }))}.${b64url(JSON.stringify(claims))}.`;
+}
+
+function discoveryResponse(overrides: Record<string, unknown> = {}): Response {
+  return new Response(
+    JSON.stringify({
+      issuer: ISSUER,
+      authorization_endpoint: `${ISSUER}/auth`,
+      token_endpoint: `${ISSUER}/token`,
+      jwks_uri: `${ISSUER}/jwks`,
+      ...overrides,
+    }),
+    { status: 200 },
+  );
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -105,7 +128,7 @@ describe("createOpenSesame", () => {
     const pkce = await createPkcePair();
     storage.setItem(
       "opensesame:pkce",
-      JSON.stringify({ ...pkce, state: "st", codeVerifier: pkce.codeVerifier }),
+      JSON.stringify({ ...pkce, state: "st", nonce: "nn", codeVerifier: pkce.codeVerifier }),
     );
 
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -125,13 +148,12 @@ describe("createOpenSesame", () => {
         return new Response(
           JSON.stringify({
             access_token: "at",
-            id_token:
-              "eyJhbGciOiJub25lIn0." +
-              btoa(JSON.stringify({ sub: "pairwise-alpha" }))
-                .replace(/\+/g, "-")
-                .replace(/\//g, "_")
-                .replace(/=+$/u, "") +
-              ".",
+            id_token: idToken({
+              sub: "pairwise-alpha",
+              iss: ISSUER,
+              aud: "opensesame-browser",
+              nonce: "nn",
+            }),
             token_type: "Bearer",
             expires_in: 60,
           }),
@@ -238,6 +260,105 @@ describe("createOpenSesame", () => {
     expect(stored).toBeTruthy();
     expect(stored).not.toContain("rt-secret");
     expect(stored).not.toContain("refresh_token");
+  });
+
+  it("refuses an id_token that answers a different ceremony", async () => {
+    const mint = (claims: Record<string, unknown>) =>
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("openid-configuration")) return discoveryResponse();
+        if (url.endsWith("/token") && init?.method === "POST") {
+          return new Response(
+            JSON.stringify({
+              access_token: "at",
+              token_type: "Bearer",
+              expires_in: 60,
+              id_token: idToken(claims),
+            }),
+            { status: 200 },
+          );
+        }
+        throw new Error(`unexpected ${url}`);
+      });
+
+    for (const [claims, message] of [
+      [{ sub: "s", iss: ISSUER, aud: "opensesame-browser", nonce: "someone-else" }, /nonce/i],
+      [{ sub: "s", iss: ISSUER, aud: "another-client", nonce: "nn" }, /client/i],
+      [{ sub: "s", iss: "https://idp.evil", aud: "opensesame-browser", nonce: "nn" }, /issuer/i],
+    ] as Array<[Record<string, unknown>, RegExp]>) {
+      const storage = new MemStorage();
+      storage.setItem(
+        "opensesame:pkce",
+        JSON.stringify({ state: "st", nonce: "nn", codeVerifier: "cv" }),
+      );
+      const sesame = createOpenSesame({
+        issuer: ISSUER,
+        storage,
+        fetchImpl: mint(claims) as unknown as typeof fetch,
+      });
+      await expect(
+        sesame.handleRedirectCallback("http://127.0.0.1:5174/callback?code=abc&state=st"),
+      ).rejects.toThrow(message);
+      expect(await sesame.getSession()).toBeNull();
+    }
+  });
+
+  it("refuses a discovery document that does not name the configured issuer", async () => {
+    const storage = new MemStorage();
+    const fetchImpl = vi.fn(async () => discoveryResponse({ issuer: "https://idp.evil" }));
+    const sesame = createOpenSesame({
+      issuer: ISSUER,
+      storage,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      windowLocation: { href: "http://127.0.0.1:5174/", assign: () => undefined, replace: () => undefined },
+    });
+    await expect(sesame.signIn()).rejects.toThrow(/issuer/i);
+  });
+
+  it("refuses endpoints and origins reachable over cleartext", async () => {
+    expect(() => createOpenSesame({ issuer: "http://idp.example" })).toThrow(/https/i);
+    expect(() =>
+      createOpenSesame({ issuer: ISSUER, apiBase: "http://api.example" }),
+    ).toThrow(/https/i);
+
+    const storage = new MemStorage();
+    const fetchImpl = vi.fn(async () =>
+      discoveryResponse({ token_endpoint: "http://idp.evil/token" }),
+    );
+    const sesame = createOpenSesame({
+      issuer: ISSUER,
+      storage,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      windowLocation: { href: "http://127.0.0.1:5174/", assign: () => undefined, replace: () => undefined },
+    });
+    await expect(sesame.signIn()).rejects.toThrow(/token_endpoint/);
+  });
+
+  it("spends the stored verifier once, even when the callback is refused", async () => {
+    const storage = new MemStorage();
+    storage.setItem(
+      "opensesame:pkce",
+      JSON.stringify({ state: "st", nonce: "nn", codeVerifier: "cv" }),
+    );
+    const fetchImpl = vi.fn(async () => discoveryResponse());
+    const sesame = createOpenSesame({
+      issuer: ISSUER,
+      storage,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    await expect(
+      sesame.handleRedirectCallback("http://127.0.0.1:5174/callback?code=abc&state=forged"),
+    ).rejects.toThrow(/state mismatch/i);
+    expect(storage.getItem("opensesame:pkce")).toBeNull();
+
+    storage.setItem(
+      "opensesame:pkce",
+      JSON.stringify({ state: "st", nonce: "nn", codeVerifier: "cv" }),
+    );
+    await expect(
+      sesame.handleRedirectCallback("http://127.0.0.1:5174/callback?error=access_denied"),
+    ).rejects.toThrow(/access_denied/);
+    expect(storage.getItem("opensesame:pkce")).toBeNull();
   });
 
   it("signOut clears session", async () => {
