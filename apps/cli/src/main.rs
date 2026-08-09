@@ -326,10 +326,15 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
         }
         DaemonCmd::Start => {
             let _ = std::fs::create_dir_all(format!("{home}/.opensesame"));
-            let log = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&logfile);
+            // The daemon's own output lands here; it is not for other accounts.
+            let mut log_opts = std::fs::OpenOptions::new();
+            log_opts.create(true).append(true);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::OpenOptionsExt;
+                log_opts.mode(0o600);
+            }
+            let log = log_opts.open(&logfile);
             let (stdout, stderr) = match log {
                 Ok(f) => {
                     let f2 = f.try_clone().ok();
@@ -505,6 +510,31 @@ fn dev_cmd(cmd: DevCmd, agent: bool, schema: PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Write a file only its owner can read, without a moment where it is anything else.
+///
+/// `fs::write` then `set_permissions` creates the file at the umask's mode first,
+/// so a token spends a window world-readable — long enough for another account on
+/// the box to open it and keep the handle.
+fn write_private(path: &std::path::Path, bytes: &[u8]) -> anyhow::Result<()> {
+    use std::io::Write;
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    let mut f = opts.open(path)?;
+    f.write_all(bytes)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        // An existing file keeps its old mode, so say it again.
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+    }
+    Ok(())
+}
+
 fn session_path() -> anyhow::Result<PathBuf> {
     let dir = directories::ProjectDirs::from("dev", "OpenSesame", "opensesame")
         .ok_or_else(|| anyhow::anyhow!("no project dirs"))?;
@@ -526,6 +556,10 @@ fn load_access_token() -> anyhow::Result<String> {
     }
     anyhow::bail!("session.json missing access_token / session_id")
 }
+
+/// Default device-code lifetime, and the most a server may ask for.
+const DEVICE_CODE_TTL_SECS: i64 = 900;
+const MAX_DEVICE_CODE_TTL_SECS: i64 = 3600;
 
 fn operator_token() -> String {
     env::var("OPENSESAME_OPERATOR_TOKEN").unwrap_or_else(|_| "opensesame-dev-operator".into())
@@ -586,18 +620,31 @@ async fn device_login(server: &str) -> anyhow::Result<()> {
         .json()
         .await?;
 
-    let device_code = auth["device_code"].as_str().unwrap().to_string();
-    let user_code = auth["user_code"].as_str().unwrap();
-    let verification_uri = auth["verification_uri"].as_str().unwrap();
-    let interval = auth["interval"].as_u64().unwrap_or(5);
-    let expires_in = auth["expires_in"].as_i64().unwrap_or(900);
+    let field = |name: &str| -> anyhow::Result<String> {
+        auth[name]
+            .as_str()
+            .map(str::to_string)
+            .ok_or_else(|| anyhow::anyhow!("device authorize response missing {name}"))
+    };
+    let device_code = field("device_code")?;
+    let user_code = field("user_code")?;
+    let verification_uri = field("verification_uri")?;
+    let interval = auth["interval"].as_u64().unwrap_or(5).clamp(1, 60);
+    // The server chooses this number. Clamped, because chrono answers an
+    // out-of-range second count with a panic rather than an error.
+    let expires_in = auth["expires_in"]
+        .as_i64()
+        .unwrap_or(DEVICE_CODE_TTL_SECS)
+        .clamp(1, MAX_DEVICE_CODE_TTL_SECS);
 
     // Never print device_code
     println!("Open {verification_uri} and enter code: {user_code}");
     let approve_body = serde_json::json!({"user_code": user_code});
-    let op = operator_token();
+    // The operator token is a shared secret for this machine. Printing it puts it in
+    // terminal scrollback, CI logs, and whatever collects those; name the variable
+    // instead and let the shell read it.
     println!(
-        "(Or approve via: curl -s -X POST {server}/api/v1/device/approve -H 'content-type: application/json' -H 'x-opensesame-operator: {op}' -d '{approve_body}')"
+        "(Or approve via: curl -s -X POST {server}/api/v1/device/approve -H 'content-type: application/json' -H \"x-opensesame-operator: $OPENSESAME_OPERATOR_TOKEN\" -d '{approve_body}')"
     );
 
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
@@ -644,15 +691,18 @@ async fn device_login(server: &str) -> anyhow::Result<()> {
             }
             // Persist opaque session metadata only — no refresh token field expected
             let path = session_path()?;
-            std::fs::write(&path, serde_json::to_vec_pretty(&session)?)?;
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let mut perms = std::fs::metadata(&path)?.permissions();
-                perms.set_mode(0o600);
-                std::fs::set_permissions(&path, perms)?;
+            write_private(&path, &serde_json::to_vec_pretty(&session)?)?;
+            // The session carries the access token. Say that we are logged in, not
+            // what the token is: stdout is scrollback, pipes, and CI logs.
+            let mut shown = session.clone();
+            if let Some(obj) = shown.as_object_mut() {
+                for key in ["access_token", "refresh_token", "id_token"] {
+                    if obj.contains_key(key) {
+                        obj.insert(key.into(), json!("[redacted]"));
+                    }
+                }
             }
-            println!("{}", json!({"status":"logged_in","session": session}));
+            println!("{}", json!({"status":"logged_in","session": shown}));
             let _ = state.next_action(chrono::Utc::now(), DeviceServerStatus::Success);
             break;
         }
@@ -952,4 +1002,55 @@ async fn intent_cmd(server: &str, output: &str, cmd: IntentCmd) -> anyhow::Resul
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_written_session_is_never_readable_by_anyone_else() {
+        let dir = std::env::temp_dir().join(format!("opensesame-cli-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("session.json");
+
+        // Left behind by an earlier version at a wider mode.
+        std::fs::write(&path, b"{}").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        }
+
+        write_private(&path, b"{\"access_token\":\"at\"}").unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "{\"access_token\":\"at\"}"
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600, "mode was {mode:o}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_server_cannot_choose_an_unbounded_device_code_lifetime() {
+        for (given, expected) in [
+            (600_i64, 600_i64),
+            (0, 1),
+            (-5, 1),
+            (i64::MAX, MAX_DEVICE_CODE_TTL_SECS),
+        ] {
+            assert_eq!(given.clamp(1, MAX_DEVICE_CODE_TTL_SECS), expected);
+        }
+        // The clamp is what keeps this out of chrono, which panics rather than errors.
+        let hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let refused = std::panic::catch_unwind(|| chrono::Duration::seconds(i64::MAX)).is_err();
+        std::panic::set_hook(hook);
+        assert!(refused);
+    }
 }
