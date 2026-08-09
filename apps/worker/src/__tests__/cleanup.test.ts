@@ -45,6 +45,48 @@ describe("cleanup worker", () => {
     expect((await claims.get(created.session.id))?.state).toBe("expired");
   });
 
+  it("prunes the issuer's expired rows and keeps going if that fails", async () => {
+    const clock = createFakeClock(fixtures.now);
+    const calls: Date[] = [];
+
+    const pruned = await runCleanupTick({
+      repos: createRepositories(),
+      clock: clock.asClock(),
+      oidcStore: {
+        pruneExpired: async (now = new Date()) => {
+          calls.push(now);
+          return 3;
+        },
+      },
+    });
+    expect(pruned.prunedOidcRows).toBe(3);
+    // Pruned against the tick's clock, not wall time: a fake clock has to reach
+    // the store or the TTL under test is not the one being applied.
+    expect(calls[0]?.getTime()).toBe(fixtures.now.getTime());
+
+    // A store that throws must not cost us the outbox. Reads already refuse an
+    // expired row, so a failed prune is a table that stays large, not a token
+    // that is honoured late.
+    const survived = await runCleanupTick({
+      repos: createRepositories(),
+      clock: clock.asClock(),
+      oidcStore: {
+        pruneExpired: async () => {
+          throw new Error("connection reset");
+        },
+      },
+    });
+    expect(survived.prunedOidcRows).toBeUndefined();
+    expect(survived.outboxPublished).toBe(0);
+
+    // No store at all is not the same as nothing to prune.
+    const absent = await runCleanupTick({
+      repos: createRepositories(),
+      clock: clock.asClock(),
+    });
+    expect(absent.prunedOidcRows).toBeUndefined();
+  });
+
   it("expires an activated temporary project and reaps it later", async () => {
     const clock = createFakeClock(fixtures.now);
     const project: Project = {
