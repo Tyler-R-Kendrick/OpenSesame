@@ -1,27 +1,44 @@
-import { useState, type FormEvent } from "react";
-import { loadSettings, saveSettings, type PagesSettings } from "../lib/settings.js";
+import { type FormEvent, useState } from "react";
+import {
+  type PagesSettings,
+  SettingsRejected,
+  loadSettings,
+  saveSettings,
+} from "../lib/settings.js";
 
 export function SettingsPage() {
   const [form, setForm] = useState<PagesSettings>(() => loadSettings());
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    saveSettings({
-      hostApi: form.hostApi.trim().replace(/\/$/, ""),
-      identityApi: form.identityApi.trim().replace(/\/$/, ""),
-      operatorToken: form.operatorToken.trim(),
-    });
-    setSaved(true);
+    try {
+      saveSettings({
+        hostApi: form.hostApi.trim().replace(/\/$/, ""),
+        identityApi: form.identityApi.trim().replace(/\/$/, ""),
+        operatorToken: form.operatorToken.trim(),
+      });
+      setError(null);
+      setSaved(true);
+    } catch (err) {
+      setSaved(false);
+      setError(
+        err instanceof SettingsRejected
+          ? err.message
+          : "Those settings could not be saved.",
+      );
+    }
   }
 
   return (
     <section className="panel">
       <h1>Settings</h1>
       <p>
-        Host/Identity URLs persist in OPFS (memory fallback). Operator token is
-        session-only and never written to durable storage. GitHub Pages cannot
-        host the Host or Identity planes.
+        Host/Identity URLs persist in OPFS (memory fallback) and must be https,
+        or http on loopback. The operator token is session-only, never written
+        to durable storage, and only ever sent to a Host API on this machine.
+        GitHub Pages cannot host the Host or Identity planes.
       </p>
       <form onSubmit={onSubmit}>
         <label htmlFor="host">
@@ -63,6 +80,11 @@ export function SettingsPage() {
       {saved ? (
         <p className="ok" role="status">
           Settings saved in this browser.
+        </p>
+      ) : null}
+      {error ? (
+        <p className="err" role="alert">
+          {error}
         </p>
       ) : null}
     </section>

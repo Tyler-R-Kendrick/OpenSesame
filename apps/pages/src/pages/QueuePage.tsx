@@ -1,11 +1,13 @@
+import { createOpenSesame } from "@opensesame/sdk-browser";
 import { useEffect, useState } from "react";
 import {
+  type QueuedAction,
+  claimTokenLabel,
   dequeue,
   loadQueue,
-  type QueuedAction,
+  recordAttempt,
 } from "../lib/queue.js";
 import { loadSettings } from "../lib/settings.js";
-import { createOpenSesame } from "@opensesame/sdk-browser";
 
 export function QueuePage({ online }: { online: boolean }) {
   const [items, setItems] = useState<QueuedAction[]>([]);
@@ -32,8 +34,10 @@ export function QueuePage({ online }: { online: boolean }) {
     const { identityApi } = loadSettings();
     const base = identityApi.replace(/\/$/, "");
     let done = 0;
-    try {
-      for (const item of loadQueue()) {
+    let failed = 0;
+    let firstError: string | null = null;
+    for (const item of loadQueue()) {
+      try {
         if (item.kind === "device_approve") {
           const res = await fetch(`${base}/v1/device/approve`, {
             method: "POST",
@@ -42,7 +46,9 @@ export function QueuePage({ online }: { online: boolean }) {
             body: JSON.stringify({ user_code: item.userCode }),
           });
           if (!res.ok) {
-            throw new Error(`device_approve failed (${res.status}) for ${item.userCode}`);
+            throw new Error(
+              `device_approve failed (${res.status}) for ${item.userCode}`,
+            );
           }
         } else {
           const sesame = createOpenSesame({ issuer: identityApi });
@@ -51,23 +57,27 @@ export function QueuePage({ online }: { online: boolean }) {
         }
         dequeue(item.id);
         done += 1;
+      } catch (e) {
+        // One item that cannot succeed must not hold the rest of the outbox
+        // hostage; it counts its attempts and eventually drops itself.
+        recordAttempt(item.id);
+        failed += 1;
+        firstError ??= e instanceof Error ? e.message : String(e);
       }
-      setStatus(`Flushed ${done} queued action(s).`);
-      refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      refresh();
-    } finally {
-      setBusy(false);
     }
+    setStatus(`Flushed ${done} queued action(s).`);
+    if (firstError)
+      setError(failed > 1 ? `${firstError} (${failed} failed)` : firstError);
+    refresh();
+    setBusy(false);
   }
 
   return (
     <section className="panel">
       <h1>Offline queue</h1>
       <p>
-        Ceremony intents staged while offline. No secrets — only user codes and
-        claim token references you already pasted.
+        Ceremony intents staged while offline. A queued claim carries its token,
+        so the queue is cleared as it flushes and entries expire after a day.
       </p>
       {items.length === 0 ? (
         <p className="hint" role="status">
@@ -81,7 +91,7 @@ export function QueuePage({ online }: { online: boolean }) {
               <span className="v">
                 {item.kind === "device_approve"
                   ? item.userCode
-                  : `claim token …${item.claimToken.slice(-8)}`}{" "}
+                  : claimTokenLabel(item.claimToken)}{" "}
                 · {new Date(item.createdAt).toLocaleString()}
               </span>
             </li>
