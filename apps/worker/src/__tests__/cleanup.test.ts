@@ -1,14 +1,14 @@
-import { describe, expect, it } from "vitest";
 import { ClaimEngine, MemoryClaimStore } from "@opensesame/claims";
 import { createRepositories } from "@opensesame/database";
 import { fixtures } from "@opensesame/os-domain";
+import type { Project } from "@opensesame/os-domain";
+import { describe, expect, it } from "vitest";
 import {
   EXPIRED_PROJECT_RETENTION_MS,
   createFakeClock,
   runCleanupTick,
   startCleanupLoop,
 } from "../cleanup.js";
-import type { Project } from "@opensesame/os-domain";
 
 describe("cleanup worker", () => {
   it("expires claim via fake clock", async () => {
@@ -84,6 +84,34 @@ describe("cleanup worker", () => {
     const reaped = await runCleanupTick(deps);
     expect(reaped.reapedProjects).toBe(1);
     expect(projects.size).toBe(0);
+  });
+
+  it("says when a tick had no state to expire", async () => {
+    const clock = createFakeClock(fixtures.now);
+    // The standalone shape: no claim engine, no session or project maps.
+    const result = await runCleanupTick({
+      repos: createRepositories(),
+      clock: clock.asClock(),
+    });
+    // Zero counts because nothing was inspected, and the tick admits it rather
+    // than reading as "nothing had lapsed".
+    expect(result.expiryEnforced).toBe(false);
+    expect(result.expiredClaims).toBe(0);
+    expect(result.expiredProjects).toBe(0);
+
+    const inProcess = await runCleanupTick({
+      claims: new ClaimEngine({
+        pepper: fixtures.pepper,
+        store: new MemoryClaimStore(),
+        clock: clock.asClock(),
+      }),
+      claimStore: { listIds: () => [] },
+      repos: createRepositories(),
+      provisionalSessions: new Map(),
+      projects: new Map(),
+      clock: clock.asClock(),
+    });
+    expect(inProcess.expiryEnforced).toBe(true);
   });
 
   it("keeps expiring after a failing tick", async () => {

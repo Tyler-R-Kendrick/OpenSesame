@@ -16,9 +16,11 @@ Scanners: cargo-audit, cve-lite, semgrep, ast-grep, osv-scanner, gitleaks, cargo
 
 - `sealDevOnly` has no callers today; the fix is to stop the trap being armed for the
   next caller, since the failure mode is silent (XOR "encryption" that looks fine).
-- The standalone worker is still constructed with empty session/project maps, so in
-  that deployment shape it expires nothing. Sharing state (or moving expiry behind
-  the repositories) is a design change, tracked rather than patched here.
+- ~~The standalone worker is still constructed with empty session/project maps~~ —
+  addressed in `audit-2026-08-08-issuer-persistence-and-worker.md`: those
+  dependencies are optional, a tick reports `expiryEnforced`, and the standalone
+  entrypoint says it publishes the outbox while expiry runs in-process. Moving
+  sessions and projects behind repositories remains the design change.
 
 ## Verification
 

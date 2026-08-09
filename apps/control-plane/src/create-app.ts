@@ -6,8 +6,15 @@ import {
   createSimpleWebAuthnVerifyFn,
 } from "@opensesame/auth-upstream";
 import { ClaimEngine } from "@opensesame/claims";
-import { createRepositories } from "@opensesame/database";
-import { createOpenSesameProvider } from "@opensesame/oauth-provider";
+import {
+  createDrizzle,
+  createPostgresOidcStore,
+  createRepositories,
+} from "@opensesame/database";
+import {
+  createOpenSesameProvider,
+  createPostgresAdapterConstructor,
+} from "@opensesame/oauth-provider";
 import { createLogger } from "@opensesame/observability";
 import type { Clock } from "@opensesame/os-domain";
 import { ProvisionalPolicy } from "@opensesame/policy";
@@ -66,9 +73,19 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     store: claimStore,
     clock,
   });
+  // With a database configured the issuer keeps its own models — sessions,
+  // authorization codes, refresh tokens, device flows — in Postgres. On the
+  // in-memory adapter every restart silently invalidates live sessions and a
+  // consumed authorization code stops being remembered as consumed.
+  const oidcStore = config.databaseUrl
+    ? createPostgresOidcStore(createDrizzle(config.databaseUrl).db)
+    : undefined;
   const oauth = createOpenSesameProvider({
     issuer: config.issuer,
     processEnv: options.processEnv ?? process.env,
+    ...(oidcStore
+      ? { adapter: createPostgresAdapterConstructor(oidcStore) }
+      : {}),
   });
   const mappings = new MemoryPrincipalMappingStore();
   const policy = new ProvisionalPolicy();

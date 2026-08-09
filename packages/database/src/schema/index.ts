@@ -707,3 +707,38 @@ export const schema = {
   auditEvents,
   outboxEvents,
 };
+
+/**
+ * oidc-provider adapter storage.
+ *
+ * The provider's own models — sessions, authorization codes, refresh tokens,
+ * device flows, grants — held where they survive a restart. Running the issuer on
+ * the in-memory adapter means every deploy silently invalidates live sessions and
+ * consumed codes stop being remembered as consumed.
+ */
+export const oidcPayloads = pgTable(
+  "oidc_payloads",
+  {
+    model: text("model").notNull(),
+    id: text("id").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    /** Null for models the provider stores without a TTL. */
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),
+    /** Set once a single-use artifact (an authorization code) has been redeemed. */
+    consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
+    /** Interaction/session lookup keys, and the grant a token hangs off. */
+    uid: text("uid"),
+    userCode: text("user_code"),
+    grantId: text("grant_id"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.model, t.id] }),
+    index("oidc_payloads_uid_idx").on(t.model, t.uid),
+    index("oidc_payloads_user_code_idx").on(t.model, t.userCode),
+    index("oidc_payloads_grant_id_idx").on(t.grantId),
+    index("oidc_payloads_expires_at_idx").on(t.expiresAt),
+  ],
+);

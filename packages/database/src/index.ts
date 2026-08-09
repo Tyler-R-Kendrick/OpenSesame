@@ -11,6 +11,14 @@ export {
   createDrizzle,
   createSqlClient,
 } from "./client.js";
+export {
+  createPostgresOidcStore,
+  oidcPayloadFromRow,
+  oidcRowValues,
+  type OidcRow,
+  type OidcStore,
+  type OidcStorePayload,
+} from "./oidc-store.js";
 export { withOutbox, appendOutboxInTransaction } from "./tx.js";
 export { runMigrations } from "./migrate.js";
 export { resetDatabase } from "./reset.js";

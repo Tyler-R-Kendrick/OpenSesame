@@ -1,7 +1,7 @@
-import type { Clock, ProvisionalSession, Project } from "@opensesame/os-domain";
 import type { ClaimEngine } from "@opensesame/claims";
 import type { Repositories } from "@opensesame/database";
 import type { Logger } from "@opensesame/observability";
+import type { Clock, Project, ProvisionalSession } from "@opensesame/os-domain";
 
 export interface FakeClock {
   now: Date;
@@ -34,11 +34,19 @@ export interface ClaimListStore {
 }
 
 export interface CleanupDeps {
-  claims: ClaimEngine;
-  claimStore: ClaimListStore;
+  /**
+   * Claim, session and project state to expire.
+   *
+   * Optional because they live in the control plane's process. A standalone worker
+   * has no access to them, and passing empty maps made it report a healthy tick
+   * while expiring nothing — a worker that looks like it is enforcing TTLs and is
+   * not is worse than one that says it cannot.
+   */
+  claims?: ClaimEngine;
+  claimStore?: ClaimListStore;
+  provisionalSessions?: Map<string, ProvisionalSession>;
+  projects?: Map<string, Project>;
   repos: Repositories;
-  provisionalSessions: Map<string, ProvisionalSession>;
-  projects: Map<string, Project>;
   clock: Clock;
   log?: Logger;
 }
@@ -49,6 +57,12 @@ export interface CleanupResult {
   expiredProjects: number;
   reapedProjects: number;
   outboxPublished: number;
+  /**
+   * Whether this tick had the in-process state needed to expire anything. False
+   * means the counts above are zero because nothing was inspected, not because
+   * nothing had lapsed.
+   */
+  expiryEnforced: boolean;
 }
 
 /**
@@ -62,7 +76,9 @@ export const EXPIRED_PROJECT_RETENTION_MS = 60 * 60 * 1000;
  * One cleanup tick: expire claims past TTL, drop provisional sessions/projects,
  * and mark outbox events published (local sink).
  */
-export async function runCleanupTick(deps: CleanupDeps): Promise<CleanupResult> {
+export async function runCleanupTick(
+  deps: CleanupDeps,
+): Promise<CleanupResult> {
   const now = deps.clock();
   let expiredClaims = 0;
   let expiredSessions = 0;
@@ -70,8 +86,19 @@ export async function runCleanupTick(deps: CleanupDeps): Promise<CleanupResult> 
   let reapedProjects = 0;
   let outboxPublished = 0;
 
-  for (const id of deps.claimStore.listIds()) {
-    const session = await deps.claims.get(id);
+  const claims = deps.claims;
+  const claimStore = deps.claimStore;
+  const provisionalSessions = deps.provisionalSessions;
+  const projects = deps.projects;
+  const expiryEnforced =
+    claims !== undefined &&
+    claimStore !== undefined &&
+    provisionalSessions !== undefined &&
+    projects !== undefined;
+
+  for (const id of claimStore?.listIds() ?? []) {
+    if (!claims) break;
+    const session = await claims.get(id);
     if (!session) continue;
     if (
       session.state === "completed" ||
@@ -82,11 +109,11 @@ export async function runCleanupTick(deps: CleanupDeps): Promise<CleanupResult> 
     }
     if (session.state === "expired" || now >= session.expiresAt) {
       try {
-        await deps.claims.expire(id);
+        await claims.expire(id);
         expiredClaims += 1;
       } catch {
         // loadFresh may already persist expiry; count if store shows expired
-        const after = await deps.claims.get(id);
+        const after = await claims.get(id);
         if (after?.state === "expired") {
           expiredClaims += 1;
         }
@@ -94,19 +121,19 @@ export async function runCleanupTick(deps: CleanupDeps): Promise<CleanupResult> 
     }
   }
 
-  for (const [id, session] of deps.provisionalSessions) {
+  for (const [id, session] of provisionalSessions ?? []) {
     if (session.expiresAt <= now || session.revokedAt) {
-      deps.provisionalSessions.delete(id);
+      provisionalSessions?.delete(id);
       expiredSessions += 1;
     }
   }
 
-  for (const [id, project] of deps.projects) {
+  for (const [id, project] of projects ?? []) {
     // An activated project expires too: checking only `provisional` left every
     // temporary project that reached `active` alive past its own TTL.
     const live = project.state === "provisional" || project.state === "active";
     if (live && project.expiresAt && project.expiresAt <= now) {
-      deps.projects.set(id, {
+      projects?.set(id, {
         ...project,
         state: "expired",
         updatedAt: now,
@@ -116,9 +143,10 @@ export async function runCleanupTick(deps: CleanupDeps): Promise<CleanupResult> 
     }
     if (
       (project.state === "expired" || project.state === "deleted") &&
-      now.getTime() - project.updatedAt.getTime() >= EXPIRED_PROJECT_RETENTION_MS
+      now.getTime() - project.updatedAt.getTime() >=
+        EXPIRED_PROJECT_RETENTION_MS
     ) {
-      deps.projects.delete(id);
+      projects?.delete(id);
       reapedProjects += 1;
     }
   }
@@ -138,6 +166,7 @@ export async function runCleanupTick(deps: CleanupDeps): Promise<CleanupResult> 
       expiredProjects,
       reapedProjects,
       outboxPublished,
+      expiryEnforced,
     },
     "cleanup tick",
   );
@@ -148,6 +177,7 @@ export async function runCleanupTick(deps: CleanupDeps): Promise<CleanupResult> 
     expiredProjects,
     reapedProjects,
     outboxPublished,
+    expiryEnforced,
   };
 }
 
@@ -156,7 +186,9 @@ export interface CleanupLoopOptions extends CleanupDeps {
   signal?: AbortSignal;
 }
 
-export async function startCleanupLoop(options: CleanupLoopOptions): Promise<void> {
+export async function startCleanupLoop(
+  options: CleanupLoopOptions,
+): Promise<void> {
   const intervalMs = options.intervalMs ?? 5_000;
   while (!options.signal?.aborted) {
     // A throwing tick used to end the loop, which quietly stops expiring claims,
