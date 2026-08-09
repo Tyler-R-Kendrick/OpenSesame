@@ -1,6 +1,8 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  customType,
   index,
   integer,
   jsonb,
@@ -9,9 +11,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
-  customType,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
 
 /** bytea column mapped to Uint8Array */
 const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
@@ -88,7 +88,10 @@ export const externalIdentities = pgTable(
       withTimezone: true,
       mode: "date",
     }),
-    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
   },
   (t) => [
     uniqueIndex("external_identities_kind_issuer_tenant_subject_uidx").on(
@@ -158,7 +161,9 @@ export const projects = pgTable(
   {
     id: text("id").primaryKey(),
     organizationId: text("organization_id").references(() => organizations.id),
-    ownerPrincipalId: text("owner_principal_id").references(() => principals.id),
+    ownerPrincipalId: text("owner_principal_id").references(
+      () => principals.id,
+    ),
     slug: text("slug").notNull(),
     displayName: text("display_name").notNull(),
     state: text("state").notNull(),
@@ -184,8 +189,13 @@ export const resources = pgTable(
     organizationId: text("organization_id").references(() => organizations.id),
     kind: text("kind").notNull(),
     state: text("state").notNull(),
-    ownerPrincipalId: text("owner_principal_id").references(() => principals.id),
-    manifest: jsonb("manifest").$type<Record<string, unknown>>().notNull().default({}),
+    ownerPrincipalId: text("owner_principal_id").references(
+      () => principals.id,
+    ),
+    manifest: jsonb("manifest")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),
     version: integer("version").notNull().default(1),
     ...timestamps,
@@ -242,7 +252,9 @@ export const agents = pgTable(
   "agents",
   {
     id: text("id").primaryKey(),
-    ownerPrincipalId: text("owner_principal_id").references(() => principals.id),
+    ownerPrincipalId: text("owner_principal_id").references(
+      () => principals.id,
+    ),
     displayName: text("display_name").notNull(),
     provider: text("provider"),
     softwareIdentity: text("software_identity"),
@@ -317,16 +329,30 @@ export const oauthClients = pgTable(
   {
     id: text("id").primaryKey(),
     /** Registering principal — reads and mutations are fenced to them. */
-    ownerPrincipalId: text("owner_principal_id").references(() => principals.id),
+    ownerPrincipalId: text("owner_principal_id").references(
+      () => principals.id,
+    ),
     admissionMode: text("admission_mode").notNull(),
     displayName: text("display_name").notNull(),
-    redirectUris: jsonb("redirect_uris").$type<string[]>().notNull().default([]),
+    redirectUris: jsonb("redirect_uris")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     sectorIdentifier: text("sector_identifier").notNull(),
     grantTypes: jsonb("grant_types").$type<string[]>().notNull().default([]),
-    responseTypes: jsonb("response_types").$type<string[]>().notNull().default([]),
+    responseTypes: jsonb("response_types")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     tokenEndpointAuthMethod: text("token_endpoint_auth_method").notNull(),
-    allowedScopes: jsonb("allowed_scopes").$type<string[]>().notNull().default([]),
-    allowedResources: jsonb("allowed_resources").$type<string[]>().notNull().default([]),
+    allowedScopes: jsonb("allowed_scopes")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    allowedResources: jsonb("allowed_resources")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     metadataUri: text("metadata_uri"),
     metadataDigest: text("metadata_digest"),
     state: text("state").notNull(),
@@ -389,9 +415,7 @@ export const consents = pgTable(
     revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
     version: integer("version").notNull().default(1),
   },
-  (t) => [
-    index("consents_principal_client_idx").on(t.principalId, t.clientId),
-  ],
+  (t) => [index("consents_principal_client_idx").on(t.principalId, t.clientId)],
 );
 
 export const provisionalSessions = pgTable(
@@ -403,11 +427,17 @@ export const provisionalSessions = pgTable(
       .references(() => principals.id),
     instanceKeyJkt: text("instance_key_jkt"),
     quotaProfile: text("quota_profile").notNull(),
-    allowedActions: jsonb("allowed_actions").$type<string[]>().notNull().default([]),
+    allowedActions: jsonb("allowed_actions")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),
-    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
     claimedAt: timestamp("claimed_at", { withTimezone: true, mode: "date" }),
     revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true, mode: "date" }),
@@ -426,7 +456,9 @@ export const claimSessions = pgTable(
     id: text("id").primaryKey(),
     type: text("type").notNull(),
     state: text("state").notNull(),
-    creatorPrincipalId: text("creator_principal_id").references(() => principals.id),
+    creatorPrincipalId: text("creator_principal_id").references(
+      () => principals.id,
+    ),
     creatorAgentId: text("creator_agent_id").references(() => agents.id),
     creatorInstanceId: text("creator_instance_id").references(
       () => agentInstances.id,
@@ -443,14 +475,23 @@ export const claimSessions = pgTable(
       Record<string, unknown>
     >(),
     requestedGrant: jsonb("requested_grant").$type<Record<string, unknown>>(),
-    presentedAt: timestamp("presented_at", { withTimezone: true, mode: "date" }),
+    presentedAt: timestamp("presented_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
     authenticatedAt: timestamp("authenticated_at", {
       withTimezone: true,
       mode: "date",
     }),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true, mode: "date" }),
-    completedAt: timestamp("completed_at", { withTimezone: true, mode: "date" }),
-    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    completedAt: timestamp("completed_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
     completedByPrincipalId: text("completed_by_principal_id").references(
       () => principals.id,
@@ -527,7 +568,10 @@ export const deviceAuthorizationSessions = pgTable(
       .references(() => oauthClients.id),
     deviceCodeDigest: bytea("device_code_digest").notNull(),
     userCodeDigest: bytea("user_code_digest").notNull(),
-    requestedScopes: jsonb("requested_scopes").$type<string[]>().notNull().default([]),
+    requestedScopes: jsonb("requested_scopes")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     requestedResources: jsonb("requested_resources")
       .$type<string[]>()
       .notNull()
@@ -538,7 +582,10 @@ export const deviceAuthorizationSessions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),
-    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
     approvedByPrincipalId: text("approved_by_principal_id").references(
       () => principals.id,
     ),
@@ -587,7 +634,13 @@ export const auditEvents = pgTable(
     outcome: text("outcome").notNull(),
     correlationId: text("correlation_id").notNull(),
     causationId: text("causation_id"),
-    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    /** Hash chain over the trail: each event names the digest of the one before it. */
+    previousDigest: text("previous_digest"),
+    digest: text("digest"),
   },
   (t) => [
     index("audit_events_occurred_at_idx").on(t.occurredAt),
@@ -607,14 +660,20 @@ export const outboxEvents = pgTable(
     aggregateType: text("aggregate_type").notNull(),
     aggregateId: text("aggregate_id").notNull(),
     eventType: text("event_type").notNull(),
-    payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+    payload: jsonb("payload")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),
     availableAt: timestamp("available_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),
-    publishedAt: timestamp("published_at", { withTimezone: true, mode: "date" }),
+    publishedAt: timestamp("published_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
     attempts: integer("attempts").notNull().default(0),
     lastError: text("last_error"),
   },

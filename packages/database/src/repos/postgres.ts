@@ -13,14 +13,14 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type postgres from "postgres";
 import * as schema from "../schema/index.js";
 import {
-  ConflictError,
-  NotFoundError,
   type AuditEventRepository,
   type BetterAuthSubjectRepository,
   type ClaimItemRepository,
   type ClaimSessionRepository,
+  ConflictError,
   type ExternalIdentityRepository,
   type NewOutboxEvent,
+  NotFoundError,
   type OutboxRepository,
   type PrincipalRepository,
   type Repositories,
@@ -36,7 +36,9 @@ function normalizeTenant(tenant?: string | null): string {
   return tenant ?? "";
 }
 
-function mapAuditEvent(row: typeof schema.auditEvents.$inferSelect): AuditEvent {
+function mapAuditEvent(
+  row: typeof schema.auditEvents.$inferSelect,
+): AuditEvent {
   const mapped: AuditEvent = {
     id: row.id,
     occurredAt: row.occurredAt,
@@ -59,6 +61,8 @@ function mapAuditEvent(row: typeof schema.auditEvents.$inferSelect): AuditEvent 
   if (row.targetType) mapped.targetType = row.targetType;
   if (row.targetId) mapped.targetId = row.targetId;
   if (row.causationId) mapped.causationId = row.causationId;
+  if (row.previousDigest) mapped.previousDigest = row.previousDigest;
+  if (row.digest) mapped.digest = row.digest;
   return mapped;
 }
 
@@ -597,6 +601,8 @@ export class PostgresRepositories implements Repositories {
           correlationId: event.correlationId,
           causationId: event.causationId,
           metadata: event.metadata,
+          previousDigest: event.previousDigest,
+          digest: event.digest,
         })
         .returning();
       if (!row) throw new Error("insert audit event failed");
@@ -611,7 +617,9 @@ export class PostgresRepositories implements Repositories {
         .limit(limit)
         .$dynamic();
       if (filter?.principalId) {
-        query = query.where(eq(schema.auditEvents.principalId, filter.principalId));
+        query = query.where(
+          eq(schema.auditEvents.principalId, filter.principalId),
+        );
       }
       const rows = await query;
       return rows.map(mapAuditEvent);

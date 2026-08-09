@@ -1,7 +1,11 @@
+import { verifyAuditChain } from "@opensesame/audit";
+import {
+  AuditChainVerifyResponseSchema,
+  AuditEventListResponseSchema,
+} from "@opensesame/contracts";
 import { Hono } from "hono";
-import { AuditEventListResponseSchema } from "@opensesame/contracts";
-import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
+import type { Variables } from "../middleware/context.js";
 
 export const auditRoutes = new Hono<{ Variables: Variables }>();
 
@@ -36,7 +40,42 @@ auditRoutes.get("/events", requirePrincipal(), async (c) => {
       ...(e.sessionId !== undefined ? { sessionId: e.sessionId } : {}),
       ...(e.targetType !== undefined ? { targetType: e.targetType } : {}),
       ...(e.targetId !== undefined ? { targetId: e.targetId } : {}),
+      ...(e.previousDigest !== undefined
+        ? { previousDigest: e.previousDigest }
+        : {}),
+      ...(e.digest !== undefined ? { digest: e.digest } : {}),
     })),
   });
   return c.json(body);
+});
+
+/**
+ * Re-walk the caller's own trail and say whether it still hangs together.
+ *
+ * A caller's events are a subsequence of the whole chain, so this checks each
+ * event against its own digest rather than against its neighbour: `altered`
+ * means an event's contents no longer produce the digest stored beside it.
+ */
+auditRoutes.get("/events/verify", requirePrincipal(), async (c) => {
+  const ctx = c.get("ctx");
+  const principalId = c.get("principalId")!;
+  const events = await ctx.repos.auditEvents.list({ principalId, limit: 200 });
+  const oldestFirst = [...events].reverse();
+  let verdict = AuditChainVerifyResponseSchema.parse({
+    ok: true,
+    checked: oldestFirst.length,
+  });
+  for (const event of oldestFirst) {
+    const single = verifyAuditChain([event], event.previousDigest ?? "");
+    if (!single.ok) {
+      verdict = AuditChainVerifyResponseSchema.parse({
+        ok: false,
+        checked: oldestFirst.length,
+        reason: single.reason,
+        eventId: single.eventId,
+      });
+      break;
+    }
+  }
+  return c.json(verdict, verdict.ok ? 200 : 409);
 });
