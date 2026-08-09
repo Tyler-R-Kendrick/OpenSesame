@@ -96,6 +96,7 @@ export async function createDpopKeyPair() {
     htu: string,
     htm: string,
     accessToken?: string,
+    nonce?: string,
   ): Promise<string> {
     const header = {
       alg: "ES256",
@@ -111,6 +112,11 @@ export async function createDpopKeyPair() {
     };
     if (accessToken) {
       payload.ath = await accessTokenHash(accessToken);
+    }
+    // RFC 9449 §8: a server may require its own nonce so it, not the client,
+    // decides how fresh a proof is.
+    if (nonce) {
+      payload.nonce = nonce;
     }
     const enc = new TextEncoder();
     const h = b64url(enc.encode(JSON.stringify(header)));
@@ -203,34 +209,69 @@ export function createApiClient(options: ApiClientOptions) {
   }
   let dpopFactory: Awaited<ReturnType<typeof createDpopKeyPair>> | null = null;
 
+  /** Most recent nonce this server handed out, for the next proof. */
+  let dpopNonce: string | undefined;
+
   async function ensureDpop() {
     if (!options.dpop) return null;
     if (!dpopFactory) dpopFactory = await createDpopKeyPair();
     return dpopFactory;
   }
 
+  /**
+   * True when a response is refusing a proof only because it wants a nonce.
+   * Anything else is a real refusal and is handed back to the caller untouched.
+   */
+  function asksForNonce(res: Response): boolean {
+    if (res.status !== 401) return false;
+    const challenge = res.headers.get("www-authenticate") ?? "";
+    return (
+      /use_dpop_nonce/iu.test(challenge) ||
+      (res.headers.get("dpop-nonce") !== null && /dpop/iu.test(challenge))
+    );
+  }
+
   async function request(
     path: string,
     init: RequestInit = {},
   ): Promise<Response> {
-    const headers = new Headers(init.headers);
-    headers.set("accept", "application/json");
-    if (options.accessToken) {
-      headers.set("authorization", `Bearer ${options.accessToken}`);
-    }
-    if (init.body && !headers.has("content-type")) {
-      headers.set("content-type", "application/json");
-    }
     const method = (init.method ?? "GET").toUpperCase();
     const url = `${base}${path}`;
     const dpop = await ensureDpop();
-    if (dpop) {
-      headers.set(
-        "DPoP",
-        await dpop.createDpopProof(url, method, options.accessToken),
-      );
+
+    const send = async (): Promise<Response> => {
+      const headers = new Headers(init.headers);
+      headers.set("accept", "application/json");
+      if (options.accessToken) {
+        headers.set("authorization", `Bearer ${options.accessToken}`);
+      }
+      if (init.body && !headers.has("content-type")) {
+        headers.set("content-type", "application/json");
+      }
+      if (dpop) {
+        headers.set(
+          "DPoP",
+          await dpop.createDpopProof(
+            url,
+            method,
+            options.accessToken,
+            dpopNonce,
+          ),
+        );
+      }
+      const res = await fetchFn(url, { ...init, headers });
+      const issued = res.headers.get("dpop-nonce");
+      if (issued) dpopNonce = issued;
+      return res;
+    };
+
+    const first = await send();
+    if (dpop && asksForNonce(first) && dpopNonce !== undefined) {
+      // Once. A server that keeps asking will not be satisfied by asking again,
+      // and a loop here is a loop against somebody else's endpoint.
+      return send();
     }
-    return fetchFn(url, { ...init, headers });
+    return first;
   }
 
   return {

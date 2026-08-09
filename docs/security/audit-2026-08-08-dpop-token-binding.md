@@ -45,8 +45,10 @@ a process on this machine by definition.
 
 ## Not fixed here
 
-- DPoP server nonces (`DPoP-Nonce` / `use_dpop_nonce`) are not implemented; the
-  client cannot yet answer a server that demands one.
+- ~~DPoP server nonces are not implemented~~ — closed: the client remembers any
+  `DPoP-Nonce` a server offers, includes it in later proofs, and retries exactly once
+  when a 401 asks for one. A refusal that is not about the nonce is handed back
+  untouched, and there is no loop.
 - The proof key is generated per client instance and lives only in memory, so a
   reload is a new key. That is deliberate for these local-first surfaces, but it
   means nothing ties a session to a durable key.
