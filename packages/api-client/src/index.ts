@@ -59,6 +59,23 @@ async function getSubtle(): Promise<SubtleCrypto> {
   throw new Error("crypto_subtle_unavailable");
 }
 
+/**
+ * RFC 9449 §4.3 `ath`: the hash of the access token the proof travels with.
+ *
+ * Without it a proof is bound to a key and a request but not to a token, so a
+ * proof observed alongside one token can be replayed alongside another. The
+ * verifier in `crates/proof` requires it whenever a token is present, so a proof
+ * minted without it was never going to be accepted either.
+ */
+export async function accessTokenHash(accessToken: string): Promise<string> {
+  const subtle = await getSubtle();
+  const digest = await subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(accessToken),
+  );
+  return b64url(digest);
+}
+
 /** Create an in-memory ES256 keypair and DPoP proof factory. */
 export async function createDpopKeyPair() {
   const subtle = await getSubtle();
@@ -75,18 +92,26 @@ export async function createDpopKeyPair() {
   const x = jwk.x;
   const y = jwk.y;
 
-  async function createDpopProof(htu: string, htm: string): Promise<string> {
+  async function createDpopProof(
+    htu: string,
+    htm: string,
+    accessToken?: string,
+  ): Promise<string> {
     const header = {
       alg: "ES256",
       typ: "dpop+jwt",
       jwk: { kty, crv, x, y },
     };
-    const payload = {
+    const payload: Record<string, unknown> = {
       iat: Math.floor(Date.now() / 1000),
       jti: randomJti(),
-      htu,
+      // A query string is not part of the bound URI (RFC 9449 §4.2).
+      htu: htuFor(htu),
       htm: htm.toUpperCase(),
     };
+    if (accessToken) {
+      payload.ath = await accessTokenHash(accessToken);
+    }
     const enc = new TextEncoder();
     const h = b64url(enc.encode(JSON.stringify(header)));
     const p = b64url(enc.encode(JSON.stringify(payload)));
@@ -100,6 +125,16 @@ export async function createDpopKeyPair() {
   }
 
   return { createDpopProof, jwk: { kty, crv, x, y } };
+}
+
+/** The bound URI: scheme, authority and path, without query or fragment. */
+function htuFor(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return url;
+  }
 }
 
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
@@ -126,7 +161,10 @@ export function normalizeHttpBaseUrl(raw: string): string | null {
   if (url.username || url.password) return null;
   if (url.search || url.hash) return null;
   const normalized = `${url.origin}${url.pathname.replace(/\/$/, "")}`;
-  if (url.protocol === "http:" && normalizeLoopbackBaseUrl(normalized) === null) {
+  if (
+    url.protocol === "http:" &&
+    normalizeLoopbackBaseUrl(normalized) === null
+  ) {
     return null;
   }
   return normalized;
@@ -143,7 +181,11 @@ export function normalizeLoopbackBaseUrl(raw: string): string | null {
   if (url.username || url.password) return null;
   const host = url.hostname.toLowerCase().replace(/\.$/, "");
   const isLoopbackV4 = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
-  if (!LOOPBACK_HOSTS.has(host) && !host.endsWith(".localhost") && !isLoopbackV4) {
+  if (
+    !LOOPBACK_HOSTS.has(host) &&
+    !host.endsWith(".localhost") &&
+    !isLoopbackV4
+  ) {
     return null;
   }
   if (url.search || url.hash) return null;
@@ -152,7 +194,13 @@ export function normalizeLoopbackBaseUrl(raw: string): string | null {
 
 export function createApiClient(options: ApiClientOptions) {
   const fetchFn = options.fetchImpl ?? fetch;
-  const base = options.baseUrl.replace(/\/$/, "");
+  // This client sends a bearer with every call, so the destination is checked here
+  // rather than left to each caller to remember: http is confined to loopback, and
+  // credentials, queries and fragments in a base URL are refused.
+  const base = normalizeHttpBaseUrl(options.baseUrl);
+  if (base === null) {
+    throw new Error("baseUrl must be an https URL, or http on loopback");
+  }
   let dpopFactory: Awaited<ReturnType<typeof createDpopKeyPair>> | null = null;
 
   async function ensureDpop() {
@@ -161,7 +209,10 @@ export function createApiClient(options: ApiClientOptions) {
     return dpopFactory;
   }
 
-  async function request(path: string, init: RequestInit = {}): Promise<Response> {
+  async function request(
+    path: string,
+    init: RequestInit = {},
+  ): Promise<Response> {
     const headers = new Headers(init.headers);
     headers.set("accept", "application/json");
     if (options.accessToken) {
@@ -174,7 +225,10 @@ export function createApiClient(options: ApiClientOptions) {
     const url = `${base}${path}`;
     const dpop = await ensureDpop();
     if (dpop) {
-      headers.set("DPoP", await dpop.createDpopProof(url, method));
+      headers.set(
+        "DPoP",
+        await dpop.createDpopProof(url, method, options.accessToken),
+      );
     }
     return fetchFn(url, { ...init, headers });
   }
@@ -193,14 +247,23 @@ export function createApiClient(options: ApiClientOptions) {
         if (prm.ok) {
           const body = (await prm.json()) as Record<string, unknown>;
           const discovery: HostDiscovery = {
-            dpopBound: Boolean(body.dpop_bound ?? body.dpop_bound_access_tokens_required),
+            dpopBound: Boolean(
+              body.dpop_bound ?? body.dpop_bound_access_tokens_required,
+            ),
             source: "prm",
           };
           if (typeof body.resource === "string") {
             discovery.resource = body.resource;
           }
           if (Array.isArray(body.authorization_servers)) {
-            discovery.authorizationServers = body.authorization_servers as string[];
+            // Where a client goes to be issued tokens is not a free-form string:
+            // a resource that names a cleartext or malformed authorization server
+            // is naming somewhere this client will not send a credential.
+            discovery.authorizationServers = body.authorization_servers
+              .map((value) =>
+                typeof value === "string" ? normalizeHttpBaseUrl(value) : null,
+              )
+              .filter((value): value is string => value !== null);
           }
           return discovery;
         }
@@ -282,6 +345,11 @@ export function createApiClient(options: ApiClientOptions) {
     async probeDaemon(
       daemonUrl = "http://127.0.0.1:18790",
     ): Promise<DaemonProbe> {
+      // The daemon is a process on this machine by definition; probing anywhere
+      // else would announce this client to a stranger.
+      if (normalizeLoopbackBaseUrl(daemonUrl) === null) {
+        return { available: false, url: daemonUrl };
+      }
       try {
         const res = await fetchFn(`${daemonUrl.replace(/\/$/, "")}/health`, {
           signal: AbortSignal.timeout?.(800),
