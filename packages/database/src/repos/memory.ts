@@ -111,7 +111,6 @@ class MemoryStore {
   outbox = new Map<string, OutboxEvent>();
 }
 
-
 function applyNowOrDefer(uow: UnitOfWork | undefined, apply: () => void) {
   if (uow instanceof MemoryUnitOfWork) {
     uow.defer(apply);
@@ -176,7 +175,9 @@ export class MemoryRepositories implements Repositories {
         );
       }
       if (this.#store.identities.has(identity.id)) {
-        throw new ConflictError(`external identity already exists: ${identity.id}`);
+        throw new ConflictError(
+          `external identity already exists: ${identity.id}`,
+        );
       }
       const tenant = normalizeTenant(identity.tenant);
       const row: ExternalIdentity = {
@@ -349,11 +350,13 @@ export class MemoryRepositories implements Repositories {
       return { ...row, metadata: { ...row.metadata } };
     },
     list: async (filter) => {
-      let rows = [...this.#store.audit.values()];
+      // Insertion order is append order, which is the order the hash chain was
+      // built in. Sorting by `occurredAt` here put ties in arbitrary order and so
+      // could not be re-walked.
+      let rows = [...this.#store.audit.values()].reverse();
       if (filter?.principalId) {
         rows = rows.filter((r) => r.principalId === filter.principalId);
       }
-      rows.sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
       const limit = filter?.limit ?? 50;
       return rows.slice(0, limit).map((r) => ({
         ...r,

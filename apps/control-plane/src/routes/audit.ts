@@ -1,4 +1,4 @@
-import { verifyAuditChain } from "@opensesame/audit";
+import { AUDIT_CHAIN_GENESIS, verifyAuditChain } from "@opensesame/audit";
 import {
   AuditChainVerifyResponseSchema,
   AuditEventListResponseSchema,
@@ -50,32 +50,46 @@ auditRoutes.get("/events", requirePrincipal(), async (c) => {
 });
 
 /**
- * Re-walk the caller's own trail and say whether it still hangs together.
+ * Re-walk the stored trail and say whether it still hangs together.
  *
- * A caller's events are a subsequence of the whole chain, so this checks each
- * event against its own digest rather than against its neighbour: `altered`
- * means an event's contents no longer produce the digest stored beside it.
+ * The chain is over the whole trail, not per principal — a caller's own events
+ * are a subsequence of it and cannot be checked against each other. So this walks
+ * the contiguous run the store returns, in append order, which is what makes a
+ * removed or reordered event detectable at all: `broken` is the shape a deletion
+ * takes, `altered` means an event's contents no longer produce its own digest.
+ *
+ * No event contents are returned, and `eventId` is withheld unless the failing
+ * event is the caller's own: whether somebody's trail was tampered with is worth
+ * telling any principal, but whose it was is not.
  */
 auditRoutes.get("/events/verify", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = c.get("principalId")!;
-  const events = await ctx.repos.auditEvents.list({ principalId, limit: 200 });
+  const events = await ctx.repos.auditEvents.list({ limit: 200 });
   const oldestFirst = [...events].reverse();
-  let verdict = AuditChainVerifyResponseSchema.parse({
-    ok: true,
-    checked: oldestFirst.length,
-  });
-  for (const event of oldestFirst) {
-    const single = verifyAuditChain([event], event.previousDigest ?? "");
-    if (!single.ok) {
-      verdict = AuditChainVerifyResponseSchema.parse({
-        ok: false,
+  // The window starts wherever the run does, so the first event is measured
+  // against the digest it already claims rather than against genesis.
+  const from = oldestFirst[0]?.previousDigest ?? AUDIT_CHAIN_GENESIS;
+  const result = verifyAuditChain(oldestFirst, from);
+  if (result.ok) {
+    return c.json(
+      AuditChainVerifyResponseSchema.parse({
+        ok: true,
         checked: oldestFirst.length,
-        reason: single.reason,
-        eventId: single.eventId,
-      });
-      break;
-    }
+      }),
+      200,
+    );
   }
-  return c.json(verdict, verdict.ok ? 200 : 409);
+  const failed = oldestFirst.find((e) => e.id === result.eventId);
+  return c.json(
+    AuditChainVerifyResponseSchema.parse({
+      ok: false,
+      checked: oldestFirst.length,
+      reason: result.reason,
+      ...(failed?.principalId === principalId
+        ? { eventId: result.eventId }
+        : {}),
+    }),
+    409,
+  );
 });

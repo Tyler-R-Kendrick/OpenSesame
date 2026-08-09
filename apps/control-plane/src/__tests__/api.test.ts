@@ -778,7 +778,7 @@ describe("control-plane API", () => {
   });
 
   it("creates organization and oauth client; lists scoped audit events", async () => {
-    const { app } = createControlPlane({
+    const { app, ctx } = createControlPlane({
       config: {
         port: 0,
         publicUrl: "http://127.0.0.1:8788",
@@ -868,6 +868,33 @@ describe("control-plane API", () => {
     });
     expect(verify.status).toBe(200);
     expect(await verify.json()).toMatchObject({ ok: true });
+
+    // The walk covers the contiguous run, not the caller's slice. That is what
+    // makes a removed event detectable: one principal's events are not adjacent in
+    // the trail, so a slice can only ever show `altered`. There is no repository
+    // method that deletes an audit event, so the removal case itself is covered by
+    // the unit tests in `packages/audit`.
+    await ctx.repos.auditEvents.append({
+      id: "evt_someone_else",
+      occurredAt: new Date(),
+      eventType: "organization.created",
+      outcome: "succeeded",
+      correlationId: "cor_someone_else",
+      principalId: "prn_someone_else",
+      metadata: {},
+    });
+    const everything = await ctx.repos.auditEvents.list({ limit: 200 });
+    const mine = await ctx.repos.auditEvents.list({
+      principalId: created.principalId,
+      limit: 200,
+    });
+    expect(everything.length).toBeGreaterThan(mine.length);
+
+    const verified = (await (
+      await app.request("/v1/audit/events/verify", { headers: auth })
+    ).json()) as { ok: boolean; checked: number; eventId?: string };
+    expect(verified.ok).toBe(true);
+    expect(verified.checked).toBe(everything.length);
   });
 
   it("holds a verified principal to an organization and client quota", async () => {

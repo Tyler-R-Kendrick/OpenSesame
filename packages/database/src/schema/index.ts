@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigserial,
   boolean,
   check,
   customType,
@@ -641,8 +642,16 @@ export const auditEvents = pgTable(
     /** Hash chain over the trail: each event names the digest of the one before it. */
     previousDigest: text("previous_digest"),
     digest: text("digest"),
+    /**
+     * Append order, which is the order the chain was built in. `occurred_at` is
+     * not that order: it comes from a clock, ties are common, and a tie sorts
+     * arbitrarily — so a trail read back by timestamp cannot be re-walked and a
+     * deletion cannot be told from a reordering.
+     */
+    seq: bigserial("seq", { mode: "number" }).notNull(),
   },
   (t) => [
+    index("audit_events_seq_idx").on(t.seq),
     index("audit_events_occurred_at_idx").on(t.occurredAt),
     index("audit_events_correlation_id_idx").on(t.correlationId),
     index("audit_events_principal_id_idx").on(t.principalId),
