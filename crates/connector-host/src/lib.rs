@@ -449,9 +449,23 @@ pub fn substitute_placeholder(
     }))
 }
 
+/// What the host holds for one connection: the projection it issued and the
+/// credential it will write behind that projection's placeholder.
+///
+/// Both belong to the host. A request may name the connection — that is what a
+/// reference is for — but it may not name the placeholder to fill or the material
+/// to fill it with, which is the whole point of L2.
+#[derive(Clone, Debug)]
+pub struct HostConnection {
+    pub projection: LegacyProjection,
+    pub material: String,
+}
+
 pub struct HostRuntime {
     pub policy: HostPolicy,
     pub mock: MockConnector,
+    /// connection_ref URI → what this host resolved for it.
+    pub connections: std::collections::HashMap<String, HostConnection>,
 }
 
 impl Default for HostRuntime {
@@ -460,9 +474,25 @@ impl Default for HostRuntime {
         policy
             .trusted_digests
             .insert("sha256:mock-connector".into());
+        let mut connections = std::collections::HashMap::new();
+        connections.insert(
+            "conn://demo".to_string(),
+            HostConnection {
+                projection: LegacyProjection {
+                    env_var: "OPENSESAME_PLACEHOLDER".into(),
+                    connection_ref_uri: "conn://demo".into(),
+                    placeholder_pattern: "ostest_*".into(),
+                    issued_placeholder: Some("ostest_placeholder_key0".into()),
+                    placement: PlaceholderPlacement::default(),
+                    delivery: opensesame_domain::CredentialDeliveryMode::Placeholder,
+                },
+                material: "ostest_injected_material".into(),
+            },
+        );
         Self {
             policy,
             mock: MockConnector,
+            connections,
         }
     }
 }
@@ -500,8 +530,6 @@ impl HostRuntime {
     }
 
     fn invoke_l2_placeholder(&self, req: &InvokeRequest) -> Result<InvokeResult, HostError> {
-        use opensesame_domain::CredentialDeliveryMode;
-
         let url = req
             .parameters
             .get("url")
@@ -512,36 +540,44 @@ impl HostRuntime {
             .get("method")
             .and_then(|v| v.as_str())
             .unwrap_or("GET");
-        let placeholder = req
+
+        // Credential material is never a request parameter. A caller that names it
+        // is either confused or trying to have the host write a string of its own
+        // choosing into an outbound request.
+        if req.parameters.get("material").is_some() {
+            return Err(HostError::MaterializeDenied);
+        }
+
+        let connection_ref = req
             .parameters
-            .get("placeholder")
+            .get("connection_ref")
             .and_then(|v| v.as_str())
-            .unwrap_or("ostest_placeholder_key0");
-        let material = req
-            .parameters
-            .get("material")
-            .and_then(|v| v.as_str())
-            .unwrap_or("ostest_injected_material");
+            .unwrap_or("conn://demo");
+        let conn = self
+            .connections
+            .get(connection_ref)
+            .ok_or_else(|| HostError::Connector("unknown connection".into()))?;
+        let proj = conn.projection.clone();
+        let placeholder = proj
+            .issued_placeholder
+            .clone()
+            .ok_or(HostError::PlaceholderMismatch)?;
+        // A request may repeat the placeholder it was handed — it has to, to place it
+        // — but it may not name a different one and have a credential follow.
+        if let Some(named) = req.parameters.get("placeholder").and_then(|v| v.as_str()) {
+            if named != placeholder {
+                return Err(HostError::PlaceholderMismatch);
+            }
+        }
+        let material = conn.material.clone();
+        let placeholder = placeholder.as_str();
+        let material = material.as_str();
         let header_name = req.parameters.get("header_name").and_then(|v| v.as_str());
         let header_value = req.parameters.get("header_value").and_then(|v| v.as_str());
         let body_field = req.parameters.get("body_field").and_then(|v| v.as_str());
         let body_value = req.parameters.get("body_value").and_then(|v| v.as_str());
 
-        let placement = PlaceholderPlacement::default();
-
-        let proj = LegacyProjection {
-            env_var: "OPENSESAME_PLACEHOLDER".into(),
-            connection_ref_uri: req
-                .parameters
-                .get("connection_ref")
-                .and_then(|v| v.as_str())
-                .unwrap_or("conn://demo")
-                .into(),
-            placeholder_pattern: "ostest_*".into(),
-            issued_placeholder: None,
-            placement: placement.clone(),
-            delivery: CredentialDeliveryMode::Placeholder,
-        };
+        let placement = proj.placement.clone();
 
         let injected = substitute_placeholder(
             &self.policy.egress,
@@ -1035,6 +1071,74 @@ mod tests {
     }
 
     #[test]
+    fn invoke_mock_l2_refuses_material_and_a_foreign_placeholder() {
+        let rt = HostRuntime::default();
+        // The host resolves the credential from the connection. A caller naming its
+        // own material is refused rather than obliged.
+        let with_material = json!({
+            "url": "https://api.github.com/repos/acme/x",
+            "method": "GET",
+            "header_name": "Authorization",
+            "header_value": "Bearer ostest_placeholder_key0",
+            "material": "attacker-chosen",
+        });
+        let err = rt
+            .invoke_mock(&InvokeRequest {
+                operation: "http.authorized".into(),
+                resource: "r".into(),
+                audience: "https://api.github.com".into(),
+                parameters: with_material.clone(),
+                parameters_digest: opensesame_param_digest(&with_material),
+                authorized_operation: "http.authorized".into(),
+                invoke_level: Some(2),
+            })
+            .unwrap_err();
+        assert!(matches!(err, HostError::MaterializeDenied), "{err:?}");
+
+        // Naming somebody else's placeholder does not get it filled either.
+        let foreign = json!({
+            "url": "https://api.github.com/repos/acme/x",
+            "method": "GET",
+            "header_name": "Authorization",
+            "header_value": "Bearer ostest_someone_elses0",
+            "placeholder": "ostest_someone_elses0",
+        });
+        let err = rt
+            .invoke_mock(&InvokeRequest {
+                operation: "http.authorized".into(),
+                resource: "r".into(),
+                audience: "https://api.github.com".into(),
+                parameters: foreign.clone(),
+                parameters_digest: opensesame_param_digest(&foreign),
+                authorized_operation: "http.authorized".into(),
+                invoke_level: Some(2),
+            })
+            .unwrap_err();
+        assert!(matches!(err, HostError::PlaceholderMismatch), "{err:?}");
+
+        // A connection this host holds nothing for cannot be exercised at all.
+        let unknown = json!({
+            "url": "https://api.github.com/repos/acme/x",
+            "method": "GET",
+            "header_name": "Authorization",
+            "header_value": "Bearer ostest_placeholder_key0",
+            "connection_ref": "conn://not-mine",
+        });
+        let err = rt
+            .invoke_mock(&InvokeRequest {
+                operation: "http.authorized".into(),
+                resource: "r".into(),
+                audience: "https://api.github.com".into(),
+                parameters: unknown.clone(),
+                parameters_digest: opensesame_param_digest(&unknown),
+                authorized_operation: "http.authorized".into(),
+                invoke_level: Some(2),
+            })
+            .unwrap_err();
+        assert!(matches!(err, HostError::Connector(_)), "{err:?}");
+    }
+
+    #[test]
     fn invoke_mock_l2_wrong_placement_denied() {
         let rt = HostRuntime::default();
         let ph = "ostest_placeholder_key0";
@@ -1043,7 +1147,6 @@ mod tests {
             "url": "https://api.github.com/repos/acme/x",
             "method": "POST",
             "placeholder": ph,
-            "material": "ostest_injected_material",
             "body_field": "message",
             "body_value": format!("exfil {ph}"),
         });
