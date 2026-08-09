@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
@@ -26,26 +26,72 @@ function defaultApi(issuer: string): string {
 }
 
 function sessionPath(): string {
+  // An explicit setting outranks the ambient one: OPENSESAME_STATE_DIR is a choice,
+  // XDG_RUNTIME_DIR is whatever the session manager happened to export.
   const base =
-    process.env.XDG_RUNTIME_DIR ??
     process.env.OPENSESAME_STATE_DIR ??
+    process.env.XDG_RUNTIME_DIR ??
     join(homedir(), ".config", "opensesame");
   return join(base, "identity-session.json");
 }
 
+function trimSlash(url: string): string {
+  return url.replace(/\/+$/u, "");
+}
+
+/**
+ * Refuse a session file anyone but its owner can read or write. A bearer token in
+ * a group-readable file is a bearer token every account on the box holds, and one
+ * in a writable file is a token another account gets to choose.
+ */
+async function assertPrivateFile(path: string): Promise<void> {
+  if (process.platform === "win32") return;
+  const info = await stat(path);
+  if ((info.mode & 0o077) !== 0) {
+    throw new Error(
+      `${path} is readable or writable by others (mode ${(info.mode & 0o777).toString(8)}); refusing to use it`,
+    );
+  }
+}
+
 async function loadSession(): Promise<SessionFile | null> {
+  const path = sessionPath();
   try {
-    const raw = await readFile(sessionPath(), "utf8");
+    await assertPrivateFile(path);
+  } catch (err) {
+    // Loud, not silent: a session the CLI will not touch is worth saying out loud.
+    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+    return null;
+  }
+  try {
+    const raw = await readFile(path, "utf8");
     return SessionFileSchema.parse(JSON.parse(raw));
   } catch {
     return null;
   }
 }
 
+/**
+ * A session is only the session for the issuer that minted it, and only until it
+ * expires. Reusing it against another issuer would forward one host's bearer to
+ * another host named by an environment variable.
+ */
+function sessionFor(session: SessionFile | null, issuer: string): SessionFile | null {
+  if (!session) return null;
+  if (trimSlash(session.issuer) !== trimSlash(issuer)) return null;
+  if (session.expiresAt !== undefined && session.expiresAt <= Date.now()) return null;
+  return session;
+}
+
 async function saveSession(session: SessionFile): Promise<void> {
   const path = sessionPath();
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, JSON.stringify(session), { mode: 0o600 });
+  // `mode` on writeFile only applies when the file is created, so a file left
+  // behind at 0644 by an earlier version would keep those bits forever.
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  const temp = `${path}.${process.pid}.tmp`;
+  await writeFile(temp, JSON.stringify(session), { mode: 0o600 });
+  await chmod(temp, 0o600);
+  await rename(temp, path);
 }
 
 async function clearSession(): Promise<void> {
@@ -191,7 +237,7 @@ async function dispatch(
     }
 
     case "auth-status": {
-      const session = await loadSession();
+      const session = sessionFor(await loadSession(), issuer);
       const cp = createControlPlaneClient({
         baseUrl: api,
         ...(session ? { accessToken: session.accessToken } : {}),
@@ -209,7 +255,8 @@ async function dispatch(
     }
 
     case "logout": {
-      const session = await loadSession();
+      // The local file goes either way; only a session minted here can be revoked.
+      const session = sessionFor(await loadSession(), issuer);
       if (session) {
         const cp = createControlPlaneClient({
           baseUrl: api,
@@ -228,7 +275,7 @@ async function dispatch(
     }
 
     case "whoami": {
-      const session = await loadSession();
+      const session = sessionFor(await loadSession(), issuer);
       if (!session) {
         emit(command.flags, "Not authenticated.", { authenticated: false });
         return 1;
@@ -244,7 +291,7 @@ async function dispatch(
     }
 
     case "project-create": {
-      const session = await loadSession();
+      const session = sessionFor(await loadSession(), issuer);
       if (!session) {
         process.stderr.write("Login required.\n");
         return 1;
@@ -264,7 +311,7 @@ async function dispatch(
     }
 
     case "claim-poll": {
-      const session = await loadSession();
+      const session = sessionFor(await loadSession(), issuer);
       const cp = createControlPlaneClient({
         baseUrl: api,
         ...(session ? { accessToken: session.accessToken } : {}),
