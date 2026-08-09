@@ -18,6 +18,14 @@ const MAX_LOCK_MS = 15 * 60_000;
 const MIN_ACCEPTED_ITERATIONS = 100_000;
 const MAX_ACCEPTED_ITERATIONS = 5_000_000;
 const MIN_SALT_BYTES = 16;
+/**
+ * When the pre-PBKDF2 record stops being accepted at all.
+ *
+ * Every unlock through a legacy record rewrites it at today's cost, so the only
+ * people left on it by this date are people who have not unlocked in months. A
+ * migration path with no end is a weak format kept alive forever.
+ */
+export const LEGACY_PIN_RETIRED_AFTER_MS = Date.UTC(2027, 0, 1);
 
 type AttemptState = { fails: number; lockedUntil: number };
 
@@ -232,6 +240,15 @@ export async function unlock(pin: string): Promise<void> {
   const stored = parseStored(raw);
 
   if ("legacySha256" in stored) {
+    if (Date.now() >= LEGACY_PIN_RETIRED_AFTER_MS) {
+      // An unsalted single-round hash is not something to keep accepting because
+      // someone once set it. Past the deadline the record is refused rather than
+      // upgraded: recreating a PIN costs a person one ceremony, and no vault data
+      // hangs off this record — it gates the session, it does not key the vault.
+      throw new Error(
+        "This unlock PIN uses a retired format — clear site data and set a new PIN.",
+      );
+    }
     const got = await sha256Hex(trimmed);
     if (!timingSafeEqualHex(got, stored.legacySha256)) {
       recordFailure();

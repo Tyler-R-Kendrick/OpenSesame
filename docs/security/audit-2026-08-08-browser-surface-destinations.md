@@ -46,8 +46,8 @@ It now shows the id half, and the panel's copy no longer claims the queue holds
 
 ## Not fixed here
 
-- The Pages outbox flush still sends `credentials: "include"` to the Identity API.
-  The destination is now validated, but cookie-bearing cross-origin ceremony calls
-  from a static page deserve a CSRF story of their own.
-- The console's operator token is still readable in a build that sets the variable.
-  Keeping it out of production builds remains a deployment convention, not a fence.
+- ~~The Pages outbox flush still sends `credentials: "include"`~~ — closed in
+  `audit-2026-08-08-browser-followups.md`: cookie-authenticated mutations require an
+  allowlisted `Origin`, and Pages sends the ambient session only to its own origin.
+- ~~The console's operator token is still readable in a build that sets the
+  variable~~ — closed: a production build refuses when the variable is set.

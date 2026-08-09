@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvSet } from "./kv.js";
 import {
+  LEGACY_PIN_RETIRED_AFTER_MS,
   changeUnlockPin,
   hasUnlockPin,
   isUnlocked,
@@ -61,6 +62,28 @@ describe("unlock PIN", () => {
     await unlock("legacy-pin");
     const upgraded = JSON.parse(kvGet("unlockHash.v1")!) as { v: number };
     expect(upgraded.v).toBe(1);
+  });
+
+  it("stops accepting the retired format once its deadline passes", async () => {
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode("legacy-pin"),
+    );
+    const hex = [...new Uint8Array(digest)]
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    kvSet("unlockHash.v1", hex);
+    lock();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(LEGACY_PIN_RETIRED_AFTER_MS));
+    try {
+      // The right PIN is not the point: the format is retired, so the record is
+      // refused rather than upgraded one more time.
+      await expect(unlock("legacy-pin")).rejects.toThrow(/retired format/);
+      expect(isUnlocked()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("will not let a new PIN stand in for knowing the old one", async () => {

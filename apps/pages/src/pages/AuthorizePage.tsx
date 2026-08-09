@@ -1,7 +1,8 @@
-import { Link } from "react-router";
 import { useState } from "react";
+import { Link } from "react-router";
 import { enqueue } from "../lib/queue.js";
 import { loadSettings } from "../lib/settings.js";
+import { credentialsFor } from "../lib/urls.js";
 
 export function AuthorizePage({ online }: { online: boolean }) {
   const [userCode, setUserCode] = useState("");
@@ -20,7 +21,9 @@ export function AuthorizePage({ online }: { online: boolean }) {
 
     if (!online) {
       enqueue({ kind: "device_approve", userCode: code });
-      setStatus("Offline — approval queued. Open Queue when you are back online.");
+      setStatus(
+        "Offline — approval queued. Open Queue when you are back online.",
+      );
       return;
     }
 
@@ -31,7 +34,7 @@ export function AuthorizePage({ online }: { online: boolean }) {
       const res = await fetch(`${base}/v1/device/approve`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        credentials: "include",
+        credentials: credentialsFor(base),
         body: JSON.stringify({ user_code: code }),
       });
       if (!res.ok) {
@@ -52,8 +55,8 @@ export function AuthorizePage({ online }: { online: boolean }) {
     <section className="panel">
       <h1>Authorize CLI</h1>
       <p>
-        Grants a short-lived client session only — it does{" "}
-        <strong>not</strong> transfer ownership. That ceremony lives under{" "}
+        Grants a short-lived client session only — it does <strong>not</strong>{" "}
+        transfer ownership. That ceremony lives under{" "}
         <Link to="/claim">Claim ownership</Link>. Approvals go to the Identity
         API, not the Host API.
       </p>

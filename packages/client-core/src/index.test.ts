@@ -52,9 +52,31 @@ describe("client-core façade", () => {
 
   it("will not persist a document that is not a sealed store", async () => {
     await expect(
-      persistSealedStore("t", '{"plaintext":"no"}'),
+      persistSealedStore("pages-device", '{"plaintext":"no"}'),
     ).rejects.toThrow();
-    await expect(persistSealedStore("t", sealed)).resolves.toBeUndefined();
+    await expect(
+      persistSealedStore("pages-device", sealed),
+    ).resolves.toBeUndefined();
+  });
+
+  it("will not adopt a sealed store that belongs to another device", async () => {
+    const mine = JSON.stringify({
+      cursor: { device_id: "device-a", epoch: 2 },
+      blobs: [],
+    });
+    const theirs = JSON.stringify({
+      cursor: { device_id: "device-b", epoch: 99 },
+      blobs: [],
+    });
+    await persistSealedStore("device-a", mine);
+    // A well-formed store is still somebody else's if it names another device.
+    await expect(persistSealedStore("device-a", theirs)).rejects.toThrow(
+      /another device/,
+    );
+    expect(await loadSealedStore("device-a")).toBe(mine);
+    // And one copied in under our own name is read as absent, not as our identity.
+    await persistSealedStore("device-b", theirs);
+    expect(await loadSealedStore("device-b")).toBe(theirs);
   });
 
   it("bounds what a stored cursor is allowed to say about a device", () => {
@@ -88,11 +110,11 @@ describe("client-core façade", () => {
   });
 
   it("treats an unusable stored file as absent rather than as truth", async () => {
-    await persistSealedStore("half", sealed);
-    expect(await loadSealedStore("half")).toBe(sealed);
+    await persistSealedStore("pages-device", sealed);
+    expect(await loadSealedStore("pages-device")).toBe(sealed);
     // A truncated or planted file must not be handed back to be adopted.
     await expect(
-      persistSealedStore("half", '{"cursor":{"device_id":"d"'),
+      persistSealedStore("pages-device", '{"cursor":{"device_id":"d"'),
     ).rejects.toThrow();
     expect(await loadSealedStore("nothing-here")).toBeNull();
   });

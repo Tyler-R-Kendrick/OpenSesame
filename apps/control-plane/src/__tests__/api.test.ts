@@ -655,6 +655,43 @@ describe("control-plane API", () => {
     expect(body.toLowerCase()).not.toContain("x-opensesame-operator");
   });
 
+  it("does not let an ambient cookie approve a device from another origin", async () => {
+    const { app, config } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+        corsOrigins: ["https://console.example"],
+      },
+    });
+    const created = await provisional(app);
+    const cookie = `${config.provisionalCookieName}=${created.accessToken}`;
+    const approve = (headers: Record<string, string>) =>
+      app.request("/v1/device/approve", {
+        method: "POST",
+        headers: { cookie, "content-type": "application/json", ...headers },
+        body: JSON.stringify({ user_code: "ABCD-EFGH" }),
+      });
+
+    // A cookie arrives whether or not the page meant to send it.
+    expect((await approve({})).status).toBe(401);
+    expect((await approve({ origin: "https://evil.example" })).status).toBe(
+      401,
+    );
+    // An origin this deployment listed, or its own, is a caller it expects.
+    expect([200, 404, 502]).toContain(
+      (await approve({ origin: "https://console.example" })).status,
+    );
+    expect([200, 404, 502]).toContain(
+      (await approve({ origin: "http://127.0.0.1:8788" })).status,
+    );
+    // Reads are untouched: a forged read is not a forged write.
+    const read = await app.request("/v1/audit/events", {
+      headers: { cookie, origin: "https://evil.example" },
+    });
+    expect(read.status).toBe(200);
+  });
+
   it("links and lists identities without email auto-link; collision returns 409", async () => {
     const { app } = createControlPlane({
       config: {

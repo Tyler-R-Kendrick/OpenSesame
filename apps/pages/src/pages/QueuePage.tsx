@@ -8,6 +8,7 @@ import {
   recordAttempt,
 } from "../lib/queue.js";
 import { loadSettings } from "../lib/settings.js";
+import { credentialsFor } from "../lib/urls.js";
 
 export function QueuePage({ online }: { online: boolean }) {
   const [items, setItems] = useState<QueuedAction[]>([]);
@@ -42,7 +43,7 @@ export function QueuePage({ online }: { online: boolean }) {
           const res = await fetch(`${base}/v1/device/approve`, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            credentials: "include",
+            credentials: credentialsFor(base),
             body: JSON.stringify({ user_code: item.userCode }),
           });
           if (!res.ok) {
