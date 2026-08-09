@@ -27,7 +27,18 @@ export function App() {
     setBusy(true);
     setHostOk(null);
     setDaemonOk(null);
-    const client = createApiClient({ baseUrl: hostApi });
+    let client: ReturnType<typeof createApiClient>;
+    try {
+      // A build pointed somewhere this client will not send a bearer says so once,
+      // rather than failing every call with a network error.
+      client = createApiClient({ baseUrl: hostApi });
+    } catch (e) {
+      setHostOk(false);
+      setPersistErr(true);
+      setPersistOk(e instanceof Error ? e.message : "Host API misconfigured");
+      setBusy(false);
+      return;
+    }
     try {
       const h = await client.health();
       setHostOk(h.ok);
