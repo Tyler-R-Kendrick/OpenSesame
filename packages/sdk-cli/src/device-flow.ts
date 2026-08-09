@@ -1,4 +1,9 @@
-import { assertDiscoveryBelongsToIssuer, assertSecureUrl, trimSlash } from "./secure-url.js";
+import {
+  assertDiscoveredUrl,
+  assertDiscoveryBelongsToIssuer,
+  assertSecureUrl,
+  trimSlash,
+} from "./secure-url.js";
 
 export interface DeviceAuthorizationResponse {
   device_code: string;
@@ -96,10 +101,16 @@ export class DeviceFlowClient {
     };
     assertDiscoveryBelongsToIssuer(doc, this.#issuer);
     if (!doc.device_authorization_endpoint) {
-      throw new Error("issuer does not advertise device_authorization_endpoint");
+      throw new Error(
+        "issuer does not advertise device_authorization_endpoint",
+      );
     }
-    assertSecureUrl(doc.device_authorization_endpoint, "device_authorization_endpoint");
-    assertSecureUrl(doc.token_endpoint, "token_endpoint");
+    assertDiscoveredUrl(
+      doc.device_authorization_endpoint,
+      "device_authorization_endpoint",
+      this.#issuer,
+    );
+    assertDiscoveredUrl(doc.token_endpoint, "token_endpoint", this.#issuer);
     this.#meta = {
       device_authorization_endpoint: doc.device_authorization_endpoint,
       token_endpoint: doc.token_endpoint,
@@ -130,12 +141,20 @@ export class DeviceFlowClient {
     // phishing page with the CLI's own voice behind it.
     assertSecureUrl(data.verification_uri, "verification_uri");
     if (data.verification_uri_complete !== undefined) {
-      assertSecureUrl(data.verification_uri_complete, "verification_uri_complete");
+      assertSecureUrl(
+        data.verification_uri_complete,
+        "verification_uri_complete",
+      );
     }
     this.#deviceCode = data.device_code;
-    this.#intervalSeconds = Math.min(data.interval ?? 5, MAX_POLL_INTERVAL_SECONDS);
+    this.#intervalSeconds = Math.min(
+      data.interval ?? 5,
+      MAX_POLL_INTERVAL_SECONDS,
+    );
     this.#expiresAt =
-      typeof data.expires_in === "number" ? Date.now() + data.expires_in * 1000 : undefined;
+      typeof data.expires_in === "number"
+        ? Date.now() + data.expires_in * 1000
+        : undefined;
     const safe: SafeDeviceStart = {
       userCode: data.user_code,
       verificationUri: data.verification_uri,
@@ -171,16 +190,24 @@ export class DeviceFlowClient {
     }
     const error = String(json.error ?? "unknown");
     if (error === "authorization_pending") {
-      return { status: "authorization_pending", intervalSeconds: this.#intervalSeconds };
+      return {
+        status: "authorization_pending",
+        intervalSeconds: this.#intervalSeconds,
+      };
     }
     if (error === "slow_down") {
-      this.#intervalSeconds = Math.min(this.#intervalSeconds + 5, MAX_POLL_INTERVAL_SECONDS);
+      this.#intervalSeconds = Math.min(
+        this.#intervalSeconds + 5,
+        MAX_POLL_INTERVAL_SECONDS,
+      );
       return { status: "slow_down", intervalSeconds: this.#intervalSeconds };
     }
     if (error === "access_denied") return { status: "access_denied" };
     if (error === "expired_token") return { status: "expired_token" };
     const description =
-      typeof json.error_description === "string" ? json.error_description : undefined;
+      typeof json.error_description === "string"
+        ? json.error_description
+        : undefined;
     return description !== undefined
       ? { status: "error", error, description }
       : { status: "error", error };

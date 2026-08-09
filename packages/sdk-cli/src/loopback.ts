@@ -1,6 +1,15 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from "node:http";
 import { createHash, randomBytes } from "node:crypto";
-import { assertDiscoveryBelongsToIssuer, assertSecureUrl, trimSlash } from "./secure-url.js";
+import {
+  assertDiscoveredUrl,
+  assertDiscoveryBelongsToIssuer,
+  assertSecureUrl,
+  trimSlash,
+} from "./secure-url.js";
 
 export interface LoopbackLoginConfig {
   issuer: string;
@@ -52,7 +61,8 @@ export async function loopbackLogin(
   const discoveryRes = await fetchImpl(
     `${issuer}/.well-known/openid-configuration`,
   );
-  if (!discoveryRes.ok) throw new Error(`discovery failed: ${discoveryRes.status}`);
+  if (!discoveryRes.ok)
+    throw new Error(`discovery failed: ${discoveryRes.status}`);
   const meta = (await discoveryRes.json()) as {
     issuer?: string;
     authorization_endpoint: string;
@@ -61,8 +71,12 @@ export async function loopbackLogin(
   // This document says where the code and the verifier go. Take it only from the
   // issuer that names itself, and only over a channel nobody can rewrite.
   assertDiscoveryBelongsToIssuer(meta, issuer);
-  assertSecureUrl(meta.authorization_endpoint, "authorization_endpoint");
-  assertSecureUrl(meta.token_endpoint, "token_endpoint");
+  assertDiscoveredUrl(
+    meta.authorization_endpoint,
+    "authorization_endpoint",
+    issuer,
+  );
+  assertDiscoveredUrl(meta.token_endpoint, "token_endpoint", issuer);
 
   const { verifier, challenge, state } = pkce();
   const scopes = (config.scopes ?? ["openid", "profile"]).join(" ");
@@ -75,68 +89,72 @@ export async function loopbackLogin(
       server.closeAllConnections?.();
       server.close();
     };
-    const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-      try {
-        const url = new URL(req.url ?? "/", "http://127.0.0.1");
-        if (url.pathname !== "/callback") {
-          res.writeHead(404);
-          res.end("not found");
-          return;
-        }
-        // Anything on this port that does not carry our state is not our redirect.
-        // Answer it and keep waiting: letting a stray local request end the login
-        // hands any process on the box a way to cancel it.
-        const returnedState = url.searchParams.get("state");
-        if (returnedState !== state) {
-          res.writeHead(400, { "content-type": "text/plain" });
-          res.end("not this login");
-          return;
-        }
-        const err = url.searchParams.get("error");
-        if (err) {
-          res.writeHead(400, { "content-type": "text/plain" });
-          res.end("Authorization was refused. You can close this window.");
+    const server = createServer(
+      async (req: IncomingMessage, res: ServerResponse) => {
+        try {
+          const url = new URL(req.url ?? "/", "http://127.0.0.1");
+          if (url.pathname !== "/callback") {
+            res.writeHead(404);
+            res.end("not found");
+            return;
+          }
+          // Anything on this port that does not carry our state is not our redirect.
+          // Answer it and keep waiting: letting a stray local request end the login
+          // hands any process on the box a way to cancel it.
+          const returnedState = url.searchParams.get("state");
+          if (returnedState !== state) {
+            res.writeHead(400, { "content-type": "text/plain" });
+            res.end("not this login");
+            return;
+          }
+          const err = url.searchParams.get("error");
+          if (err) {
+            res.writeHead(400, { "content-type": "text/plain" });
+            res.end("Authorization was refused. You can close this window.");
+            shutdown();
+            reject(new Error(err));
+            return;
+          }
+          const code = url.searchParams.get("code");
+          if (!code) {
+            res.writeHead(400);
+            res.end("invalid callback");
+            shutdown();
+            reject(new Error("invalid callback"));
+            return;
+          }
+          const body = new URLSearchParams({
+            grant_type: "authorization_code",
+            code,
+            redirect_uri: redirectUri,
+            client_id: config.clientId,
+            code_verifier: verifier,
+          });
+          const tokenRes = await fetchImpl(meta.token_endpoint, {
+            method: "POST",
+            headers: { "content-type": "application/x-www-form-urlencoded" },
+            body,
+          });
+          if (!tokenRes.ok) {
+            res.writeHead(500);
+            res.end("token exchange failed");
+            shutdown();
+            reject(new Error(`token exchange failed: ${tokenRes.status}`));
+            return;
+          }
+          const tokens = (await tokenRes.json()) as LoopbackTokens;
+          res.writeHead(200, { "content-type": "text/html" });
+          res.end(
+            "<html><body><h1>Signed in</h1><p>You can close this window.</p></body></html>",
+          );
           shutdown();
-          reject(new Error(err));
-          return;
-        }
-        const code = url.searchParams.get("code");
-        if (!code) {
-          res.writeHead(400);
-          res.end("invalid callback");
+          resolve(tokens);
+        } catch (e) {
           shutdown();
-          reject(new Error("invalid callback"));
-          return;
+          reject(e);
         }
-        const body = new URLSearchParams({
-          grant_type: "authorization_code",
-          code,
-          redirect_uri: redirectUri,
-          client_id: config.clientId,
-          code_verifier: verifier,
-        });
-        const tokenRes = await fetchImpl(meta.token_endpoint, {
-          method: "POST",
-          headers: { "content-type": "application/x-www-form-urlencoded" },
-          body,
-        });
-        if (!tokenRes.ok) {
-          res.writeHead(500);
-          res.end("token exchange failed");
-          shutdown();
-          reject(new Error(`token exchange failed: ${tokenRes.status}`));
-          return;
-        }
-        const tokens = (await tokenRes.json()) as LoopbackTokens;
-        res.writeHead(200, { "content-type": "text/html" });
-        res.end("<html><body><h1>Signed in</h1><p>You can close this window.</p></body></html>");
-        shutdown();
-        resolve(tokens);
-      } catch (e) {
-        shutdown();
-        reject(e);
-      }
-    });
+      },
+    );
 
     let redirectUri = "";
     server.listen(0, "127.0.0.1", () => {
@@ -154,7 +172,9 @@ export async function loopbackLogin(
       auth.searchParams.set("state", state);
       auth.searchParams.set("code_challenge", challenge);
       auth.searchParams.set("code_challenge_method", "S256");
-      void Promise.resolve(config.openBrowser?.(auth.toString())).catch(() => undefined);
+      void Promise.resolve(config.openBrowser?.(auth.toString())).catch(
+        () => undefined,
+      );
       timer = setTimeout(() => {
         shutdown();
         reject(new Error("timed out waiting for the authorization redirect"));
