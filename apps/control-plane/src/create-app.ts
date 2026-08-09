@@ -55,8 +55,16 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     config.databaseUrl ? { databaseUrl: config.databaseUrl } : undefined,
   );
   // Every audit write goes through the chain, so a trail cannot be quietly
-  // rewritten by anything that cannot recompute every later digest.
-  const chainedAudit = createChainedAuditSink(baseRepos.auditEvents);
+  // rewritten by anything that cannot recompute every later digest. The tip is
+  // read from the store on the first append: starting each process at genesis
+  // would leave one disconnected run per restart, which is indistinguishable
+  // from a deleted tail.
+  const chainedAudit = createChainedAuditSink(baseRepos.auditEvents, {
+    tip: async () => {
+      const [newest] = await baseRepos.auditEvents.list({ limit: 1 });
+      return newest?.digest;
+    },
+  });
   const repos: typeof baseRepos = {
     ...baseRepos,
     auditEvents: {

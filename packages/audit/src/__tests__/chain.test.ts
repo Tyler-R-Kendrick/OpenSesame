@@ -126,6 +126,66 @@ describe("audit chain", () => {
     expect(verifyAuditChain(first.rows).ok).toBe(true);
   });
 
+  it("reads the tip from the store rather than restarting at genesis", async () => {
+    const store = memorySink();
+    const before = createChainedAuditSink(store);
+    await appendAuditEvent(before, {
+      eventType: "a.one",
+      outcome: "succeeded",
+    });
+    await appendAuditEvent(before, {
+      eventType: "a.two",
+      outcome: "succeeded",
+    });
+
+    // A restart: a new sink over the same store, told how to find the tail.
+    const after = createChainedAuditSink(store, {
+      tip: async () => store.rows[store.rows.length - 1]?.digest,
+    });
+    await appendAuditEvent(after, {
+      eventType: "a.three",
+      outcome: "succeeded",
+    });
+
+    // One trail across the restart, not two runs that each begin at genesis.
+    expect(verifyAuditChain(store.rows).ok).toBe(true);
+    expect(store.rows[2]?.previousDigest).toBe(store.rows[1]?.digest);
+    expect(
+      store.rows.filter((r) => r.previousDigest === AUDIT_CHAIN_GENESIS),
+    ).toHaveLength(1);
+  });
+
+  it("resolves the tip once, even under concurrent appends", async () => {
+    const store = memorySink();
+    let reads = 0;
+    const sink = createChainedAuditSink(store, {
+      tip: async () => {
+        reads += 1;
+        return undefined;
+      },
+    });
+    await Promise.all(
+      ["a.one", "a.two", "a.three"].map((eventType) =>
+        appendAuditEvent(sink, { eventType, outcome: "succeeded" }),
+      ),
+    );
+    expect(reads).toBe(1);
+    expect(verifyAuditChain(store.rows).ok).toBe(true);
+  });
+
+  it("still writes the event when the tip cannot be read", async () => {
+    const store = memorySink();
+    const sink = createChainedAuditSink(store, {
+      tip: async () => {
+        throw new Error("store unavailable");
+      },
+    });
+    // Losing the event would be worse than a chain with a visible seam.
+    await appendAuditEvent(sink, { eventType: "a.one", outcome: "succeeded" });
+    expect(store.rows).toHaveLength(1);
+    expect(store.rows[0]?.previousDigest).toBe(AUDIT_CHAIN_GENESIS);
+  });
+
   it("does not advance the tip past an append that failed", async () => {
     const store = memorySink();
     let failNext = true;

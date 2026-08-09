@@ -70,8 +70,16 @@ export function auditEventDigest(
 }
 
 export interface ChainedAuditSinkOptions {
-  /** Digest of the newest event already in the store, when resuming a trail. */
-  tip?: string;
+  /**
+   * Digest of the newest event already in the store.
+   *
+   * Without it a process starts a fresh chain at genesis, and a trail becomes one
+   * disconnected run per process lifetime — which is also exactly what deleting a
+   * contiguous tail looks like. A function is accepted because the tip has to be
+   * read from the store, and it is resolved once, before the first append, inside
+   * the same queue that serializes appends.
+   */
+  tip?: string | (() => Promise<string | undefined>);
 }
 
 /**
@@ -85,10 +93,24 @@ export function createChainedAuditSink(
   inner: AuditSink,
   options: ChainedAuditSinkOptions = {},
 ): AuditSink & { tip(): string } {
-  let tip = options.tip ?? AUDIT_CHAIN_GENESIS;
+  let tip = typeof options.tip === "string" ? options.tip : AUDIT_CHAIN_GENESIS;
+  const resolveTip =
+    typeof options.tip === "function" ? options.tip : undefined;
+  let resolved = resolveTip === undefined;
   let queue: Promise<unknown> = Promise.resolve();
 
   async function link(event: AuditEvent): Promise<AuditEvent> {
+    if (!resolved && resolveTip) {
+      // A store that cannot be read leaves the tip at genesis: refusing to write
+      // the event would lose the trail entirely, which is worse than a chain with
+      // a visible seam in it.
+      resolved = true;
+      try {
+        tip = (await resolveTip()) ?? AUDIT_CHAIN_GENESIS;
+      } catch {
+        tip = AUDIT_CHAIN_GENESIS;
+      }
+    }
     const previousDigest = tip;
     const linked: AuditEvent = {
       ...event,

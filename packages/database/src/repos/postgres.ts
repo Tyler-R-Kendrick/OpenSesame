@@ -613,7 +613,9 @@ export class PostgresRepositories implements Repositories {
       let query = this.db
         .select()
         .from(schema.auditEvents)
-        .orderBy(desc(schema.auditEvents.occurredAt))
+        // Append order, newest first. Ordering by `occurred_at` cannot re-walk the
+        // hash chain: it comes from a clock, and ties sort arbitrarily.
+        .orderBy(desc(schema.auditEvents.seq))
         .limit(limit)
         .$dynamic();
       if (filter?.principalId) {
