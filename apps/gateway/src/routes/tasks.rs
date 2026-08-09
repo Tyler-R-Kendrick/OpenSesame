@@ -32,6 +32,24 @@ fn default_ttl_secs() -> i64 {
     3600
 }
 
+/// The longest a task's authority may be asked to live. A day is already generous
+/// for something meant to cover one unit of work.
+const MAX_TASK_TTL_SECS: i64 = 24 * 60 * 60;
+
+/// The most capabilities one ceiling may name. A ceiling is meant to be the small
+/// list of things a task needs, and it is digested and carried on every intent.
+const MAX_TASK_CAPABILITIES: usize = 64;
+
+/// A TTL is a number the caller chose. Unbounded, it is either authority that
+/// outlives any reason to trust it or, at the extremes of `i64`, arithmetic that
+/// `chrono` refuses by panicking — taking the request down instead of answering it.
+fn bounded_ttl(seconds: i64) -> Option<Duration> {
+    if seconds <= 0 || seconds > MAX_TASK_TTL_SECS {
+        return None;
+    }
+    Some(Duration::seconds(seconds))
+}
+
 #[derive(Deserialize, Clone)]
 pub struct CapabilityDto {
     pub action: String,
@@ -65,6 +83,20 @@ pub async fn start_task(
         ));
     }
     let org = OrganizationId::parse(&body.organization_id).map_err(bad_req)?;
+    let ttl = bounded_ttl(body.ttl_seconds).ok_or_else(|| {
+        err_json(
+            StatusCode::BAD_REQUEST,
+            "ttl_out_of_range",
+            "ttl_seconds must be between 1 and 86400",
+        )
+    })?;
+    if body.capabilities.is_empty() || body.capabilities.len() > MAX_TASK_CAPABILITIES {
+        return Err(err_json(
+            StatusCode::BAD_REQUEST,
+            "capability_count_out_of_range",
+            "a task ceiling must name between 1 and 64 capabilities",
+        ));
+    }
     let caps = CapabilitySet::new(
         body.capabilities
             .into_iter()
@@ -96,7 +128,7 @@ pub async fn start_task(
             template_id: TaskTemplateId::new(),
             authority_context: ctx,
             ceiling: ceiling.clone(),
-            maximum_expires_at: now + Duration::seconds(body.ttl_seconds),
+            maximum_expires_at: now + ttl,
             now,
         })
         .map_err(bad_req)?;
@@ -410,6 +442,25 @@ mod tests {
             expires_at: Utc::now() + Duration::minutes(expires_in_minutes),
             intent_digest: "sha256:intent".into(),
         }
+    }
+
+    #[test]
+    fn a_caller_chosen_ttl_stays_inside_what_chrono_and_trust_allow() {
+        assert!(super::bounded_ttl(3600).is_some());
+        assert!(super::bounded_ttl(super::MAX_TASK_TTL_SECS).is_some());
+        for refused in [0, -1, super::MAX_TASK_TTL_SECS + 1, i64::MAX, i64::MIN] {
+            assert!(
+                super::bounded_ttl(refused).is_none(),
+                "{refused} should be refused"
+            );
+        }
+        // Why the bound is checked before the duration is built: chrono answers an
+        // out-of-range second count with a panic, not an error.
+        let hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let refused_by_chrono = std::panic::catch_unwind(|| Duration::seconds(i64::MAX)).is_err();
+        std::panic::set_hook(hook);
+        assert!(refused_by_chrono);
     }
 
     #[test]

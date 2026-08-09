@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { daemonFetch, hostFetch } from "./host-api.js";
 import {
+  clearFrozenIntent,
   getTaskContext,
   requireFrozenIntent,
   requireTaskRunId,
@@ -39,8 +40,10 @@ export function registerHostTools(server: McpServer): void {
     {
       principal_id: z.string(),
       organization_id: z.string(),
-      capabilities: z.array(capabilitySchema).min(1),
-      ttl_seconds: z.number().int().positive().optional(),
+      // Bounds mirror the Host API's: a ceiling is a short list, and a task's
+      // authority should not outlive the reason it was granted.
+      capabilities: z.array(capabilitySchema).min(1).max(64),
+      ttl_seconds: z.number().int().positive().max(86_400).optional(),
     },
     async ({ principal_id, organization_id, capabilities, ttl_seconds }) => {
       try {
@@ -80,7 +83,8 @@ export function registerHostTools(server: McpServer): void {
         const res = await hostFetch(`/api/v1/tasks/${encodeURIComponent(id)}`);
         const body = await res.json();
         if (res.ok) {
-          updateTaskFromResponse(body);
+          // A status read refreshes the active task; it does not switch to another.
+          updateTaskFromResponse(body, { adopt: false });
         }
         return {
           content: textContent(JSON.stringify(body)),
@@ -231,6 +235,9 @@ export function registerHostTools(server: McpServer): void {
           }),
         });
         const body = await res.json();
+        // The digest has been spent. Keeping it in context invites a second call
+        // that can only be refused, and describes authority that no longer exists.
+        clearFrozenIntent();
         return {
           content: textContent(JSON.stringify(body)),
           isError: !res.ok || body?.error === "materialize_denied",

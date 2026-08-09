@@ -166,7 +166,10 @@ fn complete_gate(
     let Some(expected) = session.user_code_hash.as_ref() else {
         return CompleteGate::NoUserCode;
     };
-    if !hash_eq(&claim_user_code_digest(pepper, claim_id, user_code), expected) {
+    if !hash_eq(
+        &claim_user_code_digest(pepper, claim_id, user_code),
+        expected,
+    ) {
         return CompleteGate::BadUserCode;
     }
     CompleteGate::Allowed

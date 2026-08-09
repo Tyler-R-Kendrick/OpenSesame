@@ -5,9 +5,12 @@ import {
   registerHostTools,
 } from "./tools.js";
 import {
+  clearFrozenIntent,
   getTaskContext,
+  requireFrozenIntent,
   requireTaskRunId,
   setTaskContext,
+  updateTaskFromResponse,
 } from "./task-context.js";
 import {
   daemonBase,
@@ -156,5 +159,53 @@ describe("mcp-host tools", () => {
     setTaskContext({ taskRunId: "abc", stateVersion: 2 });
     expect(getTaskContext()?.taskRunId).toBe("abc");
     expect(requireTaskRunId()).toBe("abc");
+  });
+
+  it("a read of another task does not become a move to it", () => {
+    setTaskContext({
+      taskRunId: "mine",
+      stateVersion: 2,
+      frozenIntent: {
+        intentId: "i1",
+        intentDigest: "sha256:i1",
+        operation: "read",
+        resource: "r",
+        audience: "https://api.example.test",
+        canonicalArguments: {},
+      },
+    });
+
+    // task_status passes a task_run_id the model chose.
+    updateTaskFromResponse({ task_run_id: "someone-elses", state_version: 9 }, { adopt: false });
+    expect(getTaskContext()?.taskRunId).toBe("mine");
+    expect(getTaskContext()?.frozenIntent?.intentDigest).toBe("sha256:i1");
+
+    // The same task's state still refreshes, and the intent rides along.
+    updateTaskFromResponse({ task_run_id: "mine", state_version: 3 }, { adopt: false });
+    expect(getTaskContext()?.stateVersion).toBe(3);
+    expect(getTaskContext()?.frozenIntent?.intentDigest).toBe("sha256:i1");
+
+    // Starting a task adopts it, and drops an intent frozen against the old one.
+    updateTaskFromResponse({ task_run_id: "fresh", state_version: 1 });
+    expect(getTaskContext()?.taskRunId).toBe("fresh");
+    expect(getTaskContext()?.frozenIntent).toBeUndefined();
+  });
+
+  it("forgets a spent intent", () => {
+    setTaskContext({
+      taskRunId: "t",
+      stateVersion: 1,
+      frozenIntent: {
+        intentId: "i",
+        intentDigest: "sha256:i",
+        operation: "read",
+        resource: "r",
+        audience: "https://api.example.test",
+        canonicalArguments: {},
+      },
+    });
+    clearFrozenIntent();
+    expect(getTaskContext()?.taskRunId).toBe("t");
+    expect(() => requireFrozenIntent()).toThrow("frozen_intent_required");
   });
 });
