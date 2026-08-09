@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { forAgent, scrubLocalSecrets } from "./agent-payload.js";
 import { daemonFetch, hostFetch } from "./host-api.js";
 import {
   clearFrozenIntent,
@@ -62,7 +63,7 @@ export function registerHostTools(server: McpServer): void {
           updateTaskFromResponse(body);
         }
         return {
-          content: textContent(JSON.stringify(body)),
+          content: textContent(forAgent(JSON.stringify(body))),
           isError: !res.ok,
         };
       } catch (e) {
@@ -87,7 +88,7 @@ export function registerHostTools(server: McpServer): void {
           updateTaskFromResponse(body, { adopt: false });
         }
         return {
-          content: textContent(JSON.stringify(body)),
+          content: textContent(forAgent(JSON.stringify(body))),
           isError: !res.ok,
         };
       } catch (e) {
@@ -106,7 +107,13 @@ export function registerHostTools(server: McpServer): void {
       arguments: z.record(z.unknown()).default({}),
       idempotency_key: z.string().optional(),
     },
-    async ({ operation, resource, audience, arguments: args, idempotency_key }) => {
+    async ({
+      operation,
+      resource,
+      audience,
+      arguments: args,
+      idempotency_key,
+    }) => {
       try {
         const ctx = getTaskContext();
         if (!ctx?.taskRunId) {
@@ -141,7 +148,7 @@ export function registerHostTools(server: McpServer): void {
           });
         }
         return {
-          content: textContent(JSON.stringify(body)),
+          content: textContent(forAgent(JSON.stringify(body))),
           isError: !res.ok,
         };
       } catch (e) {
@@ -161,20 +168,23 @@ export function registerHostTools(server: McpServer): void {
       try {
         const id = task_run_id ?? requireTaskRunId();
         const ctx = getTaskContext();
-        const res = await hostFetch(`/api/v1/tasks/${encodeURIComponent(id)}/terminate`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            expected_state_version:
-              expected_state_version ?? ctx?.stateVersion ?? undefined,
-          }),
-        });
+        const res = await hostFetch(
+          `/api/v1/tasks/${encodeURIComponent(id)}/terminate`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              expected_state_version:
+                expected_state_version ?? ctx?.stateVersion ?? undefined,
+            }),
+          },
+        );
         const body = await res.json();
         if (res.ok && ctx?.taskRunId === id) {
           setTaskContext(null);
         }
         return {
-          content: textContent(JSON.stringify(body)),
+          content: textContent(forAgent(JSON.stringify(body))),
           isError: !res.ok,
         };
       } catch (e) {
@@ -187,7 +197,7 @@ export function registerHostTools(server: McpServer): void {
     try {
       const res = await daemonFetch("/v1/toolbar/status");
       const body = await res.json();
-      return { content: textContent(JSON.stringify(body)) };
+      return { content: textContent(forAgent(JSON.stringify(body))) };
     } catch (e) {
       return toolError("daemon_unavailable", e);
     }
@@ -199,7 +209,13 @@ export function registerHostTools(server: McpServer): void {
       const text = await res.text();
       return {
         content: textContent(
-          JSON.stringify({ status: res.status, body: text, tools: hostTools }),
+          forAgent(
+            JSON.stringify({
+              status: res.status,
+              body: text,
+              tools: hostTools,
+            }),
+          ),
         ),
       };
     } catch (e) {
@@ -239,7 +255,7 @@ export function registerHostTools(server: McpServer): void {
         // that can only be refused, and describes authority that no longer exists.
         clearFrozenIntent();
         return {
-          content: textContent(JSON.stringify(body)),
+          content: textContent(forAgent(JSON.stringify(body))),
           isError: !res.ok || body?.error === "materialize_denied",
         };
       } catch (e) {
@@ -256,7 +272,10 @@ function textContent(text: string) {
 function toolError(label: string, e: unknown) {
   const message = e instanceof Error ? e.message : String(e);
   return {
-    content: textContent(`${label}: ${message}`),
+    // An error message can carry a URL, a header, or a quoted request body, so it
+    // goes through the same fence as a success. A refusal here is reported as the
+    // refusal it is rather than being retried into the model's context.
+    content: textContent(scrubLocalSecrets(`${label}: ${message}`)),
     isError: true,
   };
 }
