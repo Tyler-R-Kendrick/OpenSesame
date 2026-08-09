@@ -33,6 +33,11 @@ describe("api base fences", () => {
     expect(normalizeApiBase("ftp://127.0.0.1")).toBeNull();
     expect(normalizeApiBase("http://user:pw@127.0.0.1:8787")).toBeNull();
     expect(normalizeApiBase("   ")).toBeNull();
+    // A base carrying a query or fragment would swallow every path joined to it.
+    expect(
+      normalizeApiBase("https://api.example.test/?next=http://evil.example"),
+    ).toBeNull();
+    expect(normalizeApiBase("https://api.example.test/#x")).toBeNull();
   });
 
   it("never offers the operator token to a Host API off this machine", () => {
