@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from "react";
-import { createDemoTask, type DemoTask } from "../lib/demo-task.js";
+import { type FormEvent, useState } from "react";
+import { type DemoTask, createDemoTask } from "../lib/demo-task.js";
 import { loadSettings } from "../lib/settings.js";
+import { operatorHeadersFor } from "../lib/urls.js";
 
 type TaskView = {
   task_run_id: string;
@@ -16,8 +17,12 @@ function formatCap(cap?: { action: string; resource: string }): string {
   return cap ? `${cap.action} → ${cap.resource}` : "—";
 }
 
-function normalize(body: Record<string, unknown>, synthetic?: boolean): TaskView {
-  const ceiling = (body.capability_ceiling ?? []) as TaskView["capability_ceiling"];
+function normalize(
+  body: Record<string, unknown>,
+  synthetic?: boolean,
+): TaskView {
+  const ceiling = (body.capability_ceiling ??
+    []) as TaskView["capability_ceiling"];
   const current = (body.current_capabilities ??
     body.capabilities ??
     []) as TaskView["current_capabilities"];
@@ -48,19 +53,22 @@ export function TaskPage({ online }: { online: boolean }) {
       return;
     }
     if (!online) {
-      setError("Host API unreachable offline. Load the synthetic demo instead.");
+      setError(
+        "Host API unreachable offline. Load the synthetic demo instead.",
+      );
       return;
     }
     setBusy(true);
     try {
       const { hostApi, operatorToken } = loadSettings();
-      const headers: Record<string, string> = {};
-      if (operatorToken) {
-        headers.authorization = `Bearer operator:${operatorToken}`;
-      }
+      const base = hostApi.replace(/\/$/, "");
+      // The operator token belongs to this machine; a remote Host API gets nothing.
+      const headers = operatorHeadersFor(base, operatorToken);
       const res = await fetch(
-        `${hostApi.replace(/\/$/, "")}/api/v1/tasks/${encodeURIComponent(id)}`,
-        { headers },
+        `${base}/api/v1/tasks/${encodeURIComponent(id)}`,
+        {
+          headers,
+        },
       );
       if (!res.ok) {
         throw new Error(
@@ -142,7 +150,10 @@ export function TaskPage({ online }: { online: boolean }) {
             </li>
           </ul>
           <div style={{ overflowX: "auto" }}>
-            <table className="cap-table" aria-label="Capability ceiling versus current">
+            <table
+              className="cap-table"
+              aria-label="Capability ceiling versus current"
+            >
               <thead>
                 <tr>
                   <th>Ceiling</th>

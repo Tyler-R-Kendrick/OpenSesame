@@ -1,0 +1,46 @@
+import { describe, expect, it } from "vitest";
+import { isLoopbackUrl, normalizeApiBase, operatorHeadersFor } from "./urls.js";
+
+describe("api base fences", () => {
+  it("tells this machine apart from everywhere else", () => {
+    for (const local of [
+      "http://127.0.0.1:8787",
+      "http://127.9.9.9:8787",
+      "http://localhost:8788",
+      "http://[::1]:8787",
+      "http://app.localhost/",
+    ]) {
+      expect(isLoopbackUrl(local)).toBe(true);
+    }
+    for (const remote of [
+      "https://api.example",
+      "http://10.0.0.5",
+      "not-a-url",
+    ]) {
+      expect(isLoopbackUrl(remote)).toBe(false);
+    }
+  });
+
+  it("takes only a base it would let a token travel to", () => {
+    expect(normalizeApiBase("https://api.example.test/base/")).toBe(
+      "https://api.example.test/base",
+    );
+    expect(normalizeApiBase("http://127.0.0.1:8787/")).toBe(
+      "http://127.0.0.1:8787",
+    );
+    // Cleartext off the machine, other schemes, embedded credentials, nonsense.
+    expect(normalizeApiBase("http://api.example.test")).toBeNull();
+    expect(normalizeApiBase("ftp://127.0.0.1")).toBeNull();
+    expect(normalizeApiBase("http://user:pw@127.0.0.1:8787")).toBeNull();
+    expect(normalizeApiBase("   ")).toBeNull();
+  });
+
+  it("never offers the operator token to a Host API off this machine", () => {
+    expect(operatorHeadersFor("http://127.0.0.1:8787", "op")).toEqual({
+      authorization: "Bearer operator:op",
+    });
+    // A remote Host API is somebody else's listener as far as this secret goes.
+    expect(operatorHeadersFor("https://api.example.test", "op")).toEqual({});
+    expect(operatorHeadersFor("http://127.0.0.1:8787", "")).toEqual({});
+  });
+});
