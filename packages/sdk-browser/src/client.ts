@@ -85,14 +85,62 @@ export function assertSecureUrl(raw: string, what: string): string {
   throw new Error(`${what} must use https (http is allowed only on loopback)`);
 }
 
+/** Hosts that only mean something inside the user's own network. */
+function isPrivateHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  if (isLoopbackHost(host)) return true;
+  if (host === "0.0.0.0" || host === "::") return true;
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/u.exec(host);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    if (a === 10 || a === 127 || a === 0) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    return false;
+  }
+  if (/^f[cd][0-9a-f]{2}:/u.test(host)) return true;
+  if (/^fe[89ab][0-9a-f]:/u.test(host)) return true;
+  return host.endsWith(".internal") || host.endsWith(".local");
+}
+
+/**
+ * An endpoint the issuer named, rather than one the application configured.
+ *
+ * Cleartext on loopback is the right affordance for a value the app wrote and the
+ * wrong one for a value a remote issuer supplies: it lets that issuer aim the
+ * ceremony — the authorization redirect, or the POST carrying the code and
+ * verifier — at something listening on the user's own machine. A discovered
+ * endpoint may only name private space when the issuer is itself private.
+ */
+export function assertDiscoveredUrl(
+  raw: string,
+  what: string,
+  issuer: string,
+): string {
+  const checked = assertSecureUrl(raw, what);
+  let issuerHost: string;
+  try {
+    issuerHost = new URL(issuer).hostname;
+  } catch {
+    throw new Error("issuer must be an absolute URL");
+  }
+  if (isPrivateHost(issuerHost)) return checked;
+  if (isPrivateHost(new URL(checked).hostname)) {
+    throw new Error(
+      `${what} names a private or loopback host, but the issuer is remote`,
+    );
+  }
+  return checked;
+}
+
 function decodeJwtPayload(token: string): Record<string, unknown> | undefined {
   const part = token.split(".")[1];
   if (!part) return undefined;
   try {
-    return JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/"))) as Record<
-      string,
-      unknown
-    >;
+    return JSON.parse(
+      atob(part.replace(/-/g, "+").replace(/_/g, "/")),
+    ) as Record<string, unknown>;
   } catch {
     return undefined;
   }
@@ -112,12 +160,17 @@ function assertIdTokenAddressedToUs(
 ): Record<string, unknown> | undefined {
   const payload = decodeJwtPayload(idToken);
   if (!payload) return undefined;
-  const iss = typeof payload.iss === "string" ? trimSlash(payload.iss) : undefined;
+  const iss =
+    typeof payload.iss === "string" ? trimSlash(payload.iss) : undefined;
   if (iss !== undefined && iss !== expect.issuer) {
     throw new Error("id_token issued by a different issuer");
   }
   const aud = payload.aud;
-  const audiences = Array.isArray(aud) ? aud.map(String) : typeof aud === "string" ? [aud] : [];
+  const audiences = Array.isArray(aud)
+    ? aud.map(String)
+    : typeof aud === "string"
+      ? [aud]
+      : [];
   if (audiences.length > 0 && !audiences.includes(expect.clientId)) {
     throw new Error("id_token addressed to a different client");
   }
@@ -147,7 +200,8 @@ function toSession(
     raw: tokens,
   };
   if (tokens.id_token !== undefined) session.idToken = tokens.id_token;
-  if (tokens.refresh_token !== undefined) session.refreshToken = tokens.refresh_token;
+  if (tokens.refresh_token !== undefined)
+    session.refreshToken = tokens.refresh_token;
   if (expiresAt !== undefined) session.expiresAt = expiresAt;
   if (sub !== undefined) session.sub = sub;
   return session;
@@ -167,7 +221,10 @@ export function createOpenSesame(
   const scopes = (config.scopes ?? ["openid", "profile"]).join(" ");
   const storage = resolveStorage(config.storage);
   const fetchImpl = config.fetchImpl ?? fetch;
-  const apiBase = assertSecureUrl(trimSlash(config.apiBase ?? issuer), "apiBase");
+  const apiBase = assertSecureUrl(
+    trimSlash(config.apiBase ?? issuer),
+    "apiBase",
+  );
   let discoveryCache: OidcDiscoveryDocument | undefined;
 
   async function discovery(): Promise<OidcDiscoveryDocument> {
@@ -181,12 +238,22 @@ export function createOpenSesame(
     // An issuer that does not name itself, or an endpoint reachable over
     // cleartext, is a document that hands the ceremony to whoever answered.
     if (trimSlash(meta.issuer ?? "") !== issuer) {
-      throw new Error("OIDC discovery issuer does not match the configured issuer");
+      throw new Error(
+        "OIDC discovery issuer does not match the configured issuer",
+      );
     }
-    assertSecureUrl(meta.authorization_endpoint, "authorization_endpoint");
-    assertSecureUrl(meta.token_endpoint, "token_endpoint");
+    assertDiscoveredUrl(
+      meta.authorization_endpoint,
+      "authorization_endpoint",
+      issuer,
+    );
+    assertDiscoveredUrl(meta.token_endpoint, "token_endpoint", issuer);
     if (meta.end_session_endpoint) {
-      assertSecureUrl(meta.end_session_endpoint, "end_session_endpoint");
+      assertDiscoveredUrl(
+        meta.end_session_endpoint,
+        "end_session_endpoint",
+        issuer,
+      );
     }
     discoveryCache = meta;
     return discoveryCache;
@@ -239,7 +306,11 @@ export function createOpenSesame(
       throw new Error(`Token exchange failed: ${res.status}`);
     }
     const tokens = (await res.json()) as TokenResponse;
-    const session = toSession(tokens, false, { issuer, clientId, ...(nonce ? { nonce } : {}) });
+    const session = toSession(tokens, false, {
+      issuer,
+      clientId,
+      ...(nonce ? { nonce } : {}),
+    });
     saveSession(session);
     return session;
   }
@@ -294,7 +365,11 @@ export function createOpenSesame(
       }
       let pkce: { state: string; codeVerifier: string; nonce?: string };
       try {
-        pkce = JSON.parse(rawPkce) as { state: string; codeVerifier: string; nonce?: string };
+        pkce = JSON.parse(rawPkce) as {
+          state: string;
+          codeVerifier: string;
+          nonce?: string;
+        };
       } catch {
         storage.removeItem(PKCE_KEY);
         throw new Error("Stored PKCE state is unreadable");
@@ -311,7 +386,10 @@ export function createOpenSesame(
     async continueAnonymously() {
       const res = await fetchImpl(`${apiBase}/api/v1/principals/anonymous`, {
         method: "POST",
-        headers: { "content-type": "application/json", accept: "application/json" },
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json",
+        },
         body: JSON.stringify({ clientId }),
       });
       if (!res.ok) {
@@ -361,19 +439,23 @@ export function createOpenSesame(
       const body: Record<string, unknown> = {
         acceptedItemIds: decision.acceptedItemIds,
       };
-      if (decision.destination !== undefined) body.destination = decision.destination;
+      if (decision.destination !== undefined)
+        body.destination = decision.destination;
       if (decision.idempotencyKey !== undefined) {
         body.idempotencyKey = decision.idempotencyKey;
       }
-      const res = await fetchImpl(`${apiBase}/api/v1/claims/${claimId}/complete`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          accept: "application/json",
-          authorization: `Bearer ${session.accessToken}`,
+      const res = await fetchImpl(
+        `${apiBase}/api/v1/claims/${claimId}/complete`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            accept: "application/json",
+            authorization: `Bearer ${session.accessToken}`,
+          },
+          body: JSON.stringify(body),
         },
-        body: JSON.stringify(body),
-      });
+      );
       if (!res.ok) {
         throw new Error(`completeClaim failed: ${res.status}`);
       }

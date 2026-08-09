@@ -75,6 +75,31 @@ function isLoopbackHost(hostname: string): boolean {
 }
 
 /**
+ * Hosts that only mean something inside this network. A remote issuer naming one
+ * of these is not describing where its keys are; it is asking this process to
+ * make a request on its behalf to somewhere it cannot reach itself.
+ */
+function isPrivateHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  if (isLoopbackHost(host)) return true;
+  if (host === "0.0.0.0" || host === "::" || host === "localhost") return true;
+  // IPv4 literals in the ranges that never appear on the public internet.
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/u.exec(host);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    if (a === 10 || a === 127 || a === 0) return true;
+    if (a === 169 && b === 254) return true; // link-local, incl. cloud metadata
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    return false;
+  }
+  // IPv6 unique-local (fc00::/7) and link-local (fe80::/10).
+  if (/^f[cd][0-9a-f]{2}:/u.test(host)) return true;
+  if (/^fe[89ab][0-9a-f]:/u.test(host)) return true;
+  return host.endsWith(".internal") || host.endsWith(".local");
+}
+
+/**
  * Keys and issuer names must arrive over a channel someone cannot rewrite.
  * A JWKS fetched over cleartext is a JWKS an attacker on the path chooses, and
  * then every signature check below is theatre.
@@ -91,6 +116,28 @@ export function assertSecureUrl(raw: string, what: string): URL {
   throw new Error(
     `${what} must use https (http is allowed only on loopback for local development)`,
   );
+}
+
+/**
+ * A key set URI that an issuer told us about, rather than one an operator wrote.
+ *
+ * `assertSecureUrl` permits cleartext on loopback, which is the right affordance
+ * for a value in this deployment's own configuration and the wrong one for a value
+ * a remote party supplies: it lets any issuer aim this process's key fetch at
+ * 127.0.0.1, or at link-local metadata, and read the result's effect through
+ * whether verification succeeded. So a discovered URI may only name a private host
+ * when the issuer is itself one — the local development case, where both sides of
+ * the pair are on this machine anyway.
+ */
+export function assertDiscoveredJwksUri(raw: string, issuer: URL): URL {
+  const url = assertSecureUrl(raw, "jwks_uri");
+  if (isPrivateHost(issuer.hostname)) return url;
+  if (isPrivateHost(url.hostname)) {
+    throw new Error(
+      "jwks_uri names a private or loopback host, but the issuer is remote",
+    );
+  }
+  return url;
 }
 
 export interface OpenSesameVerifier {
@@ -137,6 +184,7 @@ export function createOpenSesameVerifier(
    * gives must still arrive over a channel nobody can rewrite.
    */
   async function discoverJwksUri(): Promise<URL> {
+    const issuerUrl = new URL(issuer);
     const fetchImpl = config.fetchImpl ?? globalThis.fetch;
     const fallback = (): URL => assertSecureUrl(`${issuer}/jwks`, "jwksUri");
     if (!fetchImpl) return fallback();
@@ -155,7 +203,7 @@ export function createOpenSesameVerifier(
       throw new Error("Discovery document does not name the configured issuer");
     }
     if (typeof meta.jwks_uri !== "string") return fallback();
-    return assertSecureUrl(meta.jwks_uri, "jwks_uri");
+    return assertDiscoveredJwksUri(meta.jwks_uri, issuerUrl);
   }
 
   let remoteKeys: JWTVerifyGetKey | undefined;

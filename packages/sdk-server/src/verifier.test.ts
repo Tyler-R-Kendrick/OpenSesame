@@ -2,7 +2,10 @@ import { Hono } from "hono";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { describe, expect, it } from "vitest";
 import { type OpenSesameAuthVariables, openSesameAuth } from "./hono.js";
-import { createOpenSesameVerifier } from "./verifier.js";
+import {
+  assertDiscoveredJwksUri,
+  createOpenSesameVerifier,
+} from "./verifier.js";
 
 const ISSUER = "http://127.0.0.1:8788";
 const AUDIENCE = "rp-alpha";
@@ -154,6 +157,56 @@ describe("createOpenSesameVerifier", () => {
     await verifier.verifyAccessToken(token).catch(() => undefined);
     expect(asked[0]).toBe(`${ISSUER}/.well-known/openid-configuration`);
     expect(asked.some((u) => u.endsWith("/jwks"))).toBe(false);
+  });
+
+  it("refuses a remote issuer that points the key fetch at this network", async () => {
+    // A resource server verifying tokens from a remote issuer will fetch whatever
+    // URI that issuer's metadata names. Cleartext-on-loopback is the right
+    // affordance for a value an operator configured and the wrong one for a value
+    // a remote party supplies.
+    for (const jwks_uri of [
+      "http://127.0.0.1:9200/jwks",
+      "https://127.0.0.1/jwks",
+      "https://localhost/jwks",
+      "https://10.1.2.3/jwks",
+      "https://169.254.169.254/latest/meta-data/",
+      "https://172.20.0.5/jwks",
+      "https://192.168.1.1/jwks",
+      "https://[fd00::1]/jwks",
+      "https://vault.internal/jwks",
+    ]) {
+      const verifier = createOpenSesameVerifier({
+        issuer: "https://remote.example",
+        audience: AUDIENCE,
+        fetchImpl: async () =>
+          new Response(
+            JSON.stringify({ issuer: "https://remote.example", jwks_uri }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+      });
+      await expect(verifier.verifyAccessToken("a.b.c")).rejects.toThrow(
+        /private or loopback host|must use https/u,
+      );
+    }
+  });
+
+  it("still lets a remote issuer name a key set on another public host", async () => {
+    // Plenty of real issuers publish their keys on a different hostname. Only
+    // private space is refused, not a different origin.
+    expect(
+      assertDiscoveredJwksUri(
+        "https://keys.cdn.example/jwks",
+        new URL("https://remote.example"),
+      ).href,
+    ).toBe("https://keys.cdn.example/jwks");
+
+    // A loopback issuer is the local development pair: both ends are this machine.
+    expect(
+      assertDiscoveredJwksUri(
+        "http://127.0.0.1:9200/jwks",
+        new URL("http://127.0.0.1:8788"),
+      ).href,
+    ).toBe("http://127.0.0.1:9200/jwks");
   });
 
   it("refuses a discovery document that names another issuer", async () => {
