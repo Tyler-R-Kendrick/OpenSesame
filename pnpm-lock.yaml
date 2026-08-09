@@ -115,6 +115,9 @@ importers:
 
   apps/console:
     dependencies:
+      '@opensesame/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@opensesame/sdk-browser':
         specifier: workspace:*
         version: link:../../packages/sdk-browser

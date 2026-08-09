@@ -5,40 +5,27 @@
  * they are attacker-influenced the moment anything can write our storage. One of
  * them receives the operator token — a secret shared between processes on one
  * machine — so the destination has to be checked, not assumed.
+ *
+ * The checks themselves live in `@opensesame/api-client` alongside the fence the
+ * extension already uses; there is one definition of "loopback" in this repo, not
+ * one per surface.
  */
+import {
+  normalizeHttpBaseUrl,
+  normalizeLoopbackBaseUrl,
+} from "@opensesame/api-client";
 
 export function isLoopbackUrl(raw: string): boolean {
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    return false;
-  }
-  const host = url.hostname
-    .toLowerCase()
-    .replace(/^\[|\]$/gu, "")
-    .replace(/\.$/u, "");
-  if (host === "localhost" || host.endsWith(".localhost")) return true;
-  if (host === "::1" || host === "0:0:0:0:0:0:0:1") return true;
-  return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(host);
+  return normalizeLoopbackBaseUrl(raw) !== null;
 }
 
 /**
  * Normalize an API base, or return null when it is not one this page may use:
- * http is confined to loopback, and embedded credentials are refused outright.
+ * http is confined to loopback, and embedded credentials, queries and fragments
+ * are refused outright.
  */
 export function normalizeApiBase(raw: string): string | null {
-  let url: URL;
-  try {
-    url = new URL(raw.trim());
-  } catch {
-    return null;
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-  if (url.username || url.password) return null;
-  const base = `${url.origin}${url.pathname.replace(/\/+$/u, "")}`;
-  if (url.protocol === "http:" && !isLoopbackUrl(base)) return null;
-  return base;
+  return normalizeHttpBaseUrl(raw);
 }
 
 /**
