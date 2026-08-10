@@ -1,4 +1,0 @@
-//! Generated/hand-maintained contract helpers
-use opensesame_domain::DomainError;
-
-pub type Result<T> = std::result::Result<T, DomainError>;
