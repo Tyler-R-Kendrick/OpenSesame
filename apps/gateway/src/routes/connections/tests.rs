@@ -753,6 +753,7 @@ async fn an_expired_state_is_refused_at_the_callback() {
             redirect_uri: "http://127.0.0.1:8787/api/v1/oauth/callback/mock".into(),
             scopes: vec!["read".into()],
             expires_at: chrono::Utc::now() - chrono::Duration::seconds(1),
+            credential_version: None,
         },
     )
     .await

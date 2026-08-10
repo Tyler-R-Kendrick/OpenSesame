@@ -40,6 +40,7 @@ pub struct ConnectionRow {
 #[derive(Clone, Debug)]
 pub struct CredentialRow {
     pub connection_id: String,
+    pub version: String,
     pub sealed: SealedBlob,
     pub token_type: String,
     pub expires_at: Option<DateTime<Utc>>,
@@ -55,6 +56,9 @@ pub struct AuthorizationRow {
     pub redirect_uri: String,
     pub scopes: Vec<String>,
     pub expires_at: DateTime<Utc>,
+    /// Credential generation observed when this authorization state was issued.
+    /// Null means the connection had no credential and activation must still find none.
+    pub credential_version: Option<String>,
 }
 
 fn state_digest(state: &str) -> String {
@@ -309,32 +313,7 @@ pub async fn set_integration_id(pool: &SqlitePool, id: &str, integration_id: &st
     Ok(())
 }
 
-pub async fn upsert_credential(pool: &SqlitePool, c: &CredentialRow) -> Result<()> {
-    let now = Utc::now().to_rfc3339();
-    sqlx::query(
-        "INSERT INTO connection_credentials (connection_id, ciphertext, nonce, aad_digest, \
-         token_type, expires_at, refreshable, last_refreshed_at, created_at, updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
-         ON CONFLICT(connection_id) DO UPDATE SET ciphertext = excluded.ciphertext, \
-         nonce = excluded.nonce, aad_digest = excluded.aad_digest, token_type = excluded.token_type, \
-         expires_at = excluded.expires_at, refreshable = excluded.refreshable, \
-         last_refreshed_at = excluded.last_refreshed_at, updated_at = excluded.updated_at",
-    )
-    .bind(&c.connection_id)
-    .bind(&c.sealed.ciphertext)
-    .bind(&c.sealed.nonce)
-    .bind(&c.sealed.aad_digest)
-    .bind(&c.token_type)
-    .bind(c.expires_at.map(|t| t.to_rfc3339()))
-    .bind(i64::from(c.refreshable))
-    .bind(c.last_refreshed_at.map(|t| t.to_rfc3339()))
-    .bind(&now)
-    .bind(&now)
-    .execute(pool)
-    .await?;
-    Ok(())
-}
-
+#[derive(Clone, Copy)]
 pub struct CredentialActivation<'a> {
     pub credential: &'a CredentialRow,
     pub organization_id: &'a str,
@@ -345,19 +324,50 @@ pub struct CredentialActivation<'a> {
     pub account_label: Option<&'a str>,
     pub event_kind: EventKind,
     pub event_detail: Option<&'a str>,
+    pub expected_credential_version: Option<&'a str>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CredentialActivationOutcome {
+    Activated,
+    Revoked,
+    Superseded,
 }
 
 pub async fn activate_credential_unless_revoked(
     pool: &SqlitePool,
     activation: CredentialActivation<'_>,
-) -> Result<bool> {
+) -> Result<CredentialActivationOutcome> {
     let c = activation.credential;
     let now = Utc::now().to_rfc3339();
     let mut transaction = pool.begin().await?;
-    sqlx::query("UPDATE connections SET updated_at = updated_at WHERE id = ?")
+    let writer_lock = sqlx::query("UPDATE connections SET updated_at = updated_at WHERE id = ?")
         .bind(&c.connection_id)
         .execute(&mut *transaction)
-        .await?;
+        .await;
+    if let Err(error) = writer_lock {
+        transaction.rollback().await?;
+        return Err(error.into());
+    }
+    let status = sqlx::query("SELECT status FROM connections WHERE id = ?")
+        .bind(&c.connection_id)
+        .fetch_one(&mut *transaction)
+        .await?
+        .get::<String, _>("status");
+    if status == "revoked" {
+        transaction.rollback().await?;
+        return Ok(CredentialActivationOutcome::Revoked);
+    }
+    let current_version =
+        sqlx::query("SELECT version FROM connection_credentials WHERE connection_id = ?")
+            .bind(&c.connection_id)
+            .fetch_optional(&mut *transaction)
+            .await?
+            .map(|row| row.get::<String, _>("version"));
+    if current_version.as_deref() != activation.expected_credential_version {
+        transaction.rollback().await?;
+        return Ok(CredentialActivationOutcome::Superseded);
+    }
     if !activation.integration_id.starts_with("deployment:") {
         let integration = sqlx::query(
             "SELECT enabled, scopes, updated_at FROM integrations WHERE id = ? AND organization_id = ?",
@@ -389,9 +399,10 @@ pub async fn activate_credential_unless_revoked(
         }
     }
     sqlx::query(
-        "INSERT INTO connection_credentials (connection_id, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, last_refreshed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(connection_id) DO UPDATE SET ciphertext = excluded.ciphertext, nonce = excluded.nonce, aad_digest = excluded.aad_digest, token_type = excluded.token_type, expires_at = excluded.expires_at, refreshable = excluded.refreshable, last_refreshed_at = excluded.last_refreshed_at, updated_at = excluded.updated_at",
+        "INSERT INTO connection_credentials (connection_id, version, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, last_refreshed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(connection_id) DO UPDATE SET version = excluded.version, ciphertext = excluded.ciphertext, nonce = excluded.nonce, aad_digest = excluded.aad_digest, token_type = excluded.token_type, expires_at = excluded.expires_at, refreshable = excluded.refreshable, last_refreshed_at = excluded.last_refreshed_at, updated_at = excluded.updated_at",
     )
     .bind(&c.connection_id)
+    .bind(&c.version)
     .bind(&c.sealed.ciphertext)
     .bind(&c.sealed.nonce)
     .bind(&c.sealed.aad_digest)
@@ -403,29 +414,24 @@ pub async fn activate_credential_unless_revoked(
     .bind(&now)
     .execute(&mut *transaction)
     .await?;
-    let activated = sqlx::query("UPDATE connections SET status = 'active', status_detail = NULL, granted_scopes = ?, account_label = COALESCE(?, account_label), updated_at = ? WHERE id = ? AND status != 'revoked'")
+    sqlx::query("UPDATE connections SET status = 'active', status_detail = NULL, granted_scopes = ?, account_label = COALESCE(?, account_label), updated_at = ? WHERE id = ?")
         .bind(serde_json::to_string(activation.granted_scopes)?)
         .bind(activation.account_label)
         .bind(&now)
         .bind(&c.connection_id)
         .execute(&mut *transaction)
         .await?
-        .rows_affected()
-        == 1;
-    if activated {
-        sqlx::query("INSERT INTO connection_events (id, connection_id, kind, detail, at) VALUES (?, ?, ?, ?, ?)")
+        ;
+    sqlx::query("INSERT INTO connection_events (id, connection_id, kind, detail, at) VALUES (?, ?, ?, ?, ?)")
             .bind(uuid::Uuid::now_v7().to_string())
             .bind(&c.connection_id)
             .bind(activation.event_kind.as_str())
             .bind(activation.event_detail)
             .bind(&now)
-            .execute(&mut *transaction)
-            .await?;
-        transaction.commit().await?;
-    } else {
-        transaction.rollback().await?;
-    }
-    Ok(activated)
+        .execute(&mut *transaction)
+        .await?;
+    transaction.commit().await?;
+    Ok(CredentialActivationOutcome::Activated)
 }
 
 pub async fn get_credential(
@@ -433,7 +439,7 @@ pub async fn get_credential(
     connection_id: &str,
 ) -> Result<Option<CredentialRow>> {
     let row = sqlx::query(
-        "SELECT connection_id, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, \
+        "SELECT connection_id, version, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, \
          last_refreshed_at FROM connection_credentials WHERE connection_id = ?",
     )
     .bind(connection_id)
@@ -441,6 +447,7 @@ pub async fn get_credential(
     .await?;
     Ok(row.map(|r| CredentialRow {
         connection_id: r.get("connection_id"),
+        version: r.get("version"),
         sealed: SealedBlob {
             ciphertext: r.get("ciphertext"),
             nonce: r.get("nonce"),
@@ -467,7 +474,7 @@ pub async fn delete_credential(pool: &SqlitePool, connection_id: &str) -> Result
 
 pub async fn insert_authorization(pool: &SqlitePool, a: &AuthorizationRow) -> Result<()> {
     sqlx::query(
-        "INSERT INTO connection_authorizations (state, connection_id, code_verifier, verifier_nonce, verifier_aad_digest, redirect_uri, scopes, created_at, expires_at, consumed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
+        "INSERT INTO connection_authorizations (state, connection_id, code_verifier, verifier_nonce, verifier_aad_digest, redirect_uri, scopes, created_at, expires_at, consumed_at, credential_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)",
     )
     .bind(state_digest(&a.state))
     .bind(&a.connection_id)
@@ -478,6 +485,7 @@ pub async fn insert_authorization(pool: &SqlitePool, a: &AuthorizationRow) -> Re
     .bind(serde_json::to_string(&a.scopes)?)
     .bind(Utc::now().to_rfc3339())
     .bind(a.expires_at.to_rfc3339())
+    .bind(&a.credential_version)
     .execute(pool)
     .await?;
     Ok(())
@@ -493,7 +501,7 @@ pub async fn consume_authorization(
 ) -> Result<AuthorizationRow> {
     let mut tx = pool.begin().await?;
     let row = sqlx::query(
-        "SELECT state, connection_id, code_verifier, verifier_nonce, verifier_aad_digest, redirect_uri, scopes, expires_at, consumed_at \
+        "SELECT state, connection_id, code_verifier, verifier_nonce, verifier_aad_digest, redirect_uri, scopes, expires_at, consumed_at, credential_version \
          FROM connection_authorizations WHERE state = ?",
     )
     .bind(state_digest(state))
@@ -546,6 +554,7 @@ pub async fn consume_authorization(
         redirect_uri: row.get("redirect_uri"),
         scopes: parse_list(&row.get::<String, _>("scopes")),
         expires_at,
+        credential_version: row.get("credential_version"),
     };
     tx.commit().await?;
     Ok(authorization)

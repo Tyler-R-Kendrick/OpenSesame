@@ -241,7 +241,10 @@ export type AuthorizeRequest = z.infer<typeof AuthorizeRequestSchema>;
 
 export const SetCredentialRequestSchema = z
   .object({
-    value: z.string().min(1).max(8 * 1024),
+    value: z
+      .string()
+      .min(1)
+      .max(8 * 1024),
   })
   .strict();
 export type SetCredentialRequest = z.infer<typeof SetCredentialRequestSchema>;
@@ -315,7 +318,11 @@ export const ConnectionErrorCodeSchema = z.enum([
   "redirect_not_allowed",
   "binding_exists",
   "binding_not_found",
+  "unsupported_credential",
+  "invalid_request",
+  "internal_error",
   "unauthorized",
+  "forbidden",
 ]);
 export type ConnectionErrorCode = z.infer<typeof ConnectionErrorCodeSchema>;
 

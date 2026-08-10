@@ -40,7 +40,7 @@ pub enum BrokerError {
     #[error("binding not found")]
     BindingNotFound,
     /// `POST /credential` against an OAuth provider, or `authorize` against an
-    /// api_key one. The contract's code list has no name for it; see the report.
+    /// api_key one.
     #[error("credential kind not supported by provider `{0}`")]
     UnsupportedCredential(String),
     #[error("credential sealing unavailable: {0}")]

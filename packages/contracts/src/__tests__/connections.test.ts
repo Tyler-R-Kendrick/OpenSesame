@@ -11,16 +11,16 @@ import {
   CreateConnectionRequestSchema,
   CreateIntegrationRequestSchema,
   EgressSchema,
+  IntegrationSchema,
   ListConnectionsResponseSchema,
   ListEventsResponseSchema,
   ListIntegrationsResponseSchema,
   ListProvidersResponseSchema,
   ProviderSchema,
-  IntegrationSchema,
-  UpdateIntegrationRequestSchema,
   RevokeResponseSchema,
   ScopeDefSchema,
   SetCredentialRequestSchema,
+  UpdateIntegrationRequestSchema,
 } from "../index.js";
 
 const egress = {
@@ -185,8 +185,7 @@ describe("connection broker contracts", () => {
       }).scopes,
     ).toBeUndefined();
     expect(
-      UpdateIntegrationRequestSchema.parse({ client_secret: "" })
-        .client_secret,
+      UpdateIntegrationRequestSchema.parse({ client_secret: "" }).client_secret,
     ).toBe("");
     expect(() =>
       UpdateIntegrationRequestSchema.parse({ provider_id: "github" }),
@@ -255,9 +254,16 @@ describe("connection broker contracts", () => {
   });
 
   it("pins the error-code vocabulary", () => {
-    expect(ConnectionErrorCodeSchema.parse("state_expired")).toBe(
+    for (const code of [
       "state_expired",
-    );
+      "unsupported_credential",
+      "invalid_request",
+      "internal_error",
+      "unauthorized",
+      "forbidden",
+    ]) {
+      expect(ConnectionErrorCodeSchema.parse(code)).toBe(code);
+    }
     expect(() => ConnectionErrorCodeSchema.parse("boom")).toThrow();
     expect(() => ConnectionErrorCodeSchema.parse("provider_missing")).toThrow();
   });

@@ -504,6 +504,43 @@ async fn ambiguous_legacy_connection_can_always_revoke_locally() {
 }
 
 #[tokio::test]
+async fn stale_unknown_provider_can_always_revoke_locally() {
+    let (db, broker) = broker().await;
+    let org = OrganizationId::new();
+    let connection = broker
+        .create_connection(&org, create("stripe"))
+        .await
+        .unwrap();
+    broker
+        .set_api_key(&org, &connection.connection_id, "secret")
+        .await
+        .unwrap();
+    sqlx::query("UPDATE connections SET provider_id = 'removed-provider' WHERE id = ?")
+        .bind(&connection.connection_id)
+        .execute(db.pool())
+        .await
+        .unwrap();
+    let outcome = broker
+        .revoke(&org, &connection.connection_id)
+        .await
+        .unwrap();
+    assert!(outcome.revoked);
+    assert_eq!(outcome.provider_revocation, ProviderRevocation::Unsupported);
+    assert!(store::get_credential(db.pool(), &connection.connection_id)
+        .await
+        .unwrap()
+        .is_none());
+    assert_eq!(
+        broker
+            .get_connection(&org, &connection.connection_id)
+            .await
+            .unwrap()
+            .status,
+        ConnectionStatus::Revoked
+    );
+}
+
+#[tokio::test]
 async fn revoke_invalidates_late_callback_and_cas_key_writes() {
     let (db, broker) = broker().await;
     let org = OrganizationId::new();
@@ -717,6 +754,111 @@ async fn revoke_winning_activation_cleans_issued_tokens_and_stays_terminal() {
             .unwrap()
             .status,
         ConnectionStatus::Revoked
+    );
+}
+
+#[tokio::test]
+async fn overlapping_authorizations_activate_one_generation_and_clean_the_loser() {
+    let (_db, broker, org, integration_id) = organization_oauth_broker().await;
+    let connection = broker
+        .create_connection(
+            &org,
+            CreateConnection {
+                provider_id: String::new(),
+                integration_id: Some(integration_id),
+                ..create("mock")
+            },
+        )
+        .await
+        .unwrap();
+    let first = broker
+        .start_authorization(&org, &connection.connection_id, None, None)
+        .await
+        .unwrap();
+    let second = broker
+        .start_authorization(&org, &connection.connection_id, None, None)
+        .await
+        .unwrap();
+    let first_task = {
+        let broker = broker.clone();
+        tokio::spawn(async move {
+            broker
+                .complete_authorization("mock", "code-one", &first.state)
+                .await
+        })
+    };
+    let second_task = {
+        let broker = broker.clone();
+        tokio::spawn(async move {
+            broker
+                .complete_authorization("mock", "code-two", &second.state)
+                .await
+        })
+    };
+    let first_result = first_task.await.unwrap();
+    let second_result = second_task.await.unwrap();
+    assert!(first_result.is_ok(), "{first_result:?}");
+    assert!(second_result.is_ok(), "{second_result:?}");
+    assert_eq!(broker.take_cleanup_attempts().len(), 2);
+    assert_eq!(
+        broker
+            .events(&org, &connection.connection_id)
+            .await
+            .unwrap()
+            .iter()
+            .filter(|event| event.kind == "authorized")
+            .count(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn concurrent_successful_refreshes_activate_one_generation_and_clean_the_loser() {
+    let (_db, broker, org, integration_id) = organization_oauth_broker().await;
+    let connection = broker
+        .create_connection(
+            &org,
+            CreateConnection {
+                provider_id: String::new(),
+                integration_id: Some(integration_id),
+                ..create("mock")
+            },
+        )
+        .await
+        .unwrap();
+    let start = broker
+        .start_authorization(&org, &connection.connection_id, None, None)
+        .await
+        .unwrap();
+    broker
+        .complete_authorization("mock", "initial-code", &start.state)
+        .await
+        .unwrap();
+    assert!(broker.take_cleanup_attempts().is_empty());
+    let pause = TestActivationPause::for_responses(2);
+    broker.pause_next_refreshes(pause.clone());
+    let refresh = || {
+        let broker = broker.clone();
+        let organization = org;
+        let connection_id = connection.connection_id.clone();
+        tokio::spawn(async move { broker.refresh(&organization, &connection_id).await })
+    };
+    let first = refresh();
+    let second = refresh();
+    pause.wait_until_reached().await;
+    pause.resume();
+    assert!(first.await.unwrap().is_ok());
+    assert!(second.await.unwrap().is_ok());
+    assert_eq!(broker.take_cleanup_attempts().len(), 2);
+    assert_eq!(
+        broker
+            .events(&org, &connection.connection_id)
+            .await
+            .unwrap()
+            .iter()
+            .filter(|event| event.kind == "refreshed")
+            .count(),
+        1
     );
 }
 
@@ -1125,6 +1267,7 @@ async fn an_expired_state_is_rejected() {
             redirect_uri: "http://127.0.0.1:8787/api/v1/oauth/callback/mock".into(),
             scopes: vec!["read".into()],
             expires_at: Utc::now() - Duration::seconds(1),
+            credential_version: None,
         },
     )
     .await

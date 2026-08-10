@@ -419,7 +419,9 @@ export function createApiClient(options: ApiClientOptions) {
       );
     },
 
-    async createIntegration(body: CreateIntegrationRequest): Promise<Integration> {
+    async createIntegration(
+      body: CreateIntegrationRequest,
+    ): Promise<Integration> {
       return requestParsed(
         "integration_create",
         IntegrationSchema,
@@ -479,7 +481,10 @@ export function createApiClient(options: ApiClientOptions) {
       );
     },
 
-    async setConnectionCredential(id: string, value: string): Promise<Connection> {
+    async setConnectionCredential(
+      id: string,
+      value: string,
+    ): Promise<Connection> {
       return requestParsed(
         "connection_credential",
         ConnectionSchema,
@@ -497,7 +502,10 @@ export function createApiClient(options: ApiClientOptions) {
       );
     },
 
-    async bindConnection(id: string, body: CreateBindingRequest): Promise<Connection> {
+    async bindConnection(
+      id: string,
+      body: CreateBindingRequest,
+    ): Promise<Connection> {
       return requestParsed(
         "connection_bind",
         ConnectionSchema,

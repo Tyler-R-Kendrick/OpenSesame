@@ -55,6 +55,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0004_integrations",
         include_str!("../../../migrations/0004_integrations.sql"),
     ),
+    (
+        "0005_credential_generation",
+        include_str!("../../../migrations/0005_credential_generation.sql"),
+    ),
 ];
 
 impl Db {
@@ -612,6 +616,39 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(broker_rows.get::<i64, _>("n"), 0);
+    }
+
+    #[tokio::test]
+    async fn credential_generation_migration_backfills_baseline_rows() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        for (_, migration) in &MIGRATIONS[..4] {
+            for statement in split_statements(migration) {
+                sqlx::query(&statement).execute(&pool).await.unwrap();
+            }
+        }
+        sqlx::query("INSERT INTO connections (id, organization_id, project_id, provider_id, logical_name, display_name, status, status_detail, requested_scopes, granted_scopes, account_label, owner_kind, owner_subject, shareability, max_invoke_level, egress_json, created_at, updated_at, integration_id) VALUES ('connection:legacy', 'org:legacy', NULL, 'stripe', 'stripe/main', 'Stripe', 'active', NULL, '[]', '[]', NULL, 'organization', NULL, 'private', 2, '{}', 't', 't', 'deployment:stripe')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO connection_credentials (connection_id, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, last_refreshed_at, created_at, updated_at) VALUES ('connection:legacy', X'01', X'02', 'aad', 'api_key', NULL, 0, NULL, 't', 't')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        for statement in split_statements(include_str!(
+            "../../../migrations/0005_credential_generation.sql"
+        )) {
+            sqlx::query(&statement).execute(&pool).await.unwrap();
+        }
+        let version = sqlx::query("SELECT version FROM connection_credentials")
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+            .get::<String, _>("version");
+        assert!(!version.is_empty());
     }
 
     #[test]
