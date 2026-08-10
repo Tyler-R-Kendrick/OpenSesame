@@ -1030,7 +1030,7 @@ describe("control-plane API", () => {
   });
 
   it("derives device organization role and revokes Host sessions on membership changes", async () => {
-    const { app } = createControlPlane({
+    const { app, ctx } = createControlPlane({
       config: {
         port: 0,
         publicUrl: "http://127.0.0.1:8788",
@@ -1049,6 +1049,9 @@ describe("control-plane API", () => {
       body: JSON.stringify({ slug: "device-org", displayName: "Device Org" }),
     });
     const organization = (await created.json()) as { id: string };
+    expect(organization.id).toMatch(
+      /^org:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
     await app.request(`/v1/organizations/${organization.id}/members`, {
       method: "POST",
       headers: { ...owner.auth, "content-type": "application/json" },
@@ -1056,13 +1059,22 @@ describe("control-plane API", () => {
     });
 
     const requests: Array<{ url: string; body: Record<string, string> }> = [];
+    const rolesSeenByHost: Array<string | undefined> = [];
     const host = vi
       .spyOn(globalThis, "fetch")
       .mockImplementation(async (input, init) => {
+        const url = String(input);
         requests.push({
-          url: String(input),
+          url,
           body: JSON.parse(String(init?.body)) as Record<string, string>,
         });
+        if (url.endsWith("/api/v1/sessions/revoke")) {
+          rolesSeenByHost.push(
+            ctx.stores.organizationMemberships.get(
+              `${organization.id}:${member.principalId}`,
+            )?.role,
+          );
+        }
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
           headers: { "content-type": "application/json" },
@@ -1129,6 +1141,7 @@ describe("control-plane API", () => {
         ),
       ).toHaveLength(2);
       expect(host).toHaveBeenCalledTimes(4);
+      expect(rolesSeenByHost).toEqual(["admin", undefined]);
     } finally {
       host.mockRestore();
     }

@@ -193,6 +193,28 @@ pub struct DeviceApproveRequest {
     organization_role: Option<opensesame_domain::OrganizationRole>,
 }
 
+fn approved_organization(
+    organization_id: Option<&str>,
+    organization_role: Option<opensesame_domain::OrganizationRole>,
+    operator_default: Option<opensesame_domain::OrganizationId>,
+) -> Result<
+    (
+        opensesame_domain::OrganizationId,
+        opensesame_domain::OrganizationRole,
+    ),
+    &'static str,
+> {
+    match (organization_id, organization_role) {
+        (Some(id), Some(role)) => opensesame_domain::OrganizationId::parse(id)
+            .map(|id| (id, role))
+            .map_err(|_| "invalid_organization_id"),
+        (None, None) => operator_default
+            .map(|id| (id, opensesame_domain::OrganizationRole::Owner))
+            .ok_or("demo_bootstrap_unavailable"),
+        _ => Err("organization_claims_incomplete"),
+    }
+}
+
 /// Keyed, per-device digest of a user code.
 fn user_code_digest(pepper: &str, device_digest: &str, user_code: &str) -> String {
     hash_low_entropy(pepper, device_digest, user_code)
@@ -228,30 +250,23 @@ pub async fn approve(
     for (device_digest, pending) in map.iter_mut() {
         let attempt_hash = user_code_digest(&st.claim_pepper, device_digest, &req.user_code);
         if hash_eq(&attempt_hash, &pending.user_code_hash) {
-            let organization = match (&req.organization_id, req.organization_role) {
-                (Some(id), Some(role)) => match opensesame_domain::OrganizationId::parse(id) {
-                    Ok(id) => (id, role),
-                    Err(_) => {
-                        return (
-                            StatusCode::BAD_REQUEST,
-                            Json(json!({"error":"invalid_organization_id"})),
-                        )
-                            .into_response();
-                    }
-                },
-                (None, None) => {
-                    let boot = match require_demo_bootstrap(&st) {
-                        Ok(boot) => boot,
+            let operator_default =
+                if req.organization_id.is_none() && req.organization_role.is_none() {
+                    match require_demo_bootstrap(&st) {
+                        Ok(boot) => Some(boot.org),
                         Err(resp) => return resp,
-                    };
-                    (boot.org, opensesame_domain::OrganizationRole::Owner)
-                }
-                _ => {
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        Json(json!({"error":"organization_claims_incomplete"})),
-                    )
-                        .into_response();
+                    }
+                } else {
+                    None
+                };
+            let organization = match approved_organization(
+                req.organization_id.as_deref(),
+                req.organization_role,
+                operator_default,
+            ) {
+                Ok(organization) => organization,
+                Err(error) => {
+                    return (StatusCode::BAD_REQUEST, Json(json!({"error":error}))).into_response();
                 }
             };
             pending.approved = Some(ApprovedDevice {
@@ -387,5 +402,26 @@ mod tests {
         // Everything ages out after the window.
         let later = now + Duration::seconds(APPROVE_FAILURE_WINDOW_SECS + 1);
         assert_eq!(prune_failures(&mut failures, later), 0);
+    }
+
+    #[test]
+    fn identity_organization_id_round_trips_into_host_claims() {
+        let id = "org:018f4b93-7f20-7b14-8f6d-8f435274ca1f";
+        let (organization_id, role) = approved_organization(
+            Some(id),
+            Some(opensesame_domain::OrganizationRole::Member),
+            None,
+        )
+        .expect("canonical Identity organization id");
+        assert_eq!(organization_id.to_string(), id);
+        assert_eq!(role, opensesame_domain::OrganizationRole::Member);
+        assert_eq!(
+            approved_organization(
+                Some("org_018f4b93-7f20-7b14-8f6d-8f435274ca1f"),
+                Some(opensesame_domain::OrganizationRole::Member),
+                None,
+            ),
+            Err("invalid_organization_id")
+        );
     }
 }

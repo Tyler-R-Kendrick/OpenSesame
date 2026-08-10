@@ -184,7 +184,8 @@ organizationRoutes.post(
 
     const now = ctx.clock();
     const org: Organization = {
-      id: `org_${randomUUID()}`,
+      // Rust Host APIs use the canonical opaque-id spelling `org:<uuid>`.
+      id: `org:${randomUUID()}`,
       slug: parsed.data.slug,
       displayName: parsed.data.displayName,
       state: "active",
@@ -311,18 +312,19 @@ organizationRoutes.patch(
     if (target.role === "owner" && ownerCount(ctx, organizationId) === 1) {
       return c.json({ error: "last_owner" }, 409);
     }
-    if (!(await revokeHostSessions(ctx, organizationId, targetPrincipalId))) {
-      return c.json({ error: "session_revocation_failed" }, 502);
-    }
     const updated: OrganizationMembership = {
       ...target,
       role: parsed.data.role,
       updatedAt: ctx.clock(),
     };
-    ctx.stores.organizationMemberships.set(
-      membershipKey(organizationId, targetPrincipalId),
-      updated,
-    );
+    const key = membershipKey(organizationId, targetPrincipalId);
+    // Publish the new role before yielding to Host revocation. Otherwise a
+    // concurrent approval can capture the old role after Host has revoked it.
+    ctx.stores.organizationMemberships.set(key, updated);
+    if (!(await revokeHostSessions(ctx, organizationId, targetPrincipalId))) {
+      ctx.stores.organizationMemberships.set(key, target);
+      return c.json({ error: "session_revocation_failed" }, 502);
+    }
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "organization.member_role_changed",
       outcome: "succeeded",
@@ -358,12 +360,14 @@ organizationRoutes.delete(
     if (target.role === "owner" && ownerCount(ctx, organizationId) === 1) {
       return c.json({ error: "last_owner" }, 409);
     }
+    const key = membershipKey(organizationId, targetPrincipalId);
+    // Remove authority before yielding so no approval can mint a session in the
+    // gap between revocation and this mutation. Restore it if Host fails closed.
+    ctx.stores.organizationMemberships.delete(key);
     if (!(await revokeHostSessions(ctx, organizationId, targetPrincipalId))) {
+      ctx.stores.organizationMemberships.set(key, target);
       return c.json({ error: "session_revocation_failed" }, 502);
     }
-    ctx.stores.organizationMemberships.delete(
-      membershipKey(organizationId, targetPrincipalId),
-    );
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "organization.member_removed",
       outcome: "succeeded",

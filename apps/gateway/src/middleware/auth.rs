@@ -167,11 +167,15 @@ pub enum Caller {
 }
 
 impl Caller {
-    pub fn owns(&self, principal: &opensesame_domain::PrincipalId) -> bool {
+    pub fn owns_subject(&self, subject: &str) -> bool {
         match self {
             Caller::Operator => true,
-            Caller::Session { subject, .. } => subject == &principal.to_string(),
+            Caller::Session { subject: mine, .. } => mine == subject,
         }
+    }
+
+    pub fn owns(&self, principal: &opensesame_domain::PrincipalId) -> bool {
+        self.owns_subject(&principal.to_string())
     }
 
     pub fn organization(
@@ -272,6 +276,8 @@ mod tests {
             role: OrganizationRole::Member,
         };
         assert!(session.owns(&principal));
+        assert!(session.owns_subject(&principal.to_string()));
+        assert!(!session.owns_subject("prn_someone_else"));
         assert_eq!(session.organization(OrganizationId::new()), organization_id);
         assert!(session.in_organization(&organization_id));
         assert!(!session.in_organization(&OrganizationId::new()));
@@ -279,6 +285,7 @@ mod tests {
 
         let fallback = OrganizationId::new();
         assert!(Caller::Operator.owns(&PrincipalId::new()));
+        assert!(Caller::Operator.owns_subject("prn_any_identity_subject"));
         assert_eq!(Caller::Operator.organization(fallback), fallback);
         assert!(Caller::Operator.in_organization(&OrganizationId::new()));
         assert!(Caller::Operator.can_configure_integrations());
