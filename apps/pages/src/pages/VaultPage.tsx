@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router";
 import {
   assertNoPlaintextInSealedJson,
   createCursor,
   loadSealedStore,
   persistSealedStore,
 } from "@opensesame/client-core";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router";
 import {
   IconClaim,
   IconConnection,
@@ -14,12 +14,13 @@ import {
   IconSearch,
   IconTask,
 } from "../components/Icons.js";
+import { track } from "../lib/telemetry.js";
 import {
+  type VaultItem,
+  type VaultItemType,
   getVaultItem,
   loadVaultItems,
   typeLabel,
-  type VaultItem,
-  type VaultItemType,
 } from "../lib/vault-items.js";
 
 const filters: Array<{ id: "all" | VaultItemType; label: string }> = [
@@ -106,9 +107,7 @@ export function VaultPage() {
     <section className="vault-panel">
       <div className="vault-heading-row">
         <h1>Vault</h1>
-        <p className="seal-chip" role="status">
-          {sealStatus}
-        </p>
+        <output className="seal-chip">{sealStatus}</output>
       </div>
       <p className="lede tight">
         Search sealed authority items the way you would a password vault — for
@@ -140,9 +139,9 @@ export function VaultPage() {
       </div>
 
       {visible.length === 0 ? (
-        <p className="empty" role="status">
+        <output className="empty">
           No items match. Clear search or add ceremonies under Tools.
-        </p>
+        </output>
       ) : (
         <ul className="vault-list">
           {visible.map((item) => (
@@ -177,6 +176,16 @@ function VaultItemDetail({
   item: VaultItem;
   sealStatus: string;
 }) {
+  // item.id is the actual "a different item was opened" trigger — dropping
+  // it would mean navigating between two items of the same type never
+  // re-fires this effect, silently under-counting item_opened. Only
+  // item.type is read in the body (by design: never the item's name, id, or
+  // value), but item.id must stay in the dependency list to gate re-firing.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see above
+  useEffect(() => {
+    track("item_opened", { item_type: item.type });
+  }, [item.id, item.type]);
+
   return (
     <section className="vault-panel">
       <p className="crumb">
@@ -204,7 +213,9 @@ function VaultItemDetail({
         </div>
         <div>
           <dt>Agent usable</dt>
-          <dd>{item.agentUsable ? "Yes — visible under Agent" : "Human ceremony"}</dd>
+          <dd>
+            {item.agentUsable ? "Yes — visible under Agent" : "Human ceremony"}
+          </dd>
         </div>
         <div>
           <dt>Updated</dt>

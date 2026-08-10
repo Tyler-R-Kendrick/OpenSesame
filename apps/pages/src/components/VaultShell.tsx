@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router";
+import { lock } from "../lib/lock.js";
+import { track } from "../lib/telemetry.js";
 import {
   IconAgent,
   IconLock,
@@ -7,7 +9,6 @@ import {
   IconTools,
   IconVault,
 } from "./Icons.js";
-import { lock } from "../lib/lock.js";
 
 const nav = [
   { to: "/vault", label: "Vault", icon: IconVault, end: false },
@@ -27,6 +28,7 @@ export function VaultShell({
 
   function onLock() {
     lock();
+    track("vault_locked");
     navigate("/unlock", { replace: true });
   }
 
@@ -55,13 +57,9 @@ export function VaultShell({
           ))}
         </nav>
         <div className="vault-sidebar-foot">
-          <span
-            className={`chip ${online ? "online" : "offline"}`}
-            role="status"
-            aria-live="polite"
-          >
+          <output className={`chip ${online ? "online" : "offline"}`}>
             {online ? "online" : "offline"}
-          </span>
+          </output>
           <button type="button" className="lock-btn" onClick={onLock}>
             <IconLock />
             Lock
@@ -73,12 +71,9 @@ export function VaultShell({
         <header className="vault-topbar">
           <p className="vault-topbar-title">OpenSesame</p>
           <div className="vault-topbar-actions">
-            <span
-              className={`chip ${online ? "online" : "offline"}`}
-              role="status"
-            >
+            <output className={`chip ${online ? "online" : "offline"}`}>
               {online ? "online" : "offline"}
-            </span>
+            </output>
             <button type="button" className="lock-btn" onClick={onLock}>
               <IconLock />
               Lock

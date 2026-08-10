@@ -1,9 +1,10 @@
+import { registerSW } from "virtual:pwa-register";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
-import { registerSW } from "virtual:pwa-register";
 import { App } from "./App.js";
 import { kvHydrate } from "./lib/kv.js";
+import { track } from "./lib/telemetry.js";
 import "./styles.css";
 
 const root = document.getElementById("root");
@@ -26,5 +27,6 @@ void (async () => {
       </BrowserRouter>
     </StrictMode>,
   );
+  track("app_opened");
   registerSW({ immediate: true });
 })();

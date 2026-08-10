@@ -15,6 +15,8 @@
     "@opensesame/api-client": "workspace:*",
     "@opensesame/client-core": "workspace:*",
     "@opensesame/sdk-browser": "workspace:*",
+    "@opensesame/telemetry": "workspace:*",
+    "posthog-js": "1.415.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-router": "8.3.0"
