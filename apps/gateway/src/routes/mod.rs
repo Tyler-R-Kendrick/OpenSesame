@@ -71,10 +71,6 @@ pub fn router(state: AppState) -> Router {
             "/experimental/aauth/v1/mission/digest",
             post(aauth::mission_digest),
         )
-        .route(
-            "/experimental/aauth/v1/scope/check",
-            post(aauth::scope_check),
-        )
         .with_state(state)
         .layer(TraceLayer::new_for_http())
 }
