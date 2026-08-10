@@ -17,7 +17,7 @@ Scanners: cve-lite, semgrep, ast-grep, gitleaks, clippy, cargo-audit, osv-scanne
 - Zeroizing intermediates matters here because `VaultRootKey` is `ZeroizeOnDrop` while
   the material it was derived from was not — the wrapper key lived on in the stack frame.
 - No TypeScript mirror of the password wrapper exists yet, so the band only needed
-  enforcing once; if `packages/client-crypto` grows one, it must carry the same bounds.
+  enforcing once; any future mirror must carry the same bounds.
 
 ## Verification
 
