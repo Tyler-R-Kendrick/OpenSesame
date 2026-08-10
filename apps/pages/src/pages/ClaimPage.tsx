@@ -1,7 +1,8 @@
-import { useState } from "react";
 import { createOpenSesame } from "@opensesame/sdk-browser";
-import { enqueue } from "../lib/queue.js";
+import { useState } from "react";
+import { enqueue, loadQueue } from "../lib/queue.js";
 import { loadSettings } from "../lib/settings.js";
+import { track } from "../lib/telemetry.js";
 
 export function ClaimPage({ online }: { online: boolean }) {
   const [token, setToken] = useState("");
@@ -24,6 +25,7 @@ export function ClaimPage({ online }: { online: boolean }) {
     }
     if (!online) {
       enqueue({ kind: "claim_complete", claimToken: t });
+      track("ceremony_queued", { queue_depth: loadQueue().length });
       setStatus("Offline — claim queued for later completion.");
       return;
     }
@@ -49,6 +51,7 @@ export function ClaimPage({ online }: { online: boolean }) {
       const { identityApi } = loadSettings();
       const sesame = createOpenSesame({ issuer: identityApi });
       await sesame.completeClaim(claim.id, { acceptedItemIds: ["*"] });
+      track("ceremony_completed");
       setStatus("Claim completed. Ownership is attached to your principal.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Complete failed.");
@@ -108,11 +111,7 @@ export function ClaimPage({ online }: { online: boolean }) {
           </li>
         </ul>
       ) : null}
-      {status ? (
-        <p className="ok" role="status">
-          {status}
-        </p>
-      ) : null}
+      {status ? <output className="ok">{status}</output> : null}
       {error ? (
         <p className="err" role="alert">
           {error}

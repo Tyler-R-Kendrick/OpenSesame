@@ -1,0 +1,7 @@
+# Fresh captures, pixelmatch diffs, and Playwright run artifacts — never the
+# source of truth. The source of truth is .impeccable/screenshots/*.png at
+# the repo root, updated only via a deliberate VISUAL_UPDATE=1 run reviewed
+# in a PR diff. See README.md.
+output/
+playwright-report/
+*.tsbuildinfo

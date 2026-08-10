@@ -1,11 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router";
 import { IconVault } from "../components/Icons.js";
-import {
-  hasUnlockPin,
-  setUnlockPin,
-  unlock,
-} from "../lib/lock.js";
+import { hasUnlockPin, setUnlockPin, unlock } from "../lib/lock.js";
+import { track } from "../lib/telemetry.js";
 
 export function UnlockPage() {
   const navigate = useNavigate();
@@ -28,8 +25,15 @@ export function UnlockPage() {
       } else {
         await unlock(pin);
       }
+      track("vault_unlocked");
       navigate("/vault", { replace: true });
     } catch (err) {
+      // error_class only — the message can carry lockout timing, a corrupted
+      // store hint, or other detail that shouldn't leave the device.
+      track("vault_unlock_failed", {
+        error_class:
+          err instanceof Error ? err.constructor.name : "UnknownError",
+      });
       setError(err instanceof Error ? err.message : "Unlock failed.");
     } finally {
       setBusy(false);
@@ -57,6 +61,10 @@ export function UnlockPage() {
           id="unlock-pin"
           type="password"
           autoComplete={firstRun ? "new-password" : "current-password"}
+          // Single-field unlock gate — the only interactive element on the
+          // screen a user lands on, so autofocus is the intended
+          // keyboard-first UX here, not an accidental context-shift.
+          // biome-ignore lint/a11y/noAutofocus: intentional, see above
           autoFocus
           value={pin}
           disabled={busy}
@@ -79,7 +87,11 @@ export function UnlockPage() {
 
         <button type="submit" className="primary unlock-submit" disabled={busy}>
           <IconVault />
-          {busy ? "Working…" : firstRun ? "Create vault unlock" : "Unlock vault"}
+          {busy
+            ? "Working…"
+            : firstRun
+              ? "Create vault unlock"
+              : "Unlock vault"}
         </button>
 
         {error ? (

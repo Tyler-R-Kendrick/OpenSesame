@@ -8,6 +8,7 @@ import {
   recordAttempt,
 } from "../lib/queue.js";
 import { loadSettings } from "../lib/settings.js";
+import { track } from "../lib/telemetry.js";
 import { credentialsFor } from "../lib/urls.js";
 
 export function QueuePage({ online }: { online: boolean }) {
@@ -20,6 +21,12 @@ export function QueuePage({ online }: { online: boolean }) {
     setItems(loadQueue());
   }
 
+  // refresh is a new function identity every render (not memoized) and only
+  // reads local storage — adding it here would re-run this effect (and
+  // setItems) on every render, an infinite loop. This is an intentional
+  // run-once-on-mount effect, pre-existing behavior this build-out did not
+  // introduce.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see above
   useEffect(() => {
     refresh();
   }, []);
@@ -57,6 +64,7 @@ export function QueuePage({ online }: { online: boolean }) {
           await sesame.completeClaim(claim.id, { acceptedItemIds: ["*"] });
         }
         dequeue(item.id);
+        track("ceremony_completed", { queue_depth: loadQueue().length });
         done += 1;
       } catch (e) {
         // One item that cannot succeed must not hold the rest of the outbox
@@ -81,9 +89,7 @@ export function QueuePage({ online }: { online: boolean }) {
         so the queue is cleared as it flushes and entries expire after a day.
       </p>
       {items.length === 0 ? (
-        <p className="hint" role="status">
-          Queue is empty.
-        </p>
+        <output className="hint">Queue is empty.</output>
       ) : (
         <ul className="status-list">
           {items.map((item) => (
@@ -113,11 +119,7 @@ export function QueuePage({ online }: { online: boolean }) {
           Refresh
         </button>
       </div>
-      {status ? (
-        <p className="ok" role="status">
-          {status}
-        </p>
-      ) : null}
+      {status ? <output className="ok">{status}</output> : null}
       {error ? (
         <p className="err" role="alert">
           {error}

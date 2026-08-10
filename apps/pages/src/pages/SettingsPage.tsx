@@ -5,6 +5,7 @@ import {
   loadSettings,
   saveSettings,
 } from "../lib/settings.js";
+import { track } from "../lib/telemetry.js";
 
 export function SettingsPage() {
   const [form, setForm] = useState<PagesSettings>(() => loadSettings());
@@ -19,6 +20,7 @@ export function SettingsPage() {
         identityApi: form.identityApi.trim().replace(/\/$/, ""),
         operatorToken: form.operatorToken.trim(),
       });
+      track("settings_changed");
       setError(null);
       setSaved(true);
     } catch (err) {
@@ -78,9 +80,7 @@ export function SettingsPage() {
         </div>
       </form>
       {saved ? (
-        <p className="ok" role="status">
-          Settings saved in this browser.
-        </p>
+        <output className="ok">Settings saved in this browser.</output>
       ) : null}
       {error ? (
         <p className="err" role="alert">

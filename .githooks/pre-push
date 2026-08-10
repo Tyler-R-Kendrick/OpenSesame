@@ -1,0 +1,38 @@
+#!/bin/sh
+# pre-push — runs local verification before code leaves the machine.
+# Installed via `pnpm setup:hooks` (see scripts/setup-hooks.sh).
+#
+# Mode is controlled by OPENSESAME_PREPUSH:
+#   off  -> skip entirely
+#   fast -> pnpm typecheck && pnpm test   (default when unset)
+#   full -> pnpm verify
+set -e
+
+# See .githooks/pre-commit for why this is cleared defensively.
+unset NODE_OPTIONS
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+mode="${OPENSESAME_PREPUSH:-fast}"
+
+echo "pre-push: mode=$mode (set with: export OPENSESAME_PREPUSH=off|fast|full)"
+
+case "$mode" in
+  off)
+    echo "pre-push: OPENSESAME_PREPUSH=off, skipping checks"
+    exit 0
+    ;;
+  fast)
+    pnpm typecheck && pnpm test
+    ;;
+  full)
+    pnpm verify
+    ;;
+  *)
+    echo "pre-push: unknown OPENSESAME_PREPUSH value '$mode' (expected off|fast|full)" >&2
+    exit 1
+    ;;
+esac
+
+echo "pre-push: OK (mode=$mode)"

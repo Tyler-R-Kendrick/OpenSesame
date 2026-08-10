@@ -1,0 +1,21 @@
+{
+  "name": "@opensesame/redteam",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "promptfoo red-team corpus for the apps/mcp-host MCP surfaces (prompt injection, confused deputy, credential exfiltration, malformed input).",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "redteam": "node scripts/run-redteam.mjs",
+    "redteam:eval": "promptfoo eval -c promptfooconfig.yaml",
+    "redteam:report": "promptfoo view",
+    "redteam:mock-upstream": "node scripts/mock-upstream-daemon.mjs"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@types/node": "22.15.29",
+    "promptfoo": "0.122.0",
+    "tsx": "4.19.4",
+    "typescript": "5.8.3"
+  }
+}

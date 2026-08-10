@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { enqueue } from "../lib/queue.js";
+import { enqueue, loadQueue } from "../lib/queue.js";
 import { loadSettings } from "../lib/settings.js";
+import { track } from "../lib/telemetry.js";
 import { credentialsFor } from "../lib/urls.js";
 
 export function AuthorizePage({ online }: { online: boolean }) {
@@ -21,6 +22,7 @@ export function AuthorizePage({ online }: { online: boolean }) {
 
     if (!online) {
       enqueue({ kind: "device_approve", userCode: code });
+      track("ceremony_queued", { queue_depth: loadQueue().length });
       setStatus(
         "Offline — approval queued. Open Queue when you are back online.",
       );
@@ -43,6 +45,7 @@ export function AuthorizePage({ online }: { online: boolean }) {
         }
         throw new Error(`Approval failed (${res.status}).`);
       }
+      track("ceremony_completed");
       setStatus("CLI session authorized. Return to the terminal.");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -61,9 +64,9 @@ export function AuthorizePage({ online }: { online: boolean }) {
         API, not the Host API.
       </p>
       {!online ? (
-        <p className="warn" role="status">
+        <output className="warn">
           You are offline. Approvals will be queued until connectivity returns.
-        </p>
+        </output>
       ) : null}
       <label htmlFor="user-code">User code</label>
       <input
@@ -91,11 +94,7 @@ export function AuthorizePage({ online }: { online: boolean }) {
           Claim ownership
         </Link>
       </div>
-      {status ? (
-        <p className="ok" role="status">
-          {status}
-        </p>
-      ) : null}
+      {status ? <output className="ok">{status}</output> : null}
       {error ? (
         <p className="err" role="alert">
           {error}

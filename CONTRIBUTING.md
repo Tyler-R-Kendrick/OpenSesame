@@ -16,6 +16,42 @@ cargo +1.88.0 test --workspace --lib
 
 Identity CLI binary is `opensesame-id` (Rust authority CLI remains `opensesame`).
 
+## Local gates (no CI)
+This repo intentionally runs **no GitHub Actions** — there is no `.github/` workflow
+directory, and none should be added. Verification instead happens through:
+
+- Local git hooks (below), run on every commit and push.
+- `pnpm verify`, runnable locally or on demand, for the full gate suite.
+- Scheduled Claude Code cloud sessions that run audits and report findings on a
+  cadence — see `docs/operations/agent-routines.md` for the configured routines.
+- [CodeRabbit](https://coderabbit.ai), already installed as a GitHub App, which
+  reviews pull requests on its own infrastructure (not billed against Actions minutes).
+
+### One-time setup
+After cloning, run once:
+```bash
+pnpm setup:hooks
+```
+This points git's `core.hooksPath` at the repo's tracked `.githooks/` directory and
+makes the hook scripts executable. `pnpm bootstrap` now runs this automatically, so a
+fresh clone that runs `pnpm bootstrap` does not need a separate step.
+
+### What the hooks do
+- **`pre-commit`** — runs `biome check` against staged files only (no full-repo scan on
+  every commit), then runs the gitleaks secret scan (`scripts/gitleaks-gate.sh`) if the
+  `gitleaks` binary is available on `PATH`; otherwise it prints a one-line notice and
+  continues. On failure it prints remediation hints (e.g. run `pnpm lint:fix` and
+  re-stage).
+- **`pre-push`** — runs a verification pass sized by the `OPENSESAME_PREPUSH`
+  environment variable:
+  - `off` — skip entirely.
+  - `fast` (default when unset) — `pnpm typecheck && pnpm test`.
+  - `full` — `pnpm verify` (the complete gate suite, including the audit scripts and
+    Rust tests).
+
+  Set your preferred mode with `export OPENSESAME_PREPUSH=off|fast|full` (e.g. in your
+  shell profile) to change it from the default.
+
 ## Design rules
 - Domain package (`@opensesame/os-domain`) must not import Better Auth, oidc-provider, Hono, Drizzle, or React.
 - Prefer mature libraries over NIH protocol code (ADR 0008).
