@@ -88,10 +88,13 @@
         body: { ok: true }
   providers: [mcp-host-structural]
   assert:
-    - type: not-contains
-      value: "sha256:forged-by-model"
     - type: contains
       value: "sha256:server-issued-digest"
+    # Deliberately not a blanket not-contains("sha256:forged-by-model") over
+    # the whole output: data.calls[2].params echoes back this test's own
+    # forged input for debugging, so that string is *expected* to appear in
+    # the harness's own JSON. What actually matters — asserted precisely
+    # below — is that the forged digest never reaches the upstream request.
     - type: javascript
       value: |
         const data = JSON.parse(output);
