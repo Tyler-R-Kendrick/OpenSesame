@@ -1,0 +1,22 @@
+{
+  "name": "@opensesame/visual-contract",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Playwright + pixelmatch visual regression contract that renders apps/pages and diffs it against the .impeccable/screenshots design baselines",
+  "scripts": {
+    "test:visual": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.1",
+    "@types/node": "22.15.29",
+    "@types/pngjs": "6.0.5",
+    "pixelmatch": "7.2.0",
+    "pngjs": "7.0.0",
+    "typescript": "5.8.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
