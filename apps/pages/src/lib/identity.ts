@@ -104,7 +104,7 @@ async function mintHostSession(organizationId: string): Promise<HostSession> {
     }),
   });
   if (!approve.ok) {
-    if (approve.status === 401 || approve.status === 403) {
+    if (approve.status === 401) {
       throw new Error(
         "Sign in at the Identity API before opening Connections.",
       );
@@ -185,19 +185,24 @@ export async function hostFetch(
   path: string,
   init: RequestInit = {},
 ) {
-  const active = await ensureHostSession(organizationId);
-  const headers = new Headers(init.headers);
-  headers.set("authorization", `Bearer ${active.accessToken}`);
-  if (init.body && !headers.has("content-type")) {
-    headers.set("content-type", "application/json");
+  async function send() {
+    const active = await ensureHostSession(organizationId);
+    const headers = new Headers(init.headers);
+    headers.set("authorization", `Bearer ${active.accessToken}`);
+    if (init.body && !headers.has("content-type")) {
+      headers.set("content-type", "application/json");
+    }
+    const response = await fetch(`${base("hostApi")}${path}`, {
+      ...init,
+      headers,
+      credentials: "omit",
+    });
+    return { response, accessToken: active.accessToken };
   }
-  const response = await fetch(`${base("hostApi")}${path}`, {
-    ...init,
-    headers,
-    credentials: "omit",
-  });
-  if (response.status === 401) clearHostSession();
-  return response;
+  const first = await send();
+  if (first.response.status !== 401) return first.response;
+  if (hostSession?.accessToken === first.accessToken) clearHostSession();
+  return (await send()).response;
 }
 
 export async function listSessionOrganizations() {

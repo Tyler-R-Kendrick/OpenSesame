@@ -51,7 +51,7 @@ export type Integration = {
 
 export type Connection = {
   id: string;
-  integrationId: string;
+  integrationId: string | null;
   providerId: string;
   displayName: string;
   accountLabel: string | null;
@@ -194,8 +194,8 @@ export function parseConnectionList(value: unknown): Connection[] {
   return list(value, "connections").flatMap((entry) => {
     const raw = object(entry);
     const id = string(raw.connection_id, string(raw.id));
-    const integrationId = string(raw.integration_id);
-    if (!id || !integrationId) return [];
+    const integrationId = nullableString(raw.integration_id);
+    if (!id) return [];
     return [
       {
         id,

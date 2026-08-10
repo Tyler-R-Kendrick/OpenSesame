@@ -1,7 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Integration, Provider } from "../lib/connections.js";
-import { IntegrationsPanel, MarketplacePanel } from "./ConnectionsPage.js";
+import {
+  IntegrationsPanel,
+  MarketplacePanel,
+  parseConnectionMessage,
+  reconcileOrganization,
+} from "./ConnectionsPage.js";
 
 const oauthProvider: Provider = {
   id: "github",
@@ -45,6 +50,61 @@ function integration(
 }
 
 describe("Connections marketplace panels", () => {
+  it("uses refreshed membership role and drops removed organization access", () => {
+    expect(
+      reconcileOrganization(
+        [{ id: "org_1", displayName: "Acme", role: "member" }],
+        "org_1",
+      ).organization?.role,
+    ).toBe("member");
+    expect(reconcileOrganization([], "org_1")).toEqual({
+      organizationId: null,
+      organization: null,
+    });
+  });
+
+  it("accepts connection callbacks only from the configured Host origin", () => {
+    const callback = {
+      data: { type: "opensesame:connection", status: "active" },
+      origin: "https://host.example",
+    } as MessageEvent;
+
+    expect(parseConnectionMessage(callback, "https://host.example")).toEqual({
+      status: "active",
+      error: null,
+      hint: null,
+    });
+    expect(parseConnectionMessage(callback, "https://attacker.example")).toBe(
+      null,
+    );
+    expect(
+      parseConnectionMessage(
+        {
+          data: {
+            type: "opensesame:connection",
+            error: "oauth_denied",
+            hint: "Provider authorization was denied.",
+          },
+          origin: "https://host.example",
+        } as MessageEvent,
+        "https://host.example",
+      ),
+    ).toEqual({
+      status: null,
+      error: "oauth_denied",
+      hint: "Provider authorization was denied.",
+    });
+    expect(
+      parseConnectionMessage(
+        {
+          data: { type: "different:event", status: "active" },
+          origin: "https://host.example",
+        } as MessageEvent,
+        "https://host.example",
+      ),
+    ).toBe(null);
+  });
+
   it("branches member connection forms by provider auth kind", () => {
     const html = renderToStaticMarkup(
       <MarketplacePanel

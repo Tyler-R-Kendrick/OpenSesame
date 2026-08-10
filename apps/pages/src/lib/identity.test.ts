@@ -21,12 +21,14 @@ function json(value: unknown, status = 200) {
 function hostHarness(
   options: {
     endpointStatuses?: number[];
+    approvalStatuses?: number[];
     tokenOrganization?: (approved: string) => string;
   } = {},
 ): FetchHarness {
   const approvals: string[] = [];
   const authorizeBodies: Record<string, unknown>[] = [];
   const endpointStatuses = [...(options.endpointStatuses ?? [200])];
+  const approvalStatuses = [...(options.approvalStatuses ?? [])];
   let grants = 0;
   const fetch = vi.fn(
     async (input: string | URL | Request, init: RequestInit = {}) => {
@@ -44,7 +46,10 @@ function hostHarness(
           organization_id: string;
         };
         approvals.push(body.organization_id);
-        return json({ approved: true });
+        const status = approvalStatuses.shift() ?? 200;
+        return status === 200
+          ? json({ approved: true })
+          : json({ error: "organization_access_denied" }, status);
       }
       if (url.endsWith("/api/v1/device/token")) {
         const approved = approvals.at(-1) ?? "";
@@ -116,11 +121,48 @@ describe("organization-bound Host sessions", () => {
   it("remints after an organization switch and after a Host 401", async () => {
     const harness = hostHarness({ endpointStatuses: [200, 401, 200] });
 
-    await hostFetch("org_1", "/api/v1/providers");
+    await expect(
+      hostFetch("org_1", "/api/v1/providers").then(
+        (response) => response.status,
+      ),
+    ).resolves.toBe(200);
     clearHostSession();
-    await hostFetch("org_2", "/api/v1/providers");
-    await hostFetch("org_2", "/api/v1/providers");
+    await expect(
+      hostFetch("org_2", "/api/v1/providers").then(
+        (response) => response.status,
+      ),
+    ).resolves.toBe(200);
 
     expect(harness.approvals).toEqual(["org_1", "org_2", "org_2"]);
+  });
+
+  it("surfaces organization denial while reminting after a Host 401", async () => {
+    const harness = hostHarness({
+      endpointStatuses: [200, 401],
+      approvalStatuses: [200, 200, 403],
+    });
+
+    await hostFetch("org_1", "/api/v1/providers");
+    clearHostSession();
+
+    await expect(hostFetch("org_2", "/api/v1/providers")).rejects.toThrow(
+      "organization_access_denied",
+    );
+    expect(harness.approvals).toEqual(["org_1", "org_2", "org_2"]);
+  });
+
+  it("deduplicates reminting after concurrent requests reject one token", async () => {
+    const harness = hostHarness({
+      endpointStatuses: [200, 401, 401, 200, 200],
+    });
+
+    await hostFetch("org_1", "/api/v1/providers");
+    const responses = await Promise.all([
+      hostFetch("org_1", "/api/v1/providers"),
+      hostFetch("org_1", "/api/v1/integrations"),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(harness.approvals).toEqual(["org_1", "org_1"]);
   });
 });

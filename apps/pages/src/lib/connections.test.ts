@@ -114,7 +114,7 @@ describe("connections wire parsers", () => {
     ).toEqual([]);
   });
 
-  it("requires integration ids and valid organization roles", () => {
+  it("keeps legacy connections without integrations and validates roles", () => {
     expect(
       parseConnectionList({
         connections: [
@@ -127,10 +127,22 @@ describe("connections wire parsers", () => {
             refreshable: true,
             granted_scopes: ["read:user"],
           },
-          { connection_id: "orphan" },
+          {
+            connection_id: "legacy",
+            integration_id: null,
+            provider_id: "github",
+            display_name: "Legacy GitHub",
+          },
         ],
       }),
-    ).toHaveLength(1);
+    ).toEqual([
+      expect.objectContaining({ id: "conn_1", integrationId: "int_1" }),
+      expect.objectContaining({
+        id: "legacy",
+        integrationId: null,
+        providerId: "github",
+      }),
+    ]);
     expect(
       parseConnectionList({
         connections: [

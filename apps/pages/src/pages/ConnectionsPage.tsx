@@ -36,6 +36,7 @@ import {
   clearHostSession,
   listSessionOrganizations,
 } from "../lib/identity.js";
+import { loadSettings } from "../lib/settings.js";
 
 const CATEGORY_LABELS: Record<ProviderCategory, string> = {
   developer: "Developer tools",
@@ -69,6 +70,42 @@ export function filterProviders(
 
 export function canConfigure(role: OrganizationRole) {
   return role === "owner" || role === "admin";
+}
+
+export function reconcileOrganization(
+  organizations: SessionOrganization[],
+  currentId: string,
+) {
+  const organizationId = chooseOrganization(organizations, currentId);
+  return {
+    organizationId,
+    organization:
+      organizations.find((candidate) => candidate.id === organizationId) ??
+      null,
+  };
+}
+
+export function parseConnectionMessage(
+  event: MessageEvent,
+  hostOrigin: string,
+) {
+  if (
+    event.origin !== hostOrigin ||
+    !event.data ||
+    typeof event.data !== "object" ||
+    event.data.type !== "opensesame:connection"
+  ) {
+    return null;
+  }
+  const status =
+    typeof event.data.status === "string" ? event.data.status : null;
+  const error = typeof event.data.error === "string" ? event.data.error : null;
+  if (!status && !error) return null;
+  return {
+    status,
+    error,
+    hint: typeof event.data.hint === "string" ? event.data.hint : null,
+  };
 }
 
 export function ConnectionsPage() {
@@ -141,6 +178,29 @@ export function ConnectionsPage() {
     if (organization) void loadWorkspace(organization);
   }, [organization, loadWorkspace]);
 
+  useEffect(() => {
+    if (!organization) return;
+    const selectedOrganization = organization;
+    const hostOrigin = new URL(loadSettings().hostApi).origin;
+    function onMessage(event: MessageEvent) {
+      const result = parseConnectionMessage(event, hostOrigin);
+      if (!result) return;
+      if (result.error) {
+        setNotice(null);
+        const callbackError = result.hint ?? result.error;
+        void loadWorkspace(selectedOrganization).then(() =>
+          setError(callbackError),
+        );
+      } else {
+        setError(null);
+        setNotice("Connection authorized.");
+        void loadWorkspace(selectedOrganization);
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [organization, loadWorkspace]);
+
   function switchOrganization(nextId: string) {
     activeOrganizationId.current = nextId || null;
     clearHostSession();
@@ -153,14 +213,38 @@ export function ConnectionsPage() {
     setError(null);
   }
 
-  async function act(label: string, work: () => Promise<void>) {
+  async function act(
+    label: string,
+    work: () => Promise<void>,
+    refreshMembership = false,
+  ) {
     if (!organization) return;
     setBusy(label);
     setError(null);
     setNotice(null);
     try {
       await work();
-      await loadWorkspace(organization);
+      let selected: SessionOrganization | null = organization;
+      if (refreshMembership) {
+        const nextOrganizations = await listSessionOrganizations();
+        const refreshed = reconcileOrganization(
+          nextOrganizations,
+          organization.id,
+        );
+        selected = refreshed.organization;
+        clearHostSession();
+        activeOrganizationId.current = refreshed.organizationId;
+        setOrganizations(nextOrganizations);
+        setOrganizationId(refreshed.organizationId);
+        if (!selected) {
+          setProviders([]);
+          setIntegrations([]);
+          setConnections([]);
+          setMembers([]);
+          setLoading(false);
+        }
+      }
+      if (selected && !refreshMembership) await loadWorkspace(selected);
     } catch (caught) {
       setError(message(caught));
     } finally {
@@ -239,13 +323,18 @@ export function ConnectionsPage() {
             }
             onConnect={(provider, integration, form, popup) =>
               act(`connect-${integration.id}`, async () => {
+                if (
+                  provider.authKind === "api_key" &&
+                  !form.credential.trim()
+                ) {
+                  throw new Error("Enter an API key.");
+                }
                 const connection = await createConnection(organization.id, {
                   integrationId: integration.id,
                   displayName: form.displayName,
                   scopes: integration.scopes,
                 });
                 if (provider.authKind === "api_key") {
-                  if (!form.credential) throw new Error("Enter an API key.");
                   await setConnectionCredential(
                     organization.id,
                     connection.id,
@@ -360,16 +449,24 @@ export function ConnectionsPage() {
                 })
               }
               onRole={(principalId, role) =>
-                act(`role-${principalId}`, async () => {
-                  await updateMember(organization.id, principalId, role);
-                  setNotice(`${principalId} is now ${role}.`);
-                })
+                act(
+                  `role-${principalId}`,
+                  async () => {
+                    await updateMember(organization.id, principalId, role);
+                    setNotice(`${principalId} is now ${role}.`);
+                  },
+                  true,
+                )
               }
               onRemove={(principalId) =>
-                act(`remove-${principalId}`, async () => {
-                  await removeMember(organization.id, principalId);
-                  setNotice(`${principalId} removed from the organization.`);
-                })
+                act(
+                  `remove-${principalId}`,
+                  async () => {
+                    await removeMember(organization.id, principalId);
+                    setNotice(`${principalId} removed from the organization.`);
+                  },
+                  true,
+                )
               }
             />
           ) : null}
@@ -725,8 +822,9 @@ function ConnectionsPanel({
               <div>
                 <strong>{connection.displayName}</strong>
                 <span>
-                  {integrationNames.get(connection.integrationId) ??
-                    connection.providerId}
+                  {(connection.integrationId
+                    ? integrationNames.get(connection.integrationId)
+                    : null) ?? connection.providerId}
                 </span>
               </div>
               <div className="connection-meta">
