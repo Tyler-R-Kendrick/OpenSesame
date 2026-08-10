@@ -22,7 +22,14 @@ pub struct DevicePending {
     /// `hash_secret(user_code)` — the low-entropy code is never held in cleartext.
     pub user_code_hash: String,
     pub expires_at: chrono::DateTime<chrono::Utc>,
-    pub approved_principal: Option<String>,
+    pub approved: Option<ApprovedDevice>,
+}
+
+#[derive(Clone)]
+pub struct ApprovedDevice {
+    pub principal: String,
+    pub organization_id: OrganizationId,
+    pub organization_role: OrganizationRole,
 }
 
 #[derive(Clone)]

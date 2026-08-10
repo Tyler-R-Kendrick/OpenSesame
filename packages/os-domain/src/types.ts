@@ -76,6 +76,16 @@ export interface Organization {
   updatedAt: Date;
 }
 
+export type OrganizationRole = "owner" | "admin" | "member";
+
+export interface OrganizationMembership {
+  organizationId: string;
+  principalId: PrincipalId;
+  role: OrganizationRole;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Team {
   id: string;
   organizationId: string;

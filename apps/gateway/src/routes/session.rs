@@ -3,11 +3,13 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use serde::Deserialize;
 use serde_json::json;
+use std::collections::HashMap;
 
 use crate::app_state::AppState;
 use crate::middleware::auth::{
-    require_demo_bootstrap, require_session_or_operator, resolve_caller_subject,
+    require_demo_bootstrap, require_operator, require_session_or_operator, resolve_caller, Caller,
 };
 
 pub async fn status(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
@@ -19,13 +21,29 @@ pub async fn status(State(st): State<AppState>, headers: axum::http::HeaderMap) 
 }
 
 pub async fn whoami(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
-    let subject = match resolve_caller_subject(&st, &headers) {
-        Ok(s) => s,
+    let caller = match resolve_caller(&st, &headers) {
+        Ok(caller) => caller,
         Err(resp) => return resp,
     };
     let boot = match require_demo_bootstrap(&st) {
         Ok(b) => b,
         Err(resp) => return resp,
+    };
+    let (subject, organization_id, organization_role) = match caller {
+        Caller::Operator => ("user:demo".to_string(), boot.org, "operator"),
+        Caller::Session {
+            subject,
+            organization_id,
+            role,
+        } => (
+            subject,
+            organization_id,
+            match role {
+                opensesame_domain::OrganizationRole::Owner => "owner",
+                opensesame_domain::OrganizationRole::Admin => "admin",
+                opensesame_domain::OrganizationRole::Member => "member",
+            },
+        ),
     };
     Json(json!({
         "principal_id": subject,
@@ -33,9 +51,139 @@ pub async fn whoami(State(st): State<AppState>, headers: axum::http::HeaderMap) 
         "client_id": "cli:opensesame",
         "issuer": st.issuer,
         "assurance": "mfa",
-        "context": format!("{}/{}/", boot.org, boot.project)
+        "organization_id": organization_id.to_string(),
+        "organization_role": organization_role,
+        "context": format!("{}/{}/", organization_id, boot.project)
     }))
     .into_response()
+}
+
+#[derive(Deserialize)]
+pub struct RevokeSessionsRequest {
+    principal_id: String,
+    organization_id: String,
+}
+
+fn revoke_matching_sessions(
+    sessions: &mut HashMap<String, serde_json::Value>,
+    principal_id: &str,
+    organization_id: &str,
+) -> usize {
+    let before = sessions.len();
+    sessions.retain(|_, meta| {
+        meta.get("principal_id").and_then(|value| value.as_str()) != Some(principal_id)
+            || meta.get("organization_id").and_then(|value| value.as_str()) != Some(organization_id)
+    });
+    before - sessions.len()
+}
+
+fn revoke_pending_authorizations(
+    pending: &mut HashMap<String, crate::app_state::DevicePending>,
+    principal_id: &str,
+    organization_id: opensesame_domain::OrganizationId,
+) -> usize {
+    let mut revoked = 0;
+    for authorization in pending.values_mut() {
+        if authorization.approved.as_ref().is_some_and(|approved| {
+            approved.principal == principal_id && approved.organization_id == organization_id
+        }) {
+            authorization.approved = None;
+            revoked += 1;
+        }
+    }
+    revoked
+}
+
+pub async fn revoke(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(req): Json<RevokeSessionsRequest>,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
+    let organization_id = match opensesame_domain::OrganizationId::parse(&req.organization_id) {
+        Ok(id) => id,
+        Err(_) => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(json!({"error":"invalid_organization_id"})),
+            )
+                .into_response();
+        }
+    };
+    let mut sessions = st.sessions.lock().unwrap();
+    let revoked = revoke_matching_sessions(&mut sessions, &req.principal_id, &req.organization_id);
+    drop(sessions);
+
+    // An approved device code can mint a session after this request. Clear matching
+    // approvals too so a membership mutation revokes both live and not-yet-minted sessions.
+    revoke_pending_authorizations(
+        &mut st.device_codes.lock().unwrap(),
+        &req.principal_id,
+        organization_id,
+    );
+
+    Json(json!({"revoked": revoked})).into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{revoke_matching_sessions, revoke_pending_authorizations};
+    use crate::app_state::{ApprovedDevice, DevicePending};
+    use chrono::{Duration, Utc};
+    use opensesame_domain::{OrganizationId, OrganizationRole};
+    use serde_json::json;
+    use std::collections::HashMap;
+
+    #[test]
+    fn revocation_is_scoped_to_principal_and_organization() {
+        let mut sessions = HashMap::from([
+            (
+                "target".into(),
+                json!({"principal_id":"prn_target", "organization_id":"org_target"}),
+            ),
+            (
+                "other-principal".into(),
+                json!({"principal_id":"prn_other", "organization_id":"org_target"}),
+            ),
+            (
+                "other-org".into(),
+                json!({"principal_id":"prn_target", "organization_id":"org_other"}),
+            ),
+        ]);
+        assert_eq!(
+            revoke_matching_sessions(&mut sessions, "prn_target", "org_target"),
+            1
+        );
+        assert!(!sessions.contains_key("target"));
+        assert!(sessions.contains_key("other-principal"));
+        assert!(sessions.contains_key("other-org"));
+    }
+
+    #[test]
+    fn revocation_clears_matching_approved_device_codes() {
+        let organization_id = OrganizationId::new();
+        let approved = |principal: &str, organization_id| DevicePending {
+            user_code_hash: "digest".into(),
+            expires_at: Utc::now() + Duration::minutes(5),
+            approved: Some(ApprovedDevice {
+                principal: principal.into(),
+                organization_id,
+                organization_role: OrganizationRole::Member,
+            }),
+        };
+        let mut pending = HashMap::from([
+            ("target".into(), approved("prn_target", organization_id)),
+            ("other".into(), approved("prn_other", organization_id)),
+        ]);
+        assert_eq!(
+            revoke_pending_authorizations(&mut pending, "prn_target", organization_id),
+            1
+        );
+        assert!(pending["target"].approved.is_none());
+        assert!(pending["other"].approved.is_some());
+    }
 }
 
 pub async fn list_connections(

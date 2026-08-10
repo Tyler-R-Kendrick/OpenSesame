@@ -7,7 +7,7 @@ import {
   DEFAULT_VERIFIED_QUOTA,
   ProvisionalPolicy,
 } from "@opensesame/policy";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
 
 async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
@@ -21,6 +21,30 @@ async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
     sessionId: string;
   };
   return body;
+}
+
+async function verifiedPrincipal(
+  app: ReturnType<typeof createControlPlane>["app"],
+  subject: string,
+) {
+  const created = await provisional(app);
+  const auth = { authorization: `Bearer ${created.accessToken}` };
+  const linked = await app.request("/v1/principals/link-identities", {
+    method: "POST",
+    headers: {
+      ...auth,
+      "content-type": "application/json",
+      "idempotency-key": `verify-${subject}`,
+    },
+    body: JSON.stringify({
+      kind: "oidc",
+      issuer: "https://mock.example",
+      subject,
+      assurance: "verified",
+    }),
+  });
+  expect(linked.status).toBe(201);
+  return { ...created, auth };
 }
 
 describe("control-plane API", () => {
@@ -103,7 +127,9 @@ describe("control-plane API", () => {
 
     // Today the claim never outlives the project, so force the case directly:
     // approval must not resurrect a project that is already past its own TTL.
-    const stored = ctx.stores.projects.get(project.projectId)!;
+    const stored = ctx.stores.projects.get(project.projectId);
+    expect(stored).toBeDefined();
+    if (!stored) throw new Error("project missing from store");
     ctx.stores.projects.set(project.projectId, {
       ...stored,
       expiresAt: new Date(now.getTime() - 1_000),
@@ -649,7 +675,7 @@ describe("control-plane API", () => {
       body: JSON.stringify({ user_code: "ABCD-EFGH" }),
     });
     // Host may be down in unit tests → 502, but never leak operator token in body.
-    expect([200, 404, 502]).toContain(res.status);
+    expect([200, 400, 403, 404, 502]).toContain(res.status);
     const body = await res.text();
     expect(body).not.toContain(config.operatorToken);
     expect(body.toLowerCase()).not.toContain("x-opensesame-operator");
@@ -679,10 +705,10 @@ describe("control-plane API", () => {
       401,
     );
     // An origin this deployment listed, or its own, is a caller it expects.
-    expect([200, 404, 502]).toContain(
+    expect([200, 400, 403, 404, 502]).toContain(
       (await approve({ origin: "https://console.example" })).status,
     );
-    expect([200, 404, 502]).toContain(
+    expect([200, 400, 403, 404, 502]).toContain(
       (await approve({ origin: "http://127.0.0.1:8788" })).status,
     );
     // Reads are untouched: a forged read is not a forged write.
@@ -895,6 +921,217 @@ describe("control-plane API", () => {
     ).json()) as { ok: boolean; checked: number; eventId?: string };
     expect(verified.ok).toBe(true);
     expect(verified.checked).toBe(everything.length);
+  });
+
+  it("enforces organization membership roles and protects the last owner", async () => {
+    const { app, ctx } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const owner = await verifiedPrincipal(app, "membership-owner");
+    const member = await verifiedPrincipal(app, "membership-member");
+    const candidate = await verifiedPrincipal(app, "membership-candidate");
+    const inactive = await verifiedPrincipal(app, "membership-inactive");
+    const inactiveRecord = await ctx.repos.principals.getById(
+      inactive.principalId,
+    );
+    expect(inactiveRecord).not.toBeNull();
+    if (!inactiveRecord) throw new Error("principal missing from repository");
+    await ctx.repos.principals.update(
+      inactive.principalId,
+      { state: "suspended", suspendedAt: new Date(), updatedAt: new Date() },
+      inactiveRecord.version,
+    );
+
+    const created = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...owner.auth,
+        "content-type": "application/json",
+        "idempotency-key": "membership-org",
+      },
+      body: JSON.stringify({
+        slug: "membership-org",
+        displayName: "Membership Org",
+      }),
+    });
+    expect(created.status).toBe(201);
+    const organization = (await created.json()) as {
+      id: string;
+      role: string;
+    };
+    expect(organization.role).toBe("owner");
+
+    const add = (principalId: string, role: string, auth = owner.auth) =>
+      app.request(`/v1/organizations/${organization.id}/members`, {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json" },
+        body: JSON.stringify({ principalId, role }),
+      });
+    expect((await add(member.principalId, "member")).status).toBe(201);
+    expect((await add(member.principalId, "admin")).status).toBe(409);
+    expect((await add("prn_missing", "member")).status).toBe(404);
+    const inactiveAdd = await add(inactive.principalId, "member");
+    expect(inactiveAdd.status).toBe(409);
+    expect((await inactiveAdd.json()) as { error: string }).toEqual({
+      error: "principal_inactive",
+    });
+
+    const memberOrganizations = await app.request("/v1/organizations", {
+      headers: member.auth,
+    });
+    expect(memberOrganizations.status).toBe(200);
+    expect(
+      (
+        (await memberOrganizations.json()) as {
+          organizations: Array<{ id: string; role: string }>;
+        }
+      ).organizations,
+    ).toContainEqual(
+      expect.objectContaining({ id: organization.id, role: "member" }),
+    );
+    expect(
+      (
+        (await (
+          await app.request(`/v1/organizations/${organization.id}`, {
+            headers: member.auth,
+          })
+        ).json()) as { role: string }
+      ).role,
+    ).toBe("member");
+    expect(
+      (
+        await app.request(`/v1/organizations/${organization.id}/members`, {
+          headers: member.auth,
+        })
+      ).status,
+    ).toBe(403);
+    expect(
+      (await add(candidate.principalId, "member", member.auth)).status,
+    ).toBe(403);
+
+    const demoteLastOwner = await app.request(
+      `/v1/organizations/${organization.id}/members/${owner.principalId}`,
+      {
+        method: "PATCH",
+        headers: { ...owner.auth, "content-type": "application/json" },
+        body: JSON.stringify({ role: "admin" }),
+      },
+    );
+    expect(demoteLastOwner.status).toBe(409);
+    const removeLastOwner = await app.request(
+      `/v1/organizations/${organization.id}/members/${owner.principalId}`,
+      { method: "DELETE", headers: owner.auth },
+    );
+    expect(removeLastOwner.status).toBe(409);
+  });
+
+  it("derives device organization role and revokes Host sessions on membership changes", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const owner = await verifiedPrincipal(app, "device-owner");
+    const member = await verifiedPrincipal(app, "device-member");
+    const created = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...owner.auth,
+        "content-type": "application/json",
+        "idempotency-key": "device-org",
+      },
+      body: JSON.stringify({ slug: "device-org", displayName: "Device Org" }),
+    });
+    const organization = (await created.json()) as { id: string };
+    await app.request(`/v1/organizations/${organization.id}/members`, {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ principalId: member.principalId, role: "member" }),
+    });
+
+    const requests: Array<{ url: string; body: Record<string, string> }> = [];
+    const host = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, init) => {
+        requests.push({
+          url: String(input),
+          body: JSON.parse(String(init?.body)) as Record<string, string>,
+        });
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      });
+    try {
+      const approval = await app.request("/v1/device/approve", {
+        method: "POST",
+        headers: { ...member.auth, "content-type": "application/json" },
+        body: JSON.stringify({
+          user_code: "ABCD-EFGH",
+          organization_id: organization.id,
+          organization_role: "owner",
+          principal: owner.principalId,
+        }),
+      });
+      expect(approval.status).toBe(200);
+      expect(requests[0]?.body).toMatchObject({
+        principal: member.principalId,
+        organization_id: organization.id,
+        organization_role: "member",
+      });
+
+      host.mockResolvedValueOnce(new Response("down", { status: 503 }));
+      const failedChange = await app.request(
+        `/v1/organizations/${organization.id}/members/${member.principalId}`,
+        {
+          method: "PATCH",
+          headers: { ...owner.auth, "content-type": "application/json" },
+          body: JSON.stringify({ role: "admin" }),
+        },
+      );
+      expect(failedChange.status).toBe(502);
+      expect(
+        (
+          (await (
+            await app.request(`/v1/organizations/${organization.id}`, {
+              headers: member.auth,
+            })
+          ).json()) as { role: string }
+        ).role,
+      ).toBe("member");
+
+      const changed = await app.request(
+        `/v1/organizations/${organization.id}/members/${member.principalId}`,
+        {
+          method: "PATCH",
+          headers: { ...owner.auth, "content-type": "application/json" },
+          body: JSON.stringify({ role: "admin" }),
+        },
+      );
+      expect(changed.status).toBe(200);
+      expect((await changed.json()) as { role: string }).toEqual(
+        expect.objectContaining({ role: "admin" }),
+      );
+      const removed = await app.request(
+        `/v1/organizations/${organization.id}/members/${member.principalId}`,
+        { method: "DELETE", headers: owner.auth },
+      );
+      expect(removed.status).toBe(204);
+      expect(
+        requests.filter((request) =>
+          request.url.endsWith("/api/v1/sessions/revoke"),
+        ),
+      ).toHaveLength(2);
+      expect(host).toHaveBeenCalledTimes(4);
+    } finally {
+      host.mockRestore();
+    }
   });
 
   it("holds a verified principal to an organization and client quota", async () => {

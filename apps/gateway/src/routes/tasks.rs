@@ -87,8 +87,7 @@ pub async fn start_task(
     // in. Invocation was already closed — `invoke_frozen` compares the intent's
     // organization against the grant's — but an unverified label still travelled
     // into the task record and its audit trail.
-    let boot = require_demo_bootstrap(&st)?;
-    if org != boot.org {
+    if !caller.in_organization(&org) {
         return Err(err_json(
             StatusCode::FORBIDDEN,
             "organization_mismatch",
@@ -170,7 +169,9 @@ pub async fn get_task(
         .store()
         .get_run(tid)
         .map_err(internal)?
-        .filter(|run| caller.owns(&run.principal_id))
+        .filter(|run| {
+            caller.owns(&run.principal_id) && caller.in_organization(&run.organization_id)
+        })
         .ok_or_else(|| not_found("task"))?;
     Ok(Json(json!({
         "task_run_id": run.id.to_string(),
@@ -197,7 +198,9 @@ pub async fn freeze_intent(
     eng.store()
         .get_run(tid)
         .map_err(internal)?
-        .filter(|run| caller.owns(&run.principal_id))
+        .filter(|run| {
+            caller.owns(&run.principal_id) && caller.in_organization(&run.organization_id)
+        })
         .ok_or_else(|| not_found("task"))?;
     let required = Capability::new(
         body.operation.clone(),
@@ -293,7 +296,8 @@ fn claim_frozen_intent(
     now: chrono::DateTime<Utc>,
 ) -> Option<FrozenIntentV2> {
     pending.retain(|_, i| i.expires_at > now);
-    if !caller.owns(&pending.get(digest)?.principal_id) {
+    let intent = pending.get(digest)?;
+    if !caller.owns(&intent.principal_id) || !caller.in_organization(&intent.organization_id) {
         return None;
     }
     pending.remove(digest)
@@ -354,7 +358,9 @@ pub async fn list_tasks(
     let runs = eng.list_runs().map_err(internal)?;
     let items: Vec<Value> = runs
         .into_iter()
-        .filter(|run| caller.owns(&run.principal_id))
+        .filter(|run| {
+            caller.owns(&run.principal_id) && caller.in_organization(&run.organization_id)
+        })
         .map(|run| {
             json!({
                 "task_run_id": run.id.to_string(),
@@ -380,7 +386,9 @@ pub async fn terminate_task(
         .store()
         .get_run(tid)
         .map_err(internal)?
-        .filter(|run| caller.owns(&run.principal_id))
+        .filter(|run| {
+            caller.owns(&run.principal_id) && caller.in_organization(&run.organization_id)
+        })
         .ok_or_else(|| not_found("task"))?;
     let expected = body.expected_state_version.unwrap_or(run.state_version);
     let terminated = eng
@@ -428,14 +436,18 @@ mod tests {
     };
     use std::collections::HashMap;
 
-    fn intent(principal: PrincipalId, expires_in_minutes: i64) -> FrozenIntentV2 {
+    fn intent(
+        principal: PrincipalId,
+        organization_id: OrganizationId,
+        expires_in_minutes: i64,
+    ) -> FrozenIntentV2 {
         FrozenIntentV2 {
             schema_version: FROZEN_INTENT_SCHEMA_VERSION,
             id: IntentId::new(),
             task_run_id: TaskRunId::new(),
             task_state_version: 1,
             task_state_digest: "sha256:state".into(),
-            organization_id: OrganizationId::new(),
+            organization_id,
             project_id: None,
             principal_id: principal,
             actor_id: ActorId::new(),
@@ -478,17 +490,29 @@ mod tests {
     #[test]
     fn another_principal_cannot_burn_an_intent_it_does_not_own() {
         let owner = PrincipalId::new();
+        let organization_id = OrganizationId::new();
         let mut pending = HashMap::new();
-        pending.insert("sha256:intent".to_string(), intent(owner, 5));
+        pending.insert(
+            "sha256:intent".to_string(),
+            intent(owner, organization_id, 5),
+        );
 
-        let stranger = Caller::Principal(PrincipalId::new());
+        let stranger = Caller::Session {
+            subject: PrincipalId::new().to_string(),
+            organization_id,
+            role: opensesame_domain::OrganizationRole::Member,
+        };
         assert!(
             claim_frozen_intent(&mut pending, "sha256:intent", &stranger, Utc::now()).is_none()
         );
         // The refusal must not have spent it.
         assert!(pending.contains_key("sha256:intent"));
 
-        let owner_caller = Caller::Principal(owner);
+        let owner_caller = Caller::Session {
+            subject: owner.to_string(),
+            organization_id,
+            role: opensesame_domain::OrganizationRole::Member,
+        };
         assert!(
             claim_frozen_intent(&mut pending, "sha256:intent", &owner_caller, Utc::now()).is_some()
         );
@@ -496,25 +520,39 @@ mod tests {
     }
 
     #[test]
-    fn an_unbound_session_claims_nothing() {
+    fn a_session_with_an_untyped_subject_claims_nothing() {
         let mut pending = HashMap::new();
-        pending.insert("sha256:intent".to_string(), intent(PrincipalId::new(), 5));
-        assert!(
-            claim_frozen_intent(&mut pending, "sha256:intent", &Caller::Unbound, Utc::now())
-                .is_none()
+        let organization_id = OrganizationId::new();
+        pending.insert(
+            "sha256:intent".to_string(),
+            intent(PrincipalId::new(), organization_id, 5),
         );
+        let caller = Caller::Session {
+            subject: "user:demo".into(),
+            organization_id,
+            role: opensesame_domain::OrganizationRole::Owner,
+        };
+        assert!(claim_frozen_intent(&mut pending, "sha256:intent", &caller, Utc::now()).is_none());
         assert!(pending.contains_key("sha256:intent"));
     }
 
     #[test]
     fn expired_intents_are_dropped_rather_than_invoked() {
         let owner = PrincipalId::new();
+        let organization_id = OrganizationId::new();
         let mut pending = HashMap::new();
-        pending.insert("sha256:intent".to_string(), intent(owner, -1));
+        pending.insert(
+            "sha256:intent".to_string(),
+            intent(owner, organization_id, -1),
+        );
         assert!(claim_frozen_intent(
             &mut pending,
             "sha256:intent",
-            &Caller::Principal(owner),
+            &Caller::Session {
+                subject: owner.to_string(),
+                organization_id,
+                role: opensesame_domain::OrganizationRole::Member,
+            },
             Utc::now()
         )
         .is_none());
@@ -530,13 +568,43 @@ mod tests {
     fn session_owns_only_its_own_principal() {
         let mine = PrincipalId::new();
         let theirs = PrincipalId::new();
-        let caller = Caller::Principal(mine);
+        let caller = Caller::Session {
+            subject: mine.to_string(),
+            organization_id: OrganizationId::new(),
+            role: opensesame_domain::OrganizationRole::Member,
+        };
         assert!(caller.owns(&mine));
         assert!(!caller.owns(&theirs));
     }
 
     #[test]
-    fn unbound_session_owns_nothing() {
-        assert!(!Caller::Unbound.owns(&PrincipalId::new()));
+    fn a_session_cannot_burn_its_principals_intent_in_another_organization() {
+        let principal = PrincipalId::new();
+        let intent_organization = OrganizationId::new();
+        let mut pending = HashMap::new();
+        pending.insert(
+            "sha256:intent".to_string(),
+            intent(principal, intent_organization, 5),
+        );
+        let caller = Caller::Session {
+            subject: principal.to_string(),
+            organization_id: OrganizationId::new(),
+            role: opensesame_domain::OrganizationRole::Owner,
+        };
+        assert!(claim_frozen_intent(&mut pending, "sha256:intent", &caller, Utc::now()).is_none());
+        assert!(pending.contains_key("sha256:intent"));
+    }
+
+    #[test]
+    fn integration_configuration_requires_admin_or_owner() {
+        let caller = |role| Caller::Session {
+            subject: PrincipalId::new().to_string(),
+            organization_id: OrganizationId::new(),
+            role,
+        };
+        assert!(caller(opensesame_domain::OrganizationRole::Owner).can_configure_integrations());
+        assert!(caller(opensesame_domain::OrganizationRole::Admin).can_configure_integrations());
+        assert!(!caller(opensesame_domain::OrganizationRole::Member).can_configure_integrations());
+        assert!(Caller::Operator.can_configure_integrations());
     }
 }

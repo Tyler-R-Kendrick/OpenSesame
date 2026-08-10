@@ -38,6 +38,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/device/token", post(device::token))
         .route("/api/v1/device/approve", post(device::approve))
         .route("/api/v1/session", get(session::status))
+        .route("/api/v1/sessions/revoke", post(session::revoke))
         .route("/api/v1/whoami", get(session::whoami))
         .route("/api/v1/connections", get(session::list_connections))
         .route("/api/v1/intents", post(intents::create))

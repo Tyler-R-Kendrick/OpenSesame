@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
+import type { Variables } from "../middleware/context.js";
 
 /**
  * Device authorization approval — Identity plane proxy to Host API.
@@ -8,9 +8,14 @@ import { requirePrincipal } from "../middleware/auth.js";
  */
 export const deviceRoutes = new Hono<{ Variables: Variables }>();
 
+function authenticatedPrincipalId(value: string | undefined): string {
+  if (!value) throw new Error("requirePrincipal middleware invariant violated");
+  return value;
+}
+
 deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   if (!ctx.config.operatorToken) {
     return c.json(
       {
@@ -20,10 +25,40 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
       503,
     );
   }
-  const body = await c.req.json<{ user_code?: string; principal?: string }>();
+  const body = await c.req.json<{
+    user_code?: string;
+    organization_id?: string;
+    organization_role?: string;
+    principal?: string;
+  }>();
   const userCode = body.user_code?.trim();
   if (!userCode) {
-    return c.json({ error: "invalid_request", hint: "user_code required" }, 400);
+    return c.json(
+      { error: "invalid_request", hint: "user_code required" },
+      400,
+    );
+  }
+  const memberships = [...ctx.stores.organizationMemberships.values()].filter(
+    (membership) => membership.principalId === principalId,
+  );
+  const organizationId =
+    body.organization_id?.trim() ||
+    (memberships.length === 1 ? memberships[0]?.organizationId : undefined);
+  if (!organizationId) {
+    return c.json(
+      {
+        error: "organization_id_required",
+        hint: "Select one of your organizations",
+      },
+      400,
+    );
+  }
+  const membership = memberships.find(
+    (candidate) => candidate.organizationId === organizationId,
+  );
+  const organization = ctx.stores.organizations.get(organizationId);
+  if (!membership || !organization || organization.state !== "active") {
+    return c.json({ error: "organization_access_denied" }, 403);
   }
   const url = `${ctx.config.hostApiUrl}/api/v1/device/approve`;
   try {
@@ -32,7 +67,10 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
       return c.json({ error: "invalid_host_api_url" }, 500);
     }
     if (parsed.username || parsed.password) {
-      return c.json({ error: "invalid_host_api_url", hint: "credentials in URL denied" }, 500);
+      return c.json(
+        { error: "invalid_host_api_url", hint: "credentials in URL denied" },
+        500,
+      );
     }
   } catch {
     return c.json({ error: "invalid_host_api_url" }, 500);
@@ -48,6 +86,9 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
         user_code: userCode,
         // Always bind to the authenticated Identity principal — never trust client-supplied principal.
         principal: principalId,
+        // Organization and role come from Identity state. Browser-supplied role is ignored.
+        organization_id: organizationId,
+        organization_role: membership.role,
       }),
     });
     const text = await res.text();

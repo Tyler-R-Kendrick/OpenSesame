@@ -10,7 +10,7 @@ use serde_json::json;
 
 use opensesame_claims::{hash_eq, hash_low_entropy, hash_secret};
 
-use crate::app_state::AppState;
+use crate::app_state::{AppState, ApprovedDevice};
 use crate::middleware::auth::{require_demo_bootstrap, require_operator};
 
 /// Failed `user_code` guesses tolerated across the whole instance per window.
@@ -63,7 +63,7 @@ pub async fn authorize(
         crate::app_state::DevicePending {
             user_code_hash: user_code_digest(&st.claim_pepper, &device_digest, &user_code),
             expires_at,
-            approved_principal: None,
+            approved: None,
         },
     );
     // device_code returned once to client process — never logged
@@ -120,7 +120,7 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
         )
             .into_response();
     }
-    let Some(principal) = pending.approved_principal.clone() else {
+    let Some(approved) = pending.approved.clone() else {
         return (
             StatusCode::BAD_REQUEST,
             Json(json!({"error":"authorization_pending"})),
@@ -138,14 +138,15 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
     // Bind session to the *approved* principal — never the bootstrap demo id alone.
     let meta = json!({
         "session_id": session_id,
-        "principal_id": principal.clone(),
+        "principal_id": approved.principal.clone(),
         "actor_id": boot.actor.to_string(),
         "issuer": st.issuer,
         "assurance": "mfa",
-        "organization_id": boot.org.to_string(),
+        "organization_id": approved.organization_id.to_string(),
+        "organization_role": approved.organization_role,
         "project_id": boot.project.to_string(),
         "credential_handle": handle,
-        "approved_as": principal,
+        "approved_as": approved.principal,
         "expires_at": (Utc::now() + Duration::hours(8)).to_rfc3339()
     });
     {
@@ -188,6 +189,8 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
 pub struct DeviceApproveRequest {
     user_code: String,
     principal: Option<String>,
+    organization_id: Option<String>,
+    organization_role: Option<opensesame_domain::OrganizationRole>,
 }
 
 /// Keyed, per-device digest of a user code.
@@ -225,7 +228,37 @@ pub async fn approve(
     for (device_digest, pending) in map.iter_mut() {
         let attempt_hash = user_code_digest(&st.claim_pepper, device_digest, &req.user_code);
         if hash_eq(&attempt_hash, &pending.user_code_hash) {
-            pending.approved_principal = Some(req.principal.unwrap_or_else(|| "user:demo".into()));
+            let organization = match (&req.organization_id, req.organization_role) {
+                (Some(id), Some(role)) => match opensesame_domain::OrganizationId::parse(id) {
+                    Ok(id) => (id, role),
+                    Err(_) => {
+                        return (
+                            StatusCode::BAD_REQUEST,
+                            Json(json!({"error":"invalid_organization_id"})),
+                        )
+                            .into_response();
+                    }
+                },
+                (None, None) => {
+                    let boot = match require_demo_bootstrap(&st) {
+                        Ok(boot) => boot,
+                        Err(resp) => return resp,
+                    };
+                    (boot.org, opensesame_domain::OrganizationRole::Owner)
+                }
+                _ => {
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({"error":"organization_claims_incomplete"})),
+                    )
+                        .into_response();
+                }
+            };
+            pending.approved = Some(ApprovedDevice {
+                principal: req.principal.unwrap_or_else(|| "user:demo".into()),
+                organization_id: organization.0,
+                organization_role: organization.1,
+            });
             return (StatusCode::OK, Json(json!({"status":"approved"}))).into_response();
         }
     }
@@ -250,7 +283,7 @@ mod tests {
         DevicePending {
             user_code_hash: user_code_digest(TEST_PEPPER, device_digest, user_code),
             expires_at: Utc::now() + Duration::minutes(15),
-            approved_principal: None,
+            approved: None,
         }
     }
 

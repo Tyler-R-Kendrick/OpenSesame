@@ -3,6 +3,7 @@ import type {
   AgentInstance,
   OAuthClientRecord,
   Organization,
+  OrganizationMembership,
   Project,
   ProvisionalSession,
 } from "@opensesame/os-domain";
@@ -20,13 +21,18 @@ export interface AppStores {
   provisionalTokens: Map<string, string>;
   projects: Map<string, Project>;
   organizations: Map<string, Organization>;
+  /** `${organizationId}:${principalId}` → membership */
+  organizationMemberships: Map<string, OrganizationMembership>;
   /** slug → organization id */
   organizationSlugs: Map<string, string>;
   oauthClients: Map<string, OAuthClientRecord>;
   agents: Map<string, Agent>;
   agentInstances: Map<string, AgentInstance>;
   /** principalId → usage counters */
-  usage: Map<string, { temporaryProjects: number; temporaryResources: number; agents: number }>;
+  usage: Map<
+    string,
+    { temporaryProjects: number; temporaryResources: number; agents: number }
+  >;
   /** Idempotency-Key → response */
   idempotency: Map<string, IdempotencyRecord>;
   /** principalId → base64 TOTP secret */
@@ -43,6 +49,7 @@ export function createAppStores(): AppStores {
     provisionalTokens: new Map(),
     projects: new Map(),
     organizations: new Map(),
+    organizationMemberships: new Map(),
     organizationSlugs: new Map(),
     oauthClients: new Map(),
     agents: new Map(),
@@ -60,7 +67,11 @@ const LIVE_PROJECT_STATES = new Set(["provisional", "active"]);
 /** Agent states that still occupy a quota slot. */
 const LIVE_AGENT_STATES = new Set(["provisional", "claimed", "suspended"]);
 /** Organization states that still occupy a quota slot. */
-const LIVE_ORGANIZATION_STATES = new Set(["provisional", "active", "suspended"]);
+const LIVE_ORGANIZATION_STATES = new Set([
+  "provisional",
+  "active",
+  "suspended",
+]);
 /** OAuth client states that still occupy a quota slot. */
 const LIVE_OAUTH_CLIENT_STATES = new Set(["active", "suspended"]);
 
