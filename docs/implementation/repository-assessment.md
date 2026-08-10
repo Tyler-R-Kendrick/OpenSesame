@@ -64,7 +64,7 @@ Initial schema only (`migrations/0001_init.sql` and following). No legacy data.
 | Area | Package / path |
 |------|----------------|
 | Domain IR | `crates/domain` |
-| OpenAPI / JSON Schema / events | `api/`, `crates/contracts` |
+| OpenAPI / JSON Schema / events | `api/` |
 | Persistence | `crates/storage`, `migrations/` |
 | AuthN / device flow | `crates/authn`, `apps/cli` |
 | AuthZ / OpenFGA / AuthZEN | `crates/authz`, `policy/` |
@@ -72,7 +72,7 @@ Initial schema only (`migrations/0001_init.sql` and following). No legacy data.
 | Claims | `crates/claims` |
 | Human vault | `crates/human-vault`, `packages/client-crypto`, `apps/browser-extension` |
 | Connectors | `wit/`, `crates/connector-host`, `connectors/` |
-| Rotation / PKI | `crates/rotation`, `crates/provider-openbao`, `crates/provider-step-ca` |
-| Mesh / edge | `crates/provider-tailscale`, `crates/provider-static-mesh`, `apps/callback-edge` |
+| Rotation / PKI | `crates/rotation`, `crates/provider-openbao` |
+| Mesh / edge | `crates/provider-static-mesh`, `apps/callback-edge` |
 | Deploy | `deploy/` |
 | Docs / validation | `docs/` |

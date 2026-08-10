@@ -1594,18 +1594,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opensesame-cli-core"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "opensesame-domain",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "opensesame-client-core"
 version = "0.1.0"
 dependencies = [
@@ -1655,22 +1643,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "opensesame-contracts"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "opensesame-domain",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "opensesame-core"
 version = "0.1.0"
 dependencies = [
- "opensesame-contracts",
  "opensesame-domain",
  "serde",
  "serde_json",
@@ -1863,18 +1838,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opensesame-provider-keycloak"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "opensesame-domain",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "opensesame-provider-openbao"
 version = "0.1.0"
 dependencies = [
@@ -1903,46 +1866,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "opensesame-provider-spire"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "opensesame-domain",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "opensesame-provider-static-mesh"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "opensesame-provider-step-ca"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "opensesame-domain",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "opensesame-provider-tailscale"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "opensesame-domain",
  "serde",
  "serde_json",
  "thiserror",

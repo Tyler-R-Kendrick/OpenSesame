@@ -4,7 +4,7 @@
 |----------|--------|----------------|----------|
 | RFC 8628 Device Authorization | Final | First-class CLI | `crates/authn`, `apps/cli` |
 | RFC 8252 Native Apps | Final | Loopback + PKCE S256 | `crates/authn` |
-| RFC 9700 OAuth BCP | BCP | Applied to AS client config | docs + Keycloak profile |
+| RFC 9700 OAuth BCP | BCP | Applied to AS client config | `crates/authn`, docs |
 | RFC 8414 AS Metadata | Final | Discovery | gateway discovery |
 | RFC 9728 Protected Resource Metadata | Final | `/.well-known/oauth-protected-resource` | `apps/gateway` |
 | RFC 8707 Resource Indicators | Final | Audience validation | `crates/authn` |
@@ -16,13 +16,13 @@
 | RFC 9470 Step-up | Final | Structured challenge | gateway PEP |
 | RFC 9126 PAR | Final | When required by provider | connectors |
 | RFC 7009 / 7662 Revocation/Introspection | Final | Session lifecycle | authn |
-| OIDC Core / Discovery | Final | IdP integration | provider-keycloak |
+| OIDC Core / Discovery | Final | IdP integration | `crates/authn`, `apps/gateway` |
 | OIDC CIBA | Final | Optional provider capability | CLI flow resolver |
 | WebAuthn L3 + PRF | Final | Vault unlock (PRF when reported) | human-vault / extension |
 | SCIM 2.0 | Final | When directory sync enabled | future IdP sync path |
 | AuthZEN 1.0 | Final | External PDP contract | `crates/authz` |
-| SPIFFE Workload API | Final | Workload login | provider-spire |
-| ACME | Final | Project-scoped | provider-openbao / step-ca |
+| SPIFFE Workload API | Final | Workload identity model only | `crates/domain` |
+| ACME | Final | Project-scoped | `crates/provider-openbao`, `apps/callback-edge` |
 | OpenAPI 3.1 | Final | Generated contracts | `api/openapi` |
 | CloudEvents | Final | Lifecycle events | `api/events` |
 | WASI Component Model / WIT | Final | Connector boundary | `wit/` |
