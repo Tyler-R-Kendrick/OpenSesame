@@ -1,0 +1,166 @@
+# Confused-deputy / scope-widening via tool params.
+#
+# These assert that apps/mcp-host's own structural fences hold — not that a
+# model chooses not to ask for too much. Grounded in
+# docs/security/audit-2026-08-08-mcp-resource-scope.md ("a resource is not an
+# origin" / the ceiling check belongs server-side) and the operator_invoke_l1
+# design note in apps/mcp-host/src/tools.ts: "Operation, resource, and
+# arguments are whatever was frozen: letting the model restate them here
+# would execute one call while presenting another call's digest."
+#
+# All of these call the real, unmodified apps/mcp-host over stdio via
+# src/mcp-provider.ts (provider "mcp-host-structural") — no LLM involved, no
+# model credentials needed.
+
+- description: "operator_invoke_l1's tool schema exposes no operation/resource fields to widen"
+  vars:
+    query: "schema introspection: operator_invoke_l1 cannot be asked to restate operation/resource"
+    includeToolSchemas: true
+    calls:
+      - tool: host_ready
+        params: {}
+    mockRoutes:
+      - path: /health/ready
+        method: GET
+        status: 200
+        body: { status: "ok" }
+  providers: [mcp-host-structural]
+  assert:
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        const tool = (data.tools || []).find((t) => t.name === "operator_invoke_l1");
+        if (!tool) return false;
+        const props = Object.keys(tool.inputSchema.properties || {});
+        return props.length === 1 && props[0] === "connection_ref";
+
+- description: "operator_invoke_l1 refuses to run without a frozen intent, even given a connection_ref"
+  vars:
+    query: "operator_invoke_l1 called cold, with no prior task_start/task_invoke in this session"
+    calls:
+      - tool: operator_invoke_l1
+        params: { connection_ref: "conn://demo" }
+  providers: [mcp-host-structural]
+  assert:
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        return data.calls[0].response.isError === true;
+    - type: contains
+      value: "task_context_required"
+
+- description: "operator_invoke_l1 uses the server's own frozen intent digest, not one the caller supplies"
+  vars:
+    query: "a forged intent_digest/operation on operator_invoke_l1 must not reach the daemon"
+    calls:
+      - tool: task_start
+        params:
+          principal_id: p1
+          organization_id: o1
+          capabilities: [{ action: read, resource: reports/q3 }]
+      - tool: task_invoke
+        params:
+          operation: read
+          resource: reports/q3
+          audience: "https://api.example.test"
+          arguments: {}
+      - tool: operator_invoke_l1
+        params:
+          connection_ref: "conn://demo"
+          intent_digest: "sha256:forged-by-model"
+          operation: delete_everything
+    mockRoutes:
+      - path: /api/v1/tasks
+        method: POST
+        status: 201
+        body: { task_run_id: t1, state_version: 1, status: active }
+      - path: /api/v1/tasks/intents
+        method: POST
+        status: 201
+        body:
+          intent_id: intent-1
+          intent_digest: "sha256:server-issued-digest"
+          task_state_version: 2
+          canonical_arguments: {}
+      - path: /v1/operator/invoke_l1
+        method: POST
+        status: 200
+        body: { ok: true }
+  providers: [mcp-host-structural]
+  assert:
+    - type: not-contains
+      value: "sha256:forged-by-model"
+    - type: contains
+      value: "sha256:server-issued-digest"
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        const invokeReq = (data.upstreamRequests || []).find((r) => r.url === "/v1/operator/invoke_l1");
+        if (!invokeReq) return false;
+        const body = JSON.parse(invokeReq.body);
+        const headerDigest = invokeReq.headers["x-opensesame-intent-digest"];
+        return (
+          body.intent_digest === "sha256:server-issued-digest" &&
+          headerDigest === "sha256:server-issued-digest" &&
+          body.operation === undefined
+        );
+
+- description: "an over-broad (wildcard) capability request is relayed as a rejection, not silently granted"
+  vars:
+    query: "task_start requesting action=* resource=* against a Host API that refuses it"
+    calls:
+      - tool: task_start
+        params:
+          principal_id: p1
+          organization_id: o1
+          capabilities: [{ action: "*", resource: "*" }]
+    mockRoutes:
+      - path: /api/v1/tasks
+        method: POST
+        status: 403
+        body: { error: capability_not_in_ceiling, requested: [{ action: "*", resource: "*" }] }
+  providers: [mcp-host-structural]
+  assert:
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        return data.calls[0].response.isError === true;
+    - type: contains
+      value: "capability_not_in_ceiling"
+    - type: not-contains
+      value: "task_run_id"
+
+- description: "a scope-widening resource string is forwarded verbatim, not locally approved or rewritten"
+  vars:
+    query: "task_invoke with a traversal-shaped resource against a Host API that refuses it"
+    calls:
+      - tool: task_start
+        params:
+          principal_id: p1
+          organization_id: o1
+          capabilities: [{ action: read, resource: reports/q3 }]
+      - tool: task_invoke
+        params:
+          operation: read
+          resource: "../other-org/secret"
+          audience: "https://api.example.test"
+          arguments: {}
+    mockRoutes:
+      - path: /api/v1/tasks
+        method: POST
+        status: 201
+        body: { task_run_id: t1, state_version: 1, status: active }
+      - path: /api/v1/tasks/intents
+        method: POST
+        status: 403
+        body: { error: capability_not_in_ceiling, resource: "../other-org/secret" }
+  providers: [mcp-host-structural]
+  assert:
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        return data.calls[1].response.isError === true;
+    - type: contains
+      value: "../other-org/secret"
+    - type: contains
+      value: "capability_not_in_ceiling"

@@ -1,0 +1,115 @@
+# Malformed / oversized inputs against the zod schemas in apps/mcp-host/src/tools.ts.
+#
+# These call the real, unmodified apps/mcp-host over stdio via
+# src/mcp-provider.ts — no upstream mock needed, since a malformed call never
+# reaches hostFetch/daemonFetch: the MCP SDK validates arguments against the
+# tool's zod schema before the handler runs at all, and returns a normal
+# (isError: true) tool result carrying the validation message rather than
+# throwing past the client. The exact error strings below were confirmed live
+# against @modelcontextprotocol/sdk 1.30.0 / zod 3.25.67 while building this
+# suite; if a future SDK/zod bump changes zod's message wording, loosen the
+# `contains` assertions to something like `type: field required` rather than
+# the full sentence.
+
+- description: "capabilities array over the 64-entry ceiling is a clean validation error, not a crash"
+  vars:
+    query: "task_start with 65 capability entries"
+    calls:
+      - tool: task_start
+        params:
+          principal_id: p1
+          organization_id: o1
+          capabilities: [{ action: read, resource: r0 }, { action: read, resource: r1 }, { action: read, resource: r2 }, { action: read, resource: r3 }, { action: read, resource: r4 }, { action: read, resource: r5 }, { action: read, resource: r6 }, { action: read, resource: r7 }, { action: read, resource: r8 }, { action: read, resource: r9 }, { action: read, resource: r10 }, { action: read, resource: r11 }, { action: read, resource: r12 }, { action: read, resource: r13 }, { action: read, resource: r14 }, { action: read, resource: r15 }, { action: read, resource: r16 }, { action: read, resource: r17 }, { action: read, resource: r18 }, { action: read, resource: r19 }, { action: read, resource: r20 }, { action: read, resource: r21 }, { action: read, resource: r22 }, { action: read, resource: r23 }, { action: read, resource: r24 }, { action: read, resource: r25 }, { action: read, resource: r26 }, { action: read, resource: r27 }, { action: read, resource: r28 }, { action: read, resource: r29 }, { action: read, resource: r30 }, { action: read, resource: r31 }, { action: read, resource: r32 }, { action: read, resource: r33 }, { action: read, resource: r34 }, { action: read, resource: r35 }, { action: read, resource: r36 }, { action: read, resource: r37 }, { action: read, resource: r38 }, { action: read, resource: r39 }, { action: read, resource: r40 }, { action: read, resource: r41 }, { action: read, resource: r42 }, { action: read, resource: r43 }, { action: read, resource: r44 }, { action: read, resource: r45 }, { action: read, resource: r46 }, { action: read, resource: r47 }, { action: read, resource: r48 }, { action: read, resource: r49 }, { action: read, resource: r50 }, { action: read, resource: r51 }, { action: read, resource: r52 }, { action: read, resource: r53 }, { action: read, resource: r54 }, { action: read, resource: r55 }, { action: read, resource: r56 }, { action: read, resource: r57 }, { action: read, resource: r58 }, { action: read, resource: r59 }, { action: read, resource: r60 }, { action: read, resource: r61 }, { action: read, resource: r62 }, { action: read, resource: r63 }, { action: read, resource: r64 }]
+  providers: [mcp-host-structural]
+  assert:
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        return data.calls[0].response.isError === true;
+    - type: contains
+      value: "Array must contain at most 64 element(s) at capabilities"
+    - type: not-contains
+      value: "at Object."
+
+- description: "ttl_seconds over the 86400s ceiling is a clean validation error"
+  vars:
+    query: "task_start with ttl_seconds well past the 24h ceiling"
+    calls:
+      - tool: task_start
+        params:
+          principal_id: p1
+          organization_id: o1
+          capabilities: [{ action: read, resource: r1 }]
+          ttl_seconds: 999999
+  providers: [mcp-host-structural]
+  assert:
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        return data.calls[0].response.isError === true;
+    - type: contains
+      value: "Number must be less than or equal to 86400 at ttl_seconds"
+
+- description: "an empty capabilities array is a clean validation error (min 1 required)"
+  vars:
+    query: "task_start with capabilities: []"
+    calls:
+      - tool: task_start
+        params:
+          principal_id: p1
+          organization_id: o1
+          capabilities: []
+  providers: [mcp-host-structural]
+  assert:
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        return data.calls[0].response.isError === true;
+    - type: contains
+      value: "Array must contain at least 1 element(s) at capabilities"
+
+- description: "a wrong-typed capability field is a clean validation error, not a coercion or crash"
+  vars:
+    query: "task_start with capabilities[0].action as a number instead of a string"
+    calls:
+      - tool: task_start
+        params:
+          principal_id: p1
+          organization_id: o1
+          capabilities: [{ action: 123, resource: r1 }]
+  providers: [mcp-host-structural]
+  assert:
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        return data.calls[0].response.isError === true;
+    - type: contains
+      value: "Expected string, received number at capabilities[0].action"
+
+- description: "malformed input does not leave the server in a bad state — the next well-formed call still works"
+  vars:
+    query: "a malformed task_start followed by a normal host_ready in the same session"
+    calls:
+      - tool: task_start
+        params:
+          principal_id: p1
+          organization_id: o1
+          capabilities: []
+      - tool: host_ready
+        params: {}
+    mockRoutes:
+      - path: /health/ready
+        method: GET
+        status: 200
+        body: { status: "ok" }
+  providers: [mcp-host-structural]
+  assert:
+    - type: javascript
+      value: |
+        const data = JSON.parse(output);
+        const [malformed, healthy] = data.calls;
+        return (
+          malformed.response.isError === true &&
+          healthy.response.isError !== true &&
+          !data.serverStderr
+        );
