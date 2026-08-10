@@ -31,7 +31,7 @@ Canonical principals live in OpenSesame domain models
 - pnpm `9.15.0` via Corepack (`packageManager` field)
 - Rust `1.88` pinned for the host/authority plane (`cargo +1.88.0 ...`)
 - Turbo `2.9.14` (task orchestration across the workspace)
-- Biome `1.9.4` (lint + format, 2-space indent) — config is `biome check .`
+- Biome `1.9.4` (lint + format, 2-space indent)
 - Vitest `4.1.10` (TS unit/integration tests), Playwright `1.55.1` (e2e)
 
 ## 3. Command crib sheet
@@ -44,11 +44,12 @@ pnpm dev                 # turbo dev (control-plane, console, worker,
                           #   mock-upstream-idp, example-rp-alpha/beta), parallel
 pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
-pnpm lint                # biome check .
-pnpm lint:fix            # biome check --write .
-pnpm test                # turbo test across packages/*, control-plane, worker
+pnpm lint                # Biome gate for files changed from origin/main
+pnpm lint:all            # full-repository Biome audit
+pnpm lint:fix            # fix changed files only
+pnpm test                # turbo test across every workspace test script
 pnpm test:integration    # turbo run test:integration
-pnpm test:e2e            # turbo run test:e2e
+pnpm test:e2e            # turbo run test:e2e; live suites require their URLs
 pnpm test:security       # @opensesame/testing test:security
 pnpm test:task-access    # scripts/task-security-battle-test.sh
 pnpm test:all            # typecheck + test + test:integration
@@ -56,7 +57,8 @@ pnpm db:migrate          # @opensesame/database db:migrate
 pnpm db:reset            # @opensesame/database db:reset
 pnpm generate:openapi    # writes apps/control-plane/openapi.json
 pnpm generate:sbom       # CycloneDX SBOM to sbom/bom.json
-pnpm verify              # test:all + cargo +1.88.0 test --workspace --lib
+pnpm verify              # changed-file lint + test:all
+                          #   + cargo +1.88.0 test --workspace --all-targets
                           #   + ./scripts/battle-test.sh — full local gate
 
 # Security/audit gates (each backed by scripts/*-gate.sh)
@@ -196,8 +198,8 @@ For the full local gate suite (what `pnpm verify` runs — required before
 anything security-sensitive lands):
 
 ```bash
-pnpm verify   # test:all (typecheck + test + test:integration)
-              #   + cargo +1.88.0 test --workspace --lib
+pnpm verify   # changed-file lint + test:all (typecheck + test + integration)
+              #   + cargo +1.88.0 test --workspace --all-targets
               #   + ./scripts/battle-test.sh
 ```
 
