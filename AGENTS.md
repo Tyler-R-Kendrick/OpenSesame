@@ -114,7 +114,6 @@ pnpm --filter @opensesame/pages dev   # vite --port 5180 --strictPort
 | `apps/pages` | Installable GitHub Pages offline PWA — authority vault |
 | `apps/mcp-client` / `apps/mcp-host` | MCP servers (client- and host-facing) |
 | `apps/console` | Vite Identity console (web UI) |
-| `apps/web-console` | Stub package reserved for a future Next.js console — use `apps/console` today |
 | `apps/worker` | Background worker |
 | `apps/browser-extension` | WXT browser extension |
 | `apps/example-rp-alpha` / `apps/example-rp-beta` | Example relying-party apps |
@@ -132,7 +131,6 @@ pnpm --filter @opensesame/pages dev   # vite --port 5180 --strictPort
 | `packages/observability` | Structured logging + deep redaction |
 | `packages/config` | Shared tsconfig |
 | `packages/env-spec-bridge` | env-spec ↔ runtime config bridge |
-| `packages/client-crypto` | Client-side crypto primitives (E2EE) |
 | `skills/` | Agent skills — see §7 |
 | `wit/` | Polyglot core contracts (client, connector, core, host, mediation, proof, task) |
 | `docs/` | Architecture, ADRs, security, operators, validation, implementation docs |
