@@ -13,7 +13,7 @@
     "typecheck": "turbo run typecheck",
     "lint": "biome check --changed --since=origin/main --no-errors-on-unmatched .",
     "lint:all": "biome check .",
-    "lint:fix": "biome check --write --changed --since=origin/main --no-errors-on-unmatched .",
+    "lint:fix": "biome check --write --changed --since=origin/main --no-errors-on-unmatched . && biome check --write --staged --no-errors-on-unmatched .",
     "setup:hooks": "bash scripts/setup-hooks.sh",
     "test": "turbo run test",
     "test:integration": "turbo run test:integration",

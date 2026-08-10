@@ -46,7 +46,7 @@ pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
 pnpm lint                # Biome gate for files changed from origin/main
 pnpm lint:all            # full-repository Biome audit
-pnpm lint:fix            # fix changed files only
+pnpm lint:fix            # fix changed and staged files
 pnpm test                # turbo test across every workspace test script
 pnpm test:integration    # turbo run test:integration
 pnpm test:e2e            # turbo run test:e2e; live suites require their URLs
