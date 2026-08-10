@@ -297,12 +297,20 @@ pub async fn list_connections(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
 ) -> Response {
-    if let Err(resp) = require_session_or_operator(&st, &headers) {
-        return resp;
-    }
+    let caller = match resolve_caller(&st, &headers) {
+        Ok(caller) => caller,
+        Err(resp) => return resp,
+    };
     let Some(connection_ref) = &st.connection_ref else {
         return Json(json!({"connections": []})).into_response();
     };
+    let boot = match require_demo_bootstrap(&st) {
+        Ok(boot) => boot,
+        Err(resp) => return resp,
+    };
+    if !caller.in_organization(&boot.org) {
+        return Json(json!({"connections": []})).into_response();
+    }
     // Agent surface: ConnectionRef only — never SecretRef / raw credential handles.
     Json(json!({
         "connections": [{

@@ -175,7 +175,19 @@ impl Caller {
     }
 
     pub fn owns(&self, principal: &opensesame_domain::PrincipalId) -> bool {
-        self.owns_subject(&principal.to_string())
+        match self {
+            Caller::Operator => true,
+            Caller::Session { subject, .. } => {
+                let parsed = opensesame_domain::PrincipalId::parse(subject)
+                    .ok()
+                    .or_else(|| {
+                        subject
+                            .strip_prefix("prn_")
+                            .and_then(|id| opensesame_domain::PrincipalId::parse(id).ok())
+                    });
+                parsed.as_ref() == Some(principal)
+            }
+        }
     }
 
     pub fn organization(
@@ -289,5 +301,18 @@ mod tests {
         assert_eq!(Caller::Operator.organization(fallback), fallback);
         assert!(Caller::Operator.in_organization(&OrganizationId::new()));
         assert!(Caller::Operator.can_configure_integrations());
+    }
+
+    #[test]
+    fn identity_principal_spelling_maps_to_the_typed_host_id() {
+        let principal = PrincipalId::new();
+        let caller = Caller::Session {
+            subject: format!("prn_{}", principal.as_uuid()),
+            organization_id: OrganizationId::new(),
+            role: OrganizationRole::Member,
+        };
+
+        assert!(caller.owns(&principal));
+        assert!(!caller.owns(&PrincipalId::new()));
     }
 }

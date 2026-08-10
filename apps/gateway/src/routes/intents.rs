@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::app_state::AppState;
-use crate::middleware::auth::{require_demo_bootstrap, resolve_caller_subject};
+use crate::middleware::auth::{require_demo_bootstrap, resolve_caller, resolve_caller_subject};
 
 #[derive(Deserialize)]
 pub struct InvokeBody {
@@ -73,6 +73,13 @@ pub async fn create(
         Ok(b) => b,
         Err(resp) => return resp,
     };
+    let caller = match resolve_caller(&st, &headers) {
+        Ok(caller) => caller,
+        Err(resp) => return resp,
+    };
+    if !caller.in_organization(&boot.org) {
+        return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
+    }
     let parameters = body.parameters.unwrap_or_else(|| json!({}));
     let default_ref = st
         .connection_ref
