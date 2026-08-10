@@ -15,7 +15,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/client-core": "workspace:*"
+    "@opensesame/client-core": "workspace:*",
+    "@opensesame/contracts": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "22.15.29",

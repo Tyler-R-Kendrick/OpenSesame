@@ -36,6 +36,23 @@ fn decode_receipt_for_organization(
     })
 }
 
+/// Embedded schema versions, applied in order, once each. Appending is the only
+/// permitted edit: an applied version is never rewritten.
+const MIGRATIONS: &[(&str, &str)] = &[
+    (
+        "0001_init",
+        include_str!("../../../migrations/0001_init.sql"),
+    ),
+    (
+        "0002_connections",
+        include_str!("../../../migrations/0002_connections.sql"),
+    ),
+    (
+        "0003_connection_owner",
+        include_str!("../../../migrations/0003_connection_owner.sql"),
+    ),
+];
+
 impl Db {
     pub async fn connect_sqlite(url: &str) -> anyhow::Result<Self> {
         let pool = SqlitePoolOptions::new()
@@ -52,18 +69,53 @@ impl Db {
     }
 
     pub async fn migrate(&self) -> anyhow::Result<()> {
-        let sql = include_str!("../../../migrations/0001_init.sql");
-        for stmt in sql.split(';') {
-            let stmt = stmt.trim();
-            if stmt.is_empty() {
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)",
+        )
+        .execute(&self.pool)
+        .await
+        .context("creating schema_migrations")?;
+
+        for (version, sql) in MIGRATIONS {
+            if self.migration_applied(version).await? {
                 continue;
             }
-            sqlx::query(stmt)
-                .execute(&self.pool)
-                .await
-                .with_context(|| format!("migrating: {stmt}"))?;
+            // A version lands whole or not at all, so a failure mid-file cannot
+            // leave a database that reports itself migrated.
+            let mut tx = self.pool.begin().await?;
+            for stmt in split_statements(sql) {
+                sqlx::query(&stmt)
+                    .execute(&mut *tx)
+                    .await
+                    .with_context(|| format!("migration {version}: {stmt}"))?;
+            }
+            sqlx::query("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)")
+                .bind(version)
+                .bind(Utc::now().to_rfc3339())
+                .execute(&mut *tx)
+                .await?;
+            tx.commit().await?;
+            tracing::info!(migration = version, "schema migration applied");
         }
         Ok(())
+    }
+
+    pub async fn applied_migrations(&self) -> anyhow::Result<Vec<String>> {
+        let rows = sqlx::query("SELECT version FROM schema_migrations ORDER BY version ASC")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| r.get::<String, _>("version"))
+            .collect())
+    }
+
+    async fn migration_applied(&self, version: &str) -> anyhow::Result<bool> {
+        let row = sqlx::query("SELECT 1 AS present FROM schema_migrations WHERE version = ?")
+            .bind(version)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row.is_some())
     }
 
     pub fn pool(&self) -> &SqlitePool {
@@ -316,6 +368,25 @@ pub fn sqlite_file_url(path: &Path) -> String {
     format!("sqlite://{}?mode=rwc", path.display())
 }
 
+/// Embedded migrations are hand-written and contain neither `--` nor `;` inside a
+/// string literal, so stripping line comments and splitting on `;` is sufficient and
+/// keeps the migrator dependency-free.
+fn split_statements(sql: &str) -> Vec<String> {
+    let stripped: String = sql
+        .lines()
+        .map(|line| match line.find("--") {
+            Some(i) => &line[..i],
+            None => line,
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    stripped
+        .split(';')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -449,5 +520,55 @@ mod tests {
             .find_receipt_by_idempotency(&organization_id, "mismatch")
             .await
             .is_err());
+    }
+
+    #[tokio::test]
+    async fn every_migration_is_recorded_once() {
+        let db = Db::connect_memory().await.unwrap();
+        let applied = db.applied_migrations().await.unwrap();
+        assert_eq!(
+            applied,
+            MIGRATIONS
+                .iter()
+                .map(|(v, _)| v.to_string())
+                .collect::<Vec<_>>()
+        );
+
+        // A second boot must be a no-op rather than a replay: 0002 drops the
+        // connections table, so re-running it would destroy live rows.
+        db.migrate().await.unwrap();
+        assert_eq!(db.applied_migrations().await.unwrap(), applied);
+    }
+
+    #[tokio::test]
+    async fn migrating_an_existing_database_records_without_destroying() {
+        let db = Db::connect_memory().await.unwrap();
+        sqlx::query(
+            "INSERT INTO connections (id, organization_id, project_id, provider_id, logical_name, display_name, status, status_detail, requested_scopes, granted_scopes, account_label, owner_kind, shareability, max_invoke_level, egress_json, created_at, updated_at) \
+             VALUES ('c1','org:1',NULL,'github','github/main','GitHub','pending',NULL,'[]','[]',NULL,'organization','private',2,'{}','t','t')",
+        )
+        .execute(db.pool())
+        .await
+        .unwrap();
+
+        db.migrate().await.unwrap();
+
+        let row = sqlx::query("SELECT COUNT(*) AS c FROM connections")
+            .fetch_one(db.pool())
+            .await
+            .unwrap();
+        assert_eq!(row.get::<i64, _>("c"), 1);
+    }
+
+    #[test]
+    fn statements_split_cleanly() {
+        for (version, sql) in MIGRATIONS {
+            let stmts = split_statements(sql);
+            assert!(!stmts.is_empty(), "{version} produced no statements");
+            assert!(
+                stmts.iter().all(|s| !s.contains("--")),
+                "{version} left a line comment inside a statement"
+            );
+        }
     }
 }

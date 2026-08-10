@@ -5,3 +5,4 @@ export * from "./agents.js";
 export * from "./organizations.js";
 export * from "./oauth-clients.js";
 export * from "./audit.js";
+export * from "./connections.js";
