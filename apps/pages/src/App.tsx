@@ -1,29 +1,26 @@
 import { useEffect, useState } from "react";
-import {
-  Navigate,
-  Outlet,
-  Route,
-  Routes,
-  useLocation,
-} from "react-router";
+import { Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 import { VaultShell } from "./components/VaultShell.js";
 import { isOnline, subscribeConnectivity } from "./lib/connectivity.js";
 import { isUnlocked } from "./lib/lock.js";
-import { UnlockPage } from "./pages/UnlockPage.js";
-import { VaultPage } from "./pages/VaultPage.js";
 import { AgentPage } from "./pages/AgentPage.js";
-import { ToolsPage } from "./pages/ToolsPage.js";
 import { AuthorizePage } from "./pages/AuthorizePage.js";
 import { ClaimPage } from "./pages/ClaimPage.js";
-import { TaskPage } from "./pages/TaskPage.js";
+import { ConnectionsPage } from "./pages/ConnectionsPage.js";
 import { ProtocolPage } from "./pages/ProtocolPage.js";
-import { SettingsPage } from "./pages/SettingsPage.js";
 import { QueuePage } from "./pages/QueuePage.js";
+import { SettingsPage } from "./pages/SettingsPage.js";
+import { TaskPage } from "./pages/TaskPage.js";
+import { ToolsPage } from "./pages/ToolsPage.js";
+import { UnlockPage } from "./pages/UnlockPage.js";
+import { VaultPage } from "./pages/VaultPage.js";
 
 function LockedLayout({ online }: { online: boolean }) {
   const location = useLocation();
   if (!isUnlocked()) {
-    return <Navigate to="/unlock" replace state={{ from: location.pathname }} />;
+    return (
+      <Navigate to="/unlock" replace state={{ from: location.pathname }} />
+    );
   }
   return (
     <VaultShell online={online}>
@@ -45,6 +42,7 @@ export function App() {
         <Route path="/vault" element={<VaultPage />} />
         <Route path="/vault/:itemId" element={<VaultPage />} />
         <Route path="/agent" element={<AgentPage />} />
+        <Route path="/connections" element={<ConnectionsPage />} />
         <Route path="/tools" element={<ToolsPage />} />
         <Route path="/authorize" element={<AuthorizePage online={online} />} />
         <Route path="/claim" element={<ClaimPage online={online} />} />

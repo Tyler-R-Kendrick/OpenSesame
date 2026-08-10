@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router";
+import { clearHostSession } from "../lib/identity.js";
 import { lock } from "../lib/lock.js";
 import { track } from "../lib/telemetry.js";
 import {
   IconAgent,
+  IconConnection,
   IconLock,
   IconSettings,
   IconTools,
@@ -12,6 +14,12 @@ import {
 
 const nav = [
   { to: "/vault", label: "Vault", icon: IconVault, end: false },
+  {
+    to: "/connections",
+    label: "Connections",
+    icon: IconConnection,
+    end: false,
+  },
   { to: "/agent", label: "Agent", icon: IconAgent, end: false },
   { to: "/tools", label: "Tools", icon: IconTools, end: false },
   { to: "/settings", label: "Settings", icon: IconSettings, end: false },
@@ -27,6 +35,7 @@ export function VaultShell({
   const navigate = useNavigate();
 
   function onLock() {
+    clearHostSession();
     lock();
     track("vault_locked");
     navigate("/unlock", { replace: true });
