@@ -2,7 +2,8 @@
 
 How a user authorizes a third-party service once, and how that authorization is brokered to
 organizations, projects and agents. Decisions and rationale are in ADR 0032; enforcement
-invariants come from ADR 0005.
+invariants come from ADR 0005. Provider-template and organization-integration decisions are
+in ADR 0035.
 
 ## Planes
 
@@ -49,6 +50,9 @@ draft ─────────────────────► pending
 
 Base `http://127.0.0.1:8787`. Auth is the gateway's existing scheme:
 `Authorization: Bearer operator:<token>` or `Bearer opaque-session:<id>`.
+Operators may select an organization with `X-OpenSesame-Organization: org:<uuid>`;
+without it they use the bootstrap organization. Sessions are always fenced to their signed
+organization claim and are forbidden from sending that header.
 The OAuth callback is the one unauthenticated route — it is authenticated by `state`.
 
 ### Catalog
@@ -67,6 +71,7 @@ Provider = {
   "auth_kind": "oauth2_authorization_code" | "api_key",
   "supports_refresh": true,
   "configured": false,                       // deployment has client id + secret
+  "callback_url": "https://host.example/api/v1/oauth/callback/github",
   "missing_config": ["OPENSESAME_PROVIDER_GITHUB_CLIENT_ID", "..."],  // [] when configured
   "scopes": [ { "name": "repo", "description": "Full control of private repositories",
                 "sensitive": true, "default": false } ],
@@ -74,6 +79,23 @@ Provider = {
   "operations": ["repository.read", "pull_request.create"]
 }
 ```
+
+### Integrations
+
+```
+GET    /api/v1/integrations       200 { "integrations": [ Integration ] }
+POST   /api/v1/integrations       201 Integration                 // owner/admin
+GET    /api/v1/integrations/{id}  200 Integration
+PATCH  /api/v1/integrations/{id}  200 Integration                 // owner/admin
+DELETE /api/v1/integrations/{id}  204                             // owner/admin, unused only
+```
+
+An integration contains `id`, `key`, `provider_id`, `display_name`, `source`
+(`organization`, `shared_dev`, or `deployment`), `enabled`, `configured`, `callback_url`,
+`scopes`, `client_id_hint`, `has_client_secret`, `connection_count`, `created_by`, and
+timestamps. Client secrets are write-only. Omitting `client_secret` on PATCH preserves it;
+an empty value clears it. `provider_id` is immutable; changing providers requires a new
+integration. Environment integrations are read-only.
 
 ### Connections
 
@@ -96,6 +118,7 @@ GET    /api/v1/oauth/callback/{provider_id}     302 or text/html   // provider r
 ```jsonc
 Connection = {
   "connection_id": "connection_01J...",
+  "integration_id": "integration_01J...",
   "connection_ref": "conn://<org>/<project>/github/main",   // ADR 0005 URI; always present
   "logical_name": "github/main",
   "display_name": "GitHub — acme",
@@ -133,8 +156,17 @@ in `crates/authz/src/authority_use.rs`.
 ### Request bodies
 
 ```jsonc
+POST /integrations
+{ "key": "engineering", "provider_id": "github", "display_name": "Engineering GitHub",
+  "scopes"?: [string], "client_id"?: string, "client_secret"?: string }
+
+PATCH /integrations/{id}
+{ "key"?: string, "display_name"?: string, "enabled"?: boolean, "scopes"?: [string],
+  "client_id"?: string, "client_secret"?: string } // empty credentials clear; provider immutable
+
 POST /connections
-{ "provider_id": "github", "display_name"?: string, "logical_name"?: string,
+{ "integration_id": "integration_01J...", "provider_id"?: "github",
+  "display_name"?: string, "logical_name"?: string,
   "project_id"?: string, "scopes"?: [string], "shareability"?: string }
 
 POST /connections/{id}/authorize
@@ -151,8 +183,11 @@ POST /connections/{id}/bindings
 
 `{ "error": "<code>", "hint": "<human sentence>" }` with codes:
 `provider_unknown`, `provider_unconfigured`, `connection_not_found`, `invalid_state`,
+`integration_not_found`, `integration_required`, `integration_conflict`,
+`integration_read_only`, `integration_in_use`,
 `state_expired`, `exchange_failed`, `not_refreshable`, `needs_reauth`, `redirect_not_allowed`,
-`binding_exists`, `binding_not_found`, `unauthorized`.
+`binding_exists`, `binding_not_found`, `unsupported_credential`, `invalid_request`,
+`internal_error`, `unauthorized`, `forbidden`.
 
 ## Authorization flow
 
