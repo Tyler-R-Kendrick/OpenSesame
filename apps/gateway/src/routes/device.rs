@@ -104,6 +104,10 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
         )
             .into_response();
     }
+    // Membership mutations revoke approved grants and live sessions together.
+    // Hold the same lifecycle fence until this grant is consumed and its session
+    // is published, so revocation cannot slip between those two states.
+    let _lifecycle = st.session_lifecycle.lock().unwrap();
     let device_code_hash = hash_secret(&req.device_code);
     let mut map = st.device_codes.lock().unwrap();
     let Some(pending) = map.get_mut(&device_code_hash) else {

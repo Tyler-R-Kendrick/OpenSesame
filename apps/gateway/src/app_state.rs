@@ -50,6 +50,8 @@ pub struct AppState {
     pub broker: Arc<Broker>,
     pub sessions: Arc<Mutex<HashMap<String, Value>>>,
     pub device_codes: Arc<Mutex<HashMap<String, DevicePending>>>,
+    /// Serializes device-token minting with principal/org session revocation.
+    pub session_lifecycle: Arc<Mutex<()>>,
     /// Timestamps of failed `user_code` approval guesses (global cooldown fence).
     pub device_approve_failures: Arc<Mutex<Vec<chrono::DateTime<chrono::Utc>>>>,
     pub claims: Arc<Mutex<HashMap<String, ClaimSession>>>,
@@ -121,6 +123,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         broker: Arc::new(boot.broker),
         sessions: Arc::new(Mutex::new(HashMap::new())),
         device_codes: Arc::new(Mutex::new(HashMap::new())),
+        session_lifecycle: Arc::new(Mutex::new(())),
         device_approve_failures: Arc::new(Mutex::new(Vec::new())),
         claims: Arc::new(Mutex::new(HashMap::new())),
         claim_user_code_attempts: Arc::new(Mutex::new(HashMap::new())),

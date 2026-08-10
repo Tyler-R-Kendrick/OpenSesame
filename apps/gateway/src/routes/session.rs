@@ -112,8 +112,14 @@ pub async fn revoke(
                 .into_response();
         }
     };
+    let canonical_organization_id = organization_id.to_string();
+    // Device-token minting holds this fence from reading its approval through
+    // publishing the session. Revocation therefore observes and clears either
+    // the pending grant or the minted session, never a gap between them.
+    let _lifecycle = st.session_lifecycle.lock().unwrap();
     let mut sessions = st.sessions.lock().unwrap();
-    let revoked = revoke_matching_sessions(&mut sessions, &req.principal_id, &req.organization_id);
+    let revoked =
+        revoke_matching_sessions(&mut sessions, &req.principal_id, &canonical_organization_id);
     drop(sessions);
 
     // An approved device code can mint a session after this request. Clear matching
@@ -134,7 +140,11 @@ mod tests {
     use chrono::{Duration, Utc};
     use opensesame_domain::{OrganizationId, OrganizationRole};
     use serde_json::json;
-    use std::collections::HashMap;
+    use std::{
+        collections::HashMap,
+        sync::{mpsc, Arc, Barrier, Mutex},
+        thread,
+    };
 
     #[test]
     fn revocation_is_scoped_to_principal_and_organization() {
@@ -183,6 +193,103 @@ mod tests {
         );
         assert!(pending["target"].approved.is_none());
         assert!(pending["other"].approved.is_some());
+    }
+
+    #[test]
+    fn revocation_matches_the_canonical_organization_spelling() {
+        let organization_id = OrganizationId::new();
+        let mut sessions = HashMap::from([(
+            "target".into(),
+            json!({
+                "principal_id": "prn_target",
+                "organization_id": organization_id.to_string(),
+            }),
+        )]);
+
+        let bare_request_id = organization_id.as_uuid().to_string();
+        let normalized = OrganizationId::parse(&bare_request_id)
+            .expect("bare UUID is accepted at the API boundary")
+            .to_string();
+        assert_eq!(
+            revoke_matching_sessions(&mut sessions, "prn_target", &normalized),
+            1
+        );
+        assert!(sessions.is_empty());
+    }
+
+    #[test]
+    fn revocation_waiting_on_a_token_mint_clears_the_new_session() {
+        let organization_id = OrganizationId::new();
+        let lifecycle = Arc::new(Mutex::new(()));
+        let sessions = Arc::new(Mutex::new(HashMap::new()));
+        let pending = Arc::new(Mutex::new(HashMap::from([(
+            "device".to_string(),
+            DevicePending {
+                user_code_hash: "digest".into(),
+                expires_at: Utc::now() + Duration::minutes(5),
+                approved: Some(ApprovedDevice {
+                    principal: "prn_target".into(),
+                    organization_id,
+                    organization_role: OrganizationRole::Member,
+                }),
+            },
+        )])));
+        let mint_ready = Arc::new(Barrier::new(2));
+        let release_mint = Arc::new(Barrier::new(2));
+
+        let mint = {
+            let lifecycle = Arc::clone(&lifecycle);
+            let sessions = Arc::clone(&sessions);
+            let pending = Arc::clone(&pending);
+            let mint_ready = Arc::clone(&mint_ready);
+            let release_mint = Arc::clone(&release_mint);
+            thread::spawn(move || {
+                let _fence = lifecycle.lock().unwrap();
+                mint_ready.wait();
+                release_mint.wait();
+                pending.lock().unwrap().remove("device");
+                sessions.lock().unwrap().insert(
+                    "new-session".into(),
+                    json!({
+                        "principal_id": "prn_target",
+                        "organization_id": organization_id.to_string(),
+                    }),
+                );
+            })
+        };
+        mint_ready.wait();
+
+        let (contending, contending_rx) = mpsc::channel();
+        let revoke = {
+            let lifecycle = Arc::clone(&lifecycle);
+            let sessions = Arc::clone(&sessions);
+            let pending = Arc::clone(&pending);
+            thread::spawn(move || {
+                contending.send(()).unwrap();
+                let _fence = lifecycle.lock().unwrap();
+                revoke_matching_sessions(
+                    &mut sessions.lock().unwrap(),
+                    "prn_target",
+                    &organization_id.to_string(),
+                );
+                revoke_pending_authorizations(
+                    &mut pending.lock().unwrap(),
+                    "prn_target",
+                    organization_id,
+                );
+            })
+        };
+        contending_rx.recv().unwrap();
+        assert!(
+            lifecycle.try_lock().is_err(),
+            "mint holds the lifecycle fence"
+        );
+        release_mint.wait();
+        mint.join().unwrap();
+        revoke.join().unwrap();
+
+        assert!(sessions.lock().unwrap().is_empty());
+        assert!(pending.lock().unwrap().is_empty());
     }
 }
 
