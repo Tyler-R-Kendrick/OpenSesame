@@ -186,10 +186,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "principalId",
-                  "role"
-                ],
+                "required": ["principalId", "role"],
                 "properties": {
                   "principalId": {
                     "type": "string"
@@ -250,9 +247,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "role"
-                ],
+                "required": ["role"],
                 "properties": {
                   "role": {
                     "$ref": "#/components/schemas/OrganizationRole"
@@ -333,9 +328,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "user_code"
-                ],
+                "required": ["user_code"],
                 "properties": {
                   "user_code": {
                     "type": "string"
@@ -487,10 +480,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "acceptedItemIds",
-                  "userCode"
-                ],
+                "required": ["acceptedItemIds", "userCode"],
                 "properties": {
                   "acceptedItemIds": {
                     "type": "array",
@@ -655,11 +645,7 @@
     "schemas": {
       "OrganizationRole": {
         "type": "string",
-        "enum": [
-          "owner",
-          "admin",
-          "member"
-        ]
+        "enum": ["owner", "admin", "member"]
       }
     },
     "securitySchemes": {
