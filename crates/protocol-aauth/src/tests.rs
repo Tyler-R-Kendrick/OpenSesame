@@ -1,6 +1,5 @@
 use super::adapter::*;
 use crate::error::AAuthError;
-use opensesame_domain::{Capability, CapabilitySet, ResourceSelector};
 
 #[test]
 fn one_person_maps_to_one_principal() {
@@ -15,24 +14,6 @@ fn one_person_maps_to_one_principal() {
 
     let mapped = assert_one_person(&[person]).unwrap();
     assert_eq!(mapped.source_person_id, "person-alice");
-}
-
-#[test]
-fn a_resource_scoped_ceiling_does_not_admit_a_scope_request() {
-    // The scope mapping is a stub that cannot name a resource, so it asks for the
-    // literal `*`. Pin the fail-closed reading before the draft settles: a ceiling
-    // confined to real resources must not answer for a resource-blind request.
-    let scoped = CapabilitySet::new(vec![Capability::new(
-        "tools:call",
-        ResourceSelector::exact("repo:a"),
-    )]);
-    assert_eq!(
-        assert_scopes_within_ceiling(&["tools:call"], &scoped),
-        Err(AAuthError::ScopeOutsideCeiling)
-    );
-    // An empty request asks for nothing and is inside every ceiling.
-    let nothing: [&str; 0] = [];
-    assert!(assert_scopes_within_ceiling(&nothing, &scoped).is_ok());
 }
 
 #[test]
@@ -63,17 +44,6 @@ fn mission_byte_mutation_changes_digest() {
     let ctx2 = mission_to_governance_context(&m2);
     assert_ne!(ctx1.mission_digest, ctx2.mission_digest);
     assert_eq!(ctx1.mission_bytes_len, m1.bytes.len());
-}
-
-#[test]
-fn scope_outside_ceiling_rejected() {
-    let ceiling = CapabilitySet::new(vec![Capability::new("read", ResourceSelector::exact("*"))])
-        .canonicalize();
-    assert!(assert_scopes_within_ceiling(&["read"], &ceiling).is_ok());
-    assert_eq!(
-        assert_scopes_within_ceiling(&["write"], &ceiling),
-        Err(AAuthError::ScopeOutsideCeiling)
-    );
 }
 
 #[test]

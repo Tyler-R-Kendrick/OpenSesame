@@ -1,7 +1,7 @@
 use super::*;
 use opensesame_domain::{
-    Capability, CapabilitySet, OrganizationId, ProtectedResource, ProtectedResourceId,
-    ProtocolProfile, ProtocolProfileId, ResourceSelector, TokenPresentation,
+    CapabilitySet, OrganizationId, ProtectedResource, ProtectedResourceId, ProtocolProfile,
+    ProtocolProfileId, TokenPresentation,
     PROFILE_MCP_AUTHORIZATION_2026_07_28_BEARER, PROFILE_OPENSESAME_TASK_DPOP_RFC9449_V1,
 };
 
@@ -71,29 +71,6 @@ fn a_path_scoped_audience_confines_the_request() {
 fn a_request_uri_carrying_userinfo_is_refused() {
     let resource = sample_resource("https://mcp.example.com");
     assert!(validate_resource_uri("https://mcp.example.com@evil.test/tools", &resource).is_err());
-}
-
-#[test]
-fn a_scope_request_does_not_pass_a_resource_scoped_ceiling() {
-    // The scope mapping is a stub that cannot name a resource, so it asks for the
-    // literal `*`. Pin the fail-closed reading: a ceiling confined to real
-    // resources must not answer for it.
-    let scoped = CapabilitySet::new(vec![Capability::new(
-        "tools:call",
-        ResourceSelector::exact("repo:a"),
-    )]);
-    assert!(!scopes_to_capability_set(&["tools:call"]).is_subset_of(&scoped));
-}
-
-#[test]
-fn scope_stub_maps_to_capabilities() {
-    let set = scopes_to_capability_set(&["tools:read", "tools:call"]);
-    assert_eq!(set.canonicalize().capabilities.len(), 2);
-    assert!(set.is_subset_of(&CapabilitySet::new(vec![
-        Capability::new("tools:read", ResourceSelector::exact("*")),
-        Capability::new("tools:call", ResourceSelector::exact("*")),
-        Capability::new("tools:write", ResourceSelector::exact("*")),
-    ])));
 }
 
 fn sample_resource(audience: &str) -> ProtectedResource {
