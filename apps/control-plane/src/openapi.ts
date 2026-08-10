@@ -54,9 +54,12 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
         },
         post: {
           summary: "Create an organization; the creator becomes owner",
-          security: [{ bearerAuth: [] }],
+          description:
+            "Cookie-authenticated browser mutations also require an allowed Origin header.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
           responses: {
             "201": { description: "Organization created" },
+            "401": { description: "Authentication or cookie Origin required" },
             "403": { description: "Verified identity required" },
             "409": { description: "Slug already exists" },
           },
@@ -100,7 +103,9 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
         },
         post: {
           summary: "Add an existing principal to an organization (owner only)",
-          security: [{ bearerAuth: [] }],
+          description:
+            "Cookie-authenticated browser mutations also require an allowed Origin header.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
           parameters: [
             {
               name: "id",
@@ -126,6 +131,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           },
           responses: {
             "201": { description: "Membership created" },
+            "401": { description: "Authentication or cookie Origin required" },
             "403": { description: "Owner role required" },
             "404": { description: "Principal not found" },
             "409": {
@@ -138,7 +144,9 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
         patch: {
           summary:
             "Change a membership role and revoke its Host sessions (owner only)",
-          security: [{ bearerAuth: [] }],
+          description:
+            "Cookie-authenticated browser mutations also require an allowed Origin header.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
           parameters: [
             {
               name: "id",
@@ -169,6 +177,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           },
           responses: {
             "200": { description: "Membership updated" },
+            "401": { description: "Authentication or cookie Origin required" },
             "403": { description: "Owner role required" },
             "409": { description: "Last owner cannot be demoted" },
             "502": {
@@ -179,7 +188,9 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
         delete: {
           summary:
             "Remove a membership and revoke its Host sessions (owner only)",
-          security: [{ bearerAuth: [] }],
+          description:
+            "Cookie-authenticated browser mutations also require an allowed Origin header.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
           parameters: [
             {
               name: "id",
@@ -196,6 +207,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           ],
           responses: {
             "204": { description: "Membership removed" },
+            "401": { description: "Authentication or cookie Origin required" },
             "403": { description: "Owner role required" },
             "409": { description: "Last owner cannot be removed" },
             "502": {
@@ -210,8 +222,8 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           summary:
             "Approve a Host device session in an organization the caller belongs to",
           description:
-            "Identity derives the organization role server-side; organization_role and principal fields supplied by browsers are ignored.",
-          security: [{ bearerAuth: [] }],
+            "Identity derives the organization role server-side; organization_role and principal fields supplied by browsers are ignored. Cookie-authenticated browser mutations also require an allowed Origin header.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
           requestBody: {
             required: true,
             content: {
@@ -229,6 +241,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           },
           responses: {
             "200": { description: "Device approved" },
+            "401": { description: "Authentication or cookie Origin required" },
             "400": {
               description: "Organization selection required or request invalid",
             },
