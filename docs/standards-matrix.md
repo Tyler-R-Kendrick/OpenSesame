@@ -22,7 +22,7 @@
 | SCIM 2.0 | Final | When directory sync enabled | future IdP sync path |
 | AuthZEN 1.0 | Final | External PDP contract | `crates/authz` |
 | SPIFFE Workload API | Final | Workload identity model only | `crates/domain` |
-| ACME | Final | Project-scoped | `crates/provider-openbao`, `apps/callback-edge` |
+| ACME | Final | Planned | — |
 | OpenAPI 3.1 | Final | Generated contracts | `api/openapi` |
 | CloudEvents | Final | Lifecycle events | `api/events` |
 | WASI Component Model / WIT | Final | Connector boundary | `wit/` |
