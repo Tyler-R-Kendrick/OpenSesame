@@ -146,6 +146,7 @@ pub struct ProviderView {
     pub auth_kind: String,
     pub supports_refresh: bool,
     pub configured: bool,
+    pub callback_url: Option<String>,
     pub missing_config: Vec<String>,
     pub scopes: Vec<ScopeView>,
     pub egress: EgressView,
@@ -153,7 +154,12 @@ pub struct ProviderView {
 }
 
 impl ProviderView {
-    pub fn new(provider: &Provider, configured: bool, missing_config: Vec<String>) -> Self {
+    pub fn new(
+        provider: &Provider,
+        configured: bool,
+        missing_config: Vec<String>,
+        callback_url: Option<String>,
+    ) -> Self {
         Self {
             id: provider.id.to_string(),
             display_name: provider.display_name.to_string(),
@@ -162,6 +168,7 @@ impl ProviderView {
             auth_kind: provider.auth.kind().to_string(),
             supports_refresh: provider.auth.supports_refresh(),
             configured,
+            callback_url,
             missing_config,
             scopes: provider.scopes.iter().map(ScopeView::from).collect(),
             egress: EgressView::from(&provider.egress.binding()),
@@ -190,6 +197,7 @@ pub struct EventView {
 #[derive(Clone, Debug, Serialize)]
 pub struct ConnectionView {
     pub connection_id: String,
+    pub integration_id: Option<String>,
     /// ADR 0005 URI. Always present: the agent surface is reference-only.
     pub connection_ref: String,
     pub logical_name: String,
@@ -239,6 +247,9 @@ pub struct RevokeOutcome {
 #[derive(Clone, Debug)]
 pub struct CreateConnection {
     pub provider_id: String,
+    /// Required for new clients. Legacy callers may omit it only when exactly one
+    /// usable integration exists for the selected provider.
+    pub integration_id: Option<String>,
     /// The caller this connection is being created for. Never read from a request
     /// body: the transport says who is asking, and only that may own the result.
     pub owner_subject: Option<String>,

@@ -57,6 +57,7 @@ export const ProviderSchema = z
     auth_kind: ProviderAuthKindSchema,
     supports_refresh: z.boolean(),
     configured: z.boolean(),
+    callback_url: z.string().url().nullable(),
     missing_config: z.array(z.string()),
     scopes: z.array(ScopeDefSchema),
     egress: EgressSchema,
@@ -97,7 +98,7 @@ export const BindingSchema = z
     target_kind: BindingTargetKindSchema,
     target_id: z.string().min(1),
     target_label: z.string().nullable(),
-    created_at: z.string().datetime(),
+    created_at: z.string().datetime({ offset: true }),
   })
   .strict();
 export type Binding = z.infer<typeof BindingSchema>;
@@ -105,6 +106,7 @@ export type Binding = z.infer<typeof BindingSchema>;
 export const ConnectionSchema = z
   .object({
     connection_id: z.string().min(1),
+    integration_id: z.string().min(1).nullable(),
     connection_ref: z.string().min(1),
     logical_name: z.string().min(1),
     display_name: z.string(),
@@ -118,14 +120,14 @@ export const ConnectionSchema = z
     requested_scopes: z.array(z.string()),
     granted_scopes: z.array(z.string()),
     account_label: z.string().nullable(),
-    expires_at: z.string().datetime().nullable(),
+    expires_at: z.string().datetime({ offset: true }).nullable(),
     refreshable: z.boolean(),
-    last_refreshed_at: z.string().datetime().nullable(),
+    last_refreshed_at: z.string().datetime({ offset: true }).nullable(),
     max_invoke_level: z.number().int(),
     egress: EgressSchema,
     bindings: z.array(BindingSchema),
-    created_at: z.string().datetime(),
-    updated_at: z.string().datetime(),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
   })
   .strict();
 export type Connection = z.infer<typeof ConnectionSchema>;
@@ -147,7 +149,7 @@ export const ConnectionEventSchema = z
   .object({
     id: z.string().min(1),
     kind: ConnectionEventKindSchema,
-    at: z.string().datetime(),
+    at: z.string().datetime({ offset: true }),
     detail: z.string().nullable(),
   })
   .strict();
@@ -155,7 +157,8 @@ export type ConnectionEvent = z.infer<typeof ConnectionEventSchema>;
 
 export const CreateConnectionRequestSchema = z
   .object({
-    provider_id: z.string().min(1),
+    integration_id: z.string().min(1).optional(),
+    provider_id: z.string().min(1).optional(),
     display_name: z.string().min(1).optional(),
     logical_name: z.string().min(1).optional(),
     project_id: z.string().min(1).optional(),
@@ -165,6 +168,67 @@ export const CreateConnectionRequestSchema = z
   .strict();
 export type CreateConnectionRequest = z.infer<
   typeof CreateConnectionRequestSchema
+>;
+
+export const IntegrationSourceSchema = z.enum([
+  "organization",
+  "shared_dev",
+  "deployment",
+]);
+export const IntegrationSchema = z
+  .object({
+    id: z.string().min(1),
+    key: z.string().min(1),
+    provider_id: z.string().min(1),
+    display_name: z.string().min(1),
+    source: IntegrationSourceSchema,
+    enabled: z.boolean(),
+    configured: z.boolean(),
+    callback_url: z.string().url().nullable(),
+    scopes: z.array(z.string()),
+    client_id_hint: z.string().nullable(),
+    has_client_secret: z.boolean(),
+    connection_count: z.number().int().nonnegative(),
+    created_by: z.string().min(1),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type Integration = z.infer<typeof IntegrationSchema>;
+
+export const CreateIntegrationRequestSchema = z
+  .object({
+    key: z.string().min(1),
+    provider_id: z.string().min(1),
+    display_name: z.string().min(1),
+    scopes: z.array(z.string()).optional(),
+    client_id: z.string().min(1).optional(),
+    client_secret: z.string().min(1).optional(),
+  })
+  .strict();
+export type CreateIntegrationRequest = z.infer<
+  typeof CreateIntegrationRequestSchema
+>;
+
+export const UpdateIntegrationRequestSchema = z
+  .object({
+    key: z.string().min(1).optional(),
+    display_name: z.string().min(1).optional(),
+    scopes: z.array(z.string()).optional(),
+    enabled: z.boolean().optional(),
+    client_id: z.string().optional(),
+    client_secret: z.string().optional(),
+  })
+  .strict();
+export type UpdateIntegrationRequest = z.infer<
+  typeof UpdateIntegrationRequestSchema
+>;
+
+export const ListIntegrationsResponseSchema = z
+  .object({ integrations: z.array(IntegrationSchema) })
+  .strict();
+export type ListIntegrationsResponse = z.infer<
+  typeof ListIntegrationsResponseSchema
 >;
 
 export const AuthorizeRequestSchema = z
@@ -177,7 +241,7 @@ export type AuthorizeRequest = z.infer<typeof AuthorizeRequestSchema>;
 
 export const SetCredentialRequestSchema = z
   .object({
-    value: z.string().min(1),
+    value: z.string().min(1).max(8 * 1024),
   })
   .strict();
 export type SetCredentialRequest = z.infer<typeof SetCredentialRequestSchema>;
@@ -211,7 +275,7 @@ export const AuthorizeResponseSchema = z
   .object({
     authorization_url: z.string().url(),
     state: z.string().min(1),
-    expires_at: z.string().datetime(),
+    expires_at: z.string().datetime({ offset: true }),
   })
   .strict();
 export type AuthorizeResponse = z.infer<typeof AuthorizeResponseSchema>;
@@ -238,6 +302,11 @@ export const ConnectionErrorCodeSchema = z.enum([
   "provider_unknown",
   "provider_unconfigured",
   "connection_not_found",
+  "integration_not_found",
+  "integration_required",
+  "integration_conflict",
+  "integration_read_only",
+  "integration_in_use",
   "invalid_state",
   "state_expired",
   "exchange_failed",

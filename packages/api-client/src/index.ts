@@ -7,14 +7,20 @@ import {
   ConnectionSchema,
   type CreateBindingRequest,
   type CreateConnectionRequest,
+  type CreateIntegrationRequest,
+  type Integration,
+  IntegrationSchema,
   type ListConnectionsResponse,
   ListConnectionsResponseSchema,
   type ListEventsResponse,
   ListEventsResponseSchema,
+  type ListIntegrationsResponse,
+  ListIntegrationsResponseSchema,
   type ListProvidersResponse,
   ListProvidersResponseSchema,
   type RevokeResponse,
   RevokeResponseSchema,
+  type UpdateIntegrationRequest,
 } from "@opensesame/contracts";
 
 export interface ApiClientOptions {
@@ -323,6 +329,10 @@ export function createApiClient(options: ApiClientOptions) {
     return `/api/v1/connections/${encodeURIComponent(id)}${suffix}`;
   }
 
+  function integrationPath(id: string): string {
+    return `/api/v1/integrations/${encodeURIComponent(id)}`;
+  }
+
   return {
     baseUrl: base,
 
@@ -391,6 +401,48 @@ export function createApiClient(options: ApiClientOptions) {
         ListConnectionsResponseSchema,
         "/api/v1/connections",
       );
+    },
+
+    async listIntegrations(): Promise<ListIntegrationsResponse> {
+      return requestParsed(
+        "integrations",
+        ListIntegrationsResponseSchema,
+        "/api/v1/integrations",
+      );
+    },
+
+    async getIntegration(id: string): Promise<Integration> {
+      return requestParsed(
+        "integration",
+        IntegrationSchema,
+        integrationPath(id),
+      );
+    },
+
+    async createIntegration(body: CreateIntegrationRequest): Promise<Integration> {
+      return requestParsed(
+        "integration_create",
+        IntegrationSchema,
+        "/api/v1/integrations",
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    async updateIntegration(
+      id: string,
+      body: UpdateIntegrationRequest,
+    ): Promise<Integration> {
+      return requestParsed(
+        "integration_update",
+        IntegrationSchema,
+        integrationPath(id),
+        { method: "PATCH", body: JSON.stringify(body) },
+      );
+    },
+
+    async deleteIntegration(id: string): Promise<void> {
+      const res = await request(integrationPath(id), { method: "DELETE" });
+      if (!res.ok) throw await requestFailure("integration_delete", res);
     },
 
     async getConnection(id: string): Promise<Connection> {

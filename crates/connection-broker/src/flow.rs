@@ -274,10 +274,11 @@ fn transport_detail(e: &reqwest::Error) -> String {
 fn oauth_error_detail(body: &str) -> Option<String> {
     let value: serde_json::Value = serde_json::from_str(body).ok()?;
     let code = value.get("error").and_then(|v| v.as_str())?;
-    match value.get("error_description").and_then(|v| v.as_str()) {
-        Some(desc) => Some(format!("{code}: {desc}")),
-        None => Some(code.to_string()),
-    }
+    (code.len() <= 64
+        && code
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || "_.-".contains(character)))
+    .then(|| code.to_string())
 }
 
 #[cfg(test)]
@@ -423,13 +424,20 @@ mod tests {
     fn error_detail_quotes_only_the_oauth_fields() {
         assert_eq!(
             oauth_error_detail(r#"{"error":"invalid_grant","error_description":"expired"}"#),
-            Some("invalid_grant: expired".to_string())
+            Some("invalid_grant".to_string())
         );
         assert_eq!(
             oauth_error_detail(r#"{"error":"invalid_grant"}"#),
             Some("invalid_grant".to_string())
         );
         assert_eq!(oauth_error_detail(r#"{"access_token":"secret-abc"}"#), None);
+        assert_eq!(
+            oauth_error_detail(
+                r#"{"error":"invalid_grant","error_description":"access_token=secret-abc"}"#
+            ),
+            Some("invalid_grant".to_string())
+        );
+        assert_eq!(oauth_error_detail(r#"{"error":"secret abc"}"#), None);
         assert_eq!(oauth_error_detail("not json"), None);
     }
 }

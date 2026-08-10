@@ -9,6 +9,7 @@ const egress = {
 
 const connection = {
   connection_id: "connection_01J",
+  integration_id: "integration_01J",
   connection_ref: "conn://acme/web/github/main",
   logical_name: "github/main",
   display_name: "GitHub — acme",
@@ -28,6 +29,24 @@ const connection = {
   max_invoke_level: 2,
   egress,
   bindings: [],
+  created_at: "2026-08-08T10:00:00.000Z",
+  updated_at: "2026-08-08T10:00:00.000Z",
+};
+
+const integration = {
+  id: "integration_01J",
+  key: "engineering",
+  provider_id: "github",
+  display_name: "Engineering GitHub",
+  source: "organization",
+  enabled: true,
+  configured: true,
+  callback_url: "https://host.test:8787/api/v1/oauth/callback/github",
+  scopes: ["read:user"],
+  client_id_hint: "***1234",
+  has_client_secret: true,
+  connection_count: 0,
+  created_by: "principal:admin",
   created_at: "2026-08-08T10:00:00.000Z",
   updated_at: "2026-08-08T10:00:00.000Z",
 };
@@ -77,6 +96,7 @@ describe("api-client connections", () => {
             auth_kind: "oauth2_authorization_code",
             supports_refresh: true,
             configured: false,
+            callback_url: "https://host.test:8787/api/v1/oauth/callback/github",
             missing_config: ["OPENSESAME_PROVIDER_GITHUB_CLIENT_ID"],
             scopes: [],
             egress,
@@ -90,6 +110,34 @@ describe("api-client connections", () => {
     expect(calls[0]?.url).toBe("https://host.test:8787/api/v1/providers");
   });
 
+  it("manages safe integration metadata", async () => {
+    const { client, calls } = jsonClient((url, init) => {
+      if (init?.method === "DELETE") return new Response(null, { status: 204 });
+      if (url.endsWith("/integrations")) {
+        return init?.method === "POST"
+          ? ok(integration)
+          : ok({ integrations: [integration] });
+      }
+      return ok(integration);
+    });
+    expect((await client.listIntegrations()).integrations).toHaveLength(1);
+    expect((await client.getIntegration("integration_01J")).key).toBe(
+      "engineering",
+    );
+    await client.createIntegration({
+      key: "engineering",
+      provider_id: "github",
+      display_name: "Engineering GitHub",
+      client_secret: "write-only",
+    });
+    await client.updateIntegration("integration_01J", {
+      display_name: "Engineering",
+    });
+    await client.deleteIntegration("integration_01J");
+    expect(calls[3]?.body).not.toContain("client_secret");
+    expect(calls[4]?.method).toBe("DELETE");
+  });
+
   it("posts create, authorize, credential and binding bodies", async () => {
     const { client, calls } = jsonClient((url) =>
       url.endsWith("/authorize")
@@ -101,7 +149,11 @@ describe("api-client connections", () => {
         : ok(connection),
     );
 
-    await client.createConnection({ provider_id: "github", scopes: ["repo"] });
+    await client.createConnection({
+      integration_id: "integration_01J",
+      provider_id: "github",
+      scopes: ["repo"],
+    });
     const auth = await client.authorizeConnection("connection_01J");
     await client.setConnectionCredential("connection_01J", "key_live");
     await client.bindConnection("connection_01J", {
@@ -171,7 +223,10 @@ describe("api-client connections", () => {
         ),
     );
     await expect(
-      client.createConnection({ provider_id: "github" }),
+      client.createConnection({
+        integration_id: "integration_01J",
+        provider_id: "github",
+      }),
     ).rejects.toThrow("connection_create_failed:409:provider_unconfigured");
   });
 

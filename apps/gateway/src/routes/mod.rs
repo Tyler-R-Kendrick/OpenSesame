@@ -12,6 +12,7 @@ mod sync;
 mod tasks;
 
 use axum::{
+    extract::DefaultBodyLimit,
     routing::{delete, get, post},
     Router,
 };
@@ -26,6 +27,7 @@ pub fn router(state: AppState) -> Router {
         .route("/health/authority", get(health::authority))
         .route("/health/degraded", get(health::degraded))
         .route("/health/providers", get(health::providers))
+        .route("/api/v1/health", get(health::live))
         .route(
             "/.well-known/oauth-protected-resource",
             get(protected_resource::metadata),
@@ -43,8 +45,23 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/whoami", get(session::whoami))
         .route("/api/v1/providers", get(connections::list_providers))
         .route(
+            "/api/v1/integrations",
+            get(connections::list_integrations)
+                .post(connections::create_integration)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/integrations/{id}",
+            get(connections::get_integration)
+                .patch(connections::update_integration)
+                .delete(connections::delete_integration)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
             "/api/v1/connections",
-            get(connections::list).post(connections::create),
+            get(connections::list)
+                .post(connections::create)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route(
             "/api/v1/connections/{id}",
@@ -52,19 +69,19 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/api/v1/connections/{id}/authorize",
-            post(connections::start_authorization),
+            post(connections::start_authorization).layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route(
             "/api/v1/connections/{id}/refresh",
-            post(connections::refresh),
+            post(connections::refresh).layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route(
             "/api/v1/connections/{id}/credential",
-            post(connections::set_credential),
+            post(connections::set_credential).layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route(
             "/api/v1/connections/{id}/bindings",
-            post(connections::create_binding),
+            post(connections::create_binding).layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route(
             "/api/v1/connections/{id}/bindings/{binding_id}",

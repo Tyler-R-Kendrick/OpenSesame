@@ -9,11 +9,15 @@ import {
   ConnectionStatusSchema,
   CreateBindingRequestSchema,
   CreateConnectionRequestSchema,
+  CreateIntegrationRequestSchema,
   EgressSchema,
   ListConnectionsResponseSchema,
   ListEventsResponseSchema,
+  ListIntegrationsResponseSchema,
   ListProvidersResponseSchema,
   ProviderSchema,
+  IntegrationSchema,
+  UpdateIntegrationRequestSchema,
   RevokeResponseSchema,
   ScopeDefSchema,
   SetCredentialRequestSchema,
@@ -33,6 +37,7 @@ const provider = {
   auth_kind: "oauth2_authorization_code",
   supports_refresh: true,
   configured: false,
+  callback_url: "https://host.test/api/v1/oauth/callback/github",
   missing_config: ["OPENSESAME_PROVIDER_GITHUB_CLIENT_ID"],
   scopes: [
     {
@@ -56,6 +61,7 @@ const binding = {
 
 const connection = {
   connection_id: "connection_01J",
+  integration_id: "integration_01J",
   connection_ref: "conn://acme/web/github/main",
   logical_name: "github/main",
   display_name: "GitHub — acme",
@@ -75,8 +81,8 @@ const connection = {
   max_invoke_level: 2,
   egress,
   bindings: [binding],
-  created_at: "2026-08-08T10:00:00.000Z",
-  updated_at: "2026-08-08T10:00:00.000Z",
+  created_at: "2026-08-08T10:00:00+00:00",
+  updated_at: "2026-08-08T10:00:00+00:00",
 };
 
 const event = {
@@ -84,6 +90,24 @@ const event = {
   kind: "authorize_started",
   at: "2026-08-08T10:00:01.000Z",
   detail: null,
+};
+
+const integration = {
+  id: "integration_01J",
+  key: "engineering",
+  provider_id: "github",
+  display_name: "Engineering GitHub",
+  source: "organization",
+  enabled: true,
+  configured: true,
+  callback_url: "https://host.test/api/v1/oauth/callback/github",
+  scopes: ["read:user"],
+  client_id_hint: "***1234",
+  has_client_secret: true,
+  connection_count: 0,
+  created_by: "principal:admin",
+  created_at: "2026-08-08T10:00:00.000Z",
+  updated_at: "2026-08-08T10:00:00.000Z",
 };
 
 describe("connection broker contracts", () => {
@@ -114,11 +138,16 @@ describe("connection broker contracts", () => {
   it("parses request bodies", () => {
     expect(
       CreateConnectionRequestSchema.parse({
+        integration_id: "integration_01J",
         provider_id: "github",
         scopes: ["repo"],
         shareability: "delegable",
       }).provider_id,
     ).toBe("github");
+    expect(
+      CreateConnectionRequestSchema.parse({ provider_id: "github" })
+        .integration_id,
+    ).toBeUndefined();
     expect(
       AuthorizeRequestSchema.parse({
         redirect_uri: "https://app.example.test/connections/return",
@@ -129,11 +158,42 @@ describe("connection broker contracts", () => {
       "key",
     );
     expect(
+      SetCredentialRequestSchema.parse({ value: "k".repeat(8 * 1024) }).value,
+    ).toHaveLength(8 * 1024);
+    expect(() =>
+      SetCredentialRequestSchema.parse({ value: "k".repeat(8 * 1024 + 1) }),
+    ).toThrow();
+    expect(
       CreateBindingRequestSchema.parse({
         target_kind: "agent",
         target_id: "agent_01J",
       }).target_kind,
     ).toBe("agent");
+  });
+
+  it("keeps integration credentials write-only", () => {
+    expect(IntegrationSchema.parse(integration).source).toBe("organization");
+    expect(
+      ListIntegrationsResponseSchema.parse({ integrations: [integration] })
+        .integrations,
+    ).toHaveLength(1);
+    expect(
+      CreateIntegrationRequestSchema.parse({
+        key: "engineering",
+        provider_id: "github",
+        display_name: "Engineering GitHub",
+      }).scopes,
+    ).toBeUndefined();
+    expect(
+      UpdateIntegrationRequestSchema.parse({ client_secret: "" })
+        .client_secret,
+    ).toBe("");
+    expect(() =>
+      UpdateIntegrationRequestSchema.parse({ provider_id: "github" }),
+    ).toThrow();
+    expect(() =>
+      IntegrationSchema.parse({ ...integration, client_secret: "leak" }),
+    ).toThrow();
   });
 
   it("parses authorize and revoke responses", () => {

@@ -14,7 +14,7 @@ pub const ENV_REDIRECT_ALLOWLIST: &str = "OPENSESAME_CONNECTION_REDIRECT_ALLOWLI
 const DEFAULT_PUBLIC_URL: &str = "http://127.0.0.1:8787";
 
 /// Per-provider client credentials and endpoint overrides.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct ProviderConfig {
     pub client_id: Option<String>,
     pub client_secret: Option<String>,

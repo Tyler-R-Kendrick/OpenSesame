@@ -13,6 +13,16 @@ pub enum BrokerError {
     },
     #[error("connection not found")]
     ConnectionNotFound,
+    #[error("integration not found or disabled")]
+    IntegrationNotFound,
+    #[error("integration_id is required because multiple usable integrations exist")]
+    IntegrationRequired,
+    #[error("integration key already exists")]
+    IntegrationConflict,
+    #[error("deployment integrations are read-only")]
+    IntegrationReadOnly,
+    #[error("integration still has connections")]
+    IntegrationInUse,
     #[error("authorization state is not valid")]
     InvalidState,
     #[error("authorization state expired")]
@@ -49,6 +59,11 @@ impl BrokerError {
             Self::ProviderUnknown(_) => "provider_unknown",
             Self::ProviderUnconfigured { .. } | Self::SealUnavailable(_) => "provider_unconfigured",
             Self::ConnectionNotFound => "connection_not_found",
+            Self::IntegrationNotFound => "integration_not_found",
+            Self::IntegrationRequired => "integration_required",
+            Self::IntegrationConflict => "integration_conflict",
+            Self::IntegrationReadOnly => "integration_read_only",
+            Self::IntegrationInUse => "integration_in_use",
             Self::InvalidState => "invalid_state",
             Self::StateExpired => "state_expired",
             Self::ExchangeFailed(_) => "exchange_failed",
@@ -77,9 +92,10 @@ impl BrokerError {
 
     pub fn http_status(&self) -> u16 {
         match self {
-            Self::ConnectionNotFound | Self::BindingNotFound => 404,
+            Self::ConnectionNotFound | Self::BindingNotFound | Self::IntegrationNotFound => 404,
             Self::ProviderUnconfigured { .. } | Self::SealUnavailable(_) => 503,
-            Self::BindingExists => 409,
+            Self::BindingExists | Self::IntegrationConflict | Self::IntegrationInUse => 409,
+            Self::IntegrationReadOnly => 403,
             Self::ExchangeFailed(_) | Self::NeedsReauth(_) => 502,
             Self::Storage(_) | Self::Serde(_) => 500,
             _ => 400,
@@ -101,6 +117,13 @@ mod tests {
         );
         assert_eq!(BrokerError::InvalidState.code(), "invalid_state");
         assert_eq!(BrokerError::StateExpired.code(), "state_expired");
+        assert_eq!(
+            BrokerError::IntegrationNotFound.code(),
+            "integration_not_found"
+        );
+        assert_eq!(BrokerError::IntegrationNotFound.http_status(), 404);
+        assert_eq!(BrokerError::IntegrationInUse.code(), "integration_in_use");
+        assert_eq!(BrokerError::IntegrationInUse.http_status(), 409);
         assert_eq!(
             BrokerError::RedirectNotAllowed.code(),
             "redirect_not_allowed"

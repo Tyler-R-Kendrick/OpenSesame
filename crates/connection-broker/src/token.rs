@@ -14,6 +14,7 @@ use crate::flow;
 
 /// Refresh this far ahead of expiry so an in-flight call does not race the clock.
 pub const REFRESH_SKEW_SECONDS: i64 = 60;
+const MAX_TOKEN_LIFETIME_SECONDS: i64 = 365 * 24 * 60 * 60;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TokenSet {
@@ -53,7 +54,7 @@ impl TokenSet {
 }
 
 /// A token endpoint response, in the shape RFC 6749 §5.1 describes.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct TokenResponse {
     pub access_token: String,
     #[serde(default)]
@@ -67,6 +68,22 @@ pub struct TokenResponse {
     /// Present from OIDC providers. Used only to label the connection on screen.
     #[serde(default)]
     pub id_token: Option<String>,
+}
+
+impl std::fmt::Debug for TokenResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenResponse")
+            .field("access_token", &"[REDACTED]")
+            .field(
+                "refresh_token",
+                &self.refresh_token.as_ref().map(|_| "[REDACTED]"),
+            )
+            .field("token_type", &self.token_type)
+            .field("expires_in", &self.expires_in)
+            .field("scope", &self.scope)
+            .field("id_token", &self.id_token.as_ref().map(|_| "[REDACTED]"))
+            .finish()
+    }
 }
 
 impl TokenResponse {
@@ -98,17 +115,52 @@ impl TokenResponse {
 }
 
 impl TokenResponse {
-    pub fn into_token_set(self, now: DateTime<Utc>, requested_scopes: &[String]) -> TokenSet {
+    pub fn into_token_set(
+        &self,
+        now: DateTime<Utc>,
+        requested_scopes: &[String],
+    ) -> Result<TokenSet> {
         let scopes = match self.scope.as_deref() {
             Some(s) if !s.trim().is_empty() => split_scopes(s),
             _ => requested_scopes.to_vec(),
         };
-        TokenSet {
-            access_token: self.access_token,
-            refresh_token: self.refresh_token,
-            token_type: self.token_type.unwrap_or_else(|| "Bearer".into()),
-            expires_at: self.expires_in.map(|s| now + Duration::seconds(s)),
+        let expires_at = match self.expires_in {
+            Some(seconds) if !(0..=MAX_TOKEN_LIFETIME_SECONDS).contains(&seconds) => {
+                return Err(BrokerError::ExchangeFailed(
+                    "provider returned an invalid expires_in".into(),
+                ));
+            }
+            Some(seconds) => Some(
+                now.checked_add_signed(Duration::seconds(seconds))
+                    .ok_or_else(|| {
+                        BrokerError::ExchangeFailed(
+                            "provider returned an invalid expires_in".into(),
+                        )
+                    })?,
+            ),
+            None => None,
+        };
+        Ok(TokenSet {
+            access_token: self.access_token.clone(),
+            refresh_token: self.refresh_token.clone(),
+            token_type: self.token_type.clone().unwrap_or_else(|| "Bearer".into()),
+            expires_at,
             scopes,
+        })
+    }
+
+    pub(crate) fn issued_tokens_for_cleanup(&self, requested_scopes: &[String]) -> TokenSet {
+        TokenSet {
+            access_token: self.access_token.clone(),
+            refresh_token: self.refresh_token.clone(),
+            token_type: self.token_type.clone().unwrap_or_else(|| "Bearer".into()),
+            expires_at: None,
+            scopes: self
+                .scope
+                .as_deref()
+                .filter(|scope| !scope.trim().is_empty())
+                .map(split_scopes)
+                .unwrap_or_else(|| requested_scopes.to_vec()),
         }
     }
 }
@@ -125,12 +177,16 @@ pub fn split_scopes(raw: &str) -> Vec<String> {
 /// Rotation: a returned refresh token replaces its predecessor, and its absence
 /// retains the one we hold. Dropping a still-valid refresh token because the
 /// provider did not repeat it would strand the connection.
-pub fn apply_refresh(previous: &TokenSet, response: TokenResponse, now: DateTime<Utc>) -> TokenSet {
-    let mut next = response.into_token_set(now, &previous.scopes);
+pub fn apply_refresh(
+    previous: &TokenSet,
+    response: TokenResponse,
+    now: DateTime<Utc>,
+) -> Result<TokenSet> {
+    let mut next = response.into_token_set(now, &previous.scopes)?;
     if next.refresh_token.is_none() {
         next.refresh_token = previous.refresh_token.clone();
     }
-    next
+    Ok(next)
 }
 
 pub async fn refresh(
@@ -138,7 +194,7 @@ pub async fn refresh(
     provider: &Provider,
     config: &BrokerConfig,
     previous: &TokenSet,
-) -> Result<TokenSet> {
+) -> Result<TokenResponse> {
     let Some(refresh_token) = previous.refresh_token.clone() else {
         return Err(BrokerError::NotRefreshable);
     };
@@ -148,13 +204,12 @@ pub async fn refresh(
     ];
     // A refused refresh is not a transport failure: the grant is gone, and the
     // connection must go to needs_reauth rather than be retried forever.
-    let response = flow::post_token_endpoint(http, provider, config, form)
+    flow::post_token_endpoint(http, provider, config, form)
         .await
         .map_err(|e| match e {
             BrokerError::ExchangeFailed(detail) => BrokerError::NeedsReauth(detail),
             other => other,
-        })?;
-    Ok(apply_refresh(previous, response, Utc::now()))
+        })
 }
 
 #[cfg(test)]
@@ -182,7 +237,7 @@ mod tests {
             scope: Some("read write".into()),
             id_token: None,
         };
-        let next = apply_refresh(&previous, response, Utc::now());
+        let next = apply_refresh(&previous, response, Utc::now()).unwrap();
         assert_eq!(next.access_token, "new-access");
         assert_eq!(next.refresh_token.as_deref(), Some("new-refresh"));
         assert_eq!(next.scopes, vec!["read".to_string(), "write".to_string()]);
@@ -199,7 +254,7 @@ mod tests {
             scope: None,
             id_token: None,
         };
-        let next = apply_refresh(&previous, response, Utc::now());
+        let next = apply_refresh(&previous, response, Utc::now()).unwrap();
         assert_eq!(next.refresh_token.as_deref(), Some("old-refresh"));
         assert_eq!(next.token_type, "Bearer");
         assert_eq!(next.scopes, previous.scopes);
@@ -305,9 +360,45 @@ mod tests {
             scope: Some("   ".into()),
             id_token: None,
         };
-        let set = response.into_token_set(Utc::now(), &["read".to_string()]);
+        let set = response
+            .into_token_set(Utc::now(), &["read".to_string()])
+            .unwrap();
         assert_eq!(set.scopes, vec!["read".to_string()]);
         assert!(set.expires_at.is_none());
         assert!(!set.refreshable());
+    }
+
+    #[test]
+    fn debug_never_exposes_token_material() {
+        let response = TokenResponse {
+            access_token: "access-secret".into(),
+            refresh_token: Some("refresh-secret".into()),
+            token_type: Some("Bearer".into()),
+            expires_in: Some(60),
+            scope: Some("read".into()),
+            id_token: Some("id-secret".into()),
+        };
+        let debug = format!("{response:?}");
+        for secret in ["access-secret", "refresh-secret", "id-secret"] {
+            assert!(!debug.contains(secret));
+        }
+    }
+
+    #[test]
+    fn invalid_token_lifetimes_are_rejected_without_clamping() {
+        let response = |expires_in| TokenResponse {
+            access_token: "access-secret".into(),
+            refresh_token: None,
+            token_type: None,
+            expires_in: Some(expires_in),
+            scope: None,
+            id_token: None,
+        };
+        for expires_in in [-1, i64::MAX] {
+            let error = response(expires_in)
+                .into_token_set(Utc::now(), &[])
+                .unwrap_err();
+            assert_eq!(error.code(), "exchange_failed");
+        }
     }
 }

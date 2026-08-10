@@ -51,6 +51,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0003_connection_owner",
         include_str!("../../../migrations/0003_connection_owner.sql"),
     ),
+    (
+        "0004_integrations",
+        include_str!("../../../migrations/0004_integrations.sql"),
+    ),
 ];
 
 impl Db {
@@ -368,9 +372,8 @@ pub fn sqlite_file_url(path: &Path) -> String {
     format!("sqlite://{}?mode=rwc", path.display())
 }
 
-/// Embedded migrations are hand-written and contain neither `--` nor `;` inside a
-/// string literal, so stripping line comments and splitting on `;` is sufficient and
-/// keeps the migrator dependency-free.
+/// Embedded migrations are hand-written and contain no semicolon inside a string
+/// literal. Trigger bodies are kept intact through their final `END;`.
 fn split_statements(sql: &str) -> Vec<String> {
     let stripped: String = sql
         .lines()
@@ -380,11 +383,28 @@ fn split_statements(sql: &str) -> Vec<String> {
         })
         .collect::<Vec<_>>()
         .join("\n");
-    stripped
-        .split(';')
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect()
+    let mut statements = Vec::new();
+    let mut current = String::new();
+    for ch in stripped.chars() {
+        if ch != ';' {
+            current.push(ch);
+            continue;
+        }
+        let trimmed = current.trim();
+        let trigger_body = trimmed.starts_with("CREATE TRIGGER") && !trimmed.ends_with("END");
+        if trigger_body {
+            current.push(';');
+            continue;
+        }
+        if !trimmed.is_empty() {
+            statements.push(trimmed.to_string());
+        }
+        current.clear();
+    }
+    if !current.trim().is_empty() {
+        statements.push(current.trim().to_string());
+    }
+    statements
 }
 
 #[cfg(test)]
@@ -534,8 +554,7 @@ mod tests {
                 .collect::<Vec<_>>()
         );
 
-        // A second boot must be a no-op rather than a replay: 0002 drops the
-        // connections table, so re-running it would destroy live rows.
+        // A second boot must be a no-op rather than replaying schema changes.
         db.migrate().await.unwrap();
         assert_eq!(db.applied_migrations().await.unwrap(), applied);
     }
@@ -558,6 +577,41 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(row.get::<i64, _>("c"), 1);
+    }
+
+    #[tokio::test]
+    async fn legacy_connection_rows_survive_the_broker_migration() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        for statement in split_statements(include_str!("../../../migrations/0001_init.sql")) {
+            sqlx::query(&statement).execute(&pool).await.unwrap();
+        }
+        sqlx::query(
+            "INSERT INTO organizations (id, name, created_at) VALUES ('org:1', 'Legacy', 't')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query("INSERT INTO connections (id, organization_id, project_id, connector_id, connector_version, component_digest, display_name, policy_json, created_at) VALUES ('legacy-1', 'org:1', NULL, 'github', '1', 'sha256:x', 'Legacy', '{}', 't')")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let db = Db { pool };
+        db.migrate().await.unwrap();
+        let legacy = sqlx::query("SELECT id FROM legacy_connections WHERE id = 'legacy-1'")
+            .fetch_one(db.pool())
+            .await
+            .unwrap();
+        assert_eq!(legacy.get::<String, _>("id"), "legacy-1");
+        let broker_rows = sqlx::query("SELECT COUNT(*) AS n FROM connections")
+            .fetch_one(db.pool())
+            .await
+            .unwrap();
+        assert_eq!(broker_rows.get::<i64, _>("n"), 0);
     }
 
     #[test]
