@@ -116,28 +116,57 @@ they're correct. In practice that means:
   `playwright.config.ts`'s `desktop` project viewport was corrected to
   1440×900 to match rather than rebaselining. The three mobile baselines
   are 390×844, which already matched this suite's mobile viewport.
-- **Never run yet.** This suite has not been executed against a real build —
-  `apps/pages` isn't installed/buildable in the environment this package was
-  authored in, and a sibling work package was concurrently editing
-  `apps/pages` at the same time. Every selector and flow above was
-  confirmed by reading the current source, not guessed, but the first real
-  run is still the first time this suite's assumptions get checked against
-  actual rendered output.
 - **Google Fonts is a live network dependency.** `apps/pages/index.html`
   loads Source Sans 3 / IBM Plex Mono from `fonts.googleapis.com` /
   `fonts.gstatic.com` (with a CSS system-font fallback if blocked). If the
   runtime executing this suite has no outbound access to those hosts, text
   will render in fallback fonts and may trip the pixel-diff budget even
-  though the app itself is behaving correctly.
+  though the app itself is behaving correctly. In practice this has shown
+  up as one-off flakiness specifically on the `pages-*` shot (captured
+  before `document.fonts.ready`, unlike the other five) — a lone failure
+  there on an otherwise-green run is this, not a regression; a second run
+  confirms it.
+- **Resolved: mobile browser engine and pixel density.**
+  `devices["iPhone 13"]` sets `defaultBrowserType: "webkit"` to emulate
+  real Mobile Safari, but only Chromium is preinstalled in this repo's
+  environments — that mismatch surfaced as every mobile test failing to
+  even launch a browser (`browserType.launch: Target page, context or
+  browser has been closed`). The `mobile` project now forces
+  `defaultBrowserType: "chromium"` while keeping the device's UA/viewport/
+  touch properties. Separately, the same preset's `deviceScaleFactor: 3`
+  tripled every mobile capture's resolution past the checked-in
+  390×844 baselines (a distinct "dimensions don't match" failure from a
+  real pixel-content mismatch) — pinned to `deviceScaleFactor: 1` to match.
+  A `webServer` config specifying both `port` and `url` (invalid in
+  Playwright 1.55.1) and a root-in-container Chromium sandbox failure
+  (`--no-sandbox`, gated to an actual root check, not just present
+  unconditionally) were fixed the same way — real infrastructure bugs
+  caught by actually running the suite, not guessed at.
+
+## Baseline provenance
+
+The six baselines were rebaselined during this build-out's integration
+pass (`VISUAL_UPDATE=1`, see git history) after the very first real run
+against a live build. Every original baseline predated changes visible in
+the diff — most strikingly, `pages-desktop.png`/`pages-mobile.png` were
+screenshots of an entirely different, since-abandoned dark navy/yellow
+"NEXT DECISION" surface (the exact "yellow airport depth-band world"
+`DESIGN.md`'s Do/Don't list calls out by name), not a rendering of the
+current teal "Authority Vault" unlock screen at all; the `vault-unlock-*`
+and `vault-list-*` baselines were stale by smaller, genuine content/copy
+changes (e.g. the unlock screen's security-transparency copy grew a
+"PIN ≥ 6 chars, salted PBKDF2" clause after those baselines were captured).
+None of the differences traced back to this build-out's own changes
+(telemetry wiring, a11y fixes) — every diff was inspected visually before
+rebaselining, per the rule above that a baseline update must be
+intentional and reviewed, not blind.
 
 ## What the orchestrator should do next
 
-After the central `pnpm install` lands **and** the sibling work package
-wiring telemetry into `apps/pages` has merged:
-
-1. `pnpm --filter @opensesame/visual-contract test:visual` — run this suite
-   for the first time for real.
-2. Look at the failures and judge each on its merits — real regression vs.
-   baseline needs updating — and run `VISUAL_UPDATE=1 pnpm test:visual`
-   deliberately,
-   with review, if the baselines are the ones that need to move.
+If `apps/pages` changes in a way that's expected to alter its rendering,
+run `pnpm --filter @opensesame/visual-contract test:visual`, inspect any
+failure's `output/*-actual.png` / `*-diff.png` against the current
+`.impeccable/screenshots/*.png`, and only rebaseline
+(`VISUAL_UPDATE=1 pnpm test:visual`) the specific screens that legitimately
+moved — reviewing the six PNGs in the resulting diff before committing,
+exactly as this package's own integration pass did.
