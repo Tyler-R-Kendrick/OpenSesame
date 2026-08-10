@@ -108,6 +108,19 @@ export function parseConnectionMessage(
   };
 }
 
+export const CONNECTION_POLL_MAX_ATTEMPTS = 40;
+const CONNECTION_POLL_INTERVAL_MS = 3_000;
+
+export function shouldPollPendingConnections(
+  connections: Array<Pick<Connection, "status">>,
+  attempts: number,
+) {
+  return (
+    attempts < CONNECTION_POLL_MAX_ATTEMPTS &&
+    connections.some((connection) => connection.status === "pending")
+  );
+}
+
 export function ConnectionsPage() {
   const [organizations, setOrganizations] = useState<SessionOrganization[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -200,6 +213,42 @@ export function ConnectionsPage() {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [organization, loadWorkspace]);
+
+  const hasPendingConnections = shouldPollPendingConnections(connections, 0);
+  useEffect(() => {
+    if (!organization || !hasPendingConnections) return;
+    const selectedOrganization = organization;
+    let attempts = 0;
+    let cancelled = false;
+    let timer: number;
+    function schedule() {
+      timer = window.setTimeout(() => {
+        attempts += 1;
+        void listConnections(selectedOrganization.id)
+          .then((nextConnections) => {
+            if (activeOrganizationId.current === selectedOrganization.id) {
+              setConnections(nextConnections);
+              setError(null);
+            }
+          })
+          .catch((caught) => {
+            if (activeOrganizationId.current === selectedOrganization.id) {
+              setError(message(caught));
+            }
+          })
+          .finally(() => {
+            if (!cancelled && attempts < CONNECTION_POLL_MAX_ATTEMPTS) {
+              schedule();
+            }
+          });
+      }, CONNECTION_POLL_INTERVAL_MS);
+    }
+    schedule();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [organization, hasPendingConnections]);
 
   function switchOrganization(nextId: string) {
     activeOrganizationId.current = nextId || null;

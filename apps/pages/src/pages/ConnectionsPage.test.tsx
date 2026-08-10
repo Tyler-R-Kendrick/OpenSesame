@@ -2,10 +2,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Integration, Provider } from "../lib/connections.js";
 import {
+  CONNECTION_POLL_MAX_ATTEMPTS,
   IntegrationsPanel,
   MarketplacePanel,
   parseConnectionMessage,
   reconcileOrganization,
+  shouldPollPendingConnections,
 } from "./ConnectionsPage.js";
 
 const oauthProvider: Provider = {
@@ -50,6 +52,17 @@ function integration(
 }
 
 describe("Connections marketplace panels", () => {
+  it("polls only pending connections within the bounded retry budget", () => {
+    expect(shouldPollPendingConnections([{ status: "pending" }], 0)).toBe(true);
+    expect(shouldPollPendingConnections([{ status: "active" }], 0)).toBe(false);
+    expect(
+      shouldPollPendingConnections(
+        [{ status: "pending" }],
+        CONNECTION_POLL_MAX_ATTEMPTS,
+      ),
+    ).toBe(false);
+  });
+
   it("uses refreshed membership role and drops removed organization access", () => {
     expect(
       reconcileOrganization(
