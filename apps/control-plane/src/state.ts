@@ -23,6 +23,8 @@ export interface AppStores {
   organizations: Map<string, Organization>;
   /** `${organizationId}:${principalId}` → membership */
   organizationMemberships: Map<string, OrganizationMembership>;
+  /** organization id → tail of serialized membership mutations */
+  organizationMembershipMutations: Map<string, Promise<void>>;
   /** slug → organization id */
   organizationSlugs: Map<string, string>;
   oauthClients: Map<string, OAuthClientRecord>;
@@ -50,6 +52,7 @@ export function createAppStores(): AppStores {
     projects: new Map(),
     organizations: new Map(),
     organizationMemberships: new Map(),
+    organizationMembershipMutations: new Map(),
     organizationSlugs: new Map(),
     oauthClients: new Map(),
     agents: new Map(),

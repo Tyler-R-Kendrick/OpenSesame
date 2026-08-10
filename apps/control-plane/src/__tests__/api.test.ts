@@ -1147,6 +1147,89 @@ describe("control-plane API", () => {
     }
   });
 
+  it("serializes membership rollback so it cannot resurrect a removed owner", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const owner = await verifiedPrincipal(app, "serialized-owner");
+    const target = await verifiedPrincipal(app, "serialized-target");
+    const created = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...owner.auth,
+        "content-type": "application/json",
+        "idempotency-key": "serialized-org",
+      },
+      body: JSON.stringify({
+        slug: "serialized-org",
+        displayName: "Serialized Org",
+      }),
+    });
+    const organization = (await created.json()) as { id: string };
+    await app.request(`/v1/organizations/${organization.id}/members`, {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ principalId: target.principalId, role: "owner" }),
+    });
+
+    let markFirstStarted = () => {};
+    const firstStarted = new Promise<void>((resolve) => {
+      markFirstStarted = resolve;
+    });
+    let releaseFirst = (_response: Response) => {};
+    const firstResponse = new Promise<Response>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const host = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(async () => {
+        markFirstStarted();
+        return firstResponse;
+      })
+      .mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    try {
+      const failedDemotion = app.request(
+        `/v1/organizations/${organization.id}/members/${target.principalId}`,
+        {
+          method: "PATCH",
+          headers: { ...owner.auth, "content-type": "application/json" },
+          body: JSON.stringify({ role: "admin" }),
+        },
+      );
+      await firstStarted;
+      const removal = app.request(
+        `/v1/organizations/${organization.id}/members/${target.principalId}`,
+        { method: "DELETE", headers: owner.auth },
+      );
+      await Promise.resolve();
+      expect(host).toHaveBeenCalledTimes(1);
+
+      releaseFirst(new Response("down", { status: 503 }));
+      expect((await failedDemotion).status).toBe(502);
+      expect((await removal).status).toBe(204);
+
+      const members = (await (
+        await app.request(`/v1/organizations/${organization.id}/members`, {
+          headers: owner.auth,
+        })
+      ).json()) as { members: Array<{ principalId: string }> };
+      expect(members.members).not.toContainEqual(
+        expect.objectContaining({ principalId: target.principalId }),
+      );
+    } finally {
+      host.mockRestore();
+    }
+  });
+
   it("holds a verified principal to an organization and client quota", async () => {
     const { app, ctx } = createControlPlane({
       config: {
