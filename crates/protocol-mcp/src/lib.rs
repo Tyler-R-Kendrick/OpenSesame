@@ -5,13 +5,11 @@
 pub mod error;
 pub mod passthrough;
 pub mod profile;
-pub mod scope;
 pub mod validation;
 
 pub use error::*;
 pub use passthrough::*;
 pub use profile::*;
-pub use scope::*;
 pub use validation::*;
 
 #[cfg(test)]
