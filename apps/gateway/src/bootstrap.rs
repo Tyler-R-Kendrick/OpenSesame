@@ -35,7 +35,7 @@ pub async fn maybe_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts>
     create_demo_bootstrap(db, signer).await
 }
 
-async fn create_demo_bootstrap(
+pub(crate) async fn create_demo_bootstrap(
     db: &Db,
     signer: opensesame_audit::ReceiptSigner,
 ) -> anyhow::Result<BootstrapArtifacts> {

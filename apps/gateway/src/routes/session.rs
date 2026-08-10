@@ -137,6 +137,7 @@ pub async fn revoke(
 mod tests {
     use super::{revoke_matching_sessions, revoke_pending_authorizations};
     use crate::app_state::{ApprovedDevice, DevicePending};
+    use axum::extract::State;
     use chrono::{Duration, Utc};
     use opensesame_domain::{OrganizationId, OrganizationRole};
     use serde_json::json;
@@ -290,6 +291,34 @@ mod tests {
 
         assert!(sessions.lock().unwrap().is_empty());
         assert!(pending.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn connection_listing_hides_another_organizations_bootstrap() {
+        let state = crate::app_state::test_demo_state().await;
+        let headers =
+            crate::app_state::test_session_headers(&state, "user:demo", OrganizationId::new());
+
+        let response = super::list_connections(State(state), headers).await;
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(body, json!({"connections": []}));
+    }
+
+    #[tokio::test]
+    async fn connection_listing_keeps_the_matching_organizations_bootstrap() {
+        let state = crate::app_state::test_demo_state().await;
+        let organization_id = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
+        let headers = crate::app_state::test_session_headers(&state, "user:demo", organization_id);
+
+        let response = super::list_connections(State(state), headers).await;
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(body["connections"].as_array().map(Vec::len), Some(1));
     }
 }
 

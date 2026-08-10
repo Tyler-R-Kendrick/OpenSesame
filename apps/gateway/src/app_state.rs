@@ -160,6 +160,54 @@ async fn resolve_distributed_task_authority(task_database_url: &str) -> bool {
 }
 
 #[cfg(test)]
+pub async fn test_demo_state() -> AppState {
+    let mut state = build(Args {
+        listen: "127.0.0.1:0".parse().unwrap(),
+        resource: "https://opensesame.test".into(),
+        issuer: "https://identity.test".into(),
+        database_url: "sqlite::memory:".into(),
+        task_database_url: String::new(),
+    })
+    .await
+    .unwrap();
+    let artifacts =
+        bootstrap::create_demo_bootstrap(&state.db, opensesame_audit::ReceiptSigner::generate())
+            .await
+            .unwrap();
+    state.receipt_verifier =
+        Arc::new(config::resolve_receipt_verifier(&artifacts.broker.signer).unwrap());
+    state.broker = Arc::new(artifacts.broker);
+    state.bootstrap = Arc::new(Mutex::new(artifacts.demo));
+    state.connection_ref = artifacts.connection_ref;
+    state
+}
+
+#[cfg(test)]
+pub fn test_session_headers(
+    state: &AppState,
+    subject: &str,
+    organization_id: OrganizationId,
+) -> axum::http::HeaderMap {
+    let token = uuid::Uuid::new_v4().to_string();
+    state.sessions.lock().unwrap().insert(
+        opensesame_claims::hash_secret(&token),
+        serde_json::json!({
+            "principal_id": subject,
+            "approved_as": subject,
+            "organization_id": organization_id.to_string(),
+            "organization_role": OrganizationRole::Member,
+            "expires_at": (chrono::Utc::now() + chrono::Duration::minutes(5)).to_rfc3339(),
+        }),
+    );
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert(
+        axum::http::header::AUTHORIZATION,
+        format!("Bearer opaque-session:{token}").parse().unwrap(),
+    );
+    headers
+}
+
+#[cfg(test)]
 mod tests {
     use opensesame_task_access::{task_authority_backend_from_url, TaskAuthorityBackend};
 

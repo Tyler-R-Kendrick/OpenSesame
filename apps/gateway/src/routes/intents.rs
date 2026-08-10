@@ -273,4 +273,29 @@ mod tests {
         );
         assert!(claims_task_authority(&body(), &headers));
     }
+
+    #[tokio::test]
+    async fn bootstrap_intent_is_hidden_from_another_organization() {
+        let state = crate::app_state::test_demo_state().await;
+        let headers =
+            crate::app_state::test_session_headers(&state, "user:demo", OrganizationId::new());
+
+        let response = create(State(state), headers, Json(body())).await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn bootstrap_intent_remains_available_to_its_organization() {
+        let state = crate::app_state::test_demo_state().await;
+        let organization_id = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
+        let headers = crate::app_state::test_session_headers(&state, "user:demo", organization_id);
+        let mut request = body();
+        request.operation = "repository.read".into();
+        request.resource = "repo:acme/catalog".into();
+        request.audience = Some("https://api.github.com".into());
+        request.parameters = Some(json!({}));
+
+        let response = create(State(state), headers, Json(request)).await;
+        assert_eq!(response.status(), StatusCode::OK);
+    }
 }
