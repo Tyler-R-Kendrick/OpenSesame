@@ -110,7 +110,7 @@ paths:
   /credential-providers/{id}/test:
     post:
       summary: Probe a credential provider adapter as the connected principal
-      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      security: [{ HostBearer: [] }]
       parameters:
         - name: id
           in: path
@@ -127,7 +127,7 @@ paths:
     get:
       summary: List the connected principal's credential-provider connections
       description: Credential references and credential material are never returned.
-      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      security: [{ HostBearer: [] }]
       responses:
         "200":
           description: Secret-safe connection views
@@ -135,7 +135,7 @@ paths:
           description: Opaque user session required
     post:
       summary: Create a credential-provider connection
-      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      security: [{ HostBearer: [] }]
       description: >-
         public_config accepts coordinates such as region, vault, mount, or project.
         Secret-like fields are rejected; provider authentication remains in the
@@ -152,7 +152,7 @@ paths:
   /credential-connections/{id}:
     put:
       summary: Replace a credential connection's display name or public configuration
-      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      security: [{ HostBearer: [] }]
       parameters:
         - name: id
           in: path
@@ -171,7 +171,7 @@ paths:
           description: Unsafe public configuration
     delete:
       summary: Remove a credential-provider connection
-      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      security: [{ HostBearer: [] }]
       parameters:
         - name: id
           in: path

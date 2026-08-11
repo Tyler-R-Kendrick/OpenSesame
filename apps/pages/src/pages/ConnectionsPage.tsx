@@ -856,11 +856,11 @@ function CredentialProvidersPanel({
   const refresh = useCallback(async () => {
     setIssue(null);
     try {
-      const [nextProviders, nextConnections] = await Promise.all([
-        listCredentialProviders(organizationId),
-        listCredentialConnections(organizationId),
-      ]);
-      setProviders(nextProviders);
+      const nextConnections = await loadCatalogBeforeWorkspace(
+        () => listCredentialProviders(organizationId),
+        setProviders,
+        () => listCredentialConnections(organizationId),
+      );
       setConnections(nextConnections);
     } catch (caught) {
       setIssue(message(caught));
