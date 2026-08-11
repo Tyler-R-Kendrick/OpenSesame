@@ -674,8 +674,8 @@ describe("control-plane API", () => {
       headers: { ...auth, "content-type": "application/json" },
       body: JSON.stringify({ user_code: "ABCD-EFGH" }),
     });
-    // Host may be down in unit tests → 502, but never leak operator token in body.
-    expect([200, 400, 403, 404, 502]).toContain(res.status);
+    // Authentication reaches the handler, which requires organization selection.
+    expect(res.status).toBe(400);
     const body = await res.text();
     expect(body).not.toContain(config.operatorToken);
     expect(body.toLowerCase()).not.toContain("x-opensesame-operator");
@@ -705,11 +705,11 @@ describe("control-plane API", () => {
       401,
     );
     // An origin this deployment listed, or its own, is a caller it expects.
-    expect([200, 400, 403, 404, 502]).toContain(
-      (await approve({ origin: "https://console.example" })).status,
+    expect((await approve({ origin: "https://console.example" })).status).toBe(
+      400,
     );
-    expect([200, 400, 403, 404, 502]).toContain(
-      (await approve({ origin: "http://127.0.0.1:8788" })).status,
+    expect((await approve({ origin: "http://127.0.0.1:8788" })).status).toBe(
+      400,
     );
     // Reads are untouched: a forged read is not a forged write.
     const read = await app.request("/v1/audit/events", {
@@ -1035,6 +1035,7 @@ describe("control-plane API", () => {
         port: 0,
         publicUrl: "http://127.0.0.1:8788",
         issuer: "http://127.0.0.1:8788",
+        hostApiUrl: "https://host.example/tenant",
       },
     });
     const owner = await verifiedPrincipal(app, "device-owner");
@@ -1060,6 +1061,7 @@ describe("control-plane API", () => {
 
     const requests: Array<{ url: string; body: Record<string, string> }> = [];
     const rolesSeenByHost: Array<string | undefined> = [];
+    const timeout = vi.spyOn(AbortSignal, "timeout");
     const host = vi
       .spyOn(globalThis, "fetch")
       .mockImplementation(async (input, init) => {
@@ -1142,9 +1144,47 @@ describe("control-plane API", () => {
       ).toHaveLength(2);
       expect(host).toHaveBeenCalledTimes(4);
       expect(rolesSeenByHost).toEqual(["admin", undefined]);
+      expect(requests.map(({ url }) => new URL(url).pathname)).toEqual([
+        "/tenant/api/v1/device/approve",
+        "/tenant/api/v1/sessions/revoke",
+        "/tenant/api/v1/sessions/revoke",
+      ]);
+      expect(timeout).toHaveBeenCalledTimes(4);
+      for (const call of timeout.mock.calls) expect(call).toEqual([5_000]);
     } finally {
+      timeout.mockRestore();
       host.mockRestore();
     }
+  });
+
+  it("rejects malformed device approval fields without throwing", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const principal = await provisional(app);
+    const request = (body: string) =>
+      app.request("/v1/device/approve", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${principal.accessToken}`,
+          "content-type": "application/json",
+        },
+        body,
+      });
+
+    expect((await request(JSON.stringify({ user_code: 7 }))).status).toBe(400);
+    expect(
+      (
+        await request(
+          JSON.stringify({ user_code: "ABCD-EFGH", organization_id: 7 }),
+        )
+      ).status,
+    ).toBe(400);
+    expect((await request("{")).status).toBe(400);
   });
 
   it("serializes membership rollback so it cannot resurrect a removed owner", async () => {
@@ -1184,18 +1224,23 @@ describe("control-plane API", () => {
     const firstResponse = new Promise<Response>((resolve) => {
       releaseFirst = resolve;
     });
+    let markSecondStarted = () => {};
+    const secondStarted = new Promise<void>((resolve) => {
+      markSecondStarted = resolve;
+    });
     const host = vi
       .spyOn(globalThis, "fetch")
       .mockImplementationOnce(async () => {
         markFirstStarted();
         return firstResponse;
       })
-      .mockResolvedValue(
-        new Response(JSON.stringify({ ok: true }), {
+      .mockImplementation(async () => {
+        markSecondStarted();
+        return new Response(JSON.stringify({ ok: true }), {
           status: 200,
           headers: { "content-type": "application/json" },
-        }),
-      );
+        });
+      });
     try {
       const failedDemotion = app.request(
         `/v1/organizations/${organization.id}/members/${target.principalId}`,
@@ -1210,12 +1255,19 @@ describe("control-plane API", () => {
         `/v1/organizations/${organization.id}/members/${target.principalId}`,
         { method: "DELETE", headers: owner.auth },
       );
-      await Promise.resolve();
-      expect(host).toHaveBeenCalledTimes(1);
+      expect(
+        await Promise.race([
+          secondStarted.then(() => "reached-host"),
+          new Promise<string>((resolve) =>
+            setImmediate(() => resolve("blocked-at-fence")),
+          ),
+        ]),
+      ).toBe("blocked-at-fence");
 
       releaseFirst(new Response("down", { status: 503 }));
       expect((await failedDemotion).status).toBe(502);
       expect((await removal).status).toBe(204);
+      await secondStarted;
 
       const members = (await (
         await app.request(`/v1/organizations/${organization.id}/members`, {
@@ -1282,6 +1334,10 @@ describe("control-plane API", () => {
       const approvalResponse = new Promise<Response>((resolve) => {
         releaseApproval = resolve;
       });
+      let markMutationReachedHost = () => {};
+      const mutationReachedHost = new Promise<void>((resolve) => {
+        markMutationReachedHost = resolve;
+      });
       const hostUrls: string[] = [];
       const host = vi
         .spyOn(globalThis, "fetch")
@@ -1292,6 +1348,7 @@ describe("control-plane API", () => {
         })
         .mockImplementation(async (input) => {
           hostUrls.push(String(input));
+          markMutationReachedHost();
           return new Response(JSON.stringify({ ok: true }), {
             status: 200,
             headers: { "content-type": "application/json" },
@@ -1318,8 +1375,14 @@ describe("control-plane API", () => {
               : {}),
           },
         );
-        await Promise.resolve();
-        expect(hostUrls).toHaveLength(1);
+        expect(
+          await Promise.race([
+            mutationReachedHost.then(() => "reached-host"),
+            new Promise<string>((resolve) =>
+              setImmediate(() => resolve("blocked-at-fence")),
+            ),
+          ]),
+        ).toBe("blocked-at-fence");
 
         releaseApproval(
           new Response(JSON.stringify({ status: "approved" }), {
@@ -1329,6 +1392,7 @@ describe("control-plane API", () => {
         );
         expect((await approval).status).toBe(200);
         expect((await mutation).status).toBe(method === "PATCH" ? 200 : 204);
+        await mutationReachedHost;
         expect(hostUrls.map((url) => new URL(url).pathname)).toEqual([
           "/api/v1/device/approve",
           "/api/v1/sessions/revoke",

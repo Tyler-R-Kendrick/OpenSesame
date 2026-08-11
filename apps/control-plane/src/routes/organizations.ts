@@ -21,13 +21,36 @@ import { getUsage } from "../state.js";
 
 export const organizationRoutes = new Hono<{ Variables: Variables }>();
 
-function authenticatedPrincipalId(value: string | undefined): string {
+export function authenticatedPrincipalId(value: string | undefined): string {
   if (!value) throw new Error("requirePrincipal middleware invariant violated");
   return value;
 }
 
-function membershipKey(organizationId: string, principalId: string): string {
+export function membershipKey(
+  organizationId: string,
+  principalId: string,
+): string {
   return `${organizationId}:${principalId}`;
+}
+
+export function hostApiEndpoint(
+  configuredUrl: string,
+  path: string,
+): URL | undefined {
+  try {
+    const base = new URL(configuredUrl);
+    if (
+      (base.protocol !== "http:" && base.protocol !== "https:") ||
+      base.username ||
+      base.password
+    ) {
+      return undefined;
+    }
+    if (!base.pathname.endsWith("/")) base.pathname += "/";
+    return new URL(path.replace(/^\/+/, ""), base);
+  } catch {
+    return undefined;
+  }
 }
 
 function toResponse(org: Organization, role: OrganizationRole) {
@@ -106,19 +129,8 @@ async function revokeHostSessions(
   organizationId: string,
   principalId: string,
 ): Promise<boolean> {
-  let url: URL;
-  try {
-    url = new URL("/api/v1/sessions/revoke", `${ctx.config.hostApiUrl}/`);
-    if (
-      (url.protocol !== "http:" && url.protocol !== "https:") ||
-      url.username ||
-      url.password
-    ) {
-      return false;
-    }
-  } catch {
-    return false;
-  }
+  const url = hostApiEndpoint(ctx.config.hostApiUrl, "api/v1/sessions/revoke");
+  if (!url) return false;
 
   try {
     const response = await fetch(url, {
@@ -131,6 +143,7 @@ async function revokeHostSessions(
         organization_id: organizationId,
         principal_id: principalId,
       }),
+      signal: AbortSignal.timeout(5_000),
     });
     return response.ok;
   } catch (error) {

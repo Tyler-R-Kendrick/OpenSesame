@@ -1,18 +1,18 @@
 import { Hono } from "hono";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
-import { serializeMembershipMutation } from "./organizations.js";
+import {
+  authenticatedPrincipalId,
+  hostApiEndpoint,
+  membershipKey,
+  serializeMembershipMutation,
+} from "./organizations.js";
 
 /**
  * Device authorization approval — Identity plane proxy to Host API.
  * Browsers must never hold OPENSESAME_OPERATOR_TOKEN; the control-plane injects it server-side.
  */
 export const deviceRoutes = new Hono<{ Variables: Variables }>();
-
-function authenticatedPrincipalId(value: string | undefined): string {
-  if (!value) throw new Error("requirePrincipal middleware invariant violated");
-  return value;
-}
 
 deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
@@ -26,13 +26,13 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
       503,
     );
   }
-  const body = await c.req.json<{
-    user_code?: string;
-    organization_id?: string;
-    organization_role?: string;
-    principal?: string;
-  }>();
-  const userCode = body.user_code?.trim();
+  const parsedBody: unknown = await c.req.json().catch(() => undefined);
+  const body =
+    parsedBody && typeof parsedBody === "object" && !Array.isArray(parsedBody)
+      ? (parsedBody as Record<string, unknown>)
+      : {};
+  const userCode =
+    typeof body.user_code === "string" ? body.user_code.trim() : "";
   if (!userCode) {
     return c.json(
       { error: "invalid_request", hint: "user_code required" },
@@ -43,7 +43,9 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
     (membership) => membership.principalId === principalId,
   );
   const organizationId =
-    body.organization_id?.trim() ||
+    (typeof body.organization_id === "string"
+      ? body.organization_id.trim()
+      : "") ||
     (memberships.length === 1 ? memberships[0]?.organizationId : undefined);
   if (!organizationId) {
     return c.json(
@@ -60,25 +62,14 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
     // either approval lands first and the following mutation revokes it, or the
     // mutation lands first and this request observes the new authority.
     const membership = ctx.stores.organizationMemberships.get(
-      `${organizationId}:${principalId}`,
+      membershipKey(organizationId, principalId),
     );
     const organization = ctx.stores.organizations.get(organizationId);
     if (!membership || !organization || organization.state !== "active") {
       return c.json({ error: "organization_access_denied" }, 403);
     }
-    const url = `${ctx.config.hostApiUrl}/api/v1/device/approve`;
-    try {
-      const parsed = new URL(ctx.config.hostApiUrl);
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        return c.json({ error: "invalid_host_api_url" }, 500);
-      }
-      if (parsed.username || parsed.password) {
-        return c.json(
-          { error: "invalid_host_api_url", hint: "credentials in URL denied" },
-          500,
-        );
-      }
-    } catch {
+    const url = hostApiEndpoint(ctx.config.hostApiUrl, "api/v1/device/approve");
+    if (!url) {
       return c.json({ error: "invalid_host_api_url" }, 500);
     }
     try {
@@ -96,6 +87,7 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
           organization_id: organizationId,
           organization_role: membership.role,
         }),
+        signal: AbortSignal.timeout(5_000),
       });
       const text = await res.text();
       let payload: unknown = text;
