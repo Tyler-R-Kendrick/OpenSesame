@@ -1,5 +1,4 @@
 import { loadSettings } from "./settings.js";
-import { credentialsFor } from "./urls.js";
 
 export type OrganizationRole = "owner" | "admin" | "member";
 
@@ -46,14 +45,18 @@ export function clearHostSession() {
 
 export async function identityFetch(path: string, init: RequestInit = {}) {
   const identity = base("identityApi");
+  const url = `${identity}${path}`;
+  if (new URL(url).origin !== new URL(identity).origin) {
+    throw new Error("Identity request escaped the configured API origin.");
+  }
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
-  return fetch(`${identity}${path}`, {
+  return fetch(url, {
     ...init,
     headers,
-    credentials: credentialsFor(identity),
+    credentials: "include",
   });
 }
 

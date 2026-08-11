@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearHostSession,
   hostFetch,
+  identityFetch,
   listSessionOrganizations,
 } from "./identity.js";
 
@@ -72,8 +73,8 @@ describe("organization-bound Host sessions", () => {
   beforeEach(() => {
     clearHostSession();
     vi.stubGlobal("location", {
-      href: "http://127.0.0.1:8788/connections",
-      origin: "http://127.0.0.1:8788",
+      href: "http://127.0.0.1:5180/connections",
+      origin: "http://127.0.0.1:5180",
     });
   });
 
@@ -82,7 +83,7 @@ describe("organization-bound Host sessions", () => {
     vi.unstubAllGlobals();
   });
 
-  it("discovers organizations from Identity with its ambient cookie", async () => {
+  it("sends the ambient cookie from the cross-origin Pages dev server", async () => {
     const fetch = vi.fn(async () =>
       json({
         organizations: [{ id: "org_1", displayName: "Acme", role: "owner" }],
@@ -99,6 +100,32 @@ describe("organization-bound Host sessions", () => {
     );
   });
 
+  it("sends the ambient cookie to same-origin Identity", async () => {
+    vi.stubGlobal("location", {
+      href: "http://127.0.0.1:8788/connections",
+      origin: "http://127.0.0.1:8788",
+    });
+    const fetch = vi.fn(async () => json({ organizations: [] }));
+    vi.stubGlobal("fetch", fetch);
+
+    await listSessionOrganizations();
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://127.0.0.1:8788/v1/organizations",
+      expect.objectContaining({ credentials: "include" }),
+    );
+  });
+
+  it("refuses a request that escapes the configured Identity origin", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(
+      identityFetch("@untrusted.example/v1/organizations"),
+    ).rejects.toThrow("escaped the configured API origin");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("approves the selected organization and omits it from Host authorize", async () => {
     const harness = hostHarness();
 
@@ -108,6 +135,11 @@ describe("organization-bound Host sessions", () => {
     expect(harness.authorizeBodies).toEqual([
       { client_id: "opensesame-pages", scope: "opensesame.session" },
     ]);
+    for (const [url, init] of harness.fetch.mock.calls) {
+      expect(init?.credentials).toBe(
+        String(url).includes("/v1/device/approve") ? "include" : "omit",
+      );
+    }
   });
 
   it("rejects a Host session that is not exactly bound to the selected org", async () => {
