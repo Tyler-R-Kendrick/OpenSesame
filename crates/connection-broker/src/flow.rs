@@ -88,7 +88,7 @@ pub fn build_authorize_url(
     let AuthMethod::OAuth2AuthCode {
         extra_authorize_params,
         ..
-    } = provider.auth
+    } = &provider.auth
     else {
         return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
     };
@@ -140,7 +140,7 @@ pub async fn post_token_endpoint(
     config: &BrokerConfig,
     mut form: Vec<(String, String)>,
 ) -> Result<TokenResponse> {
-    let AuthMethod::OAuth2AuthCode { token_auth, .. } = provider.auth else {
+    let AuthMethod::OAuth2AuthCode { token_auth, .. } = &provider.auth else {
         return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
     };
     let raw = config
@@ -148,7 +148,7 @@ pub async fn post_token_endpoint(
         .ok_or_else(|| BrokerError::UnsupportedCredential(provider.id.to_string()))?;
     let url = assert_transport_allowed(&raw)?;
 
-    let provider_config = config.provider(provider.id);
+    let provider_config = config.provider(&provider.id);
     let missing = config.missing_config(provider);
     if !missing.is_empty() {
         return Err(BrokerError::ProviderUnconfigured {
@@ -166,7 +166,7 @@ pub async fn post_token_endpoint(
     };
 
     let mut request = http.post(url).header("Accept", "application/json");
-    match token_auth {
+    match *token_auth {
         TokenAuth::ClientSecretBasic => {
             request = request.basic_auth(&client_id, Some(&client_secret));
             form.push(("client_id".to_string(), client_id));
@@ -217,16 +217,16 @@ pub async fn revoke_upstream(
         revoke_url: Some(revoke_url),
         token_auth,
         ..
-    } = provider.auth
+    } = &provider.auth
     else {
         return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
     };
     let url = assert_transport_allowed(revoke_url)?;
-    let provider_config = config.provider(provider.id);
+    let provider_config = config.provider(&provider.id);
     let mut form = vec![("token".to_string(), token.to_string())];
     let mut request = http.post(url).header("Accept", "application/json");
     match (
-        token_auth,
+        *token_auth,
         provider_config.client_id,
         provider_config.client_secret,
     ) {
@@ -336,7 +336,7 @@ mod tests {
 
     #[test]
     fn authorize_url_carries_the_whole_pkce_request() {
-        let github = catalog::find("github").expect("github");
+        let github = catalog::find("github").expect("catalog").expect("github");
         let scopes = vec!["read:user".to_string(), "repo".to_string()];
         let url = build_authorize_url(
             github,
@@ -366,7 +366,7 @@ mod tests {
 
     #[test]
     fn google_asks_for_offline_consent() {
-        let google = catalog::find("google").expect("google");
+        let google = catalog::find("google").expect("catalog").expect("google");
         let cfg = config().with_provider(
             "google",
             ProviderConfig {
@@ -394,7 +394,7 @@ mod tests {
 
     #[test]
     fn api_key_providers_have_no_authorize_url() {
-        let stripe = catalog::find("stripe").expect("stripe");
+        let stripe = catalog::find("stripe").expect("catalog").expect("stripe");
         let err = build_authorize_url(
             stripe,
             &config(),

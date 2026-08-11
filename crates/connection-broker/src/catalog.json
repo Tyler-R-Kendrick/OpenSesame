@@ -1,0 +1,1014 @@
+{
+  "providers": [
+    {
+      "auth": {
+        "authorize_url": "https://github.com/login/oauth/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": false,
+        "token_auth": "client_secret_post",
+        "token_url": "https://github.com/login/oauth/access_token"
+      },
+      "category": "developer",
+      "display_name": "GitHub",
+      "docs_url": "https://docs.github.com/apps/oauth-apps",
+      "egress": {
+        "authorities": [
+          "api.github.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "github",
+      "operations": [
+        "repository.read",
+        "pull_request.create",
+        "issue.create"
+      ],
+      "provenance_url": "https://docs.github.com/apps/oauth-apps",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Read the authenticated user's profile",
+          "name": "read:user",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Full read and write access to private repositories",
+          "name": "repo",
+          "sensitive": true
+        },
+        {
+          "default": false,
+          "description": "Read organization membership and teams",
+          "name": "read:org",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Update GitHub Actions workflow files",
+          "name": "workflow",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://gitlab.com/oauth/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": "https://gitlab.com/oauth/revoke",
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://gitlab.com/oauth/token"
+      },
+      "category": "developer",
+      "display_name": "GitLab",
+      "docs_url": "https://docs.gitlab.com/ee/api/oauth2.html",
+      "egress": {
+        "authorities": [
+          "gitlab.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "gitlab",
+      "operations": [
+        "project.read",
+        "merge_request.create",
+        "issue.create"
+      ],
+      "provenance_url": "https://docs.gitlab.com/ee/api/oauth2.html",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Read the authenticated user's profile",
+          "name": "read_user",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Read repository files and metadata",
+          "name": "read_repository",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Full read and write access to the GitLab API",
+          "name": "api",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "extra_authorize_params": [
+          [
+            "access_type",
+            "offline"
+          ],
+          [
+            "prompt",
+            "consent"
+          ]
+        ],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": "https://oauth2.googleapis.com/revoke",
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://oauth2.googleapis.com/token"
+      },
+      "category": "productivity",
+      "display_name": "Google",
+      "docs_url": "https://developers.google.com/identity/protocols/oauth2/web-server",
+      "egress": {
+        "authorities": [
+          "www.googleapis.com",
+          "gmail.googleapis.com",
+          "oauth2.googleapis.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "google",
+      "operations": [
+        "drive.file.read",
+        "gmail.message.read",
+        "calendar.event.read"
+      ],
+      "provenance_url": "https://developers.google.com/identity/protocols/oauth2/web-server",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Identify the signed-in account",
+          "name": "openid",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Read the account's email address",
+          "name": "email",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Read all files in Google Drive",
+          "name": "https://www.googleapis.com/auth/drive.readonly",
+          "sensitive": true
+        },
+        {
+          "default": false,
+          "description": "Read all Gmail messages and settings",
+          "name": "https://www.googleapis.com/auth/gmail.readonly",
+          "sensitive": true
+        },
+        {
+          "default": false,
+          "description": "Read calendars and events",
+          "name": "https://www.googleapis.com/auth/calendar.readonly",
+          "sensitive": false
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+      },
+      "category": "productivity",
+      "display_name": "Microsoft",
+      "docs_url": "https://learn.microsoft.com/entra/identity-platform/v2-oauth2-auth-code-flow",
+      "egress": {
+        "authorities": [
+          "graph.microsoft.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "microsoft",
+      "operations": [
+        "user.read",
+        "mail.message.read",
+        "drive.file.read"
+      ],
+      "provenance_url": "https://learn.microsoft.com/entra/identity-platform/v2-oauth2-auth-code-flow",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Keep access when the user is not present (refresh token)",
+          "name": "offline_access",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Read the signed-in user's profile",
+          "name": "User.Read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Read the signed-in user's mail",
+          "name": "Mail.Read",
+          "sensitive": true
+        },
+        {
+          "default": false,
+          "description": "Read all files the signed-in user can access",
+          "name": "Files.Read.All",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://slack.com/oauth/v2/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": false,
+        "token_auth": "client_secret_post",
+        "token_url": "https://slack.com/api/oauth.v2.access"
+      },
+      "category": "communication",
+      "display_name": "Slack",
+      "docs_url": "https://api.slack.com/authentication/oauth-v2",
+      "egress": {
+        "authorities": [
+          "slack.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "slack",
+      "operations": [
+        "message.post",
+        "channel.list",
+        "user.list"
+      ],
+      "provenance_url": "https://api.slack.com/authentication/oauth-v2",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Post messages as the app",
+          "name": "chat:write",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "List public channels and their metadata",
+          "name": "channels:read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "List workspace members",
+          "name": "users:read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Read files shared in the workspace",
+          "name": "files:read",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://api.notion.com/v1/oauth/authorize",
+        "extra_authorize_params": [
+          [
+            "owner",
+            "user"
+          ]
+        ],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": false,
+        "token_auth": "client_secret_basic",
+        "token_url": "https://api.notion.com/v1/oauth/token"
+      },
+      "category": "productivity",
+      "display_name": "Notion",
+      "docs_url": "https://developers.notion.com/docs/authorization",
+      "egress": {
+        "authorities": [
+          "api.notion.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "notion",
+      "operations": [
+        "page.read",
+        "database.query",
+        "page.create"
+      ],
+      "provenance_url": "https://developers.notion.com/docs/authorization",
+      "scopes": []
+    },
+    {
+      "auth": {
+        "authorize_url": "https://linear.app/oauth/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": "https://api.linear.app/oauth/revoke",
+        "supports_refresh": false,
+        "token_auth": "client_secret_post",
+        "token_url": "https://api.linear.app/oauth/token"
+      },
+      "category": "productivity",
+      "display_name": "Linear",
+      "docs_url": "https://developers.linear.app/docs/oauth/authentication",
+      "egress": {
+        "authorities": [
+          "api.linear.app"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "linear",
+      "operations": [
+        "issue.read",
+        "issue.create",
+        "project.read"
+      ],
+      "provenance_url": "https://developers.linear.app/docs/oauth/authentication",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Read issues, projects and teams",
+          "name": "read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Create and update issues and comments",
+          "name": "write",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Create issues only",
+          "name": "issues:create",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Full administrative access to the workspace",
+          "name": "admin",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://auth.atlassian.com/authorize",
+        "extra_authorize_params": [
+          [
+            "audience",
+            "api.atlassian.com"
+          ],
+          [
+            "prompt",
+            "consent"
+          ]
+        ],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://auth.atlassian.com/oauth/token"
+      },
+      "category": "productivity",
+      "display_name": "Atlassian",
+      "docs_url": "https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/",
+      "egress": {
+        "authorities": [
+          "api.atlassian.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "atlassian",
+      "operations": [
+        "issue.read",
+        "issue.create",
+        "project.read"
+      ],
+      "provenance_url": "https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Keep access when the user is not present (refresh token)",
+          "name": "offline_access",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Read the authenticated user's profile",
+          "name": "read:me",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Read Jira issues, projects and worklogs",
+          "name": "read:jira-work",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Create and update Jira issues",
+          "name": "write:jira-work",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://app.hubspot.com/oauth/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://api.hubapi.com/oauth/v1/token"
+      },
+      "category": "crm",
+      "display_name": "HubSpot",
+      "docs_url": "https://developers.hubspot.com/docs/api/working-with-oauth",
+      "egress": {
+        "authorities": [
+          "api.hubapi.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "hubspot",
+      "operations": [
+        "contact.read",
+        "contact.create",
+        "deal.read"
+      ],
+      "provenance_url": "https://developers.hubspot.com/docs/api/working-with-oauth",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Identify the connected HubSpot account",
+          "name": "oauth",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Read contact records",
+          "name": "crm.objects.contacts.read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Create and update contact records",
+          "name": "crm.objects.contacts.write",
+          "sensitive": true
+        },
+        {
+          "default": false,
+          "description": "Read deal records",
+          "name": "crm.objects.deals.read",
+          "sensitive": false
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://login.salesforce.com/services/oauth2/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": "https://login.salesforce.com/services/oauth2/revoke",
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://login.salesforce.com/services/oauth2/token"
+      },
+      "category": "crm",
+      "display_name": "Salesforce",
+      "docs_url": "https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm",
+      "egress": {
+        "authorities": [
+          "login.salesforce.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "salesforce",
+      "operations": [
+        "record.read",
+        "record.create",
+        "soql.query"
+      ],
+      "provenance_url": "https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Access and manage data through the Salesforce APIs",
+          "name": "api",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Keep access when the user is not present (refresh token)",
+          "name": "refresh_token",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Identify the signed-in user",
+          "name": "openid",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Full access to all data the user can reach",
+          "name": "full",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://zoom.us/oauth/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": "https://zoom.us/oauth/revoke",
+        "supports_refresh": true,
+        "token_auth": "client_secret_basic",
+        "token_url": "https://zoom.us/oauth/token"
+      },
+      "category": "communication",
+      "display_name": "Zoom",
+      "docs_url": "https://developers.zoom.us/docs/integrations/oauth/",
+      "egress": {
+        "authorities": [
+          "api.zoom.us"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "zoom",
+      "operations": [
+        "meeting.read",
+        "meeting.create",
+        "user.read"
+      ],
+      "provenance_url": "https://developers.zoom.us/docs/integrations/oauth/",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Read the authenticated user's profile",
+          "name": "user:read",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Read the user's meetings",
+          "name": "meeting:read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Create, update and delete meetings",
+          "name": "meeting:write",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://www.dropbox.com/oauth2/authorize",
+        "extra_authorize_params": [
+          [
+            "token_access_type",
+            "offline"
+          ]
+        ],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://api.dropboxapi.com/oauth2/token"
+      },
+      "category": "storage",
+      "display_name": "Dropbox",
+      "docs_url": "https://developers.dropbox.com/oauth-guide",
+      "egress": {
+        "authorities": [
+          "api.dropboxapi.com",
+          "content.dropboxapi.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "dropbox",
+      "operations": [
+        "file.list",
+        "file.read",
+        "file.write"
+      ],
+      "provenance_url": "https://developers.dropbox.com/oauth-guide",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Read the connected account's profile",
+          "name": "account_info.read",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "List files and folders",
+          "name": "files.metadata.read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Download file contents",
+          "name": "files.content.read",
+          "sensitive": true
+        },
+        {
+          "default": false,
+          "description": "Upload, edit and delete files",
+          "name": "files.content.write",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://account.box.com/api/oauth2/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": "https://api.box.com/oauth2/revoke",
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://api.box.com/oauth2/token"
+      },
+      "category": "storage",
+      "display_name": "Box",
+      "docs_url": "https://developer.box.com/guides/authentication/oauth2/",
+      "egress": {
+        "authorities": [
+          "api.box.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "box",
+      "operations": [
+        "file.list",
+        "file.read",
+        "file.write"
+      ],
+      "provenance_url": "https://developer.box.com/guides/authentication/oauth2/",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Read all files and folders in the account",
+          "name": "root_readonly",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Read, write and delete all files and folders",
+          "name": "root_readwrite",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://app.asana.com/-/oauth_authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://app.asana.com/-/oauth_token"
+      },
+      "category": "productivity",
+      "display_name": "Asana",
+      "docs_url": "https://developers.asana.com/docs/oauth",
+      "egress": {
+        "authorities": [
+          "app.asana.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "asana",
+      "operations": [
+        "task.read",
+        "task.create",
+        "project.read"
+      ],
+      "provenance_url": "https://developers.asana.com/docs/oauth",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Full access to everything the authorizing user can reach",
+          "name": "default",
+          "sensitive": true
+        },
+        {
+          "default": false,
+          "description": "Identify the authorizing user",
+          "name": "openid",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Read the authorizing user's email address",
+          "name": "email",
+          "sensitive": false
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://www.figma.com/oauth",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": true,
+        "token_auth": "client_secret_basic",
+        "token_url": "https://api.figma.com/v1/oauth/token"
+      },
+      "category": "productivity",
+      "display_name": "Figma",
+      "docs_url": "https://www.figma.com/developers/api#oauth2",
+      "egress": {
+        "authorities": [
+          "api.figma.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "figma",
+      "operations": [
+        "file.read",
+        "comment.create"
+      ],
+      "provenance_url": "https://www.figma.com/developers/api#oauth2",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Read files, projects and components",
+          "name": "files:read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Post comments on files",
+          "name": "file_comments:write",
+          "sensitive": false
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://discord.com/oauth2/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": "https://discord.com/api/oauth2/token/revoke",
+        "supports_refresh": true,
+        "token_auth": "client_secret_basic",
+        "token_url": "https://discord.com/api/oauth2/token"
+      },
+      "category": "communication",
+      "display_name": "Discord",
+      "docs_url": "https://discord.com/developers/docs/topics/oauth2",
+      "egress": {
+        "authorities": [
+          "discord.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "discord",
+      "operations": [
+        "user.read",
+        "guild.list",
+        "message.post"
+      ],
+      "provenance_url": "https://discord.com/developers/docs/topics/oauth2",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Read the authorizing user's account",
+          "name": "identify",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Read the authorizing user's email address",
+          "name": "email",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "List the guilds the user belongs to",
+          "name": "guilds",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Add a bot to a guild with the requested permissions",
+          "name": "bot",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://sentry.io/oauth/authorize/",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://sentry.io/oauth/token/"
+      },
+      "category": "developer",
+      "display_name": "Sentry",
+      "docs_url": "https://docs.sentry.io/api/guides/create-auth-token/",
+      "egress": {
+        "authorities": [
+          "sentry.io"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "sentry",
+      "operations": [
+        "issue.read",
+        "event.read",
+        "project.read"
+      ],
+      "provenance_url": "https://docs.sentry.io/api/guides/create-auth-token/",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Read organization settings and membership",
+          "name": "org:read",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Read project settings",
+          "name": "project:read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Read error events and issues",
+          "name": "event:read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Create and modify projects",
+          "name": "project:write",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "header": "Authorization",
+        "kind": "api_key",
+        "value_prefix": "Bearer "
+      },
+      "category": "payments",
+      "display_name": "Stripe",
+      "docs_url": "https://docs.stripe.com/keys",
+      "egress": {
+        "authorities": [
+          "api.stripe.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "stripe",
+      "operations": [
+        "customer.read",
+        "charge.read",
+        "invoice.read"
+      ],
+      "provenance_url": "https://docs.stripe.com/keys",
+      "scopes": []
+    },
+    {
+      "auth": {
+        "header": "Authorization",
+        "kind": "api_key",
+        "value_prefix": "Bearer "
+      },
+      "category": "developer",
+      "display_name": "OpenAI",
+      "docs_url": "https://platform.openai.com/docs/api-reference/authentication",
+      "egress": {
+        "authorities": [
+          "api.openai.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "openai",
+      "operations": [
+        "completion.create",
+        "embedding.create",
+        "model.list"
+      ],
+      "provenance_url": "https://platform.openai.com/docs/api-reference/authentication",
+      "scopes": []
+    },
+    {
+      "auth": {
+        "header": "x-api-key",
+        "kind": "api_key",
+        "value_prefix": ""
+      },
+      "category": "developer",
+      "display_name": "Anthropic",
+      "docs_url": "https://docs.anthropic.com/en/api/getting-started",
+      "egress": {
+        "authorities": [
+          "api.anthropic.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "anthropic",
+      "operations": [
+        "message.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.anthropic.com/en/api/getting-started",
+      "scopes": []
+    },
+    {
+      "auth": {
+        "authorize_url": "http://127.0.0.1:9090/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "http://127.0.0.1:9090/token"
+      },
+      "category": "testing",
+      "display_name": "Mock provider (testing)",
+      "docs_url": "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/apps/mock-upstream-idp",
+      "egress": {
+        "authorities": [
+          "127.0.0.1"
+        ],
+        "path_prefixes": [],
+        "scheme": "http"
+      },
+      "id": "mock",
+      "operations": [
+        "fixture.read",
+        "fixture.write"
+      ],
+      "provenance_url": "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/apps/mock-upstream-idp",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Read fixtures from the mock upstream",
+          "name": "read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Write fixtures to the mock upstream",
+          "name": "write",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Keep access when the user is not present (refresh token)",
+          "name": "offline_access",
+          "sensitive": false
+        }
+      ]
+    }
+  ],
+  "revision": "2026-08-10.1",
+  "schema_version": 1
+}

@@ -4,6 +4,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum BrokerError {
+    #[error("provider catalog unavailable: {0}")]
+    CatalogUnavailable(#[from] crate::catalog::CatalogError),
     #[error("unknown provider `{0}`")]
     ProviderUnknown(String),
     #[error("provider `{provider}` is not configured on this deployment")]
@@ -56,6 +58,7 @@ pub enum BrokerError {
 impl BrokerError {
     pub fn code(&self) -> &'static str {
         match self {
+            Self::CatalogUnavailable(_) => "catalog_unavailable",
             Self::ProviderUnknown(_) => "provider_unknown",
             Self::ProviderUnconfigured { .. } | Self::SealUnavailable(_) => "provider_unconfigured",
             Self::ConnectionNotFound => "connection_not_found",
@@ -85,6 +88,7 @@ impl BrokerError {
             Self::ProviderUnconfigured { missing, .. } => {
                 format!("deployment is missing {}", missing.join(", "))
             }
+            Self::CatalogUnavailable(_) => "the provider catalog is unavailable".into(),
             Self::Storage(_) | Self::Serde(_) => "the request could not be completed".into(),
             other => other.to_string(),
         }
@@ -97,7 +101,7 @@ impl BrokerError {
             Self::BindingExists | Self::IntegrationConflict | Self::IntegrationInUse => 409,
             Self::IntegrationReadOnly => 403,
             Self::ExchangeFailed(_) | Self::NeedsReauth(_) => 502,
-            Self::Storage(_) | Self::Serde(_) => 500,
+            Self::CatalogUnavailable(_) | Self::Storage(_) | Self::Serde(_) => 500,
             _ => 400,
         }
     }

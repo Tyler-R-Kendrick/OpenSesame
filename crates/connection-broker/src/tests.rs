@@ -15,10 +15,10 @@ const KEY: [u8; 32] = [42u8; 32];
 
 fn key_config() -> BrokerConfig {
     let mut config = BrokerConfig::in_memory(Some(KEY), "http://127.0.0.1:8787");
-    for provider in catalog::all() {
+    for provider in catalog::all().expect("catalog") {
         if provider.auth.is_oauth() {
             config = config.with_provider(
-                provider.id,
+                &provider.id,
                 ProviderConfig {
                     client_id: Some(format!("{}-client", provider.id)),
                     client_secret: Some(format!("{}-secret", provider.id)),
@@ -42,7 +42,7 @@ fn key_config() -> BrokerConfig {
 
 async fn broker_with(config: BrokerConfig) -> (Db, ConnectionBroker) {
     let db = Db::connect_memory().await.expect("db");
-    let broker = ConnectionBroker::new(db.pool().clone(), config);
+    let broker = ConnectionBroker::new(db.pool().clone(), config).expect("broker");
     (db, broker)
 }
 
@@ -1030,8 +1030,8 @@ async fn separate_in_memory_databases_do_not_share_state() {
 #[tokio::test]
 async fn without_a_key_no_provider_is_configured() {
     let (_db, broker) = broker_with(BrokerConfig::in_memory(None, "http://127.0.0.1:8787")).await;
-    let providers = broker.list_providers();
-    assert_eq!(providers.len(), catalog::all().len());
+    let providers = broker.list_providers().unwrap();
+    assert_eq!(providers.len(), catalog::all().unwrap().len());
     for p in &providers {
         assert!(!p.configured, "{} claimed configured", p.id);
         assert!(p
