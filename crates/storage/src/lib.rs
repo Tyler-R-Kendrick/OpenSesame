@@ -87,7 +87,7 @@ const MIGRATIONS: &[(&str, &str)] = &[
 impl Db {
     pub async fn connect_sqlite(url: &str) -> anyhow::Result<Self> {
         let pool = SqlitePoolOptions::new()
-            .max_connections(5)
+            .max_connections(if url == "sqlite::memory:" { 1 } else { 5 })
             .connect(url)
             .await?;
         let db = Self { pool };
@@ -891,6 +891,16 @@ mod tests {
             .find_receipt_by_idempotency(&organization_id, "mismatch")
             .await
             .is_err());
+    }
+
+    #[tokio::test]
+    async fn in_memory_database_keeps_one_migrated_schema() {
+        let db = Db::connect_memory().await.unwrap();
+        assert_eq!(db.pool().options().get_max_connections(), 1);
+        sqlx::query("SELECT 1 FROM provider_connections LIMIT 0")
+            .execute(db.pool())
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
