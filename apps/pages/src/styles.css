@@ -837,10 +837,6 @@ textarea {
   padding-left: 0;
 }
 
-.marketplace-search input:focus {
-  outline: none;
-}
-
 .provider-grid,
 .connection-list,
 .integration-list,
