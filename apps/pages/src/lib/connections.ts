@@ -8,6 +8,7 @@ import {
   OrganizationMembershipResponseSchema,
 } from "@opensesame/contracts";
 import {
+  IDENTITY_COOKIE_RECOVERY,
   type OrganizationRole,
   type SessionOrganization,
   hostFetch,
@@ -402,10 +403,12 @@ async function identityRequest<T>(
     const raw = object(body);
     throw new ConnectionsError(
       response.status,
-      string(
-        raw.hint,
-        string(raw.message, string(raw.error, "Request failed.")),
-      ),
+      response.status === 401
+        ? IDENTITY_COOKIE_RECOVERY
+        : string(
+            raw.hint,
+            string(raw.message, string(raw.error, "Request failed.")),
+          ),
     );
   }
   return parse(body);

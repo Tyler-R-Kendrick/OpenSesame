@@ -19,6 +19,9 @@ let pendingHostSession: Promise<HostSession> | null = null;
 let pendingOrganizationId: string | null = null;
 let sessionGeneration = 0;
 
+export const IDENTITY_COOKIE_RECOVERY =
+  "Sign in to Identity, then use a same-site deployment (typically sibling custom domains) so Pages can send the Identity session cookie.";
+
 function base(kind: "hostApi" | "identityApi") {
   return loadSettings()[kind].replace(/\/$/, "");
 }
@@ -108,9 +111,7 @@ async function mintHostSession(organizationId: string): Promise<HostSession> {
   });
   if (!approve.ok) {
     if (approve.status === 401) {
-      throw new Error(
-        "Sign in at the Identity API before opening Connections.",
-      );
+      throw new Error(IDENTITY_COOKIE_RECOVERY);
     }
     throw new Error(await errorMessage(approve));
   }
@@ -210,7 +211,13 @@ export async function hostFetch(
 
 export async function listSessionOrganizations() {
   const response = await identityFetch("/v1/organizations");
-  if (!response.ok) throw new Error(await errorMessage(response));
+  if (!response.ok) {
+    throw new Error(
+      response.status === 401
+        ? IDENTITY_COOKIE_RECOVERY
+        : await errorMessage(response),
+    );
+  }
   const body = (await response.json()) as Record<string, unknown>;
   return parseOrganizations(body.organizations);
 }

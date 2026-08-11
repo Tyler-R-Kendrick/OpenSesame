@@ -100,6 +100,17 @@ describe("organization-bound Host sessions", () => {
     );
   });
 
+  it("explains the same-site deployment requirement when Identity rejects the cookie", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json({ error: "unauthorized" }, 401)),
+    );
+
+    await expect(listSessionOrganizations()).rejects.toThrow(
+      /sign in.*same-site.*sibling custom domains/iu,
+    );
+  });
+
   it("sends the ambient cookie to same-origin Identity", async () => {
     vi.stubGlobal("location", {
       href: "http://127.0.0.1:8788/connections",

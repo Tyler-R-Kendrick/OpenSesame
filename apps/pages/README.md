@@ -23,3 +23,16 @@ pnpm --filter @opensesame/pages dev
 ./scripts/deploy-pages.sh
 # → https://tyler-r-kendrick.github.io/OpenSesame/
 ```
+
+## Identity cookie deployment
+
+Connections uses the Identity service's HttpOnly session cookie. Pages and
+Identity must therefore be served over HTTPS on the same schemeful site,
+typically sibling custom domains such as `vault.example.com` and
+`identity.example.com`, with the Identity origin explicitly allowing the Pages
+origin for credentialed CORS and CSRF checks.
+
+The default `tyler-r-kendrick.github.io` deployment cannot use an Identity
+cookie hosted on a separately sited domain. Configure a same-site custom domain
+for production Connections; this PWA intentionally does not add a browser-held
+Identity bearer-token fallback.
