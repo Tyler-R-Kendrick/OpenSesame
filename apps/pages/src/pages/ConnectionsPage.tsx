@@ -128,6 +128,24 @@ export function takeSensitiveFormData(form: HTMLFormElement) {
   return data;
 }
 
+/** Keep a successfully created Pending row visible when its next step fails. */
+export async function recoverCreatedConnection<T>(
+  finish: () => Promise<T>,
+  reload: () => Promise<void>,
+) {
+  try {
+    return await finish();
+  } catch (caught) {
+    try {
+      await reload();
+    } catch {
+      // The completion error is the actionable failure; never replace it with a
+      // secondary refresh error.
+    }
+    throw caught;
+  }
+}
+
 export function ConnectionsPage() {
   const [organizations, setOrganizations] = useState<SessionOrganization[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -390,29 +408,32 @@ export function ConnectionsPage() {
                   displayName: form.displayName,
                   scopes: integration.scopes,
                 });
-                if (provider.authKind === "api_key") {
-                  await setConnectionCredential(
-                    organization.id,
-                    connection.id,
-                    form.credential,
-                  );
-                  setNotice(
-                    "API key sealed. Its value will not be shown again.",
-                  );
-                  return;
-                }
-                try {
-                  const authorizationUrl = await authorizeConnection(
-                    organization.id,
-                    connection.id,
-                  );
-                  if (popup) popup.location.href = authorizationUrl;
-                  else window.location.assign(authorizationUrl);
-                  setNotice("Provider authorization opened in a new window.");
-                } catch (caught) {
-                  popup?.close();
-                  throw caught;
-                }
+                await recoverCreatedConnection(
+                  async () => {
+                    if (provider.authKind === "api_key") {
+                      await setConnectionCredential(
+                        organization.id,
+                        connection.id,
+                        form.credential,
+                      );
+                      setNotice(
+                        "API key sealed. Its value will not be shown again.",
+                      );
+                      return;
+                    }
+                    const authorizationUrl = await authorizeConnection(
+                      organization.id,
+                      connection.id,
+                    );
+                    if (popup) popup.location.href = authorizationUrl;
+                    else window.location.assign(authorizationUrl);
+                    setNotice("Provider authorization opened in a new window.");
+                  },
+                  async () => {
+                    popup?.close();
+                    await loadWorkspace(organization);
+                  },
+                );
               })
             }
           />

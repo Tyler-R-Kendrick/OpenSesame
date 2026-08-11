@@ -7,6 +7,7 @@ import {
   MarketplacePanel,
   parseConnectionMessage,
   reconcileOrganization,
+  recoverCreatedConnection,
   shouldPollPendingConnections,
   takeSensitiveFormData,
 } from "./ConnectionsPage.js";
@@ -80,6 +81,38 @@ describe("Connections marketplace panels", () => {
     expect(data.get("credential")).toBe("raw-secret");
     expect(credential.value).toBe("");
     expect(form.reset).toHaveBeenCalledOnce();
+  });
+
+  it("exposes one retryable Pending row after second-step failure", async () => {
+    const original = new Error("Provider authorization failed safely.");
+    const pending = { id: "conn_pending", status: "pending" };
+    const visible: (typeof pending)[] = [];
+    let creates = 0;
+    creates += 1;
+
+    await expect(
+      recoverCreatedConnection(
+        async () => {
+          throw original;
+        },
+        async () => {
+          visible.splice(0, visible.length, pending);
+          throw new Error("workspace refresh failed after exposing the row");
+        },
+      ),
+    ).rejects.toBe(original);
+
+    expect(creates).toBe(1);
+    expect(visible).toEqual([pending]);
+    await expect(
+      recoverCreatedConnection(
+        async () => "authorized",
+        async () => {
+          throw new Error("reload must not run after a successful retry");
+        },
+      ),
+    ).resolves.toBe("authorized");
+    expect(creates).toBe(1);
   });
 
   it("polls only pending connections within the bounded retry budget", () => {
