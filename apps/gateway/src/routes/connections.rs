@@ -106,7 +106,10 @@ async fn owned(
 
 fn broker_error(e: BrokerError) -> Response {
     let status = StatusCode::from_u16(e.http_status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    if matches!(e, BrokerError::Storage(_) | BrokerError::Serde(_)) {
+    if matches!(
+        e,
+        BrokerError::CatalogUnavailable(_) | BrokerError::Storage(_) | BrokerError::Serde(_)
+    ) {
         tracing::error!(error = %e, "connection broker storage failure");
     }
     (status, Json(json!({"error": e.code(), "hint": e.hint()}))).into_response()
@@ -142,7 +145,10 @@ pub async fn list_providers(
     if let Err(resp) = authorize(&st, &headers) {
         return resp;
     }
-    Json(json!({"providers": st.connection_broker.list_providers()})).into_response()
+    match st.connection_broker.list_providers() {
+        Ok(providers) => Json(json!({"providers": providers})).into_response(),
+        Err(error) => broker_error(error),
+    }
 }
 
 pub async fn list_integrations(

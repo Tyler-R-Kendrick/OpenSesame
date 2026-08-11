@@ -1,14 +1,36 @@
-//! Provider catalog: data, not code paths (ADR 0032 §3).
+//! Versioned provider catalog and strict loader (ADR 0032 §3).
 //!
-//! Every entry declares its endpoints, its scope vocabulary and — the part the
-//! rest of the system depends on — the egress allowlist a credential issued for
-//! it may reach. Endpoints are copied from provider documentation; a provider
-//! whose endpoints are not known belongs outside this table.
+//! Provider behavior is data. The broker refuses to start when the embedded
+//! catalog is empty or invalid, so a broken artifact cannot look like a valid
+//! deployment with zero connectors.
+
+use std::collections::HashSet;
+use std::sync::LazyLock;
 
 use opensesame_domain::EgressBinding;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+use url::Url;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+const CATALOG_JSON: &str = include_str!("catalog.json");
+pub const CATALOG_SCHEMA_VERSION: u32 = 1;
+
+/// Loopback default for the bundled mock authorization server; overridden per
+/// deployment by `OPENSESAME_PROVIDER_MOCK_AUTHORIZE_URL` / `_TOKEN_URL`.
+pub const MOCK_AUTHORIZE_URL: &str = "http://127.0.0.1:9090/authorize";
+pub const MOCK_TOKEN_URL: &str = "http://127.0.0.1:9090/token";
+
+#[derive(Clone, Debug, Error, PartialEq, Eq)]
+#[error("{0}")]
+pub struct CatalogError(String);
+
+impl CatalogError {
+    fn invalid(message: impl Into<String>) -> Self {
+        Self(message.into())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Category {
     Developer,
@@ -37,27 +59,33 @@ impl Category {
 }
 
 /// How the token endpoint authenticates the client.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum TokenAuth {
     ClientSecretPost,
     ClientSecretBasic,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", deny_unknown_fields)]
 pub enum AuthMethod {
+    #[serde(rename = "oauth2_authorization_code")]
     OAuth2AuthCode {
-        authorize_url: &'static str,
-        token_url: &'static str,
-        revoke_url: Option<&'static str>,
+        authorize_url: String,
+        token_url: String,
+        revoke_url: Option<String>,
         supports_refresh: bool,
         token_auth: TokenAuth,
+        #[serde(default)]
+        scope_separator: Option<String>,
         /// Provider-specific parameters without which a refresh token is never
         /// issued (Google's `access_type`, the `offline_access` family).
-        extra_authorize_params: &'static [(&'static str, &'static str)],
+        extra_authorize_params: Vec<(String, String)>,
     },
+    #[serde(rename = "api_key")]
     ApiKey {
-        header: &'static str,
-        value_prefix: &'static str,
+        header: String,
+        value_prefix: String,
     },
 }
 
@@ -79,1000 +107,441 @@ impl AuthMethod {
         )
     }
 
+    pub fn scope_separator(&self) -> &str {
+        match self {
+            Self::OAuth2AuthCode {
+                scope_separator, ..
+            } => scope_separator.as_deref().unwrap_or(" "),
+            Self::ApiKey { .. } => " ",
+        }
+    }
+
     pub fn is_oauth(&self) -> bool {
         matches!(self, Self::OAuth2AuthCode { .. })
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ScopeDef {
-    pub name: &'static str,
-    pub description: &'static str,
+    pub name: String,
+    pub description: String,
     /// Broad or destructive: the UI must not pre-tick these silently.
     pub sensitive: bool,
     pub default: bool,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct EgressSpec {
-    pub scheme: &'static str,
-    pub authorities: &'static [&'static str],
-    pub path_prefixes: &'static [&'static str],
+    pub scheme: String,
+    pub authorities: Vec<String>,
+    pub path_prefixes: Vec<String>,
 }
 
 impl EgressSpec {
     pub fn binding(&self) -> EgressBinding {
         EgressBinding {
-            scheme: self.scheme.to_string(),
-            authorities: self.authorities.iter().map(|a| a.to_string()).collect(),
-            path_prefixes: self.path_prefixes.iter().map(|p| p.to_string()).collect(),
+            scheme: self.scheme.clone(),
+            authorities: self.authorities.clone(),
+            path_prefixes: self.path_prefixes.clone(),
             allow_redirects_cross_authority: false,
         }
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct Provider {
-    pub id: &'static str,
-    pub display_name: &'static str,
+    pub id: String,
+    pub display_name: String,
     pub category: Category,
-    pub docs_url: &'static str,
+    pub docs_url: String,
+    pub provenance_url: String,
     pub auth: AuthMethod,
-    pub scopes: &'static [ScopeDef],
+    pub scopes: Vec<ScopeDef>,
     pub egress: EgressSpec,
-    pub operations: &'static [&'static str],
+    pub operations: Vec<String>,
 }
 
 impl Provider {
     pub fn default_scopes(&self) -> Vec<String> {
         self.scopes
             .iter()
-            .filter(|s| s.default)
-            .map(|s| s.name.to_string())
+            .filter(|scope| scope.default)
+            .map(|scope| scope.name.clone())
             .collect()
     }
 }
 
-pub fn find(id: &str) -> Option<&'static Provider> {
-    PROVIDERS.iter().find(|p| p.id == id)
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CatalogDocument {
+    schema_version: u32,
+    revision: String,
+    providers: Vec<Provider>,
 }
 
-pub fn all() -> &'static [Provider] {
-    PROVIDERS
+#[derive(Debug)]
+pub struct Catalog {
+    revision: String,
+    providers: Vec<Provider>,
 }
 
-/// Loopback default for the bundled mock authorization server; overridden per
-/// deployment by `OPENSESAME_PROVIDER_MOCK_AUTHORIZE_URL` / `_TOKEN_URL`.
-pub const MOCK_AUTHORIZE_URL: &str = "http://127.0.0.1:9090/authorize";
-pub const MOCK_TOKEN_URL: &str = "http://127.0.0.1:9090/token";
+impl Catalog {
+    fn parse(raw: &str) -> Result<Self, CatalogError> {
+        let document: CatalogDocument = serde_json::from_str(raw)
+            .map_err(|error| CatalogError::invalid(format!("catalog JSON is invalid: {error}")))?;
+        if document.schema_version != CATALOG_SCHEMA_VERSION {
+            return Err(CatalogError::invalid(format!(
+                "unsupported catalog schema version {}",
+                document.schema_version
+            )));
+        }
+        validate_token(&document.revision, "catalog revision", 128)?;
+        if document.providers.is_empty() {
+            return Err(CatalogError::invalid("catalog has no providers"));
+        }
+        if document.providers.len() > 2_048 {
+            return Err(CatalogError::invalid("catalog has too many providers"));
+        }
 
-const OFFLINE_ACCESS: &[(&str, &str)] = &[];
+        let mut ids = HashSet::with_capacity(document.providers.len());
+        for provider in &document.providers {
+            validate_provider(provider)?;
+            if !ids.insert(provider.id.as_str()) {
+                return Err(CatalogError::invalid(format!(
+                    "duplicate provider id `{}`",
+                    provider.id
+                )));
+            }
+        }
 
-static PROVIDERS: &[Provider] = &[
-    Provider {
-        id: "github",
-        display_name: "GitHub",
-        category: Category::Developer,
-        docs_url: "https://docs.github.com/apps/oauth-apps",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://github.com/login/oauth/authorize",
-            token_url: "https://github.com/login/oauth/access_token",
-            revoke_url: None,
-            supports_refresh: false,
-            token_auth: TokenAuth::ClientSecretPost,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "read:user",
-                description: "Read the authenticated user's profile",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "repo",
-                description: "Full read and write access to private repositories",
-                sensitive: true,
-                default: false,
-            },
-            ScopeDef {
-                name: "read:org",
-                description: "Read organization membership and teams",
-                sensitive: false,
-                default: false,
-            },
-            ScopeDef {
-                name: "workflow",
-                description: "Update GitHub Actions workflow files",
-                sensitive: true,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["api.github.com"],
-            path_prefixes: &[],
-        },
-        operations: &["repository.read", "pull_request.create", "issue.create"],
-    },
-    Provider {
-        id: "gitlab",
-        display_name: "GitLab",
-        category: Category::Developer,
-        docs_url: "https://docs.gitlab.com/ee/api/oauth2.html",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://gitlab.com/oauth/authorize",
-            token_url: "https://gitlab.com/oauth/token",
-            revoke_url: Some("https://gitlab.com/oauth/revoke"),
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretPost,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "read_user",
-                description: "Read the authenticated user's profile",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "read_repository",
-                description: "Read repository files and metadata",
-                sensitive: false,
-                default: false,
-            },
-            ScopeDef {
-                name: "api",
-                description: "Full read and write access to the GitLab API",
-                sensitive: true,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["gitlab.com"],
-            path_prefixes: &[],
-        },
-        operations: &["project.read", "merge_request.create", "issue.create"],
-    },
-    Provider {
-        id: "google",
-        display_name: "Google",
-        category: Category::Productivity,
-        docs_url: "https://developers.google.com/identity/protocols/oauth2/web-server",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://accounts.google.com/o/oauth2/v2/auth",
-            token_url: "https://oauth2.googleapis.com/token",
-            revoke_url: Some("https://oauth2.googleapis.com/revoke"),
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretPost,
-            // Google issues a refresh token only on the first consent unless both are sent.
-            extra_authorize_params: &[("access_type", "offline"), ("prompt", "consent")],
-        },
-        scopes: &[
-            ScopeDef {
-                name: "openid",
-                description: "Identify the signed-in account",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "email",
-                description: "Read the account's email address",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "https://www.googleapis.com/auth/drive.readonly",
-                description: "Read all files in Google Drive",
-                sensitive: true,
-                default: false,
-            },
-            ScopeDef {
-                name: "https://www.googleapis.com/auth/gmail.readonly",
-                description: "Read all Gmail messages and settings",
-                sensitive: true,
-                default: false,
-            },
-            ScopeDef {
-                name: "https://www.googleapis.com/auth/calendar.readonly",
-                description: "Read calendars and events",
-                sensitive: false,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &[
-                "www.googleapis.com",
-                "gmail.googleapis.com",
-                "oauth2.googleapis.com",
-            ],
-            path_prefixes: &[],
-        },
-        operations: &[
-            "drive.file.read",
-            "gmail.message.read",
-            "calendar.event.read",
-        ],
-    },
-    Provider {
-        id: "microsoft",
-        display_name: "Microsoft",
-        category: Category::Productivity,
-        docs_url: "https://learn.microsoft.com/entra/identity-platform/v2-oauth2-auth-code-flow",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-            token_url: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
-            revoke_url: None,
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretPost,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "offline_access",
-                description: "Keep access when the user is not present (refresh token)",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "User.Read",
-                description: "Read the signed-in user's profile",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "Mail.Read",
-                description: "Read the signed-in user's mail",
-                sensitive: true,
-                default: false,
-            },
-            ScopeDef {
-                name: "Files.Read.All",
-                description: "Read all files the signed-in user can access",
-                sensitive: true,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["graph.microsoft.com"],
-            path_prefixes: &[],
-        },
-        operations: &["user.read", "mail.message.read", "drive.file.read"],
-    },
-    Provider {
-        id: "slack",
-        display_name: "Slack",
-        category: Category::Communication,
-        docs_url: "https://api.slack.com/authentication/oauth-v2",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://slack.com/oauth/v2/authorize",
-            token_url: "https://slack.com/api/oauth.v2.access",
-            revoke_url: None,
-            supports_refresh: false,
-            token_auth: TokenAuth::ClientSecretPost,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "chat:write",
-                description: "Post messages as the app",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "channels:read",
-                description: "List public channels and their metadata",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "users:read",
-                description: "List workspace members",
-                sensitive: false,
-                default: false,
-            },
-            ScopeDef {
-                name: "files:read",
-                description: "Read files shared in the workspace",
-                sensitive: true,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["slack.com"],
-            path_prefixes: &[],
-        },
-        operations: &["message.post", "channel.list", "user.list"],
-    },
-    Provider {
-        id: "notion",
-        display_name: "Notion",
-        category: Category::Productivity,
-        docs_url: "https://developers.notion.com/docs/authorization",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://api.notion.com/v1/oauth/authorize",
-            token_url: "https://api.notion.com/v1/oauth/token",
-            revoke_url: None,
-            supports_refresh: false,
-            token_auth: TokenAuth::ClientSecretBasic,
-            extra_authorize_params: &[("owner", "user")],
-        },
-        // Notion grants capabilities per integration at consent time and rejects a
-        // `scope` parameter, so there is no scope vocabulary to offer here.
-        scopes: &[],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["api.notion.com"],
-            path_prefixes: &[],
-        },
-        operations: &["page.read", "database.query", "page.create"],
-    },
-    Provider {
-        id: "linear",
-        display_name: "Linear",
-        category: Category::Productivity,
-        docs_url: "https://developers.linear.app/docs/oauth/authentication",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://linear.app/oauth/authorize",
-            token_url: "https://api.linear.app/oauth/token",
-            revoke_url: Some("https://api.linear.app/oauth/revoke"),
-            supports_refresh: false,
-            token_auth: TokenAuth::ClientSecretPost,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "read",
-                description: "Read issues, projects and teams",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "write",
-                description: "Create and update issues and comments",
-                sensitive: false,
-                default: false,
-            },
-            ScopeDef {
-                name: "issues:create",
-                description: "Create issues only",
-                sensitive: false,
-                default: false,
-            },
-            ScopeDef {
-                name: "admin",
-                description: "Full administrative access to the workspace",
-                sensitive: true,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["api.linear.app"],
-            path_prefixes: &[],
-        },
-        operations: &["issue.read", "issue.create", "project.read"],
-    },
-    Provider {
-        id: "atlassian",
-        display_name: "Atlassian",
-        category: Category::Productivity,
-        docs_url: "https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://auth.atlassian.com/authorize",
-            token_url: "https://auth.atlassian.com/oauth/token",
-            revoke_url: None,
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretPost,
-            // Atlassian requires an explicit audience and consent prompt on 3LO.
-            extra_authorize_params: &[("audience", "api.atlassian.com"), ("prompt", "consent")],
-        },
-        scopes: &[
-            ScopeDef {
-                name: "offline_access",
-                description: "Keep access when the user is not present (refresh token)",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "read:me",
-                description: "Read the authenticated user's profile",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "read:jira-work",
-                description: "Read Jira issues, projects and worklogs",
-                sensitive: false,
-                default: false,
-            },
-            ScopeDef {
-                name: "write:jira-work",
-                description: "Create and update Jira issues",
-                sensitive: true,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["api.atlassian.com"],
-            path_prefixes: &[],
-        },
-        operations: &["issue.read", "issue.create", "project.read"],
-    },
-    Provider {
-        id: "hubspot",
-        display_name: "HubSpot",
-        category: Category::Crm,
-        docs_url: "https://developers.hubspot.com/docs/api/working-with-oauth",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://app.hubspot.com/oauth/authorize",
-            token_url: "https://api.hubapi.com/oauth/v1/token",
-            revoke_url: None,
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretPost,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "oauth",
-                description: "Identify the connected HubSpot account",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "crm.objects.contacts.read",
-                description: "Read contact records",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "crm.objects.contacts.write",
-                description: "Create and update contact records",
-                sensitive: true,
-                default: false,
-            },
-            ScopeDef {
-                name: "crm.objects.deals.read",
-                description: "Read deal records",
-                sensitive: false,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["api.hubapi.com"],
-            path_prefixes: &[],
-        },
-        operations: &["contact.read", "contact.create", "deal.read"],
-    },
-    Provider {
-        id: "salesforce",
-        display_name: "Salesforce",
-        category: Category::Crm,
-        docs_url:
-            "https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://login.salesforce.com/services/oauth2/authorize",
-            token_url: "https://login.salesforce.com/services/oauth2/token",
-            revoke_url: Some("https://login.salesforce.com/services/oauth2/revoke"),
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretPost,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "api",
-                description: "Access and manage data through the Salesforce APIs",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "refresh_token",
-                description: "Keep access when the user is not present (refresh token)",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "openid",
-                description: "Identify the signed-in user",
-                sensitive: false,
-                default: false,
-            },
-            ScopeDef {
-                name: "full",
-                description: "Full access to all data the user can reach",
-                sensitive: true,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["login.salesforce.com"],
-            path_prefixes: &[],
-        },
-        operations: &["record.read", "record.create", "soql.query"],
-    },
-    Provider {
-        id: "zoom",
-        display_name: "Zoom",
-        category: Category::Communication,
-        docs_url: "https://developers.zoom.us/docs/integrations/oauth/",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://zoom.us/oauth/authorize",
-            token_url: "https://zoom.us/oauth/token",
-            revoke_url: Some("https://zoom.us/oauth/revoke"),
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretBasic,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "user:read",
-                description: "Read the authenticated user's profile",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "meeting:read",
-                description: "Read the user's meetings",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "meeting:write",
-                description: "Create, update and delete meetings",
-                sensitive: true,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["api.zoom.us"],
-            path_prefixes: &[],
-        },
-        operations: &["meeting.read", "meeting.create", "user.read"],
-    },
-    Provider {
-        id: "dropbox",
-        display_name: "Dropbox",
-        category: Category::Storage,
-        docs_url: "https://developers.dropbox.com/oauth-guide",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://www.dropbox.com/oauth2/authorize",
-            token_url: "https://api.dropboxapi.com/oauth2/token",
-            revoke_url: None,
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretPost,
-            // Dropbox returns a refresh token only for offline token access.
-            extra_authorize_params: &[("token_access_type", "offline")],
-        },
-        scopes: &[
-            ScopeDef {
-                name: "account_info.read",
-                description: "Read the connected account's profile",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "files.metadata.read",
-                description: "List files and folders",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "files.content.read",
-                description: "Download file contents",
-                sensitive: true,
-                default: false,
-            },
-            ScopeDef {
-                name: "files.content.write",
-                description: "Upload, edit and delete files",
-                sensitive: true,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["api.dropboxapi.com", "content.dropboxapi.com"],
-            path_prefixes: &[],
-        },
-        operations: &["file.list", "file.read", "file.write"],
-    },
-    Provider {
-        id: "box",
-        display_name: "Box",
-        category: Category::Storage,
-        docs_url: "https://developer.box.com/guides/authentication/oauth2/",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://account.box.com/api/oauth2/authorize",
-            token_url: "https://api.box.com/oauth2/token",
-            revoke_url: Some("https://api.box.com/oauth2/revoke"),
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretPost,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "root_readonly",
-                description: "Read all files and folders in the account",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "root_readwrite",
-                description: "Read, write and delete all files and folders",
-                sensitive: true,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["api.box.com"],
-            path_prefixes: &[],
-        },
-        operations: &["file.list", "file.read", "file.write"],
-    },
-    Provider {
-        id: "asana",
-        display_name: "Asana",
-        category: Category::Productivity,
-        docs_url: "https://developers.asana.com/docs/oauth",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://app.asana.com/-/oauth_authorize",
-            token_url: "https://app.asana.com/-/oauth_token",
-            revoke_url: None,
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretPost,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "default",
-                description: "Full access to everything the authorizing user can reach",
-                sensitive: true,
-                default: true,
-            },
-            ScopeDef {
-                name: "openid",
-                description: "Identify the authorizing user",
-                sensitive: false,
-                default: false,
-            },
-            ScopeDef {
-                name: "email",
-                description: "Read the authorizing user's email address",
-                sensitive: false,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["app.asana.com"],
-            path_prefixes: &[],
-        },
-        operations: &["task.read", "task.create", "project.read"],
-    },
-    Provider {
-        id: "figma",
-        display_name: "Figma",
-        category: Category::Productivity,
-        docs_url: "https://www.figma.com/developers/api#oauth2",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://www.figma.com/oauth",
-            token_url: "https://api.figma.com/v1/oauth/token",
-            revoke_url: None,
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretBasic,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "files:read",
-                description: "Read files, projects and components",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "file_comments:write",
-                description: "Post comments on files",
-                sensitive: false,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["api.figma.com"],
-            path_prefixes: &[],
-        },
-        operations: &["file.read", "comment.create"],
-    },
-    Provider {
-        id: "discord",
-        display_name: "Discord",
-        category: Category::Communication,
-        docs_url: "https://discord.com/developers/docs/topics/oauth2",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://discord.com/oauth2/authorize",
-            token_url: "https://discord.com/api/oauth2/token",
-            revoke_url: Some("https://discord.com/api/oauth2/token/revoke"),
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretBasic,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "identify",
-                description: "Read the authorizing user's account",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "email",
-                description: "Read the authorizing user's email address",
-                sensitive: false,
-                default: false,
-            },
-            ScopeDef {
-                name: "guilds",
-                description: "List the guilds the user belongs to",
-                sensitive: false,
-                default: false,
-            },
-            ScopeDef {
-                name: "bot",
-                description: "Add a bot to a guild with the requested permissions",
-                sensitive: true,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["discord.com"],
-            path_prefixes: &[],
-        },
-        operations: &["user.read", "guild.list", "message.post"],
-    },
-    Provider {
-        id: "sentry",
-        display_name: "Sentry",
-        category: Category::Developer,
-        docs_url: "https://docs.sentry.io/api/guides/create-auth-token/",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: "https://sentry.io/oauth/authorize/",
-            token_url: "https://sentry.io/oauth/token/",
-            revoke_url: None,
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretPost,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "org:read",
-                description: "Read organization settings and membership",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "project:read",
-                description: "Read project settings",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "event:read",
-                description: "Read error events and issues",
-                sensitive: false,
-                default: false,
-            },
-            ScopeDef {
-                name: "project:write",
-                description: "Create and modify projects",
-                sensitive: true,
-                default: false,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["sentry.io"],
-            path_prefixes: &[],
-        },
-        operations: &["issue.read", "event.read", "project.read"],
-    },
-    Provider {
-        id: "stripe",
-        display_name: "Stripe",
-        category: Category::Payments,
-        docs_url: "https://docs.stripe.com/keys",
-        auth: AuthMethod::ApiKey {
-            header: "Authorization",
-            value_prefix: "Bearer ",
-        },
-        scopes: &[],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["api.stripe.com"],
-            path_prefixes: &[],
-        },
-        operations: &["customer.read", "charge.read", "invoice.read"],
-    },
-    Provider {
-        id: "openai",
-        display_name: "OpenAI",
-        category: Category::Developer,
-        docs_url: "https://platform.openai.com/docs/api-reference/authentication",
-        auth: AuthMethod::ApiKey {
-            header: "Authorization",
-            value_prefix: "Bearer ",
-        },
-        scopes: &[],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["api.openai.com"],
-            path_prefixes: &[],
-        },
-        operations: &["completion.create", "embedding.create", "model.list"],
-    },
-    Provider {
-        id: "anthropic",
-        display_name: "Anthropic",
-        category: Category::Developer,
-        docs_url: "https://docs.anthropic.com/en/api/getting-started",
-        auth: AuthMethod::ApiKey {
-            header: "x-api-key",
-            value_prefix: "",
-        },
-        scopes: &[],
-        egress: EgressSpec {
-            scheme: "https",
-            authorities: &["api.anthropic.com"],
-            path_prefixes: &[],
-        },
-        operations: &["message.create", "model.list"],
-    },
-    Provider {
-        id: "mock",
-        display_name: "Mock provider (testing)",
-        category: Category::Testing,
-        docs_url: "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/apps/mock-upstream-idp",
-        auth: AuthMethod::OAuth2AuthCode {
-            authorize_url: MOCK_AUTHORIZE_URL,
-            token_url: MOCK_TOKEN_URL,
-            revoke_url: None,
-            supports_refresh: true,
-            token_auth: TokenAuth::ClientSecretPost,
-            extra_authorize_params: OFFLINE_ACCESS,
-        },
-        scopes: &[
-            ScopeDef {
-                name: "read",
-                description: "Read fixtures from the mock upstream",
-                sensitive: false,
-                default: true,
-            },
-            ScopeDef {
-                name: "write",
-                description: "Write fixtures to the mock upstream",
-                sensitive: false,
-                default: false,
-            },
-            ScopeDef {
-                name: "offline_access",
-                description: "Keep access when the user is not present (refresh token)",
-                sensitive: false,
-                default: true,
-            },
-        ],
-        egress: EgressSpec {
-            scheme: "http",
-            authorities: &["127.0.0.1"],
-            path_prefixes: &[],
-        },
-        operations: &["fixture.read", "fixture.write"],
-    },
-];
+        Ok(Self {
+            revision: document.revision,
+            providers: document.providers,
+        })
+    }
+
+    pub fn revision(&self) -> &str {
+        &self.revision
+    }
+
+    pub fn providers(&self) -> &[Provider] {
+        &self.providers
+    }
+
+    pub fn find(&self, id: &str) -> Option<&Provider> {
+        self.providers.iter().find(|provider| provider.id == id)
+    }
+}
+
+static CATALOG: LazyLock<Result<Catalog, CatalogError>> =
+    LazyLock::new(|| Catalog::parse(CATALOG_JSON));
+
+pub fn load() -> Result<&'static Catalog, CatalogError> {
+    CATALOG.as_ref().map_err(Clone::clone)
+}
+
+pub fn all() -> Result<&'static [Provider], CatalogError> {
+    Ok(load()?.providers())
+}
+
+pub fn find(id: &str) -> Result<Option<&'static Provider>, CatalogError> {
+    Ok(load()?.find(id))
+}
+
+pub fn revision() -> Result<&'static str, CatalogError> {
+    Ok(load()?.revision())
+}
+
+fn validate_provider(provider: &Provider) -> Result<(), CatalogError> {
+    validate_id(&provider.id)?;
+    validate_text(&provider.display_name, "display_name", 128)?;
+    validate_https_url(&provider.docs_url, "docs_url")?;
+    validate_https_url(&provider.provenance_url, "provenance_url")?;
+    validate_auth(provider)?;
+    validate_scopes(provider)?;
+    validate_egress(provider)?;
+    validate_unique_values(&provider.operations, "operation", 128, 128)?;
+    Ok(())
+}
+
+fn validate_auth(provider: &Provider) -> Result<(), CatalogError> {
+    match &provider.auth {
+        AuthMethod::OAuth2AuthCode {
+            authorize_url,
+            token_url,
+            revoke_url,
+            extra_authorize_params,
+            scope_separator,
+            ..
+        } => {
+            validate_provider_url(provider, authorize_url, "authorize_url")?;
+            validate_provider_url(provider, token_url, "token_url")?;
+            if let Some(url) = revoke_url {
+                validate_provider_url(provider, url, "revoke_url")?;
+            }
+            if extra_authorize_params.len() > 32 {
+                return Err(provider_error(
+                    provider,
+                    "too many authorization parameters",
+                ));
+            }
+            if !matches!(scope_separator.as_deref(), None | Some(" ") | Some(",")) {
+                return Err(provider_error(provider, "invalid OAuth scope separator"));
+            }
+            let mut names = HashSet::with_capacity(extra_authorize_params.len());
+            for (name, value) in extra_authorize_params {
+                validate_token(name, "authorization parameter", 128)?;
+                validate_text(value, "authorization parameter value", 512)?;
+                if !names.insert(name) {
+                    return Err(provider_error(
+                        provider,
+                        format!("duplicate authorization parameter `{name}`"),
+                    ));
+                }
+            }
+        }
+        AuthMethod::ApiKey {
+            header,
+            value_prefix,
+        } => {
+            reqwest::header::HeaderName::from_bytes(header.as_bytes())
+                .map_err(|_| provider_error(provider, "invalid API key header"))?;
+            if value_prefix.len() > 128
+                || value_prefix.contains('\r')
+                || value_prefix.contains('\n')
+            {
+                return Err(provider_error(provider, "invalid API key value prefix"));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_scopes(provider: &Provider) -> Result<(), CatalogError> {
+    if provider.scopes.len() > 128 {
+        return Err(provider_error(provider, "too many scopes"));
+    }
+    let mut names = HashSet::with_capacity(provider.scopes.len());
+    for scope in &provider.scopes {
+        validate_text(&scope.name, "scope name", 256)?;
+        validate_text(&scope.description, "scope description", 1_024)?;
+        if scope.default && scope.sensitive {
+            return Err(provider_error(
+                provider,
+                format!("sensitive scope `{}` cannot be a default", scope.name),
+            ));
+        }
+        if !names.insert(scope.name.as_str()) {
+            return Err(provider_error(
+                provider,
+                format!("duplicate scope `{}`", scope.name),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_egress(provider: &Provider) -> Result<(), CatalogError> {
+    let allow_mock_http = provider.id == "mock";
+    if provider.egress.scheme != "https" && !(allow_mock_http && provider.egress.scheme == "http") {
+        return Err(provider_error(provider, "egress scheme must be https"));
+    }
+    if provider.egress.authorities.is_empty() || provider.egress.authorities.len() > 32 {
+        return Err(provider_error(
+            provider,
+            "egress authorities are empty or too large",
+        ));
+    }
+    let mut authorities = HashSet::with_capacity(provider.egress.authorities.len());
+    for authority in &provider.egress.authorities {
+        if authority.len() > 255
+            || authority.contains('/')
+            || authority.contains('@')
+            || authority.contains('?')
+            || authority.contains('#')
+        {
+            return Err(provider_error(provider, "invalid egress authority"));
+        }
+        let parsed = Url::parse(&format!("{}://{authority}/", provider.egress.scheme))
+            .map_err(|_| provider_error(provider, "invalid egress authority"))?;
+        if parsed.host_str().is_none() || !authorities.insert(authority) {
+            return Err(provider_error(
+                provider,
+                "invalid or duplicate egress authority",
+            ));
+        }
+    }
+    if provider.egress.path_prefixes.len() > 64 {
+        return Err(provider_error(provider, "too many egress path prefixes"));
+    }
+    for prefix in &provider.egress.path_prefixes {
+        if prefix.len() > 1_024
+            || !prefix.starts_with('/')
+            || prefix.contains("..")
+            || prefix.contains('?')
+            || prefix.contains('#')
+        {
+            return Err(provider_error(provider, "invalid egress path prefix"));
+        }
+    }
+    Ok(())
+}
+
+fn validate_provider_url(provider: &Provider, raw: &str, field: &str) -> Result<(), CatalogError> {
+    let parsed =
+        Url::parse(raw).map_err(|_| provider_error(provider, format!("invalid {field}")))?;
+    let allowed = parsed.scheme() == "https"
+        || (provider.id == "mock"
+            && parsed.scheme() == "http"
+            && matches!(
+                parsed.host_str(),
+                Some("127.0.0.1") | Some("localhost") | Some("::1")
+            ));
+    if !allowed
+        || parsed.host_str().is_none()
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+    {
+        return Err(provider_error(provider, format!("invalid {field}")));
+    }
+    Ok(())
+}
+
+fn validate_https_url(raw: &str, field: &str) -> Result<(), CatalogError> {
+    let parsed = Url::parse(raw).map_err(|_| CatalogError::invalid(format!("invalid {field}")))?;
+    if parsed.scheme() != "https"
+        || parsed.host_str().is_none()
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+    {
+        return Err(CatalogError::invalid(format!("invalid {field}")));
+    }
+    Ok(())
+}
+
+fn validate_id(value: &str) -> Result<(), CatalogError> {
+    if value.is_empty()
+        || value.len() > 64
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+    {
+        return Err(CatalogError::invalid(format!(
+            "invalid provider id `{value}`"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_token(value: &str, field: &str, max: usize) -> Result<(), CatalogError> {
+    if value.is_empty()
+        || value.len() > max
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':'))
+    {
+        return Err(CatalogError::invalid(format!("invalid {field}")));
+    }
+    Ok(())
+}
+
+fn validate_text(value: &str, field: &str, max: usize) -> Result<(), CatalogError> {
+    if value.trim().is_empty() || value.len() > max || value.contains('\0') {
+        return Err(CatalogError::invalid(format!("invalid {field}")));
+    }
+    Ok(())
+}
+
+fn validate_unique_values(
+    values: &[String],
+    field: &str,
+    max_count: usize,
+    max_len: usize,
+) -> Result<(), CatalogError> {
+    if values.is_empty() || values.len() > max_count {
+        return Err(CatalogError::invalid(format!(
+            "{field} list is empty or too large"
+        )));
+    }
+    let mut seen = HashSet::with_capacity(values.len());
+    for value in values {
+        validate_token(value, field, max_len)?;
+        if !seen.insert(value) {
+            return Err(CatalogError::invalid(format!(
+                "duplicate {field} `{value}`"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn provider_error(provider: &Provider, message: impl std::fmt::Display) -> CatalogError {
+    CatalogError::invalid(format!("provider `{}`: {message}", provider.id))
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
 
     #[test]
-    fn provider_ids_are_unique_and_lookupable() {
-        let mut seen = HashSet::new();
-        for p in all() {
-            assert!(seen.insert(p.id), "duplicate provider id {}", p.id);
-            assert_eq!(find(p.id).map(|f| f.id), Some(p.id));
-        }
-        assert!(find("nope").is_none());
+    fn embedded_catalog_is_valid_and_versioned() {
+        let catalog = load().expect("embedded catalog");
+        assert_eq!(catalog.revision(), "2026-08-10.5");
+        assert_eq!(catalog.providers().len(), 51);
+        assert_eq!(
+            catalog
+                .providers()
+                .iter()
+                .filter(|provider| provider.id != "mock")
+                .count(),
+            50
+        );
+        assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
     }
 
     #[test]
-    fn every_provider_has_an_egress_allowlist() {
-        for p in all() {
-            assert!(
-                !p.egress.authorities.is_empty(),
-                "{} has no egress authority; a credential for it could go anywhere",
-                p.id
-            );
-            assert!(!p.operations.is_empty(), "{} declares no operations", p.id);
-            assert!(!p.display_name.is_empty());
-            assert!(p.docs_url.starts_with("https://"), "{}", p.id);
-        }
-    }
+    fn empty_and_invalid_catalogs_fail_closed() {
+        let empty = r#"{"schema_version":1,"revision":"test.1","providers":[]}"#;
+        assert_eq!(
+            Catalog::parse(empty).unwrap_err().to_string(),
+            "catalog has no providers"
+        );
 
-    /// Only the loopback mock may speak cleartext; everything else is https.
-    #[test]
-    fn endpoints_are_https_except_the_mock() {
-        for p in all() {
-            if let AuthMethod::OAuth2AuthCode {
-                authorize_url,
-                token_url,
-                revoke_url,
-                ..
-            } = p.auth
-            {
-                let expect_https = p.id != "mock";
-                for url in [Some(authorize_url), Some(token_url), revoke_url]
-                    .into_iter()
-                    .flatten()
-                {
-                    if expect_https {
-                        assert!(url.starts_with("https://"), "{} endpoint {url}", p.id);
-                    } else {
-                        assert!(url.starts_with("http://127.0.0.1"), "{url}");
-                    }
-                }
-            }
-            if p.id == "mock" {
-                assert_eq!(p.egress.scheme, "http");
-            } else {
-                assert_eq!(p.egress.scheme, "https", "{}", p.id);
-            }
-        }
+        let mut invalid: serde_json::Value = serde_json::from_str(CATALOG_JSON).unwrap();
+        invalid["providers"][0]["egress"]["authorities"] = serde_json::json!([]);
+        assert!(Catalog::parse(&invalid.to_string())
+            .unwrap_err()
+            .to_string()
+            .contains("egress authorities"));
     }
 
     #[test]
-    fn scopes_are_described_and_defaults_are_not_sensitive() {
-        for p in all() {
-            let mut names = HashSet::new();
-            for s in p.scopes {
-                assert!(names.insert(s.name), "{} repeats scope {}", p.id, s.name);
-                assert!(!s.description.is_empty(), "{}/{}", p.id, s.name);
-            }
-            // Asana's only scope is its all-or-nothing `default`; everywhere else a
-            // pre-ticked scope must be a narrow one.
-            if p.id != "asana" {
-                assert!(
-                    p.scopes.iter().filter(|s| s.default).all(|s| !s.sensitive),
-                    "{} pre-selects a sensitive scope",
-                    p.id
-                );
-            }
-        }
+    fn duplicate_ids_and_unknown_fields_are_rejected() {
+        let mut duplicate: serde_json::Value = serde_json::from_str(CATALOG_JSON).unwrap();
+        duplicate["providers"][1]["id"] = duplicate["providers"][0]["id"].clone();
+        assert!(Catalog::parse(&duplicate.to_string())
+            .unwrap_err()
+            .to_string()
+            .contains("duplicate provider id"));
+
+        let mut unknown: serde_json::Value = serde_json::from_str(CATALOG_JSON).unwrap();
+        unknown["providers"][0]["secret"] = serde_json::json!("must not be accepted");
+        assert!(Catalog::parse(&unknown.to_string())
+            .unwrap_err()
+            .to_string()
+            .contains("unknown field"));
     }
 
     #[test]
-    fn api_key_providers_declare_a_header() {
-        for p in all() {
-            if let AuthMethod::ApiKey { header, .. } = p.auth {
-                assert!(!header.is_empty(), "{}", p.id);
-                assert!(p.scopes.is_empty(), "{} is api_key yet lists scopes", p.id);
-                assert!(!p.auth.supports_refresh());
-            }
-        }
-    }
-
-    #[test]
-    fn egress_binding_denies_other_authorities() {
-        let github = find("github").expect("github");
-        let egress = github.egress.binding();
-        assert!(egress.allows_url("https://api.github.com/user").is_ok());
-        assert!(egress.allows_url("https://evil.example/user").is_err());
+    fn sensitive_scopes_cannot_be_defaults() {
+        let mut invalid: serde_json::Value = serde_json::from_str(CATALOG_JSON).unwrap();
+        invalid["providers"][0]["scopes"][1]["default"] = serde_json::json!(true);
+        assert!(Catalog::parse(&invalid.to_string())
+            .unwrap_err()
+            .to_string()
+            .contains("sensitive scope `repo` cannot be a default"));
     }
 }

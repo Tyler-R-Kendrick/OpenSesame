@@ -127,12 +127,13 @@ impl TestActivationPause {
 }
 
 impl ConnectionBroker {
-    pub fn new(pool: SqlitePool, config: BrokerConfig) -> Self {
+    pub fn new(pool: SqlitePool, config: BrokerConfig) -> Result<Self> {
+        catalog::load()?;
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(20))
             .build()
             .unwrap_or_default();
-        Self {
+        Ok(Self {
             pool,
             config,
             http,
@@ -144,7 +145,7 @@ impl ConnectionBroker {
             refresh_pause: Mutex::new(None),
             #[cfg(test)]
             cleanup_attempts: Mutex::new(Vec::new()),
-        }
+        })
     }
 
     #[cfg(test)]
@@ -200,8 +201,9 @@ impl ConnectionBroker {
 
     // ---- catalog -------------------------------------------------------------
 
-    pub fn list_providers(&self) -> Vec<ProviderView> {
-        catalog::all()
+    pub fn list_providers(&self) -> Result<Vec<ProviderView>> {
+        let catalog_revision = catalog::revision()?;
+        Ok(catalog::all()?
             .iter()
             .filter(|p| !flow::is_production_env() || p.id != "mock")
             .map(|p| {
@@ -210,17 +212,18 @@ impl ConnectionBroker {
                     p,
                     missing.is_empty(),
                     missing,
-                    p.auth.is_oauth().then(|| self.config.callback_url(p.id)),
+                    p.auth.is_oauth().then(|| self.config.callback_url(&p.id)),
+                    catalog_revision,
                 )
             })
-            .collect()
+            .collect())
     }
 
     fn provider(&self, id: &str) -> Result<&'static Provider> {
         if id == "mock" && flow::is_production_env() {
             return Err(BrokerError::ProviderUnknown(id.to_string()));
         }
-        catalog::find(id).ok_or_else(|| BrokerError::ProviderUnknown(id.to_string()))
+        catalog::find(id)?.ok_or_else(|| BrokerError::ProviderUnknown(id.to_string()))
     }
 
     fn sealing_key(&self) -> Result<&[u8; 32]> {
@@ -263,7 +266,10 @@ impl ConnectionBroker {
                 }
                 name
             }
-            None => self.unused_logical_name(&organization, provider.id).await?,
+            None => {
+                self.unused_logical_name(&organization, &provider.id)
+                    .await?
+            }
         };
 
         let now = Utc::now();
@@ -302,7 +308,7 @@ impl ConnectionBroker {
             }
             return Err(error);
         }
-        store::append_event(&self.pool, &row.id, EventKind::Created, Some(provider.id)).await?;
+        store::append_event(&self.pool, &row.id, EventKind::Created, Some(&provider.id)).await?;
         tracing::info!(connection_id = %row.id, provider_id = provider.id, "connection created");
         self.view(row).await
     }
@@ -417,7 +423,7 @@ impl ConnectionBroker {
         let (integration_id, _, provider_config, integration_scopes, _) = self
             .resolve_integration(
                 organization_id,
-                Some(provider.id),
+                Some(&provider.id),
                 (!row.integration_id.is_empty()).then_some(row.integration_id.as_str()),
             )
             .await?;
@@ -428,7 +434,7 @@ impl ConnectionBroker {
         let config = self
             .config
             .clone()
-            .with_provider(provider.id, provider_config);
+            .with_provider(&provider.id, provider_config);
         if !provider.auth.is_oauth() {
             return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
         }
@@ -445,12 +451,12 @@ impl ConnectionBroker {
 
         let redirect_uri = match redirect_uri.filter(|r| !r.trim().is_empty()) {
             Some(uri) => {
-                if !self.config.redirect_allowed(provider.id, uri.trim()) {
+                if !self.config.redirect_allowed(&provider.id, uri.trim()) {
                     return Err(BrokerError::RedirectNotAllowed);
                 }
                 uri.trim().to_string()
             }
-            None => self.config.callback_url(provider.id),
+            None => self.config.callback_url(&provider.id),
         };
 
         let scope_override = scopes.filter(|scopes| !scopes.is_empty());
@@ -469,7 +475,7 @@ impl ConnectionBroker {
             provider,
             &config,
             flow::AuthorizeParams {
-                client_id: &config.provider(provider.id).client_id.unwrap_or_default(),
+                client_id: &config.provider(&provider.id).client_id.unwrap_or_default(),
                 redirect_uri: &redirect_uri,
                 scopes: &scopes,
                 state: &state,
@@ -501,7 +507,7 @@ impl ConnectionBroker {
             &self.pool,
             &row.id,
             EventKind::AuthorizeStarted,
-            Some(provider.id),
+            Some(&provider.id),
         )
         .await?;
         tracing::info!(connection_id = %row.id, provider_id = provider.id, "authorization started");
@@ -540,7 +546,7 @@ impl ConnectionBroker {
         let (_, _, provider_config, initial_ceiling, expected_integration_updated_at) = self
             .resolve_integration(
                 &organization_id,
-                Some(provider.id),
+                Some(&provider.id),
                 (!row.integration_id.is_empty()).then_some(row.integration_id.as_str()),
             )
             .await?;
@@ -548,7 +554,7 @@ impl ConnectionBroker {
         let config = self
             .config
             .clone()
-            .with_provider(provider.id, provider_config);
+            .with_provider(&provider.id, provider_config);
         let key = *self.sealing_key()?;
         let code_verifier = String::from_utf8(crypto::open(
             &key,
@@ -661,7 +667,7 @@ impl ConnectionBroker {
                     account_label: account_label.as_deref(),
                     expected_integration_updated_at: expected_integration_updated_at.as_deref(),
                     event_kind: EventKind::Authorized,
-                    event_detail: Some(provider.id),
+                    event_detail: Some(&provider.id),
                     expected_credential_version: Some(authorization.credential_version.as_deref()),
                 },
             )
@@ -735,7 +741,7 @@ impl ConnectionBroker {
         let (integration_id, _, provider_config, initial_ceiling, expected_integration_updated_at) =
             self.resolve_integration(
                 organization_id,
-                Some(provider.id),
+                Some(&provider.id),
                 (!row.integration_id.is_empty()).then_some(row.integration_id.as_str()),
             )
             .await?;
@@ -747,7 +753,7 @@ impl ConnectionBroker {
         let config = self
             .config
             .clone()
-            .with_provider(provider.id, provider_config);
+            .with_provider(&provider.id, provider_config);
         let key = *self.sealing_key()?;
 
         let credential = store::get_credential(&self.pool, &row.id)
@@ -937,7 +943,7 @@ impl ConnectionBroker {
         let (integration_id, _, _, _, expected_integration_updated_at) = self
             .resolve_integration(
                 organization_id,
-                Some(provider.id),
+                Some(&provider.id),
                 (!row.integration_id.is_empty()).then_some(row.integration_id.as_str()),
             )
             .await?;
@@ -945,7 +951,7 @@ impl ConnectionBroker {
             store::set_integration_id(&self.pool, &row.id, &integration_id).await?;
             row.integration_id = integration_id;
         }
-        let AuthMethod::ApiKey { .. } = provider.auth else {
+        let AuthMethod::ApiKey { .. } = &provider.auth else {
             return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
         };
         if value.trim().is_empty() {
@@ -1005,19 +1011,19 @@ impl ConnectionBroker {
         let config = match provider {
             Some(provider) => {
                 let provider_config = if row.integration_id.is_empty() {
-                    self.resolve_integration(organization_id, Some(provider.id), None)
+                    self.resolve_integration(organization_id, Some(&provider.id), None)
                         .await
                         .ok()
                         .map(|(_, _, config, _, _)| config)
                 } else {
-                    self.pinned_provider_config(organization_id, provider.id, &row.integration_id)
+                    self.pinned_provider_config(organization_id, &provider.id, &row.integration_id)
                         .await
                         .ok()
                 };
                 provider_config.map(|provider_config| {
                     self.config
                         .clone()
-                        .with_provider(provider.id, provider_config)
+                        .with_provider(&provider.id, provider_config)
                 })
             }
             None => None,
@@ -1064,7 +1070,7 @@ impl ConnectionBroker {
         let AuthMethod::OAuth2AuthCode {
             revoke_url: Some(_),
             ..
-        } = provider.auth
+        } = &provider.auth
         else {
             return ProviderRevocation::Unsupported;
         };
@@ -1331,8 +1337,8 @@ pub fn parse_shareability(raw: &str) -> Shareability {
 
 /// The egress a provider's credential may reach, for callers wiring ADR 0005
 /// enforcement around a connection.
-pub fn provider_egress(provider_id: &str) -> Option<EgressBinding> {
-    catalog::find(provider_id).map(|p| p.egress.binding())
+pub fn provider_egress(provider_id: &str) -> Result<Option<EgressBinding>> {
+    Ok(catalog::find(provider_id)?.map(|provider| provider.egress.binding()))
 }
 
 #[cfg(test)]

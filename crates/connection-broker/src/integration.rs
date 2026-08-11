@@ -143,7 +143,7 @@ fn configured(
     sealing_available: bool,
 ) -> bool {
     sealing_available
-        && match provider.auth {
+        && match &provider.auth {
             AuthMethod::OAuth2AuthCode { .. } => client_id.is_some() && has_secret,
             AuthMethod::ApiKey { .. } => true,
         }
@@ -244,7 +244,7 @@ impl ConnectionBroker {
             callback_url: provider
                 .auth
                 .is_oauth()
-                .then(|| self.config.callback_url(provider.id)),
+                .then(|| self.config.callback_url(&provider.id)),
             scopes: row.scopes,
             client_id_hint: hint(&row.client_id),
             has_client_secret: row.secret.is_some(),
@@ -261,7 +261,7 @@ impl ConnectionBroker {
         if !self.config.missing_config(provider).is_empty() {
             return None;
         }
-        let cfg = self.config.provider(provider.id);
+        let cfg = self.config.provider(&provider.id);
         Some(IntegrationView {
             id: format!("{DEPLOYMENT_PREFIX}{}", provider.id),
             key: format!("deployment-{}", provider.id),
@@ -277,7 +277,7 @@ impl ConnectionBroker {
             callback_url: provider
                 .auth
                 .is_oauth()
-                .then(|| self.config.callback_url(provider.id)),
+                .then(|| self.config.callback_url(&provider.id)),
             scopes: provider.default_scopes(),
             client_id_hint: hint(&cfg.client_id),
             has_client_secret: cfg.client_secret.is_some(),
@@ -307,8 +307,8 @@ impl ConnectionBroker {
             }
             views.push(self.row_view(row).await?);
         }
-        for provider in crate::catalog::all() {
-            if !catalog_provider_visible(production, provider.id) {
+        for provider in crate::catalog::all()? {
+            if !catalog_provider_visible(production, &provider.id) {
                 continue;
             }
             if let Some(mut view) = self.deployment_view(provider) {
@@ -579,7 +579,7 @@ impl ConnectionBroker {
             None => None,
         };
         let updated_at = row.updated_at.to_rfc3339();
-        let deployment = self.config.provider(provider.id);
+        let deployment = self.config.provider(&provider.id);
         Ok((
             row.id,
             row.provider_id,

@@ -128,8 +128,8 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         .unwrap_or_else(|| OrganizationId::from_uuid(uuid::Uuid::nil()));
     let connection_broker = Arc::new(ConnectionBroker::new(
         db.pool().clone(),
-        BrokerConfig::from_env(),
-    ));
+        BrokerConfig::from_env()?,
+    )?);
 
     Ok(AppState {
         resource: args.resource,

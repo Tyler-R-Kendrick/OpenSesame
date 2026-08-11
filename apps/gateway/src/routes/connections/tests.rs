@@ -277,7 +277,9 @@ async fn harness() -> (AppState, AuthServer) {
         },
     );
     let mut state = state;
-    state.connection_broker = Arc::new(ConnectionBroker::new(state.db.pool().clone(), config));
+    state.connection_broker = Arc::new(
+        ConnectionBroker::new(state.db.pool().clone(), config).expect("connection broker"),
+    );
     // These routes are about broker-stored connections. A developer running with
     // OPENSESAME_DEV_BOOTSTRAP set would otherwise inherit the demo's connection
     // ref and see list results this harness never created.

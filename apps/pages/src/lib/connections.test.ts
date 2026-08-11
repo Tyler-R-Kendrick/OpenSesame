@@ -20,6 +20,8 @@ function provider(overrides: Record<string, unknown> = {}) {
     display_name: "GitHub",
     category: "developer",
     docs_url: "https://docs.github.com/apps/oauth-apps",
+    provenance_url: "https://docs.github.com/apps/oauth-apps",
+    catalog_revision: "2026-08-10.1",
     auth_kind: "oauth2_authorization_code",
     supports_refresh: true,
     configured: true,
@@ -108,6 +110,8 @@ describe("connections wire parsers", () => {
         displayName: "GitHub",
         category: "developer",
         docsUrl: "https://docs.github.com/apps/oauth-apps",
+        provenanceUrl: "https://docs.github.com/apps/oauth-apps",
+        catalogRevision: "2026-08-10.1",
         authKind: "oauth2_authorization_code",
         callbackUrl: "https://host.example/api/v1/connections/oauth/callback",
         scopes: [

@@ -54,6 +54,8 @@ export const ProviderSchema = z
     display_name: z.string().min(1),
     category: ProviderCategorySchema,
     docs_url: z.string().url(),
+    provenance_url: z.string().url(),
+    catalog_revision: z.string().min(1),
     auth_kind: ProviderAuthKindSchema,
     supports_refresh: z.boolean(),
     configured: z.boolean(),
@@ -302,6 +304,7 @@ export const ListEventsResponseSchema = z
 export type ListEventsResponse = z.infer<typeof ListEventsResponseSchema>;
 
 export const ConnectionErrorCodeSchema = z.enum([
+  "catalog_unavailable",
   "provider_unknown",
   "provider_unconfigured",
   "connection_not_found",
