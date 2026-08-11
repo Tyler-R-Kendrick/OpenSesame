@@ -5,6 +5,7 @@ import {
   CONNECTION_POLL_MAX_ATTEMPTS,
   IntegrationsPanel,
   MarketplacePanel,
+  connectionRevocationNotice,
   parseConnectionMessage,
   reconcileOrganization,
   recoverCreatedConnection,
@@ -125,6 +126,25 @@ describe("Connections marketplace panels", () => {
     expect(mutate).not.toHaveBeenCalled();
     expect(runConfirmedAction("Revoke?", mutate, accept)).toBe(true);
     expect(mutate).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["ok", "revoked locally and at GitHub"],
+    [
+      "failed",
+      "automatic provider revocation failed. The upstream grant may remain; revoke access in GitHub",
+    ],
+    [
+      "unsupported",
+      "does not support automatic revocation. The upstream grant may remain; revoke access in GitHub",
+    ],
+  ] as const)("reports the %s provider revocation outcome", (outcome, text) => {
+    expect(
+      connectionRevocationNotice("Work GitHub", "GitHub", {
+        revoked: true,
+        provider_revocation: outcome,
+      }),
+    ).toContain(text);
   });
 
   it("polls only pending connections within the bounded retry budget", () => {

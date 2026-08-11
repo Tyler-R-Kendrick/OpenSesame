@@ -1,11 +1,13 @@
 import {
   AuthorizeResponseSchema,
+  ConnectionErrorResponseSchema,
   ConnectionSchema,
   IntegrationSchema,
   ListConnectionsResponseSchema,
   ListIntegrationsResponseSchema,
   ListProvidersResponseSchema,
   OrganizationMembershipResponseSchema,
+  RevokeResponseSchema,
 } from "@opensesame/contracts";
 import {
   IDENTITY_COOKIE_RECOVERY,
@@ -194,13 +196,10 @@ async function request<T>(
   const response = await hostFetch(organizationId, `/api/v1${path}`, init);
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    const raw = object(body);
+    const error = ConnectionErrorResponseSchema.safeParse(body);
     throw new ConnectionsError(
       response.status,
-      string(
-        raw.hint,
-        string(raw.message, string(raw.error, "Request failed.")),
-      ),
+      error.success ? error.data.hint || error.data.error : "Request failed.",
     );
   }
   return parse(body);
@@ -336,15 +335,12 @@ export function refreshConnection(
   );
 }
 
-export async function revokeConnection(
-  organizationId: string,
-  connectionId: string,
-) {
-  await request(
+export function revokeConnection(organizationId: string, connectionId: string) {
+  return request(
     organizationId,
     `/connections/${encodeURIComponent(connectionId)}`,
     { method: "DELETE" },
-    () => undefined,
+    (body) => RevokeResponseSchema.parse(body),
   );
 }
 

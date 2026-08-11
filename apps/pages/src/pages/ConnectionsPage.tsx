@@ -1,3 +1,4 @@
+import type { RevokeResponse } from "@opensesame/contracts";
 import {
   type FormEvent,
   useCallback,
@@ -154,6 +155,23 @@ export function runConfirmedAction(
   if (!confirm(prompt)) return false;
   action();
   return true;
+}
+
+export function connectionRevocationNotice(
+  connectionName: string,
+  providerName: string,
+  result: RevokeResponse,
+) {
+  if (!result.revoked) {
+    return `${connectionName} revocation was not confirmed locally. Check the connection and revoke access in ${providerName}.`;
+  }
+  if (result.provider_revocation === "ok") {
+    return `${connectionName} revoked locally and at ${providerName}.`;
+  }
+  if (result.provider_revocation === "failed") {
+    return `${connectionName} revoked locally, but automatic provider revocation failed. The upstream grant may remain; revoke access in ${providerName}.`;
+  }
+  return `${connectionName} revoked locally, but ${providerName} does not support automatic revocation. The upstream grant may remain; revoke access in ${providerName}.`;
 }
 
 export function ConnectionsPage() {
@@ -490,8 +508,21 @@ export function ConnectionsPage() {
                 `Revoke ${connection.displayName}? This connection will stop working immediately.`,
                 () =>
                   void act(`revoke-${connection.id}`, async () => {
-                    await revokeConnection(organization.id, connection.id);
-                    setNotice(`${connection.displayName} revoked.`);
+                    const result = await revokeConnection(
+                      organization.id,
+                      connection.id,
+                    );
+                    const providerName =
+                      providers.find(
+                        (provider) => provider.id === connection.providerId,
+                      )?.displayName ?? "the provider";
+                    setNotice(
+                      connectionRevocationNotice(
+                        connection.displayName,
+                        providerName,
+                        result,
+                      ),
+                    );
                   }),
               )
             }
