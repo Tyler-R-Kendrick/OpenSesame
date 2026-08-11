@@ -1,10 +1,13 @@
+use std::collections::BTreeMap;
+
 use chrono::{DateTime, Utc};
 use opensesame_domain::OrganizationId;
 use serde::Serialize;
 use sqlx::Row;
 
-use crate::catalog::{AuthMethod, Provider};
+use crate::catalog::Provider;
 use crate::config::ProviderConfig;
+use crate::configuration::{self, Configuration};
 use crate::crypto::{self, SealedBlob};
 use crate::{BrokerError, ConnectionBroker, Result};
 
@@ -35,6 +38,7 @@ pub struct IntegrationView {
     pub scopes: Vec<String>,
     pub client_id_hint: Option<String>,
     pub has_client_secret: bool,
+    pub configured_fields: Vec<crate::model::ConfiguredFieldView>,
     pub connection_count: i64,
     pub created_by: String,
     pub created_at: String,
@@ -49,6 +53,7 @@ pub struct CreateIntegration {
     pub scopes: Vec<String>,
     pub client_id: Option<String>,
     pub client_secret: Option<String>,
+    pub configuration: Configuration,
     pub created_by: String,
 }
 
@@ -61,6 +66,8 @@ pub struct UpdateIntegration {
     pub client_id: Option<String>,
     /// Omitted preserves the stored secret. An empty value clears it.
     pub client_secret: Option<String>,
+    pub configuration_set: Configuration,
+    pub configuration_clear: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -74,6 +81,8 @@ struct IntegrationRow {
     scopes: Vec<String>,
     client_id: Option<String>,
     secret: Option<SealedBlob>,
+    configuration: Option<SealedBlob>,
+    configured_field_names: Vec<String>,
     created_by: String,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
@@ -116,6 +125,19 @@ fn row_from_sql(row: &sqlx::sqlite::SqliteRow) -> IntegrationRow {
                 .get::<Option<String>, _>("client_secret_aad_digest")
                 .unwrap_or_default(),
         }),
+        configuration: row
+            .get::<Option<Vec<u8>>, _>("configuration_ciphertext")
+            .map(|ciphertext| SealedBlob {
+                ciphertext,
+                nonce: row
+                    .get::<Option<Vec<u8>>, _>("configuration_nonce")
+                    .unwrap_or_default(),
+                aad_digest: row
+                    .get::<Option<String>, _>("configuration_aad_digest")
+                    .unwrap_or_default(),
+            }),
+        configured_field_names: serde_json::from_str(&row.get::<String, _>("configured_fields"))
+            .unwrap_or_default(),
         created_by: row.get("created_by"),
         created_at: parse_time(&row.get::<String, _>("created_at")),
         updated_at: parse_time(&row.get::<String, _>("updated_at")),
@@ -136,17 +158,12 @@ fn hint(client_id: &Option<String>) -> Option<String> {
     })
 }
 
-fn configured(
-    provider: &Provider,
-    client_id: &Option<String>,
-    has_secret: bool,
-    sealing_available: bool,
-) -> bool {
+fn configured(provider: &Provider, configuration: &Configuration, sealing_available: bool) -> bool {
     sealing_available
-        && match &provider.auth {
-            AuthMethod::OAuth2AuthCode { .. } => client_id.is_some() && has_secret,
-            AuthMethod::ApiKey { .. } => true,
-        }
+        && configuration::complete(
+            provider.auth.integration_configuration_fields(),
+            configuration,
+        )
 }
 
 fn validate_scopes(provider: &Provider, scopes: &[String]) -> Result<()> {
@@ -168,6 +185,48 @@ fn validate_scopes(provider: &Provider, scopes: &[String]) -> Result<()> {
 }
 
 impl ConnectionBroker {
+    fn integration_configuration(&self, row: &IntegrationRow) -> Result<Configuration> {
+        if let Some(sealed) = &row.configuration {
+            let plaintext =
+                crypto::open(self.sealing_key()?, &row.id, &row.organization_id, sealed)?;
+            return serde_json::from_slice(&plaintext).map_err(BrokerError::from);
+        }
+
+        // Rows written before 0006 remain usable without a forced credential rotation.
+        let mut configuration = BTreeMap::new();
+        if let Some(client_id) = &row.client_id {
+            configuration.insert("client_id".into(), client_id.clone());
+        }
+        if let Some(secret) = &row.secret {
+            let value = String::from_utf8(crypto::open(
+                self.sealing_key()?,
+                &row.id,
+                &row.organization_id,
+                secret,
+            )?)
+            .map_err(|_| BrokerError::SealUnavailable("client secret is not UTF-8".into()))?;
+            configuration.insert("client_secret".into(), value);
+        }
+        Ok(configuration)
+    }
+
+    fn seal_integration_configuration(
+        &self,
+        id: &str,
+        organization_id: &str,
+        configuration: &Configuration,
+    ) -> Result<Option<SealedBlob>> {
+        if configuration.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(crypto::seal(
+            self.sealing_key()?,
+            id,
+            organization_id,
+            &serde_json::to_vec(configuration)?,
+        )?))
+    }
+
     pub(crate) async fn pinned_provider_config(
         &self,
         organization_id: &OrganizationId,
@@ -183,21 +242,10 @@ impl ConnectionBroker {
         if row.provider_id != provider_id {
             return Err(BrokerError::IntegrationNotFound);
         }
-        let client_secret = match row.secret {
-            Some(secret) => Some(
-                String::from_utf8(crypto::open(
-                    self.sealing_key()?,
-                    &row.id,
-                    &row.organization_id,
-                    &secret,
-                )?)
-                .map_err(|_| BrokerError::SealUnavailable("client secret is not UTF-8".into()))?,
-            ),
-            None => None,
-        };
+        let configuration = self.integration_configuration(&row)?;
         Ok(ProviderConfig {
-            client_id: row.client_id,
-            client_secret,
+            client_id: configuration.get("client_id").cloned(),
+            client_secret: configuration.get("client_secret").cloned(),
             authorize_url: None,
             token_url: None,
         })
@@ -228,6 +276,11 @@ impl ConnectionBroker {
 
     async fn row_view(&self, row: IntegrationRow) -> Result<IntegrationView> {
         let provider = self.provider(&row.provider_id)?;
+        let configuration = self.integration_configuration(&row)?;
+        let configured_fields = configuration::views(
+            provider.auth.integration_configuration_fields(),
+            &configuration,
+        );
         Ok(IntegrationView {
             id: row.id.clone(),
             key: row.key,
@@ -235,19 +288,18 @@ impl ConnectionBroker {
             display_name: row.display_name,
             source: IntegrationSource::Organization,
             enabled: row.enabled,
-            configured: configured(
-                provider,
-                &row.client_id,
-                row.secret.is_some(),
-                self.config.key().is_some(),
-            ),
+            configured: configured(provider, &configuration, self.config.key().is_some()),
             callback_url: provider
                 .auth
                 .is_oauth()
                 .then(|| self.config.callback_url(&provider.id)),
             scopes: row.scopes,
-            client_id_hint: hint(&row.client_id),
-            has_client_secret: row.secret.is_some(),
+            client_id_hint: configured_fields
+                .iter()
+                .find(|field| field.name == "client_id")
+                .and_then(|field| field.hint.clone()),
+            has_client_secret: configuration.contains_key("client_secret"),
+            configured_fields,
             connection_count: self
                 .integration_count(&row.organization_id, &row.id)
                 .await?,
@@ -262,6 +314,14 @@ impl ConnectionBroker {
             return None;
         }
         let cfg = self.config.provider(&provider.id);
+        let configuration = Configuration::from_iter(
+            [
+                ("client_id", cfg.client_id.as_ref()),
+                ("client_secret", cfg.client_secret.as_ref()),
+            ]
+            .into_iter()
+            .filter_map(|(name, value)| value.map(|value| (name.into(), value.clone()))),
+        );
         Some(IntegrationView {
             id: format!("{DEPLOYMENT_PREFIX}{}", provider.id),
             key: format!("deployment-{}", provider.id),
@@ -281,6 +341,10 @@ impl ConnectionBroker {
             scopes: provider.default_scopes(),
             client_id_hint: hint(&cfg.client_id),
             has_client_secret: cfg.client_secret.is_some(),
+            configured_fields: configuration::views(
+                provider.auth.integration_configuration_fields(),
+                &configuration,
+            ),
             connection_count: 0,
             created_by: "deployment".into(),
             created_at: "1970-01-01T00:00:00+00:00".into(),
@@ -343,31 +407,36 @@ impl ConnectionBroker {
         let display_name = text(request.display_name, "display_name")?;
         let provider = self.provider(&provider_id)?;
         let id = format!("integration_{}", uuid::Uuid::new_v4());
-        let client_id = request.client_id.and_then(|v| {
-            let v = v.trim().to_string();
-            (!v.is_empty()).then_some(v)
-        });
-        if client_id.as_ref().is_some_and(|value| value.len() > 4096) {
-            return Err(BrokerError::Invalid("client_id exceeds 4096 bytes".into()));
+        let mut configuration = request.configuration;
+        for (name, value) in [
+            ("client_id", request.client_id),
+            ("client_secret", request.client_secret),
+        ] {
+            if let Some(value) = value {
+                let value = if name == "client_id" {
+                    value.trim().to_string()
+                } else {
+                    value
+                };
+                if value.is_empty() {
+                    continue;
+                }
+                if configuration.insert(name.into(), value).is_some() {
+                    return Err(BrokerError::Invalid(format!(
+                        "configuration field `{name}` was supplied twice"
+                    )));
+                }
+            }
         }
-        if request
-            .client_secret
-            .as_ref()
-            .is_some_and(|value| value.len() > crate::MAX_CREDENTIAL_BYTES)
-        {
-            return Err(BrokerError::Invalid(
-                "client_secret exceeds allowed size".into(),
-            ));
-        }
-        let secret = match request.client_secret.filter(|v| !v.is_empty()) {
-            Some(secret) => Some(crypto::seal(
-                self.sealing_key()?,
-                &id,
-                &organization_id.to_string(),
-                secret.as_bytes(),
-            )?),
-            None => None,
-        };
+        configuration::validate_mutation(
+            provider.auth.integration_configuration_fields(),
+            &configuration,
+            &[],
+        )?;
+        let organization_id_string = organization_id.to_string();
+        let sealed =
+            self.seal_integration_configuration(&id, &organization_id_string, &configuration)?;
+        let configured_field_names: Vec<_> = configuration.keys().cloned().collect();
         let scopes = if request.scopes.is_empty() {
             provider.default_scopes()
         } else {
@@ -376,18 +445,18 @@ impl ConnectionBroker {
         validate_scopes(provider, &scopes)?;
         let now = Utc::now();
         let inserted = sqlx::query(
-            "INSERT INTO integrations (id, organization_id, key, provider_id, display_name, enabled, scopes, client_id, client_secret_ciphertext, client_secret_nonce, client_secret_aad_digest, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO integrations (id, organization_id, key, provider_id, display_name, enabled, scopes, client_id, client_secret_ciphertext, client_secret_nonce, client_secret_aad_digest, configuration_ciphertext, configuration_nonce, configuration_aad_digest, configured_fields, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&id)
-        .bind(organization_id.to_string())
+        .bind(&organization_id_string)
         .bind(&key)
         .bind(&provider_id)
         .bind(&display_name)
         .bind(serde_json::to_string(&scopes)?)
-        .bind(&client_id)
-        .bind(secret.as_ref().map(|s| &s.ciphertext))
-        .bind(secret.as_ref().map(|s| &s.nonce))
-        .bind(secret.as_ref().map(|s| &s.aad_digest))
+        .bind(sealed.as_ref().map(|s| &s.ciphertext))
+        .bind(sealed.as_ref().map(|s| &s.nonce))
+        .bind(sealed.as_ref().map(|s| &s.aad_digest))
+        .bind(serde_json::to_string(&configured_field_names)?)
         .bind(text(request.created_by, "created_by")?)
         .bind(now.to_rfc3339())
         .bind(now.to_rfc3339())
@@ -412,6 +481,29 @@ impl ConnectionBroker {
         if id.starts_with(DEPLOYMENT_PREFIX) {
             return Err(BrokerError::IntegrationReadOnly);
         }
+        let mut configuration_set = request.configuration_set;
+        let mut configuration_clear = request.configuration_clear;
+        for (name, value) in [
+            ("client_id", request.client_id),
+            ("client_secret", request.client_secret),
+        ] {
+            if let Some(value) = value {
+                let value = if name == "client_id" {
+                    value.trim().to_string()
+                } else {
+                    value
+                };
+                if value.is_empty() {
+                    configuration_clear.push(name.into());
+                } else if configuration_set.insert(name.into(), value).is_some() {
+                    return Err(BrokerError::Invalid(format!(
+                        "configuration field `{name}` was supplied twice"
+                    )));
+                }
+            }
+        }
+        let configuration_changed =
+            !configuration_set.is_empty() || !configuration_clear.is_empty();
         let mut transaction = self.pool.begin().await?;
         // ponytail: SQLite has one writer. Taking that lock before the read makes partial
         // PATCHes serialize so one writer cannot restore another writer's old
@@ -448,31 +540,28 @@ impl ConnectionBroker {
             validate_scopes(self.provider(&row.provider_id)?, &scopes)?;
             row.scopes = scopes;
         }
-        if let Some(client_id) = request.client_id {
-            if client_id.len() > 4096 {
-                return Err(BrokerError::Invalid("client_id exceeds 4096 bytes".into()));
-            }
-            row.client_id = (!client_id.trim().is_empty()).then(|| client_id.trim().to_string());
-        }
-        if let Some(secret) = request.client_secret {
-            if secret.len() > crate::MAX_CREDENTIAL_BYTES {
-                return Err(BrokerError::Invalid(
-                    "client_secret exceeds allowed size".into(),
-                ));
-            }
-            row.secret = if secret.is_empty() {
-                None
-            } else {
-                Some(crypto::seal(
-                    self.sealing_key()?,
-                    &row.id,
-                    &row.organization_id,
-                    secret.as_bytes(),
-                )?)
-            };
+        if configuration_changed {
+            let provider = self.provider(&row.provider_id)?;
+            configuration::validate_mutation(
+                provider.auth.integration_configuration_fields(),
+                &configuration_set,
+                &configuration_clear,
+            )?;
+            let mut configuration = self.integration_configuration(&row)?;
+            configuration::apply(&mut configuration, configuration_set, &configuration_clear);
+            configuration::validate_mutation(
+                provider.auth.integration_configuration_fields(),
+                &configuration,
+                &[],
+            )?;
+            row.configuration =
+                self.seal_integration_configuration(&row.id, &row.organization_id, &configuration)?;
+            row.client_id = None;
+            row.secret = None;
+            row.configured_field_names = configuration.keys().cloned().collect();
         }
         row.updated_at = Utc::now();
-        let updated = sqlx::query("UPDATE integrations SET key = ?, display_name = ?, enabled = ?, scopes = ?, client_id = ?, client_secret_ciphertext = ?, client_secret_nonce = ?, client_secret_aad_digest = ?, updated_at = ? WHERE id = ? AND organization_id = ?")
+        let updated = sqlx::query("UPDATE integrations SET key = ?, display_name = ?, enabled = ?, scopes = ?, client_id = ?, client_secret_ciphertext = ?, client_secret_nonce = ?, client_secret_aad_digest = ?, configuration_ciphertext = ?, configuration_nonce = ?, configuration_aad_digest = ?, configured_fields = ?, updated_at = ? WHERE id = ? AND organization_id = ?")
             .bind(&row.key)
             .bind(&row.display_name)
             .bind(i64::from(row.enabled))
@@ -481,6 +570,10 @@ impl ConnectionBroker {
             .bind(row.secret.as_ref().map(|s| &s.ciphertext))
             .bind(row.secret.as_ref().map(|s| &s.nonce))
             .bind(row.secret.as_ref().map(|s| &s.aad_digest))
+            .bind(row.configuration.as_ref().map(|s| &s.ciphertext))
+            .bind(row.configuration.as_ref().map(|s| &s.nonce))
+            .bind(row.configuration.as_ref().map(|s| &s.aad_digest))
+            .bind(serde_json::to_string(&row.configured_field_names)?)
             .bind(row.updated_at.to_rfc3339())
             .bind(&row.id)
             .bind(&row.organization_id)
@@ -555,37 +648,21 @@ impl ConnectionBroker {
         }
         let row = self.integration_row(organization_id, &view.id).await?;
         let provider = self.provider(&row.provider_id)?;
+        let configuration = self.integration_configuration(&row)?;
         if !row.enabled
             || provider_id.is_some_and(|requested| requested != row.provider_id)
-            || !configured(
-                provider,
-                &row.client_id,
-                row.secret.is_some(),
-                self.config.key().is_some(),
-            )
+            || !configured(provider, &configuration, self.config.key().is_some())
         {
             return Err(BrokerError::IntegrationNotFound);
         }
-        let client_secret = match row.secret {
-            Some(secret) => Some(
-                String::from_utf8(crypto::open(
-                    self.sealing_key()?,
-                    &row.id,
-                    &row.organization_id,
-                    &secret,
-                )?)
-                .map_err(|_| BrokerError::SealUnavailable("client secret is not UTF-8".into()))?,
-            ),
-            None => None,
-        };
         let updated_at = row.updated_at.to_rfc3339();
         let deployment = self.config.provider(&provider.id);
         Ok((
             row.id,
             row.provider_id,
             ProviderConfig {
-                client_id: row.client_id,
-                client_secret,
+                client_id: configuration.get("client_id").cloned(),
+                client_secret: configuration.get("client_secret").cloned(),
                 // Endpoint selection remains deployment-controlled. Organization
                 // integrations replace credentials only; they cannot redirect
                 // authorization codes or tokens to arbitrary hosts.

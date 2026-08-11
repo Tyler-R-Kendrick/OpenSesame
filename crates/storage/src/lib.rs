@@ -59,6 +59,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0005_credential_generation",
         include_str!("../../../migrations/0005_credential_generation.sql"),
     ),
+    (
+        "0006_provider_configuration",
+        include_str!("../../../migrations/0006_provider_configuration.sql"),
+    ),
 ];
 
 impl Db {
@@ -649,6 +653,55 @@ mod tests {
             .unwrap()
             .get::<String, _>("version");
         assert!(!version.is_empty());
+    }
+
+    #[tokio::test]
+    async fn provider_configuration_migration_indexes_legacy_fields_without_rewriting_secrets() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        for (_, migration) in &MIGRATIONS[..5] {
+            for statement in split_statements(migration) {
+                sqlx::query(&statement).execute(&pool).await.unwrap();
+            }
+        }
+        sqlx::query("INSERT INTO integrations (id, organization_id, key, provider_id, display_name, enabled, scopes, client_id, client_secret_ciphertext, client_secret_nonce, client_secret_aad_digest, created_by, created_at, updated_at) VALUES ('integration:legacy', 'org:legacy', 'legacy', 'github', 'Legacy', 1, '[]', 'client', X'01', X'02', 'aad', 'principal:admin', 't', 't')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO connections (id, organization_id, project_id, provider_id, logical_name, display_name, status, status_detail, requested_scopes, granted_scopes, account_label, owner_kind, owner_subject, shareability, max_invoke_level, egress_json, created_at, updated_at, integration_id) VALUES ('connection:legacy', 'org:legacy', NULL, 'stripe', 'stripe/main', 'Stripe', 'active', NULL, '[]', '[]', NULL, 'organization', NULL, 'private', 2, '{}', 't', 't', 'integration:legacy')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO connection_credentials (connection_id, version, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, last_refreshed_at, created_at, updated_at) VALUES ('connection:legacy', 'v1', X'03', X'04', 'aad', 'api_key', NULL, 0, NULL, 't', 't')")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        for statement in split_statements(include_str!(
+            "../../../migrations/0006_provider_configuration.sql"
+        )) {
+            sqlx::query(&statement).execute(&pool).await.unwrap();
+        }
+
+        let integration_fields = sqlx::query(
+            "SELECT configured_fields FROM integrations WHERE id = 'integration:legacy'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+        .get::<String, _>("configured_fields");
+        let connection_fields = sqlx::query(
+            "SELECT configured_fields FROM connection_credentials WHERE connection_id = 'connection:legacy'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+        .get::<String, _>("configured_fields");
+        assert_eq!(integration_fields, r#"["client_id","client_secret"]"#);
+        assert_eq!(connection_fields, r#"["api_key"]"#);
     }
 
     #[test]

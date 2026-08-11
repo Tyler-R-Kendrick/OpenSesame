@@ -1,11 +1,12 @@
-//! The token set and its refresh rules.
+//! The sealed connection credential and its refresh rules.
 //!
-//! `TokenSet` is the only structure in the crate holding credential material. It
-//! is sealed before it reaches storage and never crosses the API boundary
-//! (ADR 0032 §6), which is why its `Debug` says nothing.
+//! `TokenSet` holds connection credential material. It is sealed before it reaches
+//! storage and never crosses the API boundary (ADR 0032 §6), which is why its
+//! `Debug` says nothing.
 
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 use crate::catalog::Provider;
 use crate::config::BrokerConfig;
@@ -23,6 +24,8 @@ pub struct TokenSet {
     pub token_type: String,
     pub expires_at: Option<DateTime<Utc>>,
     pub scopes: Vec<String>,
+    #[serde(default)]
+    pub configuration: BTreeMap<String, String>,
 }
 
 impl std::fmt::Debug for TokenSet {
@@ -146,6 +149,7 @@ impl TokenResponse {
             token_type: self.token_type.clone().unwrap_or_else(|| "Bearer".into()),
             expires_at,
             scopes,
+            configuration: BTreeMap::new(),
         })
     }
 
@@ -161,6 +165,7 @@ impl TokenResponse {
                 .filter(|scope| !scope.trim().is_empty())
                 .map(split_scopes)
                 .unwrap_or_else(|| requested_scopes.to_vec()),
+            configuration: BTreeMap::new(),
         }
     }
 }
@@ -223,6 +228,7 @@ mod tests {
             token_type: "Bearer".into(),
             expires_at: Some(Utc::now() + Duration::hours(1)),
             scopes: vec!["read".into()],
+            configuration: BTreeMap::new(),
         }
     }
 

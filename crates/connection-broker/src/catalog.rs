@@ -30,6 +30,31 @@ impl CatalogError {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct ConfigurationFieldDef {
+    pub name: &'static str,
+    pub secret: bool,
+    pub required: bool,
+}
+
+const OAUTH_INTEGRATION_FIELDS: &[ConfigurationFieldDef] = &[
+    ConfigurationFieldDef {
+        name: "client_id",
+        secret: false,
+        required: true,
+    },
+    ConfigurationFieldDef {
+        name: "client_secret",
+        secret: true,
+        required: true,
+    },
+];
+const API_KEY_CONNECTION_FIELDS: &[ConfigurationFieldDef] = &[ConfigurationFieldDef {
+    name: "api_key",
+    secret: true,
+    required: true,
+}];
+
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Category {
@@ -118,6 +143,20 @@ impl AuthMethod {
 
     pub fn is_oauth(&self) -> bool {
         matches!(self, Self::OAuth2AuthCode { .. })
+    }
+
+    pub fn integration_configuration_fields(&self) -> &'static [ConfigurationFieldDef] {
+        match self {
+            Self::OAuth2AuthCode { .. } => OAUTH_INTEGRATION_FIELDS,
+            Self::ApiKey { .. } => &[],
+        }
+    }
+
+    pub fn connection_configuration_fields(&self) -> &'static [ConfigurationFieldDef] {
+        match self {
+            Self::OAuth2AuthCode { .. } => &[],
+            Self::ApiKey { .. } => API_KEY_CONNECTION_FIELDS,
+        }
     }
 }
 

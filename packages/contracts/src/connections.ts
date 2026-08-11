@@ -28,6 +28,42 @@ export const ProviderAuthKindSchema = z.enum([
 ]);
 export type ProviderAuthKind = z.infer<typeof ProviderAuthKindSchema>;
 
+export const ConfigurationFieldDefSchema = z
+  .object({
+    name: z.string().min(1),
+    secret: z.boolean(),
+    required: z.boolean(),
+  })
+  .strict();
+export type ConfigurationFieldDef = z.infer<typeof ConfigurationFieldDefSchema>;
+export const ConfiguredFieldSchema = z
+  .object({
+    name: z.string().min(1),
+    hint: z.string().nullable(),
+  })
+  .strict();
+export type ConfiguredField = z.infer<typeof ConfiguredFieldSchema>;
+const ConfigurationSchema = z
+  .record(
+    z.string().regex(/^[A-Za-z0-9_.-]{1,64}$/),
+    z
+      .string()
+      .min(1)
+      .max(8 * 1024),
+  )
+  .refine((configuration) => Object.keys(configuration).length <= 64, {
+    message: "configuration exceeds 64 fields",
+  })
+  .refine(
+    (configuration) =>
+      Object.entries(configuration).reduce(
+        (bytes, [name, value]) => bytes + name.length + value.length,
+        0,
+      ) <=
+      24 * 1024,
+    { message: "configuration exceeds 24576 bytes" },
+  );
+
 export const ScopeDefSchema = z
   .object({
     name: z.string().min(1),
@@ -64,6 +100,12 @@ export const ProviderSchema = z
     scopes: z.array(ScopeDefSchema),
     egress: EgressSchema,
     operations: z.array(z.string()),
+    integration_configuration_fields: z
+      .array(ConfigurationFieldDefSchema)
+      .default([]),
+    connection_configuration_fields: z
+      .array(ConfigurationFieldDefSchema)
+      .default([]),
   })
   .strict();
 export type Provider = z.infer<typeof ProviderSchema>;
@@ -124,6 +166,7 @@ export const ConnectionSchema = z
     account_label: z.string().nullable(),
     expires_at: z.string().datetime({ offset: true }).nullable(),
     refreshable: z.boolean(),
+    configured_fields: z.array(ConfiguredFieldSchema).default([]),
     last_refreshed_at: z.string().datetime({ offset: true }).nullable(),
     max_invoke_level: z.number().int(),
     egress: EgressSchema,
@@ -190,6 +233,7 @@ export const IntegrationSchema = z
     scopes: z.array(z.string()),
     client_id_hint: z.string().nullable(),
     has_client_secret: z.boolean(),
+    configured_fields: z.array(ConfiguredFieldSchema).default([]),
     connection_count: z.number().int().nonnegative(),
     created_by: z.string().min(1),
     created_at: z.string().datetime({ offset: true }),
@@ -206,6 +250,7 @@ export const CreateIntegrationRequestSchema = z
     scopes: z.array(z.string()).optional(),
     client_id: z.string().min(1).optional(),
     client_secret: z.string().min(1).optional(),
+    configuration: ConfigurationSchema.optional(),
   })
   .strict();
 export type CreateIntegrationRequest = z.infer<
@@ -220,6 +265,8 @@ export const UpdateIntegrationRequestSchema = z
     enabled: z.boolean().optional(),
     client_id: z.string().optional(),
     client_secret: z.string().optional(),
+    configuration_set: ConfigurationSchema.optional(),
+    configuration_clear: z.array(z.string().min(1)).max(64).optional(),
   })
   .strict();
 export type UpdateIntegrationRequest = z.infer<
@@ -246,9 +293,19 @@ export const SetCredentialRequestSchema = z
     value: z
       .string()
       .min(1)
-      .max(8 * 1024),
+      .max(8 * 1024)
+      .optional(),
+    configuration_set: ConfigurationSchema.optional(),
+    configuration_clear: z.array(z.string().min(1)).max(64).optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (request) =>
+      request.value !== undefined ||
+      Object.keys(request.configuration_set ?? {}).length > 0 ||
+      (request.configuration_clear?.length ?? 0) > 0,
+    { message: "configuration_set or configuration_clear is required" },
+  );
 export type SetCredentialRequest = z.infer<typeof SetCredentialRequestSchema>;
 
 export const CreateBindingRequestSchema = z
