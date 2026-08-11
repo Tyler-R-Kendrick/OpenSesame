@@ -114,6 +114,7 @@ async fn organization_oauth_broker_with_token_url(
                 scopes: vec!["read".into(), "offline_access".into()],
                 client_id: Some("mock-client".into()),
                 client_secret: Some("mock-secret".into()),
+                configuration: Default::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -158,6 +159,7 @@ async fn organization_integrations_seal_secrets_and_enforce_scope_ceiling() {
                 scopes: vec!["read:user".into()],
                 client_id: Some("client-id".into()),
                 client_secret: Some("plain-secret".into()),
+                configuration: Default::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -166,14 +168,33 @@ async fn organization_integrations_seal_secrets_and_enforce_scope_ceiling() {
     assert!(integration.configured);
     assert!(integration.has_client_secret);
     assert_eq!(integration.client_id_hint.as_deref(), Some("***t-id"));
+    assert_eq!(
+        integration.configured_fields,
+        vec![
+            ConfiguredFieldView {
+                name: "client_id".into(),
+                hint: Some("***t-id".into()),
+            },
+            ConfiguredFieldView {
+                name: "client_secret".into(),
+                hint: Some("configured".into()),
+            },
+        ]
+    );
 
-    let stored = sqlx::query("SELECT client_secret_ciphertext FROM integrations WHERE id = ?")
+    let stored = sqlx::query("SELECT client_id, client_secret_ciphertext, configuration_ciphertext FROM integrations WHERE id = ?")
         .bind(&integration.id)
         .fetch_one(db.pool())
         .await
-        .unwrap()
-        .get::<Vec<u8>, _>(0);
-    assert_ne!(stored, b"plain-secret");
+        .unwrap();
+    assert!(stored.get::<Option<String>, _>("client_id").is_none());
+    assert!(stored
+        .get::<Option<Vec<u8>>, _>("client_secret_ciphertext")
+        .is_none());
+    assert_ne!(
+        stored.get::<Vec<u8>, _>("configuration_ciphertext"),
+        b"plain-secret"
+    );
 
     let error = broker
         .create_connection(
@@ -211,6 +232,65 @@ async fn organization_integrations_seal_secrets_and_enforce_scope_ceiling() {
 }
 
 #[tokio::test]
+async fn organization_integration_configuration_supports_set_and_clear() {
+    let (_db, broker) = broker().await;
+    let org = OrganizationId::new();
+    let integration = broker
+        .create_integration(
+            &org,
+            CreateIntegration {
+                key: "field-map".into(),
+                provider_id: "github".into(),
+                display_name: "Field map".into(),
+                scopes: vec!["read:user".into()],
+                client_id: None,
+                client_secret: None,
+                configuration: std::collections::BTreeMap::from([
+                    ("client_id".into(), "map-client".into()),
+                    ("client_secret".into(), "map-secret".into()),
+                ]),
+                created_by: "principal:admin".into(),
+            },
+        )
+        .await
+        .unwrap();
+    assert!(integration.configured);
+
+    let cleared = broker
+        .update_integration(
+            &org,
+            &integration.id,
+            UpdateIntegration {
+                configuration_clear: vec!["client_secret".into()],
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert!(!cleared.configured);
+    assert_eq!(cleared.configured_fields.len(), 1);
+
+    let restored = broker
+        .update_integration(
+            &org,
+            &integration.id,
+            UpdateIntegration {
+                configuration_set: std::collections::BTreeMap::from([(
+                    "client_secret".into(),
+                    "rotated".into(),
+                )]),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert!(restored.configured);
+    assert!(!serde_json::to_string(&restored)
+        .unwrap()
+        .contains("rotated"));
+}
+
+#[tokio::test]
 async fn disabled_api_key_integration_blocks_credentials_and_delete_is_guarded() {
     let (_db, broker) = broker().await;
     let org = OrganizationId::new();
@@ -224,6 +304,7 @@ async fn disabled_api_key_integration_blocks_credentials_and_delete_is_guarded()
                 scopes: Vec::new(),
                 client_id: None,
                 client_secret: None,
+                configuration: Default::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -282,6 +363,7 @@ async fn concurrent_integration_patches_preserve_disable_and_secret_rotation() {
                 scopes: vec!["read".into()],
                 client_id: Some("client".into()),
                 client_secret: Some("old-secret".into()),
+                configuration: Default::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -310,7 +392,7 @@ async fn concurrent_integration_patches_preserve_disable_and_secret_rotation() {
 
     let view = broker.get_integration(&org, &integration.id).await.unwrap();
     assert!(!view.enabled);
-    let stored = sqlx::query("SELECT client_secret_ciphertext, client_secret_nonce, client_secret_aad_digest FROM integrations WHERE id = ?")
+    let stored = sqlx::query("SELECT configuration_ciphertext, configuration_nonce, configuration_aad_digest FROM integrations WHERE id = ?")
         .bind(&integration.id)
         .fetch_one(db.pool())
         .await
@@ -320,13 +402,15 @@ async fn concurrent_integration_patches_preserve_disable_and_secret_rotation() {
         &integration.id,
         &org.to_string(),
         &crypto::SealedBlob {
-            ciphertext: stored.get("client_secret_ciphertext"),
-            nonce: stored.get("client_secret_nonce"),
-            aad_digest: stored.get("client_secret_aad_digest"),
+            ciphertext: stored.get("configuration_ciphertext"),
+            nonce: stored.get("configuration_nonce"),
+            aad_digest: stored.get("configuration_aad_digest"),
         },
     )
     .unwrap();
-    assert_eq!(opened, b"new-secret");
+    let configuration: std::collections::BTreeMap<String, String> =
+        serde_json::from_slice(&opened).unwrap();
+    assert_eq!(configuration["client_secret"], "new-secret");
 }
 
 #[tokio::test]
@@ -399,6 +483,7 @@ async fn legacy_connection_is_pinned_before_authorization() {
                 scopes: vec!["read".into()],
                 client_id: Some("other-client".into()),
                 client_secret: Some("other-secret".into()),
+                configuration: Default::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -442,6 +527,7 @@ async fn ambiguous_legacy_connections_remain_readable_with_null_integration() {
                 scopes: vec!["read:user".into()],
                 client_id: Some("second-client".into()),
                 client_secret: Some("second-secret".into()),
+                configuration: Default::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -485,6 +571,7 @@ async fn ambiguous_legacy_connection_can_always_revoke_locally() {
                 scopes: Vec::new(),
                 client_id: None,
                 client_secret: None,
+                configuration: Default::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -975,6 +1062,7 @@ async fn concurrent_connection_create_and_integration_delete_never_orphan() {
                 scopes: Vec::new(),
                 client_id: None,
                 client_secret: None,
+                configuration: Default::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -1345,6 +1433,13 @@ async fn an_api_key_connection_activates_without_a_consent_screen() {
         .await
         .unwrap();
     assert_eq!(active.status, ConnectionStatus::Active);
+    assert_eq!(
+        active.configured_fields,
+        vec![ConfiguredFieldView {
+            name: "api_key".into(),
+            hint: Some("configured".into()),
+        }]
+    );
     assert!(!active.refreshable);
     assert!(active.expires_at.is_none());
 
@@ -1359,6 +1454,18 @@ async fn an_api_key_connection_activates_without_a_consent_screen() {
         .await
         .unwrap_err();
     assert_eq!(empty.code(), "invalid_request");
+
+    let cleared = broker
+        .set_connection_configuration(
+            &org,
+            &view.connection_id,
+            Default::default(),
+            vec!["api_key".into()],
+        )
+        .await
+        .unwrap();
+    assert_eq!(cleared.status, ConnectionStatus::Pending);
+    assert!(cleared.configured_fields.is_empty());
 }
 
 #[tokio::test]
@@ -1615,6 +1722,7 @@ async fn a_refresh_that_lost_a_race_does_not_report_reauth() {
         token_type: "api_key".into(),
         expires_at: None,
         scopes: Vec::new(),
+        configuration: Default::default(),
     };
     // What is on record is still what this refresh read, so a rejection would be
     // the connection's own news.

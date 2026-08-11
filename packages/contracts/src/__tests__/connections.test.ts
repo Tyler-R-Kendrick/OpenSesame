@@ -51,6 +51,11 @@ const provider = {
   ],
   egress,
   operations: ["repository.read", "pull_request.create"],
+  integration_configuration_fields: [
+    { name: "client_id", secret: false, required: true },
+    { name: "client_secret", secret: true, required: true },
+  ],
+  connection_configuration_fields: [],
 };
 
 const binding = {
@@ -79,6 +84,7 @@ const connection = {
   account_label: null,
   expires_at: null,
   refreshable: false,
+  configured_fields: [],
   last_refreshed_at: null,
   max_invoke_level: 2,
   egress,
@@ -106,6 +112,10 @@ const integration = {
   scopes: ["read:user"],
   client_id_hint: "***1234",
   has_client_secret: true,
+  configured_fields: [
+    { name: "client_id", hint: "***1234" },
+    { name: "client_secret", hint: "configured" },
+  ],
   connection_count: 0,
   created_by: "principal:admin",
   created_at: "2026-08-08T10:00:00.000Z",
@@ -160,6 +170,17 @@ describe("connection broker contracts", () => {
       "key",
     );
     expect(
+      SetCredentialRequestSchema.parse({
+        configuration_set: { api_key: "key" },
+      }).configuration_set,
+    ).toEqual({ api_key: "key" });
+    expect(
+      SetCredentialRequestSchema.parse({
+        configuration_clear: ["api_key"],
+      }).configuration_clear,
+    ).toEqual(["api_key"]);
+    expect(() => SetCredentialRequestSchema.parse({})).toThrow();
+    expect(
       SetCredentialRequestSchema.parse({ value: "k".repeat(8 * 1024) }).value,
     ).toHaveLength(8 * 1024);
     expect(() =>
@@ -189,6 +210,12 @@ describe("connection broker contracts", () => {
     expect(
       UpdateIntegrationRequestSchema.parse({ client_secret: "" }).client_secret,
     ).toBe("");
+    expect(
+      UpdateIntegrationRequestSchema.parse({
+        configuration_set: { client_id: "new-client" },
+        configuration_clear: ["client_secret"],
+      }).configuration_clear,
+    ).toEqual(["client_secret"]);
     expect(() =>
       UpdateIntegrationRequestSchema.parse({ provider_id: "github" }),
     ).toThrow();

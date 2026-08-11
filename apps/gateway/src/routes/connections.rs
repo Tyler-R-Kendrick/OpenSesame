@@ -16,7 +16,7 @@ use opensesame_connection_broker::{
 };
 use serde::Deserialize;
 use serde_json::json;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::app_state::AppState;
 use crate::middleware::auth::{resolve_caller, Caller};
@@ -179,6 +179,8 @@ pub struct CreateIntegrationBody {
     pub scopes: Vec<String>,
     pub client_id: Option<String>,
     pub client_secret: Option<String>,
+    #[serde(default)]
+    pub configuration: BTreeMap<String, String>,
 }
 
 fn require_integration_admin(who: &Caller) -> Result<(), Response> {
@@ -221,6 +223,7 @@ pub async fn create_integration(
                 scopes: body.scopes,
                 client_id: body.client_id,
                 client_secret: body.client_secret,
+                configuration: body.configuration,
                 created_by,
             },
         )
@@ -259,6 +262,10 @@ pub struct UpdateIntegrationBody {
     pub scopes: Option<Vec<String>>,
     pub client_id: Option<String>,
     pub client_secret: Option<String>,
+    #[serde(default)]
+    pub configuration_set: BTreeMap<String, String>,
+    #[serde(default)]
+    pub configuration_clear: Vec<String>,
 }
 
 pub async fn update_integration(
@@ -290,6 +297,8 @@ pub async fn update_integration(
                 scopes: body.scopes,
                 client_id: body.client_id,
                 client_secret: body.client_secret,
+                configuration_set: body.configuration_set,
+                configuration_clear: body.configuration_clear,
             },
         )
         .await
@@ -501,7 +510,11 @@ pub async fn refresh(
 #[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CredentialBody {
-    pub value: String,
+    pub value: Option<String>,
+    #[serde(default)]
+    pub configuration_set: BTreeMap<String, String>,
+    #[serde(default)]
+    pub configuration_clear: Vec<String>,
 }
 
 pub async fn set_credential(
@@ -522,9 +535,27 @@ pub async fn set_credential(
         Ok(b) => b,
         Err(resp) => return resp,
     };
+    let mut configuration_set = body.configuration_set;
+    if let Some(value) = body.value {
+        if configuration_set.insert("api_key".into(), value).is_some() {
+            return broker_error(BrokerError::Invalid(
+                "configuration field `api_key` was supplied twice".into(),
+            ));
+        }
+    }
+    if configuration_set.is_empty() && body.configuration_clear.is_empty() {
+        return broker_error(BrokerError::Invalid(
+            "configuration_set or configuration_clear is required".into(),
+        ));
+    }
     match st
         .connection_broker
-        .set_api_key(&organization_id, &id, &body.value)
+        .set_connection_configuration(
+            &organization_id,
+            &id,
+            configuration_set,
+            body.configuration_clear,
+        )
         .await
     {
         Ok(view) => Json(view).into_response(),

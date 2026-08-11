@@ -46,6 +46,7 @@ pub struct CredentialRow {
     pub expires_at: Option<DateTime<Utc>>,
     pub refreshable: bool,
     pub last_refreshed_at: Option<DateTime<Utc>>,
+    pub configured_field_names: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -399,7 +400,7 @@ pub async fn activate_credential_unless_revoked(
         }
     }
     sqlx::query(
-        "INSERT INTO connection_credentials (connection_id, version, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, last_refreshed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(connection_id) DO UPDATE SET version = excluded.version, ciphertext = excluded.ciphertext, nonce = excluded.nonce, aad_digest = excluded.aad_digest, token_type = excluded.token_type, expires_at = excluded.expires_at, refreshable = excluded.refreshable, last_refreshed_at = excluded.last_refreshed_at, updated_at = excluded.updated_at",
+        "INSERT INTO connection_credentials (connection_id, version, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, last_refreshed_at, configured_fields, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(connection_id) DO UPDATE SET version = excluded.version, ciphertext = excluded.ciphertext, nonce = excluded.nonce, aad_digest = excluded.aad_digest, token_type = excluded.token_type, expires_at = excluded.expires_at, refreshable = excluded.refreshable, last_refreshed_at = excluded.last_refreshed_at, configured_fields = excluded.configured_fields, updated_at = excluded.updated_at",
     )
     .bind(&c.connection_id)
     .bind(&c.version)
@@ -410,6 +411,7 @@ pub async fn activate_credential_unless_revoked(
     .bind(c.expires_at.map(|time| time.to_rfc3339()))
     .bind(i64::from(c.refreshable))
     .bind(c.last_refreshed_at.map(|time| time.to_rfc3339()))
+    .bind(serde_json::to_string(&c.configured_field_names)?)
     .bind(&now)
     .bind(&now)
     .execute(&mut *transaction)
@@ -440,7 +442,7 @@ pub async fn get_credential(
 ) -> Result<Option<CredentialRow>> {
     let row = sqlx::query(
         "SELECT connection_id, version, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, \
-         last_refreshed_at FROM connection_credentials WHERE connection_id = ?",
+         last_refreshed_at, configured_fields FROM connection_credentials WHERE connection_id = ?",
     )
     .bind(connection_id)
     .fetch_optional(pool)
@@ -461,7 +463,50 @@ pub async fn get_credential(
         last_refreshed_at: r
             .get::<Option<String>, _>("last_refreshed_at")
             .map(|s| parse_time(&s)),
+        configured_field_names: parse_list(&r.get::<String, _>("configured_fields")),
     }))
+}
+
+pub async fn clear_credential_unless_revoked(
+    pool: &SqlitePool,
+    connection_id: &str,
+    expected_version: Option<&str>,
+) -> Result<CredentialActivationOutcome> {
+    let mut transaction = pool.begin().await?;
+    sqlx::query("UPDATE connections SET updated_at = updated_at WHERE id = ?")
+        .bind(connection_id)
+        .execute(&mut *transaction)
+        .await?;
+    let status = sqlx::query("SELECT status FROM connections WHERE id = ?")
+        .bind(connection_id)
+        .fetch_one(&mut *transaction)
+        .await?
+        .get::<String, _>("status");
+    if status == "revoked" {
+        transaction.rollback().await?;
+        return Ok(CredentialActivationOutcome::Revoked);
+    }
+    let current_version =
+        sqlx::query("SELECT version FROM connection_credentials WHERE connection_id = ?")
+            .bind(connection_id)
+            .fetch_optional(&mut *transaction)
+            .await?
+            .map(|row| row.get::<String, _>("version"));
+    if current_version.as_deref() != expected_version {
+        transaction.rollback().await?;
+        return Ok(CredentialActivationOutcome::Superseded);
+    }
+    sqlx::query("DELETE FROM connection_credentials WHERE connection_id = ?")
+        .bind(connection_id)
+        .execute(&mut *transaction)
+        .await?;
+    sqlx::query("UPDATE connections SET status = 'pending', status_detail = NULL, granted_scopes = '[]', updated_at = ? WHERE id = ?")
+        .bind(Utc::now().to_rfc3339())
+        .bind(connection_id)
+        .execute(&mut *transaction)
+        .await?;
+    transaction.commit().await?;
+    Ok(CredentialActivationOutcome::Activated)
 }
 
 pub async fn delete_credential(pool: &SqlitePool, connection_id: &str) -> Result<()> {

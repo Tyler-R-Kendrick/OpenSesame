@@ -9,6 +9,7 @@
 
 pub mod catalog;
 pub mod config;
+pub mod configuration;
 pub mod crypto;
 pub mod error;
 pub mod flow;
@@ -17,6 +18,7 @@ pub mod model;
 pub mod store;
 pub mod token;
 
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 #[cfg(test)]
@@ -45,8 +47,8 @@ use crate::token::TokenSet;
 /// A connection's ceiling is constrained HTTP inside its provider's egress
 /// allowlist; materialization stays denied (ADR 0005).
 const DEFAULT_MAX_INVOKE_LEVEL: u8 = 2;
-/// Longest API key this will seal and store. Real keys are a few hundred bytes;
-/// anything larger is a payload aimed at the shared store.
+/// Longest provider configuration value this will seal and store. Real keys are
+/// a few hundred bytes; anything larger is a payload aimed at the shared store.
 pub const MAX_CREDENTIAL_BYTES: usize = 8 * 1024;
 
 struct TokenActivation<'a> {
@@ -938,6 +940,22 @@ impl ConnectionBroker {
         id: &str,
         value: &str,
     ) -> Result<ConnectionView> {
+        self.set_connection_configuration(
+            organization_id,
+            id,
+            BTreeMap::from([("api_key".into(), value.trim().into())]),
+            Vec::new(),
+        )
+        .await
+    }
+
+    pub async fn set_connection_configuration(
+        &self,
+        organization_id: &OrganizationId,
+        id: &str,
+        mut configuration_set: BTreeMap<String, String>,
+        configuration_clear: Vec<String>,
+    ) -> Result<ConnectionView> {
         let mut row = self.row_in_org(organization_id, id).await?;
         let provider = self.provider(&row.provider_id)?;
         let (integration_id, _, _, _, expected_integration_updated_at) = self
@@ -954,24 +972,56 @@ impl ConnectionBroker {
         let AuthMethod::ApiKey { .. } = &provider.auth else {
             return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
         };
-        if value.trim().is_empty() {
-            return Err(BrokerError::Invalid("credential value is empty".into()));
+        if let Some(value) = configuration_set.get_mut("api_key") {
+            *value = value.trim().to_string();
         }
-        // A credential is a key, not a payload. Checked before sealing and storing,
-        // so an oversized one costs neither the AEAD nor the shared database.
-        if value.trim().len() > MAX_CREDENTIAL_BYTES {
-            return Err(BrokerError::Invalid(format!(
-                "credential value exceeds {MAX_CREDENTIAL_BYTES} bytes"
-            )));
-        }
+        let definitions = provider.auth.connection_configuration_fields();
+        configuration::validate_mutation(definitions, &configuration_set, &configuration_clear)?;
         let key = *self.sealing_key()?;
-
+        let current = store::get_credential(&self.pool, &row.id).await?;
+        let expected_version = current
+            .as_ref()
+            .map(|credential| credential.version.clone());
+        let mut configuration = match current.as_ref() {
+            Some(credential) => {
+                let tokens = self.open_tokens(&key, &row, credential)?;
+                if tokens.configuration.is_empty() && tokens.token_type == "api_key" {
+                    BTreeMap::from([("api_key".into(), tokens.access_token)])
+                } else {
+                    tokens.configuration
+                }
+            }
+            None => BTreeMap::new(),
+        };
+        configuration::apply(&mut configuration, configuration_set, &configuration_clear);
+        configuration::validate_mutation(definitions, &configuration, &[])?;
+        if !configuration::complete(definitions, &configuration) {
+            let outcome = store::clear_credential_unless_revoked(
+                &self.pool,
+                &row.id,
+                expected_version.as_deref(),
+            )
+            .await?;
+            return match outcome {
+                store::CredentialActivationOutcome::Activated
+                | store::CredentialActivationOutcome::Superseded => {
+                    self.get_connection_unscoped(&row.id).await
+                }
+                store::CredentialActivationOutcome::Revoked => {
+                    Err(BrokerError::Invalid("connection is revoked".into()))
+                }
+            };
+        }
+        let value = configuration
+            .get("api_key")
+            .expect("complete API key configuration");
         let tokens = TokenSet {
-            access_token: value.trim().to_string(),
+            access_token: value.clone(),
             refresh_token: None,
             token_type: "api_key".into(),
             expires_at: None,
             scopes: Vec::new(),
+            configuration,
         };
         match self
             .store_tokens(
@@ -984,7 +1034,7 @@ impl ConnectionBroker {
                     expected_integration_updated_at: expected_integration_updated_at.as_deref(),
                     event_kind: EventKind::Authorized,
                     event_detail: Some("api key stored"),
-                    expected_credential_version: None,
+                    expected_credential_version: Some(expected_version.as_deref()),
                 },
             )
             .await?
@@ -1167,6 +1217,7 @@ impl ConnectionBroker {
             last_refreshed_at: activation
                 .refreshed_at
                 .or(previous.as_ref().and_then(|p| p.last_refreshed_at)),
+            configured_field_names: tokens.configuration.keys().cloned().collect(),
         };
         let request = store::CredentialActivation {
             credential: &credential,
@@ -1229,6 +1280,19 @@ impl ConnectionBroker {
             account_label: row.account_label.clone(),
             expires_at: expires_at.map(|t| t.to_rfc3339()),
             refreshable,
+            configured_fields: credential
+                .as_ref()
+                .map(|credential| {
+                    credential
+                        .configured_field_names
+                        .iter()
+                        .map(|name| crate::model::ConfiguredFieldView {
+                            name: name.clone(),
+                            hint: Some("configured".into()),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
             last_refreshed_at: credential
                 .as_ref()
                 .and_then(|c| c.last_refreshed_at)

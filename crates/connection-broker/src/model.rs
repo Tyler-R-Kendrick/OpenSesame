@@ -7,7 +7,13 @@
 use opensesame_domain::{ConnectionOwnerKind, EgressBinding, Shareability};
 use serde::{Deserialize, Serialize};
 
-use crate::catalog::{Category, Provider, ScopeDef};
+use crate::catalog::{Category, ConfigurationFieldDef, Provider, ScopeDef};
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ConfiguredFieldView {
+    pub name: String,
+    pub hint: Option<String>,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -153,6 +159,8 @@ pub struct ProviderView {
     pub scopes: Vec<ScopeView>,
     pub egress: EgressView,
     pub operations: Vec<String>,
+    pub integration_configuration_fields: Vec<ConfigurationFieldDef>,
+    pub connection_configuration_fields: Vec<ConfigurationFieldDef>,
 }
 
 impl ProviderView {
@@ -178,6 +186,14 @@ impl ProviderView {
             scopes: provider.scopes.iter().map(ScopeView::from).collect(),
             egress: EgressView::from(&provider.egress.binding()),
             operations: provider.operations.iter().map(|o| o.to_string()).collect(),
+            integration_configuration_fields: provider
+                .auth
+                .integration_configuration_fields()
+                .to_vec(),
+            connection_configuration_fields: provider
+                .auth
+                .connection_configuration_fields()
+                .to_vec(),
         }
     }
 }
@@ -219,6 +235,7 @@ pub struct ConnectionView {
     pub account_label: Option<String>,
     pub expires_at: Option<String>,
     pub refreshable: bool,
+    pub configured_fields: Vec<ConfiguredFieldView>,
     pub last_refreshed_at: Option<String>,
     pub max_invoke_level: u8,
     pub egress: EgressView,
