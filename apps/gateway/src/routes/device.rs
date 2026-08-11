@@ -10,8 +10,8 @@ use serde_json::json;
 
 use opensesame_claims::{hash_eq, hash_low_entropy, hash_secret};
 
-use crate::app_state::AppState;
-use crate::middleware::auth::{require_demo_bootstrap, require_operator};
+use crate::app_state::{AppState, ApprovedDevice};
+use crate::middleware::auth::{require_demo_bootstrap, require_operator, same_principal_subject};
 
 /// Failed `user_code` guesses tolerated across the whole instance per window.
 ///
@@ -63,7 +63,7 @@ pub async fn authorize(
         crate::app_state::DevicePending {
             user_code_hash: user_code_digest(&st.claim_pepper, &device_digest, &user_code),
             expires_at,
-            approved_principal: None,
+            approved: None,
         },
     );
     // device_code returned once to client process — never logged
@@ -104,6 +104,10 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
         )
             .into_response();
     }
+    // Membership mutations revoke approved grants and live sessions together.
+    // Hold the same lifecycle fence until this grant is consumed and its session
+    // is published, so revocation cannot slip between those two states.
+    let _lifecycle = st.session_lifecycle.lock().unwrap();
     let device_code_hash = hash_secret(&req.device_code);
     let mut map = st.device_codes.lock().unwrap();
     let Some(pending) = map.get_mut(&device_code_hash) else {
@@ -120,32 +124,40 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
         )
             .into_response();
     }
-    let Some(principal) = pending.approved_principal.clone() else {
+    let Some(approved) = pending.approved.clone() else {
         return (
             StatusCode::BAD_REQUEST,
             Json(json!({"error":"authorization_pending"})),
         )
             .into_response();
     };
-    let boot = match require_demo_bootstrap(&st) {
-        Ok(b) => b,
-        Err(resp) => return resp,
-    };
+    // Identity already supplied the trusted principal, organization, and role.
+    // Demo bootstrap metadata is useful in development, but production disables
+    // that bootstrap and must still be able to mint this organization session.
+    let boot = st.bootstrap.lock().unwrap().clone().filter(|boot| {
+        boot.org == approved.organization_id
+            && same_principal_subject(&approved.principal, &boot.principal.to_string())
+    });
     let session_id = format!("sess_{}", uuid::Uuid::new_v4());
     // The session id *is* the bearer; only its digest is retained server-side.
     let session_digest = hash_secret(&session_id);
-    let handle = format!("handle_{}", uuid::Uuid::new_v4());
+    let actor_id = boot.as_ref().map(|boot| boot.actor.to_string());
+    let project_id = boot.as_ref().map(|boot| boot.project.to_string());
+    let credential_handle = boot
+        .as_ref()
+        .map(|_| format!("handle_{}", uuid::Uuid::new_v4()));
     // Bind session to the *approved* principal — never the bootstrap demo id alone.
     let meta = json!({
         "session_id": session_id,
-        "principal_id": principal.clone(),
-        "actor_id": boot.actor.to_string(),
+        "principal_id": approved.principal.clone(),
+        "actor_id": actor_id,
         "issuer": st.issuer,
         "assurance": "mfa",
-        "organization_id": boot.org.to_string(),
-        "project_id": boot.project.to_string(),
-        "credential_handle": handle,
-        "approved_as": principal,
+        "organization_id": approved.organization_id.to_string(),
+        "organization_role": approved.organization_role,
+        "project_id": project_id,
+        "credential_handle": credential_handle,
+        "approved_as": approved.principal,
         "expires_at": (Utc::now() + Duration::hours(8)).to_rfc3339()
     });
     {
@@ -188,6 +200,30 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
 pub struct DeviceApproveRequest {
     user_code: String,
     principal: Option<String>,
+    organization_id: Option<String>,
+    organization_role: Option<opensesame_domain::OrganizationRole>,
+}
+
+fn approved_organization(
+    organization_id: Option<&str>,
+    organization_role: Option<opensesame_domain::OrganizationRole>,
+    operator_default: Option<opensesame_domain::OrganizationId>,
+) -> Result<
+    (
+        opensesame_domain::OrganizationId,
+        opensesame_domain::OrganizationRole,
+    ),
+    &'static str,
+> {
+    match (organization_id, organization_role) {
+        (Some(id), Some(role)) => opensesame_domain::OrganizationId::parse(id)
+            .map(|id| (id, role))
+            .map_err(|_| "invalid_organization_id"),
+        (None, None) => operator_default
+            .map(|id| (id, opensesame_domain::OrganizationRole::Owner))
+            .ok_or("demo_bootstrap_unavailable"),
+        _ => Err("organization_claims_incomplete"),
+    }
 }
 
 /// Keyed, per-device digest of a user code.
@@ -225,7 +261,30 @@ pub async fn approve(
     for (device_digest, pending) in map.iter_mut() {
         let attempt_hash = user_code_digest(&st.claim_pepper, device_digest, &req.user_code);
         if hash_eq(&attempt_hash, &pending.user_code_hash) {
-            pending.approved_principal = Some(req.principal.unwrap_or_else(|| "user:demo".into()));
+            let operator_default =
+                if req.organization_id.is_none() && req.organization_role.is_none() {
+                    match require_demo_bootstrap(&st) {
+                        Ok(boot) => Some(boot.org),
+                        Err(resp) => return resp,
+                    }
+                } else {
+                    None
+                };
+            let organization = match approved_organization(
+                req.organization_id.as_deref(),
+                req.organization_role,
+                operator_default,
+            ) {
+                Ok(organization) => organization,
+                Err(error) => {
+                    return (StatusCode::BAD_REQUEST, Json(json!({"error":error}))).into_response();
+                }
+            };
+            pending.approved = Some(ApprovedDevice {
+                principal: req.principal.unwrap_or_else(|| "user:demo".into()),
+                organization_id: organization.0,
+                organization_role: organization.1,
+            });
             return (StatusCode::OK, Json(json!({"status":"approved"}))).into_response();
         }
     }
@@ -250,8 +309,41 @@ mod tests {
         DevicePending {
             user_code_hash: user_code_digest(TEST_PEPPER, device_digest, user_code),
             expires_at: Utc::now() + Duration::minutes(15),
-            approved_principal: None,
+            approved: None,
         }
+    }
+
+    async fn mint_approved(
+        state: &AppState,
+        device_code: &str,
+        principal: String,
+        organization_id: opensesame_domain::OrganizationId,
+    ) -> serde_json::Value {
+        state.device_codes.lock().unwrap().insert(
+            hash_secret(device_code),
+            DevicePending {
+                user_code_hash: "digest".into(),
+                expires_at: Utc::now() + Duration::minutes(5),
+                approved: Some(ApprovedDevice {
+                    principal,
+                    organization_id,
+                    organization_role: opensesame_domain::OrganizationRole::Member,
+                }),
+            },
+        );
+        let response = token(
+            State(state.clone()),
+            Json(DeviceTokenRequest {
+                device_code: device_code.into(),
+                grant_type: "urn:ietf:params:oauth:grant-type:device_code".into(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        serde_json::from_slice(&body).unwrap()
     }
 
     #[test]
@@ -354,5 +446,124 @@ mod tests {
         // Everything ages out after the window.
         let later = now + Duration::seconds(APPROVE_FAILURE_WINDOW_SECS + 1);
         assert_eq!(prune_failures(&mut failures, later), 0);
+    }
+
+    #[test]
+    fn identity_organization_id_round_trips_into_host_claims() {
+        let id = "org:018f4b93-7f20-7b14-8f6d-8f435274ca1f";
+        let (organization_id, role) = approved_organization(
+            Some(id),
+            Some(opensesame_domain::OrganizationRole::Member),
+            None,
+        )
+        .expect("canonical Identity organization id");
+        assert_eq!(organization_id.to_string(), id);
+        assert_eq!(role, opensesame_domain::OrganizationRole::Member);
+        assert_eq!(
+            approved_organization(
+                Some("org_018f4b93-7f20-7b14-8f6d-8f435274ca1f"),
+                Some(opensesame_domain::OrganizationRole::Member),
+                None,
+            ),
+            Err("invalid_organization_id")
+        );
+    }
+
+    #[tokio::test]
+    async fn trusted_organization_session_mints_and_identifies_without_demo_bootstrap() {
+        let state = crate::app_state::test_demo_state().await;
+        let device_code = "dc_production";
+        let organization_id = opensesame_domain::OrganizationId::new();
+        let principal = opensesame_domain::PrincipalId::new().to_string();
+        state.device_codes.lock().unwrap().insert(
+            hash_secret(device_code),
+            DevicePending {
+                user_code_hash: "digest".into(),
+                expires_at: Utc::now() + Duration::minutes(5),
+                approved: Some(ApprovedDevice {
+                    principal: principal.clone(),
+                    organization_id,
+                    organization_role: opensesame_domain::OrganizationRole::Admin,
+                }),
+            },
+        );
+        *state.bootstrap.lock().unwrap() = None;
+
+        let response = token(
+            State(state.clone()),
+            Json(DeviceTokenRequest {
+                device_code: device_code.into(),
+                grant_type: "urn:ietf:params:oauth:grant-type:device_code".into(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(body["session"]["actor_id"].is_null());
+        assert!(body["session"]["project_id"].is_null());
+        assert!(body["session"]["credential_handle"].is_null());
+
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            format!("Bearer {}", body["access_token"].as_str().unwrap())
+                .parse()
+                .unwrap(),
+        );
+        let whoami = crate::routes::session::whoami(State(state), headers).await;
+        assert_eq!(whoami.status(), StatusCode::OK);
+        let whoami = axum::body::to_bytes(whoami.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let whoami: serde_json::Value = serde_json::from_slice(&whoami).unwrap();
+        assert_eq!(whoami["principal_id"], principal);
+        assert_eq!(whoami["organization_id"], organization_id.to_string());
+        assert_eq!(whoami["organization_role"], "admin");
+    }
+
+    #[tokio::test]
+    async fn demo_metadata_only_attaches_to_matching_approved_authority() {
+        let state = crate::app_state::test_demo_state().await;
+        let bootstrap = state.bootstrap.lock().unwrap().clone().unwrap();
+        let identity_principal = format!("prn_{}", bootstrap.principal.as_uuid());
+
+        let matching = mint_approved(
+            &state,
+            "dc_matching",
+            identity_principal.clone(),
+            bootstrap.org,
+        )
+        .await;
+        assert_eq!(matching["session"]["actor_id"], bootstrap.actor.to_string());
+        assert_eq!(
+            matching["session"]["project_id"],
+            bootstrap.project.to_string()
+        );
+        assert!(matching["session"]["credential_handle"].is_string());
+
+        let foreign_org = mint_approved(
+            &state,
+            "dc_foreign_org",
+            identity_principal,
+            opensesame_domain::OrganizationId::new(),
+        )
+        .await;
+        assert!(foreign_org["session"]["actor_id"].is_null());
+        assert!(foreign_org["session"]["project_id"].is_null());
+        assert!(foreign_org["session"]["credential_handle"].is_null());
+
+        let foreign_principal = mint_approved(
+            &state,
+            "dc_foreign_principal",
+            opensesame_domain::PrincipalId::new().to_string(),
+            bootstrap.org,
+        )
+        .await;
+        assert!(foreign_principal["session"]["actor_id"].is_null());
+        assert!(foreign_principal["session"]["project_id"].is_null());
+        assert!(foreign_principal["session"]["credential_handle"].is_null());
     }
 }

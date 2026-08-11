@@ -10,6 +10,32 @@ pub struct Db {
     pool: SqlitePool,
 }
 
+/// Receipt evidence plus the authoritative organization resolved through its
+/// invocation and intent. Legacy signed bodies may omit the organization; the
+/// join supplies authorization context without changing the signed bytes.
+pub struct StoredReceipt {
+    pub receipt: InvocationReceipt,
+    pub organization_id: OrganizationId,
+}
+
+fn decode_receipt_for_organization(
+    body: &str,
+    organization_id: &str,
+) -> anyhow::Result<StoredReceipt> {
+    let receipt: InvocationReceipt = serde_json::from_str(body)?;
+    let organization_id = OrganizationId::parse(organization_id)?;
+    if receipt
+        .organization_id
+        .is_some_and(|claimed| claimed != organization_id)
+    {
+        anyhow::bail!("receipt organization does not match invocation intent");
+    }
+    Ok(StoredReceipt {
+        receipt,
+        organization_id,
+    })
+}
+
 impl Db {
     pub async fn connect_sqlite(url: &str) -> anyhow::Result<Self> {
         let pool = SqlitePoolOptions::new()
@@ -153,18 +179,27 @@ impl Db {
     pub async fn get_receipt(
         &self,
         id: &opensesame_domain::ReceiptId,
-    ) -> anyhow::Result<Option<InvocationReceipt>> {
+    ) -> anyhow::Result<Option<StoredReceipt>> {
         let keyed = id.to_string();
         let bare = id.as_uuid().to_string();
-        let row = sqlx::query("SELECT id, body_json FROM receipts WHERE id = ? OR id = ?")
-            .bind(&keyed)
-            .bind(&bare)
-            .fetch_optional(&self.pool)
-            .await?;
+        let row = sqlx::query(
+            r#"
+            SELECT r.body_json, i.organization_id AS authoritative_organization_id
+            FROM receipts r
+            JOIN invocations inv ON inv.id = r.invocation_id
+            JOIN intents i ON i.id = inv.intent_id
+            WHERE r.id = ? OR r.id = ?
+            "#,
+        )
+        .bind(&keyed)
+        .bind(&bare)
+        .fetch_optional(&self.pool)
+        .await?;
         Ok(match row {
             Some(r) => {
                 let body: String = r.get("body_json");
-                Some(serde_json::from_str(&body)?)
+                let organization_id: String = r.get("authoritative_organization_id");
+                Some(decode_receipt_for_organization(&body, &organization_id)?)
             }
             None => None,
         })
@@ -195,7 +230,7 @@ impl Db {
     ) -> anyhow::Result<Option<InvocationReceipt>> {
         let row = sqlx::query(
             r#"
-            SELECT r.body_json
+            SELECT r.body_json, i.organization_id AS authoritative_organization_id
             FROM receipts r
             JOIN invocations inv ON inv.id = r.invocation_id
             JOIN intents i ON i.id = inv.intent_id
@@ -211,7 +246,8 @@ impl Db {
         Ok(match row {
             Some(r) => {
                 let body: String = r.get("body_json");
-                Some(serde_json::from_str(&body)?)
+                let organization_id: String = r.get("authoritative_organization_id");
+                Some(decode_receipt_for_organization(&body, &organization_id)?.receipt)
             }
             None => None,
         })
@@ -283,7 +319,91 @@ pub fn sqlite_file_url(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opensesame_domain::OrganizationId;
+    use chrono::{Duration, Utc};
+    use opensesame_domain::*;
+    use serde_json::json;
+
+    fn evidence(
+        organization_id: OrganizationId,
+        claimed_organization_id: Option<OrganizationId>,
+        idempotency_key: &str,
+    ) -> (Intent, Invocation, InvocationReceipt) {
+        let now = Utc::now();
+        let intent = Intent {
+            id: IntentId::new(),
+            organization_id,
+            project_id: None,
+            principal_id: PrincipalId::new(),
+            actor_id: ActorId::new(),
+            actor_instance_id: None,
+            client_id: None,
+            operator_id: None,
+            connection_id: None,
+            operation: "read".into(),
+            resource: "doc:1".into(),
+            audience: "https://resource.example".into(),
+            normalized_parameters_hash: Intent::parameters_hash(&json!({})).unwrap(),
+            body_hash: None,
+            nonce: uuid::Uuid::new_v4().to_string(),
+            idempotency_key: idempotency_key.into(),
+            issued_at: now,
+            expires_at: now + Duration::minutes(5),
+            parent_invocation_id: None,
+            delegation_chain: vec![],
+            proof: DetachedProof {
+                algorithm: "test".into(),
+                key_thumbprint: "test".into(),
+                signature: "test".into(),
+            },
+        };
+        let invocation = Invocation {
+            id: InvocationId::new(),
+            intent_id: intent.id,
+            state: InvocationState::Succeeded,
+            attempt: 1,
+            lease_owner: None,
+            lease_expires_at: None,
+            created_at: now,
+            updated_at: now,
+        };
+        let receipt = InvocationReceipt {
+            id: ReceiptId::new(),
+            invocation_id: invocation.id,
+            intent_digest: "sha256:intent".into(),
+            principal_id: intent.principal_id,
+            organization_id: claimed_organization_id,
+            actor_id: intent.actor_id,
+            actor_instance_id: None,
+            client_id: None,
+            operator_id: None,
+            delegation_chain: vec![],
+            connection_id: None,
+            operation: intent.operation.clone(),
+            resource: intent.resource.clone(),
+            policy_decision_id: "decision".into(),
+            policy_version_digest: "sha256:policy".into(),
+            approval_id: None,
+            credential_handle_id: None,
+            connector_component_digest: None,
+            external_request_digest: None,
+            external_response_digest: None,
+            started_at: now,
+            completed_at: now,
+            outcome: ReceiptOutcome::Succeeded,
+            safe_result_summary: Some(json!({"ok": true})),
+            authority_key_id: "test".into(),
+            signature: "test".into(),
+            receipt_schema_version: if claimed_organization_id.is_some() {
+                3
+            } else {
+                1
+            },
+            task_run_id: None,
+            task_state_version: None,
+            task_state_digest: None,
+        };
+        (intent, invocation, receipt)
+    }
 
     #[tokio::test]
     async fn migrate_and_org_boundary() {
@@ -293,5 +413,41 @@ mod tests {
         assert!(db.authority_quorum_ok().await.unwrap());
         db.set_authority_quorum(false).await.unwrap();
         assert!(!db.authority_quorum_ok().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn receipt_reads_resolve_legacy_org_and_reject_claim_mismatch() {
+        let db = Db::connect_memory().await.unwrap();
+        let organization_id = OrganizationId::new();
+        db.create_organization(&organization_id, "acme")
+            .await
+            .unwrap();
+
+        let (intent, invocation, legacy) = evidence(organization_id, None, "legacy");
+        db.insert_intent(&intent).await.unwrap();
+        db.insert_invocation(&invocation).await.unwrap();
+        db.insert_receipt(&legacy).await.unwrap();
+        let stored = db.get_receipt(&legacy.id).await.unwrap().unwrap();
+        assert_eq!(stored.organization_id, organization_id);
+        assert_eq!(stored.receipt.organization_id, None);
+        assert_eq!(
+            db.find_receipt_by_idempotency(&organization_id, "legacy")
+                .await
+                .unwrap()
+                .unwrap()
+                .organization_id,
+            None
+        );
+
+        let (intent, invocation, mismatched) =
+            evidence(organization_id, Some(OrganizationId::new()), "mismatch");
+        db.insert_intent(&intent).await.unwrap();
+        db.insert_invocation(&invocation).await.unwrap();
+        db.insert_receipt(&mismatched).await.unwrap();
+        assert!(db.get_receipt(&mismatched.id).await.is_err());
+        assert!(db
+            .find_receipt_by_idempotency(&organization_id, "mismatch")
+            .await
+            .is_err());
     }
 }

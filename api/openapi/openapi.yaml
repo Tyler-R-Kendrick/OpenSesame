@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: OpenSesame API
+  title: OpenSesame Host API
   version: 0.1.0
   license:
     name: MIT
@@ -9,52 +9,564 @@ servers:
 paths:
   /device/authorize:
     post:
-      summary: Start RFC 8628 device authorization
+      summary: Start a Host device authorization
+      description: OpenSesame Host JSON protocol profile; this is not the form-encoded RFC 8628 wire endpoint exposed by the Identity provider.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeviceAuthorizeRequest" }
       responses:
         "200":
-          description: Device codes (device_code to client memory only)
+          description: Device codes; bearer values are returned once
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeviceAuthorizeResponse" }
   /device/token:
     post:
-      summary: Poll device token endpoint
+      summary: Poll a device authorization and mint an organization-bound session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeviceTokenRequest" }
       responses:
         "200":
-          description: Opaque session metadata
+          description: Opaque session with signed Identity organization and role claims
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeviceTokenResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+  /device/approve:
+    post:
+      summary: Approve a device code with Identity-derived organization authority
+      description: Internal Identity-to-Host operation; principal, organization, and role must come from Identity state.
+      security: [{ HostOperatorBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeviceApproveRequest" }
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeviceApproveResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /session:
+    get:
+      summary: Count active Host sessions
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Active session count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [active_sessions]
+                properties:
+                  active_sessions: { type: integer, minimum: 0 }
+  /sessions/revoke:
+    post:
+      summary: Revoke live and approved sessions for one principal in one organization
+      description: Internal Identity-to-Host operation used before a membership mutation completes.
+      security: [{ HostOperatorBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RevokeSessionsRequest" }
+      responses:
+        "200":
+          description: Live sessions revoked; matching pending approvals are also cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RevokeSessionsResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+  /whoami:
+    get:
+      summary: Resolve the current principal, organization, and organization role
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Current Host authority context
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WhoAmI" }
   /intents:
     post:
-      summary: Create intent and invoke brokered operation
+      summary: Invoke under the caller's organization-bound bootstrap authority
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InvokeRequest" }
       responses:
         "200":
-          description: Signed InvocationReceipt
+          description: Signed organization-bound invocation receipt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvocationReceipt" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /tasks:
+    get:
+      summary: List task runs owned by the caller in the caller's organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Visible task runs
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListTasksResponse" }
+    post:
+      summary: Start task authority for the calling principal and organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StartTaskRequest" }
+      responses:
+        "201":
+          description: Task started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StartTaskResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+  /tasks/intents:
+    post:
+      summary: Freeze an intent under an owned task in the caller's organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FreezeTaskIntentRequest" }
+      responses:
+        "201":
+          description: Frozen intent handle
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FreezeTaskIntentResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /tasks/invoke:
+    post:
+      summary: Execute a caller-owned frozen intent in the caller's organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InvokeTaskRequest" }
+      responses:
+        "200":
+          description: Signed organization-bound invocation receipt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvocationReceipt" }
+        "404": { $ref: "#/components/responses/Error" }
+  /tasks/{id}:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      summary: Get a caller-owned task in the caller's organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Task details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "404": { $ref: "#/components/responses/Error" }
+  /tasks/{id}/terminate:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      summary: Terminate a caller-owned task in the caller's organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TerminateTaskRequest" }
+      responses:
+        "200":
+          description: Terminated task
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TerminateTaskResponse" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
   /receipts/keys:
     get:
       summary: Public keys that may have signed a receipt
-      description: >-
-        Ed25519 public keys keyed by authority_key_id, including retired ones, so a
-        receipt holder can verify independently. Public material only.
+      description: Public Ed25519 keys include retired keys so held evidence remains independently verifiable.
       responses:
         "200":
-          description: Key set
+          description: Receipt verification keys
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReceiptKeysResponse" }
+  /receipts/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ReceiptId"
+    get:
+      summary: Get a receipt owned by the caller in the caller's organization
+      description: Legacy receipts derive their authoritative organization from the invocation intent without rewriting signed evidence.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Signed receipt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvocationReceipt" }
+        "404": { $ref: "#/components/responses/Error" }
   /receipts/{id}/verify:
+    parameters:
+      - $ref: "#/components/parameters/ReceiptId"
     post:
-      summary: Verify receipt signature
-      description: >-
-        Scoped to the caller: a session may only verify receipts for its own
-        principal, operators may verify any. Unowned ids answer 404. Checked
-        against the key named by authority_key_id, so receipts signed by a
-        retired key stay verifiable while it is still published.
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
+      summary: Verify a receipt owned by the caller in the caller's organization
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       responses:
         "200":
-          description: Validity
-        "404":
-          description: Unknown receipt, or not owned by the caller
+          description: Signature validity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VerifyReceiptResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
   /agent-identities:
     post:
       summary: Register agent instance and start claim ceremony
       responses:
         "200":
-          description: Claim session (token once)
+          description: Claim session; bearer token returned once
+components:
+  securitySchemes:
+    HostBearer:
+      type: http
+      scheme: bearer
+      description: Opaque session bearer or `operator:<token>` break-glass bearer.
+    HostOperatorBearer:
+      type: http
+      scheme: bearer
+      description: Operator bearer in the form `operator:<token>`.
+    HostOperatorHeader:
+      type: apiKey
+      in: header
+      name: X-OpenSesame-Operator
+  parameters:
+    TaskId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    ReceiptId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    OrganizationRole:
+      type: string
+      enum: [owner, admin, member]
+    CallerRole:
+      type: string
+      enum: [owner, admin, member, operator]
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        detail: { type: string }
+        hint: { type: string }
+    DeviceAuthorizeRequest:
+      type: object
+      required: [client_id]
+      properties:
+        client_id: { type: string }
+        scope: { type: string }
+    DeviceAuthorizeResponse:
+      type: object
+      required: [device_code, user_code, verification_uri, verification_uri_complete, expires_in, interval, client_id, scope]
+      properties:
+        device_code: { type: string }
+        user_code: { type: string }
+        verification_uri: { type: string, format: uri }
+        verification_uri_complete: { type: string, format: uri }
+        expires_in: { type: integer, minimum: 1 }
+        interval: { type: integer, minimum: 1 }
+        client_id: { type: string }
+        scope: { type: string }
+    DeviceTokenRequest:
+      type: object
+      required: [device_code, grant_type]
+      properties:
+        device_code: { type: string }
+        grant_type: { type: string, const: "urn:ietf:params:oauth:grant-type:device_code" }
+    HostSession:
+      type: object
+      required: [session_id, principal_id, actor_id, issuer, assurance, organization_id, organization_role, project_id, credential_handle, approved_as, expires_at]
+      properties:
+        session_id: { type: string }
+        principal_id: { type: string }
+        actor_id: { type: [string, "null"] }
+        issuer: { type: string, format: uri }
+        assurance: { type: string }
+        organization_id: { type: string }
+        organization_role: { $ref: "#/components/schemas/OrganizationRole" }
+        project_id: { type: [string, "null"] }
+        credential_handle: { type: [string, "null"] }
+        approved_as: { type: string }
+        expires_at: { type: string, format: date-time }
+    DeviceTokenResponse:
+      type: object
+      required: [token_type, expires_in, session, access_token]
+      properties:
+        token_type: { type: string, const: Bearer }
+        expires_in: { type: integer, minimum: 1 }
+        session: { $ref: "#/components/schemas/HostSession" }
+        access_token: { type: string }
+    DeviceApproveRequest:
+      type: object
+      required: [user_code]
+      properties:
+        user_code: { type: string }
+        principal: { type: string }
+        organization_id: { type: string }
+        organization_role: { $ref: "#/components/schemas/OrganizationRole" }
+    DeviceApproveResponse:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, const: approved }
+    RevokeSessionsRequest:
+      type: object
+      required: [principal_id, organization_id]
+      properties:
+        principal_id: { type: string }
+        organization_id: { type: string }
+    RevokeSessionsResponse:
+      type: object
+      required: [revoked]
+      properties:
+        revoked: { type: integer, minimum: 0 }
+    WhoAmI:
+      type: object
+      required: [principal_id, actor_id, client_id, issuer, assurance, organization_id, organization_role, context]
+      properties:
+        principal_id: { type: string }
+        actor_id: { type: [string, "null"] }
+        client_id: { type: string }
+        issuer: { type: string, format: uri }
+        assurance: { type: string }
+        organization_id: { type: string }
+        organization_role: { $ref: "#/components/schemas/CallerRole" }
+        context: { type: [string, "null"] }
+    InvokeRequest:
+      type: object
+      required: [operation, resource]
+      properties:
+        connection_ref: { type: string }
+        connection: { type: string }
+        operation: { type: string }
+        resource: { type: string }
+        audience: { type: string, format: uri }
+        parameters: {}
+        idempotency_key: { type: string }
+        invoke_level: { type: integer, minimum: 1, maximum: 3 }
+        task_run_id: { type: string, deprecated: true }
+        intent_digest: { type: string, deprecated: true }
+    CapabilityRequest:
+      type: object
+      required: [action, resource]
+      properties:
+        action: { type: string }
+        resource: { type: string }
+    ResourceSelector:
+      oneOf:
+        - type: object
+          required: [kind, value]
+          properties:
+            kind: { type: string, const: exact }
+            value: { type: string }
+        - type: object
+          required: [kind, values]
+          properties:
+            kind: { type: string, const: enumerated }
+            values: { type: array, items: { type: string } }
+    Capability:
+      type: object
+      required: [action, resource]
+      properties:
+        action: { type: string }
+        resource: { $ref: "#/components/schemas/ResourceSelector" }
+    CapabilitySet:
+      type: object
+      required: [capabilities]
+      properties:
+        capabilities:
+          type: array
+          items: { $ref: "#/components/schemas/Capability" }
+    StartTaskRequest:
+      type: object
+      required: [principal_id, organization_id, capabilities]
+      properties:
+        principal_id:
+          type: string
+          description: Canonical `principal:<uuid>`, bare UUID, or Identity `prn_<uuid>`.
+        organization_id: { type: string }
+        capabilities:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items: { $ref: "#/components/schemas/CapabilityRequest" }
+        ttl_seconds: { type: integer, minimum: 1, maximum: 86400, default: 3600 }
+    StartTaskResponse:
+      type: object
+      required: [task_run_id, state_version, state_digest, ceiling_digest, status, capabilities]
+      properties:
+        task_run_id: { type: string }
+        state_version: { type: integer, minimum: 0 }
+        state_digest: { type: string }
+        ceiling_digest: { type: string }
+        status: { type: string, const: active }
+        capabilities: { $ref: "#/components/schemas/CapabilitySet" }
+    TaskSummary:
+      type: object
+      required: [task_run_id, state_version, status, principal_id]
+      properties:
+        task_run_id: { type: string }
+        state_version: { type: integer, minimum: 0 }
+        status: { type: string }
+        principal_id: { type: string }
+    ListTasksResponse:
+      type: object
+      required: [tasks]
+      properties:
+        tasks:
+          type: array
+          items: { $ref: "#/components/schemas/TaskSummary" }
+    Task:
+      type: object
+      required: [task_run_id, state_version, state_digest, status, capability_ceiling, current_capabilities, authority_context_id, maximum_expires_at]
+      properties:
+        task_run_id: { type: string }
+        state_version: { type: integer, minimum: 0 }
+        state_digest: { type: string }
+        status: { type: string }
+        capability_ceiling: { $ref: "#/components/schemas/CapabilitySet" }
+        current_capabilities: { $ref: "#/components/schemas/CapabilitySet" }
+        authority_context_id: { type: string }
+        maximum_expires_at: { type: string, format: date-time }
+    FreezeTaskIntentRequest:
+      type: object
+      required: [task_run_id, expected_state_version, operation, resource, audience, arguments, idempotency_key]
+      properties:
+        task_run_id: { type: string }
+        expected_state_version: { type: integer, minimum: 0 }
+        operation: { type: string }
+        resource: { type: string }
+        audience: { type: string, format: uri }
+        arguments: {}
+        idempotency_key: { type: string }
+    FreezeTaskIntentResponse:
+      type: object
+      required: [intent_id, intent_digest, task_run_id, task_state_version, canonical_arguments]
+      properties:
+        intent_id: { type: string }
+        intent_digest: { type: string }
+        task_run_id: { type: string }
+        task_state_version: { type: integer, minimum: 0 }
+        canonical_arguments: {}
+    InvokeTaskRequest:
+      type: object
+      required: [intent_digest]
+      properties:
+        intent_digest: { type: string }
+    TerminateTaskRequest:
+      type: object
+      properties:
+        expected_state_version: { type: integer, minimum: 0 }
+    TerminateTaskResponse:
+      type: object
+      required: [task_run_id, state_version, status]
+      properties:
+        task_run_id: { type: string }
+        state_version: { type: integer, minimum: 0 }
+        status: { type: string, const: cancelled }
+    InvocationReceipt:
+      type: object
+      required: [id, invocation_id, intent_digest, principal_id, actor_id, delegation_chain, operation, resource, policy_decision_id, policy_version_digest, started_at, completed_at, outcome, authority_key_id, signature, receipt_schema_version]
+      properties:
+        id: { type: string }
+        invocation_id: { type: string }
+        intent_digest: { type: string }
+        principal_id: { type: string }
+        organization_id:
+          type: string
+          description: Present on schema 3 receipts; legacy receipts are authorized through their stored invocation intent.
+        actor_id: { type: string }
+        actor_instance_id: { type: [string, "null"] }
+        client_id: { type: [string, "null"] }
+        operator_id: { type: [string, "null"] }
+        delegation_chain: { type: array, items: { type: string } }
+        connection_id: { type: [string, "null"] }
+        operation: { type: string }
+        resource: { type: string }
+        policy_decision_id: { type: string }
+        policy_version_digest: { type: string }
+        approval_id: { type: [string, "null"] }
+        credential_handle_id: { type: [string, "null"] }
+        connector_component_digest: { type: [string, "null"] }
+        external_request_digest: { type: [string, "null"] }
+        external_response_digest: { type: [string, "null"] }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        outcome: { type: string, enum: [succeeded, failed, denied, cancelled] }
+        safe_result_summary: {}
+        authority_key_id: { type: string }
+        signature: { type: string }
+        receipt_schema_version: { type: integer, minimum: 1 }
+        task_run_id: { type: string }
+        task_state_version: { type: integer, minimum: 0 }
+        task_state_digest: { type: string }
+    ReceiptKey:
+      type: object
+      required: [key_id, algorithm, public_key_b64]
+      properties:
+        key_id: { type: string }
+        algorithm: { type: string, const: ed25519 }
+        public_key_b64: { type: string }
+    ReceiptKeysResponse:
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items: { $ref: "#/components/schemas/ReceiptKey" }
+    VerifyReceiptResponse:
+      type: object
+      required: [valid]
+      properties:
+        valid: { type: boolean }
+        error: { type: string }

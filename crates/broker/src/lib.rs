@@ -1,6 +1,6 @@
 mod frozen;
 
-pub use frozen::FrozenInvokeInput;
+pub use frozen::{assert_grant_covers_frozen_intent, FrozenInvokeInput};
 
 use chrono::Utc;
 use opensesame_audit::ReceiptSigner;
@@ -190,6 +190,7 @@ impl Broker {
             invocation_id: inv.id,
             intent_digest: input.intent.digest()?,
             principal_id: input.intent.principal_id,
+            organization_id: Some(input.intent.organization_id),
             actor_id: input.intent.actor_id,
             actor_instance_id: input.intent.actor_instance_id,
             client_id: input.intent.client_id,
@@ -211,7 +212,7 @@ impl Broker {
             safe_result_summary: Some(parts.summary),
             authority_key_id: String::new(),
             signature: String::new(),
-            receipt_schema_version: 1,
+            receipt_schema_version: 3,
             task_run_id: None,
             task_state_version: None,
             task_state_digest: None,

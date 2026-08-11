@@ -28,6 +28,7 @@ pub fn receipt_key_id(key: &VerifyingKey) -> String {
 
 /// Signature check shared by the signer and the verifier registry.
 fn verify_with(key: &VerifyingKey, receipt: &InvocationReceipt) -> Result<(), DomainError> {
+    receipt.assert_schema_invariants()?;
     let mut clone = receipt.clone();
     let sig_b64 = clone.signature.clone();
     clone.signature = String::new();
@@ -37,8 +38,8 @@ fn verify_with(key: &VerifyingKey, receipt: &InvocationReceipt) -> Result<(), Do
     let bytes = STANDARD
         .decode(sig_b64)
         .map_err(|e| DomainError::Canonicalization(e.to_string()))?;
-    let sig = Signature::from_slice(&bytes)
-        .map_err(|e| DomainError::Canonicalization(e.to_string()))?;
+    let sig =
+        Signature::from_slice(&bytes).map_err(|e| DomainError::Canonicalization(e.to_string()))?;
     key.verify(digest.as_bytes(), &sig)
         .map_err(|e| DomainError::Canonicalization(e.to_string()))
 }
@@ -140,6 +141,7 @@ impl ReceiptSigner {
         &self,
         mut receipt: InvocationReceipt,
     ) -> Result<InvocationReceipt, DomainError> {
+        receipt.assert_schema_invariants()?;
         if !receipt.assert_no_secret_leak() {
             return Err(DomainError::Canonicalization(
                 "receipt summary contains secret material".into(),
@@ -200,6 +202,7 @@ mod tests {
             invocation_id: InvocationId::new(),
             intent_digest: "sha256:x".into(),
             principal_id: PrincipalId::new(),
+            organization_id: None,
             actor_id: ActorId::new(),
             actor_instance_id: None,
             client_id: None,
@@ -238,6 +241,7 @@ mod tests {
             invocation_id: InvocationId::new(),
             intent_digest: "sha256:x".into(),
             principal_id: PrincipalId::new(),
+            organization_id: None,
             actor_id: ActorId::new(),
             actor_instance_id: None,
             client_id: None,
@@ -275,6 +279,7 @@ mod tests {
             invocation_id: InvocationId::new(),
             intent_digest: "sha256:x".into(),
             principal_id: PrincipalId::new(),
+            organization_id: None,
             actor_id: ActorId::new(),
             actor_instance_id: None,
             client_id: None,
@@ -301,6 +306,54 @@ mod tests {
             task_state_version: None,
             task_state_digest: None,
         }
+    }
+
+    #[test]
+    fn legacy_receipt_without_organization_round_trips_and_verifies() {
+        let signer = ReceiptSigner::generate();
+        let signed = signer.sign_receipt(sample_receipt()).unwrap();
+        let encoded = serde_json::to_string(&signed).unwrap();
+        assert!(!encoded.contains("organization_id"));
+
+        let decoded: InvocationReceipt = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(decoded.organization_id, None);
+        signer.verify_receipt(&decoded).unwrap();
+    }
+
+    #[test]
+    fn organization_claim_is_covered_by_the_receipt_signature() {
+        let signer = ReceiptSigner::generate();
+        let mut receipt = sample_receipt();
+        receipt.organization_id = Some(OrganizationId::new());
+        receipt.receipt_schema_version = 3;
+        let mut signed = signer.sign_receipt(receipt).unwrap();
+        signer.verify_receipt(&signed).unwrap();
+
+        signed.organization_id = Some(OrganizationId::new());
+        assert!(signer.verify_receipt(&signed).is_err());
+    }
+
+    #[test]
+    fn schema_three_without_an_organization_is_never_signed_or_verified() {
+        let signer = ReceiptSigner::generate();
+        let mut invalid = sample_receipt();
+        invalid.receipt_schema_version = 3;
+        let error = signer.sign_receipt(invalid).unwrap_err().to_string();
+        assert!(
+            error.contains("schema 3 requires organization_id"),
+            "{error}"
+        );
+
+        let mut signed_legacy = signer.sign_receipt(sample_receipt()).unwrap();
+        signed_legacy.receipt_schema_version = 3;
+        let error = signer
+            .verify_receipt(&signed_legacy)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("schema 3 requires organization_id"),
+            "{error}"
+        );
     }
 
     #[test]
@@ -399,6 +452,7 @@ mod tests {
             invocation_id: InvocationId::new(),
             intent_digest: "sha256:x".into(),
             principal_id: PrincipalId::new(),
+            organization_id: None,
             actor_id: ActorId::new(),
             actor_instance_id: None,
             client_id: None,

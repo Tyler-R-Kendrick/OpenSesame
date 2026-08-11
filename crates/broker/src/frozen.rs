@@ -31,12 +31,18 @@ pub struct FrozenInvokeInput {
 /// `None` on the grant means unscoped in that dimension. `Some` means the intent
 /// must name the same thing; an intent that names nothing does not satisfy a
 /// grant that names something.
-fn assert_grant_covers_intent(grant: &Grant, intent: &FrozenIntentV2) -> Result<(), DomainError> {
+pub fn assert_grant_covers_frozen_intent(
+    grant: &Grant,
+    intent: &FrozenIntentV2,
+) -> Result<(), DomainError> {
     let denied = |what: &str| {
         Err(DomainError::AuthorizationDenied(format!(
             "grant does not cover this intent: {what}"
         )))
     };
+    if intent.organization_id != grant.organization_id {
+        return Err(DomainError::OrganizationMismatch);
+    }
     if grant.beneficiary_principal_id != intent.principal_id {
         return denied("beneficiary principal");
     }
@@ -83,10 +89,7 @@ impl Broker {
         let intent = input.intent.clone().with_computed_digest()?;
         intent.assert_digest()?;
 
-        if intent.organization_id != input.grant.organization_id {
-            return Err(DomainError::OrganizationMismatch.into());
-        }
-        assert_grant_covers_intent(&input.grant, &intent)?;
+        assert_grant_covers_frozen_intent(&input.grant, &intent)?;
 
         let run = tasks.assert_capability(
             intent.task_run_id,
@@ -278,6 +281,7 @@ impl Broker {
             invocation_id: inv.id,
             intent_digest: intent.intent_digest.clone(),
             principal_id: intent.principal_id,
+            organization_id: Some(intent.organization_id),
             actor_id: intent.actor_id,
             actor_instance_id: intent.actor_instance_id,
             client_id: intent.client_id,
@@ -299,7 +303,7 @@ impl Broker {
             safe_result_summary: Some(parts.summary),
             authority_key_id: String::new(),
             signature: String::new(),
-            receipt_schema_version: 2,
+            receipt_schema_version: 3,
             task_run_id: Some(intent.task_run_id),
             task_state_version: Some(intent.task_state_version),
             task_state_digest: Some(intent.task_state_digest.clone()),
@@ -325,7 +329,11 @@ impl Broker {
 mod tests {
     use super::*;
     use chrono::Duration;
+    use opensesame_audit::ReceiptSigner;
+    use opensesame_authz::PolicyEngine;
+    use opensesame_connector_host::HostRuntime;
     use opensesame_domain::{AuthorityContext, AuthorityContextMode, ResourceSelector};
+    use opensesame_storage::Db;
     use opensesame_task_access::{InMemoryTaskStore, StartTaskParams};
 
     fn sample_grant(org: OrganizationId, principal: PrincipalId) -> Grant {
@@ -399,24 +407,24 @@ mod tests {
         let unscoped = sample_grant(org, principal);
         let intent = sample_intent(org, principal);
         // Nothing narrowed but the organization and the beneficiary: covered.
-        assert!(assert_grant_covers_intent(&unscoped, &intent).is_ok());
+        assert!(assert_grant_covers_frozen_intent(&unscoped, &intent).is_ok());
 
         // A grant belongs to its beneficiary, not to whoever presents it.
         let mut other_beneficiary = unscoped.clone();
         other_beneficiary.beneficiary_principal_id = PrincipalId::new();
-        assert!(assert_grant_covers_intent(&other_beneficiary, &intent).is_err());
+        assert!(assert_grant_covers_frozen_intent(&other_beneficiary, &intent).is_err());
 
         // An intent that names nothing does not satisfy a grant that names
         // something: that reading is how a scoped grant became an unscoped one.
         let project = ProjectId::new();
         let mut scoped = unscoped.clone();
         scoped.project_id = Some(project);
-        assert!(assert_grant_covers_intent(&scoped, &intent).is_err());
+        assert!(assert_grant_covers_frozen_intent(&scoped, &intent).is_err());
         let mut in_project = intent.clone();
         in_project.project_id = Some(project);
-        assert!(assert_grant_covers_intent(&scoped, &in_project).is_ok());
+        assert!(assert_grant_covers_frozen_intent(&scoped, &in_project).is_ok());
         in_project.project_id = Some(ProjectId::new());
-        assert!(assert_grant_covers_intent(&scoped, &in_project).is_err());
+        assert!(assert_grant_covers_frozen_intent(&scoped, &in_project).is_err());
 
         type Narrowing = (&'static str, fn(&mut Grant));
         let narrowings: [Narrowing; 4] = [
@@ -433,7 +441,7 @@ mod tests {
             let mut g = unscoped.clone();
             narrow(&mut g);
             assert!(
-                assert_grant_covers_intent(&g, &intent).is_err(),
+                assert_grant_covers_frozen_intent(&g, &intent).is_err(),
                 "a grant narrowed to one {what} must not cover an intent that names none"
             );
         }
@@ -441,7 +449,76 @@ mod tests {
         // The actor the grant names is the actor that must appear.
         let mut actor_scoped = unscoped.clone();
         actor_scoped.actor_id = Some(intent.actor_id);
-        assert!(assert_grant_covers_intent(&actor_scoped, &intent).is_ok());
+        assert!(assert_grant_covers_frozen_intent(&actor_scoped, &intent).is_ok());
+    }
+
+    #[tokio::test]
+    async fn frozen_receipts_bind_the_organization_across_idempotent_replay() {
+        let org = OrganizationId::new();
+        let principal = PrincipalId::new();
+        let capabilities = CapabilitySet::new(vec![Capability::new(
+            "read",
+            ResourceSelector::exact("doc:1"),
+        )]);
+        let tasks = TaskAccessEngine::new(InMemoryTaskStore::new());
+        let ceiling = tasks
+            .compile_ceiling(
+                vec![CeilingInput {
+                    principal_id: principal,
+                    capabilities: capabilities.clone(),
+                }],
+                Utc::now(),
+            )
+            .unwrap();
+        let run = tasks
+            .start_task(StartTaskParams {
+                template_id: TaskTemplateId::new(),
+                authority_context: AuthorityContext {
+                    id: AuthorityContextId::new(),
+                    mode: AuthorityContextMode::SinglePrincipal,
+                    organization_id: org,
+                    project_id: None,
+                    principal_ids: vec![principal],
+                    capability_ceiling: capabilities,
+                    compiled_at: Utc::now(),
+                },
+                ceiling,
+                maximum_expires_at: Utc::now() + Duration::hours(1),
+                now: Utc::now(),
+            })
+            .unwrap();
+        let mut intent = sample_intent(org, principal);
+        intent.task_run_id = run.id;
+        intent.task_state_version = run.state_version;
+        intent.task_state_digest = run.state_digest;
+
+        let db = Db::connect_memory().await.unwrap();
+        db.create_organization(&org, "frozen").await.unwrap();
+        let mut policy = PolicyEngine::default();
+        policy
+            .relationships
+            .write("connection:demo-conn", "user", "user:demo");
+        let broker = Broker {
+            db,
+            policy,
+            host: HostRuntime::default(),
+            signer: ReceiptSigner::generate(),
+        };
+        let invoke = || FrozenInvokeInput {
+            intent: intent.clone(),
+            grant: sample_grant(org, principal),
+            subject: "user:demo".into(),
+            connection_policy_id: "demo-conn".into(),
+            required_capability: Capability::new("read", ResourceSelector::exact("doc:1")),
+        };
+
+        let first = broker.invoke_frozen(&tasks, invoke()).await.unwrap();
+        let replay = broker.invoke_frozen(&tasks, invoke()).await.unwrap();
+        assert_eq!(first.id, replay.id);
+        assert_eq!(first.organization_id, Some(org));
+        assert_eq!(first.receipt_schema_version, 3);
+        assert_eq!(replay.organization_id, Some(org));
+        assert_eq!(broker.db.count_receipts().await.unwrap(), 1);
     }
 
     #[tokio::test]

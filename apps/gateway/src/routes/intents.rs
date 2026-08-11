@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::app_state::AppState;
-use crate::middleware::auth::{require_demo_bootstrap, resolve_caller_subject};
+use crate::middleware::auth::{require_demo_bootstrap, resolve_caller, resolve_caller_subject};
 
 #[derive(Deserialize)]
 pub struct InvokeBody {
@@ -73,6 +73,13 @@ pub async fn create(
         Ok(b) => b,
         Err(resp) => return resp,
     };
+    let caller = match resolve_caller(&st, &headers) {
+        Ok(caller) => caller,
+        Err(resp) => return resp,
+    };
+    if !caller.in_organization(&boot.org) {
+        return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
+    }
     let parameters = body.parameters.unwrap_or_else(|| json!({}));
     let default_ref = st
         .connection_ref
@@ -265,5 +272,39 @@ mod tests {
             HeaderValue::from_static("tsk_1"),
         );
         assert!(claims_task_authority(&body(), &headers));
+    }
+
+    #[tokio::test]
+    async fn bootstrap_intent_is_hidden_from_another_organization() {
+        let state = crate::app_state::test_demo_state().await;
+        let headers = crate::app_state::test_session_headers(
+            &state,
+            "user:demo",
+            OrganizationId::new(),
+            OrganizationRole::Member,
+        );
+
+        let response = create(State(state), headers, Json(body())).await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn bootstrap_intent_remains_available_to_its_organization() {
+        let state = crate::app_state::test_demo_state().await;
+        let organization_id = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
+        let headers = crate::app_state::test_session_headers(
+            &state,
+            "user:demo",
+            organization_id,
+            OrganizationRole::Member,
+        );
+        let mut request = body();
+        request.operation = "repository.read".into();
+        request.resource = "repo:acme/catalog".into();
+        request.audience = Some("https://api.github.com".into());
+        request.parameters = Some(json!({}));
+
+        let response = create(State(state), headers, Json(request)).await;
+        assert_eq!(response.status(), StatusCode::OK);
     }
 }
