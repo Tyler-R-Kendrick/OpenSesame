@@ -309,11 +309,14 @@ export function ConnectionsPage() {
               setProviders(nextProviders);
             }
           },
-          () => Promise.all([
-          listIntegrations(selected.id),
-          listConnections(selected.id),
-          loadOptionalMembers(selected.role, () => listMembers(selected.id)),
-          ]),
+          () =>
+            Promise.all([
+              listIntegrations(selected.id),
+              listConnections(selected.id),
+              loadOptionalMembers(selected.role, () =>
+                listMembers(selected.id),
+              ),
+            ]),
         );
       if (activeOrganizationId.current !== selected.id) return;
       setIntegrations(nextIntegrations);
