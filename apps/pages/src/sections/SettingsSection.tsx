@@ -92,7 +92,6 @@ export function SettingsSection() {
     saveSettings({
       hostApi: endpoints.hostApi.trim().replace(/\/$/, ""),
       identityApi: endpoints.identityApi.trim().replace(/\/$/, ""),
-      operatorToken: endpoints.operatorToken.trim(),
     });
     setEndpoints(loadSettings());
     setEndpointSaved(true);
@@ -207,8 +206,7 @@ export function SettingsSection() {
         <h1>Settings</h1>
         <p>
           Everything on this page is stored on this device. Preferences and
-          endpoint URLs sit outside the encrypted vault; the operator token
-          never leaves memory.
+          endpoint URLs sit outside the encrypted vault.
         </p>
       </div>
 
@@ -488,25 +486,6 @@ export function SettingsSection() {
                 }
               />
             </div>
-          </div>
-          <div className="field">
-            <label htmlFor="operator-token">Operator token</label>
-            <input
-              id="operator-token"
-              type="password"
-              autoComplete="off"
-              value={endpoints.operatorToken}
-              onChange={(event) =>
-                setEndpoints({
-                  ...endpoints,
-                  operatorToken: event.target.value,
-                })
-              }
-            />
-            <p className="hint">
-              Used for Host task routes. Held in memory for this tab only —
-              reloading clears it.
-            </p>
           </div>
           <div className="actions">
             <button type="submit" className="btn btn--primary">

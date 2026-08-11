@@ -5,6 +5,7 @@ import { useSessionGuards, useTheme, useVault } from "./lib/vault/hooks.js";
 import { UnlockScreen } from "./screens/UnlockScreen.js";
 import { AgentsSection } from "./sections/AgentsSection.js";
 import { AuthoritySection } from "./sections/AuthoritySection.js";
+import { ConnectionsSection } from "./sections/ConnectionsSection.js";
 import { SettingsSection } from "./sections/SettingsSection.js";
 import { SitesSection } from "./sections/SitesSection.js";
 import { VaultSection, VaultWelcome } from "./sections/VaultSection.js";
@@ -50,6 +51,14 @@ export function App() {
           element={
             <Framed>
               <SitesSection />
+            </Framed>
+          }
+        />
+        <Route
+          path="/connections"
+          element={
+            <Framed>
+              <ConnectionsSection />
             </Framed>
           }
         />

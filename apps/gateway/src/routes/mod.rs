@@ -1,6 +1,7 @@
 mod aauth;
 mod admin;
 mod agents;
+mod connections;
 mod device;
 mod health;
 mod intents;
@@ -11,7 +12,7 @@ mod sync;
 mod tasks;
 
 use axum::{
-    routing::{get, post},
+    routing::{get, post, put},
     Router,
 };
 use tower_http::trace::TraceLayer;
@@ -39,7 +40,19 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/device/approve", post(device::approve))
         .route("/api/v1/session", get(session::status))
         .route("/api/v1/whoami", get(session::whoami))
-        .route("/api/v1/connections", get(session::list_connections))
+        .route("/api/v1/providers", get(connections::catalog))
+        .route(
+            "/api/v1/providers/{id}/test",
+            post(connections::test_provider),
+        )
+        .route(
+            "/api/v1/connections",
+            get(connections::list).post(connections::create),
+        )
+        .route(
+            "/api/v1/connections/{id}",
+            put(connections::update).delete(connections::delete),
+        )
         .route("/api/v1/intents", post(intents::create))
         .route("/api/v1/receipts/keys", get(receipts::keys))
         .route("/api/v1/receipts/{id}", get(receipts::get))

@@ -21,13 +21,14 @@ import {
 } from "../components/Icons.js";
 import {
   IdentityError,
+  currentSession,
   hostBase,
+  hostFetch,
   identityBase,
   identityJson,
   useConnect,
   useIdentitySession,
 } from "../lib/identity.js";
-import { loadSettings } from "../lib/settings.js";
 import { useOnline } from "../lib/use-online.js";
 import { useVault } from "../lib/vault/hooks.js";
 import {
@@ -335,10 +336,10 @@ function TaskInspector({ online }: { online: boolean }) {
   const [task, setTask] = useState<TaskView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const session = useIdentitySession();
 
   const base = hostBase();
-  const hasToken = loadSettings().operatorToken.trim().length > 0;
-  const blocked = !online || !hasToken;
+  const blocked = !online || !session;
 
   async function inspect(event: FormEvent) {
     event.preventDefault();
@@ -348,20 +349,16 @@ function TaskInspector({ online }: { online: boolean }) {
       setError("Enter the task run id you want to inspect.");
       return;
     }
-    const token = loadSettings().operatorToken.trim();
-    if (!token) {
+    if (!currentSession()) {
       setError(
-        "No operator token in this session. Add one under Settings — the Host will not describe a task without it.",
+        "Connect to Identity before asking the Host to describe a task.",
       );
       return;
     }
     setBusy(true);
     setTask(null);
     try {
-      const res = await fetch(
-        `${base.replace(/\/$/, "")}/api/v1/tasks/${encodeURIComponent(id)}`,
-        { headers: { authorization: `Bearer operator:${token}` } },
-      );
+      const res = await hostFetch(`/api/v1/tasks/${encodeURIComponent(id)}`);
       if (!res.ok) {
         setError(taskErrorFor(res.status, base));
         return;
@@ -374,9 +371,13 @@ function TaskInspector({ online }: { online: boolean }) {
         ceiling: readCaps(body.capability_ceiling),
         current: readCaps(body.current_capabilities),
       });
-    } catch {
+    } catch (caught) {
       setError(
-        `Host API unreachable at ${base}. Start the Host, or point at a running one under Settings.`,
+        caught instanceof TypeError
+          ? `Host API unreachable at ${base}. Start the Host, or point at a running one under Settings.`
+          : caught instanceof Error
+            ? caught.message
+            : `Host API unreachable at ${base}. Start the Host, or point at a running one under Settings.`,
       );
     } finally {
       setBusy(false);
@@ -430,15 +431,14 @@ function TaskInspector({ online }: { online: boolean }) {
             only exist on the Host, so there is nothing local to read — this
             lookup stays disabled until the browser is back online.
           </output>
-        ) : !hasToken ? (
+        ) : !session ? (
           <output className="note note--warn">
-            <IconAlert /> Reading a task is an operator action. Set an operator
-            token under Settings and it will be held in memory for this tab
-            only.
+            <IconAlert /> Connect to Identity first. The Host will issue a
+            short-lived session scoped to your tasks.
           </output>
         ) : (
           <p className="hint">
-            Queried against <code>{base}</code> with your operator token.
+            Queried against <code>{base}</code> as your connected principal.
           </p>
         )}
 
@@ -539,10 +539,10 @@ function taskErrorFor(status: number, base: string): string {
     return "The Host rejected that id as malformed. A task run id is a UUID — copy it from the Host or from the receipt that referenced it.";
   }
   if (status === 401 || status === 403) {
-    return "The Host refused your operator token. Set a valid operator token under Settings — it must match the one the Host was started with.";
+    return "The Host refused this user session. Reconnect to Identity and try again.";
   }
   if (status === 503) {
-    return `The Host at ${base} has no operator token configured, so it cannot authorise operator requests at all. Start it with an operator token set.`;
+    return `The Host at ${base} could not authorize this user session.`;
   }
   return `The Host answered ${status} and did not describe the task. Check the Host logs at ${base}.`;
 }

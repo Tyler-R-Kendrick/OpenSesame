@@ -19,6 +19,83 @@ paths:
       responses:
         "200":
           description: Opaque session metadata
+  /providers:
+    get:
+      summary: List native credential, storage, encryption, and lease providers
+      description: >-
+        Public metadata only. A supported label requires both contract and live-test
+        evidence; experimental adapters are never presented as supported.
+      responses:
+        "200":
+          description: Provider catalog and support policy
+  /providers/{id}/test:
+    post:
+      summary: Probe a provider adapter as the connected principal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Local readiness or provider-specific live health
+        "401":
+          description: Opaque user session required
+        "404":
+          description: Unknown provider
+  /connections:
+    get:
+      summary: List the connected principal's provider connections
+      description: Credential references and credential material are never returned.
+      responses:
+        "200":
+          description: Secret-safe connection views
+        "401":
+          description: Opaque user session required
+    post:
+      summary: Create a provider connection
+      description: >-
+        public_config accepts coordinates such as region, vault, mount, or project.
+        Secret-like fields are rejected; provider authentication remains in the
+        personal daemon or configured workload worker.
+      responses:
+        "201":
+          description: Created connection view
+        "401":
+          description: Opaque user session required
+        "422":
+          description: Unknown provider or unsafe public configuration
+  /connections/{id}:
+    put:
+      summary: Replace a connection's display name or public configuration
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Updated connection view
+        "401":
+          description: Opaque user session required
+        "404":
+          description: Connection not found in the caller's organization
+        "422":
+          description: Unsafe public configuration
+    delete:
+      summary: Remove a connection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Removed
+        "401":
+          description: Opaque user session required
+        "404":
+          description: Connection not found in the caller's organization
   /intents:
     post:
       summary: Create intent and invoke brokered operation

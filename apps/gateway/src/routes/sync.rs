@@ -6,11 +6,12 @@ use axum::{
 };
 use opensesame_client_core::SyncBlob;
 use opensesame_host_core::daemon as host_daemon;
+use opensesame_storage::{StoredSyncBlob, SyncWriteOutcome};
 use serde::Deserialize;
 use serde_json::json;
 
 use crate::app_state::AppState;
-use crate::middleware::auth::require_session;
+use crate::middleware::auth::{require_session, session_subject};
 
 #[derive(Deserialize)]
 pub struct SyncPushBody {
@@ -27,13 +28,14 @@ pub struct SyncPullBody {
 
 /// Global blob ceiling (shared store).
 const MAX_SYNC_BLOBS: usize = 4096;
-/// Per-session blob ceiling so one session cannot evict/starve every tenant.
-const MAX_BLOBS_PER_SESSION: usize = 512;
+/// Per-principal blob ceiling so one identity cannot starve every tenant.
+const MAX_BLOBS_PER_OWNER: usize = 512;
 /// Per-blob ciphertext ceiling — sync carries sealed records, not file payloads.
 const MAX_CIPHERTEXT_BYTES: usize = 256 * 1024;
-/// Cursor table ceiling and device id length cap (client-supplied keys).
-const MAX_DEVICE_CURSORS: usize = 4096;
+/// Device id length cap (client-supplied keys).
 const MAX_DEVICE_ID_LEN: usize = 128;
+/// Global durable cursor ceiling; existing devices can always advance at quota.
+const MAX_DEVICE_CURSORS: usize = 4096;
 
 /// Why a pushed blob was not stored (each maps to a response counter).
 #[derive(Debug, PartialEq, Eq)]
@@ -50,7 +52,7 @@ enum PushOutcome {
 fn push_outcome(
     ciphertext_len: usize,
     current_owner: Option<&str>,
-    session_id: &str,
+    owner_id: &str,
     existing_epoch: Option<u64>,
     incoming_epoch: u64,
     store_len: usize,
@@ -60,7 +62,7 @@ fn push_outcome(
         return PushOutcome::Oversize;
     }
     if let Some(owner) = current_owner {
-        if owner != session_id {
+        if owner != owner_id {
             return PushOutcome::ForeignOwner;
         }
     }
@@ -68,7 +70,7 @@ fn push_outcome(
         Some(epoch) if epoch > incoming_epoch => PushOutcome::StaleEpoch,
         Some(_) => PushOutcome::Accept,
         None if store_len >= MAX_SYNC_BLOBS => PushOutcome::StoreFull,
-        None if session_owned >= MAX_BLOBS_PER_SESSION => PushOutcome::SessionQuota,
+        None if session_owned >= MAX_BLOBS_PER_OWNER => PushOutcome::SessionQuota,
         None => PushOutcome::Accept,
     }
 }
@@ -78,43 +80,59 @@ pub async fn push(
     headers: axum::http::HeaderMap,
     Json(body): Json<SyncPushBody>,
 ) -> Response {
-    let session_id = match require_session(&st, &headers) {
-        Ok((id, _)) => id,
+    let owner_id = match require_session(&st, &headers) {
+        Ok((_, meta)) => session_subject(&meta),
         Err(resp) => return resp,
     };
-    let mut store = st.sync_blobs.lock().unwrap();
-    let mut owners = st.blob_owners.lock().unwrap();
     let mut accepted = 0u32;
     let mut rejected_foreign = 0u32;
     let mut rejected_oversize = 0u32;
     let mut rejected_quota = 0u32;
-    let mut owned = owners.values().filter(|o| *o == &session_id).count();
     for blob in body.blobs {
-        let existing_epoch = store.get(&blob.id).map(|b| b.epoch);
-        let outcome = push_outcome(
-            blob.ciphertext.len(),
-            owners.get(&blob.id).map(String::as_str),
-            &session_id,
-            existing_epoch,
-            blob.epoch,
-            store.len(),
-            owned,
-        );
-        match outcome {
-            PushOutcome::Oversize => rejected_oversize += 1,
-            PushOutcome::ForeignOwner => rejected_foreign += 1,
-            PushOutcome::SessionQuota => rejected_quota += 1,
-            PushOutcome::StoreFull | PushOutcome::StaleEpoch => {}
-            PushOutcome::Accept => {
-                if existing_epoch.is_none() {
-                    owned += 1;
-                }
-                owners.insert(blob.id.clone(), session_id.clone());
-                store.insert(blob.id.clone(), blob);
-                accepted += 1;
+        if blob.ciphertext.len() > MAX_CIPHERTEXT_BYTES {
+            rejected_oversize += 1;
+            continue;
+        }
+        let stored = StoredSyncBlob {
+            id: blob.id,
+            epoch: blob.epoch,
+            ciphertext: blob.ciphertext,
+        };
+        match st
+            .db
+            .write_sync_blob(
+                &owner_id,
+                &stored,
+                MAX_SYNC_BLOBS as i64,
+                MAX_BLOBS_PER_OWNER as i64,
+            )
+            .await
+        {
+            Ok(SyncWriteOutcome::Accepted) => accepted += 1,
+            Ok(SyncWriteOutcome::ForeignOwner) => rejected_foreign += 1,
+            Ok(SyncWriteOutcome::OwnerQuota) => rejected_quota += 1,
+            Ok(SyncWriteOutcome::StoreFull | SyncWriteOutcome::StaleEpoch) => {}
+            Err(error) => {
+                tracing::error!(error = %error, "encrypted sync write failed");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "sync_storage_failed"})),
+                )
+                    .into_response();
             }
         }
     }
+    let store_size = match st.db.count_sync_blobs().await {
+        Ok(count) => count,
+        Err(error) => {
+            tracing::error!(error = %error, "encrypted sync count failed");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "sync_storage_failed"})),
+            )
+                .into_response();
+        }
+    };
     (
         StatusCode::OK,
         Json(json!({
@@ -122,9 +140,9 @@ pub async fn push(
             "rejected_foreign_owner": rejected_foreign,
             "rejected_oversize": rejected_oversize,
             "rejected_session_quota": rejected_quota,
-            "store_size": store.len(),
+            "store_size": store_size,
             "capacity": MAX_SYNC_BLOBS,
-            "session_capacity": MAX_BLOBS_PER_SESSION,
+            "owner_capacity": MAX_BLOBS_PER_OWNER,
             "max_ciphertext_bytes": MAX_CIPHERTEXT_BYTES
         })),
     )
@@ -136,36 +154,50 @@ pub async fn pull(
     headers: axum::http::HeaderMap,
     Json(body): Json<SyncPullBody>,
 ) -> Response {
-    let session_id = match require_session(&st, &headers) {
-        Ok((id, _)) => id,
+    let owner_id = match require_session(&st, &headers) {
+        Ok((_, meta)) => session_subject(&meta),
         Err(resp) => return resp,
     };
     let since = body.since_epoch;
-    let store = st.sync_blobs.lock().unwrap();
-    let owners = st.blob_owners.lock().unwrap();
-    let blobs: Vec<SyncBlob> = store
-        .values()
-        .filter(|b| b.epoch > since)
-        .filter(|b| owners.get(&b.id).map(|o| o == &session_id).unwrap_or(false))
-        .cloned()
-        .collect();
-    drop(owners);
-    drop(store);
+    let blobs: Vec<SyncBlob> = match st.db.list_sync_blobs(&owner_id, since).await {
+        Ok(blobs) => blobs
+            .into_iter()
+            .map(|blob| SyncBlob {
+                id: blob.id,
+                epoch: blob.epoch,
+                ciphertext: blob.ciphertext,
+            })
+            .collect(),
+        Err(error) => {
+            tracing::error!(error = %error, "encrypted sync read failed");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "sync_storage_failed"})),
+            )
+                .into_response();
+        }
+    };
     let mut device_cursor = None;
     if let Some(device_id) = body
         .device_id
         .as_ref()
         .filter(|s| !s.is_empty() && s.len() <= MAX_DEVICE_ID_LEN)
     {
-        let mut cursors = st.device_cursors.lock().unwrap();
         let max_epoch = blobs.iter().map(|b| b.epoch).max().unwrap_or(since);
-        // Client-supplied keys: only track new devices while under the ceiling.
-        if cursors.contains_key(device_id) || cursors.len() < MAX_DEVICE_CURSORS {
-            let entry = cursors.entry(device_id.clone()).or_insert(0);
-            if max_epoch > *entry {
-                *entry = max_epoch;
+        match st
+            .db
+            .advance_sync_cursor(&owner_id, device_id, max_epoch, MAX_DEVICE_CURSORS as i64)
+            .await
+        {
+            Ok(cursor) => device_cursor = cursor,
+            Err(error) => {
+                tracing::error!(error = %error, "encrypted sync cursor write failed");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "sync_storage_failed"})),
+                )
+                    .into_response();
             }
-            device_cursor = Some(*entry);
         }
     }
     let _ = host_daemon::DEFAULT_LISTEN;
@@ -216,12 +248,12 @@ mod tests {
     #[test]
     fn session_quota_stops_new_blobs_but_allows_updates() {
         assert_eq!(
-            outcome(16, None, None, MAX_BLOBS_PER_SESSION),
+            outcome(16, None, None, MAX_BLOBS_PER_OWNER),
             PushOutcome::SessionQuota
         );
         // Updating an already-owned blob is still allowed at quota.
         assert_eq!(
-            outcome(16, Some("sess_a"), Some(1), MAX_BLOBS_PER_SESSION),
+            outcome(16, Some("sess_a"), Some(1), MAX_BLOBS_PER_OWNER),
             PushOutcome::Accept
         );
     }
@@ -232,7 +264,7 @@ mod tests {
             push_outcome(16, None, "sess_a", None, 1, MAX_SYNC_BLOBS, 0),
             PushOutcome::StoreFull
         );
-        assert!(MAX_BLOBS_PER_SESSION.saturating_mul(2) <= MAX_SYNC_BLOBS);
+        assert!(MAX_BLOBS_PER_OWNER.saturating_mul(2) <= MAX_SYNC_BLOBS);
     }
 
     #[test]
@@ -241,5 +273,12 @@ mod tests {
             outcome(16, Some("sess_a"), Some(9), 0),
             PushOutcome::StaleEpoch
         );
+    }
+
+    #[test]
+    fn renewed_sessions_share_the_principals_ciphertext() {
+        let first = json!({"session_id": "first", "approved_as": "principal:alice"});
+        let renewed = json!({"session_id": "renewed", "approved_as": "principal:alice"});
+        assert_eq!(session_subject(&first), session_subject(&renewed));
     }
 }

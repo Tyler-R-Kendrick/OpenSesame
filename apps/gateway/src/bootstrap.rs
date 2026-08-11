@@ -61,6 +61,18 @@ async fn create_demo_bootstrap(
     policy.assurance.insert("user:demo".into(), "mfa".into());
 
     let now = Utc::now();
+    db.insert_connection(&ConnectionRecord {
+        id: connection,
+        organization_id: org,
+        project_id: Some(project),
+        provider_id: "sealed-local".into(),
+        display_name: "GitHub demo".into(),
+        public_config: serde_json::json!({"service": "github", "environment": "demo"}),
+        credential_ref: None,
+        created_at: now,
+        updated_at: now,
+    })
+    .await?;
     let grant = Grant {
         id: GrantId::new(),
         version: 1,

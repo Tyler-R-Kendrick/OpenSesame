@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isLoopbackUrl, normalizeApiBase, operatorHeadersFor } from "./urls.js";
+import { isLoopbackUrl, normalizeApiBase } from "./urls.js";
 
 describe("api base fences", () => {
   it("tells this machine apart from everywhere else", () => {
@@ -38,14 +38,5 @@ describe("api base fences", () => {
       normalizeApiBase("https://api.example.test/?next=http://evil.example"),
     ).toBeNull();
     expect(normalizeApiBase("https://api.example.test/#x")).toBeNull();
-  });
-
-  it("never offers the operator token to a Host API off this machine", () => {
-    expect(operatorHeadersFor("http://127.0.0.1:8787", "op")).toEqual({
-      authorization: "Bearer operator:op",
-    });
-    // A remote Host API is somebody else's listener as far as this secret goes.
-    expect(operatorHeadersFor("https://api.example.test", "op")).toEqual({});
-    expect(operatorHeadersFor("http://127.0.0.1:8787", "")).toEqual({});
   });
 });

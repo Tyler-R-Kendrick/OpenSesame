@@ -15,8 +15,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use opensesame_client_core::SyncBlob;
-
 #[derive(Clone)]
 pub struct DevicePending {
     /// `hash_secret(user_code)` — the low-entropy code is never held in cleartext.
@@ -52,12 +50,6 @@ pub struct AppState {
     pub openfga: Option<OpenFgaClient>,
     pub openbao: Option<OpenBaoHttpAuthority>,
     pub connection_ref: Option<ConnectionRef>,
-    /// Opaque ciphertext sync store — server never decrypts (ADR 0017).
-    pub sync_blobs: Arc<Mutex<HashMap<String, SyncBlob>>>,
-    /// blob_id -> owning session_id (tenant/device scoping for sync).
-    pub blob_owners: Arc<Mutex<HashMap<String, String>>>,
-    /// Per-device sync cursors (device_id -> last seen epoch).
-    pub device_cursors: Arc<Mutex<HashMap<String, u64>>>,
     /// Shared secret for human/operator mutations (approve, claim complete, admin).
     pub operator_token: String,
     /// Pepper for low-entropy (user code) digests.
@@ -121,9 +113,6 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         openfga,
         openbao,
         connection_ref: boot.connection_ref,
-        sync_blobs: Arc::new(Mutex::new(HashMap::new())),
-        blob_owners: Arc::new(Mutex::new(HashMap::new())),
-        device_cursors: Arc::new(Mutex::new(HashMap::new())),
         operator_token: config::resolve_operator_token(),
         claim_pepper: config::resolve_claim_pepper(),
         distributed_task_authority,

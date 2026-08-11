@@ -37,26 +37,3 @@ pub async fn whoami(State(st): State<AppState>, headers: axum::http::HeaderMap) 
     }))
     .into_response()
 }
-
-pub async fn list_connections(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Response {
-    if let Err(resp) = require_session_or_operator(&st, &headers) {
-        return resp;
-    }
-    let Some(connection_ref) = &st.connection_ref else {
-        return Json(json!({"connections": []})).into_response();
-    };
-    // Agent surface: ConnectionRef only — never SecretRef / raw credential handles.
-    Json(json!({
-        "connections": [{
-            "connection_ref": connection_ref.handle.uri(),
-            "connection_id": connection_ref.connection_id.to_string(),
-            "logical_name": connection_ref.handle.logical_name,
-            "max_invoke_level": 2,
-            "operations": ["repository.read", "pull_request.create"]
-        }]
-    }))
-    .into_response()
-}

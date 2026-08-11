@@ -42,6 +42,14 @@ export class IdentityError extends Error {
 }
 
 let session: IdentitySession | null = null;
+type HostSession = {
+  accessToken: string;
+  expiresAt: number;
+  hostApi: string;
+  identityAccessToken: string;
+};
+let hostSession: HostSession | null = null;
+let pendingHostSession: Promise<HostSession> | null = null;
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -51,12 +59,14 @@ function emit(): void {
 export function currentSession(): IdentitySession | null {
   if (session && Date.parse(session.expiresAt) <= Date.now()) {
     session = null;
+    clearHostSession();
   }
   return session;
 }
 
 export function clearSession(): void {
   session = null;
+  clearHostSession();
   emit();
 }
 
@@ -66,6 +76,160 @@ export function identityBase(): string {
 
 export function hostBase(): string {
   return loadSettings().hostApi.replace(/\/$/, "");
+}
+
+export function clearHostSession(): void {
+  hostSession = null;
+  pendingHostSession = null;
+}
+
+function currentHostSession(): HostSession | null {
+  const identity = currentSession();
+  if (
+    !hostSession ||
+    !identity ||
+    hostSession.hostApi !== hostBase() ||
+    hostSession.identityAccessToken !== identity.accessToken ||
+    hostSession.expiresAt <= Date.now()
+  ) {
+    hostSession = null;
+  }
+  return hostSession;
+}
+
+async function hostSessionFailure(
+  response: Response,
+  fallback: string,
+): Promise<Error> {
+  try {
+    const payload = (await response.json()) as {
+      error?: unknown;
+      hint?: unknown;
+      body?: { error?: unknown; hint?: unknown };
+    };
+    const detail =
+      payload.body?.hint ??
+      payload.body?.error ??
+      payload.hint ??
+      payload.error;
+    if (typeof detail === "string") return new Error(`${fallback}: ${detail}`);
+  } catch {
+    // The status still gives the user an actionable failure for non-JSON errors.
+  }
+  return new Error(`${fallback} (${response.status}).`);
+}
+
+async function mintHostSession(
+  identity: IdentitySession,
+): Promise<HostSession> {
+  const unchanged = () =>
+    currentSession()?.accessToken === identity.accessToken;
+  const hostApi = hostBase();
+  const authorize = await fetch(`${hostApi}/api/v1/device/authorize`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    credentials: "omit",
+    body: JSON.stringify({
+      client_id: "opensesame-pages",
+      scope: "opensesame.session",
+    }),
+  });
+  if (!authorize.ok) {
+    throw await hostSessionFailure(authorize, "Host session request failed");
+  }
+  const grant = (await authorize.json()) as {
+    device_code?: unknown;
+    user_code?: unknown;
+  };
+  if (
+    typeof grant.device_code !== "string" ||
+    typeof grant.user_code !== "string"
+  ) {
+    throw new Error("Host returned an invalid device grant.");
+  }
+  if (!unchanged()) throw new Error("Identity changed during Host sign-in.");
+
+  const approve = await identityFetch("/v1/device/approve", {
+    method: "POST",
+    body: JSON.stringify({ user_code: grant.user_code }),
+  });
+  if (!approve.ok) {
+    throw await hostSessionFailure(approve, "Host session approval failed");
+  }
+  if (!unchanged()) throw new Error("Identity changed during Host sign-in.");
+
+  const token = await fetch(`${hostApi}/api/v1/device/token`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    credentials: "omit",
+    body: JSON.stringify({
+      device_code: grant.device_code,
+      grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+    }),
+  });
+  if (!token.ok) {
+    throw await hostSessionFailure(token, "Host session exchange failed");
+  }
+  const issued = (await token.json()) as {
+    access_token?: unknown;
+    expires_in?: unknown;
+  };
+  if (
+    typeof issued.access_token !== "string" ||
+    !issued.access_token.startsWith("opaque-session:") ||
+    typeof issued.expires_in !== "number" ||
+    issued.expires_in <= 0
+  ) {
+    throw new Error("Host returned an invalid session.");
+  }
+  if (!unchanged()) throw new Error("Identity changed during Host sign-in.");
+  return {
+    accessToken: issued.access_token,
+    expiresAt: Date.now() + issued.expires_in * 1000,
+    hostApi,
+    identityAccessToken: identity.accessToken,
+  };
+}
+
+async function ensureHostSession(): Promise<HostSession> {
+  const existing = currentHostSession();
+  if (existing) return existing;
+  const identity = currentSession();
+  if (!identity) {
+    throw new Error("Connect to Identity before using the Host.");
+  }
+  if (!pendingHostSession) {
+    pendingHostSession = mintHostSession(identity).then((issued) => {
+      hostSession = issued;
+      return issued;
+    });
+  }
+  const pending = pendingHostSession;
+  try {
+    return await pending;
+  } finally {
+    if (pendingHostSession === pending) pendingHostSession = null;
+  }
+}
+
+/** Fetch against the Host as the connected principal, never as deployment operator. */
+export async function hostFetch(
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  const active = await ensureHostSession();
+  const headers = new Headers(init.headers);
+  headers.set("authorization", `Bearer ${active.accessToken}`);
+  if (init.body && !headers.has("content-type")) {
+    headers.set("content-type", "application/json");
+  }
+  const response = await fetch(`${hostBase()}${path}`, {
+    ...init,
+    headers,
+    credentials: "omit",
+  });
+  if (response.status === 401) clearHostSession();
+  return response;
 }
 
 async function readError(res: Response): Promise<string> {
