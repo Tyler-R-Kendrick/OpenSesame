@@ -186,14 +186,8 @@ impl ProviderView {
             scopes: provider.scopes.iter().map(ScopeView::from).collect(),
             egress: EgressView::from(&provider.egress.binding()),
             operations: provider.operations.iter().map(|o| o.to_string()).collect(),
-            integration_configuration_fields: provider
-                .auth
-                .integration_configuration_fields()
-                .to_vec(),
-            connection_configuration_fields: provider
-                .auth
-                .connection_configuration_fields()
-                .to_vec(),
+            integration_configuration_fields: provider.integration_configuration_fields().to_vec(),
+            connection_configuration_fields: provider.connection_configuration_fields().to_vec(),
         }
     }
 }

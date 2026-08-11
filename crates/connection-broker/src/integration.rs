@@ -160,10 +160,7 @@ fn hint(client_id: &Option<String>) -> Option<String> {
 
 fn configured(provider: &Provider, configuration: &Configuration, sealing_available: bool) -> bool {
     sealing_available
-        && configuration::complete(
-            provider.auth.integration_configuration_fields(),
-            configuration,
-        )
+        && configuration::complete(provider.integration_configuration_fields(), configuration)
 }
 
 fn validate_scopes(provider: &Provider, scopes: &[String]) -> Result<()> {
@@ -277,10 +274,8 @@ impl ConnectionBroker {
     async fn row_view(&self, row: IntegrationRow) -> Result<IntegrationView> {
         let provider = self.provider(&row.provider_id)?;
         let configuration = self.integration_configuration(&row)?;
-        let configured_fields = configuration::views(
-            provider.auth.integration_configuration_fields(),
-            &configuration,
-        );
+        let configured_fields =
+            configuration::views(provider.integration_configuration_fields(), &configuration);
         Ok(IntegrationView {
             id: row.id.clone(),
             key: row.key,
@@ -342,7 +337,7 @@ impl ConnectionBroker {
             client_id_hint: hint(&cfg.client_id),
             has_client_secret: cfg.client_secret.is_some(),
             configured_fields: configuration::views(
-                provider.auth.integration_configuration_fields(),
+                provider.integration_configuration_fields(),
                 &configuration,
             ),
             connection_count: 0,
@@ -429,7 +424,7 @@ impl ConnectionBroker {
             }
         }
         configuration::validate_mutation(
-            provider.auth.integration_configuration_fields(),
+            provider.integration_configuration_fields(),
             &configuration,
             &[],
         )?;
@@ -543,14 +538,14 @@ impl ConnectionBroker {
         if configuration_changed {
             let provider = self.provider(&row.provider_id)?;
             configuration::validate_mutation(
-                provider.auth.integration_configuration_fields(),
+                provider.integration_configuration_fields(),
                 &configuration_set,
                 &configuration_clear,
             )?;
             let mut configuration = self.integration_configuration(&row)?;
             configuration::apply(&mut configuration, configuration_set, &configuration_clear);
             configuration::validate_mutation(
-                provider.auth.integration_configuration_fields(),
+                provider.integration_configuration_fields(),
                 &configuration,
                 &[],
             )?;

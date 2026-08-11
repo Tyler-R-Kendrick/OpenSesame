@@ -1469,6 +1469,43 @@ async fn an_api_key_connection_activates_without_a_consent_screen() {
 }
 
 #[tokio::test]
+async fn a_fnox_provider_seals_its_declared_configuration() {
+    let (_db, broker) = broker().await;
+    let org = OrganizationId::new();
+    let view = broker
+        .create_connection(&org, create("azure-sm"))
+        .await
+        .unwrap();
+
+    let active = broker
+        .set_connection_configuration(
+            &org,
+            &view.connection_id,
+            std::collections::BTreeMap::from([
+                (
+                    "vault_url".into(),
+                    "https://example.vault.azure.net/".into(),
+                ),
+                ("tenant_id".into(), "tenant-1234".into()),
+                ("client_id".into(), "client-1234".into()),
+                ("client_secret".into(), "do-not-return".into()),
+            ]),
+            vec![],
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(active.status, ConnectionStatus::Active);
+    assert!(active
+        .configured_fields
+        .iter()
+        .any(|field| field.name == "client_secret" && field.hint.as_deref() == Some("configured")));
+    assert!(!serde_json::to_string(&active)
+        .unwrap()
+        .contains("do-not-return"));
+}
+
+#[tokio::test]
 async fn an_oauth_provider_refuses_a_pasted_api_key() {
     let (_db, broker) = broker().await;
     let org = OrganizationId::new();

@@ -159,6 +159,32 @@ describe("connections wire parsers", () => {
     ).toThrow(new CatalogResponseError("malformed"));
   });
 
+  it("accepts provider-specific configuration connectors", () => {
+    expect(
+      parseProviderList({
+        providers: [
+          provider({
+            id: "azure-sm",
+            auth_kind: "configuration",
+            supports_refresh: false,
+            callback_url: null,
+            connection_configuration_fields: [
+              { name: "vault_url", secret: false, required: true },
+              { name: "client_secret", secret: true, required: true },
+            ],
+          }),
+        ],
+      })[0],
+    ).toMatchObject({
+      id: "azure-sm",
+      authKind: "configuration",
+      connectionConfigurationFields: [
+        { name: "vault_url", secret: false, required: true },
+        { name: "client_secret", secret: true, required: true },
+      ],
+    });
+  });
+
   it("rejects unknown integration fields instead of stripping secrets", () => {
     expect(parseIntegrationList({ integrations: [integration()] })[0]).toEqual({
       id: "int_1",

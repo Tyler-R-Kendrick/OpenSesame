@@ -25,6 +25,7 @@ export type ProviderCategory = z.infer<typeof ProviderCategorySchema>;
 export const ProviderAuthKindSchema = z.enum([
   "oauth2_authorization_code",
   "api_key",
+  "configuration",
 ]);
 export type ProviderAuthKind = z.infer<typeof ProviderAuthKindSchema>;
 

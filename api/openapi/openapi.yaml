@@ -1006,7 +1006,7 @@ components:
         docs_url: { type: string, format: uri }
         provenance_url: { type: string, format: uri }
         catalog_revision: { type: string, minLength: 1 }
-        auth_kind: { type: string, enum: [oauth2_authorization_code, api_key] }
+        auth_kind: { type: string, enum: [oauth2_authorization_code, api_key, configuration] }
         supports_refresh: { type: boolean }
         configured: { type: boolean }
         callback_url: { type: [string, "null"], format: uri }

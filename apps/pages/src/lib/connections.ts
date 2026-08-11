@@ -29,7 +29,10 @@ export type ProviderCategory =
   | "identity"
   | "testing";
 
-export type AuthKind = "oauth2_authorization_code" | "api_key";
+export type AuthKind =
+  | "oauth2_authorization_code"
+  | "api_key"
+  | "configuration";
 
 export type ProviderScope = {
   name: string;

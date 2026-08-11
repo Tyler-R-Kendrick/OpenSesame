@@ -68,7 +68,7 @@ Provider = {
   "display_name": "GitHub",
   "category": "developer" | "productivity" | "communication" | "storage" | "crm" | "payments" | "identity" | "testing",
   "docs_url": "https://docs.github.com/apps/oauth-apps",
-  "auth_kind": "oauth2_authorization_code" | "api_key",
+  "auth_kind": "oauth2_authorization_code" | "api_key" | "configuration",
   "supports_refresh": true,
   "configured": false,                       // deployment has client id + secret
   "callback_url": "https://host.example/api/v1/oauth/callback/github",
@@ -79,6 +79,11 @@ Provider = {
   "operations": ["repository.read", "pull_request.create"]
 }
 ```
+
+`configuration` connectors cover the provider types published by Fnox. They
+seal the provider-specific fields shown by the marketplace, but deliberately
+publish no network egress; provider execution requires a separate authority-
+checked adapter.
 
 ### Integrations
 
@@ -108,7 +113,7 @@ DELETE /api/v1/connections/{id}                 200 { "revoked": true,
                                                       "provider_revocation": "ok"|"unsupported"|"failed" }
 POST   /api/v1/connections/{id}/authorize       200 { "authorization_url", "state", "expires_at" }
 POST   /api/v1/connections/{id}/refresh         200 Connection
-POST   /api/v1/connections/{id}/credential      200 Connection   // api_key providers only
+POST   /api/v1/connections/{id}/credential      200 Connection   // API key or configuration providers
 POST   /api/v1/connections/{id}/bindings        200 Connection
 DELETE /api/v1/connections/{id}/bindings/{bid}  200 Connection
 GET    /api/v1/connections/{id}/events          200 { "events": [ Event ] }
@@ -173,7 +178,8 @@ POST /connections/{id}/authorize
 { "redirect_uri"?: string, "scopes"?: [string] }   // redirect_uri must be deployment-allowlisted
 
 POST /connections/{id}/credential
-{ "value": string }                                 // api_key providers
+{ "configuration_set"?: { field: value }, "configuration_clear"?: [field] }
+                                                     // API key or configuration providers
 
 POST /connections/{id}/bindings
 { "target_kind": "project"|"agent"|"organization", "target_id": string, "target_label"?: string }

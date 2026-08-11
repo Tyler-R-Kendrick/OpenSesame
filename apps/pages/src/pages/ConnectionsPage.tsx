@@ -907,6 +907,7 @@ export function MarketplacePanel({
               <option value="all">All methods</option>
               <option value="oauth2_authorization_code">OAuth 2.0</option>
               <option value="api_key">API key</option>
+              <option value="configuration">Configuration</option>
             </select>
           </label>
         </div>

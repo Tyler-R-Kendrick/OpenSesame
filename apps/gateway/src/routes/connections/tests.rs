@@ -674,6 +674,25 @@ async fn no_route_returns_credential_material() {
 }
 
 #[tokio::test]
+async fn provider_route_exposes_fnox_configuration_connectors() {
+    let (state, _server) = harness().await;
+    let (status, body) = call(&state, "GET", "/api/v1/providers", None).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let providers = body["providers"].as_array().unwrap();
+    assert!(providers.iter().any(|provider| provider["id"] == "bitwarden"));
+    let azure = providers
+        .iter()
+        .find(|provider| provider["id"] == "azure-sm")
+        .unwrap();
+    assert_eq!(azure["auth_kind"], "configuration");
+    assert!(azure["connection_configuration_fields"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|field| field["name"] == "client_secret" && field["secret"] == true));
+}
+
+#[tokio::test]
 async fn a_replayed_state_is_refused_at_the_callback() {
     let (state, _server) = harness().await;
 

@@ -530,6 +530,7 @@ describe("Connections marketplace panels", () => {
     expect(html).toContain("Authentication");
     expect(html).toContain("OAuth 2.0");
     expect(html).toContain("API key");
+    expect(html).toContain("Configuration");
   });
 
   it("shows connectors but blocks configuration without Host sealing", () => {
