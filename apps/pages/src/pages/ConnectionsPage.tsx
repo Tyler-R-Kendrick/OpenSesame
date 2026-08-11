@@ -575,13 +575,12 @@ export function ConnectionsPage() {
       {notice ? (
         <output className="ok connections-alert">{notice}</output>
       ) : null}
+      <CredentialProvidersPanel
+        organizationId={organization?.id ?? null}
+        accessRole={organization?.role ?? null}
+      />
       {organization ? (
         <>
-          <CredentialProvidersPanel
-            organizationId={organization.id}
-            accessRole={organization.role}
-          />
-
           <MarketplacePanel
             providers={providers}
             integrations={integrations}
@@ -843,8 +842,8 @@ function CredentialProvidersPanel({
   organizationId,
   accessRole,
 }: {
-  organizationId: string;
-  accessRole: OrganizationRole;
+  organizationId: string | null;
+  accessRole: OrganizationRole | null;
 }) {
   const [providers, setProviders] = useState<CredentialProvider[] | null>(null);
   const [connections, setConnections] = useState<CredentialConnection[]>([]);
@@ -857,9 +856,12 @@ function CredentialProvidersPanel({
     setIssue(null);
     try {
       const nextConnections = await loadCatalogBeforeWorkspace(
-        () => listCredentialProviders(organizationId),
+        () => listCredentialProviders(),
         setProviders,
-        () => listCredentialConnections(organizationId),
+        () =>
+          organizationId
+            ? listCredentialConnections(organizationId)
+            : Promise.resolve([]),
       );
       setConnections(nextConnections);
     } catch (caught) {
@@ -878,7 +880,8 @@ function CredentialProvidersPanel({
     () => filterCredentialProviders(providers ?? [], query),
     [providers, query],
   );
-  const manage = canConfigure(accessRole);
+  const manage = accessRole ? canConfigure(accessRole) : false;
+  const scopedOrganizationId = organizationId;
 
   async function perform(label: string, work: () => Promise<string>) {
     setBusy(label);
@@ -984,7 +987,7 @@ function CredentialProvidersPanel({
                       </span>
                       <span>{provider.capabilities.join(" · ")}</span>
                     </div>
-                    {manage ? (
+                    {manage && organizationId ? (
                       <details className="inline-action">
                         <summary>Configure</summary>
                         <CredentialProviderForm
@@ -1022,7 +1025,7 @@ function CredentialProvidersPanel({
         <h3>Configured credential stores</h3>
         <span>{connections.length}</span>
       </div>
-      {connections.length ? (
+      {scopedOrganizationId && connections.length ? (
         <ul className="connections-list">
           {connections.map((connection) => {
             const provider = providers?.find(
@@ -1049,7 +1052,7 @@ function CredentialProvidersPanel({
                     onClick={() =>
                       void perform(`test-${connection.id}`, async () => {
                         const result = await testCredentialProvider(
-                          organizationId,
+                          scopedOrganizationId,
                           connection.providerId,
                         );
                         return `${connection.displayName}: ${
@@ -1073,7 +1076,7 @@ function CredentialProvidersPanel({
                           onSubmit={(displayName, publicConfig) =>
                             void perform(`edit-${connection.id}`, async () => {
                               await updateCredentialConnection(
-                                organizationId,
+                                scopedOrganizationId,
                                 connection.id,
                                 { displayName, publicConfig },
                               );
@@ -1094,7 +1097,7 @@ function CredentialProvidersPanel({
                                 `remove-${connection.id}`,
                                 async () => {
                                   await removeCredentialConnection(
-                                    organizationId,
+                                    scopedOrganizationId,
                                     connection.id,
                                   );
                                   return `${connection.displayName} was removed.`;

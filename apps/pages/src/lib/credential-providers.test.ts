@@ -62,7 +62,7 @@ describe("connection client", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const providers = await listProviders("org:pages");
+    const providers = await listProviders();
     await listConnections("org:pages");
 
     expect(providers[0]?.displayName).toBe("OpenBao");
@@ -72,6 +72,12 @@ describe("connection client", () => {
     expect(
       new Headers(hostRequests[0]?.[1]?.headers).get("authorization"),
     ).toBe("Bearer opaque-session:pages");
+    const catalogRequest = fetchMock.mock.calls.find(([url]) =>
+      String(url).endsWith("/api/v1/credential-providers"),
+    );
+    expect(catalogRequest?.[1]).toEqual(
+      expect.objectContaining({ credentials: "omit" }),
+    );
     expect(
       fetchMock.mock.calls.filter(([url]) =>
         String(url).endsWith("/api/v1/device/authorize"),

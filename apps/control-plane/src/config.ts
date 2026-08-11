@@ -60,8 +60,7 @@ export function loadConfig(
 ): ControlPlaneConfig {
   const port = Number(env.OPENSESAME_CONTROL_PLANE_PORT ?? env.PORT ?? "8788");
   const host = env.OPENSESAME_CONTROL_PLANE_HOST ?? "127.0.0.1";
-  const publicUrl =
-    env.OPENSESAME_PUBLIC_URL ?? `http://${host}:${port}`;
+  const publicUrl = env.OPENSESAME_PUBLIC_URL ?? `http://${host}:${port}`;
   const issuer = env.OPENSESAME_ISSUER ?? publicUrl;
   const isProduction =
     (env.NODE_ENV ?? "") === "production" ||
@@ -96,14 +95,19 @@ export function loadConfig(
     publicUrl,
     issuer,
     claimPepper: claimPepper ?? DEV_CLAIM_PEPPER,
-    provisionalCookieName: env.OPENSESAME_PROVISIONAL_COOKIE ?? "os_provisional",
-    provisionalTtlMs: Number(env.OPENSESAME_PROVISIONAL_TTL_MS ?? String(86_400_000)),
+    provisionalCookieName:
+      env.OPENSESAME_PROVISIONAL_COOKIE ?? "os_provisional",
+    provisionalTtlMs: Number(
+      env.OPENSESAME_PROVISIONAL_TTL_MS ?? String(86_400_000),
+    ),
     logLevel: env.OPENSESAME_LOG_LEVEL ?? env.LOG_LEVEL ?? "info",
     allowPrincipalBearer,
     allowDevDefaults,
     isProduction,
-    corsOrigins: (env.OPENSESAME_CORS_ORIGINS ??
-      "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5174,http://localhost:5174")
+    corsOrigins: (
+      env.OPENSESAME_CORS_ORIGINS ??
+      "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5174,http://localhost:5174,http://127.0.0.1:5180,http://localhost:5180"
+    )
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
@@ -134,7 +138,9 @@ export function assertSecureConfig(
     throw new Error("allowPrincipalBearer must be false in production");
   }
   if (config.isProduction && config.claimPepper === DEV_CLAIM_PEPPER) {
-    throw new Error("OPENSESAME_CLAIM_PEPPER must not use the development default in production");
+    throw new Error(
+      "OPENSESAME_CLAIM_PEPPER must not use the development default in production",
+    );
   }
   if (config.isProduction && config.allowDevDefaults) {
     throw new Error("allowDevDefaults must be false in production");
@@ -145,11 +151,17 @@ export function assertSecureConfig(
     );
   }
   if (config.isProduction && !config.corsOrigins.length) {
-    throw new Error("OPENSESAME_CORS_ORIGINS must list at least one origin in production");
+    throw new Error(
+      "OPENSESAME_CORS_ORIGINS must list at least one origin in production",
+    );
   }
-  const wildcardCors = config.corsOrigins.some((o) => o === "*" || o === "null");
+  const wildcardCors = config.corsOrigins.some(
+    (o) => o === "*" || o === "null",
+  );
   if (config.isProduction && wildcardCors) {
-    throw new Error("OPENSESAME_CORS_ORIGINS must not include * or null in production");
+    throw new Error(
+      "OPENSESAME_CORS_ORIGINS must not include * or null in production",
+    );
   }
   assertListenHostAllowed(config.host, env);
 }

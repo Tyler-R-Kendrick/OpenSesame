@@ -1,4 +1,5 @@
 import { hostFetch } from "./organization-identity.js";
+import { loadSettings } from "./settings.js";
 
 export type Provider = {
   id: string;
@@ -74,13 +75,17 @@ function connection(value: Record<string, unknown>): Connection {
   };
 }
 
-export async function listProviders(
-  organizationId: string,
-): Promise<Provider[]> {
-  const body = await call<{ providers?: Array<Record<string, unknown>> }>(
-    organizationId,
-    "/credential-providers",
-  );
+export async function listProviders(): Promise<Provider[]> {
+  const host = loadSettings().hostApi.replace(/\/$/, "");
+  const response = await fetch(`${host}/api/v1/credential-providers`, {
+    credentials: "omit",
+  });
+  if (!response.ok) {
+    throw new Error(`Host request failed (${response.status}).`);
+  }
+  const body = (await response.json()) as {
+    providers?: Array<Record<string, unknown>>;
+  };
   return (body.providers ?? []).map(provider);
 }
 
