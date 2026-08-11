@@ -1,57 +1,94 @@
-import { useEffect, useState } from "react";
-import { Navigate, Outlet, Route, Routes, useLocation } from "react-router";
-import { VaultShell } from "./components/VaultShell.js";
-import { isOnline, subscribeConnectivity } from "./lib/connectivity.js";
-import { isUnlocked } from "./lib/lock.js";
-import { AgentPage } from "./pages/AgentPage.js";
-import { AuthorizePage } from "./pages/AuthorizePage.js";
-import { ClaimPage } from "./pages/ClaimPage.js";
+import type { ReactNode } from "react";
+import { Navigate, Route, Routes } from "react-router";
+import { AppShell } from "./components/AppShell.js";
+import { useSessionGuards, useTheme, useVault } from "./lib/vault/hooks.js";
 import { ConnectionsPage } from "./pages/ConnectionsPage.js";
-import { ProtocolPage } from "./pages/ProtocolPage.js";
-import { QueuePage } from "./pages/QueuePage.js";
-import { SettingsPage } from "./pages/SettingsPage.js";
-import { TaskPage } from "./pages/TaskPage.js";
-import { ToolsPage } from "./pages/ToolsPage.js";
-import { UnlockPage } from "./pages/UnlockPage.js";
-import { VaultPage } from "./pages/VaultPage.js";
+import { UnlockScreen } from "./screens/UnlockScreen.js";
+import { AgentsSection } from "./sections/AgentsSection.js";
+import { AuthoritySection } from "./sections/AuthoritySection.js";
+import { ConnectionsSection } from "./sections/ConnectionsSection.js";
+import { SettingsSection } from "./sections/SettingsSection.js";
+import { SitesSection } from "./sections/SitesSection.js";
+import { VaultSection, VaultWelcome } from "./sections/VaultSection.js";
+import { HealthPanel } from "./sections/vault/HealthPanel.js";
+import { ItemDetail } from "./sections/vault/ItemDetail.js";
+import { ItemEditor } from "./sections/vault/ItemEditor.js";
 
-function LockedLayout({ online }: { online: boolean }) {
-  const location = useLocation();
-  if (!isUnlocked()) {
-    return (
-      <Navigate to="/unlock" replace state={{ from: location.pathname }} />
-    );
-  }
-  return (
-    <VaultShell online={online}>
-      <Outlet />
-    </VaultShell>
-  );
+/** Scrolling frame for every section except the vault, which owns its own panes. */
+function Framed({ children }: { children: ReactNode }) {
+  return <main className="section">{children}</main>;
 }
 
 export function App() {
-  const [online, setOnline] = useState(isOnline());
+  const { status } = useVault();
+  useTheme();
+  useSessionGuards();
 
-  useEffect(() => subscribeConnectivity(setOnline), []);
+  if (status !== "unlocked") {
+    return <UnlockScreen />;
+  }
 
   return (
-    <Routes>
-      <Route path="/unlock" element={<UnlockPage />} />
-      <Route element={<LockedLayout online={online} />}>
+    <AppShell>
+      <Routes>
         <Route path="/" element={<Navigate to="/vault" replace />} />
-        <Route path="/vault" element={<VaultPage />} />
-        <Route path="/vault/:itemId" element={<VaultPage />} />
-        <Route path="/agent" element={<AgentPage />} />
-        <Route path="/connections" element={<ConnectionsPage />} />
-        <Route path="/tools" element={<ToolsPage />} />
-        <Route path="/authorize" element={<AuthorizePage online={online} />} />
-        <Route path="/claim" element={<ClaimPage online={online} />} />
-        <Route path="/task" element={<TaskPage online={online} />} />
-        <Route path="/protocol" element={<ProtocolPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/queue" element={<QueuePage online={online} />} />
+        <Route path="/vault" element={<VaultSection />}>
+          <Route index element={<VaultWelcome />} />
+          <Route path="health" element={<HealthPanel />} />
+          <Route path="new/:kind" element={<ItemEditor mode="new" />} />
+          <Route path=":itemId/edit" element={<ItemEditor mode="edit" />} />
+          <Route path=":itemId" element={<ItemDetail />} />
+        </Route>
+        <Route
+          path="/agents"
+          element={
+            <Framed>
+              <AgentsSection />
+            </Framed>
+          }
+        />
+        <Route
+          path="/sites"
+          element={
+            <Framed>
+              <SitesSection />
+            </Framed>
+          }
+        />
+        <Route
+          path="/connections"
+          element={
+            <Framed>
+              <ConnectionsPage />
+            </Framed>
+          }
+        />
+        <Route
+          path="/credential-providers"
+          element={
+            <Framed>
+              <ConnectionsSection />
+            </Framed>
+          }
+        />
+        <Route
+          path="/authority"
+          element={
+            <Framed>
+              <AuthoritySection />
+            </Framed>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <Framed>
+              <SettingsSection />
+            </Framed>
+          }
+        />
         <Route path="*" element={<Navigate to="/vault" replace />} />
-      </Route>
-    </Routes>
+      </Routes>
+    </AppShell>
   );
 }

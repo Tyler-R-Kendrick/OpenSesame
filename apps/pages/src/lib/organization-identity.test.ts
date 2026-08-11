@@ -4,7 +4,7 @@ import {
   hostFetch,
   identityFetch,
   listSessionOrganizations,
-} from "./identity.js";
+} from "./organization-identity.js";
 
 type FetchHarness = {
   fetch: ReturnType<typeof vi.fn>;

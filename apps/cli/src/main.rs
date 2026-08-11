@@ -3,8 +3,13 @@ use opensesame_authn::{
     detect_signals_from_env, resolve_login_flow, DevicePollState, DeviceServerStatus, LoginFlow,
     OpenBrowser, WhoAmI,
 };
+use opensesame_connector_host::providers::{
+    crypto_plan, execute_crypto_plan, execute_human_plan, human_plan, CryptoOperation,
+    HumanProviderOperation,
+};
 use opensesame_domain::DevDeliveryPolicy;
 use opensesame_env_spec::{parse_schema_file, resolve_for_delivery, schema_summary};
+use serde::Deserialize;
 use serde_json::json;
 use std::{
     env,
@@ -16,7 +21,8 @@ use std::{
 #[derive(Parser, Debug)]
 #[command(
     name = "opensesame",
-    about = "OpenSesame CLI — credentials as capabilities"
+    about = "OpenSesame CLI — credentials as capabilities",
+    version
 )]
 struct Cli {
     #[arg(
@@ -68,6 +74,63 @@ enum Commands {
         cmd: ReceiptCmd,
     },
     Doctor,
+    /// Provider catalog and live/readiness probes.
+    Provider {
+        #[command(subcommand)]
+        cmd: ProviderCmd,
+    },
+    /// First-class connection configuration (alias: connector).
+    #[command(alias = "connector")]
+    Connection {
+        #[command(subcommand)]
+        cmd: ConnectionCmd,
+    },
+    /// Explicit human-only provider reads. Never exposed through MCP or agent APIs.
+    Secret {
+        #[command(subcommand)]
+        cmd: SecretCmd,
+    },
+    /// Acquire or revoke a short-lived credential lease (human CLI only).
+    Lease {
+        #[command(subcommand)]
+        cmd: LeaseCmd,
+    },
+    /// Encrypt or decrypt files without placing plaintext in argv or stdout.
+    Crypto {
+        #[command(subcommand)]
+        cmd: CryptoCmd,
+    },
+    /// Push or pull server-blind encrypted blobs.
+    Sync {
+        #[command(subcommand)]
+        cmd: SyncCmd,
+    },
+    /// Export non-secret native connection configuration.
+    Export {
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    /// Import non-secret native connection configuration.
+    Import {
+        input: PathBuf,
+    },
+    /// Print native project configuration files.
+    ConfigFiles {
+        #[arg(long, default_value = ".env.schema")]
+        schema: PathBuf,
+    },
+    /// Generate shell completion on stdout.
+    Completion {
+        #[arg(value_enum)]
+        shell: CompletionShell,
+    },
+    /// Initialize a native .env.schema without overwriting an existing file.
+    Init {
+        #[arg(long, default_value = ".env.schema")]
+        schema: PathBuf,
+    },
+    /// Interactive provider and connection browser (never reveals material).
+    Tui,
     /// Developer @env-spec workflow (ADR 0006).
     Dev {
         /// Force agent delivery policy (deny materialize).
@@ -139,6 +202,132 @@ enum AuthCmd {
 #[derive(Subcommand, Debug)]
 enum ReceiptCmd {
     Verify { id: String },
+}
+
+#[derive(Subcommand, Debug)]
+enum ProviderCmd {
+    List,
+    Test { id: String },
+}
+
+#[derive(Subcommand, Debug)]
+enum ConnectionCmd {
+    List,
+    Add {
+        #[arg(long)]
+        provider: String,
+        #[arg(long)]
+        name: String,
+        /// Non-secret JSON coordinates (region, vault, mount, etc.).
+        #[arg(long, default_value = "{}")]
+        config: String,
+    },
+    Update {
+        id: String,
+        #[arg(long)]
+        name: Option<String>,
+        /// Replacement non-secret JSON coordinates.
+        #[arg(long)]
+        config: Option<String>,
+    },
+    Remove {
+        id: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum SecretCmd {
+    Get {
+        #[arg(long)]
+        connection: String,
+        #[arg(long)]
+        key: String,
+        /// Acknowledge that plaintext will be written to stdout.
+        #[arg(long)]
+        reveal: bool,
+    },
+    List {
+        #[arg(long)]
+        connection: String,
+        #[arg(long, default_value = "/")]
+        path: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum LeaseCmd {
+    Acquire {
+        #[arg(long)]
+        connection: String,
+        #[arg(long)]
+        resource: String,
+        /// Acknowledge that lease material will be written to stdout.
+        #[arg(long)]
+        reveal: bool,
+    },
+    Revoke {
+        #[arg(long)]
+        connection: String,
+        #[arg(long)]
+        lease: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum CryptoCmd {
+    Encrypt {
+        #[arg(long)]
+        connection: String,
+        #[arg(long)]
+        input: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    Decrypt {
+        #[arg(long)]
+        connection: String,
+        #[arg(long)]
+        input: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum SyncCmd {
+    /// Upload a JSON array of ciphertext blobs.
+    Push { input: PathBuf },
+    /// Download ciphertext blobs to a new JSON file.
+    Pull {
+        output: PathBuf,
+        #[arg(long, default_value_t = 0)]
+        since_epoch: u64,
+        #[arg(long)]
+        device: Option<String>,
+    },
+}
+
+#[derive(Deserialize)]
+struct CliConnection {
+    id: String,
+    provider_id: String,
+    display_name: String,
+    public_config: serde_json::Value,
+}
+
+#[derive(Deserialize)]
+struct TuiProvider {
+    id: String,
+    display_name: String,
+    support: String,
+}
+
+#[derive(Deserialize)]
+struct PortableConnection {
+    provider_id: String,
+    display_name: String,
+    #[serde(default)]
+    public_config: serde_json::Value,
 }
 
 #[derive(Subcommand, Debug)]
@@ -217,6 +406,13 @@ enum OpenBrowserArg {
     Never,
 }
 
+#[derive(Clone, Copy, ValueEnum, Debug)]
+enum CompletionShell {
+    Bash,
+    Zsh,
+    Fish,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
@@ -261,6 +457,25 @@ async fn main() -> anyhow::Result<()> {
             cmd: ReceiptCmd::Verify { id },
         } => verify_receipt(&cli.server, &id).await?,
         Commands::Doctor => doctor(&cli.server).await?,
+        Commands::Provider { cmd } => provider_cmd(&cli.server, &cli.output, cmd).await?,
+        Commands::Connection { cmd } => connection_cmd(&cli.server, &cli.output, cmd).await?,
+        Commands::Secret { cmd } => secret_cmd(&cli.server, cmd).await?,
+        Commands::Lease { cmd } => lease_cmd(&cli.server, cmd).await?,
+        Commands::Crypto { cmd } => crypto_cmd(&cli.server, cmd).await?,
+        Commands::Sync { cmd } => sync_cmd(&cli.server, cmd).await?,
+        Commands::Export { output } => export_connections(&cli.server, output).await?,
+        Commands::Import { input } => import_connections(&cli.server, input).await?,
+        Commands::ConfigFiles { schema } => {
+            println!(
+                "{}",
+                json!({"config_files": [schema], "format": "env-spec"})
+            );
+        }
+        Commands::Completion { shell } => {
+            print!("{}", completion_script(shell));
+        }
+        Commands::Init { schema } => init_schema(&schema)?,
+        Commands::Tui => tui(&cli.server).await?,
         Commands::Dev {
             cmd,
             agent,
@@ -535,6 +750,19 @@ fn write_private(path: &std::path::Path, bytes: &[u8]) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn write_private_new(path: &std::path::Path, bytes: &[u8]) -> anyhow::Result<()> {
+    use std::io::Write;
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    opts.open(path)?.write_all(bytes)?;
+    Ok(())
+}
+
 fn session_path() -> anyhow::Result<PathBuf> {
     let dir = directories::ProjectDirs::from("dev", "OpenSesame", "opensesame")
         .ok_or_else(|| anyhow::anyhow!("no project dirs"))?;
@@ -792,6 +1020,459 @@ async fn verify_receipt(server: &str, id: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn provider_cmd(server: &str, output: &str, cmd: ProviderCmd) -> anyhow::Result<()> {
+    let client = reqwest::Client::new();
+    let base = server.trim_end_matches('/');
+    let value: serde_json::Value = match cmd {
+        ProviderCmd::List => {
+            client
+                .get(format!("{base}/api/v1/providers"))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?
+        }
+        ProviderCmd::Test { id } => {
+            let token = load_access_token()?;
+            client
+                .post(format!("{base}/api/v1/providers/{id}/test"))
+                .bearer_auth(token)
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?
+        }
+    };
+    print_output(output, &value)
+}
+
+async fn connection_cmd(server: &str, output: &str, cmd: ConnectionCmd) -> anyhow::Result<()> {
+    let token = load_access_token()?;
+    let client = reqwest::Client::new();
+    let base = server.trim_end_matches('/');
+    let value = match cmd {
+        ConnectionCmd::List => {
+            client
+                .get(format!("{base}/api/v1/connections"))
+                .bearer_auth(&token)
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?
+        }
+        ConnectionCmd::Add {
+            provider,
+            name,
+            config,
+        } => {
+            let public_config: serde_json::Value = serde_json::from_str(&config)?;
+            client
+                .post(format!("{base}/api/v1/connections"))
+                .bearer_auth(&token)
+                .json(&json!({
+                    "provider_id": provider,
+                    "display_name": name,
+                    "public_config": public_config,
+                }))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?
+        }
+        ConnectionCmd::Update { id, name, config } => {
+            let public_config = config
+                .map(|value| serde_json::from_str::<serde_json::Value>(&value))
+                .transpose()?;
+            client
+                .put(format!("{base}/api/v1/connections/{id}"))
+                .bearer_auth(&token)
+                .json(&json!({
+                    "display_name": name,
+                    "public_config": public_config,
+                }))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?
+        }
+        ConnectionCmd::Remove { id } => {
+            client
+                .delete(format!("{base}/api/v1/connections/{id}"))
+                .bearer_auth(&token)
+                .send()
+                .await?
+                .error_for_status()?;
+            json!({"removed": id})
+        }
+    };
+    print_output(output, &value)
+}
+
+async fn secret_cmd(server: &str, cmd: SecretCmd) -> anyhow::Result<()> {
+    let (connection_id, operation, resource, reveal) = match cmd {
+        SecretCmd::Get {
+            connection,
+            key,
+            reveal,
+        } => (connection, HumanProviderOperation::Read, key, reveal),
+        SecretCmd::List { connection, path } => {
+            (connection, HumanProviderOperation::List, path, true)
+        }
+    };
+    if operation == HumanProviderOperation::Read && !reveal {
+        anyhow::bail!("plaintext output requires --reveal; agents must use ConnectionRef invoke");
+    }
+    execute_connection_provider(server, &connection_id, operation, &resource).await
+}
+
+async fn lease_cmd(server: &str, cmd: LeaseCmd) -> anyhow::Result<()> {
+    let (connection, operation, resource) = match cmd {
+        LeaseCmd::Acquire {
+            connection,
+            resource,
+            reveal,
+        } => {
+            if !reveal {
+                anyhow::bail!(
+                    "lease output requires --reveal; agents must use ConnectionRef invoke"
+                );
+            }
+            (connection, HumanProviderOperation::Lease, resource)
+        }
+        LeaseCmd::Revoke { connection, lease } => {
+            (connection, HumanProviderOperation::Revoke, lease)
+        }
+    };
+    execute_connection_provider(server, &connection, operation, &resource).await
+}
+
+async fn execute_connection_provider(
+    server: &str,
+    connection_id: &str,
+    operation: HumanProviderOperation,
+    resource: &str,
+) -> anyhow::Result<()> {
+    let connection = load_cli_connection(server, connection_id).await?;
+    let plan = human_plan(
+        &connection.provider_id,
+        operation,
+        resource,
+        &connection.public_config,
+    )?;
+    println!("{}", execute_human_plan(plan)?);
+    Ok(())
+}
+
+async fn crypto_cmd(server: &str, cmd: CryptoCmd) -> anyhow::Result<()> {
+    let (connection_id, operation, input, output) = match cmd {
+        CryptoCmd::Encrypt {
+            connection,
+            input,
+            output,
+        } => (connection, CryptoOperation::Encrypt, input, output),
+        CryptoCmd::Decrypt {
+            connection,
+            input,
+            output,
+        } => (connection, CryptoOperation::Decrypt, input, output),
+    };
+    let connection = load_cli_connection(server, &connection_id).await?;
+    execute_crypto_plan(crypto_plan(
+        &connection.provider_id,
+        operation,
+        &input,
+        &output,
+        &connection.public_config,
+    )?)?;
+    println!(
+        "{}",
+        json!({"written": output, "provider": connection.provider_id})
+    );
+    Ok(())
+}
+
+async fn sync_cmd(server: &str, cmd: SyncCmd) -> anyhow::Result<()> {
+    let token = load_access_token()?;
+    let client = reqwest::Client::new();
+    let base = server.trim_end_matches('/');
+    match cmd {
+        SyncCmd::Push { input } => {
+            let value: serde_json::Value = serde_json::from_slice(&read_bounded(&input)?)?;
+            let blobs = value
+                .as_array()
+                .cloned()
+                .or_else(|| value.get("blobs").and_then(|v| v.as_array()).cloned())
+                .ok_or_else(|| {
+                    anyhow::anyhow!("sync input must be a JSON array of ciphertext blobs")
+                })?;
+            let response: serde_json::Value = client
+                .post(format!("{base}/api/v1/sync/push"))
+                .bearer_auth(token)
+                .json(&json!({"blobs": blobs}))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+        }
+        SyncCmd::Pull {
+            output,
+            since_epoch,
+            device,
+        } => {
+            let response: serde_json::Value = client
+                .post(format!("{base}/api/v1/sync/pull"))
+                .bearer_auth(token)
+                .json(&json!({"since_epoch": since_epoch, "device_id": device}))
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            write_private_new(&output, serde_json::to_vec_pretty(&response)?.as_slice())?;
+            println!("{}", json!({"written": output, "plaintext": false}));
+        }
+    }
+    Ok(())
+}
+
+async fn export_connections(server: &str, output: Option<PathBuf>) -> anyhow::Result<()> {
+    let token = load_access_token()?;
+    let value: serde_json::Value = reqwest::Client::new()
+        .get(format!(
+            "{}/api/v1/connections",
+            server.trim_end_matches('/')
+        ))
+        .bearer_auth(token)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    let portable = json!({
+        "schema_version": 1,
+        "format": "opensesame-native-connections",
+        "connections": value.get("connections").cloned().unwrap_or_default(),
+    });
+    if let Some(path) = output {
+        write_private_new(&path, serde_json::to_vec_pretty(&portable)?.as_slice())?;
+        println!("{}", json!({"written": path}));
+    } else {
+        println!("{}", serde_json::to_string_pretty(&portable)?);
+    }
+    Ok(())
+}
+
+async fn import_connections(server: &str, input: PathBuf) -> anyhow::Result<()> {
+    let value: serde_json::Value = serde_json::from_slice(&read_bounded(&input)?)?;
+    let connections: Vec<PortableConnection> = serde_json::from_value(
+        value
+            .get("connections")
+            .cloned()
+            .unwrap_or_else(|| value.clone()),
+    )?;
+    let token = load_access_token()?;
+    let client = reqwest::Client::new();
+    let url = format!("{}/api/v1/connections", server.trim_end_matches('/'));
+    let mut imported = Vec::with_capacity(connections.len());
+    for connection in connections {
+        let created: serde_json::Value = client
+            .post(&url)
+            .bearer_auth(&token)
+            .json(&json!({
+                "provider_id": connection.provider_id,
+                "display_name": connection.display_name,
+                "public_config": connection.public_config,
+            }))
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
+        imported.push(created);
+    }
+    println!(
+        "{}",
+        json!({"imported": imported.len(), "connections": imported})
+    );
+    Ok(())
+}
+
+fn init_schema(path: &std::path::Path) -> anyhow::Result<()> {
+    const TEMPLATE: &[u8] = b"# @defaultSensitive=true\n# Native OpenSesame project contract. Add public defaults explicitly.\n";
+    write_private_new(path, TEMPLATE)?;
+    println!("{}", json!({"initialized": path, "format": "env-spec"}));
+    Ok(())
+}
+
+fn completion_script(shell: CompletionShell) -> &'static str {
+    match shell {
+        CompletionShell::Bash => {
+            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent' -- "${COMP_WORDS[COMP_CWORD]}") ); }
+complete -F _opensesame opensesame
+"#
+        }
+        CompletionShell::Zsh => {
+            r#"#compdef opensesame
+_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent)'
+"#
+        }
+        CompletionShell::Fish => {
+            r#"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent'
+"#
+        }
+    }
+}
+
+fn read_bounded(path: &std::path::Path) -> anyhow::Result<Vec<u8>> {
+    const MAX_CONFIG_BYTES: u64 = 16 * 1024 * 1024;
+    if std::fs::metadata(path)?.len() > MAX_CONFIG_BYTES {
+        anyhow::bail!("input exceeds 16 MiB");
+    }
+    Ok(std::fs::read(path)?)
+}
+
+async fn load_cli_connection(server: &str, connection_id: &str) -> anyhow::Result<CliConnection> {
+    let token = load_access_token()?;
+    let body: serde_json::Value = reqwest::Client::new()
+        .get(format!(
+            "{}/api/v1/connections",
+            server.trim_end_matches('/')
+        ))
+        .bearer_auth(token)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    let connections: Vec<CliConnection> =
+        serde_json::from_value(body.get("connections").cloned().unwrap_or_default())?;
+    connections
+        .into_iter()
+        .find(|connection| connection.id == connection_id)
+        .ok_or_else(|| anyhow::anyhow!("connection {connection_id} not found"))
+}
+
+async fn tui(server: &str) -> anyhow::Result<()> {
+    let token = load_access_token()?;
+    let client = reqwest::Client::new();
+    let base = server.trim_end_matches('/');
+    let provider_body: serde_json::Value = client
+        .get(format!("{base}/api/v1/providers"))
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    let connection_body: serde_json::Value = client
+        .get(format!("{base}/api/v1/connections"))
+        .bearer_auth(token)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    let providers: Vec<TuiProvider> =
+        serde_json::from_value(provider_body.get("providers").cloned().unwrap_or_default())?;
+    let connections: Vec<CliConnection> = serde_json::from_value(
+        connection_body
+            .get("connections")
+            .cloned()
+            .unwrap_or_default(),
+    )?;
+    run_tui(&providers, &connections)
+}
+
+fn run_tui(providers: &[TuiProvider], connections: &[CliConnection]) -> anyhow::Result<()> {
+    use crossterm::{
+        event::{self, Event, KeyCode, KeyEventKind},
+        execute,
+        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    };
+    use ratatui::{backend::CrosstermBackend, Terminal};
+    use std::io::stdout;
+
+    enable_raw_mode()?;
+    let mut output = stdout();
+    execute!(output, EnterAlternateScreen)?;
+    let mut terminal = Terminal::new(CrosstermBackend::new(output))?;
+    let result = (|| -> anyhow::Result<()> {
+        loop {
+            terminal.draw(|frame| draw_tui(frame, providers, connections))?;
+            if event::poll(Duration::from_millis(250))? {
+                if let Event::Key(key) = event::read()? {
+                    if key.kind == KeyEventKind::Press
+                        && matches!(key.code, KeyCode::Char('q') | KeyCode::Esc)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        Ok(())
+    })();
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    terminal.show_cursor()?;
+    result
+}
+
+fn draw_tui(
+    frame: &mut ratatui::Frame<'_>,
+    providers: &[TuiProvider],
+    connections: &[CliConnection],
+) {
+    use ratatui::{
+        layout::{Constraint, Layout},
+        style::{Color, Style},
+        widgets::{Block, Borders, List, Paragraph},
+    };
+    let [header, body, footer] = Layout::vertical([
+        Constraint::Length(3),
+        Constraint::Min(4),
+        Constraint::Length(2),
+    ])
+    .areas(frame.area());
+    let [left, right] =
+        Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)]).areas(body);
+    frame.render_widget(
+        Paragraph::new("OpenSesame connectors")
+            .style(Style::default().fg(Color::Cyan))
+            .block(Block::default().borders(Borders::ALL)),
+        header,
+    );
+    frame.render_widget(
+        List::new(providers.iter().map(|provider| {
+            format!(
+                "{}  {}  [{}]",
+                provider.id, provider.display_name, provider.support
+            )
+        }))
+        .block(Block::default().title("Providers").borders(Borders::ALL)),
+        left,
+    );
+    frame.render_widget(
+        List::new(connections.iter().map(|connection| {
+            format!(
+                "{}  {}  ({})",
+                connection.display_name, connection.provider_id, connection.id
+            )
+        }))
+        .block(Block::default().title("Connections").borders(Borders::ALL)),
+        right,
+    );
+    frame.render_widget(
+        Paragraph::new("q or Esc: quit · material is never displayed"),
+        footer,
+    );
+}
+
 async fn doctor(server: &str) -> anyhow::Result<()> {
     let client = reqwest::Client::new();
     let prm = client
@@ -1007,6 +1688,33 @@ async fn intent_cmd(server: &str, output: &str, cmd: IntentCmd) -> anyhow::Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tui_renders_metadata_without_public_config() {
+        use ratatui::{backend::TestBackend, Terminal};
+        let providers = vec![TuiProvider {
+            id: "plain".into(),
+            display_name: "Plain environment".into(),
+            support: "contract_tested".into(),
+        }];
+        let connections = vec![CliConnection {
+            id: "connection_1".into(),
+            provider_id: "plain".into(),
+            display_name: "Demo".into(),
+            public_config: json!({"path": "must-not-render"}),
+        }];
+        let mut terminal = Terminal::new(TestBackend::new(100, 12)).unwrap();
+        terminal
+            .draw(|frame| draw_tui(frame, &providers, &connections))
+            .unwrap();
+        let buffer = terminal.backend().buffer();
+        let rendered: String = (0..buffer.area.height)
+            .flat_map(|y| (0..buffer.area.width).map(move |x| buffer[(x, y)].symbol().to_owned()))
+            .collect();
+        assert!(rendered.contains("Plain environment"));
+        assert!(rendered.contains("Demo"));
+        assert!(!rendered.contains("must-not-render"));
+    }
 
     #[test]
     fn a_written_session_is_never_readable_by_anyone_else() {

@@ -7,7 +7,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { IconConnection, IconSearch } from "../components/Icons.js";
+import {
+  IconSearch,
+  IconSecret as IconConnection,
+} from "../components/Icons.js";
 import {
   CatalogResponseError,
   type Connection,
@@ -38,7 +41,7 @@ import {
   type SessionOrganization,
   clearHostSession,
   listSessionOrganizations,
-} from "../lib/identity.js";
+} from "../lib/organization-identity.js";
 import { loadSettings } from "../lib/settings.js";
 
 const CATEGORY_LABELS: Record<ProviderCategory, string> = {

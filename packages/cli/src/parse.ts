@@ -25,7 +25,12 @@ export type ParsedCommand =
       projectName: string;
       flags: GlobalFlags;
     }
-  | { name: "claim-poll"; claimId: string; claimToken: string; flags: GlobalFlags }
+  | {
+      name: "claim-poll";
+      claimId: string;
+      claimToken: string;
+      flags: GlobalFlags;
+    }
   | {
       name: "agent-init";
       anonymous: boolean;
@@ -105,7 +110,9 @@ export function parseArgs(argv: string[]): ParsedCommand {
     if (!claimId) throw new Error("claim poll requires claim id");
     // Claim state is only readable with the claim bearer (osc_clm_…).
     const claimToken =
-      takeOption(args, "--token") ?? process.env.OPENSESAME_CLAIM_TOKEN ?? args.shift();
+      takeOption(args, "--token") ??
+      process.env.OPENSESAME_CLAIM_TOKEN ??
+      args.shift();
     if (!claimToken) {
       throw new Error(
         "claim poll requires the claim token (--token osc_clm_… or OPENSESAME_CLAIM_TOKEN)",

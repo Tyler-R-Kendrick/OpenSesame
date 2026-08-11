@@ -1,20 +1,28 @@
-import { chmod, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { createHash, randomBytes } from "node:crypto";
+import {
+  chmod,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { createApiClient } from "@opensesame/api-client";
 import {
-  createControlPlaneClient,
   DeviceFlowClient,
+  createControlPlaneClient,
   loopbackLogin,
   redactSecrets,
 } from "@opensesame/sdk-cli";
-import { createApiClient } from "@opensesame/api-client";
-import { createHash, randomBytes } from "node:crypto";
 import {
-  helpText,
-  parseArgs,
-  SessionFileSchema,
   type ParsedCommand,
   type SessionFile,
+  SessionFileSchema,
+  helpText,
+  parseArgs,
 } from "./parse.js";
 
 function defaultIssuer(): string {
@@ -60,7 +68,9 @@ async function loadSession(): Promise<SessionFile | null> {
     await assertPrivateFile(path);
   } catch (err) {
     // Loud, not silent: a session the CLI will not touch is worth saying out loud.
-    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+    process.stderr.write(
+      `${err instanceof Error ? err.message : String(err)}\n`,
+    );
     return null;
   }
   try {
@@ -76,10 +86,14 @@ async function loadSession(): Promise<SessionFile | null> {
  * expires. Reusing it against another issuer would forward one host's bearer to
  * another host named by an environment variable.
  */
-function sessionFor(session: SessionFile | null, issuer: string): SessionFile | null {
+function sessionFor(
+  session: SessionFile | null,
+  issuer: string,
+): SessionFile | null {
   if (!session) return null;
   if (trimSlash(session.issuer) !== trimSlash(issuer)) return null;
-  if (session.expiresAt !== undefined && session.expiresAt <= Date.now()) return null;
+  if (session.expiresAt !== undefined && session.expiresAt <= Date.now())
+    return null;
   return session;
 }
 
@@ -111,7 +125,10 @@ function emit(flags: { json: boolean }, human: string, data: unknown): void {
 }
 
 function publicKeyJktPlaceholder(): string {
-  return createHash("sha256").update(randomBytes(32)).digest("base64url").slice(0, 43);
+  return createHash("sha256")
+    .update(randomBytes(32))
+    .digest("base64url")
+    .slice(0, 43);
 }
 
 export async function runCli(
@@ -126,7 +143,9 @@ export async function runCli(
   try {
     command = parseArgs(argv);
   } catch (err) {
-    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+    process.stderr.write(
+      `${err instanceof Error ? err.message : String(err)}\n`,
+    );
     return 1;
   }
 
@@ -144,7 +163,9 @@ export async function runCli(
     return await dispatch(command, { issuer, api, clientId, fetchImpl, deps });
   } catch (err) {
     // A refused endpoint or a failed exchange is a message, not a stack trace.
-    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+    process.stderr.write(
+      `${err instanceof Error ? err.message : String(err)}\n`,
+    );
     return 1;
   }
 }
@@ -181,7 +202,9 @@ async function dispatch(
           ...(tokens.refresh_token !== undefined
             ? { refreshToken: tokens.refresh_token }
             : {}),
-          ...(tokens.id_token !== undefined ? { idToken: tokens.id_token } : {}),
+          ...(tokens.id_token !== undefined
+            ? { idToken: tokens.id_token }
+            : {}),
           ...(tokens.expires_in !== undefined
             ? { expiresAt: Date.now() + tokens.expires_in * 1000 }
             : {}),
@@ -246,9 +269,7 @@ async function dispatch(
       const status = await cp.authStatus();
       emit(
         command.flags,
-        status.authenticated
-          ? "Authenticated."
-          : "Not authenticated.",
+        status.authenticated ? "Authenticated." : "Not authenticated.",
         status,
       );
       return 0;
@@ -297,7 +318,9 @@ async function dispatch(
         return 1;
       }
       if (!command.temporary) {
-        process.stderr.write("Only --temporary projects are supported in this slice.\n");
+        process.stderr.write(
+          "Only --temporary projects are supported in this slice.\n",
+        );
         return 1;
       }
       const cp = createControlPlaneClient({
@@ -305,7 +328,9 @@ async function dispatch(
         accessToken: session.accessToken,
         fetchImpl,
       });
-      const project = await cp.createTemporaryProject({ name: command.projectName });
+      const project = await cp.createTemporaryProject({
+        name: command.projectName,
+      });
       emit(command.flags, "Temporary project created.", redactSecrets(project));
       return 0;
     }
@@ -324,7 +349,9 @@ async function dispatch(
 
     case "agent-init": {
       if (!command.anonymous) {
-        process.stderr.write("Use --anonymous for provisional agent registration.\n");
+        process.stderr.write(
+          "Use --anonymous for provisional agent registration.\n",
+        );
         return 1;
       }
       const cp = createControlPlaneClient({ baseUrl: api, fetchImpl });

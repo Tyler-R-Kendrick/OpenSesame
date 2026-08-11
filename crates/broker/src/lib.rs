@@ -119,6 +119,7 @@ impl Broker {
                     outcome: ReceiptOutcome::Denied,
                     summary: json!({"reason": decision.context}),
                     ext: None,
+                    connector_digest: self.host.component_digest(&input.connection_policy_id),
                 },
             )?;
             self.db.insert_receipt(&receipt).await?;
@@ -131,15 +132,18 @@ impl Broker {
         inv.transition(InvocationState::Executing, Utc::now())?;
         self.db.insert_invocation(&inv).await?;
 
-        let result = self.host.invoke_mock(&InvokeRequest {
-            operation: input.intent.operation.clone(),
-            resource: input.intent.resource.clone(),
-            audience: input.intent.audience.clone(),
-            parameters: input.parameters.clone(),
-            parameters_digest: input.intent.normalized_parameters_hash.clone(),
-            authorized_operation: input.intent.operation.clone(),
-            invoke_level: Some(1),
-        });
+        let result = self.host.invoke(
+            &input.connection_policy_id,
+            &InvokeRequest {
+                operation: input.intent.operation.clone(),
+                resource: input.intent.resource.clone(),
+                audience: input.intent.audience.clone(),
+                parameters: input.parameters.clone(),
+                parameters_digest: input.intent.normalized_parameters_hash.clone(),
+                authorized_operation: input.intent.operation.clone(),
+                invoke_level: Some(1),
+            },
+        );
 
         let (outcome, summary, ext) = match result {
             Ok(r) => {
@@ -168,6 +172,7 @@ impl Broker {
                 outcome,
                 summary,
                 ext,
+                connector_digest: self.host.component_digest(&input.connection_policy_id),
             },
         )?;
         // Fail the invocation instead of panicking the process: a summary that
@@ -203,7 +208,7 @@ impl Broker {
             policy_version_digest: parts.policy_digest.into(),
             approval_id: None,
             credential_handle_id: None,
-            connector_component_digest: Some("sha256:mock-connector".into()),
+            connector_component_digest: parts.connector_digest.map(str::to_owned),
             external_request_digest: parts.ext,
             external_response_digest: None,
             started_at: inv.created_at,
@@ -227,4 +232,5 @@ pub(crate) struct FinishReceiptParts<'a> {
     outcome: ReceiptOutcome,
     summary: Value,
     ext: Option<String>,
+    connector_digest: Option<&'a str>,
 }

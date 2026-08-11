@@ -64,6 +64,41 @@ CREATE TABLE IF NOT EXISTS connections (
   created_at TEXT NOT NULL
 );
 
+-- Credential/storage provider configuration. Kept separate from `connections`,
+-- whose rows pin service connector components and policy digests.
+CREATE TABLE IF NOT EXISTS provider_connections (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL REFERENCES organizations(id),
+  project_id TEXT REFERENCES projects(id),
+  provider_id TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  body_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_provider_connections_org
+  ON provider_connections(organization_id, created_at, id);
+
+CREATE TABLE IF NOT EXISTS encrypted_sync_blobs (
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL,
+  epoch INTEGER NOT NULL,
+  ciphertext BLOB NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_encrypted_sync_blobs_owner_epoch
+  ON encrypted_sync_blobs(owner_id, epoch);
+
+CREATE TABLE IF NOT EXISTS sync_device_cursors (
+  owner_id TEXT NOT NULL,
+  device_id TEXT NOT NULL,
+  epoch INTEGER NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (owner_id, device_id)
+);
+
 CREATE TABLE IF NOT EXISTS grants (
   id TEXT PRIMARY KEY,
   organization_id TEXT NOT NULL REFERENCES organizations(id),

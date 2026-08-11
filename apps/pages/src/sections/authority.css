@@ -1,0 +1,471 @@
+/* Authority section — segmented tabs, ceremony steps, protocol reading. */
+
+/* —— Tabs ————————————————————————————————————————————————————— */
+
+.authority-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.authority-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--ease), color var(--ease), border-color
+    var(--ease);
+}
+
+.authority-tab:hover:not(.is-active) {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.authority-tab.is-active {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.authority-tab svg {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.authority-tab.is-active svg {
+  color: var(--accent);
+}
+
+.authority-panelwrap {
+  display: grid;
+  gap: 1.5rem;
+}
+
+/* `display: grid` would otherwise defeat the hidden attribute. */
+.authority-panelwrap[hidden] {
+  display: none;
+}
+
+/* —— Plane reachability ——————————————————————————————————————— */
+
+.authority-planes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem;
+}
+
+.authority-plane {
+  padding: 0.85rem 1rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.authority-plane__name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.authority-plane__state {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.authority-plane__url {
+  margin: 0.15rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+/* —— On-ramps ————————————————————————————————————————————————— */
+
+.authority-onramps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  gap: 1rem;
+}
+
+.authority-onramp {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1.1rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.authority-onramp > h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.authority-onramp > p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ink-2);
+}
+
+.authority-onramp .actions {
+  margin-top: auto;
+}
+
+/* —— Ceremony steps ——————————————————————————————————————————— */
+
+.authority-steps {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.authority-step {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr;
+  gap: 0 0.9rem;
+  padding: 0 0 1.5rem;
+  position: relative;
+}
+
+.authority-step:last-child {
+  padding-bottom: 0;
+}
+
+/* Connector between step markers. */
+.authority-step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 0.875rem;
+  top: 2rem;
+  bottom: 0.25rem;
+  width: 1px;
+  background: var(--line);
+}
+
+.authority-step__n {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.authority-step.is-current > .authority-step__n {
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.authority-step.is-done > .authority-step__n {
+  border-color: var(--ok);
+  background: var(--ok-wash);
+  color: var(--ok);
+}
+
+.authority-step__body {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  min-width: 0;
+}
+
+.authority-step__body > h3 {
+  margin: 0.2rem 0 0;
+  font-size: 0.9375rem;
+}
+
+.authority-step__body > p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ink-2);
+}
+
+/* —— Inputs ——————————————————————————————————————————————————— */
+
+.authority-code {
+  max-width: 15ch;
+  font-family: var(--mono);
+  font-size: 1.375rem;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.authority-reveal {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.authority-reveal > input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+}
+
+.authority-digest {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* —— Identifiers ——————————————————————————————————————————————— */
+
+.authority-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.authority-id > code {
+  overflow-wrap: anywhere;
+}
+
+.authority-wrap {
+  overflow-wrap: anywhere;
+}
+
+.authority-hint-inline {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+/* —— Outbox —————————————————————————————————————————————————— */
+
+.authority-outbox__count {
+  margin-left: 0.5rem;
+  vertical-align: 0.05em;
+}
+
+.authority-outbox__list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.authority-outbox__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.authority-outbox__row > div {
+  min-width: 0;
+}
+
+.authority-outbox__label {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.authority-results {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.authority-results__list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.authority-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.authority-result > svg {
+  flex: none;
+  margin-top: 0.15rem;
+}
+
+.authority-result.is-ok > svg {
+  color: var(--ok);
+}
+
+.authority-result.is-err > svg {
+  color: var(--err);
+}
+
+.authority-result > div {
+  min-width: 0;
+}
+
+.authority-result__label {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.authority-result__message {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+/* —— Protocol reading ————————————————————————————————————————— */
+
+.authority-prose {
+  max-width: 70ch;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+.authority-asserts {
+  display: grid;
+  gap: 0;
+  max-width: 74ch;
+  margin: 0;
+}
+
+.authority-assert {
+  padding: 1.25rem 0 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.authority-assert:first-child {
+  border-top: 0;
+  padding-top: 0.25rem;
+}
+
+.authority-assert > dt {
+  margin: 0 0 0.4rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.authority-assert > dd {
+  margin: 0;
+}
+
+.authority-assert > dd > p {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.authority-assert__source {
+  margin-top: 0.5rem !important;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3) !important;
+}
+
+/* —— Discovery ———————————————————————————————————————————————— */
+
+.authority-lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+}
+
+.authority-list > h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.authority-list > p {
+  margin: 0;
+}
+
+.authority-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* —— Narrow —————————————————————————————————————————————————— */
+
+@media (max-width: 40rem) {
+  .authority-tab {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+
+  .authority-step {
+    grid-template-columns: 1.5rem 1fr;
+    gap: 0 0.7rem;
+  }
+
+  .authority-step:not(:last-child)::before {
+    left: 0.75rem;
+  }
+
+  .authority-step__n {
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.75rem;
+  }
+
+  .authority-code {
+    max-width: 100%;
+    font-size: 1.125rem;
+  }
+}

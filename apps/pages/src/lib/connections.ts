@@ -17,7 +17,7 @@ import {
   type SessionOrganization,
   hostFetch,
   identityFetch,
-} from "./identity.js";
+} from "./organization-identity.js";
 
 export type ProviderCategory =
   | "developer"

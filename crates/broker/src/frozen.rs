@@ -211,6 +211,7 @@ impl Broker {
                     outcome: ReceiptOutcome::Denied,
                     summary: json!({"reason": decision.context}),
                     ext: None,
+                    connector_digest: self.host.component_digest(&input.connection_policy_id),
                 },
             )?;
             self.db.insert_receipt(&receipt).await?;
@@ -225,15 +226,18 @@ impl Broker {
 
         // Execute ONLY from frozen canonical_arguments — never a second parameter map.
         let params_digest = Intent::parameters_hash(&intent.canonical_arguments)?;
-        let result = self.host.invoke_mock(&InvokeRequest {
-            operation: intent.operation.clone(),
-            resource: intent.resource.clone(),
-            audience: intent.audience.clone(),
-            parameters: intent.canonical_arguments.clone(),
-            parameters_digest: params_digest,
-            authorized_operation: intent.operation.clone(),
-            invoke_level: Some(1),
-        });
+        let result = self.host.invoke(
+            &input.connection_policy_id,
+            &InvokeRequest {
+                operation: intent.operation.clone(),
+                resource: intent.resource.clone(),
+                audience: intent.audience.clone(),
+                parameters: intent.canonical_arguments.clone(),
+                parameters_digest: params_digest,
+                authorized_operation: intent.operation.clone(),
+                invoke_level: Some(1),
+            },
+        );
 
         let (outcome, summary, ext) = match result {
             Ok(r) => {
@@ -263,6 +267,7 @@ impl Broker {
                 outcome,
                 summary,
                 ext,
+                connector_digest: self.host.component_digest(&input.connection_policy_id),
             },
         )?;
         assert!(receipt.assert_no_secret_leak());
@@ -294,7 +299,7 @@ impl Broker {
             policy_version_digest: parts.policy_digest.into(),
             approval_id: None,
             credential_handle_id: None,
-            connector_component_digest: Some("sha256:mock-connector".into()),
+            connector_component_digest: parts.connector_digest.map(str::to_owned),
             external_request_digest: parts.ext,
             external_response_digest: None,
             started_at: inv.created_at,

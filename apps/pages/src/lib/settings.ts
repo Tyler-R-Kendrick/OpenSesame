@@ -4,14 +4,9 @@ import { normalizeApiBase } from "./urls.js";
 export type PagesSettings = {
   hostApi: string;
   identityApi: string;
-  /** Session-only — never persisted (operator token must not live in durable browser storage). */
-  operatorToken: string;
 };
 
 const PERSIST_KEY = "settings.v1";
-
-/** In-memory operator token for the current tab session only. */
-let sessionOperatorToken = "";
 
 type PersistedSettings = {
   hostApi: string;
@@ -44,11 +39,7 @@ function loadPersisted(): PersistedSettings {
 }
 
 export function loadSettings(): PagesSettings {
-  const persisted = loadPersisted();
-  return {
-    ...persisted,
-    operatorToken: sessionOperatorToken,
-  };
+  return loadPersisted();
 }
 
 /** Thrown so the settings form can say which field it will not take. */
@@ -71,7 +62,6 @@ export function saveSettings(next: PagesSettings): void {
       "Identity API must be an https URL, or http on loopback.",
     );
   }
-  sessionOperatorToken = next.operatorToken.trim();
   const persisted: PersistedSettings = { hostApi, identityApi };
   kvSet(PERSIST_KEY, JSON.stringify(persisted));
 }

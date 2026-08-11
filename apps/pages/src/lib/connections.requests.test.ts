@@ -5,8 +5,10 @@ const fetches = vi.hoisted(() => ({
   identity: vi.fn(),
 }));
 
-vi.mock("./identity.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./identity.js")>();
+vi.mock("./organization-identity.js", async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import("./organization-identity.js")
+  >();
   return {
     ...actual,
     hostFetch: fetches.host,

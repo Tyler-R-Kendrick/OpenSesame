@@ -9,6 +9,8 @@ name = "opensesame-worker"
 path = "src/main.rs"
 
 [dependencies]
+opensesame-connector-host = { path = "../../crates/connector-host" }
+opensesame-domain = { path = "../../crates/domain" }
 anyhow = { workspace = true }
 axum = { workspace = true }
 clap = { workspace = true }

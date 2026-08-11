@@ -5,33 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' http: https: ws: wss:; object-src 'none'; base-uri 'none'; form-action 'self'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' http: https: ws: wss:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'; frame-ancestors 'none'"
     />
     <meta name="referrer" content="no-referrer" />
-    <meta name="color-scheme" content="light" />
-    <meta name="theme-color" content="#152033" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#101a2b" />
     <meta
       name="description"
-      content="OpenSesame authority vault — Bitwarden-class unlock and search for humans and agents"
+      content="OpenSesame — an end-to-end-encrypted vault for passwords, passkeys, and agent secrets, with an auth broker for static sites."
     />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <title>OpenSesame Vault</title>
+    <title>OpenSesame</title>
   </head>
   <body>
     <!--
-      THESIS: Authority vault for humans and agents — unlock, search, typed items — never a protocol dashboard.
-      OWN-WORLD: Bitwarden-class vault IA; light content + navy sidebar; teal accent; Source Sans 3; soft radius 10px; OpenSesame mark (not Bitwarden purple).
-      STORY: Human or agent unlocks session, browses sealed catalog, runs ceremonies from Tools, agents use peer view without getSecret().
-      FIRST VIEWPORT: Unlock card with OpenSesame mark, honest session-PIN copy, primary Unlock; after unlock — Vault search + item list.
-      FORM: User-pinned competitor path (Bitwarden + assumed 1Password craft bar); password-manager canon executed for OpenSesame authority items.
-      FINISH: discharged — vault redesign reviewed against Bitwarden craft bar; DESIGN.md replaced
+      THESIS: A real end-to-end-encrypted vault. The master password derives the key that decrypts
+        every item; nothing else does, and nothing leaves the device. Four audiences, one store:
+        humans keep passwords and passkeys, agents draw scoped grants, websites authenticate
+        against it, developers govern it.
+      OWN-WORLD: Password-manager canon (Bitwarden / 1Password craft bar) in OpenSesame navy and
+        teal. Three-pane desktop frame — navy rail, list, detail. System UI stack; mono reserved
+        for codes, digests, and measurements. Light and dark both first-class.
+      STORY: Create or unlock the vault → land on the item list → reveal, copy, generate, rotate →
+        step sideways into Agents, Sites, or Authority when the same identity governs more than
+        passwords.
+      FIRST VIEWPORT: The unlock card, stating plainly that there is no recovery, over a navy
+        ground. First run adds a strength meter and an explicit acknowledgement.
+      FORM: Canon taken by the user's own words ("it's a Bitwarden alternative"), executed at full
+        fidelity — no irony, no smuggled quirk. Craft bar: Bitwarden, 1Password.
+      FINISH: pending — full redesign in flight; DESIGN.md rewritten from the built result.
     -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

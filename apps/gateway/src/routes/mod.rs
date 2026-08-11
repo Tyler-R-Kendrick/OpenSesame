@@ -2,6 +2,7 @@ mod aauth;
 mod admin;
 mod agents;
 mod connections;
+mod credential_connections;
 mod device;
 mod health;
 mod intents;
@@ -13,7 +14,7 @@ mod tasks;
 
 use axum::{
     extract::DefaultBodyLimit,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Router,
 };
 use tower_http::trace::TraceLayer;
@@ -44,6 +45,22 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/sessions/revoke", post(session::revoke))
         .route("/api/v1/whoami", get(session::whoami))
         .route("/api/v1/providers", get(connections::list_providers))
+        .route(
+            "/api/v1/credential-providers",
+            get(credential_connections::catalog),
+        )
+        .route(
+            "/api/v1/credential-providers/{id}/test",
+            post(credential_connections::test_provider),
+        )
+        .route(
+            "/api/v1/credential-connections",
+            get(credential_connections::list).post(credential_connections::create),
+        )
+        .route(
+            "/api/v1/credential-connections/{id}",
+            put(credential_connections::update).delete(credential_connections::delete),
+        )
         .route(
             "/api/v1/integrations",
             get(connections::list_integrations)

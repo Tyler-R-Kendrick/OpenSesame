@@ -50,9 +50,9 @@ function resolveStorage(storage?: StorageLike): StorageLike {
 function sessionForStorage(session: Session): Session {
   const { refreshToken: _drop, ...rest } = session;
   if (rest.raw && typeof rest.raw === "object") {
-    const raw = { ...rest.raw } as TokenResponse & Record<string, unknown>;
-    delete raw.refresh_token;
-    return { ...rest, raw };
+    const { refresh_token: _omit, ...raw } = rest.raw as TokenResponse &
+      Record<string, unknown>;
+    return { ...rest, raw: raw as TokenResponse };
   }
   return rest;
 }
@@ -384,7 +384,7 @@ export function createOpenSesame(
     },
 
     async continueAnonymously() {
-      const res = await fetchImpl(`${apiBase}/api/v1/principals/anonymous`, {
+      const res = await fetchImpl(`${apiBase}/v1/principals/anonymous`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -420,7 +420,7 @@ export function createOpenSesame(
       if (session?.accessToken) {
         headers.authorization = `Bearer ${session.accessToken}`;
       }
-      const res = await fetchImpl(`${apiBase}/api/v1/claims/present`, {
+      const res = await fetchImpl(`${apiBase}/v1/claims/present`, {
         method: "POST",
         headers,
         body: JSON.stringify({ token }),
@@ -444,18 +444,15 @@ export function createOpenSesame(
       if (decision.idempotencyKey !== undefined) {
         body.idempotencyKey = decision.idempotencyKey;
       }
-      const res = await fetchImpl(
-        `${apiBase}/api/v1/claims/${claimId}/complete`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            accept: "application/json",
-            authorization: `Bearer ${session.accessToken}`,
-          },
-          body: JSON.stringify(body),
+      const res = await fetchImpl(`${apiBase}/v1/claims/${claimId}/complete`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json",
+          authorization: `Bearer ${session.accessToken}`,
         },
-      );
+        body: JSON.stringify(body),
+      });
       if (!res.ok) {
         throw new Error(`completeClaim failed: ${res.status}`);
       }

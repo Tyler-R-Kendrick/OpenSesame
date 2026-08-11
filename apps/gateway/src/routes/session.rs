@@ -149,6 +149,37 @@ pub async fn revoke(
 }
 
 #[cfg(test)]
+pub async fn list_connections(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let caller = match resolve_caller(&st, &headers) {
+        Ok(caller) => caller,
+        Err(resp) => return resp,
+    };
+    let Some(connection_ref) = &st.connection_ref else {
+        return Json(json!({"connections": []})).into_response();
+    };
+    let boot = match require_demo_bootstrap(&st) {
+        Ok(boot) => boot,
+        Err(resp) => return resp,
+    };
+    if !caller.in_organization(&boot.org) {
+        return Json(json!({"connections": []})).into_response();
+    }
+    Json(json!({
+        "connections": [{
+            "connection_ref": connection_ref.handle.uri(),
+            "connection_id": connection_ref.connection_id.to_string(),
+            "logical_name": connection_ref.handle.logical_name,
+            "max_invoke_level": 2,
+            "operations": ["repository.read", "pull_request.create"]
+        }]
+    }))
+    .into_response()
+}
+
+#[cfg(test)]
 mod tests {
     use super::{revoke_matching_sessions, revoke_pending_authorizations, whoami};
     use crate::app_state::{ApprovedDevice, DevicePending};
@@ -411,35 +442,4 @@ mod tests {
         assert!(body["actor_id"].is_null());
         assert!(body["context"].is_null());
     }
-}
-
-pub async fn list_connections(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Response {
-    let caller = match resolve_caller(&st, &headers) {
-        Ok(caller) => caller,
-        Err(resp) => return resp,
-    };
-    let Some(connection_ref) = &st.connection_ref else {
-        return Json(json!({"connections": []})).into_response();
-    };
-    let boot = match require_demo_bootstrap(&st) {
-        Ok(boot) => boot,
-        Err(resp) => return resp,
-    };
-    if !caller.in_organization(&boot.org) {
-        return Json(json!({"connections": []})).into_response();
-    }
-    // Agent surface: ConnectionRef only — never SecretRef / raw credential handles.
-    Json(json!({
-        "connections": [{
-            "connection_ref": connection_ref.handle.uri(),
-            "connection_id": connection_ref.connection_id.to_string(),
-            "logical_name": connection_ref.handle.logical_name,
-            "max_invoke_level": 2,
-            "operations": ["repository.read", "pull_request.create"]
-        }]
-    }))
-    .into_response()
 }

@@ -98,6 +98,83 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/WhoAmI" }
+  /credential-providers:
+    get:
+      summary: List native credential, storage, encryption, and lease providers
+      description: >-
+        Public metadata only. A supported label requires both contract and live-test
+        evidence; experimental adapters are never presented as supported.
+      responses:
+        "200":
+          description: Provider catalog and support policy
+  /credential-providers/{id}/test:
+    post:
+      summary: Probe a credential provider adapter as the connected principal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Local readiness or provider-specific live health
+        "401":
+          description: Opaque user session required
+        "404":
+          description: Unknown provider
+  /credential-connections:
+    get:
+      summary: List the connected principal's credential-provider connections
+      description: Credential references and credential material are never returned.
+      responses:
+        "200":
+          description: Secret-safe connection views
+        "401":
+          description: Opaque user session required
+    post:
+      summary: Create a credential-provider connection
+      description: >-
+        public_config accepts coordinates such as region, vault, mount, or project.
+        Secret-like fields are rejected; provider authentication remains in the
+        personal daemon or configured workload worker.
+      responses:
+        "201":
+          description: Created connection view
+        "401":
+          description: Opaque user session required
+        "422":
+          description: Unknown provider or unsafe public configuration
+  /credential-connections/{id}:
+    put:
+      summary: Replace a credential connection's display name or public configuration
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Updated connection view
+        "401":
+          description: Opaque user session required
+        "404":
+          description: Connection not found in the caller's organization
+        "422":
+          description: Unsafe public configuration
+    delete:
+      summary: Remove a credential-provider connection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Removed
+        "401":
+          description: Opaque user session required
+        "404":
+          description: Connection not found in the caller's organization
   /intents:
     post:
       summary: Invoke under the caller's organization-bound bootstrap authority

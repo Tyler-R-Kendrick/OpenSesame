@@ -1,5 +1,5 @@
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
@@ -11,6 +11,9 @@ export default defineConfig({
     // to Vite's default legacy browser set; GitHub Pages clients are modern.
     target: ["es2022", "chrome100", "firefox100", "safari15"],
   },
+  // Dependency pre-bundling in dev has its own target and hits the same limitation.
+  esbuild: { target: "es2022" },
+  optimizeDeps: { esbuildOptions: { target: "es2022" } },
   plugins: [
     react(),
     VitePWA({
@@ -20,9 +23,9 @@ export default defineConfig({
         name: "OpenSesame",
         short_name: "OpenSesame",
         description:
-          "Authority vault for humans and agents — sealed store, ceremonies, task ceilings",
-        theme_color: "#152033",
-        background_color: "#eef1f6",
+          "End-to-end-encrypted vault for passwords, passkeys, and agent secrets",
+        theme_color: "#101a2b",
+        background_color: "#f2f5f9",
         display: "standalone",
         start_url: "./",
         scope: "./",
@@ -38,21 +41,6 @@ export default defineConfig({
       workbox: {
         navigateFallback: "index.html",
         globPatterns: ["**/*.{js,css,html,svg,ico,webp,woff2}"],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) =>
-              url.origin.includes("fonts.googleapis.com") ||
-              url.origin.includes("fonts.gstatic.com"),
-            handler: "CacheFirst",
-            options: {
-              cacheName: "opensesame-fonts",
-              expiration: {
-                maxEntries: 20,
-                maxAgeSeconds: 60 * 60 * 24 * 365,
-              },
-            },
-          },
-        ],
       },
       devOptions: { enabled: true },
     }),

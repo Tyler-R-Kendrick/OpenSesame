@@ -3,11 +3,14 @@
 //! Host capabilities: authorized HTTP / sign / opaque token handles.
 //! There is no secrets.get path for guests.
 
+pub mod providers;
+
 use opensesame_domain::{EgressBinding, InvokeLevel, LegacyProjection, PlaceholderPlacement};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::sync::Arc;
 use thiserror::Error;
 use url::Url;
 
@@ -273,6 +276,7 @@ pub struct InvokeResult {
 pub trait Connector: Send + Sync {
     fn id(&self) -> &str;
     fn version(&self) -> &str;
+    fn component_digest(&self) -> &str;
     fn operations(&self) -> &[&str];
     fn invoke(&self, req: &InvokeRequest) -> Result<InvokeResult, HostError>;
 }
@@ -286,6 +290,9 @@ impl Connector for MockConnector {
     }
     fn version(&self) -> &str {
         "1.0.0"
+    }
+    fn component_digest(&self) -> &str {
+        "sha256:mock-connector"
     }
     fn operations(&self) -> &[&str] {
         &[
@@ -463,7 +470,8 @@ pub struct HostConnection {
 
 pub struct HostRuntime {
     pub policy: HostPolicy,
-    pub mock: MockConnector,
+    connectors: HashMap<String, Arc<dyn Connector>>,
+    connection_connectors: HashMap<String, String>,
     /// connection_ref URI → what this host resolved for it.
     pub connections: std::collections::HashMap<String, HostConnection>,
 }
@@ -489,20 +497,62 @@ impl Default for HostRuntime {
                 material: "ostest_injected_material".into(),
             },
         );
+        let mut connectors: HashMap<String, Arc<dyn Connector>> = HashMap::new();
+        connectors.insert("mock".into(), Arc::new(MockConnector));
+        let connection_connectors = HashMap::from([("demo-conn".into(), "mock".into())]);
         Self {
             policy,
-            mock: MockConnector,
+            connectors,
+            connection_connectors,
             connections,
         }
     }
 }
 
 impl HostRuntime {
-    pub fn invoke_mock(&self, req: &InvokeRequest) -> Result<InvokeResult, HostError> {
+    pub fn register_connector(&mut self, connector: Arc<dyn Connector>) -> Result<(), HostError> {
+        let id = connector.id().to_owned();
+        if self.connectors.contains_key(&id) {
+            return Err(HostError::Connector(format!(
+                "connector {id} is already registered"
+            )));
+        }
+        self.connectors.insert(id, connector);
+        Ok(())
+    }
+
+    pub fn bind_connection(
+        &mut self,
+        connection_id: impl Into<String>,
+        connector_id: &str,
+    ) -> Result<(), HostError> {
+        if !self.connectors.contains_key(connector_id) {
+            return Err(HostError::Connector(format!(
+                "connector {connector_id} is not registered"
+            )));
+        }
+        self.connection_connectors
+            .insert(connection_id.into(), connector_id.into());
+        Ok(())
+    }
+
+    pub fn component_digest(&self, connection_id: &str) -> Option<&str> {
+        self.connector(connection_id)
+            .map(|connector| connector.component_digest())
+    }
+
+    pub fn invoke(
+        &self,
+        connection_id: &str,
+        req: &InvokeRequest,
+    ) -> Result<InvokeResult, HostError> {
+        let connector = self.connector(connection_id).ok_or_else(|| {
+            HostError::Connector(format!("connection {connection_id} has no connector"))
+        })?;
         if let Some(url) = req.parameters.get("url").and_then(|v| v.as_str()) {
             assert_destination_allowed(&self.policy, url)?;
         }
-        assert_component_trusted(&self.policy, "sha256:mock-connector", true)?;
+        assert_component_trusted(&self.policy, connector.component_digest(), true)?;
         let level = req
             .invoke_level
             .map(|n| match n {
@@ -526,7 +576,19 @@ impl HostRuntime {
         {
             return self.invoke_l2_placeholder(req);
         }
-        self.mock.invoke(req)
+        if !connector.operations().contains(&req.operation.as_str()) {
+            return Err(HostError::Connector(format!(
+                "connector {} does not implement {}",
+                connector.id(),
+                req.operation
+            )));
+        }
+        connector.invoke(req)
+    }
+
+    fn connector(&self, connection_id: &str) -> Option<&dyn Connector> {
+        let connector_id = self.connection_connectors.get(connection_id)?;
+        self.connectors.get(connector_id).map(Arc::as_ref)
     }
 
     fn invoke_l2_placeholder(&self, req: &InvokeRequest) -> Result<InvokeResult, HostError> {
@@ -775,15 +837,18 @@ mod tests {
         let params = json!({"title": "hi"});
         let digest = opensesame_param_digest(&params);
         let res = rt
-            .invoke_mock(&InvokeRequest {
-                operation: "pull_request.create".into(),
-                resource: "repo:acme/catalog".into(),
-                audience: "https://api.github.com".into(),
-                parameters: params,
-                parameters_digest: digest,
-                authorized_operation: "pull_request.create".into(),
-                invoke_level: Some(1),
-            })
+            .invoke(
+                "demo-conn",
+                &InvokeRequest {
+                    operation: "pull_request.create".into(),
+                    resource: "repo:acme/catalog".into(),
+                    audience: "https://api.github.com".into(),
+                    parameters: params,
+                    parameters_digest: digest,
+                    authorized_operation: "pull_request.create".into(),
+                    invoke_level: Some(1),
+                },
+            )
             .unwrap();
         assert!(res.ok);
         assert_eq!(res.safe_summary["pr_number"], 42);
@@ -794,15 +859,18 @@ mod tests {
         let rt = HostRuntime::default();
         let params = json!({});
         let err = rt
-            .invoke_mock(&InvokeRequest {
-                operation: "pull_request.create".into(),
-                resource: "r".into(),
-                audience: "https://api.github.com".into(),
-                parameters: params.clone(),
-                parameters_digest: opensesame_param_digest(&params),
-                authorized_operation: "repository.read".into(),
-                invoke_level: None,
-            })
+            .invoke(
+                "demo-conn",
+                &InvokeRequest {
+                    operation: "pull_request.create".into(),
+                    resource: "r".into(),
+                    audience: "https://api.github.com".into(),
+                    parameters: params.clone(),
+                    parameters_digest: opensesame_param_digest(&params),
+                    authorized_operation: "repository.read".into(),
+                    invoke_level: None,
+                },
+            )
             .unwrap_err();
         assert_eq!(err, HostError::OperationMismatch);
     }
@@ -811,15 +879,18 @@ mod tests {
     fn param_digest_mismatch_denied() {
         let rt = HostRuntime::default();
         let err = rt
-            .invoke_mock(&InvokeRequest {
-                operation: "repository.read".into(),
-                resource: "r".into(),
-                audience: "https://api.github.com".into(),
-                parameters: json!({"a": 1}),
-                parameters_digest: "sha256:nope".into(),
-                authorized_operation: "repository.read".into(),
-                invoke_level: None,
-            })
+            .invoke(
+                "demo-conn",
+                &InvokeRequest {
+                    operation: "repository.read".into(),
+                    resource: "r".into(),
+                    audience: "https://api.github.com".into(),
+                    parameters: json!({"a": 1}),
+                    parameters_digest: "sha256:nope".into(),
+                    authorized_operation: "repository.read".into(),
+                    invoke_level: None,
+                },
+            )
             .unwrap_err();
         assert_eq!(err, HostError::ParameterDigestMismatch);
     }
@@ -848,15 +919,18 @@ mod tests {
         let rt = HostRuntime::default();
         let params = json!({"url": "https://169.254.169.254/latest"});
         let err = rt
-            .invoke_mock(&InvokeRequest {
-                operation: "repository.read".into(),
-                resource: "r".into(),
-                audience: "https://api.github.com".into(),
-                parameters: params.clone(),
-                parameters_digest: opensesame_param_digest(&params),
-                authorized_operation: "repository.read".into(),
-                invoke_level: None,
-            })
+            .invoke(
+                "demo-conn",
+                &InvokeRequest {
+                    operation: "repository.read".into(),
+                    resource: "r".into(),
+                    audience: "https://api.github.com".into(),
+                    parameters: params.clone(),
+                    parameters_digest: opensesame_param_digest(&params),
+                    authorized_operation: "repository.read".into(),
+                    invoke_level: None,
+                },
+            )
             .unwrap_err();
         assert_eq!(err, HostError::PrivateAddress);
     }
@@ -883,15 +957,18 @@ mod tests {
         ] {
             let params = json!({});
             assert!(rt
-                .invoke_mock(&InvokeRequest {
-                    operation: op.into(),
-                    resource: "r".into(),
-                    audience: "a".into(),
-                    parameters: params.clone(),
-                    parameters_digest: opensesame_param_digest(&params),
-                    authorized_operation: op.into(),
-                    invoke_level: None,
-                })
+                .invoke(
+                    "demo-conn",
+                    &InvokeRequest {
+                        operation: op.into(),
+                        resource: "r".into(),
+                        audience: "a".into(),
+                        parameters: params.clone(),
+                        parameters_digest: opensesame_param_digest(&params),
+                        authorized_operation: op.into(),
+                        invoke_level: None,
+                    }
+                )
                 .is_err());
         }
     }
@@ -901,15 +978,18 @@ mod tests {
         let rt = HostRuntime::default();
         let params = json!({});
         let err = rt
-            .invoke_mock(&InvokeRequest {
-                operation: "credential.resolve".into(),
-                resource: "r".into(),
-                audience: "a".into(),
-                parameters: params.clone(),
-                parameters_digest: opensesame_param_digest(&params),
-                authorized_operation: "credential.resolve".into(),
-                invoke_level: Some(3),
-            })
+            .invoke(
+                "demo-conn",
+                &InvokeRequest {
+                    operation: "credential.resolve".into(),
+                    resource: "r".into(),
+                    audience: "a".into(),
+                    parameters: params.clone(),
+                    parameters_digest: opensesame_param_digest(&params),
+                    authorized_operation: "credential.resolve".into(),
+                    invoke_level: Some(3),
+                },
+            )
             .unwrap_err();
         assert_eq!(err, HostError::MaterializeDenied);
     }
@@ -1071,7 +1151,7 @@ mod tests {
     }
 
     #[test]
-    fn invoke_mock_l2_refuses_material_and_a_foreign_placeholder() {
+    fn registry_l2_refuses_material_and_a_foreign_placeholder() {
         let rt = HostRuntime::default();
         // The host resolves the credential from the connection. A caller naming its
         // own material is refused rather than obliged.
@@ -1083,15 +1163,18 @@ mod tests {
             "material": "attacker-chosen",
         });
         let err = rt
-            .invoke_mock(&InvokeRequest {
-                operation: "http.authorized".into(),
-                resource: "r".into(),
-                audience: "https://api.github.com".into(),
-                parameters: with_material.clone(),
-                parameters_digest: opensesame_param_digest(&with_material),
-                authorized_operation: "http.authorized".into(),
-                invoke_level: Some(2),
-            })
+            .invoke(
+                "demo-conn",
+                &InvokeRequest {
+                    operation: "http.authorized".into(),
+                    resource: "r".into(),
+                    audience: "https://api.github.com".into(),
+                    parameters: with_material.clone(),
+                    parameters_digest: opensesame_param_digest(&with_material),
+                    authorized_operation: "http.authorized".into(),
+                    invoke_level: Some(2),
+                },
+            )
             .unwrap_err();
         assert!(matches!(err, HostError::MaterializeDenied), "{err:?}");
 
@@ -1104,15 +1187,18 @@ mod tests {
             "placeholder": "ostest_someone_elses0",
         });
         let err = rt
-            .invoke_mock(&InvokeRequest {
-                operation: "http.authorized".into(),
-                resource: "r".into(),
-                audience: "https://api.github.com".into(),
-                parameters: foreign.clone(),
-                parameters_digest: opensesame_param_digest(&foreign),
-                authorized_operation: "http.authorized".into(),
-                invoke_level: Some(2),
-            })
+            .invoke(
+                "demo-conn",
+                &InvokeRequest {
+                    operation: "http.authorized".into(),
+                    resource: "r".into(),
+                    audience: "https://api.github.com".into(),
+                    parameters: foreign.clone(),
+                    parameters_digest: opensesame_param_digest(&foreign),
+                    authorized_operation: "http.authorized".into(),
+                    invoke_level: Some(2),
+                },
+            )
             .unwrap_err();
         assert!(matches!(err, HostError::PlaceholderMismatch), "{err:?}");
 
@@ -1125,21 +1211,24 @@ mod tests {
             "connection_ref": "conn://not-mine",
         });
         let err = rt
-            .invoke_mock(&InvokeRequest {
-                operation: "http.authorized".into(),
-                resource: "r".into(),
-                audience: "https://api.github.com".into(),
-                parameters: unknown.clone(),
-                parameters_digest: opensesame_param_digest(&unknown),
-                authorized_operation: "http.authorized".into(),
-                invoke_level: Some(2),
-            })
+            .invoke(
+                "demo-conn",
+                &InvokeRequest {
+                    operation: "http.authorized".into(),
+                    resource: "r".into(),
+                    audience: "https://api.github.com".into(),
+                    parameters: unknown.clone(),
+                    parameters_digest: opensesame_param_digest(&unknown),
+                    authorized_operation: "http.authorized".into(),
+                    invoke_level: Some(2),
+                },
+            )
             .unwrap_err();
         assert!(matches!(err, HostError::Connector(_)), "{err:?}");
     }
 
     #[test]
-    fn invoke_mock_l2_wrong_placement_denied() {
+    fn registry_l2_wrong_placement_denied() {
         let rt = HostRuntime::default();
         let ph = "ostest_placeholder_key0";
         // Default placement is Authorization header only — body occurrence is denied.
@@ -1151,15 +1240,18 @@ mod tests {
             "body_value": format!("exfil {ph}"),
         });
         let err = rt
-            .invoke_mock(&InvokeRequest {
-                operation: "http.authorized".into(),
-                resource: "r".into(),
-                audience: "https://api.github.com".into(),
-                parameters: params.clone(),
-                parameters_digest: opensesame_param_digest(&params),
-                authorized_operation: "http.authorized".into(),
-                invoke_level: Some(2),
-            })
+            .invoke(
+                "demo-conn",
+                &InvokeRequest {
+                    operation: "http.authorized".into(),
+                    resource: "r".into(),
+                    audience: "https://api.github.com".into(),
+                    parameters: params.clone(),
+                    parameters_digest: opensesame_param_digest(&params),
+                    authorized_operation: "http.authorized".into(),
+                    invoke_level: Some(2),
+                },
+            )
             .unwrap_err();
         assert!(matches!(err, HostError::PlacementDenied(_)), "{err:?}");
     }
