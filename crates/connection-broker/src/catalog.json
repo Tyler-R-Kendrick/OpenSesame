@@ -14,18 +14,12 @@
       "display_name": "GitHub",
       "docs_url": "https://docs.github.com/apps/oauth-apps",
       "egress": {
-        "authorities": [
-          "api.github.com"
-        ],
+        "authorities": ["api.github.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "github",
-      "operations": [
-        "repository.read",
-        "pull_request.create",
-        "issue.create"
-      ],
+      "operations": ["repository.read", "pull_request.create", "issue.create"],
       "provenance_url": "https://docs.github.com/apps/oauth-apps",
       "scopes": [
         {
@@ -68,18 +62,12 @@
       "display_name": "GitLab",
       "docs_url": "https://docs.gitlab.com/ee/api/oauth2.html",
       "egress": {
-        "authorities": [
-          "gitlab.com"
-        ],
+        "authorities": ["gitlab.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "gitlab",
-      "operations": [
-        "project.read",
-        "merge_request.create",
-        "issue.create"
-      ],
+      "operations": ["project.read", "merge_request.create", "issue.create"],
       "provenance_url": "https://docs.gitlab.com/ee/api/oauth2.html",
       "scopes": [
         {
@@ -106,14 +94,8 @@
       "auth": {
         "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
         "extra_authorize_params": [
-          [
-            "access_type",
-            "offline"
-          ],
-          [
-            "prompt",
-            "consent"
-          ]
+          ["access_type", "offline"],
+          ["prompt", "consent"]
         ],
         "kind": "oauth2_authorization_code",
         "revoke_url": "https://oauth2.googleapis.com/revoke",
@@ -187,18 +169,12 @@
       "display_name": "Microsoft",
       "docs_url": "https://learn.microsoft.com/entra/identity-platform/v2-oauth2-auth-code-flow",
       "egress": {
-        "authorities": [
-          "graph.microsoft.com"
-        ],
+        "authorities": ["graph.microsoft.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "microsoft",
-      "operations": [
-        "user.read",
-        "mail.message.read",
-        "drive.file.read"
-      ],
+      "operations": ["user.read", "mail.message.read", "drive.file.read"],
       "provenance_url": "https://learn.microsoft.com/entra/identity-platform/v2-oauth2-auth-code-flow",
       "scopes": [
         {
@@ -241,18 +217,12 @@
       "display_name": "Slack",
       "docs_url": "https://api.slack.com/authentication/oauth-v2",
       "egress": {
-        "authorities": [
-          "slack.com"
-        ],
+        "authorities": ["slack.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "slack",
-      "operations": [
-        "message.post",
-        "channel.list",
-        "user.list"
-      ],
+      "operations": ["message.post", "channel.list", "user.list"],
       "provenance_url": "https://api.slack.com/authentication/oauth-v2",
       "scopes": [
         {
@@ -284,12 +254,7 @@
     {
       "auth": {
         "authorize_url": "https://api.notion.com/v1/oauth/authorize",
-        "extra_authorize_params": [
-          [
-            "owner",
-            "user"
-          ]
-        ],
+        "extra_authorize_params": [["owner", "user"]],
         "kind": "oauth2_authorization_code",
         "revoke_url": null,
         "supports_refresh": false,
@@ -300,18 +265,12 @@
       "display_name": "Notion",
       "docs_url": "https://developers.notion.com/docs/authorization",
       "egress": {
-        "authorities": [
-          "api.notion.com"
-        ],
+        "authorities": ["api.notion.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "notion",
-      "operations": [
-        "page.read",
-        "database.query",
-        "page.create"
-      ],
+      "operations": ["page.read", "database.query", "page.create"],
       "provenance_url": "https://developers.notion.com/docs/authorization",
       "scopes": []
     },
@@ -329,18 +288,12 @@
       "display_name": "Linear",
       "docs_url": "https://developers.linear.app/docs/oauth/authentication",
       "egress": {
-        "authorities": [
-          "api.linear.app"
-        ],
+        "authorities": ["api.linear.app"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "linear",
-      "operations": [
-        "issue.read",
-        "issue.create",
-        "project.read"
-      ],
+      "operations": ["issue.read", "issue.create", "project.read"],
       "provenance_url": "https://developers.linear.app/docs/oauth/authentication",
       "scopes": [
         {
@@ -373,14 +326,8 @@
       "auth": {
         "authorize_url": "https://auth.atlassian.com/authorize",
         "extra_authorize_params": [
-          [
-            "audience",
-            "api.atlassian.com"
-          ],
-          [
-            "prompt",
-            "consent"
-          ]
+          ["audience", "api.atlassian.com"],
+          ["prompt", "consent"]
         ],
         "kind": "oauth2_authorization_code",
         "revoke_url": null,
@@ -392,18 +339,12 @@
       "display_name": "Atlassian",
       "docs_url": "https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/",
       "egress": {
-        "authorities": [
-          "api.atlassian.com"
-        ],
+        "authorities": ["api.atlassian.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "atlassian",
-      "operations": [
-        "issue.read",
-        "issue.create",
-        "project.read"
-      ],
+      "operations": ["issue.read", "issue.create", "project.read"],
       "provenance_url": "https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/",
       "scopes": [
         {
@@ -446,18 +387,12 @@
       "display_name": "HubSpot",
       "docs_url": "https://developers.hubspot.com/docs/api/working-with-oauth",
       "egress": {
-        "authorities": [
-          "api.hubapi.com"
-        ],
+        "authorities": ["api.hubapi.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "hubspot",
-      "operations": [
-        "contact.read",
-        "contact.create",
-        "deal.read"
-      ],
+      "operations": ["contact.read", "contact.create", "deal.read"],
       "provenance_url": "https://developers.hubspot.com/docs/api/working-with-oauth",
       "scopes": [
         {
@@ -500,18 +435,12 @@
       "display_name": "Salesforce",
       "docs_url": "https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm",
       "egress": {
-        "authorities": [
-          "login.salesforce.com"
-        ],
+        "authorities": ["login.salesforce.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "salesforce",
-      "operations": [
-        "record.read",
-        "record.create",
-        "soql.query"
-      ],
+      "operations": ["record.read", "record.create", "soql.query"],
       "provenance_url": "https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm",
       "scopes": [
         {
@@ -554,18 +483,12 @@
       "display_name": "Zoom",
       "docs_url": "https://developers.zoom.us/docs/integrations/oauth/",
       "egress": {
-        "authorities": [
-          "api.zoom.us"
-        ],
+        "authorities": ["api.zoom.us"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "zoom",
-      "operations": [
-        "meeting.read",
-        "meeting.create",
-        "user.read"
-      ],
+      "operations": ["meeting.read", "meeting.create", "user.read"],
       "provenance_url": "https://developers.zoom.us/docs/integrations/oauth/",
       "scopes": [
         {
@@ -591,12 +514,7 @@
     {
       "auth": {
         "authorize_url": "https://www.dropbox.com/oauth2/authorize",
-        "extra_authorize_params": [
-          [
-            "token_access_type",
-            "offline"
-          ]
-        ],
+        "extra_authorize_params": [["token_access_type", "offline"]],
         "kind": "oauth2_authorization_code",
         "revoke_url": null,
         "supports_refresh": true,
@@ -607,19 +525,12 @@
       "display_name": "Dropbox",
       "docs_url": "https://developers.dropbox.com/oauth-guide",
       "egress": {
-        "authorities": [
-          "api.dropboxapi.com",
-          "content.dropboxapi.com"
-        ],
+        "authorities": ["api.dropboxapi.com", "content.dropboxapi.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "dropbox",
-      "operations": [
-        "file.list",
-        "file.read",
-        "file.write"
-      ],
+      "operations": ["file.list", "file.read", "file.write"],
       "provenance_url": "https://developers.dropbox.com/oauth-guide",
       "scopes": [
         {
@@ -662,18 +573,12 @@
       "display_name": "Box",
       "docs_url": "https://developer.box.com/guides/authentication/oauth2/",
       "egress": {
-        "authorities": [
-          "api.box.com"
-        ],
+        "authorities": ["api.box.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "box",
-      "operations": [
-        "file.list",
-        "file.read",
-        "file.write"
-      ],
+      "operations": ["file.list", "file.read", "file.write"],
       "provenance_url": "https://developer.box.com/guides/authentication/oauth2/",
       "scopes": [
         {
@@ -704,18 +609,12 @@
       "display_name": "Asana",
       "docs_url": "https://developers.asana.com/docs/oauth",
       "egress": {
-        "authorities": [
-          "app.asana.com"
-        ],
+        "authorities": ["app.asana.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "asana",
-      "operations": [
-        "task.read",
-        "task.create",
-        "project.read"
-      ],
+      "operations": ["task.read", "task.create", "project.read"],
       "provenance_url": "https://developers.asana.com/docs/oauth",
       "scopes": [
         {
@@ -752,17 +651,12 @@
       "display_name": "Figma",
       "docs_url": "https://www.figma.com/developers/api#oauth2",
       "egress": {
-        "authorities": [
-          "api.figma.com"
-        ],
+        "authorities": ["api.figma.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "figma",
-      "operations": [
-        "file.read",
-        "comment.create"
-      ],
+      "operations": ["file.read", "comment.create"],
       "provenance_url": "https://www.figma.com/developers/api#oauth2",
       "scopes": [
         {
@@ -793,18 +687,12 @@
       "display_name": "Discord",
       "docs_url": "https://discord.com/developers/docs/topics/oauth2",
       "egress": {
-        "authorities": [
-          "discord.com"
-        ],
+        "authorities": ["discord.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "discord",
-      "operations": [
-        "user.read",
-        "guild.list",
-        "message.post"
-      ],
+      "operations": ["user.read", "guild.list", "message.post"],
       "provenance_url": "https://discord.com/developers/docs/topics/oauth2",
       "scopes": [
         {
@@ -847,18 +735,12 @@
       "display_name": "Sentry",
       "docs_url": "https://docs.sentry.io/api/guides/create-auth-token/",
       "egress": {
-        "authorities": [
-          "sentry.io"
-        ],
+        "authorities": ["sentry.io"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "sentry",
-      "operations": [
-        "issue.read",
-        "event.read",
-        "project.read"
-      ],
+      "operations": ["issue.read", "event.read", "project.read"],
       "provenance_url": "https://docs.sentry.io/api/guides/create-auth-token/",
       "scopes": [
         {
@@ -897,18 +779,12 @@
       "display_name": "Stripe",
       "docs_url": "https://docs.stripe.com/keys",
       "egress": {
-        "authorities": [
-          "api.stripe.com"
-        ],
+        "authorities": ["api.stripe.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "stripe",
-      "operations": [
-        "customer.read",
-        "charge.read",
-        "invoice.read"
-      ],
+      "operations": ["customer.read", "charge.read", "invoice.read"],
       "provenance_url": "https://docs.stripe.com/keys",
       "scopes": []
     },
@@ -922,18 +798,12 @@
       "display_name": "OpenAI",
       "docs_url": "https://platform.openai.com/docs/api-reference/authentication",
       "egress": {
-        "authorities": [
-          "api.openai.com"
-        ],
+        "authorities": ["api.openai.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "openai",
-      "operations": [
-        "completion.create",
-        "embedding.create",
-        "model.list"
-      ],
+      "operations": ["completion.create", "embedding.create", "model.list"],
       "provenance_url": "https://platform.openai.com/docs/api-reference/authentication",
       "scopes": []
     },
@@ -947,17 +817,12 @@
       "display_name": "Anthropic",
       "docs_url": "https://docs.anthropic.com/en/api/getting-started",
       "egress": {
-        "authorities": [
-          "api.anthropic.com"
-        ],
+        "authorities": ["api.anthropic.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
       "id": "anthropic",
-      "operations": [
-        "message.create",
-        "model.list"
-      ],
+      "operations": ["message.create", "model.list"],
       "provenance_url": "https://docs.anthropic.com/en/api/getting-started",
       "scopes": []
     },
@@ -975,17 +840,12 @@
       "display_name": "Mock provider (testing)",
       "docs_url": "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/apps/mock-upstream-idp",
       "egress": {
-        "authorities": [
-          "127.0.0.1"
-        ],
+        "authorities": ["127.0.0.1"],
         "path_prefixes": [],
         "scheme": "http"
       },
       "id": "mock",
-      "operations": [
-        "fixture.read",
-        "fixture.write"
-      ],
+      "operations": ["fixture.read", "fixture.write"],
       "provenance_url": "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/apps/mock-upstream-idp",
       "scopes": [
         {
