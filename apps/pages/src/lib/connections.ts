@@ -1,4 +1,13 @@
 import {
+  AuthorizeResponseSchema,
+  ConnectionSchema,
+  IntegrationSchema,
+  ListConnectionsResponseSchema,
+  ListIntegrationsResponseSchema,
+  ListProvidersResponseSchema,
+  OrganizationMembershipResponseSchema,
+} from "@opensesame/contracts";
+import {
   type OrganizationRole,
   type SessionOrganization,
   hostFetch,
@@ -85,147 +94,84 @@ function string(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
 }
 
-function nullableString(value: unknown) {
-  return typeof value === "string" && value.length > 0 ? value : null;
-}
+const StrictMembershipSchema = OrganizationMembershipResponseSchema.strict();
 
-function stringList(value: unknown) {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-}
-
-function list(value: unknown, key: string) {
-  const raw = object(value)[key];
-  return Array.isArray(raw) ? raw : [];
-}
-
-const PROVIDER_CATEGORIES = new Set<ProviderCategory>([
-  "developer",
-  "productivity",
-  "communication",
-  "storage",
-  "crm",
-  "payments",
-  "identity",
-  "testing",
-]);
-
-function providerCategory(value: unknown): ProviderCategory | null {
-  return typeof value === "string" &&
-    PROVIDER_CATEGORIES.has(value as ProviderCategory)
-    ? (value as ProviderCategory)
-    : null;
-}
-
-function authKind(value: unknown): AuthKind | null {
-  return value === "oauth2_authorization_code" || value === "api_key"
-    ? value
-    : null;
-}
-
-function integrationSource(value: unknown): Integration["source"] | null {
-  return value === "organization" ||
-    value === "shared_dev" ||
-    value === "deployment"
-    ? value
-    : null;
+function strictList(value: unknown, key: string): unknown[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Invalid ${key} response.`);
+  }
+  const raw = value as Record<string, unknown>;
+  if (
+    Object.keys(raw).length !== 1 ||
+    !Object.hasOwn(raw, key) ||
+    !Array.isArray(raw[key])
+  ) {
+    throw new Error(`Invalid ${key} response.`);
+  }
+  return raw[key];
 }
 
 export function parseProviderList(value: unknown): Provider[] {
-  return list(value, "providers").flatMap((entry) => {
-    const raw = object(entry);
-    const id = string(raw.id);
-    const category = providerCategory(raw.category);
-    const kind = authKind(raw.auth_kind);
-    if (!id || !category || !kind) return [];
-    return [
-      {
-        id,
-        displayName: string(raw.display_name, id),
-        category,
-        docsUrl: string(raw.docs_url),
-        authKind: kind,
-        callbackUrl: nullableString(raw.callback_url),
-        scopes: Array.isArray(raw.scopes)
-          ? raw.scopes.map((scope) => {
-              const parsed = object(scope);
-              return {
-                name: string(parsed.name),
-                description: string(parsed.description),
-                sensitive: parsed.sensitive === true,
-                default: parsed.default === true,
-              };
-            })
-          : [],
-      },
-    ];
-  });
+  return ListProvidersResponseSchema.parse(value).providers.map((raw) => ({
+    id: raw.id,
+    displayName: raw.display_name,
+    category: raw.category,
+    docsUrl: raw.docs_url,
+    authKind: raw.auth_kind,
+    callbackUrl: raw.callback_url,
+    scopes: raw.scopes,
+  }));
 }
 
 export function parseIntegrationList(value: unknown): Integration[] {
-  return list(value, "integrations").flatMap((entry) => {
-    const raw = object(entry);
-    const id = string(raw.id);
-    const providerId = string(raw.provider_id);
-    const source = integrationSource(raw.source);
-    if (!id || !providerId || !source) return [];
-    return [
-      {
-        id,
-        key: string(raw.key, id),
-        providerId,
-        displayName: string(raw.display_name, providerId),
-        source,
-        enabled: raw.enabled === true,
-        configured: raw.configured === true,
-        scopes: stringList(raw.scopes),
-        clientIdHint: nullableString(raw.client_id_hint),
-        hasClientSecret: raw.has_client_secret === true,
-        connectionCount:
-          typeof raw.connection_count === "number" ? raw.connection_count : 0,
-        callbackUrl: nullableString(raw.callback_url),
-      },
-    ];
-  });
+  return ListIntegrationsResponseSchema.parse(value).integrations.map((raw) =>
+    mapIntegration(raw),
+  );
 }
 
 export function parseConnectionList(value: unknown): Connection[] {
-  return list(value, "connections").flatMap((entry) => {
-    const raw = object(entry);
-    const id = string(raw.connection_id, string(raw.id));
-    const integrationId = nullableString(raw.integration_id);
-    if (!id) return [];
-    return [
-      {
-        id,
-        integrationId,
-        providerId: string(raw.provider_id),
-        displayName: string(raw.display_name, string(raw.logical_name, id)),
-        accountLabel: nullableString(raw.account_label),
-        status: string(raw.status, "pending"),
-        scopes: stringList(raw.granted_scopes).length
-          ? stringList(raw.granted_scopes)
-          : stringList(raw.requested_scopes),
-        refreshable: raw.refreshable === true,
-      },
-    ];
-  });
+  return ListConnectionsResponseSchema.parse(value).connections.map((raw) =>
+    mapConnection(raw),
+  );
 }
 
 export function parseMemberList(value: unknown): OrganizationMember[] {
-  return list(value, "members").flatMap((entry) => {
-    const raw = object(entry);
-    const principalId = string(raw.principalId, string(raw.principal_id));
-    const role = raw.role;
-    if (
-      !principalId ||
-      (role !== "owner" && role !== "admin" && role !== "member")
-    ) {
-      return [];
-    }
-    return [{ principalId, role }];
+  return strictList(value, "members").map((entry) => {
+    const raw = StrictMembershipSchema.parse(entry);
+    return { principalId: raw.principalId, role: raw.role };
   });
+}
+
+function mapIntegration(raw: ReturnType<typeof IntegrationSchema.parse>) {
+  return {
+    id: raw.id,
+    key: raw.key,
+    providerId: raw.provider_id,
+    displayName: raw.display_name,
+    source: raw.source,
+    enabled: raw.enabled,
+    configured: raw.configured,
+    scopes: raw.scopes,
+    clientIdHint: raw.client_id_hint,
+    hasClientSecret: raw.has_client_secret,
+    connectionCount: raw.connection_count,
+    callbackUrl: raw.callback_url,
+  } satisfies Integration;
+}
+
+function mapConnection(raw: ReturnType<typeof ConnectionSchema.parse>) {
+  return {
+    id: raw.connection_id,
+    integrationId: raw.integration_id,
+    providerId: raw.provider_id,
+    displayName: raw.display_name || raw.logical_name,
+    accountLabel: raw.account_label,
+    status: raw.status,
+    scopes: raw.granted_scopes.length
+      ? raw.granted_scopes
+      : raw.requested_scopes,
+    refreshable: raw.refreshable,
+  } satisfies Connection;
 }
 
 export function chooseOrganization(
@@ -304,7 +250,7 @@ export function createIntegration(
         scopes: input.scopes,
       }),
     },
-    (body) => parseIntegrationList({ integrations: [body] })[0],
+    (body) => mapIntegration(IntegrationSchema.parse(body)),
   );
 }
 
@@ -317,7 +263,7 @@ export function updateIntegration(
     organizationId,
     `/integrations/${encodeURIComponent(integrationId)}`,
     { method: "PATCH", body: JSON.stringify(input) },
-    (body) => parseIntegrationList({ integrations: [body] })[0],
+    (body) => mapIntegration(IntegrationSchema.parse(body)),
   );
 }
 
@@ -348,7 +294,7 @@ export function createConnection(
         scopes: input.scopes,
       }),
     },
-    (body) => parseConnectionList({ connections: [body] })[0],
+    (body) => mapConnection(ConnectionSchema.parse(body)),
   );
 }
 
@@ -360,12 +306,7 @@ export function authorizeConnection(
     organizationId,
     `/connections/${encodeURIComponent(connectionId)}/authorize`,
     { method: "POST", body: "{}" },
-    (body) => {
-      const raw = object(body);
-      const authorizationUrl = string(raw.authorization_url);
-      if (!authorizationUrl) throw new Error("Host omitted authorization URL.");
-      return authorizationUrl;
-    },
+    (body) => AuthorizeResponseSchema.parse(body).authorization_url,
   );
 }
 
@@ -378,7 +319,7 @@ export function setConnectionCredential(
     organizationId,
     `/connections/${encodeURIComponent(connectionId)}/credential`,
     { method: "POST", body: JSON.stringify({ value }) },
-    (body) => parseConnectionList({ connections: [body] })[0],
+    (body) => mapConnection(ConnectionSchema.parse(body)),
   );
 }
 
@@ -390,7 +331,7 @@ export function refreshConnection(
     organizationId,
     `/connections/${encodeURIComponent(connectionId)}/refresh`,
     { method: "POST" },
-    (body) => parseConnectionList({ connections: [body] })[0],
+    (body) => mapConnection(ConnectionSchema.parse(body)),
   );
 }
 
@@ -417,7 +358,10 @@ export function addMember(
       method: "POST",
       body: JSON.stringify({ principalId, role }),
     },
-    (body) => parseMemberList({ members: [body] })[0],
+    (body) => {
+      const member = StrictMembershipSchema.parse(body);
+      return { principalId: member.principalId, role: member.role };
+    },
   );
 }
 
@@ -429,7 +373,10 @@ export function updateMember(
   return identityRequest(
     `/v1/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(principalId)}`,
     { method: "PATCH", body: JSON.stringify({ role }) },
-    (body) => parseMemberList({ members: [body] })[0],
+    (body) => {
+      const member = StrictMembershipSchema.parse(body);
+      return { principalId: member.principalId, role: member.role };
+    },
   );
 }
 

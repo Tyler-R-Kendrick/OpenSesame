@@ -7,44 +7,102 @@ import {
   parseProviderList,
 } from "./connections.js";
 
+const timestamp = "2026-08-10T18:00:00Z";
+const egress = {
+  scheme: "https",
+  authorities: ["api.example.test"],
+  path_prefixes: ["/"],
+};
+
+function provider(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "github",
+    display_name: "GitHub",
+    category: "developer",
+    docs_url: "https://docs.github.com/apps/oauth-apps",
+    auth_kind: "oauth2_authorization_code",
+    supports_refresh: true,
+    configured: true,
+    callback_url: "https://host.example/api/v1/connections/oauth/callback",
+    missing_config: [],
+    scopes: [
+      {
+        name: "read:user",
+        description: "Read profile",
+        sensitive: false,
+        default: true,
+      },
+    ],
+    egress,
+    operations: ["profile.read"],
+    ...overrides,
+  };
+}
+
+function integration(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "int_1",
+    key: "github-primary",
+    provider_id: "github",
+    display_name: "GitHub primary",
+    source: "organization",
+    enabled: true,
+    configured: true,
+    callback_url: "https://host.example/api/v1/connections/oauth/callback",
+    scopes: ["read:user"],
+    client_id_hint: "gho_…4d2",
+    has_client_secret: true,
+    connection_count: 2,
+    created_by: "principal:owner",
+    created_at: timestamp,
+    updated_at: timestamp,
+    ...overrides,
+  };
+}
+
+function connection(overrides: Record<string, unknown> = {}) {
+  return {
+    connection_id: "conn_1",
+    integration_id: "int_1",
+    connection_ref: "conn://github/work",
+    logical_name: "work",
+    display_name: "Work GitHub",
+    provider_id: "github",
+    status: "active",
+    status_detail: null,
+    organization_id: "org_1",
+    project_id: null,
+    owner_kind: "principal",
+    shareability: "private",
+    requested_scopes: ["read:user"],
+    granted_scopes: ["read:user"],
+    account_label: null,
+    expires_at: null,
+    refreshable: true,
+    last_refreshed_at: timestamp,
+    max_invoke_level: 1,
+    egress,
+    bindings: [],
+    created_at: timestamp,
+    updated_at: timestamp,
+    ...overrides,
+  };
+}
+
+function member(overrides: Record<string, unknown> = {}) {
+  return {
+    principalId: "prn_owner",
+    organizationId: "org_1",
+    role: "owner",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    ...overrides,
+  };
+}
+
 describe("connections wire parsers", () => {
-  it("keeps the provider catalog searchable without inventing entries", () => {
-    expect(
-      parseProviderList({
-        providers: [
-          {
-            id: "github",
-            display_name: "GitHub",
-            category: "developer",
-            docs_url: "https://docs.github.com/apps/oauth-apps",
-            auth_kind: "oauth2_authorization_code",
-            callback_url:
-              "https://host.example/api/v1/connections/oauth/callback",
-            scopes: [
-              {
-                name: "read:user",
-                description: "Read profile",
-                sensitive: false,
-                default: true,
-              },
-            ],
-          },
-          { display_name: "missing id" },
-          {
-            id: "mystery",
-            display_name: "Mystery",
-            category: "developer",
-            auth_kind: "paste_secret_somewhere",
-          },
-          {
-            id: "odd-category",
-            display_name: "Odd category",
-            category: "misc",
-            auth_kind: "api_key",
-          },
-        ],
-      }),
-    ).toEqual([
+  it("maps a complete provider catalog response", () => {
+    expect(parseProviderList({ providers: [provider()] })).toEqual([
       {
         id: "github",
         displayName: "GitHub",
@@ -64,29 +122,8 @@ describe("connections wire parsers", () => {
     ]);
   });
 
-  it("maps only the safe integration shape and never returns secret bytes", () => {
-    const [integration] = parseIntegrationList({
-      integrations: [
-        {
-          id: "int_1",
-          key: "github-primary",
-          provider_id: "github",
-          display_name: "GitHub primary",
-          source: "organization",
-          enabled: true,
-          configured: true,
-          scopes: ["read:user"],
-          client_id_hint: "gho_…4d2",
-          has_client_secret: true,
-          client_secret: "must-not-cross",
-          connection_count: 2,
-          callback_url:
-            "https://host.example/api/v1/connections/oauth/callback",
-        },
-      ],
-    });
-
-    expect(integration).toEqual({
+  it("rejects unknown integration fields instead of stripping secrets", () => {
+    expect(parseIntegrationList({ integrations: [integration()] })[0]).toEqual({
       id: "int_1",
       key: "github-primary",
       providerId: "github",
@@ -100,39 +137,34 @@ describe("connections wire parsers", () => {
       connectionCount: 2,
       callbackUrl: "https://host.example/api/v1/connections/oauth/callback",
     });
-    expect(JSON.stringify(integration)).not.toContain("must-not-cross");
-    expect(
+    expect(() =>
       parseIntegrationList({
-        integrations: [
-          {
-            id: "int_unknown",
-            provider_id: "github",
-            source: "mystery",
-          },
-        ],
+        integrations: [integration({ client_secret: "must-not-cross" })],
       }),
-    ).toEqual([]);
+    ).toThrow(/unrecognized_keys/iu);
+    expect(() =>
+      parseIntegrationList({
+        integrations: [integration({ source: "mystery" })],
+      }),
+    ).toThrow();
   });
 
-  it("keeps legacy connections without integrations and validates roles", () => {
+  it("keeps schema-valid legacy connections without integrations", () => {
     expect(
       parseConnectionList({
         connections: [
-          {
-            connection_id: "conn_1",
-            integration_id: "int_1",
-            provider_id: "github",
-            display_name: "Work GitHub",
-            status: "active",
-            refreshable: true,
-            granted_scopes: ["read:user"],
-          },
-          {
+          connection(),
+          connection({
             connection_id: "legacy",
             integration_id: null,
-            provider_id: "github",
+            connection_ref: "conn://github/legacy",
+            logical_name: "legacy",
             display_name: "Legacy GitHub",
-          },
+            status: "pending",
+            granted_scopes: [],
+            refreshable: false,
+            last_refreshed_at: null,
+          }),
         ],
       }),
     ).toEqual([
@@ -143,29 +175,49 @@ describe("connections wire parsers", () => {
         providerId: "github",
       }),
     ]);
-    expect(
-      parseConnectionList({
-        connections: [
-          {
-            connection_id: "conn_1",
-            integration_id: "int_1",
-            refreshable: true,
-          },
-        ],
-      })[0]?.refreshable,
-    ).toBe(true);
-    expect(
-      parseMemberList({
-        members: [
-          { principalId: "prn_owner", organizationId: "org_1", role: "owner" },
-          {
-            principalId: "prn_bad",
-            organizationId: "org_1",
-            role: "superuser",
-          },
+  });
+
+  it("rejects unknown fields at list and nested response boundaries", () => {
+    expect(() =>
+      parseProviderList({ providers: [provider()], access_token: "leak" }),
+    ).toThrow(/unrecognized_keys/iu);
+    expect(() =>
+      parseProviderList({
+        providers: [
+          provider({
+            scopes: [
+              {
+                name: "read:user",
+                description: "Read profile",
+                sensitive: false,
+                default: true,
+                refresh_token: "leak",
+              },
+            ],
+          }),
         ],
       }),
-    ).toEqual([{ principalId: "prn_owner", role: "owner" }]);
+    ).toThrow(/unrecognized_keys/iu);
+    expect(() =>
+      parseConnectionList({
+        connections: [connection({ access_token: "leak" })],
+      }),
+    ).toThrow(/unrecognized_keys/iu);
+    expect(() =>
+      parseMemberList({ members: [member()], token: "leak" }),
+    ).toThrow("Invalid members response");
+    expect(() =>
+      parseMemberList({ members: [member({ accessToken: "leak" })] }),
+    ).toThrow(/unrecognized_keys/iu);
+  });
+
+  it("maps canonical memberships and rejects unknown roles", () => {
+    expect(parseMemberList({ members: [member()] })).toEqual([
+      { principalId: "prn_owner", role: "owner" },
+    ]);
+    expect(() =>
+      parseMemberList({ members: [member({ role: "superuser" })] }),
+    ).toThrow();
   });
 
   it("auto-selects only a sole organization and preserves a valid choice", () => {

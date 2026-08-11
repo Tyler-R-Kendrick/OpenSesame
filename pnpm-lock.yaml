@@ -430,6 +430,9 @@ importers:
       '@opensesame/client-core':
         specifier: workspace:*
         version: link:../../packages/client-core
+      '@opensesame/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@opensesame/sdk-browser':
         specifier: workspace:*
         version: link:../../packages/sdk-browser
