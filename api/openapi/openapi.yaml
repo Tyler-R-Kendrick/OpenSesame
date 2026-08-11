@@ -213,7 +213,7 @@ paths:
   /providers:
     get:
       summary: List immutable provider templates
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       description: Includes safe OAuth callback URLs and catalog-derived egress policy.
       responses:
         "200":
@@ -230,7 +230,7 @@ paths:
       - $ref: "#/components/parameters/OperatorOrganization"
     get:
       summary: List organization and read-only deployment integrations
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       responses:
         "200":
           description: Safe integration metadata; never client secrets
@@ -243,7 +243,7 @@ paths:
                   integrations: { type: array, items: { $ref: "#/components/schemas/Integration" } }
     post:
       summary: Create an organization integration
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       description: Owner/admin only. Provider endpoints and egress remain catalog-controlled.
       requestBody:
         required: true
@@ -267,7 +267,7 @@ paths:
       - $ref: "#/components/parameters/OperatorOrganization"
     get:
       summary: Get safe organization-scoped integration metadata
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       responses:
         "200":
           description: Integration metadata
@@ -277,7 +277,7 @@ paths:
         "404": { $ref: "#/components/responses/ContractError" }
     patch:
       summary: Update an organization integration
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       description: >-
         Owner/admin only; provider_id is immutable. Omitted client_secret preserves it and
         empty clears it.
@@ -296,7 +296,7 @@ paths:
         "403": { $ref: "#/components/responses/ContractError" }
     delete:
       summary: Delete an unused organization integration
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       responses:
         "204": { description: Deleted }
         "403": { $ref: "#/components/responses/ContractError" }
@@ -307,7 +307,7 @@ paths:
       - $ref: "#/components/parameters/OperatorOrganization"
     get:
       summary: List connections visible to the caller
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       responses:
         "200":
           description: Reference-only connections with integration_id
@@ -320,7 +320,7 @@ paths:
                   connections: { type: array, items: { $ref: "#/components/schemas/Connection" } }
     post:
       summary: Create a member-owned connection pinned to integration_id
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       description: Provider-only omission is accepted only for an unambiguous legacy integration.
       requestBody:
         required: true
@@ -342,7 +342,7 @@ paths:
       - $ref: "#/components/parameters/OperatorOrganization"
     get:
       summary: Get a caller-visible connection
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       responses:
         "200":
           description: Connection metadata; never credential material
@@ -352,7 +352,7 @@ paths:
         "404": { $ref: "#/components/responses/ContractError" }
     delete:
       summary: Revoke a connection locally and attempt upstream revocation
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       responses:
         "200":
           description: Revocation outcome
@@ -366,7 +366,7 @@ paths:
       - $ref: "#/components/parameters/OperatorOrganization"
     post:
       summary: Start OAuth authorization with PKCE and single-use state
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       requestBody:
         required: false
         content:
@@ -387,7 +387,7 @@ paths:
       - $ref: "#/components/parameters/OperatorOrganization"
     post:
       summary: Refresh a caller-visible OAuth connection
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       responses:
         "200":
           description: Refreshed safe connection metadata
@@ -402,7 +402,7 @@ paths:
       - $ref: "#/components/parameters/OperatorOrganization"
     post:
       summary: Store an API-key credential without returning it
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       requestBody:
         required: true
         content:
@@ -422,7 +422,7 @@ paths:
       - $ref: "#/components/parameters/OperatorOrganization"
     post:
       summary: Bind a caller-visible connection to an organization, project, or agent
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       requestBody:
         required: true
         content:
@@ -447,7 +447,7 @@ paths:
       - $ref: "#/components/parameters/OperatorOrganization"
     delete:
       summary: Remove a connection binding
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       responses:
         "200":
           description: Connection metadata without the removed binding
@@ -461,7 +461,7 @@ paths:
       - $ref: "#/components/parameters/OperatorOrganization"
     get:
       summary: List safe lifecycle events for a caller-visible connection
-      security: [{ HostBearer: [] }]
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       responses:
         "200":
           description: Connection event history
@@ -1115,9 +1115,13 @@ components:
         - required: [configuration_clear]
       properties:
         value: { type: string, minLength: 1, maxLength: 8192 }
-        configuration_set: { $ref: "#/components/schemas/Configuration" }
+        configuration_set:
+          allOf:
+            - $ref: "#/components/schemas/Configuration"
+          minProperties: 1
         configuration_clear:
           type: array
+          minItems: 1
           maxItems: 64
           items: { type: string, minLength: 1 }
     RevokeOutcome:

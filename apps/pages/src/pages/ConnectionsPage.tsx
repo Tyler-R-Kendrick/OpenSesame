@@ -248,11 +248,11 @@ export async function loadOptionalMembers(
   role: OrganizationRole,
   load: () => Promise<OrganizationMember[]>,
 ) {
-  if (role !== "owner") return [];
+  if (role !== "owner") return { members: [], failed: false };
   try {
-    return await load();
+    return { members: await load(), failed: false };
   } catch {
-    return [];
+    return { members: [], failed: true };
   }
 }
 
@@ -263,6 +263,7 @@ export function ConnectionsPage() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
+  const [membersFailed, setMembersFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -277,7 +278,7 @@ export function ConnectionsPage() {
     setLoading(true);
     setLoadIssue(null);
     try {
-      const [nextProviders, nextIntegrations, nextConnections, nextMembers] =
+      const [nextProviders, nextIntegrations, nextConnections, memberLoad] =
         await Promise.all([
           listProviders(selected.id),
           listIntegrations(selected.id),
@@ -288,7 +289,8 @@ export function ConnectionsPage() {
       setProviders(nextProviders);
       setIntegrations(nextIntegrations);
       setConnections(nextConnections);
-      setMembers(nextMembers);
+      setMembers(memberLoad.members);
+      setMembersFailed(memberLoad.failed);
       setLoadIssue(null);
       setError(null);
     } catch (caught) {
@@ -436,6 +438,7 @@ export function ConnectionsPage() {
           setIntegrations([]);
           setConnections([]);
           setMembers([]);
+          setMembersFailed(false);
           setLoading(false);
         }
       }
@@ -658,7 +661,9 @@ export function ConnectionsPage() {
               {organization.role === "owner" ? (
                 <OrganizationAccessPanel
                   members={members}
+                  failed={membersFailed}
                   busy={busy}
+                  onRetry={() => void loadWorkspace(organization)}
                   onAdd={(principalId, role) =>
                     act("add-member", async () => {
                       await addMember(organization.id, principalId, role);
@@ -1563,13 +1568,17 @@ export function IntegrationsPanel({
 
 function OrganizationAccessPanel({
   members,
+  failed,
   busy,
+  onRetry,
   onAdd,
   onRole,
   onRemove,
 }: {
   members: OrganizationMember[];
+  failed: boolean;
   busy: string | null;
+  onRetry: () => void;
   onAdd: (principalId: string, role: OrganizationRole) => void;
   onRole: (principalId: string, role: OrganizationRole) => void;
   onRemove: (principalId: string) => void;
@@ -1582,6 +1591,15 @@ function OrganizationAccessPanel({
           <p>Owners can add an existing principal ID and manage its role.</p>
         </div>
       </div>
+      {failed ? (
+        <p className="err connections-alert" role="alert">
+          Organization members are unavailable. Marketplace and connections
+          remain available.{" "}
+          <button type="button" className="compact" onClick={onRetry}>
+            Retry access
+          </button>
+        </p>
+      ) : null}
       <form
         className="member-add"
         onSubmit={(event) => {

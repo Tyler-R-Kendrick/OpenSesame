@@ -159,7 +159,7 @@ describe("Connections marketplace panels", () => {
       loadOptionalMembers("owner", async () => {
         throw new Error("Identity member list unavailable");
       }),
-    ).resolves.toEqual([]);
+    ).resolves.toEqual({ members: [], failed: true });
   });
 
   it("requires native confirmation before terminal mutations", () => {
