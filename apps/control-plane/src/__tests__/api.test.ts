@@ -1230,6 +1230,115 @@ describe("control-plane API", () => {
     }
   });
 
+  it.each(["PATCH", "DELETE"] as const)(
+    "orders a paused device approval before a concurrent %s membership mutation",
+    async (method) => {
+      const { app } = createControlPlane({
+        config: {
+          port: 0,
+          publicUrl: "http://127.0.0.1:8788",
+          issuer: "http://127.0.0.1:8788",
+        },
+      });
+      const owner = await verifiedPrincipal(
+        app,
+        `approval-race-owner-${method}`,
+      );
+      const target = await verifiedPrincipal(
+        app,
+        `approval-race-target-${method}`,
+      );
+      const created = await app.request("/v1/organizations", {
+        method: "POST",
+        headers: {
+          ...owner.auth,
+          "content-type": "application/json",
+          "idempotency-key": `approval-race-org-${method}`,
+        },
+        body: JSON.stringify({
+          slug: `approval-race-${method.toLowerCase()}`,
+          displayName: "Approval Race",
+        }),
+      });
+      const organization = (await created.json()) as { id: string };
+      expect(
+        (
+          await app.request(`/v1/organizations/${organization.id}/members`, {
+            method: "POST",
+            headers: { ...owner.auth, "content-type": "application/json" },
+            body: JSON.stringify({
+              principalId: target.principalId,
+              role: "owner",
+            }),
+          })
+        ).status,
+      ).toBe(201);
+
+      let markApprovalStarted = () => {};
+      const approvalStarted = new Promise<void>((resolve) => {
+        markApprovalStarted = resolve;
+      });
+      let releaseApproval = (_response: Response) => {};
+      const approvalResponse = new Promise<Response>((resolve) => {
+        releaseApproval = resolve;
+      });
+      const hostUrls: string[] = [];
+      const host = vi
+        .spyOn(globalThis, "fetch")
+        .mockImplementationOnce(async (input) => {
+          hostUrls.push(String(input));
+          markApprovalStarted();
+          return approvalResponse;
+        })
+        .mockImplementation(async (input) => {
+          hostUrls.push(String(input));
+          return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        });
+      try {
+        const approval = app.request("/v1/device/approve", {
+          method: "POST",
+          headers: { ...target.auth, "content-type": "application/json" },
+          body: JSON.stringify({
+            user_code: "ABCD-EFGH",
+            organization_id: organization.id,
+          }),
+        });
+        await approvalStarted;
+
+        const mutation = app.request(
+          `/v1/organizations/${organization.id}/members/${target.principalId}`,
+          {
+            method,
+            headers: { ...owner.auth, "content-type": "application/json" },
+            ...(method === "PATCH"
+              ? { body: JSON.stringify({ role: "admin" }) }
+              : {}),
+          },
+        );
+        await Promise.resolve();
+        expect(hostUrls).toHaveLength(1);
+
+        releaseApproval(
+          new Response(JSON.stringify({ status: "approved" }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        );
+        expect((await approval).status).toBe(200);
+        expect((await mutation).status).toBe(method === "PATCH" ? 200 : 204);
+        expect(hostUrls.map((url) => new URL(url).pathname)).toEqual([
+          "/api/v1/device/approve",
+          "/api/v1/sessions/revoke",
+        ]);
+      } finally {
+        host.mockRestore();
+      }
+    },
+  );
+
   it("holds a verified principal to an organization and client quota", async () => {
     const { app, ctx } = createControlPlane({
       config: {

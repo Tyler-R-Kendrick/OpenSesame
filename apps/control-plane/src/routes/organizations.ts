@@ -74,7 +74,7 @@ function ownerCount(ctx: AppContext, organizationId: string): number {
   return count;
 }
 
-async function serializeMembershipMutation<T>(
+export async function serializeMembershipMutation<T>(
   ctx: AppContext,
   organizationId: string,
   mutation: () => Promise<T>,

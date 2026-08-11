@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import { serializeMembershipMutation } from "./organizations.js";
 
 /**
  * Device authorization approval — Identity plane proxy to Host API.
@@ -53,72 +54,78 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
       400,
     );
   }
-  const membership = memberships.find(
-    (candidate) => candidate.organizationId === organizationId,
-  );
-  const organization = ctx.stores.organizations.get(organizationId);
-  if (!membership || !organization || organization.state !== "active") {
-    return c.json({ error: "organization_access_denied" }, 403);
-  }
-  const url = `${ctx.config.hostApiUrl}/api/v1/device/approve`;
-  try {
-    const parsed = new URL(ctx.config.hostApiUrl);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+  return serializeMembershipMutation(ctx, organizationId, async () => {
+    // Membership changes use the same per-organization fence. Holding it from
+    // this authoritative re-read through Host approval gives a strict order:
+    // either approval lands first and the following mutation revokes it, or the
+    // mutation lands first and this request observes the new authority.
+    const membership = ctx.stores.organizationMemberships.get(
+      `${organizationId}:${principalId}`,
+    );
+    const organization = ctx.stores.organizations.get(organizationId);
+    if (!membership || !organization || organization.state !== "active") {
+      return c.json({ error: "organization_access_denied" }, 403);
+    }
+    const url = `${ctx.config.hostApiUrl}/api/v1/device/approve`;
+    try {
+      const parsed = new URL(ctx.config.hostApiUrl);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        return c.json({ error: "invalid_host_api_url" }, 500);
+      }
+      if (parsed.username || parsed.password) {
+        return c.json(
+          { error: "invalid_host_api_url", hint: "credentials in URL denied" },
+          500,
+        );
+      }
+    } catch {
       return c.json({ error: "invalid_host_api_url" }, 500);
     }
-    if (parsed.username || parsed.password) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-opensesame-operator": ctx.config.operatorToken,
+        },
+        body: JSON.stringify({
+          user_code: userCode,
+          // Always bind to the authenticated Identity principal — never trust client-supplied principal.
+          principal: principalId,
+          // Organization and role come from Identity state. Browser-supplied role is ignored.
+          organization_id: organizationId,
+          organization_role: membership.role,
+        }),
+      });
+      const text = await res.text();
+      let payload: unknown = text;
+      try {
+        payload = JSON.parse(text) as unknown;
+      } catch {
+        /* keep text */
+      }
+      // `url` is deliberately not echoed: the Host API address is internal
+      // topology, and callers only need the approval outcome.
       return c.json(
-        { error: "invalid_host_api_url", hint: "credentials in URL denied" },
-        500,
+        {
+          ok: res.ok,
+          status: res.status,
+          body: payload,
+        },
+        res.ok ? 200 : res.status === 404 ? 404 : 502,
+      );
+    } catch (err) {
+      ctx.log.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        "device approve proxy failed",
+      );
+      return c.json(
+        {
+          error: "host_api_unreachable",
+          hint: "Is Host API up on OPENSESAME_HOST_API / OPENSESAME_SERVER?",
+        },
+        502,
       );
     }
-  } catch {
-    return c.json({ error: "invalid_host_api_url" }, 500);
-  }
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-opensesame-operator": ctx.config.operatorToken,
-      },
-      body: JSON.stringify({
-        user_code: userCode,
-        // Always bind to the authenticated Identity principal — never trust client-supplied principal.
-        principal: principalId,
-        // Organization and role come from Identity state. Browser-supplied role is ignored.
-        organization_id: organizationId,
-        organization_role: membership.role,
-      }),
-    });
-    const text = await res.text();
-    let payload: unknown = text;
-    try {
-      payload = JSON.parse(text) as unknown;
-    } catch {
-      /* keep text */
-    }
-    // `url` is deliberately not echoed: the Host API address is internal
-    // topology, and callers only need the approval outcome.
-    return c.json(
-      {
-        ok: res.ok,
-        status: res.status,
-        body: payload,
-      },
-      res.ok ? 200 : res.status === 404 ? 404 : 502,
-    );
-  } catch (err) {
-    ctx.log.warn(
-      { err: err instanceof Error ? err.message : String(err) },
-      "device approve proxy failed",
-    );
-    return c.json(
-      {
-        error: "host_api_unreachable",
-        hint: "Is Host API up on OPENSESAME_HOST_API / OPENSESAME_SERVER?",
-      },
-      502,
-    );
-  }
+  });
 });
