@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Connection, Integration, Provider } from "../lib/connections.js";
+import type { Provider as CredentialProvider } from "../lib/credential-providers.js";
 import {
   CONNECTION_POLL_MAX_ATTEMPTS,
   ConnectionsGate,
@@ -11,12 +12,14 @@ import {
   configurationClearFromFormData,
   configurationFromFormData,
   connectionRevocationNotice,
+  filterCredentialProviders,
   filterProviders,
   integrationConfigurationNotice,
   loadCatalogBeforeWorkspace,
   loadOptionalMembers,
   marketplaceEmptyCopy,
   parseConnectionMessage,
+  parsePublicConfiguration,
   reconcileOrganization,
   recoverCreatedConnection,
   runConfirmedAction,
@@ -99,6 +102,45 @@ const apiKeyConnection: Connection = {
 
 describe("Connections marketplace panels", () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it("lists and searches Fnox credential-store types on the same surface", () => {
+    const credentialProviders = [
+      [
+        "azure-key-vault-secrets",
+        "Azure Key Vault Secrets",
+        "cloud_secret_manager",
+      ],
+      ["bitwarden", "Bitwarden", "password_manager"],
+      ["1password", "1Password", "password_manager"],
+    ].map(([id, displayName, category]) => ({
+      id,
+      displayName,
+      categories: [category],
+      capabilities: ["read"],
+      authentication: ["workload_identity"],
+      executionTargets: ["workload_worker"],
+      support: "experimental",
+      adapter: `native:${id}`,
+    })) satisfies CredentialProvider[];
+
+    expect(filterCredentialProviders(credentialProviders, "")).toHaveLength(3);
+    expect(
+      filterCredentialProviders(credentialProviders, "azure").map(
+        ({ id }) => id,
+      ),
+    ).toEqual(["azure-key-vault-secrets"]);
+    expect(
+      filterCredentialProviders(credentialProviders, "password manager"),
+    ).toHaveLength(2);
+  });
+
+  it("accepts only object-shaped public connector configuration", () => {
+    expect(parsePublicConfiguration('{"vault":"production"}')).toEqual({
+      vault: "production",
+    });
+    expect(() => parsePublicConfiguration("[]")).toThrow("JSON object");
+    expect(() => parsePublicConfiguration("null")).toThrow("JSON object");
+  });
 
   it("clears a credential from its live form immediately after reading it", () => {
     const credential = { value: "raw-secret" };

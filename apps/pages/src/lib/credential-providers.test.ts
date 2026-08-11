@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { listConnections, listProviders } from "./credential-providers.js";
-import {
-  clearHostSession,
-  clearSession,
-  connectProvisional,
-} from "./identity.js";
+import { clearHostSession } from "./organization-identity.js";
 import { saveSettings } from "./settings.js";
 
 function response(body: unknown, status = 200): Response {
@@ -15,7 +11,6 @@ function response(body: unknown, status = 200): Response {
 }
 
 afterEach(() => {
-  clearSession();
   clearHostSession();
   vi.unstubAllGlobals();
 });
@@ -29,22 +24,10 @@ describe("connection client", () => {
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
-        if (url.endsWith("/v1/principals/provisional")) {
-          return response({
-            principalId: "principal:pages",
-            accessToken: "identity-pages",
-            expiresAt: "2099-01-01T00:00:00Z",
-          });
-        }
         if (url.endsWith("/api/v1/device/authorize")) {
           return response({
             device_code: "device-pages",
             user_code: "ABCD-EFGH",
-          });
-        }
-        if (url.endsWith("/v1/organizations")) {
-          return response({
-            organizations: [{ id: "org:pages", displayName: "Pages" }],
           });
         }
         if (url.endsWith("/v1/device/approve")) return response({ ok: true });
@@ -52,6 +35,7 @@ describe("connection client", () => {
           return response({
             access_token: "opaque-session:pages",
             expires_in: 300,
+            session: { organization_id: "org:pages" },
           });
         }
         if (url.endsWith("/api/v1/credential-providers")) {
@@ -78,9 +62,8 @@ describe("connection client", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await connectProvisional();
-    const providers = await listProviders();
-    await listConnections();
+    const providers = await listProviders("org:pages");
+    await listConnections("org:pages");
 
     expect(providers[0]?.displayName).toBe("OpenBao");
     const hostRequests = fetchMock.mock.calls.filter(([url]) =>

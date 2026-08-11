@@ -6,7 +6,9 @@ use axum::{
 };
 use chrono::Utc;
 use opensesame_connector_host::providers;
-use opensesame_domain::{ConnectionId, ConnectionRecord, OrganizationId, ProjectId};
+use opensesame_domain::{
+    ConnectionId, ConnectionRecord, OrganizationId, OrganizationRole, ProjectId,
+};
 use opensesame_provider_openbao::CredentialAuthority;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -62,12 +64,12 @@ fn authenticated(st: &AppState, headers: &axum::http::HeaderMap) -> Result<(), R
 fn session_scope(
     st: &AppState,
     headers: &axum::http::HeaderMap,
-) -> Result<(OrganizationId, Option<ProjectId>), Response> {
+) -> Result<(OrganizationId, Option<ProjectId>, OrganizationRole), Response> {
     let (_, meta) = require_session(st, headers)?;
     scope_from_meta(&meta).ok_or_else(unscoped_session)
 }
 
-fn scope_from_meta(meta: &Value) -> Option<(OrganizationId, Option<ProjectId>)> {
+fn scope_from_meta(meta: &Value) -> Option<(OrganizationId, Option<ProjectId>, OrganizationRole)> {
     let organization = meta
         .get("organization_id")
         .and_then(Value::as_str)
@@ -78,7 +80,20 @@ fn scope_from_meta(meta: &Value) -> Option<(OrganizationId, Option<ProjectId>)> 
         .map(ProjectId::parse)
         .transpose()
         .ok()?;
-    Some((organization, project))
+    let role = serde_json::from_value(meta.get("organization_role")?.clone()).ok()?;
+    Some((organization, project, role))
+}
+
+fn require_configuration_role(role: OrganizationRole) -> Result<(), Response> {
+    if role.can_configure_integrations() {
+        Ok(())
+    } else {
+        Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "forbidden", "detail": "owner or admin role required"})),
+        )
+            .into_response())
+    }
 }
 
 pub async fn catalog() -> Json<Value> {
@@ -89,7 +104,7 @@ pub async fn catalog() -> Json<Value> {
 }
 
 pub async fn list(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
-    let (organization, _) = match session_scope(&st, &headers) {
+    let (organization, _, _) = match session_scope(&st, &headers) {
         Ok(scope) => scope,
         Err(response) => return response,
     };
@@ -107,10 +122,13 @@ pub async fn create(
     headers: axum::http::HeaderMap,
     Json(body): Json<CreateConnection>,
 ) -> Response {
-    let (organization, project) = match session_scope(&st, &headers) {
+    let (organization, project, role) = match session_scope(&st, &headers) {
         Ok(scope) => scope,
         Err(response) => return response,
     };
+    if let Err(response) = require_configuration_role(role) {
+        return response;
+    }
     let Some(provider) = providers::find(&body.provider_id) else {
         return (
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -156,10 +174,13 @@ pub async fn update(
     headers: axum::http::HeaderMap,
     Json(body): Json<UpdateConnection>,
 ) -> Response {
-    let (organization, _) = match session_scope(&st, &headers) {
+    let (organization, _, role) = match session_scope(&st, &headers) {
         Ok(scope) => scope,
         Err(response) => return response,
     };
+    if let Err(response) = require_configuration_role(role) {
+        return response;
+    }
     let id = match ConnectionId::parse(&raw_id) {
         Ok(id) => id,
         Err(_) => return invalid_id(),
@@ -202,10 +223,13 @@ pub async fn delete(
     Path(raw_id): Path<String>,
     headers: axum::http::HeaderMap,
 ) -> Response {
-    let (organization, _) = match session_scope(&st, &headers) {
+    let (organization, _, role) = match session_scope(&st, &headers) {
         Ok(scope) => scope,
         Err(response) => return response,
     };
+    if let Err(response) = require_configuration_role(role) {
+        return response;
+    }
     let id = match ConnectionId::parse(&raw_id) {
         Ok(id) => id,
         Err(_) => return invalid_id(),
@@ -291,9 +315,54 @@ mod tests {
             scope_from_meta(&json!({
                 "organization_id": organization,
                 "project_id": project,
+                "organization_role": "admin",
             })),
-            Some((organization, Some(project)))
+            Some((organization, Some(project), OrganizationRole::Admin))
         );
         assert!(scope_from_meta(&json!({"approved_as": "user:demo"})).is_none());
+    }
+
+    #[test]
+    fn only_owner_and_admin_can_mutate_provider_connections() {
+        assert!(require_configuration_role(OrganizationRole::Owner).is_ok());
+        assert!(require_configuration_role(OrganizationRole::Admin).is_ok());
+        assert!(require_configuration_role(OrganizationRole::Member).is_err());
+    }
+
+    #[tokio::test]
+    async fn members_can_list_but_only_admins_can_configure() {
+        let state = crate::app_state::test_demo_state().await;
+        let organization = OrganizationId::new();
+        let member = crate::app_state::test_session_headers(
+            &state,
+            "prn_member",
+            organization,
+            OrganizationRole::Member,
+        );
+        let admin = crate::app_state::test_session_headers(
+            &state,
+            "prn_admin",
+            organization,
+            OrganizationRole::Admin,
+        );
+        let body = || {
+            Json(CreateConnection {
+                provider_id: "bitwarden".into(),
+                display_name: "Bitwarden primary".into(),
+                public_config: json!({}),
+            })
+        };
+
+        assert_eq!(
+            create(State(state.clone()), member.clone(), body())
+                .await
+                .status(),
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            create(State(state.clone()), admin, body()).await.status(),
+            StatusCode::CREATED
+        );
+        assert_eq!(list(State(state), member).await.status(), StatusCode::OK);
     }
 }

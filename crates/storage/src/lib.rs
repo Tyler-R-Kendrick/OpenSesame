@@ -203,6 +203,16 @@ impl Db {
         connection
             .assert_public_config_safe()
             .map_err(anyhow::Error::msg)?;
+        let mut transaction = self.pool.begin().await?;
+        // Organization membership is established by Identity before Host mints
+        // the session. Materialize that trusted tenant locally so the provider
+        // connection can satisfy Host's foreign-key boundary.
+        sqlx::query("INSERT OR IGNORE INTO organizations (id, name, created_at) VALUES (?, ?, ?)")
+            .bind(connection.organization_id.to_string())
+            .bind(connection.organization_id.to_string())
+            .bind(Utc::now().to_rfc3339())
+            .execute(&mut *transaction)
+            .await?;
         sqlx::query(
             "INSERT INTO provider_connections (id, organization_id, project_id, provider_id, display_name, body_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         )
@@ -214,8 +224,9 @@ impl Db {
         .bind(serde_json::to_string(connection)?)
         .bind(connection.created_at.to_rfc3339())
         .bind(connection.updated_at.to_rfc3339())
-        .execute(&self.pool)
+        .execute(&mut *transaction)
         .await?;
+        transaction.commit().await?;
         Ok(())
     }
 
@@ -767,7 +778,6 @@ mod tests {
     async fn connection_crud_is_org_scoped_and_rejects_inline_secrets() {
         let db = Db::connect_memory().await.unwrap();
         let org = OrganizationId::new();
-        db.create_organization(&org, "acme").await.unwrap();
         let now = Utc::now();
         let mut connection = ConnectionRecord {
             id: ConnectionId::new(),
@@ -781,6 +791,14 @@ mod tests {
             updated_at: now,
         };
         db.insert_connection(&connection).await.unwrap();
+        assert_eq!(
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM organizations WHERE id = ?")
+                .bind(org.to_string())
+                .fetch_one(db.pool())
+                .await
+                .unwrap(),
+            1
+        );
         assert_eq!(
             db.list_connections(&org).await.unwrap(),
             vec![connection.clone()]

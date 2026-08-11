@@ -1,4 +1,4 @@
-import { hostFetch } from "./identity.js";
+import { hostFetch } from "./organization-identity.js";
 
 export type Provider = {
   id: string;
@@ -20,8 +20,12 @@ export type Connection = {
   updatedAt: string;
 };
 
-async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await hostFetch(`/api/v1${path}`, init);
+async function call<T>(
+  organizationId: string,
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const response = await hostFetch(organizationId, `/api/v1${path}`, init);
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as {
       error?: string;
@@ -70,48 +74,88 @@ function connection(value: Record<string, unknown>): Connection {
   };
 }
 
-export async function listProviders(): Promise<Provider[]> {
+export async function listProviders(
+  organizationId: string,
+): Promise<Provider[]> {
   const body = await call<{ providers?: Array<Record<string, unknown>> }>(
+    organizationId,
     "/credential-providers",
   );
   return (body.providers ?? []).map(provider);
 }
 
-export async function listConnections(): Promise<Connection[]> {
+export async function listConnections(
+  organizationId: string,
+): Promise<Connection[]> {
   const body = await call<{ connections?: Array<Record<string, unknown>> }>(
+    organizationId,
     "/credential-connections",
   );
   return (body.connections ?? []).map(connection);
 }
 
 export async function createConnection(input: {
+  organizationId: string;
   providerId: string;
   displayName: string;
   publicConfig: Record<string, unknown>;
 }): Promise<Connection> {
-  const body = await call<Record<string, unknown>>("/credential-connections", {
-    method: "POST",
-    body: JSON.stringify({
-      provider_id: input.providerId,
-      display_name: input.displayName,
-      public_config: input.publicConfig,
-    }),
-  });
+  const body = await call<Record<string, unknown>>(
+    input.organizationId,
+    "/credential-connections",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        provider_id: input.providerId,
+        display_name: input.displayName,
+        public_config: input.publicConfig,
+      }),
+    },
+  );
   return connection(body);
 }
 
-export async function removeConnection(id: string): Promise<void> {
-  await call(`/credential-connections/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
+export async function removeConnection(
+  organizationId: string,
+  id: string,
+): Promise<void> {
+  await call(
+    organizationId,
+    `/credential-connections/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+  );
 }
 
-export function testProvider(id: string): Promise<{
+export async function updateConnection(
+  organizationId: string,
+  id: string,
+  input: { displayName: string; publicConfig: Record<string, unknown> },
+): Promise<Connection> {
+  const body = await call<Record<string, unknown>>(
+    organizationId,
+    `/credential-connections/${encodeURIComponent(id)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        display_name: input.displayName,
+        public_config: input.publicConfig,
+      }),
+    },
+  );
+  return connection(body);
+}
+
+export function testProvider(
+  organizationId: string,
+  id: string,
+): Promise<{
   available: boolean;
   live: boolean;
   detail: unknown;
 }> {
-  return call(`/credential-providers/${encodeURIComponent(id)}/test`, {
-    method: "POST",
-  });
+  return call(
+    organizationId,
+    `/credential-providers/${encodeURIComponent(id)}/test`,
+    { method: "POST" },
+  );
 }
