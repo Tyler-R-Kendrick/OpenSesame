@@ -133,6 +133,12 @@ export function parseProviderList(value: unknown): Provider[] {
   if (parsed.data.providers.length === 0) {
     throw new CatalogResponseError("empty");
   }
+  if (
+    new Set(parsed.data.providers.map((provider) => provider.id)).size !==
+    parsed.data.providers.length
+  ) {
+    throw new CatalogResponseError("malformed");
+  }
   return parsed.data.providers.map((raw) => ({
     id: raw.id,
     displayName: raw.display_name,

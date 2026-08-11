@@ -137,6 +137,9 @@ describe("connections wire parsers", () => {
     expect(() =>
       parseProviderList({ providers: [provider({ auth_kind: "password" })] }),
     ).toThrow(new CatalogResponseError("malformed"));
+    expect(() =>
+      parseProviderList({ providers: [provider(), provider()] }),
+    ).toThrow(new CatalogResponseError("malformed"));
   });
 
   it("rejects unknown integration fields instead of stripping secrets", () => {
