@@ -8,8 +8,8 @@ import {
   useState,
 } from "react";
 import {
-  IconSearch,
   IconSecret as IconConnection,
+  IconSearch,
 } from "../components/Icons.js";
 import {
   CatalogResponseError,
@@ -37,12 +37,23 @@ import {
   updateMember,
 } from "../lib/connections.js";
 import {
+  type Connection as CredentialConnection,
+  type Provider as CredentialProvider,
+  createConnection as createCredentialConnection,
+  listConnections as listCredentialConnections,
+  listProviders as listCredentialProviders,
+  removeConnection as removeCredentialConnection,
+  testProvider as testCredentialProvider,
+  updateConnection as updateCredentialConnection,
+} from "../lib/credential-providers.js";
+import {
   type OrganizationRole,
   type SessionOrganization,
   clearHostSession,
   listSessionOrganizations,
 } from "../lib/organization-identity.js";
 import { loadSettings } from "../lib/settings.js";
+import "../sections/connections.css";
 
 const CATEGORY_LABELS: Record<ProviderCategory, string> = {
   developer: "Developer tools",
@@ -99,6 +110,30 @@ export function classifyConnectionsLoadIssue(
 
 export function canConfigure(role: OrganizationRole) {
   return role === "owner" || role === "admin";
+}
+
+export function filterCredentialProviders(
+  providers: CredentialProvider[],
+  query: string,
+) {
+  const needle = query.trim().toLowerCase();
+  return providers.filter(
+    (provider) =>
+      !needle ||
+      provider.displayName.toLowerCase().includes(needle) ||
+      provider.id.toLowerCase().includes(needle) ||
+      provider.categories.some((category) =>
+        category.replaceAll("_", " ").toLowerCase().includes(needle),
+      ),
+  );
+}
+
+export function parsePublicConfiguration(raw: string) {
+  const parsed: unknown = JSON.parse(raw);
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+    throw new Error("Public configuration must be a JSON object.");
+  }
+  return parsed as Record<string, unknown>;
 }
 
 export function canSealProviderConfiguration(provider: Provider) {
@@ -491,8 +526,8 @@ export function ConnectionsPage() {
         <div>
           <h1>Connections</h1>
           <p>
-            Configure an integration once, then let members authorize their own
-            accounts without revealing OAuth secrets to the browser or agents.
+            Configure API integrations and native credential stores once,
+            without revealing secrets to the browser or agents.
           </p>
         </div>
         {organizations.length > 1 ? (
@@ -522,7 +557,8 @@ export function ConnectionsPage() {
 
       {organization ? (
         <nav className="connections-jump" aria-label="Connections sections">
-          <a href="#marketplace">Marketplace</a>
+          <a href="#credential-stores">Credential stores</a>
+          <a href="#marketplace">API integrations</a>
           <a href="#my-connections">My connections</a>
           <a href="#configured-connectors">Configured connectors</a>
           {organization.role === "owner" ? (
@@ -541,6 +577,11 @@ export function ConnectionsPage() {
       ) : null}
       {organization ? (
         <>
+          <CredentialProvidersPanel
+            organizationId={organization.id}
+            accessRole={organization.role}
+          />
+
           <MarketplacePanel
             providers={providers}
             integrations={integrations}
@@ -798,6 +839,359 @@ export function ConnectionsGate({
   );
 }
 
+function CredentialProvidersPanel({
+  organizationId,
+  accessRole,
+}: {
+  organizationId: string;
+  accessRole: OrganizationRole;
+}) {
+  const [providers, setProviders] = useState<CredentialProvider[] | null>(null);
+  const [connections, setConnections] = useState<CredentialConnection[]>([]);
+  const [query, setQuery] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [issue, setIssue] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setIssue(null);
+    try {
+      const [nextProviders, nextConnections] = await Promise.all([
+        listCredentialProviders(organizationId),
+        listCredentialConnections(organizationId),
+      ]);
+      setProviders(nextProviders);
+      setConnections(nextConnections);
+    } catch (caught) {
+      setIssue(message(caught));
+    }
+  }, [organizationId]);
+
+  useEffect(() => {
+    setProviders(null);
+    setConnections([]);
+    setNotice(null);
+    void refresh();
+  }, [refresh]);
+
+  const visible = useMemo(
+    () => filterCredentialProviders(providers ?? [], query),
+    [providers, query],
+  );
+  const manage = canConfigure(accessRole);
+
+  async function perform(label: string, work: () => Promise<string>) {
+    setBusy(label);
+    setIssue(null);
+    setNotice(null);
+    try {
+      setNotice(await work());
+      await refresh();
+    } catch (caught) {
+      setIssue(message(caught));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <section
+      className="connections-section credential-providers"
+      id="credential-stores"
+    >
+      <div className="connections-section-head">
+        <div>
+          <h2>Credential stores</h2>
+          <p>
+            Fnox-compatible vaults, key managers, password stores, hardware
+            keys, and encrypted files.
+          </p>
+        </div>
+        <p className="marketplace-total">
+          {providers === null
+            ? "Catalog pending"
+            : `${providers.length} connector${providers.length === 1 ? "" : "s"}`}
+        </p>
+      </div>
+
+      {notice ? <output className="note note--ok">{notice}</output> : null}
+      {issue ? (
+        <div className="note note--err" role="alert">
+          {issue}{" "}
+          <button
+            type="button"
+            className="btn btn--sm"
+            onClick={() => void refresh()}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
+      {providers === null ? (
+        <p className="empty" aria-busy="true">
+          Loading credential stores…
+        </p>
+      ) : providers.length === 0 ? (
+        <p className="note note--err" role="alert">
+          The Host returned an empty credential-provider catalog.
+        </p>
+      ) : (
+        <>
+          <label className="marketplace-search credential-search">
+            <span>Search credential stores</span>
+            <span className="marketplace-search-control">
+              <IconSearch />
+              <input
+                type="search"
+                placeholder="Azure Key Vault, Bitwarden, 1Password…"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </span>
+          </label>
+          <output className="marketplace-results" aria-live="polite">
+            Showing {visible.length} of {providers.length} credential stores
+          </output>
+
+          {visible.length ? (
+            <ul className="credential-provider-grid">
+              {visible.map((provider) => {
+                const configured = connections.filter(
+                  (connection) => connection.providerId === provider.id,
+                );
+                return (
+                  <li key={provider.id} className="credential-provider-tile">
+                    <div className="provider-title">
+                      <span className="type-badge" aria-hidden="true">
+                        <IconConnection />
+                      </span>
+                      <div>
+                        <h3>{provider.displayName}</h3>
+                        <p>
+                          <code>{provider.id}</code>
+                        </p>
+                      </div>
+                    </div>
+                    <p className="provider-state">
+                      {configured.length
+                        ? `${configured.length} configured`
+                        : provider.categories.join(" · ").replaceAll("_", " ")}
+                    </p>
+                    <div className="credential-provider-meta">
+                      <span className="role-chip">
+                        {provider.support.replace("_", " ")}
+                      </span>
+                      <span>{provider.capabilities.join(" · ")}</span>
+                    </div>
+                    {manage ? (
+                      <details className="inline-action">
+                        <summary>Configure</summary>
+                        <CredentialProviderForm
+                          provider={provider}
+                          busy={busy !== null}
+                          onSubmit={(displayName, publicConfig) =>
+                            void perform(`create-${provider.id}`, async () => {
+                              await createCredentialConnection({
+                                organizationId,
+                                providerId: provider.id,
+                                displayName,
+                                publicConfig,
+                              });
+                              return `${displayName} was configured.`;
+                            })
+                          }
+                        />
+                      </details>
+                    ) : configured.length === 0 ? (
+                      <p className="provider-help">
+                        Ask an owner or admin to configure this store.
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="empty">No credential store matches “{query}”.</p>
+          )}
+        </>
+      )}
+
+      <div className="credential-connections-head">
+        <h3>Configured credential stores</h3>
+        <span>{connections.length}</span>
+      </div>
+      {connections.length ? (
+        <ul className="connections-list">
+          {connections.map((connection) => {
+            const provider = providers?.find(
+              (item) => item.id === connection.providerId,
+            );
+            return (
+              <li key={connection.id} className="connections-row">
+                <div>
+                  <h3>{connection.displayName}</h3>
+                  <p>
+                    <code>
+                      {provider?.displayName ?? connection.providerId}
+                    </code>
+                  </p>
+                </div>
+                <span className="role-chip">
+                  {provider?.support.replace("_", " ") ?? "configured"}
+                </span>
+                <div className="actions">
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    disabled={busy !== null}
+                    onClick={() =>
+                      void perform(`test-${connection.id}`, async () => {
+                        const result = await testCredentialProvider(
+                          organizationId,
+                          connection.providerId,
+                        );
+                        return `${connection.displayName}: ${
+                          typeof result.detail === "string"
+                            ? result.detail
+                            : JSON.stringify(result.detail)
+                        }`;
+                      })
+                    }
+                  >
+                    Test
+                  </button>
+                  {manage ? (
+                    <>
+                      <details className="inline-action">
+                        <summary>Edit</summary>
+                        <CredentialProviderForm
+                          provider={provider}
+                          connection={connection}
+                          busy={busy !== null}
+                          onSubmit={(displayName, publicConfig) =>
+                            void perform(`edit-${connection.id}`, async () => {
+                              await updateCredentialConnection(
+                                organizationId,
+                                connection.id,
+                                { displayName, publicConfig },
+                              );
+                              return `${displayName} was updated.`;
+                            })
+                          }
+                        />
+                      </details>
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--danger"
+                        disabled={busy !== null}
+                        onClick={() =>
+                          runConfirmedAction(
+                            `Remove ${connection.displayName}?`,
+                            () =>
+                              void perform(
+                                `remove-${connection.id}`,
+                                async () => {
+                                  await removeCredentialConnection(
+                                    organizationId,
+                                    connection.id,
+                                  );
+                                  return `${connection.displayName} was removed.`;
+                                },
+                              ),
+                          )
+                        }
+                      >
+                        Remove
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="empty">No credential stores configured yet.</p>
+      )}
+    </section>
+  );
+}
+
+function CredentialProviderForm({
+  provider,
+  connection,
+  busy,
+  onSubmit,
+}: {
+  provider?: CredentialProvider;
+  connection?: CredentialConnection;
+  busy: boolean;
+  onSubmit: (
+    displayName: string,
+    publicConfig: Record<string, unknown>,
+  ) => void;
+}) {
+  return (
+    <form
+      className="credential-provider-form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        try {
+          onSubmit(
+            String(data.get("displayName") ?? "").trim(),
+            parsePublicConfiguration(String(data.get("publicConfig") ?? "{}")),
+          );
+        } catch (caught) {
+          const message =
+            caught instanceof Error ? caught.message : "Invalid configuration.";
+          event.currentTarget
+            .querySelector("textarea")
+            ?.setCustomValidity(message);
+          event.currentTarget.reportValidity();
+        }
+      }}
+    >
+      <label>
+        Display name
+        <input
+          name="displayName"
+          defaultValue={
+            connection?.displayName ??
+            `${provider?.displayName ?? "Credential store"} primary`
+          }
+          maxLength={120}
+          required
+        />
+      </label>
+      <label>
+        Public configuration (JSON)
+        <textarea
+          name="publicConfig"
+          defaultValue={JSON.stringify(connection?.publicConfig ?? {}, null, 2)}
+          maxLength={32 * 1024}
+          spellCheck={false}
+          onInput={(event) => event.currentTarget.setCustomValidity("")}
+          required
+        />
+      </label>
+      <p className="provider-help">
+        Region, vault, mount, project, or endpoint only. Secret-like fields are
+        rejected by Host.
+      </p>
+      <button
+        type="submit"
+        className="btn btn--primary btn--sm"
+        disabled={busy}
+      >
+        {connection ? "Save changes" : "Add connection"}
+      </button>
+    </form>
+  );
+}
+
 export function MarketplacePanel({
   providers,
   integrations,
@@ -862,8 +1256,8 @@ export function MarketplacePanel({
     >
       <div className="connections-section-head">
         <div>
-          <h2>Marketplace</h2>
-          <p>Bundled provider templates available on this Host deployment.</p>
+          <h2>API integrations</h2>
+          <p>OAuth and API-key services available on this Host deployment.</p>
         </div>
         <p className="marketplace-total">
           {total === null
