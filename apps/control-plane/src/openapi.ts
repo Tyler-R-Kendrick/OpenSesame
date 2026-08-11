@@ -49,7 +49,23 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
             "List organizations the caller belongs to, including their role",
           security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
           responses: {
-            "200": { description: "Organizations and caller roles" },
+            "200": {
+              description: "Organizations and caller roles",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["organizations"],
+                    properties: {
+                      organizations: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/Organization" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         post: {
@@ -57,8 +73,24 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           description:
             "Cookie-authenticated browser mutations also require an allowed Origin header.",
           security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/CreateOrganization" },
+              },
+            },
+          },
           responses: {
-            "201": { description: "Organization created" },
+            "201": {
+              description: "Organization created",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Organization" },
+                },
+              },
+            },
+            "400": { description: "Invalid organization body" },
             "401": { description: "Authentication or cookie Origin required" },
             "403": { description: "Verified identity required" },
             "409": { description: "Slug already exists" },
@@ -79,7 +111,14 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
             },
           ],
           responses: {
-            "200": { description: "Organization" },
+            "200": {
+              description: "Organization",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Organization" },
+                },
+              },
+            },
             "404": { description: "Organization or membership not found" },
           },
         },
@@ -97,7 +136,25 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
             },
           ],
           responses: {
-            "200": { description: "Memberships" },
+            "200": {
+              description: "Memberships",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["members"],
+                    properties: {
+                      members: {
+                        type: "array",
+                        items: {
+                          $ref: "#/components/schemas/OrganizationMembership",
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
             "403": { description: "Owner role required" },
           },
         },
@@ -118,19 +175,21 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
             required: true,
             content: {
               "application/json": {
-                schema: {
-                  type: "object",
-                  required: ["principalId", "role"],
-                  properties: {
-                    principalId: { type: "string" },
-                    role: { $ref: "#/components/schemas/OrganizationRole" },
-                  },
-                },
+                schema: { $ref: "#/components/schemas/AddOrganizationMember" },
               },
             },
           },
           responses: {
-            "201": { description: "Membership created" },
+            "201": {
+              description: "Membership created",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/OrganizationMembership",
+                  },
+                },
+              },
+            },
             "401": { description: "Authentication or cookie Origin required" },
             "403": { description: "Owner role required" },
             "404": { description: "Principal not found" },
@@ -166,17 +225,22 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
             content: {
               "application/json": {
                 schema: {
-                  type: "object",
-                  required: ["role"],
-                  properties: {
-                    role: { $ref: "#/components/schemas/OrganizationRole" },
-                  },
+                  $ref: "#/components/schemas/ChangeOrganizationMemberRole",
                 },
               },
             },
           },
           responses: {
-            "200": { description: "Membership updated" },
+            "200": {
+              description: "Membership updated",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/OrganizationMembership",
+                  },
+                },
+              },
+            },
             "401": { description: "Authentication or cookie Origin required" },
             "403": { description: "Owner role required" },
             "409": { description: "Last owner cannot be demoted" },
@@ -228,19 +292,19 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
             required: true,
             content: {
               "application/json": {
-                schema: {
-                  type: "object",
-                  required: ["user_code"],
-                  properties: {
-                    user_code: { type: "string" },
-                    organization_id: { type: "string" },
-                  },
-                },
+                schema: { $ref: "#/components/schemas/DeviceApproval" },
               },
             },
           },
           responses: {
-            "200": { description: "Device approved" },
+            "200": {
+              description: "Device approved",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/DeviceApprovalResult" },
+                },
+              },
+            },
             "401": { description: "Authentication or cookie Origin required" },
             "400": {
               description: "Organization selection required or request invalid",
@@ -437,9 +501,103 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
     },
     components: {
       schemas: {
+        OrganizationState: {
+          type: "string",
+          enum: ["provisional", "active", "suspended", "deleted"],
+        },
         OrganizationRole: {
           type: "string",
           enum: ["owner", "admin", "member"],
+        },
+        CreateOrganization: {
+          type: "object",
+          additionalProperties: false,
+          required: ["slug", "displayName"],
+          properties: {
+            slug: {
+              type: "string",
+              minLength: 2,
+              maxLength: 64,
+              pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            },
+            displayName: { type: "string", minLength: 1, maxLength: 128 },
+          },
+        },
+        Organization: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "id",
+            "slug",
+            "displayName",
+            "state",
+            "role",
+            "createdBy",
+            "createdAt",
+            "updatedAt",
+          ],
+          properties: {
+            id: { type: "string" },
+            slug: { type: "string" },
+            displayName: { type: "string" },
+            state: { $ref: "#/components/schemas/OrganizationState" },
+            role: { $ref: "#/components/schemas/OrganizationRole" },
+            createdBy: { type: "string" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        OrganizationMembership: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "organizationId",
+            "principalId",
+            "role",
+            "createdAt",
+            "updatedAt",
+          ],
+          properties: {
+            organizationId: { type: "string" },
+            principalId: { type: "string" },
+            role: { $ref: "#/components/schemas/OrganizationRole" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        AddOrganizationMember: {
+          type: "object",
+          additionalProperties: false,
+          required: ["principalId", "role"],
+          properties: {
+            principalId: { type: "string", minLength: 1 },
+            role: { $ref: "#/components/schemas/OrganizationRole" },
+          },
+        },
+        ChangeOrganizationMemberRole: {
+          type: "object",
+          additionalProperties: false,
+          required: ["role"],
+          properties: {
+            role: { $ref: "#/components/schemas/OrganizationRole" },
+          },
+        },
+        DeviceApproval: {
+          type: "object",
+          required: ["user_code"],
+          properties: {
+            user_code: { type: "string", minLength: 1 },
+            organization_id: { type: "string" },
+          },
+        },
+        DeviceApprovalResult: {
+          type: "object",
+          required: ["ok", "status", "body"],
+          properties: {
+            ok: { type: "boolean" },
+            status: { type: "integer", minimum: 100, maximum: 599 },
+            body: {},
+          },
         },
       },
       securitySchemes: {
