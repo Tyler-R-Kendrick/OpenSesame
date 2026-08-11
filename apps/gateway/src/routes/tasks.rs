@@ -21,6 +21,24 @@ use crate::middleware::auth::{
 /// small by construction and capped to keep a chatty agent from growing it.
 const MAX_FROZEN_INTENTS: usize = 512;
 
+fn execution_bootstrap_for_organization(
+    st: &AppState,
+    organization_id: &OrganizationId,
+) -> Result<crate::app_state::Bootstrap, Response> {
+    let boot = require_demo_bootstrap(st)?;
+    if boot.org != *organization_id
+        || boot.grant.organization_id != *organization_id
+        || boot.grant.connection_id != Some(boot.connection)
+    {
+        return Err(err_json(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "organization_execution_unavailable",
+            "no grant and connection are configured for this organization",
+        ));
+    }
+    Ok(boot)
+}
+
 #[derive(Deserialize)]
 pub struct StartTaskBody {
     pub principal_id: String,
@@ -216,7 +234,7 @@ pub async fn freeze_intent(
     // Name the authority this intent will execute under. A fresh `ActorId::new()`
     // named nothing, so the receipt's actor was meaningless and a grant narrowed to
     // one actor, project or connection could not tell whether it covered the call.
-    let boot = require_demo_bootstrap(&st)?;
+    let boot = execution_bootstrap_for_organization(&st, &run.organization_id)?;
     let intent = FrozenIntentV2 {
         schema_version: FROZEN_INTENT_SCHEMA_VERSION,
         id: IntentId::new(),
@@ -296,14 +314,20 @@ fn claim_frozen_intent(
     pending: &mut std::collections::HashMap<String, FrozenIntentV2>,
     digest: &str,
     caller: &crate::middleware::auth::Caller,
+    execution_organization: &OrganizationId,
     now: chrono::DateTime<Utc>,
-) -> Option<FrozenIntentV2> {
+) -> Result<Option<FrozenIntentV2>, ()> {
     pending.retain(|_, i| i.expires_at > now);
-    let intent = pending.get(digest)?;
+    let Some(intent) = pending.get(digest) else {
+        return Ok(None);
+    };
     if !caller.owns(&intent.principal_id) || !caller.in_organization(&intent.organization_id) {
-        return None;
+        return Ok(None);
     }
-    pending.remove(digest)
+    if intent.organization_id != *execution_organization {
+        return Err(());
+    }
+    Ok(pending.remove(digest))
 }
 
 pub async fn invoke_task(
@@ -316,8 +340,23 @@ pub async fn invoke_task(
     let boot = require_demo_bootstrap(&st)?;
     let intent = {
         let mut pending = st.frozen_intents.lock().map_err(|_| internal("lock"))?;
-        claim_frozen_intent(&mut pending, &body.intent_digest, &caller, Utc::now())
-            .ok_or_else(|| not_found("frozen intent"))?
+        match claim_frozen_intent(
+            &mut pending,
+            &body.intent_digest,
+            &caller,
+            &boot.org,
+            Utc::now(),
+        ) {
+            Ok(Some(intent)) => intent,
+            Ok(None) => return Err(not_found("frozen intent")),
+            Err(()) => {
+                return Err(err_json(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "organization_execution_unavailable",
+                    "no grant and connection are configured for this organization",
+                ))
+            }
+        }
     };
     let required = Capability::new(
         intent.operation.clone(),
@@ -430,7 +469,10 @@ fn internal(e: impl std::fmt::Display) -> Response {
 
 #[cfg(test)]
 mod tests {
-    use super::{claim_frozen_intent, start_task, CapabilityDto, StartTaskBody};
+    use super::{
+        claim_frozen_intent, freeze_intent, invoke_task, start_task, CapabilityDto,
+        FreezeIntentBody, InvokeTaskBody, StartTaskBody,
+    };
     use crate::middleware::auth::Caller;
     use axum::{extract::State, http::StatusCode, Json};
     use chrono::{Duration, Utc};
@@ -506,9 +548,15 @@ mod tests {
             organization_id,
             role: opensesame_domain::OrganizationRole::Member,
         };
-        assert!(
-            claim_frozen_intent(&mut pending, "sha256:intent", &stranger, Utc::now()).is_none()
-        );
+        assert!(claim_frozen_intent(
+            &mut pending,
+            "sha256:intent",
+            &stranger,
+            &organization_id,
+            Utc::now(),
+        )
+        .unwrap()
+        .is_none());
         // The refusal must not have spent it.
         assert!(pending.contains_key("sha256:intent"));
 
@@ -517,9 +565,15 @@ mod tests {
             organization_id,
             role: opensesame_domain::OrganizationRole::Member,
         };
-        assert!(
-            claim_frozen_intent(&mut pending, "sha256:intent", &owner_caller, Utc::now()).is_some()
-        );
+        assert!(claim_frozen_intent(
+            &mut pending,
+            "sha256:intent",
+            &owner_caller,
+            &organization_id,
+            Utc::now(),
+        )
+        .unwrap()
+        .is_some());
         assert!(pending.is_empty(), "the owner's invocation spends it");
     }
 
@@ -536,7 +590,15 @@ mod tests {
             organization_id,
             role: opensesame_domain::OrganizationRole::Owner,
         };
-        assert!(claim_frozen_intent(&mut pending, "sha256:intent", &caller, Utc::now()).is_none());
+        assert!(claim_frozen_intent(
+            &mut pending,
+            "sha256:intent",
+            &caller,
+            &organization_id,
+            Utc::now(),
+        )
+        .unwrap()
+        .is_none());
         assert!(pending.contains_key("sha256:intent"));
     }
 
@@ -557,8 +619,10 @@ mod tests {
                 organization_id,
                 role: opensesame_domain::OrganizationRole::Member,
             },
+            &organization_id,
             Utc::now()
         )
+        .unwrap()
         .is_none());
         assert!(pending.is_empty());
     }
@@ -595,7 +659,40 @@ mod tests {
             organization_id: OrganizationId::new(),
             role: opensesame_domain::OrganizationRole::Owner,
         };
-        assert!(claim_frozen_intent(&mut pending, "sha256:intent", &caller, Utc::now()).is_none());
+        assert!(claim_frozen_intent(
+            &mut pending,
+            "sha256:intent",
+            &caller,
+            &intent_organization,
+            Utc::now(),
+        )
+        .unwrap()
+        .is_none());
+        assert!(pending.contains_key("sha256:intent"));
+    }
+
+    #[test]
+    fn an_intent_without_an_organization_execution_context_is_not_consumed() {
+        let principal = PrincipalId::new();
+        let organization_id = OrganizationId::new();
+        let mut pending = HashMap::from([(
+            "sha256:intent".to_string(),
+            intent(principal, organization_id, 5),
+        )]);
+        let caller = Caller::Session {
+            subject: principal.to_string(),
+            organization_id,
+            role: opensesame_domain::OrganizationRole::Member,
+        };
+
+        assert!(claim_frozen_intent(
+            &mut pending,
+            "sha256:intent",
+            &caller,
+            &OrganizationId::new(),
+            Utc::now(),
+        )
+        .is_err());
         assert!(pending.contains_key("sha256:intent"));
     }
 
@@ -640,5 +737,93 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(response.status(), StatusCode::CREATED);
+    }
+
+    #[tokio::test]
+    async fn non_bootstrap_organization_cannot_freeze_an_unusable_intent() {
+        let state = crate::app_state::test_demo_state().await;
+        let bootstrap = state.bootstrap.lock().unwrap().clone().unwrap();
+        let organization_id = OrganizationId::new();
+        let subject = bootstrap.principal.to_string();
+        let headers = crate::app_state::test_session_headers(
+            &state,
+            &subject,
+            organization_id,
+            opensesame_domain::OrganizationRole::Member,
+        );
+        let started = start_task(
+            State(state.clone()),
+            headers.clone(),
+            Json(StartTaskBody {
+                principal_id: subject,
+                organization_id: organization_id.to_string(),
+                capabilities: vec![CapabilityDto {
+                    action: "repository.read".into(),
+                    resource: "repo:acme/catalog".into(),
+                }],
+                ttl_seconds: 60,
+            }),
+        )
+        .await
+        .unwrap();
+        let started = axum::body::to_bytes(started.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let started: serde_json::Value = serde_json::from_slice(&started).unwrap();
+
+        let response = freeze_intent(
+            State(state.clone()),
+            headers,
+            Json(FreezeIntentBody {
+                task_run_id: started["task_run_id"].as_str().unwrap().into(),
+                expected_state_version: started["state_version"].as_u64().unwrap(),
+                operation: "repository.read".into(),
+                resource: "repo:acme/catalog".into(),
+                audience: "https://api.example.com".into(),
+                arguments: serde_json::json!({}),
+                idempotency_key: "foreign-org".into(),
+            }),
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert!(state.frozen_intents.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn invoking_a_legacy_mismatched_intent_does_not_consume_it() {
+        let state = crate::app_state::test_demo_state().await;
+        let bootstrap = state.bootstrap.lock().unwrap().clone().unwrap();
+        let organization_id = OrganizationId::new();
+        let frozen = intent(bootstrap.principal, organization_id, 5);
+        state
+            .frozen_intents
+            .lock()
+            .unwrap()
+            .insert(frozen.intent_digest.clone(), frozen.clone());
+        let headers = crate::app_state::test_session_headers(
+            &state,
+            &bootstrap.principal.to_string(),
+            organization_id,
+            opensesame_domain::OrganizationRole::Member,
+        );
+
+        let response = invoke_task(
+            State(state.clone()),
+            headers,
+            Json(InvokeTaskBody {
+                intent_digest: frozen.intent_digest.clone(),
+            }),
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert!(state
+            .frozen_intents
+            .lock()
+            .unwrap()
+            .contains_key(&frozen.intent_digest));
     }
 }
