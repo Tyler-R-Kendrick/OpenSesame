@@ -202,6 +202,7 @@ impl ConnectionBroker {
     // ---- catalog -------------------------------------------------------------
 
     pub fn list_providers(&self) -> Result<Vec<ProviderView>> {
+        let catalog_revision = catalog::revision()?;
         Ok(catalog::all()?
             .iter()
             .filter(|p| !flow::is_production_env() || p.id != "mock")
@@ -212,6 +213,7 @@ impl ConnectionBroker {
                     missing.is_empty(),
                     missing,
                     p.auth.is_oauth().then(|| self.config.callback_url(&p.id)),
+                    catalog_revision,
                 )
             })
             .collect())

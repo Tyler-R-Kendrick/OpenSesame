@@ -41,6 +41,8 @@ export type Provider = {
   displayName: string;
   category: ProviderCategory;
   docsUrl: string;
+  provenanceUrl: string;
+  catalogRevision: string;
   authKind: AuthKind;
   callbackUrl: string | null;
   scopes: ProviderScope[];
@@ -120,6 +122,8 @@ export function parseProviderList(value: unknown): Provider[] {
     displayName: raw.display_name,
     category: raw.category,
     docsUrl: raw.docs_url,
+    provenanceUrl: raw.provenance_url,
+    catalogRevision: raw.catalog_revision,
     authKind: raw.auth_kind,
     callbackUrl: raw.callback_url,
     scopes: raw.scopes,

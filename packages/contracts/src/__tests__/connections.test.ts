@@ -34,6 +34,8 @@ const provider = {
   display_name: "GitHub",
   category: "developer",
   docs_url: "https://docs.github.com/apps/oauth-apps",
+  provenance_url: "https://docs.github.com/apps/oauth-apps",
+  catalog_revision: "2026-08-10.1",
   auth_kind: "oauth2_authorization_code",
   supports_refresh: true,
   configured: false,
@@ -255,6 +257,7 @@ describe("connection broker contracts", () => {
 
   it("pins the error-code vocabulary", () => {
     for (const code of [
+      "catalog_unavailable",
       "state_expired",
       "unsupported_credential",
       "invalid_request",
