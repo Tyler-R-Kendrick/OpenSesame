@@ -1,5 +1,7 @@
 import {
   AuthorizeResponseSchema,
+  type ConfigurationFieldDef,
+  type ConfiguredField,
   ConnectionErrorResponseSchema,
   ConnectionSchema,
   IntegrationSchema,
@@ -36,6 +38,9 @@ export type ProviderScope = {
   default: boolean;
 };
 
+export type ProviderConfigurationField = ConfigurationFieldDef;
+export type ConfiguredProviderField = ConfiguredField;
+
 export type Provider = {
   id: string;
   displayName: string;
@@ -46,6 +51,8 @@ export type Provider = {
   authKind: AuthKind;
   callbackUrl: string | null;
   scopes: ProviderScope[];
+  integrationConfigurationFields: ProviderConfigurationField[];
+  connectionConfigurationFields: ProviderConfigurationField[];
 };
 
 export type Integration = {
@@ -61,6 +68,7 @@ export type Integration = {
   hasClientSecret: boolean;
   connectionCount: number;
   callbackUrl: string | null;
+  configuredFields: ConfiguredProviderField[];
 };
 
 export type Connection = {
@@ -72,6 +80,7 @@ export type Connection = {
   status: string;
   scopes: string[];
   refreshable: boolean;
+  configuredFields: ConfiguredProviderField[];
 };
 
 export type OrganizationMember = {
@@ -149,6 +158,8 @@ export function parseProviderList(value: unknown): Provider[] {
     authKind: raw.auth_kind,
     callbackUrl: raw.callback_url,
     scopes: raw.scopes,
+    integrationConfigurationFields: raw.integration_configuration_fields,
+    connectionConfigurationFields: raw.connection_configuration_fields,
   }));
 }
 
@@ -185,6 +196,7 @@ function mapIntegration(raw: ReturnType<typeof IntegrationSchema.parse>) {
     hasClientSecret: raw.has_client_secret,
     connectionCount: raw.connection_count,
     callbackUrl: raw.callback_url,
+    configuredFields: raw.configured_fields,
   } satisfies Integration;
 }
 
@@ -200,6 +212,7 @@ function mapConnection(raw: ReturnType<typeof ConnectionSchema.parse>) {
       ? raw.granted_scopes
       : raw.requested_scopes,
     refreshable: raw.refreshable,
+    configuredFields: raw.configured_fields,
   } satisfies Connection;
 }
 
@@ -257,8 +270,9 @@ export function createIntegration(
     key: string;
     providerId: string;
     displayName: string;
-    clientId: string;
-    clientSecret: string;
+    clientId?: string;
+    clientSecret?: string;
+    configuration?: Record<string, string>;
     scopes: string[];
   },
 ) {
@@ -271,8 +285,14 @@ export function createIntegration(
         key: input.key,
         provider_id: input.providerId,
         display_name: input.displayName,
-        ...(input.clientId ? { client_id: input.clientId } : {}),
-        ...(input.clientSecret ? { client_secret: input.clientSecret } : {}),
+        ...(input.configuration
+          ? { configuration: input.configuration }
+          : {
+              ...(input.clientId ? { client_id: input.clientId } : {}),
+              ...(input.clientSecret
+                ? { client_secret: input.clientSecret }
+                : {}),
+            }),
         scopes: input.scopes,
       }),
     },
@@ -345,6 +365,26 @@ export function setConnectionCredential(
     organizationId,
     `/connections/${encodeURIComponent(connectionId)}/credential`,
     { method: "POST", body: JSON.stringify({ value }) },
+    (body) => mapConnection(ConnectionSchema.parse(body)),
+  );
+}
+
+export function setConnectionConfiguration(
+  organizationId: string,
+  connectionId: string,
+  configurationSet: Record<string, string>,
+  configurationClear: string[] = [],
+) {
+  return request(
+    organizationId,
+    `/connections/${encodeURIComponent(connectionId)}/credential`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        configuration_set: configurationSet,
+        configuration_clear: configurationClear,
+      }),
+    },
     (body) => mapConnection(ConnectionSchema.parse(body)),
   );
 }

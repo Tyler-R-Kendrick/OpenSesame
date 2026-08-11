@@ -25,6 +25,11 @@ const oauthProvider: Provider = {
   authKind: "oauth2_authorization_code",
   callbackUrl: "https://host.example/api/v1/connections/oauth/callback",
   scopes: [],
+  integrationConfigurationFields: [
+    { name: "client_id", secret: false, required: true },
+    { name: "client_secret", secret: true, required: true },
+  ],
+  connectionConfigurationFields: [],
 };
 
 const apiKeyProvider: Provider = {
@@ -33,6 +38,10 @@ const apiKeyProvider: Provider = {
   displayName: "Linear",
   authKind: "api_key",
   callbackUrl: null,
+  integrationConfigurationFields: [],
+  connectionConfigurationFields: [
+    { name: "api_key", secret: true, required: true },
+  ],
 };
 
 function integration(
@@ -55,6 +64,13 @@ function integration(
       providerId === "github"
         ? "https://host.example/api/v1/connections/oauth/callback"
         : null,
+    configuredFields:
+      providerId === "github"
+        ? [
+            { name: "client_id", hint: "***1234" },
+            { name: "client_secret", hint: "configured" },
+          ]
+        : [],
   };
 }
 

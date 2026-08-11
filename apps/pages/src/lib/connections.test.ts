@@ -38,6 +38,11 @@ function provider(overrides: Record<string, unknown> = {}) {
     ],
     egress,
     operations: ["profile.read"],
+    integration_configuration_fields: [
+      { name: "client_id", secret: false, required: true },
+      { name: "client_secret", secret: true, required: true },
+    ],
+    connection_configuration_fields: [],
     ...overrides,
   };
 }
@@ -59,6 +64,10 @@ function integration(overrides: Record<string, unknown> = {}) {
     created_by: "principal:owner",
     created_at: timestamp,
     updated_at: timestamp,
+    configured_fields: [
+      { name: "client_id", hint: "***4d2" },
+      { name: "client_secret", hint: "configured" },
+    ],
     ...overrides,
   };
 }
@@ -88,6 +97,7 @@ function connection(overrides: Record<string, unknown> = {}) {
     bindings: [],
     created_at: timestamp,
     updated_at: timestamp,
+    configured_fields: [],
     ...overrides,
   };
 }
@@ -123,6 +133,11 @@ describe("connections wire parsers", () => {
             default: true,
           },
         ],
+        integrationConfigurationFields: [
+          { name: "client_id", secret: false, required: true },
+          { name: "client_secret", secret: true, required: true },
+        ],
+        connectionConfigurationFields: [],
       },
     ]);
   });
@@ -156,6 +171,10 @@ describe("connections wire parsers", () => {
       hasClientSecret: true,
       connectionCount: 2,
       callbackUrl: "https://host.example/api/v1/connections/oauth/callback",
+      configuredFields: [
+        { name: "client_id", hint: "***4d2" },
+        { name: "client_secret", hint: "configured" },
+      ],
     });
     expect(() =>
       parseIntegrationList({
