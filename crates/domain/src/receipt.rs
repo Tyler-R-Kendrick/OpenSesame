@@ -1,6 +1,6 @@
 use crate::{
-    ActorId, ActorInstanceId, ApprovalId, ClientId, ConnectionId, CredentialHandleId, GrantId,
-    InvocationId, OperatorId, OrganizationId, PrincipalId, ReceiptId, TaskRunId,
+    ActorId, ActorInstanceId, ApprovalId, ClientId, ConnectionId, CredentialHandleId, DomainError,
+    GrantId, InvocationId, OperatorId, OrganizationId, PrincipalId, ReceiptId, TaskRunId,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -61,6 +61,17 @@ fn default_receipt_schema_version() -> u32 {
 }
 
 impl InvocationReceipt {
+    /// Enforce invariants introduced by the receipt schema while retaining
+    /// verification compatibility for legacy schema 1 and 2 evidence.
+    pub fn assert_schema_invariants(&self) -> Result<(), DomainError> {
+        if self.receipt_schema_version >= 3 && self.organization_id.is_none() {
+            return Err(DomainError::Canonicalization(
+                "receipt schema 3 requires organization_id".into(),
+            ));
+        }
+        Ok(())
+    }
+
     /// Ensure no obvious secret-bearing keys appear in the safe summary.
     pub fn assert_no_secret_leak(&self) -> bool {
         let Some(summary) = &self.safe_result_summary else {
@@ -122,5 +133,10 @@ mod tests {
         assert!(!r.assert_no_secret_leak());
         r.safe_result_summary = Some(serde_json::json!({"pr_number": 12}));
         assert!(r.assert_no_secret_leak());
+
+        r.receipt_schema_version = 3;
+        assert!(r.assert_schema_invariants().is_err());
+        r.organization_id = Some(OrganizationId::new());
+        r.assert_schema_invariants().unwrap();
     }
 }

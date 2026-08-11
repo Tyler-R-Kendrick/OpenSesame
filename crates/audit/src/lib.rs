@@ -28,6 +28,7 @@ pub fn receipt_key_id(key: &VerifyingKey) -> String {
 
 /// Signature check shared by the signer and the verifier registry.
 fn verify_with(key: &VerifyingKey, receipt: &InvocationReceipt) -> Result<(), DomainError> {
+    receipt.assert_schema_invariants()?;
     let mut clone = receipt.clone();
     let sig_b64 = clone.signature.clone();
     clone.signature = String::new();
@@ -37,8 +38,8 @@ fn verify_with(key: &VerifyingKey, receipt: &InvocationReceipt) -> Result<(), Do
     let bytes = STANDARD
         .decode(sig_b64)
         .map_err(|e| DomainError::Canonicalization(e.to_string()))?;
-    let sig = Signature::from_slice(&bytes)
-        .map_err(|e| DomainError::Canonicalization(e.to_string()))?;
+    let sig =
+        Signature::from_slice(&bytes).map_err(|e| DomainError::Canonicalization(e.to_string()))?;
     key.verify(digest.as_bytes(), &sig)
         .map_err(|e| DomainError::Canonicalization(e.to_string()))
 }
@@ -140,6 +141,7 @@ impl ReceiptSigner {
         &self,
         mut receipt: InvocationReceipt,
     ) -> Result<InvocationReceipt, DomainError> {
+        receipt.assert_schema_invariants()?;
         if !receipt.assert_no_secret_leak() {
             return Err(DomainError::Canonicalization(
                 "receipt summary contains secret material".into(),
@@ -329,6 +331,29 @@ mod tests {
 
         signed.organization_id = Some(OrganizationId::new());
         assert!(signer.verify_receipt(&signed).is_err());
+    }
+
+    #[test]
+    fn schema_three_without_an_organization_is_never_signed_or_verified() {
+        let signer = ReceiptSigner::generate();
+        let mut invalid = sample_receipt();
+        invalid.receipt_schema_version = 3;
+        let error = signer.sign_receipt(invalid).unwrap_err().to_string();
+        assert!(
+            error.contains("schema 3 requires organization_id"),
+            "{error}"
+        );
+
+        let mut signed_legacy = signer.sign_receipt(sample_receipt()).unwrap();
+        signed_legacy.receipt_schema_version = 3;
+        let error = signer
+            .verify_receipt(&signed_legacy)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("schema 3 requires organization_id"),
+            "{error}"
+        );
     }
 
     #[test]
