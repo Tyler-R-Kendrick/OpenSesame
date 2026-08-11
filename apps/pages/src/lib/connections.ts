@@ -57,6 +57,8 @@ export type Provider = {
   provenanceUrl: string;
   catalogRevision: string;
   authKind: AuthKind;
+  configured: boolean;
+  missingConfig: string[];
   callbackUrl: string | null;
   scopes: ProviderScope[];
   integrationConfigurationFields: ProviderConfigurationField[];
@@ -164,6 +166,8 @@ export function parseProviderList(value: unknown): Provider[] {
     provenanceUrl: raw.provenance_url,
     catalogRevision: raw.catalog_revision,
     authKind: raw.auth_kind,
+    configured: raw.configured,
+    missingConfig: raw.missing_config,
     callbackUrl: raw.callback_url,
     scopes: raw.scopes,
     integrationConfigurationFields:

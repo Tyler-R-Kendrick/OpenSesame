@@ -98,6 +98,29 @@ export function canConfigure(role: OrganizationRole) {
   return role === "owner" || role === "admin";
 }
 
+export function canSealProviderConfiguration(provider: Provider) {
+  return !provider.missingConfig.includes("OPENSESAME_CONNECTION_KEY");
+}
+
+export function integrationConfigurationNotice(
+  providerName: string,
+  integration: Integration,
+) {
+  return integration.configured
+    ? `${providerName} is ready for members to use.`
+    : `${providerName} was saved, but the Host reports it is not ready. Complete Host configuration before members connect.`;
+}
+
+export async function loadCatalogBeforeWorkspace<T, U>(
+  loadCatalog: () => Promise<T>,
+  commitCatalog: (catalog: T) => void,
+  loadWorkspace: () => Promise<U>,
+) {
+  const catalog = await loadCatalog();
+  commitCatalog(catalog);
+  return loadWorkspace();
+}
+
 export function reconcileOrganization(
   organizations: SessionOrganization[],
   currentId: string,
@@ -278,15 +301,21 @@ export function ConnectionsPage() {
     setLoading(true);
     setLoadIssue(null);
     try {
-      const [nextProviders, nextIntegrations, nextConnections, memberLoad] =
-        await Promise.all([
-          listProviders(selected.id),
+      const [nextIntegrations, nextConnections, memberLoad] =
+        await loadCatalogBeforeWorkspace(
+          () => listProviders(selected.id),
+          (nextProviders) => {
+            if (activeOrganizationId.current === selected.id) {
+              setProviders(nextProviders);
+            }
+          },
+          () => Promise.all([
           listIntegrations(selected.id),
           listConnections(selected.id),
           loadOptionalMembers(selected.role, () => listMembers(selected.id)),
-        ]);
+          ]),
+        );
       if (activeOrganizationId.current !== selected.id) return;
-      setProviders(nextProviders);
       setIntegrations(nextIntegrations);
       setConnections(nextConnections);
       setMembers(memberLoad.members);
@@ -516,8 +545,16 @@ export function ConnectionsPage() {
             onRetry={() => void loadWorkspace(organization)}
             onConfigure={(provider, form) =>
               act(`configure-${provider.id}`, async () => {
-                await createIntegration(organization.id, form);
-                setNotice(`${form.displayName} is ready for members to use.`);
+                const integration = await createIntegration(
+                  organization.id,
+                  form,
+                );
+                setNotice(
+                  integrationConfigurationNotice(
+                    provider.displayName,
+                    integration,
+                  ),
+                );
               })
             }
             onConnect={(provider, integration, form, popup) =>
@@ -925,6 +962,7 @@ export function MarketplacePanel({
       ) : visible.length ? (
         <ul className="provider-grid">
           {visible.map((provider) => {
+            const canSeal = canSealProviderConfiguration(provider);
             const available = integrations.filter(
               (integration) =>
                 integration.providerId === provider.id &&
@@ -1010,7 +1048,7 @@ export function MarketplacePanel({
                     </form>
                   </details>
                 ))}
-                {canConfigure(accessRole) ? (
+                {canConfigure(accessRole) && canSeal ? (
                   <ConfigureIntegration
                     provider={provider}
                     integrations={integrations.filter(
@@ -1019,6 +1057,11 @@ export function MarketplacePanel({
                     busy={busy !== null}
                     onSubmit={onConfigure}
                   />
+                ) : canConfigure(accessRole) ? (
+                  <p className="provider-help">
+                    Host sealing is unavailable. Set OPENSESAME_CONNECTION_KEY
+                    before configuring this connector.
+                  </p>
                 ) : available.length === 0 ? (
                   <p className="provider-help">
                     Ask an owner or admin to configure this provider.

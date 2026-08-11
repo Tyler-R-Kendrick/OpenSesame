@@ -7,10 +7,13 @@ import {
   ConnectionsPanel,
   IntegrationsPanel,
   MarketplacePanel,
+  canSealProviderConfiguration,
   configurationClearFromFormData,
   configurationFromFormData,
   connectionRevocationNotice,
   filterProviders,
+  integrationConfigurationNotice,
+  loadCatalogBeforeWorkspace,
   loadOptionalMembers,
   marketplaceEmptyCopy,
   parseConnectionMessage,
@@ -29,6 +32,8 @@ const oauthProvider: Provider = {
   provenanceUrl: "https://docs.github.com",
   catalogRevision: "2026-08-10.4",
   authKind: "oauth2_authorization_code",
+  configured: false,
+  missingConfig: [],
   callbackUrl: "https://host.example/api/v1/connections/oauth/callback",
   scopes: [],
   integrationConfigurationFields: [
@@ -160,6 +165,32 @@ describe("Connections marketplace panels", () => {
         throw new Error("Identity member list unavailable");
       }),
     ).resolves.toEqual({ members: [], failed: true });
+  });
+
+  it("commits a valid catalog before unrelated workspace loading fails", async () => {
+    const visible: Provider[] = [];
+    await expect(
+      loadCatalogBeforeWorkspace(
+        async () => [oauthProvider],
+        (catalog) => visible.push(...catalog),
+        async () => {
+          throw new Error("connections unavailable");
+        },
+      ),
+    ).rejects.toThrow("connections unavailable");
+    expect(visible).toEqual([oauthProvider]);
+  });
+
+  it("never calls an unconfigured integration ready", () => {
+    expect(
+      integrationConfigurationNotice("GitHub", {
+        ...integration("github"),
+        configured: false,
+      }),
+    ).toContain("is not ready");
+    expect(
+      integrationConfigurationNotice("GitHub", integration("github")),
+    ).toContain("ready for members");
   });
 
   it("requires native confirmation before terminal mutations", () => {
@@ -499,5 +530,28 @@ describe("Connections marketplace panels", () => {
     expect(html).toContain("Authentication");
     expect(html).toContain("OAuth 2.0");
     expect(html).toContain("API key");
+  });
+
+  it("shows connectors but blocks configuration without Host sealing", () => {
+    const provider = {
+      ...apiKeyProvider,
+      missingConfig: ["OPENSESAME_CONNECTION_KEY"],
+    };
+    expect(canSealProviderConfiguration(provider)).toBe(false);
+    const html = renderToStaticMarkup(
+      <MarketplacePanel
+        providers={[provider]}
+        integrations={[]}
+        accessRole="owner"
+        busy={null}
+        loading={false}
+        loadIssue={null}
+        onRetry={() => undefined}
+        onConfigure={() => undefined}
+        onConnect={() => undefined}
+      />,
+    );
+    expect(html).toContain("Host sealing is unavailable");
+    expect(html).not.toContain("Configure integration");
   });
 });

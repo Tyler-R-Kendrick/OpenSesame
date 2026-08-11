@@ -124,6 +124,8 @@ describe("connections wire parsers", () => {
         provenanceUrl: "https://docs.github.com/apps/oauth-apps",
         catalogRevision: "2026-08-10.1",
         authKind: "oauth2_authorization_code",
+        configured: true,
+        missingConfig: [],
         callbackUrl: "https://host.example/api/v1/connections/oauth/callback",
         scopes: [
           {
