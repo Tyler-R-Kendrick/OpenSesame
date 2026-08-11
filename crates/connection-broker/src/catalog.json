@@ -253,29 +253,6 @@
     },
     {
       "auth": {
-        "authorize_url": "https://api.notion.com/v1/oauth/authorize",
-        "extra_authorize_params": [["owner", "user"]],
-        "kind": "oauth2_authorization_code",
-        "revoke_url": null,
-        "supports_refresh": false,
-        "token_auth": "client_secret_basic",
-        "token_url": "https://api.notion.com/v1/oauth/token"
-      },
-      "category": "productivity",
-      "display_name": "Notion",
-      "docs_url": "https://developers.notion.com/docs/authorization",
-      "egress": {
-        "authorities": ["api.notion.com"],
-        "path_prefixes": [],
-        "scheme": "https"
-      },
-      "id": "notion",
-      "operations": ["page.read", "database.query", "page.create"],
-      "provenance_url": "https://developers.notion.com/docs/authorization",
-      "scopes": []
-    },
-    {
-      "auth": {
         "authorize_url": "https://linear.app/oauth/authorize",
         "extra_authorize_params": [],
         "kind": "oauth2_authorization_code",
@@ -324,68 +301,17 @@
     },
     {
       "auth": {
-        "authorize_url": "https://auth.atlassian.com/authorize",
-        "extra_authorize_params": [
-          ["audience", "api.atlassian.com"],
-          ["prompt", "consent"]
-        ],
-        "kind": "oauth2_authorization_code",
-        "revoke_url": null,
-        "supports_refresh": true,
-        "token_auth": "client_secret_post",
-        "token_url": "https://auth.atlassian.com/oauth/token"
-      },
-      "category": "productivity",
-      "display_name": "Atlassian",
-      "docs_url": "https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/",
-      "egress": {
-        "authorities": ["api.atlassian.com"],
-        "path_prefixes": [],
-        "scheme": "https"
-      },
-      "id": "atlassian",
-      "operations": ["issue.read", "issue.create", "project.read"],
-      "provenance_url": "https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/",
-      "scopes": [
-        {
-          "default": true,
-          "description": "Keep access when the user is not present (refresh token)",
-          "name": "offline_access",
-          "sensitive": false
-        },
-        {
-          "default": true,
-          "description": "Read the authenticated user's profile",
-          "name": "read:me",
-          "sensitive": false
-        },
-        {
-          "default": false,
-          "description": "Read Jira issues, projects and worklogs",
-          "name": "read:jira-work",
-          "sensitive": false
-        },
-        {
-          "default": false,
-          "description": "Create and update Jira issues",
-          "name": "write:jira-work",
-          "sensitive": true
-        }
-      ]
-    },
-    {
-      "auth": {
         "authorize_url": "https://app.hubspot.com/oauth/authorize",
         "extra_authorize_params": [],
         "kind": "oauth2_authorization_code",
         "revoke_url": null,
         "supports_refresh": true,
         "token_auth": "client_secret_post",
-        "token_url": "https://api.hubapi.com/oauth/v1/token"
+        "token_url": "https://api.hubspot.com/oauth/v3/token"
       },
       "category": "crm",
       "display_name": "HubSpot",
-      "docs_url": "https://developers.hubspot.com/docs/api/working-with-oauth",
+      "docs_url": "https://developers.hubspot.com/docs/apps/developer-platform/build-apps/authentication/oauth/working-with-oauth",
       "egress": {
         "authorities": ["api.hubapi.com"],
         "path_prefixes": [],
@@ -393,7 +319,7 @@
       },
       "id": "hubspot",
       "operations": ["contact.read", "contact.create", "deal.read"],
-      "provenance_url": "https://developers.hubspot.com/docs/api/working-with-oauth",
+      "provenance_url": "https://developers.hubspot.com/docs/apps/developer-platform/build-apps/authentication/oauth/working-with-oauth",
       "scopes": [
         {
           "default": true,
@@ -418,54 +344,6 @@
           "description": "Read deal records",
           "name": "crm.objects.deals.read",
           "sensitive": false
-        }
-      ]
-    },
-    {
-      "auth": {
-        "authorize_url": "https://login.salesforce.com/services/oauth2/authorize",
-        "extra_authorize_params": [],
-        "kind": "oauth2_authorization_code",
-        "revoke_url": "https://login.salesforce.com/services/oauth2/revoke",
-        "supports_refresh": true,
-        "token_auth": "client_secret_post",
-        "token_url": "https://login.salesforce.com/services/oauth2/token"
-      },
-      "category": "crm",
-      "display_name": "Salesforce",
-      "docs_url": "https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm",
-      "egress": {
-        "authorities": ["login.salesforce.com"],
-        "path_prefixes": [],
-        "scheme": "https"
-      },
-      "id": "salesforce",
-      "operations": ["record.read", "record.create", "soql.query"],
-      "provenance_url": "https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm",
-      "scopes": [
-        {
-          "default": true,
-          "description": "Access and manage data through the Salesforce APIs",
-          "name": "api",
-          "sensitive": false
-        },
-        {
-          "default": true,
-          "description": "Keep access when the user is not present (refresh token)",
-          "name": "refresh_token",
-          "sensitive": false
-        },
-        {
-          "default": false,
-          "description": "Identify the signed-in user",
-          "name": "openid",
-          "sensitive": false
-        },
-        {
-          "default": false,
-          "description": "Full access to all data the user can reach",
-          "name": "full",
-          "sensitive": true
         }
       ]
     },
@@ -573,7 +451,7 @@
       "display_name": "Box",
       "docs_url": "https://developer.box.com/guides/authentication/oauth2/",
       "egress": {
-        "authorities": ["api.box.com"],
+        "authorities": ["api.box.com", "upload.box.com"],
         "path_prefixes": [],
         "scheme": "https"
       },
@@ -618,7 +496,7 @@
       "provenance_url": "https://developers.asana.com/docs/oauth",
       "scopes": [
         {
-          "default": true,
+          "default": false,
           "description": "Full access to everything the authorizing user can reach",
           "name": "default",
           "sensitive": true
@@ -633,42 +511,6 @@
           "default": false,
           "description": "Read the authorizing user's email address",
           "name": "email",
-          "sensitive": false
-        }
-      ]
-    },
-    {
-      "auth": {
-        "authorize_url": "https://www.figma.com/oauth",
-        "extra_authorize_params": [],
-        "kind": "oauth2_authorization_code",
-        "revoke_url": null,
-        "supports_refresh": true,
-        "token_auth": "client_secret_basic",
-        "token_url": "https://api.figma.com/v1/oauth/token"
-      },
-      "category": "productivity",
-      "display_name": "Figma",
-      "docs_url": "https://www.figma.com/developers/api#oauth2",
-      "egress": {
-        "authorities": ["api.figma.com"],
-        "path_prefixes": [],
-        "scheme": "https"
-      },
-      "id": "figma",
-      "operations": ["file.read", "comment.create"],
-      "provenance_url": "https://www.figma.com/developers/api#oauth2",
-      "scopes": [
-        {
-          "default": true,
-          "description": "Read files, projects and components",
-          "name": "files:read",
-          "sensitive": false
-        },
-        {
-          "default": false,
-          "description": "Post comments on files",
-          "name": "file_comments:write",
           "sensitive": false
         }
       ]
@@ -1437,8 +1279,84 @@
         "path_prefixes": []
       },
       "operations": ["project.read", "flag.write", "environment.read"]
+    },
+    {
+      "id": "circleci",
+      "display_name": "CircleCI",
+      "category": "developer",
+      "docs_url": "https://circleci.com/docs/api-intro/",
+      "provenance_url": "https://circleci.com/docs/api-intro/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Circle-Token",
+        "value_prefix": ""
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["circleci.com"],
+        "path_prefixes": []
+      },
+      "operations": ["pipeline.create", "workflow.read", "project.read"]
+    },
+    {
+      "id": "buildkite",
+      "display_name": "Buildkite",
+      "category": "developer",
+      "docs_url": "https://buildkite.com/docs/apis/rest-api#authentication",
+      "provenance_url": "https://buildkite.com/docs/apis/rest-api#authentication",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.buildkite.com"],
+        "path_prefixes": []
+      },
+      "operations": ["build.create", "build.read", "pipeline.read"]
+    },
+    {
+      "id": "digitalocean",
+      "display_name": "DigitalOcean",
+      "category": "developer",
+      "docs_url": "https://docs.digitalocean.com/reference/api/create-personal-access-token/",
+      "provenance_url": "https://docs.digitalocean.com/reference/api/create-personal-access-token/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.digitalocean.com"],
+        "path_prefixes": []
+      },
+      "operations": ["droplet.read", "droplet.write", "project.read"]
+    },
+    {
+      "id": "railway",
+      "display_name": "Railway",
+      "category": "developer",
+      "docs_url": "https://docs.railway.com/integrations/api",
+      "provenance_url": "https://docs.railway.com/integrations/api",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["backboard.railway.com"],
+        "path_prefixes": []
+      },
+      "operations": ["project.read", "deployment.write", "environment.read"]
     }
   ],
-  "revision": "2026-08-10.2",
+  "revision": "2026-08-10.4",
   "schema_version": 1
 }

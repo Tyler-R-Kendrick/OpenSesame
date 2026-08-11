@@ -313,6 +313,12 @@ fn validate_scopes(provider: &Provider) -> Result<(), CatalogError> {
     for scope in &provider.scopes {
         validate_text(&scope.name, "scope name", 256)?;
         validate_text(&scope.description, "scope description", 1_024)?;
+        if scope.default && scope.sensitive {
+            return Err(provider_error(
+                provider,
+                format!("sensitive scope `{}` cannot be a default", scope.name),
+            ));
+        }
         if !names.insert(scope.name.as_str()) {
             return Err(provider_error(
                 provider,
@@ -468,7 +474,7 @@ mod tests {
     #[test]
     fn embedded_catalog_is_valid_and_versioned() {
         let catalog = load().expect("embedded catalog");
-        assert_eq!(catalog.revision(), "2026-08-10.2");
+        assert_eq!(catalog.revision(), "2026-08-10.4");
         assert_eq!(catalog.providers().len(), 51);
         assert_eq!(
             catalog
@@ -512,5 +518,15 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("unknown field"));
+    }
+
+    #[test]
+    fn sensitive_scopes_cannot_be_defaults() {
+        let mut invalid: serde_json::Value = serde_json::from_str(CATALOG_JSON).unwrap();
+        invalid["providers"][0]["scopes"][1]["default"] = serde_json::json!(true);
+        assert!(Catalog::parse(&invalid.to_string())
+            .unwrap_err()
+            .to_string()
+            .contains("sensitive scope `repo` cannot be a default"));
     }
 }
