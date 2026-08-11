@@ -169,18 +169,29 @@ pub enum Caller {
 /// Parse the canonical Host principal spelling or Identity's public `prn_`
 /// spelling into the one typed principal used by authorization records.
 pub fn parse_principal(value: &str) -> Option<opensesame_domain::PrincipalId> {
-    opensesame_domain::PrincipalId::parse(value).ok().or_else(|| {
-        value
-            .strip_prefix("prn_")
-            .and_then(|id| opensesame_domain::PrincipalId::parse(id).ok())
-    })
+    opensesame_domain::PrincipalId::parse(value)
+        .ok()
+        .or_else(|| {
+            value
+                .strip_prefix("prn_")
+                .and_then(|id| opensesame_domain::PrincipalId::parse(id).ok())
+        })
+}
+
+/// Compare principal subjects across the canonical Host spelling, Identity's
+/// `prn_` spelling, and exact-match legacy subjects such as `user:demo`.
+pub fn same_principal_subject(left: &str, right: &str) -> bool {
+    match (parse_principal(left), parse_principal(right)) {
+        (Some(left), Some(right)) => left == right,
+        _ => left == right,
+    }
 }
 
 impl Caller {
     pub fn owns_subject(&self, subject: &str) -> bool {
         match self {
             Caller::Operator => true,
-            Caller::Session { subject: mine, .. } => mine == subject,
+            Caller::Session { subject: mine, .. } => same_principal_subject(mine, subject),
         }
     }
 
@@ -257,7 +268,7 @@ pub fn require_demo_bootstrap(st: &AppState) -> Result<crate::app_state::Bootstr
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_principal, session_organization, Caller};
+    use super::{parse_principal, same_principal_subject, session_organization, Caller};
     use opensesame_domain::{OrganizationId, OrganizationRole, PrincipalId};
     use serde_json::json;
 
@@ -321,6 +332,11 @@ mod tests {
         };
 
         assert!(caller.owns(&principal));
+        assert!(caller.owns_subject(&principal.to_string()));
+        assert!(same_principal_subject(
+            &format!("prn_{}", principal.as_uuid()),
+            &principal.to_string()
+        ));
         assert!(!caller.owns(&PrincipalId::new()));
     }
 }

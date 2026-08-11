@@ -277,8 +277,12 @@ mod tests {
     #[tokio::test]
     async fn bootstrap_intent_is_hidden_from_another_organization() {
         let state = crate::app_state::test_demo_state().await;
-        let headers =
-            crate::app_state::test_session_headers(&state, "user:demo", OrganizationId::new());
+        let headers = crate::app_state::test_session_headers(
+            &state,
+            "user:demo",
+            OrganizationId::new(),
+            OrganizationRole::Member,
+        );
 
         let response = create(State(state), headers, Json(body())).await;
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
@@ -288,7 +292,12 @@ mod tests {
     async fn bootstrap_intent_remains_available_to_its_organization() {
         let state = crate::app_state::test_demo_state().await;
         let organization_id = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
-        let headers = crate::app_state::test_session_headers(&state, "user:demo", organization_id);
+        let headers = crate::app_state::test_session_headers(
+            &state,
+            "user:demo",
+            organization_id,
+            OrganizationRole::Member,
+        );
         let mut request = body();
         request.operation = "repository.read".into();
         request.resource = "repo:acme/catalog".into();

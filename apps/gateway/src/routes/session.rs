@@ -9,7 +9,8 @@ use std::collections::HashMap;
 
 use crate::app_state::AppState;
 use crate::middleware::auth::{
-    require_demo_bootstrap, require_operator, require_session_or_operator, resolve_caller, Caller,
+    require_demo_bootstrap, require_operator, require_session_or_operator, resolve_caller,
+    same_principal_subject, Caller,
 };
 
 pub async fn status(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
@@ -25,12 +26,20 @@ pub async fn whoami(State(st): State<AppState>, headers: axum::http::HeaderMap) 
         Ok(caller) => caller,
         Err(resp) => return resp,
     };
-    let boot = match require_demo_bootstrap(&st) {
-        Ok(b) => b,
-        Err(resp) => return resp,
-    };
-    let (subject, organization_id, organization_role) = match caller {
-        Caller::Operator => ("user:demo".to_string(), boot.org, "operator"),
+    let (subject, organization_id, organization_role, actor_id, context) = match caller {
+        Caller::Operator => {
+            let boot = match require_demo_bootstrap(&st) {
+                Ok(boot) => boot,
+                Err(resp) => return resp,
+            };
+            (
+                "user:demo".to_string(),
+                boot.org,
+                "operator",
+                Some(boot.actor.to_string()),
+                Some(format!("{}/{}/", boot.org, boot.project)),
+            )
+        }
         Caller::Session {
             subject,
             organization_id,
@@ -43,17 +52,19 @@ pub async fn whoami(State(st): State<AppState>, headers: axum::http::HeaderMap) 
                 opensesame_domain::OrganizationRole::Admin => "admin",
                 opensesame_domain::OrganizationRole::Member => "member",
             },
+            None,
+            None,
         ),
     };
     Json(json!({
         "principal_id": subject,
-        "actor_id": boot.actor.to_string(),
+        "actor_id": actor_id,
         "client_id": "cli:opensesame",
         "issuer": st.issuer,
         "assurance": "mfa",
         "organization_id": organization_id.to_string(),
         "organization_role": organization_role,
-        "context": format!("{}/{}/", organization_id, boot.project)
+        "context": context,
     }))
     .into_response()
 }
@@ -71,7 +82,10 @@ fn revoke_matching_sessions(
 ) -> usize {
     let before = sessions.len();
     sessions.retain(|_, meta| {
-        meta.get("principal_id").and_then(|value| value.as_str()) != Some(principal_id)
+        !meta
+            .get("principal_id")
+            .and_then(|value| value.as_str())
+            .is_some_and(|stored| same_principal_subject(stored, principal_id))
             || meta.get("organization_id").and_then(|value| value.as_str()) != Some(organization_id)
     });
     before - sessions.len()
@@ -85,7 +99,8 @@ fn revoke_pending_authorizations(
     let mut revoked = 0;
     for authorization in pending.values_mut() {
         if authorization.approved.as_ref().is_some_and(|approved| {
-            approved.principal == principal_id && approved.organization_id == organization_id
+            same_principal_subject(&approved.principal, principal_id)
+                && approved.organization_id == organization_id
         }) {
             authorization.approved = None;
             revoked += 1;
@@ -135,11 +150,11 @@ pub async fn revoke(
 
 #[cfg(test)]
 mod tests {
-    use super::{revoke_matching_sessions, revoke_pending_authorizations};
+    use super::{revoke_matching_sessions, revoke_pending_authorizations, whoami};
     use crate::app_state::{ApprovedDevice, DevicePending};
     use axum::extract::State;
     use chrono::{Duration, Utc};
-    use opensesame_domain::{OrganizationId, OrganizationRole};
+    use opensesame_domain::{OrganizationId, OrganizationRole, PrincipalId};
     use serde_json::json;
     use std::{
         collections::HashMap,
@@ -194,6 +209,47 @@ mod tests {
         );
         assert!(pending["target"].approved.is_none());
         assert!(pending["other"].approved.is_some());
+    }
+
+    #[test]
+    fn revocation_normalizes_identity_and_host_principal_spellings() {
+        let principal = PrincipalId::new();
+        let identity_principal = format!("prn_{}", principal.as_uuid());
+        let organization_id = OrganizationId::new();
+        let mut sessions = HashMap::from([(
+            "target".into(),
+            json!({
+                "principal_id": principal.to_string(),
+                "organization_id": organization_id.to_string(),
+            }),
+        )]);
+        let mut pending = HashMap::from([(
+            "target".into(),
+            DevicePending {
+                user_code_hash: "digest".into(),
+                expires_at: Utc::now() + Duration::minutes(5),
+                approved: Some(ApprovedDevice {
+                    principal: principal.to_string(),
+                    organization_id,
+                    organization_role: OrganizationRole::Member,
+                }),
+            },
+        )]);
+
+        assert_eq!(
+            revoke_matching_sessions(
+                &mut sessions,
+                &identity_principal,
+                &organization_id.to_string(),
+            ),
+            1
+        );
+        assert_eq!(
+            revoke_pending_authorizations(&mut pending, &identity_principal, organization_id,),
+            1
+        );
+        assert!(sessions.is_empty());
+        assert!(pending["target"].approved.is_none());
     }
 
     #[test]
@@ -296,8 +352,12 @@ mod tests {
     #[tokio::test]
     async fn connection_listing_hides_another_organizations_bootstrap() {
         let state = crate::app_state::test_demo_state().await;
-        let headers =
-            crate::app_state::test_session_headers(&state, "user:demo", OrganizationId::new());
+        let headers = crate::app_state::test_session_headers(
+            &state,
+            "user:demo",
+            OrganizationId::new(),
+            OrganizationRole::Member,
+        );
 
         let response = super::list_connections(State(state), headers).await;
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
@@ -311,7 +371,12 @@ mod tests {
     async fn connection_listing_keeps_the_matching_organizations_bootstrap() {
         let state = crate::app_state::test_demo_state().await;
         let organization_id = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
-        let headers = crate::app_state::test_session_headers(&state, "user:demo", organization_id);
+        let headers = crate::app_state::test_session_headers(
+            &state,
+            "user:demo",
+            organization_id,
+            OrganizationRole::Member,
+        );
 
         let response = super::list_connections(State(state), headers).await;
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
@@ -319,6 +384,32 @@ mod tests {
             .unwrap();
         let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(body["connections"].as_array().map(Vec::len), Some(1));
+    }
+
+    #[tokio::test]
+    async fn session_whoami_does_not_require_demo_bootstrap() {
+        let state = crate::app_state::test_demo_state().await;
+        let organization_id = OrganizationId::new();
+        let principal = PrincipalId::new();
+        let headers = crate::app_state::test_session_headers(
+            &state,
+            &principal.to_string(),
+            organization_id,
+            OrganizationRole::Admin,
+        );
+        *state.bootstrap.lock().unwrap() = None;
+
+        let response = whoami(State(state), headers).await;
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(body["principal_id"], principal.to_string());
+        assert_eq!(body["organization_id"], organization_id.to_string());
+        assert_eq!(body["organization_role"], "admin");
+        assert!(body["actor_id"].is_null());
+        assert!(body["context"].is_null());
     }
 }
 

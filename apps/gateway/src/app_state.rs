@@ -187,6 +187,7 @@ pub fn test_session_headers(
     state: &AppState,
     subject: &str,
     organization_id: OrganizationId,
+    organization_role: OrganizationRole,
 ) -> axum::http::HeaderMap {
     let token = uuid::Uuid::new_v4().to_string();
     state.sessions.lock().unwrap().insert(
@@ -195,7 +196,7 @@ pub fn test_session_headers(
             "principal_id": subject,
             "approved_as": subject,
             "organization_id": organization_id.to_string(),
-            "organization_role": OrganizationRole::Member,
+            "organization_role": organization_role,
             "expires_at": (chrono::Utc::now() + chrono::Duration::minutes(5)).to_rfc3339(),
         }),
     );

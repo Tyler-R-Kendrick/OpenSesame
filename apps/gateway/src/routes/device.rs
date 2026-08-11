@@ -131,25 +131,29 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
         )
             .into_response();
     };
-    let boot = match require_demo_bootstrap(&st) {
-        Ok(b) => b,
-        Err(resp) => return resp,
-    };
+    // Identity already supplied the trusted principal, organization, and role.
+    // Demo bootstrap metadata is useful in development, but production disables
+    // that bootstrap and must still be able to mint this organization session.
+    let boot = st.bootstrap.lock().unwrap().clone();
     let session_id = format!("sess_{}", uuid::Uuid::new_v4());
     // The session id *is* the bearer; only its digest is retained server-side.
     let session_digest = hash_secret(&session_id);
-    let handle = format!("handle_{}", uuid::Uuid::new_v4());
+    let actor_id = boot.as_ref().map(|boot| boot.actor.to_string());
+    let project_id = boot.as_ref().map(|boot| boot.project.to_string());
+    let credential_handle = boot
+        .as_ref()
+        .map(|_| format!("handle_{}", uuid::Uuid::new_v4()));
     // Bind session to the *approved* principal — never the bootstrap demo id alone.
     let meta = json!({
         "session_id": session_id,
         "principal_id": approved.principal.clone(),
-        "actor_id": boot.actor.to_string(),
+        "actor_id": actor_id,
         "issuer": st.issuer,
         "assurance": "mfa",
         "organization_id": approved.organization_id.to_string(),
         "organization_role": approved.organization_role,
-        "project_id": boot.project.to_string(),
-        "credential_handle": handle,
+        "project_id": project_id,
+        "credential_handle": credential_handle,
         "approved_as": approved.principal,
         "expires_at": (Utc::now() + Duration::hours(8)).to_rfc3339()
     });
@@ -427,5 +431,60 @@ mod tests {
             ),
             Err("invalid_organization_id")
         );
+    }
+
+    #[tokio::test]
+    async fn trusted_organization_session_mints_and_identifies_without_demo_bootstrap() {
+        let state = crate::app_state::test_demo_state().await;
+        let device_code = "dc_production";
+        let organization_id = opensesame_domain::OrganizationId::new();
+        let principal = opensesame_domain::PrincipalId::new().to_string();
+        state.device_codes.lock().unwrap().insert(
+            hash_secret(device_code),
+            DevicePending {
+                user_code_hash: "digest".into(),
+                expires_at: Utc::now() + Duration::minutes(5),
+                approved: Some(ApprovedDevice {
+                    principal: principal.clone(),
+                    organization_id,
+                    organization_role: opensesame_domain::OrganizationRole::Admin,
+                }),
+            },
+        );
+        *state.bootstrap.lock().unwrap() = None;
+
+        let response = token(
+            State(state.clone()),
+            Json(DeviceTokenRequest {
+                device_code: device_code.into(),
+                grant_type: "urn:ietf:params:oauth:grant-type:device_code".into(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(body["session"]["actor_id"].is_null());
+        assert!(body["session"]["project_id"].is_null());
+        assert!(body["session"]["credential_handle"].is_null());
+
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            format!("Bearer {}", body["access_token"].as_str().unwrap())
+                .parse()
+                .unwrap(),
+        );
+        let whoami = crate::routes::session::whoami(State(state), headers).await;
+        assert_eq!(whoami.status(), StatusCode::OK);
+        let whoami = axum::body::to_bytes(whoami.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let whoami: serde_json::Value = serde_json::from_slice(&whoami).unwrap();
+        assert_eq!(whoami["principal_id"], principal);
+        assert_eq!(whoami["organization_id"], organization_id.to_string());
+        assert_eq!(whoami["organization_role"], "admin");
     }
 }

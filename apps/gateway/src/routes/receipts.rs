@@ -158,8 +158,12 @@ mod tests {
     #[tokio::test]
     async fn same_principal_cannot_get_or_verify_another_organizations_receipt() {
         let (state, receipt, subject, _) = state_with_receipt().await;
-        let headers =
-            crate::app_state::test_session_headers(&state, &subject, OrganizationId::new());
+        let headers = crate::app_state::test_session_headers(
+            &state,
+            &subject,
+            OrganizationId::new(),
+            OrganizationRole::Member,
+        );
 
         let get_response = get(
             State(state.clone()),
@@ -175,8 +179,12 @@ mod tests {
     #[tokio::test]
     async fn matching_organization_and_operator_can_read_receipt_evidence() {
         let (state, receipt, subject, organization_id) = state_with_receipt().await;
-        let session_headers =
-            crate::app_state::test_session_headers(&state, &subject, organization_id);
+        let session_headers = crate::app_state::test_session_headers(
+            &state,
+            &subject,
+            organization_id,
+            OrganizationRole::Member,
+        );
         let get_response = get(
             State(state.clone()),
             session_headers,
@@ -190,12 +198,8 @@ mod tests {
             "x-opensesame-operator",
             state.operator_token.parse().unwrap(),
         );
-        let verify_response = verify(
-            State(state),
-            operator_headers,
-            Path(receipt.id.to_string()),
-        )
-        .await;
+        let verify_response =
+            verify(State(state), operator_headers, Path(receipt.id.to_string())).await;
         assert_eq!(verify_response.status(), StatusCode::OK);
     }
 }

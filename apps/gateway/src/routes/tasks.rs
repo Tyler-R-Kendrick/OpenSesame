@@ -75,8 +75,8 @@ pub async fn start_task(
     Json(body): Json<StartTaskBody>,
 ) -> Result<Response, Response> {
     let caller = resolve_caller(&st, &headers)?;
-    let principal = parse_principal(&body.principal_id)
-        .ok_or_else(|| bad_req("invalid principal id"))?;
+    let principal =
+        parse_principal(&body.principal_id).ok_or_else(|| bad_req("invalid principal id"))?;
     // A session cannot mint task authority for someone else's principal.
     if !caller.owns(&principal) {
         return Err(err_json(
@@ -617,8 +617,12 @@ mod tests {
         let state = crate::app_state::test_demo_state().await;
         let bootstrap = state.bootstrap.lock().unwrap().clone().unwrap();
         let identity_principal = format!("prn_{}", bootstrap.principal.as_uuid());
-        let headers =
-            crate::app_state::test_session_headers(&state, &identity_principal, bootstrap.org);
+        let headers = crate::app_state::test_session_headers(
+            &state,
+            &identity_principal,
+            bootstrap.org,
+            opensesame_domain::OrganizationRole::Member,
+        );
 
         let response = start_task(
             State(state),
