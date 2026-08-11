@@ -13,7 +13,9 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::app_state::AppState;
-use crate::middleware::auth::{require_demo_bootstrap, resolve_caller, resolve_caller_subject};
+use crate::middleware::auth::{
+    parse_principal, require_demo_bootstrap, resolve_caller, resolve_caller_subject,
+};
 
 /// Frozen intents awaiting execution; they expire in five minutes, so the map is
 /// small by construction and capped to keep a chatty agent from growing it.
@@ -73,7 +75,8 @@ pub async fn start_task(
     Json(body): Json<StartTaskBody>,
 ) -> Result<Response, Response> {
     let caller = resolve_caller(&st, &headers)?;
-    let principal = PrincipalId::parse(&body.principal_id).map_err(bad_req)?;
+    let principal = parse_principal(&body.principal_id)
+        .ok_or_else(|| bad_req("invalid principal id"))?;
     // A session cannot mint task authority for someone else's principal.
     if !caller.owns(&principal) {
         return Err(err_json(
@@ -427,8 +430,9 @@ fn internal(e: impl std::fmt::Display) -> Response {
 
 #[cfg(test)]
 mod tests {
-    use super::claim_frozen_intent;
+    use super::{claim_frozen_intent, start_task, CapabilityDto, StartTaskBody};
     use crate::middleware::auth::Caller;
+    use axum::{extract::State, http::StatusCode, Json};
     use chrono::{Duration, Utc};
     use opensesame_domain::{
         ActorId, FrozenIntentV2, IntentId, OrganizationId, PrincipalId, TaskRunId,
@@ -606,5 +610,31 @@ mod tests {
         assert!(caller(opensesame_domain::OrganizationRole::Admin).can_configure_integrations());
         assert!(!caller(opensesame_domain::OrganizationRole::Member).can_configure_integrations());
         assert!(Caller::Operator.can_configure_integrations());
+    }
+
+    #[tokio::test]
+    async fn identity_principal_id_starts_a_task_for_its_session() {
+        let state = crate::app_state::test_demo_state().await;
+        let bootstrap = state.bootstrap.lock().unwrap().clone().unwrap();
+        let identity_principal = format!("prn_{}", bootstrap.principal.as_uuid());
+        let headers =
+            crate::app_state::test_session_headers(&state, &identity_principal, bootstrap.org);
+
+        let response = start_task(
+            State(state),
+            headers,
+            Json(StartTaskBody {
+                principal_id: identity_principal,
+                organization_id: bootstrap.org.to_string(),
+                capabilities: vec![CapabilityDto {
+                    action: "repository.read".into(),
+                    resource: "repo:acme/catalog".into(),
+                }],
+                ttl_seconds: 60,
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
     }
 }

@@ -166,6 +166,16 @@ pub enum Caller {
     },
 }
 
+/// Parse the canonical Host principal spelling or Identity's public `prn_`
+/// spelling into the one typed principal used by authorization records.
+pub fn parse_principal(value: &str) -> Option<opensesame_domain::PrincipalId> {
+    opensesame_domain::PrincipalId::parse(value).ok().or_else(|| {
+        value
+            .strip_prefix("prn_")
+            .and_then(|id| opensesame_domain::PrincipalId::parse(id).ok())
+    })
+}
+
 impl Caller {
     pub fn owns_subject(&self, subject: &str) -> bool {
         match self {
@@ -178,13 +188,7 @@ impl Caller {
         match self {
             Caller::Operator => true,
             Caller::Session { subject, .. } => {
-                let parsed = opensesame_domain::PrincipalId::parse(subject)
-                    .ok()
-                    .or_else(|| {
-                        subject
-                            .strip_prefix("prn_")
-                            .and_then(|id| opensesame_domain::PrincipalId::parse(id).ok())
-                    });
+                let parsed = parse_principal(subject);
                 parsed.as_ref() == Some(principal)
             }
         }
@@ -253,7 +257,7 @@ pub fn require_demo_bootstrap(st: &AppState) -> Result<crate::app_state::Bootstr
 
 #[cfg(test)]
 mod tests {
-    use super::{session_organization, Caller};
+    use super::{parse_principal, session_organization, Caller};
     use opensesame_domain::{OrganizationId, OrganizationRole, PrincipalId};
     use serde_json::json;
 
@@ -306,6 +310,10 @@ mod tests {
     #[test]
     fn identity_principal_spelling_maps_to_the_typed_host_id() {
         let principal = PrincipalId::new();
+        assert_eq!(
+            parse_principal(&format!("prn_{}", principal.as_uuid())),
+            Some(principal)
+        );
         let caller = Caller::Session {
             subject: format!("prn_{}", principal.as_uuid()),
             organization_id: OrganizationId::new(),
