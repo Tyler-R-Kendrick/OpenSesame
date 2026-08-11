@@ -430,6 +430,9 @@ importers:
       '@opensesame/client-core':
         specifier: workspace:*
         version: link:../../packages/client-core
+      '@opensesame/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@opensesame/sdk-browser':
         specifier: workspace:*
         version: link:../../packages/sdk-browser
@@ -553,6 +556,9 @@ importers:
       '@opensesame/client-core':
         specifier: workspace:*
         version: link:../client-core
+      '@opensesame/contracts':
+        specifier: workspace:*
+        version: link:../contracts
     devDependencies:
       '@types/node':
         specifier: 22.15.29

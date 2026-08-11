@@ -149,9 +149,27 @@ async function mintHostSession(
   }
   if (!unchanged()) throw new Error("Identity changed during Host sign-in.");
 
+  const organizations = await identityFetch("/v1/organizations");
+  if (!organizations.ok) {
+    throw await hostSessionFailure(organizations, "Organization lookup failed");
+  }
+  const organizationBody = (await organizations.json()) as {
+    organizations?: Array<{ id?: unknown }>;
+  };
+  const organizationId = organizationBody.organizations?.find(
+    (organization) => typeof organization.id === "string",
+  )?.id;
+  if (typeof organizationId !== "string") {
+    throw new Error("Identity returned no organization for the Host session.");
+  }
+  if (!unchanged()) throw new Error("Identity changed during Host sign-in.");
+
   const approve = await identityFetch("/v1/device/approve", {
     method: "POST",
-    body: JSON.stringify({ user_code: grant.user_code }),
+    body: JSON.stringify({
+      user_code: grant.user_code,
+      organization_id: organizationId,
+    }),
   });
   if (!approve.ok) {
     throw await hostSessionFailure(approve, "Host session approval failed");

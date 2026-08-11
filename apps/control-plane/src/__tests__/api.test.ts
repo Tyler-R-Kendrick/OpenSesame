@@ -7,7 +7,7 @@ import {
   DEFAULT_VERIFIED_QUOTA,
   ProvisionalPolicy,
 } from "@opensesame/policy";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
 
 async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
@@ -21,6 +21,30 @@ async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
     sessionId: string;
   };
   return body;
+}
+
+async function verifiedPrincipal(
+  app: ReturnType<typeof createControlPlane>["app"],
+  subject: string,
+) {
+  const created = await provisional(app);
+  const auth = { authorization: `Bearer ${created.accessToken}` };
+  const linked = await app.request("/v1/principals/link-identities", {
+    method: "POST",
+    headers: {
+      ...auth,
+      "content-type": "application/json",
+      "idempotency-key": `verify-${subject}`,
+    },
+    body: JSON.stringify({
+      kind: "oidc",
+      issuer: "https://mock.example",
+      subject,
+      assurance: "verified",
+    }),
+  });
+  expect(linked.status).toBe(201);
+  return { ...created, auth };
 }
 
 describe("control-plane API", () => {
@@ -103,7 +127,9 @@ describe("control-plane API", () => {
 
     // Today the claim never outlives the project, so force the case directly:
     // approval must not resurrect a project that is already past its own TTL.
-    const stored = ctx.stores.projects.get(project.projectId)!;
+    const stored = ctx.stores.projects.get(project.projectId);
+    expect(stored).toBeDefined();
+    if (!stored) throw new Error("project missing from store");
     ctx.stores.projects.set(project.projectId, {
       ...stored,
       expiresAt: new Date(now.getTime() - 1_000),
@@ -648,8 +674,8 @@ describe("control-plane API", () => {
       headers: { ...auth, "content-type": "application/json" },
       body: JSON.stringify({ user_code: "ABCD-EFGH" }),
     });
-    // Host may be down in unit tests → 502, but never leak operator token in body.
-    expect([200, 404, 502]).toContain(res.status);
+    // Authentication reaches the handler, which requires organization selection.
+    expect(res.status).toBe(400);
     const body = await res.text();
     expect(body).not.toContain(config.operatorToken);
     expect(body.toLowerCase()).not.toContain("x-opensesame-operator");
@@ -679,11 +705,11 @@ describe("control-plane API", () => {
       401,
     );
     // An origin this deployment listed, or its own, is a caller it expects.
-    expect([200, 404, 502]).toContain(
-      (await approve({ origin: "https://console.example" })).status,
+    expect((await approve({ origin: "https://console.example" })).status).toBe(
+      400,
     );
-    expect([200, 404, 502]).toContain(
-      (await approve({ origin: "http://127.0.0.1:8788" })).status,
+    expect((await approve({ origin: "http://127.0.0.1:8788" })).status).toBe(
+      400,
     );
     // Reads are untouched: a forged read is not a forged write.
     const read = await app.request("/v1/audit/events", {
@@ -896,6 +922,486 @@ describe("control-plane API", () => {
     expect(verified.ok).toBe(true);
     expect(verified.checked).toBe(everything.length);
   });
+
+  it("enforces organization membership roles and protects the last owner", async () => {
+    const { app, ctx } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const owner = await verifiedPrincipal(app, "membership-owner");
+    const member = await verifiedPrincipal(app, "membership-member");
+    const candidate = await verifiedPrincipal(app, "membership-candidate");
+    const inactive = await verifiedPrincipal(app, "membership-inactive");
+    const inactiveRecord = await ctx.repos.principals.getById(
+      inactive.principalId,
+    );
+    expect(inactiveRecord).not.toBeNull();
+    if (!inactiveRecord) throw new Error("principal missing from repository");
+    await ctx.repos.principals.update(
+      inactive.principalId,
+      { state: "suspended", suspendedAt: new Date(), updatedAt: new Date() },
+      inactiveRecord.version,
+    );
+
+    const created = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...owner.auth,
+        "content-type": "application/json",
+        "idempotency-key": "membership-org",
+      },
+      body: JSON.stringify({
+        slug: "membership-org",
+        displayName: "Membership Org",
+      }),
+    });
+    expect(created.status).toBe(201);
+    const organization = (await created.json()) as {
+      id: string;
+      role: string;
+    };
+    expect(organization.role).toBe("owner");
+
+    const add = (principalId: string, role: string, auth = owner.auth) =>
+      app.request(`/v1/organizations/${organization.id}/members`, {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json" },
+        body: JSON.stringify({ principalId, role }),
+      });
+    expect((await add(member.principalId, "member")).status).toBe(201);
+    expect((await add(member.principalId, "admin")).status).toBe(409);
+    expect((await add("prn_missing", "member")).status).toBe(404);
+    const inactiveAdd = await add(inactive.principalId, "member");
+    expect(inactiveAdd.status).toBe(409);
+    expect((await inactiveAdd.json()) as { error: string }).toEqual({
+      error: "principal_inactive",
+    });
+
+    const memberOrganizations = await app.request("/v1/organizations", {
+      headers: member.auth,
+    });
+    expect(memberOrganizations.status).toBe(200);
+    expect(
+      (
+        (await memberOrganizations.json()) as {
+          organizations: Array<{ id: string; role: string }>;
+        }
+      ).organizations,
+    ).toContainEqual(
+      expect.objectContaining({ id: organization.id, role: "member" }),
+    );
+    expect(
+      (
+        (await (
+          await app.request(`/v1/organizations/${organization.id}`, {
+            headers: member.auth,
+          })
+        ).json()) as { role: string }
+      ).role,
+    ).toBe("member");
+    expect(
+      (
+        await app.request(`/v1/organizations/${organization.id}/members`, {
+          headers: member.auth,
+        })
+      ).status,
+    ).toBe(403);
+    expect(
+      (await add(candidate.principalId, "member", member.auth)).status,
+    ).toBe(403);
+
+    const demoteLastOwner = await app.request(
+      `/v1/organizations/${organization.id}/members/${owner.principalId}`,
+      {
+        method: "PATCH",
+        headers: { ...owner.auth, "content-type": "application/json" },
+        body: JSON.stringify({ role: "admin" }),
+      },
+    );
+    expect(demoteLastOwner.status).toBe(409);
+    const removeLastOwner = await app.request(
+      `/v1/organizations/${organization.id}/members/${owner.principalId}`,
+      { method: "DELETE", headers: owner.auth },
+    );
+    expect(removeLastOwner.status).toBe(409);
+  });
+
+  it("derives device organization role and revokes Host sessions on membership changes", async () => {
+    const { app, ctx } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+        hostApiUrl: "https://host.example/tenant",
+      },
+    });
+    const owner = await verifiedPrincipal(app, "device-owner");
+    const member = await verifiedPrincipal(app, "device-member");
+    const created = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...owner.auth,
+        "content-type": "application/json",
+        "idempotency-key": "device-org",
+      },
+      body: JSON.stringify({ slug: "device-org", displayName: "Device Org" }),
+    });
+    const organization = (await created.json()) as { id: string };
+    expect(organization.id).toMatch(
+      /^org:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    await app.request(`/v1/organizations/${organization.id}/members`, {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ principalId: member.principalId, role: "member" }),
+    });
+
+    const requests: Array<{ url: string; body: Record<string, string> }> = [];
+    const rolesSeenByHost: Array<string | undefined> = [];
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const host = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, init) => {
+        const url = String(input);
+        requests.push({
+          url,
+          body: JSON.parse(String(init?.body)) as Record<string, string>,
+        });
+        if (url.endsWith("/api/v1/sessions/revoke")) {
+          rolesSeenByHost.push(
+            ctx.stores.organizationMemberships.get(
+              `${organization.id}:${member.principalId}`,
+            )?.role,
+          );
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      });
+    try {
+      const approval = await app.request("/v1/device/approve", {
+        method: "POST",
+        headers: { ...member.auth, "content-type": "application/json" },
+        body: JSON.stringify({
+          user_code: "ABCD-EFGH",
+          organization_id: organization.id,
+          organization_role: "owner",
+          principal: owner.principalId,
+        }),
+      });
+      expect(approval.status).toBe(200);
+      expect(requests[0]?.body).toMatchObject({
+        principal: member.principalId,
+        organization_id: organization.id,
+        organization_role: "member",
+      });
+
+      host.mockResolvedValueOnce(new Response("down", { status: 503 }));
+      const failedChange = await app.request(
+        `/v1/organizations/${organization.id}/members/${member.principalId}`,
+        {
+          method: "PATCH",
+          headers: { ...owner.auth, "content-type": "application/json" },
+          body: JSON.stringify({ role: "admin" }),
+        },
+      );
+      expect(failedChange.status).toBe(502);
+      expect(
+        (
+          (await (
+            await app.request(`/v1/organizations/${organization.id}`, {
+              headers: member.auth,
+            })
+          ).json()) as { role: string }
+        ).role,
+      ).toBe("member");
+
+      const changed = await app.request(
+        `/v1/organizations/${organization.id}/members/${member.principalId}`,
+        {
+          method: "PATCH",
+          headers: { ...owner.auth, "content-type": "application/json" },
+          body: JSON.stringify({ role: "admin" }),
+        },
+      );
+      expect(changed.status).toBe(200);
+      expect((await changed.json()) as { role: string }).toEqual(
+        expect.objectContaining({ role: "admin" }),
+      );
+      const removed = await app.request(
+        `/v1/organizations/${organization.id}/members/${member.principalId}`,
+        { method: "DELETE", headers: owner.auth },
+      );
+      expect(removed.status).toBe(204);
+      expect(
+        requests.filter((request) =>
+          request.url.endsWith("/api/v1/sessions/revoke"),
+        ),
+      ).toHaveLength(2);
+      expect(host).toHaveBeenCalledTimes(4);
+      expect(rolesSeenByHost).toEqual(["admin", undefined]);
+      expect(requests.map(({ url }) => new URL(url).pathname)).toEqual([
+        "/tenant/api/v1/device/approve",
+        "/tenant/api/v1/sessions/revoke",
+        "/tenant/api/v1/sessions/revoke",
+      ]);
+      expect(timeout).toHaveBeenCalledTimes(4);
+      for (const call of timeout.mock.calls) expect(call).toEqual([5_000]);
+    } finally {
+      timeout.mockRestore();
+      host.mockRestore();
+    }
+  });
+
+  it("rejects malformed device approval fields without throwing", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const principal = await provisional(app);
+    const request = (body: string) =>
+      app.request("/v1/device/approve", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${principal.accessToken}`,
+          "content-type": "application/json",
+        },
+        body,
+      });
+
+    expect((await request(JSON.stringify({ user_code: 7 }))).status).toBe(400);
+    expect(
+      (
+        await request(
+          JSON.stringify({ user_code: "ABCD-EFGH", organization_id: 7 }),
+        )
+      ).status,
+    ).toBe(400);
+    expect((await request("{")).status).toBe(400);
+  });
+
+  it("serializes membership rollback so it cannot resurrect a removed owner", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const owner = await verifiedPrincipal(app, "serialized-owner");
+    const target = await verifiedPrincipal(app, "serialized-target");
+    const created = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...owner.auth,
+        "content-type": "application/json",
+        "idempotency-key": "serialized-org",
+      },
+      body: JSON.stringify({
+        slug: "serialized-org",
+        displayName: "Serialized Org",
+      }),
+    });
+    const organization = (await created.json()) as { id: string };
+    await app.request(`/v1/organizations/${organization.id}/members`, {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ principalId: target.principalId, role: "owner" }),
+    });
+
+    let markFirstStarted = () => {};
+    const firstStarted = new Promise<void>((resolve) => {
+      markFirstStarted = resolve;
+    });
+    let releaseFirst = (_response: Response) => {};
+    const firstResponse = new Promise<Response>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let markSecondStarted = () => {};
+    const secondStarted = new Promise<void>((resolve) => {
+      markSecondStarted = resolve;
+    });
+    const host = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(async () => {
+        markFirstStarted();
+        return firstResponse;
+      })
+      .mockImplementation(async () => {
+        markSecondStarted();
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      });
+    try {
+      const failedDemotion = app.request(
+        `/v1/organizations/${organization.id}/members/${target.principalId}`,
+        {
+          method: "PATCH",
+          headers: { ...owner.auth, "content-type": "application/json" },
+          body: JSON.stringify({ role: "admin" }),
+        },
+      );
+      await firstStarted;
+      const removal = app.request(
+        `/v1/organizations/${organization.id}/members/${target.principalId}`,
+        { method: "DELETE", headers: owner.auth },
+      );
+      expect(
+        await Promise.race([
+          secondStarted.then(() => "reached-host"),
+          new Promise<string>((resolve) =>
+            setImmediate(() => resolve("blocked-at-fence")),
+          ),
+        ]),
+      ).toBe("blocked-at-fence");
+
+      releaseFirst(new Response("down", { status: 503 }));
+      expect((await failedDemotion).status).toBe(502);
+      expect((await removal).status).toBe(204);
+      await secondStarted;
+
+      const members = (await (
+        await app.request(`/v1/organizations/${organization.id}/members`, {
+          headers: owner.auth,
+        })
+      ).json()) as { members: Array<{ principalId: string }> };
+      expect(members.members).not.toContainEqual(
+        expect.objectContaining({ principalId: target.principalId }),
+      );
+    } finally {
+      host.mockRestore();
+    }
+  });
+
+  it.each(["PATCH", "DELETE"] as const)(
+    "orders a paused device approval before a concurrent %s membership mutation",
+    async (method) => {
+      const { app } = createControlPlane({
+        config: {
+          port: 0,
+          publicUrl: "http://127.0.0.1:8788",
+          issuer: "http://127.0.0.1:8788",
+        },
+      });
+      const owner = await verifiedPrincipal(
+        app,
+        `approval-race-owner-${method}`,
+      );
+      const target = await verifiedPrincipal(
+        app,
+        `approval-race-target-${method}`,
+      );
+      const created = await app.request("/v1/organizations", {
+        method: "POST",
+        headers: {
+          ...owner.auth,
+          "content-type": "application/json",
+          "idempotency-key": `approval-race-org-${method}`,
+        },
+        body: JSON.stringify({
+          slug: `approval-race-${method.toLowerCase()}`,
+          displayName: "Approval Race",
+        }),
+      });
+      const organization = (await created.json()) as { id: string };
+      expect(
+        (
+          await app.request(`/v1/organizations/${organization.id}/members`, {
+            method: "POST",
+            headers: { ...owner.auth, "content-type": "application/json" },
+            body: JSON.stringify({
+              principalId: target.principalId,
+              role: "owner",
+            }),
+          })
+        ).status,
+      ).toBe(201);
+
+      let markApprovalStarted = () => {};
+      const approvalStarted = new Promise<void>((resolve) => {
+        markApprovalStarted = resolve;
+      });
+      let releaseApproval = (_response: Response) => {};
+      const approvalResponse = new Promise<Response>((resolve) => {
+        releaseApproval = resolve;
+      });
+      let markMutationReachedHost = () => {};
+      const mutationReachedHost = new Promise<void>((resolve) => {
+        markMutationReachedHost = resolve;
+      });
+      const hostUrls: string[] = [];
+      const host = vi
+        .spyOn(globalThis, "fetch")
+        .mockImplementationOnce(async (input) => {
+          hostUrls.push(String(input));
+          markApprovalStarted();
+          return approvalResponse;
+        })
+        .mockImplementation(async (input) => {
+          hostUrls.push(String(input));
+          markMutationReachedHost();
+          return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        });
+      try {
+        const approval = app.request("/v1/device/approve", {
+          method: "POST",
+          headers: { ...target.auth, "content-type": "application/json" },
+          body: JSON.stringify({
+            user_code: "ABCD-EFGH",
+            organization_id: organization.id,
+          }),
+        });
+        await approvalStarted;
+
+        const mutation = app.request(
+          `/v1/organizations/${organization.id}/members/${target.principalId}`,
+          {
+            method,
+            headers: { ...owner.auth, "content-type": "application/json" },
+            ...(method === "PATCH"
+              ? { body: JSON.stringify({ role: "admin" }) }
+              : {}),
+          },
+        );
+        expect(
+          await Promise.race([
+            mutationReachedHost.then(() => "reached-host"),
+            new Promise<string>((resolve) =>
+              setImmediate(() => resolve("blocked-at-fence")),
+            ),
+          ]),
+        ).toBe("blocked-at-fence");
+
+        releaseApproval(
+          new Response(JSON.stringify({ status: "approved" }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        );
+        expect((await approval).status).toBe(200);
+        expect((await mutation).status).toBe(method === "PATCH" ? 200 : 204);
+        await mutationReachedHost;
+        expect(hostUrls.map((url) => new URL(url).pathname)).toEqual([
+          "/api/v1/device/approve",
+          "/api/v1/sessions/revoke",
+        ]);
+      } finally {
+        host.mockRestore();
+      }
+    },
+  );
 
   it("holds a verified principal to an organization and client quota", async () => {
     const { app, ctx } = createControlPlane({

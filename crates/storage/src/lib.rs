@@ -29,6 +29,61 @@ pub enum SyncWriteOutcome {
     StaleEpoch,
 }
 
+/// Receipt evidence plus the authoritative organization resolved through its
+/// invocation and intent. Legacy signed bodies may omit the organization; the
+/// join supplies authorization context without changing the signed bytes.
+pub struct StoredReceipt {
+    pub receipt: InvocationReceipt,
+    pub organization_id: OrganizationId,
+}
+
+fn decode_receipt_for_organization(
+    body: &str,
+    organization_id: &str,
+) -> anyhow::Result<StoredReceipt> {
+    let receipt: InvocationReceipt = serde_json::from_str(body)?;
+    let organization_id = OrganizationId::parse(organization_id)?;
+    if receipt
+        .organization_id
+        .is_some_and(|claimed| claimed != organization_id)
+    {
+        anyhow::bail!("receipt organization does not match invocation intent");
+    }
+    Ok(StoredReceipt {
+        receipt,
+        organization_id,
+    })
+}
+
+/// Embedded schema versions, applied in order, once each. Appending is the only
+/// permitted edit: an applied version is never rewritten.
+const MIGRATIONS: &[(&str, &str)] = &[
+    (
+        "0001_init",
+        include_str!("../../../migrations/0001_init.sql"),
+    ),
+    (
+        "0002_connections",
+        include_str!("../../../migrations/0002_connections.sql"),
+    ),
+    (
+        "0003_connection_owner",
+        include_str!("../../../migrations/0003_connection_owner.sql"),
+    ),
+    (
+        "0004_integrations",
+        include_str!("../../../migrations/0004_integrations.sql"),
+    ),
+    (
+        "0005_credential_generation",
+        include_str!("../../../migrations/0005_credential_generation.sql"),
+    ),
+    (
+        "0006_provider_configuration",
+        include_str!("../../../migrations/0006_provider_configuration.sql"),
+    ),
+];
+
 impl Db {
     pub async fn connect_sqlite(url: &str) -> anyhow::Result<Self> {
         let pool = SqlitePoolOptions::new()
@@ -45,18 +100,53 @@ impl Db {
     }
 
     pub async fn migrate(&self) -> anyhow::Result<()> {
-        let sql = include_str!("../../../migrations/0001_init.sql");
-        for stmt in sql.split(';') {
-            let stmt = stmt.trim();
-            if stmt.is_empty() {
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)",
+        )
+        .execute(&self.pool)
+        .await
+        .context("creating schema_migrations")?;
+
+        for (version, sql) in MIGRATIONS {
+            if self.migration_applied(version).await? {
                 continue;
             }
-            sqlx::query(stmt)
-                .execute(&self.pool)
-                .await
-                .with_context(|| format!("migrating: {stmt}"))?;
+            // A version lands whole or not at all, so a failure mid-file cannot
+            // leave a database that reports itself migrated.
+            let mut tx = self.pool.begin().await?;
+            for stmt in split_statements(sql) {
+                sqlx::query(&stmt)
+                    .execute(&mut *tx)
+                    .await
+                    .with_context(|| format!("migration {version}: {stmt}"))?;
+            }
+            sqlx::query("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)")
+                .bind(version)
+                .bind(Utc::now().to_rfc3339())
+                .execute(&mut *tx)
+                .await?;
+            tx.commit().await?;
+            tracing::info!(migration = version, "schema migration applied");
         }
         Ok(())
+    }
+
+    pub async fn applied_migrations(&self) -> anyhow::Result<Vec<String>> {
+        let rows = sqlx::query("SELECT version FROM schema_migrations ORDER BY version ASC")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| r.get::<String, _>("version"))
+            .collect())
+    }
+
+    async fn migration_applied(&self, version: &str) -> anyhow::Result<bool> {
+        let row = sqlx::query("SELECT 1 AS present FROM schema_migrations WHERE version = ?")
+            .bind(version)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row.is_some())
     }
 
     pub fn pool(&self) -> &SqlitePool {
@@ -256,18 +346,27 @@ impl Db {
     pub async fn get_receipt(
         &self,
         id: &opensesame_domain::ReceiptId,
-    ) -> anyhow::Result<Option<InvocationReceipt>> {
+    ) -> anyhow::Result<Option<StoredReceipt>> {
         let keyed = id.to_string();
         let bare = id.as_uuid().to_string();
-        let row = sqlx::query("SELECT id, body_json FROM receipts WHERE id = ? OR id = ?")
-            .bind(&keyed)
-            .bind(&bare)
-            .fetch_optional(&self.pool)
-            .await?;
+        let row = sqlx::query(
+            r#"
+            SELECT r.body_json, i.organization_id AS authoritative_organization_id
+            FROM receipts r
+            JOIN invocations inv ON inv.id = r.invocation_id
+            JOIN intents i ON i.id = inv.intent_id
+            WHERE r.id = ? OR r.id = ?
+            "#,
+        )
+        .bind(&keyed)
+        .bind(&bare)
+        .fetch_optional(&self.pool)
+        .await?;
         Ok(match row {
             Some(r) => {
                 let body: String = r.get("body_json");
-                Some(serde_json::from_str(&body)?)
+                let organization_id: String = r.get("authoritative_organization_id");
+                Some(decode_receipt_for_organization(&body, &organization_id)?)
             }
             None => None,
         })
@@ -298,7 +397,7 @@ impl Db {
     ) -> anyhow::Result<Option<InvocationReceipt>> {
         let row = sqlx::query(
             r#"
-            SELECT r.body_json
+            SELECT r.body_json, i.organization_id AS authoritative_organization_id
             FROM receipts r
             JOIN invocations inv ON inv.id = r.invocation_id
             JOIN intents i ON i.id = inv.intent_id
@@ -314,7 +413,8 @@ impl Db {
         Ok(match row {
             Some(r) => {
                 let body: String = r.get("body_json");
-                Some(serde_json::from_str(&body)?)
+                let organization_id: String = r.get("authoritative_organization_id");
+                Some(decode_receipt_for_organization(&body, &organization_id)?.receipt)
             }
             None => None,
         })
@@ -529,10 +629,129 @@ pub fn sqlite_file_url(path: &Path) -> String {
     format!("sqlite://{}?mode=rwc", path.display())
 }
 
+/// Embedded migrations are hand-written and contain no semicolon inside a string
+/// literal. Trigger bodies are kept intact through their final `END;`.
+fn split_statements(sql: &str) -> Vec<String> {
+    let stripped: String = sql
+        .lines()
+        .map(|line| match line.find("--") {
+            Some(i) => &line[..i],
+            None => line,
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let mut statements = Vec::new();
+    let mut current = String::new();
+    for ch in stripped.chars() {
+        if ch != ';' {
+            current.push(ch);
+            continue;
+        }
+        let trimmed = current.trim();
+        let trigger_body = trimmed.starts_with("CREATE TRIGGER") && !trimmed.ends_with("END");
+        if trigger_body {
+            current.push(';');
+            continue;
+        }
+        if !trimmed.is_empty() {
+            statements.push(trimmed.to_string());
+        }
+        current.clear();
+    }
+    if !current.trim().is_empty() {
+        statements.push(current.trim().to_string());
+    }
+    statements
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opensesame_domain::OrganizationId;
+    use chrono::{Duration, Utc};
+    use opensesame_domain::*;
+    use serde_json::json;
+
+    fn evidence(
+        organization_id: OrganizationId,
+        claimed_organization_id: Option<OrganizationId>,
+        idempotency_key: &str,
+    ) -> (Intent, Invocation, InvocationReceipt) {
+        let now = Utc::now();
+        let intent = Intent {
+            id: IntentId::new(),
+            organization_id,
+            project_id: None,
+            principal_id: PrincipalId::new(),
+            actor_id: ActorId::new(),
+            actor_instance_id: None,
+            client_id: None,
+            operator_id: None,
+            connection_id: None,
+            operation: "read".into(),
+            resource: "doc:1".into(),
+            audience: "https://resource.example".into(),
+            normalized_parameters_hash: Intent::parameters_hash(&json!({})).unwrap(),
+            body_hash: None,
+            nonce: uuid::Uuid::new_v4().to_string(),
+            idempotency_key: idempotency_key.into(),
+            issued_at: now,
+            expires_at: now + Duration::minutes(5),
+            parent_invocation_id: None,
+            delegation_chain: vec![],
+            proof: DetachedProof {
+                algorithm: "test".into(),
+                key_thumbprint: "test".into(),
+                signature: "test".into(),
+            },
+        };
+        let invocation = Invocation {
+            id: InvocationId::new(),
+            intent_id: intent.id,
+            state: InvocationState::Succeeded,
+            attempt: 1,
+            lease_owner: None,
+            lease_expires_at: None,
+            created_at: now,
+            updated_at: now,
+        };
+        let receipt = InvocationReceipt {
+            id: ReceiptId::new(),
+            invocation_id: invocation.id,
+            intent_digest: "sha256:intent".into(),
+            principal_id: intent.principal_id,
+            organization_id: claimed_organization_id,
+            actor_id: intent.actor_id,
+            actor_instance_id: None,
+            client_id: None,
+            operator_id: None,
+            delegation_chain: vec![],
+            connection_id: None,
+            operation: intent.operation.clone(),
+            resource: intent.resource.clone(),
+            policy_decision_id: "decision".into(),
+            policy_version_digest: "sha256:policy".into(),
+            approval_id: None,
+            credential_handle_id: None,
+            connector_component_digest: None,
+            external_request_digest: None,
+            external_response_digest: None,
+            started_at: now,
+            completed_at: now,
+            outcome: ReceiptOutcome::Succeeded,
+            safe_result_summary: Some(json!({"ok": true})),
+            authority_key_id: "test".into(),
+            signature: "test".into(),
+            receipt_schema_version: if claimed_organization_id.is_some() {
+                3
+            } else {
+                1
+            },
+            task_run_id: None,
+            task_state_version: None,
+            task_state_digest: None,
+        };
+        (intent, invocation, receipt)
+    }
 
     #[tokio::test]
     async fn migrate_and_org_boundary() {
@@ -618,5 +837,207 @@ mod tests {
                 .unwrap(),
             Some(9)
         );
+    }
+
+    #[tokio::test]
+    async fn receipt_reads_resolve_legacy_org_and_reject_claim_mismatch() {
+        let db = Db::connect_memory().await.unwrap();
+        let organization_id = OrganizationId::new();
+        db.create_organization(&organization_id, "acme")
+            .await
+            .unwrap();
+
+        let (intent, invocation, legacy) = evidence(organization_id, None, "legacy");
+        db.insert_intent(&intent).await.unwrap();
+        db.insert_invocation(&invocation).await.unwrap();
+        db.insert_receipt(&legacy).await.unwrap();
+        let stored = db.get_receipt(&legacy.id).await.unwrap().unwrap();
+        assert_eq!(stored.organization_id, organization_id);
+        assert_eq!(stored.receipt.organization_id, None);
+        assert_eq!(
+            db.find_receipt_by_idempotency(&organization_id, "legacy")
+                .await
+                .unwrap()
+                .unwrap()
+                .organization_id,
+            None
+        );
+
+        let (intent, invocation, mismatched) =
+            evidence(organization_id, Some(OrganizationId::new()), "mismatch");
+        db.insert_intent(&intent).await.unwrap();
+        db.insert_invocation(&invocation).await.unwrap();
+        db.insert_receipt(&mismatched).await.unwrap();
+        assert!(db.get_receipt(&mismatched.id).await.is_err());
+        assert!(db
+            .find_receipt_by_idempotency(&organization_id, "mismatch")
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn every_migration_is_recorded_once() {
+        let db = Db::connect_memory().await.unwrap();
+        let applied = db.applied_migrations().await.unwrap();
+        assert_eq!(
+            applied,
+            MIGRATIONS
+                .iter()
+                .map(|(v, _)| v.to_string())
+                .collect::<Vec<_>>()
+        );
+
+        // A second boot must be a no-op rather than replaying schema changes.
+        db.migrate().await.unwrap();
+        assert_eq!(db.applied_migrations().await.unwrap(), applied);
+    }
+
+    #[tokio::test]
+    async fn migrating_an_existing_database_records_without_destroying() {
+        let db = Db::connect_memory().await.unwrap();
+        sqlx::query(
+            "INSERT INTO connections (id, organization_id, project_id, provider_id, logical_name, display_name, status, status_detail, requested_scopes, granted_scopes, account_label, owner_kind, shareability, max_invoke_level, egress_json, created_at, updated_at) \
+             VALUES ('c1','org:1',NULL,'github','github/main','GitHub','pending',NULL,'[]','[]',NULL,'organization','private',2,'{}','t','t')",
+        )
+        .execute(db.pool())
+        .await
+        .unwrap();
+
+        db.migrate().await.unwrap();
+
+        let row = sqlx::query("SELECT COUNT(*) AS c FROM connections")
+            .fetch_one(db.pool())
+            .await
+            .unwrap();
+        assert_eq!(row.get::<i64, _>("c"), 1);
+    }
+
+    #[tokio::test]
+    async fn legacy_connection_rows_survive_the_broker_migration() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        for statement in split_statements(include_str!("../../../migrations/0001_init.sql")) {
+            sqlx::query(&statement).execute(&pool).await.unwrap();
+        }
+        sqlx::query(
+            "INSERT INTO organizations (id, name, created_at) VALUES ('org:1', 'Legacy', 't')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query("INSERT INTO connections (id, organization_id, project_id, connector_id, connector_version, component_digest, display_name, policy_json, created_at) VALUES ('legacy-1', 'org:1', NULL, 'github', '1', 'sha256:x', 'Legacy', '{}', 't')")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let db = Db { pool };
+        db.migrate().await.unwrap();
+        let legacy = sqlx::query("SELECT id FROM legacy_connections WHERE id = 'legacy-1'")
+            .fetch_one(db.pool())
+            .await
+            .unwrap();
+        assert_eq!(legacy.get::<String, _>("id"), "legacy-1");
+        let broker_rows = sqlx::query("SELECT COUNT(*) AS n FROM connections")
+            .fetch_one(db.pool())
+            .await
+            .unwrap();
+        assert_eq!(broker_rows.get::<i64, _>("n"), 0);
+    }
+
+    #[tokio::test]
+    async fn credential_generation_migration_backfills_baseline_rows() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        for (_, migration) in &MIGRATIONS[..4] {
+            for statement in split_statements(migration) {
+                sqlx::query(&statement).execute(&pool).await.unwrap();
+            }
+        }
+        sqlx::query("INSERT INTO connections (id, organization_id, project_id, provider_id, logical_name, display_name, status, status_detail, requested_scopes, granted_scopes, account_label, owner_kind, owner_subject, shareability, max_invoke_level, egress_json, created_at, updated_at, integration_id) VALUES ('connection:legacy', 'org:legacy', NULL, 'stripe', 'stripe/main', 'Stripe', 'active', NULL, '[]', '[]', NULL, 'organization', NULL, 'private', 2, '{}', 't', 't', 'deployment:stripe')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO connection_credentials (connection_id, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, last_refreshed_at, created_at, updated_at) VALUES ('connection:legacy', X'01', X'02', 'aad', 'api_key', NULL, 0, NULL, 't', 't')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        for statement in split_statements(include_str!(
+            "../../../migrations/0005_credential_generation.sql"
+        )) {
+            sqlx::query(&statement).execute(&pool).await.unwrap();
+        }
+        let version = sqlx::query("SELECT version FROM connection_credentials")
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+            .get::<String, _>("version");
+        assert!(!version.is_empty());
+    }
+
+    #[tokio::test]
+    async fn provider_configuration_migration_indexes_legacy_fields_without_rewriting_secrets() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        for (_, migration) in &MIGRATIONS[..5] {
+            for statement in split_statements(migration) {
+                sqlx::query(&statement).execute(&pool).await.unwrap();
+            }
+        }
+        sqlx::query("INSERT INTO integrations (id, organization_id, key, provider_id, display_name, enabled, scopes, client_id, client_secret_ciphertext, client_secret_nonce, client_secret_aad_digest, created_by, created_at, updated_at) VALUES ('integration:legacy', 'org:legacy', 'legacy', 'github', 'Legacy', 1, '[]', 'client', X'01', X'02', 'aad', 'principal:admin', 't', 't')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO connections (id, organization_id, project_id, provider_id, logical_name, display_name, status, status_detail, requested_scopes, granted_scopes, account_label, owner_kind, owner_subject, shareability, max_invoke_level, egress_json, created_at, updated_at, integration_id) VALUES ('connection:legacy', 'org:legacy', NULL, 'stripe', 'stripe/main', 'Stripe', 'active', NULL, '[]', '[]', NULL, 'organization', NULL, 'private', 2, '{}', 't', 't', 'integration:legacy')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO connection_credentials (connection_id, version, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, last_refreshed_at, created_at, updated_at) VALUES ('connection:legacy', 'v1', X'03', X'04', 'aad', 'api_key', NULL, 0, NULL, 't', 't')")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        for statement in split_statements(include_str!(
+            "../../../migrations/0006_provider_configuration.sql"
+        )) {
+            sqlx::query(&statement).execute(&pool).await.unwrap();
+        }
+
+        let integration_fields = sqlx::query(
+            "SELECT configured_fields FROM integrations WHERE id = 'integration:legacy'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+        .get::<String, _>("configured_fields");
+        let connection_fields = sqlx::query(
+            "SELECT configured_fields FROM connection_credentials WHERE connection_id = 'connection:legacy'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+        .get::<String, _>("configured_fields");
+        assert_eq!(integration_fields, r#"["client_id","client_secret"]"#);
+        assert_eq!(connection_fields, r#"["api_key"]"#);
+    }
+
+    #[test]
+    fn statements_split_cleanly() {
+        for (version, sql) in MIGRATIONS {
+            let stmts = split_statements(sql);
+            assert!(!stmts.is_empty(), "{version} produced no statements");
+            assert!(
+                stmts.iter().all(|s| !s.contains("--")),
+                "{version} left a line comment inside a statement"
+            );
+        }
     }
 }

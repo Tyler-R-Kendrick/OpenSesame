@@ -2,6 +2,7 @@ use crate::bootstrap;
 use crate::config::{self, Args};
 use crate::task_engine::{new_task_engine, SharedTaskEngine};
 use opensesame_broker::Broker;
+use opensesame_connection_broker::{BrokerConfig, ConnectionBroker};
 use opensesame_domain::*;
 use opensesame_provider_openbao::OpenBaoHttpAuthority;
 use opensesame_provider_openfga::OpenFgaClient;
@@ -20,7 +21,14 @@ pub struct DevicePending {
     /// `hash_secret(user_code)` — the low-entropy code is never held in cleartext.
     pub user_code_hash: String,
     pub expires_at: chrono::DateTime<chrono::Utc>,
-    pub approved_principal: Option<String>,
+    pub approved: Option<ApprovedDevice>,
+}
+
+#[derive(Clone)]
+pub struct ApprovedDevice {
+    pub principal: String,
+    pub organization_id: OrganizationId,
+    pub organization_role: OrganizationRole,
 }
 
 #[derive(Clone)]
@@ -41,6 +49,8 @@ pub struct AppState {
     pub broker: Arc<Broker>,
     pub sessions: Arc<Mutex<HashMap<String, Value>>>,
     pub device_codes: Arc<Mutex<HashMap<String, DevicePending>>>,
+    /// Serializes device-token minting with principal/org session revocation.
+    pub session_lifecycle: Arc<Mutex<()>>,
     /// Timestamps of failed `user_code` approval guesses (global cooldown fence).
     pub device_approve_failures: Arc<Mutex<Vec<chrono::DateTime<chrono::Utc>>>>,
     pub claims: Arc<Mutex<HashMap<String, ClaimSession>>>,
@@ -50,6 +60,11 @@ pub struct AppState {
     pub openfga: Option<OpenFgaClient>,
     pub openbao: Option<OpenBaoHttpAuthority>,
     pub connection_ref: Option<ConnectionRef>,
+    /// Third-party service authorizations (ADR 0032).
+    pub connection_broker: Arc<ConnectionBroker>,
+    /// Organization connections are created under until caller metadata carries
+    /// the organization directly.
+    pub connection_organization: OrganizationId,
     /// Shared secret for human/operator mutations (approve, claim complete, admin).
     pub operator_token: String,
     /// Pepper for low-entropy (user code) digests.
@@ -98,6 +113,15 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
     let openbao = OpenBaoHttpAuthority::from_env().ok().flatten();
     let distributed_task_authority =
         resolve_distributed_task_authority(&args.task_database_url).await;
+    let connection_organization = boot
+        .demo
+        .as_ref()
+        .map(|b| b.org)
+        .unwrap_or_else(|| OrganizationId::from_uuid(uuid::Uuid::nil()));
+    let connection_broker = Arc::new(ConnectionBroker::new(
+        db.pool().clone(),
+        BrokerConfig::from_env()?,
+    )?);
 
     Ok(AppState {
         resource: args.resource,
@@ -106,6 +130,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         broker: Arc::new(boot.broker),
         sessions: Arc::new(Mutex::new(HashMap::new())),
         device_codes: Arc::new(Mutex::new(HashMap::new())),
+        session_lifecycle: Arc::new(Mutex::new(())),
         device_approve_failures: Arc::new(Mutex::new(Vec::new())),
         claims: Arc::new(Mutex::new(HashMap::new())),
         claim_user_code_attempts: Arc::new(Mutex::new(HashMap::new())),
@@ -113,6 +138,8 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         openfga,
         openbao,
         connection_ref: boot.connection_ref,
+        connection_broker,
+        connection_organization,
         operator_token: config::resolve_operator_token(),
         claim_pepper: config::resolve_claim_pepper(),
         distributed_task_authority,
@@ -136,6 +163,55 @@ async fn resolve_distributed_task_authority(task_database_url: &str) -> bool {
             false
         }
     }
+}
+
+#[cfg(test)]
+pub async fn test_demo_state() -> AppState {
+    let mut state = build(Args {
+        listen: "127.0.0.1:0".parse().unwrap(),
+        resource: "https://opensesame.test".into(),
+        issuer: "https://identity.test".into(),
+        database_url: "sqlite::memory:".into(),
+        task_database_url: String::new(),
+    })
+    .await
+    .unwrap();
+    let artifacts =
+        bootstrap::create_demo_bootstrap(&state.db, opensesame_audit::ReceiptSigner::generate())
+            .await
+            .unwrap();
+    state.receipt_verifier =
+        Arc::new(config::resolve_receipt_verifier(&artifacts.broker.signer).unwrap());
+    state.broker = Arc::new(artifacts.broker);
+    state.bootstrap = Arc::new(Mutex::new(artifacts.demo));
+    state.connection_ref = artifacts.connection_ref;
+    state
+}
+
+#[cfg(test)]
+pub fn test_session_headers(
+    state: &AppState,
+    subject: &str,
+    organization_id: OrganizationId,
+    organization_role: OrganizationRole,
+) -> axum::http::HeaderMap {
+    let token = uuid::Uuid::new_v4().to_string();
+    state.sessions.lock().unwrap().insert(
+        opensesame_claims::hash_secret(&token),
+        serde_json::json!({
+            "principal_id": subject,
+            "approved_as": subject,
+            "organization_id": organization_id.to_string(),
+            "organization_role": organization_role,
+            "expires_at": (chrono::Utc::now() + chrono::Duration::minutes(5)).to_rfc3339(),
+        }),
+    );
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert(
+        axum::http::header::AUTHORIZATION,
+        format!("Bearer opaque-session:{token}").parse().unwrap(),
+    );
+    headers
 }
 
 #[cfg(test)]

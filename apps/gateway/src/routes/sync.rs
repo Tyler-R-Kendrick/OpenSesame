@@ -37,44 +37,6 @@ const MAX_DEVICE_ID_LEN: usize = 128;
 /// Global durable cursor ceiling; existing devices can always advance at quota.
 const MAX_DEVICE_CURSORS: usize = 4096;
 
-/// Why a pushed blob was not stored (each maps to a response counter).
-#[derive(Debug, PartialEq, Eq)]
-enum PushOutcome {
-    Accept,
-    Oversize,
-    ForeignOwner,
-    SessionQuota,
-    StoreFull,
-    StaleEpoch,
-}
-
-/// Admission decision for one blob — pure so quotas are testable without a live store.
-fn push_outcome(
-    ciphertext_len: usize,
-    current_owner: Option<&str>,
-    owner_id: &str,
-    existing_epoch: Option<u64>,
-    incoming_epoch: u64,
-    store_len: usize,
-    session_owned: usize,
-) -> PushOutcome {
-    if ciphertext_len > MAX_CIPHERTEXT_BYTES {
-        return PushOutcome::Oversize;
-    }
-    if let Some(owner) = current_owner {
-        if owner != owner_id {
-            return PushOutcome::ForeignOwner;
-        }
-    }
-    match existing_epoch {
-        Some(epoch) if epoch > incoming_epoch => PushOutcome::StaleEpoch,
-        Some(_) => PushOutcome::Accept,
-        None if store_len >= MAX_SYNC_BLOBS => PushOutcome::StoreFull,
-        None if session_owned >= MAX_BLOBS_PER_OWNER => PushOutcome::SessionQuota,
-        None => PushOutcome::Accept,
-    }
-}
-
 pub async fn push(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -209,6 +171,42 @@ pub async fn pull(
         "daemon_default_listen": host_daemon::DEFAULT_LISTEN,
     }))
     .into_response()
+}
+
+#[cfg(test)]
+#[derive(Debug, PartialEq, Eq)]
+enum PushOutcome {
+    Accept,
+    Oversize,
+    ForeignOwner,
+    SessionQuota,
+    StoreFull,
+    StaleEpoch,
+}
+
+#[cfg(test)]
+fn push_outcome(
+    ciphertext_len: usize,
+    current_owner: Option<&str>,
+    owner_id: &str,
+    existing_epoch: Option<u64>,
+    incoming_epoch: u64,
+    store_len: usize,
+    session_owned: usize,
+) -> PushOutcome {
+    if ciphertext_len > MAX_CIPHERTEXT_BYTES {
+        return PushOutcome::Oversize;
+    }
+    if current_owner.is_some_and(|owner| owner != owner_id) {
+        return PushOutcome::ForeignOwner;
+    }
+    match existing_epoch {
+        Some(epoch) if epoch > incoming_epoch => PushOutcome::StaleEpoch,
+        Some(_) => PushOutcome::Accept,
+        None if store_len >= MAX_SYNC_BLOBS => PushOutcome::StoreFull,
+        None if session_owned >= MAX_BLOBS_PER_OWNER => PushOutcome::SessionQuota,
+        None => PushOutcome::Accept,
+    }
 }
 
 #[cfg(test)]

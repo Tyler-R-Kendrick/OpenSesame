@@ -14,7 +14,7 @@ import {
   listProviders,
   removeConnection,
   testProvider,
-} from "../lib/connections.js";
+} from "../lib/credential-providers.js";
 import { hostBase, useConnect, useIdentitySession } from "../lib/identity.js";
 import "./connections.css";
 
