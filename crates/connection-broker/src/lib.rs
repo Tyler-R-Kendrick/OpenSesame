@@ -969,13 +969,16 @@ impl ConnectionBroker {
             store::set_integration_id(&self.pool, &row.id, &integration_id).await?;
             row.integration_id = integration_id;
         }
-        let AuthMethod::ApiKey { .. } = &provider.auth else {
+        if !matches!(
+            &provider.auth,
+            AuthMethod::ApiKey { .. } | AuthMethod::Configuration
+        ) {
             return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
-        };
+        }
         if let Some(value) = configuration_set.get_mut("api_key") {
             *value = value.trim().to_string();
         }
-        let definitions = provider.auth.connection_configuration_fields();
+        let definitions = provider.connection_configuration_fields();
         configuration::validate_mutation(definitions, &configuration_set, &configuration_clear)?;
         let key = *self.sealing_key()?;
         let current = store::get_credential(&self.pool, &row.id).await?;
@@ -1012,13 +1015,11 @@ impl ConnectionBroker {
                 }
             };
         }
-        let value = configuration
-            .get("api_key")
-            .expect("complete API key configuration");
+        let value = configuration.get("api_key").cloned().unwrap_or_default();
         let tokens = TokenSet {
-            access_token: value.clone(),
+            access_token: value,
             refresh_token: None,
-            token_type: "api_key".into(),
+            token_type: provider.auth.kind().into(),
             expires_at: None,
             scopes: Vec::new(),
             configuration,
@@ -1033,7 +1034,7 @@ impl ConnectionBroker {
                     account_label: None,
                     expected_integration_updated_at: expected_integration_updated_at.as_deref(),
                     event_kind: EventKind::Authorized,
-                    event_detail: Some("api key stored"),
+                    event_detail: Some("connection configuration stored"),
                     expected_credential_version: Some(expected_version.as_deref()),
                 },
             )
@@ -1047,7 +1048,7 @@ impl ConnectionBroker {
                 return self.get_connection_unscoped(&row.id).await;
             }
         }
-        tracing::info!(connection_id = %row.id, provider_id = provider.id, "api key stored");
+        tracing::info!(connection_id = %row.id, provider_id = provider.id, "connection configuration stored");
         self.get_connection_unscoped(&row.id).await
     }
 

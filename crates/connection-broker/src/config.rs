@@ -133,7 +133,7 @@ impl BrokerConfig {
             AuthMethod::OAuth2AuthCode { authorize_url, .. } => {
                 Some(overridden.unwrap_or_else(|| authorize_url.to_string()))
             }
-            AuthMethod::ApiKey { .. } => None,
+            AuthMethod::ApiKey { .. } | AuthMethod::Configuration => None,
         }
     }
 
@@ -143,7 +143,7 @@ impl BrokerConfig {
             AuthMethod::OAuth2AuthCode { token_url, .. } => {
                 Some(overridden.unwrap_or_else(|| token_url.to_string()))
             }
-            AuthMethod::ApiKey { .. } => None,
+            AuthMethod::ApiKey { .. } | AuthMethod::Configuration => None,
         }
     }
 

@@ -1351,8 +1351,403 @@
         "path_prefixes": []
       },
       "operations": ["project.read", "deployment.write", "environment.read"]
+    },
+    {
+      "id": "1password",
+      "display_name": "1Password",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/1password.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "service_account_token", "secret": true, "required": true },
+        { "name": "account", "secret": false, "required": false },
+        { "name": "vault", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "age",
+      "display_name": "age Encryption",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/age.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "recipients", "secret": false, "required": true },
+        { "name": "identity", "secret": true, "required": true }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "aws",
+      "display_name": "AWS Secrets Manager",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/aws-sm.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "region", "secret": false, "required": true },
+        { "name": "access_key_id", "secret": false, "required": true },
+        { "name": "secret_access_key", "secret": true, "required": true },
+        { "name": "session_token", "secret": true, "required": false },
+        { "name": "prefix", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "aws-kms",
+      "display_name": "AWS KMS",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/aws-kms.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "key_id", "secret": false, "required": true },
+        { "name": "region", "secret": false, "required": true },
+        { "name": "access_key_id", "secret": false, "required": true },
+        { "name": "secret_access_key", "secret": true, "required": true },
+        { "name": "session_token", "secret": true, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "aws-ps",
+      "display_name": "AWS Parameter Store",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/aws-ps.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "region", "secret": false, "required": true },
+        { "name": "access_key_id", "secret": false, "required": true },
+        { "name": "secret_access_key", "secret": true, "required": true },
+        { "name": "session_token", "secret": true, "required": false },
+        { "name": "prefix", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "azure-kms",
+      "display_name": "Azure Key Vault Keys",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/azure-kms.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "vault_url", "secret": false, "required": true },
+        { "name": "key_name", "secret": false, "required": true },
+        { "name": "tenant_id", "secret": false, "required": true },
+        { "name": "client_id", "secret": false, "required": true },
+        { "name": "client_secret", "secret": true, "required": true }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "azure-sm",
+      "display_name": "Azure Key Vault Secrets",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/azure-sm.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "vault_url", "secret": false, "required": true },
+        { "name": "tenant_id", "secret": false, "required": true },
+        { "name": "client_id", "secret": false, "required": true },
+        { "name": "client_secret", "secret": true, "required": true },
+        { "name": "prefix", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "azure-ac",
+      "display_name": "Azure App Configuration",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/azure-ac.html",
+      "provenance_url": "https://fnox.jdx.dev/providers/overview",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "endpoint", "secret": false, "required": true },
+        { "name": "tenant_id", "secret": false, "required": true },
+        { "name": "client_id", "secret": false, "required": true },
+        { "name": "client_secret", "secret": true, "required": true },
+        { "name": "prefix", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "gcp",
+      "display_name": "Google Cloud Secret Manager",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/gcp-sm.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "project_id", "secret": false, "required": true },
+        { "name": "service_account_json", "secret": true, "required": true },
+        { "name": "prefix", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "gcp-kms",
+      "display_name": "Google Cloud KMS",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/gcp-kms.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "project_id", "secret": false, "required": true },
+        { "name": "location", "secret": false, "required": true },
+        { "name": "key_ring", "secret": false, "required": true },
+        { "name": "key_name", "secret": false, "required": true },
+        { "name": "service_account_json", "secret": true, "required": true }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "fido2",
+      "display_name": "FIDO2",
+      "category": "identity",
+      "docs_url": "https://fnox.jdx.dev/providers/fido2.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "credential_id", "secret": false, "required": true },
+        { "name": "relying_party_id", "secret": false, "required": false },
+        { "name": "pin", "secret": true, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "bitwarden",
+      "display_name": "Bitwarden",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/bitwarden.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "session_token", "secret": true, "required": true },
+        { "name": "server_url", "secret": false, "required": false },
+        { "name": "organization_id", "secret": false, "required": false },
+        { "name": "collection_id", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "doppler",
+      "display_name": "Doppler",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/doppler.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "token", "secret": true, "required": true },
+        { "name": "project", "secret": false, "required": false },
+        { "name": "config", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "foks",
+      "display_name": "FOKS",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/foks.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "profile", "secret": false, "required": true },
+        { "name": "token", "secret": true, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "bitwarden-sm",
+      "display_name": "Bitwarden Secrets Manager",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/bitwarden-sm.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "access_token", "secret": true, "required": true },
+        { "name": "organization_id", "secret": false, "required": false },
+        { "name": "project_id", "secret": false, "required": false },
+        { "name": "server_url", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "infisical",
+      "display_name": "Infisical",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/infisical.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "token", "secret": true, "required": true },
+        { "name": "host", "secret": false, "required": false },
+        { "name": "project_id", "secret": false, "required": false },
+        { "name": "environment", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "keepass",
+      "display_name": "KeePass",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/keepass.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "database_path", "secret": false, "required": true },
+        { "name": "password", "secret": true, "required": true },
+        { "name": "key_file", "secret": true, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "keychain",
+      "display_name": "OS Keychain",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/keychain.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "service", "secret": false, "required": true },
+        { "name": "prefix", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "password-store",
+      "display_name": "password-store",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/password-store.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "store_dir", "secret": false, "required": true },
+        { "name": "prefix", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "passwordstate",
+      "display_name": "Passwordstate",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/cli/provider/add",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "base_url", "secret": false, "required": true },
+        { "name": "api_key", "secret": true, "required": true },
+        { "name": "password_list_id", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "plain",
+      "display_name": "Plain Text",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/plain.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "namespace", "secret": false, "required": true }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "proton-pass",
+      "display_name": "Proton Pass",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/proton-pass.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "agent_token", "secret": true, "required": true },
+        { "name": "vault", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "vault",
+      "display_name": "HashiCorp Vault",
+      "category": "storage",
+      "docs_url": "https://fnox.jdx.dev/providers/vault.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "address", "secret": false, "required": true },
+        { "name": "token", "secret": true, "required": true },
+        { "name": "namespace", "secret": false, "required": false },
+        { "name": "path", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "yubikey",
+      "display_name": "YubiKey",
+      "category": "identity",
+      "docs_url": "https://fnox.jdx.dev/providers/yubikey.html",
+      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "recipient", "secret": false, "required": true },
+        { "name": "slot", "secret": false, "required": false },
+        { "name": "pin", "secret": true, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
     }
   ],
-  "revision": "2026-08-10.5",
+  "revision": "2026-08-11.1",
   "schema_version": 1
 }

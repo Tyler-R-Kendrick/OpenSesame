@@ -28,7 +28,10 @@ pub fn validate_mutation(
             "configuration exceeds 64 fields".into(),
         ));
     }
-    let allowed: BTreeSet<_> = definitions.iter().map(|field| field.name).collect();
+    let allowed: BTreeSet<_> = definitions
+        .iter()
+        .map(|field| field.name.as_str())
+        .collect();
     let mut total = 0usize;
     for (name, value) in set {
         if !valid_name(name) || !allowed.contains(name.as_str()) {
@@ -80,7 +83,7 @@ pub fn complete(definitions: &[ConfigurationFieldDef], configuration: &Configura
     definitions
         .iter()
         .filter(|field| field.required)
-        .all(|field| configuration.contains_key(field.name))
+        .all(|field| configuration.contains_key(&field.name))
 }
 
 pub fn views(
@@ -90,7 +93,7 @@ pub fn views(
     definitions
         .iter()
         .filter_map(|field| {
-            let value = configuration.get(field.name)?;
+            let value = configuration.get(&field.name)?;
             let hint = if field.secret {
                 Some("configured".into())
             } else {
@@ -105,7 +108,7 @@ pub fn views(
                 Some(format!("***{suffix}"))
             };
             Some(ConfiguredFieldView {
-                name: field.name.into(),
+                name: field.name.clone(),
                 hint,
             })
         })
@@ -116,18 +119,20 @@ pub fn views(
 mod tests {
     use super::*;
 
-    const FIELDS: &[ConfigurationFieldDef] = &[
-        ConfigurationFieldDef {
-            name: "client_id",
-            secret: false,
-            required: true,
-        },
-        ConfigurationFieldDef {
-            name: "client_secret",
-            secret: true,
-            required: true,
-        },
-    ];
+    fn fields() -> Vec<ConfigurationFieldDef> {
+        vec![
+            ConfigurationFieldDef {
+                name: "client_id".into(),
+                secret: false,
+                required: true,
+            },
+            ConfigurationFieldDef {
+                name: "client_secret".into(),
+                secret: true,
+                required: true,
+            },
+        ]
+    }
 
     #[test]
     fn validates_applies_and_redacts_provider_fields() {
@@ -135,12 +140,13 @@ mod tests {
             ("client_id".into(), "client-1234".into()),
             ("client_secret".into(), "do-not-return".into()),
         ]);
-        validate_mutation(FIELDS, &set, &[]).unwrap();
+        let fields = fields();
+        validate_mutation(&fields, &set, &[]).unwrap();
         let mut configuration = Configuration::new();
         apply(&mut configuration, set, &[]);
-        assert!(complete(FIELDS, &configuration));
+        assert!(complete(&fields, &configuration));
         assert_eq!(
-            views(FIELDS, &configuration),
+            views(&fields, &configuration),
             vec![
                 ConfiguredFieldView {
                     name: "client_id".into(),
@@ -152,6 +158,6 @@ mod tests {
                 },
             ]
         );
-        assert!(!format!("{:?}", views(FIELDS, &configuration)).contains("do-not-return"));
+        assert!(!format!("{:?}", views(&fields, &configuration)).contains("do-not-return"));
     }
 }

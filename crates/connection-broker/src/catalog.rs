@@ -30,30 +30,35 @@ impl CatalogError {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ConfigurationFieldDef {
-    pub name: &'static str,
+    pub name: String,
     pub secret: bool,
     pub required: bool,
 }
 
-const OAUTH_INTEGRATION_FIELDS: &[ConfigurationFieldDef] = &[
-    ConfigurationFieldDef {
-        name: "client_id",
-        secret: false,
-        required: true,
-    },
-    ConfigurationFieldDef {
-        name: "client_secret",
+static OAUTH_INTEGRATION_FIELDS: LazyLock<Vec<ConfigurationFieldDef>> = LazyLock::new(|| {
+    vec![
+        ConfigurationFieldDef {
+            name: "client_id".into(),
+            secret: false,
+            required: true,
+        },
+        ConfigurationFieldDef {
+            name: "client_secret".into(),
+            secret: true,
+            required: true,
+        },
+    ]
+});
+static API_KEY_CONNECTION_FIELDS: LazyLock<Vec<ConfigurationFieldDef>> = LazyLock::new(|| {
+    vec![ConfigurationFieldDef {
+        name: "api_key".into(),
         secret: true,
         required: true,
-    },
-];
-const API_KEY_CONNECTION_FIELDS: &[ConfigurationFieldDef] = &[ConfigurationFieldDef {
-    name: "api_key",
-    secret: true,
-    required: true,
-}];
+    }]
+});
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -112,6 +117,10 @@ pub enum AuthMethod {
         header: String,
         value_prefix: String,
     },
+    /// Sealed provider-specific configuration without a generic HTTP auth flow.
+    /// Execution adapters are intentionally separate from catalog visibility.
+    #[serde(rename = "configuration")]
+    Configuration,
 }
 
 impl AuthMethod {
@@ -119,6 +128,7 @@ impl AuthMethod {
         match self {
             Self::OAuth2AuthCode { .. } => "oauth2_authorization_code",
             Self::ApiKey { .. } => "api_key",
+            Self::Configuration => "configuration",
         }
     }
 
@@ -138,6 +148,7 @@ impl AuthMethod {
                 scope_separator, ..
             } => scope_separator.as_deref().unwrap_or(" "),
             Self::ApiKey { .. } => " ",
+            Self::Configuration => " ",
         }
     }
 
@@ -145,17 +156,18 @@ impl AuthMethod {
         matches!(self, Self::OAuth2AuthCode { .. })
     }
 
-    pub fn integration_configuration_fields(&self) -> &'static [ConfigurationFieldDef] {
+    pub fn integration_configuration_fields(&self) -> &[ConfigurationFieldDef] {
         match self {
-            Self::OAuth2AuthCode { .. } => OAUTH_INTEGRATION_FIELDS,
-            Self::ApiKey { .. } => &[],
+            Self::OAuth2AuthCode { .. } => OAUTH_INTEGRATION_FIELDS.as_slice(),
+            Self::ApiKey { .. } | Self::Configuration => &[],
         }
     }
 
-    pub fn connection_configuration_fields(&self) -> &'static [ConfigurationFieldDef] {
+    pub fn connection_configuration_fields(&self) -> &[ConfigurationFieldDef] {
         match self {
             Self::OAuth2AuthCode { .. } => &[],
-            Self::ApiKey { .. } => API_KEY_CONNECTION_FIELDS,
+            Self::ApiKey { .. } => API_KEY_CONNECTION_FIELDS.as_slice(),
+            Self::Configuration => &[],
         }
     }
 }
@@ -201,6 +213,10 @@ pub struct Provider {
     pub scopes: Vec<ScopeDef>,
     pub egress: EgressSpec,
     pub operations: Vec<String>,
+    #[serde(default)]
+    pub integration_configuration_fields: Vec<ConfigurationFieldDef>,
+    #[serde(default)]
+    pub connection_configuration_fields: Vec<ConfigurationFieldDef>,
 }
 
 impl Provider {
@@ -210,6 +226,22 @@ impl Provider {
             .filter(|scope| scope.default)
             .map(|scope| scope.name.clone())
             .collect()
+    }
+
+    pub fn integration_configuration_fields(&self) -> &[ConfigurationFieldDef] {
+        if self.integration_configuration_fields.is_empty() {
+            self.auth.integration_configuration_fields()
+        } else {
+            &self.integration_configuration_fields
+        }
+    }
+
+    pub fn connection_configuration_fields(&self) -> &[ConfigurationFieldDef] {
+        if self.connection_configuration_fields.is_empty() {
+            self.auth.connection_configuration_fields()
+        } else {
+            &self.connection_configuration_fields
+        }
     }
 }
 
@@ -355,6 +387,29 @@ fn validate_auth(provider: &Provider) -> Result<(), CatalogError> {
                 return Err(provider_error(provider, "invalid API key value prefix"));
             }
         }
+        AuthMethod::Configuration => {}
+    }
+    validate_configuration_fields(provider, provider.integration_configuration_fields())?;
+    validate_configuration_fields(provider, provider.connection_configuration_fields())?;
+    Ok(())
+}
+
+fn validate_configuration_fields(
+    provider: &Provider,
+    fields: &[ConfigurationFieldDef],
+) -> Result<(), CatalogError> {
+    if fields.len() > 64 {
+        return Err(provider_error(provider, "too many configuration fields"));
+    }
+    let mut names = HashSet::with_capacity(fields.len());
+    for field in fields {
+        validate_token(&field.name, "configuration field", 64)?;
+        if !names.insert(field.name.as_str()) {
+            return Err(provider_error(
+                provider,
+                format!("duplicate configuration field `{}`", field.name),
+            ));
+        }
     }
     Ok(())
 }
@@ -384,6 +439,13 @@ fn validate_scopes(provider: &Provider) -> Result<(), CatalogError> {
 }
 
 fn validate_egress(provider: &Provider) -> Result<(), CatalogError> {
+    if matches!(&provider.auth, AuthMethod::Configuration)
+        && provider.egress.scheme == "none"
+        && provider.egress.authorities.is_empty()
+        && provider.egress.path_prefixes.is_empty()
+    {
+        return Ok(());
+    }
     let allow_mock_http = provider.id == "mock";
     if provider.egress.scheme != "https" && !(allow_mock_http && provider.egress.scheme == "http") {
         return Err(provider_error(provider, "egress scheme must be https"));
@@ -528,17 +590,55 @@ mod tests {
     #[test]
     fn embedded_catalog_is_valid_and_versioned() {
         let catalog = load().expect("embedded catalog");
-        assert_eq!(catalog.revision(), "2026-08-10.5");
-        assert_eq!(catalog.providers().len(), 51);
+        assert_eq!(catalog.revision(), "2026-08-11.1");
+        assert_eq!(catalog.providers().len(), 75);
         assert_eq!(
             catalog
                 .providers()
                 .iter()
                 .filter(|provider| provider.id != "mock")
                 .count(),
-            50
+            74
         );
         assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
+    }
+
+    #[test]
+    fn catalog_covers_every_fnox_provider_type() {
+        let expected = HashSet::from([
+            "1password",
+            "age",
+            "aws",
+            "aws-kms",
+            "aws-ps",
+            "azure-kms",
+            "azure-sm",
+            "azure-ac",
+            "gcp",
+            "gcp-kms",
+            "fido2",
+            "bitwarden",
+            "doppler",
+            "foks",
+            "bitwarden-sm",
+            "infisical",
+            "keepass",
+            "keychain",
+            "password-store",
+            "passwordstate",
+            "plain",
+            "proton-pass",
+            "vault",
+            "yubikey",
+        ]);
+        let actual: HashSet<_> = load()
+            .expect("embedded catalog")
+            .providers()
+            .iter()
+            .filter(|provider| matches!(&provider.auth, AuthMethod::Configuration))
+            .map(|provider| provider.id.as_str())
+            .collect();
+        assert_eq!(actual, expected);
     }
 
     #[test]
