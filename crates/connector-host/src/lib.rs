@@ -7,6 +7,7 @@ use opensesame_domain::{EgressBinding, InvokeLevel, LegacyProjection, Placeholde
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashSet;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use thiserror::Error;
 use url::Url;
 
@@ -32,6 +33,8 @@ pub enum HostError {
     RedirectDenied,
     #[error("placeholder placement denied: {0}")]
     PlacementDenied(String),
+    #[error("placeholder is not the one this projection issued")]
+    PlaceholderMismatch,
     #[error("connector error: {0}")]
     Connector(String),
 }
@@ -100,45 +103,152 @@ pub fn assert_destination_allowed(policy: &HostPolicy, raw_url: &str) -> Result<
     Ok(())
 }
 
-fn is_blocked_host(host: &str) -> bool {
-    let h = host.to_lowercase();
-    if h == "localhost"
-        || h == "metadata.google.internal"
-        || h == "::1"
-        || h == "0.0.0.0"
-        || h == "[::]"
-        || h == "[::1]"
-        || h.starts_with("127.")
-        || h.starts_with("169.254.")
-        || h.starts_with("10.")
-        || h.starts_with("192.168.")
-        || h.starts_with("fc")
-        || h.starts_with("fd")
-        || h.starts_with("fe80:")
+/// True when the host names a loopback, private, link-local, or otherwise
+/// non-routable address, or a known metadata endpoint.
+///
+/// Literals are parsed rather than prefix-matched: `2130706433` and
+/// `::ffff:127.0.0.1` are both 127.0.0.1, and `fcbank.example.com` is not a
+/// unique-local address just because it starts with `fc`.
+pub fn is_blocked_host(host: &str) -> bool {
+    let h = host.trim().to_lowercase();
+    let h = h.trim_start_matches('[').trim_end_matches(']');
+    // A trailing dot is the DNS root: `localhost.` and `127.0.0.1.` both resolve.
+    let h = h.strip_suffix('.').unwrap_or(h);
+    if h.is_empty() {
+        return true;
+    }
+    if h == "localhost" || h.ends_with(".localhost") || h == "metadata.google.internal" {
+        return true;
+    }
+    match parse_host_ip(h) {
+        Some(IpAddr::V4(v4)) => is_blocked_v4(v4),
+        Some(IpAddr::V6(v6)) => is_blocked_v6(v6),
+        // A name we cannot resolve here: the egress allowlist is the fence.
+        None => false,
+    }
+}
+
+/// Accept the forms a URL host can take, including the integer and hex spellings
+/// `Ipv4Addr::from_str` rejects but resolvers accept.
+fn parse_host_ip(h: &str) -> Option<IpAddr> {
+    // A zone id is not part of the address: `fe80::1%eth0` is still link-local.
+    let h = h.split('%').next().unwrap_or(h);
+    if let Ok(ip) = h.parse::<IpAddr>() {
+        return Some(ip);
+    }
+    parse_inet_aton(h).map(IpAddr::V4)
+}
+
+/// `inet_aton` spellings: one to four parts, each decimal, octal (leading zero) or
+/// hex (`0x`), where the final part absorbs the remaining bytes. `getaddrinfo`
+/// accepts all of them, so `127.1`, `0177.0.0.1` and `0x7f.1` are 127.0.0.1.
+fn parse_inet_aton(h: &str) -> Option<Ipv4Addr> {
+    let parts: Vec<&str> = h.split('.').collect();
+    if parts.is_empty() || parts.len() > 4 {
+        return None;
+    }
+    let mut values = Vec::with_capacity(parts.len());
+    for part in &parts {
+        values.push(parse_inet_part(part)?);
+    }
+    let last_index = values.len() - 1;
+    let mut raw: u64 = 0;
+    for value in &values[..last_index] {
+        if *value > 0xff {
+            return None;
+        }
+        raw = (raw << 8) | value;
+    }
+    // With n parts the last one covers the remaining 4 - (n - 1) bytes.
+    let trailing_bits = 8 * (4 - last_index as u32);
+    let last = values[last_index];
+    if last >= (1u64 << trailing_bits) {
+        return None;
+    }
+    let raw = (raw << trailing_bits) | last;
+    u32::try_from(raw).ok().map(Ipv4Addr::from)
+}
+
+fn parse_inet_part(part: &str) -> Option<u64> {
+    if part.is_empty() {
+        return None;
+    }
+    if let Some(hex) = part.strip_prefix("0x") {
+        if hex.is_empty() || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+            return None;
+        }
+        return u64::from_str_radix(hex, 16).ok();
+    }
+    if part.len() > 1 && part.starts_with('0') {
+        if !part[1..].chars().all(|c| c.is_digit(8)) {
+            return None;
+        }
+        return u64::from_str_radix(&part[1..], 8).ok();
+    }
+    if !part.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    part.parse::<u64>().ok()
+}
+
+fn is_blocked_v4(ip: Ipv4Addr) -> bool {
+    let o = ip.octets();
+    ip.is_loopback()
+        || ip.is_private()
+        || ip.is_link_local()
+        || ip.is_unspecified()
+        || ip.is_broadcast()
+        || ip.is_multicast()
+        || ip.is_documentation()
+        // 100.64.0.0/10 CGNAT
+        || (o[0] == 100 && (64..=127).contains(&o[1]))
+        // 192.0.0.0/24 IETF protocol assignments
+        || (o[0] == 192 && o[1] == 0 && o[2] == 0)
+        // 198.18.0.0/15 benchmarking
+        || (o[0] == 198 && (o[1] == 18 || o[1] == 19))
+        // 240.0.0.0/4 reserved
+        || o[0] >= 240
+}
+
+fn is_blocked_v6(ip: Ipv6Addr) -> bool {
+    let seg = ip.segments();
+    // The v6 rules come first. `Ipv6Addr::to_ipv4` reads ::1 as 0.0.0.1, so
+    // judging only the v4 view would wave IPv6 loopback through.
+    if ip.is_loopback()
+        || ip.is_unspecified()
+        || ip.is_multicast()
+        // fc00::/7 unique local
+        || (seg[0] & 0xfe00) == 0xfc00
+        // fe80::/10 link local
+        || (seg[0] & 0xffc0) == 0xfe80
+        // 2001:db8::/32 documentation
+        || (seg[0] == 0x2001 && seg[1] == 0x0db8)
     {
         return true;
     }
-    // RFC1918 172.16.0.0/12
-    if let Some(rest) = h.strip_prefix("172.") {
-        if let Some((second, _)) = rest.split_once('.') {
-            if let Ok(octet) = second.parse::<u8>() {
-                if (16..=31).contains(&octet) {
-                    return true;
-                }
-            }
+    // IPv4-mapped / IPv4-compatible carry a v4 address; judge that too.
+    if let Some(v4) = ip.to_ipv4() {
+        if is_blocked_v4(v4) {
+            return true;
         }
     }
-    // CGNAT 100.64.0.0/10
-    if let Some(rest) = h.strip_prefix("100.") {
-        if let Some((second, _)) = rest.split_once('.') {
-            if let Ok(octet) = second.parse::<u8>() {
-                if (64..=127).contains(&octet) {
-                    return true;
-                }
-            }
-        }
+    // 64:ff9b::/96 NAT64 and 2002::/16 6to4 embed a v4 destination.
+    if let Some(embedded) = embedded_v4(seg) {
+        return is_blocked_v4(embedded);
     }
     false
+}
+
+/// The v4 address carried by a NAT64 or 6to4 address, if any.
+fn embedded_v4(seg: [u16; 8]) -> Option<Ipv4Addr> {
+    let from_pair = |hi: u16, lo: u16| Ipv4Addr::from(((hi as u32) << 16) | lo as u32);
+    if seg[0] == 0x0064 && seg[1] == 0xff9b && seg[2..6] == [0, 0, 0, 0] {
+        return Some(from_pair(seg[6], seg[7]));
+    }
+    if seg[0] == 0x2002 {
+        return Some(from_pair(seg[1], seg[2]));
+    }
+    None
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -286,6 +396,13 @@ pub fn substitute_placeholder(
     projection: &LegacyProjection,
     req: &SubstitutePlaceholderRequest<'_>,
 ) -> Result<Value, HostError> {
+    // The placeholder is the whole key to the substitution: whatever text is named
+    // here gets the real credential written over it. Accept only a placeholder this
+    // projection could have issued, so a caller cannot name a string of its own
+    // choosing — or another connection's — and have a secret filled in behind it.
+    if !projection.accepts_placeholder(req.placeholder) {
+        return Err(HostError::PlaceholderMismatch);
+    }
     egress
         .allows_url(req.url)
         .map_err(|e| HostError::DestinationDenied(e.to_string()))?;
@@ -332,9 +449,23 @@ pub fn substitute_placeholder(
     }))
 }
 
+/// What the host holds for one connection: the projection it issued and the
+/// credential it will write behind that projection's placeholder.
+///
+/// Both belong to the host. A request may name the connection — that is what a
+/// reference is for — but it may not name the placeholder to fill or the material
+/// to fill it with, which is the whole point of L2.
+#[derive(Clone, Debug)]
+pub struct HostConnection {
+    pub projection: LegacyProjection,
+    pub material: String,
+}
+
 pub struct HostRuntime {
     pub policy: HostPolicy,
     pub mock: MockConnector,
+    /// connection_ref URI → what this host resolved for it.
+    pub connections: std::collections::HashMap<String, HostConnection>,
 }
 
 impl Default for HostRuntime {
@@ -343,9 +474,25 @@ impl Default for HostRuntime {
         policy
             .trusted_digests
             .insert("sha256:mock-connector".into());
+        let mut connections = std::collections::HashMap::new();
+        connections.insert(
+            "conn://demo".to_string(),
+            HostConnection {
+                projection: LegacyProjection {
+                    env_var: "OPENSESAME_PLACEHOLDER".into(),
+                    connection_ref_uri: "conn://demo".into(),
+                    placeholder_pattern: "ostest_*".into(),
+                    issued_placeholder: Some("ostest_placeholder_key0".into()),
+                    placement: PlaceholderPlacement::default(),
+                    delivery: opensesame_domain::CredentialDeliveryMode::Placeholder,
+                },
+                material: "ostest_injected_material".into(),
+            },
+        );
         Self {
             policy,
             mock: MockConnector,
+            connections,
         }
     }
 }
@@ -383,8 +530,6 @@ impl HostRuntime {
     }
 
     fn invoke_l2_placeholder(&self, req: &InvokeRequest) -> Result<InvokeResult, HostError> {
-        use opensesame_domain::CredentialDeliveryMode;
-
         let url = req
             .parameters
             .get("url")
@@ -395,35 +540,44 @@ impl HostRuntime {
             .get("method")
             .and_then(|v| v.as_str())
             .unwrap_or("GET");
-        let placeholder = req
+
+        // Credential material is never a request parameter. A caller that names it
+        // is either confused or trying to have the host write a string of its own
+        // choosing into an outbound request.
+        if req.parameters.get("material").is_some() {
+            return Err(HostError::MaterializeDenied);
+        }
+
+        let connection_ref = req
             .parameters
-            .get("placeholder")
+            .get("connection_ref")
             .and_then(|v| v.as_str())
-            .unwrap_or("ostest_placeholder_key0");
-        let material = req
-            .parameters
-            .get("material")
-            .and_then(|v| v.as_str())
-            .unwrap_or("ostest_injected_material");
+            .unwrap_or("conn://demo");
+        let conn = self
+            .connections
+            .get(connection_ref)
+            .ok_or_else(|| HostError::Connector("unknown connection".into()))?;
+        let proj = conn.projection.clone();
+        let placeholder = proj
+            .issued_placeholder
+            .clone()
+            .ok_or(HostError::PlaceholderMismatch)?;
+        // A request may repeat the placeholder it was handed — it has to, to place it
+        // — but it may not name a different one and have a credential follow.
+        if let Some(named) = req.parameters.get("placeholder").and_then(|v| v.as_str()) {
+            if named != placeholder {
+                return Err(HostError::PlaceholderMismatch);
+            }
+        }
+        let material = conn.material.clone();
+        let placeholder = placeholder.as_str();
+        let material = material.as_str();
         let header_name = req.parameters.get("header_name").and_then(|v| v.as_str());
         let header_value = req.parameters.get("header_value").and_then(|v| v.as_str());
         let body_field = req.parameters.get("body_field").and_then(|v| v.as_str());
         let body_value = req.parameters.get("body_value").and_then(|v| v.as_str());
 
-        let placement = PlaceholderPlacement::default();
-
-        let proj = LegacyProjection {
-            env_var: "OPENSESAME_PLACEHOLDER".into(),
-            connection_ref_uri: req
-                .parameters
-                .get("connection_ref")
-                .and_then(|v| v.as_str())
-                .unwrap_or("conn://demo")
-                .into(),
-            placeholder_pattern: "ostest_*".into(),
-            placement: placement.clone(),
-            delivery: CredentialDeliveryMode::Placeholder,
-        };
+        let placement = proj.placement.clone();
 
         let injected = substitute_placeholder(
             &self.policy.egress,
@@ -527,6 +681,85 @@ mod tests {
         assert!(assert_destination_allowed(&p, "https://api.github.com/repos/x").is_ok());
     }
 
+    #[test]
+    fn integer_and_mapped_spellings_of_loopback_are_blocked() {
+        // 2130706433 == 0x7f000001 == 127.0.0.1; resolvers accept all three.
+        for host in [
+            "2130706433",
+            "0x7f000001",
+            "017700000001",
+            "::ffff:127.0.0.1",
+            "::ffff:7f00:1",
+            "[::ffff:169.254.169.254]",
+            "0.0.0.0",
+            "172.16.0.5",
+            "100.64.1.1",
+            "198.18.0.1",
+            "fd00::1",
+            "fe80::1",
+        ] {
+            assert!(is_blocked_host(host), "{host} should be blocked");
+        }
+    }
+
+    #[test]
+    fn names_that_merely_look_like_private_ranges_are_not_blocked_here() {
+        // The old prefix test blocked these outright.
+        for host in ["fcbank.example.com", "fdic.example.gov", "10th.example.com"] {
+            assert!(!is_blocked_host(host), "{host} should not be blocked");
+        }
+        assert!(is_blocked_host("app.localhost"));
+    }
+
+    #[test]
+    fn short_and_zoned_spellings_of_private_addresses_are_blocked() {
+        for host in [
+            // getaddrinfo fills the missing bytes: all of these are 127.0.0.1.
+            "127.1",
+            "0177.0.0.1",
+            "0x7f.1",
+            "127.0.1",
+            "10.1",
+            "0xa.0.0.1",
+            // A trailing dot is the DNS root, not a different name.
+            "127.0.0.1.",
+            "localhost.",
+            // IPv6 loopback: to_ipv4 reads ::1 as 0.0.0.1, which is routable.
+            "::1",
+            "[::1]",
+            // A zone id does not make a link-local address public.
+            "fe80::1%eth0",
+            // NAT64 and 6to4 wrappers around 127.0.0.1 / 169.254.169.254.
+            "64:ff9b::7f00:1",
+            "2002:a9fe:a9fe::1",
+        ] {
+            assert!(is_blocked_host(host), "{host} should be blocked");
+        }
+    }
+
+    #[test]
+    fn short_spellings_of_public_addresses_still_pass() {
+        for host in ["8.8.8.8", "1.1.1.1", "0x08080808", "134744072"] {
+            assert!(!is_blocked_host(host), "{host} should not be blocked");
+        }
+        // Not an address at all — names are the egress allowlist's problem.
+        for host in ["10th.example.com", "127.example.com", "0x.example.com"] {
+            assert!(!is_blocked_host(host), "{host} should not be blocked");
+        }
+    }
+
+    #[test]
+    fn malformed_numeric_hosts_are_not_read_as_addresses() {
+        // Out-of-range parts are not an address, so they fall to the allowlist
+        // rather than silently wrapping into one.
+        for host in ["300.1", "127.0.0.256", "1.2.3.4.5", "0x1g.1", "09.1"] {
+            assert_eq!(parse_host_ip(host), None, "{host} parsed as an address");
+        }
+        assert_eq!(
+            parse_host_ip("127.1"),
+            Some(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)))
+        );
+    }
     #[test]
     fn rejects_unsigned_component() {
         let p = HostPolicy::default();
@@ -721,10 +954,12 @@ mod tests {
             env_var: "STRIPE_SECRET_KEY".into(),
             connection_ref_uri: "conn://demo/stripe".into(),
             placeholder_pattern: "sk_test_*".into(),
+            issued_placeholder: None,
             placement: PlaceholderPlacement::default(),
             delivery: CredentialDeliveryMode::Placeholder,
         };
-        let ph = "ostest_placeholder_key0";
+        let ph = proj.shaped_placeholder("0123456789abcdef");
+        let ph = ph.as_str();
         let ok = substitute_placeholder(
             &egress,
             &proj.placement,
@@ -763,6 +998,144 @@ mod tests {
             },
         );
         assert!(matches!(deny, Err(HostError::PlacementDenied(_))));
+
+        // A placeholder the projection never issued is refused before anything else.
+        let foreign = substitute_placeholder(
+            &egress,
+            &proj.placement,
+            &proj,
+            &SubstitutePlaceholderRequest {
+                method: "POST",
+                url: "https://api.stripe.com/v1/charges",
+                header_name: Some("Authorization"),
+                header_value: Some("Bearer oslive_someone_elses"),
+                body_field_path: None,
+                body_field_value: None,
+                placeholder: "oslive_someone_elses",
+                real_secret: "ostest_injected_material",
+            },
+        );
+        assert!(
+            matches!(foreign, Err(HostError::PlaceholderMismatch)),
+            "{foreign:?}"
+        );
+
+        // Repeating an accepted placeholder in the allowed header still trips the
+        // occurrence bound — substitution replaces every appearance.
+        let doubled = substitute_placeholder(
+            &egress,
+            &proj.placement,
+            &proj,
+            &SubstitutePlaceholderRequest {
+                method: "POST",
+                url: "https://api.stripe.com/v1/charges",
+                header_name: Some("Authorization"),
+                header_value: Some(&format!("Bearer {ph} {ph}")),
+                body_field_path: None,
+                body_field_value: None,
+                placeholder: ph,
+                real_secret: "ostest_injected_material",
+            },
+        );
+        assert!(
+            matches!(doubled, Err(HostError::PlacementDenied(_))),
+            "{doubled:?}"
+        );
+
+        // Once the issued placeholder is recorded, a neighbour's placeholder of the
+        // same shape is refused too.
+        let bound = LegacyProjection {
+            issued_placeholder: Some(ph.to_string()),
+            ..proj.clone()
+        };
+        let neighbour = bound.shaped_placeholder("fedcba9876543210");
+        let refused = substitute_placeholder(
+            &egress,
+            &bound.placement,
+            &bound,
+            &SubstitutePlaceholderRequest {
+                method: "POST",
+                url: "https://api.stripe.com/v1/charges",
+                header_name: Some("Authorization"),
+                header_value: Some(&format!("Bearer {neighbour}")),
+                body_field_path: None,
+                body_field_value: None,
+                placeholder: &neighbour,
+                real_secret: "ostest_injected_material",
+            },
+        );
+        assert!(
+            matches!(refused, Err(HostError::PlaceholderMismatch)),
+            "{refused:?}"
+        );
+    }
+
+    #[test]
+    fn invoke_mock_l2_refuses_material_and_a_foreign_placeholder() {
+        let rt = HostRuntime::default();
+        // The host resolves the credential from the connection. A caller naming its
+        // own material is refused rather than obliged.
+        let with_material = json!({
+            "url": "https://api.github.com/repos/acme/x",
+            "method": "GET",
+            "header_name": "Authorization",
+            "header_value": "Bearer ostest_placeholder_key0",
+            "material": "attacker-chosen",
+        });
+        let err = rt
+            .invoke_mock(&InvokeRequest {
+                operation: "http.authorized".into(),
+                resource: "r".into(),
+                audience: "https://api.github.com".into(),
+                parameters: with_material.clone(),
+                parameters_digest: opensesame_param_digest(&with_material),
+                authorized_operation: "http.authorized".into(),
+                invoke_level: Some(2),
+            })
+            .unwrap_err();
+        assert!(matches!(err, HostError::MaterializeDenied), "{err:?}");
+
+        // Naming somebody else's placeholder does not get it filled either.
+        let foreign = json!({
+            "url": "https://api.github.com/repos/acme/x",
+            "method": "GET",
+            "header_name": "Authorization",
+            "header_value": "Bearer ostest_someone_elses0",
+            "placeholder": "ostest_someone_elses0",
+        });
+        let err = rt
+            .invoke_mock(&InvokeRequest {
+                operation: "http.authorized".into(),
+                resource: "r".into(),
+                audience: "https://api.github.com".into(),
+                parameters: foreign.clone(),
+                parameters_digest: opensesame_param_digest(&foreign),
+                authorized_operation: "http.authorized".into(),
+                invoke_level: Some(2),
+            })
+            .unwrap_err();
+        assert!(matches!(err, HostError::PlaceholderMismatch), "{err:?}");
+
+        // A connection this host holds nothing for cannot be exercised at all.
+        let unknown = json!({
+            "url": "https://api.github.com/repos/acme/x",
+            "method": "GET",
+            "header_name": "Authorization",
+            "header_value": "Bearer ostest_placeholder_key0",
+            "connection_ref": "conn://not-mine",
+        });
+        let err = rt
+            .invoke_mock(&InvokeRequest {
+                operation: "http.authorized".into(),
+                resource: "r".into(),
+                audience: "https://api.github.com".into(),
+                parameters: unknown.clone(),
+                parameters_digest: opensesame_param_digest(&unknown),
+                authorized_operation: "http.authorized".into(),
+                invoke_level: Some(2),
+            })
+            .unwrap_err();
+        assert!(matches!(err, HostError::Connector(_)), "{err:?}");
     }
 
     #[test]
@@ -774,7 +1147,6 @@ mod tests {
             "url": "https://api.github.com/repos/acme/x",
             "method": "POST",
             "placeholder": ph,
-            "material": "ostest_injected_material",
             "body_field": "message",
             "body_value": format!("exfil {ph}"),
         });

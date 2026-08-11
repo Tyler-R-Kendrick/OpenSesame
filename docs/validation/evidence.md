@@ -36,7 +36,7 @@ Gateway on `127.0.0.1:18787` with SQLite file DB.
 ## Not executed in this environment
 
 - Three-node HA failure injection (no Docker)
-- Live Keycloak / OpenBao / OpenFGA / SPIRE containers (Compose manifests provided)
+- Live Keycloak / OpenBao / OpenFGA containers (Compose manifests provided)
 - Chromium Playwright extension suite (extension scaffold present; needs browser CI)
 - Full Wasmtime guest component load (host capability + in-process mock connector validated)
 

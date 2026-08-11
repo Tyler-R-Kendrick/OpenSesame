@@ -41,6 +41,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/whoami", get(session::whoami))
         .route("/api/v1/connections", get(session::list_connections))
         .route("/api/v1/intents", post(intents::create))
+        .route("/api/v1/receipts/keys", get(receipts::keys))
         .route("/api/v1/receipts/{id}", get(receipts::get))
         .route("/api/v1/receipts/{id}/verify", post(receipts::verify))
         .route("/api/v1/agent-identities", post(agents::create_identity))
@@ -54,6 +55,7 @@ pub fn router(state: AppState) -> Router {
             get(tasks::list_tasks).post(tasks::start_task),
         )
         .route("/api/v1/tasks/intents", post(tasks::freeze_intent))
+        .route("/api/v1/tasks/invoke", post(tasks::invoke_task))
         .route("/api/v1/tasks/{id}", get(tasks::get_task))
         .route("/api/v1/tasks/{id}/terminate", post(tasks::terminate_task))
         .route("/experimental/aauth/v1/status", get(aauth::status))
@@ -68,10 +70,6 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/experimental/aauth/v1/mission/digest",
             post(aauth::mission_digest),
-        )
-        .route(
-            "/experimental/aauth/v1/scope/check",
-            post(aauth::scope_check),
         )
         .with_state(state)
         .layer(TraceLayer::new_for_http())

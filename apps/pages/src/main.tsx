@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { App } from "./App.js";
 import { kvHydrate } from "./lib/kv.js";
+import { track } from "./lib/telemetry.js";
 import {
   ATTEMPTS_KEY,
   BODY_KEY,
@@ -38,5 +39,6 @@ void (async () => {
       </BrowserRouter>
     </StrictMode>,
   );
+  track("app_opened");
   registerSW({ immediate: true });
 })();

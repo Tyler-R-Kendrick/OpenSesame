@@ -1,9 +1,9 @@
 import {
+  type JWTPayload,
+  type JWTVerifyGetKey,
   createLocalJWKSet,
   createRemoteJWKSet,
   jwtVerify,
-  type JWTPayload,
-  type JWTVerifyGetKey,
 } from "jose";
 
 export interface VerifiedIdentity {
@@ -20,12 +20,124 @@ export interface VerifiedIdentity {
 export interface OpenSesameVerifierConfig {
   issuer: string;
   audience: string | string[];
-  /** Override JWKS URI (defaults to {issuer}/jwks). */
+  /**
+   * Override the JWKS URI. When absent the issuer's discovery document is read
+   * and its `jwks_uri` used; `{issuer}/jwks` is only a last resort for an issuer
+   * that publishes no metadata.
+   */
   jwksUri?: string;
+  /** Injected for tests, and for a deployment that cannot reach discovery at boot. */
+  fetchImpl?: typeof fetch;
   /** Inject local JWKS for tests. */
   jwks?: { keys: unknown[] };
   clockToleranceSeconds?: number;
   requiredScopes?: string[];
+  /**
+   * Signature algorithms this resource server accepts. Defaults to the
+   * asymmetric set below — a token is only as trustworthy as the algorithm it
+   * was signed with, and that choice belongs to the verifier, not the token.
+   */
+  algorithms?: string[];
+  /**
+   * Require the RFC 9068 `typ` header (`at+jwt`) when the issuer stamps one.
+   * Off by default: not every issuer emits it.
+   */
+  requireAccessTokenTypeHeader?: boolean;
+}
+
+/**
+ * Asymmetric algorithms only. A JWKS the verifier fetched over the network is a
+ * set of public keys; accepting a MAC algorithm would let whatever is in that
+ * set double as a signing secret.
+ */
+export const DEFAULT_ALLOWED_ALGORITHMS = [
+  "RS256",
+  "RS384",
+  "RS512",
+  "PS256",
+  "PS384",
+  "PS512",
+  "ES256",
+  "ES384",
+  "ES512",
+  "EdDSA",
+  "Ed25519",
+] as const;
+
+/** Claims a resource server has no business inferring. `exp` above all: a token without one never stops. */
+const REQUIRED_CLAIMS = ["iss", "sub", "aud", "exp"];
+
+function isLoopbackHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost")) return true;
+  if (host === "::1") return true;
+  return /^127(?:\.\d{1,3}){3}$/u.test(host);
+}
+
+/**
+ * Hosts that only mean something inside this network. A remote issuer naming one
+ * of these is not describing where its keys are; it is asking this process to
+ * make a request on its behalf to somewhere it cannot reach itself.
+ */
+function isPrivateHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  if (isLoopbackHost(host)) return true;
+  if (host === "0.0.0.0" || host === "::" || host === "localhost") return true;
+  // IPv4 literals in the ranges that never appear on the public internet.
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/u.exec(host);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    if (a === 10 || a === 127 || a === 0) return true;
+    if (a === 169 && b === 254) return true; // link-local, incl. cloud metadata
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    return false;
+  }
+  // IPv6 unique-local (fc00::/7) and link-local (fe80::/10).
+  if (/^f[cd][0-9a-f]{2}:/u.test(host)) return true;
+  if (/^fe[89ab][0-9a-f]:/u.test(host)) return true;
+  return host.endsWith(".internal") || host.endsWith(".local");
+}
+
+/**
+ * Keys and issuer names must arrive over a channel someone cannot rewrite.
+ * A JWKS fetched over cleartext is a JWKS an attacker on the path chooses, and
+ * then every signature check below is theatre.
+ */
+export function assertSecureUrl(raw: string, what: string): URL {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`${what} must be an absolute URL`);
+  }
+  if (url.protocol === "https:") return url;
+  if (url.protocol === "http:" && isLoopbackHost(url.hostname)) return url;
+  throw new Error(
+    `${what} must use https (http is allowed only on loopback for local development)`,
+  );
+}
+
+/**
+ * A key set URI that an issuer told us about, rather than one an operator wrote.
+ *
+ * `assertSecureUrl` permits cleartext on loopback, which is the right affordance
+ * for a value in this deployment's own configuration and the wrong one for a value
+ * a remote party supplies: it lets any issuer aim this process's key fetch at
+ * 127.0.0.1, or at link-local metadata, and read the result's effect through
+ * whether verification succeeded. So a discovered URI may only name a private host
+ * when the issuer is itself one — the local development case, where both sides of
+ * the pair are on this machine anyway.
+ */
+export function assertDiscoveredJwksUri(raw: string, issuer: URL): URL {
+  const url = assertSecureUrl(raw, "jwks_uri");
+  if (isPrivateHost(issuer.hostname)) return url;
+  if (isPrivateHost(url.hostname)) {
+    throw new Error(
+      "jwks_uri names a private or loopback host, but the issuer is remote",
+    );
+  }
+  return url;
 }
 
 export interface OpenSesameVerifier {
@@ -40,7 +152,10 @@ function asAudienceList(aud: string | string[]): string[] {
   return Array.isArray(aud) ? aud : [aud];
 }
 
-function hasRequiredScopes(scope: string | undefined, required: string[]): boolean {
+function hasRequiredScopes(
+  scope: string | undefined,
+  required: string[],
+): boolean {
   if (required.length === 0) return true;
   const have = new Set((scope ?? "").split(/\s+/u).filter(Boolean));
   return required.every((s) => have.has(s));
@@ -51,27 +166,95 @@ export function createOpenSesameVerifier(
 ): OpenSesameVerifier {
   const issuer = trimSlash(config.issuer);
   const audiences = asAudienceList(config.audience);
+  assertSecureUrl(issuer, "issuer");
+  const algorithms = config.algorithms ?? [...DEFAULT_ALLOWED_ALGORITHMS];
+  // An explicit JWKS URI is checked while the verifier is being built, not on the
+  // first request: a misconfigured resource server should fail to start.
+  const configuredJwksUri =
+    config.jwksUri === undefined
+      ? undefined
+      : assertSecureUrl(config.jwksUri, "jwksUri");
 
-  const getKey: JWTVerifyGetKey = config.jwks
-    ? createLocalJWKSet(config.jwks as Parameters<typeof createLocalJWKSet>[0])
-    : createRemoteJWKSet(new URL(config.jwksUri ?? `${issuer}/jwks`));
+  /**
+   * Where this issuer says its keys are.
+   *
+   * Guessing `{issuer}/jwks` is right for this deployment and wrong in general:
+   * an issuer names its own key set in its discovery document. The document is
+   * only believed if it names the issuer we were configured with, and the URI it
+   * gives must still arrive over a channel nobody can rewrite.
+   */
+  async function discoverJwksUri(): Promise<URL> {
+    const issuerUrl = new URL(issuer);
+    const fetchImpl = config.fetchImpl ?? globalThis.fetch;
+    const fallback = (): URL => assertSecureUrl(`${issuer}/jwks`, "jwksUri");
+    if (!fetchImpl) return fallback();
+    let meta: { issuer?: unknown; jwks_uri?: unknown };
+    try {
+      const res = await fetchImpl(
+        `${issuer}/.well-known/openid-configuration`,
+        { headers: { accept: "application/json" } },
+      );
+      if (!res.ok) return fallback();
+      meta = (await res.json()) as { issuer?: unknown; jwks_uri?: unknown };
+    } catch {
+      return fallback();
+    }
+    if (typeof meta.issuer !== "string" || trimSlash(meta.issuer) !== issuer) {
+      throw new Error("Discovery document does not name the configured issuer");
+    }
+    if (typeof meta.jwks_uri !== "string") return fallback();
+    return assertDiscoveredJwksUri(meta.jwks_uri, issuerUrl);
+  }
+
+  let remoteKeys: JWTVerifyGetKey | undefined;
+  let pending: Promise<JWTVerifyGetKey> | undefined;
+  async function keySource(): Promise<JWTVerifyGetKey> {
+    if (config.jwks) {
+      return createLocalJWKSet(
+        config.jwks as Parameters<typeof createLocalJWKSet>[0],
+      );
+    }
+    if (configuredJwksUri) {
+      remoteKeys ??= createRemoteJWKSet(configuredJwksUri);
+      return remoteKeys;
+    }
+    if (remoteKeys) return remoteKeys;
+    pending ??= discoverJwksUri()
+      .then((uri) => {
+        remoteKeys = createRemoteJWKSet(uri);
+        return remoteKeys;
+      })
+      .finally(() => {
+        pending = undefined;
+      });
+    return pending;
+  }
 
   return {
     async verifyAccessToken(token: string): Promise<VerifiedIdentity> {
+      const common = {
+        issuer,
+        clockTolerance: config.clockToleranceSeconds ?? 5,
+        algorithms,
+        requiredClaims: REQUIRED_CLAIMS,
+      };
       const verifyOptions =
         audiences.length === 1
-          ? {
-              issuer,
-              audience: audiences[0]!,
-              clockTolerance: config.clockToleranceSeconds ?? 5,
-            }
-          : {
-              issuer,
-              audience: audiences,
-              clockTolerance: config.clockToleranceSeconds ?? 5,
-            };
+          ? { ...common, audience: audiences[0]! }
+          : { ...common, audience: audiences };
 
-      const { payload } = await jwtVerify(token, getKey, verifyOptions);
+      const { payload, protectedHeader } = await jwtVerify(
+        token,
+        await keySource(),
+        verifyOptions,
+      );
+
+      if (
+        config.requireAccessTokenTypeHeader === true &&
+        protectedHeader.typ?.toLowerCase() !== "at+jwt"
+      ) {
+        throw new Error("Token is not an RFC 9068 access token");
+      }
 
       if (payload.sub === undefined || payload.sub === "") {
         throw new Error("Token missing sub");

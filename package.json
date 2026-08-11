@@ -7,16 +7,20 @@
     "node": ">=22"
   },
   "scripts": {
-    "bootstrap": "pnpm install && pnpm --filter @opensesame/database db:generate && pnpm --filter @opensesame/database db:migrate",
+    "bootstrap": "pnpm install && pnpm --filter @opensesame/database db:generate && pnpm --filter @opensesame/database db:migrate && bash scripts/setup-hooks.sh",
     "dev": "turbo run dev --parallel --filter=@opensesame/control-plane --filter=@opensesame/console --filter=@opensesame/worker --filter=@opensesame/mock-upstream-idp --filter=@opensesame/example-rp-alpha --filter=@opensesame/example-rp-beta",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
-    "test": "turbo run test --filter='./packages/*' --filter='./apps/control-plane' --filter='./apps/worker'",
+    "lint": "biome check --changed --since=origin/main --no-errors-on-unmatched .",
+    "lint:all": "biome check .",
+    "lint:fix": "biome check --write --changed --since=origin/main --no-errors-on-unmatched . && biome check --write --staged --no-errors-on-unmatched .",
+    "setup:hooks": "bash scripts/setup-hooks.sh",
+    "test": "turbo run test",
     "test:integration": "turbo run test:integration",
     "test:e2e": "turbo run test:e2e",
     "test:security": "pnpm --filter @opensesame/testing test:security",
+    "test:redteam": "pnpm --filter @opensesame/redteam redteam",
+    "test:visual": "pnpm --filter @opensesame/visual-contract test:visual",
     "audit:cve-lite": "bash ./scripts/cve-lite-gate.sh",
     "audit:ast-grep": "bash ./scripts/ast-grep-security-gate.sh",
     "audit:clippy": "bash ./scripts/clippy-gate.sh",
@@ -29,8 +33,8 @@
     "db:migrate": "pnpm --filter @opensesame/database db:migrate",
     "db:reset": "pnpm --filter @opensesame/database db:reset",
     "generate:openapi": "pnpm --filter @opensesame/control-plane generate:openapi",
-    "generate:sbom": "pnpm dlx @cyclonedx/cdxgen -o sbom/bom.json || mkdir -p sbom && echo '{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.5\",\"components\":[]}' > sbom/bom.json",
-    "verify": "pnpm test:all && cargo +1.88.0 test --workspace --lib && ./scripts/battle-test.sh"
+    "generate:sbom": "mkdir -p sbom && pnpm dlx @cyclonedx/cdxgen -o sbom/bom.json",
+    "verify": "pnpm lint && pnpm test:all && cargo +1.88.0 test --workspace --all-targets && ./scripts/battle-test.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
@@ -70,7 +74,9 @@
       "esbuild": ">=0.25.0",
       "fx-runner>shell-quote": "1.10.0",
       "web-ext-run>tmp": "0.2.7",
-      "firefox-profile>adm-zip": "0.6.0"
+      "firefox-profile>adm-zip": "0.6.0",
+      "promptfoo>ai": "6.0.237",
+      "promptfoo>@huggingface/transformers": "-"
     }
   }
 }

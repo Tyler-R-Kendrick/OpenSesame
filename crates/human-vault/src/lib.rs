@@ -26,7 +26,30 @@ pub enum VaultCryptoError {
     UnsupportedVersion(u32),
     #[error("associated data mismatch")]
     AdMismatch,
+    /// The stored wrapper asked for KDF work outside the accepted band. The
+    /// wrapper travels through a server we do not trust, so its parameters are
+    /// untrusted input: too little work weakens the wrap, too much is a way to
+    /// exhaust the client's memory.
+    #[error("password wrapper KDF parameters out of range")]
+    KdfParamsOutOfRange,
+    /// Unwrapped material was not a 32-byte key.
+    #[error("unwrapped key had unexpected length")]
+    KeyLength,
+    /// A stored nonce was not 24 bytes. XChaCha20's nonce type panics on any
+    /// other length, and the envelope carrying it comes from a server we do not
+    /// trust, so the length is checked rather than assumed.
+    #[error("nonce had unexpected length")]
+    NonceLength,
 }
+
+/// Argon2id work band accepted when unwrapping. The lower bound is what
+/// `wrap_vrk_with_password` uses; the upper bound keeps a hostile wrapper from
+/// asking the client for gigabytes.
+pub const MIN_ARGON_M_KIB: u32 = 64 * 1024;
+pub const MAX_ARGON_M_KIB: u32 = 1024 * 1024;
+pub const MIN_ARGON_T: u32 = 3;
+pub const MAX_ARGON_T: u32 = 16;
+pub const MAX_ARGON_P: u32 = 4;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AssociatedData {
@@ -112,14 +135,19 @@ pub fn decrypt_item(
     if envelope.version != ENVELOPE_VERSION {
         return Err(VaultCryptoError::UnsupportedVersion(envelope.version));
     }
+    // The envelope header and the bound AD must agree on the version, or the
+    // version check above can be sidestepped by leaving the header at 1.
+    if envelope.ad.envelope_version != envelope.version {
+        return Err(VaultCryptoError::UnsupportedVersion(
+            envelope.ad.envelope_version,
+        ));
+    }
     let expected = ad_digest(&envelope.ad)?;
     if expected != envelope.ad_digest {
         return Err(VaultCryptoError::AdMismatch);
     }
     let cipher = XChaCha20Poly1305::new_from_slice(&idk.0).map_err(|_| VaultCryptoError::Aead)?;
-    let nonce = STANDARD
-        .decode(&envelope.nonce)
-        .map_err(|_| VaultCryptoError::Aead)?;
+    let nonce = decode_nonce(&envelope.nonce)?;
     let ct = STANDARD
         .decode(&envelope.ciphertext)
         .map_err(|_| VaultCryptoError::Aead)?;
@@ -155,12 +183,16 @@ pub fn wrap_vrk_with_password(
     let p = 1;
     let params = Params::new(m_kib, t, p, Some(32)).map_err(|_| VaultCryptoError::Kdf)?;
     let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-    let mut kek = [0u8; 32];
+    let mut ikm = [0u8; 32];
     argon
-        .hash_password_into(password, &salt, &mut kek)
+        .hash_password_into(password, &salt, &mut ikm)
         .map_err(|_| VaultCryptoError::Kdf)?;
-    let kek = hkdf_expand(&kek, b"opensesame/vault/vrk-wrap/v1")?;
+    let mut kek = hkdf_expand(&ikm, b"opensesame/vault/vrk-wrap/v1")?;
+    ikm.zeroize();
     let cipher = XChaCha20Poly1305::new_from_slice(&kek).map_err(|_| VaultCryptoError::Aead)?;
+    // The unwrap path already cleans both of these up; wrapping left the Argon2
+    // output and the KEK sitting in this frame for no reason.
+    kek.zeroize();
     let mut nonce = [0u8; 24];
     rand::thread_rng().fill_bytes(&mut nonce);
     let wrapped = cipher
@@ -176,10 +208,23 @@ pub fn wrap_vrk_with_password(
     })
 }
 
+/// Refuse KDF parameters outside the accepted band.
+pub fn assert_argon_params_accepted(m_kib: u32, t: u32, p: u32) -> Result<(), VaultCryptoError> {
+    if !(MIN_ARGON_M_KIB..=MAX_ARGON_M_KIB).contains(&m_kib)
+        || !(MIN_ARGON_T..=MAX_ARGON_T).contains(&t)
+        || p == 0
+        || p > MAX_ARGON_P
+    {
+        return Err(VaultCryptoError::KdfParamsOutOfRange);
+    }
+    Ok(())
+}
+
 pub fn unwrap_vrk_with_password(
     password: &[u8],
     wrapper: &PasswordWrapper,
 ) -> Result<VaultRootKey, VaultCryptoError> {
+    assert_argon_params_accepted(wrapper.params_m_kib, wrapper.params_t, wrapper.params_p)?;
     let salt = STANDARD
         .decode(&wrapper.salt)
         .map_err(|_| VaultCryptoError::Kdf)?;
@@ -191,23 +236,30 @@ pub fn unwrap_vrk_with_password(
     )
     .map_err(|_| VaultCryptoError::Kdf)?;
     let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-    let mut kek = [0u8; 32];
+    let mut ikm = [0u8; 32];
     argon
-        .hash_password_into(password, &salt, &mut kek)
+        .hash_password_into(password, &salt, &mut ikm)
         .map_err(|_| VaultCryptoError::Kdf)?;
-    let kek = hkdf_expand(&kek, b"opensesame/vault/vrk-wrap/v1")?;
+    let mut kek = hkdf_expand(&ikm, b"opensesame/vault/vrk-wrap/v1")?;
+    ikm.zeroize();
     let cipher = XChaCha20Poly1305::new_from_slice(&kek).map_err(|_| VaultCryptoError::Aead)?;
-    let nonce = STANDARD
-        .decode(&wrapper.nonce)
-        .map_err(|_| VaultCryptoError::Aead)?;
+    kek.zeroize();
+    let nonce = decode_nonce(&wrapper.nonce)?;
     let wrapped = STANDARD
         .decode(&wrapper.wrapped_vrk)
         .map_err(|_| VaultCryptoError::Aead)?;
-    let key = cipher
+    let mut key = cipher
         .decrypt(XNonce::from_slice(&nonce), wrapped.as_ref())
         .map_err(|_| VaultCryptoError::Aead)?;
+    // Authentic but wrong-sized material must be an error, not a panic on
+    // `copy_from_slice`.
+    if key.len() != 32 {
+        key.zeroize();
+        return Err(VaultCryptoError::KeyLength);
+    }
     let mut out = [0u8; 32];
     out.copy_from_slice(&key);
+    key.zeroize();
     Ok(VaultRootKey(out))
 }
 
@@ -221,6 +273,17 @@ pub fn kek_from_webauthn_prf(
     hk.expand(b"opensesame/vault/webauthn-prf/v1", &mut out)
         .map_err(|_| VaultCryptoError::Kdf)?;
     Ok(out)
+}
+
+/// Decode a stored nonce, refusing any length XChaCha20 would panic on.
+fn decode_nonce(encoded: &str) -> Result<[u8; 24], VaultCryptoError> {
+    let bytes = STANDARD
+        .decode(encoded)
+        .map_err(|_| VaultCryptoError::Aead)?;
+    let nonce: [u8; 24] = bytes
+        .try_into()
+        .map_err(|_| VaultCryptoError::NonceLength)?;
+    Ok(nonce)
 }
 
 fn hkdf_expand(ikm: &[u8], info: &[u8]) -> Result<[u8; 32], VaultCryptoError> {
@@ -368,6 +431,129 @@ mod tests {
         .unwrap();
         env.ad.item_id = "item-b".into();
         assert!(decrypt_item(&idk, &env).is_err());
+    }
+
+    #[test]
+    fn hostile_wrapper_params_are_refused_before_any_hashing() {
+        let vrk = VaultRootKey::generate();
+        let good = wrap_vrk_with_password(b"pw", &vrk).unwrap();
+
+        // A server-supplied 4 GiB memory cost would be a client OOM, not a slow unwrap.
+        let mut huge = good.clone();
+        huge.params_m_kib = 4 * 1024 * 1024;
+        assert!(matches!(
+            unwrap_vrk_with_password(b"pw", &huge),
+            Err(VaultCryptoError::KdfParamsOutOfRange)
+        ));
+
+        // Downgraded work factors weaken the wrap against an offline guesser.
+        let mut weak = good.clone();
+        weak.params_m_kib = 8;
+        weak.params_t = 1;
+        assert!(matches!(
+            unwrap_vrk_with_password(b"pw", &weak),
+            Err(VaultCryptoError::KdfParamsOutOfRange)
+        ));
+
+        let mut wide = good.clone();
+        wide.params_p = 64;
+        assert!(matches!(
+            unwrap_vrk_with_password(b"pw", &wide),
+            Err(VaultCryptoError::KdfParamsOutOfRange)
+        ));
+
+        // What we actually write stays inside the band.
+        assert!(unwrap_vrk_with_password(b"pw", &good).is_ok());
+    }
+
+    #[test]
+    fn the_accepted_band_brackets_what_we_write() {
+        assert!(assert_argon_params_accepted(MIN_ARGON_M_KIB, MIN_ARGON_T, 1).is_ok());
+        assert!(assert_argon_params_accepted(MAX_ARGON_M_KIB, MAX_ARGON_T, MAX_ARGON_P).is_ok());
+        assert!(assert_argon_params_accepted(MIN_ARGON_M_KIB - 1, MIN_ARGON_T, 1).is_err());
+        assert!(assert_argon_params_accepted(MIN_ARGON_M_KIB, MIN_ARGON_T, 0).is_err());
+    }
+
+    #[test]
+    fn an_ad_version_bump_cannot_hide_behind_the_envelope_header() {
+        let idk = ItemDataKey::generate();
+        let mut env = encrypt_item(
+            &idk,
+            b"x",
+            AssociatedData {
+                envelope_version: ENVELOPE_VERSION,
+                item_id: "i".into(),
+                organization_id: "o".into(),
+                project_id: "p".into(),
+                collection_id: "c".into(),
+                key_id: "k".into(),
+                revision: 1,
+            },
+        )
+        .unwrap();
+        env.ad.envelope_version = 99;
+        env.ad_digest = ad_digest(&env.ad).unwrap();
+        assert!(matches!(
+            decrypt_item(&idk, &env),
+            Err(VaultCryptoError::UnsupportedVersion(99))
+        ));
+    }
+
+    #[test]
+    fn a_stored_nonce_of_the_wrong_length_is_an_error_not_a_panic() {
+        let idk = ItemDataKey::generate();
+        let env = encrypt_item(
+            &idk,
+            b"x",
+            AssociatedData {
+                envelope_version: ENVELOPE_VERSION,
+                item_id: "i".into(),
+                organization_id: "o".into(),
+                project_id: "p".into(),
+                collection_id: "c".into(),
+                key_id: "k".into(),
+                revision: 1,
+            },
+        )
+        .unwrap();
+
+        // The envelope arrives through a server this crate does not trust, so every
+        // length in it is untrusted input. `XNonce::from_slice` panics on anything
+        // but 24 bytes, which turned a corrupt or hostile record into a crash.
+        for len in [0usize, 5, 12, 23, 25, 64] {
+            let mut hostile = env.clone();
+            hostile.nonce = STANDARD.encode(vec![0u8; len]);
+            assert!(matches!(
+                decrypt_item(&idk, &hostile),
+                Err(VaultCryptoError::NonceLength)
+            ));
+        }
+
+        // Base64 that decodes to nothing usable is still refused, not decoded.
+        let mut garbage = env.clone();
+        garbage.nonce = "!!!not base64!!!".into();
+        assert!(matches!(
+            decrypt_item(&idk, &garbage),
+            Err(VaultCryptoError::Aead)
+        ));
+
+        // The nonce we write is accepted.
+        assert_eq!(decrypt_item(&idk, &env).unwrap(), b"x");
+    }
+
+    #[test]
+    fn a_wrapper_nonce_of_the_wrong_length_is_an_error_not_a_panic() {
+        let vrk = VaultRootKey::generate();
+        let good = wrap_vrk_with_password(b"pw", &vrk).unwrap();
+        for len in [0usize, 5, 23, 25] {
+            let mut hostile = good.clone();
+            hostile.nonce = STANDARD.encode(vec![0u8; len]);
+            assert!(matches!(
+                unwrap_vrk_with_password(b"pw", &hostile),
+                Err(VaultCryptoError::NonceLength)
+            ));
+        }
+        assert_eq!(unwrap_vrk_with_password(b"pw", &good).unwrap().0, vrk.0);
     }
 
     #[test]

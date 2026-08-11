@@ -19,8 +19,8 @@ All built-in profiles use `DowngradePolicy::FailClosed`. Presenting Bearer where
 
 ## Honesty about draft and experimental features
 
-- **MCP Authorization (2026-07-28)** — Implemented as Bearer validation and scope stubs only. No DPoP profile for MCP in this repository. Audience/resource helpers exist; full MCP authorization server is out of scope.
-- **AAuth draft-10** — Feature-gated experimental adapter. Types and lossless mappings are tested; no public endpoints. Spec changes may break the adapter without a major version bump.
+- **MCP Authorization (2026-07-28)** — Implemented as Bearer validation only. No DPoP profile for MCP in this repository. Audience/resource helpers exist; full MCP authorization server is out of scope.
+- **AAuth draft-10** — Feature-gated experimental adapter. Person, agent, and mission mappings are exposed only under `/experimental/aauth/v1`; scope authorization waits for a stable resource grammar. Spec changes may break the adapter without a major version bump.
 - **HTTP message signatures** — `LocalHttpMessageSignatureValidator` in `opensesame-proof` implements the OpenSesame subset (Ed25519 over `content-digest`, `@method`, `@target-uri`). Not full RFC 9421 component interoperability; see limitations below.
 - **Token exchange semantics** — Profile id for documentation; no RFC 8693 endpoint.
 

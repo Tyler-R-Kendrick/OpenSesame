@@ -37,11 +37,32 @@ export function requireFrozenIntent(): FrozenIntentContext {
   return current.frozenIntent;
 }
 
-export function updateTaskFromResponse(body: {
-  task_run_id?: string;
-  state_version?: number;
-}): void {
+/** Forget a spent intent while staying on the same task. */
+export function clearFrozenIntent(): void {
+  if (!current) return;
+  const { frozenIntent: _spent, ...rest } = current;
+  current = rest;
+}
+
+/**
+ * Adopt the task a response describes, or merely refresh the one already active.
+ *
+ * `adopt` belongs to the call that created the task. A read must not be able to
+ * repoint the active context: `task_status` takes a task_run_id from the model,
+ * and if reading someone else's task made it the current one, a look would become
+ * a move.
+ */
+export function updateTaskFromResponse(
+  body: {
+    task_run_id?: string;
+    state_version?: number;
+  },
+  options: { adopt: boolean } = { adopt: true },
+): void {
   if (!body.task_run_id || body.state_version === undefined) {
+    return;
+  }
+  if (!options.adopt && current?.taskRunId !== body.task_run_id) {
     return;
   }
   const next: TaskContext = {

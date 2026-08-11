@@ -5,7 +5,7 @@
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 use axum::{
     extract::State,
-    http::{header, HeaderMap, StatusCode},
+    http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -22,18 +22,6 @@ use std::{
 use uuid::Uuid;
 
 const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
-
-fn constant_time_eq(a: &str, b: &str) -> bool {
-    let (aa, bb) = (a.as_bytes(), b.as_bytes());
-    if aa.len() != bb.len() {
-        return false;
-    }
-    let mut diff = 0u8;
-    for (x, y) in aa.iter().zip(bb.iter()) {
-        diff |= x ^ y;
-    }
-    diff == 0
-}
 
 #[derive(Parser)]
 #[command(name = "opensesame-daemon", about = "OpenSesame host daemon")]
@@ -110,6 +98,9 @@ struct ApproveClaimReq {
     access_token: Option<String>,
     #[serde(default)]
     claim_token: Option<String>,
+    /// User code shown by the device — required by the Identity API fallback.
+    #[serde(default)]
+    user_code: Option<String>,
 }
 
 fn resolve_operator_token() -> String {
@@ -135,28 +126,15 @@ fn resolve_operator_token() -> String {
 
 #[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
 fn require_operator(st: &App, headers: &HeaderMap) -> Result<(), Response> {
-    if st.operator_token.is_empty() {
-        return Err((
+    use opensesame_host_core::operator::{check, OperatorDenial};
+    match check(&st.operator_token, headers) {
+        Ok(()) => Ok(()),
+        Err(OperatorDenial::Unconfigured) => Err((
             StatusCode::SERVICE_UNAVAILABLE,
             Json(json!({"error":"operator_token_unconfigured"})),
         )
-            .into_response());
-    }
-    let from_header = headers
-        .get("x-opensesame-operator")
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
-    let from_bearer = headers
-        .get(header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|a| {
-            a.strip_prefix("Bearer operator:")
-                .or_else(|| a.strip_prefix("bearer operator:"))
-                .map(str::to_string)
-        });
-    match from_header.or(from_bearer) {
-        Some(t) if constant_time_eq(&t, &st.operator_token) => Ok(()),
-        _ => Err((
+            .into_response()),
+        Err(OperatorDenial::Unauthorized) => Err((
             StatusCode::UNAUTHORIZED,
             Json(json!({
                 "error":"operator_unauthorized",
@@ -165,6 +143,32 @@ fn require_operator(st: &App, headers: &HeaderMap) -> Result<(), Response> {
         )
             .into_response()),
     }
+}
+
+/// A forward that carries the operator token, refused when the target is not on
+/// this machine.
+///
+/// The token is a shared secret for this host. `OPENSESAME_SERVER` is
+/// configuration, so a remote value would hand it to whoever answers there —
+/// over cleartext, at that. Deny the forward instead: nothing about being unable
+/// to reach a remote Host API justifies giving away the local secret.
+#[allow(clippy::result_large_err)]
+fn operator_forward(st: &App, url: &str) -> Result<reqwest::RequestBuilder, Response> {
+    if !opensesame_host_core::daemon::base_url_is_local(&st.host_api) {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "remote_host_api",
+                "hint": "the operator token is local to this machine; \
+                         point OPENSESAME_SERVER at loopback to forward"
+            })),
+        )
+            .into_response());
+    }
+    Ok(st
+        .http
+        .post(url)
+        .header("x-opensesame-operator", &st.operator_token))
 }
 
 #[tokio::main]
@@ -316,10 +320,11 @@ async fn approve_device(
         return resp;
     }
     let url = format!("{}/api/v1/device/approve", st.host_api);
-    match st
-        .http
-        .post(&url)
-        .header("x-opensesame-operator", &st.operator_token)
+    let forward = match operator_forward(&st, &url) {
+        Ok(f) => f,
+        Err(resp) => return resp,
+    };
+    match forward
         .json(&json!({
             "user_code": req.user_code,
             "principal": req.principal.unwrap_or_else(|| "user:demo".into()),
@@ -348,17 +353,27 @@ async fn approve_claim(
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
+    // Both paths need the device's user code: the operator token proves a human
+    // is driving, the code proves which device they are approving.
+    let Some(user_code) = req.user_code.clone() else {
+        return Json(json!({
+            "error": "user_code_required",
+            "hint": "claim complete requires the user code shown by the device"
+        }))
+        .into_response();
+    };
     // Prefer Host API agent-claim complete (operator + claim_token). Fallback: Identity API.
     if let Some(claim_token) = req.claim_token {
         let url = format!(
             "{}/api/v1/agent-claims/{}/complete",
             st.host_api, req.claim_id
         );
-        return match st
-            .http
-            .post(&url)
-            .header("x-opensesame-operator", &st.operator_token)
-            .json(&json!({"claim_token": claim_token}))
+        let forward = match operator_forward(&st, &url) {
+            Ok(f) => f,
+            Err(resp) => return resp,
+        };
+        return match forward
+            .json(&json!({"claim_token": claim_token, "user_code": user_code}))
             .send()
             .await
         {
@@ -371,7 +386,10 @@ async fn approve_claim(
         };
     }
     let url = format!("{}/v1/claims/{}/complete", st.identity_api, req.claim_id);
-    let mut builder = st.http.post(&url).json(&json!({}));
+    let mut builder = st
+        .http
+        .post(&url)
+        .json(&json!({"acceptedItemIds": [], "userCode": user_code}));
     if let Some(tok) = req.access_token {
         builder = builder.bearer_auth(tok);
     }
@@ -405,21 +423,47 @@ async fn operator_invoke_l1(
     if level >= 3 {
         return Json(json!({"error":"materialize_denied","invoke_level": level})).into_response();
     }
-    let url = format!("{}/api/v1/intents", st.host_api);
-    match st
-        .http
-        .post(&url)
-        .header("x-opensesame-operator", &st.operator_token)
-        .json(&body)
-        .send()
-        .await
-    {
+    // A task-bound caller must execute the intent it froze: forward the digest to
+    // the fenced route instead of re-describing the call on the legacy path,
+    // which would spend no ceiling.
+    let digest = body
+        .get("intent_digest")
+        .and_then(|v| v.as_str())
+        .map(str::to_owned)
+        .or_else(|| {
+            headers
+                .get("x-opensesame-intent-digest")
+                .and_then(|v| v.to_str().ok())
+                .map(str::to_owned)
+        });
+    let (url, forwarded) = match &digest {
+        Some(d) => (
+            format!("{}/api/v1/tasks/invoke", st.host_api),
+            json!({"intent_digest": d}),
+        ),
+        None => (format!("{}/api/v1/intents", st.host_api), body),
+    };
+    let forward = match operator_forward(&st, &url) {
+        Ok(f) => f,
+        Err(resp) => return resp,
+    };
+    match forward.json(&forwarded).send().await {
         Ok(resp) => {
             let status = resp.status().as_u16();
             let body = resp.json::<Value>().await.unwrap_or(json!({}));
-            Json(json!({"status": status, "body": body, "materialize": false})).into_response()
+            Json(json!({
+                "status": status,
+                "body": body,
+                "materialize": false,
+                "task_bound": digest.is_some(),
+            }))
+            .into_response()
         }
-        Err(e) => Json(json!({"error": e.to_string()})).into_response(),
+        // The transport error carries the Host API address.
+        Err(e) => {
+            tracing::warn!(error = %e, "host api invoke failed");
+            Json(json!({"error": "host_api_unreachable"})).into_response()
+        }
     }
 }
 
@@ -469,10 +513,14 @@ async fn mint_capability(
         },
     };
     drop(sessions);
-    st.capabilities
-        .lock()
-        .unwrap()
-        .insert(cap.id.clone(), cap.clone());
+    {
+        // An expired capability is already inert on introspect; keeping it only
+        // grows the daemon for as long as it runs.
+        let mut caps = st.capabilities.lock().unwrap();
+        let now = Utc::now();
+        caps.retain(|_, c| c.expires_at > now);
+        caps.insert(cap.id.clone(), cap.clone());
+    }
     Json(json!({
         "capability": {
             "id": cap.id,

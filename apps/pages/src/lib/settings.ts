@@ -1,4 +1,5 @@
 import { kvGet, kvSet } from "./kv.js";
+import { normalizeApiBase } from "./urls.js";
 
 export type PagesSettings = {
   hostApi: string;
@@ -29,10 +30,13 @@ function loadPersisted(): PersistedSettings {
     const parsed = JSON.parse(raw) as Partial<PersistedSettings> & {
       operatorToken?: string;
     };
-    // Drop any legacy operatorToken that may have been written before this fence.
+    // Drop any legacy operatorToken that may have been written before this fence,
+    // and refuse a persisted base we would not accept today: storage is not a
+    // place where a destination gets to be trusted for having been written once.
     return {
-      hostApi: parsed.hostApi?.trim() || defaults.hostApi,
-      identityApi: parsed.identityApi?.trim() || defaults.identityApi,
+      hostApi: normalizeApiBase(parsed.hostApi ?? "") ?? defaults.hostApi,
+      identityApi:
+        normalizeApiBase(parsed.identityApi ?? "") ?? defaults.identityApi,
     };
   } catch {
     return { ...defaults };
@@ -47,11 +51,27 @@ export function loadSettings(): PagesSettings {
   };
 }
 
+/** Thrown so the settings form can say which field it will not take. */
+export class SettingsRejected extends Error {}
+
 export function saveSettings(next: PagesSettings): void {
+  const hostApi =
+    normalizeApiBase(next.hostApi) ??
+    (next.hostApi.trim() ? null : defaults.hostApi);
+  const identityApi =
+    normalizeApiBase(next.identityApi) ??
+    (next.identityApi.trim() ? null : defaults.identityApi);
+  if (hostApi === null) {
+    throw new SettingsRejected(
+      "Host API must be an https URL, or http on loopback.",
+    );
+  }
+  if (identityApi === null) {
+    throw new SettingsRejected(
+      "Identity API must be an https URL, or http on loopback.",
+    );
+  }
   sessionOperatorToken = next.operatorToken.trim();
-  const persisted: PersistedSettings = {
-    hostApi: next.hostApi.trim() || defaults.hostApi,
-    identityApi: next.identityApi.trim() || defaults.identityApi,
-  };
+  const persisted: PersistedSettings = { hostApi, identityApi };
   kvSet(PERSIST_KEY, JSON.stringify(persisted));
 }

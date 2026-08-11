@@ -1,7 +1,6 @@
 use crate::app_state::Bootstrap;
 use crate::config;
 use chrono::{Duration, Utc};
-use opensesame_audit::ReceiptSigner;
 use opensesame_authz::PolicyEngine;
 use opensesame_broker::Broker;
 use opensesame_connector_host::HostRuntime;
@@ -15,6 +14,7 @@ pub struct BootstrapArtifacts {
 }
 
 pub async fn maybe_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
+    let signer = config::resolve_receipt_signer().map_err(anyhow::Error::msg)?;
     if !config::dev_bootstrap_enabled() || config::is_production_env() {
         tracing::info!("demo bootstrap skipped (set OPENSESAME_DEV_BOOTSTRAP=true in non-production to enable)");
         return Ok(BootstrapArtifacts {
@@ -24,7 +24,7 @@ pub async fn maybe_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts>
                 db: db.clone(),
                 policy: PolicyEngine::default(),
                 host: HostRuntime::default(),
-                signer: ReceiptSigner::generate(),
+                signer,
             },
         });
     }
@@ -32,10 +32,13 @@ pub async fn maybe_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts>
     tracing::warn!(
         "OPENSESAME_DEV_BOOTSTRAP enabled — seeding demo org/grant (non-production only)"
     );
-    create_demo_bootstrap(db).await
+    create_demo_bootstrap(db, signer).await
 }
 
-async fn create_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
+async fn create_demo_bootstrap(
+    db: &Db,
+    signer: opensesame_audit::ReceiptSigner,
+) -> anyhow::Result<BootstrapArtifacts> {
     let mut policy = PolicyEngine::default();
     let org = OrganizationId::new();
     let project = ProjectId::new();
@@ -100,7 +103,7 @@ async fn create_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
         db: db.clone(),
         policy,
         host: HostRuntime::default(),
-        signer: ReceiptSigner::generate(),
+        signer,
     };
 
     let demo = Bootstrap {

@@ -16,6 +16,8 @@ pub enum ProofError {
     ConfirmationThumbprintMismatch,
     #[error("unsupported DPoP algorithm: {0}")]
     UnsupportedAlgorithm(String),
+    #[error("DPoP proof key is too weak: {0}")]
+    WeakProofKey(String),
     #[error("token presentation downgrade rejected")]
     TokenPresentationDowngrade,
     #[error("unauthorized proof request: {0}")]

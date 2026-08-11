@@ -23,8 +23,6 @@ pub struct DevicePending {
     pub user_code_hash: String,
     pub expires_at: chrono::DateTime<chrono::Utc>,
     pub approved_principal: Option<String>,
-    /// Failed approval attempts against this code (brute-force fence).
-    pub approve_attempts: u32,
 }
 
 #[derive(Clone)]
@@ -45,7 +43,11 @@ pub struct AppState {
     pub broker: Arc<Broker>,
     pub sessions: Arc<Mutex<HashMap<String, Value>>>,
     pub device_codes: Arc<Mutex<HashMap<String, DevicePending>>>,
+    /// Timestamps of failed `user_code` approval guesses (global cooldown fence).
+    pub device_approve_failures: Arc<Mutex<Vec<chrono::DateTime<chrono::Utc>>>>,
     pub claims: Arc<Mutex<HashMap<String, ClaimSession>>>,
+    /// claim_id -> failed user-code attempts on completion (brute-force fence).
+    pub claim_user_code_attempts: Arc<Mutex<HashMap<String, u32>>>,
     pub bootstrap: Arc<Mutex<Option<Bootstrap>>>,
     pub openfga: Option<OpenFgaClient>,
     pub openbao: Option<OpenBaoHttpAuthority>,
@@ -58,10 +60,19 @@ pub struct AppState {
     pub device_cursors: Arc<Mutex<HashMap<String, u64>>>,
     /// Shared secret for human/operator mutations (approve, claim complete, admin).
     pub operator_token: String,
+    /// Pepper for low-entropy (user code) digests.
+    pub claim_pepper: String,
     /// Distributed task authority readiness (ADR 0031).
     pub distributed_task_authority: bool,
     /// In-memory task access engine (immutable ceiling + frozen intents).
     pub task_engine: SharedTaskEngine,
+    /// intent_digest -> frozen intent awaiting execution. Server-side custody is
+    /// what makes the digest enforceable: the caller cannot restate the frozen
+    /// bytes, so it cannot execute anything other than what it froze.
+    pub frozen_intents: Arc<Mutex<HashMap<String, FrozenIntentV2>>>,
+    /// Public keys trusted to have signed a receipt, including retired ones, so a
+    /// key rotation does not strand the receipts the old key signed.
+    pub receipt_verifier: Arc<opensesame_audit::ReceiptVerifier>,
 }
 
 impl AppState {
@@ -89,6 +100,8 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
     };
 
     let boot = bootstrap::maybe_demo_bootstrap(&db).await?;
+    let receipt_verifier =
+        config::resolve_receipt_verifier(&boot.broker.signer).map_err(anyhow::Error::msg)?;
     let openfga = OpenFgaClient::from_env().ok().flatten();
     let openbao = OpenBaoHttpAuthority::from_env().ok().flatten();
     let distributed_task_authority =
@@ -101,7 +114,9 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         broker: Arc::new(boot.broker),
         sessions: Arc::new(Mutex::new(HashMap::new())),
         device_codes: Arc::new(Mutex::new(HashMap::new())),
+        device_approve_failures: Arc::new(Mutex::new(Vec::new())),
         claims: Arc::new(Mutex::new(HashMap::new())),
+        claim_user_code_attempts: Arc::new(Mutex::new(HashMap::new())),
         bootstrap: Arc::new(Mutex::new(boot.demo)),
         openfga,
         openbao,
@@ -110,8 +125,11 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         blob_owners: Arc::new(Mutex::new(HashMap::new())),
         device_cursors: Arc::new(Mutex::new(HashMap::new())),
         operator_token: config::resolve_operator_token(),
+        claim_pepper: config::resolve_claim_pepper(),
         distributed_task_authority,
         task_engine: new_task_engine(),
+        frozen_intents: Arc::new(Mutex::new(HashMap::new())),
+        receipt_verifier: Arc::new(receipt_verifier),
     })
 }
 

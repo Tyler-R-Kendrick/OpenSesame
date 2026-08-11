@@ -12,6 +12,7 @@ import {
   DomainError,
   parseClaimToken,
   verifyClaimToken,
+  verifyUserCode,
   type ClaimSession,
 } from "@opensesame/os-domain";
 import type { CompleteDecision } from "@opensesame/claims";
@@ -21,6 +22,7 @@ import {
   applySlowDown,
 } from "@opensesame/device-auth";
 import type { Context } from "hono";
+import type { AppContext } from "../context.js";
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
@@ -28,6 +30,9 @@ import {
   claimPageSecurityHeaders,
   escapeHtml,
 } from "../middleware/security-headers.js";
+
+/** Wrong user codes tolerated per claim before approval is refused outright. */
+const MAX_CLAIM_APPROVAL_ATTEMPTS = 5;
 
 function toClaimResponse(session: ClaimSession) {
   return ClaimSessionResponseSchema.parse({
@@ -77,6 +82,28 @@ async function loadClaimWithToken(
     return c.json({ error: "invalid_claim_token" }, 401);
   }
   return session;
+}
+
+/** A refused approval is the event a reviewer needs; success alone shows nothing. */
+async function auditClaimDenial(
+  ctx: AppContext,
+  input: {
+    claimId: string;
+    principalId: string;
+    reason: string;
+    correlationId?: string;
+  },
+): Promise<void> {
+  await appendAuditEvent(ctx.repos.auditEvents, {
+    eventType: "claim.complete",
+    outcome: "denied",
+    principalId: input.principalId,
+    claimId: input.claimId,
+    ...(input.correlationId !== undefined
+      ? { correlationId: input.correlationId }
+      : {}),
+    metadata: { action: "claim.complete", reason: input.reason },
+  });
 }
 
 function domainErrorStatus(err: DomainError): ContentfulStatusCode {
@@ -209,6 +236,41 @@ claimRoutes.post(
       let session = await ctx.claims.get(id);
       if (!session) return c.json({ error: "not_found" }, 404);
 
+      // Approval is the human consent step. Being *some* authenticated principal
+      // proves nothing about the device being claimed, so require the user code
+      // it displayed, with a per-claim attempt fence behind it.
+      const attempts = ctx.stores.claimApprovalAttempts.get(id) ?? 0;
+      if (attempts >= MAX_CLAIM_APPROVAL_ATTEMPTS) {
+        await auditClaimDenial(ctx, {
+          claimId: id,
+          principalId,
+          reason: "too_many_attempts",
+          correlationId: c.get("correlationId"),
+        });
+        return c.json({ error: "too_many_attempts" }, 429);
+      }
+      if (
+        !session.userCodeDigest ||
+        !verifyUserCode(
+          ctx.config.claimPepper,
+          id,
+          parsed.data.userCode,
+          session.userCodeDigest,
+        )
+      ) {
+        ctx.stores.claimApprovalAttempts.set(id, attempts + 1);
+        // Guesses against a ~40-bit user code are the attack this fence exists for,
+        // and a trail of successes only would show none of them.
+        await auditClaimDenial(ctx, {
+          claimId: id,
+          principalId,
+          reason: "invalid_user_code",
+          correlationId: c.get("correlationId"),
+        });
+        return c.json({ error: "invalid_user_code" }, 401);
+      }
+      ctx.stores.claimApprovalAttempts.delete(id);
+
       if (session.state === "pending") {
         return c.json({ error: "INVALID_TRANSITION", message: "Claim must be presented first" }, 422);
       }
@@ -246,10 +308,15 @@ claimRoutes.post(
       if (projectId) {
         const project = ctx.stores.projects.get(projectId);
         if (project && project.state === "provisional") {
+          const now = ctx.clock();
+          // A claim can be completed after the project it names has run out of
+          // time. Activating it then would hand back a project that is past its
+          // own TTL and that nothing will expire again.
+          const lapsed = project.expiresAt !== undefined && project.expiresAt <= now;
           ctx.stores.projects.set(projectId, {
             ...project,
-            state: "active",
-            updatedAt: ctx.clock(),
+            state: lapsed ? "expired" : "active",
+            updatedAt: now,
             ownerPrincipalId: project.ownerPrincipalId ?? principalId,
           });
         }

@@ -1,15 +1,13 @@
+import { assertSecureUrl, trimSlash } from "./secure-url.js";
+
 export interface ControlPlaneClientConfig {
   baseUrl: string;
   accessToken?: string;
   fetchImpl?: typeof fetch;
 }
 
-function trimSlash(url: string): string {
-  return url.replace(/\/+$/u, "");
-}
-
 export function createControlPlaneClient(config: ControlPlaneClientConfig) {
-  const base = trimSlash(config.baseUrl);
+  const base = assertSecureUrl(trimSlash(config.baseUrl), "baseUrl");
   const fetchImpl = config.fetchImpl ?? fetch;
 
   async function request(
@@ -63,7 +61,9 @@ export function createControlPlaneClient(config: ControlPlaneClientConfig) {
       if (!claimToken.startsWith("osc_clm_")) {
         throw new Error("claimToken required (osc_clm_…)");
       }
-      const res = await request(`/api/v1/claims/${claimId}`, {
+      // An id is a path segment, not a path. Interpolated raw, a `../` or a `?`
+      // in it aims the request — and the claim token riding along — elsewhere.
+      const res = await request(`/api/v1/claims/${encodeURIComponent(claimId)}`, {
         headers: { "x-claim-token": claimToken },
       });
       if (!res.ok) throw new Error(`claim poll failed: ${res.status}`);

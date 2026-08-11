@@ -3,6 +3,8 @@
 //! Never dumps refresh tokens or WebAuthn material.
 use axum::{
     extract::State,
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
@@ -27,10 +29,40 @@ struct Args {
     listen: SocketAddr,
 }
 
+/// Explicit opt-in for the superseded binary. Without it the process refuses to
+/// start, so a stray build cannot quietly offer a second privileged local API.
+const ENV_ENABLE_LEGACY: &str = "OPENSESAME_LEGACY_CREDENTIAL_AGENT";
+
+/// Capabilities are pruned on mint; the cap only bounds a burst.
+const MAX_CAPABILITIES: usize = 1024;
+
 #[derive(Clone)]
 struct App {
     sessions: Arc<Mutex<HashMap<String, HostSession>>>,
     capabilities: Arc<Mutex<HashMap<String, SessionCapability>>>,
+    /// Same shared secret the daemon requires — loopback is not a boundary.
+    operator_token: String,
+}
+
+#[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
+fn require_operator(st: &App, headers: &HeaderMap) -> Result<(), Response> {
+    use opensesame_host_core::operator::{check, OperatorDenial};
+    match check(&st.operator_token, headers) {
+        Ok(()) => Ok(()),
+        Err(OperatorDenial::Unconfigured) => Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"operator_token_unconfigured"})),
+        )
+            .into_response()),
+        Err(OperatorDenial::Unauthorized) => Err((
+            StatusCode::UNAUTHORIZED,
+            Json(json!({
+                "error":"operator_unauthorized",
+                "hint":"X-OpenSesame-Operator or Bearer operator:<token> required"
+            })),
+        )
+            .into_response()),
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -60,6 +92,11 @@ struct MintCapReq {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().init();
+    if std::env::var(ENV_ENABLE_LEGACY).ok().as_deref() != Some("1") {
+        anyhow::bail!(
+            "opensesame-credential-agent is superseded by opensesame-daemon; set {ENV_ENABLE_LEGACY}=1 to run it anyway"
+        );
+    }
     let args = Args::parse();
     let mut sessions = HashMap::new();
     // Bootstrap demo host session (real login attaches via vault login on host).
@@ -74,6 +111,7 @@ async fn main() -> anyhow::Result<()> {
     let state = App {
         sessions: Arc::new(Mutex::new(sessions)),
         capabilities: Arc::new(Mutex::new(HashMap::new())),
+        operator_token: std::env::var("OPENSESAME_OPERATOR_TOKEN").unwrap_or_default(),
     };
     let app = Router::new()
         .route(
@@ -103,7 +141,10 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn list_sessions(State(st): State<App>) -> Json<Value> {
+async fn list_sessions(State(st): State<App>, headers: HeaderMap) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     let sessions: Vec<_> = st
         .sessions
         .lock()
@@ -111,7 +152,7 @@ async fn list_sessions(State(st): State<App>) -> Json<Value> {
         .values()
         .map(|s| json!({"id": s.id, "principal": s.principal}))
         .collect();
-    Json(json!({"sessions": sessions}))
+    Json(json!({"sessions": sessions})).into_response()
 }
 
 async fn get_access_token(Json(_v): Json<Value>) -> Json<Value> {
@@ -122,10 +163,18 @@ async fn get_access_token(Json(_v): Json<Value>) -> Json<Value> {
     }))
 }
 
-async fn mint_capability(State(st): State<App>, Json(req): Json<MintCapReq>) -> Json<Value> {
+async fn mint_capability(
+    State(st): State<App>,
+    headers: HeaderMap,
+    Json(req): Json<MintCapReq>,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     let sessions = st.sessions.lock().unwrap();
     let Some(session) = sessions.values().next() else {
-        return Json(json!({"error":"no_session","hint":"use opensesame login on host"}));
+        return Json(json!({"error":"no_session","hint":"use opensesame login on host"}))
+            .into_response();
     };
     let cap = SessionCapability {
         id: format!("cap:{}", Uuid::new_v4()),
@@ -139,10 +188,19 @@ async fn mint_capability(State(st): State<App>, Json(req): Json<MintCapReq>) -> 
         },
     };
     drop(sessions);
-    st.capabilities
-        .lock()
-        .unwrap()
-        .insert(cap.id.clone(), cap.clone());
+    {
+        let mut caps = st.capabilities.lock().unwrap();
+        let now = Utc::now();
+        caps.retain(|_, c| c.expires_at > now);
+        if caps.len() >= MAX_CAPABILITIES {
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(json!({"error":"capability_capacity"})),
+            )
+                .into_response();
+        }
+        caps.insert(cap.id.clone(), cap.clone());
+    }
     Json(json!({
         "capability": {
             "id": cap.id,
@@ -154,9 +212,17 @@ async fn mint_capability(State(st): State<App>, Json(req): Json<MintCapReq>) -> 
         "webauthn_material": null,
         "secrets": null
     }))
+    .into_response()
 }
 
-async fn introspect_capability(State(st): State<App>, Json(body): Json<Value>) -> Json<Value> {
+async fn introspect_capability(
+    State(st): State<App>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     let id = body.get("id").and_then(|v| v.as_str()).unwrap_or("");
     let caps = st.capabilities.lock().unwrap();
     match caps.get(id) {
@@ -165,14 +231,18 @@ async fn introspect_capability(State(st): State<App>, Json(body): Json<Value>) -
             "audience": c.audience,
             "scopes": c.scopes,
             "expires_at": c.expires_at
-        })),
-        _ => Json(json!({"active": false})),
+        }))
+        .into_response(),
+        _ => Json(json!({"active": false})).into_response(),
     }
 }
 
-async fn revoke(State(st): State<App>, Json(body): Json<Value>) -> Json<Value> {
+async fn revoke(State(st): State<App>, headers: HeaderMap, Json(body): Json<Value>) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
     if let Some(id) = body.get("id").and_then(|v| v.as_str()) {
         st.capabilities.lock().unwrap().remove(id);
     }
-    Json(json!({"ok": true}))
+    Json(json!({"ok": true})).into_response()
 }

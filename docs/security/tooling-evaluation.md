@@ -48,6 +48,9 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0. **cargo-audit loop (2026-08-07)** — restored missing `scripts/cargo-audit-gate.sh`; `RUSTSEC-2023-0071` (`rsa` via sqlx lockfile edge, no fixed release) ignored in `.cargo/audit.toml` (aligned with `osv-scanner.toml`). sqlx 0.9 / Rust 1.94 upgrade still tracked — see `audit-2026-08-07-cargo-audit.md`.
 0c. **clippy/semgrep/ast-grep loop (2026-08-07)** — removed `new Function` crypto fallback in `@opensesame/api-client`; restored `pnpm verify` to Rust 1.88.0 — see `audit-2026-08-07-clippy-semgrep.md`.
 0d. **supply-chain / CI loop (2026-08-07)** — gitleaks/osv/cargo-audit/deny/pnpm-audit CLEAN; wired those gates (+ ast-grep, semgrep) into CI `security` job — see `audit-2026-08-07-supply-chain-ci.md`.
+
+    **Correction (2026-08-10):** the "CI `security` job" described above does not exist in this repository and never has — `git ls-files .github` returns nothing at commit `0608ccc` (the base of the `claude/ai-subscriptions-optimization-1gtbyx` branch), and no `.github/` directory has ever been committed to this tree. The gates themselves (gitleaks/osv/cargo-audit/deny/pnpm-audit/ast-grep/semgrep) are real and still CLEAN as scripted; only the "wired into CI" framing was inaccurate — they were, and remain, local scripts (`scripts/*-gate.sh`) invoked by developers/agents, not by any CI job. As of this build-out the repo's posture is now **explicit and permanent: zero GitHub Actions**. The same gates run instead through: (1) local git hooks under `.githooks/` (installed via `scripts/setup-hooks.sh`, see `CONTRIBUTING.md`'s "Local gates (no CI)" section) on `pre-commit`/`pre-push`; and (2) scheduled Claude Code cloud sessions ("Routines") for the deeper recurring work — dependency triage, security audits, docs-drift checks — documented in `docs/operations/agent-routines.md`. See also `docs/ai-automation-roadmap.md`'s "Amendment — no-GitHub-Actions posture (2026-08)" section, which supersedes that roadmap's original CI-workflow recommendation.
+
 0e. **ast-grep after UX (#23)** — extension popup `innerHTML` → `textContent` — see `audit-2026-08-07-ast-grep-popup.md`.
 0f. **Pages PWA (#25)** — removed `localStorage` for settings/outbox; OPFS + session-only operator token — see `audit-2026-08-07-pages-localstorage.md`.
 0g. **sdk-browser storage** — default `sessionStorage` (not `localStorage`); strip refresh tokens from persisted session — see `audit-2026-08-07-sdk-browser-storage.md`.
@@ -69,6 +72,44 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0w. **Identity claim get/poll** — `GET /v1/claims/{id}` and `/poll` require claim bearer; `/health/providers` operator-only — see `audit-2026-08-07-identity-claim-poll.md`.
 0x. **Claim verify page** — landing page no longer discloses claim existence/state — see `audit-2026-08-08-claim-verify-disclosure.md`.
 0y. **Device code custody** — Host API stores device/user code digests only; approval is constant-time with a 5-attempt burn — see `audit-2026-08-08-device-code-digests.md`.
+0z. **Sync quotas** — per-session blob ceiling, per-blob ciphertext cap, bounded device cursors — see `audit-2026-08-08-sync-quotas.md`.
+0aa. **SSRF denylist** — IPv4-mapped/compatible IPv6 literals no longer bypass the metadata denylist — see `audit-2026-08-08-ssrf-ipv6-bypass.md`.
+0ab. **Extension host fence** — `hostApiBase` must be loopback; also unbroke `wxt build` — see `audit-2026-08-08-extension-host-fence.md`.
+0ac. **DPoP replay cache** — `jti` entries expire with the proof window and the cache fails closed at capacity — see `audit-2026-08-08-dpop-replay-cache.md`.
+0ad. **Log redaction depth** — pino path wildcards only matched one level; secrets are now censored at any depth — see `audit-2026-08-08-log-redaction-depth.md`.
+0ae. **Task/receipt ownership** — authenticated sessions were fenced to their own principal on task runs, frozen intents and receipts — see `audit-2026-08-08-task-receipt-ownership.md`.
+0af. **OAuth provider fail-closed** — resource indicators are allowlisted and production refuses ephemeral signing keys / memory grant state — see `audit-2026-08-08-oauth-provider-fail-closed.md`.
+0ag. **OAuth client ownership** — clients are fenced to the registering principal and redirect URIs reject `javascript:`/`data:`/`file:` — see `audit-2026-08-08-oauth-client-ownership.md`.
+0ah. **Identity link assurance** — self-asserted identity links no longer promote principals to `verified` outside dev — see `audit-2026-08-08-identity-link-assurance.md`.
+0ai. **Passkey counter + device fence** — assertions persist the signature counter (clone detection) and wrong `user_code` guesses no longer cancel every pending device login — see `audit-2026-08-08-passkey-counter-device-fence.md`.
+0aj. **Error-string disclosure** — public `/health/ready` no longer echoes DSNs, `redact_text` covers URL userinfo/`Basic`/labelled secrets, and the device proxy stops advertising the Host API address — see `audit-2026-08-08-error-string-disclosure.md`.
+0ak. **Task authority expiry** — `maximum_expires_at` now bounds every capability assertion, superseded result buffers stay fenced, and task writes are CAS — see `audit-2026-08-08-task-authority-expiry.md`.
+0al. **Session digests + agent ownership** — Host API sessions are stored by digest only, and agent claim ceremonies are fenced to the registering principal — see `audit-2026-08-08-session-digest-agent-ownership.md`.
+0am. **Idempotency + claim consent** — idempotent responses are bound to the calling principal (and never replay `Set-Cookie`), and claim completion requires the device's user code — see `audit-2026-08-08-idempotency-and-claim-consent.md`.
+
+0an. **Agent-claim consent + receipt error text** — Host API claim completion checks the device's user code (five-try fence), broker failure receipts redact connector errors, and the leak check fails closed instead of panicking — see `audit-2026-08-08-agent-claim-consent.md`.
+
+0ao. **Frozen intent enforcement** — frozen intents are held server-side and executed by digest at `POST /api/v1/tasks/invoke` (capability, state version, and ceiling all asserted), and the legacy invoke path refuses task fields instead of ignoring them — see `audit-2026-08-08-frozen-intent-enforcement.md`.
+
+0ap. **Legacy credential agent fenced** — the deprecated host agent required no auth for session listing, capability minting, and revocation; it now needs the operator bearer, refuses to start without an explicit opt-in, and shares one tested operator check with the daemon — see `audit-2026-08-08-legacy-credential-agent.md`.
+
+0aq. **Vault KDF parameter band** — the password wrapper's Argon2 parameters come back through an untrusted server, so unwrap now bounds them (and stops panicking on odd key lengths), and the worker's cleanup loop survives a failing tick instead of silently ending expiry — see `audit-2026-08-08-vault-kdf-params.md`.
+
+0ar. **Prefix-match fences** — device `verification_uri_complete` is origin-checked by parsing (a suffixed host was a working device-code phish), egress path prefixes stop at a segment boundary, and blocked hosts are parsed as IPs including integer/hex/IPv4-mapped spellings — see `audit-2026-08-08-prefix-match-fences.md`.
+
+0as. **Policy default-allow** — the PEP allowed every action it had no rule for, including its own high-risk list, whenever the caller was not provisional; high-risk now denies for everyone, verified principals have a quota, and a consumed device code answers `invalid_grant` — see `audit-2026-08-08-policy-default-allow.md`.
+
+0at. **Live quotas + MFA fences** — quota usage is counted from live projects/agents instead of a counter that never came down, TOTP and passkey verification get a five-try fence, and the WebAuthn challenge store prunes and caps itself — see `audit-2026-08-08-live-quotas-mfa-fences.md`.
+
+0au. **Receipt signing key** — the gateway minted an ephemeral receipt key per boot, so persisted receipts verified as invalid after any restart; the key now comes from `OPENSESAME_RECEIPT_SIGNING_KEY` and production refuses to start without it — see `audit-2026-08-08-receipt-signing-key.md`.
+
+0av. **Receipt verifier registry** — verification is keyed by `authority_key_id` against trusted public keys so rotation no longer strands old receipts, and `GET /api/v1/receipts/keys` publishes them for independent verification — see `audit-2026-08-08-receipt-verifier-registry.md`.
+
+0aw. **Grant resource scope** — the policy engine checked a grant's actions but never its resources, so a grant for one repository authorized the same action anywhere; resource scope is now enforced with segment-bounded wildcards — see `audit-2026-08-08-grant-resource-scope.md`.
+
+0ax. **MCP endpoint fences** — the MCP host attached the local operator bearer to whatever base URL its environment named, and the MCP client sent session bearers over cleartext; both are now confined to https-or-loopback, and daemon calls actually authenticate — see `audit-2026-08-08-mcp-endpoint-fences.md`.
+
+0ay. **Temporary project expiry** — an activated temporary project outlived its own TTL because cleanup only looked at `provisional`, approval could resurrect a lapsed project, and the dev-only XOR seal's production guard was inert in browsers — see `audit-2026-08-08-project-expiry.md`.
 0b. **OSV-Scanner loop (2026-08-07)** — `jsonwebtoken` GHSA-h395 type-confusion → `10.4.0` + `aws_lc_rs`; gate at `pnpm run audit:osv` (see `audit-2026-08-07-osv-scanner.md`).
 1. **Auth bypass** — `Bearer prn_…` accepted unconditionally → gated behind `OPENSESAME_ALLOW_PRINCIPAL_BEARER`, disabled in production; production requires real claim pepper.
 2. **Unauthenticated sync** — gateway `POST /api/v1/sync/push|pull` required session bearer.

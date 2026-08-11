@@ -25,9 +25,23 @@ paths:
       responses:
         "200":
           description: Signed InvocationReceipt
+  /receipts/keys:
+    get:
+      summary: Public keys that may have signed a receipt
+      description: >-
+        Ed25519 public keys keyed by authority_key_id, including retired ones, so a
+        receipt holder can verify independently. Public material only.
+      responses:
+        "200":
+          description: Key set
   /receipts/{id}/verify:
     post:
       summary: Verify receipt signature
+      description: >-
+        Scoped to the caller: a session may only verify receipts for its own
+        principal, operators may verify any. Unowned ids answer 404. Checked
+        against the key named by authority_key_id, so receipts signed by a
+        retired key stay verifiable while it is still published.
       parameters:
         - name: id
           in: path
@@ -36,6 +50,8 @@ paths:
       responses:
         "200":
           description: Validity
+        "404":
+          description: Unknown receipt, or not owned by the caller
   /agent-identities:
     post:
       summary: Register agent instance and start claim ceremony

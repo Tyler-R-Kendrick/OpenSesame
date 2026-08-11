@@ -17,17 +17,35 @@ pub struct AuthorityDecision {
     pub reason: Option<String>,
 }
 
+/// One attempt to exercise authority over a connection.
+#[derive(Clone, Debug)]
+pub struct AuthorityUse<'a> {
+    pub subject: &'a str,
+    pub grant: &'a Grant,
+    pub binding: &'a ConnectionAuthorityBinding,
+    pub op: AuthorityOperation,
+    pub level: InvokeLevel,
+    pub requested_url: Option<&'a str>,
+    /// The action this use claims to exercise. A grant lists actions; a use that
+    /// names none cannot be checked against them.
+    pub requested_action: Option<&'a str>,
+}
+
 /// Enforce: reference ≠ capability; Level 3 export denied unless grant says so;
 /// L2 HTTP must satisfy egress binding.
 pub fn authorize_authority_use(
     engine: &PolicyEngine,
-    subject: &str,
-    grant: &Grant,
-    binding: &ConnectionAuthorityBinding,
-    op: AuthorityOperation,
-    level: InvokeLevel,
-    requested_url: Option<&str>,
+    use_: &AuthorityUse<'_>,
 ) -> Result<AuthorityDecision, AuthzError> {
+    let AuthorityUse {
+        subject,
+        grant,
+        binding,
+        op,
+        level,
+        requested_url,
+        requested_action,
+    } = *use_;
     if binding.connection_ref.handle.kind != AuthorityKind::Connection {
         return Err(AuthzError::Denied(
             "agent API accepts ConnectionRef only".into(),
@@ -98,17 +116,24 @@ pub fn authorize_authority_use(
     };
 
     // Relationship check uses connection user for invoke; export uses grant flag already.
+    //
+    // The action the engine checks is the one the caller asked for. It used to be
+    // overwritten with `grant.actions.first()`, which made the engine's
+    // "is this action granted?" check compare the grant against itself — a grant
+    // listing `repository.read` authorized a `pull_request.create` all the same.
     let mut engine_req = req;
     if level != InvokeLevel::Materialize {
-        engine_req.action.name = grant
-            .actions
-            .first()
-            .cloned()
-            .unwrap_or_else(|| "connection.invoke".into());
-        engine_req.resource = AuthZenResource {
-            type_: "connector_operation".into(),
-            id: "op".into(),
-        };
+        let action = requested_action.ok_or_else(|| {
+            AuthzError::Denied("authority use must name the action it exercises".into())
+        })?;
+        if !grant.actions.iter().any(|a| a == action) {
+            return Err(AuthzError::Denied(format!("action not granted: {action}")));
+        }
+        engine_req.action.name = action.to_string();
+        // The request stays connection-scoped. It used to be relabelled as a
+        // `connector_operation` with a placeholder id, which would now slip past
+        // the grant's resource scope on the strength of a resource nobody named;
+        // on this path the target is the URL, fenced by the egress binding above.
     }
 
     match engine.decide(&engine_req, Some(grant), class) {
@@ -242,12 +267,15 @@ mod tests {
         let b = binding();
         let err = authorize_authority_use(
             &e,
-            "user:demo",
-            &g,
-            &b,
-            AuthorityOperation::Resolve,
-            InvokeLevel::Materialize,
-            None,
+            &AuthorityUse {
+                subject: "user:demo",
+                grant: &g,
+                binding: &b,
+                op: AuthorityOperation::Resolve,
+                level: InvokeLevel::Materialize,
+                requested_url: None,
+                requested_action: None,
+            },
         )
         .unwrap_err();
         assert!(matches!(err, AuthzError::Denied(_)));
@@ -260,12 +288,15 @@ mod tests {
         let b = binding();
         let err = authorize_authority_use(
             &e,
-            "user:demo",
-            &g,
-            &b,
-            AuthorityOperation::Invoke,
-            InvokeLevel::ConstrainedHttp,
-            Some("https://evil.example/exfil"),
+            &AuthorityUse {
+                subject: "user:demo",
+                grant: &g,
+                binding: &b,
+                op: AuthorityOperation::Invoke,
+                level: InvokeLevel::ConstrainedHttp,
+                requested_url: Some("https://evil.example/exfil"),
+                requested_action: Some("pull_request.create"),
+            },
         )
         .unwrap_err();
         assert!(matches!(err, AuthzError::Denied(_)));
@@ -278,15 +309,75 @@ mod tests {
         let b = binding();
         let d = authorize_authority_use(
             &e,
-            "user:demo",
-            &g,
-            &b,
-            AuthorityOperation::Invoke,
-            InvokeLevel::ConstrainedHttp,
-            Some("https://api.github.com/repos/acme/catalog/pulls"),
+            &AuthorityUse {
+                subject: "user:demo",
+                grant: &g,
+                binding: &b,
+                op: AuthorityOperation::Invoke,
+                level: InvokeLevel::ConstrainedHttp,
+                requested_url: Some("https://api.github.com/repos/acme/catalog/pulls"),
+                requested_action: Some("pull_request.create"),
+            },
         )
         .unwrap();
         assert!(d.allowed);
+    }
+
+    #[test]
+    fn an_action_the_grant_does_not_list_is_denied() {
+        let e = engine();
+        let g = grant(false);
+        let b = binding();
+        let url = Some("https://api.github.com/repos/acme/catalog/pulls");
+        // The grant lists pull_request.create and repository.read, not this.
+        let err = authorize_authority_use(
+            &e,
+            &AuthorityUse {
+                subject: "user:demo",
+                grant: &g,
+                binding: &b,
+                op: AuthorityOperation::Invoke,
+                level: InvokeLevel::ConstrainedHttp,
+                requested_url: url,
+                requested_action: Some("repository.delete"),
+            },
+        )
+        .unwrap_err();
+        assert!(matches!(err, AuthzError::Denied(m) if m.contains("repository.delete")));
+
+        // A use that names no action cannot be checked against the grant's list.
+        let err = authorize_authority_use(
+            &e,
+            &AuthorityUse {
+                subject: "user:demo",
+                grant: &g,
+                binding: &b,
+                op: AuthorityOperation::Invoke,
+                level: InvokeLevel::ConstrainedHttp,
+                requested_url: url,
+                requested_action: None,
+            },
+        )
+        .unwrap_err();
+        assert!(matches!(err, AuthzError::Denied(m) if m.contains("must name the action")));
+
+        // Every action the grant does list is usable, not just the first.
+        for action in ["pull_request.create", "repository.read"] {
+            let d = authorize_authority_use(
+                &e,
+                &AuthorityUse {
+                    subject: "user:demo",
+                    grant: &g,
+                    binding: &b,
+                    op: AuthorityOperation::Invoke,
+                    level: InvokeLevel::ConstrainedHttp,
+                    requested_url: url,
+                    requested_action: Some(action),
+                },
+            )
+            .unwrap();
+            assert!(d.allowed, "{action}");
+        }
     }
 
     #[test]

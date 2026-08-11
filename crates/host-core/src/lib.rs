@@ -58,6 +58,128 @@ pub mod daemon {
     pub fn uds_only_requested() -> bool {
         std::env::var(ENV_UDS_ONLY).ok().as_deref() == Some("1")
     }
+
+    /// True when an `http(s)://` base names this machine.
+    ///
+    /// The operator token is a shared secret for *this host*, so a base that
+    /// names anywhere else must not be offered it. Userinfo makes the authority
+    /// ambiguous — `http://127.0.0.1@evil.test/` is a request to evil.test — so a
+    /// base carrying any is not local.
+    pub fn base_url_is_local(base: &str) -> bool {
+        let trimmed = base.trim();
+        let rest = match trimmed
+            .strip_prefix("http://")
+            .or_else(|| trimmed.strip_prefix("https://"))
+        {
+            Some(rest) => rest,
+            None => return false,
+        };
+        let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+        if authority.is_empty() || authority.contains('@') {
+            return false;
+        }
+        listen_host_is_loopback(&authority.to_ascii_lowercase())
+    }
+}
+
+/// Operator bearer check shared by the local host binaries.
+///
+/// Loopback is not a boundary here: a co-resident process reaches the daemon as
+/// easily as the toolbar does, so every mutating local route wants this.
+pub mod operator {
+    use axum::http::{header, HeaderMap};
+
+    /// Length-checked, branch-free comparison of two secrets.
+    pub fn constant_time_eq(a: &str, b: &str) -> bool {
+        let (aa, bb) = (a.as_bytes(), b.as_bytes());
+        if aa.len() != bb.len() {
+            return false;
+        }
+        let mut diff = 0u8;
+        for (x, y) in aa.iter().zip(bb.iter()) {
+            diff |= x ^ y;
+        }
+        diff == 0
+    }
+
+    /// `X-OpenSesame-Operator: <token>` or `Authorization: Bearer operator:<token>`.
+    pub fn token_from_headers(headers: &HeaderMap) -> Option<String> {
+        let from_header = headers
+            .get("x-opensesame-operator")
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_string);
+        let from_bearer = headers
+            .get(header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|a| {
+                a.strip_prefix("Bearer operator:")
+                    .or_else(|| a.strip_prefix("bearer operator:"))
+                    .map(str::to_string)
+            });
+        from_header.or(from_bearer)
+    }
+
+    /// Why a request is not operator-authorized.
+    #[derive(Debug, PartialEq, Eq)]
+    pub enum OperatorDenial {
+        /// No token configured — the route denies rather than opening up.
+        Unconfigured,
+        Unauthorized,
+    }
+
+    pub fn check(expected: &str, headers: &HeaderMap) -> Result<(), OperatorDenial> {
+        if expected.is_empty() {
+            return Err(OperatorDenial::Unconfigured);
+        }
+        match token_from_headers(headers) {
+            Some(t) if constant_time_eq(&t, expected) => Ok(()),
+            _ => Err(OperatorDenial::Unauthorized),
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use axum::http::HeaderValue;
+
+        #[test]
+        fn an_unset_token_denies_instead_of_allowing() {
+            let mut headers = HeaderMap::new();
+            headers.insert("x-opensesame-operator", HeaderValue::from_static(""));
+            assert_eq!(check("", &headers), Err(OperatorDenial::Unconfigured));
+        }
+
+        #[test]
+        fn header_and_bearer_forms_both_authorize() {
+            let mut headers = HeaderMap::new();
+            headers.insert("x-opensesame-operator", HeaderValue::from_static("s3cret"));
+            assert!(check("s3cret", &headers).is_ok());
+
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                header::AUTHORIZATION,
+                HeaderValue::from_static("Bearer operator:s3cret"),
+            );
+            assert!(check("s3cret", &headers).is_ok());
+        }
+
+        #[test]
+        fn a_wrong_or_missing_token_is_unauthorized() {
+            assert_eq!(
+                check("s3cret", &HeaderMap::new()),
+                Err(OperatorDenial::Unauthorized)
+            );
+            let mut headers = HeaderMap::new();
+            headers.insert("x-opensesame-operator", HeaderValue::from_static("nope"));
+            assert_eq!(check("s3cret", &headers), Err(OperatorDenial::Unauthorized));
+        }
+
+        #[test]
+        fn comparison_is_length_checked() {
+            assert!(!constant_time_eq("abc", "abcd"));
+            assert!(constant_time_eq("abc", "abc"));
+        }
+    }
 }
 
 /// Browser CORS allowlist + baseline response headers (`OPENSESAME_CORS_ORIGINS`).
@@ -201,6 +323,32 @@ mod tests {
     #[test]
     fn wit_package_pinned() {
         assert!(super::wit_contract::PACKAGE.contains("host"));
+    }
+
+    #[test]
+    fn a_local_base_url_is_told_apart_from_a_remote_one() {
+        use super::daemon::base_url_is_local;
+        for local in [
+            "http://127.0.0.1:8787",
+            "http://localhost:8787/api",
+            "https://LOCALHOST",
+            "http://[::1]:18790",
+        ] {
+            assert!(base_url_is_local(local), "{local} names this machine");
+        }
+        for remote in [
+            "http://10.0.0.5:8787",
+            "https://api.example.test",
+            // Userinfo: the authority is evil.test, whatever it is dressed as.
+            "http://127.0.0.1@evil.test/api",
+            "http://localhost.evil.test",
+            // Not an http(s) base at all.
+            "ftp://127.0.0.1",
+            "127.0.0.1:8787",
+            "",
+        ] {
+            assert!(!base_url_is_local(remote), "{remote} is not this machine");
+        }
     }
 
     #[test]

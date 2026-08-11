@@ -34,8 +34,11 @@ pub fn require_session(
         )
             .into_response());
     };
+    // Sessions are keyed by digest; the presented bearer is never stored, and the
+    // handle returned here (used for sync-blob ownership) is the digest too.
+    let session_digest = opensesame_claims::hash_secret(session_id);
     let mut sessions = st.sessions.lock().unwrap();
-    let Some(meta) = sessions.get(session_id).cloned() else {
+    let Some(meta) = sessions.get(&session_digest).cloned() else {
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(json!({"error":"invalid_session"})),
@@ -49,14 +52,14 @@ pub fn require_session(
         .map(|dt| chrono::Utc::now() >= dt.with_timezone(&chrono::Utc))
         .unwrap_or(true);
     if expired {
-        sessions.remove(session_id);
+        sessions.remove(&session_digest);
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(json!({"error":"session_expired"})),
         )
             .into_response());
     }
-    Ok((session_id.to_string(), meta))
+    Ok((session_digest, meta))
 }
 
 pub fn session_subject(meta: &Value) -> String {
@@ -126,6 +129,49 @@ pub fn resolve_caller_subject(
     }
     require_operator(st, headers)?;
     Ok("user:demo".into())
+}
+
+/// Which principal a request may act on behalf of.
+///
+/// Operators are unfenced. A session is fenced to the principal it was approved
+/// as; a dev session that was never bound to a real principal id falls back to
+/// the bootstrap principal, which is exactly the principal its invocations are
+/// stamped with.
+pub enum Caller {
+    Operator,
+    Principal(opensesame_domain::PrincipalId),
+    /// Authenticated session with no resolvable principal — owns nothing.
+    Unbound,
+}
+
+impl Caller {
+    pub fn owns(&self, principal: &opensesame_domain::PrincipalId) -> bool {
+        match self {
+            Caller::Operator => true,
+            Caller::Principal(mine) => mine == principal,
+            Caller::Unbound => false,
+        }
+    }
+}
+
+/// Resolves the caller once: session first (fenced), operator second (unfenced).
+#[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
+pub fn resolve_caller(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, Response> {
+    if let Ok((_, meta)) = require_session(st, headers) {
+        let subject = session_subject(&meta);
+        if let Ok(principal) = opensesame_domain::PrincipalId::parse(&subject) {
+            return Ok(Caller::Principal(principal));
+        }
+        return Ok(st
+            .bootstrap
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|boot| Caller::Principal(boot.principal))
+            .unwrap_or(Caller::Unbound));
+    }
+    require_operator(st, headers)?;
+    Ok(Caller::Operator)
 }
 
 #[allow(clippy::result_large_err)]

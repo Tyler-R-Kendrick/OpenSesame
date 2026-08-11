@@ -1,10 +1,12 @@
 import { Hono } from "hono";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { appendAuditEvent } from "@opensesame/audit";
 import {
   issueAuthenticationChallenge,
   issueRegistrationChallenge,
   verifyRegistrationAttestation,
 } from "@opensesame/auth-upstream";
+import type { AppContext } from "../context.js";
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 
@@ -54,6 +56,43 @@ function rpFromConfig(publicUrl: string): { rpID: string; origin: string } {
     /* keep default */
   }
   return { rpID: hostname, origin: publicUrl.replace(/\/$/, "") };
+}
+
+/**
+ * A six-digit code is 10^6 guesses; a passkey assertion is not guessable but its
+ * verification is not free. Both get the same small fence.
+ */
+const MAX_MFA_FAILURES = 5;
+
+/**
+ * Record a refused factor.
+ *
+ * Almost every audit event in this service is a success, which is the one shape
+ * of trail that cannot show an attack: five failed codes followed by one success
+ * reads as a single login. A denial is the event worth keeping.
+ */
+async function auditMfaDenial(
+  ctx: AppContext,
+  input: {
+    eventType: string;
+    reason: string;
+    principalId?: string;
+    correlationId?: string;
+    targetType?: string;
+    targetId?: string;
+  },
+): Promise<void> {
+  await appendAuditEvent(ctx.repos.auditEvents, {
+    eventType: input.eventType,
+    outcome: "denied",
+    ...(input.principalId !== undefined ? { principalId: input.principalId } : {}),
+    ...(input.correlationId !== undefined
+      ? { correlationId: input.correlationId }
+      : {}),
+    ...(input.targetType !== undefined ? { targetType: input.targetType } : {}),
+    ...(input.targetId !== undefined ? { targetId: input.targetId } : {}),
+    metadata: { action: input.eventType, reason: input.reason },
+  });
 }
 
 export const mfaRoutes = new Hono<{ Variables: Variables }>();
@@ -160,13 +199,38 @@ mfaRoutes.post("/passkey/assert", async (c) => {
   if (!body.credentialId || !body.signature) {
     return c.json({ error: "invalid_request" }, 400);
   }
+  const fenceKey = `passkey:${body.credentialId}`;
+  if ((ctx.stores.mfaFailures.get(fenceKey) ?? 0) >= MAX_MFA_FAILURES) {
+    await auditMfaDenial(ctx, {
+      eventType: "mfa.passkey.assert",
+      reason: "too_many_attempts",
+      correlationId: c.get("correlationId"),
+      targetType: "passkey",
+      targetId: body.credentialId,
+    });
+    return c.json({ ok: false, error: "too_many_attempts" }, 429);
+  }
   const result = await ctx.passkeys.verify({
     credentialId: body.credentialId,
     clientDataJSON: Buffer.from(body.clientDataJSON ?? "", "base64"),
     authenticatorData: Buffer.from(body.authenticatorData ?? "", "base64"),
     signature: Buffer.from(body.signature, "base64"),
   });
-  if (!result.ok) return c.json({ ok: false }, 401);
+  if (!result.ok) {
+    ctx.stores.mfaFailures.set(
+      fenceKey,
+      (ctx.stores.mfaFailures.get(fenceKey) ?? 0) + 1,
+    );
+    await auditMfaDenial(ctx, {
+      eventType: "mfa.passkey.assert",
+      reason: "assertion_failed",
+      correlationId: c.get("correlationId"),
+      targetType: "passkey",
+      targetId: body.credentialId,
+    });
+    return c.json({ ok: false }, 401);
+  }
+  ctx.stores.mfaFailures.delete(fenceKey);
   return c.json({ ok: true, principalId: result.principalId });
 });
 
@@ -216,9 +280,33 @@ mfaRoutes.post("/totp/verify", requirePrincipal(), async (c) => {
   }
   const secret = ctx.stores.totpSecrets.get(principalId);
   if (!secret) return c.json({ ok: false, error: "not_enrolled" }, 404);
+  const fenceKey = `totp:${principalId}`;
+  if ((ctx.stores.mfaFailures.get(fenceKey) ?? 0) >= MAX_MFA_FAILURES) {
+    await auditMfaDenial(ctx, {
+      eventType: "mfa.totp.verify",
+      reason: "too_many_attempts",
+      principalId,
+      correlationId: c.get("correlationId"),
+    });
+    return c.json({ ok: false, error: "too_many_attempts" }, 429);
+  }
   const expected = totpCode(secret);
   const ok = totpCodesEqual(body.code ?? "", expected);
-  return c.json({ ok }, ok ? 200 : 401);
+  if (!ok) {
+    ctx.stores.mfaFailures.set(
+      fenceKey,
+      (ctx.stores.mfaFailures.get(fenceKey) ?? 0) + 1,
+    );
+    await auditMfaDenial(ctx, {
+      eventType: "mfa.totp.verify",
+      reason: "bad_code",
+      principalId,
+      correlationId: c.get("correlationId"),
+    });
+    return c.json({ ok }, 401);
+  }
+  ctx.stores.mfaFailures.delete(fenceKey);
+  return c.json({ ok }, 200);
 });
 
 export { totpCode };

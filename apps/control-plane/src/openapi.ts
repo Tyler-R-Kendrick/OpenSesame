@@ -95,12 +95,34 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
       "/v1/claims/{id}/complete": {
         post: {
           summary: "Complete claim",
+          description:
+            "Requires the user code displayed by the device being claimed; five wrong codes refuse the claim.",
           security: [{ bearerAuth: [] }],
           parameters: [
             { name: "id", in: "path", required: true, schema: { type: "string" } },
             { name: "Idempotency-Key", in: "header", schema: { type: "string" } },
           ],
-          responses: { "200": { description: "Completed" } },
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["acceptedItemIds", "userCode"],
+                  properties: {
+                    acceptedItemIds: { type: "array", items: { type: "string" } },
+                    userCode: { type: "string" },
+                    destination: { type: "object" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Completed" },
+            "401": { description: "Missing or wrong user code" },
+            "429": { description: "Too many wrong user codes for this claim" },
+          },
         },
       },
       "/v1/claims/{id}/deny": {

@@ -16,7 +16,7 @@ Nothing beyond licensing. No packages, binaries, schemas, CI, deployments, or te
 | Principal / Actor / ActorInstance | none | Introduce opaque typed IDs |
 | Grant / Intent / Invocation / Receipt | none | Canonical IR in `crates/domain` |
 | Connector / Connection | none | Manifest + WIT + host in `wit/`, `crates/connector-host` |
-| Human E2EE vault | none | `crates/human-vault` + `packages/client-crypto` |
+| Human E2EE vault | none | `crates/human-vault` + `apps/browser-extension` |
 | Authority plane | none | OpenBao provider adapter |
 | AuthZ | none | OpenFGA + AuthZEN adapter |
 | Mesh | none | `MeshProvider` + Tailscale/static-mTLS adapters |
@@ -64,15 +64,15 @@ Initial schema only (`migrations/0001_init.sql` and following). No legacy data.
 | Area | Package / path |
 |------|----------------|
 | Domain IR | `crates/domain` |
-| OpenAPI / JSON Schema / events | `api/`, `crates/contracts` |
+| OpenAPI / JSON Schema / events | `api/` |
 | Persistence | `crates/storage`, `migrations/` |
 | AuthN / device flow | `crates/authn`, `apps/cli` |
 | AuthZ / OpenFGA / AuthZEN | `crates/authz`, `policy/` |
 | Broker | `crates/broker`, `apps/gateway`, `apps/worker` |
 | Claims | `crates/claims` |
-| Human vault | `crates/human-vault`, `packages/client-crypto`, `apps/browser-extension` |
+| Human vault | `crates/human-vault`, `apps/browser-extension` |
 | Connectors | `wit/`, `crates/connector-host`, `connectors/` |
-| Rotation / PKI | `crates/rotation`, `crates/provider-openbao`, `crates/provider-step-ca` |
-| Mesh / edge | `crates/provider-tailscale`, `crates/provider-static-mesh`, `apps/callback-edge` |
+| Rotation / PKI | `crates/rotation`, `crates/provider-openbao` |
+| Mesh / edge | `crates/provider-static-mesh`, `apps/callback-edge` |
 | Deploy | `deploy/` |
 | Docs / validation | `docs/` |

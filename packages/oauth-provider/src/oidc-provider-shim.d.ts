@@ -82,6 +82,12 @@ declare module "oidc-provider" {
     [key: string]: unknown;
   }
 
-  export const errors: Record<string, new (...args: unknown[]) => Error>;
+  type OidcErrorConstructor = new (...args: unknown[]) => Error;
+
+  export const errors: Record<string, OidcErrorConstructor | undefined> & {
+    InvalidTarget: OidcErrorConstructor;
+    InvalidRequest: OidcErrorConstructor;
+    InvalidClient: OidcErrorConstructor;
+  };
   export default Provider;
 }

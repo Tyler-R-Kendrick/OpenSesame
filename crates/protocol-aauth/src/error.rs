@@ -2,9 +2,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum AAuthError {
-    #[error("scope exceeds capability ceiling")]
-    ScopeOutsideCeiling,
-
     #[error("multiple persons in single-principal mapping")]
     MultiplePersons,
 

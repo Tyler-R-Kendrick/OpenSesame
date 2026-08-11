@@ -1,10 +1,7 @@
 //! Lossless AAuth draft-10 → OpenSesame domain mappings.
 
 use crate::error::AAuthError;
-use opensesame_domain::{
-    digest_sha256, ActorId, ActorInstanceId, Capability, CapabilitySet, PrincipalId,
-    ResourceSelector,
-};
+use opensesame_domain::{digest_sha256, ActorId, ActorInstanceId, PrincipalId};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -98,27 +95,6 @@ pub fn mission_to_governance_context(mission: &Mission) -> GovernanceContext {
         mission_digest: digest_sha256(&mission.bytes),
         mission_bytes_len: mission.bytes.len(),
     }
-}
-
-/// Stub scope mapping aligned with MCP-style scope strings.
-pub fn scopes_to_capability_set(scopes: &[impl AsRef<str>]) -> CapabilitySet {
-    let capabilities = scopes
-        .iter()
-        .map(|scope| Capability::new(scope.as_ref().to_string(), ResourceSelector::exact("*")))
-        .collect();
-    CapabilitySet::new(capabilities).canonicalize()
-}
-
-/// Fail closed when requested scopes exceed the compiled ceiling.
-pub fn assert_scopes_within_ceiling(
-    scopes: &[impl AsRef<str>],
-    ceiling: &CapabilitySet,
-) -> Result<(), AAuthError> {
-    let requested = scopes_to_capability_set(scopes);
-    if !requested.is_subset_of(&ceiling.canonicalize()) {
-        return Err(AAuthError::ScopeOutsideCeiling);
-    }
-    Ok(())
 }
 
 /// Single-principal invariant: one person maps to one principal id.

@@ -673,6 +673,9 @@ impl TaskStore for SqliteTaskStore {
         })
     }
 
+    /// Write-once: a ceiling digest may be set, and may be set again to the same
+    /// value, but never changed. Immutability that only holds on the read path is
+    /// one stray writer away from not holding at all.
     fn save_ceiling_digest(
         &self,
         task_run_id: TaskRunId,
@@ -682,15 +685,26 @@ impl TaskStore for SqliteTaskStore {
         let id = task_run_id.to_string();
         let digest = digest.to_string();
         self.block_on(async move {
-            let updated = sqlx::query("UPDATE task_runs SET ceiling_digest = ? WHERE id = ?")
-                .bind(&digest)
-                .bind(&id)
-                .execute(&pool)
-                .await
-                .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
+            let updated = sqlx::query(
+                "UPDATE task_runs SET ceiling_digest = ?1 \
+                 WHERE id = ?2 AND (ceiling_digest = '' OR ceiling_digest = ?1)",
+            )
+            .bind(&digest)
+            .bind(&id)
+            .execute(&pool)
+            .await
+            .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
             if updated.rows_affected() == 0 {
-                // Start path may save digest before run row exists — store as no-op until save_run.
-                // Persist via a placeholder is avoided; engine saves digest then save_run.
+                // No row yet is the ordinary start path: `save_run` derives the
+                // digest when it inserts. A row with a *different* digest is not.
+                let existing = sqlx::query("SELECT ceiling_digest FROM task_runs WHERE id = ?")
+                    .bind(&id)
+                    .fetch_optional(&pool)
+                    .await
+                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
+                if existing.is_some() {
+                    return Err(TaskAccessError::CeilingImmutable);
+                }
             }
             Ok(())
         })
@@ -810,5 +824,40 @@ mod tests {
             TaskAccessError::Domain(DomainError::TaskStateVersionMismatch { .. })
         ));
         assert_eq!(store2.list_runs().unwrap().len(), 1);
+
+        // A ceiling digest is write-once. Re-recording the same value is fine;
+        // a different one is refused by the store, not merely noticed on read.
+        let recorded = engine
+            .store()
+            .get_ceiling_digest(run.id)
+            .unwrap()
+            .expect("digest recorded at start");
+        engine
+            .store()
+            .save_ceiling_digest(run.id, &recorded)
+            .unwrap();
+        assert!(matches!(
+            engine
+                .store()
+                .save_ceiling_digest(run.id, "sha256:some-wider-ceiling"),
+            Err(TaskAccessError::CeilingImmutable)
+        ));
+        assert_eq!(
+            engine.store().get_ceiling_digest(run.id).unwrap(),
+            Some(recorded)
+        );
+
+        // And a non-CAS re-save cannot widen the stored ceiling either.
+        let mut widened = engine.store().get_run(run.id).unwrap().unwrap();
+        widened.capability_ceiling = CapabilitySet::new(vec![Capability::new(
+            "admin",
+            ResourceSelector::exact("repo:*"),
+        )]);
+        engine.store().save_run(&widened).unwrap();
+        let reloaded = engine.store().get_run(run.id).unwrap().unwrap();
+        assert_eq!(
+            reloaded.capability_ceiling, loaded.capability_ceiling,
+            "the stored ceiling is the one compiled at start"
+        );
     }
 }

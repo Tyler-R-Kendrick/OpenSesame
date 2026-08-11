@@ -29,7 +29,12 @@ Maps to Host API:
 
 - `POST /api/v1/tasks` — start task (mint handle)
 - `POST /api/v1/tasks/intents` — freeze intent (mint intent handle)
+- `POST /api/v1/tasks/invoke` — execute a frozen intent by digest; the server holds
+  the frozen bytes, so the caller names the digest and cannot restate the call
 - `POST /api/v1/tasks/{id}/terminate` — terminate task
+
+`POST /api/v1/intents` is the unfenced legacy path: it refuses requests that carry
+`task_run_id` or `intent_digest` rather than pretending to honour them.
 
 ## Proof world (`wit/proof/world.wit`)
 

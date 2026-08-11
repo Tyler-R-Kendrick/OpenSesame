@@ -1,0 +1,3 @@
+ALTER TABLE "oauth_clients" ADD COLUMN "owner_principal_id" text;--> statement-breakpoint
+ALTER TABLE "oauth_clients" ADD CONSTRAINT "oauth_clients_owner_principal_id_principals_id_fk" FOREIGN KEY ("owner_principal_id") REFERENCES "public"."principals"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "oauth_clients_owner_principal_id_idx" ON "oauth_clients" USING btree ("owner_principal_id");

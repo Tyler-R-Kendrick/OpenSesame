@@ -7,11 +7,30 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { createApiClient } from "@opensesame/api-client";
+import { createApiClient, normalizeHttpBaseUrl } from "@opensesame/api-client";
 import { toolsManifest } from "./tools.js";
 
-const hostUrl = process.env.OPENSESAME_HOST_API ?? "http://127.0.0.1:8787";
-const identityUrl = process.env.OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
+/**
+ * Both endpoints come from the environment, and every call to them carries the
+ * session bearer — so a base URL that is not https off loopback would hand that
+ * bearer to the network. Refuse at startup rather than leak on first use.
+ */
+function requireBase(raw: string, envName: string): string {
+  const normalized = normalizeHttpBaseUrl(raw);
+  if (!normalized) {
+    throw new Error(`${envName} must be an https URL, or http on loopback`);
+  }
+  return normalized;
+}
+
+const hostUrl = requireBase(
+  process.env.OPENSESAME_HOST_API ?? "http://127.0.0.1:8787",
+  "OPENSESAME_HOST_API",
+);
+const identityUrl = requireBase(
+  process.env.OPENSESAME_ISSUER ?? "http://127.0.0.1:8788",
+  "OPENSESAME_ISSUER",
+);
 
 function requireAccessToken(): string {
   const tok = process.env.OPENSESAME_ACCESS_TOKEN?.trim();

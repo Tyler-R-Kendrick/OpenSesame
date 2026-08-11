@@ -242,7 +242,9 @@ impl TaskStore for PostgresTaskStore {
                     row.get::<String, _>("ceiling_digest"),
                     row.get::<Option<String>, _>("pending_transition_id"),
                 ),
-                None => (String::new(), None),
+                // Derive it rather than storing a placeholder: a row whose digest
+                // is empty until the next call fails every later ceiling check.
+                None => (run.capability_ceiling.digest()?, None),
             };
             upsert_task_run(&pool, &run, ceiling_digest.as_str(), pending.as_deref()).await
         })
@@ -568,6 +570,9 @@ impl TaskStore for PostgresTaskStore {
         })
     }
 
+    /// Write-once: a ceiling digest may be set, and may be set again to the same
+    /// value, but never changed. Immutability that only holds on the read path is
+    /// one stray writer away from not holding at all.
     fn save_ceiling_digest(
         &self,
         task_run_id: TaskRunId,
@@ -577,12 +582,28 @@ impl TaskStore for PostgresTaskStore {
         let id_str = task_run_id.to_string();
         let digest = digest.to_string();
         self.block_on(async move {
-            sqlx::query("UPDATE task_runs SET ceiling_digest = $2 WHERE id = $1")
-                .bind(&id_str)
-                .bind(&digest)
-                .execute(&pool)
-                .await
-                .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
+            let updated = sqlx::query(
+                r#"
+                UPDATE task_runs SET ceiling_digest = $2
+                WHERE id = $1 AND (ceiling_digest = '' OR ceiling_digest = $2)
+                "#,
+            )
+            .bind(&id_str)
+            .bind(&digest)
+            .execute(&pool)
+            .await
+            .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
+            if updated.rows_affected() == 0 {
+                let existing = sqlx::query("SELECT ceiling_digest FROM task_runs WHERE id = $1")
+                    .bind(&id_str)
+                    .fetch_optional(&pool)
+                    .await
+                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
+                return match existing {
+                    Some(_) => Err(TaskAccessError::CeilingImmutable),
+                    None => Err(TaskAccessError::TaskNotFound(id_str)),
+                };
+            }
             Ok(())
         })
     }
@@ -667,13 +688,14 @@ async fn upsert_task_run(
             status, capability_ceiling, current_capabilities, state_version, state_digest,
             ceiling_digest, maximum_expires_at, pending_transition_id, created_at, updated_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        -- The ceiling and its digest are absent here on purpose: a ceiling is
+        -- immutable after activation (ADR 0019), so an upsert must not be a way
+        -- to widen one.
         ON CONFLICT (id) DO UPDATE SET
             status = EXCLUDED.status,
-            capability_ceiling = EXCLUDED.capability_ceiling,
             current_capabilities = EXCLUDED.current_capabilities,
             state_version = EXCLUDED.state_version,
             state_digest = EXCLUDED.state_digest,
-            ceiling_digest = EXCLUDED.ceiling_digest,
             maximum_expires_at = EXCLUDED.maximum_expires_at,
             pending_transition_id = EXCLUDED.pending_transition_id,
             updated_at = EXCLUDED.updated_at

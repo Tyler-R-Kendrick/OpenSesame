@@ -1,0 +1,48 @@
+#!/bin/sh
+# pre-commit — Biome check on staged files, plus an optional gitleaks scan.
+# Installed via `pnpm setup:hooks` (see scripts/setup-hooks.sh).
+set -e
+
+# Some shells/environments inherit a NODE_OPTIONS value with flags (e.g.
+# --import) that Node refuses inside NODE_OPTIONS even though they're valid
+# as direct CLI flags — that breaks every node/pnpm invocation below. Clear
+# it defensively rather than letting the hook fail with a confusing error.
+unset NODE_OPTIONS
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ -z "$staged_files" ]; then
+  echo "pre-commit: no staged files, skipping Biome check"
+else
+  # Filter to extensions Biome understands; avoids passing files it will
+  # never touch (e.g. .md, .sql, .lock) through the CLI.
+  biome_files=$(printf '%s\n' "$staged_files" | grep -E '\.(js|jsx|ts|tsx|mjs|cjs|mts|cts|json|jsonc)$' || true)
+
+  if [ -z "$biome_files" ]; then
+    echo "pre-commit: no staged files match Biome-handled extensions, skipping"
+  else
+    echo "==> biome check (staged files only)"
+    # shellcheck disable=SC2086
+    if ! pnpm biome check --no-errors-on-unmatched --files-ignore-unknown=true $biome_files; then
+      echo "pre-commit: biome check failed." >&2
+      echo "  -> run 'pnpm lint:fix', review the changes, and re-stage before committing again." >&2
+      exit 1
+    fi
+  fi
+fi
+
+if command -v gitleaks >/dev/null 2>&1; then
+  echo "==> gitleaks secret scan"
+  if ! bash scripts/gitleaks-gate.sh; then
+    echo "pre-commit: gitleaks gate failed." >&2
+    echo "  -> remove the flagged secret from staged changes (see artifacts/security/gitleaks-dir.json)." >&2
+    exit 1
+  fi
+else
+  echo "gitleaks not installed — skipping secret scan; install it for full pre-commit coverage"
+fi
+
+echo "pre-commit: OK"

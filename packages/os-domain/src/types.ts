@@ -150,6 +150,8 @@ export type AgentState = "provisional" | "claimed" | "suspended" | "revoked";
 
 export interface Agent {
   id: string;
+  /** Principal that registered the agent — only they may claim or mutate it. */
+  ownerPrincipalId: string;
   displayName: string;
   provider?: string;
   softwareIdentity?: string;
@@ -193,6 +195,8 @@ export type OAuthClientState = "active" | "suspended" | "revoked";
 
 export interface OAuthClientRecord {
   id: string;
+  /** Principal that registered the client — only they may read or mutate it. */
+  ownerPrincipalId: string;
   admissionMode: ClientAdmissionMode;
   displayName: string;
   redirectUris: string[];
@@ -369,6 +373,10 @@ export interface AuditEvent {
   correlationId: string;
   causationId?: string;
   metadata: Record<string, unknown>;
+  /** Digest of the preceding event in the trail — tamper evidence, not a signature. */
+  previousDigest?: string;
+  /** Digest of this event over its own fields and `previousDigest`. */
+  digest?: string;
 }
 
 export interface OutboxEvent {

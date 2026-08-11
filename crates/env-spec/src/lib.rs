@@ -177,6 +177,11 @@ pub struct ResolvedEnvEntry {
     pub warning: Option<String>,
 }
 
+/// Unguessable, per-projection placeholder suffix.
+fn placeholder_suffix() -> String {
+    uuid::Uuid::new_v4().simple().to_string()
+}
+
 /// Apply delivery policy to schema items — never materializes secrets without policy allow.
 pub fn resolve_for_delivery(
     doc: &EnvSpecDocument,
@@ -207,10 +212,11 @@ pub fn resolve_for_delivery(
                     policy.assert_allows(CredentialDeliveryMode::Placeholder)?;
                     let pattern =
                         starts_with_from_type(&item.r#type).unwrap_or_else(|| "sk_test_*".into());
-                    let projection = LegacyProjection {
+                    let mut projection = LegacyProjection {
                         env_var: item.key.clone(),
                         connection_ref_uri: uri.clone(),
                         placeholder_pattern: pattern,
+                        issued_placeholder: None,
                         placement: PlaceholderPlacement {
                             locations: vec![PlaceholderLocation::Header {
                                 name: Some("Authorization".into()),
@@ -225,7 +231,15 @@ pub fn resolve_for_delivery(
                         },
                         delivery: CredentialDeliveryMode::Placeholder,
                     };
-                    let ph = projection.shaped_placeholder("opensesame0");
+                    // A fresh suffix per projection. The constant that used to be
+                    // here made every legacy projection with the same pattern share
+                    // one placeholder — and a placeholder that is shared, or
+                    // guessable, is a request the holder can have filled with a
+                    // credential that was never meant for it.
+                    let ph = projection.shaped_placeholder(&placeholder_suffix());
+                    // Record it, so substitution is bound to this exact placeholder
+                    // rather than to anything merely shaped like it.
+                    projection.issued_placeholder = Some(ph.clone());
                     out.push(ResolvedEnvEntry {
                         key: item.key.clone(),
                         delivery: CredentialDeliveryMode::Placeholder,
@@ -363,6 +377,32 @@ mod tests {
         let gh = entries.iter().find(|e| e.key == "GITHUB_TOKEN").unwrap();
         assert_eq!(gh.delivery, CredentialDeliveryMode::Handle);
         assert_eq!(gh.env_value.as_deref(), Some("conn://demo/github"));
+    }
+
+    #[test]
+    fn each_projection_gets_its_own_placeholder() {
+        let doc = parse_schema_json(FIXTURE).unwrap();
+        let policy = DevDeliveryPolicy::agent_default();
+        let first = resolve_for_delivery(&doc, &policy, true).unwrap();
+        let second = resolve_for_delivery(&doc, &policy, true).unwrap();
+        let pick = |entries: &[ResolvedEnvEntry]| {
+            entries
+                .iter()
+                .find(|e| e.key == "STRIPE_SECRET_KEY")
+                .cloned()
+                .unwrap()
+        };
+        let (a, b) = (pick(&first), pick(&second));
+        let (pa, pb) = (a.env_value.clone().unwrap(), b.env_value.clone().unwrap());
+        // Two projections of the same connection must not share a placeholder:
+        // egress substitution keys off the text alone.
+        assert_ne!(pa, pb);
+        assert!(pa.starts_with("sk_"));
+        // And the placeholder handed out is one the projection will accept back.
+        assert!(a.projection.as_ref().unwrap().accepts_placeholder(&pa));
+        // Each projection admits only its own placeholder, not its neighbour's.
+        assert!(!a.projection.as_ref().unwrap().accepts_placeholder(&pb));
+        assert!(b.projection.as_ref().unwrap().accepts_placeholder(&pb));
     }
 
     #[test]
