@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Integration, Provider } from "../lib/connections.js";
 import {
   CONNECTION_POLL_MAX_ATTEMPTS,
@@ -8,6 +8,7 @@ import {
   parseConnectionMessage,
   reconcileOrganization,
   shouldPollPendingConnections,
+  takeSensitiveFormData,
 } from "./ConnectionsPage.js";
 
 const oauthProvider: Provider = {
@@ -52,6 +53,35 @@ function integration(
 }
 
 describe("Connections marketplace panels", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("clears a credential from its live form immediately after reading it", () => {
+    const credential = { value: "raw-secret" };
+    const form = {
+      reset: vi.fn(() => {
+        credential.value = "";
+      }),
+    } as unknown as HTMLFormElement;
+    vi.stubGlobal(
+      "FormData",
+      class {
+        readonly captured = credential.value;
+        constructor(received: HTMLFormElement) {
+          expect(received).toBe(form);
+        }
+        get(name: string) {
+          return name === "credential" ? this.captured : null;
+        }
+      },
+    );
+
+    const data = takeSensitiveFormData(form);
+
+    expect(data.get("credential")).toBe("raw-secret");
+    expect(credential.value).toBe("");
+    expect(form.reset).toHaveBeenCalledOnce();
+  });
+
   it("polls only pending connections within the bounded retry budget", () => {
     expect(shouldPollPendingConnections([{ status: "pending" }], 0)).toBe(true);
     expect(shouldPollPendingConnections([{ status: "active" }], 0)).toBe(false);

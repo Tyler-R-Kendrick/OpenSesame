@@ -121,6 +121,13 @@ export function shouldPollPendingConnections(
   );
 }
 
+/** Read a credential-bearing form once, then clear its live DOM immediately. */
+export function takeSensitiveFormData(form: HTMLFormElement) {
+  const data = new FormData(form);
+  form.reset();
+  return data;
+}
+
 export function ConnectionsPage() {
   const [organizations, setOrganizations] = useState<SessionOrganization[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -630,7 +637,7 @@ export function MarketplacePanel({
                     <form
                       onSubmit={(event) => {
                         event.preventDefault();
-                        const data = new FormData(event.currentTarget);
+                        const data = takeSensitiveFormData(event.currentTarget);
                         const popup =
                           provider.authKind === "oauth2_authorization_code"
                             ? window.open(
@@ -901,7 +908,7 @@ function ConnectionsPanel({
                     <form
                       onSubmit={(event) => {
                         event.preventDefault();
-                        const data = new FormData(event.currentTarget);
+                        const data = takeSensitiveFormData(event.currentTarget);
                         onCredential(
                           connection,
                           String(data.get("credential") ?? ""),
@@ -1071,7 +1078,9 @@ export function IntegrationsPanel({
                       <form
                         onSubmit={(event) => {
                           event.preventDefault();
-                          const data = new FormData(event.currentTarget);
+                          const data = takeSensitiveFormData(
+                            event.currentTarget,
+                          );
                           onRotate(
                             integration,
                             String(data.get("clientId") ?? "").trim(),
