@@ -24,10 +24,12 @@ const MAX_FROZEN_INTENTS: usize = 512;
 fn execution_bootstrap_for_organization(
     st: &AppState,
     organization_id: &OrganizationId,
+    principal_id: &PrincipalId,
 ) -> Result<crate::app_state::Bootstrap, Response> {
     let boot = require_demo_bootstrap(st)?;
     if boot.org != *organization_id
         || boot.grant.organization_id != *organization_id
+        || boot.grant.beneficiary_principal_id != *principal_id
         || boot.grant.connection_id != Some(boot.connection)
     {
         return Err(err_json(
@@ -234,7 +236,7 @@ pub async fn freeze_intent(
     // Name the authority this intent will execute under. A fresh `ActorId::new()`
     // named nothing, so the receipt's actor was meaningless and a grant narrowed to
     // one actor, project or connection could not tell whether it covered the call.
-    let boot = execution_bootstrap_for_organization(&st, &run.organization_id)?;
+    let boot = execution_bootstrap_for_organization(&st, &run.organization_id, &run.principal_id)?;
     let intent = FrozenIntentV2 {
         schema_version: FROZEN_INTENT_SCHEMA_VERSION,
         id: IntentId::new(),
@@ -262,6 +264,13 @@ pub async fn freeze_intent(
     }
     .with_computed_digest()
     .map_err(bad_req)?;
+    opensesame_broker::assert_grant_covers_frozen_intent(&boot.grant, &intent).map_err(|_| {
+        err_json(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "organization_execution_unavailable",
+            "the configured grant does not cover this task authority",
+        )
+    })?;
     // Custody of the frozen bytes stays here: execution later names the digest,
     // it does not restate operation/resource/arguments.
     {
@@ -314,7 +323,7 @@ fn claim_frozen_intent(
     pending: &mut std::collections::HashMap<String, FrozenIntentV2>,
     digest: &str,
     caller: &crate::middleware::auth::Caller,
-    execution_organization: &OrganizationId,
+    execution_grant: &Grant,
     now: chrono::DateTime<Utc>,
 ) -> Result<Option<FrozenIntentV2>, ()> {
     pending.retain(|_, i| i.expires_at > now);
@@ -324,7 +333,7 @@ fn claim_frozen_intent(
     if !caller.owns(&intent.principal_id) || !caller.in_organization(&intent.organization_id) {
         return Ok(None);
     }
-    if intent.organization_id != *execution_organization {
+    if opensesame_broker::assert_grant_covers_frozen_intent(execution_grant, intent).is_err() {
         return Err(());
     }
     Ok(pending.remove(digest))
@@ -344,7 +353,7 @@ pub async fn invoke_task(
             &mut pending,
             &body.intent_digest,
             &caller,
-            &boot.org,
+            &boot.grant,
             Utc::now(),
         ) {
             Ok(Some(intent)) => intent,
@@ -477,8 +486,8 @@ mod tests {
     use axum::{extract::State, http::StatusCode, Json};
     use chrono::{Duration, Utc};
     use opensesame_domain::{
-        ActorId, FrozenIntentV2, IntentId, OrganizationId, PrincipalId, TaskRunId,
-        FROZEN_INTENT_SCHEMA_VERSION,
+        ActorId, FrozenIntentV2, Grant, GrantConstraints, GrantId, IntentId, OfflineUse,
+        OrganizationId, PrincipalId, TaskRunId, FROZEN_INTENT_SCHEMA_VERSION,
     };
     use std::collections::HashMap;
 
@@ -514,6 +523,42 @@ mod tests {
         }
     }
 
+    fn grant(principal: PrincipalId, organization_id: OrganizationId) -> Grant {
+        Grant {
+            id: GrantId::new(),
+            version: 1,
+            issuer_principal_id: principal,
+            beneficiary_principal_id: principal,
+            actor_id: None,
+            client_id: None,
+            actor_instance_id: None,
+            proof_key_thumbprint: None,
+            organization_id,
+            project_id: None,
+            environment_id: None,
+            connection_id: None,
+            actions: vec!["read".into()],
+            resources: vec!["repo:a".into()],
+            constraints: GrantConstraints {
+                audiences: vec!["https://api.example.com".into()],
+                not_before: None,
+                expires_at: Utc::now() + Duration::hours(1),
+                required_assurance: None,
+                authentication_max_age_seconds: None,
+                allowed_networks: vec![],
+                parameter_rules_digest: None,
+                budgets: Default::default(),
+                maximum_delegation_depth: 0,
+                offline_use: OfflineUse::Forbidden,
+                raw_credential_export: false,
+            },
+            parent_grant_id: None,
+            delegation_depth: 0,
+            created_at: Utc::now(),
+            revoked_at: None,
+        }
+    }
+
     #[test]
     fn a_caller_chosen_ttl_stays_inside_what_chrono_and_trust_allow() {
         assert!(super::bounded_ttl(3600).is_some());
@@ -537,6 +582,7 @@ mod tests {
     fn another_principal_cannot_burn_an_intent_it_does_not_own() {
         let owner = PrincipalId::new();
         let organization_id = OrganizationId::new();
+        let execution_grant = grant(owner, organization_id);
         let mut pending = HashMap::new();
         pending.insert(
             "sha256:intent".to_string(),
@@ -552,7 +598,7 @@ mod tests {
             &mut pending,
             "sha256:intent",
             &stranger,
-            &organization_id,
+            &execution_grant,
             Utc::now(),
         )
         .unwrap()
@@ -569,7 +615,7 @@ mod tests {
             &mut pending,
             "sha256:intent",
             &owner_caller,
-            &organization_id,
+            &execution_grant,
             Utc::now(),
         )
         .unwrap()
@@ -581,9 +627,10 @@ mod tests {
     fn a_session_with_an_untyped_subject_claims_nothing() {
         let mut pending = HashMap::new();
         let organization_id = OrganizationId::new();
+        let execution_grant = grant(PrincipalId::new(), organization_id);
         pending.insert(
             "sha256:intent".to_string(),
-            intent(PrincipalId::new(), organization_id, 5),
+            intent(execution_grant.beneficiary_principal_id, organization_id, 5),
         );
         let caller = Caller::Session {
             subject: "user:demo".into(),
@@ -594,7 +641,7 @@ mod tests {
             &mut pending,
             "sha256:intent",
             &caller,
-            &organization_id,
+            &execution_grant,
             Utc::now(),
         )
         .unwrap()
@@ -606,6 +653,7 @@ mod tests {
     fn expired_intents_are_dropped_rather_than_invoked() {
         let owner = PrincipalId::new();
         let organization_id = OrganizationId::new();
+        let execution_grant = grant(owner, organization_id);
         let mut pending = HashMap::new();
         pending.insert(
             "sha256:intent".to_string(),
@@ -619,7 +667,7 @@ mod tests {
                 organization_id,
                 role: opensesame_domain::OrganizationRole::Member,
             },
-            &organization_id,
+            &execution_grant,
             Utc::now()
         )
         .unwrap()
@@ -659,11 +707,12 @@ mod tests {
             organization_id: OrganizationId::new(),
             role: opensesame_domain::OrganizationRole::Owner,
         };
+        let execution_grant = grant(principal, intent_organization);
         assert!(claim_frozen_intent(
             &mut pending,
             "sha256:intent",
             &caller,
-            &intent_organization,
+            &execution_grant,
             Utc::now(),
         )
         .unwrap()
@@ -684,12 +733,13 @@ mod tests {
             organization_id,
             role: opensesame_domain::OrganizationRole::Member,
         };
+        let unavailable_grant = grant(principal, OrganizationId::new());
 
         assert!(claim_frozen_intent(
             &mut pending,
             "sha256:intent",
             &caller,
-            &OrganizationId::new(),
+            &unavailable_grant,
             Utc::now(),
         )
         .is_err());
@@ -792,6 +842,56 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn operator_cannot_freeze_for_a_principal_the_grant_does_not_cover() {
+        let state = crate::app_state::test_demo_state().await;
+        let bootstrap = state.bootstrap.lock().unwrap().clone().unwrap();
+        let principal = PrincipalId::new();
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            "x-opensesame-operator",
+            state.operator_token.parse().unwrap(),
+        );
+        let started = start_task(
+            State(state.clone()),
+            headers.clone(),
+            Json(StartTaskBody {
+                principal_id: principal.to_string(),
+                organization_id: bootstrap.org.to_string(),
+                capabilities: vec![CapabilityDto {
+                    action: "repository.read".into(),
+                    resource: "repo:acme/catalog".into(),
+                }],
+                ttl_seconds: 60,
+            }),
+        )
+        .await
+        .unwrap();
+        let started = axum::body::to_bytes(started.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let started: serde_json::Value = serde_json::from_slice(&started).unwrap();
+
+        let response = freeze_intent(
+            State(state.clone()),
+            headers,
+            Json(FreezeIntentBody {
+                task_run_id: started["task_run_id"].as_str().unwrap().into(),
+                expected_state_version: started["state_version"].as_u64().unwrap(),
+                operation: "repository.read".into(),
+                resource: "repo:acme/catalog".into(),
+                audience: "https://api.github.com".into(),
+                arguments: serde_json::json!({}),
+                idempotency_key: "wrong-beneficiary".into(),
+            }),
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert!(state.frozen_intents.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
     async fn invoking_a_legacy_mismatched_intent_does_not_consume_it() {
         let state = crate::app_state::test_demo_state().await;
         let bootstrap = state.bootstrap.lock().unwrap().clone().unwrap();
@@ -807,6 +907,43 @@ mod tests {
             &bootstrap.principal.to_string(),
             organization_id,
             opensesame_domain::OrganizationRole::Member,
+        );
+
+        let response = invoke_task(
+            State(state.clone()),
+            headers,
+            Json(InvokeTaskBody {
+                intent_digest: frozen.intent_digest.clone(),
+            }),
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert!(state
+            .frozen_intents
+            .lock()
+            .unwrap()
+            .contains_key(&frozen.intent_digest));
+    }
+
+    #[tokio::test]
+    async fn invoking_a_same_org_wrong_beneficiary_intent_does_not_consume_it() {
+        let state = crate::app_state::test_demo_state().await;
+        let bootstrap = state.bootstrap.lock().unwrap().clone().unwrap();
+        let mut frozen = intent(PrincipalId::new(), bootstrap.org, 5);
+        frozen.project_id = Some(bootstrap.project);
+        frozen.actor_id = bootstrap.actor;
+        frozen.connection_id = Some(bootstrap.connection);
+        state
+            .frozen_intents
+            .lock()
+            .unwrap()
+            .insert(frozen.intent_digest.clone(), frozen.clone());
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            "x-opensesame-operator",
+            state.operator_token.parse().unwrap(),
         );
 
         let response = invoke_task(

@@ -1,6 +1,6 @@
 mod frozen;
 
-pub use frozen::FrozenInvokeInput;
+pub use frozen::{assert_grant_covers_frozen_intent, FrozenInvokeInput};
 
 use chrono::Utc;
 use opensesame_audit::ReceiptSigner;
