@@ -51,4 +51,18 @@ describe("Host organization authority OpenAPI", () => {
       expect(freezeIntent).toContain(status);
     }
   });
+
+  it("keeps the strict connection schemas aligned with the runtime contract", () => {
+    for (const fragment of [
+      "            - catalog_unavailable",
+      "        provenance_url: { type: string, format: uri }",
+      "        catalog_revision: { type: string, minLength: 1 }",
+      'items: { $ref: "#/components/schemas/ConfigurationFieldDef" }',
+      'items: { $ref: "#/components/schemas/ConfiguredField" }',
+      'configuration_set: { $ref: "#/components/schemas/Configuration" }',
+      "        configuration_clear:",
+    ]) {
+      expect(hostOpenApi).toContain(fragment);
+    }
+  });
 });
