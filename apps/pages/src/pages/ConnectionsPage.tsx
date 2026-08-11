@@ -1,0 +1,1322 @@
+import type { RevokeResponse } from "@opensesame/contracts";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { IconConnection, IconSearch } from "../components/Icons.js";
+import {
+  type Connection,
+  type Integration,
+  type OrganizationMember,
+  type Provider,
+  type ProviderCategory,
+  addMember,
+  authorizeConnection,
+  chooseOrganization,
+  createConnection,
+  createIntegration,
+  deleteIntegration,
+  listConnections,
+  listIntegrations,
+  listMembers,
+  listProviders,
+  refreshConnection,
+  removeMember,
+  revokeConnection,
+  setConnectionCredential,
+  updateIntegration,
+  updateMember,
+} from "../lib/connections.js";
+import {
+  type OrganizationRole,
+  type SessionOrganization,
+  clearHostSession,
+  listSessionOrganizations,
+} from "../lib/identity.js";
+import { loadSettings } from "../lib/settings.js";
+
+const CATEGORY_LABELS: Record<ProviderCategory, string> = {
+  developer: "Developer tools",
+  productivity: "Productivity",
+  communication: "Communication",
+  storage: "Storage",
+  crm: "CRM",
+  payments: "Payments",
+  identity: "Identity",
+  testing: "Testing",
+};
+
+function message(error: unknown) {
+  return error instanceof Error ? error.message : "The request failed.";
+}
+
+export function filterProviders(
+  providers: Provider[],
+  query: string,
+  category: string,
+) {
+  const needle = query.trim().toLowerCase();
+  return providers.filter(
+    (provider) =>
+      (category === "all" || provider.category === category) &&
+      (!needle ||
+        provider.displayName.toLowerCase().includes(needle) ||
+        provider.id.toLowerCase().includes(needle)),
+  );
+}
+
+export function canConfigure(role: OrganizationRole) {
+  return role === "owner" || role === "admin";
+}
+
+export function reconcileOrganization(
+  organizations: SessionOrganization[],
+  currentId: string,
+) {
+  const organizationId = chooseOrganization(organizations, currentId);
+  return {
+    organizationId,
+    organization:
+      organizations.find((candidate) => candidate.id === organizationId) ??
+      null,
+  };
+}
+
+export function parseConnectionMessage(
+  event: MessageEvent,
+  hostOrigin: string,
+) {
+  if (
+    event.origin !== hostOrigin ||
+    !event.data ||
+    typeof event.data !== "object" ||
+    event.data.type !== "opensesame:connection"
+  ) {
+    return null;
+  }
+  const status =
+    typeof event.data.status === "string" ? event.data.status : null;
+  const error = typeof event.data.error === "string" ? event.data.error : null;
+  if (!status && !error) return null;
+  return {
+    status,
+    error,
+    hint: typeof event.data.hint === "string" ? event.data.hint : null,
+  };
+}
+
+export const CONNECTION_POLL_MAX_ATTEMPTS = 40;
+const CONNECTION_POLL_INTERVAL_MS = 3_000;
+
+export function shouldPollPendingConnections(
+  connections: Array<Pick<Connection, "status">>,
+  attempts: number,
+) {
+  return (
+    attempts < CONNECTION_POLL_MAX_ATTEMPTS &&
+    connections.some((connection) => connection.status === "pending")
+  );
+}
+
+/** Read a credential-bearing form once, then clear its live DOM immediately. */
+export function takeSensitiveFormData(form: HTMLFormElement) {
+  const data = new FormData(form);
+  form.reset();
+  return data;
+}
+
+/** Keep a successfully created Pending row visible when its next step fails. */
+export async function recoverCreatedConnection<T>(
+  finish: () => Promise<T>,
+  reload: () => Promise<void>,
+) {
+  try {
+    return await finish();
+  } catch (caught) {
+    try {
+      await reload();
+    } catch {
+      // The completion error is the actionable failure; never replace it with a
+      // secondary refresh error.
+    }
+    throw caught;
+  }
+}
+
+export function runConfirmedAction(
+  prompt: string,
+  action: () => void,
+  confirm: (message: string) => boolean = (message) => window.confirm(message),
+) {
+  if (!confirm(prompt)) return false;
+  action();
+  return true;
+}
+
+export function connectionRevocationNotice(
+  connectionName: string,
+  providerName: string,
+  result: RevokeResponse,
+) {
+  if (!result.revoked) {
+    return `${connectionName} revocation was not confirmed locally. Check the connection and revoke access in ${providerName}.`;
+  }
+  if (result.provider_revocation === "ok") {
+    return `${connectionName} revoked locally and at ${providerName}.`;
+  }
+  if (result.provider_revocation === "failed") {
+    return `${connectionName} revoked locally, but automatic provider revocation failed. The upstream grant may remain; revoke access in ${providerName}.`;
+  }
+  return `${connectionName} revoked locally, but ${providerName} does not support automatic revocation. The upstream grant may remain; revoke access in ${providerName}.`;
+}
+
+export function ConnectionsPage() {
+  const [organizations, setOrganizations] = useState<SessionOrganization[]>([]);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [members, setMembers] = useState<OrganizationMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const activeOrganizationId = useRef<string | null>(null);
+
+  const organization =
+    organizations.find((candidate) => candidate.id === organizationId) ?? null;
+
+  const loadWorkspace = useCallback(async (selected: SessionOrganization) => {
+    setLoading(true);
+    try {
+      const [nextProviders, nextIntegrations, nextConnections, nextMembers] =
+        await Promise.all([
+          listProviders(selected.id),
+          listIntegrations(selected.id),
+          listConnections(selected.id),
+          selected.role === "owner"
+            ? listMembers(selected.id)
+            : Promise.resolve([]),
+        ]);
+      if (activeOrganizationId.current !== selected.id) return;
+      setProviders(nextProviders);
+      setIntegrations(nextIntegrations);
+      setConnections(nextConnections);
+      setMembers(nextMembers);
+      setError(null);
+    } catch (caught) {
+      if (activeOrganizationId.current === selected.id) {
+        setError(message(caught));
+      }
+    } finally {
+      if (activeOrganizationId.current === selected.id) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let current = true;
+    void listSessionOrganizations()
+      .then((next) => {
+        if (!current) return;
+        setOrganizations(next);
+        setOrganizationId((selected) => chooseOrganization(next, selected));
+        setError(
+          next.length ? null : "This Identity session has no organizations.",
+        );
+      })
+      .catch((caught) => {
+        if (current) setError(message(caught));
+      })
+      .finally(() => {
+        if (current) setLoading(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    activeOrganizationId.current = organization?.id ?? null;
+    if (organization) void loadWorkspace(organization);
+  }, [organization, loadWorkspace]);
+
+  useEffect(() => {
+    if (!organization) return;
+    const selectedOrganization = organization;
+    const hostOrigin = new URL(loadSettings().hostApi).origin;
+    function onMessage(event: MessageEvent) {
+      const result = parseConnectionMessage(event, hostOrigin);
+      if (!result) return;
+      if (result.error) {
+        setNotice(null);
+        const callbackError = result.hint ?? result.error;
+        void loadWorkspace(selectedOrganization).then(() =>
+          setError(callbackError),
+        );
+      } else {
+        setError(null);
+        setNotice("Connection authorized.");
+        void loadWorkspace(selectedOrganization);
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [organization, loadWorkspace]);
+
+  const hasPendingConnections = shouldPollPendingConnections(connections, 0);
+  useEffect(() => {
+    if (!organization || !hasPendingConnections) return;
+    const selectedOrganization = organization;
+    let attempts = 0;
+    let cancelled = false;
+    let timer: number;
+    function schedule() {
+      timer = window.setTimeout(() => {
+        attempts += 1;
+        void listConnections(selectedOrganization.id)
+          .then((nextConnections) => {
+            if (activeOrganizationId.current === selectedOrganization.id) {
+              setConnections(nextConnections);
+              setError(null);
+            }
+          })
+          .catch((caught) => {
+            if (activeOrganizationId.current === selectedOrganization.id) {
+              setError(message(caught));
+            }
+          })
+          .finally(() => {
+            if (!cancelled && attempts < CONNECTION_POLL_MAX_ATTEMPTS) {
+              schedule();
+            }
+          });
+      }, CONNECTION_POLL_INTERVAL_MS);
+    }
+    schedule();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [organization, hasPendingConnections]);
+
+  function switchOrganization(nextId: string) {
+    activeOrganizationId.current = nextId || null;
+    clearHostSession();
+    setOrganizationId(nextId || null);
+    setProviders([]);
+    setIntegrations([]);
+    setConnections([]);
+    setMembers([]);
+    setNotice(null);
+    setError(null);
+  }
+
+  async function act(
+    label: string,
+    work: () => Promise<void>,
+    refreshMembership = false,
+  ) {
+    if (!organization) return;
+    setBusy(label);
+    setError(null);
+    setNotice(null);
+    try {
+      await work();
+      let selected: SessionOrganization | null = organization;
+      if (refreshMembership) {
+        const nextOrganizations = await listSessionOrganizations();
+        const refreshed = reconcileOrganization(
+          nextOrganizations,
+          organization.id,
+        );
+        selected = refreshed.organization;
+        clearHostSession();
+        activeOrganizationId.current = refreshed.organizationId;
+        setOrganizations(nextOrganizations);
+        setOrganizationId(refreshed.organizationId);
+        if (!selected) {
+          setProviders([]);
+          setIntegrations([]);
+          setConnections([]);
+          setMembers([]);
+          setLoading(false);
+        }
+      }
+      if (selected && !refreshMembership) await loadWorkspace(selected);
+    } catch (caught) {
+      setError(message(caught));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="connections-page">
+      <header className="connections-head">
+        <div>
+          <h1>Connections</h1>
+          <p>
+            Configure an integration once, then let members authorize their own
+            accounts without revealing OAuth secrets to the browser or agents.
+          </p>
+        </div>
+        {organizations.length > 1 ? (
+          <label className="organization-picker" htmlFor="organization">
+            Organization
+            <select
+              id="organization"
+              value={organizationId ?? ""}
+              onChange={(event) => switchOrganization(event.target.value)}
+              disabled={busy !== null}
+            >
+              <option value="">Select organization</option>
+              {organizations.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.displayName} · {item.role}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : organization ? (
+          <p className="organization-current">
+            <span>Organization</span>
+            <strong>{organization.displayName}</strong> · {organization.role}
+          </p>
+        ) : null}
+      </header>
+
+      <nav className="connections-jump" aria-label="Connections sections">
+        <a href="#marketplace">Marketplace</a>
+        <a href="#my-connections">My connections</a>
+        <a href="#configured-connectors">Configured connectors</a>
+        {organization?.role === "owner" ? (
+          <a href="#organization-access">Organization access</a>
+        ) : null}
+      </nav>
+
+      {error ? (
+        <p className="err connections-alert" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {notice ? (
+        <output className="ok connections-alert">{notice}</output>
+      ) : null}
+      {loading ? (
+        <p className="connections-loading">Loading connections…</p>
+      ) : null}
+
+      {organization ? (
+        <>
+          <MarketplacePanel
+            providers={providers}
+            integrations={integrations}
+            accessRole={organization.role}
+            busy={busy}
+            onConfigure={(provider, form) =>
+              act(`configure-${provider.id}`, async () => {
+                await createIntegration(organization.id, form);
+                setNotice(`${form.displayName} is ready for members to use.`);
+              })
+            }
+            onConnect={(provider, integration, form, popup) =>
+              act(`connect-${integration.id}`, async () => {
+                if (
+                  provider.authKind === "api_key" &&
+                  !form.credential.trim()
+                ) {
+                  throw new Error("Enter an API key.");
+                }
+                const connection = await createConnection(organization.id, {
+                  integrationId: integration.id,
+                  displayName: form.displayName,
+                  scopes: integration.scopes,
+                });
+                await recoverCreatedConnection(
+                  async () => {
+                    if (provider.authKind === "api_key") {
+                      await setConnectionCredential(
+                        organization.id,
+                        connection.id,
+                        form.credential,
+                      );
+                      setNotice(
+                        "API key sealed. Its value will not be shown again.",
+                      );
+                      return;
+                    }
+                    const authorizationUrl = await authorizeConnection(
+                      organization.id,
+                      connection.id,
+                    );
+                    if (popup) popup.location.href = authorizationUrl;
+                    else window.location.assign(authorizationUrl);
+                    setNotice("Provider authorization opened in a new window.");
+                  },
+                  async () => {
+                    popup?.close();
+                    await loadWorkspace(organization);
+                  },
+                );
+              })
+            }
+          />
+
+          <ConnectionsPanel
+            connections={connections}
+            integrations={integrations}
+            providers={providers}
+            busy={busy}
+            onRefresh={(connection) =>
+              act(`refresh-${connection.id}`, async () => {
+                await refreshConnection(organization.id, connection.id);
+                setNotice(`${connection.displayName} refreshed.`);
+              })
+            }
+            onReauthorize={(connection, popup) =>
+              act(`reauthorize-${connection.id}`, async () => {
+                try {
+                  const authorizationUrl = await authorizeConnection(
+                    organization.id,
+                    connection.id,
+                  );
+                  if (popup) popup.location.href = authorizationUrl;
+                  else window.location.assign(authorizationUrl);
+                  setNotice("Provider authorization opened in a new window.");
+                } catch (caught) {
+                  popup?.close();
+                  throw caught;
+                }
+              })
+            }
+            onCredential={(connection, credential) =>
+              act(`credential-${connection.id}`, async () => {
+                await setConnectionCredential(
+                  organization.id,
+                  connection.id,
+                  credential,
+                );
+                setNotice(`${connection.displayName} API key replaced.`);
+              })
+            }
+            onRevoke={(connection) =>
+              runConfirmedAction(
+                `Revoke ${connection.displayName}? This connection will stop working immediately.`,
+                () =>
+                  void act(`revoke-${connection.id}`, async () => {
+                    const result = await revokeConnection(
+                      organization.id,
+                      connection.id,
+                    );
+                    const providerName =
+                      providers.find(
+                        (provider) => provider.id === connection.providerId,
+                      )?.displayName ?? "the provider";
+                    setNotice(
+                      connectionRevocationNotice(
+                        connection.displayName,
+                        providerName,
+                        result,
+                      ),
+                    );
+                  }),
+              )
+            }
+          />
+
+          <IntegrationsPanel
+            integrations={integrations}
+            providers={providers}
+            accessRole={organization.role}
+            busy={busy}
+            onToggle={(integration) =>
+              act(`toggle-${integration.id}`, async () => {
+                await updateIntegration(organization.id, integration.id, {
+                  enabled: !integration.enabled,
+                });
+                setNotice(
+                  `${integration.displayName} ${integration.enabled ? "disabled" : "enabled"}.`,
+                );
+              })
+            }
+            onRotate={(integration, clientId, secret) =>
+              act(`rotate-${integration.id}`, async () => {
+                await updateIntegration(organization.id, integration.id, {
+                  ...(clientId ? { client_id: clientId } : {}),
+                  client_secret: secret,
+                });
+                setNotice(`${integration.displayName} secret rotated.`);
+              })
+            }
+            onDelete={(integration) =>
+              act(`delete-${integration.id}`, async () => {
+                await deleteIntegration(organization.id, integration.id);
+                setNotice(`${integration.displayName} deleted.`);
+              })
+            }
+          />
+
+          {organization.role === "owner" ? (
+            <OrganizationAccessPanel
+              members={members}
+              busy={busy}
+              onAdd={(principalId, role) =>
+                act("add-member", async () => {
+                  await addMember(organization.id, principalId, role);
+                  setNotice(`${principalId} added as ${role}.`);
+                })
+              }
+              onRole={(principalId, role) =>
+                act(
+                  `role-${principalId}`,
+                  async () => {
+                    await updateMember(organization.id, principalId, role);
+                    setNotice(`${principalId} is now ${role}.`);
+                  },
+                  true,
+                )
+              }
+              onRemove={(principalId) =>
+                runConfirmedAction(
+                  `Remove ${principalId} from this organization? Their Host sessions will be revoked.`,
+                  () =>
+                    void act(
+                      `remove-${principalId}`,
+                      async () => {
+                        await removeMember(organization.id, principalId);
+                        setNotice(
+                          `${principalId} removed from the organization.`,
+                        );
+                      },
+                      true,
+                    ),
+                )
+              }
+            />
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+export function MarketplacePanel({
+  providers,
+  integrations,
+  accessRole,
+  busy,
+  onConfigure,
+  onConnect,
+}: {
+  providers: Provider[];
+  integrations: Integration[];
+  accessRole: OrganizationRole;
+  busy: string | null;
+  onConfigure: (
+    provider: Provider,
+    form: {
+      key: string;
+      providerId: string;
+      displayName: string;
+      clientId: string;
+      clientSecret: string;
+      scopes: string[];
+    },
+  ) => void;
+  onConnect: (
+    provider: Provider,
+    integration: Integration,
+    form: { displayName: string; credential: string },
+    popup: Window | null,
+  ) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("all");
+  const visible = useMemo(
+    () => filterProviders(providers, query, category),
+    [providers, query, category],
+  );
+  const categories = [
+    ...new Set(providers.map((provider) => provider.category)),
+  ];
+
+  return (
+    <section className="connections-section" id="marketplace">
+      <div className="connections-section-head">
+        <div>
+          <h2>Marketplace</h2>
+          <p>Bundled providers available on this Host deployment.</p>
+        </div>
+        <div className="marketplace-filters">
+          <label className="marketplace-search">
+            <span className="sr-only">Search providers</span>
+            <IconSearch />
+            <input
+              type="search"
+              placeholder="Search providers"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <label>
+            <span className="sr-only">Provider category</span>
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+            >
+              <option value="all">All categories</option>
+              {categories.map((item) => (
+                <option key={item} value={item}>
+                  {CATEGORY_LABELS[item]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </div>
+      {visible.length ? (
+        <ul className="provider-grid">
+          {visible.map((provider) => {
+            const available = integrations.filter(
+              (integration) =>
+                integration.providerId === provider.id &&
+                integration.configured &&
+                integration.enabled,
+            );
+            return (
+              <li key={provider.id} className="provider-tile">
+                <div className="provider-title">
+                  <span className="type-badge">
+                    <IconConnection />
+                  </span>
+                  <div>
+                    <h3>{provider.displayName}</h3>
+                    <p>{CATEGORY_LABELS[provider.category]}</p>
+                  </div>
+                </div>
+                <p className="provider-state">
+                  {available.length
+                    ? `${available.length} integration${available.length === 1 ? "" : "s"} available`
+                    : "No enabled integration"}
+                </p>
+                {available.map((integration) => (
+                  <details key={integration.id} className="inline-action">
+                    <summary>Connect with {integration.displayName}</summary>
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const data = takeSensitiveFormData(event.currentTarget);
+                        const popup =
+                          provider.authKind === "oauth2_authorization_code"
+                            ? window.open(
+                                "about:blank",
+                                "opensesame-provider-consent",
+                                "popup,width=620,height=760",
+                              )
+                            : null;
+                        onConnect(
+                          provider,
+                          integration,
+                          {
+                            displayName:
+                              String(data.get("displayName") ?? "").trim() ||
+                              `${provider.displayName} connection`,
+                            credential: String(data.get("credential") ?? ""),
+                          },
+                          popup,
+                        );
+                      }}
+                    >
+                      <label>
+                        Connection name
+                        <input
+                          name="displayName"
+                          defaultValue={`${provider.displayName} connection`}
+                          required
+                        />
+                      </label>
+                      {provider.authKind === "api_key" ? (
+                        <label>
+                          API key
+                          <input
+                            name="credential"
+                            type="password"
+                            autoComplete="new-password"
+                            required
+                          />
+                        </label>
+                      ) : null}
+                      <button
+                        type="submit"
+                        className="primary compact"
+                        disabled={busy !== null}
+                      >
+                        {provider.authKind === "api_key"
+                          ? "Seal API key"
+                          : "Authorize account"}
+                      </button>
+                    </form>
+                  </details>
+                ))}
+                {canConfigure(accessRole) ? (
+                  <ConfigureIntegration
+                    provider={provider}
+                    integrations={integrations.filter(
+                      (integration) => integration.providerId === provider.id,
+                    )}
+                    busy={busy !== null}
+                    onSubmit={onConfigure}
+                  />
+                ) : available.length === 0 ? (
+                  <p className="provider-help">
+                    Ask an owner or admin to configure this provider.
+                  </p>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="empty">No providers match this search.</p>
+      )}
+    </section>
+  );
+}
+
+function ConfigureIntegration({
+  provider,
+  integrations,
+  busy,
+  onSubmit,
+}: {
+  provider: Provider;
+  integrations: Integration[];
+  busy: boolean;
+  onSubmit: MarketplacePanelProps["onConfigure"];
+}) {
+  return (
+    <details className="inline-action">
+      <summary>Configure integration</summary>
+      {provider.authKind === "oauth2_authorization_code" ? (
+        provider.callbackUrl ? (
+          <CallbackUrl url={provider.callbackUrl} />
+        ) : (
+          integrations.map((integration) =>
+            integration.callbackUrl ? (
+              <CallbackUrl key={integration.id} url={integration.callbackUrl} />
+            ) : null,
+          )
+        )
+      ) : null}
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          const data = new FormData(event.currentTarget);
+          onSubmit(provider, {
+            key: String(data.get("key") ?? "").trim(),
+            providerId: provider.id,
+            displayName: String(data.get("displayName") ?? "").trim(),
+            clientId: String(data.get("clientId") ?? "").trim(),
+            clientSecret: String(data.get("clientSecret") ?? ""),
+            scopes: data.getAll("scopes").map(String),
+          });
+          event.currentTarget.reset();
+        }}
+      >
+        <div className="form-grid">
+          <label>
+            Name
+            <input
+              name="displayName"
+              defaultValue={`${provider.displayName} primary`}
+              required
+            />
+          </label>
+          <label>
+            Key
+            <input
+              name="key"
+              defaultValue={`${provider.id}-primary`}
+              required
+            />
+          </label>
+          {provider.authKind === "oauth2_authorization_code" ? (
+            <>
+              <label>
+                OAuth client ID
+                <input name="clientId" autoComplete="off" required />
+              </label>
+              <label>
+                OAuth client secret
+                <input
+                  name="clientSecret"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                />
+              </label>
+            </>
+          ) : null}
+        </div>
+        {provider.scopes.length ? (
+          <fieldset className="scope-picker">
+            <legend>Allowed scopes</legend>
+            {provider.scopes.map((scope) => (
+              <label key={scope.name} className="scope-option">
+                <input
+                  type="checkbox"
+                  name="scopes"
+                  value={scope.name}
+                  defaultChecked={scope.default}
+                />
+                <span>
+                  <code>{scope.name}</code>
+                  <small>{scope.description}</small>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        ) : null}
+        <button type="submit" className="primary compact" disabled={busy}>
+          Save integration
+        </button>
+      </form>
+    </details>
+  );
+}
+
+type MarketplacePanelProps = Parameters<typeof MarketplacePanel>[0];
+
+function CallbackUrl({ url }: { url: string }) {
+  return (
+    <div className="callback-url">
+      <span>OAuth callback URL</span>
+      <code>{url}</code>
+      <button
+        type="button"
+        className="compact"
+        onClick={() => void navigator.clipboard.writeText(url)}
+      >
+        Copy
+      </button>
+    </div>
+  );
+}
+
+function ConnectionsPanel({
+  connections,
+  integrations,
+  providers,
+  busy,
+  onRefresh,
+  onReauthorize,
+  onCredential,
+  onRevoke,
+}: {
+  connections: Connection[];
+  integrations: Integration[];
+  providers: Provider[];
+  busy: string | null;
+  onRefresh: (connection: Connection) => void;
+  onReauthorize: (connection: Connection, popup: Window | null) => void;
+  onCredential: (connection: Connection, credential: string) => void;
+  onRevoke: (connection: Connection) => void;
+}) {
+  const integrationNames = new Map(
+    integrations.map((integration) => [
+      integration.id,
+      integration.displayName,
+    ]),
+  );
+  const providerKinds = new Map(
+    providers.map((provider) => [provider.id, provider.authKind]),
+  );
+  return (
+    <section className="connections-section" id="my-connections">
+      <div className="connections-section-head">
+        <div>
+          <h2>My connections</h2>
+          <p>Accounts you authorized through organization integrations.</p>
+        </div>
+      </div>
+      {connections.length ? (
+        <ul className="connection-list">
+          {connections.map((connection) => (
+            <li key={connection.id}>
+              <div>
+                <strong>{connection.displayName}</strong>
+                <span>
+                  {(connection.integrationId
+                    ? integrationNames.get(connection.integrationId)
+                    : null) ?? connection.providerId}
+                </span>
+              </div>
+              <div className="connection-meta">
+                <span className={`connection-status is-${connection.status}`}>
+                  {connection.status.replaceAll("_", " ")}
+                </span>
+                {connection.accountLabel ? (
+                  <span>{connection.accountLabel}</span>
+                ) : null}
+              </div>
+              <div className="connection-actions">
+                {connection.refreshable ? (
+                  <button
+                    type="button"
+                    className="compact"
+                    disabled={busy !== null}
+                    onClick={() => onRefresh(connection)}
+                  >
+                    Refresh
+                  </button>
+                ) : null}
+                {providerKinds.get(connection.providerId) === "api_key" ? (
+                  <details className="inline-action">
+                    <summary>Replace API key</summary>
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const data = takeSensitiveFormData(event.currentTarget);
+                        onCredential(
+                          connection,
+                          String(data.get("credential") ?? ""),
+                        );
+                      }}
+                    >
+                      <label>
+                        New API key
+                        <input
+                          name="credential"
+                          type="password"
+                          autoComplete="new-password"
+                          required
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        className="primary compact"
+                        disabled={busy !== null}
+                      >
+                        Replace key
+                      </button>
+                    </form>
+                  </details>
+                ) : providerKinds.get(connection.providerId) ===
+                  "oauth2_authorization_code" ? (
+                  <button
+                    type="button"
+                    className="compact"
+                    disabled={busy !== null}
+                    onClick={() =>
+                      onReauthorize(
+                        connection,
+                        window.open(
+                          "about:blank",
+                          "opensesame-provider-consent",
+                          "popup,width=620,height=760",
+                        ),
+                      )
+                    }
+                  >
+                    Reauthorize
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="danger compact"
+                  disabled={busy !== null}
+                  onClick={() => onRevoke(connection)}
+                >
+                  Revoke
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="empty">No accounts connected yet.</p>
+      )}
+    </section>
+  );
+}
+
+export function IntegrationsPanel({
+  integrations,
+  providers,
+  accessRole,
+  busy,
+  onToggle,
+  onRotate,
+  onDelete,
+}: {
+  integrations: Integration[];
+  providers: Provider[];
+  accessRole: OrganizationRole;
+  busy: string | null;
+  onToggle: (integration: Integration) => void;
+  onRotate: (
+    integration: Integration,
+    clientId: string,
+    secret: string,
+  ) => void;
+  onDelete: (integration: Integration) => void;
+}) {
+  const manage = canConfigure(accessRole);
+  const providerKinds = new Map(
+    providers.map((provider) => [provider.id, provider.authKind]),
+  );
+  return (
+    <section className="connections-section" id="configured-connectors">
+      <div className="connections-section-head">
+        <div>
+          <h2>Configured connectors</h2>
+          <p>
+            OAuth configuration is organization-wide. Secret values are never
+            returned.
+          </p>
+        </div>
+        <span className="role-chip">{accessRole} access</span>
+      </div>
+      {integrations.length ? (
+        <ul className="integration-list">
+          {integrations.map((integration) => (
+            <li key={integration.id}>
+              <div className="integration-summary">
+                <div>
+                  <strong>{integration.displayName}</strong>
+                  <span>
+                    {integration.providerId} · {integration.key} ·{" "}
+                    {integration.source === "shared_dev"
+                      ? "Development only"
+                      : integration.source === "deployment"
+                        ? "Deployment"
+                        : "Organization"}
+                  </span>
+                </div>
+                <span
+                  className={`connection-status ${integration.enabled ? "is-active" : ""}`}
+                >
+                  {integration.enabled ? "enabled" : "disabled"}
+                </span>
+              </div>
+              <dl className="integration-facts">
+                {providerKinds.get(integration.providerId) ===
+                "oauth2_authorization_code" ? (
+                  <>
+                    <div>
+                      <dt>Client ID</dt>
+                      <dd>{integration.clientIdHint ?? "Not set"}</dd>
+                    </div>
+                    <div>
+                      <dt>Client secret</dt>
+                      <dd>
+                        {integration.hasClientSecret
+                          ? "••••••••  Set"
+                          : "Not set"}
+                      </dd>
+                    </div>
+                  </>
+                ) : null}
+                <div>
+                  <dt>Connections</dt>
+                  <dd>{integration.connectionCount}</dd>
+                </div>
+                <div>
+                  <dt>Scopes</dt>
+                  <dd>{integration.scopes.join(", ") || "None"}</dd>
+                </div>
+              </dl>
+              {integration.callbackUrl ? (
+                <CallbackUrl url={integration.callbackUrl} />
+              ) : null}
+              {manage && integration.source === "organization" ? (
+                <div className="integration-actions">
+                  <button
+                    type="button"
+                    className="compact"
+                    disabled={busy !== null}
+                    onClick={() => onToggle(integration)}
+                  >
+                    {integration.enabled ? "Disable" : "Enable"}
+                  </button>
+                  {providerKinds.get(integration.providerId) ===
+                  "oauth2_authorization_code" ? (
+                    <details className="inline-action">
+                      <summary>Rotate OAuth credentials</summary>
+                      <form
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          const data = takeSensitiveFormData(
+                            event.currentTarget,
+                          );
+                          onRotate(
+                            integration,
+                            String(data.get("clientId") ?? "").trim(),
+                            String(data.get("secret") ?? ""),
+                          );
+                        }}
+                      >
+                        <label>
+                          New client ID{" "}
+                          <small>Optional; blank keeps the current ID.</small>
+                          <input name="clientId" autoComplete="off" />
+                        </label>
+                        <label>
+                          New client secret
+                          <input
+                            name="secret"
+                            type="password"
+                            autoComplete="new-password"
+                            required
+                          />
+                        </label>
+                        <button
+                          type="submit"
+                          className="primary compact"
+                          disabled={busy !== null}
+                        >
+                          Rotate
+                        </button>
+                      </form>
+                    </details>
+                  ) : null}
+                  <details className="inline-action danger-action">
+                    <summary>Delete</summary>
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const data = new FormData(event.currentTarget);
+                        if (data.get("confirm") === integration.displayName)
+                          onDelete(integration);
+                      }}
+                    >
+                      <p>
+                        Type <strong>{integration.displayName}</strong> to
+                        delete it. Existing connections must be removed first.
+                      </p>
+                      <label>
+                        Integration name
+                        <input
+                          name="confirm"
+                          required
+                          pattern={integration.displayName.replace(
+                            /[.*+?^${}()|[\]\\]/g,
+                            "\\$&",
+                          )}
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        className="danger compact"
+                        disabled={busy !== null}
+                      >
+                        Delete integration
+                      </button>
+                    </form>
+                  </details>
+                </div>
+              ) : (
+                <p className="provider-help">
+                  {integration.source === "organization"
+                    ? "Configuration is read-only for members."
+                    : "This deployment-managed integration is read-only."}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="empty">No connectors configured.</p>
+      )}
+    </section>
+  );
+}
+
+function OrganizationAccessPanel({
+  members,
+  busy,
+  onAdd,
+  onRole,
+  onRemove,
+}: {
+  members: OrganizationMember[];
+  busy: string | null;
+  onAdd: (principalId: string, role: OrganizationRole) => void;
+  onRole: (principalId: string, role: OrganizationRole) => void;
+  onRemove: (principalId: string) => void;
+}) {
+  return (
+    <section className="connections-section" id="organization-access">
+      <div className="connections-section-head">
+        <div>
+          <h2>Organization access</h2>
+          <p>Owners can add an existing principal ID and manage its role.</p>
+        </div>
+      </div>
+      <form
+        className="member-add"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const data = new FormData(event.currentTarget);
+          onAdd(
+            String(data.get("principalId") ?? "").trim(),
+            String(data.get("role")) as OrganizationRole,
+          );
+          event.currentTarget.reset();
+        }}
+      >
+        <label>
+          Existing principal ID
+          <input name="principalId" required placeholder="prn_…" />
+        </label>
+        <label>
+          Role
+          <select name="role" defaultValue="member">
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+            <option value="owner">Owner</option>
+          </select>
+        </label>
+        <button type="submit" className="primary" disabled={busy !== null}>
+          Add principal
+        </button>
+      </form>
+      <ul className="member-list">
+        {members.map((member) => (
+          <li key={member.principalId}>
+            <code>{member.principalId}</code>
+            <label>
+              <span className="sr-only">Role for {member.principalId}</span>
+              <select
+                value={member.role}
+                disabled={busy !== null}
+                onChange={(event) =>
+                  onRole(
+                    member.principalId,
+                    event.target.value as OrganizationRole,
+                  )
+                }
+              >
+                <option value="member">Member</option>
+                <option value="admin">Admin</option>
+                <option value="owner">Owner</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              className="compact"
+              disabled={busy !== null}
+              onClick={() => onRemove(member.principalId)}
+            >
+              Remove
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
