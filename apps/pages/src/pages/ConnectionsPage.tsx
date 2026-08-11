@@ -244,6 +244,18 @@ export function connectionRevocationNotice(
   return `${connectionName} revoked locally, but ${providerName} does not support automatic revocation. The upstream grant may remain; revoke access in ${providerName}.`;
 }
 
+export async function loadOptionalMembers(
+  role: OrganizationRole,
+  load: () => Promise<OrganizationMember[]>,
+) {
+  if (role !== "owner") return [];
+  try {
+    return await load();
+  } catch {
+    return [];
+  }
+}
+
 export function ConnectionsPage() {
   const [organizations, setOrganizations] = useState<SessionOrganization[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -270,9 +282,7 @@ export function ConnectionsPage() {
           listProviders(selected.id),
           listIntegrations(selected.id),
           listConnections(selected.id),
-          selected.role === "owner"
-            ? listMembers(selected.id)
-            : Promise.resolve([]),
+          loadOptionalMembers(selected.role, () => listMembers(selected.id)),
         ]);
       if (activeOrganizationId.current !== selected.id) return;
       setProviders(nextProviders);

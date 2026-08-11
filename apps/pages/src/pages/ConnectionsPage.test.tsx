@@ -11,6 +11,7 @@ import {
   configurationFromFormData,
   connectionRevocationNotice,
   filterProviders,
+  loadOptionalMembers,
   marketplaceEmptyCopy,
   parseConnectionMessage,
   reconcileOrganization,
@@ -151,6 +152,14 @@ describe("Connections marketplace panels", () => {
       ),
     ).resolves.toBe("authorized");
     expect(creates).toBe(1);
+  });
+
+  it("keeps the connector workspace when optional member loading fails", async () => {
+    await expect(
+      loadOptionalMembers("owner", async () => {
+        throw new Error("Identity member list unavailable");
+      }),
+    ).resolves.toEqual([]);
   });
 
   it("requires native confirmation before terminal mutations", () => {
