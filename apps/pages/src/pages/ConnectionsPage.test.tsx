@@ -25,6 +25,8 @@ const oauthProvider: Provider = {
   displayName: "GitHub",
   category: "developer",
   docsUrl: "https://docs.github.com",
+  provenanceUrl: "https://docs.github.com",
+  catalogRevision: "2026-08-10.4",
   authKind: "oauth2_authorization_code",
   callbackUrl: "https://host.example/api/v1/connections/oauth/callback",
   scopes: [],
