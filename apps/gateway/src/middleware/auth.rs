@@ -180,7 +180,7 @@ pub fn parse_principal(value: &str) -> Option<opensesame_domain::PrincipalId> {
 
 /// Compare principal subjects across the canonical Host spelling, Identity's
 /// `prn_` spelling, and exact-match legacy subjects such as `user:demo`.
-pub fn same_principal_subject(left: &str, right: &str) -> bool {
+pub(crate) fn same_principal_subject(left: &str, right: &str) -> bool {
     match (parse_principal(left), parse_principal(right)) {
         (Some(left), Some(right)) => left == right,
         _ => left == right,
@@ -191,7 +191,7 @@ impl Caller {
     pub fn owns_subject(&self, subject: &str) -> bool {
         match self {
             Caller::Operator => true,
-            Caller::Session { subject: mine, .. } => same_principal_subject(mine, subject),
+            Caller::Session { subject: mine, .. } => mine == subject,
         }
     }
 
@@ -332,7 +332,7 @@ mod tests {
         };
 
         assert!(caller.owns(&principal));
-        assert!(caller.owns_subject(&principal.to_string()));
+        assert!(!caller.owns_subject(&principal.to_string()));
         assert!(same_principal_subject(
             &format!("prn_{}", principal.as_uuid()),
             &principal.to_string()

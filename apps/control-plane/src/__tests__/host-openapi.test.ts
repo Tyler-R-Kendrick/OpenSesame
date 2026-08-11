@@ -15,6 +15,9 @@ describe("Host organization authority OpenAPI", () => {
       "organization_id: { type: string }",
       'organization_role: { $ref: "#/components/schemas/OrganizationRole" }',
       'session: { $ref: "#/components/schemas/HostSession" }',
+      'project_id: { type: [string, "null"] }',
+      'credential_handle: { type: [string, "null"] }',
+      'context: { type: [string, "null"] }',
     ]) {
       expect(hostOpenApi).toContain(fragment);
     }

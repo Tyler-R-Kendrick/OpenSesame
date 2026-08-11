@@ -11,7 +11,7 @@ use serde_json::json;
 use opensesame_claims::{hash_eq, hash_low_entropy, hash_secret};
 
 use crate::app_state::{AppState, ApprovedDevice};
-use crate::middleware::auth::{require_demo_bootstrap, require_operator};
+use crate::middleware::auth::{require_demo_bootstrap, require_operator, same_principal_subject};
 
 /// Failed `user_code` guesses tolerated across the whole instance per window.
 ///
@@ -134,7 +134,10 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
     // Identity already supplied the trusted principal, organization, and role.
     // Demo bootstrap metadata is useful in development, but production disables
     // that bootstrap and must still be able to mint this organization session.
-    let boot = st.bootstrap.lock().unwrap().clone();
+    let boot = st.bootstrap.lock().unwrap().clone().filter(|boot| {
+        boot.org == approved.organization_id
+            && same_principal_subject(&approved.principal, &boot.principal.to_string())
+    });
     let session_id = format!("sess_{}", uuid::Uuid::new_v4());
     // The session id *is* the bearer; only its digest is retained server-side.
     let session_digest = hash_secret(&session_id);
@@ -308,6 +311,39 @@ mod tests {
             expires_at: Utc::now() + Duration::minutes(15),
             approved: None,
         }
+    }
+
+    async fn mint_approved(
+        state: &AppState,
+        device_code: &str,
+        principal: String,
+        organization_id: opensesame_domain::OrganizationId,
+    ) -> serde_json::Value {
+        state.device_codes.lock().unwrap().insert(
+            hash_secret(device_code),
+            DevicePending {
+                user_code_hash: "digest".into(),
+                expires_at: Utc::now() + Duration::minutes(5),
+                approved: Some(ApprovedDevice {
+                    principal,
+                    organization_id,
+                    organization_role: opensesame_domain::OrganizationRole::Member,
+                }),
+            },
+        );
+        let response = token(
+            State(state.clone()),
+            Json(DeviceTokenRequest {
+                device_code: device_code.into(),
+                grant_type: "urn:ietf:params:oauth:grant-type:device_code".into(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        serde_json::from_slice(&body).unwrap()
     }
 
     #[test]
@@ -486,5 +522,48 @@ mod tests {
         assert_eq!(whoami["principal_id"], principal);
         assert_eq!(whoami["organization_id"], organization_id.to_string());
         assert_eq!(whoami["organization_role"], "admin");
+    }
+
+    #[tokio::test]
+    async fn demo_metadata_only_attaches_to_matching_approved_authority() {
+        let state = crate::app_state::test_demo_state().await;
+        let bootstrap = state.bootstrap.lock().unwrap().clone().unwrap();
+        let identity_principal = format!("prn_{}", bootstrap.principal.as_uuid());
+
+        let matching = mint_approved(
+            &state,
+            "dc_matching",
+            identity_principal.clone(),
+            bootstrap.org,
+        )
+        .await;
+        assert_eq!(matching["session"]["actor_id"], bootstrap.actor.to_string());
+        assert_eq!(
+            matching["session"]["project_id"],
+            bootstrap.project.to_string()
+        );
+        assert!(matching["session"]["credential_handle"].is_string());
+
+        let foreign_org = mint_approved(
+            &state,
+            "dc_foreign_org",
+            identity_principal,
+            opensesame_domain::OrganizationId::new(),
+        )
+        .await;
+        assert!(foreign_org["session"]["actor_id"].is_null());
+        assert!(foreign_org["session"]["project_id"].is_null());
+        assert!(foreign_org["session"]["credential_handle"].is_null());
+
+        let foreign_principal = mint_approved(
+            &state,
+            "dc_foreign_principal",
+            opensesame_domain::PrincipalId::new().to_string(),
+            bootstrap.org,
+        )
+        .await;
+        assert!(foreign_principal["session"]["actor_id"].is_null());
+        assert!(foreign_principal["session"]["project_id"].is_null());
+        assert!(foreign_principal["session"]["credential_handle"].is_null());
     }
 }

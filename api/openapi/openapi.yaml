@@ -329,13 +329,13 @@ components:
       properties:
         session_id: { type: string }
         principal_id: { type: string }
-        actor_id: { type: string }
+        actor_id: { type: [string, "null"] }
         issuer: { type: string, format: uri }
         assurance: { type: string }
         organization_id: { type: string }
         organization_role: { $ref: "#/components/schemas/OrganizationRole" }
-        project_id: { type: string }
-        credential_handle: { type: string }
+        project_id: { type: [string, "null"] }
+        credential_handle: { type: [string, "null"] }
         approved_as: { type: string }
         expires_at: { type: string, format: date-time }
     DeviceTokenResponse:
@@ -375,13 +375,13 @@ components:
       required: [principal_id, actor_id, client_id, issuer, assurance, organization_id, organization_role, context]
       properties:
         principal_id: { type: string }
-        actor_id: { type: string }
+        actor_id: { type: [string, "null"] }
         client_id: { type: string }
         issuer: { type: string, format: uri }
         assurance: { type: string }
         organization_id: { type: string }
         organization_role: { $ref: "#/components/schemas/CallerRole" }
-        context: { type: string }
+        context: { type: [string, "null"] }
     InvokeRequest:
       type: object
       required: [operation, resource]
