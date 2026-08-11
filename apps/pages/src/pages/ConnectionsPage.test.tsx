@@ -8,6 +8,7 @@ import {
   parseConnectionMessage,
   reconcileOrganization,
   recoverCreatedConnection,
+  runConfirmedAction,
   shouldPollPendingConnections,
   takeSensitiveFormData,
 } from "./ConnectionsPage.js";
@@ -113,6 +114,17 @@ describe("Connections marketplace panels", () => {
       ),
     ).resolves.toBe("authorized");
     expect(creates).toBe(1);
+  });
+
+  it("requires native confirmation before terminal mutations", () => {
+    const mutate = vi.fn();
+    const decline = vi.fn(() => false);
+    const accept = vi.fn(() => true);
+
+    expect(runConfirmedAction("Revoke?", mutate, decline)).toBe(false);
+    expect(mutate).not.toHaveBeenCalled();
+    expect(runConfirmedAction("Revoke?", mutate, accept)).toBe(true);
+    expect(mutate).toHaveBeenCalledOnce();
   });
 
   it("polls only pending connections within the bounded retry budget", () => {

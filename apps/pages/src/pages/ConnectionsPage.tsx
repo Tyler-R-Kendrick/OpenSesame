@@ -146,6 +146,16 @@ export async function recoverCreatedConnection<T>(
   }
 }
 
+export function runConfirmedAction(
+  prompt: string,
+  action: () => void,
+  confirm: (message: string) => boolean = (message) => window.confirm(message),
+) {
+  if (!confirm(prompt)) return false;
+  action();
+  return true;
+}
+
 export function ConnectionsPage() {
   const [organizations, setOrganizations] = useState<SessionOrganization[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -476,10 +486,14 @@ export function ConnectionsPage() {
               })
             }
             onRevoke={(connection) =>
-              act(`revoke-${connection.id}`, async () => {
-                await revokeConnection(organization.id, connection.id);
-                setNotice(`${connection.displayName} revoked.`);
-              })
+              runConfirmedAction(
+                `Revoke ${connection.displayName}? This connection will stop working immediately.`,
+                () =>
+                  void act(`revoke-${connection.id}`, async () => {
+                    await revokeConnection(organization.id, connection.id);
+                    setNotice(`${connection.displayName} revoked.`);
+                  }),
+              )
             }
           />
 
@@ -536,13 +550,19 @@ export function ConnectionsPage() {
                 )
               }
               onRemove={(principalId) =>
-                act(
-                  `remove-${principalId}`,
-                  async () => {
-                    await removeMember(organization.id, principalId);
-                    setNotice(`${principalId} removed from the organization.`);
-                  },
-                  true,
+                runConfirmedAction(
+                  `Remove ${principalId} from this organization? Their Host sessions will be revoked.`,
+                  () =>
+                    void act(
+                      `remove-${principalId}`,
+                      async () => {
+                        await removeMember(organization.id, principalId);
+                        setNotice(
+                          `${principalId} removed from the organization.`,
+                        );
+                      },
+                      true,
+                    ),
                 )
               }
             />

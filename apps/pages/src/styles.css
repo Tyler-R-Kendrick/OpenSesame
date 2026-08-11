@@ -1222,4 +1222,17 @@ button.danger {
     align-items: flex-start;
     flex-direction: column;
   }
+
+  button.compact,
+  .button.compact,
+  .connections-jump a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .inline-action summary {
+    min-height: 44px;
+    align-content: center;
+  }
 }
