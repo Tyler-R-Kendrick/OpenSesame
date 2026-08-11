@@ -89,6 +89,17 @@ export class ConnectionsError extends Error {
   }
 }
 
+export class CatalogResponseError extends Error {
+  constructor(readonly reason: "empty" | "malformed") {
+    super(
+      reason === "empty"
+        ? "The Host returned an empty provider catalog. Verify that provider templates are installed and enabled."
+        : "The Host returned a provider catalog that does not match the shared contract.",
+    );
+    this.name = "CatalogResponseError";
+  }
+}
+
 function object(value: unknown): Record<string, unknown> {
   return value && typeof value === "object"
     ? (value as Record<string, unknown>)
@@ -117,7 +128,12 @@ function strictList(value: unknown, key: string): unknown[] {
 }
 
 export function parseProviderList(value: unknown): Provider[] {
-  return ListProvidersResponseSchema.parse(value).providers.map((raw) => ({
+  const parsed = ListProvidersResponseSchema.safeParse(value);
+  if (!parsed.success) throw new CatalogResponseError("malformed");
+  if (parsed.data.providers.length === 0) {
+    throw new CatalogResponseError("empty");
+  }
+  return parsed.data.providers.map((raw) => ({
     id: raw.id,
     displayName: raw.display_name,
     category: raw.category,

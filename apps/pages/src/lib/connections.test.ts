@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CatalogResponseError,
   chooseOrganization,
   parseConnectionList,
   parseIntegrationList,
@@ -126,6 +127,18 @@ describe("connections wire parsers", () => {
     ]);
   });
 
+  it("rejects empty and malformed provider catalogs explicitly", () => {
+    expect(() => parseProviderList({ providers: [] })).toThrow(
+      new CatalogResponseError("empty"),
+    );
+    expect(() => parseProviderList(null)).toThrow(
+      new CatalogResponseError("malformed"),
+    );
+    expect(() =>
+      parseProviderList({ providers: [provider({ auth_kind: "password" })] }),
+    ).toThrow(new CatalogResponseError("malformed"));
+  });
+
   it("rejects unknown integration fields instead of stripping secrets", () => {
     expect(parseIntegrationList({ integrations: [integration()] })[0]).toEqual({
       id: "int_1",
@@ -184,7 +197,7 @@ describe("connections wire parsers", () => {
   it("rejects unknown fields at list and nested response boundaries", () => {
     expect(() =>
       parseProviderList({ providers: [provider()], access_token: "leak" }),
-    ).toThrow(/unrecognized_keys/iu);
+    ).toThrow("does not match the shared contract");
     expect(() =>
       parseProviderList({
         providers: [
@@ -201,7 +214,7 @@ describe("connections wire parsers", () => {
           }),
         ],
       }),
-    ).toThrow(/unrecognized_keys/iu);
+    ).toThrow("does not match the shared contract");
     expect(() =>
       parseConnectionList({
         connections: [connection({ access_token: "leak" })],
