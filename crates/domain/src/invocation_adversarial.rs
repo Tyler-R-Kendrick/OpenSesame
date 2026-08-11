@@ -58,6 +58,7 @@ mod tests {
                 invocation_id: InvocationId::new(),
                 intent_digest: "sha256:x".into(),
                 principal_id: PrincipalId::new(),
+                organization_id: None,
                 actor_id: ActorId::new(),
                 actor_instance_id: None,
                 client_id: None,

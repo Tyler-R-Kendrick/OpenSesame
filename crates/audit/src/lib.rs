@@ -200,6 +200,7 @@ mod tests {
             invocation_id: InvocationId::new(),
             intent_digest: "sha256:x".into(),
             principal_id: PrincipalId::new(),
+            organization_id: None,
             actor_id: ActorId::new(),
             actor_instance_id: None,
             client_id: None,
@@ -238,6 +239,7 @@ mod tests {
             invocation_id: InvocationId::new(),
             intent_digest: "sha256:x".into(),
             principal_id: PrincipalId::new(),
+            organization_id: None,
             actor_id: ActorId::new(),
             actor_instance_id: None,
             client_id: None,
@@ -275,6 +277,7 @@ mod tests {
             invocation_id: InvocationId::new(),
             intent_digest: "sha256:x".into(),
             principal_id: PrincipalId::new(),
+            organization_id: None,
             actor_id: ActorId::new(),
             actor_instance_id: None,
             client_id: None,
@@ -301,6 +304,31 @@ mod tests {
             task_state_version: None,
             task_state_digest: None,
         }
+    }
+
+    #[test]
+    fn legacy_receipt_without_organization_round_trips_and_verifies() {
+        let signer = ReceiptSigner::generate();
+        let signed = signer.sign_receipt(sample_receipt()).unwrap();
+        let encoded = serde_json::to_string(&signed).unwrap();
+        assert!(!encoded.contains("organization_id"));
+
+        let decoded: InvocationReceipt = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(decoded.organization_id, None);
+        signer.verify_receipt(&decoded).unwrap();
+    }
+
+    #[test]
+    fn organization_claim_is_covered_by_the_receipt_signature() {
+        let signer = ReceiptSigner::generate();
+        let mut receipt = sample_receipt();
+        receipt.organization_id = Some(OrganizationId::new());
+        receipt.receipt_schema_version = 3;
+        let mut signed = signer.sign_receipt(receipt).unwrap();
+        signer.verify_receipt(&signed).unwrap();
+
+        signed.organization_id = Some(OrganizationId::new());
+        assert!(signer.verify_receipt(&signed).is_err());
     }
 
     #[test]
@@ -399,6 +427,7 @@ mod tests {
             invocation_id: InvocationId::new(),
             intent_digest: "sha256:x".into(),
             principal_id: PrincipalId::new(),
+            organization_id: None,
             actor_id: ActorId::new(),
             actor_instance_id: None,
             client_id: None,

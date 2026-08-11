@@ -127,6 +127,8 @@ async fn idempotency_must_not_duplicate_side_effects() {
         .await
         .unwrap();
     assert_eq!(r1.outcome, ReceiptOutcome::Succeeded);
+    assert_eq!(r1.organization_id, Some(org));
+    assert_eq!(r1.receipt_schema_version, 3);
 
     // Same idempotency key, new intent id — MUST return prior receipt, not re-execute.
     let mut intent2 = sample_intent(
@@ -156,6 +158,8 @@ async fn idempotency_must_not_duplicate_side_effects() {
         .await
         .unwrap();
     assert_eq!(r1.id, r2.id, "idempotent retry must return same receipt id");
+    assert_eq!(r2.organization_id, Some(org));
+    assert_eq!(r2.receipt_schema_version, 3);
     assert_eq!(receipts, 1, "must not create a second receipt");
     assert_eq!(
         inv_count, 1,

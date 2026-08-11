@@ -1,6 +1,6 @@
 use crate::{
     ActorId, ActorInstanceId, ApprovalId, ClientId, ConnectionId, CredentialHandleId, GrantId,
-    InvocationId, OperatorId, PrincipalId, ReceiptId, TaskRunId,
+    InvocationId, OperatorId, OrganizationId, PrincipalId, ReceiptId, TaskRunId,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -20,6 +20,10 @@ pub struct InvocationReceipt {
     pub invocation_id: InvocationId,
     pub intent_digest: String,
     pub principal_id: PrincipalId,
+    /// Organization whose authority produced this receipt. Legacy schema 1/2
+    /// receipts omit it; storage resolves those through the invocation intent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub organization_id: Option<OrganizationId>,
     pub actor_id: ActorId,
     pub actor_instance_id: Option<ActorInstanceId>,
     pub client_id: Option<ClientId>,
@@ -41,7 +45,7 @@ pub struct InvocationReceipt {
     pub safe_result_summary: Option<serde_json::Value>,
     pub authority_key_id: String,
     pub signature: String,
-    /// Schema 1 = legacy; schema 2+ includes task binding fields.
+    /// Schema 1 = legacy; schema 2 adds task binding; schema 3 adds organization binding.
     #[serde(default = "default_receipt_schema_version")]
     pub receipt_schema_version: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -88,6 +92,7 @@ mod tests {
             invocation_id: InvocationId::new(),
             intent_digest: "sha256:abc".into(),
             principal_id: PrincipalId::new(),
+            organization_id: None,
             actor_id: ActorId::new(),
             actor_instance_id: None,
             client_id: None,
