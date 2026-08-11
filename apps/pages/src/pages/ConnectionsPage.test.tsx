@@ -1,11 +1,21 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Integration, Provider } from "../lib/connections.js";
+import type { Connection, Integration, Provider } from "../lib/connections.js";
 import {
   CONNECTION_POLL_MAX_ATTEMPTS,
+  ConnectionsGate,
+  ConnectionsPanel,
   IntegrationsPanel,
   MarketplacePanel,
+  canSealProviderConfiguration,
+  configurationClearFromFormData,
+  configurationFromFormData,
   connectionRevocationNotice,
+  filterProviders,
+  integrationConfigurationNotice,
+  loadCatalogBeforeWorkspace,
+  loadOptionalMembers,
+  marketplaceEmptyCopy,
   parseConnectionMessage,
   reconcileOrganization,
   recoverCreatedConnection,
@@ -19,9 +29,18 @@ const oauthProvider: Provider = {
   displayName: "GitHub",
   category: "developer",
   docsUrl: "https://docs.github.com",
+  provenanceUrl: "https://docs.github.com",
+  catalogRevision: "2026-08-10.4",
   authKind: "oauth2_authorization_code",
+  configured: false,
+  missingConfig: [],
   callbackUrl: "https://host.example/api/v1/connections/oauth/callback",
   scopes: [],
+  integrationConfigurationFields: [
+    { name: "client_id", secret: false, required: true },
+    { name: "client_secret", secret: true, required: true },
+  ],
+  connectionConfigurationFields: [],
 };
 
 const apiKeyProvider: Provider = {
@@ -30,6 +49,10 @@ const apiKeyProvider: Provider = {
   displayName: "Linear",
   authKind: "api_key",
   callbackUrl: null,
+  integrationConfigurationFields: [],
+  connectionConfigurationFields: [
+    { name: "api_key", secret: true, required: true },
+  ],
 };
 
 function integration(
@@ -52,8 +75,27 @@ function integration(
       providerId === "github"
         ? "https://host.example/api/v1/connections/oauth/callback"
         : null,
+    configuredFields:
+      providerId === "github"
+        ? [
+            { name: "client_id", hint: "***1234" },
+            { name: "client_secret", hint: "configured" },
+          ]
+        : [],
   };
 }
+
+const apiKeyConnection: Connection = {
+  id: "conn_linear",
+  integrationId: "int_linear",
+  providerId: "linear",
+  displayName: "Linear work",
+  accountLabel: null,
+  status: "active",
+  scopes: [],
+  refreshable: false,
+  configuredFields: [{ name: "api_key", hint: "configured" }],
+};
 
 describe("Connections marketplace panels", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -115,6 +157,40 @@ describe("Connections marketplace panels", () => {
       ),
     ).resolves.toBe("authorized");
     expect(creates).toBe(1);
+  });
+
+  it("keeps the connector workspace when optional member loading fails", async () => {
+    await expect(
+      loadOptionalMembers("owner", async () => {
+        throw new Error("Identity member list unavailable");
+      }),
+    ).resolves.toEqual({ members: [], failed: true });
+  });
+
+  it("commits a valid catalog before unrelated workspace loading fails", async () => {
+    const visible: Provider[] = [];
+    await expect(
+      loadCatalogBeforeWorkspace(
+        async () => [oauthProvider],
+        (catalog) => visible.push(...catalog),
+        async () => {
+          throw new Error("connections unavailable");
+        },
+      ),
+    ).rejects.toThrow("connections unavailable");
+    expect(visible).toEqual([oauthProvider]);
+  });
+
+  it("never calls an unconfigured integration ready", () => {
+    expect(
+      integrationConfigurationNotice("GitHub", {
+        ...integration("github"),
+        configured: false,
+      }),
+    ).toContain("is not ready");
+    expect(
+      integrationConfigurationNotice("GitHub", integration("github")),
+    ).toContain("ready for members");
   });
 
   it("requires native confirmation before terminal mutations", () => {
@@ -220,14 +296,17 @@ describe("Connections marketplace panels", () => {
         integrations={[integration("github"), integration("linear")]}
         accessRole="member"
         busy={null}
+        loading={false}
+        loadIssue={null}
+        onRetry={() => undefined}
         onConfigure={() => undefined}
         onConnect={() => undefined}
       />,
     );
 
     expect(html).toContain("Authorize account");
-    expect(html).toContain("Seal API key");
-    expect(html).toContain('name="credential"');
+    expect(html).toContain("Seal credentials");
+    expect(html).toContain('name="configuration.api_key"');
     expect(html).not.toContain("Configure integration");
   });
 
@@ -238,6 +317,9 @@ describe("Connections marketplace panels", () => {
         integrations={[]}
         accessRole="admin"
         busy={null}
+        loading={false}
+        loadIssue={null}
+        onRetry={() => undefined}
         onConfigure={() => undefined}
         onConnect={() => undefined}
       />,
@@ -248,14 +330,18 @@ describe("Connections marketplace panels", () => {
         integrations={[]}
         accessRole="admin"
         busy={null}
+        loading={false}
+        loadIssue={null}
+        onRetry={() => undefined}
         onConfigure={() => undefined}
         onConnect={() => undefined}
       />,
     );
 
     expect(oauth).toContain("OAuth callback URL");
-    expect(oauth).toContain("OAuth client secret");
-    expect(apiKey).not.toContain("OAuth client secret");
+    expect(oauth).toContain("Client secret");
+    expect(oauth).toContain('name="configuration.client_secret"');
+    expect(apiKey).not.toContain("Client secret");
   });
 
   it("keeps deployment and development integrations read-only", () => {
@@ -269,14 +355,203 @@ describe("Connections marketplace panels", () => {
         accessRole="owner"
         busy={null}
         onToggle={() => undefined}
-        onRotate={() => undefined}
+        onConfiguration={() => undefined}
         onDelete={() => undefined}
       />,
     );
 
     expect(html).toContain("Development only");
     expect(html).toContain("deployment-managed integration is read-only");
-    expect(html).not.toContain("Rotate OAuth credentials");
+    expect(html).not.toContain("Update configuration");
     expect(html).not.toContain("Delete integration");
+  });
+
+  it("maps only declared integration configuration fields and explicit clears", () => {
+    const data = new FormData();
+    data.set("configuration.client_id", "  client-1234  ");
+    data.set("configuration.client_secret", " secret with spaces ");
+    data.set("configuration.undeclared", "ignored");
+    data.append("configuration_clear", "client_secret");
+
+    expect(
+      configurationFromFormData(
+        data,
+        oauthProvider.integrationConfigurationFields,
+      ),
+    ).toEqual({
+      client_id: "client-1234",
+      client_secret: " secret with spaces ",
+    });
+    expect(
+      configurationClearFromFormData(
+        data,
+        oauthProvider.integrationConfigurationFields,
+      ),
+    ).toEqual(["client_secret"]);
+  });
+
+  it("maps a declared connection credential field without retaining extras", () => {
+    const data = new FormData();
+    data.set("configuration.api_key", "key-value");
+    data.set("configuration.token", "ignored");
+
+    expect(
+      configurationFromFormData(
+        data,
+        apiKeyProvider.connectionConfigurationFields,
+      ),
+    ).toEqual({ api_key: "key-value" });
+  });
+
+  it("renders update and explicit clear controls for connection fields", () => {
+    const html = renderToStaticMarkup(
+      <ConnectionsPanel
+        connections={[apiKeyConnection]}
+        integrations={[integration("linear")]}
+        providers={[apiKeyProvider]}
+        busy={null}
+        onRefresh={() => undefined}
+        onReauthorize={() => undefined}
+        onConfiguration={() => undefined}
+        onRevoke={() => undefined}
+      />,
+    );
+
+    expect(html).toContain("Update credentials");
+    expect(html).toContain('name="configuration.api_key"');
+    expect(html).toContain('name="configuration_clear"');
+    expect(html).not.toContain("key-value");
+  });
+
+  it("filters the catalog by search, category, and authentication", () => {
+    expect(
+      filterProviders(
+        [oauthProvider, apiKeyProvider],
+        "lin",
+        "developer",
+        "api_key",
+      ),
+    ).toEqual([apiKeyProvider]);
+    expect(
+      filterProviders(
+        [oauthProvider, apiKeyProvider],
+        "github",
+        "developer",
+        "api_key",
+      ),
+    ).toEqual([]);
+  });
+
+  it("never presents pending, failed, or empty catalogs as zero search results", () => {
+    const render = (
+      providers: Provider[] | null,
+      loading: boolean,
+      loadIssue: { kind: "host" | "catalog"; message: string } | null,
+    ) =>
+      renderToStaticMarkup(
+        <MarketplacePanel
+          providers={providers}
+          integrations={[]}
+          accessRole="member"
+          busy={null}
+          loading={loading}
+          loadIssue={loadIssue}
+          onRetry={() => undefined}
+          onConfigure={() => undefined}
+          onConnect={() => undefined}
+        />,
+      );
+
+    expect(render(null, true, null)).toContain("Loading provider catalog");
+    expect(
+      render(null, false, { kind: "host", message: "Host is down." }),
+    ).toContain("Host unavailable");
+    expect(
+      render(null, false, {
+        kind: "catalog",
+        message: "Catalog contract failed.",
+      }),
+    ).toContain("Provider catalog unavailable");
+    expect(render([], false, null)).toContain("Provider catalog is empty");
+    for (const html of [
+      render(null, true, null),
+      render(null, false, { kind: "host", message: "Host is down." }),
+      render([], false, null),
+    ]) {
+      expect(html).not.toContain("No matching connectors");
+    }
+  });
+
+  it("distinguishes Identity, organization-selection, and no-search states", () => {
+    const identity = renderToStaticMarkup(
+      <ConnectionsGate
+        loading={false}
+        issue={{ kind: "identity", message: "Sign in again." }}
+        hasOrganizations={false}
+        onRetry={() => undefined}
+      />,
+    );
+    const selection = renderToStaticMarkup(
+      <ConnectionsGate
+        loading={false}
+        issue={null}
+        hasOrganizations
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(identity).toContain("Identity access required");
+    expect(identity).toContain("Retry Identity");
+    expect(selection).toContain("Choose an organization");
+    expect(marketplaceEmptyCopy(true)).toEqual(
+      expect.objectContaining({ title: "No matching connectors" }),
+    );
+  });
+
+  it("shows the total and all three catalog filters", () => {
+    const html = renderToStaticMarkup(
+      <MarketplacePanel
+        providers={[oauthProvider, apiKeyProvider]}
+        integrations={[]}
+        accessRole="member"
+        busy={null}
+        loading={false}
+        loadIssue={null}
+        onRetry={() => undefined}
+        onConfigure={() => undefined}
+        onConnect={() => undefined}
+      />,
+    );
+
+    expect(html).toContain("2 connectors");
+    expect(html).toContain("Showing 2 of 2 connectors");
+    expect(html).toContain("Search");
+    expect(html).toContain("Category");
+    expect(html).toContain("Authentication");
+    expect(html).toContain("OAuth 2.0");
+    expect(html).toContain("API key");
+  });
+
+  it("shows connectors but blocks configuration without Host sealing", () => {
+    const provider = {
+      ...apiKeyProvider,
+      missingConfig: ["OPENSESAME_CONNECTION_KEY"],
+    };
+    expect(canSealProviderConfiguration(provider)).toBe(false);
+    const html = renderToStaticMarkup(
+      <MarketplacePanel
+        providers={[provider]}
+        integrations={[]}
+        accessRole="owner"
+        busy={null}
+        loading={false}
+        loadIssue={null}
+        onRetry={() => undefined}
+        onConfigure={() => undefined}
+        onConnect={() => undefined}
+      />,
+    );
+    expect(html).toContain("Host sealing is unavailable");
+    expect(html).not.toContain("Configure integration");
   });
 });

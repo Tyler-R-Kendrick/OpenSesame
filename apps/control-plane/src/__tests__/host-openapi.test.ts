@@ -51,4 +51,61 @@ describe("Host organization authority OpenAPI", () => {
       expect(freezeIntent).toContain(status);
     }
   });
+
+  it("keeps the strict connection schemas aligned with the runtime contract", () => {
+    for (const fragment of [
+      "            - catalog_unavailable",
+      "        provenance_url: { type: string, format: uri }",
+      "        catalog_revision: { type: string, minLength: 1 }",
+      'items: { $ref: "#/components/schemas/ConfigurationFieldDef" }',
+      'items: { $ref: "#/components/schemas/ConfiguredField" }',
+      'configuration_set: { $ref: "#/components/schemas/Configuration" }',
+      "        configuration_clear:",
+      "          minProperties: 1",
+      "          minItems: 1",
+    ]) {
+      expect(hostOpenApi).toContain(fragment);
+    }
+  });
+
+  it("documents every protected connector operation's operator alternative", () => {
+    const operations = [
+      ["/providers", "get"],
+      ["/integrations", "get"],
+      ["/integrations", "post"],
+      ["/integrations/{id}", "get"],
+      ["/integrations/{id}", "patch"],
+      ["/integrations/{id}", "delete"],
+      ["/connections", "get"],
+      ["/connections", "post"],
+      ["/connections/{id}", "get"],
+      ["/connections/{id}", "delete"],
+      ["/connections/{id}/authorize", "post"],
+      ["/connections/{id}/refresh", "post"],
+      ["/connections/{id}/credential", "post"],
+      ["/connections/{id}/bindings", "post"],
+      ["/connections/{id}/bindings/{binding_id}", "delete"],
+      ["/connections/{id}/events", "get"],
+    ] as const;
+    for (const [path, method] of operations) {
+      const pathStart = hostOpenApi.indexOf(`  ${path}:`);
+      const pathEnd = hostOpenApi.indexOf("\n  /", pathStart + 1);
+      const pathBlock = hostOpenApi.slice(
+        pathStart,
+        pathEnd === -1 ? undefined : pathEnd,
+      );
+      const methodStart = pathBlock.indexOf(`    ${method}:`);
+      const methodTail = pathBlock.slice(methodStart + 1);
+      const nextMethod = methodTail.search(
+        /\n {4}(get|post|patch|delete|put):/,
+      );
+      const methodBlock = pathBlock.slice(
+        methodStart,
+        nextMethod === -1 ? undefined : methodStart + 1 + nextMethod,
+      );
+      expect(methodBlock, `${method.toUpperCase()} ${path}`).toContain(
+        "security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]",
+      );
+    }
+  });
 });

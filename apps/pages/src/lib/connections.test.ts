@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CatalogResponseError,
   chooseOrganization,
   parseConnectionList,
   parseIntegrationList,
@@ -37,6 +38,11 @@ function provider(overrides: Record<string, unknown> = {}) {
     ],
     egress,
     operations: ["profile.read"],
+    integration_configuration_fields: [
+      { name: "client_id", secret: false, required: true },
+      { name: "client_secret", secret: true, required: true },
+    ],
+    connection_configuration_fields: [],
     ...overrides,
   };
 }
@@ -58,6 +64,10 @@ function integration(overrides: Record<string, unknown> = {}) {
     created_by: "principal:owner",
     created_at: timestamp,
     updated_at: timestamp,
+    configured_fields: [
+      { name: "client_id", hint: "***4d2" },
+      { name: "client_secret", hint: "configured" },
+    ],
     ...overrides,
   };
 }
@@ -87,6 +97,7 @@ function connection(overrides: Record<string, unknown> = {}) {
     bindings: [],
     created_at: timestamp,
     updated_at: timestamp,
+    configured_fields: [],
     ...overrides,
   };
 }
@@ -113,6 +124,8 @@ describe("connections wire parsers", () => {
         provenanceUrl: "https://docs.github.com/apps/oauth-apps",
         catalogRevision: "2026-08-10.1",
         authKind: "oauth2_authorization_code",
+        configured: true,
+        missingConfig: [],
         callbackUrl: "https://host.example/api/v1/connections/oauth/callback",
         scopes: [
           {
@@ -122,8 +135,28 @@ describe("connections wire parsers", () => {
             default: true,
           },
         ],
+        integrationConfigurationFields: [
+          { name: "client_id", secret: false, required: true },
+          { name: "client_secret", secret: true, required: true },
+        ],
+        connectionConfigurationFields: [],
       },
     ]);
+  });
+
+  it("rejects empty and malformed provider catalogs explicitly", () => {
+    expect(() => parseProviderList({ providers: [] })).toThrow(
+      new CatalogResponseError("empty"),
+    );
+    expect(() => parseProviderList(null)).toThrow(
+      new CatalogResponseError("malformed"),
+    );
+    expect(() =>
+      parseProviderList({ providers: [provider({ auth_kind: "password" })] }),
+    ).toThrow(new CatalogResponseError("malformed"));
+    expect(() =>
+      parseProviderList({ providers: [provider(), provider()] }),
+    ).toThrow(new CatalogResponseError("malformed"));
   });
 
   it("rejects unknown integration fields instead of stripping secrets", () => {
@@ -140,6 +173,10 @@ describe("connections wire parsers", () => {
       hasClientSecret: true,
       connectionCount: 2,
       callbackUrl: "https://host.example/api/v1/connections/oauth/callback",
+      configuredFields: [
+        { name: "client_id", hint: "***4d2" },
+        { name: "client_secret", hint: "configured" },
+      ],
     });
     expect(() =>
       parseIntegrationList({
@@ -184,7 +221,7 @@ describe("connections wire parsers", () => {
   it("rejects unknown fields at list and nested response boundaries", () => {
     expect(() =>
       parseProviderList({ providers: [provider()], access_token: "leak" }),
-    ).toThrow(/unrecognized_keys/iu);
+    ).toThrow("does not match the shared contract");
     expect(() =>
       parseProviderList({
         providers: [
@@ -201,7 +238,7 @@ describe("connections wire parsers", () => {
           }),
         ],
       }),
-    ).toThrow(/unrecognized_keys/iu);
+    ).toThrow("does not match the shared contract");
     expect(() =>
       parseConnectionList({
         connections: [connection({ access_token: "leak" })],

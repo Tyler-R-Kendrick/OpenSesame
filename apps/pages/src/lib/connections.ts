@@ -1,5 +1,7 @@
 import {
   AuthorizeResponseSchema,
+  type ConfigurationFieldDef,
+  type ConfiguredField,
   ConnectionErrorResponseSchema,
   ConnectionSchema,
   IntegrationSchema,
@@ -36,6 +38,17 @@ export type ProviderScope = {
   default: boolean;
 };
 
+export type ProviderConfigurationField = ConfigurationFieldDef;
+export type ConfiguredProviderField = ConfiguredField;
+
+const LEGACY_OAUTH_INTEGRATION_FIELDS: ProviderConfigurationField[] = [
+  { name: "client_id", secret: false, required: true },
+  { name: "client_secret", secret: true, required: true },
+];
+const LEGACY_API_KEY_CONNECTION_FIELDS: ProviderConfigurationField[] = [
+  { name: "api_key", secret: true, required: true },
+];
+
 export type Provider = {
   id: string;
   displayName: string;
@@ -44,8 +57,12 @@ export type Provider = {
   provenanceUrl: string;
   catalogRevision: string;
   authKind: AuthKind;
+  configured: boolean;
+  missingConfig: string[];
   callbackUrl: string | null;
   scopes: ProviderScope[];
+  integrationConfigurationFields: ProviderConfigurationField[];
+  connectionConfigurationFields: ProviderConfigurationField[];
 };
 
 export type Integration = {
@@ -61,6 +78,7 @@ export type Integration = {
   hasClientSecret: boolean;
   connectionCount: number;
   callbackUrl: string | null;
+  configuredFields: ConfiguredProviderField[];
 };
 
 export type Connection = {
@@ -72,6 +90,7 @@ export type Connection = {
   status: string;
   scopes: string[];
   refreshable: boolean;
+  configuredFields: ConfiguredProviderField[];
 };
 
 export type OrganizationMember = {
@@ -86,6 +105,17 @@ export class ConnectionsError extends Error {
   ) {
     super(message);
     this.name = "ConnectionsError";
+  }
+}
+
+export class CatalogResponseError extends Error {
+  constructor(readonly reason: "empty" | "malformed") {
+    super(
+      reason === "empty"
+        ? "The Host returned an empty provider catalog. Verify that provider templates are installed and enabled."
+        : "The Host returned a provider catalog that does not match the shared contract.",
+    );
+    this.name = "CatalogResponseError";
   }
 }
 
@@ -117,7 +147,18 @@ function strictList(value: unknown, key: string): unknown[] {
 }
 
 export function parseProviderList(value: unknown): Provider[] {
-  return ListProvidersResponseSchema.parse(value).providers.map((raw) => ({
+  const parsed = ListProvidersResponseSchema.safeParse(value);
+  if (!parsed.success) throw new CatalogResponseError("malformed");
+  if (parsed.data.providers.length === 0) {
+    throw new CatalogResponseError("empty");
+  }
+  if (
+    new Set(parsed.data.providers.map((provider) => provider.id)).size !==
+    parsed.data.providers.length
+  ) {
+    throw new CatalogResponseError("malformed");
+  }
+  return parsed.data.providers.map((raw) => ({
     id: raw.id,
     displayName: raw.display_name,
     category: raw.category,
@@ -125,8 +166,22 @@ export function parseProviderList(value: unknown): Provider[] {
     provenanceUrl: raw.provenance_url,
     catalogRevision: raw.catalog_revision,
     authKind: raw.auth_kind,
+    configured: raw.configured,
+    missingConfig: raw.missing_config,
     callbackUrl: raw.callback_url,
     scopes: raw.scopes,
+    integrationConfigurationFields:
+      raw.integration_configuration_fields.length > 0
+        ? raw.integration_configuration_fields
+        : raw.auth_kind === "oauth2_authorization_code"
+          ? LEGACY_OAUTH_INTEGRATION_FIELDS
+          : [],
+    connectionConfigurationFields:
+      raw.connection_configuration_fields.length > 0
+        ? raw.connection_configuration_fields
+        : raw.auth_kind === "api_key"
+          ? LEGACY_API_KEY_CONNECTION_FIELDS
+          : [],
   }));
 }
 
@@ -163,6 +218,7 @@ function mapIntegration(raw: ReturnType<typeof IntegrationSchema.parse>) {
     hasClientSecret: raw.has_client_secret,
     connectionCount: raw.connection_count,
     callbackUrl: raw.callback_url,
+    configuredFields: raw.configured_fields,
   } satisfies Integration;
 }
 
@@ -178,6 +234,7 @@ function mapConnection(raw: ReturnType<typeof ConnectionSchema.parse>) {
       ? raw.granted_scopes
       : raw.requested_scopes,
     refreshable: raw.refreshable,
+    configuredFields: raw.configured_fields,
   } satisfies Connection;
 }
 
@@ -235,8 +292,9 @@ export function createIntegration(
     key: string;
     providerId: string;
     displayName: string;
-    clientId: string;
-    clientSecret: string;
+    clientId?: string;
+    clientSecret?: string;
+    configuration?: Record<string, string>;
     scopes: string[];
   },
 ) {
@@ -249,8 +307,14 @@ export function createIntegration(
         key: input.key,
         provider_id: input.providerId,
         display_name: input.displayName,
-        ...(input.clientId ? { client_id: input.clientId } : {}),
-        ...(input.clientSecret ? { client_secret: input.clientSecret } : {}),
+        ...(input.configuration
+          ? { configuration: input.configuration }
+          : {
+              ...(input.clientId ? { client_id: input.clientId } : {}),
+              ...(input.clientSecret
+                ? { client_secret: input.clientSecret }
+                : {}),
+            }),
         scopes: input.scopes,
       }),
     },
@@ -323,6 +387,26 @@ export function setConnectionCredential(
     organizationId,
     `/connections/${encodeURIComponent(connectionId)}/credential`,
     { method: "POST", body: JSON.stringify({ value }) },
+    (body) => mapConnection(ConnectionSchema.parse(body)),
+  );
+}
+
+export function setConnectionConfiguration(
+  organizationId: string,
+  connectionId: string,
+  configurationSet: Record<string, string>,
+  configurationClear: string[] = [],
+) {
+  return request(
+    organizationId,
+    `/connections/${encodeURIComponent(connectionId)}/credential`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        configuration_set: configurationSet,
+        configuration_clear: configurationClear,
+      }),
+    },
     (body) => mapConnection(ConnectionSchema.parse(body)),
   );
 }
