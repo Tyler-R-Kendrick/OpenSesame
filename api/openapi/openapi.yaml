@@ -9,7 +9,8 @@ servers:
 paths:
   /device/authorize:
     post:
-      summary: Start RFC 8628 device authorization
+      summary: Start a Host device authorization
+      description: OpenSesame Host JSON protocol profile; this is not the form-encoded RFC 8628 wire endpoint exposed by the Identity provider.
       requestBody:
         required: true
         content:
@@ -156,7 +157,11 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/FreezeTaskIntentResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
         "404": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
   /tasks/invoke:
     post:
       summary: Execute a caller-owned frozen intent in the caller's organization

@@ -156,6 +156,9 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
               },
             },
             "403": { description: "Owner role required" },
+            "404": {
+              description: "Caller membership not found (`not_found`)",
+            },
           },
         },
         post: {
@@ -242,7 +245,12 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
               },
             },
             "401": { description: "Authentication or cookie Origin required" },
+            "400": { description: "Invalid membership role body" },
             "403": { description: "Owner role required" },
+            "404": {
+              description:
+                "Caller membership (`not_found`) or target membership (`membership_not_found`) not found",
+            },
             "409": { description: "Last owner cannot be demoted" },
             "502": {
               description: "Host session revocation failed; role unchanged",
@@ -273,6 +281,10 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
             "204": { description: "Membership removed" },
             "401": { description: "Authentication or cookie Origin required" },
             "403": { description: "Owner role required" },
+            "404": {
+              description:
+                "Caller membership (`not_found`) or target membership (`membership_not_found`) not found",
+            },
             "409": { description: "Last owner cannot be removed" },
             "502": {
               description:
@@ -312,7 +324,10 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
             "403": {
               description: "Caller is not an active member of the organization",
             },
+            "404": { description: "Host device authorization not found" },
+            "500": { description: "Configured Host API URL is invalid" },
             "502": { description: "Host API unavailable" },
+            "503": { description: "Host operator token is not configured" },
           },
         },
       },

@@ -20,6 +20,11 @@ describe("Host organization authority OpenAPI", () => {
     }
   });
 
+  it("states the Host JSON device profile without claiming RFC 8628 wire compatibility", () => {
+    expect(hostOpenApi).toContain("OpenSesame Host JSON protocol profile");
+    expect(hostOpenApi).not.toContain("summary: Start RFC 8628");
+  });
+
   it("documents organization-fenced tasks and receipt evidence", () => {
     for (const fragment of [
       "  /tasks:",
@@ -32,6 +37,15 @@ describe("Host organization authority OpenAPI", () => {
       "Identity `prn_<uuid>`",
     ]) {
       expect(hostOpenApi).toContain(fragment);
+    }
+  });
+
+  it("documents every freeze-intent failure", () => {
+    const freezeIntent = hostOpenApi
+      .split("  /tasks/intents:")[1]
+      ?.split("  /tasks/invoke:")[0];
+    for (const status of ['"400"', '"403"', '"404"', '"429"', '"503"']) {
+      expect(freezeIntent).toContain(status);
     }
   });
 });
