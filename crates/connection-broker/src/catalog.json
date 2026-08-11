@@ -867,8 +867,578 @@
           "sensitive": false
         }
       ]
+    },
+    {
+      "id": "cohere",
+      "display_name": "Cohere",
+      "category": "developer",
+      "docs_url": "https://docs.cohere.com/reference/about",
+      "provenance_url": "https://docs.cohere.com/reference/about",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.cohere.com"],
+        "path_prefixes": []
+      },
+      "operations": ["chat.create", "embedding.create", "model.list"]
+    },
+    {
+      "id": "mistral",
+      "display_name": "Mistral AI",
+      "category": "developer",
+      "docs_url": "https://docs.mistral.ai/admin/identity-access/api-keys",
+      "provenance_url": "https://docs.mistral.ai/admin/identity-access/api-keys",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.mistral.ai"],
+        "path_prefixes": []
+      },
+      "operations": ["chat.create", "embedding.create", "model.list"]
+    },
+    {
+      "id": "groq",
+      "display_name": "Groq",
+      "category": "developer",
+      "docs_url": "https://console.groq.com/docs/api-reference",
+      "provenance_url": "https://console.groq.com/docs/api-reference",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.groq.com"],
+        "path_prefixes": []
+      },
+      "operations": ["chat.create", "audio.transcribe", "model.list"]
+    },
+    {
+      "id": "perplexity",
+      "display_name": "Perplexity",
+      "category": "developer",
+      "docs_url": "https://docs.perplexity.ai/docs/getting-started/api-groups",
+      "provenance_url": "https://docs.perplexity.ai/docs/getting-started/api-groups",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.perplexity.ai"],
+        "path_prefixes": []
+      },
+      "operations": ["response.create", "search.create", "model.list"]
+    },
+    {
+      "id": "together",
+      "display_name": "Together AI",
+      "category": "developer",
+      "docs_url": "https://docs.together.ai/docs/authentication",
+      "provenance_url": "https://docs.together.ai/docs/authentication",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.together.xyz"],
+        "path_prefixes": []
+      },
+      "operations": ["chat.create", "image.create", "embedding.create"]
+    },
+    {
+      "id": "replicate",
+      "display_name": "Replicate",
+      "category": "developer",
+      "docs_url": "https://replicate.com/docs/topics/security/api-tokens",
+      "provenance_url": "https://replicate.com/docs/topics/security/api-tokens",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.replicate.com"],
+        "path_prefixes": []
+      },
+      "operations": ["prediction.create", "prediction.read", "model.read"]
+    },
+    {
+      "id": "huggingface",
+      "display_name": "Hugging Face",
+      "category": "developer",
+      "docs_url": "https://huggingface.co/docs/inference-providers/en/index",
+      "provenance_url": "https://huggingface.co/docs/inference-providers/en/index",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["router.huggingface.co"],
+        "path_prefixes": []
+      },
+      "operations": ["chat.create", "model.list", "inference.run"]
+    },
+    {
+      "id": "elevenlabs",
+      "display_name": "ElevenLabs",
+      "category": "developer",
+      "docs_url": "https://elevenlabs.io/docs/api-reference/authentication",
+      "provenance_url": "https://elevenlabs.io/docs/api-reference/authentication",
+      "auth": {
+        "kind": "api_key",
+        "header": "xi-api-key",
+        "value_prefix": ""
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.elevenlabs.io"],
+        "path_prefixes": []
+      },
+      "operations": ["speech.create", "transcription.create", "voice.list"]
+    },
+    {
+      "id": "stability",
+      "display_name": "Stability AI",
+      "category": "developer",
+      "docs_url": "https://platform.stability.ai/docs/api-reference",
+      "provenance_url": "https://platform.stability.ai/docs/api-reference",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.stability.ai"],
+        "path_prefixes": []
+      },
+      "operations": ["image.create", "engine.list", "account.read"]
+    },
+    {
+      "id": "deepgram",
+      "display_name": "Deepgram",
+      "category": "developer",
+      "docs_url": "https://developers.deepgram.com/docs/authenticating",
+      "provenance_url": "https://developers.deepgram.com/docs/authenticating",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Token "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.deepgram.com"],
+        "path_prefixes": []
+      },
+      "operations": ["transcription.create", "speech.create", "project.read"]
+    },
+    {
+      "id": "assemblyai",
+      "display_name": "AssemblyAI",
+      "category": "developer",
+      "docs_url": "https://www.assemblyai.com/docs/api-reference/overview/",
+      "provenance_url": "https://www.assemblyai.com/docs/api-reference/overview/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": ""
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.assemblyai.com"],
+        "path_prefixes": []
+      },
+      "operations": ["transcript.create", "transcript.read", "upload.create"]
+    },
+    {
+      "id": "gemini",
+      "display_name": "Google Gemini",
+      "category": "developer",
+      "docs_url": "https://ai.google.dev/gemini-api/docs/api-key",
+      "provenance_url": "https://ai.google.dev/gemini-api/docs/api-key",
+      "auth": {
+        "kind": "api_key",
+        "header": "x-goog-api-key",
+        "value_prefix": ""
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["generativelanguage.googleapis.com"],
+        "path_prefixes": []
+      },
+      "operations": ["content.generate", "embedding.create", "model.list"]
+    },
+    {
+      "id": "fireworks",
+      "display_name": "Fireworks AI",
+      "category": "developer",
+      "docs_url": "https://docs.fireworks.ai/api-reference/post-responses",
+      "provenance_url": "https://docs.fireworks.ai/api-reference/post-responses",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.fireworks.ai"],
+        "path_prefixes": []
+      },
+      "operations": ["chat.create", "embedding.create", "model.list"]
+    },
+    {
+      "id": "cloudflare",
+      "display_name": "Cloudflare",
+      "category": "developer",
+      "docs_url": "https://developers.cloudflare.com/fundamentals/api/how-to/make-api-calls/",
+      "provenance_url": "https://developers.cloudflare.com/fundamentals/api/how-to/make-api-calls/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.cloudflare.com"],
+        "path_prefixes": []
+      },
+      "operations": ["zone.read", "dns_record.write", "account.read"]
+    },
+    {
+      "id": "vercel",
+      "display_name": "Vercel",
+      "category": "developer",
+      "docs_url": "https://vercel.com/docs/rest-api",
+      "provenance_url": "https://vercel.com/docs/rest-api",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.vercel.com"],
+        "path_prefixes": []
+      },
+      "operations": ["deployment.read", "project.write", "domain.read"]
+    },
+    {
+      "id": "render",
+      "display_name": "Render",
+      "category": "developer",
+      "docs_url": "https://api-docs.render.com/reference/authentication",
+      "provenance_url": "https://api-docs.render.com/reference/authentication",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.render.com"],
+        "path_prefixes": []
+      },
+      "operations": ["service.read", "deploy.create", "workspace.read"]
+    },
+    {
+      "id": "netlify",
+      "display_name": "Netlify",
+      "category": "developer",
+      "docs_url": "https://docs.netlify.com/api-and-cli-guides/api-guides/get-started-with-api/",
+      "provenance_url": "https://docs.netlify.com/api-and-cli-guides/api-guides/get-started-with-api/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.netlify.com"],
+        "path_prefixes": []
+      },
+      "operations": ["site.read", "deploy.create", "form.read"]
+    },
+    {
+      "id": "sendgrid",
+      "display_name": "SendGrid",
+      "category": "communication",
+      "docs_url": "https://www.twilio.com/docs/sendgrid/api-reference/how-to-use-the-sendgrid-v3-api/authentication",
+      "provenance_url": "https://www.twilio.com/docs/sendgrid/api-reference/how-to-use-the-sendgrid-v3-api/authentication",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.sendgrid.com"],
+        "path_prefixes": []
+      },
+      "operations": ["mail.send", "contact.read", "template.read"]
+    },
+    {
+      "id": "resend",
+      "display_name": "Resend",
+      "category": "communication",
+      "docs_url": "https://resend.com/docs/api-reference/introduction",
+      "provenance_url": "https://resend.com/docs/api-reference/introduction",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.resend.com"],
+        "path_prefixes": []
+      },
+      "operations": ["email.send", "domain.read", "api_key.read"]
+    },
+    {
+      "id": "postmark",
+      "display_name": "Postmark",
+      "category": "communication",
+      "docs_url": "https://postmarkapp.com/developer/api/overview",
+      "provenance_url": "https://postmarkapp.com/developer/api/overview",
+      "auth": {
+        "kind": "api_key",
+        "header": "X-Postmark-Server-Token",
+        "value_prefix": ""
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.postmarkapp.com"],
+        "path_prefixes": []
+      },
+      "operations": ["email.send", "template.read", "server.read"]
+    },
+    {
+      "id": "brevo",
+      "display_name": "Brevo",
+      "category": "communication",
+      "docs_url": "https://developers.brevo.com/docs/getting-started",
+      "provenance_url": "https://developers.brevo.com/docs/getting-started",
+      "auth": {
+        "kind": "api_key",
+        "header": "api-key",
+        "value_prefix": ""
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.brevo.com"],
+        "path_prefixes": []
+      },
+      "operations": ["email.send", "contact.read", "template.read"]
+    },
+    {
+      "id": "pagerduty",
+      "display_name": "PagerDuty",
+      "category": "communication",
+      "docs_url": "https://developer.pagerduty.com/docs/rest-api-v2/authentication/",
+      "provenance_url": "https://developer.pagerduty.com/docs/rest-api-v2/authentication/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Token token="
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.pagerduty.com", "api.eu.pagerduty.com"],
+        "path_prefixes": []
+      },
+      "operations": ["incident.read", "incident.write", "schedule.read"]
+    },
+    {
+      "id": "square",
+      "display_name": "Square",
+      "category": "payments",
+      "docs_url": "https://developer.squareup.com/docs/build-basics/access-tokens",
+      "provenance_url": "https://developer.squareup.com/docs/build-basics/access-tokens",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["connect.squareup.com", "connect.squareupsandbox.com"],
+        "path_prefixes": []
+      },
+      "operations": ["payment.read", "payment.create", "catalog.read"]
+    },
+    {
+      "id": "neon",
+      "display_name": "Neon",
+      "category": "storage",
+      "docs_url": "https://api-docs.neon.tech/reference/getting-started-with-neon-api",
+      "provenance_url": "https://api-docs.neon.tech/reference/getting-started-with-neon-api",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["console.neon.tech"],
+        "path_prefixes": []
+      },
+      "operations": ["project.read", "project.write", "branch.read"]
+    },
+    {
+      "id": "ngrok",
+      "display_name": "ngrok",
+      "category": "developer",
+      "docs_url": "https://ngrok.com/docs/api/",
+      "provenance_url": "https://ngrok.com/docs/api/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.ngrok.com"],
+        "path_prefixes": []
+      },
+      "operations": ["tunnel.read", "endpoint.write", "credential.read"]
+    },
+    {
+      "id": "clerk",
+      "display_name": "Clerk",
+      "category": "identity",
+      "docs_url": "https://clerk.com/docs/reference/backend-api",
+      "provenance_url": "https://clerk.com/docs/reference/backend-api",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.clerk.com"],
+        "path_prefixes": []
+      },
+      "operations": ["user.read", "user.write", "organization.read"]
+    },
+    {
+      "id": "newsapi",
+      "display_name": "NewsAPI",
+      "category": "productivity",
+      "docs_url": "https://newsapi.org/docs/authentication",
+      "provenance_url": "https://newsapi.org/docs/authentication",
+      "auth": {
+        "kind": "api_key",
+        "header": "X-Api-Key",
+        "value_prefix": ""
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["newsapi.org"],
+        "path_prefixes": []
+      },
+      "operations": ["article.search", "source.list", "headline.read"]
+    },
+    {
+      "id": "finnhub",
+      "display_name": "Finnhub",
+      "category": "payments",
+      "docs_url": "https://finnhub.io/docs/api/authentication",
+      "provenance_url": "https://finnhub.io/docs/api/authentication",
+      "auth": {
+        "kind": "api_key",
+        "header": "X-Finnhub-Token",
+        "value_prefix": ""
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["finnhub.io"],
+        "path_prefixes": []
+      },
+      "operations": ["quote.read", "company.read", "news.read"]
+    },
+    {
+      "id": "honeycomb",
+      "display_name": "Honeycomb",
+      "category": "developer",
+      "docs_url": "https://docs.honeycomb.io/api/",
+      "provenance_url": "https://docs.honeycomb.io/api/",
+      "auth": {
+        "kind": "api_key",
+        "header": "X-Honeycomb-Team",
+        "value_prefix": ""
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.honeycomb.io"],
+        "path_prefixes": []
+      },
+      "operations": ["dataset.read", "query.run", "marker.write"]
+    },
+    {
+      "id": "launchdarkly",
+      "display_name": "LaunchDarkly",
+      "category": "developer",
+      "docs_url": "https://launchdarkly.com/docs/api",
+      "provenance_url": "https://launchdarkly.com/docs/api",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": ""
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["app.launchdarkly.com"],
+        "path_prefixes": []
+      },
+      "operations": ["project.read", "flag.write", "environment.read"]
     }
   ],
-  "revision": "2026-08-10.1",
+  "revision": "2026-08-10.2",
   "schema_version": 1
 }
