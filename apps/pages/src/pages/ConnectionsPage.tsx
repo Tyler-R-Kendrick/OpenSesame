@@ -9,6 +9,7 @@ import {
 } from "react";
 import { IconConnection, IconSearch } from "../components/Icons.js";
 import {
+  CatalogResponseError,
   type Connection,
   type Integration,
   type OrganizationMember,
@@ -50,6 +51,15 @@ const CATEGORY_LABELS: Record<ProviderCategory, string> = {
   testing: "Testing",
 };
 
+const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS) as ProviderCategory[];
+
+type MarketplaceAuthFilter = "all" | Provider["authKind"];
+
+export type ConnectionsLoadIssue = {
+  kind: "identity" | "host" | "catalog";
+  message: string;
+};
+
 function message(error: unknown) {
   return error instanceof Error ? error.message : "The request failed.";
 }
@@ -58,15 +68,29 @@ export function filterProviders(
   providers: Provider[],
   query: string,
   category: string,
+  authKind: MarketplaceAuthFilter = "all",
 ) {
   const needle = query.trim().toLowerCase();
   return providers.filter(
     (provider) =>
       (category === "all" || provider.category === category) &&
+      (authKind === "all" || provider.authKind === authKind) &&
       (!needle ||
         provider.displayName.toLowerCase().includes(needle) ||
         provider.id.toLowerCase().includes(needle)),
   );
+}
+
+export function classifyConnectionsLoadIssue(
+  error: unknown,
+  source: "identity" | "host" = "host",
+): ConnectionsLoadIssue {
+  if (source === "identity")
+    return { kind: "identity", message: message(error) };
+  if (error instanceof CatalogResponseError) {
+    return { kind: "catalog", message: error.message };
+  }
+  return { kind: "host", message: message(error) };
 }
 
 export function canConfigure(role: OrganizationRole) {
@@ -177,13 +201,14 @@ export function connectionRevocationNotice(
 export function ConnectionsPage() {
   const [organizations, setOrganizations] = useState<SessionOrganization[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const [providers, setProviders] = useState<Provider[] | null>(null);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadIssue, setLoadIssue] = useState<ConnectionsLoadIssue | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const activeOrganizationId = useRef<string | null>(null);
 
@@ -192,6 +217,7 @@ export function ConnectionsPage() {
 
   const loadWorkspace = useCallback(async (selected: SessionOrganization) => {
     setLoading(true);
+    setLoadIssue(null);
     try {
       const [nextProviders, nextIntegrations, nextConnections, nextMembers] =
         await Promise.all([
@@ -207,10 +233,11 @@ export function ConnectionsPage() {
       setIntegrations(nextIntegrations);
       setConnections(nextConnections);
       setMembers(nextMembers);
+      setLoadIssue(null);
       setError(null);
     } catch (caught) {
       if (activeOrganizationId.current === selected.id) {
-        setError(message(caught));
+        setLoadIssue(classifyConnectionsLoadIssue(caught));
       }
     } finally {
       if (activeOrganizationId.current === selected.id) setLoading(false);
@@ -224,12 +251,21 @@ export function ConnectionsPage() {
         if (!current) return;
         setOrganizations(next);
         setOrganizationId((selected) => chooseOrganization(next, selected));
-        setError(
-          next.length ? null : "This Identity session has no organizations.",
+        setLoadIssue(
+          next.length
+            ? null
+            : {
+                kind: "identity",
+                message: "This Identity session has no organizations.",
+              },
         );
+        setError(null);
       })
       .catch((caught) => {
-        if (current) setError(message(caught));
+        if (current) {
+          setLoadIssue(classifyConnectionsLoadIssue(caught, "identity"));
+          setError(null);
+        }
       })
       .finally(() => {
         if (current) setLoading(false);
@@ -307,12 +343,13 @@ export function ConnectionsPage() {
     activeOrganizationId.current = nextId || null;
     clearHostSession();
     setOrganizationId(nextId || null);
-    setProviders([]);
+    setProviders(null);
     setIntegrations([]);
     setConnections([]);
     setMembers([]);
     setNotice(null);
     setError(null);
+    setLoadIssue(null);
   }
 
   async function act(
@@ -339,7 +376,7 @@ export function ConnectionsPage() {
         setOrganizations(nextOrganizations);
         setOrganizationId(refreshed.organizationId);
         if (!selected) {
-          setProviders([]);
+          setProviders(null);
           setIntegrations([]);
           setConnections([]);
           setMembers([]);
@@ -389,14 +426,16 @@ export function ConnectionsPage() {
         ) : null}
       </header>
 
-      <nav className="connections-jump" aria-label="Connections sections">
-        <a href="#marketplace">Marketplace</a>
-        <a href="#my-connections">My connections</a>
-        <a href="#configured-connectors">Configured connectors</a>
-        {organization?.role === "owner" ? (
-          <a href="#organization-access">Organization access</a>
-        ) : null}
-      </nav>
+      {organization ? (
+        <nav className="connections-jump" aria-label="Connections sections">
+          <a href="#marketplace">Marketplace</a>
+          <a href="#my-connections">My connections</a>
+          <a href="#configured-connectors">Configured connectors</a>
+          {organization.role === "owner" ? (
+            <a href="#organization-access">Organization access</a>
+          ) : null}
+        </nav>
+      ) : null}
 
       {error ? (
         <p className="err connections-alert" role="alert">
@@ -406,10 +445,6 @@ export function ConnectionsPage() {
       {notice ? (
         <output className="ok connections-alert">{notice}</output>
       ) : null}
-      {loading ? (
-        <p className="connections-loading">Loading connections…</p>
-      ) : null}
-
       {organization ? (
         <>
           <MarketplacePanel
@@ -417,6 +452,9 @@ export function ConnectionsPage() {
             integrations={integrations}
             accessRole={organization.role}
             busy={busy}
+            loading={loading}
+            loadIssue={loadIssue}
+            onRetry={() => void loadWorkspace(organization)}
             onConfigure={(provider, form) =>
               act(`configure-${provider.id}`, async () => {
                 await createIntegration(organization.id, form);
@@ -466,141 +504,196 @@ export function ConnectionsPage() {
             }
           />
 
-          <ConnectionsPanel
-            connections={connections}
-            integrations={integrations}
-            providers={providers}
-            busy={busy}
-            onRefresh={(connection) =>
-              act(`refresh-${connection.id}`, async () => {
-                await refreshConnection(organization.id, connection.id);
-                setNotice(`${connection.displayName} refreshed.`);
-              })
-            }
-            onReauthorize={(connection, popup) =>
-              act(`reauthorize-${connection.id}`, async () => {
-                try {
-                  const authorizationUrl = await authorizeConnection(
-                    organization.id,
-                    connection.id,
-                  );
-                  if (popup) popup.location.href = authorizationUrl;
-                  else window.location.assign(authorizationUrl);
-                  setNotice("Provider authorization opened in a new window.");
-                } catch (caught) {
-                  popup?.close();
-                  throw caught;
+          {providers ? (
+            <>
+              <ConnectionsPanel
+                connections={connections}
+                integrations={integrations}
+                providers={providers}
+                busy={busy}
+                onRefresh={(connection) =>
+                  act(`refresh-${connection.id}`, async () => {
+                    await refreshConnection(organization.id, connection.id);
+                    setNotice(`${connection.displayName} refreshed.`);
+                  })
                 }
-              })
-            }
-            onCredential={(connection, credential) =>
-              act(`credential-${connection.id}`, async () => {
-                await setConnectionCredential(
-                  organization.id,
-                  connection.id,
-                  credential,
-                );
-                setNotice(`${connection.displayName} API key replaced.`);
-              })
-            }
-            onRevoke={(connection) =>
-              runConfirmedAction(
-                `Revoke ${connection.displayName}? This connection will stop working immediately.`,
-                () =>
-                  void act(`revoke-${connection.id}`, async () => {
-                    const result = await revokeConnection(
+                onReauthorize={(connection, popup) =>
+                  act(`reauthorize-${connection.id}`, async () => {
+                    try {
+                      const authorizationUrl = await authorizeConnection(
+                        organization.id,
+                        connection.id,
+                      );
+                      if (popup) popup.location.href = authorizationUrl;
+                      else window.location.assign(authorizationUrl);
+                      setNotice(
+                        "Provider authorization opened in a new window.",
+                      );
+                    } catch (caught) {
+                      popup?.close();
+                      throw caught;
+                    }
+                  })
+                }
+                onCredential={(connection, credential) =>
+                  act(`credential-${connection.id}`, async () => {
+                    await setConnectionCredential(
                       organization.id,
                       connection.id,
+                      credential,
                     );
-                    const providerName =
-                      providers.find(
-                        (provider) => provider.id === connection.providerId,
-                      )?.displayName ?? "the provider";
-                    setNotice(
-                      connectionRevocationNotice(
-                        connection.displayName,
-                        providerName,
-                        result,
-                      ),
-                    );
-                  }),
-              )
-            }
-          />
-
-          <IntegrationsPanel
-            integrations={integrations}
-            providers={providers}
-            accessRole={organization.role}
-            busy={busy}
-            onToggle={(integration) =>
-              act(`toggle-${integration.id}`, async () => {
-                await updateIntegration(organization.id, integration.id, {
-                  enabled: !integration.enabled,
-                });
-                setNotice(
-                  `${integration.displayName} ${integration.enabled ? "disabled" : "enabled"}.`,
-                );
-              })
-            }
-            onRotate={(integration, clientId, secret) =>
-              act(`rotate-${integration.id}`, async () => {
-                await updateIntegration(organization.id, integration.id, {
-                  ...(clientId ? { client_id: clientId } : {}),
-                  client_secret: secret,
-                });
-                setNotice(`${integration.displayName} secret rotated.`);
-              })
-            }
-            onDelete={(integration) =>
-              act(`delete-${integration.id}`, async () => {
-                await deleteIntegration(organization.id, integration.id);
-                setNotice(`${integration.displayName} deleted.`);
-              })
-            }
-          />
-
-          {organization.role === "owner" ? (
-            <OrganizationAccessPanel
-              members={members}
-              busy={busy}
-              onAdd={(principalId, role) =>
-                act("add-member", async () => {
-                  await addMember(organization.id, principalId, role);
-                  setNotice(`${principalId} added as ${role}.`);
-                })
-              }
-              onRole={(principalId, role) =>
-                act(
-                  `role-${principalId}`,
-                  async () => {
-                    await updateMember(organization.id, principalId, role);
-                    setNotice(`${principalId} is now ${role}.`);
-                  },
-                  true,
-                )
-              }
-              onRemove={(principalId) =>
-                runConfirmedAction(
-                  `Remove ${principalId} from this organization? Their Host sessions will be revoked.`,
-                  () =>
-                    void act(
-                      `remove-${principalId}`,
-                      async () => {
-                        await removeMember(organization.id, principalId);
-                        setNotice(
-                          `${principalId} removed from the organization.`,
+                    setNotice(`${connection.displayName} API key replaced.`);
+                  })
+                }
+                onRevoke={(connection) =>
+                  runConfirmedAction(
+                    `Revoke ${connection.displayName}? This connection will stop working immediately.`,
+                    () =>
+                      void act(`revoke-${connection.id}`, async () => {
+                        const result = await revokeConnection(
+                          organization.id,
+                          connection.id,
                         );
+                        const providerName =
+                          providers.find(
+                            (provider) => provider.id === connection.providerId,
+                          )?.displayName ?? "the provider";
+                        setNotice(
+                          connectionRevocationNotice(
+                            connection.displayName,
+                            providerName,
+                            result,
+                          ),
+                        );
+                      }),
+                  )
+                }
+              />
+
+              <IntegrationsPanel
+                integrations={integrations}
+                providers={providers}
+                accessRole={organization.role}
+                busy={busy}
+                onToggle={(integration) =>
+                  act(`toggle-${integration.id}`, async () => {
+                    await updateIntegration(organization.id, integration.id, {
+                      enabled: !integration.enabled,
+                    });
+                    setNotice(
+                      `${integration.displayName} ${integration.enabled ? "disabled" : "enabled"}.`,
+                    );
+                  })
+                }
+                onRotate={(integration, clientId, secret) =>
+                  act(`rotate-${integration.id}`, async () => {
+                    await updateIntegration(organization.id, integration.id, {
+                      ...(clientId ? { client_id: clientId } : {}),
+                      client_secret: secret,
+                    });
+                    setNotice(`${integration.displayName} secret rotated.`);
+                  })
+                }
+                onDelete={(integration) =>
+                  act(`delete-${integration.id}`, async () => {
+                    await deleteIntegration(organization.id, integration.id);
+                    setNotice(`${integration.displayName} deleted.`);
+                  })
+                }
+              />
+
+              {organization.role === "owner" ? (
+                <OrganizationAccessPanel
+                  members={members}
+                  busy={busy}
+                  onAdd={(principalId, role) =>
+                    act("add-member", async () => {
+                      await addMember(organization.id, principalId, role);
+                      setNotice(`${principalId} added as ${role}.`);
+                    })
+                  }
+                  onRole={(principalId, role) =>
+                    act(
+                      `role-${principalId}`,
+                      async () => {
+                        await updateMember(organization.id, principalId, role);
+                        setNotice(`${principalId} is now ${role}.`);
                       },
                       true,
-                    ),
-                )
-              }
-            />
+                    )
+                  }
+                  onRemove={(principalId) =>
+                    runConfirmedAction(
+                      `Remove ${principalId} from this organization? Their Host sessions will be revoked.`,
+                      () =>
+                        void act(
+                          `remove-${principalId}`,
+                          async () => {
+                            await removeMember(organization.id, principalId);
+                            setNotice(
+                              `${principalId} removed from the organization.`,
+                            );
+                          },
+                          true,
+                        ),
+                    )
+                  }
+                />
+              ) : null}
+            </>
           ) : null}
         </>
-      ) : null}
+      ) : (
+        <ConnectionsGate
+          loading={loading}
+          issue={loadIssue}
+          hasOrganizations={organizations.length > 0}
+          onRetry={() => window.location.reload()}
+        />
+      )}
     </div>
+  );
+}
+
+export function ConnectionsGate({
+  loading,
+  issue,
+  hasOrganizations,
+  onRetry,
+}: {
+  loading: boolean;
+  issue: ConnectionsLoadIssue | null;
+  hasOrganizations: boolean;
+  onRetry: () => void;
+}) {
+  if (loading) {
+    return (
+      <MarketplaceState
+        title="Checking your Identity session"
+        detail="Reading the organizations this browser is allowed to manage."
+        loading
+      />
+    );
+  }
+  if (hasOrganizations) {
+    return (
+      <MarketplaceState
+        title="Choose an organization"
+        detail="Select an organization above to load its Host catalog, integrations, and member connections."
+      />
+    );
+  }
+  return (
+    <MarketplaceState
+      title="Identity access required"
+      detail={
+        issue?.message ??
+        "Sign in to Identity with access to an organization, then try again."
+      }
+      tone="error"
+      actionLabel="Retry Identity"
+      onAction={onRetry}
+    />
   );
 }
 
@@ -609,13 +702,19 @@ export function MarketplacePanel({
   integrations,
   accessRole,
   busy,
+  loading,
+  loadIssue,
+  onRetry,
   onConfigure,
   onConnect,
 }: {
-  providers: Provider[];
+  providers: Provider[] | null;
   integrations: Integration[];
   accessRole: OrganizationRole;
   busy: string | null;
+  loading: boolean;
+  loadIssue: ConnectionsLoadIssue | null;
+  onRetry: () => void;
   onConfigure: (
     provider: Provider,
     form: {
@@ -636,34 +735,58 @@ export function MarketplacePanel({
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
+  const [authKind, setAuthKind] = useState<MarketplaceAuthFilter>("all");
   const visible = useMemo(
-    () => filterProviders(providers, query, category),
-    [providers, query, category],
+    () => filterProviders(providers ?? [], query, category, authKind),
+    [providers, query, category, authKind],
   );
-  const categories = [
-    ...new Set(providers.map((provider) => provider.category)),
-  ];
+  const categories = CATEGORY_ORDER.filter((item) =>
+    providers?.some((provider) => provider.category === item),
+  );
+  const hasFilters =
+    Boolean(query.trim()) || category !== "all" || authKind !== "all";
+  const total = providers?.length ?? null;
+  const emptyCopy = marketplaceEmptyCopy(hasFilters);
+
+  function clearFilters() {
+    setQuery("");
+    setCategory("all");
+    setAuthKind("all");
+  }
 
   return (
-    <section className="connections-section" id="marketplace">
+    <section
+      className="connections-section"
+      id="marketplace"
+      aria-busy={loading || undefined}
+    >
       <div className="connections-section-head">
         <div>
           <h2>Marketplace</h2>
-          <p>Bundled providers available on this Host deployment.</p>
+          <p>Bundled provider templates available on this Host deployment.</p>
         </div>
-        <div className="marketplace-filters">
+        <p className="marketplace-total">
+          {total === null
+            ? "Catalog pending"
+            : `${total} connector${total === 1 ? "" : "s"}`}
+        </p>
+      </div>
+      {providers ? (
+        <div className="marketplace-filters" aria-label="Filter connectors">
           <label className="marketplace-search">
-            <span className="sr-only">Search providers</span>
-            <IconSearch />
-            <input
-              type="search"
-              placeholder="Search providers"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
+            <span>Search</span>
+            <span className="marketplace-search-control">
+              <IconSearch />
+              <input
+                type="search"
+                placeholder="Name or provider ID"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </span>
           </label>
           <label>
-            <span className="sr-only">Provider category</span>
+            <span>Category</span>
             <select
               value={category}
               onChange={(event) => setCategory(event.target.value)}
@@ -676,9 +799,73 @@ export function MarketplacePanel({
               ))}
             </select>
           </label>
+          <label>
+            <span>Authentication</span>
+            <select
+              value={authKind}
+              onChange={(event) =>
+                setAuthKind(event.target.value as MarketplaceAuthFilter)
+              }
+            >
+              <option value="all">All methods</option>
+              <option value="oauth2_authorization_code">OAuth 2.0</option>
+              <option value="api_key">API key</option>
+            </select>
+          </label>
         </div>
-      </div>
-      {visible.length ? (
+      ) : null}
+      {providers ? (
+        <output className="marketplace-results" aria-live="polite">
+          {loading
+            ? "Refreshing connector catalog…"
+            : `Showing ${visible.length} of ${providers.length} connectors`}
+        </output>
+      ) : null}
+      {loadIssue && providers ? (
+        <MarketplaceState
+          title={
+            loadIssue.kind === "catalog"
+              ? "Catalog refresh failed"
+              : loadIssue.kind === "identity"
+                ? "Identity data refresh failed"
+                : "Host refresh failed"
+          }
+          detail={`${loadIssue.message} The last verified workspace remains visible.`}
+          tone="error"
+          actionLabel="Retry"
+          onAction={onRetry}
+          actionDisabled={loading}
+        />
+      ) : null}
+      {providers === null ? (
+        <MarketplaceState
+          title={
+            loading
+              ? "Loading provider catalog"
+              : loadIssue?.kind === "catalog"
+                ? "Provider catalog unavailable"
+                : "Host unavailable"
+          }
+          detail={
+            loading
+              ? "Authorizing with Host and reading its bundled provider templates."
+              : (loadIssue?.message ??
+                "The Host catalog could not be read. Check the Host address under Settings.")
+          }
+          tone={loading ? "neutral" : "error"}
+          loading={loading}
+          actionLabel={loading ? undefined : "Retry catalog"}
+          onAction={loading ? undefined : onRetry}
+        />
+      ) : providers.length === 0 ? (
+        <MarketplaceState
+          title="Provider catalog is empty"
+          detail="No provider templates were returned. Verify the Host deployment instead of treating this as an empty marketplace."
+          tone="error"
+          actionLabel="Retry catalog"
+          onAction={onRetry}
+        />
+      ) : visible.length ? (
         <ul className="provider-grid">
           {visible.map((provider) => {
             const available = integrations.filter(
@@ -781,9 +968,71 @@ export function MarketplacePanel({
           })}
         </ul>
       ) : (
-        <p className="empty">No providers match this search.</p>
+        <MarketplaceState
+          title={emptyCopy.title}
+          detail={emptyCopy.detail}
+          actionLabel={hasFilters ? "Clear filters" : undefined}
+          onAction={hasFilters ? clearFilters : undefined}
+        />
       )}
     </section>
+  );
+}
+
+export function marketplaceEmptyCopy(hasFilters: boolean) {
+  return hasFilters
+    ? {
+        title: "No matching connectors",
+        detail:
+          "No connector matches the current search, category, and authentication filters.",
+      }
+    : {
+        title: "No connectors available",
+        detail: "No connector is available for this view.",
+      };
+}
+
+function MarketplaceState({
+  title,
+  detail,
+  tone = "neutral",
+  loading = false,
+  actionLabel,
+  onAction,
+  actionDisabled = false,
+}: {
+  title: string;
+  detail: string;
+  tone?: "neutral" | "error";
+  loading?: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
+  actionDisabled?: boolean;
+}) {
+  return (
+    <div
+      className={`marketplace-state${tone === "error" ? " is-error" : ""}`}
+      role={tone === "error" ? "alert" : "status"}
+      aria-busy={loading || undefined}
+    >
+      <span className="type-badge" aria-hidden="true">
+        <IconConnection />
+      </span>
+      <div>
+        <h3>{title}</h3>
+        <p>{detail}</p>
+      </div>
+      {actionLabel && onAction ? (
+        <button
+          type="button"
+          className="compact"
+          onClick={onAction}
+          disabled={actionDisabled}
+        >
+          {actionLabel}
+        </button>
+      ) : null}
+    </div>
   );
 }
 

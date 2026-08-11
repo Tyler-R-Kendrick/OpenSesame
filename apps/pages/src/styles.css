@@ -811,30 +811,88 @@ textarea {
 }
 
 .marketplace-filters {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: minmax(14rem, 2fr) repeat(2, minmax(9rem, 1fr));
+  align-items: end;
+  gap: 0.65rem;
+  margin-top: 1rem;
 }
 
 .marketplace-filters label {
+  display: grid;
+  gap: 0.3rem;
   margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .marketplace-search {
+  width: auto;
+}
+
+.marketplace-search-control {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  width: 15rem;
-  padding-left: 0.65rem;
+  padding-inline-start: 0.65rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-elevated);
   color: var(--muted);
 }
 
-.marketplace-search input {
+.marketplace-search-control input {
+  min-width: 0;
   border: 0;
-  padding-left: 0;
+  padding-inline-start: 0;
+}
+
+.marketplace-total,
+.marketplace-results {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.marketplace-total {
+  flex: none;
+}
+
+.marketplace-results {
+  display: block;
+  margin-top: 0.65rem;
+}
+
+.marketplace-state {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.marketplace-state.is-error {
+  background: color-mix(in srgb, var(--err) 7%, var(--bg-elevated));
+}
+
+.marketplace-state h3,
+.marketplace-state p {
+  margin: 0;
+}
+
+.marketplace-state h3 {
+  font-size: 1rem;
+}
+
+.marketplace-state p {
+  margin-top: 0.2rem;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .provider-grid,
@@ -866,6 +924,15 @@ textarea {
   display: flex;
   align-items: center;
   gap: 0.65rem;
+}
+
+.provider-title > div {
+  min-width: 0;
+}
+
+.provider-title h3,
+.provider-title p {
+  overflow-wrap: anywhere;
 }
 
 .provider-title h3 {
@@ -1195,15 +1262,23 @@ button.danger {
     flex-direction: column;
   }
 
-  .organization-picker,
-  .marketplace-search {
+  .organization-picker {
     width: 100%;
   }
 
   .marketplace-filters {
-    align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: 1fr;
     width: 100%;
+  }
+
+  .marketplace-state {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .marketplace-state button {
+    grid-column: 1 / -1;
+    justify-content: center;
   }
 
   .form-grid,
@@ -1230,5 +1305,11 @@ button.danger {
   .inline-action summary {
     min-height: 44px;
     align-content: center;
+  }
+}
+
+@media (forced-colors: active) {
+  .marketplace-state {
+    border: 1px solid CanvasText;
   }
 }

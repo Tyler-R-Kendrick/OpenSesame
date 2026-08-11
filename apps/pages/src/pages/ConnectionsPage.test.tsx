@@ -3,9 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Integration, Provider } from "../lib/connections.js";
 import {
   CONNECTION_POLL_MAX_ATTEMPTS,
+  ConnectionsGate,
   IntegrationsPanel,
   MarketplacePanel,
   connectionRevocationNotice,
+  filterProviders,
+  marketplaceEmptyCopy,
   parseConnectionMessage,
   reconcileOrganization,
   recoverCreatedConnection,
@@ -220,6 +223,9 @@ describe("Connections marketplace panels", () => {
         integrations={[integration("github"), integration("linear")]}
         accessRole="member"
         busy={null}
+        loading={false}
+        loadIssue={null}
+        onRetry={() => undefined}
         onConfigure={() => undefined}
         onConnect={() => undefined}
       />,
@@ -238,6 +244,9 @@ describe("Connections marketplace panels", () => {
         integrations={[]}
         accessRole="admin"
         busy={null}
+        loading={false}
+        loadIssue={null}
+        onRetry={() => undefined}
         onConfigure={() => undefined}
         onConnect={() => undefined}
       />,
@@ -248,6 +257,9 @@ describe("Connections marketplace panels", () => {
         integrations={[]}
         accessRole="admin"
         busy={null}
+        loading={false}
+        loadIssue={null}
+        onRetry={() => undefined}
         onConfigure={() => undefined}
         onConnect={() => undefined}
       />,
@@ -278,5 +290,114 @@ describe("Connections marketplace panels", () => {
     expect(html).toContain("deployment-managed integration is read-only");
     expect(html).not.toContain("Rotate OAuth credentials");
     expect(html).not.toContain("Delete integration");
+  });
+
+  it("filters the catalog by search, category, and authentication", () => {
+    expect(
+      filterProviders(
+        [oauthProvider, apiKeyProvider],
+        "lin",
+        "developer",
+        "api_key",
+      ),
+    ).toEqual([apiKeyProvider]);
+    expect(
+      filterProviders(
+        [oauthProvider, apiKeyProvider],
+        "github",
+        "developer",
+        "api_key",
+      ),
+    ).toEqual([]);
+  });
+
+  it("never presents pending, failed, or empty catalogs as zero search results", () => {
+    const render = (
+      providers: Provider[] | null,
+      loading: boolean,
+      loadIssue: { kind: "host" | "catalog"; message: string } | null,
+    ) =>
+      renderToStaticMarkup(
+        <MarketplacePanel
+          providers={providers}
+          integrations={[]}
+          accessRole="member"
+          busy={null}
+          loading={loading}
+          loadIssue={loadIssue}
+          onRetry={() => undefined}
+          onConfigure={() => undefined}
+          onConnect={() => undefined}
+        />,
+      );
+
+    expect(render(null, true, null)).toContain("Loading provider catalog");
+    expect(
+      render(null, false, { kind: "host", message: "Host is down." }),
+    ).toContain("Host unavailable");
+    expect(
+      render(null, false, {
+        kind: "catalog",
+        message: "Catalog contract failed.",
+      }),
+    ).toContain("Provider catalog unavailable");
+    expect(render([], false, null)).toContain("Provider catalog is empty");
+    for (const html of [
+      render(null, true, null),
+      render(null, false, { kind: "host", message: "Host is down." }),
+      render([], false, null),
+    ]) {
+      expect(html).not.toContain("No matching connectors");
+    }
+  });
+
+  it("distinguishes Identity, organization-selection, and no-search states", () => {
+    const identity = renderToStaticMarkup(
+      <ConnectionsGate
+        loading={false}
+        issue={{ kind: "identity", message: "Sign in again." }}
+        hasOrganizations={false}
+        onRetry={() => undefined}
+      />,
+    );
+    const selection = renderToStaticMarkup(
+      <ConnectionsGate
+        loading={false}
+        issue={null}
+        hasOrganizations
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(identity).toContain("Identity access required");
+    expect(identity).toContain("Retry Identity");
+    expect(selection).toContain("Choose an organization");
+    expect(marketplaceEmptyCopy(true)).toEqual(
+      expect.objectContaining({ title: "No matching connectors" }),
+    );
+  });
+
+  it("shows the total and all three catalog filters", () => {
+    const html = renderToStaticMarkup(
+      <MarketplacePanel
+        providers={[oauthProvider, apiKeyProvider]}
+        integrations={[]}
+        accessRole="member"
+        busy={null}
+        loading={false}
+        loadIssue={null}
+        onRetry={() => undefined}
+        onConfigure={() => undefined}
+        onConnect={() => undefined}
+      />,
+    );
+
+    expect(html).toContain("2 connectors");
+    expect(html).toContain("Showing 2 of 2 connectors");
+    expect(html).toContain("Search");
+    expect(html).toContain("Category");
+    expect(html).toContain("Authentication");
+    expect(html).toContain("OAuth 2.0");
+    expect(html).toContain("API key");
   });
 });
