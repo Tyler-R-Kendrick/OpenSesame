@@ -15,6 +15,7 @@ import {
   type OrganizationMember,
   type Provider,
   type ProviderCategory,
+  type ProviderConfigurationField,
   addMember,
   authorizeConnection,
   chooseOrganization,
@@ -28,7 +29,7 @@ import {
   refreshConnection,
   removeMember,
   revokeConnection,
-  setConnectionCredential,
+  setConnectionConfiguration,
   updateIntegration,
   updateMember,
 } from "../lib/connections.js";
@@ -151,6 +152,51 @@ export function takeSensitiveFormData(form: HTMLFormElement) {
   const data = new FormData(form);
   form.reset();
   return data;
+}
+
+const CONFIGURATION_FIELD_LABELS: Record<string, string> = {
+  api_key: "API key",
+  client_id: "Client ID",
+  client_secret: "Client secret",
+};
+
+export function configurationFieldLabel(name: string) {
+  return (
+    CONFIGURATION_FIELD_LABELS[name] ??
+    name
+      .split(/[._-]+/u)
+      .filter(Boolean)
+      .map((part) => `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`)
+      .join(" ")
+  );
+}
+
+function configurationInputName(name: string) {
+  return `configuration.${name}`;
+}
+
+export function configurationFromFormData(
+  data: FormData,
+  fields: ProviderConfigurationField[],
+) {
+  return Object.fromEntries(
+    fields.flatMap((field) => {
+      const raw = String(data.get(configurationInputName(field.name)) ?? "");
+      const value = field.secret ? raw : raw.trim();
+      return value ? [[field.name, value]] : [];
+    }),
+  );
+}
+
+export function configurationClearFromFormData(
+  data: FormData,
+  fields: ProviderConfigurationField[],
+) {
+  const allowed = new Set(fields.map((field) => field.name));
+  return data
+    .getAll("configuration_clear")
+    .map(String)
+    .filter((name) => allowed.has(name));
 }
 
 /** Keep a successfully created Pending row visible when its next step fails. */
@@ -463,12 +509,6 @@ export function ConnectionsPage() {
             }
             onConnect={(provider, integration, form, popup) =>
               act(`connect-${integration.id}`, async () => {
-                if (
-                  provider.authKind === "api_key" &&
-                  !form.credential.trim()
-                ) {
-                  throw new Error("Enter an API key.");
-                }
                 const connection = await createConnection(organization.id, {
                   integrationId: integration.id,
                   displayName: form.displayName,
@@ -476,14 +516,14 @@ export function ConnectionsPage() {
                 });
                 await recoverCreatedConnection(
                   async () => {
-                    if (provider.authKind === "api_key") {
-                      await setConnectionCredential(
+                    if (Object.keys(form.configuration).length > 0) {
+                      await setConnectionConfiguration(
                         organization.id,
                         connection.id,
-                        form.credential,
+                        form.configuration,
                       );
                       setNotice(
-                        "API key sealed. Its value will not be shown again.",
+                        "Connection credentials sealed. Their values will not be shown again.",
                       );
                       return;
                     }
@@ -535,14 +575,15 @@ export function ConnectionsPage() {
                     }
                   })
                 }
-                onCredential={(connection, credential) =>
+                onConfiguration={(connection, set, clear) =>
                   act(`credential-${connection.id}`, async () => {
-                    await setConnectionCredential(
+                    await setConnectionConfiguration(
                       organization.id,
                       connection.id,
-                      credential,
+                      set,
+                      clear,
                     );
-                    setNotice(`${connection.displayName} API key replaced.`);
+                    setNotice(`${connection.displayName} credentials updated.`);
                   })
                 }
                 onRevoke={(connection) =>
@@ -585,13 +626,15 @@ export function ConnectionsPage() {
                     );
                   })
                 }
-                onRotate={(integration, clientId, secret) =>
+                onConfiguration={(integration, set, clear) =>
                   act(`rotate-${integration.id}`, async () => {
                     await updateIntegration(organization.id, integration.id, {
-                      ...(clientId ? { client_id: clientId } : {}),
-                      client_secret: secret,
+                      configuration_set: set,
+                      configuration_clear: clear,
                     });
-                    setNotice(`${integration.displayName} secret rotated.`);
+                    setNotice(
+                      `${integration.displayName} configuration updated.`,
+                    );
                   })
                 }
                 onDelete={(integration) =>
@@ -721,15 +764,14 @@ export function MarketplacePanel({
       key: string;
       providerId: string;
       displayName: string;
-      clientId: string;
-      clientSecret: string;
+      configuration: Record<string, string>;
       scopes: string[];
     },
   ) => void;
   onConnect: (
     provider: Provider,
     integration: Integration,
-    form: { displayName: string; credential: string },
+    form: { displayName: string; configuration: Record<string, string> },
     popup: Window | null,
   ) => void;
 }) {
@@ -912,7 +954,10 @@ export function MarketplacePanel({
                             displayName:
                               String(data.get("displayName") ?? "").trim() ||
                               `${provider.displayName} connection`,
-                            credential: String(data.get("credential") ?? ""),
+                            configuration: configurationFromFormData(
+                              data,
+                              provider.connectionConfigurationFields,
+                            ),
                           },
                           popup,
                         );
@@ -926,24 +971,25 @@ export function MarketplacePanel({
                           required
                         />
                       </label>
-                      {provider.authKind === "api_key" ? (
-                        <label>
-                          API key
+                      {provider.connectionConfigurationFields.map((field) => (
+                        <label key={field.name}>
+                          {configurationFieldLabel(field.name)}
                           <input
-                            name="credential"
-                            type="password"
-                            autoComplete="new-password"
-                            required
+                            name={configurationInputName(field.name)}
+                            type={field.secret ? "password" : "text"}
+                            autoComplete={field.secret ? "new-password" : "off"}
+                            maxLength={8 * 1024}
+                            required={field.required}
                           />
                         </label>
-                      ) : null}
+                      ))}
                       <button
                         type="submit"
                         className="primary compact"
                         disabled={busy !== null}
                       >
-                        {provider.authKind === "api_key"
-                          ? "Seal API key"
+                        {provider.connectionConfigurationFields.length > 0
+                          ? "Seal credentials"
                           : "Authorize account"}
                       </button>
                     </form>
@@ -1064,16 +1110,17 @@ function ConfigureIntegration({
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          const data = new FormData(event.currentTarget);
+          const data = takeSensitiveFormData(event.currentTarget);
           onSubmit(provider, {
             key: String(data.get("key") ?? "").trim(),
             providerId: provider.id,
             displayName: String(data.get("displayName") ?? "").trim(),
-            clientId: String(data.get("clientId") ?? "").trim(),
-            clientSecret: String(data.get("clientSecret") ?? ""),
+            configuration: configurationFromFormData(
+              data,
+              provider.integrationConfigurationFields,
+            ),
             scopes: data.getAll("scopes").map(String),
           });
-          event.currentTarget.reset();
         }}
       >
         <div className="form-grid">
@@ -1093,23 +1140,18 @@ function ConfigureIntegration({
               required
             />
           </label>
-          {provider.authKind === "oauth2_authorization_code" ? (
-            <>
-              <label>
-                OAuth client ID
-                <input name="clientId" autoComplete="off" required />
-              </label>
-              <label>
-                OAuth client secret
-                <input
-                  name="clientSecret"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                />
-              </label>
-            </>
-          ) : null}
+          {provider.integrationConfigurationFields.map((field) => (
+            <label key={field.name}>
+              {configurationFieldLabel(field.name)}
+              <input
+                name={configurationInputName(field.name)}
+                type={field.secret ? "password" : "text"}
+                autoComplete={field.secret ? "new-password" : "off"}
+                maxLength={8 * 1024}
+                required={field.required}
+              />
+            </label>
+          ))}
         </div>
         {provider.scopes.length ? (
           <fieldset className="scope-picker">
@@ -1156,14 +1198,88 @@ function CallbackUrl({ url }: { url: string }) {
   );
 }
 
-function ConnectionsPanel({
+function ConfigurationUpdateForm({
+  summary,
+  fields,
+  configuredFields,
+  busy,
+  onSubmit,
+}: {
+  summary: string;
+  fields: ProviderConfigurationField[];
+  configuredFields: Integration["configuredFields"];
+  busy: boolean;
+  onSubmit: (set: Record<string, string>, clear: string[]) => void;
+}) {
+  const configured = new Map(
+    configuredFields.map((field) => [field.name, field]),
+  );
+  return (
+    <details className="inline-action">
+      <summary>{summary}</summary>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          const data = takeSensitiveFormData(event.currentTarget);
+          const clear = configurationClearFromFormData(data, fields);
+          const set = configurationFromFormData(data, fields);
+          for (const name of clear) delete set[name];
+          if (Object.keys(set).length > 0 || clear.length > 0) {
+            onSubmit(set, clear);
+          }
+        }}
+      >
+        <div className="form-grid">
+          {fields.map((field) => {
+            const current = configured.get(field.name);
+            const label = configurationFieldLabel(field.name);
+            return (
+              <div key={field.name} className="configuration-field">
+                <label>
+                  New {label}
+                  {current ? (
+                    <small>Currently {current.hint ?? "configured"}</small>
+                  ) : null}
+                  <input
+                    name={configurationInputName(field.name)}
+                    type={field.secret ? "password" : "text"}
+                    autoComplete={field.secret ? "new-password" : "off"}
+                    maxLength={8 * 1024}
+                  />
+                </label>
+                {current ? (
+                  <label className="scope-option">
+                    <input
+                      type="checkbox"
+                      name="configuration_clear"
+                      value={field.name}
+                    />
+                    <span>Clear stored {label}</span>
+                  </label>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+        <p className="provider-help">
+          Enter a replacement or explicitly clear a stored field.
+        </p>
+        <button type="submit" className="primary compact" disabled={busy}>
+          Save configuration
+        </button>
+      </form>
+    </details>
+  );
+}
+
+export function ConnectionsPanel({
   connections,
   integrations,
   providers,
   busy,
   onRefresh,
   onReauthorize,
-  onCredential,
+  onConfiguration,
   onRevoke,
 }: {
   connections: Connection[];
@@ -1172,7 +1288,11 @@ function ConnectionsPanel({
   busy: string | null;
   onRefresh: (connection: Connection) => void;
   onReauthorize: (connection: Connection, popup: Window | null) => void;
-  onCredential: (connection: Connection, credential: string) => void;
+  onConfiguration: (
+    connection: Connection,
+    set: Record<string, string>,
+    clear: string[],
+  ) => void;
   onRevoke: (connection: Connection) => void;
 }) {
   const integrationNames = new Map(
@@ -1181,8 +1301,8 @@ function ConnectionsPanel({
       integration.displayName,
     ]),
   );
-  const providerKinds = new Map(
-    providers.map((provider) => [provider.id, provider.authKind]),
+  const providersById = new Map(
+    providers.map((provider) => [provider.id, provider]),
   );
   return (
     <section className="connections-section" id="my-connections">
@@ -1223,38 +1343,21 @@ function ConnectionsPanel({
                     Refresh
                   </button>
                 ) : null}
-                {providerKinds.get(connection.providerId) === "api_key" ? (
-                  <details className="inline-action">
-                    <summary>Replace API key</summary>
-                    <form
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        const data = takeSensitiveFormData(event.currentTarget);
-                        onCredential(
-                          connection,
-                          String(data.get("credential") ?? ""),
-                        );
-                      }}
-                    >
-                      <label>
-                        New API key
-                        <input
-                          name="credential"
-                          type="password"
-                          autoComplete="new-password"
-                          required
-                        />
-                      </label>
-                      <button
-                        type="submit"
-                        className="primary compact"
-                        disabled={busy !== null}
-                      >
-                        Replace key
-                      </button>
-                    </form>
-                  </details>
-                ) : providerKinds.get(connection.providerId) ===
+                {(providersById.get(connection.providerId)
+                  ?.connectionConfigurationFields.length ?? 0) > 0 ? (
+                  <ConfigurationUpdateForm
+                    summary="Update credentials"
+                    fields={
+                      providersById.get(connection.providerId)
+                        ?.connectionConfigurationFields ?? []
+                    }
+                    configuredFields={connection.configuredFields}
+                    busy={busy !== null}
+                    onSubmit={(set, clear) =>
+                      onConfiguration(connection, set, clear)
+                    }
+                  />
+                ) : providersById.get(connection.providerId)?.authKind ===
                   "oauth2_authorization_code" ? (
                   <button
                     type="button"
@@ -1299,7 +1402,7 @@ export function IntegrationsPanel({
   accessRole,
   busy,
   onToggle,
-  onRotate,
+  onConfiguration,
   onDelete,
 }: {
   integrations: Integration[];
@@ -1307,16 +1410,16 @@ export function IntegrationsPanel({
   accessRole: OrganizationRole;
   busy: string | null;
   onToggle: (integration: Integration) => void;
-  onRotate: (
+  onConfiguration: (
     integration: Integration,
-    clientId: string,
-    secret: string,
+    set: Record<string, string>,
+    clear: string[],
   ) => void;
   onDelete: (integration: Integration) => void;
 }) {
   const manage = canConfigure(accessRole);
-  const providerKinds = new Map(
-    providers.map((provider) => [provider.id, provider.authKind]),
+  const providersById = new Map(
+    providers.map((provider) => [provider.id, provider]),
   );
   return (
     <section className="connections-section" id="configured-connectors">
@@ -1324,8 +1427,8 @@ export function IntegrationsPanel({
         <div>
           <h2>Configured connectors</h2>
           <p>
-            OAuth configuration is organization-wide. Secret values are never
-            returned.
+            Connector configuration is organization-wide. Secret values are
+            never returned.
           </p>
         </div>
         <span className="role-chip">{accessRole} access</span>
@@ -1353,23 +1456,12 @@ export function IntegrationsPanel({
                 </span>
               </div>
               <dl className="integration-facts">
-                {providerKinds.get(integration.providerId) ===
-                "oauth2_authorization_code" ? (
-                  <>
-                    <div>
-                      <dt>Client ID</dt>
-                      <dd>{integration.clientIdHint ?? "Not set"}</dd>
-                    </div>
-                    <div>
-                      <dt>Client secret</dt>
-                      <dd>
-                        {integration.hasClientSecret
-                          ? "••••••••  Set"
-                          : "Not set"}
-                      </dd>
-                    </div>
-                  </>
-                ) : null}
+                {integration.configuredFields.map((field) => (
+                  <div key={field.name}>
+                    <dt>{configurationFieldLabel(field.name)}</dt>
+                    <dd>{field.hint ?? "Configured"}</dd>
+                  </div>
+                ))}
                 <div>
                   <dt>Connections</dt>
                   <dd>{integration.connectionCount}</dd>
@@ -1392,46 +1484,20 @@ export function IntegrationsPanel({
                   >
                     {integration.enabled ? "Disable" : "Enable"}
                   </button>
-                  {providerKinds.get(integration.providerId) ===
-                  "oauth2_authorization_code" ? (
-                    <details className="inline-action">
-                      <summary>Rotate OAuth credentials</summary>
-                      <form
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          const data = takeSensitiveFormData(
-                            event.currentTarget,
-                          );
-                          onRotate(
-                            integration,
-                            String(data.get("clientId") ?? "").trim(),
-                            String(data.get("secret") ?? ""),
-                          );
-                        }}
-                      >
-                        <label>
-                          New client ID{" "}
-                          <small>Optional; blank keeps the current ID.</small>
-                          <input name="clientId" autoComplete="off" />
-                        </label>
-                        <label>
-                          New client secret
-                          <input
-                            name="secret"
-                            type="password"
-                            autoComplete="new-password"
-                            required
-                          />
-                        </label>
-                        <button
-                          type="submit"
-                          className="primary compact"
-                          disabled={busy !== null}
-                        >
-                          Rotate
-                        </button>
-                      </form>
-                    </details>
+                  {(providersById.get(integration.providerId)
+                    ?.integrationConfigurationFields.length ?? 0) > 0 ? (
+                    <ConfigurationUpdateForm
+                      summary="Update configuration"
+                      fields={
+                        providersById.get(integration.providerId)
+                          ?.integrationConfigurationFields ?? []
+                      }
+                      configuredFields={integration.configuredFields}
+                      busy={busy !== null}
+                      onSubmit={(set, clear) =>
+                        onConfiguration(integration, set, clear)
+                      }
+                    />
                   ) : null}
                   <details className="inline-action danger-action">
                     <summary>Delete</summary>

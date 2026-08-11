@@ -41,6 +41,14 @@ export type ProviderScope = {
 export type ProviderConfigurationField = ConfigurationFieldDef;
 export type ConfiguredProviderField = ConfiguredField;
 
+const LEGACY_OAUTH_INTEGRATION_FIELDS: ProviderConfigurationField[] = [
+  { name: "client_id", secret: false, required: true },
+  { name: "client_secret", secret: true, required: true },
+];
+const LEGACY_API_KEY_CONNECTION_FIELDS: ProviderConfigurationField[] = [
+  { name: "api_key", secret: true, required: true },
+];
+
 export type Provider = {
   id: string;
   displayName: string;
@@ -158,8 +166,18 @@ export function parseProviderList(value: unknown): Provider[] {
     authKind: raw.auth_kind,
     callbackUrl: raw.callback_url,
     scopes: raw.scopes,
-    integrationConfigurationFields: raw.integration_configuration_fields,
-    connectionConfigurationFields: raw.connection_configuration_fields,
+    integrationConfigurationFields:
+      raw.integration_configuration_fields.length > 0
+        ? raw.integration_configuration_fields
+        : raw.auth_kind === "oauth2_authorization_code"
+          ? LEGACY_OAUTH_INTEGRATION_FIELDS
+          : [],
+    connectionConfigurationFields:
+      raw.connection_configuration_fields.length > 0
+        ? raw.connection_configuration_fields
+        : raw.auth_kind === "api_key"
+          ? LEGACY_API_KEY_CONNECTION_FIELDS
+          : [],
   }));
 }
 

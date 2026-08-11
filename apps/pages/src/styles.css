@@ -984,6 +984,23 @@ textarea {
   margin: 0;
 }
 
+.configuration-field {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+}
+
+.configuration-field small {
+  display: block;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  font-weight: 400;
+}
+
+.configuration-field .scope-option {
+  font-size: 0.84rem;
+}
+
 .scope-picker {
   display: grid;
   gap: 0.45rem;

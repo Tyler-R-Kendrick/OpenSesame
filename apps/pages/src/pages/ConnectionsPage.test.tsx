@@ -1,11 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Integration, Provider } from "../lib/connections.js";
+import type { Connection, Integration, Provider } from "../lib/connections.js";
 import {
   CONNECTION_POLL_MAX_ATTEMPTS,
   ConnectionsGate,
+  ConnectionsPanel,
   IntegrationsPanel,
   MarketplacePanel,
+  configurationClearFromFormData,
+  configurationFromFormData,
   connectionRevocationNotice,
   filterProviders,
   marketplaceEmptyCopy,
@@ -73,6 +76,18 @@ function integration(
         : [],
   };
 }
+
+const apiKeyConnection: Connection = {
+  id: "conn_linear",
+  integrationId: "int_linear",
+  providerId: "linear",
+  displayName: "Linear work",
+  accountLabel: null,
+  status: "active",
+  scopes: [],
+  refreshable: false,
+  configuredFields: [{ name: "api_key", hint: "configured" }],
+};
 
 describe("Connections marketplace panels", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -248,8 +263,8 @@ describe("Connections marketplace panels", () => {
     );
 
     expect(html).toContain("Authorize account");
-    expect(html).toContain("Seal API key");
-    expect(html).toContain('name="credential"');
+    expect(html).toContain("Seal credentials");
+    expect(html).toContain('name="configuration.api_key"');
     expect(html).not.toContain("Configure integration");
   });
 
@@ -282,8 +297,9 @@ describe("Connections marketplace panels", () => {
     );
 
     expect(oauth).toContain("OAuth callback URL");
-    expect(oauth).toContain("OAuth client secret");
-    expect(apiKey).not.toContain("OAuth client secret");
+    expect(oauth).toContain("Client secret");
+    expect(oauth).toContain('name="configuration.client_secret"');
+    expect(apiKey).not.toContain("Client secret");
   });
 
   it("keeps deployment and development integrations read-only", () => {
@@ -297,15 +313,72 @@ describe("Connections marketplace panels", () => {
         accessRole="owner"
         busy={null}
         onToggle={() => undefined}
-        onRotate={() => undefined}
+        onConfiguration={() => undefined}
         onDelete={() => undefined}
       />,
     );
 
     expect(html).toContain("Development only");
     expect(html).toContain("deployment-managed integration is read-only");
-    expect(html).not.toContain("Rotate OAuth credentials");
+    expect(html).not.toContain("Update configuration");
     expect(html).not.toContain("Delete integration");
+  });
+
+  it("maps only declared integration configuration fields and explicit clears", () => {
+    const data = new FormData();
+    data.set("configuration.client_id", "  client-1234  ");
+    data.set("configuration.client_secret", " secret with spaces ");
+    data.set("configuration.undeclared", "ignored");
+    data.append("configuration_clear", "client_secret");
+
+    expect(
+      configurationFromFormData(
+        data,
+        oauthProvider.integrationConfigurationFields,
+      ),
+    ).toEqual({
+      client_id: "client-1234",
+      client_secret: " secret with spaces ",
+    });
+    expect(
+      configurationClearFromFormData(
+        data,
+        oauthProvider.integrationConfigurationFields,
+      ),
+    ).toEqual(["client_secret"]);
+  });
+
+  it("maps a declared connection credential field without retaining extras", () => {
+    const data = new FormData();
+    data.set("configuration.api_key", "key-value");
+    data.set("configuration.token", "ignored");
+
+    expect(
+      configurationFromFormData(
+        data,
+        apiKeyProvider.connectionConfigurationFields,
+      ),
+    ).toEqual({ api_key: "key-value" });
+  });
+
+  it("renders update and explicit clear controls for connection fields", () => {
+    const html = renderToStaticMarkup(
+      <ConnectionsPanel
+        connections={[apiKeyConnection]}
+        integrations={[integration("linear")]}
+        providers={[apiKeyProvider]}
+        busy={null}
+        onRefresh={() => undefined}
+        onReauthorize={() => undefined}
+        onConfiguration={() => undefined}
+        onRevoke={() => undefined}
+      />,
+    );
+
+    expect(html).toContain("Update credentials");
+    expect(html).toContain('name="configuration.api_key"');
+    expect(html).toContain('name="configuration_clear"');
+    expect(html).not.toContain("key-value");
   });
 
   it("filters the catalog by search, category, and authentication", () => {
