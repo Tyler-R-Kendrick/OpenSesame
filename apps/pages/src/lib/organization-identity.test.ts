@@ -100,6 +100,23 @@ describe("organization-bound Host sessions", () => {
     );
   });
 
+  it("keeps localhost Pages and Identity on the same cookie site", async () => {
+    vi.stubGlobal("location", {
+      href: "http://localhost:5180/connections",
+      origin: "http://localhost:5180",
+      hostname: "localhost",
+    });
+    const fetch = vi.fn(async () => json({ organizations: [] }));
+    vi.stubGlobal("fetch", fetch);
+
+    await listSessionOrganizations();
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:8788/v1/organizations",
+      expect.objectContaining({ credentials: "include" }),
+    );
+  });
+
   it("explains the same-site deployment requirement when Identity rejects the cookie", async () => {
     vi.stubGlobal(
       "fetch",

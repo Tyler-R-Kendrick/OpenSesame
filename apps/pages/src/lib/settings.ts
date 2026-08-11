@@ -1,5 +1,5 @@
 import { kvGet, kvSet } from "./kv.js";
-import { normalizeApiBase } from "./urls.js";
+import { isLoopbackUrl, normalizeApiBase } from "./urls.js";
 
 export type PagesSettings = {
   hostApi: string;
@@ -38,8 +38,23 @@ function loadPersisted(): PersistedSettings {
   }
 }
 
+function alignLocalIdentityHost(identityApi: string): string {
+  if (typeof location === "undefined" || !isLoopbackUrl(location.origin)) {
+    return identityApi;
+  }
+  if (!isLoopbackUrl(identityApi)) return identityApi;
+  const page = new URL(location.href);
+  const url = new URL(identityApi);
+  url.hostname = page.hostname;
+  return url.toString().replace(/\/$/, "");
+}
+
 export function loadSettings(): PagesSettings {
-  return loadPersisted();
+  const settings = loadPersisted();
+  return {
+    ...settings,
+    identityApi: alignLocalIdentityHost(settings.identityApi),
+  };
 }
 
 /** Thrown so the settings form can say which field it will not take. */
