@@ -13,6 +13,7 @@ opensesame-domain = { path = "../../crates/domain" }
 opensesame-authn = { path = "../../crates/authn" }
 opensesame-authz = { path = "../../crates/authz" }
 opensesame-broker = { path = "../../crates/broker" }
+opensesame-connection-broker = { path = "../../crates/connection-broker" }
 opensesame-task-access = { path = "../../crates/task-access" }
 opensesame-proof = { path = "../../crates/proof" }
 opensesame-protocol-aauth = { path = "../../crates/protocol-aauth", features = ["experimental-aauth"] }
@@ -38,3 +39,9 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
 clap = { workspace = true }
+
+[dev-dependencies]
+sha2 = { workspace = true }
+sqlx = { workspace = true }
+tower = { workspace = true }
+url = { workspace = true }

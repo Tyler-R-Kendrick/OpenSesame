@@ -16,6 +16,7 @@ members = [
   "crates/broker",
   "crates/claims",
   "crates/human-vault",
+  "crates/connection-broker",
   "crates/connector-host",
   "crates/connector-sdk",
   "crates/env-spec",

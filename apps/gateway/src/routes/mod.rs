@@ -1,6 +1,7 @@
 mod aauth;
 mod admin;
 mod agents;
+mod connections;
 mod device;
 mod health;
 mod intents;
@@ -11,7 +12,8 @@ mod sync;
 mod tasks;
 
 use axum::{
-    routing::{get, post},
+    extract::DefaultBodyLimit,
+    routing::{delete, get, post},
     Router,
 };
 use tower_http::trace::TraceLayer;
@@ -25,6 +27,7 @@ pub fn router(state: AppState) -> Router {
         .route("/health/authority", get(health::authority))
         .route("/health/degraded", get(health::degraded))
         .route("/health/providers", get(health::providers))
+        .route("/api/v1/health", get(health::live))
         .route(
             "/.well-known/oauth-protected-resource",
             get(protected_resource::metadata),
@@ -40,7 +43,55 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/session", get(session::status))
         .route("/api/v1/sessions/revoke", post(session::revoke))
         .route("/api/v1/whoami", get(session::whoami))
-        .route("/api/v1/connections", get(session::list_connections))
+        .route("/api/v1/providers", get(connections::list_providers))
+        .route(
+            "/api/v1/integrations",
+            get(connections::list_integrations)
+                .post(connections::create_integration)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/integrations/{id}",
+            get(connections::get_integration)
+                .patch(connections::update_integration)
+                .delete(connections::delete_integration)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/connections",
+            get(connections::list)
+                .post(connections::create)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/connections/{id}",
+            get(connections::get).delete(connections::delete),
+        )
+        .route(
+            "/api/v1/connections/{id}/authorize",
+            post(connections::start_authorization).layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/connections/{id}/refresh",
+            post(connections::refresh).layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/connections/{id}/credential",
+            post(connections::set_credential).layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/connections/{id}/bindings",
+            post(connections::create_binding).layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/connections/{id}/bindings/{binding_id}",
+            delete(connections::delete_binding),
+        )
+        .route("/api/v1/connections/{id}/events", get(connections::events))
+        .route(
+            "/api/v1/oauth/callback/{provider_id}",
+            get(connections::oauth_callback),
+        )
         .route("/api/v1/intents", post(intents::create))
         .route("/api/v1/receipts/keys", get(receipts::keys))
         .route("/api/v1/receipts/{id}", get(receipts::get))

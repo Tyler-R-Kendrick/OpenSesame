@@ -210,6 +210,292 @@ paths:
               schema: { $ref: "#/components/schemas/TerminateTaskResponse" }
         "404": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
+  /providers:
+    get:
+      summary: List immutable provider templates
+      security: [{ HostBearer: [] }]
+      description: Includes safe OAuth callback URLs and catalog-derived egress policy.
+      responses:
+        "200":
+          description: Provider catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providers]
+                properties:
+                  providers: { type: array, items: { $ref: "#/components/schemas/Provider" } }
+  /integrations:
+    parameters:
+      - $ref: "#/components/parameters/OperatorOrganization"
+    get:
+      summary: List organization and read-only deployment integrations
+      security: [{ HostBearer: [] }]
+      responses:
+        "200":
+          description: Safe integration metadata; never client secrets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [integrations]
+                properties:
+                  integrations: { type: array, items: { $ref: "#/components/schemas/Integration" } }
+    post:
+      summary: Create an organization integration
+      security: [{ HostBearer: [] }]
+      description: Owner/admin only. Provider endpoints and egress remain catalog-controlled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateIntegration" }
+      responses:
+        "201":
+          description: Integration metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Integration" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /integrations/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+      - $ref: "#/components/parameters/OperatorOrganization"
+    get:
+      summary: Get safe organization-scoped integration metadata
+      security: [{ HostBearer: [] }]
+      responses:
+        "200":
+          description: Integration metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Integration" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    patch:
+      summary: Update an organization integration
+      security: [{ HostBearer: [] }]
+      description: >-
+        Owner/admin only; provider_id is immutable. Omitted client_secret preserves it and
+        empty clears it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateIntegration" }
+      responses:
+        "200":
+          description: Integration metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Integration" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+    delete:
+      summary: Delete an unused organization integration
+      security: [{ HostBearer: [] }]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+  /connections:
+    parameters:
+      - $ref: "#/components/parameters/OperatorOrganization"
+    get:
+      summary: List connections visible to the caller
+      security: [{ HostBearer: [] }]
+      responses:
+        "200":
+          description: Reference-only connections with integration_id
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connections]
+                properties:
+                  connections: { type: array, items: { $ref: "#/components/schemas/Connection" } }
+    post:
+      summary: Create a member-owned connection pinned to integration_id
+      security: [{ HostBearer: [] }]
+      description: Provider-only omission is accepted only for an unambiguous legacy integration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateConnection" }
+      responses:
+        "201":
+          description: Pending connection
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    get:
+      summary: Get a caller-visible connection
+      security: [{ HostBearer: [] }]
+      responses:
+        "200":
+          description: Connection metadata; never credential material
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    delete:
+      summary: Revoke a connection locally and attempt upstream revocation
+      security: [{ HostBearer: [] }]
+      responses:
+        "200":
+          description: Revocation outcome
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RevokeOutcome" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/authorize:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Start OAuth authorization with PKCE and single-use state
+      security: [{ HostBearer: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthorizeRequest" }
+      responses:
+        "200":
+          description: Authorization redirect metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthorizeResponse" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "503": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/refresh:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Refresh a caller-visible OAuth connection
+      security: [{ HostBearer: [] }]
+      responses:
+        "200":
+          description: Refreshed safe connection metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/credential:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Store an API-key credential without returning it
+      security: [{ HostBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetCredentialRequest" }
+      responses:
+        "200":
+          description: Active safe connection metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/bindings:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Bind a caller-visible connection to an organization, project, or agent
+      security: [{ HostBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBinding" }
+      responses:
+        "200":
+          description: Connection metadata including the new binding
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/bindings/{binding_id}:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - name: binding_id
+        in: path
+        required: true
+        schema: { type: string }
+      - $ref: "#/components/parameters/OperatorOrganization"
+    delete:
+      summary: Remove a connection binding
+      security: [{ HostBearer: [] }]
+      responses:
+        "200":
+          description: Connection metadata without the removed binding
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/events:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    get:
+      summary: List safe lifecycle events for a caller-visible connection
+      security: [{ HostBearer: [] }]
+      responses:
+        "200":
+          description: Connection event history
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events]
+                properties:
+                  events: { type: array, items: { $ref: "#/components/schemas/ConnectionEvent" } }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /oauth/callback/{provider_id}:
+    parameters:
+      - name: provider_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: Complete or reject an OAuth authorization
+      description: Public provider redirect target authenticated by single-use state.
+      parameters:
+        - { name: code, in: query, required: false, schema: { type: string } }
+        - { name: state, in: query, required: true, schema: { type: string } }
+        - { name: error, in: query, required: false, schema: { type: string } }
+        - { name: error_description, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: Escaped HTML completion page; no credential material
+          content:
+            text/html: { schema: { type: string } }
+        "400":
+          description: Escaped HTML failure page
+          content:
+            text/html: { schema: { type: string } }
   /receipts/keys:
     get:
       summary: Public keys that may have signed a receipt
@@ -279,12 +565,33 @@ components:
       in: path
       required: true
       schema: { type: string }
+    ConnectionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    OperatorOrganization:
+      name: X-OpenSesame-Organization
+      in: header
+      required: false
+      description: >-
+        Canonical org:<uuid> organization selection for authenticated operators. Operators
+        default to the bootstrap organization when omitted. Session callers are always bound
+        to their signed organization and must not send this header.
+      schema:
+        type: string
+        pattern: '^org:[0-9a-fA-F-]{36}$'
   responses:
     Error:
       description: Error response
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
+    ContractError:
+      description: Stable broker error code and safe human hint
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ContractError" }
   schemas:
     OrganizationRole:
       type: string
@@ -570,3 +877,204 @@ components:
       properties:
         valid: { type: boolean }
         error: { type: string }
+    ContractError:
+      type: object
+      additionalProperties: false
+      required: [error, hint]
+      properties:
+        error:
+          type: string
+          enum:
+            - provider_unknown
+            - provider_unconfigured
+            - connection_not_found
+            - integration_not_found
+            - integration_required
+            - integration_conflict
+            - integration_read_only
+            - integration_in_use
+            - invalid_state
+            - state_expired
+            - exchange_failed
+            - not_refreshable
+            - needs_reauth
+            - redirect_not_allowed
+            - binding_exists
+            - binding_not_found
+            - unsupported_credential
+            - invalid_request
+            - internal_error
+            - unauthorized
+            - forbidden
+        hint: { type: string }
+    Integration:
+      type: object
+      additionalProperties: false
+      required: [id, key, provider_id, display_name, source, enabled, configured, callback_url, scopes, client_id_hint, has_client_secret, connection_count, created_by, created_at, updated_at]
+      properties:
+        id: { type: string }
+        key: { type: string }
+        provider_id: { type: string }
+        display_name: { type: string }
+        source: { type: string, enum: [organization, shared_dev, deployment] }
+        enabled: { type: boolean }
+        configured: { type: boolean }
+        callback_url: { type: [string, "null"], format: uri }
+        scopes: { type: array, items: { type: string } }
+        client_id_hint: { type: [string, "null"] }
+        has_client_secret: { type: boolean }
+        connection_count: { type: integer, minimum: 0 }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateIntegration:
+      type: object
+      additionalProperties: false
+      required: [key, provider_id, display_name]
+      properties:
+        key: { type: string, minLength: 1 }
+        provider_id: { type: string, minLength: 1 }
+        display_name: { type: string, minLength: 1 }
+        scopes: { type: array, items: { type: string } }
+        client_id: { type: string, minLength: 1 }
+        client_secret: { type: string, minLength: 1 }
+    UpdateIntegration:
+      type: object
+      additionalProperties: false
+      properties:
+        key: { type: string, minLength: 1 }
+        display_name: { type: string, minLength: 1 }
+        enabled: { type: boolean }
+        scopes: { type: array, items: { type: string } }
+        client_id: { type: string }
+        client_secret: { type: string }
+    Egress:
+      type: object
+      additionalProperties: false
+      required: [scheme, authorities, path_prefixes]
+      properties:
+        scheme: { type: string }
+        authorities: { type: array, items: { type: string } }
+        path_prefixes: { type: array, items: { type: string } }
+    Scope:
+      type: object
+      additionalProperties: false
+      required: [name, description, sensitive, default]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        sensitive: { type: boolean }
+        default: { type: boolean }
+    Provider:
+      type: object
+      additionalProperties: false
+      required: [id, display_name, category, docs_url, auth_kind, supports_refresh, configured, callback_url, missing_config, scopes, egress, operations]
+      properties:
+        id: { type: string }
+        display_name: { type: string }
+        category: { type: string, enum: [developer, productivity, communication, storage, crm, payments, identity, testing] }
+        docs_url: { type: string, format: uri }
+        auth_kind: { type: string, enum: [oauth2_authorization_code, api_key] }
+        supports_refresh: { type: boolean }
+        configured: { type: boolean }
+        callback_url: { type: [string, "null"], format: uri }
+        missing_config: { type: array, items: { type: string } }
+        scopes: { type: array, items: { $ref: "#/components/schemas/Scope" } }
+        egress: { $ref: "#/components/schemas/Egress" }
+        operations: { type: array, items: { type: string } }
+    Binding:
+      type: object
+      additionalProperties: false
+      required: [id, target_kind, target_id, target_label, created_at]
+      properties:
+        id: { type: string }
+        target_kind: { type: string, enum: [organization, project, agent] }
+        target_id: { type: string }
+        target_label: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+    CreateBinding:
+      type: object
+      additionalProperties: false
+      required: [target_kind, target_id]
+      properties:
+        target_kind: { type: string, enum: [organization, project, agent] }
+        target_id: { type: string, minLength: 1 }
+        target_label: { type: string, minLength: 1 }
+    ConnectionEvent:
+      type: object
+      additionalProperties: false
+      required: [id, kind, at, detail]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [created, authorize_started, authorized, refreshed, refresh_failed, bound, unbound, revoked, error] }
+        at: { type: string, format: date-time }
+        detail: { type: [string, "null"] }
+    Connection:
+      type: object
+      additionalProperties: false
+      required: [connection_id, integration_id, connection_ref, logical_name, display_name, provider_id, status, status_detail, organization_id, project_id, owner_kind, shareability, requested_scopes, granted_scopes, account_label, expires_at, refreshable, last_refreshed_at, max_invoke_level, egress, bindings, created_at, updated_at]
+      properties:
+        connection_id: { type: string }
+        integration_id: { type: [string, "null"] }
+        connection_ref: { type: string }
+        logical_name: { type: string }
+        display_name: { type: string }
+        provider_id: { type: string }
+        status: { type: string, enum: [pending, active, needs_reauth, expired, revoked, error] }
+        status_detail: { type: [string, "null"] }
+        organization_id: { type: string }
+        project_id: { type: [string, "null"] }
+        owner_kind: { type: string }
+        shareability: { type: string, enum: [private, delegable, organization_wide] }
+        requested_scopes: { type: array, items: { type: string } }
+        granted_scopes: { type: array, items: { type: string } }
+        account_label: { type: [string, "null"] }
+        expires_at: { type: [string, "null"], format: date-time }
+        refreshable: { type: boolean }
+        last_refreshed_at: { type: [string, "null"], format: date-time }
+        max_invoke_level: { type: integer }
+        egress: { $ref: "#/components/schemas/Egress" }
+        bindings: { type: array, items: { $ref: "#/components/schemas/Binding" } }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateConnection:
+      type: object
+      additionalProperties: false
+      anyOf:
+        - required: [integration_id]
+        - required: [provider_id]
+      properties:
+        integration_id: { type: string, minLength: 1 }
+        provider_id: { type: string, minLength: 1 }
+        display_name: { type: string, minLength: 1 }
+        logical_name: { type: string, minLength: 1 }
+        project_id: { type: string, minLength: 1 }
+        scopes: { type: array, items: { type: string } }
+        shareability: { type: string, enum: [private, delegable, organization_wide] }
+    AuthorizeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        redirect_uri: { type: string, format: uri }
+        scopes: { type: array, items: { type: string } }
+    AuthorizeResponse:
+      type: object
+      additionalProperties: false
+      required: [authorization_url, state, expires_at]
+      properties:
+        authorization_url: { type: string, format: uri }
+        state: { type: string }
+        expires_at: { type: string, format: date-time }
+    SetCredentialRequest:
+      type: object
+      additionalProperties: false
+      required: [value]
+      properties:
+        value: { type: string, minLength: 1, maxLength: 8192 }
+    RevokeOutcome:
+      type: object
+      additionalProperties: false
+      required: [revoked, provider_revocation]
+      properties:
+        revoked: { type: boolean }
+        provider_revocation: { type: string, enum: [ok, unsupported, failed] }

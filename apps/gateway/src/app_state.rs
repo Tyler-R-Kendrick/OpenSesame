@@ -2,6 +2,7 @@ use crate::bootstrap;
 use crate::config::{self, Args};
 use crate::task_engine::{new_task_engine, SharedTaskEngine};
 use opensesame_broker::Broker;
+use opensesame_connection_broker::{BrokerConfig, ConnectionBroker};
 use opensesame_domain::*;
 use opensesame_provider_openbao::OpenBaoHttpAuthority;
 use opensesame_provider_openfga::OpenFgaClient;
@@ -61,6 +62,11 @@ pub struct AppState {
     pub openfga: Option<OpenFgaClient>,
     pub openbao: Option<OpenBaoHttpAuthority>,
     pub connection_ref: Option<ConnectionRef>,
+    /// Third-party service authorizations (ADR 0032).
+    pub connection_broker: Arc<ConnectionBroker>,
+    /// Organization connections are created under until caller metadata carries
+    /// the organization directly.
+    pub connection_organization: OrganizationId,
     /// Opaque ciphertext sync store — server never decrypts (ADR 0017).
     pub sync_blobs: Arc<Mutex<HashMap<String, SyncBlob>>>,
     /// blob_id -> owning session_id (tenant/device scoping for sync).
@@ -115,6 +121,15 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
     let openbao = OpenBaoHttpAuthority::from_env().ok().flatten();
     let distributed_task_authority =
         resolve_distributed_task_authority(&args.task_database_url).await;
+    let connection_organization = boot
+        .demo
+        .as_ref()
+        .map(|b| b.org)
+        .unwrap_or_else(|| OrganizationId::from_uuid(uuid::Uuid::nil()));
+    let connection_broker = Arc::new(ConnectionBroker::new(
+        db.pool().clone(),
+        BrokerConfig::from_env(),
+    ));
 
     Ok(AppState {
         resource: args.resource,
@@ -131,6 +146,8 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         openfga,
         openbao,
         connection_ref: boot.connection_ref,
+        connection_broker,
+        connection_organization,
         sync_blobs: Arc::new(Mutex::new(HashMap::new())),
         blob_owners: Arc::new(Mutex::new(HashMap::new())),
         device_cursors: Arc::new(Mutex::new(HashMap::new())),
