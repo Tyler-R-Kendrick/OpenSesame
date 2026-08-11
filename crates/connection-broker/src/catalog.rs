@@ -76,6 +76,8 @@ pub enum AuthMethod {
         revoke_url: Option<String>,
         supports_refresh: bool,
         token_auth: TokenAuth,
+        #[serde(default)]
+        scope_separator: Option<String>,
         /// Provider-specific parameters without which a refresh token is never
         /// issued (Google's `access_type`, the `offline_access` family).
         extra_authorize_params: Vec<(String, String)>,
@@ -103,6 +105,15 @@ impl AuthMethod {
                 ..
             }
         )
+    }
+
+    pub fn scope_separator(&self) -> &str {
+        match self {
+            Self::OAuth2AuthCode {
+                scope_separator, ..
+            } => scope_separator.as_deref().unwrap_or(" "),
+            Self::ApiKey { .. } => " ",
+        }
     }
 
     pub fn is_oauth(&self) -> bool {
@@ -263,6 +274,7 @@ fn validate_auth(provider: &Provider) -> Result<(), CatalogError> {
             token_url,
             revoke_url,
             extra_authorize_params,
+            scope_separator,
             ..
         } => {
             validate_provider_url(provider, authorize_url, "authorize_url")?;
@@ -275,6 +287,9 @@ fn validate_auth(provider: &Provider) -> Result<(), CatalogError> {
                     provider,
                     "too many authorization parameters",
                 ));
+            }
+            if !matches!(scope_separator.as_deref(), None | Some(" ") | Some(",")) {
+                return Err(provider_error(provider, "invalid OAuth scope separator"));
             }
             let mut names = HashSet::with_capacity(extra_authorize_params.len());
             for (name, value) in extra_authorize_params {
@@ -474,7 +489,7 @@ mod tests {
     #[test]
     fn embedded_catalog_is_valid_and_versioned() {
         let catalog = load().expect("embedded catalog");
-        assert_eq!(catalog.revision(), "2026-08-10.4");
+        assert_eq!(catalog.revision(), "2026-08-10.5");
         assert_eq!(catalog.providers().len(), 51);
         assert_eq!(
             catalog

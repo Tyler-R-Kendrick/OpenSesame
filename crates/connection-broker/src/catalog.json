@@ -209,7 +209,8 @@
         "extra_authorize_params": [],
         "kind": "oauth2_authorization_code",
         "revoke_url": null,
-        "supports_refresh": false,
+        "scope_separator": ",",
+        "supports_refresh": true,
         "token_auth": "client_secret_post",
         "token_url": "https://slack.com/api/oauth.v2.access"
       },
@@ -257,13 +258,14 @@
         "extra_authorize_params": [],
         "kind": "oauth2_authorization_code",
         "revoke_url": "https://api.linear.app/oauth/revoke",
-        "supports_refresh": false,
+        "scope_separator": ",",
+        "supports_refresh": true,
         "token_auth": "client_secret_post",
         "token_url": "https://api.linear.app/oauth/token"
       },
       "category": "productivity",
       "display_name": "Linear",
-      "docs_url": "https://developers.linear.app/docs/oauth/authentication",
+      "docs_url": "https://linear.app/developers/oauth-2-0-authentication",
       "egress": {
         "authorities": ["api.linear.app"],
         "path_prefixes": [],
@@ -271,7 +273,7 @@
       },
       "id": "linear",
       "operations": ["issue.read", "issue.create", "project.read"],
-      "provenance_url": "https://developers.linear.app/docs/oauth/authentication",
+      "provenance_url": "https://linear.app/developers/oauth-2-0-authentication",
       "scopes": [
         {
           "default": true,
@@ -496,21 +498,21 @@
       "provenance_url": "https://developers.asana.com/docs/oauth",
       "scopes": [
         {
-          "default": false,
-          "description": "Full access to everything the authorizing user can reach",
-          "name": "default",
-          "sensitive": true
-        },
-        {
-          "default": false,
-          "description": "Identify the authorizing user",
-          "name": "openid",
+          "default": true,
+          "description": "Read tasks visible to the authorizing user",
+          "name": "tasks:read",
           "sensitive": false
         },
         {
           "default": false,
-          "description": "Read the authorizing user's email address",
-          "name": "email",
+          "description": "Create and update tasks",
+          "name": "tasks:write",
+          "sensitive": true
+        },
+        {
+          "default": true,
+          "description": "Read projects visible to the authorizing user",
+          "name": "projects:read",
           "sensitive": false
         }
       ]
@@ -534,7 +536,7 @@
         "scheme": "https"
       },
       "id": "discord",
-      "operations": ["user.read", "guild.list", "message.post"],
+      "operations": ["user.read", "guild.list"],
       "provenance_url": "https://discord.com/developers/docs/topics/oauth2",
       "scopes": [
         {
@@ -554,12 +556,6 @@
           "description": "List the guilds the user belongs to",
           "name": "guilds",
           "sensitive": false
-        },
-        {
-          "default": false,
-          "description": "Add a bot to a guild with the requested permissions",
-          "name": "bot",
-          "sensitive": true
         }
       ]
     },
@@ -575,7 +571,7 @@
       },
       "category": "developer",
       "display_name": "Sentry",
-      "docs_url": "https://docs.sentry.io/api/guides/create-auth-token/",
+      "docs_url": "https://docs.sentry.io/api/auth/",
       "egress": {
         "authorities": ["sentry.io"],
         "path_prefixes": [],
@@ -583,7 +579,7 @@
       },
       "id": "sentry",
       "operations": ["issue.read", "event.read", "project.read"],
-      "provenance_url": "https://docs.sentry.io/api/guides/create-auth-token/",
+      "provenance_url": "https://docs.sentry.io/api/auth/",
       "scopes": [
         {
           "default": true,
@@ -1357,6 +1353,6 @@
       "operations": ["project.read", "deployment.write", "environment.read"]
     }
   ],
-  "revision": "2026-08-10.4",
+  "revision": "2026-08-10.5",
   "schema_version": 1
 }

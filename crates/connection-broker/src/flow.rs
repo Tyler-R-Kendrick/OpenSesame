@@ -105,7 +105,10 @@ pub fn build_authorize_url(
         q.append_pair("code_challenge", params.code_challenge);
         q.append_pair("code_challenge_method", CHALLENGE_METHOD);
         if !params.scopes.is_empty() {
-            q.append_pair("scope", &params.scopes.join(" "));
+            q.append_pair(
+                "scope",
+                &params.scopes.join(provider.auth.scope_separator()),
+            );
         }
         for (k, v) in extra_authorize_params {
             q.append_pair(k, v);
@@ -390,6 +393,27 @@ mod tests {
         assert!(url.contains("access_type=offline"));
         assert!(url.contains("prompt=consent"));
         assert!(!url.contains("scope="));
+    }
+
+    #[test]
+    fn provider_scope_separator_is_honored() {
+        let linear = catalog::find("linear").expect("catalog").expect("linear");
+        let scopes = vec!["read".to_string(), "write".to_string()];
+        let url = build_authorize_url(
+            linear,
+            &config(),
+            AuthorizeParams {
+                client_id: "id",
+                redirect_uri: "https://app.example/cb",
+                scopes: &scopes,
+                state: "s",
+                code_challenge: "c",
+            },
+        )
+        .unwrap();
+        let parsed = Url::parse(&url).unwrap();
+        let q: std::collections::HashMap<_, _> = parsed.query_pairs().into_owned().collect();
+        assert_eq!(q["scope"], "read,write");
     }
 
     #[test]
