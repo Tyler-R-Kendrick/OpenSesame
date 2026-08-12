@@ -674,7 +674,7 @@ async fn no_route_returns_credential_material() {
 }
 
 #[tokio::test]
-async fn provider_route_exposes_fnox_configuration_connectors() {
+async fn provider_route_exposes_configuration_connectors() {
     let (state, _server) = harness().await;
     let (status, body) = call(&state, "GET", "/api/v1/providers", None).await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -688,6 +688,34 @@ async fn provider_route_exposes_fnox_configuration_connectors() {
         .unwrap();
     assert_eq!(azure["auth_kind"], "configuration");
     assert!(azure["connection_configuration_fields"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|field| field["name"] == "client_secret" && field["secret"] == true));
+
+    for id in ["better-auth", "workos", "auth0"] {
+        assert!(providers.iter().any(|provider| provider["id"] == id));
+    }
+    let better_auth = providers
+        .iter()
+        .find(|provider| provider["id"] == "better-auth")
+        .unwrap();
+    assert_eq!(better_auth["category"], "identity");
+    assert!(better_auth["connection_configuration_fields"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|field| field["name"] == "api_key" && field["secret"] == true));
+    let workos = providers
+        .iter()
+        .find(|provider| provider["id"] == "workos")
+        .unwrap();
+    assert_eq!(workos["auth_kind"], "api_key");
+    let auth0 = providers
+        .iter()
+        .find(|provider| provider["id"] == "auth0")
+        .unwrap();
+    assert!(auth0["connection_configuration_fields"]
         .as_array()
         .unwrap()
         .iter()

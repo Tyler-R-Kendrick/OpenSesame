@@ -55,6 +55,7 @@ const NAMES: Record<string, string> = {
   "azure-key-vault-secrets": "Azure Key Vault Secrets",
   "azure-openai": "Azure OpenAI",
   "bitwarden-secrets-manager": "Bitwarden Secrets Manager",
+  "better-auth": "Better Auth",
   fido2: "FIDO2",
   foks: "FOKS",
   "gcp-kms": "Google Cloud KMS",
@@ -66,6 +67,7 @@ const NAMES: Record<string, string> = {
   "sealed-local": "Sealed local",
   "encrypted-remote": "Encrypted remote",
   vault: "HashiCorp Vault",
+  workos: "WorkOS",
   yubikey: "YubiKey",
 };
 
@@ -73,6 +75,28 @@ const FIELDS: Record<string, Provider["configurationFields"]> = {
   age: [
     { name: "recipients", label: "Recipients", secret: false, required: true },
     { name: "identity", label: "Identity", secret: true, required: true },
+  ],
+  "better-auth": [
+    { name: "base_url", label: "Base URL", secret: false, required: true },
+    { name: "api_key", label: "API key", secret: true, required: true },
+    {
+      name: "api_key_header",
+      label: "API key header",
+      secret: false,
+      required: true,
+    },
+    { name: "config_id", label: "Config ID", secret: false, required: false },
+  ],
+  auth0: [
+    { name: "domain", label: "Tenant domain", secret: false, required: true },
+    { name: "client_id", label: "Client ID", secret: false, required: true },
+    {
+      name: "client_secret",
+      label: "Client secret",
+      secret: true,
+      required: true,
+    },
+    { name: "audience", label: "Audience", secret: false, required: false },
   ],
   bitwarden: [
     {
@@ -148,6 +172,20 @@ const LLM = [
   ["huggingface", "https://huggingface.co/docs/inference-providers", "api_key"],
 ] as const;
 
+const IDENTITY = [
+  [
+    "better-auth",
+    "https://better-auth.com/docs/plugins/api-key",
+    "configuration",
+  ],
+  ["workos", "https://workos.com/docs/reference/api-authentication", "api_key"],
+  [
+    "auth0",
+    "https://auth0.com/docs/secure/tokens/access-tokens/get-access-tokens",
+    "configuration",
+  ],
+] as const;
+
 function title(id: string): string {
   return (
     NAMES[id] ??
@@ -195,6 +233,7 @@ export const bundledProviders: Provider[] = [
     preview(id, `https://fnox.jdx.dev/providers/${id}.html`, "configuration"),
   ),
   ...LLM.map(([id, docs, auth]) => preview(id, docs, auth, "developer")),
+  ...IDENTITY.map(([id, docs, auth]) => preview(id, docs, auth, "identity")),
 ];
 
 type TursoDb = {

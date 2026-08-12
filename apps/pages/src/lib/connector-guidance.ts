@@ -63,6 +63,22 @@ const FIELD_GUIDANCE: Record<string, FieldGuidance> = {
     help: "The full service or vault URL shown in the provider console.",
     placeholder: "https://example.vault.azure.net",
   },
+  api_key_header: {
+    help: "The request header configured by the Better Auth API Key plugin. Its default is x-api-key.",
+    placeholder: "x-api-key",
+  },
+  config_id: {
+    help: "The Better Auth API Key plugin configuration ID. Keep default unless the server defines multiple key configurations.",
+    placeholder: "default",
+  },
+  domain: {
+    help: "Your Auth0 tenant or custom domain without a path. OpenSesame derives the Management API audience from it when Audience is blank.",
+    placeholder: "tenant.us.auth0.com",
+  },
+  audience: {
+    help: "The Auth0 API identifier. Leave blank to use https://<tenant-domain>/api/v2/ for the Management API.",
+    placeholder: "Derived from tenant domain",
+  },
   tenant_id: {
     help: "The directory or tenant ID that owns the application registration.",
     placeholder: "00000000-0000-0000-0000-000000000000",
@@ -144,8 +160,8 @@ const FIELD_GUIDANCE: Record<string, FieldGuidance> = {
     placeholder: "https://vault.example.com",
   },
   base_url: {
-    help: "The full HTTPS address of your self-hosted provider instance.",
-    placeholder: "https://secrets.example.com",
+    help: "The full HTTPS base URL of your provider instance, including any API mount path.",
+    placeholder: "https://service.example.com/api",
   },
   api_key: {
     help: "A restricted API key created for this connection. It is sealed immediately.",
@@ -181,6 +197,20 @@ export function connectorSteps(provider: Provider): string[] {
       `OpenSesame first reuses the signed-in ${provider.displayName} CLI session on the Host.`,
       "Add a token only when the Host has no delegated session to reuse.",
       "Save the configuration; secret overrides are sealed and never shown again.",
+    ];
+  }
+  if (provider.id === "better-auth") {
+    return [
+      "Enable Better Auth's API Key plugin and create a least-privilege key for this Host.",
+      "Enter the Better Auth base URL and paste the key once.",
+      "The default x-api-key header and default configuration ID are filled automatically.",
+    ];
+  }
+  if (provider.id === "auth0") {
+    return [
+      "Create an Auth0 machine-to-machine application and authorize only the Management API permissions this connection needs.",
+      "Enter the tenant domain, client ID, and client secret from that application.",
+      "Leave Audience blank to derive the tenant's Management API identifier automatically.",
     ];
   }
   if (provider.authKind === "oauth2_authorization_code") {
@@ -279,7 +309,30 @@ export function configurationDefaults(
 ): Record<string, string> {
   if (provider.id === "keychain") return { service: "opensesame" };
   if (provider.id === "plain") return { namespace: "opensesame" };
+  if (provider.id === "better-auth") {
+    return { api_key_header: "x-api-key", config_id: "default" };
+  }
   return {};
+}
+
+export function configurationPayload(
+  provider: Pick<Provider, "id">,
+  values: Record<string, string>,
+): Record<string, string> {
+  const payload = Object.fromEntries(
+    Object.entries(values)
+      .map(([key, value]) => [key, value.trim()])
+      .filter(([, value]) => value !== ""),
+  );
+  if (provider.id !== "auth0" || typeof payload.domain !== "string") {
+    return payload;
+  }
+  const domain = payload.domain
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/+$/, "");
+  payload.domain = domain;
+  payload.audience ||= `https://${domain}/api/v2/`;
+  return payload;
 }
 
 export function needsScopeSelection(
