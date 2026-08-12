@@ -21,7 +21,12 @@ describe("offline outbox", () => {
       KEY,
       JSON.stringify([
         null,
-        { kind: "device_approve", userCode: "", id: "bad", createdAt: new Date() },
+        {
+          kind: "device_approve",
+          userCode: "",
+          id: "bad",
+          createdAt: new Date(),
+        },
         {
           kind: "device_approve",
           userCode: "OLD",

@@ -880,6 +880,22 @@ input[type="radio"] {
   color: var(--ink-3);
 }
 
+@media (pointer: coarse), (max-width: 900px) {
+  .btn,
+  .conn-doc-link,
+  .rail__lock,
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 2.75rem;
+  }
+
+  .icon-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
 /* ——— Motion ——————————————————————————————————————————————— */
 
 @keyframes rise {
