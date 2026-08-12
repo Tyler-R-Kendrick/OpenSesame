@@ -248,8 +248,8 @@ provider variables (for example `OPENAI_API_KEY`, `WORKOS_API_KEY`, `VAULT_TOKEN
 and `AWS_PROFILE`), standard AWS/GCP credential files, and `~/.vault-token` /
 `~/.bao-token`. The PWA calls it before listing connections. Detected values move
 directly into the tenant-bound sealed store and never enter an API response; incomplete
-configuration is ignored, only owners/admins can import into their selected organization,
-and a revoked connection is not silently recreated.
+configuration is ignored, only local owner/admin sessions or the production Host operator can
+import into a selected organization, and a revoked connection is not silently recreated.
 
 ## Verification
 

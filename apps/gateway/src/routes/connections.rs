@@ -37,6 +37,10 @@ fn caller_owns(who: &Caller, owner: Option<&String>) -> bool {
     matches!(who, Caller::Operator) || owner.is_some_and(|owner| who.owns_subject(owner))
 }
 
+fn may_discover(who: &Caller, production: bool) -> bool {
+    who.can_configure_integrations() && (matches!(who, Caller::Operator) || !production)
+}
+
 const OPERATOR_ORGANIZATION_HEADER: &str = "x-opensesame-organization";
 
 fn caller_organization(
@@ -362,7 +366,7 @@ pub async fn discover(State(st): State<AppState>, headers: axum::http::HeaderMap
         Err(resp) => return resp,
     };
     let organization = organization_or_return!(&st, &who, &headers);
-    let configured = if who.can_configure_integrations() {
+    let configured = if may_discover(&who, crate::config::is_production_env()) {
         st.connection_broker
             .auto_configure_connections(&organization, caller_subject(&who).as_deref())
             .await

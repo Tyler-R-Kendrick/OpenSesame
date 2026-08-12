@@ -431,9 +431,9 @@ paths:
       summary: Import complete credentials already configured on the Host
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       description: >-
-        Owner/admin sessions import detected credentials into their own sealed connections in
-        the selected organization. Members receive configured 0. Credential values are never
-        returned.
+        In local development, owner/admin sessions import detected credentials into their own
+        sealed connections in the selected organization. Production import requires the Host
+        operator to select an organization. Credential values are never returned.
       responses:
         "200":
           description: Number of newly configured connections

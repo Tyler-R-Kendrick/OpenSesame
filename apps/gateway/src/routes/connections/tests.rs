@@ -25,6 +25,18 @@ use crate::app_state::{self, AppState};
 use crate::config::{Args, DEV_OPERATOR_TOKEN};
 use crate::middleware::auth::Caller;
 
+#[test]
+fn production_discovery_requires_the_host_operator() {
+    let owner = Caller::Session {
+        subject: "prn_owner".into(),
+        organization_id: opensesame_domain::OrganizationId::new(),
+        role: opensesame_domain::OrganizationRole::Owner,
+    };
+    assert!(super::may_discover(&owner, false));
+    assert!(!super::may_discover(&owner, true));
+    assert!(super::may_discover(&Caller::Operator, true));
+}
+
 #[tokio::test]
 async fn operator_can_select_org_but_session_cannot_spoof_it() {
     let state = app_state::build(Args {
