@@ -103,7 +103,10 @@ export interface OpenSesameBrowserClient {
    * cannot say whether the claim has since expired, been denied or completed.
    */
   readClaim(claimId: string, claimToken: string): Promise<ClaimPresentation>;
-  completeClaim(claimId: string, decision: ClaimDecision): Promise<ClaimPresentation>;
+  completeClaim(
+    claimId: string,
+    decision: ClaimDecision,
+  ): Promise<ClaimPresentation>;
   linkIdentity(options: { provider: string }): Promise<void>;
   signOut(): Promise<void>;
 }

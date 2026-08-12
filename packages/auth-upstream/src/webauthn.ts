@@ -43,10 +43,28 @@ export interface PasskeyChallengeStore {
   consume(challenge: string): ChallengeMeta | undefined;
 }
 
+/**
+ * Outstanding challenges kept in memory. Issuing is cheap and unbounded from the
+ * caller's side, so the store prunes expired rows and refuses to grow past this.
+ */
+export const MAX_OUTSTANDING_CHALLENGES = 4096;
+
 export function createMemoryChallengeStore(): PasskeyChallengeStore {
   const map = new Map<string, ChallengeMeta>();
   return {
     set(challenge, meta) {
+      const now = Date.now();
+      for (const [key, row] of map) {
+        if (now > row.expiresAt) map.delete(key);
+      }
+      if (map.size >= MAX_OUTSTANDING_CHALLENGES) {
+        // Evict the issuer's own oldest challenge first. Dropping whatever is
+        // oldest globally would let one principal, by asking for challenges in
+        // bulk, knock another principal's ceremony out of the store mid-login.
+        const own = [...map].find(([, row]) => row.principalId === meta.principalId);
+        const victim = own?.[0] ?? map.keys().next().value;
+        if (victim !== undefined) map.delete(victim);
+      }
       map.set(challenge, meta);
     },
     consume(challenge) {
@@ -69,7 +87,10 @@ export async function issueAuthenticationChallenge(
 }> {
   const genArgs: GenerateAuthenticationOptionsOpts = {
     rpID: rp.rpID,
-    userVerification: "preferred",
+    // Required, not preferred: a passkey is this system's production MFA factor,
+    // and an assertion that skipped user verification proves possession of the
+    // authenticator only — one factor wearing two factors' name.
+    userVerification: "required",
   };
   if (opts?.allowCredentials && opts.allowCredentials.length > 0) {
     const transports: AuthenticatorTransportFuture[] = [
@@ -115,7 +136,9 @@ export async function issueRegistrationChallenge(
     attestationType: "direct",
     authenticatorSelection: {
       residentKey: "preferred",
-      userVerification: "preferred",
+      // Enrol only authenticators that can verify their user; otherwise the
+      // credential can never satisfy the assertion requirement below.
+      userVerification: "required",
     },
   });
   store.set(options.challenge, {
@@ -164,7 +187,7 @@ export async function verifyRegistrationAttestation(
       expectedChallenge: challenge,
       expectedOrigin: rp.origin,
       expectedRPID: rp.rpID,
-      requireUserVerification: false,
+      requireUserVerification: true,
     });
     if (!result.verified || !result.registrationInfo) return null;
     const { credential } = result.registrationInfo;
@@ -222,9 +245,12 @@ export function createSimpleWebAuthnVerifyFn(
           publicKey: credential.publicKey,
           counter: credential.counter,
         },
-        requireUserVerification: false,
+        requireUserVerification: true,
       });
-      return result.verified;
+      if (!result.verified) return false;
+      // Hand the fresh counter back so the seam can persist it; without this the
+      // stored counter stays at its registration value and clone detection is dead.
+      return { ok: true, newCounter: result.authenticationInfo?.newCounter };
     } catch {
       return false;
     }

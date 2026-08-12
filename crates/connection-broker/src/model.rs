@@ -7,7 +7,13 @@
 use opensesame_domain::{ConnectionOwnerKind, EgressBinding, Shareability};
 use serde::{Deserialize, Serialize};
 
-use crate::catalog::{configuration_fields, Category, ConfigurationFieldDef, Provider, ScopeDef};
+use crate::catalog::{Category, ConfigurationFieldDef, Provider, ScopeDef};
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ConfiguredFieldView {
+    pub name: String,
+    pub hint: Option<String>,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -143,31 +149,45 @@ pub struct ProviderView {
     pub display_name: String,
     pub category: Category,
     pub docs_url: String,
+    pub provenance_url: String,
+    pub catalog_revision: String,
     pub auth_kind: String,
     pub supports_refresh: bool,
     pub configured: bool,
+    pub callback_url: Option<String>,
     pub missing_config: Vec<String>,
     pub scopes: Vec<ScopeView>,
     pub egress: EgressView,
     pub operations: Vec<String>,
-    pub configuration_fields: Vec<ConfigurationFieldDef>,
+    pub integration_configuration_fields: Vec<ConfigurationFieldDef>,
+    pub connection_configuration_fields: Vec<ConfigurationFieldDef>,
 }
 
 impl ProviderView {
-    pub fn new(provider: &Provider, configured: bool, missing_config: Vec<String>) -> Self {
+    pub fn new(
+        provider: &Provider,
+        configured: bool,
+        missing_config: Vec<String>,
+        callback_url: Option<String>,
+        catalog_revision: &str,
+    ) -> Self {
         Self {
             id: provider.id.to_string(),
             display_name: provider.display_name.to_string(),
             category: provider.category,
             docs_url: provider.docs_url.to_string(),
+            provenance_url: provider.provenance_url.to_string(),
+            catalog_revision: catalog_revision.to_string(),
             auth_kind: provider.auth.kind().to_string(),
             supports_refresh: provider.auth.supports_refresh(),
             configured,
+            callback_url,
             missing_config,
             scopes: provider.scopes.iter().map(ScopeView::from).collect(),
             egress: EgressView::from(&provider.egress.binding()),
             operations: provider.operations.iter().map(|o| o.to_string()).collect(),
-            configuration_fields: configuration_fields(provider.id).to_vec(),
+            integration_configuration_fields: provider.integration_configuration_fields().to_vec(),
+            connection_configuration_fields: provider.connection_configuration_fields().to_vec(),
         }
     }
 }
@@ -192,6 +212,7 @@ pub struct EventView {
 #[derive(Clone, Debug, Serialize)]
 pub struct ConnectionView {
     pub connection_id: String,
+    pub integration_id: Option<String>,
     /// ADR 0005 URI. Always present: the agent surface is reference-only.
     pub connection_ref: String,
     pub logical_name: String,
@@ -208,6 +229,7 @@ pub struct ConnectionView {
     pub account_label: Option<String>,
     pub expires_at: Option<String>,
     pub refreshable: bool,
+    pub configured_fields: Vec<ConfiguredFieldView>,
     pub last_refreshed_at: Option<String>,
     pub max_invoke_level: u8,
     pub egress: EgressView,
@@ -241,6 +263,9 @@ pub struct RevokeOutcome {
 #[derive(Clone, Debug)]
 pub struct CreateConnection {
     pub provider_id: String,
+    /// Required for new clients. Legacy callers may omit it only when exactly one
+    /// usable integration exists for the selected provider.
+    pub integration_id: Option<String>,
     /// The caller this connection is being created for. Never read from a request
     /// body: the transport says who is asking, and only that may own the result.
     pub owner_subject: Option<String>,

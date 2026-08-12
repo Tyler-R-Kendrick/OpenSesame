@@ -2,6 +2,7 @@ use clap::Parser;
 use std::{env, net::SocketAddr};
 
 pub const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
+pub const DEV_CLAIM_PEPPER: &str = "opensesame-dev-claim-pepper";
 
 pub fn constant_time_eq(a: &str, b: &str) -> bool {
     let (aa, bb) = (a.as_bytes(), b.as_bytes());
@@ -62,6 +63,74 @@ pub fn assert_cors_origins() -> Result<(), String> {
         &cors_origins(),
         is_production_env(),
     )
+}
+
+/// Receipt signing key, from `OPENSESAME_RECEIPT_SIGNING_KEY` (base64 32-byte seed).
+///
+/// Receipts are the non-repudiation record and the store outlives the process, so
+/// an ephemeral key means every receipt written before a restart verifies as
+/// `valid: false` — indistinguishable from tampering. Production must supply one.
+pub fn resolve_receipt_signer() -> Result<opensesame_audit::ReceiptSigner, String> {
+    match env::var("OPENSESAME_RECEIPT_SIGNING_KEY") {
+        Ok(seed) if !seed.trim().is_empty() => {
+            opensesame_audit::ReceiptSigner::from_seed_b64(&seed).map_err(|e| e.to_string())
+        }
+        _ if is_production_env() => Err(
+            "OPENSESAME_RECEIPT_SIGNING_KEY unset in production; receipts would be \
+             unverifiable after restart"
+                .into(),
+        ),
+        _ => {
+            tracing::warn!(
+                "OPENSESAME_RECEIPT_SIGNING_KEY unset; using an ephemeral receipt key (dev only)"
+            );
+            Ok(opensesame_audit::ReceiptSigner::generate())
+        }
+    }
+}
+
+/// Keys trusted to have signed a receipt: the active signer plus any retired
+/// public keys from `OPENSESAME_RECEIPT_VERIFY_KEYS` (comma or whitespace
+/// separated base64 32-byte ed25519 public keys).
+///
+/// Verification needs no secret, so rotating the signer does not require keeping
+/// the old seed — only its public half — and old receipts stay verifiable.
+pub fn resolve_receipt_verifier(
+    signer: &opensesame_audit::ReceiptSigner,
+) -> Result<opensesame_audit::ReceiptVerifier, String> {
+    let mut verifier = opensesame_audit::ReceiptVerifier::new();
+    verifier.trust(signer.verifying_key());
+    let retired = env::var("OPENSESAME_RECEIPT_VERIFY_KEYS").unwrap_or_default();
+    for entry in retired.split([',', ' ', '\n', '\t']) {
+        let entry = entry.trim();
+        if entry.is_empty() {
+            continue;
+        }
+        verifier.trust_b64(entry).map_err(|e| e.to_string())?;
+    }
+    Ok(verifier)
+}
+
+/// Pepper for low-entropy digests (user codes).
+///
+/// A user code is ~2^35 possibilities, so a keyless digest of one is recoverable
+/// by exhaustion; the pepper is what makes the stored digest worth storing.
+pub fn resolve_claim_pepper() -> String {
+    match env::var("OPENSESAME_CLAIM_PEPPER") {
+        Ok(p) if !p.is_empty() => p,
+        _ => {
+            if is_production_env() {
+                tracing::error!(
+                    "OPENSESAME_CLAIM_PEPPER unset in production — user codes would be \
+                     recoverable from their digests"
+                );
+                String::new()
+            } else {
+                tracing::warn!("OPENSESAME_CLAIM_PEPPER unset; using a dev pepper (dev only)");
+                DEV_CLAIM_PEPPER.into()
+            }
+        }
+    }
 }
 
 pub fn resolve_operator_token() -> String {

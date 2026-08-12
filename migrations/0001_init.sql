@@ -64,6 +64,25 @@ CREATE TABLE IF NOT EXISTS connections (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS encrypted_sync_blobs (
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL,
+  epoch INTEGER NOT NULL,
+  ciphertext BLOB NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_encrypted_sync_blobs_owner_epoch
+  ON encrypted_sync_blobs(owner_id, epoch);
+
+CREATE TABLE IF NOT EXISTS sync_device_cursors (
+  owner_id TEXT NOT NULL,
+  device_id TEXT NOT NULL,
+  epoch INTEGER NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (owner_id, device_id)
+);
+
 CREATE TABLE IF NOT EXISTS grants (
   id TEXT PRIMARY KEY,
   organization_id TEXT NOT NULL REFERENCES organizations(id),

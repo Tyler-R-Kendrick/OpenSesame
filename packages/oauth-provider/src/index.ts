@@ -9,8 +9,10 @@ export type {
 export { ORIGIN_PROFILE_FORBIDDEN_SCOPES } from "./types.js";
 export { readOAuthProviderEnv } from "./env.js";
 export {
+  canonicalResource,
   createOpenSesameProvider,
   isPkceRequired,
+  isResourceAllowed,
   type CreateOpenSesameProviderOptions,
   type OpenSesameProviderBundle,
 } from "./create-provider.js";

@@ -9,6 +9,18 @@
  * expose them (ADR 0032).
  */
 
+import {
+  AuthorizeResponseSchema,
+  BindingSchema,
+  ConnectionErrorResponseSchema,
+  ConnectionEventSchema,
+  ConnectionSchema,
+  ListConnectionsResponseSchema,
+  ListEventsResponseSchema,
+  ListProvidersResponseSchema,
+  ProviderSchema,
+  RevokeResponseSchema,
+} from "@opensesame/contracts";
 import { hostBase, hostFetch } from "./identity.js";
 
 export type ProviderCategory =
@@ -172,12 +184,11 @@ async function call<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => null);
+    const parsed = ConnectionErrorResponseSchema.safeParse(body);
     throw new ConnectionsError(
       res.status,
-      readString(body, "error") ?? "unknown_error",
-      readString(body, "hint") ??
-        readString(body, "message") ??
-        `Request failed (${res.status}).`,
+      parsed.success ? parsed.data.error : "unknown_error",
+      parsed.success ? parsed.data.hint : "Request failed.",
     );
   }
   if (res.status === 204) return map(null);
@@ -186,162 +197,108 @@ async function call<T>(
 
 /* ----------------------------------------------------------- wire mapping */
 
-function readString(body: unknown, key: string): string | null {
-  if (!body || typeof body !== "object") return null;
-  const value = (body as Record<string, unknown>)[key];
-  return typeof value === "string" && value.trim() ? value : null;
-}
-
 function obj(value: unknown): Record<string, unknown> {
   return value && typeof value === "object"
     ? (value as Record<string, unknown>)
     : {};
 }
 
-function str(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function orNull(value: unknown): string | null {
-  return typeof value === "string" && value.length > 0 ? value : null;
-}
-
-function strList(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
-}
-
-function toEgress(value: unknown): Egress {
-  const raw = obj(value);
+function toEgress(raw: {
+  scheme: string;
+  authorities: string[];
+  path_prefixes: string[];
+}): Egress {
   return {
-    scheme: str(raw.scheme, "https"),
-    authorities: strList(raw.authorities),
-    pathPrefixes: strList(raw.path_prefixes),
+    scheme: raw.scheme,
+    authorities: raw.authorities,
+    pathPrefixes: raw.path_prefixes,
   };
 }
 
 function toProvider(value: unknown): Provider {
-  const raw = obj(value);
+  const raw = ProviderSchema.parse(value);
   return {
-    id: str(raw.id),
-    displayName: str(raw.display_name, str(raw.id)),
-    category:
-      (str(raw.category, "developer") as ProviderCategory) ?? "developer",
-    docsUrl: str(raw.docs_url),
-    authKind: str(raw.auth_kind, "oauth2_authorization_code") as AuthKind,
-    supportsRefresh: raw.supports_refresh === true,
-    configured: raw.configured === true,
-    missingConfig: strList(raw.missing_config),
-    scopes: Array.isArray(raw.scopes)
-      ? raw.scopes.map((scope) => {
-          const s = obj(scope);
-          return {
-            name: str(s.name),
-            description: str(s.description),
-            sensitive: s.sensitive === true,
-            default: s.default === true,
-          };
-        })
-      : [],
+    id: raw.id,
+    displayName: raw.display_name,
+    category: raw.category,
+    docsUrl: raw.docs_url,
+    authKind: raw.auth_kind,
+    supportsRefresh: raw.supports_refresh,
+    configured: raw.configured,
+    missingConfig: raw.missing_config,
+    scopes: raw.scopes,
     egress: toEgress(raw.egress),
-    operations: strList(raw.operations),
-    configurationFields: Array.isArray(raw.configuration_fields)
-      ? raw.configuration_fields.map((field) => {
-          const item = obj(field);
-          return {
-            name: str(item.name),
-            label: str(item.label, str(item.name)),
-            secret: item.secret === true,
-            required: item.required === true,
-          };
-        })
-      : [],
+    operations: raw.operations,
+    configurationFields: raw.connection_configuration_fields.map((field) => ({
+      ...field,
+      label: field.name
+        .replaceAll("_", " ")
+        .replace(/^./, (letter) => letter.toUpperCase()),
+    })),
   };
 }
 
 function toBinding(value: unknown): Binding {
-  const raw = obj(value);
+  const raw = BindingSchema.parse(value);
   return {
-    id: str(raw.id),
-    targetKind: str(raw.target_kind, "project") as BindingTargetKind,
-    targetId: str(raw.target_id),
-    targetLabel: orNull(raw.target_label),
-    createdAt: str(raw.created_at),
+    id: raw.id,
+    targetKind: raw.target_kind,
+    targetId: raw.target_id,
+    targetLabel: raw.target_label,
+    createdAt: raw.created_at,
   };
 }
 
 function toConnection(value: unknown): Connection {
-  const raw = obj(value);
+  const raw = ConnectionSchema.parse(value);
   return {
-    connectionId: str(raw.connection_id),
-    connectionRef: str(raw.connection_ref),
-    logicalName: str(raw.logical_name),
-    displayName: str(raw.display_name, str(raw.logical_name)),
-    providerId: str(raw.provider_id),
-    status: str(raw.status, "error") as ConnectionStatus,
-    statusDetail: orNull(raw.status_detail),
-    organizationId: str(raw.organization_id),
-    projectId: orNull(raw.project_id),
-    ownerKind: str(raw.owner_kind, "organization"),
-    shareability: str(raw.shareability, "private"),
-    requestedScopes: strList(raw.requested_scopes),
-    grantedScopes: strList(raw.granted_scopes),
-    accountLabel: orNull(raw.account_label),
-    expiresAt: orNull(raw.expires_at),
-    refreshable: raw.refreshable === true,
-    lastRefreshedAt: orNull(raw.last_refreshed_at),
-    maxInvokeLevel:
-      typeof raw.max_invoke_level === "number" ? raw.max_invoke_level : 1,
+    connectionId: raw.connection_id,
+    connectionRef: raw.connection_ref,
+    logicalName: raw.logical_name,
+    displayName: raw.display_name,
+    providerId: raw.provider_id,
+    status: raw.status,
+    statusDetail: raw.status_detail,
+    organizationId: raw.organization_id,
+    projectId: raw.project_id,
+    ownerKind: raw.owner_kind,
+    shareability: raw.shareability,
+    requestedScopes: raw.requested_scopes,
+    grantedScopes: raw.granted_scopes,
+    accountLabel: raw.account_label,
+    expiresAt: raw.expires_at,
+    refreshable: raw.refreshable,
+    lastRefreshedAt: raw.last_refreshed_at,
+    maxInvokeLevel: raw.max_invoke_level,
     egress: toEgress(raw.egress),
-    bindings: Array.isArray(raw.bindings) ? raw.bindings.map(toBinding) : [],
-    createdAt: str(raw.created_at),
-    updatedAt: str(raw.updated_at),
+    bindings: raw.bindings.map(toBinding),
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
   };
 }
 
 function toEvent(value: unknown): ConnectionEvent {
-  const raw = obj(value);
+  const raw = ConnectionEventSchema.parse(value);
   return {
-    id: str(raw.id),
-    kind: str(raw.kind, "error") as ConnectionEventKind,
-    at: str(raw.at),
-    detail: orNull(raw.detail),
-  };
-}
-
-function listOf<T>(key: string, map: (value: unknown) => T) {
-  return (body: unknown): T[] => {
-    const raw = obj(body)[key];
-    return Array.isArray(raw) ? raw.map(map) : [];
+    id: raw.id,
+    kind: raw.kind,
+    at: raw.at,
+    detail: raw.detail,
   };
 }
 
 /* --------------------------------------------------------------- requests */
 
 export function listProviders(): Promise<Provider[]> {
-  return fetch(`${base()}/api/v1/providers`, { credentials: "omit" })
-    .then(async (response) => {
-      if (!response.ok) {
-        throw new ConnectionsError(
-          response.status,
-          "catalog_unavailable",
-          `Provider catalog failed (${response.status}).`,
-        );
-      }
-      return response.json();
-    })
-    .then(listOf("providers", toProvider))
-    .catch((error) => {
-      if (error instanceof ConnectionsError) throw error;
-      throw new ConnectionsError(
-        0,
-        "unreachable",
-        `Host API unreachable at ${base()}.`,
-      );
-    });
+  return call("/providers", {}, (body) =>
+    ListProvidersResponseSchema.parse(body).providers.map(toProvider),
+  );
 }
 
 export function listConnections(): Promise<Connection[]> {
-  return call("/connections", {}, listOf("connections", toConnection));
+  return call("/connections", {}, (body) =>
+    ListConnectionsResponseSchema.parse(body).connections.map(toConnection),
+  );
 }
 
 export function getConnection(id: string): Promise<Connection> {
@@ -379,10 +336,13 @@ export function authorizeConnection(
       method: "POST",
       body: JSON.stringify(scopes ? { scopes } : {}),
     },
-    (body) => ({
-      authorizationUrl: str(obj(body).authorization_url),
-      expiresAt: str(obj(body).expires_at),
-    }),
+    (body) => {
+      const parsed = AuthorizeResponseSchema.parse(body);
+      return {
+        authorizationUrl: parsed.authorization_url,
+        expiresAt: parsed.expires_at,
+      };
+    },
   );
 }
 
@@ -405,8 +365,39 @@ export function setConnectionCredential(
   );
 }
 
-export function revokeConnection(id: string): Promise<void> {
-  return call(`/connections/${encodeURIComponent(id)}`, { method: "DELETE" });
+export function setConnectionConfiguration(
+  id: string,
+  configurationSet: Record<string, string>,
+  configurationClear: string[] = [],
+): Promise<Connection> {
+  return call(
+    `/connections/${encodeURIComponent(id)}/credential`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        configuration_set: configurationSet,
+        configuration_clear: configurationClear,
+      }),
+    },
+    toConnection,
+  );
+}
+
+export function revokeConnection(id: string): Promise<{
+  revoked: boolean;
+  providerRevocation: "ok" | "unsupported" | "failed";
+}> {
+  return call(
+    `/connections/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    (body) => {
+      const parsed = RevokeResponseSchema.parse(body);
+      return {
+        revoked: parsed.revoked,
+        providerRevocation: parsed.provider_revocation,
+      };
+    },
+  );
 }
 
 export function bindConnection(
@@ -443,10 +434,8 @@ export function unbindConnection(
 }
 
 export function connectionEvents(id: string): Promise<ConnectionEvent[]> {
-  return call(
-    `/connections/${encodeURIComponent(id)}/events`,
-    {},
-    listOf("events", toEvent),
+  return call(`/connections/${encodeURIComponent(id)}/events`, {}, (body) =>
+    ListEventsResponseSchema.parse(body).events.map(toEvent),
   );
 }
 

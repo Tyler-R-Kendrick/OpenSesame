@@ -88,11 +88,12 @@ pnpm --filter @opensesame/pages typecheck
 pnpm --filter @opensesame/pages build
 ```
 
-The Identity and Host planes are remote and configured in **Settings**; static hosting cannot
-run either. Every section degrades to an honest disconnected state rather than pretending.
+The local `dev` command starts Identity and Host with the PWA. A static deployment
+configures remote Identity and Host addresses in **Settings** because static hosting cannot
+run either plane. Every section degrades to an honest disconnected state rather than pretending.
 
 Sample data is opt-in from Settings, badged in the UI, and removable in one action.
-# Browser database
+## Browser database
 
 The connector catalog opens `opensesame-connectors.db` directly in the PWA
 with Turso WASM and OPFS. It works locally without a database service. An admin

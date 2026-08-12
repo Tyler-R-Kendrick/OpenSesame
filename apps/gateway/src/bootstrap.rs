@@ -1,7 +1,6 @@
 use crate::app_state::Bootstrap;
 use crate::config;
 use chrono::{Duration, Utc};
-use opensesame_audit::ReceiptSigner;
 use opensesame_authz::PolicyEngine;
 use opensesame_broker::Broker;
 use opensesame_connector_host::HostRuntime;
@@ -15,6 +14,7 @@ pub struct BootstrapArtifacts {
 }
 
 pub async fn maybe_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
+    let signer = config::resolve_receipt_signer().map_err(anyhow::Error::msg)?;
     if !config::dev_bootstrap_enabled() || config::is_production_env() {
         tracing::info!("demo bootstrap skipped (set OPENSESAME_DEV_BOOTSTRAP=true in non-production to enable)");
         return Ok(BootstrapArtifacts {
@@ -24,7 +24,7 @@ pub async fn maybe_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts>
                 db: db.clone(),
                 policy: PolicyEngine::default(),
                 host: HostRuntime::default(),
-                signer: ReceiptSigner::generate(),
+                signer,
             },
         });
     }
@@ -32,28 +32,21 @@ pub async fn maybe_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts>
     tracing::warn!(
         "OPENSESAME_DEV_BOOTSTRAP enabled — seeding demo org/grant (non-production only)"
     );
-    create_demo_bootstrap(db).await
+    create_demo_bootstrap(db, signer).await
 }
 
-async fn create_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
+pub(crate) async fn create_demo_bootstrap(
+    db: &Db,
+    signer: opensesame_audit::ReceiptSigner,
+) -> anyhow::Result<BootstrapArtifacts> {
     let mut policy = PolicyEngine::default();
-    let org = OrganizationId::from_uuid(uuid::Uuid::from_u128(
-        0x6f70656e_7365_7361_6d65_000000000001,
-    ));
-    let project = ProjectId::from_uuid(uuid::Uuid::from_u128(
-        0x6f70656e_7365_7361_6d65_000000000002,
-    ));
-    let principal = PrincipalId::from_uuid(uuid::Uuid::from_u128(
-        0x6f70656e_7365_7361_6d65_000000000003,
-    ));
-    let actor = ActorId::from_uuid(uuid::Uuid::from_u128(
-        0x6f70656e_7365_7361_6d65_000000000004,
-    ));
-    let connection = ConnectionId::from_uuid(uuid::Uuid::from_u128(
-        0x6f70656e_7365_7361_6d65_000000000005,
-    ));
-    db.ensure_organization(&org, "demo").await?;
-    db.ensure_project(&project, &org, "catalog").await?;
+    let org = OrganizationId::new();
+    let project = ProjectId::new();
+    let principal = PrincipalId::new();
+    let actor = ActorId::new();
+    let connection = ConnectionId::new();
+    db.create_organization(&org, "demo").await?;
+    db.create_project(&project, &org, "catalog").await?;
 
     policy
         .relationships
@@ -68,10 +61,20 @@ async fn create_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
     policy.assurance.insert("user:demo".into(), "mfa".into());
 
     let now = Utc::now();
+    db.insert_connection(&ConnectionRecord {
+        id: connection,
+        organization_id: org,
+        project_id: Some(project),
+        provider_id: "sealed-local".into(),
+        display_name: "GitHub demo".into(),
+        public_config: serde_json::json!({"service": "github", "environment": "demo"}),
+        credential_ref: None,
+        created_at: now,
+        updated_at: now,
+    })
+    .await?;
     let grant = Grant {
-        id: GrantId::from_uuid(uuid::Uuid::from_u128(
-            0x6f70656e_7365_7361_6d65_000000000006,
-        )),
+        id: GrantId::new(),
         version: 1,
         issuer_principal_id: principal,
         beneficiary_principal_id: principal,
@@ -103,7 +106,7 @@ async fn create_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
         created_at: now,
         revoked_at: None,
     };
-    db.upsert_grant(&grant).await?;
+    db.insert_grant(&grant).await?;
 
     let connection_ref =
         ConnectionRef::new(org, Some(project), "github/main", connection).expect("connection ref");
@@ -112,7 +115,7 @@ async fn create_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
         db: db.clone(),
         policy,
         host: HostRuntime::default(),
-        signer: ReceiptSigner::generate(),
+        signer,
     };
 
     let demo = Bootstrap {
@@ -129,21 +132,4 @@ async fn create_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
         connection_ref: Some(connection_ref),
         broker,
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn demo_authority_is_stable_across_host_restarts() {
-        let db = Db::connect_memory().await.unwrap();
-        let first = create_demo_bootstrap(&db).await.unwrap().demo.unwrap();
-        let second = create_demo_bootstrap(&db).await.unwrap().demo.unwrap();
-
-        assert_eq!(first.org, second.org);
-        assert_eq!(first.project, second.project);
-        assert_eq!(first.principal, second.principal);
-        assert_eq!(first.grant.id, second.grant.id);
-    }
 }

@@ -41,6 +41,13 @@ export interface OAuthProviderEnv {
   dcrEnabled: boolean;
   cimdEnabled: boolean;
   issuer: string;
+  /**
+   * Resource indicators (RFC 8707) this issuer will mint access tokens for.
+   * Empty means "issuer only" — never "anything the client asks for".
+   */
+  allowedResources: string[];
+  /** Production refuses ephemeral signing keys and in-memory grant state. */
+  isProduction: boolean;
 }
 
 export const ORIGIN_PROFILE_FORBIDDEN_SCOPES = [

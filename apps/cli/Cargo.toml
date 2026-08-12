@@ -12,6 +12,7 @@ path = "src/main.rs"
 opensesame-authn = { path = "../../crates/authn" }
 opensesame-domain = { path = "../../crates/domain" }
 opensesame-env-spec = { path = "../../crates/env-spec" }
+opensesame-connector-host = { path = "../../crates/connector-host" }
 anyhow = { workspace = true }
 clap = { workspace = true }
 reqwest = { workspace = true }
@@ -21,5 +22,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 chrono = { workspace = true }
+crossterm = { workspace = true }
+ratatui = { workspace = true }
 uuid = { workspace = true }
 directories = "6.0.0"

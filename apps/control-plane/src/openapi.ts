@@ -7,7 +7,8 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
     info: {
       title: "OpenSesame Control Plane",
       version: "0.1.0",
-      description: "Identity, claims, provisional principals, and agent registration APIs",
+      description:
+        "Identity, claims, provisional principals, and agent registration APIs",
     },
     servers: [{ url: config.publicUrl }],
     paths: {
@@ -39,6 +40,294 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           responses: {
             "200": { description: "Principal" },
             "401": { description: "Unauthorized" },
+          },
+        },
+      },
+      "/v1/organizations": {
+        get: {
+          summary:
+            "List organizations the caller belongs to, including their role",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": {
+              description: "Organizations and caller roles",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["organizations"],
+                    properties: {
+                      organizations: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/Organization" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        post: {
+          summary: "Create an organization; the creator becomes owner",
+          description:
+            "Cookie-authenticated browser mutations also require an allowed Origin header.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/CreateOrganization" },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Organization created",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Organization" },
+                },
+              },
+            },
+            "400": { description: "Invalid organization body" },
+            "401": { description: "Authentication or cookie Origin required" },
+            "403": { description: "Verified identity required" },
+            "409": { description: "Slug already exists" },
+          },
+        },
+      },
+      "/v1/organizations/{id}": {
+        get: {
+          summary:
+            "Get an organization the caller belongs to, including their role",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Organization",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Organization" },
+                },
+              },
+            },
+            "404": { description: "Organization or membership not found" },
+          },
+        },
+      },
+      "/v1/organizations/{id}/members": {
+        get: {
+          summary: "List organization memberships (owner only)",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Memberships",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["members"],
+                    properties: {
+                      members: {
+                        type: "array",
+                        items: {
+                          $ref: "#/components/schemas/OrganizationMembership",
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "403": { description: "Owner role required" },
+            "404": {
+              description: "Caller membership not found (`not_found`)",
+            },
+          },
+        },
+        post: {
+          summary: "Add an existing principal to an organization (owner only)",
+          description:
+            "Cookie-authenticated browser mutations also require an allowed Origin header.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/AddOrganizationMember" },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Membership created",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/OrganizationMembership",
+                  },
+                },
+              },
+            },
+            "401": { description: "Authentication or cookie Origin required" },
+            "403": { description: "Owner role required" },
+            "404": { description: "Principal not found" },
+            "409": {
+              description: "Membership exists or principal is inactive",
+            },
+          },
+        },
+      },
+      "/v1/organizations/{id}/members/{principalId}": {
+        patch: {
+          summary:
+            "Change a membership role and revoke its Host sessions (owner only)",
+          description:
+            "Cookie-authenticated browser mutations also require an allowed Origin header.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+            {
+              name: "principalId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ChangeOrganizationMemberRole",
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Membership updated",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/OrganizationMembership",
+                  },
+                },
+              },
+            },
+            "401": { description: "Authentication or cookie Origin required" },
+            "400": { description: "Invalid membership role body" },
+            "403": { description: "Owner role required" },
+            "404": {
+              description:
+                "Caller membership (`not_found`) or target membership (`membership_not_found`) not found",
+            },
+            "409": { description: "Last owner cannot be demoted" },
+            "502": {
+              description: "Host session revocation failed; role unchanged",
+            },
+          },
+        },
+        delete: {
+          summary:
+            "Remove a membership and revoke its Host sessions (owner only)",
+          description:
+            "Cookie-authenticated browser mutations also require an allowed Origin header.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+            {
+              name: "principalId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "204": { description: "Membership removed" },
+            "401": { description: "Authentication or cookie Origin required" },
+            "403": { description: "Owner role required" },
+            "404": {
+              description:
+                "Caller membership (`not_found`) or target membership (`membership_not_found`) not found",
+            },
+            "409": { description: "Last owner cannot be removed" },
+            "502": {
+              description:
+                "Host session revocation failed; membership unchanged",
+            },
+          },
+        },
+      },
+      "/v1/device/approve": {
+        post: {
+          summary:
+            "Approve a Host device session in an organization the caller belongs to",
+          description:
+            "Identity derives the organization role server-side; organization_role and principal fields supplied by browsers are ignored. Cookie-authenticated browser mutations also require an allowed Origin header.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/DeviceApproval" },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Device approved",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/DeviceApprovalResult" },
+                },
+              },
+            },
+            "401": { description: "Authentication or cookie Origin required" },
+            "400": {
+              description: "Organization selection required or request invalid",
+            },
+            "403": {
+              description: "Caller is not an active member of the organization",
+            },
+            "404": { description: "Host device authorization not found" },
+            "500": { description: "Configured Host API URL is invalid" },
+            "502": { description: "Host API unavailable" },
+            "503": { description: "Host operator token is not configured" },
           },
         },
       },
@@ -74,7 +363,12 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
         get: {
           summary: "Get claim",
           parameters: [
-            { name: "id", in: "path", required: true, schema: { type: "string" } },
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
             {
               name: "X-Claim-Token",
               in: "header",
@@ -83,7 +377,10 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
               description: "Claim bearer (or Authorization: Bearer osc_clm_…)",
             },
           ],
-          responses: { "200": { description: "Claim" }, "401": { description: "Missing/invalid claim token" } },
+          responses: {
+            "200": { description: "Claim" },
+            "401": { description: "Missing/invalid claim token" },
+          },
         },
       },
       "/v1/claims/present": {
@@ -95,22 +392,45 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
       "/v1/claims/{id}/complete": {
         post: {
           summary: "Complete claim",
+          description:
+            "Requires the user code displayed by the device being claimed; five wrong codes refuse the claim.",
           security: [{ bearerAuth: [] }],
           parameters: [
-            { name: "id", in: "path", required: true, schema: { type: "string" } },
             {
-              name: "X-Claim-Token",
-              in: "header",
+              name: "id",
+              in: "path",
               required: true,
-              schema: { type: "string", pattern: "^osc_clm_" },
-              description:
-                "Claim bearer, required alongside the principal: the claim id is public",
+              schema: { type: "string" },
             },
-            { name: "Idempotency-Key", in: "header", schema: { type: "string" } },
+            {
+              name: "Idempotency-Key",
+              in: "header",
+              schema: { type: "string" },
+            },
           ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["acceptedItemIds", "userCode"],
+                  properties: {
+                    acceptedItemIds: {
+                      type: "array",
+                      items: { type: "string" },
+                    },
+                    userCode: { type: "string" },
+                    destination: { type: "object" },
+                  },
+                },
+              },
+            },
+          },
           responses: {
             "200": { description: "Completed" },
-            "401": { description: "Missing/invalid claim token or principal" },
+            "401": { description: "Missing or wrong user code" },
+            "429": { description: "Too many wrong user codes for this claim" },
           },
         },
       },
@@ -118,7 +438,14 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
         post: {
           summary: "Deny claim",
           security: [{ bearerAuth: [] }],
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
           responses: { "200": { description: "Denied" } },
         },
       },
@@ -126,7 +453,12 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
         get: {
           summary: "Poll claim status",
           parameters: [
-            { name: "id", in: "path", required: true, schema: { type: "string" } },
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
             {
               name: "X-Claim-Token",
               in: "header",
@@ -135,7 +467,10 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
               description: "Claim bearer (or Authorization: Bearer osc_clm_…)",
             },
           ],
-          responses: { "200": { description: "Status" }, "401": { description: "Missing/invalid claim token" } },
+          responses: {
+            "200": { description: "Status" },
+            "401": { description: "Missing/invalid claim token" },
+          },
         },
       },
       "/v1/agents": {
@@ -149,7 +484,14 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
         post: {
           summary: "Start claim for agent",
           security: [{ bearerAuth: [] }],
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
           responses: { "201": { description: "Claim started" } },
         },
       },
@@ -173,6 +515,106 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
       },
     },
     components: {
+      schemas: {
+        OrganizationState: {
+          type: "string",
+          enum: ["provisional", "active", "suspended", "deleted"],
+        },
+        OrganizationRole: {
+          type: "string",
+          enum: ["owner", "admin", "member"],
+        },
+        CreateOrganization: {
+          type: "object",
+          additionalProperties: false,
+          required: ["slug", "displayName"],
+          properties: {
+            slug: {
+              type: "string",
+              minLength: 2,
+              maxLength: 64,
+              pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            },
+            displayName: { type: "string", minLength: 1, maxLength: 128 },
+          },
+        },
+        Organization: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "id",
+            "slug",
+            "displayName",
+            "state",
+            "role",
+            "createdBy",
+            "createdAt",
+            "updatedAt",
+          ],
+          properties: {
+            id: { type: "string" },
+            slug: { type: "string" },
+            displayName: { type: "string" },
+            state: { $ref: "#/components/schemas/OrganizationState" },
+            role: { $ref: "#/components/schemas/OrganizationRole" },
+            createdBy: { type: "string" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        OrganizationMembership: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "organizationId",
+            "principalId",
+            "role",
+            "createdAt",
+            "updatedAt",
+          ],
+          properties: {
+            organizationId: { type: "string" },
+            principalId: { type: "string" },
+            role: { $ref: "#/components/schemas/OrganizationRole" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        AddOrganizationMember: {
+          type: "object",
+          additionalProperties: false,
+          required: ["principalId", "role"],
+          properties: {
+            principalId: { type: "string", minLength: 1 },
+            role: { $ref: "#/components/schemas/OrganizationRole" },
+          },
+        },
+        ChangeOrganizationMemberRole: {
+          type: "object",
+          additionalProperties: false,
+          required: ["role"],
+          properties: {
+            role: { $ref: "#/components/schemas/OrganizationRole" },
+          },
+        },
+        DeviceApproval: {
+          type: "object",
+          required: ["user_code"],
+          properties: {
+            user_code: { type: "string", minLength: 1 },
+            organization_id: { type: "string" },
+          },
+        },
+        DeviceApprovalResult: {
+          type: "object",
+          required: ["ok", "status", "body"],
+          properties: {
+            ok: { type: "boolean" },
+            status: { type: "integer", minimum: 100, maximum: 599 },
+            body: {},
+          },
+        },
+      },
       securitySchemes: {
         bearerAuth: { type: "http", scheme: "bearer" },
         provisionalCookie: {

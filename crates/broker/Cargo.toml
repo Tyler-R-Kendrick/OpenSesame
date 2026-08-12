@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 opensesame-domain = { path = "../domain" }
+opensesame-redaction = { path = "../redaction" }
 opensesame-authz = { path = "../authz" }
 opensesame-audit = { path = "../audit" }
 opensesame-storage = { path = "../storage" }

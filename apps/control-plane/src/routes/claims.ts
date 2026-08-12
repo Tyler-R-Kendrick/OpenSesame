@@ -1,6 +1,5 @@
-import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { Hono } from "hono";
 import { appendAuditEvent } from "@opensesame/audit";
+import type { CompleteDecision } from "@opensesame/claims";
 import {
   ClaimSessionResponseSchema,
   CompleteClaimRequestSchema,
@@ -9,28 +8,34 @@ import {
   PresentClaimRequestSchema,
 } from "@opensesame/contracts";
 import {
+  applySlowDown,
+  evaluateDevicePoll,
+  initialPollInterval,
+} from "@opensesame/device-auth";
+import {
+  type ClaimSession,
   DomainError,
   parseClaimToken,
   verifyClaimToken,
-  type ClaimItem,
-  type ClaimSession,
+  verifyUserCode,
 } from "@opensesame/os-domain";
-import type { CompleteDecision } from "@opensesame/claims";
-import {
-  evaluateDevicePoll,
-  initialPollInterval,
-  applySlowDown,
-} from "@opensesame/device-auth";
+import { Hono } from "hono";
 import type { Context } from "hono";
-import type { Variables } from "../middleware/context.js";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
+import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import {
   claimPageSecurityHeaders,
   escapeHtml,
 } from "../middleware/security-headers.js";
+import { authenticatedPrincipalId } from "./organizations.js";
 
-function toClaimResponse(session: ClaimSession, items?: readonly ClaimItem[]) {
+/** Wrong user codes tolerated per claim before approval is refused outright. */
+const MAX_CLAIM_APPROVAL_ATTEMPTS = 5;
+
+function toClaimResponse(session: ClaimSession) {
   return ClaimSessionResponseSchema.parse({
     id: session.id,
     type: session.type,
@@ -41,25 +46,13 @@ function toClaimResponse(session: ClaimSession, items?: readonly ClaimItem[]) {
     ...(session.completedByPrincipalId !== undefined
       ? { completedByPrincipalId: session.completedByPrincipalId }
       : {}),
-    // A reviewer cannot accept by id without being told the ids.
-    ...(items
-      ? {
-          items: items.map((item) => ({
-            id: item.id,
-            targetType: item.targetType,
-            targetId: item.targetId,
-            requestedAction: item.requestedAction,
-            required: item.required,
-            dependencies: item.dependencies,
-            state: item.state,
-          })),
-        }
-      : {}),
   });
 }
 
 /** Claim status surfaces require the claim bearer (id alone must not reveal state). */
-function extractClaimToken(c: Context<{ Variables: Variables }>): string | null {
+function extractClaimToken(
+  c: Context<{ Variables: Variables }>,
+): string | null {
   const header = c.req.header("x-claim-token");
   if (header?.startsWith("osc_clm_")) return header;
   const auth = c.req.header("authorization");
@@ -88,10 +81,35 @@ async function loadClaimWithToken(
   }
   const ctx = c.get("ctx");
   const session = await ctx.claims.get(id);
-  if (!session || !verifyClaimToken(ctx.config.claimPepper, token, session.tokenDigest)) {
+  if (
+    !session ||
+    !verifyClaimToken(ctx.config.claimPepper, token, session.tokenDigest)
+  ) {
     return c.json({ error: "invalid_claim_token" }, 401);
   }
   return session;
+}
+
+/** A refused approval is the event a reviewer needs; success alone shows nothing. */
+async function auditClaimDenial(
+  ctx: AppContext,
+  input: {
+    claimId: string;
+    principalId: string;
+    reason: string;
+    correlationId?: string;
+  },
+): Promise<void> {
+  await appendAuditEvent(ctx.repos.auditEvents, {
+    eventType: "claim.complete",
+    outcome: "denied",
+    principalId: input.principalId,
+    claimId: input.claimId,
+    ...(input.correlationId !== undefined
+      ? { correlationId: input.correlationId }
+      : {}),
+    metadata: { action: "claim.complete", reason: input.reason },
+  });
 }
 
 function domainErrorStatus(err: DomainError): ContentfulStatusCode {
@@ -123,10 +141,13 @@ claimRoutes.post(
   idempotencyMiddleware("claims.create"),
   async (c) => {
     const ctx = c.get("ctx");
-    const principalId = c.get("principalId")!;
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
     const parsed = CreateClaimRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
-      return c.json({ error: "validation_error", details: parsed.error.flatten() }, 400);
+      return c.json(
+        { error: "validation_error", details: parsed.error.flatten() },
+        400,
+      );
     }
 
     const created = await ctx.claims.createClaim({
@@ -172,22 +193,27 @@ claimRoutes.post(
 claimRoutes.get("/:id", async (c) => {
   const loaded = await loadClaimWithToken(c, c.req.param("id"));
   if (loaded instanceof Response) return loaded;
-  const items = await c.get("ctx").claims.getItems(loaded.id);
-  return c.json(toClaimResponse(loaded, items));
+  return c.json(toClaimResponse(loaded));
 });
 
 claimRoutes.post("/present", async (c) => {
   const ctx = c.get("ctx");
   const parsed = PresentClaimRequestSchema.safeParse(await c.req.json());
   if (!parsed.success) {
-    return c.json({ error: "validation_error", details: parsed.error.flatten() }, 400);
+    return c.json(
+      { error: "validation_error", details: parsed.error.flatten() },
+      400,
+    );
   }
   const parts = parseClaimToken(parsed.data.token);
   if (!parts) {
     return c.json({ error: "invalid_token" }, 401);
   }
   try {
-    const session = await ctx.claims.presentClaim(parts.publicId, parsed.data.token);
+    const session = await ctx.claims.presentClaim(
+      parts.publicId,
+      parsed.data.token,
+    );
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "claim.presented",
       outcome: "succeeded",
@@ -198,11 +224,13 @@ claimRoutes.post("/present", async (c) => {
       correlationId: c.get("correlationId"),
       metadata: { action: "claim.present", state: session.state },
     });
-    const items = await ctx.claims.getItems(session.id);
-    return c.json(toClaimResponse(session, items));
+    return c.json(toClaimResponse(session));
   } catch (err) {
     if (err instanceof DomainError) {
-      return c.json({ error: err.code, message: err.message }, domainErrorStatus(err));
+      return c.json(
+        { error: err.code, message: err.message },
+        domainErrorStatus(err),
+      );
     }
     throw err;
   }
@@ -211,28 +239,16 @@ claimRoutes.post("/present", async (c) => {
 claimRoutes.post(
   "/:id/complete",
   requirePrincipal(),
-  // Completing is gated on the claim bearer, so replay must be too.
-  idempotencyMiddleware("claims.complete", { bindClaimToken: true }),
+  idempotencyMiddleware("claims.complete"),
   async (c) => {
     const ctx = c.get("ctx");
-    const principalId = c.get("principalId")!;
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
     const id = c.req.param("id");
     const parsed = CompleteClaimRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
-      return c.json({ error: "validation_error", details: parsed.error.flatten() }, 400);
-    }
-
-    // The claim bearer is required as well as a principal. A public claim id is
-    // not a secret, and without this any authenticated principal could take
-    // ownership of a claim someone else presented.
-    const claimToken = extractClaimToken(c);
-    if (!claimToken) {
       return c.json(
-        {
-          error: "unauthorized",
-          hint: "X-Claim-Token or Bearer osc_clm_… required to complete a claim",
-        },
-        401,
+        { error: "validation_error", details: parsed.error.flatten() },
+        400,
       );
     }
 
@@ -240,12 +256,50 @@ claimRoutes.post(
     try {
       let session = await ctx.claims.get(id);
       if (!session) return c.json({ error: "not_found" }, 404);
-      if (!verifyClaimToken(ctx.config.claimPepper, claimToken, session.tokenDigest)) {
-        return c.json({ error: "invalid_claim_token" }, 401);
+
+      // Approval is the human consent step. Being *some* authenticated principal
+      // proves nothing about the device being claimed, so require the user code
+      // it displayed, with a per-claim attempt fence behind it.
+      const attempts = ctx.stores.claimApprovalAttempts.get(id) ?? 0;
+      if (attempts >= MAX_CLAIM_APPROVAL_ATTEMPTS) {
+        await auditClaimDenial(ctx, {
+          claimId: id,
+          principalId,
+          reason: "too_many_attempts",
+          correlationId: c.get("correlationId"),
+        });
+        return c.json({ error: "too_many_attempts" }, 429);
       }
+      if (
+        !session.userCodeDigest ||
+        !verifyUserCode(
+          ctx.config.claimPepper,
+          id,
+          parsed.data.userCode,
+          session.userCodeDigest,
+        )
+      ) {
+        ctx.stores.claimApprovalAttempts.set(id, attempts + 1);
+        // Guesses against a ~40-bit user code are the attack this fence exists for,
+        // and a trail of successes only would show none of them.
+        await auditClaimDenial(ctx, {
+          claimId: id,
+          principalId,
+          reason: "invalid_user_code",
+          correlationId: c.get("correlationId"),
+        });
+        return c.json({ error: "invalid_user_code" }, 401);
+      }
+      ctx.stores.claimApprovalAttempts.delete(id);
 
       if (session.state === "pending") {
-        return c.json({ error: "INVALID_TRANSITION", message: "Claim must be presented first" }, 422);
+        return c.json(
+          {
+            error: "INVALID_TRANSITION",
+            message: "Claim must be presented first",
+          },
+          422,
+        );
       }
       if (session.state === "presented") {
         session = await ctx.claims.authenticateClaim(id);
@@ -277,20 +331,26 @@ claimRoutes.post(
       // Preserve principal / project ids from target manifest on completion
       const manifest = result.session.targetManifest;
       const projectId =
-        typeof manifest["projectId"] === "string" ? manifest["projectId"] : undefined;
+        typeof manifest.projectId === "string" ? manifest.projectId : undefined;
       if (projectId) {
         const project = ctx.stores.projects.get(projectId);
         if (project && project.state === "provisional") {
+          const now = ctx.clock();
+          // A claim can be completed after the project it names has run out of
+          // time. Activating it then would hand back a project that is past its
+          // own TTL and that nothing will expire again.
+          const lapsed =
+            project.expiresAt !== undefined && project.expiresAt <= now;
           ctx.stores.projects.set(projectId, {
             ...project,
-            state: "active",
-            updatedAt: ctx.clock(),
+            state: lapsed ? "expired" : "active",
+            updatedAt: now,
             ownerPrincipalId: project.ownerPrincipalId ?? principalId,
           });
         }
       }
       const agentId =
-        typeof manifest["agentId"] === "string" ? manifest["agentId"] : undefined;
+        typeof manifest.agentId === "string" ? manifest.agentId : undefined;
       if (agentId) {
         const agent = ctx.stores.agents.get(agentId);
         if (agent && agent.state === "provisional") {
@@ -317,8 +377,8 @@ claimRoutes.post(
         won: result.won,
         preserved: {
           principalId:
-            typeof manifest["ownerPrincipalId"] === "string"
-              ? manifest["ownerPrincipalId"]
+            typeof manifest.ownerPrincipalId === "string"
+              ? manifest.ownerPrincipalId
               : principalId,
           ...(projectId !== undefined ? { projectId } : {}),
           ...(agentId !== undefined ? { agentId } : {}),
@@ -326,7 +386,10 @@ claimRoutes.post(
       });
     } catch (err) {
       if (err instanceof DomainError) {
-        return c.json({ error: err.code, message: err.message }, domainErrorStatus(err));
+        return c.json(
+          { error: err.code, message: err.message },
+          domainErrorStatus(err),
+        );
       }
       throw err;
     }
@@ -335,7 +398,7 @@ claimRoutes.post(
 
 claimRoutes.post("/:id/deny", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   try {
     const existing = await ctx.claims.get(c.req.param("id"));
     if (!existing) return c.json({ error: "not_found" }, 404);
@@ -357,7 +420,10 @@ claimRoutes.post("/:id/deny", requirePrincipal(), async (c) => {
     return c.json(toClaimResponse(session));
   } catch (err) {
     if (err instanceof DomainError) {
-      return c.json({ error: err.code, message: err.message }, domainErrorStatus(err));
+      return c.json(
+        { error: err.code, message: err.message },
+        domainErrorStatus(err),
+      );
     }
     throw err;
   }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { approveDeviceAuth, fixtures } from "@opensesame/os-domain";
+import {
+  approveDeviceAuth,
+  consumeDeviceAuth,
+  fixtures,
+} from "@opensesame/os-domain";
 import {
   applySlowDown,
   evaluateDevicePoll,
@@ -55,5 +59,17 @@ describe("device-auth projections", () => {
     });
     const r3 = evaluateDevicePoll(expired, () => fixtures.now);
     expect(r3.error).toBe("expired_token");
+  });
+
+  it("refuses a device code that was already redeemed", () => {
+    const approved = approveDeviceAuth(
+      fixtures.pendingDeviceAuth(),
+      "prn_x",
+      fixtures.now,
+    );
+    const consumed = consumeDeviceAuth(approved, fixtures.now);
+    const r = evaluateDevicePoll(consumed, () => fixtures.now);
+    // One approval, one token exchange.
+    expect(r.error).toBe("invalid_grant");
   });
 });

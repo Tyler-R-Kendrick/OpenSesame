@@ -21,21 +21,10 @@ cargo run -p opensesame-gateway -- \
   --listen 127.0.0.1:18787
 ```
 
-The Host uses the Turso embedded engine and persists to
-`.tools/run/opensesame.db` by default. Override the local file with
-`OPENSESAME_DB=/path/to/opensesame.db`.
-
-To sync that embedded database to a self-hosted Turso server:
-
-```bash
-tursodb .tools/run/opensesame-primary.db --sync-server 127.0.0.1:8080
-OPENSESAME_TURSO_URL=http://127.0.0.1:8080 \
-  cargo run -p opensesame-gateway
-```
-
-Set `OPENSESAME_TURSO_AUTH_TOKEN` only when the remote requires it. The local
-embedded database remains authoritative while temporarily offline and retries
-push/pull every five seconds.
+The Pages PWA embeds Turso WASM in the browser and persists its connector cache
+to OPFS. It needs no database service. Admins can optionally set a remote Turso
+sync URL in Pages **Settings**; the auth token is kept only for the current tab.
+The Host remains the credential authority and does not put secrets in this cache.
 
 Full live drill: `./scripts/live-stack-test.sh`
 
@@ -78,6 +67,32 @@ curl -X POST http://127.0.0.1:8787/api/v1/admin/authority \
 
 Device approve and claim complete also require the same operator header (or `Authorization: Bearer operator:<token>`). Set `OPENSESAME_OPERATOR_TOKEN` in production — the `opensesame-dev-operator` default is local-only.
 
+Set `OPENSESAME_CLAIM_PEPPER` in production too. User codes are eight characters
+from a twenty-letter alphabet — roughly 2^35 possibilities — so their stored
+digests are only out of reach while they are keyed by a server-held pepper. The
+Host logs an error and runs without one if it is unset in production.
+
+### Receipt signing key
+
+Receipts are the non-repudiation record and the receipt store outlives the process,
+so the signing key must too. Set `OPENSESAME_RECEIPT_SIGNING_KEY` to a base64
+32-byte ed25519 seed; the gateway refuses to start without it when
+`OPENSESAME_ENV=production`, because an ephemeral key makes every receipt written
+before a restart verify as `valid: false` — indistinguishable from tampering.
+
+```bash
+export OPENSESAME_RECEIPT_SIGNING_KEY="$(openssl rand -base64 32)"
+```
+
+Locally the key may be omitted; the gateway logs a warning and generates one per run.
+
+To rotate, move the old key's *public* half into
+`OPENSESAME_RECEIPT_VERIFY_KEYS` (comma-separated base64 32-byte ed25519 public
+keys) and set a new `OPENSESAME_RECEIPT_SIGNING_KEY`. Verification needs no secret,
+so the retired seed can be destroyed while the receipts it signed stay verifiable.
+`GET /api/v1/receipts/keys` publishes the accepted keys so a receipt holder can
+check one without taking the gateway's word for it.
+
 ## Compose (when Docker available)
 
 See `deploy/compose/docker-compose.yml` for Keycloak, Postgres, OpenFGA, OpenBao, NATS, gateway, worker, callback-edge.
@@ -106,8 +121,13 @@ OpenSesame is a **resolver/broker**, not exclusive shell magic — mise/direnv/d
 
 Host credential-agent (`OPENSESAME_AGENT_URL`, default `127.0.0.1:18790`) issues short-lived session capabilities into WSL/devcontainers; containers do not receive refresh tokens or WebAuthn material.
 
+It is superseded by `opensesame-daemon`: it refuses to start without
+`OPENSESAME_LEGACY_CREDENTIAL_AGENT=1`, and every `/v1/*` route requires the
+operator bearer, since any co-resident process can reach loopback.
+
 ```bash
-cargo run -p opensesame-credential-agent
+OPENSESAME_LEGACY_CREDENTIAL_AGENT=1 cargo run -p opensesame-credential-agent
 curl -s -X POST http://127.0.0.1:18790/v1/mint_capability \
+  -H "authorization: Bearer operator:${OPENSESAME_OPERATOR_TOKEN}" \
   -H 'content-type: application/json' -d '{"audience":"devcontainer"}'
 ```

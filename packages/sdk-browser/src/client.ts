@@ -1,4 +1,3 @@
-import { ClaimRequestError } from "./errors.js";
 import { createPkcePair } from "./pkce.js";
 import type {
   ClaimDecision,
@@ -62,24 +61,138 @@ function trimSlash(url: string): string {
   return url.replace(/\/+$/u, "");
 }
 
-function toSession(tokens: TokenResponse, anonymous: boolean): Session {
+function isLoopbackHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost")) return true;
+  if (host === "::1") return true;
+  return /^127(?:\.\d{1,3}){3}$/u.test(host);
+}
+
+/**
+ * Every URL this client sends a code, a verifier, or a token to must be one an
+ * onlooker cannot rewrite. http is tolerated only on loopback, where the
+ * development server lives.
+ */
+export function assertSecureUrl(raw: string, what: string): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`${what} must be an absolute URL`);
+  }
+  if (url.protocol === "https:") return raw;
+  if (url.protocol === "http:" && isLoopbackHost(url.hostname)) return raw;
+  throw new Error(`${what} must use https (http is allowed only on loopback)`);
+}
+
+/** Hosts that only mean something inside the user's own network. */
+function isPrivateHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  if (isLoopbackHost(host)) return true;
+  if (host === "0.0.0.0" || host === "::") return true;
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/u.exec(host);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    if (a === 10 || a === 127 || a === 0) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    return false;
+  }
+  if (/^f[cd][0-9a-f]{2}:/u.test(host)) return true;
+  if (/^fe[89ab][0-9a-f]:/u.test(host)) return true;
+  return host.endsWith(".internal") || host.endsWith(".local");
+}
+
+/**
+ * An endpoint the issuer named, rather than one the application configured.
+ *
+ * Cleartext on loopback is the right affordance for a value the app wrote and the
+ * wrong one for a value a remote issuer supplies: it lets that issuer aim the
+ * ceremony — the authorization redirect, or the POST carrying the code and
+ * verifier — at something listening on the user's own machine. A discovered
+ * endpoint may only name private space when the issuer is itself private.
+ */
+export function assertDiscoveredUrl(
+  raw: string,
+  what: string,
+  issuer: string,
+): string {
+  const checked = assertSecureUrl(raw, what);
+  let issuerHost: string;
+  try {
+    issuerHost = new URL(issuer).hostname;
+  } catch {
+    throw new Error("issuer must be an absolute URL");
+  }
+  if (isPrivateHost(issuerHost)) return checked;
+  if (isPrivateHost(new URL(checked).hostname)) {
+    throw new Error(
+      `${what} names a private or loopback host, but the issuer is remote`,
+    );
+  }
+  return checked;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | undefined {
+  const part = token.split(".")[1];
+  if (!part) return undefined;
+  try {
+    return JSON.parse(
+      atob(part.replace(/-/g, "+").replace(/_/g, "/")),
+    ) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * What the client is required to check about an id_token it asked for.
+ *
+ * The browser cannot verify the signature, so the access token — not this — is
+ * the authority. But an id_token whose audience, issuer, or nonce is not the one
+ * this ceremony asked for is somebody else's token, and caching a `sub` from it
+ * would hand the application the wrong identity.
+ */
+function assertIdTokenAddressedToUs(
+  idToken: string,
+  expect: { issuer: string; clientId: string; nonce?: string },
+): Record<string, unknown> | undefined {
+  const payload = decodeJwtPayload(idToken);
+  if (!payload) return undefined;
+  const iss =
+    typeof payload.iss === "string" ? trimSlash(payload.iss) : undefined;
+  if (iss !== undefined && iss !== expect.issuer) {
+    throw new Error("id_token issued by a different issuer");
+  }
+  const aud = payload.aud;
+  const audiences = Array.isArray(aud)
+    ? aud.map(String)
+    : typeof aud === "string"
+      ? [aud]
+      : [];
+  if (audiences.length > 0 && !audiences.includes(expect.clientId)) {
+    throw new Error("id_token addressed to a different client");
+  }
+  if (expect.nonce !== undefined && payload.nonce !== expect.nonce) {
+    throw new Error("id_token nonce mismatch");
+  }
+  return payload;
+}
+
+function toSession(
+  tokens: TokenResponse,
+  anonymous: boolean,
+  expect: { issuer: string; clientId: string; nonce?: string },
+): Session {
   const expiresAt =
     typeof tokens.expires_in === "number"
       ? Date.now() + tokens.expires_in * 1000
       : undefined;
   let sub: string | undefined;
   if (tokens.id_token) {
-    try {
-      const payload = tokens.id_token.split(".")[1];
-      if (payload) {
-        const json = JSON.parse(
-          atob(payload.replace(/-/g, "+").replace(/_/g, "/")),
-        ) as { sub?: string };
-        sub = json.sub;
-      }
-    } catch {
-      // ignore malformed id_token for session cache
-    }
+    const payload = assertIdTokenAddressedToUs(tokens.id_token, expect);
+    sub = typeof payload?.sub === "string" ? payload.sub : undefined;
   }
   const session: Session = {
     accessToken: tokens.access_token,
@@ -98,6 +211,7 @@ export function createOpenSesame(
   config: OpenSesameBrowserConfig,
 ): OpenSesameBrowserClient {
   const issuer = trimSlash(config.issuer);
+  assertSecureUrl(issuer, "issuer");
   const clientId = config.clientId ?? "opensesame-browser";
   const redirectUri =
     config.redirectUri ??
@@ -107,7 +221,10 @@ export function createOpenSesame(
   const scopes = (config.scopes ?? ["openid", "profile"]).join(" ");
   const storage = resolveStorage(config.storage);
   const fetchImpl = config.fetchImpl ?? fetch;
-  const apiBase = trimSlash(config.apiBase ?? issuer);
+  const apiBase = assertSecureUrl(
+    trimSlash(config.apiBase ?? issuer),
+    "apiBase",
+  );
   let discoveryCache: OidcDiscoveryDocument | undefined;
 
   async function discovery(): Promise<OidcDiscoveryDocument> {
@@ -116,18 +233,34 @@ export function createOpenSesame(
     if (!res.ok) {
       throw new Error(`OIDC discovery failed: ${res.status}`);
     }
-    discoveryCache = (await res.json()) as OidcDiscoveryDocument;
+    const meta = (await res.json()) as OidcDiscoveryDocument;
+    // The discovery document decides where the code and the verifier are sent.
+    // An issuer that does not name itself, or an endpoint reachable over
+    // cleartext, is a document that hands the ceremony to whoever answered.
+    if (trimSlash(meta.issuer ?? "") !== issuer) {
+      throw new Error(
+        "OIDC discovery issuer does not match the configured issuer",
+      );
+    }
+    assertDiscoveredUrl(
+      meta.authorization_endpoint,
+      "authorization_endpoint",
+      issuer,
+    );
+    assertDiscoveredUrl(meta.token_endpoint, "token_endpoint", issuer);
+    if (meta.end_session_endpoint) {
+      assertDiscoveredUrl(
+        meta.end_session_endpoint,
+        "end_session_endpoint",
+        issuer,
+      );
+    }
+    discoveryCache = meta;
     return discoveryCache;
   }
 
   /** In-tab refresh token; never written to StorageLike. */
   let refreshTokenMemory: string | undefined;
-  /**
-   * Claim bearers seen by `presentClaim`, kept only until the claim is completed.
-   * Never written to storage: a claim token is a credential, and the id returned
-   * with a presented claim is not one.
-   */
-  const presentedTokens = new Map<string, string>();
 
   function saveSession(session: Session): void {
     if (session.refreshToken) {
@@ -154,6 +287,7 @@ export function createOpenSesame(
   async function exchangeCode(
     code: string,
     codeVerifier: string,
+    nonce: string | undefined,
   ): Promise<Session> {
     const meta = await discovery();
     const body = new URLSearchParams({
@@ -172,7 +306,11 @@ export function createOpenSesame(
       throw new Error(`Token exchange failed: ${res.status}`);
     }
     const tokens = (await res.json()) as TokenResponse;
-    const session = toSession(tokens, false);
+    const session = toSession(tokens, false, {
+      issuer,
+      clientId,
+      ...(nonce ? { nonce } : {}),
+    });
     saveSession(session);
     return session;
   }
@@ -216,6 +354,7 @@ export function createOpenSesame(
       const url = new URL(href);
       const error = url.searchParams.get("error");
       if (error) {
+        storage.removeItem(PKCE_KEY);
         throw new Error(`Authorization error: ${error}`);
       }
       const code = url.searchParams.get("code");
@@ -224,21 +363,28 @@ export function createOpenSesame(
       if (!code || !state || !rawPkce) {
         throw new Error("Missing authorization code or PKCE state");
       }
-      const pkce = JSON.parse(rawPkce) as {
-        state: string;
-        codeVerifier: string;
-      };
+      let pkce: { state: string; codeVerifier: string; nonce?: string };
+      try {
+        pkce = JSON.parse(rawPkce) as {
+          state: string;
+          codeVerifier: string;
+          nonce?: string;
+        };
+      } catch {
+        storage.removeItem(PKCE_KEY);
+        throw new Error("Stored PKCE state is unreadable");
+      }
+      // One verifier, one callback. A verifier left in storage after a failed or
+      // refused callback is one a second attempt can still spend.
+      storage.removeItem(PKCE_KEY);
       if (pkce.state !== state) {
         throw new Error("OAuth state mismatch");
       }
-      storage.removeItem(PKCE_KEY);
-      return exchangeCode(code, pkce.codeVerifier);
+      return exchangeCode(code, pkce.codeVerifier, pkce.nonce);
     },
 
     async continueAnonymously() {
-      // The control plane mounts provisional sessions here, and answers with its
-      // own shape rather than an OAuth token response.
-      const res = await fetchImpl(`${apiBase}/v1/principals/provisional`, {
+      const res = await fetchImpl(`${apiBase}/v1/principals/anonymous`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -247,29 +393,10 @@ export function createOpenSesame(
         body: JSON.stringify({ clientId }),
       });
       if (!res.ok) {
-        throw new Error(`Provisional session failed: ${res.status}`);
+        throw new Error(`Anonymous session failed: ${res.status}`);
       }
-      const body = (await res.json()) as {
-        accessToken?: string;
-        expiresAt?: string;
-        principalId?: string;
-        tokenType?: string;
-      };
-      if (!body.accessToken) {
-        throw new Error("Provisional session returned no access token");
-      }
-      const expiresAt =
-        body.expiresAt !== undefined ? Date.parse(body.expiresAt) : Number.NaN;
-      const session: Session = {
-        accessToken: body.accessToken,
-        anonymous: true,
-        raw: {
-          access_token: body.accessToken,
-          token_type: body.tokenType ?? "Bearer",
-        },
-      };
-      if (Number.isFinite(expiresAt)) session.expiresAt = expiresAt;
-      if (body.principalId !== undefined) session.sub = body.principalId;
+      const tokens = (await res.json()) as TokenResponse;
+      const session = toSession(tokens, true, { issuer, clientId });
       saveSession(session);
       return session;
     },
@@ -299,44 +426,28 @@ export function createOpenSesame(
         body: JSON.stringify({ token }),
       });
       if (!res.ok) {
-        throw new ClaimRequestError(
-          `presentClaim failed: ${res.status}`,
-          res.status,
-        );
+        throw new Error(`presentClaim failed: ${res.status}`);
       }
-      const presented = (await res.json()) as ClaimPresentation;
-      // Completing needs the claim bearer as well as a principal, and the id in
-      // the response is not one. Held in memory for this client only.
-      presentedTokens.set(presented.id, token);
-      return presented;
+      return (await res.json()) as ClaimPresentation;
     },
 
     async readClaim(claimId, claimToken) {
       const res = await fetchImpl(`${apiBase}/v1/claims/${claimId}`, {
-        headers: { accept: "application/json", "x-claim-token": claimToken },
+        headers: {
+          accept: "application/json",
+          "x-claim-token": claimToken,
+        },
       });
       if (!res.ok) {
-        throw new ClaimRequestError(
-          `readClaim failed: ${res.status}`,
-          res.status,
-        );
+        throw new Error(`readClaim failed: ${res.status}`);
       }
-      const claim = (await res.json()) as ClaimPresentation;
-      // Reading proves the bearer, so completing can follow without repeating it.
-      presentedTokens.set(claim.id, claimToken);
-      return claim;
+      return (await res.json()) as ClaimPresentation;
     },
 
     async completeClaim(claimId, decision: ClaimDecision) {
       const session = readSession();
       if (!session) {
         throw new Error("Authentication required to complete claim");
-      }
-      const claimToken = decision.claimToken ?? presentedTokens.get(claimId);
-      if (!claimToken) {
-        throw new Error(
-          "Claim token required to complete claim — present it with this client, or pass claimToken",
-        );
       }
       const body: Record<string, unknown> = {
         acceptedItemIds: decision.acceptedItemIds,
@@ -352,19 +463,12 @@ export function createOpenSesame(
           "content-type": "application/json",
           accept: "application/json",
           authorization: `Bearer ${session.accessToken}`,
-          "x-claim-token": claimToken,
         },
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        throw new ClaimRequestError(
-          `completeClaim failed: ${res.status}`,
-          res.status,
-        );
+        throw new Error(`completeClaim failed: ${res.status}`);
       }
-      // Single-use: nothing else can be done with it, and holding it only widens
-      // the window in which it could leak.
-      presentedTokens.delete(claimId);
       return (await res.json()) as ClaimPresentation;
     },
 

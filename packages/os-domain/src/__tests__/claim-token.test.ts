@@ -52,11 +52,29 @@ describe("user codes", () => {
     expect(body.split("").every((c) => CROCKFORD_ALPHABET.includes(c))).toBe(
       true,
     );
-    const digest = digestUserCode(fixtures.pepper, code);
-    expect(verifyUserCode(fixtures.pepper, code, digest)).toBe(true);
-    expect(verifyUserCode(fixtures.pepper, normalizeUserCode(code.toLowerCase()), digest)).toBe(
-      true,
+    const digest = digestUserCode(fixtures.pepper, "clm_1", code);
+    expect(verifyUserCode(fixtures.pepper, "clm_1", code, digest)).toBe(true);
+    expect(
+      verifyUserCode(
+        fixtures.pepper,
+        "clm_1",
+        normalizeUserCode(code.toLowerCase()),
+        digest,
+      ),
+    ).toBe(true);
+    expect(verifyUserCode(fixtures.pepper, "clm_1", "XXXX-XXXX", digest)).toBe(false);
+  });
+
+  it("binds the digest to one claim", () => {
+    const code = generateUserCode();
+    const forOne = digestUserCode(fixtures.pepper, "clm_1", code);
+    const forAnother = digestUserCode(fixtures.pepper, "clm_2", code);
+    // A ~40-bit code with a shared label meant one precomputation covered every
+    // claim ever issued; per-claim binding makes each its own search.
+    expect(constantTimeEqual(forOne, forAnother)).toBe(false);
+    expect(verifyUserCode(fixtures.pepper, "clm_2", code, forOne)).toBe(false);
+    expect(() => digestUserCode(fixtures.pepper, "", code)).toThrow(
+      /requires the claim id/,
     );
-    expect(verifyUserCode(fixtures.pepper, "XXXX-XXXX", digest)).toBe(false);
   });
 });

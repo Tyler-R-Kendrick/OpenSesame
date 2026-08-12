@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::app_state::AppState;
-use crate::middleware::auth::{caller, require_demo_bootstrap, Caller};
+use crate::middleware::auth::{require_demo_bootstrap, resolve_caller, resolve_caller_subject};
 
 #[derive(Deserialize)]
 pub struct InvokeBody {
@@ -31,6 +31,19 @@ pub struct InvokeBody {
     /// 1=typed, 2=constrained HTTP, 3=materialize (denied by default).
     #[serde(default)]
     invoke_level: Option<u8>,
+    /// Present when the caller believes it is executing under task authority.
+    #[serde(default)]
+    task_run_id: Option<String>,
+    #[serde(default)]
+    intent_digest: Option<String>,
+}
+
+/// True when the caller claims task authority, in headers or body.
+fn claims_task_authority(body: &InvokeBody, headers: &axum::http::HeaderMap) -> bool {
+    body.task_run_id.is_some()
+        || body.intent_digest.is_some()
+        || headers.contains_key("x-opensesame-task-run-id")
+        || headers.contains_key("x-opensesame-intent-digest")
 }
 
 pub async fn create(
@@ -38,15 +51,35 @@ pub async fn create(
     headers: axum::http::HeaderMap,
     Json(body): Json<InvokeBody>,
 ) -> Response {
-    let who = match caller(&st, &headers) {
-        Ok(c) => c,
+    // This route builds an intent from the request body, so it cannot honour a
+    // task ceiling or a frozen digest. Accepting those fields anyway would let a
+    // task-bound agent execute outside what it froze while looking fenced.
+    if claims_task_authority(&body, &headers) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "task_authority_requires_frozen_invoke",
+                "detail": "Freeze at POST /api/v1/tasks/intents, then execute at POST /api/v1/tasks/invoke",
+                "type": "about:blank"
+            })),
+        )
+            .into_response();
+    }
+    let subject = match resolve_caller_subject(&st, &headers) {
+        Ok(s) => s,
         Err(resp) => return resp,
     };
-    let subject = who.subject();
     let boot = match require_demo_bootstrap(&st) {
         Ok(b) => b,
         Err(resp) => return resp,
     };
+    let caller = match resolve_caller(&st, &headers) {
+        Ok(caller) => caller,
+        Err(resp) => return resp,
+    };
+    if !caller.in_organization(&boot.org) {
+        return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
+    }
     let parameters = body.parameters.unwrap_or_else(|| json!({}));
     let default_ref = st
         .connection_ref
@@ -91,11 +124,11 @@ pub async fn create(
                     .into_response();
             }
             Err(e) => {
+                // The transport error can embed the store URL and its bearer.
+                tracing::warn!(error = %e, "openfga check failed");
                 return (
                     StatusCode::SERVICE_UNAVAILABLE,
-                    Json(
-                        json!({"error": format!("openfga_unavailable: {e}"), "type":"about:blank"}),
-                    ),
+                    Json(json!({"error": "openfga_unavailable", "type":"about:blank"})),
                 )
                     .into_response();
             }
@@ -120,11 +153,8 @@ pub async fn create(
     let param_hash = match Intent::parameters_hash(&parameters) {
         Ok(h) => h,
         Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error": e.to_string()})),
-            )
-                .into_response();
+            let msg = opensesame_redaction::redact_text(&e.to_string());
+            return (StatusCode::BAD_REQUEST, Json(json!({"error": msg}))).into_response();
         }
     };
     let now = Utc::now();
@@ -165,20 +195,13 @@ pub async fn create(
         .invoke(InvokeInput {
             intent,
             grant: boot.grant.clone(),
-            subject: subject.clone(),
+            subject,
             connection_policy_id: "demo-conn".into(),
             parameters,
         })
         .await
     {
         Ok(receipt) => {
-            // Record who this receipt belongs to before its id is handed out, so
-            // reading it later is scoped to the caller that caused it.
-            if let Caller::Session(_) = &who {
-                if let Ok(mut owners) = st.receipt_owners.lock() {
-                    owners.insert(receipt.id.to_string(), subject);
-                }
-            }
             let mut body = serde_json::to_value(&receipt).unwrap_or(json!({}));
             if let Some(obj) = body.as_object_mut() {
                 if let Some(connection_ref) = &st.connection_ref {
@@ -197,5 +220,91 @@ pub async fn create(
             )
                 .into_response()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::{HeaderMap, HeaderValue};
+
+    fn body() -> InvokeBody {
+        InvokeBody {
+            connection_ref: None,
+            connection: None,
+            operation: "read".into(),
+            resource: "doc:1".into(),
+            audience: None,
+            parameters: None,
+            idempotency_key: None,
+            invoke_level: None,
+            task_run_id: None,
+            intent_digest: None,
+        }
+    }
+
+    #[test]
+    fn a_plain_invoke_is_not_task_bound() {
+        assert!(!claims_task_authority(&body(), &HeaderMap::new()));
+    }
+
+    #[test]
+    fn task_fields_in_the_body_are_detected() {
+        let mut b = body();
+        b.task_run_id = Some("tsk_1".into());
+        assert!(claims_task_authority(&b, &HeaderMap::new()));
+        let mut b = body();
+        b.intent_digest = Some("sha256:abc".into());
+        assert!(claims_task_authority(&b, &HeaderMap::new()));
+    }
+
+    #[test]
+    fn task_headers_cannot_smuggle_past_the_body_check() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-opensesame-intent-digest",
+            HeaderValue::from_static("sha256:abc"),
+        );
+        assert!(claims_task_authority(&body(), &headers));
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-opensesame-task-run-id",
+            HeaderValue::from_static("tsk_1"),
+        );
+        assert!(claims_task_authority(&body(), &headers));
+    }
+
+    #[tokio::test]
+    async fn bootstrap_intent_is_hidden_from_another_organization() {
+        let state = crate::app_state::test_demo_state().await;
+        let headers = crate::app_state::test_session_headers(
+            &state,
+            "user:demo",
+            OrganizationId::new(),
+            OrganizationRole::Member,
+        );
+
+        let response = create(State(state), headers, Json(body())).await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn bootstrap_intent_remains_available_to_its_organization() {
+        let state = crate::app_state::test_demo_state().await;
+        let organization_id = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
+        let headers = crate::app_state::test_session_headers(
+            &state,
+            "user:demo",
+            organization_id,
+            OrganizationRole::Member,
+        );
+        let mut request = body();
+        request.operation = "repository.read".into();
+        request.resource = "repo:acme/catalog".into();
+        request.audience = Some("https://api.github.com".into());
+        request.parameters = Some(json!({}));
+
+        let response = create(State(state), headers, Json(request)).await;
+        assert_eq!(response.status(), StatusCode::OK);
     }
 }

@@ -1,7 +1,9 @@
 -- Connection broker state (ADR 0032). The 0001 `connections` table modelled a
 -- connector installation and was never written to; this replaces it with the
--- broker's shape. Safe to drop because the migrator applies each version once.
-DROP TABLE IF EXISTS connections;
+-- broker's shape. Preserve the earlier catalog-install rows for explicit data
+-- migration/audit; their connector-version schema cannot be losslessly coerced
+-- into authorization-bearing broker connections.
+ALTER TABLE connections RENAME TO legacy_connections;
 
 -- organization_id/project_id carry no foreign key: a connection is authority-plane
 -- state and may be created before the control plane has rows for either.
@@ -58,7 +60,7 @@ CREATE INDEX IF NOT EXISTS idx_connection_bindings_connection ON connection_bind
 CREATE TABLE IF NOT EXISTS connection_authorizations (
   state TEXT PRIMARY KEY,
   connection_id TEXT NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
-  code_verifier TEXT NOT NULL,
+  code_verifier BLOB NOT NULL,
   redirect_uri TEXT NOT NULL,
   scopes TEXT NOT NULL,
   created_at TEXT NOT NULL,

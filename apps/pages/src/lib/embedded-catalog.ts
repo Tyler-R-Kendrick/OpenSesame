@@ -178,7 +178,7 @@ function preview(
     category,
     docsUrl,
     authKind,
-    supportsRefresh: id === "openrouter",
+    supportsRefresh: false,
     configured: false,
     missingConfig: [],
     scopes: [],

@@ -54,6 +54,11 @@ export type ReviewClaimRequest = z.infer<typeof ReviewClaimRequestSchema>;
 
 export const CompleteClaimRequestSchema = z.object({
   acceptedItemIds: z.array(z.string()),
+  /**
+   * Code shown by the device being claimed. Approval is a human consent step,
+   * so the approver must prove they are looking at that device.
+   */
+  userCode: z.string().min(4).max(64),
   destination: z.record(z.unknown()).optional(),
   idempotencyKey: z.string().min(8).optional(),
 });

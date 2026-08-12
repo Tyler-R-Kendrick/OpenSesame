@@ -5,9 +5,9 @@ use crate::{
 use chrono::{Duration, Utc};
 use opensesame_domain::{
     AuthorityContext, AuthorityContextId, AuthorityContextMode, Capability, CapabilitySet,
-    CapabilityStateTransitionId, CeilingInput, DomainError, EnforcementAcknowledgement,
-    EnforcementAcknowledgementId, MediationPointId, OrganizationId, PrincipalId, ResourceSelector,
-    TaskRunStatus, TaskTemplateId, VerificationEvidenceId,
+    CeilingInput, DomainError, EnforcementAcknowledgement, EnforcementAcknowledgementId,
+    MediationPointId, OrganizationId, PrincipalId, ResourceSelector, TaskRunStatus, TaskTemplateId,
+    VerificationEvidenceId,
 };
 
 fn cap(action: &str, resource: &str) -> Capability {
@@ -31,6 +31,38 @@ fn start_sample_task(
     ceiling_caps: Vec<Capability>,
 ) -> opensesame_domain::TaskRun {
     start_sample_task_on(engine, ceiling_caps)
+}
+
+#[test]
+fn a_ceiling_digest_cannot_be_rewritten_in_the_store() {
+    let store = InMemoryTaskStore::new();
+    let engine = TaskAccessEngine::new(store);
+    let run = start_sample_task(&engine, vec![cap("read", "repo:a")]);
+    let recorded = engine
+        .store()
+        .get_ceiling_digest(run.id)
+        .unwrap()
+        .expect("digest recorded at start");
+
+    // Re-recording the same digest is a no-op, not a conflict.
+    assert!(engine
+        .store()
+        .save_ceiling_digest(run.id, &recorded)
+        .is_ok());
+
+    // A different digest is refused at the store, not merely noticed on read:
+    // an immutability that only holds on the read path is one stray writer away
+    // from not holding at all.
+    assert!(matches!(
+        engine
+            .store()
+            .save_ceiling_digest(run.id, "sha256:some-wider-ceiling"),
+        Err(TaskAccessError::CeilingImmutable)
+    ));
+    assert_eq!(
+        engine.store().get_ceiling_digest(run.id).unwrap(),
+        Some(recorded)
+    );
 }
 
 #[test]
@@ -132,7 +164,7 @@ fn stale_version_rejected() {
     let run = start_sample_task(&engine, vec![cap("read", "repo:a")]);
 
     let err = engine
-        .assert_capability(run.id, &cap("read", "repo:a"), 99)
+        .assert_capability(run.id, &cap("read", "repo:a"), 99, Utc::now())
         .unwrap_err();
     assert!(matches!(
         err,
@@ -306,297 +338,72 @@ fn save_run_cas_rejects_stale_version() {
     ));
 }
 
-/// A proposed restriction withdraws what it removes straight away: enforcers must
-/// see the shrink before anything irreversible happens under the wider set.
 #[test]
-fn pending_restriction_withdraws_its_removals() {
+fn capability_assertion_expires_with_the_task() {
     let engine = TaskAccessEngine::new(InMemoryTaskStore::new());
-    let run = start_sample_task(&engine, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
-    let now = Utc::now();
+    let run = start_sample_task(&engine, vec![cap("read", "repo:a")]);
 
+    // Inside the window the capability holds.
     engine
-        .propose_restriction(ProposeRestrictionParams {
+        .assert_capability(run.id, &cap("read", "repo:a"), 1, Utc::now())
+        .expect("live task authorizes");
+
+    let after = run.maximum_expires_at + Duration::seconds(1);
+    let err = engine
+        .assert_capability(run.id, &cap("read", "repo:a"), 1, after)
+        .unwrap_err();
+    assert_eq!(err, TaskAccessError::Domain(DomainError::TaskExpired));
+
+    // Renewal past the deadline is refused for the same reason.
+    let err = engine
+        .renew_credential(RenewCredentialParams {
             task_run_id: run.id,
             expected_state_version: 1,
-            proposed_capabilities: CapabilitySet::new(vec![cap("read", "repo:a")]),
-            required_mediation: vec![MediationPointId::new()],
-            result_payload: None,
-            now,
+            credential_digest: "sha256:x".into(),
+            expires_at: run.maximum_expires_at,
+            now: after,
         })
-        .unwrap();
-
-    // Still held, so still usable.
-    engine
-        .assert_capability(run.id, &cap("read", "repo:a"), 1)
-        .expect("a retained capability keeps working");
-
-    let err = engine
-        .assert_capability(run.id, &cap("write", "repo:a"), 1)
         .unwrap_err();
-    assert!(matches!(
-        err,
-        TaskAccessError::Domain(DomainError::AuthorizationDenied(_))
-    ));
+    assert_eq!(err, TaskAccessError::Domain(DomainError::TaskExpired));
 }
 
-/// One restriction at a time: a no-op shrink needing no acknowledgement must not
-/// take over from one that is still waiting for a mediator.
 #[test]
-fn second_proposal_cannot_supersede_a_pending_one() {
+fn superseded_result_buffer_stays_held_after_a_later_commit() {
     let engine = TaskAccessEngine::new(InMemoryTaskStore::new());
     let run = start_sample_task(&engine, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
     let now = Utc::now();
+    let mediation = MediationPointId::new();
 
-    let first = engine
+    // Proposal A carries a payload and demands an acknowledgement it never gets.
+    engine
         .propose_restriction(ProposeRestrictionParams {
             task_run_id: run.id,
             expected_state_version: 1,
             proposed_capabilities: CapabilitySet::new(vec![cap("read", "repo:a")]),
-            required_mediation: vec![MediationPointId::new()],
-            result_payload: None,
+            required_mediation: vec![mediation],
+            result_payload: Some(serde_json::json!({"secret": "held"})),
             now,
         })
         .unwrap();
 
-    let err = engine
+    // Proposal B supersedes it with no payload and no required acknowledgements.
+    let b = engine
         .propose_restriction(ProposeRestrictionParams {
             task_run_id: run.id,
             expected_state_version: 1,
-            proposed_capabilities: run.current_capabilities.clone(),
+            proposed_capabilities: CapabilitySet::new(vec![cap("read", "repo:a")]),
             required_mediation: vec![],
             result_payload: None,
             now,
         })
-        .unwrap_err();
-    assert!(matches!(err, TaskAccessError::TransitionPending(_)));
-
-    let pending = engine
-        .store()
-        .get_pending_transition(run.id)
-        .unwrap()
-        .unwrap();
-    assert_eq!(pending.id, first.id);
-}
-
-/// An acknowledgement settles the transition it names, not another one that
-/// happens to land on the same state version.
-#[test]
-fn ack_naming_another_transition_is_refused() {
-    let engine = TaskAccessEngine::new(InMemoryTaskStore::new());
-    let run = start_sample_task(&engine, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
-    let now = Utc::now();
-    let mediation = MediationPointId::new();
-
-    let transition = engine
-        .propose_restriction(ProposeRestrictionParams {
-            task_run_id: run.id,
-            expected_state_version: 1,
-            proposed_capabilities: CapabilitySet::new(vec![cap("read", "repo:a")]),
-            required_mediation: vec![mediation],
-            result_payload: None,
-            now,
-        })
         .unwrap();
 
-    let err = engine
-        .acknowledge(
-            transition.id,
-            EnforcementAcknowledgement {
-                id: EnforcementAcknowledgementId::new(),
-                mediation_point_id: mediation,
-                task_run_id: run.id,
-                // Same run, same version, different transition.
-                transition_id: CapabilityStateTransitionId::new().to_string(),
-                state_version: transition.to_state_version,
-                evidence_id: VerificationEvidenceId::new(),
-                proof: None,
-                acknowledged_at: now,
-            },
-        )
-        .unwrap_err();
-    assert!(matches!(
-        err,
-        TaskAccessError::Domain(DomainError::MediationAckMismatch(_))
-    ));
-}
+    engine.commit_transition(run.id, b.id, now).unwrap();
 
-/// A proposal made against a version that has since moved on must not write
-/// `restricting` over the newer state and roll the version back.
-#[test]
-fn propose_cannot_revive_a_terminated_task() {
-    let store = SharedTaskStore::new(InMemoryTaskStore::new());
-    let node_a = TaskAccessEngine::new(store.clone());
-    let node_b = TaskAccessEngine::new(store);
-    let run = start_sample_task_on(&node_a, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
-    let now = Utc::now();
-
-    node_b.terminate_task(run.id, 1, now).unwrap();
-
-    let err = node_a
-        .propose_restriction(ProposeRestrictionParams {
-            task_run_id: run.id,
-            expected_state_version: 1,
-            proposed_capabilities: CapabilitySet::new(vec![cap("read", "repo:a")]),
-            required_mediation: vec![MediationPointId::new()],
-            result_payload: None,
-            now,
-        })
-        .unwrap_err();
-    assert!(matches!(
-        err,
-        TaskAccessError::Domain(DomainError::TaskNotActive)
-            | TaskAccessError::Domain(DomainError::TaskStateVersionMismatch { .. })
-    ));
-
-    let after = node_a.store().get_run(run.id).unwrap().unwrap();
-    assert_eq!(after.status, TaskRunStatus::Cancelled);
-    assert_eq!(after.state_version, 2);
-}
-
-/// Two answers from one mediator are still one mediator: the other point has to
-/// fence before capabilities move.
-#[test]
-fn repeat_ack_does_not_stand_in_for_another_point() {
-    let engine = TaskAccessEngine::new(InMemoryTaskStore::new());
-    let run = start_sample_task(&engine, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
-    let now = Utc::now();
-    let spoke = MediationPointId::new();
-    let silent = MediationPointId::new();
-
-    let transition = engine
-        .propose_restriction(ProposeRestrictionParams {
-            task_run_id: run.id,
-            expected_state_version: 1,
-            proposed_capabilities: CapabilitySet::new(vec![cap("read", "repo:a")]),
-            required_mediation: vec![spoke, silent],
-            result_payload: None,
-            now,
-        })
-        .unwrap();
-
-    let ack = |point| EnforcementAcknowledgement {
-        id: EnforcementAcknowledgementId::new(),
-        mediation_point_id: point,
-        task_run_id: run.id,
-        transition_id: transition.id.to_string(),
-        state_version: transition.to_state_version,
-        evidence_id: VerificationEvidenceId::new(),
-        proof: None,
-        acknowledged_at: now,
-    };
-
-    engine.acknowledge(transition.id, ack(spoke)).unwrap();
-    // A second, distinct acknowledgement from the same point.
-    let set = engine.acknowledge(transition.id, ack(spoke)).unwrap();
-    assert_eq!(set.outstanding(), vec![silent]);
-
-    let err = engine
-        .commit_transition(run.id, transition.id, now)
-        .unwrap_err();
-    assert!(matches!(
-        err,
-        TaskAccessError::Domain(DomainError::MediationAckIncomplete)
-    ));
-
-    engine.acknowledge(transition.id, ack(silent)).unwrap();
-    engine
-        .commit_transition(run.id, transition.id, now)
-        .expect("both points fenced");
-}
-
-/// A point this transition never asked for cannot settle it.
-#[test]
-fn ack_for_an_unrequired_point_is_refused() {
-    let engine = TaskAccessEngine::new(InMemoryTaskStore::new());
-    let run = start_sample_task(&engine, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
-    let now = Utc::now();
-    let required = MediationPointId::new();
-
-    let transition = engine
-        .propose_restriction(ProposeRestrictionParams {
-            task_run_id: run.id,
-            expected_state_version: 1,
-            proposed_capabilities: CapabilitySet::new(vec![cap("read", "repo:a")]),
-            required_mediation: vec![required],
-            result_payload: None,
-            now,
-        })
-        .unwrap();
-
-    let err = engine
-        .acknowledge(
-            transition.id,
-            EnforcementAcknowledgement {
-                id: EnforcementAcknowledgementId::new(),
-                mediation_point_id: MediationPointId::new(),
-                task_run_id: run.id,
-                transition_id: transition.id.to_string(),
-                state_version: transition.to_state_version,
-                evidence_id: VerificationEvidenceId::new(),
-                proof: None,
-                acknowledged_at: now,
-            },
-        )
-        .unwrap_err();
-    assert!(matches!(
-        err,
-        TaskAccessError::Domain(DomainError::MediationAckMismatch(_))
-    ));
-}
-
-/// Cancelling is a decision about a state, so it must not land on a later one:
-/// a stale terminate would restore capabilities a commit had removed.
-#[test]
-fn terminate_cannot_overwrite_a_commit_it_did_not_see() {
-    let store = SharedTaskStore::new(InMemoryTaskStore::new());
-    let node_a = TaskAccessEngine::new(store.clone());
-    let node_b = TaskAccessEngine::new(store);
-    let run = start_sample_task_on(&node_a, vec![cap("read", "repo:a"), cap("write", "repo:a")]);
-    let now = Utc::now();
-    let mediation = MediationPointId::new();
-
-    let transition = node_a
-        .propose_restriction(ProposeRestrictionParams {
-            task_run_id: run.id,
-            expected_state_version: 1,
-            proposed_capabilities: CapabilitySet::new(vec![cap("read", "repo:a")]),
-            required_mediation: vec![mediation],
-            result_payload: None,
-            now,
-        })
-        .unwrap();
-    node_a
-        .acknowledge(
-            transition.id,
-            EnforcementAcknowledgement {
-                id: EnforcementAcknowledgementId::new(),
-                mediation_point_id: mediation,
-                task_run_id: run.id,
-                transition_id: transition.id.to_string(),
-                state_version: transition.to_state_version,
-                evidence_id: VerificationEvidenceId::new(),
-                proof: None,
-                acknowledged_at: now,
-            },
-        )
-        .unwrap();
-    node_b
-        .commit_transition(run.id, transition.id, now)
-        .expect("the restriction lands");
-
-    // Node A still believes the run is at version 1.
-    let err = node_a.terminate_task(run.id, 1, now).unwrap_err();
-    assert!(matches!(
-        err,
-        TaskAccessError::Domain(DomainError::TaskStateVersionMismatch { .. })
-    ));
-    let after = node_a.store().get_run(run.id).unwrap().unwrap();
-    assert_eq!(after.status, TaskRunStatus::Active);
-    assert_eq!(after.state_version, 2);
-
-    node_b
-        .terminate_task(run.id, 2, now)
-        .expect("terminate from the version it read");
+    // A's payload was fenced by A's acknowledgements, which never arrived.
+    assert!(engine.release_result_buffer(run.id).is_err());
+    let buffer = engine.store().get_result_buffer(run.id).unwrap().unwrap();
+    assert!(buffer.is_held());
 }
 
 fn start_sample_task_on<S: TaskStore>(

@@ -1,6 +1,5 @@
 use super::adapter::*;
 use crate::error::AAuthError;
-use opensesame_domain::{Capability, CapabilitySet, ResourceSelector};
 
 #[test]
 fn one_person_maps_to_one_principal() {
@@ -45,17 +44,6 @@ fn mission_byte_mutation_changes_digest() {
     let ctx2 = mission_to_governance_context(&m2);
     assert_ne!(ctx1.mission_digest, ctx2.mission_digest);
     assert_eq!(ctx1.mission_bytes_len, m1.bytes.len());
-}
-
-#[test]
-fn scope_outside_ceiling_rejected() {
-    let ceiling = CapabilitySet::new(vec![Capability::new("read", ResourceSelector::exact("*"))])
-        .canonicalize();
-    assert!(assert_scopes_within_ceiling(&["read"], &ceiling).is_ok());
-    assert_eq!(
-        assert_scopes_within_ceiling(&["write"], &ceiling),
-        Err(AAuthError::ScopeOutsideCeiling)
-    );
 }
 
 #[test]

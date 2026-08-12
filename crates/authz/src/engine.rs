@@ -87,6 +87,18 @@ impl PolicyEngine {
                     || self.relationships.check(&object, "developer", subject)
                     || self.relationships.check(&object, "admin", subject)
             }
+            // Authority use names the connection itself; the target is fenced by the
+            // egress binding, not by a resource id.
+            "connection" => {
+                let conn = req
+                    .context
+                    .get("connection_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                self.relationships
+                    .check(&format!("connection:{conn}"), "user", subject)
+                    || self.relationships.check(&object, "user", subject)
+            }
             "organization" => self.relationships.check(&object, "member", subject),
             _ => self.relationships.check(&object, "viewer", subject),
         };
@@ -98,6 +110,15 @@ impl PolicyEngine {
         if let Some(g) = grant {
             if !g.actions.iter().any(|a| a == &req.action.name) {
                 return Ok(deny(req, "grant_action"));
+            }
+            // The grant names its resources as well as its actions; skipping this
+            // check let a grant for one repository authorize the same action
+            // against any other. Only `connector_operation` ids share the grant's
+            // resource vocabulary — a `connection` request is fenced by the
+            // authority binding instead.
+            if req.resource.type_ == "connector_operation" && !g.permits_resource(&req.resource.id)
+            {
+                return Ok(deny(req, "grant_resource"));
             }
             if let Some(aud) = req.context.get("audience").and_then(|v| v.as_str()) {
                 if !g.constraints.audiences.is_empty()
@@ -313,7 +334,7 @@ mod tests {
             },
             resource: AuthZenResource {
                 type_: "connector_operation".into(),
-                id: "github/acme/repo/catalog".into(),
+                id: "repo:acme/catalog".into(),
             },
             context: json!({
                 "connection_id": "connA",
@@ -324,5 +345,21 @@ mod tests {
             .decide(&req, Some(&grant), AvailabilityClass::A3ExternalSideEffect)
             .unwrap();
         assert!(d.decision);
+
+        // Same subject, same granted action, a resource the grant never named.
+        let mut elsewhere = req;
+        elsewhere.resource.id = "repo:victim/secrets".into();
+        let denied = e
+            .decide(
+                &elsewhere,
+                Some(&grant),
+                AvailabilityClass::A3ExternalSideEffect,
+            )
+            .unwrap();
+        assert!(!denied.decision);
+        assert_eq!(
+            denied.context.get("reason").and_then(|v| v.as_str()),
+            Some("grant_resource")
+        );
     }
 }

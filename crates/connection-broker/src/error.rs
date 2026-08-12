@@ -4,6 +4,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum BrokerError {
+    #[error("provider catalog unavailable: {0}")]
+    CatalogUnavailable(#[from] crate::catalog::CatalogError),
     #[error("unknown provider `{0}`")]
     ProviderUnknown(String),
     #[error("provider `{provider}` is not configured on this deployment")]
@@ -13,6 +15,16 @@ pub enum BrokerError {
     },
     #[error("connection not found")]
     ConnectionNotFound,
+    #[error("integration not found or disabled")]
+    IntegrationNotFound,
+    #[error("integration_id is required because multiple usable integrations exist")]
+    IntegrationRequired,
+    #[error("integration key already exists")]
+    IntegrationConflict,
+    #[error("deployment integrations are read-only")]
+    IntegrationReadOnly,
+    #[error("integration still has connections")]
+    IntegrationInUse,
     #[error("authorization state is not valid")]
     InvalidState,
     #[error("authorization state expired")]
@@ -30,7 +42,7 @@ pub enum BrokerError {
     #[error("binding not found")]
     BindingNotFound,
     /// `POST /credential` against an OAuth provider, or `authorize` against an
-    /// api_key one. The contract's code list has no name for it; see the report.
+    /// api_key one.
     #[error("credential kind not supported by provider `{0}`")]
     UnsupportedCredential(String),
     #[error("credential sealing unavailable: {0}")]
@@ -38,7 +50,7 @@ pub enum BrokerError {
     #[error("invalid request: {0}")]
     Invalid(String),
     #[error(transparent)]
-    Storage(#[from] turso::Error),
+    Storage(#[from] sqlx::Error),
     #[error(transparent)]
     Serde(#[from] serde_json::Error),
 }
@@ -46,9 +58,15 @@ pub enum BrokerError {
 impl BrokerError {
     pub fn code(&self) -> &'static str {
         match self {
+            Self::CatalogUnavailable(_) => "catalog_unavailable",
             Self::ProviderUnknown(_) => "provider_unknown",
             Self::ProviderUnconfigured { .. } | Self::SealUnavailable(_) => "provider_unconfigured",
             Self::ConnectionNotFound => "connection_not_found",
+            Self::IntegrationNotFound => "integration_not_found",
+            Self::IntegrationRequired => "integration_required",
+            Self::IntegrationConflict => "integration_conflict",
+            Self::IntegrationReadOnly => "integration_read_only",
+            Self::IntegrationInUse => "integration_in_use",
             Self::InvalidState => "invalid_state",
             Self::StateExpired => "state_expired",
             Self::ExchangeFailed(_) => "exchange_failed",
@@ -70,6 +88,7 @@ impl BrokerError {
             Self::ProviderUnconfigured { missing, .. } => {
                 format!("deployment is missing {}", missing.join(", "))
             }
+            Self::CatalogUnavailable(_) => "the provider catalog is unavailable".into(),
             Self::Storage(_) | Self::Serde(_) => "the request could not be completed".into(),
             other => other.to_string(),
         }
@@ -77,11 +96,12 @@ impl BrokerError {
 
     pub fn http_status(&self) -> u16 {
         match self {
-            Self::ConnectionNotFound | Self::BindingNotFound => 404,
+            Self::ConnectionNotFound | Self::BindingNotFound | Self::IntegrationNotFound => 404,
             Self::ProviderUnconfigured { .. } | Self::SealUnavailable(_) => 503,
-            Self::BindingExists => 409,
+            Self::BindingExists | Self::IntegrationConflict | Self::IntegrationInUse => 409,
+            Self::IntegrationReadOnly => 403,
             Self::ExchangeFailed(_) | Self::NeedsReauth(_) => 502,
-            Self::Storage(_) | Self::Serde(_) => 500,
+            Self::CatalogUnavailable(_) | Self::Storage(_) | Self::Serde(_) => 500,
             _ => 400,
         }
     }
@@ -102,6 +122,13 @@ mod tests {
         assert_eq!(BrokerError::InvalidState.code(), "invalid_state");
         assert_eq!(BrokerError::StateExpired.code(), "state_expired");
         assert_eq!(
+            BrokerError::IntegrationNotFound.code(),
+            "integration_not_found"
+        );
+        assert_eq!(BrokerError::IntegrationNotFound.http_status(), 404);
+        assert_eq!(BrokerError::IntegrationInUse.code(), "integration_in_use");
+        assert_eq!(BrokerError::IntegrationInUse.http_status(), 409);
+        assert_eq!(
             BrokerError::RedirectNotAllowed.code(),
             "redirect_not_allowed"
         );
@@ -109,7 +136,7 @@ mod tests {
 
     #[test]
     fn storage_failures_do_not_leak_their_text() {
-        let e = BrokerError::Storage(turso::Error::Misuse("sensitive detail".into()));
+        let e = BrokerError::Storage(sqlx::Error::RowNotFound);
         assert_eq!(e.code(), "internal_error");
         assert_eq!(e.hint(), "the request could not be completed");
     }

@@ -1,10 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { Hono } from "hono";
-import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { appendAuditEvent } from "@opensesame/audit";
-import {
-  createProvisionalPrincipal,
-} from "@opensesame/auth-upstream";
+import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
 import {
   IdentityListResponseSchema,
   LinkIdentityRequestSchema,
@@ -14,12 +10,17 @@ import {
 import { ConflictError } from "@opensesame/database";
 import type {
   ExternalIdentity,
+  Organization,
+  OrganizationMembership,
   Principal,
   ProvisionalSession,
 } from "@opensesame/os-domain";
-import type { Variables } from "../middleware/context.js";
+import { Hono } from "hono";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { requirePrincipal } from "../middleware/auth.js";
+import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { authenticatedPrincipalId } from "./organizations.js";
 
 export const principalRoutes = new Hono<{ Variables: Variables }>();
 
@@ -44,22 +45,28 @@ principalRoutes.post(
     }
     if (ctx.stores.provisionalSessions.size >= MAX_PROVISIONAL) {
       return c.json(
-        { error: "provisional_capacity", message: "Too many provisional sessions" },
+        {
+          error: "provisional_capacity",
+          message: "Too many provisional sessions",
+        },
         429,
       );
     }
 
-    const { mapping, session } = await createProvisionalPrincipal(ctx.mappings, {
-      ttlMs: ctx.config.provisionalTtlMs,
-      quotaProfile: "anonymous",
-      allowedActions: [
-        "project.create_temporary",
-        "resource.create_temporary",
-        "claim.create",
-        "agent.register_ephemeral",
-        "session.continue_anonymous",
-      ],
-    });
+    const { mapping, session } = await createProvisionalPrincipal(
+      ctx.mappings,
+      {
+        ttlMs: ctx.config.provisionalTtlMs,
+        quotaProfile: "anonymous",
+        allowedActions: [
+          "project.create_temporary",
+          "resource.create_temporary",
+          "claim.create",
+          "agent.register_ephemeral",
+          "session.continue_anonymous",
+        ],
+      },
+    );
 
     // Align expires with injected clock for tests
     const provisionalSession: ProvisionalSession = {
@@ -83,8 +90,36 @@ principalRoutes.post(
       linkedAt: now,
     });
 
+    if (ctx.config.bootstrapPersonalOrganization) {
+      const organization: Organization = {
+        id: `org:${randomUUID()}`,
+        slug: `local-${principal.id.slice(-8)}`,
+        displayName: "Personal workspace",
+        state: "active",
+        createdBy: principal.id,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const membership: OrganizationMembership = {
+        organizationId: organization.id,
+        principalId: principal.id,
+        role: "owner",
+        createdAt: now,
+        updatedAt: now,
+      };
+      ctx.stores.organizations.set(organization.id, organization);
+      ctx.stores.organizationSlugs.set(organization.slug, organization.id);
+      ctx.stores.organizationMemberships.set(
+        `${organization.id}:${principal.id}`,
+        membership,
+      );
+    }
+
     const accessToken = `pst_${randomBytes(24).toString("base64url")}`;
-    ctx.stores.provisionalSessions.set(provisionalSession.id, provisionalSession);
+    ctx.stores.provisionalSessions.set(
+      provisionalSession.id,
+      provisionalSession,
+    );
     ctx.stores.provisionalTokens.set(accessToken, provisionalSession.id);
 
     setCookie(c, ctx.config.provisionalCookieName, accessToken, {
@@ -102,7 +137,10 @@ principalRoutes.post(
       sessionId: provisionalSession.id,
       correlationId: c.get("correlationId"),
       actorType: "human",
-      metadata: { action: "principal.provisional_create", quotaProfile: "anonymous" },
+      metadata: {
+        action: "principal.provisional_create",
+        quotaProfile: "anonymous",
+      },
     });
 
     return c.json(
@@ -184,12 +222,13 @@ principalRoutes.post("/provisional/revoke", async (c) => {
 
 principalRoutes.get("/me", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   const principal = await ctx.repos.principals.getById(principalId);
   if (!principal) {
     return c.json({ error: "not_found" }, 404);
   }
-  const identities = await ctx.repos.externalIdentities.listByPrincipal(principalId);
+  const identities =
+    await ctx.repos.externalIdentities.listByPrincipal(principalId);
   const body = PrincipalMeResponseSchema.parse({
     id: principal.id,
     state: principal.state,
@@ -213,8 +252,9 @@ principalRoutes.get("/me", requirePrincipal(), async (c) => {
 
 principalRoutes.get("/identities", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
-  const identities = await ctx.repos.externalIdentities.listByPrincipal(principalId);
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
+  const identities =
+    await ctx.repos.externalIdentities.listByPrincipal(principalId);
   const body = IdentityListResponseSchema.parse({
     identities: identities.map((i) => ({
       id: i.id,
@@ -235,13 +275,27 @@ principalRoutes.post(
   idempotencyMiddleware("principals.link-identities"),
   async (c) => {
     const ctx = c.get("ctx");
-    const principalId = c.get("principalId")!;
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
     const principal = await ctx.repos.principals.getById(principalId);
     if (!principal) {
       return c.json({ error: "not_found" }, 404);
     }
     if (principal.state === "suspended" || principal.state === "closed") {
       return c.json({ error: "principal_inactive" }, 403);
+    }
+
+    // Nothing in this request proves the caller controls `issuer`/`subject`, and a
+    // successful link promotes a provisional principal to `verified` — the very
+    // assurance that gates organizations, projects and OAuth client registration.
+    // Caller-asserted links are therefore a dev seam only, like stub TOTP.
+    if (!ctx.config.allowDevDefaults) {
+      return c.json(
+        {
+          error: "identity_link_requires_upstream",
+          hint: "Complete an upstream authentication ceremony; self-asserted identity links are dev-only",
+        },
+        403,
+      );
     }
 
     const parsed = LinkIdentityRequestSchema.safeParse(await c.req.json());
@@ -255,7 +309,9 @@ principalRoutes.post(
     const existing = await ctx.repos.externalIdentities.findByTuple({
       kind: parsed.data.kind,
       issuer: parsed.data.issuer,
-      ...(parsed.data.tenant !== undefined ? { tenant: parsed.data.tenant } : {}),
+      ...(parsed.data.tenant !== undefined
+        ? { tenant: parsed.data.tenant }
+        : {}),
       subject: parsed.data.subject,
     });
     if (existing) {
@@ -277,12 +333,13 @@ principalRoutes.post(
           }),
         );
       }
+      // Deliberately does not echo the bound principal id: that would let any
+      // caller enumerate which principal owns an upstream identity.
       return c.json(
         {
           error: "identity_collision",
           message:
             "External identity already bound to another principal; merge requires dual authentication",
-          boundPrincipalId: existing.principalId,
         },
         409,
       );
@@ -290,9 +347,10 @@ principalRoutes.post(
 
     // Same email on another principal must never auto-link.
     if (parsed.data.emailNormalized) {
-      const emailPeers = await ctx.repos.externalIdentities.listByEmailNormalized(
-        parsed.data.emailNormalized,
-      );
+      const emailPeers =
+        await ctx.repos.externalIdentities.listByEmailNormalized(
+          parsed.data.emailNormalized,
+        );
       const foreign = emailPeers.find((e) => e.principalId !== principalId);
       if (foreign) {
         await appendAuditEvent(ctx.repos.auditEvents, {
@@ -318,7 +376,9 @@ principalRoutes.post(
       assurance: parsed.data.assurance,
       linkedAt: now,
       metadata: {},
-      ...(parsed.data.tenant !== undefined ? { tenant: parsed.data.tenant } : {}),
+      ...(parsed.data.tenant !== undefined
+        ? { tenant: parsed.data.tenant }
+        : {}),
       ...(parsed.data.displayHint !== undefined
         ? { displayHint: parsed.data.displayHint }
         : {}),
@@ -334,12 +394,18 @@ principalRoutes.post(
       await ctx.repos.externalIdentities.create(identity);
     } catch (err) {
       if (err instanceof ConflictError) {
-        return c.json({ error: "identity_collision", message: err.message }, 409);
+        return c.json(
+          { error: "identity_collision", message: err.message },
+          409,
+        );
       }
       throw err;
     }
 
-    if (principal.assurance === "provisional" || principal.state === "provisional") {
+    if (
+      principal.assurance === "provisional" ||
+      principal.state === "provisional"
+    ) {
       await ctx.repos.principals.update(
         principalId,
         {
@@ -391,7 +457,7 @@ principalRoutes.post(
 
 principalRoutes.delete("/identities/:id", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   const identityId = c.req.param("id");
   const identity = await ctx.repos.externalIdentities.getById(identityId);
   if (!identity || identity.principalId !== principalId) {

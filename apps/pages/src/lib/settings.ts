@@ -50,7 +50,7 @@ export function saveSettings(next: PagesSettings): void {
   const persisted: PersistedSettings = {
     hostApi: next.hostApi.trim() || defaults.hostApi,
     identityApi: next.identityApi.trim() || defaults.identityApi,
-    tursoUrl: next.tursoUrl.trim(),
+    tursoUrl: next.tursoUrl?.trim() ?? "",
   };
   kvSet(PERSIST_KEY, JSON.stringify(persisted));
 }

@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { createOpenSesame } from "@opensesame/sdk-browser";
+import { useState } from "react";
 import { clearClaimStash } from "../lib/claim-stash.js";
 
 const issuer =
@@ -93,11 +93,7 @@ export function SignInPage() {
           Sign out
         </button>
       </div>
-      {sessionHint ? (
-        <p className="ok" role="status">
-          {sessionHint}
-        </p>
-      ) : null}
+      {sessionHint ? <output className="ok">{sessionHint}</output> : null}
       {error ? (
         <p className="err" role="alert">
           {error}

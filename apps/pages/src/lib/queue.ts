@@ -22,6 +22,8 @@ type DeviceAction = Extract<QueuedAction, { kind: "device_approve" }>;
 type ClaimAction = Extract<QueuedAction, { kind: "claim_complete" }>;
 
 const KEY = "outbox.v1";
+export const QUEUE_TTL_MS = 24 * 60 * 60 * 1000;
+export const MAX_QUEUE_LENGTH = 32;
 
 /** Staged claims, newest last. Never written to disk. */
 let stagedClaims: ClaimAction[] = [];
@@ -36,9 +38,16 @@ function loadDeviceActions(): DeviceAction[] {
   } catch {
     return [];
   }
-  const devices = parsed.filter(
-    (item): item is DeviceAction => item.kind === "device_approve",
-  );
+  const devices = parsed
+    .filter((item): item is DeviceAction => {
+      if (!item || typeof item !== "object") return false;
+      if (item.kind !== "device_approve") return false;
+      if (!item.id || !item.userCode || typeof item.createdAt !== "string")
+        return false;
+      const createdAt = Date.parse(item.createdAt);
+      return !Number.isNaN(createdAt) && Date.now() - createdAt <= QUEUE_TTL_MS;
+    })
+    .slice(-MAX_QUEUE_LENGTH);
   // An older build wrote claim tokens here. Rewrite on sight so a bearer
   // credential does not sit on disk waiting for an unrelated write.
   if (devices.length !== parsed.length) saveDeviceActions(devices);
@@ -46,7 +55,7 @@ function loadDeviceActions(): DeviceAction[] {
 }
 
 function saveDeviceActions(items: DeviceAction[]): void {
-  kvSet(KEY, JSON.stringify(items));
+  kvSet(KEY, JSON.stringify(items.slice(-MAX_QUEUE_LENGTH)));
 }
 
 export function loadQueue(): QueuedAction[] {

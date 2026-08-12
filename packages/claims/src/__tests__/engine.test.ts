@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { DomainError, fixtures } from "@opensesame/os-domain";
+import { describe, expect, it } from "vitest";
 import { ClaimEngine, MemoryClaimStore } from "../index.js";
 
 function engine(clock?: () => Date) {
@@ -115,10 +115,10 @@ describe("ClaimEngine", () => {
     const losers = [a, b].filter((r) => !r.won);
     expect(winners).toHaveLength(1);
     expect(losers).toHaveLength(1);
-    expect(winners[0]!.session.state).toBe("completed");
-    expect(losers[0]!.session.state).toBe("completed");
-    expect(winners[0]!.session.completedByPrincipalId).toBe(
-      winners[0]!.session.completedByPrincipalId,
+    expect(winners[0]?.session.state).toBe("completed");
+    expect(losers[0]?.session.state).toBe("completed");
+    expect(winners[0]?.session.completedByPrincipalId).toBe(
+      winners[0]?.session.completedByPrincipalId,
     );
     // Both see the same final completer (the CAS winner)
     expect(a.session.completedByPrincipalId).toBe(

@@ -42,5 +42,6 @@ clap = { workspace = true }
 
 [dev-dependencies]
 sha2 = { workspace = true }
+sqlx = { workspace = true }
 tower = { workspace = true }
 url = { workspace = true }

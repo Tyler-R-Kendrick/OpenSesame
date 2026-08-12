@@ -67,6 +67,19 @@ impl Grant {
         Ok(())
     }
 
+    /// True when `resource` falls inside the grant's resource scope.
+    ///
+    /// A grant names both the actions and the resources it covers; checking only
+    /// the actions leaves the resource scope decorative, so a grant for one
+    /// repository would authorize the same action anywhere. `*` covers everything
+    /// and a trailing `/*` or `:*` covers a segment-bounded subtree — a bare
+    /// prefix never widens, and an empty list covers nothing.
+    pub fn permits_resource(&self, resource: &str) -> bool {
+        self.resources
+            .iter()
+            .any(|pattern| resource_pattern_matches(pattern, resource))
+    }
+
     /// Child grants may only attenuate authority.
     pub fn validate_attenuation(parent: &Grant, child: &Grant) -> Result<(), DomainError> {
         if child.organization_id != parent.organization_id {
@@ -115,6 +128,26 @@ impl Grant {
         }
         Ok(())
     }
+}
+
+/// Match a grant resource pattern. Wildcards keep their separator so
+/// `repo:acme/*` cannot reach `repo:acme-private/secrets`.
+pub fn resource_pattern_matches(pattern: &str, resource: &str) -> bool {
+    if pattern == "*" {
+        return true;
+    }
+    if pattern == resource {
+        return true;
+    }
+    for sep in ['/', ':'] {
+        let suffix = format!("{sep}*");
+        if let Some(prefix) = pattern.strip_suffix('*') {
+            if pattern.ends_with(&suffix) && !prefix.is_empty() {
+                return resource.len() > prefix.len() && resource.starts_with(prefix);
+            }
+        }
+    }
+    false
 }
 
 fn is_subset(child: &[String], parent: &[String]) -> bool {
@@ -186,6 +219,28 @@ mod tests {
         child.delegation_depth = 1;
         child.actions.push("admin.destroy".into());
         assert!(Grant::validate_attenuation(&parent, &child).is_err());
+    }
+
+    #[test]
+    fn resource_scope_is_enforced_with_segment_boundaries() {
+        let mut g = sample_parent();
+        assert!(g.permits_resource("repo:acme/catalog"));
+        assert!(!g.permits_resource("repo:victim/secrets"));
+        // A named resource must not reach a longer sibling name.
+        assert!(!g.permits_resource("repo:acme/catalog-private"));
+
+        g.resources = vec!["repo:acme/*".into()];
+        assert!(g.permits_resource("repo:acme/catalog"));
+        assert!(!g.permits_resource("repo:acme-private/catalog"));
+        // The wildcard needs something after the separator.
+        assert!(!g.permits_resource("repo:acme/"));
+
+        g.resources = vec!["*".into()];
+        assert!(g.permits_resource("anything"));
+
+        // A grant that names no resources covers none.
+        g.resources = vec![];
+        assert!(!g.permits_resource("repo:acme/catalog"));
     }
 
     #[test]

@@ -12,30 +12,93 @@ use axum::{
 };
 use opensesame_connection_broker::{
     parse_shareability, BindRequest, BindingTargetKind, BrokerError, CreateConnection,
-    MAX_CREDENTIAL_BYTES,
+    CreateIntegration, UpdateIntegration,
 };
 use serde::Deserialize;
 use serde_json::json;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::app_state::AppState;
-use crate::middleware::auth::{caller, Caller};
+use crate::middleware::auth::{resolve_caller, Caller};
 
 #[allow(clippy::result_large_err)]
 fn authorize(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, Response> {
-    caller(st, headers)
+    resolve_caller(st, headers)
+}
+
+fn caller_subject(who: &Caller) -> Option<String> {
+    match who {
+        Caller::Operator => None,
+        Caller::Session { subject, .. } => Some(subject.clone()),
+    }
+}
+
+fn caller_owns(who: &Caller, owner: Option<&String>) -> bool {
+    matches!(who, Caller::Operator) || owner.is_some_and(|owner| who.owns_subject(owner))
+}
+
+const OPERATOR_ORGANIZATION_HEADER: &str = "x-opensesame-organization";
+
+fn caller_organization(
+    st: &AppState,
+    who: &Caller,
+    headers: &axum::http::HeaderMap,
+) -> Result<opensesame_domain::OrganizationId, Response> {
+    let selected = headers.get(OPERATOR_ORGANIZATION_HEADER);
+    match who {
+        Caller::Operator => match selected {
+            Some(raw) => match raw.to_str().ok().and_then(|value| {
+                opensesame_domain::OrganizationId::parse(value)
+                    .ok()
+                    .filter(|id| id.to_string() == value)
+            }) {
+                Some(id) => Ok(id),
+                _ => Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error":"invalid_request","hint":"x-opensesame-organization must be a canonical organization id"})),
+                )
+                    .into_response()),
+            },
+            None => Ok(who.organization(st.connection_organization)),
+        },
+        Caller::Session { .. } => {
+            if selected.is_some() {
+                Err((
+                    StatusCode::FORBIDDEN,
+                    Json(json!({"error":"forbidden","hint":"sessions cannot select an organization header"})),
+                )
+                    .into_response())
+            } else {
+                Ok(who.organization(st.connection_organization))
+            }
+        }
+    }
+}
+
+macro_rules! organization_or_return {
+    ($st:expr, $who:expr, $headers:expr) => {
+        match caller_organization($st, $who, $headers) {
+            Ok(organization_id) => organization_id,
+            Err(response) => return response,
+        }
+    };
 }
 
 /// A connection belonging to someone else reads as absent, so ids cannot be probed.
-/// The organization is not the boundary here: one gateway serves many callers out
-/// of a single org, so who created a connection is what decides who may use it.
-async fn owned(st: &AppState, who: &Caller, id: &str) -> Result<(), Response> {
+/// Organization selection is checked first; within it, sessions remain fenced to
+/// the subject that created the connection while operators are unfenced.
+async fn owned(
+    st: &AppState,
+    who: &Caller,
+    organization_id: &opensesame_domain::OrganizationId,
+    id: &str,
+) -> Result<(), Response> {
     match st
         .connection_broker
-        .owner_subject(&st.connection_organization, id)
+        .owner_subject(organization_id, id)
         .await
     {
-        Ok(owner) if who.owns(owner.as_ref()) => Ok(()),
+        Ok(owner) if caller_owns(who, owner.as_ref()) => Ok(()),
         Ok(_) => Err(broker_error(BrokerError::ConnectionNotFound)),
         Err(e) => Err(broker_error(e)),
     }
@@ -43,7 +106,10 @@ async fn owned(st: &AppState, who: &Caller, id: &str) -> Result<(), Response> {
 
 fn broker_error(e: BrokerError) -> Response {
     let status = StatusCode::from_u16(e.http_status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    if matches!(e, BrokerError::Storage(_) | BrokerError::Serde(_)) {
+    if matches!(
+        e,
+        BrokerError::CatalogUnavailable(_) | BrokerError::Storage(_) | BrokerError::Serde(_)
+    ) {
         tracing::error!(error = %e, "connection broker storage failure");
     }
     (status, Json(json!({"error": e.code(), "hint": e.hint()}))).into_response()
@@ -53,6 +119,13 @@ fn broker_error(e: BrokerError) -> Response {
 /// these routes take no required field.
 #[allow(clippy::result_large_err)]
 fn parse_body<T: serde::de::DeserializeOwned + Default>(raw: &str) -> Result<T, Response> {
+    if raw.len() > 32 * 1024 {
+        return Err((
+            StatusCode::PAYLOAD_TOO_LARGE,
+            Json(json!({"error":"invalid_request","hint":"request body exceeds 32 KiB"})),
+        )
+            .into_response());
+    }
     if raw.trim().is_empty() {
         return Ok(T::default());
     }
@@ -65,8 +138,196 @@ fn parse_body<T: serde::de::DeserializeOwned + Default>(raw: &str) -> Result<T, 
     })
 }
 
-pub async fn list_providers(State(st): State<AppState>) -> Response {
-    Json(json!({"providers": st.connection_broker.list_providers()})).into_response()
+pub async fn list_providers(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    if let Err(resp) = authorize(&st, &headers) {
+        return resp;
+    }
+    match st.connection_broker.list_providers() {
+        Ok(providers) => Json(json!({"providers": providers})).into_response(),
+        Err(error) => broker_error(error),
+    }
+}
+
+pub async fn list_integrations(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let who = match authorize(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    match st
+        .connection_broker
+        .list_integrations(&organization_or_return!(&st, &who, &headers))
+        .await
+    {
+        Ok(integrations) => Json(json!({"integrations": integrations})).into_response(),
+        Err(error) => broker_error(error),
+    }
+}
+
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CreateIntegrationBody {
+    pub key: String,
+    pub provider_id: String,
+    pub display_name: String,
+    #[serde(default)]
+    pub scopes: Vec<String>,
+    pub client_id: Option<String>,
+    pub client_secret: Option<String>,
+    #[serde(default)]
+    pub configuration: BTreeMap<String, String>,
+}
+
+fn require_integration_admin(who: &Caller) -> Result<(), Response> {
+    if who.can_configure_integrations() {
+        Ok(())
+    } else {
+        Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({"error":"forbidden","hint":"owner or admin role required"})),
+        )
+            .into_response())
+    }
+}
+
+pub async fn create_integration(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    body: String,
+) -> Response {
+    let who = match authorize(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    if let Err(resp) = require_integration_admin(&who) {
+        return resp;
+    }
+    let body: CreateIntegrationBody = match parse_body(&body) {
+        Ok(body) => body,
+        Err(resp) => return resp,
+    };
+    let created_by = caller_subject(&who).unwrap_or_else(|| "operator".into());
+    match st
+        .connection_broker
+        .create_integration(
+            &organization_or_return!(&st, &who, &headers),
+            CreateIntegration {
+                key: body.key,
+                provider_id: body.provider_id,
+                display_name: body.display_name,
+                scopes: body.scopes,
+                client_id: body.client_id,
+                client_secret: body.client_secret,
+                configuration: body.configuration,
+                created_by,
+            },
+        )
+        .await
+    {
+        Ok(integration) => (StatusCode::CREATED, Json(integration)).into_response(),
+        Err(error) => broker_error(error),
+    }
+}
+
+pub async fn get_integration(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+) -> Response {
+    let who = match authorize(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    match st
+        .connection_broker
+        .get_integration(&organization_or_return!(&st, &who, &headers), &id)
+        .await
+    {
+        Ok(integration) => Json(integration).into_response(),
+        Err(error) => broker_error(error),
+    }
+}
+
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UpdateIntegrationBody {
+    pub key: Option<String>,
+    pub display_name: Option<String>,
+    pub enabled: Option<bool>,
+    pub scopes: Option<Vec<String>>,
+    pub client_id: Option<String>,
+    pub client_secret: Option<String>,
+    #[serde(default)]
+    pub configuration_set: BTreeMap<String, String>,
+    #[serde(default)]
+    pub configuration_clear: Vec<String>,
+}
+
+pub async fn update_integration(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+    body: String,
+) -> Response {
+    let who = match authorize(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    if let Err(resp) = require_integration_admin(&who) {
+        return resp;
+    }
+    let body: UpdateIntegrationBody = match parse_body(&body) {
+        Ok(body) => body,
+        Err(resp) => return resp,
+    };
+    match st
+        .connection_broker
+        .update_integration(
+            &organization_or_return!(&st, &who, &headers),
+            &id,
+            UpdateIntegration {
+                key: body.key,
+                display_name: body.display_name,
+                enabled: body.enabled,
+                scopes: body.scopes,
+                client_id: body.client_id,
+                client_secret: body.client_secret,
+                configuration_set: body.configuration_set,
+                configuration_clear: body.configuration_clear,
+            },
+        )
+        .await
+    {
+        Ok(integration) => Json(integration).into_response(),
+        Err(error) => broker_error(error),
+    }
+}
+
+pub async fn delete_integration(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+) -> Response {
+    let who = match authorize(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    if let Err(resp) = require_integration_admin(&who) {
+        return resp;
+    }
+    match st
+        .connection_broker
+        .delete_integration(&organization_or_return!(&st, &who, &headers), &id)
+        .await
+    {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => broker_error(error),
+    }
 }
 
 /// The agent surface: `connection_ref` only, never a credential handle. Only real
@@ -80,13 +341,13 @@ pub async fn list(State(st): State<AppState>, headers: axum::http::HeaderMap) ->
         Err(resp) => return resp,
     };
     // An operator sees the whole org; a session sees what it created.
-    let mine = match &who {
-        Caller::Operator => None,
-        Caller::Session(subject) => Some(subject.clone()),
-    };
+    let mine = caller_subject(&who);
     let stored = match st
         .connection_broker
-        .list_connections_for(&st.connection_organization, mine.as_deref())
+        .list_connections_for(
+            &organization_or_return!(&st, &who, &headers),
+            mine.as_deref(),
+        )
         .await
     {
         Ok(c) => c,
@@ -96,8 +357,11 @@ pub async fn list(State(st): State<AppState>, headers: axum::http::HeaderMap) ->
 }
 
 #[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CreateBody {
+    #[serde(default)]
     pub provider_id: String,
+    pub integration_id: Option<String>,
     pub display_name: Option<String>,
     pub logical_name: Option<String>,
     pub project_id: Option<String>,
@@ -118,15 +382,16 @@ pub async fn create(
         Ok(b) => b,
         Err(resp) => return resp,
     };
-    if body.provider_id.trim().is_empty() {
+    if body.provider_id.trim().is_empty() && body.integration_id.is_none() {
         return (
             StatusCode::BAD_REQUEST,
-            Json(json!({"error":"invalid_request","hint":"provider_id is required"})),
+            Json(json!({"error":"invalid_request","hint":"integration_id is required"})),
         )
             .into_response();
     }
     let request = CreateConnection {
         provider_id: body.provider_id.trim().to_string(),
+        integration_id: body.integration_id,
         display_name: body.display_name,
         logical_name: body.logical_name,
         project_id: body.project_id,
@@ -134,14 +399,11 @@ pub async fn create(
         shareability: body.shareability.as_deref().map(parse_shareability),
         // From the transport, never the body: a caller does not get to say whose
         // connection this is.
-        owner_subject: match &who {
-            Caller::Operator => None,
-            Caller::Session(subject) => Some(subject.clone()),
-        },
+        owner_subject: caller_subject(&who),
     };
     match st
         .connection_broker
-        .create_connection(&st.connection_organization, request)
+        .create_connection(&organization_or_return!(&st, &who, &headers), request)
         .await
     {
         Ok(view) => (StatusCode::CREATED, Json(view)).into_response(),
@@ -158,12 +420,13 @@ pub async fn get(
         Ok(who) => who,
         Err(resp) => return resp,
     };
-    if let Err(resp) = owned(&st, &who, &id).await {
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Err(resp) = owned(&st, &who, &organization_id, &id).await {
         return resp;
     }
     match st
         .connection_broker
-        .get_connection(&st.connection_organization, &id)
+        .get_connection(&organization_id, &id)
         .await
     {
         Ok(view) => Json(view).into_response(),
@@ -180,20 +443,18 @@ pub async fn delete(
         Ok(who) => who,
         Err(resp) => return resp,
     };
-    if let Err(resp) = owned(&st, &who, &id).await {
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Err(resp) = owned(&st, &who, &organization_id, &id).await {
         return resp;
     }
-    match st
-        .connection_broker
-        .revoke(&st.connection_organization, &id)
-        .await
-    {
+    match st.connection_broker.revoke(&organization_id, &id).await {
         Ok(outcome) => Json(outcome).into_response(),
         Err(e) => broker_error(e),
     }
 }
 
 #[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AuthorizeBody {
     pub redirect_uri: Option<String>,
     pub scopes: Option<Vec<String>>,
@@ -209,7 +470,8 @@ pub async fn start_authorization(
         Ok(who) => who,
         Err(resp) => return resp,
     };
-    if let Err(resp) = owned(&st, &who, &id).await {
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Err(resp) = owned(&st, &who, &organization_id, &id).await {
         return resp;
     }
     let body: AuthorizeBody = match parse_body(&body) {
@@ -218,12 +480,7 @@ pub async fn start_authorization(
     };
     match st
         .connection_broker
-        .start_authorization(
-            &st.connection_organization,
-            &id,
-            body.redirect_uri,
-            body.scopes,
-        )
+        .start_authorization(&organization_id, &id, body.redirect_uri, body.scopes)
         .await
     {
         Ok(start) => Json(start).into_response(),
@@ -240,22 +497,24 @@ pub async fn refresh(
         Ok(who) => who,
         Err(resp) => return resp,
     };
-    if let Err(resp) = owned(&st, &who, &id).await {
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Err(resp) = owned(&st, &who, &organization_id, &id).await {
         return resp;
     }
-    match st
-        .connection_broker
-        .refresh(&st.connection_organization, &id)
-        .await
-    {
+    match st.connection_broker.refresh(&organization_id, &id).await {
         Ok(view) => Json(view).into_response(),
         Err(e) => broker_error(e),
     }
 }
 
 #[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CredentialBody {
-    pub value: String,
+    pub value: Option<String>,
+    #[serde(default)]
+    pub configuration_set: BTreeMap<String, String>,
+    #[serde(default)]
+    pub configuration_clear: Vec<String>,
 }
 
 pub async fn set_credential(
@@ -268,28 +527,35 @@ pub async fn set_credential(
         Ok(who) => who,
         Err(resp) => return resp,
     };
-    if let Err(resp) = owned(&st, &who, &id).await {
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Err(resp) = owned(&st, &who, &organization_id, &id).await {
         return resp;
-    }
-    // Refused before parsing: a credential is a key, so a body far larger than one
-    // is not worth deserializing, let alone sealing into the shared store.
-    if body.len() > MAX_CREDENTIAL_BYTES {
-        return (
-            StatusCode::PAYLOAD_TOO_LARGE,
-            Json(json!({
-                "error": "credential_too_large",
-                "detail": {"limit_bytes": MAX_CREDENTIAL_BYTES, "received_bytes": body.len()}
-            })),
-        )
-            .into_response();
     }
     let body: CredentialBody = match parse_body(&body) {
         Ok(b) => b,
         Err(resp) => return resp,
     };
+    let mut configuration_set = body.configuration_set;
+    if let Some(value) = body.value {
+        if configuration_set.insert("api_key".into(), value).is_some() {
+            return broker_error(BrokerError::Invalid(
+                "configuration field `api_key` was supplied twice".into(),
+            ));
+        }
+    }
+    if configuration_set.is_empty() && body.configuration_clear.is_empty() {
+        return broker_error(BrokerError::Invalid(
+            "configuration_set or configuration_clear is required".into(),
+        ));
+    }
     match st
         .connection_broker
-        .set_api_key(&st.connection_organization, &id, &body.value)
+        .set_connection_configuration(
+            &organization_id,
+            &id,
+            configuration_set,
+            body.configuration_clear,
+        )
         .await
     {
         Ok(view) => Json(view).into_response(),
@@ -298,6 +564,7 @@ pub async fn set_credential(
 }
 
 #[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BindBody {
     pub target_kind: String,
     pub target_id: String,
@@ -314,7 +581,8 @@ pub async fn create_binding(
         Ok(who) => who,
         Err(resp) => return resp,
     };
-    if let Err(resp) = owned(&st, &who, &id).await {
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Err(resp) = owned(&st, &who, &organization_id, &id).await {
         return resp;
     }
     let body: BindBody = match parse_body(&body) {
@@ -334,7 +602,7 @@ pub async fn create_binding(
     match st
         .connection_broker
         .bind(
-            &st.connection_organization,
+            &organization_id,
             &id,
             BindRequest {
                 target_kind,
@@ -358,12 +626,13 @@ pub async fn delete_binding(
         Ok(who) => who,
         Err(resp) => return resp,
     };
-    if let Err(resp) = owned(&st, &who, &id).await {
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Err(resp) = owned(&st, &who, &organization_id, &id).await {
         return resp;
     }
     match st
         .connection_broker
-        .unbind(&st.connection_organization, &id, &binding_id)
+        .unbind(&organization_id, &id, &binding_id)
         .await
     {
         Ok(view) => Json(view).into_response(),
@@ -380,14 +649,11 @@ pub async fn events(
         Ok(who) => who,
         Err(resp) => return resp,
     };
-    if let Err(resp) = owned(&st, &who, &id).await {
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Err(resp) = owned(&st, &who, &organization_id, &id).await {
         return resp;
     }
-    match st
-        .connection_broker
-        .events(&st.connection_organization, &id)
-        .await
-    {
+    match st.connection_broker.events(&organization_id, &id).await {
         Ok(events) => Json(json!({"events": events})).into_response(),
         Err(e) => broker_error(e),
     }
@@ -401,12 +667,34 @@ pub async fn oauth_callback(
     Query(params): Query<HashMap<String, String>>,
 ) -> Response {
     if let Some(error) = params.get("error") {
-        let detail = params
-            .get("error_description")
-            .cloned()
-            .unwrap_or_else(|| error.clone());
+        let error = if error.len() <= 64
+            && error
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric() || "_.-".contains(character))
+        {
+            error.clone()
+        } else {
+            "provider_error".into()
+        };
+        let detail = format!("provider rejected authorization ({error})");
+        let Some(state) = params.get("state") else {
+            return callback_page(CallbackOutcome::Failed {
+                code: "invalid_request".into(),
+                hint: "the provider redirect carried no state".into(),
+            });
+        };
+        if let Err(rejection) = st
+            .connection_broker
+            .reject_authorization(&provider_id, state, &detail)
+            .await
+        {
+            return callback_page(CallbackOutcome::Failed {
+                code: rejection.code().into(),
+                hint: rejection.hint(),
+            });
+        }
         return callback_page(CallbackOutcome::Failed {
-            code: error.clone(),
+            code: error,
             hint: detail,
         });
     }

@@ -76,6 +76,16 @@ export interface Organization {
   updatedAt: Date;
 }
 
+export type OrganizationRole = "owner" | "admin" | "member";
+
+export interface OrganizationMembership {
+  organizationId: string;
+  principalId: PrincipalId;
+  role: OrganizationRole;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Team {
   id: string;
   organizationId: string;
@@ -150,6 +160,8 @@ export type AgentState = "provisional" | "claimed" | "suspended" | "revoked";
 
 export interface Agent {
   id: string;
+  /** Principal that registered the agent — only they may claim or mutate it. */
+  ownerPrincipalId: string;
   displayName: string;
   provider?: string;
   softwareIdentity?: string;
@@ -193,6 +205,8 @@ export type OAuthClientState = "active" | "suspended" | "revoked";
 
 export interface OAuthClientRecord {
   id: string;
+  /** Principal that registered the client — only they may read or mutate it. */
+  ownerPrincipalId: string;
   admissionMode: ClientAdmissionMode;
   displayName: string;
   redirectUris: string[];
@@ -205,12 +219,6 @@ export interface OAuthClientRecord {
   metadataUri?: string;
   metadataDigest?: string;
   state: OAuthClientState;
-  /**
-   * The principal that registered this client, and the only one that may read
-   * or change it. Absent for clients admitted by other means (origin profiles),
-   * which nobody manages through the registration API.
-   */
-  ownerPrincipalId?: PrincipalId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -375,6 +383,10 @@ export interface AuditEvent {
   correlationId: string;
   causationId?: string;
   metadata: Record<string, unknown>;
+  /** Digest of the preceding event in the trail — tamper evidence, not a signature. */
+  previousDigest?: string;
+  /** Digest of this event over its own fields and `previousDigest`. */
+  digest?: string;
 }
 
 export interface OutboxEvent {

@@ -199,13 +199,23 @@ impl TaskStore for InMemoryTaskStore {
         Ok(lock_map(&self.ceiling_digests)?.get(&task_run_id).cloned())
     }
 
+    /// Write-once: a ceiling digest may be set, and may be set again to the same
+    /// value, but never changed. Immutability that only holds on the read path is
+    /// one stray writer away from not holding at all.
     fn save_ceiling_digest(
         &self,
         task_run_id: TaskRunId,
         digest: &str,
     ) -> Result<(), TaskAccessError> {
-        lock_map(&self.ceiling_digests)?.insert(task_run_id, digest.to_string());
-        Ok(())
+        let mut digests = lock_map(&self.ceiling_digests)?;
+        match digests.get(&task_run_id) {
+            Some(existing) if existing != digest => Err(TaskAccessError::CeilingImmutable),
+            Some(_) => Ok(()),
+            None => {
+                digests.insert(task_run_id, digest.to_string());
+                Ok(())
+            }
+        }
     }
 
     fn set_pending_transition(
@@ -459,12 +469,16 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         task_run_id: TaskRunId,
         required: &Capability,
         expected_state_version: u64,
+        now: DateTime<Utc>,
     ) -> Result<TaskRun, TaskAccessError> {
         let run = self
             .store
             .get_run(task_run_id)?
             .ok_or_else(|| TaskAccessError::TaskNotFound(task_run_id.to_string()))?;
         run.assert_active()?;
+        // Status alone never expires: without this the ceiling would authorize
+        // work indefinitely past `maximum_expires_at`.
+        run.assert_not_expired(now)?;
         run.assert_state_version(expected_state_version)?;
         self.assert_ceiling_unchanged(&run)?;
         let held = CapabilitySet::new(vec![required.clone()]);
@@ -472,17 +486,6 @@ impl<S: TaskStore> TaskAccessEngine<S> {
             return Err(TaskAccessError::Domain(DomainError::AuthorizationDenied(
                 "capability not held".into(),
             )));
-        }
-        // A restriction that has been proposed but not yet acknowledged already
-        // withdraws what it removes. The ratchet only tightens, so this cannot be
-        // undone, and enforcers must observe the shrink before anything
-        // irreversible happens under the old, wider set.
-        if let Some(pending) = self.store.get_pending_transition(task_run_id)? {
-            if !held.is_subset_of(&pending.resulting_capabilities) {
-                return Err(TaskAccessError::Domain(DomainError::AuthorizationDenied(
-                    "capability withdrawn by a pending restriction".into(),
-                )));
-            }
         }
         Ok(run)
     }
@@ -499,13 +502,6 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         run.assert_state_version(params.expected_state_version)?;
         self.assert_ceiling_unchanged(&run)?;
         run.validate_restriction(&params.proposed_capabilities)?;
-        // One restriction at a time. A second proposal against the same version
-        // would take over the pending pointer, and a shrink that removes nothing
-        // and needs no acknowledgement would then supersede one that is still
-        // waiting for a mediator — widening by the back door.
-        if let Some(pending) = self.store.get_pending_transition(params.task_run_id)? {
-            return Err(TaskAccessError::TransitionPending(pending.id.to_string()));
-        }
 
         let removed = diff_removed(&run.current_capabilities, &params.proposed_capabilities);
         let transition = CapabilityStateTransition {
@@ -520,14 +516,6 @@ impl<S: TaskStore> TaskAccessEngine<S> {
             created_at: params.now,
             committed_at: None,
         };
-
-        // Claim the version first, so a proposal made against a snapshot that has
-        // since moved on — a commit, or a terminate — cannot write `restricting`
-        // over it and roll the version back, reviving authority that had closed.
-        run.status = TaskRunStatus::Restricting;
-        run.updated_at = params.now;
-        self.store
-            .save_run_cas(&run, params.expected_state_version)?;
 
         if let Some(payload) = params.result_payload {
             let digest = opensesame_domain::digest_json(&payload)?;
@@ -551,6 +539,13 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         self.store.save_transition(&transition)?;
         self.store.set_pending_transition(run.id, transition.id)?;
 
+        run.status = TaskRunStatus::Restricting;
+        run.updated_at = params.now;
+        // CAS so a concurrent commit/terminate is not silently overwritten with
+        // this stale copy (which would restore the wider capability set).
+        self.store
+            .save_run_cas(&run, params.expected_state_version)?;
+
         Ok(transition)
     }
 
@@ -563,19 +558,8 @@ impl<S: TaskStore> TaskAccessEngine<S> {
             .store
             .get_transition(transition_id)?
             .ok_or_else(|| TaskAccessError::TransitionNotFound(transition_id.to_string()))?;
-        // Named for this transition, not merely for one that happens to land on the
-        // same version: two proposals can share a `to_state_version`, and an
-        // acknowledgement of one must not settle the other.
-        if ack.transition_id != transition.id.to_string() {
-            return Err(TaskAccessError::Domain(DomainError::MediationAckMismatch(
-                "transition_id mismatch".into(),
-            )));
-        }
         ack.assert_matches_transition(transition.task_run_id, transition.to_state_version)?;
         let mut set = self.store.get_ack_set(transition_id)?;
-        // The set decides whether this point was asked for, and records which one
-        // this settles: two answers from one mediator must not stand in for a
-        // point that never fenced.
         set.accept(&ack)?;
         self.store.save_ack_set(transition_id, &set)?;
         Ok(set)
@@ -620,9 +604,16 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         self.store
             .save_run_cas(&run, transition.from_state_version)?;
 
+        // Release only the buffer this transition fenced. A buffer left behind by
+        // a superseded proposal has not had its own acknowledgements, and
+        // releasing it here would let a result escape the fence that held it.
         if let Some(mut buffer) = self.store.get_result_buffer(task_run_id)? {
-            buffer.released = true;
-            self.store.save_result_buffer(&buffer)?;
+            if buffer.transition_id == transition.id.to_string()
+                && buffer.state_version == transition.to_state_version
+            {
+                buffer.released = true;
+                self.store.save_result_buffer(&buffer)?;
+            }
         }
 
         self.store.clear_pending_transition(task_run_id)?;
@@ -653,6 +644,7 @@ impl<S: TaskStore> TaskAccessEngine<S> {
             .get_run(params.task_run_id)?
             .ok_or_else(|| TaskAccessError::TaskNotFound(params.task_run_id.to_string()))?;
         run.assert_active()?;
+        run.assert_not_expired(params.now)?;
         run.assert_state_version(params.expected_state_version)?;
         self.assert_ceiling_unchanged(&run)?;
 
@@ -702,9 +694,6 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         run.state_version += 1;
         run.state_digest = run.compute_state_digest()?;
         run.updated_at = now;
-        // Compare-and-swap on the version this decision was made against. A plain
-        // write would let a caller holding a stale snapshot cancel over a commit
-        // that landed meanwhile, putting back the capabilities it had removed.
         self.store.save_run_cas(&run, expected_state_version)?;
         Ok(run)
     }

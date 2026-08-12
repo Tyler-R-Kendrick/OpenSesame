@@ -9,7 +9,7 @@ import type { Agent, AgentInstance } from "@opensesame/os-domain";
 import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
-import { bumpUsage, getUsage } from "../state.js";
+import { getUsage } from "../state.js";
 
 export const agentRoutes = new Hono<{ Variables: Variables }>();
 
@@ -35,7 +35,7 @@ agentRoutes.post(
         action: "agent.register_ephemeral",
         resource: { type: "agent", id: "*" },
       },
-      getUsage(ctx.stores, principalId),
+      getUsage(ctx.stores, principalId, ctx.clock()),
     );
     if (decision.effect === "deny") {
       return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
@@ -47,6 +47,7 @@ agentRoutes.post(
 
     const agent: Agent = {
       id: agentId,
+      ownerPrincipalId: principalId,
       displayName: parsed.data.displayName,
       state: "provisional",
       createdAt: now,
@@ -84,8 +85,6 @@ agentRoutes.post(
       proofKeyJkt: parsed.data.publicKeyJkt,
     });
 
-    bumpUsage(ctx.stores, principalId, { agents: 1 });
-
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "agent.registered",
       outcome: "succeeded",
@@ -119,7 +118,13 @@ agentRoutes.post(
     const principalId = c.get("principalId")!;
     const agentId = c.req.param("id");
     const agent = ctx.stores.agents.get(agentId);
-    if (!agent) return c.json({ error: "not_found" }, 404);
+    // A claim asserts `ownerPrincipalId` in its manifest and flips the agent to
+    // `claimed` on completion, so an unfenced claim would let any caller take
+    // over someone else's agent. Foreign ids answer 404, not 403: the id space
+    // must not be enumerable either.
+    if (!agent || agent.ownerPrincipalId !== principalId) {
+      return c.json({ error: "not_found" }, 404);
+    }
 
     const claim = await ctx.claims.createClaim({
       type: "agent",

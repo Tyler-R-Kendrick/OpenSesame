@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { Hono } from "hono";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   CreateOAuthClientRequestSchema,
@@ -7,15 +6,20 @@ import {
   PatchOAuthClientRequestSchema,
 } from "@opensesame/contracts";
 import type { OAuthClientRecord } from "@opensesame/os-domain";
-import type { Variables } from "../middleware/context.js";
+import { Hono } from "hono";
+import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
+import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { getUsage } from "../state.js";
+import { authenticatedPrincipalId } from "./organizations.js";
 
 export const oauthClientRoutes = new Hono<{ Variables: Variables }>();
 
 function toResponse(client: OAuthClientRecord) {
   return OAuthClientResponseSchema.parse({
     id: client.id,
+    ownerPrincipalId: client.ownerPrincipalId,
     admissionMode: client.admissionMode,
     displayName: client.displayName,
     redirectUris: client.redirectUris,
@@ -32,23 +36,106 @@ function toResponse(client: OAuthClientRecord) {
 }
 
 /**
- * A client answers only to the principal that registered it. A client owned by
- * someone else reads as absent rather than forbidden, so ids cannot be probed.
+ * Loads a client the caller owns. Foreign or unknown ids both answer 404 so the
+ * endpoint is not an existence oracle for other principals' client registrations.
  */
-function owned(
-  client: OAuthClientRecord | undefined,
+function loadOwnedClient(
+  ctx: AppContext,
   principalId: string,
-): OAuthClientRecord | undefined {
-  if (!client) return undefined;
-  return client.ownerPrincipalId === principalId ? client : undefined;
+  id: string,
+  { includeRevoked = false }: { includeRevoked?: boolean } = {},
+): OAuthClientRecord | null {
+  const client = ctx.stores.oauthClients.get(id);
+  if (!client) return null;
+  if (client.ownerPrincipalId !== principalId) return null;
+  if (!includeRevoked && client.state === "revoked") return null;
+  return client;
+}
+
+/** Client registration and mutation require a verified (non-provisional) identity. */
+async function assertVerified(
+  ctx: AppContext,
+  principalId: string,
+  action: string,
+): Promise<Response | null> {
+  const principal = await ctx.repos.principals.getById(principalId);
+  if (!principal) {
+    return Response.json({ error: "not_found" }, { status: 404 });
+  }
+  if (principal.assurance === "provisional") {
+    return Response.json(
+      {
+        error: "assurance_too_low",
+        message: `Verified identity required to ${action} OAuth clients`,
+      },
+      { status: 403 },
+    );
+  }
+  return null;
+}
+
+/**
+ * Registration spends a quota slot. Assurance says who someone is; it does not
+ * say they may register clients forever, and without this the client store grew
+ * for as long as a caller kept asking.
+ */
+async function assertRegistrationQuota(
+  ctx: AppContext,
+  principalId: string,
+): Promise<Response | null> {
+  const principal = await ctx.repos.principals.getById(principalId);
+  if (!principal) {
+    return Response.json({ error: "not_found" }, { status: 404 });
+  }
+  const decision = ctx.policy.evaluate(
+    principal,
+    {
+      subject: {
+        type: "principal",
+        id: principal.id,
+        assurance: principal.assurance,
+      },
+      action: "oauth.client.register",
+      resource: { type: "oauth_client", id: "*" },
+    },
+    getUsage(ctx.stores, principalId, ctx.clock()),
+  );
+  if (decision.effect === "deny") {
+    return Response.json(
+      { error: "forbidden", reasons: decision.reasons },
+      { status: 403 },
+    );
+  }
+  return null;
+}
+
+/**
+ * A sector identifier may not be claimed across owners.
+ *
+ * Two clients sharing a sector see the same pairwise subject for the same
+ * person, which is exactly the linkage pairwise subjects exist to prevent.
+ * Sharing one between a single owner's clients is a legitimate choice; taking
+ * another owner's sector is a way to learn the `sub` they see.
+ */
+function sectorClaimedByAnother(
+  ctx: AppContext,
+  principalId: string,
+  sectorIdentifier: string,
+): boolean {
+  for (const client of ctx.stores.oauthClients.values()) {
+    if (client.state === "revoked") continue;
+    if (client.ownerPrincipalId === principalId) continue;
+    if (client.sectorIdentifier === sectorIdentifier) return true;
+  }
+  return false;
 }
 
 oauthClientRoutes.get("/", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   const clients = [...ctx.stores.oauthClients.values()].filter(
     (client) =>
-      client.state !== "revoked" && client.ownerPrincipalId === principalId,
+      client.ownerPrincipalId === principalId && client.state !== "revoked",
   );
   return c.json({ clients: clients.map(toResponse) });
 });
@@ -59,20 +146,11 @@ oauthClientRoutes.post(
   idempotencyMiddleware("oauth-clients.create"),
   async (c) => {
     const ctx = c.get("ctx");
-    const principalId = c.get("principalId")!;
-    const principal = await ctx.repos.principals.getById(principalId);
-    if (!principal) {
-      return c.json({ error: "not_found" }, 404);
-    }
-    if (principal.assurance === "provisional") {
-      return c.json(
-        {
-          error: "assurance_too_low",
-          message: "Verified identity required to register OAuth clients",
-        },
-        403,
-      );
-    }
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
+    const denied = await assertVerified(ctx, principalId, "register");
+    if (denied) return denied;
+    const overQuota = await assertRegistrationQuota(ctx, principalId);
+    if (overQuota) return overQuota;
 
     const parsed = CreateOAuthClientRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
@@ -93,9 +171,23 @@ oauthClientRoutes.post(
       );
     }
 
+    if (
+      sectorClaimedByAnother(ctx, principalId, parsed.data.sectorIdentifier)
+    ) {
+      return c.json(
+        {
+          error: "sector_identifier_taken",
+          message:
+            "another principal already registered a client under this sectorIdentifier",
+        },
+        409,
+      );
+    }
+
     const now = ctx.clock();
     const client: OAuthClientRecord = {
       id: `cli_${randomUUID()}`,
+      ownerPrincipalId: principalId,
       admissionMode: "pre_registered",
       displayName: parsed.data.displayName,
       redirectUris: parsed.data.redirectUris,
@@ -106,7 +198,6 @@ oauthClientRoutes.post(
       allowedScopes: parsed.data.allowedScopes,
       allowedResources: parsed.data.allowedResources,
       state: "active",
-      ownerPrincipalId: principalId,
       createdAt: now,
       updatedAt: now,
     };
@@ -131,12 +222,11 @@ oauthClientRoutes.post(
 
 oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
-  const client = owned(
-    ctx.stores.oauthClients.get(c.req.param("id")),
-    principalId,
-  );
-  if (!client || client.state === "revoked") {
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
+  const denied = await assertVerified(ctx, principalId, "modify");
+  if (denied) return denied;
+  const client = loadOwnedClient(ctx, principalId, c.req.param("id"));
+  if (!client) {
     return c.json({ error: "not_found" }, 404);
   }
 
@@ -149,7 +239,7 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
   }
 
   const now = ctx.clock();
-  let next: OAuthClientRecord = {
+  const next: OAuthClientRecord = {
     ...client,
     updatedAt: now,
   };
@@ -184,12 +274,11 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
 
 oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
-  const client = owned(
-    ctx.stores.oauthClients.get(c.req.param("id")),
-    principalId,
-  );
-  if (!client || client.state === "revoked") {
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
+  const denied = await assertVerified(ctx, principalId, "rotate");
+  if (denied) return denied;
+  const client = loadOwnedClient(ctx, principalId, c.req.param("id"));
+  if (!client) {
     return c.json({ error: "not_found" }, 404);
   }
   const now = ctx.clock();
@@ -223,11 +312,12 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
 
 oauthClientRoutes.post("/:id/revoke", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
-  const client = owned(
-    ctx.stores.oauthClients.get(c.req.param("id")),
-    principalId,
-  );
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
+  const denied = await assertVerified(ctx, principalId, "revoke");
+  if (denied) return denied;
+  const client = loadOwnedClient(ctx, principalId, c.req.param("id"), {
+    includeRevoked: true,
+  });
   if (!client) {
     return c.json({ error: "not_found" }, 404);
   }

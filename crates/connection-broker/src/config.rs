@@ -14,7 +14,7 @@ pub const ENV_REDIRECT_ALLOWLIST: &str = "OPENSESAME_CONNECTION_REDIRECT_ALLOWLI
 const DEFAULT_PUBLIC_URL: &str = "http://127.0.0.1:8787";
 
 /// Per-provider client credentials and endpoint overrides.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct ProviderConfig {
     pub client_id: Option<String>,
     pub client_secret: Option<String>,
@@ -51,14 +51,18 @@ pub fn env_var_name(provider_id: &str, suffix: &str) -> String {
 }
 
 impl BrokerConfig {
-    pub fn from_env() -> Self {
+    pub fn from_env() -> crate::Result<Self> {
         let mut providers = BTreeMap::new();
-        for provider in catalog::all() {
+        for provider in catalog::all()? {
             let cfg = ProviderConfig {
-                client_id: non_empty(env::var(env_var_name(provider.id, "CLIENT_ID")).ok()),
-                client_secret: non_empty(env::var(env_var_name(provider.id, "CLIENT_SECRET")).ok()),
-                authorize_url: non_empty(env::var(env_var_name(provider.id, "AUTHORIZE_URL")).ok()),
-                token_url: non_empty(env::var(env_var_name(provider.id, "TOKEN_URL")).ok()),
+                client_id: non_empty(env::var(env_var_name(&provider.id, "CLIENT_ID")).ok()),
+                client_secret: non_empty(
+                    env::var(env_var_name(&provider.id, "CLIENT_SECRET")).ok(),
+                ),
+                authorize_url: non_empty(
+                    env::var(env_var_name(&provider.id, "AUTHORIZE_URL")).ok(),
+                ),
+                token_url: non_empty(env::var(env_var_name(&provider.id, "TOKEN_URL")).ok()),
             };
             providers.insert(provider.id.to_string(), cfg);
         }
@@ -74,7 +78,7 @@ impl BrokerConfig {
             None => None,
         };
 
-        Self {
+        Ok(Self {
             key,
             public_url: env::var(ENV_PUBLIC_URL)
                 .ok()
@@ -87,7 +91,7 @@ impl BrokerConfig {
                 .filter(|s| !s.is_empty())
                 .collect(),
             providers,
-        }
+        })
     }
 
     /// Configuration assembled in-process, for tests and embedders that do not
@@ -124,8 +128,8 @@ impl BrokerConfig {
     }
 
     pub fn authorize_url(&self, provider: &Provider) -> Option<String> {
-        let overridden = self.provider(provider.id).authorize_url;
-        match provider.auth {
+        let overridden = self.provider(&provider.id).authorize_url;
+        match &provider.auth {
             AuthMethod::OAuth2AuthCode { authorize_url, .. } => {
                 Some(overridden.unwrap_or_else(|| authorize_url.to_string()))
             }
@@ -137,8 +141,8 @@ impl BrokerConfig {
     }
 
     pub fn token_url(&self, provider: &Provider) -> Option<String> {
-        let overridden = self.provider(provider.id).token_url;
-        match provider.auth {
+        let overridden = self.provider(&provider.id).token_url;
+        match &provider.auth {
             AuthMethod::OAuth2AuthCode { token_url, .. } => {
                 Some(overridden.unwrap_or_else(|| token_url.to_string()))
             }
@@ -180,13 +184,13 @@ impl BrokerConfig {
         if self.key.is_none() {
             missing.push(ENV_CONNECTION_KEY.to_string());
         }
-        if matches!(provider.auth, AuthMethod::OAuth2AuthCode { .. }) {
-            let cfg = self.provider(provider.id);
+        if provider.auth.requires_client_credentials() {
+            let cfg = self.provider(&provider.id);
             if cfg.client_id.is_none() {
-                missing.push(env_var_name(provider.id, "CLIENT_ID"));
+                missing.push(env_var_name(&provider.id, "CLIENT_ID"));
             }
             if cfg.client_secret.is_none() {
-                missing.push(env_var_name(provider.id, "CLIENT_SECRET"));
+                missing.push(env_var_name(&provider.id, "CLIENT_SECRET"));
             }
         }
         missing
@@ -234,7 +238,7 @@ mod tests {
     #[test]
     fn no_key_means_nothing_is_configured() {
         let cfg = BrokerConfig::in_memory(None, "http://127.0.0.1:8787");
-        for p in catalog::all() {
+        for p in catalog::all().expect("catalog") {
             assert!(!cfg.configured(p), "{} claimed configured", p.id);
             assert!(
                 cfg.missing_config(p)
@@ -249,14 +253,14 @@ mod tests {
     #[test]
     fn missing_config_names_real_variables() {
         let cfg = BrokerConfig::in_memory(Some(key()), "http://127.0.0.1:8787");
-        for p in catalog::all() {
+        for p in catalog::all().expect("catalog") {
             let missing = cfg.missing_config(p);
-            if matches!(p.auth, AuthMethod::OAuth2AuthCode { .. }) {
+            if p.auth.requires_client_credentials() {
                 assert_eq!(
                     missing,
                     vec![
-                        env_var_name(p.id, "CLIENT_ID"),
-                        env_var_name(p.id, "CLIENT_SECRET")
+                        env_var_name(&p.id, "CLIENT_ID"),
+                        env_var_name(&p.id, "CLIENT_SECRET")
                     ],
                     "{}",
                     p.id
@@ -272,14 +276,6 @@ mod tests {
     }
 
     #[test]
-    fn delegated_openrouter_needs_no_app_secret() {
-        let cfg = BrokerConfig::in_memory(Some(key()), "http://127.0.0.1:8787");
-        let provider = catalog::find("openrouter").expect("openrouter");
-        assert!(cfg.configured(provider));
-        assert!(cfg.missing_config(provider).is_empty());
-    }
-
-    #[test]
     fn a_configured_oauth_provider_reports_clean() {
         let cfg = BrokerConfig::in_memory(Some(key()), "http://127.0.0.1:8787").with_provider(
             "github",
@@ -289,7 +285,7 @@ mod tests {
                 ..Default::default()
             },
         );
-        let github = catalog::find("github").expect("github");
+        let github = catalog::find("github").expect("catalog").expect("github");
         assert!(cfg.configured(github));
         assert!(cfg.missing_config(github).is_empty());
     }
@@ -309,7 +305,7 @@ mod tests {
 
     #[test]
     fn endpoint_overrides_win_over_the_catalog() {
-        let mock = catalog::find("mock").expect("mock");
+        let mock = catalog::find("mock").expect("catalog").expect("mock");
         let cfg = BrokerConfig::in_memory(Some(key()), "http://127.0.0.1:8787").with_provider(
             "mock",
             ProviderConfig {
@@ -325,7 +321,7 @@ mod tests {
             cfg.authorize_url(mock).as_deref(),
             Some(catalog::MOCK_AUTHORIZE_URL)
         );
-        let stripe = catalog::find("stripe").expect("stripe");
+        let stripe = catalog::find("stripe").expect("catalog").expect("stripe");
         assert!(cfg.token_url(stripe).is_none());
     }
 

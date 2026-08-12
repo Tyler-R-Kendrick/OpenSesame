@@ -106,12 +106,37 @@ mod hex {
     }
 }
 
+/// Accept `verification_uri_complete` only when it is same-origin with the issuer.
+///
+/// This URL is opened in the human's browser with the user code in it, so a
+/// prefix comparison is not enough: `https://issuer.example.evil.test/device`
+/// starts with `https://issuer.example` and would send the approval ceremony to
+/// an attacker.
 pub fn validate_verification_uri_complete(complete: &str, issuer_origin: &str) -> Option<String> {
-    if complete.starts_with(issuer_origin) {
-        Some(complete.to_string())
-    } else {
-        None
+    let candidate = url::Url::parse(complete).ok()?;
+    let issuer = url::Url::parse(issuer_origin).ok()?;
+    if candidate.scheme() != issuer.scheme() {
+        return None;
     }
+    if candidate.host() != issuer.host() {
+        return None;
+    }
+    if candidate.port_or_known_default() != issuer.port_or_known_default() {
+        return None;
+    }
+    // Credentials in the URL are never part of a legitimate ceremony link.
+    if !candidate.username().is_empty() || candidate.password().is_some() {
+        return None;
+    }
+    // Respect a path-scoped issuer (e.g. `https://idp.example/tenant-a`).
+    let issuer_path = issuer.path().trim_end_matches('/');
+    if !issuer_path.is_empty() {
+        let path = candidate.path();
+        if path != issuer_path && !path.starts_with(&format!("{issuer_path}/")) {
+            return None;
+        }
+    }
+    Some(complete.to_string())
 }
 
 pub fn demo_device_authorization(issuer_origin: &str) -> DeviceAuthorization {
@@ -150,5 +175,45 @@ mod tests {
             "https://issuer.example"
         )
         .is_none());
+    }
+
+    #[test]
+    fn a_suffixed_host_does_not_pass_as_the_issuer() {
+        // The old prefix comparison accepted every one of these.
+        for hostile in [
+            "https://issuer.example.evil.test/device?user_code=X",
+            "https://issuer.example.evil.test:443/device",
+            "https://issuer.example@evil.test/device",
+            "https://issuer.example:8443/device",
+            "http://issuer.example/device",
+        ] {
+            assert!(
+                validate_verification_uri_complete(hostile, "https://issuer.example").is_none(),
+                "{hostile} should not pass as the issuer origin"
+            );
+        }
+        assert!(validate_verification_uri_complete(
+            "https://issuer.example/device?user_code=X",
+            "https://issuer.example"
+        )
+        .is_some());
+    }
+
+    #[test]
+    fn a_path_scoped_issuer_confines_the_ceremony_link() {
+        let issuer = "https://idp.example/tenant-a";
+        assert!(
+            validate_verification_uri_complete("https://idp.example/tenant-a/device", issuer)
+                .is_some()
+        );
+        assert!(
+            validate_verification_uri_complete("https://idp.example/tenant-b/device", issuer)
+                .is_none()
+        );
+        // No segment boundary crossing either.
+        assert!(
+            validate_verification_uri_complete("https://idp.example/tenant-attacker", issuer)
+                .is_none()
+        );
     }
 }

@@ -1,26 +1,30 @@
 import {
-  assertDependencyClosure,
-  authenticateClaim as transitionAuthenticate,
-  canonicalize,
-  completeClaim as transitionComplete,
-  denyClaim as transitionDeny,
-  digestManifest,
-  DomainError,
-  expireClaim as transitionExpire,
-  generateClaimToken,
-  generateUserCode,
-  digestUserCode,
-  maybeExpireClaim,
-  presentClaim as transitionPresent,
-  reviewClaim as transitionReview,
-  revokeClaim as transitionRevoke,
-  verifyClaimToken,
   type ClaimItem,
   type ClaimSession,
   type ClaimTargetType,
   type Clock,
+  DomainError,
+  assertDependencyClosure,
+  canonicalize,
+  digestManifest,
+  digestUserCode,
+  generateClaimToken,
+  generateUserCode,
+  maybeExpireClaim,
+  authenticateClaim as transitionAuthenticate,
+  completeClaim as transitionComplete,
+  denyClaim as transitionDeny,
+  expireClaim as transitionExpire,
+  presentClaim as transitionPresent,
+  reviewClaim as transitionReview,
+  revokeClaim as transitionRevoke,
+  verifyClaimToken,
 } from "@opensesame/os-domain";
-import type { ClaimEngineOptions, ClaimStore, CompleteDecision } from "./store.js";
+import type {
+  ClaimEngineOptions,
+  ClaimStore,
+  CompleteDecision,
+} from "./store.js";
 
 export interface CreateClaimInput {
   type: ClaimTargetType;
@@ -65,7 +69,7 @@ export class ClaimEngine {
       type: input.type,
       state: "pending",
       tokenDigest: generated.digest,
-      userCodeDigest: digestUserCode(this.pepper, userCode),
+      userCodeDigest: digestUserCode(this.pepper, generated.publicId, userCode),
       targetManifest: structuredClone(input.targetManifest),
       targetManifestDigest: digest,
       createdAt: now,
@@ -107,12 +111,13 @@ export class ClaimEngine {
     }
     const maybe = maybeExpireClaim(existing, this.clock);
     if (maybe.state === "expired" && existing.state !== "expired") {
-      const { session, won } = await this.store.compareAndSwap(
+      // Whether or not this writer won, the store's version is authoritative.
+      const { session } = await this.store.compareAndSwap(
         id,
         existing.version,
         maybe,
       );
-      return won ? session : session;
+      return session;
     }
     return maybe;
   }
@@ -163,11 +168,20 @@ export class ClaimEngine {
     );
   }
 
+  /** Bound on `completeClaim` retries, matching `applyTransition`. */
+  private static readonly MAX_COMPLETE_ATTEMPTS = 8;
+
   async completeClaim(
     id: string,
     completedByPrincipalId: string,
     decision: CompleteDecision,
+    attempt = 0,
   ): Promise<{ session: ClaimSession; won: boolean }> {
+    // Losing the review CAS re-enters this method. Without a bound, concurrent
+    // completers could recurse until the stack gave out.
+    if (attempt >= ClaimEngine.MAX_COMPLETE_ATTEMPTS) {
+      throw new DomainError("CONFLICT", "Claim CAS retries exhausted", { id });
+    }
     const current = await this.loadFresh(id);
     if (current.state === "expired") {
       throw new DomainError("EXPIRED", "Claim expired", { id });
@@ -197,7 +211,11 @@ export class ClaimEngine {
       current.state === "reviewed"
         ? current
         : current.state === "authenticated"
-          ? transitionReview(current, decision as unknown as Record<string, unknown>, this.clock())
+          ? transitionReview(
+              current,
+              decision as unknown as Record<string, unknown>,
+              this.clock(),
+            )
           : (() => {
               throw new DomainError(
                 "INVALID_TRANSITION",
@@ -216,7 +234,12 @@ export class ClaimEngine {
       );
       if (!cas.won) {
         // Concurrent writer — reload and handle
-        return this.completeClaim(id, completedByPrincipalId, decision);
+        return this.completeClaim(
+          id,
+          completedByPrincipalId,
+          decision,
+          attempt + 1,
+        );
       }
       base = cas.session;
     }
@@ -236,11 +259,7 @@ export class ClaimEngine {
         : {}),
     };
 
-    const result = await this.store.compareAndSwap(
-      id,
-      base.version,
-      completed,
-    );
+    const result = await this.store.compareAndSwap(id, base.version, completed);
     if (!result.won) {
       // Concurrent completion — only one winner
       if (
@@ -254,9 +273,13 @@ export class ClaimEngine {
       if (result.session.state === "completed") {
         return { session: result.session, won: false };
       }
-      throw new DomainError("CONFLICT", "Concurrent claim completion conflict", {
-        id,
-      });
+      throw new DomainError(
+        "CONFLICT",
+        "Concurrent claim completion conflict",
+        {
+          id,
+        },
+      );
     }
     // Only after winning: item rows say what was accepted, and a decision that
     // lost the swap must not be the one on record against them.
@@ -319,16 +342,20 @@ function decisionsMatch(
   decision: CompleteDecision,
 ): boolean {
   if (!recorded) return false;
-  const accepted = recorded["acceptedItemIds"];
+  const accepted = recorded.acceptedItemIds;
   if (!Array.isArray(accepted)) return false;
   if (accepted.length !== decision.acceptedItemIds.length) return false;
   const set = new Set(accepted);
   if (!decision.acceptedItemIds.every((id) => set.has(id))) return false;
   return (
-    canonicalize(recorded["destination"] ?? null) ===
+    canonicalize(recorded.destination ?? null) ===
     canonicalize(decision.destination ?? null)
   );
 }
 
-export type { ClaimStore, ClaimEngineOptions, CompleteDecision } from "./store.js";
+export type {
+  ClaimStore,
+  ClaimEngineOptions,
+  CompleteDecision,
+} from "./store.js";
 export { MemoryClaimStore } from "./memory-store.js";

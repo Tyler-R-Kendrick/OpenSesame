@@ -7,7 +7,6 @@ description = "Core SDK facade — shared IR (re-exports domain + AuthorityHandl
 
 [dependencies]
 opensesame-domain = { path = "../domain" }
-opensesame-contracts = { path = "../contracts" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

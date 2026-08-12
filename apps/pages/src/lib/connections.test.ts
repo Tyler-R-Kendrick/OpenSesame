@@ -5,6 +5,7 @@ import {
   listConnections,
   listProviders,
   refreshConnection,
+  setConnectionConfiguration,
 } from "./connections.js";
 import {
   HostSessionError,
@@ -50,6 +51,40 @@ function stubHostFetch(handler: (url: string, init?: RequestInit) => Response) {
     }
     return handler(url, init);
   });
+}
+
+function connectionWire(overrides: Record<string, unknown> = {}) {
+  return {
+    connection_id: "connection_1",
+    integration_id: null,
+    connection_ref: "conn://org/proj/github/main",
+    logical_name: "github/main",
+    display_name: "GitHub — acme",
+    provider_id: "github",
+    status: "active",
+    status_detail: null,
+    organization_id: "organization_1",
+    project_id: null,
+    owner_kind: "organization",
+    shareability: "delegable",
+    requested_scopes: ["repo"],
+    granted_scopes: ["repo", "read:user"],
+    account_label: "acme",
+    expires_at: "2026-08-09T00:00:00Z",
+    refreshable: true,
+    configured_fields: [],
+    last_refreshed_at: null,
+    max_invoke_level: 2,
+    egress: {
+      scheme: "https",
+      authorities: ["api.github.com"],
+      path_prefixes: [],
+    },
+    bindings: [],
+    created_at: "2026-08-08T00:00:00Z",
+    updated_at: "2026-08-08T00:00:00Z",
+    ...overrides,
+  };
 }
 
 beforeEach(async () => {
@@ -117,30 +152,7 @@ describe("reading connections", () => {
     stubHostFetch(() =>
       jsonResponse({
         connections: [
-          {
-            connection_id: "connection_1",
-            connection_ref: "conn://org/proj/github/main",
-            logical_name: "github/main",
-            display_name: "GitHub — acme",
-            provider_id: "github",
-            status: "active",
-            status_detail: null,
-            organization_id: "organization_1",
-            project_id: null,
-            owner_kind: "organization",
-            shareability: "delegable",
-            requested_scopes: ["repo"],
-            granted_scopes: ["repo", "read:user"],
-            account_label: "acme",
-            expires_at: "2026-08-09T00:00:00Z",
-            refreshable: true,
-            last_refreshed_at: null,
-            max_invoke_level: 2,
-            egress: {
-              scheme: "https",
-              authorities: ["api.github.com"],
-              path_prefixes: [],
-            },
+          connectionWire({
             bindings: [
               {
                 id: "binding_1",
@@ -150,9 +162,7 @@ describe("reading connections", () => {
                 created_at: "2026-08-08T00:00:00Z",
               },
             ],
-            created_at: "2026-08-08T00:00:00Z",
-            updated_at: "2026-08-08T00:00:00Z",
-          },
+          }),
         ],
       }),
     );
@@ -166,17 +176,12 @@ describe("reading connections", () => {
     expect(connection?.bindings[0]?.targetLabel).toBe("Catalog");
   });
 
-  it("survives a connection missing optional fields", async () => {
+  it("rejects a connection that violates the strict wire contract", async () => {
     stubHostFetch(() =>
       jsonResponse({ connections: [{ connection_id: "connection_2" }] }),
     );
 
-    const [connection] = await listConnections();
-
-    expect(connection?.accountLabel).toBeNull();
-    expect(connection?.expiresAt).toBeNull();
-    expect(connection?.bindings).toEqual([]);
-    expect(connection?.refreshable).toBe(false);
+    await expect(listConnections()).rejects.toThrow(/integration_id/u);
   });
 
   it("maps a provider including what the deployment is missing", async () => {
@@ -188,9 +193,12 @@ describe("reading connections", () => {
             display_name: "Slack",
             category: "communication",
             docs_url: "https://api.slack.com/authentication/oauth-v2",
+            provenance_url: "https://api.slack.com/authentication/oauth-v2",
+            catalog_revision: "test.1",
             auth_kind: "oauth2_authorization_code",
             supports_refresh: false,
             configured: false,
+            callback_url: null,
             missing_config: [
               "OPENSESAME_PROVIDER_SLACK_CLIENT_ID",
               "OPENSESAME_PROVIDER_SLACK_CLIENT_SECRET",
@@ -209,10 +217,10 @@ describe("reading connections", () => {
               path_prefixes: [],
             },
             operations: [],
-            configuration_fields: [
+            integration_configuration_fields: [],
+            connection_configuration_fields: [
               {
                 name: "workspace",
-                label: "Workspace",
                 secret: false,
                 required: true,
               },
@@ -231,8 +239,26 @@ describe("reading connections", () => {
     const request = spy.mock.calls.find(
       ([url]) => String(url) === `${HOST}/api/v1/providers`,
     )?.[1];
-    expect(new Headers(request?.headers).has("authorization")).toBe(false);
+    expect(new Headers(request?.headers).get("authorization")).toBe(
+      "Bearer opaque-session:sess_pages",
+    );
     expect(request?.credentials).toBe("omit");
+  });
+
+  it("sends provider-defined fields as structured configuration", async () => {
+    const spy = stubHostFetch(() => jsonResponse(connectionWire()));
+
+    await setConnectionConfiguration("connection_1", {
+      service: "opensesame",
+    });
+
+    const request = spy.mock.calls.find(([url]) =>
+      String(url).endsWith("/connections/connection_1/credential"),
+    )?.[1];
+    expect(JSON.parse(String(request?.body))).toEqual({
+      configuration_set: { service: "opensesame" },
+      configuration_clear: [],
+    });
   });
 });
 
@@ -345,11 +371,9 @@ describe("awaiting consent", () => {
     let polls = 0;
     stubHostFetch(() => {
       polls += 1;
-      return jsonResponse({
-        connection_id: "connection_1",
-        status: polls === 1 ? "pending" : "active",
-        account_label: "acme",
-      });
+      return jsonResponse(
+        connectionWire({ status: polls === 1 ? "pending" : "active" }),
+      );
     });
 
     const pending = awaitConsent("connection_1", null);
@@ -362,11 +386,12 @@ describe("awaiting consent", () => {
     stubWindow();
     vi.useFakeTimers();
     stubHostFetch(() =>
-      jsonResponse({
-        connection_id: "connection_1",
-        status: "error",
-        status_detail: "The provider rejected the code.",
-      }),
+      jsonResponse(
+        connectionWire({
+          status: "error",
+          status_detail: "The provider rejected the code.",
+        }),
+      ),
     );
 
     const pending = awaitConsent("connection_1", null);
@@ -378,9 +403,7 @@ describe("awaiting consent", () => {
   it("calls a closed popup over a still-pending connection abandoned", async () => {
     stubWindow();
     vi.useFakeTimers();
-    stubHostFetch(() =>
-      jsonResponse({ connection_id: "connection_1", status: "pending" }),
-    );
+    stubHostFetch(() => jsonResponse(connectionWire({ status: "pending" })));
 
     const pending = awaitConsent("connection_1", { closed: true } as Window);
     await vi.advanceTimersByTimeAsync(5000);

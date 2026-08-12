@@ -40,6 +40,7 @@ import {
   openConsentPopup,
   refreshConnection,
   revokeConnection,
+  setConnectionConfiguration,
   setConnectionCredential,
   unbindConnection,
 } from "../lib/connections.js";
@@ -73,7 +74,7 @@ type LoadFailure = {
 const CATEGORY_LABELS: Record<ProviderCategory, string> = {
   encryption: "Encryption (secrets in git)",
   cloud_secret_storage: "Cloud secret storage",
-  password_managers: "Password managers & secret services",
+  password_managers: "Password managers",
   local_storage: "Local storage",
   developer: "Developer tools",
   productivity: "Productivity",
@@ -261,9 +262,11 @@ export function ConnectionsSection() {
     }
   }, []);
 
+  // Re-run after Identity changes because Host authentication is session-backed.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: session is the retry trigger.
   useEffect(() => {
     void loadCatalog();
-  }, [loadCatalog]);
+  }, [loadCatalog, session]);
 
   useEffect(() => {
     if (!session) return;
@@ -620,6 +623,27 @@ function ConnectionCard({
     }
   }
 
+  async function revoke() {
+    setBusy("revoke");
+    try {
+      const result = await revokeConnection(connection.connectionId);
+      const upstream = result.providerRevocation;
+      onFlash(
+        upstream === "ok"
+          ? { tone: "ok", text: `${connection.displayName} was revoked.` }
+          : {
+              tone: "warn",
+              text: `${connection.displayName} was removed locally, but provider revocation was ${upstream}. Revoke it in the provider's security settings too.`,
+            },
+      );
+      onChanged();
+    } catch (error) {
+      onFlash({ tone: "err", text: errorText(error) });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const scopes = connection.grantedScopes.length
     ? connection.grantedScopes
     : connection.requestedScopes;
@@ -772,11 +796,7 @@ function ConnectionCard({
               disabled={busy !== null}
               onClick={() => {
                 setConfirming(false);
-                void act(
-                  "revoke",
-                  () => revokeConnection(connection.connectionId),
-                  `${connection.displayName} was revoked.`,
-                );
+                void revoke();
               }}
             >
               Revoke it
@@ -1296,12 +1316,14 @@ function ConnectForm({
     // the real destination is set once the broker has issued the state.
     const popup = openConsentPopup("about:blank");
     setBusy(true);
+    let created = false;
     try {
       const connection = await createConnection({
         providerId: provider.id,
         displayName: name.trim() || provider.displayName,
         scopes,
       });
+      created = true;
       const { authorizationUrl } = await authorizeConnection(
         connection.connectionId,
         scopes,
@@ -1338,6 +1360,7 @@ function ConnectForm({
     } catch (error) {
       popup?.close();
       onFlash({ tone: "err", text: errorText(error) });
+      if (created) onConnected();
     } finally {
       setBusy(false);
     }
@@ -1346,11 +1369,13 @@ function ConnectForm({
   async function saveKey(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
+    let created = false;
     try {
       const connection = await createConnection({
         providerId: provider.id,
         displayName: name.trim() || provider.displayName,
       });
+      created = true;
       await setConnectionCredential(connection.connectionId, apiKey.trim());
       setApiKey("");
       onFlash({
@@ -1360,6 +1385,7 @@ function ConnectForm({
       onConnected();
     } catch (error) {
       onFlash({ tone: "err", text: errorText(error) });
+      if (created) onConnected();
     } finally {
       setBusy(false);
     }
@@ -1369,15 +1395,19 @@ function ConnectForm({
     event.preventDefault();
     setBusy(true);
     const form = event.currentTarget as HTMLFormElement;
-    const payload = JSON.stringify(configuration);
+    const payload = Object.fromEntries(
+      Object.entries(configuration).filter(([, value]) => value.trim() !== ""),
+    );
     form.reset();
     setConfiguration(configurationDefaults(provider));
+    let created = false;
     try {
       const connection = await createConnection({
         providerId: provider.id,
         displayName: name.trim() || provider.displayName,
       });
-      await setConnectionCredential(connection.connectionId, payload);
+      created = true;
+      await setConnectionConfiguration(connection.connectionId, payload);
       onFlash({
         tone: "ok",
         text: `${provider.displayName} configuration saved on this Host.`,
@@ -1385,6 +1415,7 @@ function ConnectForm({
       onConnected();
     } catch (error) {
       onFlash({ tone: "err", text: errorText(error) });
+      if (created) onConnected();
     } finally {
       setBusy(false);
     }

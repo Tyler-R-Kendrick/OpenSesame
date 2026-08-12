@@ -1,8 +1,8 @@
 use super::*;
 use opensesame_domain::{
-    Capability, CapabilitySet, OrganizationId, ProtectedResource, ProtectedResourceId,
-    ProtocolProfile, ProtocolProfileId, ResourceSelector, TokenPresentation,
-    PROFILE_MCP_AUTHORIZATION_2026_07_28_BEARER, PROFILE_OPENSESAME_TASK_DPOP_RFC9449_V1,
+    CapabilitySet, OrganizationId, ProtectedResource, ProtectedResourceId, ProtocolProfile,
+    ProtocolProfileId, TokenPresentation, PROFILE_MCP_AUTHORIZATION_2026_07_28_BEARER,
+    PROFILE_OPENSESAME_TASK_DPOP_RFC9449_V1,
 };
 
 #[test]
@@ -56,14 +56,25 @@ fn resource_uri_same_origin() {
 }
 
 #[test]
-fn scope_stub_maps_to_capabilities() {
-    let set = scopes_to_capability_set(&["tools:read", "tools:call"]);
-    assert_eq!(set.canonicalize().capabilities.len(), 2);
-    assert!(set.is_subset_of(&CapabilitySet::new(vec![
-        Capability::new("tools:read", ResourceSelector::exact("*")),
-        Capability::new("tools:call", ResourceSelector::exact("*")),
-        Capability::new("tools:write", ResourceSelector::exact("*")),
-    ])));
+fn a_path_scoped_audience_confines_the_request() {
+    // One host, one MCP server per tenant — the ordinary shape. Origin alone
+    // would let tenant-a's token pass the resource check for tenant-b.
+    let resource = sample_resource("https://mcp.example.com/tenant-a");
+    assert!(
+        validate_resource_uri("https://mcp.example.com/tenant-a/tools/list", &resource).is_ok()
+    );
+    assert!(validate_resource_uri("https://mcp.example.com/tenant-a", &resource).is_ok());
+    assert!(
+        validate_resource_uri("https://mcp.example.com/tenant-b/tools/list", &resource).is_err()
+    );
+    // No crossing a segment boundary to get there.
+    assert!(validate_resource_uri("https://mcp.example.com/tenant-attacker", &resource).is_err());
+}
+
+#[test]
+fn a_request_uri_carrying_userinfo_is_refused() {
+    let resource = sample_resource("https://mcp.example.com");
+    assert!(validate_resource_uri("https://mcp.example.com@evil.test/tools", &resource).is_err());
 }
 
 fn sample_resource(audience: &str) -> ProtectedResource {

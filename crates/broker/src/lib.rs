@@ -1,6 +1,6 @@
 mod frozen;
 
-pub use frozen::FrozenInvokeInput;
+pub use frozen::{assert_grant_covers_frozen_intent, FrozenInvokeInput};
 
 use chrono::Utc;
 use opensesame_audit::ReceiptSigner;
@@ -119,6 +119,7 @@ impl Broker {
                     outcome: ReceiptOutcome::Denied,
                     summary: json!({"reason": decision.context}),
                     ext: None,
+                    connector_digest: self.host.component_digest(&input.connection_policy_id),
                 },
             )?;
             self.db.insert_receipt(&receipt).await?;
@@ -131,15 +132,18 @@ impl Broker {
         inv.transition(InvocationState::Executing, Utc::now())?;
         self.db.insert_invocation(&inv).await?;
 
-        let result = self.host.invoke_mock(&InvokeRequest {
-            operation: input.intent.operation.clone(),
-            resource: input.intent.resource.clone(),
-            audience: input.intent.audience.clone(),
-            parameters: input.parameters.clone(),
-            parameters_digest: input.intent.normalized_parameters_hash.clone(),
-            authorized_operation: input.intent.operation.clone(),
-            invoke_level: Some(1),
-        });
+        let result = self.host.invoke(
+            &input.connection_policy_id,
+            &InvokeRequest {
+                operation: input.intent.operation.clone(),
+                resource: input.intent.resource.clone(),
+                audience: input.intent.audience.clone(),
+                parameters: input.parameters.clone(),
+                parameters_digest: input.intent.normalized_parameters_hash.clone(),
+                authorized_operation: input.intent.operation.clone(),
+                invoke_level: Some(1),
+            },
+        );
 
         let (outcome, summary, ext) = match result {
             Ok(r) => {
@@ -152,11 +156,10 @@ impl Broker {
             }
             Err(e) => {
                 inv.transition(InvocationState::Failed, Utc::now())?;
-                (
-                    ReceiptOutcome::Failed,
-                    json!({"error": e.to_string()}),
-                    None,
-                )
+                // Connector errors echo upstream URLs and headers; receipts are
+                // durable and readable, so the text is redacted before it lands.
+                let msg = opensesame_redaction::redact_text(&e.to_string());
+                (ReceiptOutcome::Failed, json!({"error": msg}), None)
             }
         };
 
@@ -169,9 +172,14 @@ impl Broker {
                 outcome,
                 summary,
                 ext,
+                connector_digest: self.host.component_digest(&input.connection_policy_id),
             },
         )?;
-        assert!(receipt.assert_no_secret_leak());
+        // Fail the invocation instead of panicking the process: a summary that
+        // trips the leak check must never be persisted, but it is not a crash.
+        if !receipt.assert_no_secret_leak() {
+            anyhow::bail!("receipt summary rejected by secret-leak check");
+        }
         self.db.insert_receipt(&receipt).await?;
         Ok(receipt)
     }
@@ -187,6 +195,7 @@ impl Broker {
             invocation_id: inv.id,
             intent_digest: input.intent.digest()?,
             principal_id: input.intent.principal_id,
+            organization_id: Some(input.intent.organization_id),
             actor_id: input.intent.actor_id,
             actor_instance_id: input.intent.actor_instance_id,
             client_id: input.intent.client_id,
@@ -199,7 +208,7 @@ impl Broker {
             policy_version_digest: parts.policy_digest.into(),
             approval_id: None,
             credential_handle_id: None,
-            connector_component_digest: Some("sha256:mock-connector".into()),
+            connector_component_digest: parts.connector_digest.map(str::to_owned),
             external_request_digest: parts.ext,
             external_response_digest: None,
             started_at: inv.created_at,
@@ -208,7 +217,7 @@ impl Broker {
             safe_result_summary: Some(parts.summary),
             authority_key_id: String::new(),
             signature: String::new(),
-            receipt_schema_version: 1,
+            receipt_schema_version: 3,
             task_run_id: None,
             task_state_version: None,
             task_state_digest: None,
@@ -223,4 +232,5 @@ pub(crate) struct FinishReceiptParts<'a> {
     outcome: ReceiptOutcome,
     summary: Value,
     ext: Option<String>,
+    connector_digest: Option<&'a str>,
 }

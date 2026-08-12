@@ -41,6 +41,79 @@ pub fn normalize_htu(url: &str) -> Result<String, ProofError> {
     })
 }
 
+/// Smallest RSA modulus accepted for a proof key.
+///
+/// A token bound to a 1024-bit key is bound to a key an observer can factor, and
+/// once they hold the private key the confirmation claim confirms them.
+pub const MIN_RSA_MODULUS_BITS: usize = 2048;
+/// Ed25519 public keys are exactly this long; anything else is not one.
+const ED25519_PUBLIC_KEY_LEN: usize = 32;
+
+fn decode_b64(label: &str, value: &str) -> Result<Vec<u8>, ProofError> {
+    URL_SAFE_NO_PAD
+        .decode(value)
+        .map_err(|e| ProofError::InvalidProof(format!("{label}: {e}")))
+}
+
+/// Bit length of a big-endian integer, ignoring leading zero bytes.
+fn bit_length(bytes: &[u8]) -> usize {
+    match bytes.iter().position(|b| *b != 0) {
+        None => 0,
+        Some(i) => (bytes.len() - i - 1) * 8 + (8 - bytes[i].leading_zeros() as usize),
+    }
+}
+
+/// Refuse proof keys that are the wrong shape or too weak to be worth binding to.
+///
+/// The proof is self-signed, so a weak key does not let an attacker forge one
+/// directly — the fence is that `jkt` must match the token's confirmation claim.
+/// It does mean a token bound to such a key can be taken over by anyone who
+/// recovers the private key from the public one, which is the whole point of a
+/// 512-bit modulus or an exponent of 1.
+pub fn assert_proof_key_strength(jwk: &Jwk) -> Result<(), ProofError> {
+    match &jwk.algorithm {
+        AlgorithmParameters::OctetKeyPair(params) => {
+            if params.curve != EllipticCurve::Ed25519 {
+                return Err(ProofError::UnsupportedAlgorithm(format!(
+                    "OKP curve {:?}",
+                    params.curve
+                )));
+            }
+            let x = decode_b64("okp x", &params.x)?;
+            if x.len() != ED25519_PUBLIC_KEY_LEN {
+                return Err(ProofError::WeakProofKey(format!(
+                    "Ed25519 public key of {} bytes",
+                    x.len()
+                )));
+            }
+            Ok(())
+        }
+        AlgorithmParameters::RSA(params) => {
+            let n = decode_b64("rsa n", &params.n)?;
+            let bits = bit_length(&n);
+            if bits < MIN_RSA_MODULUS_BITS {
+                return Err(ProofError::WeakProofKey(format!(
+                    "RSA modulus of {bits} bits is below the {MIN_RSA_MODULUS_BITS}-bit floor"
+                )));
+            }
+            let e = decode_b64("rsa e", &params.e)?;
+            let exponent_bits = bit_length(&e);
+            let odd = e.last().map(|b| b % 2 == 1).unwrap_or(false);
+            // e = 1 makes a signature the message itself; an even e is not a
+            // valid exponent at all.
+            if exponent_bits < 2 || !odd {
+                return Err(ProofError::WeakProofKey(
+                    "RSA public exponent must be odd and greater than one".into(),
+                ));
+            }
+            Ok(())
+        }
+        _ => Err(ProofError::UnsupportedAlgorithm(
+            "proof key must be OKP (Ed25519) or RSA".into(),
+        )),
+    }
+}
+
 /// RFC 7638 JWK thumbprint (base64url-encoded SHA-256).
 pub fn jwk_thumbprint(jwk: &Jwk) -> Result<String, ProofError> {
     let canonical = match &jwk.algorithm {
@@ -119,6 +192,7 @@ pub fn decode_dpop_proof(
         .jwk
         .clone()
         .ok_or_else(|| ProofError::InvalidProof("missing jwk header".into()))?;
+    assert_proof_key_strength(&jwk)?;
     let jkt = jwk_thumbprint(&jwk)?;
 
     let decoding_key =

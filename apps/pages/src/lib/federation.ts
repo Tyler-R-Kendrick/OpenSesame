@@ -111,7 +111,10 @@ function b64urlDecode(part: string): Uint8Array {
 function b64urlEncode(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 export function decodeJwtClaims(token: string): Record<string, unknown> {
@@ -175,7 +178,10 @@ export async function discover(issuer: string): Promise<OidcDiscovery> {
   }
   // An issuer that names someone else is either misconfigured or hostile, and
   // either way its endpoints cannot be trusted to belong to it.
-  if (doc.issuer && doc.issuer.replace(/\/+$/, "") !== issuer.replace(/\/+$/, "")) {
+  if (
+    doc.issuer &&
+    doc.issuer.replace(/\/+$/, "") !== issuer.replace(/\/+$/, "")
+  ) {
     throw new FederationError(
       "issuer_mismatch",
       `${issuer} claims to be ${doc.issuer}.`,
@@ -281,7 +287,10 @@ export async function completeSignIn(): Promise<UpstreamIdentity | null> {
   // Binds the response to the request this tab made; without it a link could
   // drop someone else's code here.
   if (!state || state !== pending.state) {
-    throw new FederationError("invalid_request", "Sign-in state did not match.");
+    throw new FederationError(
+      "invalid_request",
+      "Sign-in state did not match.",
+    );
   }
 
   const body = new URLSearchParams({

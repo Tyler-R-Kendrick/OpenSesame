@@ -2,17 +2,22 @@
  * Extension background: Host API + client-core sync cursor + optional daemon.
  * Never exposes getSecret to webpages.
  */
-import { createApiClient } from "@opensesame/api-client";
+import { createApiClient, normalizeLoopbackBaseUrl } from "@opensesame/api-client";
 import { createCursor, persistSealedStore } from "@opensesame/client-core";
 
 const DEFAULT_HOST = "http://127.0.0.1:8787";
 
+/**
+ * Stored config is only trusted if it is still a loopback origin — a rewritten
+ * `hostApiBase` must never repoint the extension at a remote Host API.
+ */
 async function resolveHostBase(): Promise<string> {
   try {
     const stored = await chrome.storage.local.get("hostApiBase");
     const value = stored.hostApiBase;
     if (typeof value === "string" && value.trim()) {
-      return value.replace(/\/$/, "");
+      const normalized = normalizeLoopbackBaseUrl(value);
+      if (normalized) return normalized;
     }
   } catch {
     // storage may be unavailable in some test harnesses

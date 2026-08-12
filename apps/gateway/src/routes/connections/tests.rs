@@ -13,12 +13,84 @@ use axum::{
     Json as AxumJson, Router,
 };
 use base64::Engine;
-use opensesame_connection_broker::{store, BrokerConfig, ConnectionBroker, ProviderConfig};
+use opensesame_connection_broker::{
+    crypto::{self, SealedBlob},
+    store, BrokerConfig, ConnectionBroker, ProviderConfig,
+};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use tower::ServiceExt;
 
 use crate::app_state::{self, AppState};
 use crate::config::{Args, DEV_OPERATOR_TOKEN};
+use crate::middleware::auth::Caller;
+
+#[tokio::test]
+async fn operator_can_select_org_but_session_cannot_spoof_it() {
+    let state = app_state::build(Args {
+        listen: "127.0.0.1:0".parse().unwrap(),
+        resource: "https://opensesame.local".into(),
+        issuer: "https://issuer.local".into(),
+        database_url: "sqlite::memory:".into(),
+        task_database_url: String::new(),
+    })
+    .await
+    .unwrap();
+    let selected = opensesame_domain::OrganizationId::new();
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert(
+        super::OPERATOR_ORGANIZATION_HEADER,
+        selected.to_string().parse().unwrap(),
+    );
+    assert_eq!(
+        super::caller_organization(&state, &Caller::Operator, &headers).unwrap(),
+        selected
+    );
+    let session = Caller::Session {
+        subject: "principal:member".into(),
+        organization_id: opensesame_domain::OrganizationId::new(),
+        role: opensesame_domain::OrganizationRole::Member,
+    };
+    assert!(super::caller_organization(&state, &session, &headers).is_err());
+    headers.insert(
+        super::OPERATOR_ORGANIZATION_HEADER,
+        axum::http::HeaderValue::from_bytes(b"\xff").unwrap(),
+    );
+    let error = super::caller_organization(&state, &Caller::Operator, &headers).unwrap_err();
+    assert_eq!(error.status(), StatusCode::BAD_REQUEST);
+}
+
+#[test]
+fn connection_json_bodies_are_bounded_before_parsing() {
+    let body = "x".repeat(32 * 1024 + 1);
+    let error = match super::parse_body::<super::CreateIntegrationBody>(&body) {
+        Ok(_) => panic!("oversized body accepted"),
+        Err(error) => error,
+    };
+    assert_eq!(error.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[tokio::test]
+async fn credential_value_limit_applies_to_the_value_not_json_overhead() {
+    let (state, _server) = harness().await;
+    let (status, created) = call(
+        &state,
+        "POST",
+        "/api/v1/connections",
+        Some(json!({"provider_id":"stripe"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let id = created["connection_id"].as_str().unwrap();
+    let (status, body) = call(
+        &state,
+        "POST",
+        &format!("/api/v1/connections/{id}/credential"),
+        Some(json!({"value":"k".repeat(opensesame_connection_broker::MAX_CREDENTIAL_BYTES)})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+}
 
 const CLIENT_ID: &str = "mock-client-id";
 const CLIENT_SECRET: &str = "mock-client-secret-do-not-leak";
@@ -205,7 +277,9 @@ async fn harness() -> (AppState, AuthServer) {
         },
     );
     let mut state = state;
-    state.connection_broker = Arc::new(ConnectionBroker::new(state.db.clone(), config));
+    state.connection_broker = Arc::new(
+        ConnectionBroker::new(state.db.pool().clone(), config).expect("connection broker"),
+    );
     // These routes are about broker-stored connections. A developer running with
     // OPENSESAME_DEV_BOOTSTRAP set would otherwise inherit the demo's connection
     // ref and see list results this harness never created.
@@ -288,20 +362,35 @@ fn assert_no_credential_material(label: &str, body: &str, verifier: &str) {
 }
 
 async fn stored_verifier(state: &AppState, oauth_state: &str) -> String {
-    let mut rows = state
-        .db
-        .query(
-            "SELECT code_verifier FROM connection_authorizations WHERE state = ?",
-            [oauth_state],
+    use sqlx::Row;
+    let state_digest: String = Sha256::digest(oauth_state.as_bytes())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    let row = sqlx::query(
+        "SELECT connection_id, code_verifier, verifier_nonce, verifier_aad_digest \
+         FROM connection_authorizations WHERE state = ?",
+    )
+    .bind(state_digest)
+    .fetch_one(state.db.pool())
+    .await
+    .expect("authorization row");
+    let connection_id = row.get::<String, _>("connection_id");
+    let sealed = SealedBlob {
+        ciphertext: row.get("code_verifier"),
+        nonce: row.get("verifier_nonce"),
+        aad_digest: row.get("verifier_aad_digest"),
+    };
+    String::from_utf8(
+        crypto::open(
+            &[11_u8; 32],
+            &connection_id,
+            &state.connection_organization.to_string(),
+            &sealed,
         )
-        .await
-        .expect("authorization query");
-    rows.next()
-        .await
-        .expect("authorization result")
-        .expect("authorization row")
-        .get(0)
-        .expect("code verifier")
+        .expect("open verifier fixture"),
+    )
+    .expect("UTF-8 verifier")
 }
 
 /// Drives create → authorize → provider consent → callback, leaving an active
@@ -393,28 +482,6 @@ async fn health_alias_answers() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body, "ok");
-}
-
-#[tokio::test]
-async fn built_in_provider_catalog_is_public() {
-    let (state, _server) = harness().await;
-    let (status, body) = send(
-        &state,
-        Request::builder()
-            .uri("/api/v1/providers")
-            .body(Body::empty())
-            .expect("request"),
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    let body: Value = serde_json::from_str(&body).expect("catalog json");
-    let providers = body["providers"].as_array().expect("providers");
-    assert!(providers
-        .iter()
-        .any(|provider| provider["id"] == "bitwarden"));
-    assert!(providers
-        .iter()
-        .any(|provider| provider["id"] == "openrouter"));
 }
 
 #[tokio::test]
@@ -607,6 +674,27 @@ async fn no_route_returns_credential_material() {
 }
 
 #[tokio::test]
+async fn provider_route_exposes_fnox_configuration_connectors() {
+    let (state, _server) = harness().await;
+    let (status, body) = call(&state, "GET", "/api/v1/providers", None).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let providers = body["providers"].as_array().unwrap();
+    assert!(providers
+        .iter()
+        .any(|provider| provider["id"] == "bitwarden"));
+    let azure = providers
+        .iter()
+        .find(|provider| provider["id"] == "azure-sm")
+        .unwrap();
+    assert_eq!(azure["auth_kind"], "configuration");
+    assert!(azure["connection_configuration_fields"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|field| field["name"] == "client_secret" && field["secret"] == true));
+}
+
+#[tokio::test]
 async fn a_replayed_state_is_refused_at_the_callback() {
     let (state, _server) = harness().await;
 
@@ -674,14 +762,21 @@ async fn an_expired_state_is_refused_at_the_callback() {
     let connection_id = created["connection_id"].as_str().expect("id").to_string();
 
     store::insert_authorization(
-        &state.db,
+        state.db.pool(),
         &store::AuthorizationRow {
             state: "expired-state".into(),
+            code_verifier: opensesame_connection_broker::crypto::seal(
+                &[7_u8; 32],
+                &connection_id,
+                &state.connection_organization.to_string(),
+                b"verifier-that-should-never-be-used",
+            )
+            .expect("seal verifier fixture"),
             connection_id,
-            code_verifier: "verifier-that-should-never-be-used".into(),
             redirect_uri: "http://127.0.0.1:8787/api/v1/oauth/callback/mock".into(),
             scopes: vec!["read".into()],
             expires_at: chrono::Utc::now() - chrono::Duration::seconds(1),
+            credential_version: None,
         },
     )
     .await
@@ -759,17 +854,37 @@ async fn the_authorization_server_rejects_a_wrong_verifier() {
 #[tokio::test]
 async fn the_callback_escapes_what_the_provider_sent() {
     let (state, _server) = harness().await;
+    let (status, created) = call(
+        &state,
+        "POST",
+        "/api/v1/connections",
+        Some(json!({"provider_id": "mock"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let (status, started) = call(
+        &state,
+        "POST",
+        &format!(
+            "/api/v1/connections/{}/authorize",
+            created["connection_id"].as_str().unwrap()
+        ),
+        Some(json!({})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{started}");
+    let oauth_state = started["state"].as_str().unwrap();
     let (status, page) = send(
         &state,
         Request::builder()
-            .uri("/api/v1/oauth/callback/mock?error=access_denied&error_description=%3Cscript%3Ealert(1)%3C%2Fscript%3E")
+            .uri(format!("/api/v1/oauth/callback/mock?state={oauth_state}&error=access_denied&error_description=%3Cscript%3Ealert(1)%3C%2Fscript%3E"))
             .body(Body::empty())
             .expect("request"),
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(!page.contains("<script>alert(1)"), "{page}");
-    assert!(page.contains("&lt;script&gt;"), "{page}");
+    assert!(!page.contains("alert(1)"), "{page}");
     assert!(page.contains("access_denied"), "{page}");
 }
 
@@ -824,6 +939,7 @@ async fn connection_routes_require_a_caller() {
     let (state, _server) = harness().await;
     for (method, uri) in [
         ("GET", "/api/v1/connections"),
+        ("GET", "/api/v1/providers"),
         ("POST", "/api/v1/connections"),
         ("GET", "/api/v1/connections/connection:1/events"),
     ] {
@@ -865,31 +981,34 @@ async fn unknown_ids_and_providers_answer_in_contract_codes() {
         Some(json!({"provider_id": "github"})),
     )
     .await;
-    assert_eq!(status, StatusCode::CREATED);
-    let id = body["connection_id"].as_str().expect("id");
-    let (status, body) = call(
-        &state,
-        "POST",
-        &format!("/api/v1/connections/{id}/authorize"),
-        None,
-    )
-    .await;
-    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
-    assert_eq!(body["error"], "provider_unconfigured");
-    assert!(body["hint"]
-        .as_str()
-        .expect("hint")
-        .contains("OPENSESAME_PROVIDER_GITHUB_CLIENT_ID"));
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["error"], "integration_not_found");
 }
 
 /// A session mint, straight into state: device approval is exercised elsewhere and
 /// what matters here is the subject the session acts as.
 fn session(state: &AppState, subject: &str) -> String {
+    session_for(
+        state,
+        subject,
+        state.connection_organization,
+        opensesame_domain::OrganizationRole::Member,
+    )
+}
+
+fn session_for(
+    state: &AppState,
+    subject: &str,
+    organization_id: opensesame_domain::OrganizationId,
+    role: opensesame_domain::OrganizationRole,
+) -> String {
     let id = uuid::Uuid::new_v4().to_string();
     state.sessions.lock().expect("lock").insert(
-        id.clone(),
+        opensesame_claims::hash_secret(&id),
         json!({
             "approved_as": subject,
+            "organization_id": organization_id,
+            "organization_role": role,
             "expires_at": (chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339(),
         }),
     );
@@ -917,6 +1036,174 @@ async fn as_session(
     let (status, raw) = send(state, builder.body(body).expect("request")).await;
     let parsed = serde_json::from_str(&raw).unwrap_or(Value::String(raw));
     (status, parsed)
+}
+
+#[tokio::test]
+async fn integration_routes_enforce_org_roles_and_allow_member_use() {
+    let (state, _server) = harness().await;
+    let org = state.connection_organization;
+    let member = session_for(
+        &state,
+        "user:member",
+        org,
+        opensesame_domain::OrganizationRole::Member,
+    );
+    let owner = session_for(
+        &state,
+        "user:owner",
+        org,
+        opensesame_domain::OrganizationRole::Owner,
+    );
+    let admin = session_for(
+        &state,
+        "user:admin",
+        org,
+        opensesame_domain::OrganizationRole::Admin,
+    );
+
+    assert_eq!(
+        as_session(&state, &member, "GET", "/api/v1/integrations", None)
+            .await
+            .0,
+        StatusCode::OK
+    );
+    assert_eq!(
+        as_session(
+            &state,
+            &member,
+            "POST",
+            "/api/v1/integrations",
+            Some(json!({"key":"denied","provider_id":"mock","display_name":"Denied"})),
+        )
+        .await
+        .0,
+        StatusCode::FORBIDDEN
+    );
+    let (status, integration) = as_session(
+        &state,
+        &owner,
+        "POST",
+        "/api/v1/integrations",
+        Some(json!({
+            "key":"team-mock",
+            "provider_id":"mock",
+            "display_name":"Team mock",
+            "scopes":["read"],
+            "client_id":CLIENT_ID,
+            "client_secret":CLIENT_SECRET
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let integration_id = integration["id"].as_str().unwrap();
+
+    let (status, body) = as_session(
+        &state,
+        &admin,
+        "PATCH",
+        &format!("/api/v1/integrations/{integration_id}"),
+        Some(json!({"provider_id":"github"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+
+    let (status, connection) = as_session(
+        &state,
+        &member,
+        "POST",
+        "/api/v1/connections",
+        Some(json!({"integration_id":integration_id})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let connection_id = connection["connection_id"].as_str().unwrap();
+    assert_eq!(
+        as_session(
+            &state,
+            &member,
+            "GET",
+            &format!("/api/v1/connections/{connection_id}"),
+            None,
+        )
+        .await
+        .0,
+        StatusCode::OK
+    );
+    let (status, disposable) = as_session(
+        &state,
+        &owner,
+        "POST",
+        "/api/v1/integrations",
+        Some(json!({
+            "key":"disposable",
+            "provider_id":"mock",
+            "display_name":"Disposable",
+            "scopes":["read"],
+            "client_id":CLIENT_ID,
+            "client_secret":CLIENT_SECRET
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{disposable}");
+    assert_eq!(
+        as_session(
+            &state,
+            &admin,
+            "DELETE",
+            &format!(
+                "/api/v1/integrations/{}",
+                disposable["id"].as_str().unwrap()
+            ),
+            None,
+        )
+        .await
+        .0,
+        StatusCode::NO_CONTENT
+    );
+    for method in ["PATCH", "DELETE"] {
+        assert_eq!(
+            as_session(
+                &state,
+                &member,
+                method,
+                &format!("/api/v1/integrations/{integration_id}"),
+                (method == "PATCH").then(|| json!({"display_name":"No"})),
+            )
+            .await
+            .0,
+            StatusCode::FORBIDDEN
+        );
+    }
+    assert_eq!(
+        as_session(
+            &state,
+            &admin,
+            "PATCH",
+            &format!("/api/v1/integrations/{integration_id}"),
+            Some(json!({"display_name":"Team mock 2"})),
+        )
+        .await
+        .0,
+        StatusCode::OK
+    );
+    let other_org = session_for(
+        &state,
+        "user:other",
+        opensesame_domain::OrganizationId::new(),
+        opensesame_domain::OrganizationRole::Member,
+    );
+    assert_eq!(
+        as_session(
+            &state,
+            &other_org,
+            "GET",
+            &format!("/api/v1/integrations/{integration_id}"),
+            None,
+        )
+        .await
+        .0,
+        StatusCode::NOT_FOUND
+    );
 }
 
 /// One gateway serves many callers out of one organization, so a valid session is

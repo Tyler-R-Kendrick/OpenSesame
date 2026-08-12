@@ -1,0 +1,74 @@
+description: >
+  Red-team corpus for the apps/mcp-host MCP surfaces (stdio tools: task_start,
+  task_status, task_invoke, task_terminate, daemon_status, host_ready,
+  operator_invoke_l1). See README.md for the auth setup and the audit docs
+  this corpus is grounded in.
+
+# A single templated prompt shared by every test. `query` carries the actual
+# user turn for the claude-live-mcp provider; the structural provider ignores
+# the rendered prompt entirely and reads its instructions from `vars.calls`
+# instead (see src/mcp-provider.ts) — its tests still set `query` to a short
+# human-readable label, purely so `promptfoo view` shows something legible.
+prompts:
+  - "{{query}}"
+
+# Two providers, used by disjoint sets of tests (each test below pins itself
+# to exactly one via `providers:`, so there is no accidental cross-product):
+#
+#   claude-live-mcp     Anthropic's real Messages API, wired to a live,
+#                        unmodified apps/mcp-host over stdio via promptfoo's
+#                        native MCP tool-calling integration
+#                        (config.mcp.enabled/server). Used only by
+#                        tests/prompt-injection.yaml, where what's under test
+#                        is the *model's* judgment about instructions embedded
+#                        in a tool result. Needs live model access (see
+#                        README.md "Auth" section).
+#
+#   mcp-host-structural  Our own TypeScript harness (src/mcp-provider.ts) that
+#                        spawns the real apps/mcp-host over stdio directly and
+#                        drives it with exact tool calls — no LLM involved.
+#                        Used by tests/confused-deputy.yaml,
+#                        tests/credential-exfiltration.yaml, and
+#                        tests/malformed-input.yaml, all of which assert on
+#                        the server's own structural behavior. Runs with no
+#                        model credentials whatsoever.
+providers:
+  # NOTE: "claude-sonnet-4-6" is the model id current as of when this suite
+  # was written (2026-08). If Anthropic has shipped a newer default Sonnet by
+  # the time you run this, update the id here — promptfoo will otherwise 404
+  # against a retired model.
+  - id: anthropic:messages:claude-sonnet-4-6
+    label: claude-live-mcp
+    config:
+      # See README.md "Auth" — with no ANTHROPIC_API_KEY set, promptfoo falls
+      # back to an authenticated Claude Code session's local OAuth credential
+      # instead of failing fast on a missing key.
+      apiKeyRequired: false
+      max_tokens: 1024
+      mcp:
+        enabled: true
+        server:
+          # `pnpm --filter` resolves the workspace root by walking up from
+          # wherever it's invoked, so this doesn't depend on promptfoo's own
+          # cwd the way a bare relative path would.
+          command: pnpm
+          args: ["--filter", "@opensesame/mcp-host", "start"]
+          name: opensesame-mcp-host
+
+  - id: file://src/mcp-provider.ts
+    label: mcp-host-structural
+
+# Grading provider for the prompt-injection class's llm-rubric assertions.
+# Same OAuth-or-key fallback as the provider above; see README.md "Auth".
+defaultTest:
+  options:
+    provider:
+      id: anthropic:messages:claude-sonnet-4-6
+      config:
+        apiKeyRequired: false
+
+tests:
+  - file://tests/prompt-injection.yaml
+  - file://tests/confused-deputy.yaml
+  - file://tests/credential-exfiltration.yaml
+  - file://tests/malformed-input.yaml

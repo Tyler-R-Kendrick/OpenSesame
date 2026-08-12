@@ -85,11 +85,11 @@ pub fn build_authorize_url(
     config: &BrokerConfig,
     params: AuthorizeParams<'_>,
 ) -> Result<String> {
-    let raw = config
-        .authorize_url(provider)
-        .ok_or_else(|| BrokerError::UnsupportedCredential(provider.id.to_string()))?;
-    let mut url = assert_transport_allowed(&raw)?;
-    if matches!(provider.auth, AuthMethod::OpenRouterPkce { .. }) {
+    if matches!(&provider.auth, AuthMethod::OpenRouterPkce { .. }) {
+        let raw = config
+            .authorize_url(provider)
+            .ok_or_else(|| BrokerError::UnsupportedCredential(provider.id.to_string()))?;
+        let mut url = assert_transport_allowed(&raw)?;
         let mut callback =
             Url::parse(params.redirect_uri).map_err(|_| BrokerError::RedirectNotAllowed)?;
         callback
@@ -104,10 +104,14 @@ pub fn build_authorize_url(
     let AuthMethod::OAuth2AuthCode {
         extra_authorize_params,
         ..
-    } = provider.auth
+    } = &provider.auth
     else {
         return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
     };
+    let raw = config
+        .authorize_url(provider)
+        .ok_or_else(|| BrokerError::UnsupportedCredential(provider.id.to_string()))?;
+    let mut url = assert_transport_allowed(&raw)?;
     {
         let mut q = url.query_pairs_mut();
         q.append_pair("response_type", "code");
@@ -117,7 +121,10 @@ pub fn build_authorize_url(
         q.append_pair("code_challenge", params.code_challenge);
         q.append_pair("code_challenge_method", CHALLENGE_METHOD);
         if !params.scopes.is_empty() {
-            q.append_pair("scope", &params.scopes.join(" "));
+            q.append_pair(
+                "scope",
+                &params.scopes.join(provider.auth.scope_separator()),
+            );
         }
         for (k, v) in extra_authorize_params {
             q.append_pair(k, v);
@@ -134,7 +141,7 @@ pub async fn exchange_code(
     code_verifier: &str,
     redirect_uri: &str,
 ) -> Result<TokenResponse> {
-    if matches!(provider.auth, AuthMethod::OpenRouterPkce { .. }) {
+    if matches!(&provider.auth, AuthMethod::OpenRouterPkce { .. }) {
         return exchange_openrouter_key(http, provider, config, code, code_verifier).await;
     }
     let form = vec![
@@ -212,7 +219,7 @@ pub async fn post_token_endpoint(
     config: &BrokerConfig,
     mut form: Vec<(String, String)>,
 ) -> Result<TokenResponse> {
-    let AuthMethod::OAuth2AuthCode { token_auth, .. } = provider.auth else {
+    let AuthMethod::OAuth2AuthCode { token_auth, .. } = &provider.auth else {
         return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
     };
     let raw = config
@@ -220,7 +227,7 @@ pub async fn post_token_endpoint(
         .ok_or_else(|| BrokerError::UnsupportedCredential(provider.id.to_string()))?;
     let url = assert_transport_allowed(&raw)?;
 
-    let provider_config = config.provider(provider.id);
+    let provider_config = config.provider(&provider.id);
     let missing = config.missing_config(provider);
     if !missing.is_empty() {
         return Err(BrokerError::ProviderUnconfigured {
@@ -238,7 +245,7 @@ pub async fn post_token_endpoint(
     };
 
     let mut request = http.post(url).header("Accept", "application/json");
-    match token_auth {
+    match *token_auth {
         TokenAuth::ClientSecretBasic => {
             request = request.basic_auth(&client_id, Some(&client_secret));
             form.push(("client_id".to_string(), client_id));
@@ -289,16 +296,16 @@ pub async fn revoke_upstream(
         revoke_url: Some(revoke_url),
         token_auth,
         ..
-    } = provider.auth
+    } = &provider.auth
     else {
         return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
     };
     let url = assert_transport_allowed(revoke_url)?;
-    let provider_config = config.provider(provider.id);
+    let provider_config = config.provider(&provider.id);
     let mut form = vec![("token".to_string(), token.to_string())];
     let mut request = http.post(url).header("Accept", "application/json");
     match (
-        token_auth,
+        *token_auth,
         provider_config.client_id,
         provider_config.client_secret,
     ) {
@@ -346,10 +353,11 @@ fn transport_detail(e: &reqwest::Error) -> String {
 fn oauth_error_detail(body: &str) -> Option<String> {
     let value: serde_json::Value = serde_json::from_str(body).ok()?;
     let code = value.get("error").and_then(|v| v.as_str())?;
-    match value.get("error_description").and_then(|v| v.as_str()) {
-        Some(desc) => Some(format!("{code}: {desc}")),
-        None => Some(code.to_string()),
-    }
+    (code.len() <= 64
+        && code
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || "_.-".contains(character)))
+    .then(|| code.to_string())
 }
 
 #[cfg(test)]
@@ -407,7 +415,7 @@ mod tests {
 
     #[test]
     fn authorize_url_carries_the_whole_pkce_request() {
-        let github = catalog::find("github").expect("github");
+        let github = catalog::find("github").expect("catalog").expect("github");
         let scopes = vec!["read:user".to_string(), "repo".to_string()];
         let url = build_authorize_url(
             github,
@@ -437,7 +445,7 @@ mod tests {
 
     #[test]
     fn google_asks_for_offline_consent() {
-        let google = catalog::find("google").expect("google");
+        let google = catalog::find("google").expect("catalog").expect("google");
         let cfg = config().with_provider(
             "google",
             ProviderConfig {
@@ -464,8 +472,31 @@ mod tests {
     }
 
     #[test]
-    fn openrouter_generates_a_key_without_an_app_secret() {
-        let provider = catalog::find("openrouter").expect("openrouter");
+    fn provider_scope_separator_is_honored() {
+        let linear = catalog::find("linear").expect("catalog").expect("linear");
+        let scopes = vec!["read".to_string(), "write".to_string()];
+        let url = build_authorize_url(
+            linear,
+            &config(),
+            AuthorizeParams {
+                client_id: "id",
+                redirect_uri: "https://app.example/cb",
+                scopes: &scopes,
+                state: "s",
+                code_challenge: "c",
+            },
+        )
+        .unwrap();
+        let parsed = Url::parse(&url).unwrap();
+        let q: std::collections::HashMap<_, _> = parsed.query_pairs().into_owned().collect();
+        assert_eq!(q["scope"], "read,write");
+    }
+
+    #[test]
+    fn openrouter_pkce_needs_no_app_secret() {
+        let provider = catalog::find("openrouter")
+            .expect("catalog")
+            .expect("openrouter");
         let cfg = BrokerConfig::in_memory(Some([3u8; 32]), "http://127.0.0.1:8787");
         let url = build_authorize_url(
             provider,
@@ -479,15 +510,20 @@ mod tests {
             },
         )
         .unwrap();
-        let parsed = Url::parse(&url).unwrap();
-        let q: std::collections::HashMap<_, _> = parsed.query_pairs().into_owned().collect();
-        assert_eq!(q["code_challenge"], "challenge-1");
-        assert_eq!(q["code_challenge_method"], "S256");
+        let query: std::collections::HashMap<_, _> = Url::parse(&url)
+            .unwrap()
+            .query_pairs()
+            .into_owned()
+            .collect();
+        assert_eq!(query["code_challenge"], "challenge-1");
+        assert_eq!(query["code_challenge_method"], "S256");
         assert_eq!(
-            q["callback_url"],
+            query["callback_url"],
             "http://127.0.0.1:8787/api/v1/oauth/callback/openrouter?state=state-1"
         );
-        assert!(!q.contains_key("client_id"));
+        assert!(!query.contains_key("client_id"));
+        assert!(cfg.missing_config(provider).is_empty());
+
         let response = parse_openrouter_key(br#"{"key":"sk-or-v1-secret"}"#).unwrap();
         assert_eq!(response.access_token, "sk-or-v1-secret");
         assert_eq!(response.token_type.as_deref(), Some("Bearer"));
@@ -496,7 +532,7 @@ mod tests {
 
     #[test]
     fn api_key_providers_have_no_authorize_url() {
-        let stripe = catalog::find("stripe").expect("stripe");
+        let stripe = catalog::find("stripe").expect("catalog").expect("stripe");
         let err = build_authorize_url(
             stripe,
             &config(),
@@ -526,13 +562,20 @@ mod tests {
     fn error_detail_quotes_only_the_oauth_fields() {
         assert_eq!(
             oauth_error_detail(r#"{"error":"invalid_grant","error_description":"expired"}"#),
-            Some("invalid_grant: expired".to_string())
+            Some("invalid_grant".to_string())
         );
         assert_eq!(
             oauth_error_detail(r#"{"error":"invalid_grant"}"#),
             Some("invalid_grant".to_string())
         );
         assert_eq!(oauth_error_detail(r#"{"access_token":"secret-abc"}"#), None);
+        assert_eq!(
+            oauth_error_detail(
+                r#"{"error":"invalid_grant","error_description":"access_token=secret-abc"}"#
+            ),
+            Some("invalid_grant".to_string())
+        );
+        assert_eq!(oauth_error_detail(r#"{"error":"secret abc"}"#), None);
         assert_eq!(oauth_error_detail("not json"), None);
     }
 }

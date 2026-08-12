@@ -9,15 +9,18 @@ import {
   ConnectionStatusSchema,
   CreateBindingRequestSchema,
   CreateConnectionRequestSchema,
+  CreateIntegrationRequestSchema,
   EgressSchema,
+  IntegrationSchema,
   ListConnectionsResponseSchema,
   ListEventsResponseSchema,
+  ListIntegrationsResponseSchema,
   ListProvidersResponseSchema,
-  ProviderCategorySchema,
   ProviderSchema,
   RevokeResponseSchema,
   ScopeDefSchema,
   SetCredentialRequestSchema,
+  UpdateIntegrationRequestSchema,
 } from "../index.js";
 
 const egress = {
@@ -31,9 +34,12 @@ const provider = {
   display_name: "GitHub",
   category: "developer",
   docs_url: "https://docs.github.com/apps/oauth-apps",
+  provenance_url: "https://docs.github.com/apps/oauth-apps",
+  catalog_revision: "2026-08-10.1",
   auth_kind: "oauth2_authorization_code",
   supports_refresh: true,
   configured: false,
+  callback_url: "https://host.test/api/v1/oauth/callback/github",
   missing_config: ["OPENSESAME_PROVIDER_GITHUB_CLIENT_ID"],
   scopes: [
     {
@@ -45,18 +51,12 @@ const provider = {
   ],
   egress,
   operations: ["repository.read", "pull_request.create"],
+  integration_configuration_fields: [
+    { name: "client_id", secret: false, required: true },
+    { name: "client_secret", secret: true, required: true },
+  ],
+  connection_configuration_fields: [],
 };
-
-it("accepts the four Fnox provider categories", () => {
-  for (const category of [
-    "encryption",
-    "cloud_secret_storage",
-    "password_managers",
-    "local_storage",
-  ]) {
-    expect(ProviderCategorySchema.parse(category)).toBe(category);
-  }
-});
 
 const binding = {
   id: "binding_01J",
@@ -68,6 +68,7 @@ const binding = {
 
 const connection = {
   connection_id: "connection_01J",
+  integration_id: "integration_01J",
   connection_ref: "conn://acme/web/github/main",
   logical_name: "github/main",
   display_name: "GitHub — acme",
@@ -83,12 +84,13 @@ const connection = {
   account_label: null,
   expires_at: null,
   refreshable: false,
+  configured_fields: [],
   last_refreshed_at: null,
   max_invoke_level: 2,
   egress,
   bindings: [binding],
-  created_at: "2026-08-08T10:00:00.000Z",
-  updated_at: "2026-08-08T10:00:00.000Z",
+  created_at: "2026-08-08T10:00:00+00:00",
+  updated_at: "2026-08-08T10:00:00+00:00",
 };
 
 const event = {
@@ -96,6 +98,28 @@ const event = {
   kind: "authorize_started",
   at: "2026-08-08T10:00:01.000Z",
   detail: null,
+};
+
+const integration = {
+  id: "integration_01J",
+  key: "engineering",
+  provider_id: "github",
+  display_name: "Engineering GitHub",
+  source: "organization",
+  enabled: true,
+  configured: true,
+  callback_url: "https://host.test/api/v1/oauth/callback/github",
+  scopes: ["read:user"],
+  client_id_hint: "***1234",
+  has_client_secret: true,
+  configured_fields: [
+    { name: "client_id", hint: "***1234" },
+    { name: "client_secret", hint: "configured" },
+  ],
+  connection_count: 0,
+  created_by: "principal:admin",
+  created_at: "2026-08-08T10:00:00.000Z",
+  updated_at: "2026-08-08T10:00:00.000Z",
 };
 
 describe("connection broker contracts", () => {
@@ -126,11 +150,16 @@ describe("connection broker contracts", () => {
   it("parses request bodies", () => {
     expect(
       CreateConnectionRequestSchema.parse({
+        integration_id: "integration_01J",
         provider_id: "github",
         scopes: ["repo"],
         shareability: "delegable",
       }).provider_id,
     ).toBe("github");
+    expect(
+      CreateConnectionRequestSchema.parse({ provider_id: "github" })
+        .integration_id,
+    ).toBeUndefined();
     expect(
       AuthorizeRequestSchema.parse({
         redirect_uri: "https://app.example.test/connections/return",
@@ -141,11 +170,58 @@ describe("connection broker contracts", () => {
       "key",
     );
     expect(
+      SetCredentialRequestSchema.parse({
+        configuration_set: { api_key: "key" },
+      }).configuration_set,
+    ).toEqual({ api_key: "key" });
+    expect(
+      SetCredentialRequestSchema.parse({
+        configuration_clear: ["api_key"],
+      }).configuration_clear,
+    ).toEqual(["api_key"]);
+    expect(() => SetCredentialRequestSchema.parse({})).toThrow();
+    expect(
+      SetCredentialRequestSchema.parse({ value: "k".repeat(8 * 1024) }).value,
+    ).toHaveLength(8 * 1024);
+    expect(() =>
+      SetCredentialRequestSchema.parse({ value: "k".repeat(8 * 1024 + 1) }),
+    ).toThrow();
+    expect(
       CreateBindingRequestSchema.parse({
         target_kind: "agent",
         target_id: "agent_01J",
       }).target_kind,
     ).toBe("agent");
+  });
+
+  it("keeps integration credentials write-only", () => {
+    expect(IntegrationSchema.parse(integration).source).toBe("organization");
+    expect(
+      ListIntegrationsResponseSchema.parse({ integrations: [integration] })
+        .integrations,
+    ).toHaveLength(1);
+    expect(
+      CreateIntegrationRequestSchema.parse({
+        key: "engineering",
+        provider_id: "github",
+        display_name: "Engineering GitHub",
+      }).scopes,
+    ).toBeUndefined();
+    expect(
+      UpdateIntegrationRequestSchema.parse({ client_secret: "" }).client_secret,
+    ).toBe("");
+    expect(
+      UpdateIntegrationRequestSchema.parse({
+        configuration_set: { client_id: "new-client" },
+        configuration_clear: ["client_secret"],
+      }).configuration_clear,
+    ).toEqual(["client_secret"]);
+    expect(() =>
+      UpdateIntegrationRequestSchema.parse({ provider_id: "github" }),
+    ).toThrow();
+    expect(() =>
+      IntegrationSchema.parse({ ...integration, client_secret: "leak" }),
+    ).toThrow();
   });
 
   it("parses authorize and revoke responses", () => {
@@ -207,9 +283,17 @@ describe("connection broker contracts", () => {
   });
 
   it("pins the error-code vocabulary", () => {
-    expect(ConnectionErrorCodeSchema.parse("state_expired")).toBe(
+    for (const code of [
+      "catalog_unavailable",
       "state_expired",
-    );
+      "unsupported_credential",
+      "invalid_request",
+      "internal_error",
+      "unauthorized",
+      "forbidden",
+    ]) {
+      expect(ConnectionErrorCodeSchema.parse(code)).toBe(code);
+    }
     expect(() => ConnectionErrorCodeSchema.parse("boom")).toThrow();
     expect(() => ConnectionErrorCodeSchema.parse("provider_missing")).toThrow();
   });

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  type ClaimPresentation,
   ClaimRequestError,
   createOpenSesame,
-  type ClaimPresentation,
 } from "@opensesame/sdk-browser";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   clearClaimStash,
   readClaimStash,
@@ -284,9 +284,9 @@ export function ClaimPage() {
         </form>
       ) : null}
       {phase.kind === "loading" ? (
-        <p className="lede" role="status" aria-busy="true">
+        <output className="lede" aria-busy="true">
           Loading claim details…
-        </p>
+        </output>
       ) : null}
       {phase.kind === "paused" ? (
         <div className="actions">
@@ -322,9 +322,9 @@ export function ClaimPage() {
         </div>
       ) : null}
       {phase.kind === "done" ? (
-        <p className="ok" role="status">
+        <output className="ok">
           Claim completed. Ownership is attached to your principal.
-        </p>
+        </output>
       ) : null}
       {error ? (
         <p className="err" role="alert">

@@ -2,7 +2,7 @@ use crate::bootstrap;
 use crate::config::{self, Args};
 use crate::task_engine::{new_task_engine, SharedTaskEngine};
 use opensesame_broker::Broker;
-use opensesame_connection_broker::{catalog, BrokerConfig, ConnectionBroker};
+use opensesame_connection_broker::{BrokerConfig, ConnectionBroker};
 use opensesame_domain::*;
 use opensesame_provider_openbao::OpenBaoHttpAuthority;
 use opensesame_provider_openfga::OpenFgaClient;
@@ -16,16 +16,19 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use opensesame_client_core::SyncBlob;
-
 #[derive(Clone)]
 pub struct DevicePending {
     /// `hash_secret(user_code)` — the low-entropy code is never held in cleartext.
     pub user_code_hash: String,
     pub expires_at: chrono::DateTime<chrono::Utc>,
-    pub approved_principal: Option<String>,
-    /// Failed approval attempts against this code (brute-force fence).
-    pub approve_attempts: u32,
+    pub approved: Option<ApprovedDevice>,
+}
+
+#[derive(Clone)]
+pub struct ApprovedDevice {
+    pub principal: String,
+    pub organization_id: OrganizationId,
+    pub organization_role: OrganizationRole,
 }
 
 #[derive(Clone)]
@@ -46,36 +49,37 @@ pub struct AppState {
     pub broker: Arc<Broker>,
     pub sessions: Arc<Mutex<HashMap<String, Value>>>,
     pub device_codes: Arc<Mutex<HashMap<String, DevicePending>>>,
+    /// Serializes device-token minting with principal/org session revocation.
+    pub session_lifecycle: Arc<Mutex<()>>,
+    /// Timestamps of failed `user_code` approval guesses (global cooldown fence).
+    pub device_approve_failures: Arc<Mutex<Vec<chrono::DateTime<chrono::Utc>>>>,
     pub claims: Arc<Mutex<HashMap<String, ClaimSession>>>,
+    /// claim_id -> failed user-code attempts on completion (brute-force fence).
+    pub claim_user_code_attempts: Arc<Mutex<HashMap<String, u32>>>,
     pub bootstrap: Arc<Mutex<Option<Bootstrap>>>,
     pub openfga: Option<OpenFgaClient>,
     pub openbao: Option<OpenBaoHttpAuthority>,
     pub connection_ref: Option<ConnectionRef>,
     /// Third-party service authorizations (ADR 0032).
     pub connection_broker: Arc<ConnectionBroker>,
-    /// Organization connections are created under. Until the gateway carries an
-    /// org per caller, that is the demo bootstrap's org or a fixed single-tenant id.
+    /// Organization connections are created under until caller metadata carries
+    /// the organization directly.
     pub connection_organization: OrganizationId,
-    /// Opaque ciphertext sync store — server never decrypts (ADR 0017).
-    pub sync_blobs: Arc<Mutex<HashMap<String, SyncBlob>>>,
-    /// blob_id -> owning session_id (tenant/device scoping for sync).
-    pub blob_owners: Arc<Mutex<HashMap<String, String>>>,
-    /// Per-device sync cursors (device_id -> last seen epoch).
-    pub device_cursors: Arc<Mutex<HashMap<String, u64>>>,
     /// Shared secret for human/operator mutations (approve, claim complete, admin).
     pub operator_token: String,
+    /// Pepper for low-entropy (user code) digests.
+    pub claim_pepper: String,
     /// Distributed task authority readiness (ADR 0031).
     pub distributed_task_authority: bool,
     /// In-memory task access engine (immutable ceiling + frozen intents).
     pub task_engine: SharedTaskEngine,
-    /// task_run_id -> caller subject that started it. Authentication says a
-    /// caller is known; this says which tasks are theirs, so one session cannot
-    /// read or terminate another's work on a shared gateway.
-    pub task_owners: Arc<Mutex<HashMap<String, String>>>,
-    /// receipt_id -> caller subject that produced it. A receipt names an
-    /// operation, a resource and a result summary, so it is not another
-    /// session's to read.
-    pub receipt_owners: Arc<Mutex<HashMap<String, String>>>,
+    /// intent_digest -> frozen intent awaiting execution. Server-side custody is
+    /// what makes the digest enforceable: the caller cannot restate the frozen
+    /// bytes, so it cannot execute anything other than what it froze.
+    pub frozen_intents: Arc<Mutex<HashMap<String, FrozenIntentV2>>>,
+    /// Public keys trusted to have signed a receipt, including retired ones, so a
+    /// key rotation does not strand the receipts the old key signed.
+    pub receipt_verifier: Arc<opensesame_audit::ReceiptVerifier>,
 }
 
 impl AppState {
@@ -96,17 +100,15 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         );
     }
 
-    catalog::load_external_registries_from_env().await;
-    let turso_url = std::env::var("OPENSESAME_TURSO_URL").ok();
-    let turso_token = std::env::var("OPENSESAME_TURSO_AUTH_TOKEN").ok();
-    let db = Db::connect_turso(
-        &args.database_url,
-        turso_url.as_deref(),
-        turso_token.as_deref(),
-    )
-    .await?;
+    let db = if args.database_url == "sqlite::memory:" {
+        Db::connect_memory().await?
+    } else {
+        Db::connect_sqlite(&args.database_url).await?
+    };
 
     let boot = bootstrap::maybe_demo_bootstrap(&db).await?;
+    let receipt_verifier =
+        config::resolve_receipt_verifier(&boot.broker.signer).map_err(anyhow::Error::msg)?;
     let openfga = OpenFgaClient::from_env().ok().flatten();
     let openbao = OpenBaoHttpAuthority::from_env().ok().flatten();
     let distributed_task_authority =
@@ -116,7 +118,10 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         .as_ref()
         .map(|b| b.org)
         .unwrap_or_else(|| OrganizationId::from_uuid(uuid::Uuid::nil()));
-    let connection_broker = Arc::new(ConnectionBroker::new(db.clone(), BrokerConfig::from_env()));
+    let connection_broker = Arc::new(ConnectionBroker::new(
+        db.pool().clone(),
+        BrokerConfig::from_env()?,
+    )?);
 
     Ok(AppState {
         resource: args.resource,
@@ -125,21 +130,22 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         broker: Arc::new(boot.broker),
         sessions: Arc::new(Mutex::new(HashMap::new())),
         device_codes: Arc::new(Mutex::new(HashMap::new())),
+        session_lifecycle: Arc::new(Mutex::new(())),
+        device_approve_failures: Arc::new(Mutex::new(Vec::new())),
         claims: Arc::new(Mutex::new(HashMap::new())),
+        claim_user_code_attempts: Arc::new(Mutex::new(HashMap::new())),
         bootstrap: Arc::new(Mutex::new(boot.demo)),
         openfga,
         openbao,
         connection_ref: boot.connection_ref,
         connection_broker,
         connection_organization,
-        sync_blobs: Arc::new(Mutex::new(HashMap::new())),
-        blob_owners: Arc::new(Mutex::new(HashMap::new())),
-        device_cursors: Arc::new(Mutex::new(HashMap::new())),
         operator_token: config::resolve_operator_token(),
+        claim_pepper: config::resolve_claim_pepper(),
         distributed_task_authority,
         task_engine: new_task_engine(),
-        task_owners: Arc::new(Mutex::new(HashMap::new())),
-        receipt_owners: Arc::new(Mutex::new(HashMap::new())),
+        frozen_intents: Arc::new(Mutex::new(HashMap::new())),
+        receipt_verifier: Arc::new(receipt_verifier),
     })
 }
 
@@ -157,6 +163,55 @@ async fn resolve_distributed_task_authority(task_database_url: &str) -> bool {
             false
         }
     }
+}
+
+#[cfg(test)]
+pub async fn test_demo_state() -> AppState {
+    let mut state = build(Args {
+        listen: "127.0.0.1:0".parse().unwrap(),
+        resource: "https://opensesame.test".into(),
+        issuer: "https://identity.test".into(),
+        database_url: "sqlite::memory:".into(),
+        task_database_url: String::new(),
+    })
+    .await
+    .unwrap();
+    let artifacts =
+        bootstrap::create_demo_bootstrap(&state.db, opensesame_audit::ReceiptSigner::generate())
+            .await
+            .unwrap();
+    state.receipt_verifier =
+        Arc::new(config::resolve_receipt_verifier(&artifacts.broker.signer).unwrap());
+    state.broker = Arc::new(artifacts.broker);
+    state.bootstrap = Arc::new(Mutex::new(artifacts.demo));
+    state.connection_ref = artifacts.connection_ref;
+    state
+}
+
+#[cfg(test)]
+pub fn test_session_headers(
+    state: &AppState,
+    subject: &str,
+    organization_id: OrganizationId,
+    organization_role: OrganizationRole,
+) -> axum::http::HeaderMap {
+    let token = uuid::Uuid::new_v4().to_string();
+    state.sessions.lock().unwrap().insert(
+        opensesame_claims::hash_secret(&token),
+        serde_json::json!({
+            "principal_id": subject,
+            "approved_as": subject,
+            "organization_id": organization_id.to_string(),
+            "organization_role": organization_role,
+            "expires_at": (chrono::Utc::now() + chrono::Duration::minutes(5)).to_rfc3339(),
+        }),
+    );
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert(
+        axum::http::header::AUTHORIZATION,
+        format!("Bearer opaque-session:{token}").parse().unwrap(),
+    );
+    headers
 }
 
 #[cfg(test)]

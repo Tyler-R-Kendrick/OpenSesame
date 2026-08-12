@@ -29,8 +29,45 @@ export type ProviderCategory = z.infer<typeof ProviderCategorySchema>;
 export const ProviderAuthKindSchema = z.enum([
   "oauth2_authorization_code",
   "api_key",
+  "configuration",
 ]);
 export type ProviderAuthKind = z.infer<typeof ProviderAuthKindSchema>;
+
+export const ConfigurationFieldDefSchema = z
+  .object({
+    name: z.string().min(1),
+    secret: z.boolean(),
+    required: z.boolean(),
+  })
+  .strict();
+export type ConfigurationFieldDef = z.infer<typeof ConfigurationFieldDefSchema>;
+export const ConfiguredFieldSchema = z
+  .object({
+    name: z.string().min(1),
+    hint: z.string().nullable(),
+  })
+  .strict();
+export type ConfiguredField = z.infer<typeof ConfiguredFieldSchema>;
+const ConfigurationSchema = z
+  .record(
+    z.string().regex(/^[A-Za-z0-9_.-]{1,64}$/),
+    z
+      .string()
+      .min(1)
+      .max(8 * 1024),
+  )
+  .refine((configuration) => Object.keys(configuration).length <= 64, {
+    message: "configuration exceeds 64 fields",
+  })
+  .refine(
+    (configuration) =>
+      Object.entries(configuration).reduce(
+        (bytes, [name, value]) => bytes + name.length + value.length,
+        0,
+      ) <=
+      24 * 1024,
+    { message: "configuration exceeds 24576 bytes" },
+  );
 
 export const ScopeDefSchema = z
   .object({
@@ -58,13 +95,22 @@ export const ProviderSchema = z
     display_name: z.string().min(1),
     category: ProviderCategorySchema,
     docs_url: z.string().url(),
+    provenance_url: z.string().url(),
+    catalog_revision: z.string().min(1),
     auth_kind: ProviderAuthKindSchema,
     supports_refresh: z.boolean(),
     configured: z.boolean(),
+    callback_url: z.string().url().nullable(),
     missing_config: z.array(z.string()),
     scopes: z.array(ScopeDefSchema),
     egress: EgressSchema,
     operations: z.array(z.string()),
+    integration_configuration_fields: z
+      .array(ConfigurationFieldDefSchema)
+      .default([]),
+    connection_configuration_fields: z
+      .array(ConfigurationFieldDefSchema)
+      .default([]),
   })
   .strict();
 export type Provider = z.infer<typeof ProviderSchema>;
@@ -101,7 +147,7 @@ export const BindingSchema = z
     target_kind: BindingTargetKindSchema,
     target_id: z.string().min(1),
     target_label: z.string().nullable(),
-    created_at: z.string().datetime(),
+    created_at: z.string().datetime({ offset: true }),
   })
   .strict();
 export type Binding = z.infer<typeof BindingSchema>;
@@ -109,6 +155,7 @@ export type Binding = z.infer<typeof BindingSchema>;
 export const ConnectionSchema = z
   .object({
     connection_id: z.string().min(1),
+    integration_id: z.string().min(1).nullable(),
     connection_ref: z.string().min(1),
     logical_name: z.string().min(1),
     display_name: z.string(),
@@ -122,14 +169,15 @@ export const ConnectionSchema = z
     requested_scopes: z.array(z.string()),
     granted_scopes: z.array(z.string()),
     account_label: z.string().nullable(),
-    expires_at: z.string().datetime().nullable(),
+    expires_at: z.string().datetime({ offset: true }).nullable(),
     refreshable: z.boolean(),
-    last_refreshed_at: z.string().datetime().nullable(),
+    configured_fields: z.array(ConfiguredFieldSchema).default([]),
+    last_refreshed_at: z.string().datetime({ offset: true }).nullable(),
     max_invoke_level: z.number().int(),
     egress: EgressSchema,
     bindings: z.array(BindingSchema),
-    created_at: z.string().datetime(),
-    updated_at: z.string().datetime(),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
   })
   .strict();
 export type Connection = z.infer<typeof ConnectionSchema>;
@@ -151,7 +199,7 @@ export const ConnectionEventSchema = z
   .object({
     id: z.string().min(1),
     kind: ConnectionEventKindSchema,
-    at: z.string().datetime(),
+    at: z.string().datetime({ offset: true }),
     detail: z.string().nullable(),
   })
   .strict();
@@ -159,7 +207,8 @@ export type ConnectionEvent = z.infer<typeof ConnectionEventSchema>;
 
 export const CreateConnectionRequestSchema = z
   .object({
-    provider_id: z.string().min(1),
+    integration_id: z.string().min(1).optional(),
+    provider_id: z.string().min(1).optional(),
     display_name: z.string().min(1).optional(),
     logical_name: z.string().min(1).optional(),
     project_id: z.string().min(1).optional(),
@@ -169,6 +218,71 @@ export const CreateConnectionRequestSchema = z
   .strict();
 export type CreateConnectionRequest = z.infer<
   typeof CreateConnectionRequestSchema
+>;
+
+export const IntegrationSourceSchema = z.enum([
+  "organization",
+  "shared_dev",
+  "deployment",
+]);
+export const IntegrationSchema = z
+  .object({
+    id: z.string().min(1),
+    key: z.string().min(1),
+    provider_id: z.string().min(1),
+    display_name: z.string().min(1),
+    source: IntegrationSourceSchema,
+    enabled: z.boolean(),
+    configured: z.boolean(),
+    callback_url: z.string().url().nullable(),
+    scopes: z.array(z.string()),
+    client_id_hint: z.string().nullable(),
+    has_client_secret: z.boolean(),
+    configured_fields: z.array(ConfiguredFieldSchema).default([]),
+    connection_count: z.number().int().nonnegative(),
+    created_by: z.string().min(1),
+    created_at: z.string().datetime({ offset: true }),
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type Integration = z.infer<typeof IntegrationSchema>;
+
+export const CreateIntegrationRequestSchema = z
+  .object({
+    key: z.string().min(1),
+    provider_id: z.string().min(1),
+    display_name: z.string().min(1),
+    scopes: z.array(z.string()).optional(),
+    client_id: z.string().min(1).optional(),
+    client_secret: z.string().min(1).optional(),
+    configuration: ConfigurationSchema.optional(),
+  })
+  .strict();
+export type CreateIntegrationRequest = z.infer<
+  typeof CreateIntegrationRequestSchema
+>;
+
+export const UpdateIntegrationRequestSchema = z
+  .object({
+    key: z.string().min(1).optional(),
+    display_name: z.string().min(1).optional(),
+    scopes: z.array(z.string()).optional(),
+    enabled: z.boolean().optional(),
+    client_id: z.string().optional(),
+    client_secret: z.string().optional(),
+    configuration_set: ConfigurationSchema.optional(),
+    configuration_clear: z.array(z.string().min(1)).max(64).optional(),
+  })
+  .strict();
+export type UpdateIntegrationRequest = z.infer<
+  typeof UpdateIntegrationRequestSchema
+>;
+
+export const ListIntegrationsResponseSchema = z
+  .object({ integrations: z.array(IntegrationSchema) })
+  .strict();
+export type ListIntegrationsResponse = z.infer<
+  typeof ListIntegrationsResponseSchema
 >;
 
 export const AuthorizeRequestSchema = z
@@ -181,9 +295,22 @@ export type AuthorizeRequest = z.infer<typeof AuthorizeRequestSchema>;
 
 export const SetCredentialRequestSchema = z
   .object({
-    value: z.string().min(1),
+    value: z
+      .string()
+      .min(1)
+      .max(8 * 1024)
+      .optional(),
+    configuration_set: ConfigurationSchema.optional(),
+    configuration_clear: z.array(z.string().min(1)).max(64).optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (request) =>
+      request.value !== undefined ||
+      Object.keys(request.configuration_set ?? {}).length > 0 ||
+      (request.configuration_clear?.length ?? 0) > 0,
+    { message: "configuration_set or configuration_clear is required" },
+  );
 export type SetCredentialRequest = z.infer<typeof SetCredentialRequestSchema>;
 
 export const CreateBindingRequestSchema = z
@@ -215,7 +342,7 @@ export const AuthorizeResponseSchema = z
   .object({
     authorization_url: z.string().url(),
     state: z.string().min(1),
-    expires_at: z.string().datetime(),
+    expires_at: z.string().datetime({ offset: true }),
   })
   .strict();
 export type AuthorizeResponse = z.infer<typeof AuthorizeResponseSchema>;
@@ -239,9 +366,15 @@ export const ListEventsResponseSchema = z
 export type ListEventsResponse = z.infer<typeof ListEventsResponseSchema>;
 
 export const ConnectionErrorCodeSchema = z.enum([
+  "catalog_unavailable",
   "provider_unknown",
   "provider_unconfigured",
   "connection_not_found",
+  "integration_not_found",
+  "integration_required",
+  "integration_conflict",
+  "integration_read_only",
+  "integration_in_use",
   "invalid_state",
   "state_expired",
   "exchange_failed",
@@ -250,7 +383,11 @@ export const ConnectionErrorCodeSchema = z.enum([
   "redirect_not_allowed",
   "binding_exists",
   "binding_not_found",
+  "unsupported_credential",
+  "invalid_request",
+  "internal_error",
   "unauthorized",
+  "forbidden",
 ]);
 export type ConnectionErrorCode = z.infer<typeof ConnectionErrorCodeSchema>;
 

@@ -108,8 +108,7 @@ export function parseArgs(argv: string[]): ParsedCommand {
     args.shift();
     const claimId = takeOption(args, "--id") ?? args.shift();
     if (!claimId) throw new Error("claim poll requires claim id");
-    // The claim token is the bearer for this endpoint: the control plane will
-    // not answer without it, so fail here rather than at the request.
+    // Claim state is only readable with the claim bearer (osc_clm_…).
     const claimToken =
       takeOption(args, "--token") ??
       process.env.OPENSESAME_CLAIM_TOKEN ??
@@ -170,7 +169,7 @@ Commands:
   logout
   whoami
   project create --temporary [--name <name>]
-  claim poll <claimId> --token <osc_clm_…>
+  claim poll <claimId> --token <osc_clm_…>   (or OPENSESAME_CLAIM_TOKEN)
   agent init --anonymous [--name <name>]
   host health [--host <url>]   Host API (:8787) via api-client
   host discover [--host <url>] Host PRM / readiness discovery

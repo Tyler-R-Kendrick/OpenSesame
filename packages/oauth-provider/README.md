@@ -22,8 +22,22 @@ Downstream OAuth 2.0 / OpenID Connect authority built on panva [`oidc-provider`]
 | `OPENSESAME_ORIGIN_CLIENTS_ENABLED` | `false` | Allow Shoo-compatible `origin_profile` clients |
 | `OPENSESAME_DCR_ENABLED` | `false` | Enable Dynamic Client Registration |
 | `OPENSESAME_CIMD_ENABLED` | `false` | Enable Client ID Metadata Document fetch (SSRF-hardened) |
+| `OPENSESAME_ALLOWED_RESOURCES` | *(issuer only)* | Comma-separated resource indicators (RFC 8707) this issuer will audience access tokens to. Anything else is `invalid_target`. |
+| `OPENSESAME_JWKS_JSON` | *(dev keypair)* | Signing JWKS (`{"keys":[…]}`). Required in production. |
 
 Truthy values: `1`, `true`, `yes`, `on` (case-insensitive).
+
+## Production requirements
+
+`createOpenSesameProvider` fails closed when `NODE_ENV=production` (or
+`OPENSESAME_ENV=production`) and either is missing:
+
+- **Signing keys** — pass `jwks` or set `OPENSESAME_JWKS_JSON`. Otherwise the
+  provider would mint tokens with a per-process keypair that no replica (and no
+  restarted instance) can verify.
+- **A persistent adapter** — pass `createPostgresAdapterConstructor(store)`.
+  `MemoryAdapter` loses grants and sessions on restart and makes revocation
+  per-process.
 
 ## Usage
 

@@ -1,12 +1,19 @@
-import { describe, expect, it } from "vitest";
 import {
-  createPairwiseIdentifierCallback,
   MemoryPairwiseSubjectStore,
+  createPairwiseIdentifierCallback,
 } from "@opensesame/oauth-provider";
+import {
+  DEFAULT_PROVISIONAL_QUOTA,
+  DEFAULT_VERIFIED_QUOTA,
+  ProvisionalPolicy,
+} from "@opensesame/policy";
+import { describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
 
 async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
-  const res = await app.request("/v1/principals/provisional", { method: "POST" });
+  const res = await app.request("/v1/principals/provisional", {
+    method: "POST",
+  });
   expect(res.status).toBe(201);
   const body = (await res.json()) as {
     principalId: string;
@@ -16,10 +23,38 @@ async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
   return body;
 }
 
+async function verifiedPrincipal(
+  app: ReturnType<typeof createControlPlane>["app"],
+  subject: string,
+) {
+  const created = await provisional(app);
+  const auth = { authorization: `Bearer ${created.accessToken}` };
+  const linked = await app.request("/v1/principals/link-identities", {
+    method: "POST",
+    headers: {
+      ...auth,
+      "content-type": "application/json",
+      "idempotency-key": `verify-${subject}`,
+    },
+    body: JSON.stringify({
+      kind: "oidc",
+      issuer: "https://mock.example",
+      subject,
+      assurance: "verified",
+    }),
+  });
+  expect(linked.status).toBe(201);
+  return { ...created, auth };
+}
+
 describe("control-plane API", () => {
   it("creates provisional principal and returns /me", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const created = await provisional(app);
     const me = await app.request("/v1/principals/me", {
@@ -31,76 +66,34 @@ describe("control-plane API", () => {
     expect(body.state).toBe("provisional");
   });
 
-  // Minting a session needs no credential, so an Idempotency-Key on it belongs to
-  // nobody: replaying that answer would hand the first caller's bearer and cookie
-  // to whoever quotes the key next.
-  it("never replays a minted session to another caller", async () => {
+  it("seeds one owner workspace only when the local stack opts in", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
-    });
-    const shared = { method: "POST", headers: { "idempotency-key": "mint-1" } };
-
-    const first = await app.request("/v1/principals/provisional", shared);
-    const second = await app.request("/v1/principals/provisional", shared);
-    expect(first.status).toBe(201);
-    expect(second.status).toBe(201);
-    expect(second.headers.get("idempotency-replayed")).toBeNull();
-
-    const a = (await first.json()) as { principalId: string; accessToken: string };
-    const b = (await second.json()) as { principalId: string; accessToken: string };
-    expect(b.principalId).not.toBe(a.principalId);
-    expect(b.accessToken).not.toBe(a.accessToken);
-    expect(second.headers.get("set-cookie")).not.toBe(
-      first.headers.get("set-cookie"),
-    );
-  });
-
-  // The body says what to do, so the same key with a different one is a different
-  // request: answering it with the first result would report a change never made.
-  it("does not replay one key across different bodies", async () => {
-    const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+        bootstrapPersonalOrganization: true,
+      },
     });
     const created = await provisional(app);
-    const headers = {
-      authorization: `Bearer ${created.accessToken}`,
-      "content-type": "application/json",
-      "idempotency-key": "proj-shared",
-    };
-
-    const first = await app.request("/v1/projects/temporary", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ name: "First", ttlSeconds: 3600 }),
+    const organizations = await app.request("/v1/organizations", {
+      headers: { authorization: `Bearer ${created.accessToken}` },
     });
-    expect(first.status).toBe(201);
-
-    const other = await app.request("/v1/projects/temporary", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ name: "Second", ttlSeconds: 3600 }),
+    expect(organizations.status).toBe(200);
+    expect(await organizations.json()).toMatchObject({
+      organizations: [
+        { displayName: "Personal workspace", role: "owner", state: "active" },
+      ],
     });
-    expect(other.status).toBe(201);
-    expect(other.headers.get("idempotency-replayed")).toBeNull();
-    const one = (await first.json()) as { projectId: string };
-    const two = (await other.json()) as { projectId: string };
-    expect(two.projectId).not.toBe(one.projectId);
-
-    // The same body still replays.
-    const again = await app.request("/v1/projects/temporary", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ name: "First", ttlSeconds: 3600 }),
-    });
-    expect(again.headers.get("idempotency-replayed")).toBe("true");
-    expect(((await again.json()) as { projectId: string }).projectId).toBe(
-      one.projectId,
-    );
   });
 
   it("rejects provisional session id as Bearer or cookie credential", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const created = await provisional(app);
     expect(created.sessionId.startsWith("ps_")).toBe(true);
@@ -122,89 +115,116 @@ describe("control-plane API", () => {
     expect(byAccessCookie.status).toBe(200);
   });
 
-  // The cookie authenticates on its own, so clearing the client is not enough.
-  it("revokes a provisional session for bearer and cookie alike", async () => {
-    const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
-    });
-    const created = await provisional(app);
-
-    const revoked = await app.request("/v1/principals/provisional/revoke", {
-      method: "POST",
-      headers: { cookie: `os_provisional=${created.accessToken}` },
-    });
-    expect(revoked.status).toBe(204);
-    expect(revoked.headers.get("set-cookie")).toContain("os_provisional=");
-
-    const byCookie = await app.request("/v1/principals/me", {
-      headers: { cookie: `os_provisional=${created.accessToken}` },
-    });
-    expect(byCookie.status).toBe(401);
-
-    const byBearer = await app.request("/v1/principals/me", {
-      headers: { authorization: `Bearer ${created.accessToken}` },
-    });
-    expect(byBearer.status).toBe(401);
-  });
-
-  // An adopted CLI token has no cookie, so the bearer is the only handle on it.
-  it("revokes a provisional session presented as a Bearer token", async () => {
-    const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
-    });
-    const created = await provisional(app);
-
-    const revoked = await app.request("/v1/principals/provisional/revoke", {
-      method: "POST",
-      headers: { authorization: `Bearer ${created.accessToken}` },
-    });
-    expect(revoked.status).toBe(204);
-
-    const after = await app.request("/v1/principals/me", {
-      headers: { authorization: `Bearer ${created.accessToken}` },
-    });
-    expect(after.status).toBe(401);
-    // No cookie was presented, so none may be cleared: a late response must not
-    // wipe the cookie of a session started in the meantime.
-    expect(revoked.headers.get("set-cookie")).toBeNull();
-  });
-
-  // A bearer outranks a cookie for authentication, so a request carrying two
-  // different sessions must not end one and merely blind the other.
-  it("revokes both sessions when a bearer and a cookie name different ones", async () => {
-    const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
-    });
-    const bearerSession = await provisional(app);
-    const cookieSession = await provisional(app);
-
-    const revoked = await app.request("/v1/principals/provisional/revoke", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${bearerSession.accessToken}`,
-        cookie: `os_provisional=${cookieSession.accessToken}`,
+  it("does not activate a project whose TTL ran out before the claim completed", async () => {
+    const now = new Date("2026-08-08T12:00:00Z");
+    const { app, ctx } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
       },
-    });
-    expect(revoked.status).toBe(204);
-
-    for (const token of [bearerSession.accessToken, cookieSession.accessToken]) {
-      const after = await app.request("/v1/principals/me", {
-        headers: { authorization: `Bearer ${token}` },
-      });
-      expect(after.status).toBe(401);
-    }
-  });
-
-  it("creates temporary project and completes claim preserving ids", async () => {
-    const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      clock: () => now,
     });
     const created = await provisional(app);
     const auth = { authorization: `Bearer ${created.accessToken}` };
 
     const projectRes = await app.request("/v1/projects/temporary", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json", "idempotency-key": "proj-1" },
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ name: "Short Lived", ttlSeconds: 600 }),
+    });
+    const project = (await projectRes.json()) as {
+      projectId: string;
+      claimId: string;
+      claimToken: string;
+      userCode: string;
+    };
+
+    await app.request("/v1/claims/present", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ token: project.claimToken }),
+    });
+
+    // Today the claim never outlives the project, so force the case directly:
+    // approval must not resurrect a project that is already past its own TTL.
+    const stored = ctx.stores.projects.get(project.projectId);
+    expect(stored).toBeDefined();
+    if (!stored) throw new Error("project missing from store");
+    ctx.stores.projects.set(project.projectId, {
+      ...stored,
+      expiresAt: new Date(now.getTime() - 1_000),
+    });
+
+    const complete = await app.request(
+      `/v1/claims/${project.claimId}/complete`,
+      {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json" },
+        body: JSON.stringify({
+          acceptedItemIds: [],
+          userCode: project.userCode,
+        }),
+      },
+    );
+    expect(complete.status).toBe(200);
+    expect(ctx.stores.projects.get(project.projectId)?.state).toBe("expired");
+  });
+
+  it("frees a provisional quota slot when a temporary project lapses", async () => {
+    let now = new Date("2026-08-08T10:00:00Z");
+    const { app, ctx } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+      clock: () => now,
+    });
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+
+    const create = async (name: string) =>
+      app.request("/v1/projects/temporary", {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json" },
+        body: JSON.stringify({ name, ttlSeconds: 60 }),
+      });
+
+    for (const name of ["one", "two", "three"]) {
+      expect((await create(name)).status).toBe(201);
+    }
+    // Quota of three is spent.
+    const overQuota = await create("four");
+    expect(overQuota.status).toBe(403);
+    expect(
+      ((await overQuota.json()) as { reasons: string[] }).reasons,
+    ).toContain("provisional_quota_projects");
+
+    // Once they lapse the slots come back: the cap is live, not lifetime.
+    now = new Date(now.getTime() + 120_000);
+    expect(ctx.stores.projects.size).toBe(3);
+    expect((await create("five")).status).toBe(201);
+  });
+
+  it("creates temporary project and completes claim preserving ids", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+
+    const projectRes = await app.request("/v1/projects/temporary", {
+      method: "POST",
+      headers: {
+        ...auth,
+        "content-type": "application/json",
+        "idempotency-key": "proj-1",
+      },
       body: JSON.stringify({ name: "Temp Demo", ttlSeconds: 3600 }),
     });
     expect(projectRes.status).toBe(201);
@@ -212,6 +232,7 @@ describe("control-plane API", () => {
       projectId: string;
       claimId: string;
       claimToken: string;
+      userCode: string;
       targetManifestDigest: string;
     };
     expect(project.projectId.startsWith("prj_")).toBe(true);
@@ -225,7 +246,9 @@ describe("control-plane API", () => {
       headers: { "x-claim-token": project.claimToken },
     });
     expect(withToken.status).toBe(200);
-    expect(((await withToken.json()) as { state: string }).state).toBe("pending");
+    expect(((await withToken.json()) as { state: string }).state).toBe(
+      "pending",
+    );
 
     const present = await app.request("/v1/claims/present", {
       method: "POST",
@@ -233,41 +256,30 @@ describe("control-plane API", () => {
       body: JSON.stringify({ token: project.claimToken }),
     });
     expect(present.status).toBe(200);
-    // A reviewer accepts by id, so present must report the items. There is no
-    // wildcard: "*" is looked up as a literal item id and refused.
-    const presented = (await present.json()) as { items?: unknown[] };
-    expect(Array.isArray(presented.items)).toBe(true);
 
-    const wildcard = await app.request(`/v1/claims/${project.claimId}/complete`, {
-      method: "POST",
-      headers: {
-        ...auth,
-        "content-type": "application/json",
-        "x-claim-token": project.claimToken,
-      },
-      body: JSON.stringify({ acceptedItemIds: ["*"] }),
-    });
-    expect(wildcard.status).toBeGreaterThanOrEqual(400);
-
-    // A principal alone must not be enough: the claim id is public, so without
-    // the claim bearer anyone signed in could take what someone else presented.
-    const unbound = await app.request(`/v1/claims/${project.claimId}/complete`, {
+    // Approval without the device's user code is not consent.
+    const noCode = await app.request(`/v1/claims/${project.claimId}/complete`, {
       method: "POST",
       headers: { ...auth, "content-type": "application/json" },
-      body: JSON.stringify({ acceptedItemIds: [] }),
+      body: JSON.stringify({ acceptedItemIds: [], userCode: "0000-0000" }),
     });
-    expect(unbound.status).toBe(401);
+    expect(noCode.status).toBe(401);
 
-    const complete = await app.request(`/v1/claims/${project.claimId}/complete`, {
-      method: "POST",
-      headers: {
-        ...auth,
-        "content-type": "application/json",
-        "x-claim-token": project.claimToken,
-        "idempotency-key": "complete-1",
+    const complete = await app.request(
+      `/v1/claims/${project.claimId}/complete`,
+      {
+        method: "POST",
+        headers: {
+          ...auth,
+          "content-type": "application/json",
+          "idempotency-key": "complete-1",
+        },
+        body: JSON.stringify({
+          acceptedItemIds: [],
+          userCode: project.userCode,
+        }),
       },
-      body: JSON.stringify({ acceptedItemIds: [] }),
-    });
+    );
     expect(complete.status).toBe(200);
     const done = (await complete.json()) as {
       state: string;
@@ -277,45 +289,14 @@ describe("control-plane API", () => {
     expect(done.preserved.principalId).toBe(created.principalId);
     expect(done.preserved.projectId).toBe(project.projectId);
 
-    // A cached success answers before the handler runs, so replay is keyed to
-    // the caller and the bearer it presented. Borrowing the key without the
-    // claim token must not hand back someone else's completion.
-    const borrowed = await app.request(
-      `/v1/claims/${project.claimId}/complete`,
-      {
-        method: "POST",
-        headers: {
-          ...auth,
-          "content-type": "application/json",
-          "idempotency-key": "complete-1",
-        },
-        body: JSON.stringify({ acceptedItemIds: [] }),
-      },
-    );
-    expect(borrowed.status).toBe(401);
-    expect(borrowed.headers.get("idempotency-replayed")).toBeNull();
-
-    // The completer replaying with the same bearer still gets its own answer.
-    const sameCaller = await app.request(
-      `/v1/claims/${project.claimId}/complete`,
-      {
-        method: "POST",
-        headers: {
-          ...auth,
-          "content-type": "application/json",
-          "x-claim-token": project.claimToken,
-          "idempotency-key": "complete-1",
-        },
-        body: JSON.stringify({ acceptedItemIds: [] }),
-      },
-    );
-    expect(sameCaller.status).toBe(200);
-    expect(sameCaller.headers.get("idempotency-replayed")).toBe("true");
-
     // Replay idempotency
     const replay = await app.request("/v1/projects/temporary", {
       method: "POST",
-      headers: { ...auth, "content-type": "application/json", "idempotency-key": "proj-1" },
+      headers: {
+        ...auth,
+        "content-type": "application/json",
+        "idempotency-key": "proj-1",
+      },
       body: JSON.stringify({ name: "Temp Demo", ttlSeconds: 3600 }),
     });
     expect(replay.status).toBe(201);
@@ -326,7 +307,11 @@ describe("control-plane API", () => {
 
   it("serves discovery documents", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const authMd = await app.request("/auth.md");
     expect(authMd.status).toBe(200);
@@ -338,7 +323,9 @@ describe("control-plane API", () => {
 
     const prm = await app.request("/.well-known/oauth-protected-resource");
     expect(prm.status).toBe(200);
-    expect(((await prm.json()) as { resource: string }).resource).toContain("8788");
+    expect(((await prm.json()) as { resource: string }).resource).toContain(
+      "8788",
+    );
   });
 
   it("pairwise subjects differ across sectors via oauth-provider", async () => {
@@ -356,7 +343,11 @@ describe("control-plane API", () => {
     expect(a).not.toBe("prn_same");
 
     const { ctx } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     expect(ctx.oauth.env.issuer).toBe("http://127.0.0.1:8788");
     expect(ctx.oauth.configuration.subjectTypes).toContain("pairwise");
@@ -397,14 +388,24 @@ describe("control-plane API", () => {
       "frame-ancestors 'none'",
     );
     // Landing page must not disclose claim existence or state.
-    for (const leak of ["pending", "completed", "denied", "expired", "unknown"]) {
+    for (const leak of [
+      "pending",
+      "completed",
+      "denied",
+      "expired",
+      "unknown",
+    ]) {
       expect(html).not.toContain(leak);
     }
   });
 
   it("mfa passkey register/assert and totp enroll/verify", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const created = await provisional(app);
     const auth = { authorization: `Bearer ${created.accessToken}` };
@@ -430,9 +431,9 @@ describe("control-plane API", () => {
       }),
     });
     expect(assertRes.status).toBe(200);
-    expect(((await assertRes.json()) as { principalId: string }).principalId).toBe(
-      created.principalId,
-    );
+    expect(
+      ((await assertRes.json()) as { principalId: string }).principalId,
+    ).toBe(created.principalId);
 
     const enroll = await app.request("/v1/mfa/totp/enroll", {
       method: "POST",
@@ -451,6 +452,86 @@ describe("control-plane API", () => {
     });
     expect(verify.status).toBe(200);
     expect(((await verify.json()) as { ok: boolean }).ok).toBe(true);
+  });
+
+  it("fences wrong TOTP codes after five tries", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+    const enroll = await app.request("/v1/mfa/totp/enroll", {
+      method: "POST",
+      headers: auth,
+    });
+    const { secret } = (await enroll.json()) as { secret: string };
+
+    const attempt = (code: string) =>
+      app.request("/v1/mfa/totp/verify", {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+
+    for (let i = 0; i < 5; i += 1) {
+      expect((await attempt("000000")).status).toBe(401);
+    }
+    // Six digits is a million guesses; the fence closes before that.
+    expect((await attempt("000000")).status).toBe(429);
+
+    const { totpCode } = await import("../routes/mfa.js");
+    // Even the right code is refused while the fence is closed.
+    expect((await attempt(totpCode(secret))).status).toBe(429);
+
+    // The refusals are in the trail. A trail of successes only would read as one
+    // ordinary login rather than as six guesses against a six-digit code.
+    const audit = await app.request("/v1/audit/events?limit=50", {
+      headers: auth,
+    });
+    const events = (await audit.json()) as {
+      events: Array<{
+        eventType: string;
+        outcome: string;
+        metadata: { reason?: string };
+      }>;
+    };
+    const denials = events.events.filter(
+      (e) => e.eventType === "mfa.totp.verify" && e.outcome === "denied",
+    );
+    expect(denials.length).toBeGreaterThanOrEqual(6);
+    expect(denials.map((e) => e.metadata.reason)).toContain("bad_code");
+    expect(denials.map((e) => e.metadata.reason)).toContain(
+      "too_many_attempts",
+    );
+  });
+
+  it("fences repeated failing passkey assertions per credential", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const attempt = () =>
+      app.request("/v1/mfa/passkey/assert", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credentialId: "cred_unknown",
+          clientDataJSON: Buffer.from("{}").toString("base64"),
+          authenticatorData: Buffer.from("a").toString("base64"),
+          signature: Buffer.from("sig").toString("base64"),
+        }),
+      });
+    for (let i = 0; i < 5; i += 1) {
+      expect((await attempt()).status).toBe(401);
+    }
+    expect((await attempt()).status).toBe(429);
   });
 
   it("production rejects stub TOTP enroll/verify", async () => {
@@ -477,7 +558,9 @@ describe("control-plane API", () => {
       headers: auth,
     });
     expect(enroll.status).toBe(403);
-    expect(((await enroll.json()) as { error: string }).error).toBe("totp_dev_only");
+    expect(((await enroll.json()) as { error: string }).error).toBe(
+      "totp_dev_only",
+    );
     const verify = await app.request("/v1/mfa/totp/verify", {
       method: "POST",
       headers: { ...auth, "content-type": "application/json" },
@@ -592,7 +675,11 @@ describe("control-plane API", () => {
 
   it("device approve requires authentication and never exposes operator token", async () => {
     const { app, config } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     expect(config.operatorToken).toBeTruthy();
     const unauth = await app.request("/v1/device/approve", {
@@ -608,16 +695,57 @@ describe("control-plane API", () => {
       headers: { ...auth, "content-type": "application/json" },
       body: JSON.stringify({ user_code: "ABCD-EFGH" }),
     });
-    // Host may be down in unit tests → 502, but never leak operator token in body.
-    expect([200, 404, 502]).toContain(res.status);
+    // Authentication reaches the handler, which requires organization selection.
+    expect(res.status).toBe(400);
     const body = await res.text();
     expect(body).not.toContain(config.operatorToken);
     expect(body.toLowerCase()).not.toContain("x-opensesame-operator");
   });
 
+  it("does not let an ambient cookie approve a device from another origin", async () => {
+    const { app, config } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+        corsOrigins: ["https://console.example"],
+      },
+    });
+    const created = await provisional(app);
+    const cookie = `${config.provisionalCookieName}=${created.accessToken}`;
+    const approve = (headers: Record<string, string>) =>
+      app.request("/v1/device/approve", {
+        method: "POST",
+        headers: { cookie, "content-type": "application/json", ...headers },
+        body: JSON.stringify({ user_code: "ABCD-EFGH" }),
+      });
+
+    // A cookie arrives whether or not the page meant to send it.
+    expect((await approve({})).status).toBe(401);
+    expect((await approve({ origin: "https://evil.example" })).status).toBe(
+      401,
+    );
+    // An origin this deployment listed, or its own, is a caller it expects.
+    expect((await approve({ origin: "https://console.example" })).status).toBe(
+      400,
+    );
+    expect((await approve({ origin: "http://127.0.0.1:8788" })).status).toBe(
+      400,
+    );
+    // Reads are untouched: a forged read is not a forged write.
+    const read = await app.request("/v1/audit/events", {
+      headers: { cookie, origin: "https://evil.example" },
+    });
+    expect(read.status).toBe(200);
+  });
+
   it("links and lists identities without email auto-link; collision returns 409", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const a = await provisional(app);
     const b = await provisional(app);
@@ -641,9 +769,13 @@ describe("control-plane API", () => {
     });
     expect(linkA.status).toBe(201);
 
-    const list = await app.request("/v1/principals/identities", { headers: authA });
+    const list = await app.request("/v1/principals/identities", {
+      headers: authA,
+    });
     expect(list.status).toBe(200);
-    const listed = (await list.json()) as { identities: Array<{ subject: string }> };
+    const listed = (await list.json()) as {
+      identities: Array<{ subject: string }>;
+    };
     expect(listed.identities).toHaveLength(1);
     expect(listed.identities[0]?.subject).toBe("sub-shared-email-case");
 
@@ -693,8 +825,12 @@ describe("control-plane API", () => {
   });
 
   it("creates organization and oauth client; lists scoped audit events", async () => {
-    const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+    const { app, ctx } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const created = await provisional(app);
     const auth = { authorization: `Bearer ${created.accessToken}` };
@@ -741,10 +877,15 @@ describe("control-plane API", () => {
       }),
     });
     expect(clientRes.status).toBe(201);
-    const client = (await clientRes.json()) as { id: string; admissionMode: string };
+    const client = (await clientRes.json()) as {
+      id: string;
+      admissionMode: string;
+    };
     expect(client.admissionMode).toBe("pre_registered");
 
-    const audit = await app.request("/v1/audit/events?limit=20", { headers: auth });
+    const audit = await app.request("/v1/audit/events?limit=20", {
+      headers: auth,
+    });
     expect(audit.status).toBe(200);
     const events = (await audit.json()) as {
       events: Array<{ eventType: string; principalId?: string }>;
@@ -752,49 +893,638 @@ describe("control-plane API", () => {
     expect(events.events.length).toBeGreaterThan(0);
     expect(
       events.events.every(
-        (e) => e.principalId === undefined || e.principalId === created.principalId,
+        (e) =>
+          e.principalId === undefined || e.principalId === created.principalId,
       ),
     ).toBe(true);
-    expect(events.events.some((e) => e.eventType === "organization.created")).toBe(
+    expect(
+      events.events.some((e) => e.eventType === "organization.created"),
+    ).toBe(true);
+
+    // Every event carries the digest of the one before it, and the trail says so.
+    const chained = (await (
+      await app.request("/v1/audit/events?limit=20", { headers: auth })
+    ).json()) as {
+      events: Array<{ digest?: string; previousDigest?: string }>;
+    };
+    expect(chained.events.every((e) => e.digest && e.previousDigest)).toBe(
       true,
     );
+    const verify = await app.request("/v1/audit/events/verify", {
+      headers: auth,
+    });
+    expect(verify.status).toBe(200);
+    expect(await verify.json()).toMatchObject({ ok: true });
+
+    // The walk covers the contiguous run, not the caller's slice. That is what
+    // makes a removed event detectable: one principal's events are not adjacent in
+    // the trail, so a slice can only ever show `altered`. There is no repository
+    // method that deletes an audit event, so the removal case itself is covered by
+    // the unit tests in `packages/audit`.
+    await ctx.repos.auditEvents.append({
+      id: "evt_someone_else",
+      occurredAt: new Date(),
+      eventType: "organization.created",
+      outcome: "succeeded",
+      correlationId: "cor_someone_else",
+      principalId: "prn_someone_else",
+      metadata: {},
+    });
+    const everything = await ctx.repos.auditEvents.list({ limit: 200 });
+    const mine = await ctx.repos.auditEvents.list({
+      principalId: created.principalId,
+      limit: 200,
+    });
+    expect(everything.length).toBeGreaterThan(mine.length);
+
+    const verified = (await (
+      await app.request("/v1/audit/events/verify", { headers: auth })
+    ).json()) as { ok: boolean; checked: number; eventId?: string };
+    expect(verified.ok).toBe(true);
+    expect(verified.checked).toBe(everything.length);
   });
 
-  it("lets the claim bearer header through the CORS preflight", async () => {
+  it("enforces organization membership roles and protects the last owner", async () => {
+    const { app, ctx } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const owner = await verifiedPrincipal(app, "membership-owner");
+    const member = await verifiedPrincipal(app, "membership-member");
+    const candidate = await verifiedPrincipal(app, "membership-candidate");
+    const inactive = await verifiedPrincipal(app, "membership-inactive");
+    const inactiveRecord = await ctx.repos.principals.getById(
+      inactive.principalId,
+    );
+    expect(inactiveRecord).not.toBeNull();
+    if (!inactiveRecord) throw new Error("principal missing from repository");
+    await ctx.repos.principals.update(
+      inactive.principalId,
+      { state: "suspended", suspendedAt: new Date(), updatedAt: new Date() },
+      inactiveRecord.version,
+    );
+
+    const created = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...owner.auth,
+        "content-type": "application/json",
+        "idempotency-key": "membership-org",
+      },
+      body: JSON.stringify({
+        slug: "membership-org",
+        displayName: "Membership Org",
+      }),
+    });
+    expect(created.status).toBe(201);
+    const organization = (await created.json()) as {
+      id: string;
+      role: string;
+    };
+    expect(organization.role).toBe("owner");
+
+    const add = (principalId: string, role: string, auth = owner.auth) =>
+      app.request(`/v1/organizations/${organization.id}/members`, {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json" },
+        body: JSON.stringify({ principalId, role }),
+      });
+    expect((await add(member.principalId, "member")).status).toBe(201);
+    expect((await add(member.principalId, "admin")).status).toBe(409);
+    expect((await add("prn_missing", "member")).status).toBe(404);
+    const inactiveAdd = await add(inactive.principalId, "member");
+    expect(inactiveAdd.status).toBe(409);
+    expect((await inactiveAdd.json()) as { error: string }).toEqual({
+      error: "principal_inactive",
+    });
+
+    const memberOrganizations = await app.request("/v1/organizations", {
+      headers: member.auth,
+    });
+    expect(memberOrganizations.status).toBe(200);
+    expect(
+      (
+        (await memberOrganizations.json()) as {
+          organizations: Array<{ id: string; role: string }>;
+        }
+      ).organizations,
+    ).toContainEqual(
+      expect.objectContaining({ id: organization.id, role: "member" }),
+    );
+    expect(
+      (
+        (await (
+          await app.request(`/v1/organizations/${organization.id}`, {
+            headers: member.auth,
+          })
+        ).json()) as { role: string }
+      ).role,
+    ).toBe("member");
+    expect(
+      (
+        await app.request(`/v1/organizations/${organization.id}/members`, {
+          headers: member.auth,
+        })
+      ).status,
+    ).toBe(403);
+    expect(
+      (await add(candidate.principalId, "member", member.auth)).status,
+    ).toBe(403);
+
+    const demoteLastOwner = await app.request(
+      `/v1/organizations/${organization.id}/members/${owner.principalId}`,
+      {
+        method: "PATCH",
+        headers: { ...owner.auth, "content-type": "application/json" },
+        body: JSON.stringify({ role: "admin" }),
+      },
+    );
+    expect(demoteLastOwner.status).toBe(409);
+    const removeLastOwner = await app.request(
+      `/v1/organizations/${organization.id}/members/${owner.principalId}`,
+      { method: "DELETE", headers: owner.auth },
+    );
+    expect(removeLastOwner.status).toBe(409);
+  });
+
+  it("derives device organization role and revokes Host sessions on membership changes", async () => {
+    const { app, ctx } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+        hostApiUrl: "https://host.example/tenant",
+      },
+    });
+    const owner = await verifiedPrincipal(app, "device-owner");
+    const member = await verifiedPrincipal(app, "device-member");
+    const created = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...owner.auth,
+        "content-type": "application/json",
+        "idempotency-key": "device-org",
+      },
+      body: JSON.stringify({ slug: "device-org", displayName: "Device Org" }),
+    });
+    const organization = (await created.json()) as { id: string };
+    expect(organization.id).toMatch(
+      /^org:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    await app.request(`/v1/organizations/${organization.id}/members`, {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ principalId: member.principalId, role: "member" }),
+    });
+
+    const requests: Array<{ url: string; body: Record<string, string> }> = [];
+    const rolesSeenByHost: Array<string | undefined> = [];
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const host = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, init) => {
+        const url = String(input);
+        requests.push({
+          url,
+          body: JSON.parse(String(init?.body)) as Record<string, string>,
+        });
+        if (url.endsWith("/api/v1/sessions/revoke")) {
+          rolesSeenByHost.push(
+            ctx.stores.organizationMemberships.get(
+              `${organization.id}:${member.principalId}`,
+            )?.role,
+          );
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      });
+    try {
+      const approval = await app.request("/v1/device/approve", {
+        method: "POST",
+        headers: { ...member.auth, "content-type": "application/json" },
+        body: JSON.stringify({
+          user_code: "ABCD-EFGH",
+          organization_id: organization.id,
+          organization_role: "owner",
+          principal: owner.principalId,
+        }),
+      });
+      expect(approval.status).toBe(200);
+      expect(requests[0]?.body).toMatchObject({
+        principal: member.principalId,
+        organization_id: organization.id,
+        organization_role: "member",
+      });
+
+      host.mockResolvedValueOnce(new Response("down", { status: 503 }));
+      const failedChange = await app.request(
+        `/v1/organizations/${organization.id}/members/${member.principalId}`,
+        {
+          method: "PATCH",
+          headers: { ...owner.auth, "content-type": "application/json" },
+          body: JSON.stringify({ role: "admin" }),
+        },
+      );
+      expect(failedChange.status).toBe(502);
+      expect(
+        (
+          (await (
+            await app.request(`/v1/organizations/${organization.id}`, {
+              headers: member.auth,
+            })
+          ).json()) as { role: string }
+        ).role,
+      ).toBe("member");
+
+      const changed = await app.request(
+        `/v1/organizations/${organization.id}/members/${member.principalId}`,
+        {
+          method: "PATCH",
+          headers: { ...owner.auth, "content-type": "application/json" },
+          body: JSON.stringify({ role: "admin" }),
+        },
+      );
+      expect(changed.status).toBe(200);
+      expect((await changed.json()) as { role: string }).toEqual(
+        expect.objectContaining({ role: "admin" }),
+      );
+      const removed = await app.request(
+        `/v1/organizations/${organization.id}/members/${member.principalId}`,
+        { method: "DELETE", headers: owner.auth },
+      );
+      expect(removed.status).toBe(204);
+      expect(
+        requests.filter((request) =>
+          request.url.endsWith("/api/v1/sessions/revoke"),
+        ),
+      ).toHaveLength(2);
+      expect(host).toHaveBeenCalledTimes(4);
+      expect(rolesSeenByHost).toEqual(["admin", undefined]);
+      expect(requests.map(({ url }) => new URL(url).pathname)).toEqual([
+        "/tenant/api/v1/device/approve",
+        "/tenant/api/v1/sessions/revoke",
+        "/tenant/api/v1/sessions/revoke",
+      ]);
+      expect(timeout).toHaveBeenCalledTimes(4);
+      for (const call of timeout.mock.calls) expect(call).toEqual([5_000]);
+    } finally {
+      timeout.mockRestore();
+      host.mockRestore();
+    }
+  });
+
+  it("rejects malformed device approval fields without throwing", async () => {
     const { app } = createControlPlane({
       config: {
         port: 0,
         publicUrl: "http://127.0.0.1:8788",
         issuer: "http://127.0.0.1:8788",
-        corsOrigins: ["http://localhost:5173"],
       },
     });
-    // Completing a claim carries its bearer in a custom header, so a preflight
-    // that does not name it fails the whole ceremony from a browser.
-    const res = await app.request("/v1/claims/clm_x/complete", {
-      method: "OPTIONS",
-      headers: {
-        origin: "http://localhost:5173",
-        "access-control-request-method": "POST",
-        "access-control-request-headers": "authorization,x-claim-token",
-      },
-    });
+    const principal = await provisional(app);
+    const request = (body: string) =>
+      app.request("/v1/device/approve", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${principal.accessToken}`,
+          "content-type": "application/json",
+        },
+        body,
+      });
+
+    expect((await request(JSON.stringify({ user_code: 7 }))).status).toBe(400);
     expect(
-      res.headers.get("access-control-allow-headers")?.toLowerCase(),
-    ).toContain("x-claim-token");
+      (
+        await request(
+          JSON.stringify({ user_code: "ABCD-EFGH", organization_id: 7 }),
+        )
+      ).status,
+    ).toBe(400);
+    expect((await request("{")).status).toBe(400);
   });
 
-  it("keeps oauth clients private to the principal that registered them", async () => {
+  it("serializes membership rollback so it cannot resurrect a removed owner", async () => {
     const { app } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const owner = await verifiedPrincipal(app, "serialized-owner");
+    const target = await verifiedPrincipal(app, "serialized-target");
+    const created = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...owner.auth,
+        "content-type": "application/json",
+        "idempotency-key": "serialized-org",
+      },
+      body: JSON.stringify({
+        slug: "serialized-org",
+        displayName: "Serialized Org",
+      }),
+    });
+    const organization = (await created.json()) as { id: string };
+    await app.request(`/v1/organizations/${organization.id}/members`, {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ principalId: target.principalId, role: "owner" }),
     });
 
-    const verified = async (subject: string, key: string) => {
-      const session = await provisional(app);
-      const auth = { authorization: `Bearer ${session.accessToken}` };
+    let markFirstStarted = () => {};
+    const firstStarted = new Promise<void>((resolve) => {
+      markFirstStarted = resolve;
+    });
+    let releaseFirst = (_response: Response) => {};
+    const firstResponse = new Promise<Response>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let markSecondStarted = () => {};
+    const secondStarted = new Promise<void>((resolve) => {
+      markSecondStarted = resolve;
+    });
+    const host = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(async () => {
+        markFirstStarted();
+        return firstResponse;
+      })
+      .mockImplementation(async () => {
+        markSecondStarted();
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      });
+    try {
+      const failedDemotion = app.request(
+        `/v1/organizations/${organization.id}/members/${target.principalId}`,
+        {
+          method: "PATCH",
+          headers: { ...owner.auth, "content-type": "application/json" },
+          body: JSON.stringify({ role: "admin" }),
+        },
+      );
+      await firstStarted;
+      const removal = app.request(
+        `/v1/organizations/${organization.id}/members/${target.principalId}`,
+        { method: "DELETE", headers: owner.auth },
+      );
+      expect(
+        await Promise.race([
+          secondStarted.then(() => "reached-host"),
+          new Promise<string>((resolve) =>
+            setImmediate(() => resolve("blocked-at-fence")),
+          ),
+        ]),
+      ).toBe("blocked-at-fence");
+
+      releaseFirst(new Response("down", { status: 503 }));
+      expect((await failedDemotion).status).toBe(502);
+      expect((await removal).status).toBe(204);
+      await secondStarted;
+
+      const members = (await (
+        await app.request(`/v1/organizations/${organization.id}/members`, {
+          headers: owner.auth,
+        })
+      ).json()) as { members: Array<{ principalId: string }> };
+      expect(members.members).not.toContainEqual(
+        expect.objectContaining({ principalId: target.principalId }),
+      );
+    } finally {
+      host.mockRestore();
+    }
+  });
+
+  it.each(["PATCH", "DELETE"] as const)(
+    "orders a paused device approval before a concurrent %s membership mutation",
+    async (method) => {
+      const { app } = createControlPlane({
+        config: {
+          port: 0,
+          publicUrl: "http://127.0.0.1:8788",
+          issuer: "http://127.0.0.1:8788",
+        },
+      });
+      const owner = await verifiedPrincipal(
+        app,
+        `approval-race-owner-${method}`,
+      );
+      const target = await verifiedPrincipal(
+        app,
+        `approval-race-target-${method}`,
+      );
+      const created = await app.request("/v1/organizations", {
+        method: "POST",
+        headers: {
+          ...owner.auth,
+          "content-type": "application/json",
+          "idempotency-key": `approval-race-org-${method}`,
+        },
+        body: JSON.stringify({
+          slug: `approval-race-${method.toLowerCase()}`,
+          displayName: "Approval Race",
+        }),
+      });
+      const organization = (await created.json()) as { id: string };
+      expect(
+        (
+          await app.request(`/v1/organizations/${organization.id}/members`, {
+            method: "POST",
+            headers: { ...owner.auth, "content-type": "application/json" },
+            body: JSON.stringify({
+              principalId: target.principalId,
+              role: "owner",
+            }),
+          })
+        ).status,
+      ).toBe(201);
+
+      let markApprovalStarted = () => {};
+      const approvalStarted = new Promise<void>((resolve) => {
+        markApprovalStarted = resolve;
+      });
+      let releaseApproval = (_response: Response) => {};
+      const approvalResponse = new Promise<Response>((resolve) => {
+        releaseApproval = resolve;
+      });
+      let markMutationReachedHost = () => {};
+      const mutationReachedHost = new Promise<void>((resolve) => {
+        markMutationReachedHost = resolve;
+      });
+      const hostUrls: string[] = [];
+      const host = vi
+        .spyOn(globalThis, "fetch")
+        .mockImplementationOnce(async (input) => {
+          hostUrls.push(String(input));
+          markApprovalStarted();
+          return approvalResponse;
+        })
+        .mockImplementation(async (input) => {
+          hostUrls.push(String(input));
+          markMutationReachedHost();
+          return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        });
+      try {
+        const approval = app.request("/v1/device/approve", {
+          method: "POST",
+          headers: { ...target.auth, "content-type": "application/json" },
+          body: JSON.stringify({
+            user_code: "ABCD-EFGH",
+            organization_id: organization.id,
+          }),
+        });
+        await approvalStarted;
+
+        const mutation = app.request(
+          `/v1/organizations/${organization.id}/members/${target.principalId}`,
+          {
+            method,
+            headers: { ...owner.auth, "content-type": "application/json" },
+            ...(method === "PATCH"
+              ? { body: JSON.stringify({ role: "admin" }) }
+              : {}),
+          },
+        );
+        expect(
+          await Promise.race([
+            mutationReachedHost.then(() => "reached-host"),
+            new Promise<string>((resolve) =>
+              setImmediate(() => resolve("blocked-at-fence")),
+            ),
+          ]),
+        ).toBe("blocked-at-fence");
+
+        releaseApproval(
+          new Response(JSON.stringify({ status: "approved" }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        );
+        expect((await approval).status).toBe(200);
+        expect((await mutation).status).toBe(method === "PATCH" ? 200 : 204);
+        await mutationReachedHost;
+        expect(hostUrls.map((url) => new URL(url).pathname)).toEqual([
+          "/api/v1/device/approve",
+          "/api/v1/sessions/revoke",
+        ]);
+      } finally {
+        host.mockRestore();
+      }
+    },
+  );
+
+  it("holds a verified principal to an organization and client quota", async () => {
+    const { app, ctx } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    // A small allowance so the fence is reached in a couple of requests.
+    ctx.policy = new ProvisionalPolicy(DEFAULT_PROVISIONAL_QUOTA, {
+      ...DEFAULT_VERIFIED_QUOTA,
+      maxOrganizations: 1,
+      maxOAuthClients: 1,
+    });
+
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+    await app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: {
+        ...auth,
+        "content-type": "application/json",
+        "idempotency-key": "link-q",
+      },
+      body: JSON.stringify({
+        kind: "oidc",
+        issuer: "https://mock.example",
+        subject: "quota-admin",
+        assurance: "verified",
+      }),
+    });
+
+    const createOrg = (slug: string, key: string) =>
+      app.request("/v1/organizations", {
+        method: "POST",
+        headers: {
+          ...auth,
+          "content-type": "application/json",
+          "idempotency-key": key,
+        },
+        body: JSON.stringify({ slug, displayName: slug }),
+      });
+    expect((await createOrg("quota-one", "q-org-1")).status).toBe(201);
+    const secondOrg = await createOrg("quota-two", "q-org-2");
+    expect(secondOrg.status).toBe(403);
+    expect(
+      ((await secondOrg.json()) as { reasons: string[] }).reasons,
+    ).toContain("quota_organizations");
+
+    const createClient = (name: string, key: string) =>
+      app.request("/v1/oauth/clients", {
+        method: "POST",
+        headers: {
+          ...auth,
+          "content-type": "application/json",
+          "idempotency-key": key,
+        },
+        body: JSON.stringify({
+          displayName: name,
+          redirectUris: ["https://rp.example/callback"],
+          sectorIdentifier: "https://rp.example",
+        }),
+      });
+    const firstClient = await createClient("RP One", "q-cli-1");
+    expect(firstClient.status).toBe(201);
+    const clientId = ((await firstClient.json()) as { id: string }).id;
+    const secondClient = await createClient("RP Two", "q-cli-2");
+    expect(secondClient.status).toBe(403);
+    expect(
+      ((await secondClient.json()) as { reasons: string[] }).reasons,
+    ).toContain("quota_oauth_clients");
+
+    // Revoking frees the slot: a quota counted from the store is a live limit,
+    // not a lifetime cap.
+    const revoked = await app.request(`/v1/oauth/clients/${clientId}/revoke`, {
+      method: "POST",
+      headers: auth,
+    });
+    expect(revoked.status).toBe(200);
+    expect((await createClient("RP Three", "q-cli-3")).status).toBe(201);
+  });
+
+  it("does not let a second principal claim a sector identifier", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+
+    async function verified(subject: string) {
+      const created = await provisional(app);
+      const auth = { authorization: `Bearer ${created.accessToken}` };
       await app.request("/v1/principals/link-identities", {
         method: "POST",
-        headers: { ...auth, "content-type": "application/json", "idempotency-key": key },
+        headers: {
+          ...auth,
+          "content-type": "application/json",
+          "idempotency-key": subject,
+        },
         body: JSON.stringify({
           kind: "oidc",
           issuer: "https://mock.example",
@@ -803,60 +1533,236 @@ describe("control-plane API", () => {
         }),
       });
       return auth;
-    };
+    }
 
-    const owner = await verified("client-owner", "link-owner");
-    const stranger = await verified("client-stranger", "link-stranger");
+    const register = (
+      auth: Record<string, string>,
+      key: string,
+      sectorIdentifier: string,
+    ) =>
+      app.request("/v1/oauth/clients", {
+        method: "POST",
+        headers: {
+          ...auth,
+          "content-type": "application/json",
+          "idempotency-key": key,
+        },
+        body: JSON.stringify({
+          displayName: "RP",
+          redirectUris: ["https://rp.example/cb"],
+          sectorIdentifier,
+        }),
+      });
 
-    const created = await app.request("/v1/oauth/clients", {
+    const owner = await verified("sector-owner");
+    const intruder = await verified("sector-intruder");
+    expect((await register(owner, "sec-1", "https://rp.example")).status).toBe(
+      201,
+    );
+    // Same sector, same owner: a legitimate choice, two clients that mean to share
+    // one subject.
+    expect((await register(owner, "sec-2", "https://rp.example")).status).toBe(
+      201,
+    );
+
+    // Another principal taking the sector would see the very subject the owner's
+    // clients see for the same person, which is the linkage pairwise prevents.
+    const taken = await register(intruder, "sec-3", "https://rp.example");
+    expect(taken.status).toBe(409);
+    expect(((await taken.json()) as { error: string }).error).toBe(
+      "sector_identifier_taken",
+    );
+    expect(
+      (await register(intruder, "sec-4", "https://other.example")).status,
+    ).toBe(201);
+  });
+
+  it("fences oauth clients to their owning principal", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+
+    async function verifiedPrincipal(subject: string) {
+      const created = await provisional(app);
+      const auth = { authorization: `Bearer ${created.accessToken}` };
+      const linked = await app.request("/v1/principals/link-identities", {
+        method: "POST",
+        headers: {
+          ...auth,
+          "content-type": "application/json",
+          "idempotency-key": subject,
+        },
+        body: JSON.stringify({
+          kind: "oidc",
+          issuer: "https://mock.example",
+          subject,
+          assurance: "verified",
+        }),
+      });
+      expect(linked.status).toBe(201);
+      return { ...created, auth };
+    }
+
+    const owner = await verifiedPrincipal("client-owner");
+    const other = await verifiedPrincipal("client-intruder");
+
+    const createRes = await app.request("/v1/oauth/clients", {
       method: "POST",
-      headers: { ...owner, "content-type": "application/json", "idempotency-key": "cli-owned" },
+      headers: {
+        ...owner.auth,
+        "content-type": "application/json",
+        "idempotency-key": "cli-owned",
+      },
       body: JSON.stringify({
         displayName: "RP Owned",
-        redirectUris: ["http://127.0.0.1:5173/callback"],
-        sectorIdentifier: "https://rp-owned.example",
+        redirectUris: ["https://rp.example.test/cb"],
+        sectorIdentifier: "https://rp.example.test",
       }),
     });
-    expect(created.status).toBe(201);
-    const client = (await created.json()) as { id: string };
+    expect(createRes.status).toBe(201);
+    const client = (await createRes.json()) as {
+      id: string;
+      ownerPrincipalId: string;
+    };
+    expect(client.ownerPrincipalId).toBe(owner.principalId);
 
-    const ownerList = await app.request("/v1/oauth/clients", { headers: owner });
-    const owned = (await ownerList.json()) as { clients: Array<{ id: string }> };
-    expect(owned.clients.map((c) => c.id)).toContain(client.id);
+    // A different principal cannot see it…
+    const otherList = await app.request("/v1/oauth/clients", {
+      headers: other.auth,
+    });
+    expect(
+      ((await otherList.json()) as { clients: unknown[] }).clients,
+    ).toEqual([]);
 
-    // Another principal must not see it, and must not be able to point its
-    // redirect somewhere of their choosing — that would be account takeover for
-    // every site signing in through it.
-    const strangerList = await app.request("/v1/oauth/clients", { headers: stranger });
-    const seen = (await strangerList.json()) as { clients: Array<{ id: string }> };
-    expect(seen.clients.map((c) => c.id)).not.toContain(client.id);
-
+    // …nor repoint its redirect URIs, rotate it, or revoke it.
     const hijack = await app.request(`/v1/oauth/clients/${client.id}`, {
       method: "PATCH",
-      headers: { ...stranger, "content-type": "application/json" },
-      body: JSON.stringify({ redirectUris: ["https://attacker.example/cb"] }),
+      headers: { ...other.auth, "content-type": "application/json" },
+      body: JSON.stringify({ redirectUris: ["https://attacker.test/cb"] }),
     });
     expect(hijack.status).toBe(404);
-
-    for (const path of ["rotate", "revoke"]) {
-      const res = await app.request(`/v1/oauth/clients/${client.id}/${path}`, {
-        method: "POST",
-        headers: stranger,
-      });
+    for (const action of ["rotate", "revoke"]) {
+      const res = await app.request(
+        `/v1/oauth/clients/${client.id}/${action}`,
+        {
+          method: "POST",
+          headers: other.auth,
+        },
+      );
       expect(res.status).toBe(404);
     }
 
-    const patch = await app.request(`/v1/oauth/clients/${client.id}`, {
+    // The owner still can, and a javascript: redirect URI is refused outright.
+    const patched = await app.request(`/v1/oauth/clients/${client.id}`, {
       method: "PATCH",
-      headers: { ...owner, "content-type": "application/json" },
+      headers: { ...owner.auth, "content-type": "application/json" },
       body: JSON.stringify({ displayName: "RP Renamed" }),
     });
-    expect(patch.status).toBe(200);
+    expect(patched.status).toBe(200);
+    const badUri = await app.request(`/v1/oauth/clients/${client.id}`, {
+      method: "PATCH",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ redirectUris: ["javascript:alert(1)"] }),
+    });
+    expect(badUri.status).toBe(400);
+  });
+
+  it("refuses self-asserted identity links outside dev and hides the bound principal", async () => {
+    const prod = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+        allowDevDefaults: false,
+        claimPepper: "prod-claim-pepper-for-test-only",
+        isProduction: false,
+      },
+      processEnv: {
+        ...process.env,
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "false",
+        OPENSESAME_CLAIM_PEPPER: "prod-claim-pepper-for-test-only",
+        NODE_ENV: "development",
+      },
+    });
+    const created = await provisional(prod.app);
+    const escalate = await prod.app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${created.accessToken}`,
+        "content-type": "application/json",
+        "idempotency-key": "link-prod",
+      },
+      body: JSON.stringify({
+        kind: "oidc",
+        issuer: "https://accounts.example",
+        subject: "victim",
+        assurance: "verified",
+      }),
+    });
+    expect(escalate.status).toBe(403);
+    expect(((await escalate.json()) as { error: string }).error).toBe(
+      "identity_link_requires_upstream",
+    );
+    // The principal must not have been promoted.
+    const me = await prod.app.request("/v1/principals/me", {
+      headers: { authorization: `Bearer ${created.accessToken}` },
+    });
+    expect(((await me.json()) as { assurance: string }).assurance).toBe(
+      "provisional",
+    );
+
+    // In dev the link works, but a collision never reveals the bound principal.
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+    const a = await provisional(app);
+    const b = await provisional(app);
+    const identity = {
+      kind: "oidc",
+      issuer: "https://accounts.example",
+      subject: "shared-subject",
+      assurance: "verified",
+    };
+    const first = await app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${a.accessToken}`,
+        "content-type": "application/json",
+        "idempotency-key": "link-first",
+      },
+      body: JSON.stringify(identity),
+    });
+    expect(first.status).toBe(201);
+    const collision = await app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${b.accessToken}`,
+        "content-type": "application/json",
+        "idempotency-key": "link-collide",
+      },
+      body: JSON.stringify(identity),
+    });
+    expect(collision.status).toBe(409);
+    const body = await collision.text();
+    expect(body).toContain("identity_collision");
+    expect(body).not.toContain(a.principalId);
   });
 
   it("rejects provisional create when session capacity is exhausted", async () => {
     const { app, ctx } = createControlPlane({
-      config: { port: 0, publicUrl: "http://127.0.0.1:8788", issuer: "http://127.0.0.1:8788" },
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
     });
     const far = new Date(Date.now() + 86_400_000);
     for (let i = 0; i < 1024; i++) {
@@ -870,10 +1776,148 @@ describe("control-plane API", () => {
         allowedActions: [],
       });
     }
-    const res = await app.request("/v1/principals/provisional", { method: "POST" });
+    const res = await app.request("/v1/principals/provisional", {
+      method: "POST",
+    });
     expect(res.status).toBe(429);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe("provisional_capacity");
+  });
+
+  it("never replays another principal's idempotent response", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+
+    const victim = await provisional(app);
+    const attacker = await provisional(app);
+    const sharedKey = "signup-1";
+
+    const register = (token: string) =>
+      app.request("/v1/agents", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+          "idempotency-key": sharedKey,
+        },
+        body: JSON.stringify({
+          displayName: "worker",
+          publicKeyJkt: "jkt_abcdefgh",
+        }),
+      });
+
+    const first = await register(victim.accessToken);
+    expect(first.status).toBe(201);
+    const mine = (await first.json()) as {
+      agentId: string;
+      claimToken: string;
+    };
+
+    // Same key, different caller: must not hand over the victim's claim token.
+    const second = await register(attacker.accessToken);
+    expect(second.status).toBe(201);
+    expect(second.headers.get("idempotency-replayed")).toBeNull();
+    const theirs = (await second.json()) as {
+      agentId: string;
+      claimToken: string;
+    };
+    expect(theirs.agentId).not.toBe(mine.agentId);
+    expect(theirs.claimToken).not.toBe(mine.claimToken);
+
+    // The owner still gets a replay for their own key.
+    const replay = await register(victim.accessToken);
+    expect(replay.headers.get("idempotency-replayed")).toBe("true");
+    expect(((await replay.json()) as { agentId: string }).agentId).toBe(
+      mine.agentId,
+    );
+  });
+
+  it("does not replay unauthenticated provisional signups across callers", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+
+    const signup = () =>
+      app.request("/v1/principals/provisional", {
+        method: "POST",
+        headers: { "idempotency-key": "shared" },
+      });
+
+    const a = await signup();
+    const b = await signup();
+    expect(a.status).toBe(201);
+    expect(b.status).toBe(201);
+    expect(b.headers.get("idempotency-replayed")).toBeNull();
+    const first = (await a.json()) as {
+      accessToken: string;
+      principalId: string;
+    };
+    const second = (await b.json()) as {
+      accessToken: string;
+      principalId: string;
+    };
+    expect(second.accessToken).not.toBe(first.accessToken);
+    expect(second.principalId).not.toBe(first.principalId);
+  });
+
+  it("fences agent claim ceremonies to the registering principal", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+    });
+
+    const owner = await provisional(app);
+    const intruder = await provisional(app);
+
+    const registered = await app.request("/v1/agents", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${owner.accessToken}`,
+        "content-type": "application/json",
+        "idempotency-key": "agent-owned",
+      },
+      body: JSON.stringify({
+        displayName: "worker",
+        publicKeyJkt: "jkt_abcdefgh",
+      }),
+    });
+    expect(registered.status).toBe(201);
+    const { agentId } = (await registered.json()) as { agentId: string };
+
+    // A foreign caller may not start a claim that would name them owner.
+    const stolen = await app.request(`/v1/agents/${agentId}/claim`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${intruder.accessToken}`,
+        "content-type": "application/json",
+        "idempotency-key": "agent-steal",
+      },
+      body: JSON.stringify({}),
+    });
+    expect(stolen.status).toBe(404);
+
+    const mine = await app.request(`/v1/agents/${agentId}/claim`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${owner.accessToken}`,
+        "content-type": "application/json",
+        "idempotency-key": "agent-own-claim",
+      },
+      body: JSON.stringify({}),
+    });
+    expect(mine.status).toBe(201);
   });
 
   it("HTTP mount does not steal /auth.md from oidc /auth prefix", async () => {

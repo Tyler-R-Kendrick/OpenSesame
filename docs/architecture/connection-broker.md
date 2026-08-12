@@ -2,7 +2,8 @@
 
 How a user authorizes a third-party service once, and how that authorization is brokered to
 organizations, projects and agents. Decisions and rationale are in ADR 0032; enforcement
-invariants come from ADR 0005.
+invariants come from ADR 0005. Provider-template and organization-integration decisions are
+in ADR 0035.
 
 ## Planes
 
@@ -48,33 +49,10 @@ draft ─────────────────────► pending
 ## HTTP contract
 
 Base `http://127.0.0.1:8787`. Auth is the gateway's existing scheme:
-
-`GET /api/v1/providers` is public metadata. The Host always serves its embedded
-catalog, including the Fnox provider set and bundled LLM providers. Host admins
-may add ordered, optional registries with the comma-separated
-`OPENSESAME_CONNECTOR_REGISTRIES` environment variable. Built-ins win duplicate
-IDs; an unavailable or invalid registry is skipped without hiding built-ins.
-Registry URLs must use HTTPS (loopback HTTP is allowed for development), and
-each document is bounded to 1 MiB and schema version 1.
-
-```json
-{
-  "schema_version": 1,
-  "providers": [{
-    "id": "internal-secrets",
-    "display_name": "Internal secrets",
-    "category": "storage",
-    "docs_url": "https://connectors.example/internal-secrets",
-    "auth": { "kind": "configuration" },
-    "configuration_fields": [
-      { "name": "token", "label": "Token", "secret": true, "required": true }
-    ],
-    "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
-    "operations": ["secret.configure"]
-  }]
-}
-```
 `Authorization: Bearer operator:<token>` or `Bearer opaque-session:<id>`.
+Operators may select an organization with `X-OpenSesame-Organization: org:<uuid>`;
+without it they use the bootstrap organization. Sessions are always fenced to their signed
+organization claim and are forbidden from sending that header.
 The OAuth callback is the one unauthenticated route — it is authenticated by `state`.
 
 ### Catalog
@@ -90,9 +68,10 @@ Provider = {
   "display_name": "GitHub",
   "category": "developer" | "productivity" | "communication" | "storage" | "crm" | "payments" | "identity" | "testing",
   "docs_url": "https://docs.github.com/apps/oauth-apps",
-  "auth_kind": "oauth2_authorization_code" | "api_key",
+  "auth_kind": "oauth2_authorization_code" | "api_key" | "configuration",
   "supports_refresh": true,
   "configured": false,                       // deployment has client id + secret
+  "callback_url": "https://host.example/api/v1/oauth/callback/github",
   "missing_config": ["OPENSESAME_PROVIDER_GITHUB_CLIENT_ID", "..."],  // [] when configured
   "scopes": [ { "name": "repo", "description": "Full control of private repositories",
                 "sensitive": true, "default": false } ],
@@ -100,6 +79,28 @@ Provider = {
   "operations": ["repository.read", "pull_request.create"]
 }
 ```
+
+`configuration` connectors cover the provider types published by Fnox. They
+seal the provider-specific fields shown by the marketplace, but deliberately
+publish no network egress; provider execution requires a separate authority-
+checked adapter.
+
+### Integrations
+
+```
+GET    /api/v1/integrations       200 { "integrations": [ Integration ] }
+POST   /api/v1/integrations       201 Integration                 // owner/admin
+GET    /api/v1/integrations/{id}  200 Integration
+PATCH  /api/v1/integrations/{id}  200 Integration                 // owner/admin
+DELETE /api/v1/integrations/{id}  204                             // owner/admin, unused only
+```
+
+An integration contains `id`, `key`, `provider_id`, `display_name`, `source`
+(`organization`, `shared_dev`, or `deployment`), `enabled`, `configured`, `callback_url`,
+`scopes`, `client_id_hint`, `has_client_secret`, `connection_count`, `created_by`, and
+timestamps. Client secrets are write-only. Omitting `client_secret` on PATCH preserves it;
+an empty value clears it. `provider_id` is immutable; changing providers requires a new
+integration. Environment integrations are read-only.
 
 ### Connections
 
@@ -112,7 +113,7 @@ DELETE /api/v1/connections/{id}                 200 { "revoked": true,
                                                       "provider_revocation": "ok"|"unsupported"|"failed" }
 POST   /api/v1/connections/{id}/authorize       200 { "authorization_url", "state", "expires_at" }
 POST   /api/v1/connections/{id}/refresh         200 Connection
-POST   /api/v1/connections/{id}/credential      200 Connection   // api_key providers only
+POST   /api/v1/connections/{id}/credential      200 Connection   // API key or configuration providers
 POST   /api/v1/connections/{id}/bindings        200 Connection
 DELETE /api/v1/connections/{id}/bindings/{bid}  200 Connection
 GET    /api/v1/connections/{id}/events          200 { "events": [ Event ] }
@@ -122,6 +123,7 @@ GET    /api/v1/oauth/callback/{provider_id}     302 or text/html   // provider r
 ```jsonc
 Connection = {
   "connection_id": "connection_01J...",
+  "integration_id": "integration_01J...",
   "connection_ref": "conn://<org>/<project>/github/main",   // ADR 0005 URI; always present
   "logical_name": "github/main",
   "display_name": "GitHub — acme",
@@ -159,15 +161,25 @@ in `crates/authz/src/authority_use.rs`.
 ### Request bodies
 
 ```jsonc
+POST /integrations
+{ "key": "engineering", "provider_id": "github", "display_name": "Engineering GitHub",
+  "scopes"?: [string], "client_id"?: string, "client_secret"?: string }
+
+PATCH /integrations/{id}
+{ "key"?: string, "display_name"?: string, "enabled"?: boolean, "scopes"?: [string],
+  "client_id"?: string, "client_secret"?: string } // empty credentials clear; provider immutable
+
 POST /connections
-{ "provider_id": "github", "display_name"?: string, "logical_name"?: string,
+{ "integration_id": "integration_01J...", "provider_id"?: "github",
+  "display_name"?: string, "logical_name"?: string,
   "project_id"?: string, "scopes"?: [string], "shareability"?: string }
 
 POST /connections/{id}/authorize
 { "redirect_uri"?: string, "scopes"?: [string] }   // redirect_uri must be deployment-allowlisted
 
 POST /connections/{id}/credential
-{ "value": string }                                 // api_key providers
+{ "configuration_set"?: { field: value }, "configuration_clear"?: [field] }
+                                                     // API key or configuration providers
 
 POST /connections/{id}/bindings
 { "target_kind": "project"|"agent"|"organization", "target_id": string, "target_label"?: string }
@@ -177,8 +189,11 @@ POST /connections/{id}/bindings
 
 `{ "error": "<code>", "hint": "<human sentence>" }` with codes:
 `provider_unknown`, `provider_unconfigured`, `connection_not_found`, `invalid_state`,
+`integration_not_found`, `integration_required`, `integration_conflict`,
+`integration_read_only`, `integration_in_use`,
 `state_expired`, `exchange_failed`, `not_refreshable`, `needs_reauth`, `redirect_not_allowed`,
-`binding_exists`, `binding_not_found`, `unauthorized`.
+`binding_exists`, `binding_not_found`, `unsupported_credential`, `invalid_request`,
+`internal_error`, `unauthorized`, `forbidden`.
 
 ## Authorization flow
 

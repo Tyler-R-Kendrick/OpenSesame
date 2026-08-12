@@ -1,10 +1,11 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   TaskAccessPanel,
-  buildTaskAccessViewModel,
   type TaskAccessViewModel,
+  buildTaskAccessViewModel,
 } from "../components/TaskAccessPanel.js";
+import { operatorHeadersFor } from "../lib/urls.js";
 
 const gateway =
   import.meta.env.VITE_OPENSESAME_GATEWAY ?? "http://127.0.0.1:8787";
@@ -37,12 +38,12 @@ export function TaskAccessPage() {
     setError(null);
     (async () => {
       try {
-        const headers: Record<string, string> = {};
-        if (operatorToken) {
-          headers.authorization = `Bearer operator:${operatorToken}`;
-        }
+        const base = gateway.replace(/\/$/, "");
+        // A build pointed at a remote gateway does not get to carry this secret,
+        // whatever the build-time variable happened to hold.
+        const headers = operatorHeadersFor(base, operatorToken);
         const res = await fetch(
-          `${gateway.replace(/\/$/, "")}/api/v1/tasks/${encodeURIComponent(taskId)}`,
+          `${base}/api/v1/tasks/${encodeURIComponent(taskId)}`,
           { headers },
         );
         if (!res.ok) {
@@ -54,9 +55,7 @@ export function TaskAccessPage() {
               "Host API denied this request. Sign in or pass an operator session.",
             );
           }
-          throw new Error(
-            `Host API could not load this task (${res.status}).`,
-          );
+          throw new Error(`Host API could not load this task (${res.status}).`);
         }
         const body = (await res.json()) as Record<string, unknown>;
         if (!cancelled) {

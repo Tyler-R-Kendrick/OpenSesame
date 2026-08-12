@@ -1,22 +1,30 @@
-import { createLogger } from "@opensesame/observability";
-import { ClaimEngine } from "@opensesame/claims";
-import { createRepositories } from "@opensesame/database";
-import { createOpenSesameProvider } from "@opensesame/oauth-provider";
+import { createChainedAuditSink } from "@opensesame/audit";
 import {
   MemoryPrincipalMappingStore,
   createMemoryChallengeStore,
   createPasskeySeam,
   createSimpleWebAuthnVerifyFn,
 } from "@opensesame/auth-upstream";
-import { ProvisionalPolicy } from "@opensesame/policy";
-import type { Clock } from "@opensesame/os-domain";
+import { ClaimEngine } from "@opensesame/claims";
 import {
+  createDrizzle,
+  createPostgresOidcStore,
+  createRepositories,
+} from "@opensesame/database";
+import {
+  createOpenSesameProvider,
+  createPostgresAdapterConstructor,
+} from "@opensesame/oauth-provider";
+import { createLogger } from "@opensesame/observability";
+import type { Clock } from "@opensesame/os-domain";
+import { ProvisionalPolicy } from "@opensesame/policy";
+import { createHonoApp } from "./app.js";
+import {
+  type ControlPlaneConfig,
   assertSecureConfig,
   loadConfig,
-  type ControlPlaneConfig,
 } from "./config.js";
 import type { AppContext } from "./context.js";
-import { createHonoApp } from "./app.js";
 import { IndexedClaimStore } from "./repos/claim-store.js";
 import { createAppStores } from "./state.js";
 
@@ -43,18 +51,49 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const clock: Clock = options.clock ?? (() => new Date());
   const log = createLogger({ name: "control-plane", level: config.logLevel });
 
-  const repos = createRepositories(
+  const baseRepos = createRepositories(
     config.databaseUrl ? { databaseUrl: config.databaseUrl } : undefined,
   );
+  // Every audit write goes through the chain, so a trail cannot be quietly
+  // rewritten by anything that cannot recompute every later digest. The tip is
+  // read from the store on the first append: starting each process at genesis
+  // would leave one disconnected run per restart, which is indistinguishable
+  // from a deleted tail.
+  const chainedAudit = createChainedAuditSink(baseRepos.auditEvents, {
+    tip: async () => {
+      const [newest] = await baseRepos.auditEvents.list({ limit: 1 });
+      return newest?.digest;
+    },
+  });
+  const repos: typeof baseRepos = {
+    ...baseRepos,
+    auditEvents: {
+      append: (event, uow) =>
+        uow === undefined
+          ? chainedAudit.append(event)
+          : baseRepos.auditEvents.append(event, uow),
+      list: (filter) => baseRepos.auditEvents.list(filter),
+    },
+  };
   const claimStore = new IndexedClaimStore();
   const claims = new ClaimEngine({
     pepper: config.claimPepper,
     store: claimStore,
     clock,
   });
+  // With a database configured the issuer keeps its own models — sessions,
+  // authorization codes, refresh tokens, device flows — in Postgres. On the
+  // in-memory adapter every restart silently invalidates live sessions and a
+  // consumed authorization code stops being remembered as consumed.
+  const oidcStore = config.databaseUrl
+    ? createPostgresOidcStore(createDrizzle(config.databaseUrl).db)
+    : undefined;
   const oauth = createOpenSesameProvider({
     issuer: config.issuer,
     processEnv: options.processEnv ?? process.env,
+    ...(oidcStore
+      ? { adapter: createPostgresAdapterConstructor(oidcStore) }
+      : {}),
   });
   const mappings = new MemoryPrincipalMappingStore();
   const policy = new ProvisionalPolicy();

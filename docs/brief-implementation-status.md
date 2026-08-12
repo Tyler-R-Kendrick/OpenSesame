@@ -13,7 +13,7 @@ Status against the OpenSesame one-shot implementation brief as of the `feat/brie
 
 ## APIs closed in this slice
 
-- `POST /v1/principals/link-identities` — tuple uniqueness; **no email auto-link**
+- `POST /v1/principals/link-identities` — tuple uniqueness; **no email auto-link**; caller-asserted links are dev-only (`allowDevDefaults`), since they would otherwise promote a principal to `verified` without proof
 - `GET /v1/principals/identities`
 - `DELETE /v1/principals/identities/:id`
 - `GET|POST /v1/organizations`, `GET /v1/organizations/:id`

@@ -6,10 +6,8 @@
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use opensesame_domain::{Capability, CapabilitySet, ResourceSelector};
 use opensesame_protocol_aauth::{
-    assert_scopes_within_ceiling, map_agent, map_person, mission_to_governance_context, Agent,
-    Mission, Person,
+    map_agent, map_person, mission_to_governance_context, Agent, Mission, Person,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -41,12 +39,6 @@ pub struct MissionBody {
     pub bytes_b64: String,
 }
 
-#[derive(Deserialize)]
-pub struct ScopeCeilingBody {
-    pub scopes: Vec<String>,
-    pub current_actions: Vec<String>,
-}
-
 fn disabled() -> axum::response::Response {
     (
         StatusCode::NOT_FOUND,
@@ -71,8 +63,7 @@ pub async fn status() -> impl IntoResponse {
         "endpoints": [
             "/experimental/aauth/v1/map/person",
             "/experimental/aauth/v1/map/agent",
-            "/experimental/aauth/v1/mission/digest",
-            "/experimental/aauth/v1/scope/check"
+            "/experimental/aauth/v1/mission/digest"
         ]
     }))
     .into_response()
@@ -158,37 +149,4 @@ pub async fn mission_digest(
         "mission_bytes_len": gov.mission_bytes_len,
     }))
     .into_response()
-}
-
-pub async fn scope_check(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-    Json(body): Json<ScopeCeilingBody>,
-) -> impl IntoResponse {
-    if !aauth_enabled() {
-        return disabled();
-    }
-    if let Err(resp) = require_session_or_operator(&st, &headers) {
-        return resp;
-    }
-    let ceiling = CapabilitySet::new(
-        body.current_actions
-            .into_iter()
-            .map(|a| Capability::new(a, ResourceSelector::exact("*")))
-            .collect(),
-    );
-    match assert_scopes_within_ceiling(&body.scopes, &ceiling) {
-        Ok(()) => Json(json!({
-            "allowed": true,
-            "new_task_required": false,
-            "error": null,
-        }))
-        .into_response(),
-        Err(_) => Json(json!({
-            "allowed": false,
-            "new_task_required": true,
-            "error": "mcp_scope_outside_task",
-        }))
-        .into_response(),
-    }
 }
