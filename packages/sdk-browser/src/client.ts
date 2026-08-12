@@ -431,6 +431,19 @@ export function createOpenSesame(
       return (await res.json()) as ClaimPresentation;
     },
 
+    async readClaim(claimId, claimToken) {
+      const res = await fetchImpl(`${apiBase}/v1/claims/${claimId}`, {
+        headers: {
+          accept: "application/json",
+          "x-claim-token": claimToken,
+        },
+      });
+      if (!res.ok) {
+        throw new Error(`readClaim failed: ${res.status}`);
+      }
+      return (await res.json()) as ClaimPresentation;
+    },
+
     async completeClaim(claimId, decision: ClaimDecision) {
       const session = readSession();
       if (!session) {

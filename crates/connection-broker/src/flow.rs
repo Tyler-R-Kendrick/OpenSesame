@@ -85,6 +85,22 @@ pub fn build_authorize_url(
     config: &BrokerConfig,
     params: AuthorizeParams<'_>,
 ) -> Result<String> {
+    if matches!(&provider.auth, AuthMethod::OpenRouterPkce { .. }) {
+        let raw = config
+            .authorize_url(provider)
+            .ok_or_else(|| BrokerError::UnsupportedCredential(provider.id.to_string()))?;
+        let mut url = assert_transport_allowed(&raw)?;
+        let mut callback =
+            Url::parse(params.redirect_uri).map_err(|_| BrokerError::RedirectNotAllowed)?;
+        callback
+            .query_pairs_mut()
+            .append_pair("state", params.state);
+        url.query_pairs_mut()
+            .append_pair("callback_url", callback.as_str())
+            .append_pair("code_challenge", params.code_challenge)
+            .append_pair("code_challenge_method", CHALLENGE_METHOD);
+        return Ok(url.to_string());
+    }
     let AuthMethod::OAuth2AuthCode {
         extra_authorize_params,
         ..
@@ -125,6 +141,9 @@ pub async fn exchange_code(
     code_verifier: &str,
     redirect_uri: &str,
 ) -> Result<TokenResponse> {
+    if matches!(&provider.auth, AuthMethod::OpenRouterPkce { .. }) {
+        return exchange_openrouter_key(http, provider, config, code, code_verifier).await;
+    }
     let form = vec![
         ("grant_type".to_string(), "authorization_code".to_string()),
         ("code".to_string(), code.to_string()),
@@ -132,6 +151,63 @@ pub async fn exchange_code(
         ("code_verifier".to_string(), code_verifier.to_string()),
     ];
     post_token_endpoint(http, provider, config, form).await
+}
+
+#[derive(serde::Deserialize)]
+struct OpenRouterKeyResponse {
+    key: String,
+}
+
+async fn exchange_openrouter_key(
+    http: &reqwest::Client,
+    provider: &Provider,
+    config: &BrokerConfig,
+    code: &str,
+    code_verifier: &str,
+) -> Result<TokenResponse> {
+    let raw = config
+        .token_url(provider)
+        .ok_or_else(|| BrokerError::UnsupportedCredential(provider.id.to_string()))?;
+    let response = http
+        .post(assert_transport_allowed(&raw)?)
+        .header("Accept", "application/json")
+        .json(&serde_json::json!({
+            "code": code,
+            "code_verifier": code_verifier,
+            "code_challenge_method": CHALLENGE_METHOD,
+        }))
+        .send()
+        .await
+        .map_err(|error| BrokerError::ExchangeFailed(transport_detail(&error)))?;
+    if !response.status().is_success() {
+        return Err(BrokerError::ExchangeFailed(format!(
+            "provider returned {}",
+            response.status().as_u16()
+        )));
+    }
+    let body = response
+        .bytes()
+        .await
+        .map_err(|_| BrokerError::ExchangeFailed("token response was not understood".into()))?;
+    parse_openrouter_key(&body)
+}
+
+fn parse_openrouter_key(body: &[u8]) -> Result<TokenResponse> {
+    let body: OpenRouterKeyResponse = serde_json::from_slice(body)
+        .map_err(|_| BrokerError::ExchangeFailed("token response was not understood".into()))?;
+    if body.key.trim().is_empty() {
+        return Err(BrokerError::ExchangeFailed(
+            "token response was not understood".into(),
+        ));
+    }
+    Ok(TokenResponse {
+        access_token: body.key,
+        refresh_token: None,
+        token_type: Some("Bearer".into()),
+        expires_in: None,
+        scope: None,
+        id_token: None,
+    })
 }
 
 /// POSTs to the provider's token endpoint honouring its client authentication.
@@ -414,6 +490,44 @@ mod tests {
         let parsed = Url::parse(&url).unwrap();
         let q: std::collections::HashMap<_, _> = parsed.query_pairs().into_owned().collect();
         assert_eq!(q["scope"], "read,write");
+    }
+
+    #[test]
+    fn openrouter_pkce_needs_no_app_secret() {
+        let provider = catalog::find("openrouter")
+            .expect("catalog")
+            .expect("openrouter");
+        let cfg = BrokerConfig::in_memory(Some([3u8; 32]), "http://127.0.0.1:8787");
+        let url = build_authorize_url(
+            provider,
+            &cfg,
+            AuthorizeParams {
+                client_id: "",
+                redirect_uri: "http://127.0.0.1:8787/api/v1/oauth/callback/openrouter",
+                scopes: &[],
+                state: "state-1",
+                code_challenge: "challenge-1",
+            },
+        )
+        .unwrap();
+        let query: std::collections::HashMap<_, _> = Url::parse(&url)
+            .unwrap()
+            .query_pairs()
+            .into_owned()
+            .collect();
+        assert_eq!(query["code_challenge"], "challenge-1");
+        assert_eq!(query["code_challenge_method"], "S256");
+        assert_eq!(
+            query["callback_url"],
+            "http://127.0.0.1:8787/api/v1/oauth/callback/openrouter?state=state-1"
+        );
+        assert!(!query.contains_key("client_id"));
+        assert!(cfg.missing_config(provider).is_empty());
+
+        let response = parse_openrouter_key(br#"{"key":"sk-or-v1-secret"}"#).unwrap();
+        assert_eq!(response.access_token, "sk-or-v1-secret");
+        assert_eq!(response.token_type.as_deref(), Some("Bearer"));
+        assert!(parse_openrouter_key(br#"{"access_token":"wrong-shape"}"#).is_err());
     }
 
     #[test]

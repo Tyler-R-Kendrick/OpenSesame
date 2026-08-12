@@ -222,7 +222,7 @@ describe("createOpenSesame", () => {
     expect(session.sub).toBe("pairwise-alpha");
   });
 
-  it("presentClaim and completeClaim hit API", async () => {
+  it("presentClaim, readClaim, and completeClaim hit API", async () => {
     const storage = new MemStorage();
     storage.setItem(
       "opensesame:session",
@@ -236,6 +236,21 @@ describe("createOpenSesame", () => {
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
         if (url.endsWith("/claims/present") && init?.method === "POST") {
+          return new Response(
+            JSON.stringify({
+              id: "clm_1",
+              type: "agent",
+              state: "presented",
+              targetManifestDigest: "abc",
+              expiresAt: new Date().toISOString(),
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.endsWith("/claims/clm_1") && init?.method === undefined) {
+          expect(init?.headers).toMatchObject({
+            "x-claim-token": "osc_clm_x.secret",
+          });
           return new Response(
             JSON.stringify({
               id: "clm_1",
@@ -271,6 +286,8 @@ describe("createOpenSesame", () => {
 
     const presented = await sesame.presentClaim("osc_clm_x.secret");
     expect(presented.state).toBe("presented");
+    const current = await sesame.readClaim("clm_1", "osc_clm_x.secret");
+    expect(current.state).toBe("presented");
     const done = await sesame.completeClaim("clm_1", {
       acceptedItemIds: ["a"],
     });

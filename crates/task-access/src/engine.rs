@@ -558,16 +558,9 @@ impl<S: TaskStore> TaskAccessEngine<S> {
             .store
             .get_transition(transition_id)?
             .ok_or_else(|| TaskAccessError::TransitionNotFound(transition_id.to_string()))?;
-        ack.assert_matches_transition(
-            transition.task_run_id,
-            transition.to_state_version,
-            ack.mediation_point_id,
-        )?;
+        ack.assert_matches_transition(transition.task_run_id, transition.to_state_version)?;
         let mut set = self.store.get_ack_set(transition_id)?;
-        if set.received.contains(&ack.id) {
-            return Ok(set);
-        }
-        set.received.push(ack.id);
+        set.accept(&ack)?;
         self.store.save_ack_set(transition_id, &set)?;
         Ok(set)
     }

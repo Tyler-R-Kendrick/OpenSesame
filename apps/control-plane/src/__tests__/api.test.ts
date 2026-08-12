@@ -66,6 +66,27 @@ describe("control-plane API", () => {
     expect(body.state).toBe("provisional");
   });
 
+  it("seeds one owner workspace only when the local stack opts in", async () => {
+    const { app } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+        bootstrapPersonalOrganization: true,
+      },
+    });
+    const created = await provisional(app);
+    const organizations = await app.request("/v1/organizations", {
+      headers: { authorization: `Bearer ${created.accessToken}` },
+    });
+    expect(organizations.status).toBe(200);
+    expect(await organizations.json()).toMatchObject({
+      organizations: [
+        { displayName: "Personal workspace", role: "owner", state: "active" },
+      ],
+    });
+  });
+
   it("rejects provisional session id as Bearer or cookie credential", async () => {
     const { app } = createControlPlane({
       config: {

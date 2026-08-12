@@ -19,8 +19,12 @@ With live providers:
 source .tools/run/env.sh
 cargo run -p opensesame-gateway -- \
   --listen 127.0.0.1:18787
-# Set OPENSESAME_DB=sqlite://$PWD/.tools/run/gateway.sqlite?mode=rwc in the environment
 ```
+
+The Pages PWA embeds Turso WASM in the browser and persists its connector cache
+to OPFS. It needs no database service. Admins can optionally set a remote Turso
+sync URL in Pages **Settings**; the auth token is kept only for the current tab.
+The Host remains the credential authority and does not put secrets in this cache.
 
 Full live drill: `./scripts/live-stack-test.sh`
 
@@ -127,4 +131,3 @@ curl -s -X POST http://127.0.0.1:18790/v1/mint_capability \
   -H "authorization: Bearer operator:${OPENSESAME_OPERATOR_TOKEN}" \
   -H 'content-type: application/json' -d '{"audience":"devcontainer"}'
 ```
-

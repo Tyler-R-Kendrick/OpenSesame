@@ -64,6 +64,21 @@ export const CompleteClaimRequestSchema = z.object({
 });
 export type CompleteClaimRequest = z.infer<typeof CompleteClaimRequestSchema>;
 
+/**
+ * Item projection returned with a claim so a reviewer can accept by id.
+ * There is no wildcard — `acceptedItemIds` must name every accepted item.
+ */
+export const ClaimItemResponseSchema = z.object({
+  id: z.string(),
+  targetType: z.enum(["project", "resource", "agent", "device", "connection"]),
+  targetId: z.string(),
+  requestedAction: z.enum(["attach", "transfer", "delegate", "verify"]),
+  required: z.boolean(),
+  dependencies: z.array(z.string()),
+  state: z.enum(["pending", "accepted", "rejected"]),
+});
+export type ClaimItemResponse = z.infer<typeof ClaimItemResponseSchema>;
+
 export const ClaimSessionResponseSchema = z.object({
   id: z.string(),
   type: ClaimTargetTypeSchema,
@@ -72,5 +87,6 @@ export const ClaimSessionResponseSchema = z.object({
   expiresAt: z.string().datetime(),
   version: z.number().int().positive(),
   completedByPrincipalId: z.string().optional(),
+  items: z.array(ClaimItemResponseSchema).optional(),
 });
 export type ClaimSessionResponse = z.infer<typeof ClaimSessionResponseSchema>;

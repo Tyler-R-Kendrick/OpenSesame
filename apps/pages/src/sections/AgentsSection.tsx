@@ -577,6 +577,8 @@ type ClaimResult = {
   instanceId: string;
   state: string;
   claimId: string;
+  /** Bearer for this one claim. The Claim ownership tab accepts nothing else. */
+  claimToken: string;
   userCode: string;
   verificationUri: string;
   expiresAt: string;
@@ -648,6 +650,17 @@ function RegisterAgent({ online }: { online: boolean }) {
       setError("Generate a keypair first — the registration is bound to it.");
       return;
     }
+    // Registration binds the instance to whichever principal authenticates the
+    // request, so the one in force now is the one to hold it to. Without a bearer
+    // here a leftover cookie would answer for it, and the claim below would name
+    // an owner this tab cannot see.
+    const active = currentSession();
+    if (!active) {
+      setError(
+        "Registering binds the agent to a principal, and this tab does not have one. Connect on the Authority tab first.",
+      );
+      return;
+    }
     setBusy(true);
     try {
       const body = await identityJson<ClaimResult>("/v1/agents", {
@@ -655,6 +668,14 @@ function RegisterAgent({ online }: { online: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ displayName: name, publicKeyJkt: jkt }),
       });
+      if (currentSession()?.accessToken !== active.accessToken) {
+        // It landed under the principal that was connected when it went out.
+        // Showing its claim here would invite the wrong one to accept it.
+        setError(
+          "The agent was registered under the principal that was connected when this went out, and the session changed since. Its claim belongs to that principal — register again for the one connected now.",
+        );
+        return;
+      }
       setClaim(body);
     } catch (err) {
       setError(registerErrorFor(err));
@@ -769,7 +790,9 @@ function RegisterAgent({ online }: { online: boolean }) {
             </div>
             <p>
               The agent stays provisional until a human completes the claim.
-              Read this code at the verification page to finish it.
+              Either read the code below at the verification page, or take the
+              claim token to <strong>Authority → Claim ownership</strong>, which
+              accepts the token and nothing else.
             </p>
             <div className="agents-claim__code">
               <code>{claim.userCode}</code>
@@ -783,6 +806,21 @@ function RegisterAgent({ online }: { online: boolean }) {
                 {copied === "code" ? <IconCheck /> : <IconCopy />}
               </button>
             </div>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn btn--sm"
+                onClick={() => copy(claim.claimToken, "token")}
+              >
+                {copied === "token" ? <IconCheck /> : <IconCopy />}
+                {copied === "token" ? "Claim token copied" : "Copy claim token"}
+              </button>
+            </div>
+            <p className="hint">
+              The claim token is a single-use bearer credential, so it is not
+              shown here — copying it is the only way it leaves this page, and
+              it is never written to disk.
+            </p>
             {verificationUrl ? (
               <a
                 className="btn"
@@ -855,16 +893,23 @@ function AgentActivity({
   const [events, setEvents] = useState<AuditEvent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** A trail read for one principal must never land under another. */
+  const run = useRef(0);
+  const shownFor = useRef<string | null>(null);
 
   const load = useCallback(async () => {
+    const id = ++run.current;
+    const superseded = () => run.current !== id;
     setBusy(true);
     setError(null);
     try {
       const body = await identityJson<{ events: AuditEvent[] }>(
         "/v1/audit/events?limit=50",
       );
+      if (superseded()) return;
       setEvents(body.events.filter(isAgentEvent));
     } catch (err) {
+      if (superseded()) return;
       setEvents(null);
       if (err instanceof IdentityError) {
         setError(
@@ -878,12 +923,19 @@ function AgentActivity({
         );
       }
     } finally {
-      setBusy(false);
+      if (!superseded()) setBusy(false);
     }
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: sessionKey is the trigger — a new principal has a different trail and must not show the previous one
   useEffect(() => {
+    if (shownFor.current !== sessionKey) {
+      // The trail on screen belongs to another principal. Drop it rather than
+      // let it read as this one's while the new one loads.
+      shownFor.current = sessionKey;
+      run.current += 1;
+      setEvents(null);
+      setError(null);
+    }
     if (!online) return;
     void load();
   }, [load, online, sessionKey]);

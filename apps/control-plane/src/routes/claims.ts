@@ -1,6 +1,5 @@
-import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { Hono } from "hono";
 import { appendAuditEvent } from "@opensesame/audit";
+import type { CompleteDecision } from "@opensesame/claims";
 import {
   ClaimSessionResponseSchema,
   CompleteClaimRequestSchema,
@@ -9,27 +8,29 @@ import {
   PresentClaimRequestSchema,
 } from "@opensesame/contracts";
 import {
+  applySlowDown,
+  evaluateDevicePoll,
+  initialPollInterval,
+} from "@opensesame/device-auth";
+import {
+  type ClaimSession,
   DomainError,
   parseClaimToken,
   verifyClaimToken,
   verifyUserCode,
-  type ClaimSession,
 } from "@opensesame/os-domain";
-import type { CompleteDecision } from "@opensesame/claims";
-import {
-  evaluateDevicePoll,
-  initialPollInterval,
-  applySlowDown,
-} from "@opensesame/device-auth";
+import { Hono } from "hono";
 import type { Context } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { AppContext } from "../context.js";
-import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
+import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import {
   claimPageSecurityHeaders,
   escapeHtml,
 } from "../middleware/security-headers.js";
+import { authenticatedPrincipalId } from "./organizations.js";
 
 /** Wrong user codes tolerated per claim before approval is refused outright. */
 const MAX_CLAIM_APPROVAL_ATTEMPTS = 5;
@@ -49,7 +50,9 @@ function toClaimResponse(session: ClaimSession) {
 }
 
 /** Claim status surfaces require the claim bearer (id alone must not reveal state). */
-function extractClaimToken(c: Context<{ Variables: Variables }>): string | null {
+function extractClaimToken(
+  c: Context<{ Variables: Variables }>,
+): string | null {
   const header = c.req.header("x-claim-token");
   if (header?.startsWith("osc_clm_")) return header;
   const auth = c.req.header("authorization");
@@ -78,7 +81,10 @@ async function loadClaimWithToken(
   }
   const ctx = c.get("ctx");
   const session = await ctx.claims.get(id);
-  if (!session || !verifyClaimToken(ctx.config.claimPepper, token, session.tokenDigest)) {
+  if (
+    !session ||
+    !verifyClaimToken(ctx.config.claimPepper, token, session.tokenDigest)
+  ) {
     return c.json({ error: "invalid_claim_token" }, 401);
   }
   return session;
@@ -135,10 +141,13 @@ claimRoutes.post(
   idempotencyMiddleware("claims.create"),
   async (c) => {
     const ctx = c.get("ctx");
-    const principalId = c.get("principalId")!;
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
     const parsed = CreateClaimRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
-      return c.json({ error: "validation_error", details: parsed.error.flatten() }, 400);
+      return c.json(
+        { error: "validation_error", details: parsed.error.flatten() },
+        400,
+      );
     }
 
     const created = await ctx.claims.createClaim({
@@ -191,14 +200,20 @@ claimRoutes.post("/present", async (c) => {
   const ctx = c.get("ctx");
   const parsed = PresentClaimRequestSchema.safeParse(await c.req.json());
   if (!parsed.success) {
-    return c.json({ error: "validation_error", details: parsed.error.flatten() }, 400);
+    return c.json(
+      { error: "validation_error", details: parsed.error.flatten() },
+      400,
+    );
   }
   const parts = parseClaimToken(parsed.data.token);
   if (!parts) {
     return c.json({ error: "invalid_token" }, 401);
   }
   try {
-    const session = await ctx.claims.presentClaim(parts.publicId, parsed.data.token);
+    const session = await ctx.claims.presentClaim(
+      parts.publicId,
+      parsed.data.token,
+    );
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "claim.presented",
       outcome: "succeeded",
@@ -212,7 +227,10 @@ claimRoutes.post("/present", async (c) => {
     return c.json(toClaimResponse(session));
   } catch (err) {
     if (err instanceof DomainError) {
-      return c.json({ error: err.code, message: err.message }, domainErrorStatus(err));
+      return c.json(
+        { error: err.code, message: err.message },
+        domainErrorStatus(err),
+      );
     }
     throw err;
   }
@@ -224,11 +242,14 @@ claimRoutes.post(
   idempotencyMiddleware("claims.complete"),
   async (c) => {
     const ctx = c.get("ctx");
-    const principalId = c.get("principalId")!;
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
     const id = c.req.param("id");
     const parsed = CompleteClaimRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
-      return c.json({ error: "validation_error", details: parsed.error.flatten() }, 400);
+      return c.json(
+        { error: "validation_error", details: parsed.error.flatten() },
+        400,
+      );
     }
 
     // Ensure claim is in a completable state: present → authenticate → review if needed
@@ -272,7 +293,13 @@ claimRoutes.post(
       ctx.stores.claimApprovalAttempts.delete(id);
 
       if (session.state === "pending") {
-        return c.json({ error: "INVALID_TRANSITION", message: "Claim must be presented first" }, 422);
+        return c.json(
+          {
+            error: "INVALID_TRANSITION",
+            message: "Claim must be presented first",
+          },
+          422,
+        );
       }
       if (session.state === "presented") {
         session = await ctx.claims.authenticateClaim(id);
@@ -304,7 +331,7 @@ claimRoutes.post(
       // Preserve principal / project ids from target manifest on completion
       const manifest = result.session.targetManifest;
       const projectId =
-        typeof manifest["projectId"] === "string" ? manifest["projectId"] : undefined;
+        typeof manifest.projectId === "string" ? manifest.projectId : undefined;
       if (projectId) {
         const project = ctx.stores.projects.get(projectId);
         if (project && project.state === "provisional") {
@@ -312,7 +339,8 @@ claimRoutes.post(
           // A claim can be completed after the project it names has run out of
           // time. Activating it then would hand back a project that is past its
           // own TTL and that nothing will expire again.
-          const lapsed = project.expiresAt !== undefined && project.expiresAt <= now;
+          const lapsed =
+            project.expiresAt !== undefined && project.expiresAt <= now;
           ctx.stores.projects.set(projectId, {
             ...project,
             state: lapsed ? "expired" : "active",
@@ -322,7 +350,7 @@ claimRoutes.post(
         }
       }
       const agentId =
-        typeof manifest["agentId"] === "string" ? manifest["agentId"] : undefined;
+        typeof manifest.agentId === "string" ? manifest.agentId : undefined;
       if (agentId) {
         const agent = ctx.stores.agents.get(agentId);
         if (agent && agent.state === "provisional") {
@@ -349,8 +377,8 @@ claimRoutes.post(
         won: result.won,
         preserved: {
           principalId:
-            typeof manifest["ownerPrincipalId"] === "string"
-              ? manifest["ownerPrincipalId"]
+            typeof manifest.ownerPrincipalId === "string"
+              ? manifest.ownerPrincipalId
               : principalId,
           ...(projectId !== undefined ? { projectId } : {}),
           ...(agentId !== undefined ? { agentId } : {}),
@@ -358,7 +386,10 @@ claimRoutes.post(
       });
     } catch (err) {
       if (err instanceof DomainError) {
-        return c.json({ error: err.code, message: err.message }, domainErrorStatus(err));
+        return c.json(
+          { error: err.code, message: err.message },
+          domainErrorStatus(err),
+        );
       }
       throw err;
     }
@@ -367,7 +398,7 @@ claimRoutes.post(
 
 claimRoutes.post("/:id/deny", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   try {
     const existing = await ctx.claims.get(c.req.param("id"));
     if (!existing) return c.json({ error: "not_found" }, 404);
@@ -389,7 +420,10 @@ claimRoutes.post("/:id/deny", requirePrincipal(), async (c) => {
     return c.json(toClaimResponse(session));
   } catch (err) {
     if (err instanceof DomainError) {
-      return c.json({ error: err.code, message: err.message }, domainErrorStatus(err));
+      return c.json(
+        { error: err.code, message: err.message },
+        domainErrorStatus(err),
+      );
     }
     throw err;
   }

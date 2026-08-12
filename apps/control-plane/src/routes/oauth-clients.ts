@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { Hono } from "hono";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   CreateOAuthClientRequestSchema,
@@ -7,11 +6,13 @@ import {
   PatchOAuthClientRequestSchema,
 } from "@opensesame/contracts";
 import type { OAuthClientRecord } from "@opensesame/os-domain";
+import { Hono } from "hono";
 import type { AppContext } from "../context.js";
-import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
+import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { getUsage } from "../state.js";
+import { authenticatedPrincipalId } from "./organizations.js";
 
 export const oauthClientRoutes = new Hono<{ Variables: Variables }>();
 
@@ -131,9 +132,10 @@ function sectorClaimedByAnother(
 
 oauthClientRoutes.get("/", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   const clients = [...ctx.stores.oauthClients.values()].filter(
-    (client) => client.ownerPrincipalId === principalId && client.state !== "revoked",
+    (client) =>
+      client.ownerPrincipalId === principalId && client.state !== "revoked",
   );
   return c.json({ clients: clients.map(toResponse) });
 });
@@ -144,7 +146,7 @@ oauthClientRoutes.post(
   idempotencyMiddleware("oauth-clients.create"),
   async (c) => {
     const ctx = c.get("ctx");
-    const principalId = c.get("principalId")!;
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
     const denied = await assertVerified(ctx, principalId, "register");
     if (denied) return denied;
     const overQuota = await assertRegistrationQuota(ctx, principalId);
@@ -169,7 +171,9 @@ oauthClientRoutes.post(
       );
     }
 
-    if (sectorClaimedByAnother(ctx, principalId, parsed.data.sectorIdentifier)) {
+    if (
+      sectorClaimedByAnother(ctx, principalId, parsed.data.sectorIdentifier)
+    ) {
       return c.json(
         {
           error: "sector_identifier_taken",
@@ -218,7 +222,7 @@ oauthClientRoutes.post(
 
 oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   const denied = await assertVerified(ctx, principalId, "modify");
   if (denied) return denied;
   const client = loadOwnedClient(ctx, principalId, c.req.param("id"));
@@ -235,7 +239,7 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
   }
 
   const now = ctx.clock();
-  let next: OAuthClientRecord = {
+  const next: OAuthClientRecord = {
     ...client,
     updatedAt: now,
   };
@@ -270,7 +274,7 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
 
 oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   const denied = await assertVerified(ctx, principalId, "rotate");
   if (denied) return denied;
   const client = loadOwnedClient(ctx, principalId, c.req.param("id"));
@@ -308,7 +312,7 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
 
 oauthClientRoutes.post("/:id/revoke", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   const denied = await assertVerified(ctx, principalId, "revoke");
   if (denied) return denied;
   const client = loadOwnedClient(ctx, principalId, c.req.param("id"), {

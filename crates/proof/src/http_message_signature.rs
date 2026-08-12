@@ -65,8 +65,7 @@ impl LocalHttpMessageSignatureValidator {
 /// nothing accepts a signature that binds nothing: omit `content-digest` and the
 /// body is free to change under the same signature, omit `@target-uri` and the
 /// signature travels to another endpoint.
-pub const REQUIRED_COVERED_COMPONENTS: [&str; 3] =
-    ["@method", "@target-uri", "content-digest"];
+pub const REQUIRED_COVERED_COMPONENTS: [&str; 3] = ["@method", "@target-uri", "content-digest"];
 
 /// Tolerance for a `created` timestamp ahead of our clock.
 const MAX_CREATED_SKEW_SECS: i64 = 60;

@@ -82,6 +82,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0006_provider_configuration",
         include_str!("../../../migrations/0006_provider_configuration.sql"),
     ),
+    (
+        "0007_provider_connections",
+        include_str!("../../../migrations/0007_provider_connections.sql"),
+    ),
 ];
 
 impl Db {
@@ -1055,6 +1059,33 @@ mod tests {
         .get::<String, _>("configured_fields");
         assert_eq!(integration_fields, r#"["client_id","client_secret"]"#);
         assert_eq!(connection_fields, r#"["api_key"]"#);
+    }
+
+    #[tokio::test]
+    async fn provider_connections_are_added_to_an_already_migrated_database() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        for (_, migration) in &MIGRATIONS[..6] {
+            for statement in split_statements(migration) {
+                sqlx::query(&statement).execute(&pool).await.unwrap();
+            }
+        }
+        assert!(sqlx::query("SELECT 1 FROM provider_connections LIMIT 0")
+            .execute(&pool)
+            .await
+            .is_err());
+        for statement in split_statements(include_str!(
+            "../../../migrations/0007_provider_connections.sql"
+        )) {
+            sqlx::query(&statement).execute(&pool).await.unwrap();
+        }
+        sqlx::query("SELECT 1 FROM provider_connections LIMIT 0")
+            .execute(&pool)
+            .await
+            .unwrap();
     }
 
     #[test]

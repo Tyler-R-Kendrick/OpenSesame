@@ -1,10 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { Hono } from "hono";
-import { setCookie } from "hono/cookie";
 import { appendAuditEvent } from "@opensesame/audit";
-import {
-  createProvisionalPrincipal,
-} from "@opensesame/auth-upstream";
+import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
 import {
   IdentityListResponseSchema,
   LinkIdentityRequestSchema,
@@ -14,12 +10,17 @@ import {
 import { ConflictError } from "@opensesame/database";
 import type {
   ExternalIdentity,
+  Organization,
+  OrganizationMembership,
   Principal,
   ProvisionalSession,
 } from "@opensesame/os-domain";
-import type { Variables } from "../middleware/context.js";
+import { Hono } from "hono";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { requirePrincipal } from "../middleware/auth.js";
+import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { authenticatedPrincipalId } from "./organizations.js";
 
 export const principalRoutes = new Hono<{ Variables: Variables }>();
 
@@ -44,22 +45,28 @@ principalRoutes.post(
     }
     if (ctx.stores.provisionalSessions.size >= MAX_PROVISIONAL) {
       return c.json(
-        { error: "provisional_capacity", message: "Too many provisional sessions" },
+        {
+          error: "provisional_capacity",
+          message: "Too many provisional sessions",
+        },
         429,
       );
     }
 
-    const { mapping, session } = await createProvisionalPrincipal(ctx.mappings, {
-      ttlMs: ctx.config.provisionalTtlMs,
-      quotaProfile: "anonymous",
-      allowedActions: [
-        "project.create_temporary",
-        "resource.create_temporary",
-        "claim.create",
-        "agent.register_ephemeral",
-        "session.continue_anonymous",
-      ],
-    });
+    const { mapping, session } = await createProvisionalPrincipal(
+      ctx.mappings,
+      {
+        ttlMs: ctx.config.provisionalTtlMs,
+        quotaProfile: "anonymous",
+        allowedActions: [
+          "project.create_temporary",
+          "resource.create_temporary",
+          "claim.create",
+          "agent.register_ephemeral",
+          "session.continue_anonymous",
+        ],
+      },
+    );
 
     // Align expires with injected clock for tests
     const provisionalSession: ProvisionalSession = {
@@ -83,8 +90,36 @@ principalRoutes.post(
       linkedAt: now,
     });
 
+    if (ctx.config.bootstrapPersonalOrganization) {
+      const organization: Organization = {
+        id: `org:${randomUUID()}`,
+        slug: `local-${principal.id.slice(-8)}`,
+        displayName: "Personal workspace",
+        state: "active",
+        createdBy: principal.id,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const membership: OrganizationMembership = {
+        organizationId: organization.id,
+        principalId: principal.id,
+        role: "owner",
+        createdAt: now,
+        updatedAt: now,
+      };
+      ctx.stores.organizations.set(organization.id, organization);
+      ctx.stores.organizationSlugs.set(organization.slug, organization.id);
+      ctx.stores.organizationMemberships.set(
+        `${organization.id}:${principal.id}`,
+        membership,
+      );
+    }
+
     const accessToken = `pst_${randomBytes(24).toString("base64url")}`;
-    ctx.stores.provisionalSessions.set(provisionalSession.id, provisionalSession);
+    ctx.stores.provisionalSessions.set(
+      provisionalSession.id,
+      provisionalSession,
+    );
     ctx.stores.provisionalTokens.set(accessToken, provisionalSession.id);
 
     setCookie(c, ctx.config.provisionalCookieName, accessToken, {
@@ -102,7 +137,10 @@ principalRoutes.post(
       sessionId: provisionalSession.id,
       correlationId: c.get("correlationId"),
       actorType: "human",
-      metadata: { action: "principal.provisional_create", quotaProfile: "anonymous" },
+      metadata: {
+        action: "principal.provisional_create",
+        quotaProfile: "anonymous",
+      },
     });
 
     return c.json(
@@ -120,14 +158,77 @@ principalRoutes.post(
   },
 );
 
+/**
+ * End the caller's provisional session. Clearing client memory is not enough:
+ * the cookie alone authenticates, so the session must die server-side too.
+ */
+principalRoutes.post("/provisional/revoke", async (c) => {
+  const ctx = c.get("ctx");
+  const principalId = c.get("principalId");
+  const cookie = getCookie(c, ctx.config.provisionalCookieName);
+
+  // A bearer takes precedence over a cookie for authentication, so a request
+  // carrying both would otherwise revoke the bearer's session while clearing a
+  // cookie belonging to another — leaving that one alive and unreachable. Both
+  // were presented, so end both.
+  const revoking = new Set<string>();
+  const authenticated = c.get("provisionalSessionId");
+  if (authenticated) revoking.add(authenticated);
+  if (cookie) {
+    const fromCookie = ctx.stores.provisionalTokens.get(cookie);
+    if (fromCookie) revoking.add(fromCookie);
+  }
+
+  for (const sessionId of revoking) {
+    const session = ctx.stores.provisionalSessions.get(sessionId);
+    if (session) {
+      ctx.stores.provisionalSessions.set(sessionId, {
+        ...session,
+        revokedAt: ctx.clock(),
+      });
+    }
+    for (const [token, id] of ctx.stores.provisionalTokens) {
+      if (id === sessionId) ctx.stores.provisionalTokens.delete(token);
+    }
+    // Attribute to whoever owned the session that ended, not to whichever
+    // credential authenticated the request: with two sessions in play those are
+    // different principals, and each trail should show its own session going.
+    const owner = session?.principalId ?? principalId;
+    await appendAuditEvent(ctx.repos.auditEvents, {
+      eventType: "principal.provisional_revoked",
+      outcome: "succeeded",
+      ...(owner !== undefined ? { principalId: owner } : {}),
+      sessionId,
+      correlationId: c.get("correlationId"),
+      actorType: "human",
+      metadata: { action: "principal.provisional_revoke" },
+    });
+  }
+
+  // Clear only a cookie this request actually presented. Deleting
+  // unconditionally would let a late response wipe a cookie issued by a newer
+  // session, since deletion is by name and cannot name a value. Attributes must
+  // match the ones it was set with or the browser keeps the original.
+  if (cookie !== undefined) {
+    deleteCookie(c, ctx.config.provisionalCookieName, {
+      httpOnly: true,
+      sameSite: "Lax",
+      path: "/",
+      secure: ctx.config.publicUrl.startsWith("https://"),
+    });
+  }
+  return c.body(null, 204);
+});
+
 principalRoutes.get("/me", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   const principal = await ctx.repos.principals.getById(principalId);
   if (!principal) {
     return c.json({ error: "not_found" }, 404);
   }
-  const identities = await ctx.repos.externalIdentities.listByPrincipal(principalId);
+  const identities =
+    await ctx.repos.externalIdentities.listByPrincipal(principalId);
   const body = PrincipalMeResponseSchema.parse({
     id: principal.id,
     state: principal.state,
@@ -151,8 +252,9 @@ principalRoutes.get("/me", requirePrincipal(), async (c) => {
 
 principalRoutes.get("/identities", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
-  const identities = await ctx.repos.externalIdentities.listByPrincipal(principalId);
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
+  const identities =
+    await ctx.repos.externalIdentities.listByPrincipal(principalId);
   const body = IdentityListResponseSchema.parse({
     identities: identities.map((i) => ({
       id: i.id,
@@ -173,7 +275,7 @@ principalRoutes.post(
   idempotencyMiddleware("principals.link-identities"),
   async (c) => {
     const ctx = c.get("ctx");
-    const principalId = c.get("principalId")!;
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
     const principal = await ctx.repos.principals.getById(principalId);
     if (!principal) {
       return c.json({ error: "not_found" }, 404);
@@ -207,7 +309,9 @@ principalRoutes.post(
     const existing = await ctx.repos.externalIdentities.findByTuple({
       kind: parsed.data.kind,
       issuer: parsed.data.issuer,
-      ...(parsed.data.tenant !== undefined ? { tenant: parsed.data.tenant } : {}),
+      ...(parsed.data.tenant !== undefined
+        ? { tenant: parsed.data.tenant }
+        : {}),
       subject: parsed.data.subject,
     });
     if (existing) {
@@ -243,9 +347,10 @@ principalRoutes.post(
 
     // Same email on another principal must never auto-link.
     if (parsed.data.emailNormalized) {
-      const emailPeers = await ctx.repos.externalIdentities.listByEmailNormalized(
-        parsed.data.emailNormalized,
-      );
+      const emailPeers =
+        await ctx.repos.externalIdentities.listByEmailNormalized(
+          parsed.data.emailNormalized,
+        );
       const foreign = emailPeers.find((e) => e.principalId !== principalId);
       if (foreign) {
         await appendAuditEvent(ctx.repos.auditEvents, {
@@ -271,7 +376,9 @@ principalRoutes.post(
       assurance: parsed.data.assurance,
       linkedAt: now,
       metadata: {},
-      ...(parsed.data.tenant !== undefined ? { tenant: parsed.data.tenant } : {}),
+      ...(parsed.data.tenant !== undefined
+        ? { tenant: parsed.data.tenant }
+        : {}),
       ...(parsed.data.displayHint !== undefined
         ? { displayHint: parsed.data.displayHint }
         : {}),
@@ -287,12 +394,18 @@ principalRoutes.post(
       await ctx.repos.externalIdentities.create(identity);
     } catch (err) {
       if (err instanceof ConflictError) {
-        return c.json({ error: "identity_collision", message: err.message }, 409);
+        return c.json(
+          { error: "identity_collision", message: err.message },
+          409,
+        );
       }
       throw err;
     }
 
-    if (principal.assurance === "provisional" || principal.state === "provisional") {
+    if (
+      principal.assurance === "provisional" ||
+      principal.state === "provisional"
+    ) {
       await ctx.repos.principals.update(
         principalId,
         {
@@ -344,7 +457,7 @@ principalRoutes.post(
 
 principalRoutes.delete("/identities/:id", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   const identityId = c.req.param("id");
   const identity = await ctx.repos.externalIdentities.getById(identityId);
   if (!identity || identity.principalId !== principalId) {

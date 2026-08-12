@@ -116,7 +116,8 @@ impl PolicyEngine {
             // against any other. Only `connector_operation` ids share the grant's
             // resource vocabulary — a `connection` request is fenced by the
             // authority binding instead.
-            if req.resource.type_ == "connector_operation" && !g.permits_resource(&req.resource.id) {
+            if req.resource.type_ == "connector_operation" && !g.permits_resource(&req.resource.id)
+            {
                 return Ok(deny(req, "grant_resource"));
             }
             if let Some(aud) = req.context.get("audience").and_then(|v| v.as_str()) {

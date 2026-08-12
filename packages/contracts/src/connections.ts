@@ -11,6 +11,10 @@ import { z } from "zod";
  */
 
 export const ProviderCategorySchema = z.enum([
+  "encryption",
+  "cloud_secret_storage",
+  "password_managers",
+  "local_storage",
   "developer",
   "productivity",
   "communication",

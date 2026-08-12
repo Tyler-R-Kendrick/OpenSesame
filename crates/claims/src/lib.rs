@@ -114,7 +114,10 @@ mod tests {
         // Not the keyless hash: ~2^35 codes are exhaustible against SHA-256.
         assert!(!hash_eq(&bound, &hash_secret(&code)));
         // Not reusable against another claim.
-        assert!(!hash_eq(&bound, &hash_low_entropy("pepper", "clm_2", &code)));
+        assert!(!hash_eq(
+            &bound,
+            &hash_low_entropy("pepper", "clm_2", &code)
+        ));
         // Not reproducible without the pepper.
         assert!(!hash_eq(&bound, &hash_low_entropy("other", "clm_1", &code)));
         // Deterministic for the same inputs, and not the code itself.

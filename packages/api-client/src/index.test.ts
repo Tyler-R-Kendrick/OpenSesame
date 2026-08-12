@@ -89,7 +89,7 @@ describe("api-client", () => {
     const { createDpopProof } = await createDpopKeyPair();
     const proof = await createDpopProof("https://host.test/api", "POST");
     const [h] = proof.split(".");
-    const padded = h!.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = h?.replace(/-/g, "+").replace(/_/g, "/") ?? "";
     const json = JSON.parse(
       atob(padded.padEnd(Math.ceil(padded.length / 4) * 4, "=")),
     );
@@ -127,7 +127,7 @@ describe("api-client", () => {
     });
     await client.whoami();
     const claims = JSON.parse(
-      Buffer.from(dpop.split(".")[1]!, "base64url").toString("utf8"),
+      Buffer.from(dpop.split(".").at(1) ?? "", "base64url").toString("utf8"),
     ) as { ath?: string; htu?: string; htm?: string };
     // The verifier in crates/proof requires ath whenever a token is present.
     expect(claims.ath).toBe(await accessTokenHash("opaque-session-token"));
@@ -142,7 +142,7 @@ describe("api-client", () => {
       "POST",
     );
     const claims = JSON.parse(
-      Buffer.from(proof.split(".")[1]!, "base64url").toString("utf8"),
+      Buffer.from(proof.split(".").at(1) ?? "", "base64url").toString("utf8"),
     ) as { htu?: string; ath?: string };
     expect(claims.htu).toBe("https://host.test/api");
     // No token, no ath: the verifier rejects an unexpected one.
@@ -212,11 +212,13 @@ describe("api-client", () => {
     const nonceOf = (proof: string) =>
       (
         JSON.parse(
-          Buffer.from(proof.split(".")[1]!, "base64url").toString("utf8"),
+          Buffer.from(proof.split(".").at(1) ?? "", "base64url").toString(
+            "utf8",
+          ),
         ) as { nonce?: string }
       ).nonce;
-    expect(nonceOf(proofs[0]!)).toBeUndefined();
-    expect(nonceOf(proofs[1]!)).toBe("n-from-server");
+    expect(nonceOf(proofs.at(0) ?? "")).toBeUndefined();
+    expect(nonceOf(proofs.at(1) ?? "")).toBe("n-from-server");
   });
 
   it("does not retry a refusal that is not about the nonce", async () => {
@@ -253,7 +255,9 @@ describe("api-client", () => {
     await client.health();
     await client.health();
     const second = JSON.parse(
-      Buffer.from(proofs[1]!.split(".")[1]!, "base64url").toString("utf8"),
+      Buffer.from(proofs.at(1)?.split(".").at(1) ?? "", "base64url").toString(
+        "utf8",
+      ),
     ) as { nonce?: string };
     expect(second.nonce).toBe("n-1");
   });

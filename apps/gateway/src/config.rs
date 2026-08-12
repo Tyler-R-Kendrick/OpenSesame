@@ -33,7 +33,11 @@ pub struct Args {
         default_value = "https://keycloak.local/realms/opensesame"
     )]
     pub issuer: String,
-    #[arg(long, env = "OPENSESAME_DB", default_value = "sqlite::memory:")]
+    #[arg(
+        long,
+        env = "OPENSESAME_DB",
+        default_value = ".tools/run/opensesame.db"
+    )]
     pub database_url: String,
     #[arg(long, env = "OPENSESAME_TASK_DB", default_value = "")]
     pub task_database_url: String,

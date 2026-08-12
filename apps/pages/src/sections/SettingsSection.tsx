@@ -10,6 +10,7 @@ import {
   IconUpload,
   IconX,
 } from "../components/Icons.js";
+import { checkTurso, setTursoSessionToken } from "../lib/embedded-catalog.js";
 import { loadSettings, saveSettings } from "../lib/settings.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { estimateStrength } from "../lib/vault/password.js";
@@ -18,6 +19,7 @@ import {
   buildSample,
   sampleFolder,
 } from "../lib/vault/sample.js";
+import { ImportPanel } from "./settings/ImportPanel.js";
 import "./settings.css";
 
 const THEMES = [
@@ -62,6 +64,11 @@ export function SettingsSection() {
 
   const [endpoints, setEndpoints] = useState(() => loadSettings());
   const [endpointSaved, setEndpointSaved] = useState(false);
+  const [tursoToken, setTursoToken] = useState("");
+  const [databaseStatus, setDatabaseStatus] = useState<{
+    tone: "ok" | "err";
+    text: string;
+  } | null>(null);
 
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -87,13 +94,25 @@ export function SettingsSection() {
   const nextStrength = estimateStrength(next);
   const nextTooWeak = next.length < 12 || nextStrength.score < 2;
 
-  function saveEndpoints(event: FormEvent) {
+  async function saveEndpoints(event: FormEvent) {
     event.preventDefault();
     saveSettings({
       hostApi: endpoints.hostApi.trim().replace(/\/$/, ""),
       identityApi: endpoints.identityApi.trim().replace(/\/$/, ""),
+      tursoUrl: endpoints.tursoUrl.trim(),
     });
+    setTursoSessionToken(tursoToken);
+    const mode = await checkTurso();
     setEndpoints(loadSettings());
+    setDatabaseStatus({
+      tone: mode === "memory" ? "err" : "ok",
+      text:
+        mode === "remote"
+          ? "Turso is embedded in this PWA and synchronized with the configured remote."
+          : mode === "embedded"
+            ? "Turso is running inside this PWA and persisting the connector catalog in OPFS."
+            : "Turso could not open; this tab is using the bundled connector catalog in memory.",
+    });
     setEndpointSaved(true);
     window.setTimeout(() => setEndpointSaved(false), 3000);
   }
@@ -459,7 +478,10 @@ export function SettingsSection() {
             </p>
           </div>
         </div>
-        <form className="panel__body" onSubmit={saveEndpoints}>
+        <form
+          className="panel__body"
+          onSubmit={(event) => void saveEndpoints(event)}
+        >
           <div className="set__pair">
             <div className="field">
               <label htmlFor="identity-api">Identity API</label>
@@ -487,6 +509,42 @@ export function SettingsSection() {
               />
             </div>
           </div>
+          <div className="set__pair">
+            <div className="field">
+              <label htmlFor="turso-url">Turso sync URL (optional)</label>
+              <input
+                id="turso-url"
+                type="url"
+                placeholder="libsql://database-name.turso.io"
+                value={endpoints.tursoUrl}
+                onChange={(event) =>
+                  setEndpoints({ ...endpoints, tursoUrl: event.target.value })
+                }
+              />
+              <p className="hint">
+                Blank keeps the database entirely inside this PWA. A URL plus a
+                token enables explicit Turso push/pull sync.
+              </p>
+            </div>
+            <div className="field">
+              <label htmlFor="turso-token">
+                Turso auth token (this tab only)
+              </label>
+              <input
+                id="turso-token"
+                type="password"
+                autoComplete="off"
+                placeholder="Only needed for remote sync"
+                value={tursoToken}
+                onChange={(event) => setTursoToken(event.target.value)}
+              />
+              <p className="hint">
+                Never written to OPFS or the vault. Paste it again after a
+                reload when remote sync is needed.
+              </p>
+            </div>
+          </div>
+          <Status message={databaseStatus} />
           <div className="actions">
             <button type="submit" className="btn btn--primary">
               Save endpoints
@@ -498,13 +556,17 @@ export function SettingsSection() {
         </form>
       </section>
 
+      <ImportPanel />
+
       <section className="panel">
         <div className="panel__head">
           <div>
-            <h2>Backup and transfer</h2>
+            <h2>Backup and move to another device</h2>
             <p>
-              An export is the sealed body plus its key-wrapping header. Anyone
-              holding it still needs the master password.
+              An OpenSesame export is the sealed body plus its key-wrapping
+              header. Anyone holding it still needs the master password. This is
+              not the same as the import above, which reads other products'
+              plaintext exports.
             </p>
           </div>
         </div>
@@ -519,7 +581,7 @@ export function SettingsSection() {
           <div className="set__pair">
             <div className="field">
               <label htmlFor="import-password">
-                Master password of the file you are importing
+                Master password that export was sealed under
               </label>
               <input
                 id="import-password"
@@ -543,7 +605,7 @@ export function SettingsSection() {
               />
               <label htmlFor="import-file" className="btn">
                 <IconUpload size={16} />
-                Choose export file
+                Choose an OpenSesame export
               </label>
             </div>
           </div>
@@ -607,7 +669,7 @@ export function SettingsSection() {
                 <button
                   type="button"
                   className="btn btn--danger"
-                  onClick={() => store.destroy()}
+                  onClick={() => void store.destroy()}
                 >
                   <IconTrash size={16} />
                   Delete permanently

@@ -61,6 +61,15 @@ export function IconSite(props: IconProps) {
   );
 }
 
+export function IconConnection(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M10.2 13.8a4.6 4.6 0 0 0 6.94.5l2.6-2.6a4.6 4.6 0 0 0-6.5-6.5l-1.5 1.49" />
+      <path d="M13.8 10.2a4.6 4.6 0 0 0-6.94-.5l-2.6 2.6a4.6 4.6 0 0 0 6.5 6.5l1.49-1.49" />
+    </Svg>
+  );
+}
+
 export function IconAuthority(props: IconProps) {
   return (
     <Svg {...props}>

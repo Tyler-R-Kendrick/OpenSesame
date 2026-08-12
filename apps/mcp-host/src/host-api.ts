@@ -21,7 +21,10 @@ export function isLoopbackBase(base: string): boolean {
   } catch {
     return false;
   }
-  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  const host = url.hostname
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "");
   if (LOOPBACK_HOSTS.has(host) || host.endsWith(".localhost")) return true;
   // 127.0.0.0/8 is all loopback, not just 127.0.0.1.
   return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
@@ -106,7 +109,10 @@ export function hostAuthHeaders(base = hostApiBase()): Record<string, string> {
   return {};
 }
 
-export async function hostFetch(path: string, init?: RequestInit): Promise<Response> {
+export async function hostFetch(
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
   const base = hostApiBase();
   const headers = new Headers(init?.headers);
   for (const [k, v] of Object.entries(hostAuthHeaders(base))) {
@@ -115,7 +121,10 @@ export async function hostFetch(path: string, init?: RequestInit): Promise<Respo
   return fetchImpl(`${base}${path}`, { ...init, headers });
 }
 
-export async function daemonFetch(path: string, init?: RequestInit): Promise<Response> {
+export async function daemonFetch(
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
   const base = daemonBase();
   const headers = new Headers(init?.headers);
   // Every daemon /v1/* route requires the operator bearer; without it these calls

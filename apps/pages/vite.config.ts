@@ -6,6 +6,13 @@ const base = process.env.VITE_BASE ?? "/OpenSesame/";
 
 export default defineConfig({
   base,
+  define: { "process.env.NODE_DEBUG_NATIVE": "false" },
+  server: {
+    headers: {
+      "Cross-Origin-Embedder-Policy": "require-corp",
+      "Cross-Origin-Opener-Policy": "same-origin",
+    },
+  },
   build: {
     // esbuild 0.28 cannot downlevel some destructuring forms used by react-router
     // to Vite's default legacy browser set; GitHub Pages clients are modern.
@@ -17,6 +24,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
       registerType: "autoUpdate",
       includeAssets: ["icon.svg"],
       manifest: {
@@ -38,11 +48,11 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        navigateFallback: "index.html",
-        globPatterns: ["**/*.{js,css,html,svg,ico,webp,woff2}"],
+      injectManifest: {
+        globPatterns: ["**/*.{js,wasm,css,html,svg,ico,webp,woff2}"],
+        maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
       },
-      devOptions: { enabled: true },
+      devOptions: { enabled: true, navigateFallback: "index.html" },
     }),
   ],
 });

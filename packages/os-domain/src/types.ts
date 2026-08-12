@@ -418,6 +418,16 @@ export type AuthorityHandle =
 
 export type ConnectionRef = { kind: "connection"; ref: string };
 
+/** Connection lifecycle events the broker emits today (ADR 0032). */
+export type ConnectionDomainEventType =
+  | "connection.created"
+  | "connection.authorized"
+  | "connection.refreshed"
+  | "connection.refresh_failed"
+  | "connection.bound"
+  | "connection.unbound"
+  | "connection.revoked";
+
 /** Future domain event types — contracts only; no secret resolver in this slice. */
 export type FutureDomainEventType =
   | "connection.claimed"

@@ -11,6 +11,8 @@
 
 /** OWASP 2023 floor for PBKDF2-HMAC-SHA256. */
 export const PBKDF2_ITERATIONS = 600_000;
+/** Above this, deriving is indistinguishable from a hung tab. */
+const MAX_PBKDF2_ITERATIONS = 10_000_000;
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const VAULT_KEY_BYTES = 32;
@@ -44,6 +46,11 @@ export type VaultHeader = {
   createdAt: string;
   /** Optional self-authored reminder. Never the password itself. */
   hint?: string;
+  /**
+   * Highest body revision written. Recorded after the body lands, so it trails a
+   * newer body at worst; a body claiming less than this is an older copy.
+   */
+  bodyRev?: number;
 };
 
 export type SealedBlob = {
@@ -162,6 +169,20 @@ export async function unlockVaultKey(
   if (header.v !== 1 || header.kdf.alg !== "PBKDF2-SHA256") {
     throw new VaultCorruptError("unsupported vault format");
   }
+  // The wrap already binds these — derive with different ones and the tag fails —
+  // so a header outside what this app ever writes is a tampered or damaged file,
+  // and saying that is more use than reporting a wrong password. The ceiling also
+  // stops a header that would derive for minutes and look like a hung tab.
+  if (
+    !Number.isInteger(header.kdf.iterations) ||
+    header.kdf.iterations < PBKDF2_ITERATIONS ||
+    header.kdf.iterations > MAX_PBKDF2_ITERATIONS
+  ) {
+    throw new VaultCorruptError("key derivation parameters were altered");
+  }
+  if (b64ToBytes(header.kdf.saltB64).length !== SALT_BYTES) {
+    throw new VaultCorruptError("key derivation salt is the wrong size");
+  }
   const masterKey = await deriveMasterKey(
     password,
     b64ToBytes(header.kdf.saltB64),
@@ -221,6 +242,9 @@ export async function rewrapVaultKey(
     wrap,
     createdAt: header.createdAt,
     ...(nextHint ? { hint: nextHint } : {}),
+    // The body is untouched by a re-key, so how far it has got carries over. A
+    // fresh header would forget it and take the rollback check with it.
+    ...(header.bodyRev !== undefined ? { bodyRev: header.bodyRev } : {}),
   };
 }
 

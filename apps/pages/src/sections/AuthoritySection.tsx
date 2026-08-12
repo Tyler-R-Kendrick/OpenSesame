@@ -23,15 +23,19 @@ import {
   type IdentitySession,
   type Principal,
   adoptToken,
-  clearSession,
   connectProvisional,
+  currentSession,
+  endSession,
   hostBase,
   identityBase,
   identityFetch,
   identityJson,
+  noteUnauthorized,
   probeHost,
   probeIdentity,
+  probeOrphanSession,
   useIdentitySession,
+  useOrphanSession,
 } from "../lib/identity.js";
 import {
   type QueuedAction,
@@ -136,6 +140,14 @@ function formatUserCode(raw: string): string {
 
 const CLAIM_TOKEN_PREFIX = "osc_clm_";
 
+/**
+ * Said in both places a device is authorized — the form and the outbox flush —
+ * when the session changed while the approval was in flight. Reporting a plain
+ * success there would name the wrong principal as the terminal's owner.
+ */
+const DEVICE_PRINCIPAL_MOVED =
+  "Authorized, but under the principal that was connected when this went out, and the session changed since. If that terminal should belong to the principal connected now, revoke it there and authorize again.";
+
 function looksLikeClaimToken(token: string): boolean {
   return (
     token.startsWith(CLAIM_TOKEN_PREFIX) &&
@@ -187,10 +199,24 @@ function createClaimClient(session: IdentitySession | null) {
         : input instanceof URL
           ? input.href
           : input.url;
-    const res = await fetch(href, { ...init, credentials: "include" });
+    const res = await fetch(href, {
+      ...init,
+      // An adopted token stands alone; a cookie sent beside it could answer in
+      // its place and run the ceremony as a different principal.
+      credentials: session?.adopted ? "omit" : "include",
+    });
     if (!res.ok) {
       failure.status = res.status;
       failure.code = await readErrorCode(res.clone());
+      // A 401 on a claim route means one of two unrelated things: the claim
+      // token was refused, or the principal bearer was. Only the second ends
+      // the session — the claim token is what a typo spoils, and disconnecting
+      // over it would strand a principal that never stopped working. The API
+      // names claim refusals (`invalid_token`, `invalid_claim_token`), and only
+      // `requirePrincipal` answers a bare `unauthorized`.
+      if (res.status === 401 && failure.code === "unauthorized") {
+        noteUnauthorized();
+      }
     }
     return res;
   };
@@ -267,12 +293,7 @@ export function AuthoritySection() {
 
       <PlaneStatus />
 
-      <Outbox
-        items={queue}
-        online={online}
-        session={session}
-        onChange={refreshQueue}
-      />
+      <Outbox items={queue} online={online} onChange={refreshQueue} />
 
       <div
         className="authority-tabs"
@@ -441,32 +462,54 @@ function SessionArea({ session }: { session: IdentitySession | null }) {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // A slow read from a session that has since been disconnected, reconnected, or
+  // replaced by an adopted token must not land: it would name the wrong
+  // principal as the one this tab is acting as.
+  const run = useRef(0);
+  /** Which bearer the principal on screen describes. */
+  const shownFor = useRef<string | null>(null);
+
   const load = useCallback(async () => {
+    const id = ++run.current;
+    const superseded = () => run.current !== id;
     if (!session) {
+      shownFor.current = null;
       setPrincipal(null);
       setDetails([]);
+      setLoadError(null);
+      setLoading(false);
       return;
+    }
+    if (shownFor.current !== session.accessToken) {
+      // A different credential is in force. Whatever is on screen described
+      // someone else, so clear it rather than let it read as current until the
+      // new read lands.
+      shownFor.current = session.accessToken;
+      setPrincipal(null);
+      setDetails([]);
     }
     setLoading(true);
     setLoadError(null);
     try {
       const me = await identityJson<Principal>("/v1/principals/me");
+      if (superseded()) return;
       setPrincipal(me);
       try {
         const listed = await identityJson<{ identities: IdentityDetail[] }>(
           "/v1/principals/identities",
         );
-        setDetails(listed.identities);
+        if (!superseded()) setDetails(listed.identities);
       } catch {
         // /me already carries the identity list; the detail view is a bonus.
-        setDetails([]);
+        if (!superseded()) setDetails([]);
       }
     } catch (err) {
+      if (superseded()) return;
       setPrincipal(null);
       setDetails([]);
       setLoadError(describePrincipalError(err));
     } finally {
-      setLoading(false);
+      if (!superseded()) setLoading(false);
     }
   }, [session]);
 
@@ -501,7 +544,7 @@ function SessionArea({ session }: { session: IdentitySession | null }) {
               type="button"
               className="btn btn--sm btn--danger"
               onClick={() => {
-                clearSession();
+                endSession();
                 setPrincipal(null);
                 setDetails([]);
                 setLoadError(null);
@@ -583,9 +626,11 @@ function SessionArea({ session }: { session: IdentitySession | null }) {
               ) : null}
 
               <p className="hint">
-                Session expires {formatWhen(session.expiresAt)}. The access
-                token lives in this tab&rsquo;s memory only — it is never
-                written to storage, so closing the tab ends the session.
+                {session.expiresAt
+                  ? `Session expires ${formatWhen(session.expiresAt)}.`
+                  : "This token came from outside, so its expiry is the Identity API's to know — it ends here when the API refuses it."}{" "}
+                The access token lives in this tab&rsquo;s memory only — it is
+                never written to storage, so closing the tab ends the session.
               </p>
             </>
           ) : loading ? (
@@ -696,6 +741,16 @@ function ConnectArea() {
   const [busy, setBusy] = useState<"provisional" | "adopt" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState("");
+  // A reload keeps the Identity cookie but loses the bearer, so a session can
+  // still be live on the server while this tab reads as disconnected. Read it
+  // live: a revoke that fails puts the warning back.
+  const orphan = useOrphanSession();
+  const online = useOnline();
+  // Re-probe when connectivity returns: an offline load cannot tell a dead
+  // session from an unreachable one, and must not hide it forever.
+  useEffect(() => {
+    if (online) void probeOrphanSession();
+  }, [online]);
 
   async function connect() {
     setBusy("provisional");
@@ -709,7 +764,7 @@ function ConnectArea() {
     }
   }
 
-  function adopt() {
+  async function adopt() {
     const trimmed = token.trim();
     if (!trimmed) {
       setError("Paste the access token that the CLI printed.");
@@ -718,12 +773,10 @@ function ConnectArea() {
     setBusy("adopt");
     setError(null);
     try {
-      adoptToken(trimmed);
+      await adoptToken(trimmed);
       setToken("");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not adopt that token.",
-      );
+      setError(describeAdoptError(err));
     } finally {
       setBusy(null);
     }
@@ -741,6 +794,23 @@ function ConnectArea() {
         </div>
       </div>
       <div className="panel__body">
+        {orphan ? (
+          <p className="note note--warn">
+            <IconAlert size={18} />
+            <span>
+              A session from an earlier visit is still live on the Identity API
+              — its cookie outlived the token this tab held, so it cannot be
+              resumed here, only ended. Connecting below ends it first.{" "}
+              <button
+                type="button"
+                className="btn btn--sm btn--danger"
+                onClick={() => endSession()}
+              >
+                <IconX size={16} /> End it now
+              </button>
+            </span>
+          </p>
+        ) : null}
         <div className="authority-onramps">
           <div className="authority-onramp">
             <h3>Start anonymously</h3>
@@ -783,7 +853,7 @@ function ConnectArea() {
             <form
               onSubmit={(event) => {
                 event.preventDefault();
-                adopt();
+                void adopt();
               }}
             >
               <div className="field">
@@ -873,7 +943,10 @@ function DeviceArea({
       return;
     }
 
-    if (!session) {
+    // Read live, not from the render that drew this form: approving binds the
+    // terminal to whichever principal authenticates the request.
+    const active = currentSession();
+    if (!active) {
       setOutcome({
         tone: "err",
         message:
@@ -894,6 +967,10 @@ function DeviceArea({
         return;
       }
       setCode("");
+      if (currentSession()?.accessToken !== active.accessToken) {
+        setOutcome({ tone: "warn", message: DEVICE_PRINCIPAL_MOVED });
+        return;
+      }
       setOutcome({
         tone: "ok",
         message:
@@ -1030,6 +1107,8 @@ function ClaimArea({
   const [completed, setCompleted] = useState<ClaimView | null>(null);
   const [busy, setBusy] = useState<"present" | "complete" | null>(null);
   const [outcome, setOutcome] = useState<Outcome>(null);
+  /** The bearer the claim below was read for, if any. */
+  const presentedFor = useRef<string | null>(null);
 
   function reset() {
     setToken("");
@@ -1037,7 +1116,28 @@ function ClaimArea({
     setCompleted(null);
     setOutcome(null);
     setRevealed(false);
+    presentedFor.current = null;
   }
+
+  // A presented claim belongs to the principal it was read for. This panel stays
+  // mounted through Disconnect and a later Connect, so without this a claim read
+  // under one principal would still offer Accept and hand ownership to another.
+  useEffect(() => {
+    const bearer = session?.accessToken;
+    if (!bearer) return;
+    const readFor = presentedFor.current;
+    if (readFor === null || readFor === bearer) return;
+    presentedFor.current = null;
+    setToken("");
+    setPresented(null);
+    setCompleted(null);
+    setRevealed(false);
+    setOutcome({
+      tone: "warn",
+      message:
+        "A different principal is connected now, so the claim read for the previous one was discarded rather than accepted on its behalf. Presenting already spent that token — create a fresh claim for this principal.",
+    });
+  }, [session]);
 
   async function present() {
     setOutcome(null);
@@ -1066,15 +1166,40 @@ function ClaimArea({
       setOutcome({
         tone: "warn",
         message:
-          "Offline — the claim is staged in the outbox above. Flushing it will present and complete in one go, accepting everything in the claim, because there is no way to show you the review step while disconnected.",
+          "Offline — the claim is staged in the outbox above, in memory only. Flushing it will present and complete in one go, accepting every item the claim reports, because there is no way to show you the review step while disconnected. Reloading or locking the vault discards it.",
+      });
+      return;
+    }
+
+    // Read live, not from the render that mounted this: locking the vault
+    // revokes the session, and presenting spends the token for good.
+    const active = currentSession();
+    if (!active) {
+      setOutcome({
+        tone: "err",
+        message:
+          "Presenting spends the token, and this tab no longer has a principal to present to. Connect on the Session tab first — the token is still unspent, so nothing is lost.",
       });
       return;
     }
 
     setBusy("present");
-    const { client, failure } = createClaimClient(session);
+    const { client, failure } = createClaimClient(active);
     try {
-      setPresented((await client.presentClaim(trimmed)) as ClaimView);
+      const read = (await client.presentClaim(trimmed)) as ClaimView;
+      if (currentSession()?.accessToken !== active.accessToken) {
+        // The session changed while this was in flight. The claim was read for
+        // the principal that is gone, and offering it to the new one would hand
+        // over something it never asked for.
+        setOutcome({
+          tone: "warn",
+          message:
+            "The connected principal changed while the claim was being read, so it was discarded rather than offered to a different one. Presenting already spent that token — create a fresh claim.",
+        });
+        return;
+      }
+      presentedFor.current = active.accessToken;
+      setPresented(read);
     } catch {
       // Claim tokens are single-use, so the failure is read from the transport
       // holder rather than by replaying the request to learn its status.
@@ -1086,7 +1211,10 @@ function ClaimArea({
 
   async function complete() {
     if (!presented) return;
-    if (!session) {
+    // Read live, not from the render that mounted this: locking the vault
+    // revokes the session and must stop the ceremony here.
+    const active = currentSession();
+    if (!active) {
       setOutcome({
         tone: "err",
         message:
@@ -1094,15 +1222,63 @@ function ClaimArea({
       });
       return;
     }
+    if (presentedFor.current !== active.accessToken) {
+      // The session changed between reading this claim and accepting it, so
+      // accepting now would attach ownership to a principal that never saw it.
+      reset();
+      setOutcome({
+        tone: "warn",
+        message:
+          "The connected principal changed after this claim was read, so it was discarded rather than attached to one that never reviewed it. Create a fresh claim for the principal connected now.",
+      });
+      return;
+    }
+    // The claim names its items; there is no wildcard the server would accept.
+    // An empty list is legitimate (some claims carry no items), but a missing
+    // list means this server does not report them and completing would guess.
+    if (presented.items === undefined) {
+      setOutcome({
+        tone: "err",
+        message:
+          "This Identity API did not report the claim's items, and completing requires naming each item you accept. Presenting already spent this token, so it cannot be retried — update the Identity API, then create a fresh claim.",
+      });
+      return;
+    }
+    const acceptedItemIds = presented.items.map((item) => item.id);
+    const claimToken = token.trim();
+    if (!claimToken) {
+      setOutcome({
+        tone: "err",
+        message:
+          "Completing needs the claim token as well as a principal, and the field is empty. Paste the token back in to accept the claim held here.",
+      });
+      return;
+    }
     setOutcome(null);
     setBusy("complete");
-    const { client, failure } = createClaimClient(session);
+    const { client, failure } = createClaimClient(active);
     try {
-      setCompleted(
-        (await client.completeClaim(presented.id, {
-          acceptedItemIds: ["*"],
-        })) as ClaimView,
-      );
+      // This client never saw the presentation — a fresh one is built per step —
+      // so the claim bearer is passed explicitly. The claim id alone is public,
+      // and the API will not attach ownership on the strength of it.
+      const done = (await client.completeClaim(presented.id, {
+        acceptedItemIds,
+        claimToken,
+      })) as ClaimView;
+      if (currentSession()?.accessToken !== active.accessToken) {
+        // It landed, but under the principal that was connected when Accept was
+        // pressed. Reporting it as this one's would name the wrong owner.
+        presentedFor.current = null;
+        setPresented(null);
+        setToken("");
+        setOutcome({
+          tone: "warn",
+          message:
+            "The claim completed under the principal that was connected when you accepted it, and the session changed since. Check ownership on that principal — it does not belong to the one connected now.",
+        });
+        return;
+      }
+      setCompleted(done);
       setToken("");
     } catch (err) {
       setOutcome({
@@ -1131,6 +1307,9 @@ function ClaimArea({
             <button
               type="button"
               className="btn btn--sm btn--ghost"
+              // A ceremony already on the wire finishes whatever this says, so
+              // starting over now would report an abandonment that never was.
+              disabled={busy !== null}
               onClick={reset}
             >
               Start over
@@ -1213,7 +1392,9 @@ function ClaimArea({
                       </div>
                       <p className="hint">
                         The token is a bearer credential for this one claim. It
-                        is masked by default, held in memory, and not stored.
+                        is masked by default and held in memory only — staging
+                        it offline does not write it to disk, so it does not
+                        survive a reload or a vault lock.
                       </p>
                     </div>
                     <div className="actions">
@@ -1306,14 +1487,20 @@ function ClaimArea({
                       <table className="table">
                         <thead>
                           <tr>
-                            <th scope="col">Item</th>
+                            <th scope="col">Action</th>
+                            <th scope="col">Target</th>
+                            <th scope="col">Required</th>
                             <th scope="col">Id</th>
                           </tr>
                         </thead>
                         <tbody>
                           {presented.items.map((item) => (
                             <tr key={item.id}>
-                              <td>{item.label}</td>
+                              <td>{item.requestedAction}</td>
+                              <td>
+                                {item.targetType} <code>{item.targetId}</code>
+                              </td>
+                              <td>{item.required ? "yes" : "no"}</td>
                               <td>
                                 <code>{item.id}</code>
                               </td>
@@ -1322,15 +1509,23 @@ function ClaimArea({
                         </tbody>
                       </table>
                     </div>
-                  ) : (
+                  ) : presented.items ? (
                     <p className="note">
                       <IconShield size={18} />
                       <span>
-                        Completing accepts the claim in full (
-                        <code>acceptedItemIds: ["*"]</code>). Per-item selection
-                        is not offered because this deployment does not return
-                        an item list to choose from. If the digest is not the
-                        one you expect, stop here — presenting changed nothing.
+                        This claim carries no individual items — accepting it
+                        attaches the target named by the digest above.
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="note note--err" role="alert">
+                      <IconShield size={18} />
+                      <span>
+                        This Identity API did not report the claim&rsquo;s
+                        items, so there is nothing to accept by id and
+                        completing would be refused. This token is already spent
+                        — create a fresh claim once the Identity API reports
+                        items.
                       </span>
                     </p>
                   )}
@@ -1351,6 +1546,10 @@ function ClaimArea({
                       <button
                         type="button"
                         className="btn btn--ghost"
+                        // Completing cannot be recalled once it is on the wire,
+                        // so discarding mid-flight would only hide an ownership
+                        // transfer that still happened.
+                        disabled={busy !== null}
                         onClick={reset}
                       >
                         Discard
@@ -1710,22 +1909,38 @@ type FlushResult = { id: string; label: string; ok: boolean; message: string };
 function Outbox({
   items,
   online,
-  session,
   onChange,
 }: {
   items: QueuedAction[];
   online: boolean;
-  session: IdentitySession | null;
   onChange: () => void;
 }) {
   const [flushing, setFlushing] = useState(false);
   const [results, setResults] = useState<FlushResult[]>([]);
+  /**
+   * React state does not settle before a second click can land, and claim tokens
+   * are single-use — two loops over the same items would race each other.
+   */
+  const inFlight = useRef(false);
 
   async function flush() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setFlushing(true);
     setResults([]);
     const collected: FlushResult[] = [];
 
+    try {
+      await flushEach(collected);
+    } finally {
+      setResults(collected);
+      onChange();
+      setFlushing(false);
+      inFlight.current = false;
+    }
+  }
+
+  async function flushEach(collected: FlushResult[]) {
     for (const item of loadQueue()) {
       const label = describeQueued(item);
       const staged = (message: string): FlushResult => ({
@@ -1735,7 +1950,10 @@ function Outbox({
         message,
       });
 
-      if (!session) {
+      // Re-read per item: locking the vault revokes the session mid-flush, and
+      // the captured prop must not keep acting after that.
+      const active = currentSession();
+      if (!active) {
         collected.push(
           staged(
             "Needs a principal. Connect on the Session tab, then flush again — this is still staged.",
@@ -1743,6 +1961,11 @@ function Outbox({
         );
         continue;
       }
+
+      // Every request below authenticates as whichever principal is live when it
+      // goes out, so each step is checked against the one this item started for.
+      const stillActive = () =>
+        currentSession()?.accessToken === active.accessToken;
 
       if (item.kind === "device_approve") {
         try {
@@ -1759,6 +1982,10 @@ function Outbox({
           continue;
         }
         dequeue(item.id);
+        if (!stillActive()) {
+          collected.push(staged(DEVICE_PRINCIPAL_MOVED));
+          continue;
+        }
         collected.push({
           id: item.id,
           label,
@@ -1768,7 +1995,7 @@ function Outbox({
         continue;
       }
 
-      const { client, failure } = createClaimClient(session);
+      const { client, failure } = createClaimClient(active);
       let claim: ClaimPresentation;
       try {
         claim = await client.presentClaim(item.claimToken);
@@ -1777,8 +2004,35 @@ function Outbox({
         continue;
       }
 
+      if (!stillActive()) {
+        // The principal changed while this was being read. Accepting now would
+        // attach ownership using a bearer the user has already left behind.
+        dequeue(item.id);
+        collected.push(
+          staged(
+            "Presented, then the connected principal changed before it could be accepted, so it was not attached to either one. The token is now spent — start a fresh claim on the Claim ownership tab.",
+          ),
+        );
+        continue;
+      }
+
+      if (claim.items === undefined) {
+        // Presenting spent the token, and accepting requires the item ids.
+        dequeue(item.id);
+        collected.push(
+          staged(
+            "Presented, but this Identity API did not report the claim's items, so there was nothing to accept by id. The token is now spent — start a fresh claim on the Claim ownership tab.",
+          ),
+        );
+        continue;
+      }
+      const acceptedItemIds = claim.items.map((claimItem) => claimItem.id);
+
       try {
-        await client.completeClaim(claim.id, { acceptedItemIds: ["*"] });
+        await client.completeClaim(claim.id, {
+          acceptedItemIds,
+          claimToken: item.claimToken,
+        });
       } catch (err) {
         // Presenting consumed the token, so re-flushing could only fail again.
         dequeue(item.id);
@@ -1791,6 +2045,16 @@ function Outbox({
       }
 
       dequeue(item.id);
+      if (!stillActive()) {
+        // It landed, but for the principal that was connected when it went out.
+        // Calling that a success here would name the wrong owner.
+        collected.push(
+          staged(
+            `Claim ${claim.id} completed for the principal that was connected when it went out, and the session changed since. Check ownership there — it does not belong to the one connected now.`,
+          ),
+        );
+        continue;
+      }
       collected.push({
         id: item.id,
         label,
@@ -1798,10 +2062,6 @@ function Outbox({
         message: `Claim ${claim.id} completed.`,
       });
     }
-
-    setResults(collected);
-    onChange();
-    setFlushing(false);
   }
 
   // Stay mounted after a clean flush so the report is not yanked away with the list.
@@ -1888,9 +2148,10 @@ function Outbox({
             <output className={`note note--${failed === 0 ? "ok" : "warn"}`}>
               {failed === 0 ? <IconCheck size={18} /> : <IconAlert size={18} />}
               <span>
-                {results.length - failed} of {results.length} sent
+                {results.length - failed} of {results.length} went through
+                cleanly
                 {failed > 0
-                  ? ". Each failure is listed below with what to do about it; the rest were cleared."
+                  ? ". The rest are listed below with what happened and what to do about it — some reached the Identity API even though they are not reported as clean."
                   : "."}
               </span>
             </output>
@@ -1991,8 +2252,28 @@ function describePrincipalError(err: unknown): string {
   return unreachableMessage();
 }
 
+/** The token is checked against the API before this tab acts on it. */
+function describeAdoptError(err: unknown): string {
+  if (err instanceof IdentityError) {
+    if (err.status === 401) {
+      return "The Identity API rejected that token. Check you copied the whole line, and that it has not expired — run the CLI again for a fresh one.";
+    }
+    if (err.status === 409) {
+      return err.message;
+    }
+    return `The Identity API answered ${err.status} when checking that token. ${
+      err.message || "Check its logs."
+    }`;
+  }
+  return unreachableMessage();
+}
+
 function describeConnectError(err: unknown): string {
   if (err instanceof IdentityError) {
+    if (err.status === 409) {
+      // Raised locally when a lock or Disconnect landed mid-connect.
+      return err.message;
+    }
     if (err.status === 429) {
       return "The Identity API is rate-limiting provisional principals. Wait a moment and try again.";
     }

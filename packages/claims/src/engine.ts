@@ -1,25 +1,30 @@
 import {
-  assertDependencyClosure,
-  authenticateClaim as transitionAuthenticate,
-  completeClaim as transitionComplete,
-  denyClaim as transitionDeny,
-  digestManifest,
-  DomainError,
-  expireClaim as transitionExpire,
-  generateClaimToken,
-  generateUserCode,
-  digestUserCode,
-  maybeExpireClaim,
-  presentClaim as transitionPresent,
-  reviewClaim as transitionReview,
-  revokeClaim as transitionRevoke,
-  verifyClaimToken,
   type ClaimItem,
   type ClaimSession,
   type ClaimTargetType,
   type Clock,
+  DomainError,
+  assertDependencyClosure,
+  canonicalize,
+  digestManifest,
+  digestUserCode,
+  generateClaimToken,
+  generateUserCode,
+  maybeExpireClaim,
+  authenticateClaim as transitionAuthenticate,
+  completeClaim as transitionComplete,
+  denyClaim as transitionDeny,
+  expireClaim as transitionExpire,
+  presentClaim as transitionPresent,
+  reviewClaim as transitionReview,
+  revokeClaim as transitionRevoke,
+  verifyClaimToken,
 } from "@opensesame/os-domain";
-import type { ClaimEngineOptions, ClaimStore, CompleteDecision } from "./store.js";
+import type {
+  ClaimEngineOptions,
+  ClaimStore,
+  CompleteDecision,
+} from "./store.js";
 
 export interface CreateClaimInput {
   type: ClaimTargetType;
@@ -188,6 +193,9 @@ export class ClaimEngine {
         current.completedByPrincipalId === completedByPrincipalId &&
         decisionsMatch(current.reviewDecision, decision)
       ) {
+        // The decision on record is this one, so finish the item rows in case a
+        // previous attempt stopped between the swap and writing them.
+        await this.settleItems(id, new Set(decision.acceptedItemIds));
         return { session: current, won: true };
       }
       throw new DomainError("CONFLICT", "Claim already completed differently", {
@@ -203,7 +211,11 @@ export class ClaimEngine {
       current.state === "reviewed"
         ? current
         : current.state === "authenticated"
-          ? transitionReview(current, decision as unknown as Record<string, unknown>, this.clock())
+          ? transitionReview(
+              current,
+              decision as unknown as Record<string, unknown>,
+              this.clock(),
+            )
           : (() => {
               throw new DomainError(
                 "INVALID_TRANSITION",
@@ -247,17 +259,7 @@ export class ClaimEngine {
         : {}),
     };
 
-    const updatedItems = items.map((item) => ({
-      ...item,
-      state: (accepted.has(item.id) ? "accepted" : "rejected") as ClaimItem["state"],
-    }));
-    await this.store.putItems(id, updatedItems);
-
-    const result = await this.store.compareAndSwap(
-      id,
-      base.version,
-      completed,
-    );
+    const result = await this.store.compareAndSwap(id, base.version, completed);
     if (!result.won) {
       // Concurrent completion — only one winner
       if (
@@ -265,16 +267,43 @@ export class ClaimEngine {
         result.session.completedByPrincipalId === completedByPrincipalId &&
         decisionsMatch(result.session.reviewDecision, decision)
       ) {
+        await this.settleItems(id, accepted);
         return { session: result.session, won: true };
       }
       if (result.session.state === "completed") {
         return { session: result.session, won: false };
       }
-      throw new DomainError("CONFLICT", "Concurrent claim completion conflict", {
-        id,
-      });
+      throw new DomainError(
+        "CONFLICT",
+        "Concurrent claim completion conflict",
+        {
+          id,
+        },
+      );
     }
+    // Only after winning: item rows say what was accepted, and a decision that
+    // lost the swap must not be the one on record against them.
+    await this.settleItems(id, accepted);
     return { session: result.session, won: true };
+  }
+
+  /**
+   * Mark the items against a decision that is on record. The session swap and the
+   * item rows are two writes, so a completion interrupted between them leaves
+   * items unmarked and its retry lands on the idempotent path: that path settles
+   * them here rather than reporting a completion whose items never moved. Safe to
+   * repeat, and it writes nothing when they already agree.
+   */
+  private async settleItems(id: string, accepted: Set<string>): Promise<void> {
+    const items = await this.store.getItems(id);
+    const settled = items.map((item) => ({
+      ...item,
+      state: (accepted.has(item.id)
+        ? "accepted"
+        : "rejected") as ClaimItem["state"],
+    }));
+    if (settled.every((item, i) => item.state === items[i]?.state)) return;
+    await this.store.putItems(id, settled);
   }
 
   async deny(id: string): Promise<ClaimSession> {
@@ -294,19 +323,39 @@ export class ClaimEngine {
     if (!s) return undefined;
     return maybeExpireClaim(s, this.clock);
   }
+
+  /** Items a reviewer must name in `acceptedItemIds`. There is no wildcard. */
+  async getItems(id: string): Promise<ClaimItem[]> {
+    return this.store.getItems(id);
+  }
 }
 
+/**
+ * Whether a completed claim already records this exact decision, and may
+ * therefore be reported as this caller's own success. Everything the decision
+ * carries has to agree: accepting the same items but naming a different
+ * destination is a different decision, and answering it with the recorded one
+ * would say ownership went somewhere it did not.
+ */
 function decisionsMatch(
   recorded: Record<string, unknown> | undefined,
   decision: CompleteDecision,
 ): boolean {
   if (!recorded) return false;
-  const a = recorded["acceptedItemIds"];
-  if (!Array.isArray(a)) return false;
-  if (a.length !== decision.acceptedItemIds.length) return false;
-  const set = new Set(a);
-  return decision.acceptedItemIds.every((id) => set.has(id));
+  const accepted = recorded.acceptedItemIds;
+  if (!Array.isArray(accepted)) return false;
+  if (accepted.length !== decision.acceptedItemIds.length) return false;
+  const set = new Set(accepted);
+  if (!decision.acceptedItemIds.every((id) => set.has(id))) return false;
+  return (
+    canonicalize(recorded.destination ?? null) ===
+    canonicalize(decision.destination ?? null)
+  );
 }
 
-export type { ClaimStore, ClaimEngineOptions, CompleteDecision } from "./store.js";
+export type {
+  ClaimStore,
+  ClaimEngineOptions,
+  CompleteDecision,
+} from "./store.js";
 export { MemoryClaimStore } from "./memory-store.js";

@@ -133,6 +133,9 @@ impl BrokerConfig {
             AuthMethod::OAuth2AuthCode { authorize_url, .. } => {
                 Some(overridden.unwrap_or_else(|| authorize_url.to_string()))
             }
+            AuthMethod::OpenRouterPkce { authorize_url, .. } => {
+                Some(overridden.unwrap_or_else(|| authorize_url.to_string()))
+            }
             AuthMethod::ApiKey { .. } | AuthMethod::Configuration => None,
         }
     }
@@ -142,6 +145,9 @@ impl BrokerConfig {
         match &provider.auth {
             AuthMethod::OAuth2AuthCode { token_url, .. } => {
                 Some(overridden.unwrap_or_else(|| token_url.to_string()))
+            }
+            AuthMethod::OpenRouterPkce { exchange_url, .. } => {
+                Some(overridden.unwrap_or_else(|| exchange_url.to_string()))
             }
             AuthMethod::ApiKey { .. } | AuthMethod::Configuration => None,
         }
@@ -178,7 +184,7 @@ impl BrokerConfig {
         if self.key.is_none() {
             missing.push(ENV_CONNECTION_KEY.to_string());
         }
-        if provider.auth.is_oauth() {
+        if provider.auth.requires_client_credentials() {
             let cfg = self.provider(&provider.id);
             if cfg.client_id.is_none() {
                 missing.push(env_var_name(&provider.id, "CLIENT_ID"));
@@ -249,7 +255,7 @@ mod tests {
         let cfg = BrokerConfig::in_memory(Some(key()), "http://127.0.0.1:8787");
         for p in catalog::all().expect("catalog") {
             let missing = cfg.missing_config(p);
-            if p.auth.is_oauth() {
+            if p.auth.requires_client_credentials() {
                 assert_eq!(
                     missing,
                     vec![

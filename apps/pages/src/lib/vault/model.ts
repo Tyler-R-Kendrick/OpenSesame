@@ -105,6 +105,12 @@ export type VaultBody = {
   v: 1;
   items: VaultItem[];
   folders: Folder[];
+  /**
+   * Writes so far. Sealed with the body, so it cannot be edited without the vault
+   * key, and compared against the header on unlock: a body that has gone
+   * backwards is one restored from an older copy, not the vault as last left.
+   */
+  rev?: number;
 };
 
 export const KIND_LABEL: Record<ItemKind, string> = {
@@ -128,7 +134,7 @@ export function newId(): string {
 }
 
 export function emptyBody(): VaultBody {
-  return { v: 1, items: [], folders: [] };
+  return { v: 1, items: [], folders: [], rev: 0 };
 }
 
 export function newUri(uri = "", match: UriMatch = "domain"): LoginUri {
@@ -215,8 +221,16 @@ export function itemSubtitle(item: VaultItem): string {
       return item.number ? `•••• ${item.number.slice(-4)}` : item.brand;
     case "secret":
       return item.connectionRef || `${item.ceiling.length} capabilities`;
-    case "note":
-      return item.notes.split("\n")[0]?.slice(0, 64) || "Empty note";
+    case "note": {
+      const firstLine = item.notes.split("\n")[0]?.slice(0, 64);
+      if (firstLine) return firstLine;
+      // An imported identity or typed note often carries everything in fields
+      // and nothing in the note body, which is not the same as being empty.
+      if (item.fields.length > 0) {
+        return `${item.fields.length} ${item.fields.length === 1 ? "field" : "fields"}`;
+      }
+      return "Empty note";
+    }
   }
 }
 

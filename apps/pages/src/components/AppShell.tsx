@@ -1,5 +1,6 @@
 import { type ReactNode, useMemo } from "react";
 import { NavLink, useLocation, useSearchParams } from "react-router";
+import { useIdentitySession } from "../lib/identity.js";
 import { useOnline } from "../lib/use-online.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
@@ -7,6 +8,7 @@ import {
   IconAgent,
   IconAuthority,
   IconCard,
+  IconConnection,
   IconFolder,
   IconLogin,
   IconNote,
@@ -23,8 +25,8 @@ import {
 const SECTIONS = [
   { to: "/vault", label: "Vault", Icon: IconVault },
   { to: "/agents", label: "Agents", Icon: IconAgent },
+  { to: "/connections", label: "Connections", Icon: IconConnection },
   { to: "/sites", label: "Sites", Icon: IconSite },
-  { to: "/connections", label: "Connections", Icon: IconSecret },
   { to: "/authority", label: "Authority", Icon: IconAuthority },
   { to: "/settings", label: "Settings", Icon: IconSettings },
 ] as const;
@@ -159,6 +161,7 @@ function VaultFilters() {
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const online = useOnline();
+  const session = useIdentitySession();
   const store = useVaultStore();
   const inVault = location.pathname.startsWith("/vault");
 
@@ -200,6 +203,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               aria-hidden="true"
             />
             {online ? "Online" : "Offline"}
+            <span aria-hidden="true">·</span>
+            {session ? "Identity connected" : "No identity session"}
           </p>
           <button type="button" className="rail__lock" onClick={store.lock}>
             Lock vault

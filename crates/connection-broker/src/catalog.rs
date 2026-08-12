@@ -63,6 +63,10 @@ static API_KEY_CONNECTION_FIELDS: LazyLock<Vec<ConfigurationFieldDef>> = LazyLoc
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Category {
+    Encryption,
+    CloudSecretStorage,
+    PasswordManagers,
+    LocalStorage,
     Developer,
     Productivity,
     Communication,
@@ -76,6 +80,10 @@ pub enum Category {
 impl Category {
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::Encryption => "encryption",
+            Self::CloudSecretStorage => "cloud_secret_storage",
+            Self::PasswordManagers => "password_managers",
+            Self::LocalStorage => "local_storage",
             Self::Developer => "developer",
             Self::Productivity => "productivity",
             Self::Communication => "communication",
@@ -112,6 +120,13 @@ pub enum AuthMethod {
         /// issued (Google's `access_type`, the `offline_access` family).
         extra_authorize_params: Vec<(String, String)>,
     },
+    /// OpenRouter exchanges PKCE directly for a user-scoped API key; no app
+    /// registration or deployment client secret is involved.
+    #[serde(rename = "openrouter_pkce")]
+    OpenRouterPkce {
+        authorize_url: String,
+        exchange_url: String,
+    },
     #[serde(rename = "api_key")]
     ApiKey {
         header: String,
@@ -126,7 +141,9 @@ pub enum AuthMethod {
 impl AuthMethod {
     pub fn kind(&self) -> &'static str {
         match self {
-            Self::OAuth2AuthCode { .. } => "oauth2_authorization_code",
+            Self::OAuth2AuthCode { .. } | Self::OpenRouterPkce { .. } => {
+                "oauth2_authorization_code"
+            }
             Self::ApiKey { .. } => "api_key",
             Self::Configuration => "configuration",
         }
@@ -147,25 +164,31 @@ impl AuthMethod {
             Self::OAuth2AuthCode {
                 scope_separator, ..
             } => scope_separator.as_deref().unwrap_or(" "),
-            Self::ApiKey { .. } => " ",
-            Self::Configuration => " ",
+            Self::OpenRouterPkce { .. } | Self::ApiKey { .. } | Self::Configuration => " ",
         }
     }
 
     pub fn is_oauth(&self) -> bool {
+        matches!(
+            self,
+            Self::OAuth2AuthCode { .. } | Self::OpenRouterPkce { .. }
+        )
+    }
+
+    pub fn requires_client_credentials(&self) -> bool {
         matches!(self, Self::OAuth2AuthCode { .. })
     }
 
     pub fn integration_configuration_fields(&self) -> &[ConfigurationFieldDef] {
         match self {
             Self::OAuth2AuthCode { .. } => OAUTH_INTEGRATION_FIELDS.as_slice(),
-            Self::ApiKey { .. } | Self::Configuration => &[],
+            Self::OpenRouterPkce { .. } | Self::ApiKey { .. } | Self::Configuration => &[],
         }
     }
 
     pub fn connection_configuration_fields(&self) -> &[ConfigurationFieldDef] {
         match self {
-            Self::OAuth2AuthCode { .. } => &[],
+            Self::OAuth2AuthCode { .. } | Self::OpenRouterPkce { .. } => &[],
             Self::ApiKey { .. } => API_KEY_CONNECTION_FIELDS.as_slice(),
             Self::Configuration => &[],
         }
@@ -373,6 +396,13 @@ fn validate_auth(provider: &Provider) -> Result<(), CatalogError> {
                     ));
                 }
             }
+        }
+        AuthMethod::OpenRouterPkce {
+            authorize_url,
+            exchange_url,
+        } => {
+            validate_provider_url(provider, authorize_url, "authorize_url")?;
+            validate_provider_url(provider, exchange_url, "exchange_url")?;
         }
         AuthMethod::ApiKey {
             header,
@@ -590,55 +620,75 @@ mod tests {
     #[test]
     fn embedded_catalog_is_valid_and_versioned() {
         let catalog = load().expect("embedded catalog");
-        assert_eq!(catalog.revision(), "2026-08-11.1");
-        assert_eq!(catalog.providers().len(), 75);
+        assert_eq!(catalog.revision(), "2026-08-12.1");
+        assert_eq!(catalog.providers().len(), 82);
         assert_eq!(
             catalog
                 .providers()
                 .iter()
                 .filter(|provider| provider.id != "mock")
                 .count(),
-            74
+            81
         );
         assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
     }
 
     #[test]
     fn catalog_covers_every_fnox_provider_type() {
-        let expected = HashSet::from([
-            "1password",
-            "age",
-            "aws",
-            "aws-kms",
-            "aws-ps",
-            "azure-kms",
-            "azure-sm",
-            "azure-ac",
-            "gcp",
-            "gcp-kms",
-            "fido2",
-            "bitwarden",
-            "doppler",
-            "foks",
-            "bitwarden-sm",
-            "infisical",
-            "keepass",
-            "keychain",
-            "password-store",
-            "passwordstate",
-            "plain",
-            "proton-pass",
-            "vault",
-            "yubikey",
-        ]);
-        let actual: HashSet<_> = load()
-            .expect("embedded catalog")
-            .providers()
-            .iter()
-            .filter(|provider| matches!(&provider.auth, AuthMethod::Configuration))
-            .map(|provider| provider.id.as_str())
-            .collect();
-        assert_eq!(actual, expected);
+        let expected = [
+            ("age", Category::Encryption),
+            ("fido2", Category::Encryption),
+            ("yubikey", Category::Encryption),
+            ("aws-kms", Category::Encryption),
+            ("azure-kms", Category::Encryption),
+            ("gcp-kms", Category::Encryption),
+            ("aws-ps", Category::CloudSecretStorage),
+            ("aws", Category::CloudSecretStorage),
+            ("azure-ac", Category::CloudSecretStorage),
+            ("azure-sm", Category::CloudSecretStorage),
+            ("gcp", Category::CloudSecretStorage),
+            ("doppler", Category::CloudSecretStorage),
+            ("foks", Category::CloudSecretStorage),
+            ("bitwarden-sm", Category::CloudSecretStorage),
+            ("vault", Category::CloudSecretStorage),
+            ("openbao", Category::CloudSecretStorage),
+            ("encrypted-remote", Category::CloudSecretStorage),
+            ("1password", Category::PasswordManagers),
+            ("bitwarden", Category::PasswordManagers),
+            ("vaultwarden", Category::PasswordManagers),
+            ("infisical", Category::PasswordManagers),
+            ("proton-pass", Category::PasswordManagers),
+            ("passwordstate", Category::PasswordManagers),
+            ("keychain", Category::LocalStorage),
+            ("keepass", Category::LocalStorage),
+            ("password-store", Category::LocalStorage),
+            ("sealed-local", Category::LocalStorage),
+            ("plain", Category::LocalStorage),
+        ];
+        let catalog = load().expect("embedded catalog");
+        for (id, category) in expected {
+            let provider = catalog
+                .find(id)
+                .unwrap_or_else(|| panic!("missing Fnox provider {id}"));
+            assert_eq!(provider.category, category, "wrong category for {id}");
+            assert!(matches!(&provider.auth, AuthMethod::Configuration));
+        }
+    }
+
+    #[test]
+    fn catalog_includes_required_llm_providers() {
+        let expected = [
+            "anthropic",
+            "openai",
+            "azure-openai",
+            "aws-bedrock",
+            "openrouter",
+            "huggingface",
+        ];
+        let catalog = load().expect("embedded catalog");
+        for id in expected {
+            assert!(catalog.find(id).is_some(), "missing LLM provider {id}");
+        }
     }
 
     #[test]

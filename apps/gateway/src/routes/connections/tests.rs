@@ -679,7 +679,9 @@ async fn provider_route_exposes_fnox_configuration_connectors() {
     let (status, body) = call(&state, "GET", "/api/v1/providers", None).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     let providers = body["providers"].as_array().unwrap();
-    assert!(providers.iter().any(|provider| provider["id"] == "bitwarden"));
+    assert!(providers
+        .iter()
+        .any(|provider| provider["id"] == "bitwarden"));
     let azure = providers
         .iter()
         .find(|provider| provider["id"] == "azure-sm")

@@ -17,6 +17,7 @@ import {
   IconSecret,
   IconShield,
   IconStar,
+  IconUpload,
   IconVault,
 } from "../components/Icons.js";
 import { buildHealthReport } from "../lib/vault/health.js";
@@ -247,13 +248,25 @@ export function VaultSection() {
                 ? "Search covers names, usernames, URLs, and visible custom fields — not concealed values."
                 : filter === "trash"
                   ? "Deleted items wait here until you purge them."
-                  : "Add your first item, or load the sample vault from Settings to see how the pieces fit."}
+                  : "Add your first item, import from another password manager, or load the sample vault from Settings."}
             </p>
             {!query && filter !== "trash" ? (
-              <Link className="btn btn--primary btn--sm" to="/vault/new/login">
-                <IconPlus size={16} />
-                New item
-              </Link>
+              // On narrow screens the detail pane is not rendered, so this is
+              // the only empty state a new arrival sees. It has to offer the
+              // import, not just mention it.
+              <div className="actions">
+                <Link
+                  className="btn btn--primary btn--sm"
+                  to="/vault/new/login"
+                >
+                  <IconPlus size={16} />
+                  New item
+                </Link>
+                <Link className="btn btn--sm" to="/settings#import">
+                  <IconUpload size={16} />
+                  Import
+                </Link>
+              </div>
             ) : null}
           </div>
         ) : (
@@ -302,6 +315,12 @@ export function VaultWelcome() {
             <Link className="btn btn--primary btn--sm" to="/vault/new/login">
               <IconPlus size={16} />
               Add your first login
+            </Link>
+            {/* An empty vault is exactly when someone is arriving from another
+                manager, so the import is offered here and not only in Settings. */}
+            <Link className="btn btn--sm" to="/settings#import">
+              <IconUpload size={16} />
+              Import from another manager
             </Link>
           </div>
         </div>

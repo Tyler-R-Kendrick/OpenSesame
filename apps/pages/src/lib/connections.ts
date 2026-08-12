@@ -1,25 +1,33 @@
+/**
+ * Connection broker client (Host plane).
+ *
+ * Connections are the one thing OpenSesame holds on the user's behalf: the
+ * authority plane must be able to decrypt a provider token to inject it at
+ * egress and to refresh it while nobody is watching. That is the opposite of
+ * the vault, and the UI has to keep the two apart. Nothing here ever receives
+ * an access token, a refresh token, or a client secret — the API does not
+ * expose them (ADR 0032).
+ */
+
 import {
   AuthorizeResponseSchema,
-  type ConfigurationFieldDef,
-  type ConfiguredField,
+  BindingSchema,
   ConnectionErrorResponseSchema,
+  ConnectionEventSchema,
   ConnectionSchema,
-  IntegrationSchema,
   ListConnectionsResponseSchema,
-  ListIntegrationsResponseSchema,
+  ListEventsResponseSchema,
   ListProvidersResponseSchema,
-  OrganizationMembershipResponseSchema,
+  ProviderSchema,
   RevokeResponseSchema,
 } from "@opensesame/contracts";
-import {
-  IDENTITY_COOKIE_RECOVERY,
-  type OrganizationRole,
-  type SessionOrganization,
-  hostFetch,
-  identityFetch,
-} from "./organization-identity.js";
+import { hostBase, hostFetch } from "./identity.js";
 
 export type ProviderCategory =
+  | "encryption"
+  | "cloud_secret_storage"
+  | "password_managers"
+  | "local_storage"
   | "developer"
   | "productivity"
   | "communication"
@@ -34,76 +42,108 @@ export type AuthKind =
   | "api_key"
   | "configuration";
 
-export type ProviderScope = {
+export type ConfigurationField = {
+  name: string;
+  label: string;
+  secret: boolean;
+  required: boolean;
+};
+
+export type ScopeDef = {
   name: string;
   description: string;
   sensitive: boolean;
   default: boolean;
 };
 
-export type ProviderConfigurationField = ConfigurationFieldDef;
-export type ConfiguredProviderField = ConfiguredField;
-
-const LEGACY_OAUTH_INTEGRATION_FIELDS: ProviderConfigurationField[] = [
-  { name: "client_id", secret: false, required: true },
-  { name: "client_secret", secret: true, required: true },
-];
-const LEGACY_API_KEY_CONNECTION_FIELDS: ProviderConfigurationField[] = [
-  { name: "api_key", secret: true, required: true },
-];
+export type Egress = {
+  scheme: string;
+  authorities: string[];
+  pathPrefixes: string[];
+};
 
 export type Provider = {
   id: string;
   displayName: string;
   category: ProviderCategory;
   docsUrl: string;
-  provenanceUrl: string;
-  catalogRevision: string;
   authKind: AuthKind;
+  supportsRefresh: boolean;
+  /** Deployment has a client id and secret for this provider. */
   configured: boolean;
+  /** Exact environment variables the deployment is missing. Empty when configured. */
   missingConfig: string[];
-  callbackUrl: string | null;
-  scopes: ProviderScope[];
-  integrationConfigurationFields: ProviderConfigurationField[];
-  connectionConfigurationFields: ProviderConfigurationField[];
+  scopes: ScopeDef[];
+  egress: Egress;
+  operations: string[];
+  configurationFields?: ConfigurationField[];
 };
 
-export type Integration = {
+export type ConnectionStatus =
+  | "pending"
+  | "active"
+  | "needs_reauth"
+  | "expired"
+  | "revoked"
+  | "error";
+
+export type BindingTargetKind = "organization" | "project" | "agent";
+
+export type Binding = {
   id: string;
-  key: string;
-  providerId: string;
-  displayName: string;
-  source: "organization" | "shared_dev" | "deployment";
-  enabled: boolean;
-  configured: boolean;
-  scopes: string[];
-  clientIdHint: string | null;
-  hasClientSecret: boolean;
-  connectionCount: number;
-  callbackUrl: string | null;
-  configuredFields: ConfiguredProviderField[];
+  targetKind: BindingTargetKind;
+  targetId: string;
+  targetLabel: string | null;
+  createdAt: string;
+};
+
+export type ConnectionEventKind =
+  | "created"
+  | "authorize_started"
+  | "authorized"
+  | "refreshed"
+  | "refresh_failed"
+  | "bound"
+  | "unbound"
+  | "revoked"
+  | "error";
+
+export type ConnectionEvent = {
+  id: string;
+  kind: ConnectionEventKind;
+  at: string;
+  detail: string | null;
 };
 
 export type Connection = {
-  id: string;
-  integrationId: string | null;
-  providerId: string;
+  connectionId: string;
+  connectionRef: string;
+  logicalName: string;
   displayName: string;
+  providerId: string;
+  status: ConnectionStatus;
+  statusDetail: string | null;
+  organizationId: string;
+  projectId: string | null;
+  ownerKind: string;
+  shareability: string;
+  requestedScopes: string[];
+  grantedScopes: string[];
   accountLabel: string | null;
-  status: string;
-  scopes: string[];
+  expiresAt: string | null;
   refreshable: boolean;
-  configuredFields: ConfiguredProviderField[];
-};
-
-export type OrganizationMember = {
-  principalId: string;
-  role: OrganizationRole;
+  lastRefreshedAt: string | null;
+  maxInvokeLevel: number;
+  egress: Egress;
+  bindings: Binding[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 export class ConnectionsError extends Error {
   constructor(
     readonly status: number,
+    readonly code: string,
     message: string,
   ) {
     super(message);
@@ -111,298 +151,227 @@ export class ConnectionsError extends Error {
   }
 }
 
-export class CatalogResponseError extends Error {
-  constructor(readonly reason: "empty" | "malformed") {
-    super(
-      reason === "empty"
-        ? "The Host returned an empty provider catalog. Verify that provider templates are installed and enabled."
-        : "The Host returned a provider catalog that does not match the shared contract.",
-    );
-    this.name = "CatalogResponseError";
-  }
+/* ------------------------------------------------------------- transport */
+
+function base(): string {
+  return hostBase();
 }
 
-function object(value: unknown): Record<string, unknown> {
+async function call<T>(
+  path: string,
+  init: RequestInit = {},
+  map: (body: unknown) => T = (body) => body as T,
+): Promise<T> {
+  const headers = new Headers(init.headers);
+  if (init.body && !headers.has("content-type")) {
+    headers.set("content-type", "application/json");
+  }
+
+  let res: Response;
+  try {
+    res = await hostFetch(`/api/v1${path}`, {
+      ...init,
+      headers,
+    });
+  } catch (error) {
+    if (error instanceof Error && !(error instanceof TypeError)) throw error;
+    throw new ConnectionsError(
+      0,
+      "unreachable",
+      `Host API unreachable at ${base()}.`,
+    );
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const parsed = ConnectionErrorResponseSchema.safeParse(body);
+    throw new ConnectionsError(
+      res.status,
+      parsed.success ? parsed.data.error : "unknown_error",
+      parsed.success ? parsed.data.hint : "Request failed.",
+    );
+  }
+  if (res.status === 204) return map(null);
+  return map(await res.json());
+}
+
+/* ----------------------------------------------------------- wire mapping */
+
+function obj(value: unknown): Record<string, unknown> {
   return value && typeof value === "object"
     ? (value as Record<string, unknown>)
     : {};
 }
 
-function string(value: unknown, fallback = "") {
-  return typeof value === "string" ? value : fallback;
+function toEgress(raw: {
+  scheme: string;
+  authorities: string[];
+  path_prefixes: string[];
+}): Egress {
+  return {
+    scheme: raw.scheme,
+    authorities: raw.authorities,
+    pathPrefixes: raw.path_prefixes,
+  };
 }
 
-const StrictMembershipSchema = OrganizationMembershipResponseSchema.strict();
-
-function strictList(value: unknown, key: string): unknown[] {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`Invalid ${key} response.`);
-  }
-  const raw = value as Record<string, unknown>;
-  if (
-    Object.keys(raw).length !== 1 ||
-    !Object.hasOwn(raw, key) ||
-    !Array.isArray(raw[key])
-  ) {
-    throw new Error(`Invalid ${key} response.`);
-  }
-  return raw[key];
-}
-
-export function parseProviderList(value: unknown): Provider[] {
-  const parsed = ListProvidersResponseSchema.safeParse(value);
-  if (!parsed.success) throw new CatalogResponseError("malformed");
-  if (parsed.data.providers.length === 0) {
-    throw new CatalogResponseError("empty");
-  }
-  if (
-    new Set(parsed.data.providers.map((provider) => provider.id)).size !==
-    parsed.data.providers.length
-  ) {
-    throw new CatalogResponseError("malformed");
-  }
-  return parsed.data.providers.map((raw) => ({
+function toProvider(value: unknown): Provider {
+  const raw = ProviderSchema.parse(value);
+  return {
     id: raw.id,
     displayName: raw.display_name,
     category: raw.category,
     docsUrl: raw.docs_url,
-    provenanceUrl: raw.provenance_url,
-    catalogRevision: raw.catalog_revision,
     authKind: raw.auth_kind,
+    supportsRefresh: raw.supports_refresh,
     configured: raw.configured,
     missingConfig: raw.missing_config,
-    callbackUrl: raw.callback_url,
     scopes: raw.scopes,
-    integrationConfigurationFields:
-      raw.integration_configuration_fields.length > 0
-        ? raw.integration_configuration_fields
-        : raw.auth_kind === "oauth2_authorization_code"
-          ? LEGACY_OAUTH_INTEGRATION_FIELDS
-          : [],
-    connectionConfigurationFields:
-      raw.connection_configuration_fields.length > 0
-        ? raw.connection_configuration_fields
-        : raw.auth_kind === "api_key"
-          ? LEGACY_API_KEY_CONNECTION_FIELDS
-          : [],
-  }));
+    egress: toEgress(raw.egress),
+    operations: raw.operations,
+    configurationFields: raw.connection_configuration_fields.map((field) => ({
+      ...field,
+      label: field.name
+        .replaceAll("_", " ")
+        .replace(/^./, (letter) => letter.toUpperCase()),
+    })),
+  };
 }
 
-export function parseIntegrationList(value: unknown): Integration[] {
-  return ListIntegrationsResponseSchema.parse(value).integrations.map((raw) =>
-    mapIntegration(raw),
-  );
-}
-
-export function parseConnectionList(value: unknown): Connection[] {
-  return ListConnectionsResponseSchema.parse(value).connections.map((raw) =>
-    mapConnection(raw),
-  );
-}
-
-export function parseMemberList(value: unknown): OrganizationMember[] {
-  return strictList(value, "members").map((entry) => {
-    const raw = StrictMembershipSchema.parse(entry);
-    return { principalId: raw.principalId, role: raw.role };
-  });
-}
-
-function mapIntegration(raw: ReturnType<typeof IntegrationSchema.parse>) {
+function toBinding(value: unknown): Binding {
+  const raw = BindingSchema.parse(value);
   return {
     id: raw.id,
-    key: raw.key,
-    providerId: raw.provider_id,
-    displayName: raw.display_name,
-    source: raw.source,
-    enabled: raw.enabled,
-    configured: raw.configured,
-    scopes: raw.scopes,
-    clientIdHint: raw.client_id_hint,
-    hasClientSecret: raw.has_client_secret,
-    connectionCount: raw.connection_count,
-    callbackUrl: raw.callback_url,
-    configuredFields: raw.configured_fields,
-  } satisfies Integration;
+    targetKind: raw.target_kind,
+    targetId: raw.target_id,
+    targetLabel: raw.target_label,
+    createdAt: raw.created_at,
+  };
 }
 
-function mapConnection(raw: ReturnType<typeof ConnectionSchema.parse>) {
+function toConnection(value: unknown): Connection {
+  const raw = ConnectionSchema.parse(value);
   return {
-    id: raw.connection_id,
-    integrationId: raw.integration_id,
+    connectionId: raw.connection_id,
+    connectionRef: raw.connection_ref,
+    logicalName: raw.logical_name,
+    displayName: raw.display_name,
     providerId: raw.provider_id,
-    displayName: raw.display_name || raw.logical_name,
-    accountLabel: raw.account_label,
     status: raw.status,
-    scopes: raw.granted_scopes.length
-      ? raw.granted_scopes
-      : raw.requested_scopes,
+    statusDetail: raw.status_detail,
+    organizationId: raw.organization_id,
+    projectId: raw.project_id,
+    ownerKind: raw.owner_kind,
+    shareability: raw.shareability,
+    requestedScopes: raw.requested_scopes,
+    grantedScopes: raw.granted_scopes,
+    accountLabel: raw.account_label,
+    expiresAt: raw.expires_at,
     refreshable: raw.refreshable,
-    configuredFields: raw.configured_fields,
-  } satisfies Connection;
+    lastRefreshedAt: raw.last_refreshed_at,
+    maxInvokeLevel: raw.max_invoke_level,
+    egress: toEgress(raw.egress),
+    bindings: raw.bindings.map(toBinding),
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  };
 }
 
-export function chooseOrganization(
-  organizations: SessionOrganization[],
-  currentId: string | null,
-) {
-  if (currentId && organizations.some((org) => org.id === currentId)) {
-    return currentId;
-  }
-  return organizations.length === 1 ? organizations[0].id : null;
+function toEvent(value: unknown): ConnectionEvent {
+  const raw = ConnectionEventSchema.parse(value);
+  return {
+    id: raw.id,
+    kind: raw.kind,
+    at: raw.at,
+    detail: raw.detail,
+  };
 }
 
-async function request<T>(
-  organizationId: string,
-  path: string,
-  init: RequestInit,
-  parse: (value: unknown) => T,
-) {
-  const response = await hostFetch(organizationId, `/api/v1${path}`, init);
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    const error = ConnectionErrorResponseSchema.safeParse(body);
-    throw new ConnectionsError(
-      response.status,
-      error.success ? error.data.hint || error.data.error : "Request failed.",
-    );
-  }
-  return parse(body);
-}
+/* --------------------------------------------------------------- requests */
 
-export function listProviders(organizationId: string) {
-  return request(organizationId, "/providers", {}, parseProviderList);
-}
-
-export function listIntegrations(organizationId: string) {
-  return request(organizationId, "/integrations", {}, parseIntegrationList);
-}
-
-export function listConnections(organizationId: string) {
-  return request(organizationId, "/connections", {}, parseConnectionList);
-}
-
-export function listMembers(organizationId: string) {
-  return identityRequest(
-    `/v1/organizations/${encodeURIComponent(organizationId)}/members`,
-    {},
-    parseMemberList,
+export function listProviders(): Promise<Provider[]> {
+  return call("/providers", {}, (body) =>
+    ListProvidersResponseSchema.parse(body).providers.map(toProvider),
   );
 }
 
-export function createIntegration(
-  organizationId: string,
-  input: {
-    key: string;
-    providerId: string;
-    displayName: string;
-    clientId?: string;
-    clientSecret?: string;
-    configuration?: Record<string, string>;
-    scopes: string[];
-  },
-) {
-  return request(
-    organizationId,
-    "/integrations",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        key: input.key,
-        provider_id: input.providerId,
-        display_name: input.displayName,
-        ...(input.configuration
-          ? { configuration: input.configuration }
-          : {
-              ...(input.clientId ? { client_id: input.clientId } : {}),
-              ...(input.clientSecret
-                ? { client_secret: input.clientSecret }
-                : {}),
-            }),
-        scopes: input.scopes,
-      }),
-    },
-    (body) => mapIntegration(IntegrationSchema.parse(body)),
+export function listConnections(): Promise<Connection[]> {
+  return call("/connections", {}, (body) =>
+    ListConnectionsResponseSchema.parse(body).connections.map(toConnection),
   );
 }
 
-export function updateIntegration(
-  organizationId: string,
-  integrationId: string,
-  input: Record<string, unknown>,
-) {
-  return request(
-    organizationId,
-    `/integrations/${encodeURIComponent(integrationId)}`,
-    { method: "PATCH", body: JSON.stringify(input) },
-    (body) => mapIntegration(IntegrationSchema.parse(body)),
-  );
+export function getConnection(id: string): Promise<Connection> {
+  return call(`/connections/${encodeURIComponent(id)}`, {}, toConnection);
 }
 
-export async function deleteIntegration(
-  organizationId: string,
-  integrationId: string,
-) {
-  await request(
-    organizationId,
-    `/integrations/${encodeURIComponent(integrationId)}`,
-    { method: "DELETE" },
-    () => undefined,
-  );
-}
-
-export function createConnection(
-  organizationId: string,
-  input: { integrationId: string; displayName: string; scopes: string[] },
-) {
-  return request(
-    organizationId,
+export function createConnection(body: {
+  providerId: string;
+  displayName?: string;
+  scopes?: string[];
+  projectId?: string;
+}): Promise<Connection> {
+  return call(
     "/connections",
     {
       method: "POST",
       body: JSON.stringify({
-        integration_id: input.integrationId,
-        display_name: input.displayName,
-        scopes: input.scopes,
+        provider_id: body.providerId,
+        ...(body.displayName ? { display_name: body.displayName } : {}),
+        ...(body.scopes ? { scopes: body.scopes } : {}),
+        ...(body.projectId ? { project_id: body.projectId } : {}),
       }),
     },
-    (body) => mapConnection(ConnectionSchema.parse(body)),
+    toConnection,
   );
 }
 
 export function authorizeConnection(
-  organizationId: string,
-  connectionId: string,
-) {
-  return request(
-    organizationId,
-    `/connections/${encodeURIComponent(connectionId)}/authorize`,
-    { method: "POST", body: "{}" },
-    (body) => AuthorizeResponseSchema.parse(body).authorization_url,
+  id: string,
+  scopes?: string[],
+): Promise<{ authorizationUrl: string; expiresAt: string }> {
+  return call(
+    `/connections/${encodeURIComponent(id)}/authorize`,
+    {
+      method: "POST",
+      body: JSON.stringify(scopes ? { scopes } : {}),
+    },
+    (body) => {
+      const parsed = AuthorizeResponseSchema.parse(body);
+      return {
+        authorizationUrl: parsed.authorization_url,
+        expiresAt: parsed.expires_at,
+      };
+    },
+  );
+}
+
+export function refreshConnection(id: string): Promise<Connection> {
+  return call(
+    `/connections/${encodeURIComponent(id)}/refresh`,
+    { method: "POST" },
+    toConnection,
   );
 }
 
 export function setConnectionCredential(
-  organizationId: string,
-  connectionId: string,
+  id: string,
   value: string,
-) {
-  return request(
-    organizationId,
-    `/connections/${encodeURIComponent(connectionId)}/credential`,
+): Promise<Connection> {
+  return call(
+    `/connections/${encodeURIComponent(id)}/credential`,
     { method: "POST", body: JSON.stringify({ value }) },
-    (body) => mapConnection(ConnectionSchema.parse(body)),
+    toConnection,
   );
 }
 
 export function setConnectionConfiguration(
-  organizationId: string,
-  connectionId: string,
+  id: string,
   configurationSet: Record<string, string>,
   configurationClear: string[] = [],
-) {
-  return request(
-    organizationId,
-    `/connections/${encodeURIComponent(connectionId)}/credential`,
+): Promise<Connection> {
+  return call(
+    `/connections/${encodeURIComponent(id)}/credential`,
     {
       method: "POST",
       body: JSON.stringify({
@@ -410,93 +379,147 @@ export function setConnectionConfiguration(
         configuration_clear: configurationClear,
       }),
     },
-    (body) => mapConnection(ConnectionSchema.parse(body)),
+    toConnection,
   );
 }
 
-export function refreshConnection(
-  organizationId: string,
-  connectionId: string,
-) {
-  return request(
-    organizationId,
-    `/connections/${encodeURIComponent(connectionId)}/refresh`,
-    { method: "POST" },
-    (body) => mapConnection(ConnectionSchema.parse(body)),
-  );
-}
-
-export function revokeConnection(organizationId: string, connectionId: string) {
-  return request(
-    organizationId,
-    `/connections/${encodeURIComponent(connectionId)}`,
+export function revokeConnection(id: string): Promise<{
+  revoked: boolean;
+  providerRevocation: "ok" | "unsupported" | "failed";
+}> {
+  return call(
+    `/connections/${encodeURIComponent(id)}`,
     { method: "DELETE" },
-    (body) => RevokeResponseSchema.parse(body),
+    (body) => {
+      const parsed = RevokeResponseSchema.parse(body);
+      return {
+        revoked: parsed.revoked,
+        providerRevocation: parsed.provider_revocation,
+      };
+    },
   );
 }
 
-export function addMember(
-  organizationId: string,
-  principalId: string,
-  role: OrganizationRole,
-) {
-  return identityRequest(
-    `/v1/organizations/${encodeURIComponent(organizationId)}/members`,
+export function bindConnection(
+  id: string,
+  body: {
+    targetKind: BindingTargetKind;
+    targetId: string;
+    targetLabel?: string;
+  },
+): Promise<Connection> {
+  return call(
+    `/connections/${encodeURIComponent(id)}/bindings`,
     {
       method: "POST",
-      body: JSON.stringify({ principalId, role }),
+      body: JSON.stringify({
+        target_kind: body.targetKind,
+        target_id: body.targetId,
+        ...(body.targetLabel ? { target_label: body.targetLabel } : {}),
+      }),
     },
-    (body) => {
-      const member = StrictMembershipSchema.parse(body);
-      return { principalId: member.principalId, role: member.role };
-    },
+    toConnection,
   );
 }
 
-export function updateMember(
-  organizationId: string,
-  principalId: string,
-  role: OrganizationRole,
-) {
-  return identityRequest(
-    `/v1/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(principalId)}`,
-    { method: "PATCH", body: JSON.stringify({ role }) },
-    (body) => {
-      const member = StrictMembershipSchema.parse(body);
-      return { principalId: member.principalId, role: member.role };
-    },
-  );
-}
-
-export async function removeMember(
-  organizationId: string,
-  principalId: string,
-) {
-  await identityRequest(
-    `/v1/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(principalId)}`,
+export function unbindConnection(
+  id: string,
+  bindingId: string,
+): Promise<Connection> {
+  return call(
+    `/connections/${encodeURIComponent(id)}/bindings/${encodeURIComponent(bindingId)}`,
     { method: "DELETE" },
-    () => undefined,
+    toConnection,
   );
 }
 
-async function identityRequest<T>(
-  path: string,
-  init: RequestInit,
-  parse: (value: unknown) => T,
-) {
-  const response = await identityFetch(path, init);
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    const raw = object(body);
-    throw new ConnectionsError(
-      response.status,
-      response.status === 401
-        ? IDENTITY_COOKIE_RECOVERY
-        : string(
-            raw.hint,
-            string(raw.message, string(raw.error, "Request failed.")),
-          ),
-    );
+export function connectionEvents(id: string): Promise<ConnectionEvent[]> {
+  return call(`/connections/${encodeURIComponent(id)}/events`, {}, (body) =>
+    ListEventsResponseSchema.parse(body).events.map(toEvent),
+  );
+}
+
+/* ----------------------------------------------------------- consent flow */
+
+export type ConsentOutcome =
+  | { result: "active"; connection: Connection }
+  | { result: "failed"; connection: Connection }
+  | { result: "abandoned" };
+
+const POLL_MS = 1500;
+/** Long enough for a real consent screen including an upstream login and MFA. */
+const CONSENT_TIMEOUT_MS = 5 * 60_000;
+
+/**
+ * Run the consent round trip. The popup posts back on success, but a blocked
+ * `postMessage`, a popup the user closed by hand, or a provider that lands on
+ * its own page instead of ours would all strand the flow — so the connection
+ * is polled as well, and whichever settles first wins.
+ */
+export async function awaitConsent(
+  connectionId: string,
+  popup: Window | null,
+  signal?: AbortSignal,
+): Promise<ConsentOutcome> {
+  const origin = new URL(base()).origin;
+  const deadline = Date.now() + CONSENT_TIMEOUT_MS;
+
+  let settled = false;
+  let onMessage: ((event: MessageEvent) => void) | null = null;
+
+  const messaged = new Promise<void>((resolve) => {
+    onMessage = (event: MessageEvent) => {
+      if (event.origin !== origin) return;
+      const data = obj(event.data);
+      if (data.type !== "opensesame:connection") return;
+      if (data.connectionId !== connectionId) return;
+      resolve();
+    };
+    window.addEventListener("message", onMessage);
+  });
+
+  try {
+    while (!settled) {
+      if (signal?.aborted) return { result: "abandoned" };
+      if (Date.now() > deadline) return { result: "abandoned" };
+
+      await Promise.race([messaged, sleep(POLL_MS)]);
+
+      const connection = await getConnection(connectionId).catch(() => null);
+      if (connection && connection.status !== "pending") {
+        settled = true;
+        return connection.status === "active"
+          ? { result: "active", connection }
+          : { result: "failed", connection };
+      }
+
+      // A closed popup with the connection still pending means the user backed
+      // out. Give the callback one more poll to land before saying so.
+      if (popup?.closed) {
+        await sleep(POLL_MS);
+        const last = await getConnection(connectionId).catch(() => null);
+        if (last && last.status !== "pending") {
+          return last.status === "active"
+            ? { result: "active", connection: last }
+            : { result: "failed", connection: last };
+        }
+        return { result: "abandoned" };
+      }
+    }
+    return { result: "abandoned" };
+  } finally {
+    if (onMessage) window.removeEventListener("message", onMessage);
   }
-  return parse(body);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function openConsentPopup(url: string): Window | null {
+  return window.open(
+    url,
+    "opensesame-connect",
+    "width=680,height=820,noopener=no,noreferrer=no",
+  );
 }

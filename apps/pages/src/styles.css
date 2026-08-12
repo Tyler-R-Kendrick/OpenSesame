@@ -52,8 +52,8 @@
   --list-w: 21rem;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
     "Liberation Mono", monospace;
 
@@ -690,7 +690,7 @@ input[type="radio"] {
   height: 1.875rem;
   flex: none;
   border-radius: 8px;
-  background: linear-gradient(150deg, #17a397, var(--accent) 70%);
+  background: var(--accent);
   color: #ffffff;
   box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.22);
 }
@@ -880,6 +880,22 @@ input[type="radio"] {
   color: var(--ink-3);
 }
 
+@media (pointer: coarse), (max-width: 900px) {
+  .btn,
+  .conn-doc-link,
+  .rail__lock,
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 2.75rem;
+  }
+
+  .icon-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
 /* ——— Motion ——————————————————————————————————————————————— */
 
 @keyframes rise {
@@ -962,7 +978,9 @@ input[type="radio"] {
     inset: auto 0 0 0;
     z-index: 20;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    /* Column per section, whatever the count, so adding one never overflows. */
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     gap: 0.1rem;
     padding: 0.35rem 0.35rem calc(0.35rem + env(safe-area-inset-bottom));
     background: var(--surface);
@@ -974,12 +992,22 @@ input[type="radio"] {
     display: grid;
     justify-items: center;
     gap: 0.15rem;
+    min-width: 0;
     padding: 0.4rem 0.15rem;
     border-radius: 8px;
     color: var(--ink-2);
     text-decoration: none;
-    font-size: 0.6875rem;
+    font-size: 0.625rem;
     font-weight: 600;
+  }
+
+  /* Six sections on a narrow phone: the icon carries the target, so a long
+     label may clip rather than push its neighbours out of the bar. */
+  .tabbar__link span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .tabbar__link.is-active {

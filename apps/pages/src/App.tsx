@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router";
 import { AppShell } from "./components/AppShell.js";
 import { useSessionGuards, useTheme, useVault } from "./lib/vault/hooks.js";
-import { ConnectionsPage } from "./pages/ConnectionsPage.js";
 import { UnlockScreen } from "./screens/UnlockScreen.js";
 import { AgentsSection } from "./sections/AgentsSection.js";
 import { AuthoritySection } from "./sections/AuthoritySection.js";
+import { ConnectionsSection } from "./sections/ConnectionsSection.js";
 import { SettingsSection } from "./sections/SettingsSection.js";
 import { SitesSection } from "./sections/SitesSection.js";
 import { VaultSection, VaultWelcome } from "./sections/VaultSection.js";
@@ -47,18 +47,18 @@ export function App() {
           }
         />
         <Route
-          path="/sites"
+          path="/connections"
           element={
             <Framed>
-              <SitesSection />
+              <ConnectionsSection />
             </Framed>
           }
         />
         <Route
-          path="/connections"
+          path="/sites"
           element={
             <Framed>
-              <ConnectionsPage />
+              <SitesSection />
             </Framed>
           }
         />

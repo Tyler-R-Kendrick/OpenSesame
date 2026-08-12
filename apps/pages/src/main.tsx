@@ -4,7 +4,6 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { App } from "./App.js";
 import { kvHydrate } from "./lib/kv.js";
-import { track } from "./lib/telemetry.js";
 import {
   ATTEMPTS_KEY,
   BODY_KEY,
@@ -18,6 +17,25 @@ const root = document.getElementById("root");
 if (!root) throw new Error("missing #root");
 
 const basename = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";
+
+/// A vault must never render inside someone else's frame, where an overlay can
+/// aim a click at a reveal or copy control. `frame-ancestors` is the real
+/// defence but browsers ignore it from a <meta> tag, and a static host cannot
+/// send the header, so refuse to run instead of unlocking inside the frame.
+function framed(): boolean {
+  try {
+    return window.top !== window.self;
+  } catch {
+    // Cross-origin parents throw on access, which itself answers the question.
+    return true;
+  }
+}
+
+if (framed()) {
+  root.textContent =
+    "OpenSesame will not run inside a frame. Open it in its own tab.";
+  throw new Error("refusing to render inside a frame");
+}
 
 void (async () => {
   // OPFS is async and the store reads its header synchronously, so pull the
@@ -39,6 +57,12 @@ void (async () => {
       </BrowserRouter>
     </StrictMode>,
   );
-  track("app_opened");
+  if (!crossOriginIsolated && "serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener(
+      "controllerchange",
+      () => window.location.reload(),
+      { once: true },
+    );
+  }
   registerSW({ immediate: true });
 })();

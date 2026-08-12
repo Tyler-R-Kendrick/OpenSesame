@@ -15,6 +15,8 @@ export interface ControlPlaneConfig {
   allowPrincipalBearer: boolean;
   /** Explicit opt-in to default claim pepper and other local-only shortcuts. */
   allowDevDefaults: boolean;
+  /** Give a local provisional principal one owner workspace for the bundled Host. */
+  bootstrapPersonalOrganization: boolean;
   isProduction: boolean;
   /** Explicit CORS allowlist (comma-separated origins via OPENSESAME_CORS_ORIGINS). */
   corsOrigins: string[];
@@ -103,6 +105,8 @@ export function loadConfig(
     logLevel: env.OPENSESAME_LOG_LEVEL ?? env.LOG_LEVEL ?? "info",
     allowPrincipalBearer,
     allowDevDefaults,
+    bootstrapPersonalOrganization:
+      !isProduction && allowDevDefaults && truthy(env.OPENSESAME_DEV_BOOTSTRAP),
     isProduction,
     corsOrigins: (
       env.OPENSESAME_CORS_ORIGINS ??

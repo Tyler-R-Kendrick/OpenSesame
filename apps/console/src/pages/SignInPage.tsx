@@ -1,5 +1,6 @@
-import { useState } from "react";
 import { createOpenSesame } from "@opensesame/sdk-browser";
+import { useState } from "react";
+import { clearClaimStash } from "../lib/claim-stash.js";
 
 const issuer =
   import.meta.env.VITE_OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
@@ -53,6 +54,9 @@ export function SignInPage() {
           onClick={() => {
             setError(null);
             setBusy("anon");
+            // A new principal in this tab: a claim opened for the previous one
+            // is not this one's to accept.
+            clearClaimStash();
             void sesame
               .continueAnonymously()
               .then((s) => {
@@ -79,6 +83,9 @@ export function SignInPage() {
           disabled={busy !== null}
           onClick={() => {
             void sesame.signOut();
+            // Whoever signs in next must not inherit a claim this account was
+            // part way through accepting.
+            clearClaimStash();
             setSessionHint(null);
             setError(null);
           }}
@@ -86,11 +93,7 @@ export function SignInPage() {
           Sign out
         </button>
       </div>
-      {sessionHint ? (
-        <p className="ok" role="status">
-          {sessionHint}
-        </p>
-      ) : null}
+      {sessionHint ? <output className="ok">{sessionHint}</output> : null}
       {error ? (
         <p className="err" role="alert">
           {error}

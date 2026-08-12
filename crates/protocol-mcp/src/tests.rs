@@ -1,8 +1,8 @@
 use super::*;
 use opensesame_domain::{
     CapabilitySet, OrganizationId, ProtectedResource, ProtectedResourceId, ProtocolProfile,
-    ProtocolProfileId, TokenPresentation,
-    PROFILE_MCP_AUTHORIZATION_2026_07_28_BEARER, PROFILE_OPENSESAME_TASK_DPOP_RFC9449_V1,
+    ProtocolProfileId, TokenPresentation, PROFILE_MCP_AUTHORIZATION_2026_07_28_BEARER,
+    PROFILE_OPENSESAME_TASK_DPOP_RFC9449_V1,
 };
 
 #[test]
@@ -60,9 +60,13 @@ fn a_path_scoped_audience_confines_the_request() {
     // One host, one MCP server per tenant — the ordinary shape. Origin alone
     // would let tenant-a's token pass the resource check for tenant-b.
     let resource = sample_resource("https://mcp.example.com/tenant-a");
-    assert!(validate_resource_uri("https://mcp.example.com/tenant-a/tools/list", &resource).is_ok());
+    assert!(
+        validate_resource_uri("https://mcp.example.com/tenant-a/tools/list", &resource).is_ok()
+    );
     assert!(validate_resource_uri("https://mcp.example.com/tenant-a", &resource).is_ok());
-    assert!(validate_resource_uri("https://mcp.example.com/tenant-b/tools/list", &resource).is_err());
+    assert!(
+        validate_resource_uri("https://mcp.example.com/tenant-b/tools/list", &resource).is_err()
+    );
     // No crossing a segment boundary to get there.
     assert!(validate_resource_uri("https://mcp.example.com/tenant-attacker", &resource).is_err());
 }

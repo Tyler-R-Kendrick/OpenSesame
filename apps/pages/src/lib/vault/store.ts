@@ -3,7 +3,14 @@
  * mutation straight back to OPFS, and drops the key on lock.
  */
 
-import { kvDelete, kvGet, kvSet } from "../kv.js";
+import {
+  kvDelete,
+  kvDeleteDurable,
+  kvDurability,
+  kvGet,
+  kvSet,
+  kvSetDurable,
+} from "../kv.js";
 import {
   type SealedBlob,
   VaultCorruptError,
@@ -57,6 +64,12 @@ export type VaultState = {
   /** Milliseconds until auto-lock, or null when no timer is armed. */
   lockedOutUntil: number | null;
   failedAttempts: number;
+  /**
+   * False when this browser gives the app no persistent storage, so the vault
+   * lives only until the tab closes. Worth saying out loud before someone
+   * trusts it with their only copy of a password.
+   */
+  durable: boolean;
 };
 
 type Listener = () => void;
@@ -135,6 +148,7 @@ export class VaultStore {
       prefs: this.#prefs,
       lockedOutUntil: attempts.until > Date.now() ? attempts.until : null,
       failedAttempts: attempts.fails,
+      durable: kvDurability() !== "memory",
     };
   }
 
@@ -158,8 +172,20 @@ export class VaultStore {
     this.#header = header;
     this.#vaultKey = vaultKey;
     this.#body = emptyBody();
-    kvSet(HEADER_KEY, JSON.stringify(header));
-    await this.#persist();
+    try {
+      await kvSetDurable(HEADER_KEY, JSON.stringify(header));
+      await this.#persist();
+    } catch (error) {
+      // A vault whose header never reached disk cannot be unlocked again, so
+      // leave nothing behind that would claim otherwise.
+      this.#header = null;
+      this.#vaultKey = null;
+      this.#body = emptyBody();
+      kvDelete(HEADER_KEY);
+      kvDelete(BODY_KEY);
+      this.#emit();
+      throw error;
+    }
     kvDelete(ATTEMPTS_KEY);
     this.touch();
     this.#armIdleTimer();
@@ -181,6 +207,10 @@ export class VaultStore {
     try {
       vaultKey = await unlockVaultKey(this.#header, password);
     } catch (error) {
+      // Only a wrong password counts. A corrupt or unsupported header fails for
+      // every password, so counting it would lock the user out of a vault no
+      // password can open.
+      if (!(error instanceof WrongPasswordError)) throw error;
       const fails = attempts.fails + 1;
       const until =
         fails >= LOCK_AFTER_FAILS
@@ -200,10 +230,23 @@ export class VaultStore {
     if (sealed) {
       try {
         const body = await openJson<VaultBody>(vaultKey, sealed);
+        // The revision is sealed with the body, so only the vault key can move
+        // it. Behind what the header last saw means this file is an older copy —
+        // a restored backup, a synced-over write — and opening it silently would
+        // hand back passwords that were changed and items that were deleted.
+        const rev = body.rev ?? 0;
+        if (rev < (this.#header?.bodyRev ?? 0)) {
+          throw new VaultCorruptError(
+            "this vault file is older than the last write recorded on this device. " +
+              "If you restored a backup, import it from Settings instead; " +
+              "the vault here was not opened, so nothing has been lost yet",
+          );
+        }
         this.#body = {
           v: 1,
           items: body.items ?? [],
           folders: body.folders ?? [],
+          rev,
         };
       } catch (error) {
         this.#vaultKey = null;
@@ -247,8 +290,17 @@ export class VaultStore {
     if (!this.#header) throw new Error("There is no vault to re-key.");
     assertMasterPasswordPolicy(next);
     const header = await rewrapVaultKey(this.#header, current, next, hint);
+    const previous = this.#header;
     this.#header = header;
-    kvSet(HEADER_KEY, JSON.stringify(header));
+    try {
+      await kvSetDurable(HEADER_KEY, JSON.stringify(header));
+    } catch (error) {
+      // The vault key is unchanged, so the old password still opens what is on
+      // disk. Saying otherwise would lock the owner out of their own vault.
+      this.#header = previous;
+      this.#emit();
+      throw error;
+    }
     this.#emit();
   }
 
@@ -256,9 +308,36 @@ export class VaultStore {
 
   async #persist(): Promise<void> {
     if (!this.#vaultKey) throw new Error("The vault is locked.");
-    const sealed = await sealJson(this.#vaultKey, this.#body);
+    // Sealed with the next revision, but memory only takes it once the write
+    // lands. Counting first and then failing would leave the body behind the
+    // header, and the vault would read as rolled back on the next unlock.
+    const rev = (this.#body.rev ?? 0) + 1;
+    const sealed = await sealJson(this.#vaultKey, { ...this.#body, rev });
     assertSealed(sealed);
-    kvSet(BODY_KEY, JSON.stringify(sealed));
+    // Awaited, so a disk that refuses the write reaches `#mutate`'s rollback
+    // instead of leaving memory ahead of what survives a reload.
+    await kvSetDurable(BODY_KEY, JSON.stringify(sealed));
+    this.#body.rev = rev;
+    await this.#recordBodyRev(rev);
+  }
+
+  /**
+   * Note in the header how far the body has got. Written after the body, never
+   * before: trailing by one is harmless — the body is simply newer — while
+   * leading by one would accuse an intact vault of having been rolled back.
+   */
+  async #recordBodyRev(rev: number): Promise<void> {
+    const header = this.#header;
+    if (!header || (header.bodyRev ?? 0) >= rev) return;
+    const next: VaultHeader = { ...header, bodyRev: rev };
+    this.#header = next;
+    try {
+      await kvSetDurable(HEADER_KEY, JSON.stringify(next));
+    } catch {
+      // The body is safely stored; only the rollback witness is behind. Losing
+      // it costs detection, not data, and the next write will catch it up.
+      this.#header = header;
+    }
   }
 
   /**
@@ -268,8 +347,22 @@ export class VaultStore {
   async #mutate(change: (body: VaultBody) => void): Promise<void> {
     const run = this.#writeChain.then(async () => {
       if (!this.#vaultKey) throw new Error("The vault is locked.");
+      // Keep the pre-change body so a failed seal or write cannot leave memory
+      // ahead of what is on disk.
+      const previous: VaultBody = {
+        v: this.#body.v,
+        items: this.#body.items,
+        folders: this.#body.folders,
+        ...(this.#body.rev !== undefined ? { rev: this.#body.rev } : {}),
+      };
       change(this.#body);
-      await this.#persist();
+      try {
+        await this.#persist();
+      } catch (error) {
+        this.#body = previous;
+        this.#emit();
+        throw error;
+      }
       this.touch();
       this.#emit();
     });
@@ -339,6 +432,22 @@ export class VaultStore {
     await this.#mutate((body) => {
       body.items = [...body.items, ...items];
     });
+  }
+
+  /**
+   * Apply an import plan. Items and their new folders land in one mutation, so
+   * a failed write cannot leave folders behind with nothing in them.
+   */
+  async applyImport(plan: {
+    items: VaultItem[];
+    newFolders: Folder[];
+  }): Promise<number> {
+    if (plan.items.length === 0 && plan.newFolders.length === 0) return 0;
+    await this.#mutate((body) => {
+      body.folders = [...body.folders, ...plan.newFolders];
+      body.items = [...body.items, ...plan.items];
+    });
+    return plan.items.length;
   }
 
   // —— folders ——————————————————————————————————————————————
@@ -431,13 +540,27 @@ export class VaultStore {
   }
 
   /** Irreversibly remove the vault from this device. */
-  destroy(): void {
-    this.#vaultKey = null;
-    this.#body = emptyBody();
+  async destroy(): Promise<void> {
+    // Deleting is at least as final as locking, so it runs the same teardown:
+    // clipboard, Identity session, staged claims.
+    this.lock();
     this.#header = null;
-    kvDelete(HEADER_KEY);
-    kvDelete(BODY_KEY);
-    kvDelete(ATTEMPTS_KEY);
+    this.#emit();
+    // Queued behind any write still in the air. Deleting straight away would let
+    // a persist that had already sealed its body land afterwards and put the
+    // vault — ciphertext, header and all — back on a device it was deleted from.
+    const done = this.#writeChain
+      .catch(() => undefined)
+      .then(async () => {
+        // Awaited, so this resolves only once the files are actually gone.
+        await Promise.all([
+          kvDeleteDurable(HEADER_KEY),
+          kvDeleteDurable(BODY_KEY),
+          kvDeleteDurable(ATTEMPTS_KEY),
+        ]);
+      });
+    this.#writeChain = done;
+    await done;
     this.#emit();
   }
 

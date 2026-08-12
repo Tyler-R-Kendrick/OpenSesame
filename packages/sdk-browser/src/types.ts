@@ -30,19 +30,35 @@ export interface Session {
   raw: TokenResponse;
 }
 
+export interface ClaimItemView {
+  id: string;
+  targetType: "project" | "resource" | "agent" | "device" | "connection";
+  targetId: string;
+  requestedAction: "attach" | "transfer" | "delegate" | "verify";
+  required: boolean;
+  dependencies: string[];
+  state: "pending" | "accepted" | "rejected";
+}
+
 export interface ClaimPresentation {
   id: string;
   type: string;
   state: string;
   targetManifestDigest: string;
   expiresAt: string;
-  items?: Array<{ id: string; label: string; selected?: boolean }>;
+  items?: ClaimItemView[];
 }
 
 export interface ClaimDecision {
+  /** Every accepted item by id. There is no wildcard — the server refuses one. */
   acceptedItemIds: string[];
   destination?: Record<string, unknown>;
   idempotencyKey?: string;
+  /**
+   * The claim bearer. Only needed when the claim was presented elsewhere: this
+   * client remembers the token it presented and sends it for you.
+   */
+  claimToken?: string;
 }
 
 export interface OpenSesameBrowserConfig {
@@ -81,7 +97,16 @@ export interface OpenSesameBrowserClient {
   continueAnonymously(): Promise<Session>;
   getSession(): Promise<Session | null>;
   presentClaim(token: string): Promise<ClaimPresentation>;
-  completeClaim(claimId: string, decision: ClaimDecision): Promise<ClaimPresentation>;
+  /**
+   * Current state of a claim already presented, read with its bearer. Use this
+   * to resume a ceremony — presenting twice is refused, and a local snapshot
+   * cannot say whether the claim has since expired, been denied or completed.
+   */
+  readClaim(claimId: string, claimToken: string): Promise<ClaimPresentation>;
+  completeClaim(
+    claimId: string,
+    decision: ClaimDecision,
+  ): Promise<ClaimPresentation>;
   linkIdentity(options: { provider: string }): Promise<void>;
   signOut(): Promise<void>;
 }

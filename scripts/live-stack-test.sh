@@ -22,10 +22,10 @@ cargo +1.88.0 build -p opensesame-gateway -p opensesame-cli
 # Start gateway with live providers
 pkill -f 'opensesame-gateway' 2>/dev/null || true
 sleep 0.5
-DB="$ROOT/.tools/run/gateway.sqlite"
+DB="$ROOT/.tools/run/gateway.db"
 rm -f "$DB"
 export OPENSESAME_LISTEN=127.0.0.1:18787
-export OPENSESAME_DB="sqlite://${DB}?mode=rwc"
+export OPENSESAME_DB="$DB"
 export OPENSESAME_RESOURCE=http://127.0.0.1:18787
 export OPENSESAME_OPERATOR_TOKEN="${OPENSESAME_OPERATOR_TOKEN:-opensesame-dev-operator}"
 OP_HDR=(-H "x-opensesame-operator: ${OPENSESAME_OPERATOR_TOKEN}")
