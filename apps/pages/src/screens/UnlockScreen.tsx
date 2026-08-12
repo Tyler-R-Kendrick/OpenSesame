@@ -56,7 +56,8 @@ function useCountdown(until: number | null): number {
 }
 
 export function UnlockScreen() {
-  const { status, header, lockedOutUntil, failedAttempts } = useVault();
+  const { status, header, lockedOutUntil, failedAttempts, durable } =
+    useVault();
   const store = useVaultStore();
   const firstRun = status === "empty";
 
@@ -201,6 +202,17 @@ export function UnlockScreen() {
             </p>
           ) : null}
 
+          {!durable ? (
+            <output className="note note--warn">
+              <span>
+                This browser gives this app no persistent storage, so the vault
+                will be gone when the tab closes — private windows and some
+                embedded browsers do this. Do not put your only copy of anything
+                in here.
+              </span>
+            </output>
+          ) : null}
+
           {error ? (
             <p className="note note--err" role="alert">
               <span>{error}</span>
@@ -258,7 +270,7 @@ export function UnlockScreen() {
                   <button
                     type="button"
                     className="btn btn--danger btn--sm"
-                    onClick={() => store.destroy()}
+                    onClick={() => void store.destroy()}
                   >
                     Delete this vault
                   </button>

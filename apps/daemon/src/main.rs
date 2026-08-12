@@ -328,15 +328,11 @@ async fn approve_device(
         .await
     {
         Ok(resp) => {
-            let status = resp.status().as_u16();
+            let status = resp.status();
             let body = resp.json::<Value>().await.unwrap_or(json!({}));
-            Json(json!({"forwarded_to": url, "status": status, "body": body})).into_response()
+            forwarded(&url, status, body)
         }
-        Err(e) => Json(json!({
-            "error": e.to_string(),
-            "hint": "is Host API up on OPENSESAME_SERVER?"
-        }))
-        .into_response(),
+        Err(e) => upstream_failed(&e.to_string(), "is Host API up on OPENSESAME_SERVER?"),
     }
 }
 
@@ -348,44 +344,200 @@ async fn approve_claim(
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
-    // Prefer Host API agent-claim complete (operator + claim_token). Fallback: Identity API.
-    if let Some(claim_token) = req.claim_token {
-        let url = format!(
-            "{}/api/v1/agent-claims/{}/complete",
-            st.host_api, req.claim_id
-        );
-        return match st
+    // The id lands in a URL path on both routes, so it must be one segment and
+    // nothing else: a slash or a `..` would aim the request at a different
+    // endpoint of the same API.
+    if !one_path_segment(&req.claim_id) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "invalid_claim_id",
+                "hint": "a claim id is an opaque clm_… token: letters, digits, '_' and '-' only"
+            })),
+        )
+            .into_response();
+    }
+    // Both routes need the claim bearer: a claim id is public, and neither API
+    // attaches ownership on the strength of one.
+    let Some(claim_token) = req.claim_token else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "claim_token_required",
+                "hint": "completing a claim needs the osc_clm_… bearer, not just the claim id"
+            })),
+        )
+            .into_response();
+    };
+
+    // An access token means the caller wants this completed as their own
+    // principal on the Identity API, where completing must name every accepted
+    // item and only the claim itself reports them. Otherwise fall through to the
+    // Host API operator route.
+    if let Some(access_token) = req.access_token {
+        return complete_via_identity(&st, &req.claim_id, &claim_token, &access_token).await;
+    }
+
+    let url = format!(
+        "{}/api/v1/agent-claims/{}/complete",
+        st.host_api, req.claim_id
+    );
+    match st
+        .http
+        .post(&url)
+        .header("x-opensesame-operator", &st.operator_token)
+        .json(&json!({"claim_token": claim_token}))
+        .send()
+        .await
+    {
+        Ok(resp) => {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            forwarded(&url, status, json!(body))
+        }
+        Err(e) => upstream_failed(&e.to_string(), "is Host API up on OPENSESAME_SERVER?"),
+    }
+}
+
+/// Forward an upstream answer while keeping success and failure distinguishable
+/// by status code. `opensesame-toolbar` — and any script — checks the code, not
+/// the one buried in the body, so a failure wrapped in 200 reads as done.
+fn forwarded(url: &str, status: StatusCode, body: Value) -> Response {
+    let payload = json!({"forwarded_to": url, "status": status.as_u16(), "body": body});
+    let code = if status.is_success() {
+        StatusCode::OK
+    } else {
+        StatusCode::BAD_GATEWAY
+    };
+    (code, Json(payload)).into_response()
+}
+
+/// Whether a caller-supplied id is safe to place in a URL path. Ids here are
+/// opaque tokens, so anything outside this alphabet — a slash, a `..`, a `?` —
+/// is not an id and would change which endpoint the request reaches.
+fn one_path_segment(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 128
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
+/// Report that the upstream could not be reached or did not answer usefully.
+fn upstream_failed(error: &str, hint: &str) -> Response {
+    (
+        StatusCode::BAD_GATEWAY,
+        Json(json!({"error": error, "hint": hint})),
+    )
+        .into_response()
+}
+
+/// Read the claim, present it if it is still pending, then complete naming every
+/// item it reports. The claim bearer travels on every call; the access token
+/// names who takes ownership.
+async fn complete_via_identity(
+    st: &App,
+    claim_id: &str,
+    claim_token: &str,
+    access_token: &str,
+) -> Response {
+    // Read first: a claim presented elsewhere — the console, or the pages outbox
+    // — cannot be presented again, and reading reports the same items.
+    let read_url = format!("{}/v1/claims/{claim_id}", st.identity_api);
+    let read = match st
+        .http
+        .get(&read_url)
+        .bearer_auth(access_token)
+        .header("x-claim-token", claim_token)
+        .send()
+        .await
+    {
+        Ok(resp) if resp.status().is_success() => resp.json::<Value>().await.unwrap_or(json!({})),
+        Ok(resp) => {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return forwarded(&read_url, status, json!(body));
+        }
+        Err(e) => {
+            return upstream_failed(
+                &e.to_string(),
+                "is the Identity API up on OPENSESAME_IDENTITY_API? nothing was presented",
+            );
+        }
+    };
+
+    let pending = read.get("state").and_then(Value::as_str) == Some("pending");
+    let claim = if pending {
+        let present_url = format!("{}/v1/claims/present", st.identity_api);
+        match st
             .http
-            .post(&url)
-            .header("x-opensesame-operator", &st.operator_token)
-            .json(&json!({"claim_token": claim_token}))
+            .post(&present_url)
+            .bearer_auth(access_token)
+            .json(&json!({"token": claim_token}))
             .send()
             .await
         {
-            Ok(resp) => {
-                let status = resp.status().as_u16();
-                let body = resp.text().await.unwrap_or_default();
-                Json(json!({"forwarded_to": url, "status": status, "body": body})).into_response()
+            Ok(resp) if resp.status().is_success() => {
+                resp.json::<Value>().await.unwrap_or(json!({}))
             }
-            Err(e) => Json(json!({"error": e.to_string()})).into_response(),
-        };
-    }
-    let url = format!("{}/v1/claims/{}/complete", st.identity_api, req.claim_id);
-    let mut builder = st.http.post(&url).json(&json!({}));
-    if let Some(tok) = req.access_token {
-        builder = builder.bearer_auth(tok);
-    }
-    match builder.send().await {
-        Ok(resp) => {
-            let status = resp.status().as_u16();
-            let body = resp.text().await.unwrap_or_default();
-            Json(json!({"forwarded_to": url, "status": status, "body": body})).into_response()
+            Ok(resp) => {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                return forwarded(&present_url, status, json!(body));
+            }
+            Err(e) => {
+                return upstream_failed(
+                    &e.to_string(),
+                    "is the Identity API up on OPENSESAME_IDENTITY_API? nothing was presented",
+                );
+            }
         }
-        Err(e) => Json(json!({
-            "error": e.to_string(),
-            "hint": "claim complete requires authenticated Identity API session or claim_token"
-        }))
-        .into_response(),
+    } else {
+        read
+    };
+
+    // Completing must name each accepted item, and guessing is not an option.
+    let Some(items) = claim.get("items").and_then(Value::as_array) else {
+        return upstream_failed(
+            "items_missing",
+            if pending {
+                "the Identity API did not report the claim's items; the token is now spent, so create a fresh claim"
+            } else {
+                "the Identity API did not report the claim's items, so there is nothing to accept by id"
+            },
+        );
+    };
+    let accepted: Vec<&str> = items
+        .iter()
+        .filter_map(|item| item.get("id").and_then(Value::as_str))
+        .collect();
+
+    // Prefer the id the API reported, which is the claim it actually read, but
+    // only while it is still a single path segment.
+    let id = claim
+        .get("id")
+        .and_then(Value::as_str)
+        .filter(|id| one_path_segment(id))
+        .unwrap_or(claim_id);
+    let url = format!("{}/v1/claims/{}/complete", st.identity_api, id);
+    match st
+        .http
+        .post(&url)
+        .bearer_auth(access_token)
+        .header("x-claim-token", claim_token)
+        .json(&json!({"acceptedItemIds": accepted}))
+        .send()
+        .await
+    {
+        Ok(resp) => {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            forwarded(&url, status, json!(body))
+        }
+        Err(e) => upstream_failed(
+            &e.to_string(),
+            "the claim is presented, so completing is all that is left; retry with the same token",
+        ),
     }
 }
 
@@ -403,7 +555,13 @@ async fn operator_invoke_l1(
         .and_then(|v| v.as_u64())
         .unwrap_or(1);
     if level >= 3 {
-        return Json(json!({"error":"materialize_denied","invoke_level": level})).into_response();
+        // A refusal, so it must not answer 200: a caller that only reads the code
+        // would carry on as if the invoke had happened.
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error":"materialize_denied","invoke_level": level})),
+        )
+            .into_response();
     }
     let url = format!("{}/api/v1/intents", st.host_api);
     match st
@@ -415,11 +573,17 @@ async fn operator_invoke_l1(
         .await
     {
         Ok(resp) => {
-            let status = resp.status().as_u16();
+            let status = resp.status();
             let body = resp.json::<Value>().await.unwrap_or(json!({}));
-            Json(json!({"status": status, "body": body, "materialize": false})).into_response()
+            let payload = json!({"status": status.as_u16(), "body": body, "materialize": false});
+            let code = if status.is_success() {
+                StatusCode::OK
+            } else {
+                StatusCode::BAD_GATEWAY
+            };
+            (code, Json(payload)).into_response()
         }
-        Err(e) => Json(json!({"error": e.to_string()})).into_response(),
+        Err(e) => upstream_failed(&e.to_string(), "is Host API up on OPENSESAME_SERVER?"),
     }
 }
 
@@ -517,4 +681,30 @@ async fn revoke(State(st): State<App>, headers: HeaderMap, Json(body): Json<Valu
         st.capabilities.lock().unwrap().remove(id);
     }
     Json(json!({"ok": true})).into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::one_path_segment;
+
+    #[test]
+    fn accepts_an_opaque_id() {
+        assert!(one_path_segment("clm_01HXYZ-abc_123"));
+    }
+
+    #[test]
+    fn refuses_anything_that_could_move_the_path() {
+        for bad in [
+            "",
+            "..",
+            "clm_1/complete",
+            "clm_1?x=1",
+            "clm_1#frag",
+            "clm 1",
+            "../../v1/admin",
+            "clm_1%2f",
+        ] {
+            assert!(!one_path_segment(bad), "{bad} should be refused");
+        }
+    }
 }

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { endSession } from "../identity.js";
+import { clearStagedClaimTokens } from "../queue.js";
 import { type VaultState, vaultStore } from "./store.js";
 
 export function useVault(): VaultState {
@@ -13,7 +15,18 @@ export function useVaultStore() {
 export function useSessionGuards(): void {
   const { prefs, status } = useVault();
 
-  useEffect(() => vaultStore.onLock(() => clearCopiedSecret()), []);
+  // Locking means locked: drop the clipboard copy, revoke the Identity session
+  // (bearer, cookie, and derived Host session) and discard staged claim tokens,
+  // or control-plane and Host actions stay possible behind the unlock screen.
+  useEffect(
+    () =>
+      vaultStore.onLock(() => {
+        clearCopiedSecret();
+        endSession();
+        clearStagedClaimTokens();
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (status !== "unlocked") return;

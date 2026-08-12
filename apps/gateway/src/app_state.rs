@@ -2,6 +2,7 @@ use crate::bootstrap;
 use crate::config::{self, Args};
 use crate::task_engine::{new_task_engine, SharedTaskEngine};
 use opensesame_broker::Broker;
+use opensesame_connection_broker::{catalog, BrokerConfig, ConnectionBroker};
 use opensesame_domain::*;
 use opensesame_provider_openbao::OpenBaoHttpAuthority;
 use opensesame_provider_openfga::OpenFgaClient;
@@ -50,6 +51,11 @@ pub struct AppState {
     pub openfga: Option<OpenFgaClient>,
     pub openbao: Option<OpenBaoHttpAuthority>,
     pub connection_ref: Option<ConnectionRef>,
+    /// Third-party service authorizations (ADR 0032).
+    pub connection_broker: Arc<ConnectionBroker>,
+    /// Organization connections are created under. Until the gateway carries an
+    /// org per caller, that is the demo bootstrap's org or a fixed single-tenant id.
+    pub connection_organization: OrganizationId,
     /// Opaque ciphertext sync store — server never decrypts (ADR 0017).
     pub sync_blobs: Arc<Mutex<HashMap<String, SyncBlob>>>,
     /// blob_id -> owning session_id (tenant/device scoping for sync).
@@ -62,6 +68,14 @@ pub struct AppState {
     pub distributed_task_authority: bool,
     /// In-memory task access engine (immutable ceiling + frozen intents).
     pub task_engine: SharedTaskEngine,
+    /// task_run_id -> caller subject that started it. Authentication says a
+    /// caller is known; this says which tasks are theirs, so one session cannot
+    /// read or terminate another's work on a shared gateway.
+    pub task_owners: Arc<Mutex<HashMap<String, String>>>,
+    /// receipt_id -> caller subject that produced it. A receipt names an
+    /// operation, a resource and a result summary, so it is not another
+    /// session's to read.
+    pub receipt_owners: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl AppState {
@@ -82,17 +96,27 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         );
     }
 
-    let db = if args.database_url == "sqlite::memory:" {
-        Db::connect_memory().await?
-    } else {
-        Db::connect_sqlite(&args.database_url).await?
-    };
+    catalog::load_external_registries_from_env().await;
+    let turso_url = std::env::var("OPENSESAME_TURSO_URL").ok();
+    let turso_token = std::env::var("OPENSESAME_TURSO_AUTH_TOKEN").ok();
+    let db = Db::connect_turso(
+        &args.database_url,
+        turso_url.as_deref(),
+        turso_token.as_deref(),
+    )
+    .await?;
 
     let boot = bootstrap::maybe_demo_bootstrap(&db).await?;
     let openfga = OpenFgaClient::from_env().ok().flatten();
     let openbao = OpenBaoHttpAuthority::from_env().ok().flatten();
     let distributed_task_authority =
         resolve_distributed_task_authority(&args.task_database_url).await;
+    let connection_organization = boot
+        .demo
+        .as_ref()
+        .map(|b| b.org)
+        .unwrap_or_else(|| OrganizationId::from_uuid(uuid::Uuid::nil()));
+    let connection_broker = Arc::new(ConnectionBroker::new(db.clone(), BrokerConfig::from_env()));
 
     Ok(AppState {
         resource: args.resource,
@@ -106,12 +130,16 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         openfga,
         openbao,
         connection_ref: boot.connection_ref,
+        connection_broker,
+        connection_organization,
         sync_blobs: Arc::new(Mutex::new(HashMap::new())),
         blob_owners: Arc::new(Mutex::new(HashMap::new())),
         device_cursors: Arc::new(Mutex::new(HashMap::new())),
         operator_token: config::resolve_operator_token(),
         distributed_task_authority,
         task_engine: new_task_engine(),
+        task_owners: Arc::new(Mutex::new(HashMap::new())),
+        receipt_owners: Arc::new(Mutex::new(HashMap::new())),
     })
 }
 

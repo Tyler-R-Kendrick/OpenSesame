@@ -37,13 +37,23 @@ pub async fn maybe_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts>
 
 async fn create_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
     let mut policy = PolicyEngine::default();
-    let org = OrganizationId::new();
-    let project = ProjectId::new();
-    let principal = PrincipalId::new();
-    let actor = ActorId::new();
-    let connection = ConnectionId::new();
-    db.create_organization(&org, "demo").await?;
-    db.create_project(&project, &org, "catalog").await?;
+    let org = OrganizationId::from_uuid(uuid::Uuid::from_u128(
+        0x6f70656e_7365_7361_6d65_000000000001,
+    ));
+    let project = ProjectId::from_uuid(uuid::Uuid::from_u128(
+        0x6f70656e_7365_7361_6d65_000000000002,
+    ));
+    let principal = PrincipalId::from_uuid(uuid::Uuid::from_u128(
+        0x6f70656e_7365_7361_6d65_000000000003,
+    ));
+    let actor = ActorId::from_uuid(uuid::Uuid::from_u128(
+        0x6f70656e_7365_7361_6d65_000000000004,
+    ));
+    let connection = ConnectionId::from_uuid(uuid::Uuid::from_u128(
+        0x6f70656e_7365_7361_6d65_000000000005,
+    ));
+    db.ensure_organization(&org, "demo").await?;
+    db.ensure_project(&project, &org, "catalog").await?;
 
     policy
         .relationships
@@ -59,7 +69,9 @@ async fn create_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
 
     let now = Utc::now();
     let grant = Grant {
-        id: GrantId::new(),
+        id: GrantId::from_uuid(uuid::Uuid::from_u128(
+            0x6f70656e_7365_7361_6d65_000000000006,
+        )),
         version: 1,
         issuer_principal_id: principal,
         beneficiary_principal_id: principal,
@@ -91,7 +103,7 @@ async fn create_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
         created_at: now,
         revoked_at: None,
     };
-    db.insert_grant(&grant).await?;
+    db.upsert_grant(&grant).await?;
 
     let connection_ref =
         ConnectionRef::new(org, Some(project), "github/main", connection).expect("connection ref");
@@ -117,4 +129,21 @@ async fn create_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
         connection_ref: Some(connection_ref),
         broker,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn demo_authority_is_stable_across_host_restarts() {
+        let db = Db::connect_memory().await.unwrap();
+        let first = create_demo_bootstrap(&db).await.unwrap().demo.unwrap();
+        let second = create_demo_bootstrap(&db).await.unwrap().demo.unwrap();
+
+        assert_eq!(first.org, second.org);
+        assert_eq!(first.project, second.project);
+        assert_eq!(first.principal, second.principal);
+        assert_eq!(first.grant.id, second.grant.id);
+    }
 }

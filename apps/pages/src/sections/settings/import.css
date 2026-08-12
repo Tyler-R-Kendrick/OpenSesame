@@ -1,0 +1,252 @@
+.imp__drop {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 1.6rem 1rem;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  text-align: center;
+  transition: border-color 140ms var(--ease), background 140ms var(--ease);
+}
+
+.imp__drop.is-over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-2));
+}
+
+.imp__drop p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.imp__pick {
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.imp__pick:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.imp__formats > summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 550;
+  color: var(--ink-2);
+}
+
+.imp__formats ul {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.imp__formats li {
+  display: grid;
+  gap: 0.1rem;
+  font-size: 0.8438rem;
+}
+
+.imp__formats li span {
+  color: var(--ink-2);
+}
+
+.imp__formats > .hint {
+  margin-top: 0.7rem;
+}
+
+.imp__reading {
+  font-size: 0.875rem;
+  color: var(--ink-2);
+}
+
+.imp__preview {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.imp__found {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: end;
+  gap: 0.85rem;
+}
+
+.imp__found h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  /* An export can be named anything, including something very long. */
+  overflow-wrap: anywhere;
+}
+
+.imp__found .field {
+  min-width: 14rem;
+}
+
+.imp__counts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.imp__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.imp__count strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.imp__skipped > summary,
+.imp__formats > summary {
+  cursor: pointer;
+}
+
+.imp__skipped > summary {
+  font-size: 0.8438rem;
+  color: var(--ink-2);
+}
+
+.imp__skipped ul {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+}
+
+.imp__skipped li {
+  display: grid;
+  grid-template-columns: minmax(6rem, 14rem) 1fr;
+  gap: 0.6rem;
+  color: var(--ink-2);
+}
+
+.imp__options {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.imp__options legend {
+  padding: 0 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.imp__folderlist {
+  display: block;
+  font-size: 0.8125rem;
+  font-style: normal;
+  color: var(--ink-3, var(--ink-2));
+  opacity: 0.85;
+}
+
+.imp__foldername {
+  margin-left: 1.6rem;
+  max-width: 22rem;
+}
+
+.imp__table {
+  max-height: 17rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.imp__table:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.imp__table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.imp__table th,
+.imp__table td {
+  padding: 0.4rem 0.7rem;
+  text-align: left;
+  font-weight: 400;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--line);
+  /* Keep three columns readable without letting one long value push the rest
+     off; the preview is for recognising items, not reading them in full. */
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imp__table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-3);
+  color: var(--ink);
+  font-weight: 600;
+  z-index: 1;
+}
+
+.imp__table tbody th {
+  color: var(--ink);
+  font-weight: 550;
+}
+
+.imp__table tbody tr:last-child th,
+.imp__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.imp__table .hint {
+  padding: 0.4rem 0.7rem;
+}
+
+@media (max-width: 640px) {
+  .imp__found .field {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .imp__table th,
+  .imp__table td {
+    max-width: 9rem;
+  }
+
+  /* Three columns cannot fit. The destination folder is already stated by the
+     choice directly above the table, so it is the one to drop. */
+  .imp__table th:last-child,
+  .imp__table td:last-child {
+    display: none;
+  }
+}

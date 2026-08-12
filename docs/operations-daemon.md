@@ -13,13 +13,16 @@ Legacy: `opensesame-credential-agent` remains for compatibility; prefer daemon.
 | Health | `GET /health` |
 | Toolbar | `GET /v1/toolbar/status` |
 | Approve device | `POST /v1/toolbar/approve_device` → Host API |
-| Approve claim | `POST /v1/toolbar/approve_claim` → Identity API |
+| Approve claim | `POST /v1/toolbar/approve_claim` → Identity API; needs `claim_token` (`OPENSESAME_CLAIM_TOKEN`), since a claim id is public. Reads the claim first and presents only one still pending, so a claim already presented in the console or the PWA can still be completed here |
 | Operator L1 | `POST /v1/operator/invoke_l1` (materialize denied) |
 | Mint capability | `POST /v1/mint_capability` |
 | Never | refresh token dump, WebAuthn material, secrets |
 
-Host CLI: `opensesame daemon install|start|status|stop|logs`  
+Host CLI: `opensesame daemon install|start|status|stop|logs`
 Toolbar: `opensesame-toolbar health|status|approve-device|approve-claim`
+Every daemon route but `/health` is operator-gated, so the toolbar sends
+`X-OpenSesame-Operator` from `OPENSESAME_OPERATOR_TOKEN` (`--operator-token`).
+Without it the daemon answers 401 and nothing is approved.
 
 ## Sandbox / compose note
 

@@ -1,6 +1,7 @@
 mod aauth;
 mod admin;
 mod agents;
+mod connections;
 mod device;
 mod health;
 mod intents;
@@ -11,7 +12,7 @@ mod sync;
 mod tasks;
 
 use axum::{
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use tower_http::trace::TraceLayer;
@@ -21,6 +22,8 @@ use crate::app_state::AppState;
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health/live", get(health::live))
+        // The PWA's host probe calls this; without it every host reads as unreachable.
+        .route("/api/v1/health", get(health::live))
         .route("/health/ready", get(health::ready))
         .route("/health/authority", get(health::authority))
         .route("/health/degraded", get(health::degraded))
@@ -39,7 +42,40 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/device/approve", post(device::approve))
         .route("/api/v1/session", get(session::status))
         .route("/api/v1/whoami", get(session::whoami))
-        .route("/api/v1/connections", get(session::list_connections))
+        .route("/api/v1/providers", get(connections::list_providers))
+        .route(
+            "/api/v1/connections",
+            get(connections::list).post(connections::create),
+        )
+        .route(
+            "/api/v1/connections/{id}",
+            get(connections::get).delete(connections::delete),
+        )
+        .route(
+            "/api/v1/connections/{id}/authorize",
+            post(connections::start_authorization),
+        )
+        .route(
+            "/api/v1/connections/{id}/refresh",
+            post(connections::refresh),
+        )
+        .route(
+            "/api/v1/connections/{id}/credential",
+            post(connections::set_credential),
+        )
+        .route(
+            "/api/v1/connections/{id}/bindings",
+            post(connections::create_binding),
+        )
+        .route(
+            "/api/v1/connections/{id}/bindings/{binding_id}",
+            delete(connections::delete_binding),
+        )
+        .route("/api/v1/connections/{id}/events", get(connections::events))
+        .route(
+            "/api/v1/oauth/callback/{provider_id}",
+            get(connections::oauth_callback),
+        )
         .route("/api/v1/intents", post(intents::create))
         .route("/api/v1/receipts/{id}", get(receipts::get))
         .route("/api/v1/receipts/{id}/verify", post(receipts::verify))

@@ -28,7 +28,16 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
         return ctx.config.corsOrigins.includes(origin) ? origin : "";
       },
       credentials: true,
-      allowHeaders: ["Content-Type", "Authorization", "X-Request-Id", "Idempotency-Key"],
+      allowHeaders: [
+        "Content-Type",
+        "Authorization",
+        "X-Request-Id",
+        "Idempotency-Key",
+        // Reading and completing a claim carries its bearer here rather than in
+        // Authorization, which names the principal. Omitting it fails the
+        // preflight and takes the whole ceremony with it.
+        "X-Claim-Token",
+      ],
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     }),
   );
@@ -53,7 +62,17 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
     if (err instanceof HTTPException) {
       return err.getResponse();
     }
-    return c.json({ error: "internal_error", message: err.message }, 500);
+    // An unhandled throw is not an answer: its message carries whatever the
+    // failure happened to be holding — a query, a path, a driver's account of
+    // itself. The log has it; the client gets the correlation id to quote.
+    return c.json(
+      {
+        error: "internal_error",
+        message: "The request could not be completed.",
+        correlationId: c.get("correlationId"),
+      },
+      500,
+    );
   });
 
   return app;

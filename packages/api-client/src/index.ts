@@ -1,4 +1,21 @@
 import type { SyncBlob, SyncCursor } from "@opensesame/client-core";
+import {
+  type AuthorizeRequest,
+  type AuthorizeResponse,
+  AuthorizeResponseSchema,
+  type Connection,
+  ConnectionSchema,
+  type CreateBindingRequest,
+  type CreateConnectionRequest,
+  type ListConnectionsResponse,
+  ListConnectionsResponseSchema,
+  type ListEventsResponse,
+  ListEventsResponseSchema,
+  type ListProvidersResponse,
+  ListProvidersResponseSchema,
+  type RevokeResponse,
+  RevokeResponseSchema,
+} from "@opensesame/contracts";
 
 export interface ApiClientOptions {
   /** Host API base URL, e.g. http://127.0.0.1:8787 */
@@ -30,6 +47,28 @@ export interface HostDiscovery {
   dpopBound?: boolean;
   ready?: boolean;
   source: "prm" | "ready" | "none";
+}
+
+/** Structural view of a zod schema, so the client needs no zod dependency of its own. */
+interface ResponseSchema<T> {
+  parse(value: unknown): T;
+}
+
+/**
+ * The broker answers failures with `{ error, hint }` (ADR 0032). Carry the code
+ * into the message so callers can branch on it instead of on the status alone.
+ */
+async function requestFailure(op: string, res: Response): Promise<Error> {
+  let code = "";
+  try {
+    const body = (await res.json()) as { error?: unknown };
+    if (typeof body?.error === "string") code = body.error;
+  } catch {
+    /* non-JSON error body */
+  }
+  return new Error(
+    code ? `${op}_failed:${res.status}:${code}` : `${op}_failed:${res.status}`,
+  );
 }
 
 function b64url(bytes: ArrayBuffer | Uint8Array): string {
@@ -108,7 +147,10 @@ export function createApiClient(options: ApiClientOptions) {
     return dpopFactory;
   }
 
-  async function request(path: string, init: RequestInit = {}): Promise<Response> {
+  async function request(
+    path: string,
+    init: RequestInit = {},
+  ): Promise<Response> {
     const headers = new Headers(init.headers);
     headers.set("accept", "application/json");
     if (options.accessToken) {
@@ -126,6 +168,21 @@ export function createApiClient(options: ApiClientOptions) {
     return fetchFn(url, { ...init, headers });
   }
 
+  async function requestParsed<T>(
+    op: string,
+    schema: ResponseSchema<T>,
+    path: string,
+    init: RequestInit = {},
+  ): Promise<T> {
+    const res = await request(path, init);
+    if (!res.ok) throw await requestFailure(op, res);
+    return schema.parse(await res.json());
+  }
+
+  function connectionPath(id: string, suffix = ""): string {
+    return `/api/v1/connections/${encodeURIComponent(id)}${suffix}`;
+  }
+
   return {
     baseUrl: base,
 
@@ -140,14 +197,17 @@ export function createApiClient(options: ApiClientOptions) {
         if (prm.ok) {
           const body = (await prm.json()) as Record<string, unknown>;
           const discovery: HostDiscovery = {
-            dpopBound: Boolean(body.dpop_bound ?? body.dpop_bound_access_tokens_required),
+            dpopBound: Boolean(
+              body.dpop_bound ?? body.dpop_bound_access_tokens_required,
+            ),
             source: "prm",
           };
           if (typeof body.resource === "string") {
             discovery.resource = body.resource;
           }
           if (Array.isArray(body.authorization_servers)) {
-            discovery.authorizationServers = body.authorization_servers as string[];
+            discovery.authorizationServers =
+              body.authorization_servers as string[];
           }
           return discovery;
         }
@@ -171,10 +231,108 @@ export function createApiClient(options: ApiClientOptions) {
       return res.json();
     },
 
-    async listConnections(): Promise<unknown> {
-      const res = await request("/api/v1/connections");
-      if (!res.ok) throw new Error(`connections_failed:${res.status}`);
-      return res.json();
+    async listProviders(): Promise<ListProvidersResponse> {
+      return requestParsed(
+        "providers",
+        ListProvidersResponseSchema,
+        "/api/v1/providers",
+      );
+    },
+
+    async listConnections(): Promise<ListConnectionsResponse> {
+      return requestParsed(
+        "connections",
+        ListConnectionsResponseSchema,
+        "/api/v1/connections",
+      );
+    },
+
+    async getConnection(id: string): Promise<Connection> {
+      return requestParsed("connection", ConnectionSchema, connectionPath(id));
+    },
+
+    async createConnection(body: CreateConnectionRequest): Promise<Connection> {
+      return requestParsed(
+        "connection_create",
+        ConnectionSchema,
+        "/api/v1/connections",
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+      );
+    },
+
+    async authorizeConnection(
+      id: string,
+      body: AuthorizeRequest = {},
+    ): Promise<AuthorizeResponse> {
+      return requestParsed(
+        "connection_authorize",
+        AuthorizeResponseSchema,
+        connectionPath(id, "/authorize"),
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    async refreshConnection(id: string): Promise<Connection> {
+      return requestParsed(
+        "connection_refresh",
+        ConnectionSchema,
+        connectionPath(id, "/refresh"),
+        { method: "POST", body: "{}" },
+      );
+    },
+
+    /** api_key providers only; the value is write-only and never read back. */
+    async setConnectionCredential(
+      id: string,
+      value: string,
+    ): Promise<Connection> {
+      return requestParsed(
+        "connection_credential",
+        ConnectionSchema,
+        connectionPath(id, "/credential"),
+        { method: "POST", body: JSON.stringify({ value }) },
+      );
+    },
+
+    async revokeConnection(id: string): Promise<RevokeResponse> {
+      return requestParsed(
+        "connection_revoke",
+        RevokeResponseSchema,
+        connectionPath(id),
+        { method: "DELETE" },
+      );
+    },
+
+    async bindConnection(
+      id: string,
+      body: CreateBindingRequest,
+    ): Promise<Connection> {
+      return requestParsed(
+        "connection_bind",
+        ConnectionSchema,
+        connectionPath(id, "/bindings"),
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    async unbindConnection(id: string, bindingId: string): Promise<Connection> {
+      return requestParsed(
+        "connection_unbind",
+        ConnectionSchema,
+        connectionPath(id, `/bindings/${encodeURIComponent(bindingId)}`),
+        { method: "DELETE" },
+      );
+    },
+
+    async connectionEvents(id: string): Promise<ListEventsResponse> {
+      return requestParsed(
+        "connection_events",
+        ListEventsResponseSchema,
+        connectionPath(id, "/events"),
+      );
     },
 
     /** L1 invoke via Host API. Never sends SecretRef. */

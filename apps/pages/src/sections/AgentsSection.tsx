@@ -21,13 +21,14 @@ import {
 } from "../components/Icons.js";
 import {
   IdentityError,
+  currentSession,
   hostBase,
+  hostFetch,
   identityBase,
   identityJson,
   useConnect,
   useIdentitySession,
 } from "../lib/identity.js";
-import { loadSettings } from "../lib/settings.js";
 import { useOnline } from "../lib/use-online.js";
 import { useVault } from "../lib/vault/hooks.js";
 import {
@@ -335,10 +336,10 @@ function TaskInspector({ online }: { online: boolean }) {
   const [task, setTask] = useState<TaskView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const session = useIdentitySession();
 
   const base = hostBase();
-  const hasToken = loadSettings().operatorToken.trim().length > 0;
-  const blocked = !online || !hasToken;
+  const blocked = !online || !session;
 
   async function inspect(event: FormEvent) {
     event.preventDefault();
@@ -348,20 +349,16 @@ function TaskInspector({ online }: { online: boolean }) {
       setError("Enter the task run id you want to inspect.");
       return;
     }
-    const token = loadSettings().operatorToken.trim();
-    if (!token) {
+    if (!currentSession()) {
       setError(
-        "No operator token in this session. Add one under Settings — the Host will not describe a task without it.",
+        "Connect to Identity before asking the Host to describe a task.",
       );
       return;
     }
     setBusy(true);
     setTask(null);
     try {
-      const res = await fetch(
-        `${base.replace(/\/$/, "")}/api/v1/tasks/${encodeURIComponent(id)}`,
-        { headers: { authorization: `Bearer operator:${token}` } },
-      );
+      const res = await hostFetch(`/api/v1/tasks/${encodeURIComponent(id)}`);
       if (!res.ok) {
         setError(taskErrorFor(res.status, base));
         return;
@@ -374,9 +371,13 @@ function TaskInspector({ online }: { online: boolean }) {
         ceiling: readCaps(body.capability_ceiling),
         current: readCaps(body.current_capabilities),
       });
-    } catch {
+    } catch (caught) {
       setError(
-        `Host API unreachable at ${base}. Start the Host, or point at a running one under Settings.`,
+        caught instanceof TypeError
+          ? `Host API unreachable at ${base}. Start the Host, or point at a running one under Settings.`
+          : caught instanceof Error
+            ? caught.message
+            : `Host API unreachable at ${base}. Start the Host, or point at a running one under Settings.`,
       );
     } finally {
       setBusy(false);
@@ -430,15 +431,14 @@ function TaskInspector({ online }: { online: boolean }) {
             only exist on the Host, so there is nothing local to read — this
             lookup stays disabled until the browser is back online.
           </output>
-        ) : !hasToken ? (
+        ) : !session ? (
           <output className="note note--warn">
-            <IconAlert /> Reading a task is an operator action. Set an operator
-            token under Settings and it will be held in memory for this tab
-            only.
+            <IconAlert /> Connect to Identity first. The Host will issue a
+            short-lived session scoped to your tasks.
           </output>
         ) : (
           <p className="hint">
-            Queried against <code>{base}</code> with your operator token.
+            Queried against <code>{base}</code> as your connected principal.
           </p>
         )}
 
@@ -539,10 +539,10 @@ function taskErrorFor(status: number, base: string): string {
     return "The Host rejected that id as malformed. A task run id is a UUID — copy it from the Host or from the receipt that referenced it.";
   }
   if (status === 401 || status === 403) {
-    return "The Host refused your operator token. Set a valid operator token under Settings — it must match the one the Host was started with.";
+    return "The Host refused this user session. Reconnect to Identity and try again.";
   }
   if (status === 503) {
-    return `The Host at ${base} has no operator token configured, so it cannot authorise operator requests at all. Start it with an operator token set.`;
+    return `The Host at ${base} could not authorize this user session.`;
   }
   return `The Host answered ${status} and did not describe the task. Check the Host logs at ${base}.`;
 }
@@ -577,6 +577,8 @@ type ClaimResult = {
   instanceId: string;
   state: string;
   claimId: string;
+  /** Bearer for this one claim. The Claim ownership tab accepts nothing else. */
+  claimToken: string;
   userCode: string;
   verificationUri: string;
   expiresAt: string;
@@ -648,6 +650,17 @@ function RegisterAgent({ online }: { online: boolean }) {
       setError("Generate a keypair first — the registration is bound to it.");
       return;
     }
+    // Registration binds the instance to whichever principal authenticates the
+    // request, so the one in force now is the one to hold it to. Without a bearer
+    // here a leftover cookie would answer for it, and the claim below would name
+    // an owner this tab cannot see.
+    const active = currentSession();
+    if (!active) {
+      setError(
+        "Registering binds the agent to a principal, and this tab does not have one. Connect on the Authority tab first.",
+      );
+      return;
+    }
     setBusy(true);
     try {
       const body = await identityJson<ClaimResult>("/v1/agents", {
@@ -655,6 +668,14 @@ function RegisterAgent({ online }: { online: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ displayName: name, publicKeyJkt: jkt }),
       });
+      if (currentSession()?.accessToken !== active.accessToken) {
+        // It landed under the principal that was connected when it went out.
+        // Showing its claim here would invite the wrong one to accept it.
+        setError(
+          "The agent was registered under the principal that was connected when this went out, and the session changed since. Its claim belongs to that principal — register again for the one connected now.",
+        );
+        return;
+      }
       setClaim(body);
     } catch (err) {
       setError(registerErrorFor(err));
@@ -769,7 +790,9 @@ function RegisterAgent({ online }: { online: boolean }) {
             </div>
             <p>
               The agent stays provisional until a human completes the claim.
-              Read this code at the verification page to finish it.
+              Either read the code below at the verification page, or take the
+              claim token to <strong>Authority → Claim ownership</strong>, which
+              accepts the token and nothing else.
             </p>
             <div className="agents-claim__code">
               <code>{claim.userCode}</code>
@@ -783,6 +806,21 @@ function RegisterAgent({ online }: { online: boolean }) {
                 {copied === "code" ? <IconCheck /> : <IconCopy />}
               </button>
             </div>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn btn--sm"
+                onClick={() => copy(claim.claimToken, "token")}
+              >
+                {copied === "token" ? <IconCheck /> : <IconCopy />}
+                {copied === "token" ? "Claim token copied" : "Copy claim token"}
+              </button>
+            </div>
+            <p className="hint">
+              The claim token is a single-use bearer credential, so it is not
+              shown here — copying it is the only way it leaves this page, and
+              it is never written to disk.
+            </p>
             {verificationUrl ? (
               <a
                 className="btn"
@@ -855,16 +893,23 @@ function AgentActivity({
   const [events, setEvents] = useState<AuditEvent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** A trail read for one principal must never land under another. */
+  const run = useRef(0);
+  const shownFor = useRef<string | null>(null);
 
   const load = useCallback(async () => {
+    const id = ++run.current;
+    const superseded = () => run.current !== id;
     setBusy(true);
     setError(null);
     try {
       const body = await identityJson<{ events: AuditEvent[] }>(
         "/v1/audit/events?limit=50",
       );
+      if (superseded()) return;
       setEvents(body.events.filter(isAgentEvent));
     } catch (err) {
+      if (superseded()) return;
       setEvents(null);
       if (err instanceof IdentityError) {
         setError(
@@ -878,12 +923,19 @@ function AgentActivity({
         );
       }
     } finally {
-      setBusy(false);
+      if (!superseded()) setBusy(false);
     }
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: sessionKey is the trigger — a new principal has a different trail and must not show the previous one
   useEffect(() => {
+    if (shownFor.current !== sessionKey) {
+      // The trail on screen belongs to another principal. Drop it rather than
+      // let it read as this one's while the new one loads.
+      shownFor.current = sessionKey;
+      run.current += 1;
+      setEvents(null);
+      setError(null);
+    }
     if (!online) return;
     void load();
   }, [load, online, sessionKey]);

@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::app_state::AppState;
-use crate::middleware::auth::{require_demo_bootstrap, resolve_caller_subject};
+use crate::middleware::auth::{caller, require_demo_bootstrap, Caller};
 
 #[derive(Deserialize)]
 pub struct InvokeBody {
@@ -38,10 +38,11 @@ pub async fn create(
     headers: axum::http::HeaderMap,
     Json(body): Json<InvokeBody>,
 ) -> Response {
-    let subject = match resolve_caller_subject(&st, &headers) {
-        Ok(s) => s,
+    let who = match caller(&st, &headers) {
+        Ok(c) => c,
         Err(resp) => return resp,
     };
+    let subject = who.subject();
     let boot = match require_demo_bootstrap(&st) {
         Ok(b) => b,
         Err(resp) => return resp,
@@ -164,13 +165,20 @@ pub async fn create(
         .invoke(InvokeInput {
             intent,
             grant: boot.grant.clone(),
-            subject,
+            subject: subject.clone(),
             connection_policy_id: "demo-conn".into(),
             parameters,
         })
         .await
     {
         Ok(receipt) => {
+            // Record who this receipt belongs to before its id is handed out, so
+            // reading it later is scoped to the caller that caused it.
+            if let Caller::Session(_) = &who {
+                if let Ok(mut owners) = st.receipt_owners.lock() {
+                    owners.insert(receipt.id.to_string(), subject);
+                }
+            }
             let mut body = serde_json::to_value(&receipt).unwrap_or(json!({}));
             if let Some(obj) = body.as_object_mut() {
                 if let Some(connection_ref) = &st.connection_ref {

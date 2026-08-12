@@ -4,6 +4,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -344,31 +345,44 @@ export function SitesSection() {
   const [callbackPath, setCallbackPath] = useState("/callback");
 
   const token = session?.accessToken ?? null;
+  /**
+   * Bumped per read, and again when the bearer changes, so a read issued for the
+   * previous principal cannot land as though it described this one.
+   */
+  const clientsRun = useRef(0);
+  const eventsRun = useRef(0);
+  const shownFor = useRef<string | null>(null);
 
   const loadClients = useCallback(async () => {
+    const id = ++clientsRun.current;
     setLoadingClients(true);
     try {
       const data = await callIdentity<{ clients: OAuthClient[] }>(
         "/v1/oauth/clients",
       );
+      if (clientsRun.current !== id) return;
       setClients(data.clients);
       setClientsError(null);
     } catch (error) {
+      if (clientsRun.current !== id) return;
       setClients(null);
       setClientsError(errorText(error));
     } finally {
-      setLoadingClients(false);
+      if (clientsRun.current === id) setLoadingClients(false);
     }
   }, []);
 
   const loadEvents = useCallback(async () => {
+    const id = ++eventsRun.current;
     try {
       const data = await callIdentity<{ events: AuditEvent[] }>(
         "/v1/audit/events?limit=50",
       );
+      if (eventsRun.current !== id) return;
       setEvents(data.events);
       setEventsError(null);
     } catch (error) {
+      if (eventsRun.current !== id) return;
       setEvents(null);
       setEventsError(errorText(error));
     }
@@ -379,12 +393,24 @@ export function SitesSection() {
   }, [loadClients, loadEvents]);
 
   useEffect(() => {
-    if (!token) {
+    if (shownFor.current !== token) {
+      // Everything on screen was read under a bearer that is no longer in force.
+      // Drop it, errors included, and fence the reads still in flight for it.
+      shownFor.current = token;
+      clientsRun.current += 1;
+      eventsRun.current += 1;
       setClients(null);
+      setClientsError(null);
       setEvents(null);
+      setEventsError(null);
       setAssurance(null);
-      return;
+      setLoadingClients(false);
+      // The flash reported something done for the previous principal, and the
+      // snippet selection names one of its clients. Neither belongs here.
+      setFlash(null);
+      setSnippetClientId(null);
     }
+    if (!token) return;
     void refresh();
     let cancelled = false;
     void fetchPrincipal()

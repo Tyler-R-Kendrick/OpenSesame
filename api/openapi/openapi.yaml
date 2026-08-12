@@ -42,3 +42,530 @@ paths:
       responses:
         "200":
           description: Claim session (token once)
+  /providers:
+    get:
+      summary: List the connection provider catalog
+      security: []
+      responses:
+        "200":
+          description: Providers, including unconfigured ones (ADR 0032)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListProvidersResponse" }
+  /connections:
+    get:
+      summary: List connections (reference-only; never credential material)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Connections
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListConnectionsResponse" }
+        "401":
+          $ref: "#/components/responses/ConnectionError"
+    post:
+      summary: Create a pending connection
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateConnectionRequest" }
+      responses:
+        "201":
+          description: Created connection
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "400":
+          $ref: "#/components/responses/ConnectionError"
+        "401":
+          $ref: "#/components/responses/ConnectionError"
+  /connections/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: Get a connection
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Connection
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "404":
+          $ref: "#/components/responses/ConnectionError"
+    delete:
+      summary: Revoke a connection
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Revocation outcome
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RevokeResponse" }
+        "404":
+          $ref: "#/components/responses/ConnectionError"
+  /connections/{id}/authorize:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      summary: Start provider consent (authorization code + PKCE S256)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthorizeRequest" }
+      responses:
+        "200":
+          description: Authorization URL and single-use state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthorizeResponse" }
+        "400":
+          $ref: "#/components/responses/ConnectionError"
+        "404":
+          $ref: "#/components/responses/ConnectionError"
+  /connections/{id}/refresh:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      summary: Refresh the access token now
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Connection after refresh
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "400":
+          $ref: "#/components/responses/ConnectionError"
+        "404":
+          $ref: "#/components/responses/ConnectionError"
+  /connections/{id}/credential:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      summary: Set the credential for an api_key provider (write-only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetCredentialRequest" }
+      responses:
+        "200":
+          description: Connection; the value is never read back
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "400":
+          $ref: "#/components/responses/ConnectionError"
+        "404":
+          $ref: "#/components/responses/ConnectionError"
+  /connections/{id}/bindings:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      summary: Bind a connection to an organization, project or agent
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBindingRequest" }
+      responses:
+        "200":
+          description: Connection with the new binding
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "400":
+          $ref: "#/components/responses/ConnectionError"
+        "404":
+          $ref: "#/components/responses/ConnectionError"
+  /connections/{id}/bindings/{bid}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: bid
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      summary: Remove a binding
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Connection without the binding
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "404":
+          $ref: "#/components/responses/ConnectionError"
+  /connections/{id}/events:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: List connection lifecycle events
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Events
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListEventsResponse" }
+        "404":
+          $ref: "#/components/responses/ConnectionError"
+  /oauth/callback/{provider_id}:
+    get:
+      summary: Provider redirect target; authenticated by single-use state
+      security: []
+      parameters:
+        - name: provider_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: code
+          in: query
+          required: true
+          schema: { type: string }
+        - name: state
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: HTML that posts opensesame:connection to window.opener
+          content:
+            text/html:
+              schema: { type: string }
+        "302":
+          description: Redirect to an allowlisted return origin
+        "400":
+          $ref: "#/components/responses/ConnectionError"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: operator:<token> or opaque-session:<id>
+  responses:
+    ConnectionError:
+      description: Broker error code and human hint
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ConnectionError" }
+  schemas:
+    ConnectionError:
+      type: object
+      additionalProperties: false
+      required: [error, hint]
+      properties:
+        error:
+          type: string
+          enum:
+            - provider_unknown
+            - provider_unconfigured
+            - connection_not_found
+            - invalid_state
+            - state_expired
+            - exchange_failed
+            - not_refreshable
+            - needs_reauth
+            - redirect_not_allowed
+            - binding_exists
+            - binding_not_found
+            - unauthorized
+        hint: { type: string }
+    ScopeDef:
+      type: object
+      additionalProperties: false
+      required: [name, description, sensitive, default]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        sensitive: { type: boolean }
+        default: { type: boolean }
+    Egress:
+      type: object
+      additionalProperties: false
+      required: [scheme, authorities, path_prefixes]
+      properties:
+        scheme: { type: string }
+        authorities:
+          type: array
+          items: { type: string }
+        path_prefixes:
+          type: array
+          items: { type: string }
+    Provider:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - display_name
+        - category
+        - docs_url
+        - auth_kind
+        - supports_refresh
+        - configured
+        - missing_config
+        - scopes
+        - egress
+        - operations
+        - configuration_fields
+      properties:
+        id: { type: string }
+        display_name: { type: string }
+        category:
+          type: string
+          enum:
+            - encryption
+            - cloud_secret_storage
+            - password_managers
+            - local_storage
+            - developer
+            - productivity
+            - communication
+            - storage
+            - crm
+            - payments
+            - identity
+            - testing
+        docs_url: { type: string, format: uri }
+        auth_kind:
+          type: string
+          enum: [oauth2_authorization_code, api_key, configuration]
+        supports_refresh: { type: boolean }
+        configured: { type: boolean }
+        missing_config:
+          type: array
+          items: { type: string }
+        scopes:
+          type: array
+          items: { $ref: "#/components/schemas/ScopeDef" }
+        egress: { $ref: "#/components/schemas/Egress" }
+        operations:
+          type: array
+          items: { type: string }
+        configuration_fields:
+          type: array
+          items: { $ref: "#/components/schemas/ConfigurationField" }
+    ConfigurationField:
+      type: object
+      additionalProperties: false
+      required: [name, label, secret, required]
+      properties:
+        name: { type: string }
+        label: { type: string }
+        secret: { type: boolean }
+        required: { type: boolean }
+    ConnectionStatus:
+      type: string
+      enum: [pending, active, needs_reauth, expired, revoked, error]
+    Binding:
+      type: object
+      additionalProperties: false
+      required: [id, target_kind, target_id, target_label, created_at]
+      properties:
+        id: { type: string }
+        target_kind:
+          type: string
+          enum: [organization, project, agent]
+        target_id: { type: string }
+        target_label: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+    Connection:
+      description: Reference-only; never carries token material (ADR 0032 §6)
+      type: object
+      additionalProperties: false
+      required:
+        - connection_id
+        - connection_ref
+        - logical_name
+        - display_name
+        - provider_id
+        - status
+        - status_detail
+        - organization_id
+        - project_id
+        - owner_kind
+        - shareability
+        - requested_scopes
+        - granted_scopes
+        - account_label
+        - expires_at
+        - refreshable
+        - last_refreshed_at
+        - max_invoke_level
+        - egress
+        - bindings
+        - created_at
+        - updated_at
+      properties:
+        connection_id: { type: string }
+        connection_ref: { type: string }
+        logical_name: { type: string }
+        display_name: { type: string }
+        provider_id: { type: string }
+        status: { $ref: "#/components/schemas/ConnectionStatus" }
+        status_detail: { type: [string, "null"] }
+        organization_id: { type: string }
+        project_id: { type: [string, "null"] }
+        owner_kind: { type: string }
+        shareability:
+          type: string
+          enum: [private, delegable, organization_wide]
+        requested_scopes:
+          type: array
+          items: { type: string }
+        granted_scopes:
+          type: array
+          items: { type: string }
+        account_label: { type: [string, "null"] }
+        expires_at: { type: [string, "null"], format: date-time }
+        refreshable: { type: boolean }
+        last_refreshed_at: { type: [string, "null"], format: date-time }
+        max_invoke_level: { type: integer }
+        egress: { $ref: "#/components/schemas/Egress" }
+        bindings:
+          type: array
+          items: { $ref: "#/components/schemas/Binding" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ConnectionEvent:
+      type: object
+      additionalProperties: false
+      required: [id, kind, at, detail]
+      properties:
+        id: { type: string }
+        kind:
+          type: string
+          enum:
+            - created
+            - authorize_started
+            - authorized
+            - refreshed
+            - refresh_failed
+            - bound
+            - unbound
+            - revoked
+            - error
+        at: { type: string, format: date-time }
+        detail: { type: [string, "null"] }
+    CreateConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [provider_id]
+      properties:
+        provider_id: { type: string }
+        display_name: { type: string }
+        logical_name: { type: string }
+        project_id: { type: string }
+        scopes:
+          type: array
+          items: { type: string }
+        shareability:
+          type: string
+          enum: [private, delegable, organization_wide]
+    AuthorizeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        redirect_uri:
+          type: string
+          format: uri
+          description: Must be deployment-allowlisted
+        scopes:
+          type: array
+          items: { type: string }
+    SetCredentialRequest:
+      type: object
+      additionalProperties: false
+      required: [value]
+      properties:
+        value: { type: string }
+    CreateBindingRequest:
+      type: object
+      additionalProperties: false
+      required: [target_kind, target_id]
+      properties:
+        target_kind:
+          type: string
+          enum: [organization, project, agent]
+        target_id: { type: string }
+        target_label: { type: string }
+    ListProvidersResponse:
+      type: object
+      additionalProperties: false
+      required: [providers]
+      properties:
+        providers:
+          type: array
+          items: { $ref: "#/components/schemas/Provider" }
+    ListConnectionsResponse:
+      type: object
+      additionalProperties: false
+      required: [connections]
+      properties:
+        connections:
+          type: array
+          items: { $ref: "#/components/schemas/Connection" }
+    AuthorizeResponse:
+      type: object
+      additionalProperties: false
+      required: [authorization_url, state, expires_at]
+      properties:
+        authorization_url: { type: string, format: uri }
+        state: { type: string }
+        expires_at: { type: string, format: date-time }
+    RevokeResponse:
+      type: object
+      additionalProperties: false
+      required: [revoked, provider_revocation]
+      properties:
+        revoked: { type: boolean }
+        provider_revocation:
+          type: string
+          enum: [ok, unsupported, failed]
+    ListEventsResponse:
+      type: object
+      additionalProperties: false
+      required: [events]
+      properties:
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/ConnectionEvent" }

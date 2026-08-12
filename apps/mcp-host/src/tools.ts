@@ -183,7 +183,13 @@ export function registerHostTools(server: McpServer): void {
     try {
       const res = await daemonFetch("/v1/toolbar/status");
       const body = await res.json();
-      return { content: textContent(JSON.stringify(body)) };
+      // A refusal — 401 without an operator token, 503 without one configured —
+      // is not a status report. Saying so keeps a caller from reading the error
+      // body as the daemon's state.
+      return {
+        content: textContent(JSON.stringify(body)),
+        isError: !res.ok,
+      };
     } catch (e) {
       return toolError("daemon_unavailable", e);
     }
@@ -197,6 +203,8 @@ export function registerHostTools(server: McpServer): void {
         content: textContent(
           JSON.stringify({ status: res.status, body: text, tools: hostTools }),
         ),
+        // Not ready is an answer, but it is not a success.
+        isError: !res.ok,
       };
     } catch (e) {
       return toolError("host_unavailable", e);

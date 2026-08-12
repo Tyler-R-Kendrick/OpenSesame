@@ -98,9 +98,20 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           security: [{ bearerAuth: [] }],
           parameters: [
             { name: "id", in: "path", required: true, schema: { type: "string" } },
+            {
+              name: "X-Claim-Token",
+              in: "header",
+              required: true,
+              schema: { type: "string", pattern: "^osc_clm_" },
+              description:
+                "Claim bearer, required alongside the principal: the claim id is public",
+            },
             { name: "Idempotency-Key", in: "header", schema: { type: "string" } },
           ],
-          responses: { "200": { description: "Completed" } },
+          responses: {
+            "200": { description: "Completed" },
+            "401": { description: "Missing/invalid claim token or principal" },
+          },
         },
       },
       "/v1/claims/{id}/deny": {

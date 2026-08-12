@@ -31,10 +31,24 @@ function toResponse(client: OAuthClientRecord) {
   });
 }
 
+/**
+ * A client answers only to the principal that registered it. A client owned by
+ * someone else reads as absent rather than forbidden, so ids cannot be probed.
+ */
+function owned(
+  client: OAuthClientRecord | undefined,
+  principalId: string,
+): OAuthClientRecord | undefined {
+  if (!client) return undefined;
+  return client.ownerPrincipalId === principalId ? client : undefined;
+}
+
 oauthClientRoutes.get("/", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
+  const principalId = c.get("principalId")!;
   const clients = [...ctx.stores.oauthClients.values()].filter(
-    (client) => client.state !== "revoked",
+    (client) =>
+      client.state !== "revoked" && client.ownerPrincipalId === principalId,
   );
   return c.json({ clients: clients.map(toResponse) });
 });
@@ -92,6 +106,7 @@ oauthClientRoutes.post(
       allowedScopes: parsed.data.allowedScopes,
       allowedResources: parsed.data.allowedResources,
       state: "active",
+      ownerPrincipalId: principalId,
       createdAt: now,
       updatedAt: now,
     };
@@ -117,7 +132,10 @@ oauthClientRoutes.post(
 oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = c.get("principalId")!;
-  const client = ctx.stores.oauthClients.get(c.req.param("id"));
+  const client = owned(
+    ctx.stores.oauthClients.get(c.req.param("id")),
+    principalId,
+  );
   if (!client || client.state === "revoked") {
     return c.json({ error: "not_found" }, 404);
   }
@@ -167,7 +185,10 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
 oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = c.get("principalId")!;
-  const client = ctx.stores.oauthClients.get(c.req.param("id"));
+  const client = owned(
+    ctx.stores.oauthClients.get(c.req.param("id")),
+    principalId,
+  );
   if (!client || client.state === "revoked") {
     return c.json({ error: "not_found" }, 404);
   }
@@ -203,7 +224,10 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
 oauthClientRoutes.post("/:id/revoke", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = c.get("principalId")!;
-  const client = ctx.stores.oauthClients.get(c.req.param("id"));
+  const client = owned(
+    ctx.stores.oauthClients.get(c.req.param("id")),
+    principalId,
+  );
   if (!client) {
     return c.json({ error: "not_found" }, 404);
   }

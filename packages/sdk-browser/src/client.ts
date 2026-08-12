@@ -1,3 +1,4 @@
+import { ClaimRequestError } from "./errors.js";
 import { createPkcePair } from "./pkce.js";
 import type {
   ClaimDecision,
@@ -121,6 +122,12 @@ export function createOpenSesame(
 
   /** In-tab refresh token; never written to StorageLike. */
   let refreshTokenMemory: string | undefined;
+  /**
+   * Claim bearers seen by `presentClaim`, kept only until the claim is completed.
+   * Never written to storage: a claim token is a credential, and the id returned
+   * with a presented claim is not one.
+   */
+  const presentedTokens = new Map<string, string>();
 
   function saveSession(session: Session): void {
     if (session.refreshToken) {
@@ -229,7 +236,9 @@ export function createOpenSesame(
     },
 
     async continueAnonymously() {
-      const res = await fetchImpl(`${apiBase}/v1/principals/anonymous`, {
+      // The control plane mounts provisional sessions here, and answers with its
+      // own shape rather than an OAuth token response.
+      const res = await fetchImpl(`${apiBase}/v1/principals/provisional`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -238,10 +247,29 @@ export function createOpenSesame(
         body: JSON.stringify({ clientId }),
       });
       if (!res.ok) {
-        throw new Error(`Anonymous session failed: ${res.status}`);
+        throw new Error(`Provisional session failed: ${res.status}`);
       }
-      const tokens = (await res.json()) as TokenResponse;
-      const session = toSession(tokens, true);
+      const body = (await res.json()) as {
+        accessToken?: string;
+        expiresAt?: string;
+        principalId?: string;
+        tokenType?: string;
+      };
+      if (!body.accessToken) {
+        throw new Error("Provisional session returned no access token");
+      }
+      const expiresAt =
+        body.expiresAt !== undefined ? Date.parse(body.expiresAt) : Number.NaN;
+      const session: Session = {
+        accessToken: body.accessToken,
+        anonymous: true,
+        raw: {
+          access_token: body.accessToken,
+          token_type: body.tokenType ?? "Bearer",
+        },
+      };
+      if (Number.isFinite(expiresAt)) session.expiresAt = expiresAt;
+      if (body.principalId !== undefined) session.sub = body.principalId;
       saveSession(session);
       return session;
     },
@@ -271,15 +299,44 @@ export function createOpenSesame(
         body: JSON.stringify({ token }),
       });
       if (!res.ok) {
-        throw new Error(`presentClaim failed: ${res.status}`);
+        throw new ClaimRequestError(
+          `presentClaim failed: ${res.status}`,
+          res.status,
+        );
       }
-      return (await res.json()) as ClaimPresentation;
+      const presented = (await res.json()) as ClaimPresentation;
+      // Completing needs the claim bearer as well as a principal, and the id in
+      // the response is not one. Held in memory for this client only.
+      presentedTokens.set(presented.id, token);
+      return presented;
+    },
+
+    async readClaim(claimId, claimToken) {
+      const res = await fetchImpl(`${apiBase}/v1/claims/${claimId}`, {
+        headers: { accept: "application/json", "x-claim-token": claimToken },
+      });
+      if (!res.ok) {
+        throw new ClaimRequestError(
+          `readClaim failed: ${res.status}`,
+          res.status,
+        );
+      }
+      const claim = (await res.json()) as ClaimPresentation;
+      // Reading proves the bearer, so completing can follow without repeating it.
+      presentedTokens.set(claim.id, claimToken);
+      return claim;
     },
 
     async completeClaim(claimId, decision: ClaimDecision) {
       const session = readSession();
       if (!session) {
         throw new Error("Authentication required to complete claim");
+      }
+      const claimToken = decision.claimToken ?? presentedTokens.get(claimId);
+      if (!claimToken) {
+        throw new Error(
+          "Claim token required to complete claim — present it with this client, or pass claimToken",
+        );
       }
       const body: Record<string, unknown> = {
         acceptedItemIds: decision.acceptedItemIds,
@@ -295,12 +352,19 @@ export function createOpenSesame(
           "content-type": "application/json",
           accept: "application/json",
           authorization: `Bearer ${session.accessToken}`,
+          "x-claim-token": claimToken,
         },
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        throw new Error(`completeClaim failed: ${res.status}`);
+        throw new ClaimRequestError(
+          `completeClaim failed: ${res.status}`,
+          res.status,
+        );
       }
+      // Single-use: nothing else can be done with it, and holding it only widens
+      // the window in which it could leak.
+      presentedTokens.delete(claimId);
       return (await res.json()) as ClaimPresentation;
     },
 

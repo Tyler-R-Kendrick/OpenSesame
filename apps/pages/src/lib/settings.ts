@@ -3,36 +3,39 @@ import { kvGet, kvSet } from "./kv.js";
 export type PagesSettings = {
   hostApi: string;
   identityApi: string;
-  /** Session-only — never persisted (operator token must not live in durable browser storage). */
-  operatorToken: string;
+  tursoUrl: string;
 };
 
 const PERSIST_KEY = "settings.v1";
 
-/** In-memory operator token for the current tab session only. */
-let sessionOperatorToken = "";
-
 type PersistedSettings = {
   hostApi: string;
   identityApi: string;
+  tursoUrl: string;
 };
 
+const shippedHostApi = "http://127.0.0.1:8787";
+const runtimeHostApi = import.meta.env.VITE_HOST_API?.trim();
+
 const defaults: PersistedSettings = {
-  hostApi: "http://127.0.0.1:8787",
+  hostApi: runtimeHostApi || shippedHostApi,
   identityApi: "http://127.0.0.1:8788",
+  tursoUrl: "",
 };
 
 function loadPersisted(): PersistedSettings {
   try {
     const raw = kvGet(PERSIST_KEY);
     if (!raw) return { ...defaults };
-    const parsed = JSON.parse(raw) as Partial<PersistedSettings> & {
-      operatorToken?: string;
-    };
-    // Drop any legacy operatorToken that may have been written before this fence.
+    const parsed = JSON.parse(raw) as Partial<PersistedSettings>;
     return {
-      hostApi: parsed.hostApi?.trim() || defaults.hostApi,
+      hostApi:
+        parsed.hostApi?.trim() &&
+        !(runtimeHostApi && parsed.hostApi.trim() === shippedHostApi)
+          ? parsed.hostApi.trim()
+          : defaults.hostApi,
       identityApi: parsed.identityApi?.trim() || defaults.identityApi,
+      tursoUrl: parsed.tursoUrl?.trim() || "",
     };
   } catch {
     return { ...defaults };
@@ -40,18 +43,14 @@ function loadPersisted(): PersistedSettings {
 }
 
 export function loadSettings(): PagesSettings {
-  const persisted = loadPersisted();
-  return {
-    ...persisted,
-    operatorToken: sessionOperatorToken,
-  };
+  return loadPersisted();
 }
 
 export function saveSettings(next: PagesSettings): void {
-  sessionOperatorToken = next.operatorToken.trim();
   const persisted: PersistedSettings = {
     hostApi: next.hostApi.trim() || defaults.hostApi,
     identityApi: next.identityApi.trim() || defaults.identityApi,
+    tursoUrl: next.tursoUrl.trim(),
   };
   kvSet(PERSIST_KEY, JSON.stringify(persisted));
 }

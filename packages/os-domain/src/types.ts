@@ -205,6 +205,12 @@ export interface OAuthClientRecord {
   metadataUri?: string;
   metadataDigest?: string;
   state: OAuthClientState;
+  /**
+   * The principal that registered this client, and the only one that may read
+   * or change it. Absent for clients admitted by other means (origin profiles),
+   * which nobody manages through the registration API.
+   */
+  ownerPrincipalId?: PrincipalId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -399,6 +405,16 @@ export type AuthorityHandle =
   | { kind: "secret"; ref: string };
 
 export type ConnectionRef = { kind: "connection"; ref: string };
+
+/** Connection lifecycle events the broker emits today (ADR 0032). */
+export type ConnectionDomainEventType =
+  | "connection.created"
+  | "connection.authorized"
+  | "connection.refreshed"
+  | "connection.refresh_failed"
+  | "connection.bound"
+  | "connection.unbound"
+  | "connection.revoked";
 
 /** Future domain event types — contracts only; no secret resolver in this slice. */
 export type FutureDomainEventType =

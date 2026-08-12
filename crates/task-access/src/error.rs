@@ -10,6 +10,8 @@ pub enum TaskAccessError {
     TransitionNotFound(String),
     #[error("no pending transition")]
     NoPendingTransition,
+    #[error("a transition is already awaiting acknowledgements: {0}")]
+    TransitionPending(String),
     #[error("result buffer held pending acknowledgements")]
     ResultBufferHeld,
     #[error("credential renewal exceeds maximum expiry")]

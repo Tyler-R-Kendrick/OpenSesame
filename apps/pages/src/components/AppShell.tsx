@@ -8,6 +8,7 @@ import {
   IconAgent,
   IconAuthority,
   IconCard,
+  IconConnection,
   IconFolder,
   IconLogin,
   IconNote,
@@ -24,6 +25,7 @@ import {
 const SECTIONS = [
   { to: "/vault", label: "Vault", Icon: IconVault },
   { to: "/agents", label: "Agents", Icon: IconAgent },
+  { to: "/connections", label: "Connections", Icon: IconConnection },
   { to: "/sites", label: "Sites", Icon: IconSite },
   { to: "/authority", label: "Authority", Icon: IconAuthority },
   { to: "/settings", label: "Settings", Icon: IconSettings },

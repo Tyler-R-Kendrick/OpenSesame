@@ -17,6 +17,7 @@ members = [
   "crates/broker",
   "crates/claims",
   "crates/human-vault",
+  "crates/connection-broker",
   "crates/connector-host",
   "crates/connector-sdk",
   "crates/env-spec",
@@ -75,6 +76,7 @@ tower = "0.5.2"
 tower-http = { version = "0.6.6", features = ["trace", "cors", "limit"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
+turso = { version = "0.8.0-pre.4", default-features = false, features = ["sync"] }
 url = { version = "2.5.4", features = ["serde"] }
 uuid = { version = "1.17.0", features = ["serde", "v4", "v7", "js"] }
 zeroize = { version = "1.8.1", features = ["derive"] }

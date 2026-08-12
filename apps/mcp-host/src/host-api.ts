@@ -49,6 +49,16 @@ export async function hostFetch(path: string, init?: RequestInit): Promise<Respo
   return fetchImpl(`${hostApiBase()}${path}`, { ...init, headers });
 }
 
+/**
+ * The daemon gates every mutation on the operator token, and its status probe
+ * too. Without it these tools answer 401 and read as a broken daemon rather
+ * than a missing credential, so pass it when the environment has one.
+ */
 export async function daemonFetch(path: string, init?: RequestInit): Promise<Response> {
-  return fetchImpl(`${daemonBase()}${path}`, init);
+  const headers = new Headers(init?.headers);
+  const operator = process.env.OPENSESAME_OPERATOR_TOKEN?.trim();
+  if (operator && !headers.has("x-opensesame-operator")) {
+    headers.set("x-opensesame-operator", operator);
+  }
+  return fetchImpl(`${daemonBase()}${path}`, { ...init, headers });
 }

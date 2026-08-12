@@ -19,8 +19,23 @@ With live providers:
 source .tools/run/env.sh
 cargo run -p opensesame-gateway -- \
   --listen 127.0.0.1:18787
-# Set OPENSESAME_DB=sqlite://$PWD/.tools/run/gateway.sqlite?mode=rwc in the environment
 ```
+
+The Host uses the Turso embedded engine and persists to
+`.tools/run/opensesame.db` by default. Override the local file with
+`OPENSESAME_DB=/path/to/opensesame.db`.
+
+To sync that embedded database to a self-hosted Turso server:
+
+```bash
+tursodb .tools/run/opensesame-primary.db --sync-server 127.0.0.1:8080
+OPENSESAME_TURSO_URL=http://127.0.0.1:8080 \
+  cargo run -p opensesame-gateway
+```
+
+Set `OPENSESAME_TURSO_AUTH_TOKEN` only when the remote requires it. The local
+embedded database remains authoritative while temporarily offline and retries
+push/pull every five seconds.
 
 Full live drill: `./scripts/live-stack-test.sh`
 
@@ -96,4 +111,3 @@ cargo run -p opensesame-credential-agent
 curl -s -X POST http://127.0.0.1:18790/v1/mint_capability \
   -H 'content-type: application/json' -d '{"audience":"devcontainer"}'
 ```
-

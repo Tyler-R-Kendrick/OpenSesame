@@ -128,6 +128,108 @@ describe("ClaimEngine", () => {
     expect(final?.version).toBeGreaterThanOrEqual(5);
   });
 
+  // Item rows are the record of what was accepted, so the decision that lost the
+  // swap must not be the one written against them.
+  it("leaves items matching the decision that won", async () => {
+    const eng = engine(() => fixtures.now);
+    const created = await advanceToReviewed(eng);
+
+    const [a, b] = await Promise.all([
+      eng.completeClaim(created.session.id, "prn_both", {
+        acceptedItemIds: ["ci_project", "ci_resource"],
+      }),
+      eng.completeClaim(created.session.id, "prn_project_only", {
+        acceptedItemIds: ["ci_project"],
+      }),
+    ]);
+
+    const winners = [a, b].filter((r) => r.won);
+    expect(winners).toHaveLength(1);
+    const winner = winners[0];
+    const accepted = new Set(
+      winner?.session.completedByPrincipalId === "prn_both"
+        ? ["ci_project", "ci_resource"]
+        : ["ci_project"],
+    );
+
+    const items = await eng.getItems(created.session.id);
+    for (const item of items) {
+      expect(item.state).toBe(accepted.has(item.id) ? "accepted" : "rejected");
+    }
+  });
+
+  // The session swap and the item rows are two writes. A completion that stopped
+  // between them must not report success on retry while items say nothing.
+  it("settles items on retry after the item write was lost", async () => {
+    const store = new MemoryClaimStore();
+    const eng = new ClaimEngine({
+      pepper: fixtures.pepper,
+      store,
+      clock: () => fixtures.now,
+    });
+    const created = await eng.createClaim({
+      type: "resource_bundle",
+      targetManifest: { targets: [{ id: "prj_temp_001" }] },
+      creatorPrincipalId: "prn_creator",
+      items: fixtures.claimItems("placeholder"),
+    });
+    await eng.presentClaim(created.session.id, created.token);
+    await eng.authenticateClaim(created.session.id);
+    const decision = { acceptedItemIds: ["ci_project", "ci_resource"] };
+    await eng.reviewClaim(created.session.id, decision);
+
+    // The write of the item rows never lands.
+    const putItems = store.putItems.bind(store);
+    store.putItems = async () => {
+      throw new Error("storage went away");
+    };
+    await expect(
+      eng.completeClaim(created.session.id, "prn_owner", decision),
+    ).rejects.toThrow("storage went away");
+    expect(
+      (await eng.getItems(created.session.id)).every(
+        (item) => item.state === "pending",
+      ),
+    ).toBe(true);
+
+    store.putItems = putItems;
+    const retry = await eng.completeClaim(
+      created.session.id,
+      "prn_owner",
+      decision,
+    );
+    expect(retry.won).toBe(true);
+    for (const item of await eng.getItems(created.session.id)) {
+      expect(item.state).toBe("accepted");
+    }
+  });
+
+  // Same items, different destination: reporting the recorded completion as this
+  // caller's success would say ownership went where it did not.
+  it("refuses a replay that names a different destination", async () => {
+    const eng = engine();
+    const created = await advanceToReviewed(eng);
+    const first = await eng.completeClaim(created.session.id, "prn_same", {
+      acceptedItemIds: ["ci_project", "ci_resource"],
+      destination: { principalId: "prn_a" },
+    });
+    expect(first.won).toBe(true);
+
+    await expect(
+      eng.completeClaim(created.session.id, "prn_same", {
+        acceptedItemIds: ["ci_project", "ci_resource"],
+        destination: { principalId: "prn_b" },
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+
+    // Key order is not a difference.
+    const same = await eng.completeClaim(created.session.id, "prn_same", {
+      acceptedItemIds: ["ci_resource", "ci_project"],
+      destination: { principalId: "prn_a" },
+    });
+    expect(same.won).toBe(true);
+  });
+
   it("idempotent complete returns recorded result", async () => {
     const eng = engine();
     const created = await advanceToReviewed(eng);

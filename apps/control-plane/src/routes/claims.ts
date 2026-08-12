@@ -12,6 +12,7 @@ import {
   DomainError,
   parseClaimToken,
   verifyClaimToken,
+  type ClaimItem,
   type ClaimSession,
 } from "@opensesame/os-domain";
 import type { CompleteDecision } from "@opensesame/claims";
@@ -29,7 +30,7 @@ import {
   escapeHtml,
 } from "../middleware/security-headers.js";
 
-function toClaimResponse(session: ClaimSession) {
+function toClaimResponse(session: ClaimSession, items?: readonly ClaimItem[]) {
   return ClaimSessionResponseSchema.parse({
     id: session.id,
     type: session.type,
@@ -39,6 +40,20 @@ function toClaimResponse(session: ClaimSession) {
     version: session.version,
     ...(session.completedByPrincipalId !== undefined
       ? { completedByPrincipalId: session.completedByPrincipalId }
+      : {}),
+    // A reviewer cannot accept by id without being told the ids.
+    ...(items
+      ? {
+          items: items.map((item) => ({
+            id: item.id,
+            targetType: item.targetType,
+            targetId: item.targetId,
+            requestedAction: item.requestedAction,
+            required: item.required,
+            dependencies: item.dependencies,
+            state: item.state,
+          })),
+        }
       : {}),
   });
 }
@@ -157,7 +172,8 @@ claimRoutes.post(
 claimRoutes.get("/:id", async (c) => {
   const loaded = await loadClaimWithToken(c, c.req.param("id"));
   if (loaded instanceof Response) return loaded;
-  return c.json(toClaimResponse(loaded));
+  const items = await c.get("ctx").claims.getItems(loaded.id);
+  return c.json(toClaimResponse(loaded, items));
 });
 
 claimRoutes.post("/present", async (c) => {
@@ -182,7 +198,8 @@ claimRoutes.post("/present", async (c) => {
       correlationId: c.get("correlationId"),
       metadata: { action: "claim.present", state: session.state },
     });
-    return c.json(toClaimResponse(session));
+    const items = await ctx.claims.getItems(session.id);
+    return c.json(toClaimResponse(session, items));
   } catch (err) {
     if (err instanceof DomainError) {
       return c.json({ error: err.code, message: err.message }, domainErrorStatus(err));
@@ -194,7 +211,8 @@ claimRoutes.post("/present", async (c) => {
 claimRoutes.post(
   "/:id/complete",
   requirePrincipal(),
-  idempotencyMiddleware("claims.complete"),
+  // Completing is gated on the claim bearer, so replay must be too.
+  idempotencyMiddleware("claims.complete", { bindClaimToken: true }),
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = c.get("principalId")!;
@@ -204,10 +222,27 @@ claimRoutes.post(
       return c.json({ error: "validation_error", details: parsed.error.flatten() }, 400);
     }
 
+    // The claim bearer is required as well as a principal. A public claim id is
+    // not a secret, and without this any authenticated principal could take
+    // ownership of a claim someone else presented.
+    const claimToken = extractClaimToken(c);
+    if (!claimToken) {
+      return c.json(
+        {
+          error: "unauthorized",
+          hint: "X-Claim-Token or Bearer osc_clm_… required to complete a claim",
+        },
+        401,
+      );
+    }
+
     // Ensure claim is in a completable state: present → authenticate → review if needed
     try {
       let session = await ctx.claims.get(id);
       if (!session) return c.json({ error: "not_found" }, 404);
+      if (!verifyClaimToken(ctx.config.claimPepper, claimToken, session.tokenDigest)) {
+        return c.json({ error: "invalid_claim_token" }, 401);
+      }
 
       if (session.state === "pending") {
         return c.json({ error: "INVALID_TRANSITION", message: "Claim must be presented first" }, 422);

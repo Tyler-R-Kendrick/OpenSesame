@@ -17,12 +17,15 @@ Operate — an end-to-end encrypted vault client, installable as a PWA, served
 as a static site.
 
 ## Audience / job
-One store, four readings of it:
+One store, five readings of it:
 
 - **Humans** keep passwords, passkeys, cards, and notes here. This is the
   Bitwarden/1Password job, and it sets the craft bar.
 - **Agents** are handed scoped grants against secrets they can never read. The
   Agents section shows the ceilings and what a running task narrowed to.
+- **Services** are authorized once and then brokered. The Connections section
+  runs the consent round trip, then binds one authorization to the projects and
+  agents allowed to act through it.
 - **Websites** use OpenSesame as their auth broker. The Sites section registers
   the origin-pinned public clients and shows the sign-in events they produced.
 - **Developers** treat it as the authority: prove identity, authorize devices,
@@ -31,6 +34,11 @@ One store, four readings of it:
 ## Task
 Create or unlock the vault with a master password → work in one of the four
 sections → lock, which discards the key.
+
+Arriving from another manager is its own first-run task: pick an export from
+Bitwarden, 1Password, a browser, LastPass, KeePass, Dashlane, NordPass, or
+Proton Pass → read what was found and what the format could not carry → choose
+where it lands → import.
 
 ## Constraints
 - The master password derives the vault key with 600,000 PBKDF2-SHA256
@@ -46,6 +54,17 @@ sections → lock, which discards the key.
 - TOTP codes, password generation, strength, and the health report are computed
   in the page. Nothing about a password, including a hash of one, leaves the
   device.
+- Imports are parsed in the tab, including unzipping a 1Password `.1pux` with
+  `DecompressionStream`. An import must preview before it writes, must say what
+  a given format cannot carry, and must name the plaintext export still sitting
+  in the user's downloads.
+- Connections are the one asset the device does not hold: the authority plane
+  keeps provider tokens because it has to renew them while nobody is watching.
+  That inversion has to be stated on the surface, not buried — and no view,
+  ever, renders a token, a refresh token, or a client secret.
+- A provider with no OAuth client registered on the deployment is listed with
+  the exact environment variables it is missing. A connect button that cannot
+  work is worse than an honest absence.
 
 ## Direction
 Bitwarden and 1Password set the bar. Light canvas, navy rail, teal accent, a
