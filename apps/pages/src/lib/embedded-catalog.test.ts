@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { bundledProviders } from "./embedded-catalog.js";
+import {
+  bundledProviders,
+  decodeEmbeddedProviders,
+} from "./embedded-catalog.js";
 
 describe("embedded connector catalog", () => {
   it("contains every Fnox, LLM, and identity provider once", () => {
@@ -21,5 +24,41 @@ describe("embedded connector catalog", () => {
     ]) {
       expect(ids).toContain(id);
     }
+  });
+
+  it("keeps identity fallback authority aligned with the Host catalog", () => {
+    const betterAuth = bundledProviders.find(
+      (provider) => provider.id === "better-auth",
+    );
+    const workos = bundledProviders.find(
+      (provider) => provider.id === "workos",
+    );
+    const auth0 = bundledProviders.find((provider) => provider.id === "auth0");
+    expect(betterAuth?.operations).toEqual(["identity.configure"]);
+    expect(auth0?.operations).toEqual(["identity.configure"]);
+    expect(workos?.operations).toEqual([
+      "user.read",
+      "organization.read",
+      "directory.read",
+    ]);
+    expect(workos?.egress).toEqual({
+      scheme: "https",
+      authorities: ["api.workos.com"],
+      pathPrefixes: [],
+    });
+  });
+
+  it("rejects a valid catalog cached before the bundled revision existed", () => {
+    expect(
+      decodeEmbeddedProviders(JSON.stringify(bundledProviders)),
+    ).toBeNull();
+    expect(
+      decodeEmbeddedProviders(
+        JSON.stringify({
+          revision: "2026-08-12.2",
+          providers: bundledProviders,
+        }),
+      ),
+    ).toEqual(bundledProviders);
   });
 });
