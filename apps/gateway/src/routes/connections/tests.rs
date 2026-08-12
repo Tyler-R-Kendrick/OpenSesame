@@ -25,6 +25,18 @@ use crate::app_state::{self, AppState};
 use crate::config::{Args, DEV_OPERATOR_TOKEN};
 use crate::middleware::auth::Caller;
 
+#[test]
+fn production_discovery_requires_the_host_operator() {
+    let owner = Caller::Session {
+        subject: "prn_owner".into(),
+        organization_id: opensesame_domain::OrganizationId::new(),
+        role: opensesame_domain::OrganizationRole::Owner,
+    };
+    assert!(super::may_discover(&owner, false));
+    assert!(!super::may_discover(&owner, true));
+    assert!(super::may_discover(&Caller::Operator, true));
+}
+
 #[tokio::test]
 async fn operator_can_select_org_but_session_cannot_spoof_it() {
     let state = app_state::build(Args {
@@ -90,6 +102,66 @@ async fn credential_value_limit_applies_to_the_value_not_json_overhead() {
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{body}");
+}
+
+#[tokio::test]
+async fn discovery_configures_complete_host_credentials_once() {
+    let (mut state, _server) = harness().await;
+    let config = BrokerConfig::in_memory(Some([11u8; 32]), "http://127.0.0.1:8787")
+        .with_detected_connection(
+            "workos",
+            std::collections::BTreeMap::from([("api_key".into(), "route-do-not-return".into())]),
+        );
+    state.connection_broker = Arc::new(
+        ConnectionBroker::new(state.db.pool().clone(), config).expect("connection broker"),
+    );
+
+    let organization = opensesame_domain::OrganizationId::new();
+    let owner = session_for(
+        &state,
+        "prn_owner",
+        organization,
+        opensesame_domain::OrganizationRole::Owner,
+    );
+    for expected in [1, 0] {
+        let (status, discovered) =
+            as_session(&state, &owner, "POST", "/api/v1/connections/discover", None).await;
+        assert_eq!(status, StatusCode::OK, "{discovered}");
+        assert_eq!(discovered, json!({"configured": expected}));
+        let (status, body) = as_session(&state, &owner, "GET", "/api/v1/connections", None).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let connections = body["connections"].as_array().unwrap();
+        assert_eq!(connections.len(), 1, "{body}");
+        assert_eq!(connections[0]["provider_id"], "workos");
+        assert_eq!(connections[0]["status"], "active");
+        assert!(!body.to_string().contains("route-do-not-return"));
+    }
+
+    for caller in [
+        session_for(
+            &state,
+            "prn_member",
+            organization,
+            opensesame_domain::OrganizationRole::Member,
+        ),
+        session_for(
+            &state,
+            "prn_foreign_owner",
+            opensesame_domain::OrganizationId::new(),
+            opensesame_domain::OrganizationRole::Owner,
+        ),
+    ] {
+        let (status, body) = as_session(
+            &state,
+            &caller,
+            "POST",
+            "/api/v1/connections/discover",
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+        assert_eq!(body["error"], "forbidden");
+    }
 }
 
 const CLIENT_ID: &str = "mock-client-id";
@@ -969,6 +1041,7 @@ async fn connection_routes_require_a_caller() {
         ("GET", "/api/v1/connections"),
         ("GET", "/api/v1/providers"),
         ("POST", "/api/v1/connections"),
+        ("POST", "/api/v1/connections/discover"),
         ("GET", "/api/v1/connections/connection:1/events"),
     ] {
         let (status, _) = send(

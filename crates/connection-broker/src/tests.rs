@@ -146,6 +146,107 @@ async fn configured_deployment_apps_are_shared_dev_integrations() {
 }
 
 #[tokio::test]
+async fn complete_host_credentials_are_imported_once_and_stay_redacted() {
+    let config = key_config().with_detected_connection(
+        "workos",
+        std::collections::BTreeMap::from([("api_key".into(), "detected-do-not-return".into())]),
+    );
+    let (_db, broker) = broker_with(config).await;
+    let organization = OrganizationId::new();
+    let owner = "prn_environment_owner";
+
+    assert_eq!(
+        broker
+            .auto_configure_connections(&organization, Some(owner))
+            .await,
+        1
+    );
+    assert_eq!(
+        broker
+            .auto_configure_connections(&organization, Some(owner))
+            .await,
+        0
+    );
+    let connections = broker
+        .list_connections_for(&organization, Some(owner))
+        .await
+        .unwrap();
+    assert_eq!(connections.len(), 1);
+    assert_eq!(connections[0].provider_id, "workos");
+    assert_eq!(connections[0].status, ConnectionStatus::Active);
+    assert!(!serde_json::to_string(&connections)
+        .unwrap()
+        .contains("detected-do-not-return"));
+
+    broker
+        .revoke(&organization, &connections[0].connection_id)
+        .await
+        .unwrap();
+    assert_eq!(
+        broker
+            .auto_configure_connections(&organization, Some(owner))
+            .await,
+        0,
+        "an explicit revoke is a tombstone, not an invitation to re-import"
+    );
+}
+
+#[tokio::test]
+async fn detected_credentials_are_not_imported_without_a_sealing_key() {
+    let config = BrokerConfig::in_memory(None, "http://127.0.0.1:8787").with_detected_connection(
+        "workos",
+        std::collections::BTreeMap::from([("api_key".into(), "unsealed".into())]),
+    );
+    let (_db, broker) = broker_with(config).await;
+    let organization = OrganizationId::new();
+    assert_eq!(
+        broker
+            .auto_configure_connections(&organization, Some("prn_owner"))
+            .await,
+        0
+    );
+    assert!(broker
+        .list_connections(&organization)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+#[tokio::test]
+async fn failed_detected_import_is_removed_and_can_be_retried() {
+    let bad = key_config().with_detected_connection(
+        "workos",
+        std::collections::BTreeMap::from([("unexpected".into(), "invalid".into())]),
+    );
+    let (db, broker) = broker_with(bad).await;
+    let organization = OrganizationId::new();
+    let owner = "prn_environment_owner";
+    assert_eq!(
+        broker
+            .auto_configure_connections(&organization, Some(owner))
+            .await,
+        0
+    );
+    assert!(broker
+        .list_connections_for(&organization, Some(owner))
+        .await
+        .unwrap()
+        .is_empty());
+
+    let corrected = key_config().with_detected_connection(
+        "workos",
+        std::collections::BTreeMap::from([("api_key".into(), "corrected".into())]),
+    );
+    let broker = ConnectionBroker::new(db.pool().clone(), corrected).unwrap();
+    assert_eq!(
+        broker
+            .auto_configure_connections(&organization, Some(owner))
+            .await,
+        1
+    );
+}
+
+#[tokio::test]
 async fn organization_integrations_seal_secrets_and_enforce_scope_ceiling() {
     let (db, broker) = broker().await;
     let org = OrganizationId::new();

@@ -154,6 +154,14 @@ pub async fn get_connection(pool: &SqlitePool, id: &str) -> Result<Option<Connec
     Ok(row.as_ref().map(connection_from_row))
 }
 
+pub async fn delete_connection(pool: &SqlitePool, id: &str) -> Result<()> {
+    sqlx::query("DELETE FROM connections WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 pub async fn list_connections(
     pool: &SqlitePool,
     organization_id: &str,

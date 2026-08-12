@@ -10,6 +10,7 @@ import {
   CreateBindingRequestSchema,
   CreateConnectionRequestSchema,
   CreateIntegrationRequestSchema,
+  DiscoverConnectionsResponseSchema,
   EgressSchema,
   IntegrationSchema,
   ListConnectionsResponseSchema,
@@ -123,6 +124,18 @@ const integration = {
 };
 
 describe("connection broker contracts", () => {
+  it("keeps Host discovery responses bounded and strict", () => {
+    expect(DiscoverConnectionsResponseSchema.parse({ configured: 2 })).toEqual({
+      configured: 2,
+    });
+    expect(() =>
+      DiscoverConnectionsResponseSchema.parse({
+        configured: 1,
+        api_key: "leak",
+      }),
+    ).toThrow();
+  });
+
   it("parses the catalog payloads", () => {
     expect(EgressSchema.parse(egress).authorities).toEqual(["api.github.com"]);
     expect(ScopeDefSchema.parse(provider.scopes[0]).sensitive).toBe(true);

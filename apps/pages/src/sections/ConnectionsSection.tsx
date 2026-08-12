@@ -35,6 +35,7 @@ import {
   bindConnection,
   connectionEvents,
   createConnection,
+  discoverConnections,
   listConnections,
   listProviders,
   openConsentPopup,
@@ -244,10 +245,27 @@ export function ConnectionsSection() {
     const id = ++connectionRun.current;
     setLoading(true);
     try {
+      let configured = 0;
+      try {
+        configured = await discoverConnections();
+      } catch (error) {
+        if (
+          !(error instanceof ConnectionsError) ||
+          ![403, 404].includes(error.status)
+        ) {
+          throw error;
+        }
+      }
       const nextConnections = await listConnections();
       if (connectionRun.current !== id) return;
       setConnections(nextConnections);
       setLoadError(null);
+      if (configured > 0) {
+        setFlash({
+          tone: "ok",
+          text: `${configured} connector${configured === 1 ? "" : "s"} already configured on this Host ${configured === 1 ? "was" : "were"} connected automatically.`,
+        });
+      }
     } catch (error) {
       if (connectionRun.current !== id) return;
       setConnections(null);
