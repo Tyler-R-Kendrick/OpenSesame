@@ -366,13 +366,22 @@ pub async fn discover(State(st): State<AppState>, headers: axum::http::HeaderMap
         Err(resp) => return resp,
     };
     let organization = organization_or_return!(&st, &who, &headers);
-    let configured = if may_discover(&who, crate::config::is_production_env()) {
-        st.connection_broker
-            .auto_configure_connections(&organization, caller_subject(&who).as_deref())
+    if !may_discover(&who, crate::config::is_production_env())
+        || !st
+            .connection_broker
+            .claim_discovery_organization(&organization)
             .await
-    } else {
-        0
-    };
+    {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error":"forbidden","hint":"connector discovery is restricted to the Host organization"})),
+        )
+            .into_response();
+    }
+    let configured = st
+        .connection_broker
+        .auto_configure_connections(&organization, caller_subject(&who).as_deref())
+        .await;
     Json(json!({"configured": configured})).into_response()
 }
 

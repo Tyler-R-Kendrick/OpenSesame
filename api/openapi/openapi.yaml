@@ -431,9 +431,9 @@ paths:
       summary: Import complete credentials already configured on the Host
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       description: >-
-        In local development, owner/admin sessions import detected credentials into their own
-        sealed connections in the selected organization. Production import requires the Host
-        operator to select an organization. Credential values are never returned.
+        In local development, the first owner/admin organization claims detected credentials
+        for that Host process. Production import requires the Host operator to select the one
+        target organization. Credential values are never returned.
       responses:
         "200":
           description: Number of newly configured connections
@@ -445,6 +445,7 @@ paths:
                 required: [configured]
                 properties:
                   configured: { type: integer, minimum: 0 }
+        "403": { $ref: "#/components/responses/ContractError" }
   /connections/{id}:
     parameters:
       - $ref: "#/components/parameters/ConnectionId"

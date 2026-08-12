@@ -213,6 +213,40 @@ async fn detected_credentials_are_not_imported_without_a_sealing_key() {
 }
 
 #[tokio::test]
+async fn failed_detected_import_is_removed_and_can_be_retried() {
+    let bad = key_config().with_detected_connection(
+        "workos",
+        std::collections::BTreeMap::from([("unexpected".into(), "invalid".into())]),
+    );
+    let (db, broker) = broker_with(bad).await;
+    let organization = OrganizationId::new();
+    let owner = "prn_environment_owner";
+    assert_eq!(
+        broker
+            .auto_configure_connections(&organization, Some(owner))
+            .await,
+        0
+    );
+    assert!(broker
+        .list_connections_for(&organization, Some(owner))
+        .await
+        .unwrap()
+        .is_empty());
+
+    let corrected = key_config().with_detected_connection(
+        "workos",
+        std::collections::BTreeMap::from([("api_key".into(), "corrected".into())]),
+    );
+    let broker = ConnectionBroker::new(db.pool().clone(), corrected).unwrap();
+    assert_eq!(
+        broker
+            .auto_configure_connections(&organization, Some(owner))
+            .await,
+        1
+    );
+}
+
+#[tokio::test]
 async fn organization_integrations_seal_secrets_and_enforce_scope_ceiling() {
     let (db, broker) = broker().await;
     let org = OrganizationId::new();

@@ -249,7 +249,10 @@ export function ConnectionsSection() {
       try {
         configured = await discoverConnections();
       } catch (error) {
-        if (!(error instanceof ConnectionsError) || error.status !== 404) {
+        if (
+          !(error instanceof ConnectionsError) ||
+          ![403, 404].includes(error.status)
+        ) {
           throw error;
         }
       }

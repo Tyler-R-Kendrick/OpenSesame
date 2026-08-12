@@ -107,6 +107,7 @@ integration. Environment integrations are read-only.
 ```
 GET    /api/v1/connections                      200 { "connections": [ Connection ] }
                                                 // the caller's own; an operator sees the organization
+POST   /api/v1/connections/discover             200 { "configured": 0 }
 POST   /api/v1/connections                      201 Connection
 GET    /api/v1/connections/{id}                 200 Connection
 DELETE /api/v1/connections/{id}                 200 { "revoked": true,
@@ -242,14 +243,15 @@ OPENSESAME_CONNECTION_REDIRECT_ALLOWLIST   # comma-separated post-consent return
 Without `OPENSESAME_CONNECTION_KEY` the broker refuses to store credentials and every
 provider reports `configured: false`, rather than storing tokens under a default key.
 
-`POST /connections/discover` lets an owner/admin adopt complete credentials already
+`POST /api/v1/connections/discover` lets an owner/admin adopt complete credentials already
 available to the Host. Detection covers the explicit field convention above, common
 provider variables (for example `OPENAI_API_KEY`, `WORKOS_API_KEY`, `VAULT_TOKEN`,
-and `AWS_PROFILE`), standard AWS/GCP credential files, and `~/.vault-token` /
+and `AWS_ACCESS_KEY_ID`), standard AWS/GCP credential files, and `~/.vault-token` /
 `~/.bao-token`. The PWA calls it before listing connections. Detected values move
 directly into the tenant-bound sealed store and never enter an API response; incomplete
-configuration is ignored, only local owner/admin sessions or the production Host operator can
-import into a selected organization, and a revoked connection is not silently recreated.
+configuration is ignored, the first local owner/admin organization claims discovery for that
+Host process, production requires the Host operator, and a revoked connection is not silently
+recreated.
 
 ## Verification
 

@@ -105,7 +105,7 @@ async fn credential_value_limit_applies_to_the_value_not_json_overhead() {
 }
 
 #[tokio::test]
-async fn listing_auto_configures_complete_host_credentials_once() {
+async fn discovery_configures_complete_host_credentials_once() {
     let (mut state, _server) = harness().await;
     let config = BrokerConfig::in_memory(Some([11u8; 32]), "http://127.0.0.1:8787")
         .with_detected_connection(
@@ -116,44 +116,11 @@ async fn listing_auto_configures_complete_host_credentials_once() {
         ConnectionBroker::new(state.db.pool().clone(), config).expect("connection broker"),
     );
 
-    let member = session_for(
-        &state,
-        "prn_member",
-        state.connection_organization,
-        opensesame_domain::OrganizationRole::Member,
-    );
-    let (status, body) = as_session(
-        &state,
-        &member,
-        "POST",
-        "/api/v1/connections/discover",
-        None,
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    assert_eq!(body, json!({"configured": 0}));
-
-    let foreign_owner = session_for(
-        &state,
-        "prn_foreign_owner",
-        opensesame_domain::OrganizationId::new(),
-        opensesame_domain::OrganizationRole::Owner,
-    );
-    let (status, body) = as_session(
-        &state,
-        &foreign_owner,
-        "POST",
-        "/api/v1/connections/discover",
-        None,
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    assert_eq!(body, json!({"configured": 1}));
-
+    let organization = opensesame_domain::OrganizationId::new();
     let owner = session_for(
         &state,
         "prn_owner",
-        state.connection_organization,
+        organization,
         opensesame_domain::OrganizationRole::Owner,
     );
     for expected in [1, 0] {
@@ -168,6 +135,32 @@ async fn listing_auto_configures_complete_host_credentials_once() {
         assert_eq!(connections[0]["provider_id"], "workos");
         assert_eq!(connections[0]["status"], "active");
         assert!(!body.to_string().contains("route-do-not-return"));
+    }
+
+    for caller in [
+        session_for(
+            &state,
+            "prn_member",
+            organization,
+            opensesame_domain::OrganizationRole::Member,
+        ),
+        session_for(
+            &state,
+            "prn_foreign_owner",
+            opensesame_domain::OrganizationId::new(),
+            opensesame_domain::OrganizationRole::Owner,
+        ),
+    ] {
+        let (status, body) = as_session(
+            &state,
+            &caller,
+            "POST",
+            "/api/v1/connections/discover",
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+        assert_eq!(body["error"], "forbidden");
     }
 }
 

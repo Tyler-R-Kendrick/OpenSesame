@@ -239,19 +239,16 @@ fn detect_connection_configuration_with(
     read_file: &impl Fn(&PathBuf) -> Option<String>,
 ) -> Option<BTreeMap<String, String>> {
     let mut configuration = BTreeMap::new();
+    let aws_environment_credentials = is_aws_provider(&provider.id)
+        && ["access_key_id", "secret_access_key"]
+            .iter()
+            .any(|field| connection_environment_value(provider, field, read_env).is_some());
     for field in provider.connection_configuration_fields() {
-        let suffix = field.name.to_uppercase().replace('-', "_");
-        let explicit = env_var_name(&provider.id, &suffix);
-        let generic_prefix = provider.id.to_uppercase().replace('-', "_");
-        let generic = (field.name == "api_key").then(|| format!("{generic_prefix}_API_KEY"));
-        let value = read_env(&explicit)
-            .or_else(|| generic.as_deref().and_then(read_env))
-            .or_else(|| {
-                connection_env_aliases(&provider.id, &field.name)
-                    .iter()
-                    .find_map(|name| read_env(name))
-            })
-            .or_else(|| detected_file_value(&provider.id, &field.name, read_env, read_file));
+        let value = connection_environment_value(provider, &field.name, read_env).or_else(|| {
+            (!aws_environment_credentials || !is_aws_credential_field(&field.name))
+                .then(|| detected_file_value(&provider.id, &field.name, read_env, read_file))
+                .flatten()
+        });
         if let Some(value) = value
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty() && value.len() <= crate::MAX_CREDENTIAL_BYTES)
@@ -295,6 +292,35 @@ fn detect_connection_configuration_with(
         .all(|field| configuration.contains_key(&field.name))
         .then_some(configuration)
         .filter(|configuration| !configuration.is_empty())
+}
+
+fn connection_environment_value(
+    provider: &Provider,
+    field: &str,
+    read_env: &impl Fn(&str) -> Option<String>,
+) -> Option<String> {
+    let suffix = field.to_uppercase().replace('-', "_");
+    let explicit = env_var_name(&provider.id, &suffix);
+    let generic = (field == "api_key")
+        .then(|| format!("{}_API_KEY", provider.id.to_uppercase().replace('-', "_")));
+    read_env(&explicit)
+        .or_else(|| generic.as_deref().and_then(read_env))
+        .or_else(|| {
+            connection_env_aliases(&provider.id, field)
+                .iter()
+                .find_map(|name| read_env(name))
+        })
+}
+
+fn is_aws_provider(provider: &str) -> bool {
+    matches!(provider, "aws" | "aws-kms" | "aws-ps" | "aws-bedrock")
+}
+
+fn is_aws_credential_field(field: &str) -> bool {
+    matches!(
+        field,
+        "access_key_id" | "secret_access_key" | "session_token"
+    )
 }
 
 fn detected_file_value(
@@ -679,6 +705,43 @@ mod tests {
                 ("secret_access_key".into(), "detected-secret".into()),
             ])
         );
+    }
+
+    #[test]
+    fn aws_key_pairs_never_mix_environment_and_profile_values() {
+        let file = |path: &PathBuf| {
+            (path == &PathBuf::from("/host-user/.aws/credentials")).then(|| {
+                "[default]\naws_access_key_id = file-id\naws_secret_access_key = file-secret\n"
+                    .into()
+            })
+        };
+        let aws = catalog::find("aws").unwrap().unwrap();
+        let partial = BTreeMap::from([
+            ("HOME", "/host-user"),
+            ("AWS_REGION", "us-east-1"),
+            ("AWS_ACCESS_KEY_ID", "environment-id"),
+        ]);
+        assert!(detect_connection_configuration_with(
+            aws,
+            &|name| partial.get(name).map(|value| value.to_string()),
+            &file,
+        )
+        .is_none());
+
+        let complete = BTreeMap::from([
+            ("HOME", "/host-user"),
+            ("AWS_REGION", "us-east-1"),
+            ("AWS_ACCESS_KEY_ID", "environment-id"),
+            ("AWS_SECRET_ACCESS_KEY", "environment-secret"),
+        ]);
+        let detected = detect_connection_configuration_with(
+            aws,
+            &|name| complete.get(name).map(|value| value.to_string()),
+            &file,
+        )
+        .unwrap();
+        assert_eq!(detected["access_key_id"], "environment-id");
+        assert_eq!(detected["secret_access_key"], "environment-secret");
     }
 
     #[test]

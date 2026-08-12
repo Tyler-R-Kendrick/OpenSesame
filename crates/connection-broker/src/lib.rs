@@ -89,6 +89,7 @@ pub struct ConnectionBroker {
     activation_lock: tokio::sync::Mutex<()>,
     authorization_lock: tokio::sync::Mutex<()>,
     discovery_lock: tokio::sync::Mutex<()>,
+    discovery_organization: tokio::sync::Mutex<Option<String>>,
     #[cfg(test)]
     activation_pause: Mutex<Option<Arc<TestActivationPause>>>,
     #[cfg(test)]
@@ -143,6 +144,7 @@ impl ConnectionBroker {
             activation_lock: tokio::sync::Mutex::new(()),
             authorization_lock: tokio::sync::Mutex::new(()),
             discovery_lock: tokio::sync::Mutex::new(()),
+            discovery_organization: tokio::sync::Mutex::new(None),
             #[cfg(test)]
             activation_pause: Mutex::new(None),
             #[cfg(test)]
@@ -238,6 +240,20 @@ impl ConnectionBroker {
 
     // ---- connections ---------------------------------------------------------
 
+    /// Ambient Host credentials belong to one tenant. The first eligible local
+    /// organization claims them; production callers are already operator-only.
+    pub async fn claim_discovery_organization(&self, organization_id: &OrganizationId) -> bool {
+        let selected = organization_id.to_string();
+        let mut claimed = self.discovery_organization.lock().await;
+        match claimed.as_ref() {
+            Some(existing) => existing == &selected,
+            None => {
+                *claimed = Some(selected);
+                true
+            }
+        }
+    }
+
     /// Import complete credentials already present in the Host environment.
     /// Values cross only from ambient Host configuration into the sealed store;
     /// callers receive the ordinary redacted connection view.
@@ -262,6 +278,12 @@ impl ConnectionBroker {
             let Some(configuration) = self.config.detected_connection(&provider.id) else {
                 continue;
             };
+            if !matches!(
+                provider.auth,
+                AuthMethod::ApiKey { .. } | AuthMethod::Configuration
+            ) {
+                continue;
+            }
             if rows.iter().any(|row| {
                 row.provider_id == provider.id && row.owner_subject.as_deref() == owner_subject
             }) {
@@ -311,7 +333,7 @@ impl ConnectionBroker {
                     );
                 }
                 Err(error) => {
-                    let _ = self.revoke(organization_id, &created.connection_id).await;
+                    let _ = store::delete_connection(&self.pool, &created.connection_id).await;
                     tracing::warn!(provider_id = provider.id, %error, "detected connection configuration failed");
                 }
             }
