@@ -15,6 +15,7 @@ import {
   ConnectionErrorResponseSchema,
   ConnectionEventSchema,
   ConnectionSchema,
+  DiscoverConnectionsResponseSchema,
   ListConnectionsResponseSchema,
   ListEventsResponseSchema,
   ListProvidersResponseSchema,
@@ -298,6 +299,14 @@ export function listProviders(): Promise<Provider[]> {
 export function listConnections(): Promise<Connection[]> {
   return call("/connections", {}, (body) =>
     ListConnectionsResponseSchema.parse(body).connections.map(toConnection),
+  );
+}
+
+export function discoverConnections(): Promise<number> {
+  return call(
+    "/connections/discover",
+    { method: "POST" },
+    (body) => DiscoverConnectionsResponseSchema.parse(body).configured,
   );
 }
 

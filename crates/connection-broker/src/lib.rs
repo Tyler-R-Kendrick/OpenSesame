@@ -88,6 +88,7 @@ pub struct ConnectionBroker {
     http: reqwest::Client,
     activation_lock: tokio::sync::Mutex<()>,
     authorization_lock: tokio::sync::Mutex<()>,
+    discovery_lock: tokio::sync::Mutex<()>,
     #[cfg(test)]
     activation_pause: Mutex<Option<Arc<TestActivationPause>>>,
     #[cfg(test)]
@@ -141,6 +142,7 @@ impl ConnectionBroker {
             http,
             activation_lock: tokio::sync::Mutex::new(()),
             authorization_lock: tokio::sync::Mutex::new(()),
+            discovery_lock: tokio::sync::Mutex::new(()),
             #[cfg(test)]
             activation_pause: Mutex::new(None),
             #[cfg(test)]
@@ -235,6 +237,87 @@ impl ConnectionBroker {
     }
 
     // ---- connections ---------------------------------------------------------
+
+    /// Import complete credentials already present in the Host environment.
+    /// Values cross only from ambient Host configuration into the sealed store;
+    /// callers receive the ordinary redacted connection view.
+    pub async fn auto_configure_connections(
+        &self,
+        organization_id: &OrganizationId,
+        owner_subject: Option<&str>,
+    ) -> usize {
+        if self.config.key().is_none() {
+            return 0;
+        }
+        let _guard = self.discovery_lock.lock().await;
+        let Ok(mut rows) = store::list_connections(&self.pool, &organization_id.to_string()).await
+        else {
+            return 0;
+        };
+        let mut configured = 0;
+        let Ok(providers) = catalog::all() else {
+            return 0;
+        };
+        for provider in providers {
+            let Some(configuration) = self.config.detected_connection(&provider.id) else {
+                continue;
+            };
+            if rows.iter().any(|row| {
+                row.provider_id == provider.id && row.owner_subject.as_deref() == owner_subject
+            }) {
+                continue;
+            }
+            let created = match self
+                .create_connection(
+                    organization_id,
+                    CreateConnection {
+                        provider_id: provider.id.clone(),
+                        integration_id: None,
+                        owner_subject: owner_subject.map(str::to_string),
+                        display_name: Some(provider.display_name.clone()),
+                        logical_name: None,
+                        project_id: None,
+                        scopes: None,
+                        shareability: None,
+                    },
+                )
+                .await
+            {
+                Ok(created) => created,
+                Err(error) => {
+                    tracing::warn!(provider_id = provider.id, %error, "detected connection import failed");
+                    continue;
+                }
+            };
+            match self
+                .set_connection_configuration(
+                    organization_id,
+                    &created.connection_id,
+                    configuration,
+                    Vec::new(),
+                )
+                .await
+            {
+                Ok(_) => {
+                    configured += 1;
+                    if let Ok(Some(row)) =
+                        store::get_connection(&self.pool, &created.connection_id).await
+                    {
+                        rows.push(row);
+                    }
+                    tracing::info!(
+                        provider_id = provider.id,
+                        "detected Host connection configured"
+                    );
+                }
+                Err(error) => {
+                    let _ = self.revoke(organization_id, &created.connection_id).await;
+                    tracing::warn!(provider_id = provider.id, %error, "detected connection configuration failed");
+                }
+            }
+        }
+        configured
+    }
 
     pub async fn create_connection(
         &self,

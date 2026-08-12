@@ -80,6 +80,7 @@ pub fn router(state: AppState) -> Router {
                 .post(connections::create)
                 .layer(DefaultBodyLimit::max(32 * 1024)),
         )
+        .route("/api/v1/connections/discover", post(connections::discover))
         .route(
             "/api/v1/connections/{id}",
             get(connections::get).delete(connections::delete),

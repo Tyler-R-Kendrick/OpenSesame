@@ -76,6 +76,17 @@ function ok(body: unknown): Response {
 }
 
 describe("api-client connections", () => {
+  it("discovers Host credentials without receiving their values", async () => {
+    const { client, calls } = jsonClient(() => ok({ configured: 2 }));
+    await expect(client.discoverConnections()).resolves.toEqual({
+      configured: 2,
+    });
+    expect(calls[0]).toMatchObject({
+      url: "https://host.test:8787/api/v1/connections/discover",
+      method: "POST",
+    });
+  });
+
   it("parses a connection list", async () => {
     const { client } = jsonClient(() => ok({ connections: [connection] }));
     const res = await client.listConnections();

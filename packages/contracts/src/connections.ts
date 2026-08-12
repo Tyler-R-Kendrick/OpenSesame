@@ -338,6 +338,15 @@ export type ListConnectionsResponse = z.infer<
   typeof ListConnectionsResponseSchema
 >;
 
+export const DiscoverConnectionsResponseSchema = z
+  .object({
+    configured: z.number().int().nonnegative(),
+  })
+  .strict();
+export type DiscoverConnectionsResponse = z.infer<
+  typeof DiscoverConnectionsResponseSchema
+>;
+
 export const AuthorizeResponseSchema = z
   .object({
     authorization_url: z.string().url(),

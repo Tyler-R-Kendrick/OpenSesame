@@ -356,6 +356,22 @@ pub async fn list(State(st): State<AppState>, headers: axum::http::HeaderMap) ->
     Json(json!({"connections": stored})).into_response()
 }
 
+pub async fn discover(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
+    let who = match authorize(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    let organization = organization_or_return!(&st, &who, &headers);
+    let configured = if who.can_configure_integrations() {
+        st.connection_broker
+            .auto_configure_connections(&organization, caller_subject(&who).as_deref())
+            .await
+    } else {
+        0
+    };
+    Json(json!({"configured": configured})).into_response()
+}
+
 #[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateBody {

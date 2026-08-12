@@ -78,6 +78,7 @@ describe("Host organization authority OpenAPI", () => {
       ["/integrations/{id}", "delete"],
       ["/connections", "get"],
       ["/connections", "post"],
+      ["/connections/discover", "post"],
       ["/connections/{id}", "get"],
       ["/connections/{id}", "delete"],
       ["/connections/{id}/authorize", "post"],

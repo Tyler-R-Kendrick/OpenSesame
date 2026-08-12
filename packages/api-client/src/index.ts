@@ -8,6 +8,8 @@ import {
   type CreateBindingRequest,
   type CreateConnectionRequest,
   type CreateIntegrationRequest,
+  type DiscoverConnectionsResponse,
+  DiscoverConnectionsResponseSchema,
   type Integration,
   IntegrationSchema,
   type ListConnectionsResponse,
@@ -400,6 +402,15 @@ export function createApiClient(options: ApiClientOptions) {
         "connections",
         ListConnectionsResponseSchema,
         "/api/v1/connections",
+      );
+    },
+
+    async discoverConnections(): Promise<DiscoverConnectionsResponse> {
+      return requestParsed(
+        "connection discovery",
+        DiscoverConnectionsResponseSchema,
+        "/api/v1/connections/discover",
+        { method: "POST" },
       );
     },
 

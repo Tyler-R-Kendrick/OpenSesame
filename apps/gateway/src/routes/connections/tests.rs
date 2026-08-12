@@ -92,6 +92,73 @@ async fn credential_value_limit_applies_to_the_value_not_json_overhead() {
     assert_eq!(status, StatusCode::OK, "{body}");
 }
 
+#[tokio::test]
+async fn listing_auto_configures_complete_host_credentials_once() {
+    let (mut state, _server) = harness().await;
+    let config = BrokerConfig::in_memory(Some([11u8; 32]), "http://127.0.0.1:8787")
+        .with_detected_connection(
+            "workos",
+            std::collections::BTreeMap::from([("api_key".into(), "route-do-not-return".into())]),
+        );
+    state.connection_broker = Arc::new(
+        ConnectionBroker::new(state.db.pool().clone(), config).expect("connection broker"),
+    );
+
+    let member = session_for(
+        &state,
+        "prn_member",
+        state.connection_organization,
+        opensesame_domain::OrganizationRole::Member,
+    );
+    let (status, body) = as_session(
+        &state,
+        &member,
+        "POST",
+        "/api/v1/connections/discover",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body, json!({"configured": 0}));
+
+    let foreign_owner = session_for(
+        &state,
+        "prn_foreign_owner",
+        opensesame_domain::OrganizationId::new(),
+        opensesame_domain::OrganizationRole::Owner,
+    );
+    let (status, body) = as_session(
+        &state,
+        &foreign_owner,
+        "POST",
+        "/api/v1/connections/discover",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body, json!({"configured": 1}));
+
+    let owner = session_for(
+        &state,
+        "prn_owner",
+        state.connection_organization,
+        opensesame_domain::OrganizationRole::Owner,
+    );
+    for expected in [1, 0] {
+        let (status, discovered) =
+            as_session(&state, &owner, "POST", "/api/v1/connections/discover", None).await;
+        assert_eq!(status, StatusCode::OK, "{discovered}");
+        assert_eq!(discovered, json!({"configured": expected}));
+        let (status, body) = as_session(&state, &owner, "GET", "/api/v1/connections", None).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let connections = body["connections"].as_array().unwrap();
+        assert_eq!(connections.len(), 1, "{body}");
+        assert_eq!(connections[0]["provider_id"], "workos");
+        assert_eq!(connections[0]["status"], "active");
+        assert!(!body.to_string().contains("route-do-not-return"));
+    }
+}
+
 const CLIENT_ID: &str = "mock-client-id";
 const CLIENT_SECRET: &str = "mock-client-secret-do-not-leak";
 const ACCESS_TOKEN_1: &str = "at-1-do-not-leak";
@@ -969,6 +1036,7 @@ async fn connection_routes_require_a_caller() {
         ("GET", "/api/v1/connections"),
         ("GET", "/api/v1/providers"),
         ("POST", "/api/v1/connections"),
+        ("POST", "/api/v1/connections/discover"),
         ("GET", "/api/v1/connections/connection:1/events"),
     ] {
         let (status, _) = send(

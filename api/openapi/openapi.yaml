@@ -424,6 +424,27 @@ paths:
         "400": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
         "409": { $ref: "#/components/responses/ContractError" }
+  /connections/discover:
+    parameters:
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Import complete credentials already configured on the Host
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      description: >-
+        Owner/admin sessions import detected credentials into their own sealed connections in
+        the selected organization. Members receive configured 0. Credential values are never
+        returned.
+      responses:
+        "200":
+          description: Number of newly configured connections
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [configured]
+                properties:
+                  configured: { type: integer, minimum: 0 }
   /connections/{id}:
     parameters:
       - $ref: "#/components/parameters/ConnectionId"
