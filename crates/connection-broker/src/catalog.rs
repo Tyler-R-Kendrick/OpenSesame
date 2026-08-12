@@ -620,15 +620,15 @@ mod tests {
     #[test]
     fn embedded_catalog_is_valid_and_versioned() {
         let catalog = load().expect("embedded catalog");
-        assert_eq!(catalog.revision(), "2026-08-12.1");
-        assert_eq!(catalog.providers().len(), 82);
+        assert_eq!(catalog.revision(), "2026-08-12.2");
+        assert_eq!(catalog.providers().len(), 85);
         assert_eq!(
             catalog
                 .providers()
                 .iter()
                 .filter(|provider| provider.id != "mock")
                 .count(),
-            81
+            84
         );
         assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
     }
@@ -688,6 +688,28 @@ mod tests {
         let catalog = load().expect("embedded catalog");
         for id in expected {
             assert!(catalog.find(id).is_some(), "missing LLM provider {id}");
+        }
+    }
+
+    #[test]
+    fn catalog_includes_required_identity_providers() {
+        let catalog = load().expect("embedded catalog");
+        for id in ["better-auth", "workos", "auth0"] {
+            let provider = catalog
+                .find(id)
+                .unwrap_or_else(|| panic!("missing identity provider {id}"));
+            assert_eq!(provider.category, Category::Identity);
+        }
+        assert!(matches!(
+            &catalog.find("workos").unwrap().auth,
+            AuthMethod::ApiKey { header, value_prefix }
+                if header == "Authorization" && value_prefix == "Bearer "
+        ));
+        for id in ["better-auth", "auth0"] {
+            assert!(matches!(
+                &catalog.find(id).unwrap().auth,
+                AuthMethod::Configuration
+            ));
         }
     }
 

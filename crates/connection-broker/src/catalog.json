@@ -1201,6 +1201,59 @@
       "operations": ["user.read", "user.write", "organization.read"]
     },
     {
+      "id": "better-auth",
+      "display_name": "Better Auth",
+      "category": "identity",
+      "docs_url": "https://better-auth.com/docs/plugins/api-key",
+      "provenance_url": "https://better-auth.com/docs/plugins/api-key/reference",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "base_url", "secret": false, "required": true },
+        { "name": "api_key", "secret": true, "required": true },
+        { "name": "api_key_header", "secret": false, "required": true },
+        { "name": "config_id", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["identity.configure"]
+    },
+    {
+      "id": "workos",
+      "display_name": "WorkOS",
+      "category": "identity",
+      "docs_url": "https://workos.com/docs/reference/api-authentication",
+      "provenance_url": "https://workos.com/docs/reference/api-authentication",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.workos.com"],
+        "path_prefixes": []
+      },
+      "operations": ["user.read", "organization.read", "directory.read"]
+    },
+    {
+      "id": "auth0",
+      "display_name": "Auth0",
+      "category": "identity",
+      "docs_url": "https://auth0.com/docs/secure/tokens/access-tokens/get-access-tokens",
+      "provenance_url": "https://auth0.com/docs/api/authentication/client-credential-flow/get-token",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "domain", "secret": false, "required": true },
+        { "name": "client_id", "secret": false, "required": true },
+        { "name": "client_secret", "secret": true, "required": true },
+        { "name": "audience", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["identity.configure"]
+    },
+    {
       "id": "newsapi",
       "display_name": "NewsAPI",
       "category": "productivity",
@@ -1866,6 +1919,6 @@
       "operations": ["secret.configure"]
     }
   ],
-  "revision": "2026-08-12.1",
+  "revision": "2026-08-12.2",
   "schema_version": 1
 }

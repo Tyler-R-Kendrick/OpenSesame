@@ -46,6 +46,7 @@ import {
 } from "../lib/connections.js";
 import {
   configurationDefaults,
+  configurationPayload,
   connectorSteps,
   connectorSummary,
   fieldGuidance,
@@ -1395,9 +1396,7 @@ function ConnectForm({
     event.preventDefault();
     setBusy(true);
     const form = event.currentTarget as HTMLFormElement;
-    const payload = Object.fromEntries(
-      Object.entries(configuration).filter(([, value]) => value.trim() !== ""),
-    );
+    const payload = configurationPayload(provider, configuration);
     form.reset();
     setConfiguration(configurationDefaults(provider));
     let created = false;
@@ -1454,7 +1453,13 @@ function ConnectForm({
               <input
                 id={id}
                 name={field.name}
-                type={field.secret ? "password" : "text"}
+                type={
+                  field.secret
+                    ? "password"
+                    : field.name.endsWith("_url")
+                      ? "url"
+                      : "text"
+                }
                 autoComplete="off"
                 required={field.required}
                 placeholder={guidance.placeholder}

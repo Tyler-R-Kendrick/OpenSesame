@@ -55,6 +55,7 @@ const NAMES: Record<string, string> = {
   "azure-key-vault-secrets": "Azure Key Vault Secrets",
   "azure-openai": "Azure OpenAI",
   "bitwarden-secrets-manager": "Bitwarden Secrets Manager",
+  "better-auth": "Better Auth",
   fido2: "FIDO2",
   foks: "FOKS",
   "gcp-kms": "Google Cloud KMS",
@@ -66,6 +67,7 @@ const NAMES: Record<string, string> = {
   "sealed-local": "Sealed local",
   "encrypted-remote": "Encrypted remote",
   vault: "HashiCorp Vault",
+  workos: "WorkOS",
   yubikey: "YubiKey",
 };
 
@@ -73,6 +75,28 @@ const FIELDS: Record<string, Provider["configurationFields"]> = {
   age: [
     { name: "recipients", label: "Recipients", secret: false, required: true },
     { name: "identity", label: "Identity", secret: true, required: true },
+  ],
+  "better-auth": [
+    { name: "base_url", label: "Base URL", secret: false, required: true },
+    { name: "api_key", label: "API key", secret: true, required: true },
+    {
+      name: "api_key_header",
+      label: "API key header",
+      secret: false,
+      required: true,
+    },
+    { name: "config_id", label: "Config ID", secret: false, required: false },
+  ],
+  auth0: [
+    { name: "domain", label: "Tenant domain", secret: false, required: true },
+    { name: "client_id", label: "Client ID", secret: false, required: true },
+    {
+      name: "client_secret",
+      label: "Client secret",
+      secret: true,
+      required: true,
+    },
+    { name: "audience", label: "Audience", secret: false, required: false },
   ],
   bitwarden: [
     {
@@ -148,6 +172,22 @@ const LLM = [
   ["huggingface", "https://huggingface.co/docs/inference-providers", "api_key"],
 ] as const;
 
+const IDENTITY = [
+  [
+    "better-auth",
+    "https://better-auth.com/docs/plugins/api-key",
+    "configuration",
+  ],
+  ["workos", "https://workos.com/docs/reference/api-authentication", "api_key"],
+  [
+    "auth0",
+    "https://auth0.com/docs/secure/tokens/access-tokens/get-access-tokens",
+    "configuration",
+  ],
+] as const;
+
+const BUNDLED_REVISION = "2026-08-12.2";
+
 function title(id: string): string {
   return (
     NAMES[id] ??
@@ -195,6 +235,21 @@ export const bundledProviders: Provider[] = [
     preview(id, `https://fnox.jdx.dev/providers/${id}.html`, "configuration"),
   ),
   ...LLM.map(([id, docs, auth]) => preview(id, docs, auth, "developer")),
+  ...IDENTITY.map(([id, docs, auth]) => {
+    const provider = preview(id, docs, auth, "identity");
+    provider.operations =
+      id === "workos"
+        ? ["user.read", "organization.read", "directory.read"]
+        : ["identity.configure"];
+    if (id === "workos") {
+      provider.egress = {
+        scheme: "https",
+        authorities: ["api.workos.com"],
+        pathPrefixes: [],
+      };
+    }
+    return provider;
+  }),
 ];
 
 type TursoDb = {
@@ -280,6 +335,27 @@ function validProvider(value: unknown): value is Provider {
   );
 }
 
+export function decodeEmbeddedProviders(value: string): Provider[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  if (
+    parsed === null ||
+    typeof parsed !== "object" ||
+    (parsed as { revision?: unknown }).revision !== BUNDLED_REVISION ||
+    !Array.isArray((parsed as { providers?: unknown }).providers)
+  ) {
+    return null;
+  }
+  const providers = (parsed as { providers: unknown[] }).providers;
+  return providers.length > 0 && providers.every(validProvider)
+    ? providers
+    : null;
+}
+
 export async function readEmbeddedProviders(): Promise<Provider[]> {
   try {
     const connection = await db();
@@ -287,13 +363,8 @@ export async function readEmbeddedProviders(): Promise<Provider[]> {
       await connection.prepare("SELECT value FROM pwa_cache WHERE key = ?")
     ).get("providers");
     if (typeof row?.value === "string") {
-      const parsed: unknown = JSON.parse(row.value);
-      if (
-        Array.isArray(parsed) &&
-        parsed.length > 0 &&
-        parsed.every(validProvider)
-      )
-        return parsed;
+      const providers = decodeEmbeddedProviders(row.value);
+      if (providers) return providers;
     }
     await writeEmbeddedProviders(bundledProviders);
   } catch {
@@ -311,7 +382,11 @@ export async function writeEmbeddedProviders(
       await connection.prepare(
         "INSERT INTO pwa_cache (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
       )
-    ).run("providers", JSON.stringify(providers), new Date().toISOString());
+    ).run(
+      "providers",
+      JSON.stringify({ revision: BUNDLED_REVISION, providers }),
+      new Date().toISOString(),
+    );
     if (lastMode === "remote") await connection.push();
   } catch {
     lastMode = "memory";

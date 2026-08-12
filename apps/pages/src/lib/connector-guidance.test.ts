@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Provider } from "./connections.js";
 import {
   configurationDefaults,
+  configurationPayload,
   connectorSteps,
   connectorSummary,
   fieldGuidance,
@@ -82,6 +83,26 @@ describe("connector setup guidance", () => {
       namespace: "opensesame",
     });
     expect(configurationDefaults(provider({ id: "aws-kms" }))).toEqual({});
+    expect(configurationDefaults(provider({ id: "better-auth" }))).toEqual({
+      api_key_header: "x-api-key",
+      config_id: "default",
+    });
+  });
+
+  it("derives the Auth0 Management API audience from its tenant domain", () => {
+    expect(
+      configurationPayload(provider({ id: "auth0" }), {
+        domain: "https://tenant.us.auth0.com/",
+        client_id: " client ",
+        client_secret: " secret ",
+        audience: "",
+      }),
+    ).toEqual({
+      domain: "tenant.us.auth0.com",
+      client_id: "client",
+      client_secret: "secret",
+      audience: "https://tenant.us.auth0.com/api/v2/",
+    });
   });
 
   it("explains delegated Host credentials before manual overrides", () => {
