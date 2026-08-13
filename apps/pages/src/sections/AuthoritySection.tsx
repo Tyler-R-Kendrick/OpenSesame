@@ -17,6 +17,7 @@ import {
   IconUpload,
   IconX,
 } from "../components/Icons.js";
+import { PasskeyCeremonyNote } from "../components/PasskeyCeremonyNote.js";
 import {
   type HealthState,
   IdentityError,
@@ -1004,6 +1005,7 @@ function DeviceArea({
             use the Claim ownership tab.
           </span>
         </p>
+        <PasskeyCeremonyNote />
 
         {!online ? (
           <output className="note note--warn">

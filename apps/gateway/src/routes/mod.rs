@@ -83,7 +83,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/connections/discover", post(connections::discover))
         .route(
             "/api/v1/connections/{id}",
-            get(connections::get).delete(connections::delete),
+            get(connections::get)
+                .patch(connections::update_policy)
+                .delete(connections::delete),
         )
         .route(
             "/api/v1/connections/{id}/authorize",

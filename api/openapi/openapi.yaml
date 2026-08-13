@@ -460,6 +460,22 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Connection" }
         "404": { $ref: "#/components/responses/ContractError" }
+    patch:
+      summary: Update connection sharing and invocation policy
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateConnectionPolicy" }
+      responses:
+        "200":
+          description: Updated safe connection metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connection" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
     delete:
       summary: Revoke a connection locally and attempt upstream revocation
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
@@ -531,7 +547,7 @@ paths:
       - $ref: "#/components/parameters/ConnectionId"
       - $ref: "#/components/parameters/OperatorOrganization"
     post:
-      summary: Bind a caller-visible connection to an organization, project, or agent
+      summary: Bind a connection to an organization, project, agent, group, device, or identity
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       requestBody:
         required: true
@@ -1108,7 +1124,7 @@ components:
     Provider:
       type: object
       additionalProperties: false
-      required: [id, display_name, category, docs_url, provenance_url, catalog_revision, auth_kind, supports_refresh, configured, callback_url, missing_config, scopes, egress, operations, integration_configuration_fields, connection_configuration_fields]
+      required: [id, display_name, category, docs_url, provenance_url, catalog_revision, auth_kind, supports_refresh, configured, auto_configurable, callback_url, missing_config, scopes, egress, operations, integration_configuration_fields, connection_configuration_fields]
       properties:
         id: { type: string }
         display_name: { type: string }
@@ -1119,6 +1135,7 @@ components:
         auth_kind: { type: string, enum: [oauth2_authorization_code, api_key, configuration] }
         supports_refresh: { type: boolean }
         configured: { type: boolean }
+        auto_configurable: { type: boolean }
         callback_url: { type: [string, "null"], format: uri }
         missing_config: { type: array, items: { type: string } }
         scopes: { type: array, items: { $ref: "#/components/schemas/Scope" } }
@@ -1136,7 +1153,7 @@ components:
       required: [id, target_kind, target_id, target_label, created_at]
       properties:
         id: { type: string }
-        target_kind: { type: string, enum: [organization, project, agent] }
+        target_kind: { type: string, enum: [organization, project, agent, group, device, identity] }
         target_id: { type: string }
         target_label: { type: [string, "null"] }
         created_at: { type: string, format: date-time }
@@ -1145,7 +1162,7 @@ components:
       additionalProperties: false
       required: [target_kind, target_id]
       properties:
-        target_kind: { type: string, enum: [organization, project, agent] }
+        target_kind: { type: string, enum: [organization, project, agent, group, device, identity] }
         target_id: { type: string, minLength: 1 }
         target_label: { type: string, minLength: 1 }
     ConnectionEvent:
@@ -1154,9 +1171,16 @@ components:
       required: [id, kind, at, detail]
       properties:
         id: { type: string }
-        kind: { type: string, enum: [created, authorize_started, authorized, refreshed, refresh_failed, bound, unbound, revoked, error] }
+        kind: { type: string, enum: [created, authorize_started, authorized, refreshed, refresh_failed, bound, unbound, policy_updated, revoked, error] }
         at: { type: string, format: date-time }
         detail: { type: [string, "null"] }
+    UpdateConnectionPolicy:
+      type: object
+      additionalProperties: false
+      required: [shareability, max_invoke_level]
+      properties:
+        shareability: { type: string, enum: [private, delegable, organization_wide] }
+        max_invoke_level: { type: integer, minimum: 1, maximum: 2 }
     Connection:
       type: object
       additionalProperties: false

@@ -72,6 +72,8 @@ export type Provider = {
   supportsRefresh: boolean;
   /** Deployment has a client id and secret for this provider. */
   configured: boolean;
+  /** Host can supply every connection field without asking the user. */
+  autoConfigurable: boolean;
   /** Exact environment variables the deployment is missing. Empty when configured. */
   missingConfig: string[];
   scopes: ScopeDef[];
@@ -88,7 +90,13 @@ export type ConnectionStatus =
   | "revoked"
   | "error";
 
-export type BindingTargetKind = "organization" | "project" | "agent";
+export type BindingTargetKind =
+  | "organization"
+  | "project"
+  | "agent"
+  | "group"
+  | "device"
+  | "identity";
 
 export type Binding = {
   id: string;
@@ -106,6 +114,7 @@ export type ConnectionEventKind =
   | "refresh_failed"
   | "bound"
   | "unbound"
+  | "policy_updated"
   | "revoked"
   | "error";
 
@@ -127,7 +136,7 @@ export type Connection = {
   organizationId: string;
   projectId: string | null;
   ownerKind: string;
-  shareability: string;
+  shareability: "private" | "delegable" | "organization_wide";
   requestedScopes: string[];
   grantedScopes: string[];
   accountLabel: string | null;
@@ -226,6 +235,7 @@ function toProvider(value: unknown): Provider {
     authKind: raw.auth_kind,
     supportsRefresh: raw.supports_refresh,
     configured: raw.configured,
+    autoConfigurable: raw.auto_configurable,
     missingConfig: raw.missing_config,
     scopes: raw.scopes,
     egress: toEgress(raw.egress),
@@ -406,6 +416,23 @@ export function revokeConnection(id: string): Promise<{
         providerRevocation: parsed.provider_revocation,
       };
     },
+  );
+}
+
+export function updateConnectionPolicy(
+  id: string,
+  body: { shareability: Connection["shareability"]; maxInvokeLevel: 1 | 2 },
+): Promise<Connection> {
+  return call(
+    `/connections/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        shareability: body.shareability,
+        max_invoke_level: body.maxInvokeLevel,
+      }),
+    },
+    toConnection,
   );
 }
 

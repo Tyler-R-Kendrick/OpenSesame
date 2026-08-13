@@ -47,6 +47,7 @@ void (async () => {
     PREFS_KEY,
     "settings.v1",
     "outbox.v1",
+    "connections.firstRun.v1",
   ]);
   vaultStore.rehydrate();
 

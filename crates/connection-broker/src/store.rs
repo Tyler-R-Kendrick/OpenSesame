@@ -322,6 +322,30 @@ pub async fn set_integration_id(pool: &SqlitePool, id: &str, integration_id: &st
     Ok(())
 }
 
+pub async fn update_policy(
+    pool: &SqlitePool,
+    connection_id: &str,
+    organization_id: &str,
+    shareability: &str,
+    max_invoke_level: u8,
+) -> Result<()> {
+    let changed = sqlx::query(
+        "UPDATE connections SET shareability = ?, max_invoke_level = ?, updated_at = ? \
+         WHERE id = ? AND organization_id = ? AND status != 'revoked'",
+    )
+    .bind(shareability)
+    .bind(max_invoke_level as i64)
+    .bind(Utc::now().to_rfc3339())
+    .bind(connection_id)
+    .bind(organization_id)
+    .execute(pool)
+    .await?;
+    if changed.rows_affected() == 0 {
+        return Err(BrokerError::ConnectionNotFound);
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy)]
 pub struct CredentialActivation<'a> {
     pub credential: &'a CredentialRow,

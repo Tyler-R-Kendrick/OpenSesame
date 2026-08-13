@@ -159,7 +159,7 @@ async fn complete_host_credentials_are_imported_once_and_stay_redacted() {
         broker
             .auto_configure_connections(&organization, Some(owner))
             .await,
-        1
+        3
     );
     assert_eq!(
         broker
@@ -171,15 +171,18 @@ async fn complete_host_credentials_are_imported_once_and_stay_redacted() {
         .list_connections_for(&organization, Some(owner))
         .await
         .unwrap();
-    assert_eq!(connections.len(), 1);
-    assert_eq!(connections[0].provider_id, "workos");
-    assert_eq!(connections[0].status, ConnectionStatus::Active);
+    assert_eq!(connections.len(), 3);
+    let workos = connections
+        .iter()
+        .find(|connection| connection.provider_id == "workos")
+        .unwrap();
+    assert_eq!(workos.status, ConnectionStatus::Active);
     assert!(!serde_json::to_string(&connections)
         .unwrap()
         .contains("detected-do-not-return"));
 
     broker
-        .revoke(&organization, &connections[0].connection_id)
+        .revoke(&organization, &workos.connection_id)
         .await
         .unwrap();
     assert_eq!(
@@ -189,6 +192,27 @@ async fn complete_host_credentials_are_imported_once_and_stay_redacted() {
         0,
         "an explicit revoke is a tombstone, not an invitation to re-import"
     );
+    assert!(
+        broker
+            .list_providers()
+            .unwrap()
+            .iter()
+            .find(|provider| provider.id == "workos")
+            .unwrap()
+            .auto_configurable
+    );
+    let enabled = broker
+        .create_connection(
+            &organization,
+            CreateConnection {
+                owner_subject: Some(owner.into()),
+                display_name: Some("WorkOS".into()),
+                ..create("workos")
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(enabled.status, ConnectionStatus::Active);
 }
 
 #[tokio::test]
@@ -225,13 +249,16 @@ async fn failed_detected_import_is_removed_and_can_be_retried() {
         broker
             .auto_configure_connections(&organization, Some(owner))
             .await,
-        0
+        2
     );
-    assert!(broker
+    let connections = broker
         .list_connections_for(&organization, Some(owner))
         .await
-        .unwrap()
-        .is_empty());
+        .unwrap();
+    assert_eq!(connections.len(), 2);
+    assert!(connections
+        .iter()
+        .all(|connection| connection.provider_id != "workos"));
 
     let corrected = key_config().with_detected_connection(
         "workos",
@@ -244,6 +271,49 @@ async fn failed_detected_import_is_removed_and_can_be_retried() {
             .await,
         1
     );
+}
+
+#[tokio::test]
+async fn zero_input_native_connectors_are_ready_without_user_configuration() {
+    let (_db, broker) = broker().await;
+    let organization = OrganizationId::new();
+    let owner = "prn_local_owner";
+
+    assert_eq!(
+        broker
+            .auto_configure_connections(&organization, Some(owner))
+            .await,
+        2
+    );
+    let connections = broker
+        .list_connections_for(&organization, Some(owner))
+        .await
+        .unwrap();
+    let providers = connections
+        .iter()
+        .map(|connection| connection.provider_id.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        providers,
+        std::collections::BTreeSet::from(["plain", "sealed-local"])
+    );
+    let automatic = broker
+        .list_providers()
+        .unwrap()
+        .into_iter()
+        .filter(|provider| provider.auto_configurable)
+        .map(|provider| provider.id)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        automatic,
+        std::collections::BTreeSet::from(["plain".into(), "sealed-local".into()])
+    );
+    assert!(connections
+        .iter()
+        .all(|connection| connection.status == ConnectionStatus::Active));
+    assert!(!serde_json::to_string(&connections)
+        .unwrap()
+        .contains("opensesame://sealed-local"));
 }
 
 #[tokio::test]
@@ -1762,6 +1832,59 @@ async fn bindings_are_unique_per_target_and_removable() {
         .await
         .unwrap_err();
     assert_eq!(missing.code(), "binding_not_found");
+}
+
+#[tokio::test]
+async fn access_targets_and_policy_changes_round_trip() {
+    let (_db, broker) = broker().await;
+    let org = OrganizationId::new();
+    let view = broker
+        .create_connection(&org, create("mock"))
+        .await
+        .unwrap();
+
+    for (kind, id) in [
+        (BindingTargetKind::Identity, "identity:alice"),
+        (BindingTargetKind::Group, "group:security"),
+        (BindingTargetKind::Device, "device:laptop"),
+    ] {
+        let bound = broker
+            .bind(
+                &org,
+                &view.connection_id,
+                BindRequest {
+                    target_kind: kind,
+                    target_id: id.into(),
+                    target_label: None,
+                },
+            )
+            .await
+            .unwrap();
+        assert!(bound.bindings.iter().any(|binding| binding.target_id == id));
+    }
+
+    let updated = broker
+        .update_policy(&org, &view.connection_id, Shareability::OrganizationWide, 1)
+        .await
+        .unwrap();
+    assert_eq!(updated.shareability, Shareability::OrganizationWide);
+    assert_eq!(updated.max_invoke_level, 1);
+    assert_eq!(
+        broker
+            .events(&org, &view.connection_id)
+            .await
+            .unwrap()
+            .last()
+            .unwrap()
+            .kind,
+        "policy_updated"
+    );
+
+    let invalid = broker
+        .update_policy(&org, &view.connection_id, Shareability::Private, 3)
+        .await
+        .unwrap_err();
+    assert_eq!(invalid.code(), "invalid_request");
 }
 
 #[tokio::test]

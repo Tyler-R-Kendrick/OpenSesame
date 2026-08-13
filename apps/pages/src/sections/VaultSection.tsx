@@ -309,7 +309,9 @@ export function VaultWelcome() {
           <h3>Your vault is empty</h3>
           <p>
             Items are sealed with AES-256-GCM under a key derived from your
-            master password, then written to this device as ciphertext.
+            master password, then written to this device as ciphertext. Chrome
+            does not share its password file with this vault — export a CSV from
+            Chrome, then import it here.
           </p>
           <div className="actions">
             <Link className="btn btn--primary btn--sm" to="/vault/new/login">
@@ -320,7 +322,10 @@ export function VaultWelcome() {
                 manager, so the import is offered here and not only in Settings. */}
             <Link className="btn btn--sm" to="/settings#import">
               <IconUpload size={16} />
-              Import from another manager
+              Import Chrome, Bitwarden, or 1Password
+            </Link>
+            <Link className="btn btn--sm" to="/connections">
+              Authorize a Host connector instead
             </Link>
           </div>
         </div>

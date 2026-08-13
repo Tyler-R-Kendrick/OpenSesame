@@ -1,3 +1,5 @@
+mod connect;
+
 use clap::{Parser, Subcommand, ValueEnum};
 use opensesame_authn::{
     detect_signals_from_env, resolve_login_flow, DevicePollState, DeviceServerStatus, LoginFlow,
@@ -79,6 +81,8 @@ enum Commands {
         #[command(subcommand)]
         cmd: ProviderCmd,
     },
+    /// Create, attach, and invoke connectors by `service/name`.
+    Connect(connect::ConnectArgs),
     /// First-class connection configuration (alias: connector).
     #[command(alias = "connector")]
     Connection {
@@ -458,6 +462,7 @@ async fn main() -> anyhow::Result<()> {
         } => verify_receipt(&cli.server, &id).await?,
         Commands::Doctor => doctor(&cli.server).await?,
         Commands::Provider { cmd } => provider_cmd(&cli.server, &cli.output, cmd).await?,
+        Commands::Connect(args) => connect::run(&cli.server, args).await?,
         Commands::Connection { cmd } => connection_cmd(&cli.server, &cli.output, cmd).await?,
         Commands::Secret { cmd } => secret_cmd(&cli.server, cmd).await?,
         Commands::Lease { cmd } => lease_cmd(&cli.server, cmd).await?,
@@ -771,7 +776,7 @@ fn session_path() -> anyhow::Result<PathBuf> {
     Ok(path)
 }
 
-fn load_access_token() -> anyhow::Result<String> {
+pub(crate) fn load_access_token() -> anyhow::Result<String> {
     let path = session_path()?;
     let raw = std::fs::read_to_string(&path)
         .map_err(|_| anyhow::anyhow!("no local session — run `opensesame login` first"))?;
@@ -867,6 +872,9 @@ async fn device_login(server: &str) -> anyhow::Result<()> {
 
     // Never print device_code
     println!("Open {verification_uri} and enter code: {user_code}");
+    println!(
+        "If that page asks for a passkey, this terminal is not your phone or YubiKey. Use TOTP, email, or approve on your phone, then return here."
+    );
     let approve_body = serde_json::json!({"user_code": user_code});
     // The operator token is a shared secret for this machine. Printing it puts it in
     // terminal scrollback, CI logs, and whatever collects those; name the variable
@@ -1314,17 +1322,17 @@ fn init_schema(path: &std::path::Path) -> anyhow::Result<()> {
 fn completion_script(shell: CompletionShell) -> &'static str {
     match shell {
         CompletionShell::Bash => {
-            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent' -- "${COMP_WORDS[COMP_CWORD]}") ); }
+            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent' -- "${COMP_WORDS[COMP_CWORD]}") ); }
 complete -F _opensesame opensesame
 "#
         }
         CompletionShell::Zsh => {
             r#"#compdef opensesame
-_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent)'
+_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent)'
 "#
         }
         CompletionShell::Fish => {
-            r#"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent'
+            r#"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent'
 "#
         }
     }

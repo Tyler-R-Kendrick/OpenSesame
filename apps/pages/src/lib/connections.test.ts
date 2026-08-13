@@ -6,6 +6,7 @@ import {
   listProviders,
   refreshConnection,
   setConnectionConfiguration,
+  updateConnectionPolicy,
 } from "./connections.js";
 import {
   HostSessionError,
@@ -258,6 +259,32 @@ describe("reading connections", () => {
     expect(JSON.parse(String(request?.body))).toEqual({
       configuration_set: { service: "opensesame" },
       configuration_clear: [],
+    });
+  });
+
+  it("updates connector rules through the connection endpoint", async () => {
+    const spy = stubHostFetch(() =>
+      jsonResponse(
+        connectionWire({
+          shareability: "organization_wide",
+          max_invoke_level: 1,
+        }),
+      ),
+    );
+
+    const updated = await updateConnectionPolicy("connection_1", {
+      shareability: "organization_wide",
+      maxInvokeLevel: 1,
+    });
+
+    expect(updated.shareability).toBe("organization_wide");
+    const request = spy.mock.calls.find(([url]) =>
+      String(url).endsWith("/connections/connection_1"),
+    )?.[1];
+    expect(request?.method).toBe("PATCH");
+    expect(JSON.parse(String(request?.body))).toEqual({
+      shareability: "organization_wide",
+      max_invoke_level: 1,
     });
   });
 });
