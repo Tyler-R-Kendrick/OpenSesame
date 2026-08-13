@@ -74,11 +74,12 @@ import {
   dismissFirstRun,
   firstRunDismissed,
   firstRunProviders,
+  grantReminderToAgent,
+  graphDoors,
   hasConnectorReminder,
   providerVerb,
-  suggestedLoginUri,
   unfinishedConnections,
-  vaultItemsForProvider,
+  vaultCreateHref,
 } from "../lib/identity-graph.js";
 import {
   HostSessionError,
@@ -88,7 +89,6 @@ import {
 } from "../lib/identity.js";
 import { useOnline } from "../lib/use-online.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
-import { KIND_LABEL, itemSubtitle } from "../lib/vault/model.js";
 import "./connections.css";
 
 type Flash = { tone: "ok" | "warn" | "err"; text: string };
@@ -337,66 +337,6 @@ export function ConnectionsSection() {
     void connect();
   }, [session, online, connecting, connectError, connect]);
 
-  if (!session) {
-    return (
-      <div className="section__inner">
-        <ConnectionsHead base={base} />
-        <div className="panel">
-          <div className="panel__body">
-            <div className="empty conn-gate">
-              <span className="empty__mark">
-                <IconLock />
-              </span>
-              <h3>
-                {connectError
-                  ? "Identity connection failed"
-                  : "Connecting to Identity…"}
-              </h3>
-              <p>
-                Connections are held by the authority plane at{" "}
-                <code>{base}</code>, not in your vault, so this page cannot read
-                them from the device alone. OpenSesame connects automatically
-                and asks the Host for a short-lived session scoped to you.
-              </p>
-              {connectError ? (
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={() => void connect()}
-                  disabled={connecting || !online}
-                  aria-busy={connecting}
-                >
-                  {connecting ? "Connecting…" : "Try again"}
-                </button>
-              ) : (
-                <p className="hint conn-connecting">
-                  <IconClock /> Establishing your private session…
-                </p>
-              )}
-              <p className="hint">
-                The Identity API approves this server-side. No deployment
-                credential enters the browser.
-              </p>
-              {connectError ? (
-                <div className="note note--err conn-error" role="alert">
-                  <IconAlert />
-                  <div className="conn-error__copy">
-                    <strong>Could not connect to Identity</strong>
-                    <p>{connectError}</p>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-        {catalogError ? (
-          <CatalogError failure={catalogError} onRetry={loadCatalog} />
-        ) : null}
-        <GalleryPanel providers={providers} />
-      </div>
-    );
-  }
-
   if (providerId) {
     const provider = providers?.find((item) => item.id === providerId) ?? null;
     const providerConnections = (connections ?? []).filter(
@@ -415,9 +355,16 @@ export function ConnectionsSection() {
         providerId={providerId}
         connection={connection}
         connections={providerConnections}
-        loading={providers === null || connections === null}
+        loading={
+          providers === null || (session !== null && connections === null)
+        }
         online={online}
-        canConfigure={loadError?.setupRequired !== true}
+        canConfigure={session !== null && loadError?.setupRequired !== true}
+        configureHint={
+          session === null
+            ? "Host authorization waits on an Identity session. You can still save a vault login or import one below."
+            : "Select an organization before configuring this connector."
+        }
         flash={flash}
         rememberOffer={rememberOffer}
         onFlash={setFlash}
@@ -430,6 +377,7 @@ export function ConnectionsSection() {
   return (
     <div className="section__inner">
       <ConnectionsHead base={base} />
+      <IdentitySessionNote />
 
       {flash ? (
         <output className={`note note--${flash.tone} conn-flash`}>
@@ -477,8 +425,16 @@ export function ConnectionsSection() {
         </div>
       ) : null}
 
-      {catalogError ? (
+      {catalogError && (providers?.length ?? 0) === 0 ? (
         <CatalogError failure={catalogError} onRetry={loadCatalog} />
+      ) : catalogError ? (
+        <p className="note note--warn">
+          <IconInfo /> Host catalog did not refresh. Showing the bundled
+          connectors.{" "}
+          <button type="button" className="btn btn--sm" onClick={loadCatalog}>
+            Try again
+          </button>
+        </p>
       ) : null}
 
       <UnfinishedInbox
@@ -525,6 +481,7 @@ function ConnectorSettingsPage({
   loading,
   online,
   canConfigure,
+  configureHint,
   flash,
   rememberOffer,
   onFlash,
@@ -538,6 +495,7 @@ function ConnectorSettingsPage({
   loading: boolean;
   online: boolean;
   canConfigure: boolean;
+  configureHint: string;
   flash: Flash | null;
   rememberOffer: { provider: Provider; connection: Connection } | null;
   onFlash: (flash: Flash | null) => void;
@@ -575,6 +533,7 @@ function ConnectorSettingsPage({
       <Link className="conn-back" to="/connections">
         <IconChevronLeft size={16} /> All connections
       </Link>
+      <IdentitySessionNote />
       <header className="conn-settings__head">
         <div>
           <h1>{provider.displayName}</h1>
@@ -641,9 +600,10 @@ function ConnectorSettingsPage({
         connections={connections}
         connection={connection}
         onFlash={onFlash}
+        onChanged={onChanged}
       />
 
-      <AddSecretChooser provider={provider} />
+      <AddSecretChooser provider={provider} connection={connection} />
 
       {automatic ? (
         <section className="panel" id="authorization">
@@ -726,9 +686,7 @@ function ConnectorSettingsPage({
           </div>
           {!canConfigure ? (
             <div className="panel__body">
-              <p className="hint">
-                Select an organization before configuring this connector.
-              </p>
+              <p className="hint">{configureHint}</p>
             </div>
           ) : provider.configured ? (
             <ConnectForm
@@ -844,6 +802,42 @@ function ConnectionsHead({ base }: { base: string }) {
         itself.
       </p>
     </header>
+  );
+}
+
+function IdentitySessionNote() {
+  const session = useIdentitySession();
+  const { connecting, error, connect } = useConnect();
+  const online = useOnline();
+  if (session) return null;
+  return (
+    <div className="note note--warn conn-session-note">
+      <IconLock />
+      <div>
+        <p>
+          {error
+            ? "Identity is unreachable, so Host connectors cannot authorize yet. Vault logins, passkeys, and import still work on this device."
+            : "Connecting to Identity so Host connectors can authorize. Vault items on this identity stay available either way."}
+        </p>
+        {error ? (
+          <>
+            <p>{error}</p>
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={() => void connect()}
+              disabled={connecting || !online}
+            >
+              {connecting ? "Connecting…" : "Try Identity again"}
+            </button>
+          </>
+        ) : (
+          <p className="hint conn-connecting">
+            <IconClock /> Establishing your private session…
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1873,9 +1867,14 @@ function PipeDiagram() {
   );
 }
 
-function AddSecretChooser({ provider }: { provider: Provider }) {
+function AddSecretChooser({
+  provider,
+  connection,
+}: {
+  provider: Provider;
+  connection: Connection | null;
+}) {
   const pipe = addPipe(provider);
-  const loginUri = suggestedLoginUri(provider);
   return (
     <section className="panel">
       <div className="panel__head">
@@ -1895,14 +1894,17 @@ function AddSecretChooser({ provider }: { provider: Provider }) {
               ? "Save a key on the Host"
               : "Configure on the Host"}
         </Link>
-        <Link
-          className="btn"
-          to={`/vault/new/login?name=${encodeURIComponent(provider.displayName)}${
-            loginUri ? `&uri=${encodeURIComponent(loginUri)}` : ""
-          }`}
-        >
+        <Link className="btn" to={vaultCreateHref("login", provider)}>
           <IconLogin size={16} /> Save a site login
         </Link>
+        {connection ? (
+          <Link
+            className="btn"
+            to={vaultCreateHref("secret", provider, connection)}
+          >
+            <IconSecret size={16} /> Point a vault secret at this ConnectionRef
+          </Link>
+        ) : null}
         <Link className="btn" to="/settings#import">
           Import from Bitwarden or Chrome
         </Link>
@@ -1916,19 +1918,21 @@ function IdentityGraphPanel({
   connections,
   connection,
   onFlash,
+  onChanged,
 }: {
   provider: Provider;
   connections: Connection[];
   connection: Connection | null;
   onFlash: (flash: Flash | null) => void;
+  onChanged: () => void;
 }) {
   const { items } = useVault();
   const store = useVaultStore();
   const [busy, setBusy] = useState(false);
-  const liveItems = vaultItemsForProvider(items, provider);
-  const liveConnections = connections.filter(
-    (item) => item.status !== "revoked",
-  );
+  const doors = graphDoors(provider, connections, items);
+  const liveItems = items.filter((item) => item.deletedAt === null);
+  const hasReminder =
+    connection !== null && hasConnectorReminder(liveItems, connection);
 
   async function remember() {
     if (!connection) return;
@@ -1946,8 +1950,12 @@ function IdentityGraphPanel({
     }
   }
 
-  const hasReminder =
-    connection !== null && hasConnectorReminder(liveItems, connection);
+  const icons = {
+    host: IconConnection,
+    login: IconLogin,
+    passkey: IconPasskey,
+    reminder: IconSecret,
+  } as const;
 
   return (
     <section className="panel" id="identity">
@@ -1961,65 +1969,58 @@ function IdentityGraphPanel({
         </div>
       </div>
       <ul className="conn-graph">
-        <li>
-          <IconConnection size={16} />
-          <div>
-            <strong>Host connector</strong>
-            <p>
-              {liveConnections.length === 0
-                ? "None. Authorize below so agents can invoke without a pasted token."
-                : liveConnections
-                    .map(
-                      (item) =>
-                        `${item.logicalName} · ${VERB_LABEL[connectionVerb(item.status)]}`,
-                    )
-                    .join(" · ")}
-            </p>
-          </div>
-        </li>
-        <li>
-          <IconLogin size={16} />
-          <div>
-            <strong>Vault logins</strong>
-            <p>
-              {summarizeKind(liveItems, "login") ??
-                "None saved. A GitHub.com password lives here, not on the Host."}
-            </p>
-          </div>
-        </li>
-        <li>
-          <IconPasskey size={16} />
-          <div>
-            <strong>Passkeys</strong>
-            <p>
-              {summarizeKind(liveItems, "passkey") ??
-                "None. The private key stays on your phone or security key."}
-            </p>
-          </div>
-        </li>
-        <li>
-          <IconSecret size={16} />
-          <div>
-            <strong>Vault reminders</strong>
-            <p>
-              {summarizeKind(liveItems, "secret") ??
-                "None. A reminder stores the ConnectionRef, never the provider token."}
-            </p>
-          </div>
-        </li>
+        {doors.map((door) => {
+          const Icon = icons[door.kind];
+          const rememberHere =
+            door.kind === "reminder" &&
+            door.action === "Remember" &&
+            connection !== null &&
+            !hasReminder;
+          return (
+            <li key={door.kind}>
+              <Icon size={16} />
+              <div>
+                <strong>{door.title}</strong>
+                <p>{door.detail}</p>
+              </div>
+              <div className="conn-graph__action">
+                <span className={`chip ${VERB_CHIP[door.verb]}`}>
+                  {VERB_LABEL[door.verb]}
+                </span>
+                {rememberHere ? (
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--primary"
+                    disabled={busy}
+                    onClick={() => void remember()}
+                  >
+                    Remember
+                  </button>
+                ) : door.href ? (
+                  <Link
+                    className={`btn btn--sm${
+                      door.action === "Fix" ||
+                      door.action === "Authorize" ||
+                      door.action === "Save a key"
+                        ? " btn--primary"
+                        : ""
+                    }`}
+                    to={door.href}
+                  >
+                    {door.action}
+                  </Link>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
       </ul>
-      {connection?.status === "active" && !hasReminder ? (
-        <div className="panel__body">
-          <button
-            type="button"
-            className="btn btn--sm"
-            disabled={busy}
-            onClick={() => void remember()}
-          >
-            Remember this connector in the vault
-          </button>
-        </div>
-      ) : null}
+      <GrantToAgent
+        provider={provider}
+        connection={connection}
+        onFlash={onFlash}
+        onChanged={onChanged}
+      />
       {connection ? (
         <div className="panel__body">
           <p className="conn-card__label">Recent activity</p>
@@ -2030,17 +2031,91 @@ function IdentityGraphPanel({
   );
 }
 
-function summarizeKind(
-  items: ReturnType<typeof vaultItemsForProvider>,
-  kind: "login" | "passkey" | "secret",
-): string | null {
-  const matched = items.filter((item) => item.kind === kind);
-  if (matched.length === 0) return null;
-  return matched
-    .map(
-      (item) => `${KIND_LABEL[item.kind]} · ${item.name || itemSubtitle(item)}`,
-    )
-    .join(" · ");
+function GrantToAgent({
+  provider,
+  connection,
+  onFlash,
+  onChanged,
+}: {
+  provider: Provider;
+  connection: Connection | null;
+  onFlash: (flash: Flash | null) => void;
+  onChanged: () => void;
+}) {
+  const { items } = useVault();
+  const store = useVaultStore();
+  const [agentId, setAgentId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const fieldId = useId();
+  if (!connection || connection.status === "revoked") return null;
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    const id = agentId.trim();
+    if (!id || !connection) return;
+    setBusy(true);
+    try {
+      await bindConnection(connection.connectionId, {
+        targetKind: "agent",
+        targetId: id,
+      });
+      const existing = items.find(
+        (item) =>
+          item.kind === "secret" &&
+          item.deletedAt === null &&
+          item.connectionRef === connection.connectionRef,
+      );
+      if (existing) {
+        await store.saveItem(grantReminderToAgent(existing, id));
+      } else {
+        const reminder = grantReminderToAgent(
+          buildConnectorReminder(provider, connection),
+          id,
+        );
+        await store.addItems([reminder]);
+      }
+      onFlash({
+        tone: "ok",
+        text: `${id} can invoke ${provider.displayName} through the Host. The vault reminder names that agent; the token stays on the Host.`,
+      });
+      setAgentId("");
+      onChanged();
+    } catch (error) {
+      onFlash({ tone: "err", text: errorText(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="conn-grant" onSubmit={(event) => void submit(event)}>
+      <div className="field">
+        <label className="label" htmlFor={fieldId}>
+          Grant to agent
+        </label>
+        <p className="hint">
+          Binds this Host connector and records the agent on the vault reminder.
+          Agents still receive a ConnectionRef, not the credential.
+        </p>
+        <div className="conn-grant__row">
+          <input
+            id={fieldId}
+            value={agentId}
+            spellCheck={false}
+            placeholder="agt_release_bot"
+            onChange={(event) => setAgentId(event.target.value)}
+          />
+          <button
+            type="submit"
+            className="btn btn--sm btn--primary"
+            disabled={busy || agentId.trim() === ""}
+          >
+            {busy ? "Granting…" : "Grant"}
+          </button>
+        </div>
+      </div>
+    </form>
+  );
 }
 
 /* ============================================================ the gallery */

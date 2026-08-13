@@ -864,6 +864,7 @@ async fn inspect(server: &str, json_out: bool, service: &str) -> anyhow::Result<
                 && item["status"].as_str() != Some("revoked")
         })
         .collect::<Vec<_>>();
+    let cli = local_cli_status(provider["id"].as_str().unwrap_or(service));
     if json_out {
         println!(
             "{}",
@@ -874,6 +875,13 @@ async fn inspect(server: &str, json_out: bool, service: &str) -> anyhow::Result<
                     "auth_kind": provider["auth_kind"],
                     "configured": provider["configured"],
                     "missing_config": provider["missing_config"],
+                },
+                "doors": {
+                    "host": connections,
+                    "login": "PWA vault — unlock OpenSesame and open this provider home",
+                    "passkey": "PWA vault — private key stays on the authenticator",
+                    "reminder": "PWA vault — ConnectionRef only, never the Host token",
+                    "cli": cli,
                 },
                 "connections": connections,
                 "vault": "PWA only — unlock OpenSesame and open this provider home",
@@ -928,7 +936,13 @@ async fn inspect(server: &str, json_out: bool, service: &str) -> anyhow::Result<
             }
         }
     }
-    println!("  vault        inspect in the PWA provider home (logins, passkeys, reminders)");
+    println!("  login        inspect in the PWA provider home");
+    println!("  passkey      inspect in the PWA provider home");
+    println!("  reminder     inspect in the PWA provider home (ConnectionRef only)");
+    match cli {
+        Some(status) => println!("  cli          {status}"),
+        None => println!("  cli          no local probe for this service (vault + Host only)"),
+    }
     Ok(())
 }
 
@@ -1230,6 +1244,32 @@ fn warn_passkey_fallback() {
     );
 }
 
+/// Opt-in local doctor for CLIs we can probe without reading the user's disk.
+fn local_cli_status(service: &str) -> Option<String> {
+    let (bin, args): (&str, &[&str]) = match service {
+        "github" => ("gh", &["auth", "status"]),
+        "vercel" => ("vercel", &["whoami"]),
+        _ => return None,
+    };
+    let output = Command::new(bin).args(args).output().ok()?;
+    Some(summarize_cli_probe(
+        bin,
+        output.status.success(),
+        &String::from_utf8_lossy(&output.stdout),
+        &String::from_utf8_lossy(&output.stderr),
+    ))
+}
+
+fn summarize_cli_probe(bin: &str, ok: bool, stdout: &str, stderr: &str) -> String {
+    let combined = format!("{stdout}\n{stderr}");
+    let line = combined
+        .lines()
+        .map(str::trim)
+        .find(|row| !row.is_empty())
+        .unwrap_or(if ok { "signed in" } else { "not signed in" });
+    format!("{bin}: {line}")
+}
+
 fn open_url(url: &str) {
     let commands = if cfg!(target_os = "macos") {
         vec!["open"]
@@ -1308,6 +1348,23 @@ mod tests {
         let parsed = parse_data_json(&format!("@{}", path.display())).unwrap();
         assert_eq!(parsed["region"], "eu-west-1");
         let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn cli_probe_summarizes_first_line_without_secrets() {
+        assert_eq!(
+            summarize_cli_probe(
+                "gh",
+                true,
+                "Logged in to github.com as tyler\n  ✓ Token: gho_secret\n",
+                ""
+            ),
+            "gh: Logged in to github.com as tyler"
+        );
+        assert_eq!(
+            summarize_cli_probe("vercel", false, "", "Error: Not logged in."),
+            "vercel: Error: Not logged in."
+        );
     }
 
     #[test]
