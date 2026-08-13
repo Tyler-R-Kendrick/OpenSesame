@@ -100,6 +100,7 @@ export const ProviderSchema = z
     auth_kind: ProviderAuthKindSchema,
     supports_refresh: z.boolean(),
     configured: z.boolean(),
+    auto_configurable: z.boolean().default(false),
     callback_url: z.string().url().nullable(),
     missing_config: z.array(z.string()),
     scopes: z.array(ScopeDefSchema),
@@ -138,6 +139,9 @@ export const BindingTargetKindSchema = z.enum([
   "organization",
   "project",
   "agent",
+  "group",
+  "device",
+  "identity",
 ]);
 export type BindingTargetKind = z.infer<typeof BindingTargetKindSchema>;
 
@@ -190,6 +194,7 @@ export const ConnectionEventKindSchema = z.enum([
   "refresh_failed",
   "bound",
   "unbound",
+  "policy_updated",
   "revoked",
   "error",
 ]);
@@ -321,6 +326,16 @@ export const CreateBindingRequestSchema = z
   })
   .strict();
 export type CreateBindingRequest = z.infer<typeof CreateBindingRequestSchema>;
+
+export const UpdateConnectionPolicyRequestSchema = z
+  .object({
+    shareability: ConnectionShareabilitySchema,
+    max_invoke_level: z.number().int().min(1).max(2),
+  })
+  .strict();
+export type UpdateConnectionPolicyRequest = z.infer<
+  typeof UpdateConnectionPolicyRequestSchema
+>;
 
 export const ListProvidersResponseSchema = z
   .object({

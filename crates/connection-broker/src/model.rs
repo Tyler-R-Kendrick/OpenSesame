@@ -60,6 +60,7 @@ pub enum EventKind {
     RefreshFailed,
     Bound,
     Unbound,
+    PolicyUpdated,
     Revoked,
     Error,
 }
@@ -74,6 +75,7 @@ impl EventKind {
             Self::RefreshFailed => "refresh_failed",
             Self::Bound => "bound",
             Self::Unbound => "unbound",
+            Self::PolicyUpdated => "policy_updated",
             Self::Revoked => "revoked",
             Self::Error => "error",
         }
@@ -86,6 +88,9 @@ pub enum BindingTargetKind {
     Organization,
     Project,
     Agent,
+    Group,
+    Device,
+    Identity,
 }
 
 impl BindingTargetKind {
@@ -94,6 +99,9 @@ impl BindingTargetKind {
             Self::Organization => "organization",
             Self::Project => "project",
             Self::Agent => "agent",
+            Self::Group => "group",
+            Self::Device => "device",
+            Self::Identity => "identity",
         }
     }
 
@@ -102,6 +110,9 @@ impl BindingTargetKind {
             "organization" => Some(Self::Organization),
             "project" => Some(Self::Project),
             "agent" => Some(Self::Agent),
+            "group" => Some(Self::Group),
+            "device" => Some(Self::Device),
+            "identity" => Some(Self::Identity),
             _ => None,
         }
     }
@@ -154,6 +165,7 @@ pub struct ProviderView {
     pub auth_kind: String,
     pub supports_refresh: bool,
     pub configured: bool,
+    pub auto_configurable: bool,
     pub callback_url: Option<String>,
     pub missing_config: Vec<String>,
     pub scopes: Vec<ScopeView>,
@@ -167,6 +179,7 @@ impl ProviderView {
     pub fn new(
         provider: &Provider,
         configured: bool,
+        auto_configurable: bool,
         missing_config: Vec<String>,
         callback_url: Option<String>,
         catalog_revision: &str,
@@ -181,6 +194,7 @@ impl ProviderView {
             auth_kind: provider.auth.kind().to_string(),
             supports_refresh: provider.auth.supports_refresh(),
             configured,
+            auto_configurable,
             callback_url,
             missing_config,
             scopes: provider.scopes.iter().map(ScopeView::from).collect(),
@@ -312,10 +326,16 @@ mod tests {
 
     #[test]
     fn binding_target_kinds_are_closed() {
-        assert_eq!(
-            BindingTargetKind::parse("agent"),
-            Some(BindingTargetKind::Agent)
-        );
+        for (name, kind) in [
+            ("organization", BindingTargetKind::Organization),
+            ("project", BindingTargetKind::Project),
+            ("agent", BindingTargetKind::Agent),
+            ("group", BindingTargetKind::Group),
+            ("device", BindingTargetKind::Device),
+            ("identity", BindingTargetKind::Identity),
+        ] {
+            assert_eq!(BindingTargetKind::parse(name), Some(kind));
+        }
         assert!(BindingTargetKind::parse("everything").is_none());
     }
 
@@ -329,6 +349,7 @@ mod tests {
             EventKind::RefreshFailed,
             EventKind::Bound,
             EventKind::Unbound,
+            EventKind::PolicyUpdated,
             EventKind::Revoked,
             EventKind::Error,
         ]
@@ -345,6 +366,7 @@ mod tests {
                 "refresh_failed",
                 "bound",
                 "unbound",
+                "policy_updated",
                 "revoked",
                 "error"
             ]

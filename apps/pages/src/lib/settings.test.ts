@@ -7,10 +7,18 @@ afterEach(() => {
 
 describe("runtime endpoint defaults", () => {
   it("uses the Host endpoint supplied by the local runtime", async () => {
-    vi.stubEnv("VITE_HOST_API", "http://127.0.0.1:18787");
-    const { loadSettings } = await import("./settings.js");
+    vi.stubEnv("VITE_HOST_API", "http://localhost:18787");
+    vi.stubEnv("VITE_IDENTITY_API", "http://localhost:8788");
+    const { loadSettings, saveSettings } = await import("./settings.js");
 
-    expect(loadSettings().hostApi).toBe("http://127.0.0.1:18787");
+    saveSettings({
+      hostApi: "http://127.0.0.1:18787",
+      identityApi: "http://127.0.0.1:8788",
+      tursoUrl: "",
+    });
+
+    expect(loadSettings().hostApi).toBe("http://localhost:18787");
+    expect(loadSettings().identityApi).toBe("http://localhost:8788");
     expect(loadSettings().tursoUrl).toBe("");
   });
 });

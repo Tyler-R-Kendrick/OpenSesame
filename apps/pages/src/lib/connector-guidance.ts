@@ -315,6 +315,12 @@ export function configurationDefaults(
   return {};
 }
 
+export function canConfigureAutomatically(
+  provider: Pick<Provider, "autoConfigurable">,
+): boolean {
+  return provider.autoConfigurable;
+}
+
 export function configurationPayload(
   provider: Pick<Provider, "id">,
   values: Record<string, string>,

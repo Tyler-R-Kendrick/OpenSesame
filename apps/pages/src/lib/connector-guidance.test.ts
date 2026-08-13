@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Provider } from "./connections.js";
 import {
+  canConfigureAutomatically,
   configurationDefaults,
   configurationPayload,
   connectorSteps,
@@ -17,6 +18,7 @@ const provider = (overrides: Partial<Provider> = {}): Provider => ({
   authKind: "configuration",
   supportsRefresh: false,
   configured: true,
+  autoConfigurable: false,
   missingConfig: [],
   scopes: [],
   egress: { scheme: "none", authorities: [], pathPrefixes: [] },
@@ -87,6 +89,13 @@ describe("connector setup guidance", () => {
       api_key_header: "x-api-key",
       config_id: "default",
     });
+  });
+
+  it("identifies providers the Host can configure without user input", () => {
+    expect(
+      canConfigureAutomatically(provider({ autoConfigurable: true })),
+    ).toBe(true);
+    expect(canConfigureAutomatically(provider())).toBe(false);
   });
 
   it("derives the Auth0 Management API audience from its tenant domain", () => {

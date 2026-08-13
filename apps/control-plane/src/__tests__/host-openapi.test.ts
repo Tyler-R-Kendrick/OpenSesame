@@ -80,6 +80,7 @@ describe("Host organization authority OpenAPI", () => {
       ["/connections", "post"],
       ["/connections/discover", "post"],
       ["/connections/{id}", "get"],
+      ["/connections/{id}", "patch"],
       ["/connections/{id}", "delete"],
       ["/connections/{id}/authorize", "post"],
       ["/connections/{id}/refresh", "post"],
@@ -96,6 +97,10 @@ describe("Host organization authority OpenAPI", () => {
         pathEnd === -1 ? undefined : pathEnd,
       );
       const methodStart = pathBlock.indexOf(`    ${method}:`);
+      expect(
+        methodStart,
+        `${method.toUpperCase()} ${path}`,
+      ).toBeGreaterThanOrEqual(0);
       const methodTail = pathBlock.slice(methodStart + 1);
       const nextMethod = methodTail.search(
         /\n {4}(get|post|patch|delete|put):/,

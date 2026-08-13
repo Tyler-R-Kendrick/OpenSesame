@@ -220,6 +220,7 @@ function preview(
     authKind,
     supportsRefresh: false,
     configured: false,
+    autoConfigurable: id === "plain" || id === "sealed-local",
     missingConfig: [],
     scopes: [],
     egress: { scheme: "none", authorities: [], pathPrefixes: [] },
@@ -329,6 +330,7 @@ function validProvider(value: unknown): value is Provider {
     typeof item.docsUrl === "string" &&
     typeof item.authKind === "string" &&
     typeof item.configured === "boolean" &&
+    typeof item.autoConfigurable === "boolean" &&
     Array.isArray(item.missingConfig) &&
     Array.isArray(item.scopes) &&
     Array.isArray(item.operations)

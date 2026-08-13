@@ -123,7 +123,7 @@ async fn discovery_configures_complete_host_credentials_once() {
         organization,
         opensesame_domain::OrganizationRole::Owner,
     );
-    for expected in [1, 0] {
+    for expected in [3, 0] {
         let (status, discovered) =
             as_session(&state, &owner, "POST", "/api/v1/connections/discover", None).await;
         assert_eq!(status, StatusCode::OK, "{discovered}");
@@ -131,9 +131,14 @@ async fn discovery_configures_complete_host_credentials_once() {
         let (status, body) = as_session(&state, &owner, "GET", "/api/v1/connections", None).await;
         assert_eq!(status, StatusCode::OK, "{body}");
         let connections = body["connections"].as_array().unwrap();
-        assert_eq!(connections.len(), 1, "{body}");
-        assert_eq!(connections[0]["provider_id"], "workos");
-        assert_eq!(connections[0]["status"], "active");
+        assert_eq!(connections.len(), 3, "{body}");
+        assert!(
+            connections
+                .iter()
+                .any(|connection| connection["provider_id"] == "workos"
+                    && connection["status"] == "active"),
+            "{body}"
+        );
         assert!(!body.to_string().contains("route-do-not-return"));
     }
 
@@ -648,6 +653,52 @@ async fn the_whole_loop_from_create_to_revoke() {
 }
 
 #[tokio::test]
+async fn connection_settings_update_access_and_rules() {
+    let (state, _server) = harness().await;
+    let (_, created) = call(
+        &state,
+        "POST",
+        "/api/v1/connections",
+        Some(json!({"provider_id": "mock"})),
+    )
+    .await;
+    let id = created["connection_id"].as_str().unwrap();
+
+    let (status, bound) = call(
+        &state,
+        "POST",
+        &format!("/api/v1/connections/{id}/bindings"),
+        Some(json!({"target_kind":"identity","target_id":"prn_alice"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{bound}");
+    assert_eq!(bound["bindings"][0]["target_kind"], "identity");
+
+    let (status, updated) = call(
+        &state,
+        "PATCH",
+        &format!("/api/v1/connections/{id}"),
+        Some(json!({
+            "shareability": "organization_wide",
+            "max_invoke_level": 1
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{updated}");
+    assert_eq!(updated["shareability"], "organization_wide");
+    assert_eq!(updated["max_invoke_level"], 1);
+
+    let (status, invalid) = call(
+        &state,
+        "PATCH",
+        &format!("/api/v1/connections/{id}"),
+        Some(json!({"shareability":"private","max_invoke_level":3})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{invalid}");
+}
+
+#[tokio::test]
 async fn a_rejected_refresh_asks_for_reauthorization_without_losing_the_connection() {
     let (state, server) = harness().await;
     let (connection_id, _verifier) = authorize_a_mock_connection(&state).await;
@@ -1042,6 +1093,7 @@ async fn connection_routes_require_a_caller() {
         ("GET", "/api/v1/providers"),
         ("POST", "/api/v1/connections"),
         ("POST", "/api/v1/connections/discover"),
+        ("PATCH", "/api/v1/connections/connection:1"),
         ("GET", "/api/v1/connections/connection:1/events"),
     ] {
         let (status, _) = send(

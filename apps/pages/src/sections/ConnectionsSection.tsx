@@ -6,21 +6,27 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link } from "react-router";
+import { Link, useParams } from "react-router";
 import {
   IconAlert,
   IconCheck,
+  IconChevronLeft,
   IconClock,
   IconConnection,
   IconExternal,
   IconInfo,
   IconLock,
+  IconLogin,
+  IconPasskey,
   IconPlus,
   IconRefresh,
   IconSearch,
+  IconSecret,
+  IconSettings,
   IconTrash,
   IconX,
 } from "../components/Icons.js";
+import { PasskeyCeremonyNote } from "../components/PasskeyCeremonyNote.js";
 import {
   type Binding,
   type BindingTargetKind,
@@ -44,8 +50,10 @@ import {
   setConnectionConfiguration,
   setConnectionCredential,
   unbindConnection,
+  updateConnectionPolicy,
 } from "../lib/connections.js";
 import {
+  canConfigureAutomatically,
   configurationDefaults,
   configurationPayload,
   connectorSteps,
@@ -58,12 +66,29 @@ import {
   writeEmbeddedProviders,
 } from "../lib/embedded-catalog.js";
 import {
+  VERB_CHIP,
+  VERB_LABEL,
+  addPipe,
+  buildConnectorReminder,
+  connectionVerb,
+  dismissFirstRun,
+  firstRunDismissed,
+  firstRunProviders,
+  hasConnectorReminder,
+  providerVerb,
+  suggestedLoginUri,
+  unfinishedConnections,
+  vaultItemsForProvider,
+} from "../lib/identity-graph.js";
+import {
   HostSessionError,
   hostBase,
   useConnect,
   useIdentitySession,
 } from "../lib/identity.js";
 import { useOnline } from "../lib/use-online.js";
+import { useVault, useVaultStore } from "../lib/vault/hooks.js";
+import { KIND_LABEL, itemSubtitle } from "../lib/vault/model.js";
 import "./connections.css";
 
 type Flash = { tone: "ok" | "warn" | "err"; text: string };
@@ -104,10 +129,20 @@ const CATEGORY_ORDER: ProviderCategory[] = [
 ];
 
 const BINDING_KINDS: Array<{ value: BindingTargetKind; label: string }> = [
+  { value: "identity", label: "Identity" },
+  { value: "group", label: "Group" },
+  { value: "device", label: "Device" },
   { value: "project", label: "Project" },
   { value: "agent", label: "Agent" },
   { value: "organization", label: "Organization" },
 ];
+
+function connectorPath(providerId: string, connectionId?: string): string {
+  const provider = encodeURIComponent(providerId);
+  return connectionId
+    ? `/connections/${provider}/${encodeURIComponent(connectionId)}`
+    : `/connections/${provider}`;
+}
 
 const timeFormat = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -154,12 +189,12 @@ function errorText(error: unknown): string {
 }
 
 const STATUS_CHIP: Record<ConnectionStatus, { tone: string; label: string }> = {
-  pending: { tone: "chip--warn", label: "Awaiting consent" },
-  active: { tone: "chip--ok", label: "Active" },
-  needs_reauth: { tone: "chip--warn", label: "Needs re-authorization" },
-  expired: { tone: "chip--warn", label: "Expired" },
-  revoked: { tone: "chip", label: "Revoked" },
-  error: { tone: "chip--err", label: "Error" },
+  pending: { tone: VERB_CHIP.needs_you, label: VERB_LABEL.needs_you },
+  active: { tone: VERB_CHIP.connected, label: VERB_LABEL.connected },
+  needs_reauth: { tone: VERB_CHIP.needs_you, label: VERB_LABEL.needs_you },
+  expired: { tone: VERB_CHIP.needs_you, label: VERB_LABEL.needs_you },
+  revoked: { tone: VERB_CHIP.idle, label: "Revoked" },
+  error: { tone: VERB_CHIP.broken, label: VERB_LABEL.broken },
 };
 
 /** One sentence answering "is this working, and do I have to do anything?". */
@@ -205,6 +240,7 @@ function statusSentence(
 /* ============================================================== the section */
 
 export function ConnectionsSection() {
+  const { providerId, connectionId } = useParams();
   const online = useOnline();
   const base = hostBase();
   const session = useIdentitySession();
@@ -216,6 +252,10 @@ export function ConnectionsSection() {
   const [loadError, setLoadError] = useState<LoadFailure | null>(null);
   const [loading, setLoading] = useState(false);
   const [flash, setFlash] = useState<Flash | null>(null);
+  const [rememberOffer, setRememberOffer] = useState<{
+    provider: Provider;
+    connection: Connection;
+  } | null>(null);
 
   const catalogRun = useRef(0);
   const connectionRun = useRef(0);
@@ -352,14 +392,38 @@ export function ConnectionsSection() {
         {catalogError ? (
           <CatalogError failure={catalogError} onRetry={loadCatalog} />
         ) : null}
-        <GalleryPanel
-          providers={providers}
-          online={online}
-          canConfigure={false}
-          onFlash={setFlash}
-          onConnected={() => undefined}
-        />
+        <GalleryPanel providers={providers} />
       </div>
+    );
+  }
+
+  if (providerId) {
+    const provider = providers?.find((item) => item.id === providerId) ?? null;
+    const providerConnections = (connections ?? []).filter(
+      (item) => item.providerId === providerId && item.status !== "revoked",
+    );
+    const connection = connectionId
+      ? (providerConnections.find(
+          (item) => item.connectionId === connectionId,
+        ) ?? null)
+      : providerConnections.length === 1
+        ? (providerConnections[0] ?? null)
+        : null;
+    return (
+      <ConnectorSettingsPage
+        provider={provider}
+        providerId={providerId}
+        connection={connection}
+        connections={providerConnections}
+        loading={providers === null || connections === null}
+        online={online}
+        canConfigure={loadError?.setupRequired !== true}
+        flash={flash}
+        rememberOffer={rememberOffer}
+        onFlash={setFlash}
+        onRememberOffer={setRememberOffer}
+        onChanged={() => void loadConnections()}
+      />
     );
   }
 
@@ -417,6 +481,24 @@ export function ConnectionsSection() {
         <CatalogError failure={catalogError} onRetry={loadCatalog} />
       ) : null}
 
+      <UnfinishedInbox
+        connections={connections ?? []}
+        providers={providers ?? []}
+      />
+
+      <FirstRunThree
+        providers={providers ?? []}
+        connections={connections ?? []}
+      />
+
+      {rememberOffer ? (
+        <VaultReminderBanner
+          offer={rememberOffer}
+          onFlash={setFlash}
+          onDismiss={() => setRememberOffer(null)}
+        />
+      ) : null}
+
       <ConnectionsPanel
         connections={connections}
         providers={providers ?? []}
@@ -424,16 +506,306 @@ export function ConnectionsSection() {
         online={online}
         onReload={() => void loadConnections()}
         onFlash={setFlash}
+        onRememberOffer={setRememberOffer}
         setupRequired={loadError?.setupRequired === true}
       />
 
-      <GalleryPanel
-        providers={providers}
-        online={online}
-        canConfigure={loadError?.setupRequired !== true}
-        onFlash={setFlash}
-        onConnected={() => void loadConnections()}
+      <PipeDiagram />
+
+      <GalleryPanel providers={providers} connections={connections ?? []} />
+    </div>
+  );
+}
+
+function ConnectorSettingsPage({
+  provider,
+  providerId,
+  connection,
+  connections,
+  loading,
+  online,
+  canConfigure,
+  flash,
+  rememberOffer,
+  onFlash,
+  onRememberOffer,
+  onChanged,
+}: {
+  provider: Provider | null;
+  providerId: string;
+  connection: Connection | null;
+  connections: Connection[];
+  loading: boolean;
+  online: boolean;
+  canConfigure: boolean;
+  flash: Flash | null;
+  rememberOffer: { provider: Provider; connection: Connection } | null;
+  onFlash: (flash: Flash | null) => void;
+  onRememberOffer: (
+    offer: { provider: Provider; connection: Connection } | null,
+  ) => void;
+  onChanged: () => void;
+}) {
+  if (!provider) {
+    return (
+      <div className="section__inner">
+        <Link className="conn-back" to="/connections">
+          <IconChevronLeft size={16} /> All connections
+        </Link>
+        <div className="panel">
+          <div className="empty">
+            <IconConnection />
+            <h1>
+              {loading ? "Loading connector settings…" : "Connector not found"}
+            </h1>
+            <p>
+              {loading
+                ? "Reading this connector from the Host."
+                : `No connector named ${providerId} is in the active catalog.`}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const automatic = canConfigureAutomatically(provider);
+  return (
+    <div className="section__inner conn-settings">
+      <Link className="conn-back" to="/connections">
+        <IconChevronLeft size={16} /> All connections
+      </Link>
+      <header className="conn-settings__head">
+        <div>
+          <h1>{provider.displayName}</h1>
+          <p>{connectorSummary(provider)}</p>
+        </div>
+        <span
+          className={`chip ${
+            VERB_CHIP[
+              connections.length > 1 && !connection
+                ? "idle"
+                : providerVerb(provider, connection)
+            ]
+          }`}
+          aria-label={`Connector status: ${
+            connection
+              ? VERB_LABEL[connectionVerb(connection.status)]
+              : connections.length > 1
+                ? `${connections.length} authorizations`
+                : VERB_LABEL[providerVerb(provider, null)]
+          }`}
+        >
+          {connection
+            ? VERB_LABEL[connectionVerb(connection.status)]
+            : connections.length > 1
+              ? `${connections.length} authorizations`
+              : VERB_LABEL[providerVerb(provider, null)]}
+        </span>
+      </header>
+
+      {flash ? (
+        <output className={`note note--${flash.tone} conn-flash`}>
+          {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
+          <p>{flash.text}</p>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => onFlash(null)}
+            aria-label="Dismiss"
+          >
+            <IconX />
+          </button>
+        </output>
+      ) : null}
+
+      {rememberOffer ? (
+        <VaultReminderBanner
+          offer={rememberOffer}
+          onFlash={onFlash}
+          onDismiss={() => onRememberOffer(null)}
+        />
+      ) : null}
+
+      {connection ? (
+        <nav className="conn-settings__nav" aria-label="Connector settings">
+          <a href="#identity">This identity</a>
+          <a href="#authorization">Authorization</a>
+          <a href="#access">Who can use it</a>
+          <a href="#rules">Rules</a>
+        </nav>
+      ) : null}
+
+      <IdentityGraphPanel
+        provider={provider}
+        connections={connections}
+        connection={connection}
+        onFlash={onFlash}
       />
+
+      <AddSecretChooser provider={provider} />
+
+      {automatic ? (
+        <section className="panel" id="authorization">
+          <div className="panel__head">
+            <div>
+              <h2>Authorization</h2>
+              <p>No account sign-in or additional configuration is required.</p>
+            </div>
+          </div>
+          <ul className="conn-list">
+            <AutomaticService
+              provider={provider}
+              connection={connection}
+              online={online}
+              onFlash={(next) => onFlash(next)}
+              onChanged={onChanged}
+              onRememberOffer={(offer) => onRememberOffer(offer)}
+              settings={false}
+            />
+          </ul>
+        </section>
+      ) : connection ? (
+        <section className="panel" id="authorization">
+          <div className="panel__head">
+            <div>
+              <h2>Authorization</h2>
+              <p>Credential lifecycle, provider scope, and renewal status.</p>
+            </div>
+          </div>
+          <ul className="conn-list">
+            <ConnectionCard
+              connection={connection}
+              provider={provider}
+              online={online}
+              onFlash={(next) => onFlash(next)}
+              onChanged={onChanged}
+              showBindings={false}
+            />
+          </ul>
+        </section>
+      ) : connections.length > 1 ? (
+        <section className="panel" id="authorization">
+          <div className="panel__head">
+            <div>
+              <h2>Authorizations</h2>
+              <p>Choose the account whose access and rules you want to edit.</p>
+            </div>
+          </div>
+          <ul className="conn-list">
+            {connections.map((item) => (
+              <AuthorizedConnection
+                key={item.connectionId}
+                connection={item}
+                provider={provider}
+              />
+            ))}
+          </ul>
+          {canConfigure && provider.configured ? (
+            <details className="conn-add-authorization">
+              <summary>Add another authorization</summary>
+              <ConnectForm
+                provider={provider}
+                online={online}
+                onFlash={(next) => onFlash(next)}
+                onConnected={onChanged}
+                onRememberOffer={(connection) =>
+                  onRememberOffer({ provider, connection })
+                }
+              />
+            </details>
+          ) : null}
+        </section>
+      ) : (
+        <section className="panel" id="authorization">
+          <div className="panel__head">
+            <div>
+              <h2>Authorization</h2>
+              <p>Create a separate authorization for this connector.</p>
+            </div>
+          </div>
+          {!canConfigure ? (
+            <div className="panel__body">
+              <p className="hint">
+                Select an organization before configuring this connector.
+              </p>
+            </div>
+          ) : provider.configured ? (
+            <ConnectForm
+              provider={provider}
+              online={online}
+              onFlash={(next) => onFlash(next)}
+              onConnected={onChanged}
+              onRememberOffer={(created) =>
+                onRememberOffer({ provider, connection: created })
+              }
+            />
+          ) : (
+            <div className="panel__body">
+              <DeploymentSetupGuide provider={provider} />
+            </div>
+          )}
+        </section>
+      )}
+
+      {connection ? (
+        <>
+          <section className="panel" id="access">
+            <div className="panel__head">
+              <div>
+                <h2>Who can use it</h2>
+                <p>
+                  Assign this authorization to identities, groups, devices,
+                  projects, or agents.
+                </p>
+              </div>
+            </div>
+            <div className="panel__body">
+              <BindingEditor
+                connection={connection}
+                online={online}
+                onFlash={(next) => onFlash(next)}
+                onChanged={onChanged}
+              />
+            </div>
+          </section>
+          <section className="panel" id="rules">
+            <div className="panel__head">
+              <div>
+                <h2>Rules</h2>
+                <p>
+                  Set how broadly this authorization may be delegated and
+                  invoked.
+                </p>
+              </div>
+            </div>
+            <div className="panel__body">
+              <PolicyEditor
+                connection={connection}
+                online={online}
+                onFlash={(next) => onFlash(next)}
+                onChanged={onChanged}
+              />
+            </div>
+          </section>
+        </>
+      ) : (
+        <section className="panel">
+          <div className="empty conn-policy-empty">
+            <IconLock />
+            <h2>
+              {connections.length > 1
+                ? "Choose an authorization"
+                : "Access and rules follow authorization"}
+            </h2>
+            <p>
+              {connections.length > 1
+                ? "Open one above to edit exactly who can use it and how."
+                : "Enable this connector first, then choose exactly who can use it and how."}
+            </p>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -484,6 +856,7 @@ function ConnectionsPanel({
   online,
   onReload,
   onFlash,
+  onRememberOffer,
   setupRequired,
 }: {
   connections: Connection[] | null;
@@ -492,10 +865,20 @@ function ConnectionsPanel({
   online: boolean;
   onReload: () => void;
   onFlash: (flash: Flash) => void;
+  onRememberOffer: (offer: {
+    provider: Provider;
+    connection: Connection;
+  }) => void;
   setupRequired: boolean;
 }) {
   const live = (connections ?? []).filter((c) => c.status !== "revoked");
-  const revoked = (connections ?? []).filter((c) => c.status === "revoked");
+  const automatic = providers.filter(canConfigureAutomatically);
+  const automaticIds = new Set(automatic.map((provider) => provider.id));
+  const managed = (connections ?? []).filter(
+    (connection) =>
+      connection.status !== "revoked" &&
+      !automaticIds.has(connection.providerId),
+  );
 
   return (
     <section className="panel">
@@ -539,7 +922,7 @@ function ConnectionsPanel({
                 : "Connections could not be read."}
             </p>
           </div>
-        ) : live.length === 0 && revoked.length === 0 ? (
+        ) : automatic.length === 0 && managed.length === 0 ? (
           <div className="empty">
             <span className="empty__mark">
               <IconConnection />
@@ -553,16 +936,28 @@ function ConnectionsPanel({
           </div>
         ) : (
           <ul className="conn-list">
-            {[...live, ...revoked].map((connection) => (
-              <ConnectionCard
+            {automatic.map((provider) => (
+              <AutomaticService
+                key={provider.id}
+                provider={provider}
+                connection={
+                  live.find(
+                    (connection) => connection.providerId === provider.id,
+                  ) ?? null
+                }
+                online={online}
+                onFlash={onFlash}
+                onChanged={onReload}
+                onRememberOffer={onRememberOffer}
+              />
+            ))}
+            {managed.map((connection) => (
+              <AuthorizedConnection
                 key={connection.connectionId}
                 connection={connection}
                 provider={
                   providers.find((p) => p.id === connection.providerId) ?? null
                 }
-                online={online}
-                onFlash={onFlash}
-                onChanged={onReload}
               />
             ))}
           </ul>
@@ -572,18 +967,135 @@ function ConnectionsPanel({
   );
 }
 
+function AuthorizedConnection({
+  connection,
+  provider,
+}: {
+  connection: Connection;
+  provider: Provider | null;
+}) {
+  const chip = STATUS_CHIP[connection.status];
+  return (
+    <li className="conn-service">
+      <div>
+        <h3>{connection.displayName}</h3>
+        <p>{statusSentence(connection, provider)}</p>
+      </div>
+      <div className="conn-service__actions">
+        <span className={`chip ${chip.tone}`}>{chip.label}</span>
+        <Link
+          className="btn btn--sm"
+          to={connectorPath(connection.providerId, connection.connectionId)}
+          aria-label={`Settings for ${connection.displayName}`}
+        >
+          <IconSettings size={16} /> Settings
+        </Link>
+      </div>
+    </li>
+  );
+}
+
+function AutomaticService({
+  provider,
+  connection,
+  online,
+  onFlash,
+  onChanged,
+  onRememberOffer,
+  settings = true,
+}: {
+  provider: Provider;
+  connection: Connection | null;
+  online: boolean;
+  onFlash: (flash: Flash) => void;
+  onChanged: () => void;
+  onRememberOffer?: (offer: {
+    provider: Provider;
+    connection: Connection;
+  }) => void;
+  settings?: boolean;
+}) {
+  const [busy, setBusy] = useState(false);
+  const enabled = connection !== null;
+
+  async function toggle(next: boolean) {
+    setBusy(true);
+    try {
+      if (next) {
+        const created = await createConnection({
+          providerId: provider.id,
+          displayName: provider.displayName,
+        });
+        onRememberOffer?.({ provider, connection: created });
+      } else if (connection) {
+        await revokeConnection(connection.connectionId);
+      }
+      onFlash({
+        tone: "ok",
+        text: `${provider.displayName} is ${next ? "enabled" : "disabled"}.`,
+      });
+      onChanged();
+    } catch (error) {
+      onFlash({ tone: "err", text: errorText(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <li className="conn-service">
+      <div>
+        <h3>{provider.displayName}</h3>
+        <p>
+          {provider.id === "sealed-local"
+            ? "Encrypted local storage with a Host-generated sealing key."
+            : provider.id === "plain"
+              ? "Built-in local plaintext storage for non-sensitive values."
+              : "Detected from this Host and ready without additional setup."}
+        </p>
+      </div>
+      <div className="conn-service__actions">
+        {settings ? (
+          <Link
+            className="btn btn--sm"
+            to={connectorPath(provider.id, connection?.connectionId)}
+            aria-label={`Settings for ${provider.displayName}`}
+          >
+            <IconSettings size={16} /> Settings
+          </Link>
+        ) : null}
+        <label className="conn-switch">
+          <span>{enabled ? "Enabled" : "Disabled"}</span>
+          <input
+            type="checkbox"
+            role="switch"
+            aria-checked={enabled}
+            checked={enabled}
+            disabled={busy || !online || !provider.configured}
+            onChange={(event) => void toggle(event.target.checked)}
+            aria-label={`${enabled ? "Disable" : "Enable"} ${provider.displayName}`}
+          />
+          <span className="conn-switch__track" aria-hidden="true" />
+        </label>
+      </div>
+    </li>
+  );
+}
+
 function ConnectionCard({
   connection,
   provider,
   online,
   onFlash,
   onChanged,
+  showBindings = true,
 }: {
   connection: Connection;
   provider: Provider | null;
   online: boolean;
   onFlash: (flash: Flash) => void;
   onChanged: () => void;
+  showBindings?: boolean;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -668,7 +1180,10 @@ function ConnectionCard({
     : connection.requestedScopes;
 
   return (
-    <li className={`conn-card${revoked ? " is-revoked" : ""}`}>
+    <li
+      id={`connection-${connection.connectionId}`}
+      className={`conn-card${revoked ? " is-revoked" : ""}`}
+    >
       <div className="conn-card__top">
         <div className="conn-card__title">
           <h3>{connection.displayName}</h3>
@@ -723,7 +1238,7 @@ function ConnectionCard({
         </p>
       ) : null}
 
-      {revoked ? null : (
+      {revoked || !showBindings ? null : (
         <BindingEditor
           connection={connection}
           online={online}
@@ -986,7 +1501,121 @@ function BindingEditor({
   );
 }
 
-function ActivityLog({ connectionId }: { connectionId: string }) {
+function PolicyEditor({
+  connection,
+  online,
+  onFlash,
+  onChanged,
+}: {
+  connection: Connection;
+  online: boolean;
+  onFlash: (flash: Flash) => void;
+  onChanged: () => void;
+}) {
+  const [shareability, setShareability] = useState(connection.shareability);
+  const [maxInvokeLevel, setMaxInvokeLevel] = useState<1 | 2>(
+    connection.maxInvokeLevel === 1 ? 1 : 2,
+  );
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setShareability(connection.shareability);
+    setMaxInvokeLevel(connection.maxInvokeLevel === 1 ? 1 : 2);
+  }, [connection]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await updateConnectionPolicy(connection.connectionId, {
+        shareability,
+        maxInvokeLevel,
+      });
+      onFlash({ tone: "ok", text: "Connector rules saved." });
+      onChanged();
+    } catch (error) {
+      onFlash({ tone: "err", text: errorText(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="conn-policy" onSubmit={submit}>
+      <div className="field">
+        <label className="label" htmlFor="connector-shareability">
+          Delegation
+        </label>
+        <select
+          id="connector-shareability"
+          value={shareability}
+          onChange={(event) =>
+            setShareability(event.target.value as Connection["shareability"])
+          }
+        >
+          <option value="private">Private to its owner</option>
+          <option value="delegable">May be delegated through bindings</option>
+          <option value="organization_wide">Available organization-wide</option>
+        </select>
+        <p className="hint">
+          Bindings above still identify the groups, devices, identities, and
+          workloads this authorization is intended for.
+        </p>
+      </div>
+      <div className="field">
+        <label className="label" htmlFor="connector-invoke-level">
+          Maximum action
+        </label>
+        <select
+          id="connector-invoke-level"
+          value={maxInvokeLevel}
+          onChange={(event) =>
+            setMaxInvokeLevel(event.target.value === "1" ? 1 : 2)
+          }
+        >
+          <option value={1}>Typed connector operations only</option>
+          <option value={2}>Constrained provider requests</option>
+        </select>
+        <p className="hint">
+          Credentials are never returned to a user, device, project, or agent.
+        </p>
+      </div>
+      <dl className="conn-policy__facts">
+        <div>
+          <dt>Provider scope</dt>
+          <dd>
+            {connection.grantedScopes.length > 0
+              ? connection.grantedScopes.join(", ")
+              : "No delegated provider scopes"}
+          </dd>
+        </div>
+        <div>
+          <dt>Outbound boundary</dt>
+          <dd>
+            {connection.egress.authorities.length > 0
+              ? `${connection.egress.scheme}://${connection.egress.authorities.join(", ")}`
+              : "No outbound provider host"}
+          </dd>
+        </div>
+      </dl>
+      <button
+        type="submit"
+        className="btn btn--primary"
+        disabled={busy || !online}
+      >
+        {busy ? "Saving…" : "Save rules"}
+      </button>
+    </form>
+  );
+}
+
+function ActivityLog({
+  connectionId,
+  limit,
+}: {
+  connectionId: string;
+  limit?: number;
+}) {
   const [events, setEvents] = useState<ConnectionEvent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -1010,9 +1639,10 @@ function ActivityLog({ connectionId }: { connectionId: string }) {
   if (events.length === 0)
     return <p className="hint conn-pad">No events recorded.</p>;
 
+  const visible = limit ? events.slice(0, limit) : events;
   return (
     <ol className="conn-activity">
-      {events.map((event) => (
+      {visible.map((event) => (
         <li key={event.id}>
           <span className="conn-activity__kind">
             {event.kind.replace(/_/g, " ")}
@@ -1027,25 +1657,407 @@ function ActivityLog({ connectionId }: { connectionId: string }) {
   );
 }
 
+/* =================================================== identity graph / inbox */
+
+function UnfinishedInbox({
+  connections,
+  providers,
+}: {
+  connections: Connection[];
+  providers: Provider[];
+}) {
+  const open = unfinishedConnections(connections);
+  if (open.length === 0) return null;
+  return (
+    <section className="panel" aria-labelledby="conn-inbox-title">
+      <div className="panel__head">
+        <div>
+          <h2 id="conn-inbox-title">Needs you</h2>
+          <p>
+            Authorization started but is not usable yet. These do not expire
+            from this list until you finish or revoke them.
+          </p>
+        </div>
+      </div>
+      <ul className="conn-list">
+        {open.map((connection) => {
+          const provider =
+            providers.find((item) => item.id === connection.providerId) ?? null;
+          const verb = connectionVerb(connection.status);
+          return (
+            <li key={connection.connectionId} className="conn-service">
+              <div>
+                <h3>{connection.displayName}</h3>
+                <p>{statusSentence(connection, provider)}</p>
+              </div>
+              <div className="conn-service__actions">
+                <span className={`chip ${VERB_CHIP[verb]}`}>
+                  {VERB_LABEL[verb]}
+                </span>
+                <Link
+                  className="btn btn--sm btn--primary"
+                  to={connectorPath(
+                    connection.providerId,
+                    connection.connectionId,
+                  )}
+                >
+                  Fix
+                </Link>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function VaultReminderBanner({
+  offer,
+  onFlash,
+  onDismiss,
+}: {
+  offer: { provider: Provider; connection: Connection };
+  onFlash: (flash: Flash | null) => void;
+  onDismiss: () => void;
+}) {
+  const { items } = useVault();
+  const store = useVaultStore();
+  const [busy, setBusy] = useState(false);
+  if (hasConnectorReminder(items, offer.connection)) return null;
+
+  async function save() {
+    setBusy(true);
+    try {
+      await store.addItems([
+        buildConnectorReminder(offer.provider, offer.connection),
+      ]);
+      onFlash({
+        tone: "ok",
+        text: `Saved to Host. Added a vault reminder for ${offer.provider.displayName}. The credential itself stays on the Host.`,
+      });
+      onDismiss();
+    } catch (error) {
+      onFlash({ tone: "err", text: errorText(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <output className="note note--ok conn-flash">
+      <IconCheck />
+      <p>
+        Saved {offer.provider.displayName} on this Host. Add a vault reminder
+        that points at the ConnectionRef — not the token?
+      </p>
+      <button
+        type="button"
+        className="btn btn--sm btn--primary"
+        disabled={busy}
+        onClick={() => void save()}
+      >
+        Remember in vault
+      </button>
+      <button type="button" className="btn btn--sm" onClick={onDismiss}>
+        Not now
+      </button>
+    </output>
+  );
+}
+
+function FirstRunThree({
+  providers,
+  connections,
+}: {
+  providers: Provider[];
+  connections: Connection[];
+}) {
+  const [hidden, setHidden] = useState(firstRunDismissed);
+  if (hidden) return null;
+  const picks = firstRunProviders(providers);
+  if (picks.length === 0) return null;
+  const active = new Set(
+    connections
+      .filter((connection) => connection.status === "active")
+      .map((connection) => connection.providerId),
+  );
+  if (picks.every((provider) => active.has(provider.id))) return null;
+
+  return (
+    <section className="panel">
+      <div className="panel__head">
+        <div>
+          <h2>Connect the three you use daily</h2>
+          <p>
+            Authorize once on the Host. Agents invoke through a ConnectionRef;
+            your vault login stays a separate door.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn--sm"
+          onClick={() => {
+            dismissFirstRun();
+            setHidden(true);
+          }}
+        >
+          Dismiss
+        </button>
+      </div>
+      <ul className="conn-list">
+        {picks.map((provider) => {
+          const connected = active.has(provider.id);
+          return (
+            <li key={provider.id} className="conn-service">
+              <div>
+                <h3>{provider.displayName}</h3>
+                <p>
+                  {connected
+                    ? "Connected on this Host."
+                    : provider.configured || provider.autoConfigurable
+                      ? "Ready to authorize."
+                      : "Needs a Host client registration first."}
+                </p>
+              </div>
+              <Link
+                className={`btn btn--sm${connected ? "" : " btn--primary"}`}
+                to={connectorPath(provider.id)}
+              >
+                {connected ? "Open" : "Connect"}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function PipeDiagram() {
+  return (
+    <section className="panel">
+      <div className="panel__head">
+        <div>
+          <h2>How to add a secret</h2>
+          <p>
+            Three pipes. Pick one. Mixing them is why GitHub feels like three
+            products.
+          </p>
+        </div>
+      </div>
+      <ol className="conn-pipes">
+        <li>
+          <strong>Authorize the Host</strong>
+          <p>
+            OAuth or an API key. The Host keeps the credential and agents get a
+            ConnectionRef. Use this for Linear, Stripe, OpenAI.
+          </p>
+        </li>
+        <li>
+          <strong>Save a vault login</strong>
+          <p>
+            Your password or passkey for a website. Only you can reveal it.
+            Import from Bitwarden or Chrome if the vault is empty.
+          </p>
+        </li>
+        <li>
+          <strong>Point a vault secret at a ConnectionRef</strong>
+          <p>
+            A reminder and grant target. It does not copy the Host token into
+            the vault.
+          </p>
+        </li>
+      </ol>
+    </section>
+  );
+}
+
+function AddSecretChooser({ provider }: { provider: Provider }) {
+  const pipe = addPipe(provider);
+  const loginUri = suggestedLoginUri(provider);
+  return (
+    <section className="panel">
+      <div className="panel__head">
+        <div>
+          <h2>Add to this identity</h2>
+          <p>Choose the pipe. The Host never receives your vault password.</p>
+        </div>
+      </div>
+      <div className="conn-chooser">
+        <Link
+          className={`btn ${pipe === "oauth" || pipe === "key" ? "btn--primary" : ""}`}
+          to="#authorization"
+        >
+          {pipe === "oauth"
+            ? "Authorize on the Host"
+            : pipe === "key"
+              ? "Save a key on the Host"
+              : "Configure on the Host"}
+        </Link>
+        <Link
+          className="btn"
+          to={`/vault/new/login?name=${encodeURIComponent(provider.displayName)}${
+            loginUri ? `&uri=${encodeURIComponent(loginUri)}` : ""
+          }`}
+        >
+          <IconLogin size={16} /> Save a site login
+        </Link>
+        <Link className="btn" to="/settings#import">
+          Import from Bitwarden or Chrome
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function IdentityGraphPanel({
+  provider,
+  connections,
+  connection,
+  onFlash,
+}: {
+  provider: Provider;
+  connections: Connection[];
+  connection: Connection | null;
+  onFlash: (flash: Flash | null) => void;
+}) {
+  const { items } = useVault();
+  const store = useVaultStore();
+  const [busy, setBusy] = useState(false);
+  const liveItems = vaultItemsForProvider(items, provider);
+  const liveConnections = connections.filter(
+    (item) => item.status !== "revoked",
+  );
+
+  async function remember() {
+    if (!connection) return;
+    setBusy(true);
+    try {
+      await store.addItems([buildConnectorReminder(provider, connection)]);
+      onFlash({
+        tone: "ok",
+        text: `Saved a vault reminder for ${provider.displayName}. The Host still holds the credential.`,
+      });
+    } catch (error) {
+      onFlash({ tone: "err", text: errorText(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const hasReminder =
+    connection !== null && hasConnectorReminder(liveItems, connection);
+
+  return (
+    <section className="panel" id="identity">
+      <div className="panel__head">
+        <div>
+          <h2>Also on this identity</h2>
+          <p>
+            Host connectors and vault items for {provider.displayName}. Not
+            browser cookies, not <code>gh</code>, not a plugin card.
+          </p>
+        </div>
+      </div>
+      <ul className="conn-graph">
+        <li>
+          <IconConnection size={16} />
+          <div>
+            <strong>Host connector</strong>
+            <p>
+              {liveConnections.length === 0
+                ? "None. Authorize below so agents can invoke without a pasted token."
+                : liveConnections
+                    .map(
+                      (item) =>
+                        `${item.logicalName} · ${VERB_LABEL[connectionVerb(item.status)]}`,
+                    )
+                    .join(" · ")}
+            </p>
+          </div>
+        </li>
+        <li>
+          <IconLogin size={16} />
+          <div>
+            <strong>Vault logins</strong>
+            <p>
+              {summarizeKind(liveItems, "login") ??
+                "None saved. A GitHub.com password lives here, not on the Host."}
+            </p>
+          </div>
+        </li>
+        <li>
+          <IconPasskey size={16} />
+          <div>
+            <strong>Passkeys</strong>
+            <p>
+              {summarizeKind(liveItems, "passkey") ??
+                "None. The private key stays on your phone or security key."}
+            </p>
+          </div>
+        </li>
+        <li>
+          <IconSecret size={16} />
+          <div>
+            <strong>Vault reminders</strong>
+            <p>
+              {summarizeKind(liveItems, "secret") ??
+                "None. A reminder stores the ConnectionRef, never the provider token."}
+            </p>
+          </div>
+        </li>
+      </ul>
+      {connection?.status === "active" && !hasReminder ? (
+        <div className="panel__body">
+          <button
+            type="button"
+            className="btn btn--sm"
+            disabled={busy}
+            onClick={() => void remember()}
+          >
+            Remember this connector in the vault
+          </button>
+        </div>
+      ) : null}
+      {connection ? (
+        <div className="panel__body">
+          <p className="conn-card__label">Recent activity</p>
+          <ActivityLog connectionId={connection.connectionId} limit={5} />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function summarizeKind(
+  items: ReturnType<typeof vaultItemsForProvider>,
+  kind: "login" | "passkey" | "secret",
+): string | null {
+  const matched = items.filter((item) => item.kind === kind);
+  if (matched.length === 0) return null;
+  return matched
+    .map(
+      (item) => `${KIND_LABEL[item.kind]} · ${item.name || itemSubtitle(item)}`,
+    )
+    .join(" · ");
+}
+
 /* ============================================================ the gallery */
 
 function GalleryPanel({
   providers,
-  online,
-  canConfigure,
-  onFlash,
-  onConnected,
+  connections = [],
 }: {
   providers: Provider[] | null;
-  online: boolean;
-  canConfigure: boolean;
-  onFlash: (flash: Flash) => void;
-  onConnected: () => void;
+  connections?: Connection[];
 }) {
-  const [open, setOpen] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  const visibleProviders = (providers ?? []).filter((provider) =>
+  const marketplaceProviders = (providers ?? []).filter(
+    (provider) => !canConfigureAutomatically(provider),
+  );
+  const visibleProviders = marketplaceProviders.filter((provider) =>
     `${provider.displayName} ${provider.id} ${CATEGORY_LABELS[provider.category]}`
       .toLocaleLowerCase()
       .includes(normalizedQuery),
@@ -1099,7 +2111,8 @@ function GalleryPanel({
                 />
               </label>
               <p className="hint" aria-live="polite">
-                {visibleProviders.length} of {providers.length} connectors
+                {visibleProviders.length} of {marketplaceProviders.length}{" "}
+                connectors
               </p>
             </div>
             {unconfigured > 0 ? (
@@ -1121,19 +2134,13 @@ function GalleryPanel({
                     <ProviderTile
                       key={provider.id}
                       provider={provider}
-                      online={online}
-                      canConfigure={canConfigure}
-                      expanded={open === provider.id}
-                      onToggle={() =>
-                        setOpen((current) =>
-                          current === provider.id ? null : provider.id,
-                        )
+                      connection={
+                        connections.find(
+                          (item) =>
+                            item.providerId === provider.id &&
+                            item.status !== "revoked",
+                        ) ?? null
                       }
-                      onFlash={onFlash}
-                      onConnected={() => {
-                        setOpen(null);
-                        onConnected();
-                      }}
                     />
                   ))}
                 </ul>
@@ -1161,37 +2168,28 @@ function GalleryPanel({
 
 function ProviderTile({
   provider,
-  online,
-  canConfigure,
-  expanded,
-  onToggle,
-  onFlash,
-  onConnected,
+  connection,
 }: {
   provider: Provider;
-  online: boolean;
-  canConfigure: boolean;
-  expanded: boolean;
-  onToggle: () => void;
-  onFlash: (flash: Flash) => void;
-  onConnected: () => void;
+  connection: Connection | null;
 }) {
   const summary = connectorSummary(provider);
+  const verb = providerVerb(provider, connection);
   return (
     <li className={`conn-tile${provider.configured ? "" : " is-unconfigured"}`}>
-      <button
-        type="button"
+      <Link
         className="conn-tile__head"
-        onClick={onToggle}
-        aria-expanded={expanded}
+        to={connectorPath(provider.id)}
         title={summary}
       >
         <span className="conn-tile__name">{provider.displayName}</span>
         <span className="conn-tile__summary">{summary}</span>
         <span className="conn-tile__chips">
-          {provider.configured ? null : (
-            <span className="chip">Not configured</span>
-          )}
+          {verb !== "idle" ? (
+            <span className={`chip ${VERB_CHIP[verb]}`}>
+              {VERB_LABEL[verb]}
+            </span>
+          ) : null}
           {provider.id === "openrouter" ? (
             <span className="chip chip--accent">Delegated sign-in</span>
           ) : provider.authKind === "api_key" ? (
@@ -1204,41 +2202,10 @@ function ProviderTile({
             <span className="chip chip--warn">No refresh</span>
           )}
         </span>
-      </button>
-
-      {expanded ? (
-        !canConfigure ? (
-          <div className="conn-tile__body">
-            <p className="hint">
-              Connection management becomes available after Identity and the
-              Host establish your organization. The built-in catalog remains
-              available now.
-            </p>
-          </div>
-        ) : provider.configured ? (
-          <ConnectForm
-            provider={provider}
-            online={online}
-            onFlash={onFlash}
-            onConnected={onConnected}
-          />
-        ) : (
-          <div className="conn-tile__body">
-            <DeploymentSetupGuide provider={provider} />
-            <p className="hint">
-              This Host is not ready to seal {provider.displayName} credentials.
-              Configure the deployment setting below:
-            </p>
-            <ul className="conn-envs">
-              {provider.missingConfig.map((name) => (
-                <li key={name}>
-                  <code>{name}</code>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )
-      ) : null}
+        <span className="conn-tile__settings">
+          <IconSettings size={16} /> Settings
+        </span>
+      </Link>
     </li>
   );
 }
@@ -1302,11 +2269,13 @@ function ConnectForm({
   online,
   onFlash,
   onConnected,
+  onRememberOffer,
 }: {
   provider: Provider;
   online: boolean;
   onFlash: (flash: Flash) => void;
   onConnected: () => void;
+  onRememberOffer?: (connection: Connection) => void;
 }) {
   const [name, setName] = useState(provider.displayName);
   const [scopes, setScopes] = useState<string[]>(() =>
@@ -1360,6 +2329,7 @@ function ConnectForm({
               : ""
           }. Bind it to a project or agent to let them use it.`,
         });
+        onRememberOffer?.(outcome.connection);
         onConnected();
       } else if (outcome.result === "failed") {
         onFlash({
@@ -1401,6 +2371,7 @@ function ConnectForm({
         tone: "ok",
         text: `${provider.displayName} credential stored on this Host.`,
       });
+      onRememberOffer?.(connection);
       onConnected();
     } catch (error) {
       onFlash({ tone: "err", text: errorText(error) });
@@ -1429,6 +2400,7 @@ function ConnectForm({
         tone: "ok",
         text: `${provider.displayName} configuration saved on this Host.`,
       });
+      onRememberOffer?.(connection);
       onConnected();
     } catch (error) {
       onFlash({ tone: "err", text: errorText(error) });
@@ -1566,6 +2538,7 @@ function ConnectForm({
 
   return (
     <form className="conn-tile__body" onSubmit={connectOauth}>
+      <PasskeyCeremonyNote />
       <ConnectorSetupGuide provider={provider} />
       <div className="field">
         <label className="label" htmlFor={nameId}>

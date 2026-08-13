@@ -51,6 +51,16 @@ pnpm --filter @opensesame/control-plane start   # :8788
 ./target/debug/opensesame-toolbar approve-device --user-code ABCD-EFGH
 ./target/debug/opensesame-toolbar approve-claim --claim-id clm_…
 
+# Connectors (Vercel-shaped: service/name). `connect token` prints a ConnectionRef, never a provider secret.
+./target/debug/opensesame connect create github --help
+./target/debug/opensesame connect create github --name acme-gh
+./target/debug/opensesame connect create openai --name prod --data @key.json
+./target/debug/opensesame connect attach github/acme-gh --project prj_…
+./target/debug/opensesame connect list
+./target/debug/opensesame connect inspect github
+REF=$(./target/debug/opensesame connect token github/acme-gh)
+./target/debug/opensesame invoke --connection-ref "$REF" --operation get --resource /user
+
 # Client
 pnpm --filter @opensesame/cli start -- login --device --issuer http://127.0.0.1:8788
 pnpm --filter @opensesame/cli start -- host health --host http://127.0.0.1:8787

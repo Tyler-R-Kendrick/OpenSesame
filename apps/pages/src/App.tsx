@@ -47,7 +47,7 @@ export function App() {
           }
         />
         <Route
-          path="/connections"
+          path="/connections/:providerId?/:connectionId?"
           element={
             <Framed>
               <ConnectionsSection />

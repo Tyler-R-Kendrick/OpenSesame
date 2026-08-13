@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import {
   IconChevronLeft,
   IconEye,
@@ -31,6 +31,7 @@ function isKind(value: string | undefined): value is ItemKind {
 
 export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
   const { kind: kindParam, itemId } = useParams();
+  const [search] = useSearchParams();
   const navigate = useNavigate();
   const { items, folders } = useVault();
   const store = useVaultStore();
@@ -38,8 +39,26 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
   const existing = items.find((candidate) => candidate.id === itemId);
   const initial = useMemo<VaultItem | null>(() => {
     if (mode === "edit") return existing ?? null;
-    return createItem(isKind(kindParam) ? kindParam : "login");
-  }, [mode, existing, kindParam]);
+    const draft = createItem(isKind(kindParam) ? kindParam : "login");
+    const name = search.get("name")?.trim();
+    const uri = search.get("uri")?.trim();
+    const ref = search.get("ref")?.trim();
+    if (name) draft.name = name;
+    if (draft.kind === "login" && uri) {
+      draft.uris = [newUri(uri)];
+    }
+    if (draft.kind === "secret" && ref) {
+      draft.connectionRef = ref;
+    }
+    if (draft.kind === "passkey" && uri) {
+      try {
+        draft.rpId = new URL(uri.includes("://") ? uri : `https://${uri}`).host;
+      } catch {
+        draft.rpId = uri;
+      }
+    }
+    return draft;
+  }, [mode, existing, kindParam, search]);
 
   const [draft, setDraft] = useState<VaultItem | null>(initial);
   const [showGenerator, setShowGenerator] = useState(false);

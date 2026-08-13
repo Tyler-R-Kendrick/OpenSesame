@@ -21,6 +21,7 @@ import {
   RevokeResponseSchema,
   ScopeDefSchema,
   SetCredentialRequestSchema,
+  UpdateConnectionPolicyRequestSchema,
   UpdateIntegrationRequestSchema,
 } from "../index.js";
 
@@ -152,6 +153,9 @@ describe("connection broker contracts", () => {
     );
     expect(ConnectionEventSchema.parse(event).kind).toBe("authorize_started");
     expect(
+      ConnectionEventSchema.parse({ ...event, kind: "policy_updated" }).kind,
+    ).toBe("policy_updated");
+    expect(
       ListConnectionsResponseSchema.parse({ connections: [connection] })
         .connections[0]?.status,
     ).toBe("pending");
@@ -201,10 +205,22 @@ describe("connection broker contracts", () => {
     ).toThrow();
     expect(
       CreateBindingRequestSchema.parse({
-        target_kind: "agent",
-        target_id: "agent_01J",
+        target_kind: "group",
+        target_id: "group_01J",
       }).target_kind,
-    ).toBe("agent");
+    ).toBe("group");
+    expect(
+      UpdateConnectionPolicyRequestSchema.parse({
+        shareability: "organization_wide",
+        max_invoke_level: 1,
+      }).max_invoke_level,
+    ).toBe(1);
+    expect(() =>
+      UpdateConnectionPolicyRequestSchema.parse({
+        shareability: "private",
+        max_invoke_level: 3,
+      }),
+    ).toThrow();
   });
 
   it("keeps integration credentials write-only", () => {

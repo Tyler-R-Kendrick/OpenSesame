@@ -484,6 +484,54 @@ pub async fn delete(
 
 #[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct UpdatePolicyBody {
+    pub shareability: String,
+    pub max_invoke_level: u8,
+}
+
+pub async fn update_policy(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+    body: String,
+) -> Response {
+    let who = match authorize(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Err(resp) = owned(&st, &who, &organization_id, &id).await {
+        return resp;
+    }
+    let body: UpdatePolicyBody = match parse_body(&body) {
+        Ok(body) => body,
+        Err(resp) => return resp,
+    };
+    if !matches!(
+        body.shareability.as_str(),
+        "private" | "delegable" | "organization_wide"
+    ) {
+        return broker_error(BrokerError::Invalid(
+            "shareability must be private, delegable or organization_wide".into(),
+        ));
+    }
+    match st
+        .connection_broker
+        .update_policy(
+            &organization_id,
+            &id,
+            parse_shareability(&body.shareability),
+            body.max_invoke_level,
+        )
+        .await
+    {
+        Ok(view) => Json(view).into_response(),
+        Err(error) => broker_error(error),
+    }
+}
+
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AuthorizeBody {
     pub redirect_uri: Option<String>,
     pub scopes: Option<Vec<String>>,
@@ -623,7 +671,7 @@ pub async fn create_binding(
             StatusCode::BAD_REQUEST,
             Json(json!({
                 "error":"invalid_request",
-                "hint":"target_kind must be organization, project or agent"
+                "hint":"target_kind must be organization, project, agent, group, device or identity"
             })),
         )
             .into_response();

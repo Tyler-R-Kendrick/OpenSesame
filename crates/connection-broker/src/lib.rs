@@ -26,11 +26,13 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 #[cfg(test)]
 use std::sync::{Arc, Mutex};
 
+use base64::Engine as _;
 use chrono::Utc;
 use opensesame_domain::{
     ConnectionId, ConnectionOwnerKind, ConnectionRef, EgressBinding, OrganizationId, ProjectId,
     Shareability,
 };
+use rand::RngCore;
 use sqlx::SqlitePool;
 
 pub use crate::catalog::{AuthMethod, Provider};
@@ -80,6 +82,24 @@ fn sqlite_writer_race(error: &BrokerError) -> bool {
         let detail = storage.to_string();
         detail.contains("deadlocked") || detail.contains("database is locked")
     })
+}
+
+fn generated_connection_configuration(provider_id: &str) -> Option<BTreeMap<String, String>> {
+    match provider_id {
+        "plain" => Some(BTreeMap::from([("namespace".into(), "opensesame".into())])),
+        "sealed-local" => {
+            let mut key = [0_u8; 32];
+            rand::rngs::OsRng.fill_bytes(&mut key);
+            Some(BTreeMap::from([
+                ("location".into(), "opensesame://sealed-local".into()),
+                (
+                    "key".into(),
+                    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(key),
+                ),
+            ]))
+        }
+        _ => None,
+    }
 }
 
 pub struct ConnectionBroker {
@@ -217,6 +237,7 @@ impl ConnectionBroker {
                 ProviderView::new(
                     p,
                     missing.is_empty(),
+                    self.automatic_connection_configuration(&p.id).is_some(),
                     missing,
                     p.auth.is_oauth().then(|| self.config.callback_url(&p.id)),
                     catalog_revision,
@@ -230,6 +251,15 @@ impl ConnectionBroker {
             return Err(BrokerError::ProviderUnknown(id.to_string()));
         }
         catalog::find(id)?.ok_or_else(|| BrokerError::ProviderUnknown(id.to_string()))
+    }
+
+    fn automatic_connection_configuration(
+        &self,
+        provider_id: &str,
+    ) -> Option<BTreeMap<String, String>> {
+        self.config
+            .detected_connection(provider_id)
+            .or_else(|| generated_connection_configuration(provider_id))
     }
 
     fn sealing_key(&self) -> Result<&[u8; 32]> {
@@ -275,18 +305,21 @@ impl ConnectionBroker {
             return 0;
         };
         for provider in providers {
-            let Some(configuration) = self.config.detected_connection(&provider.id) else {
+            if rows.iter().any(|row| {
+                row.provider_id == provider.id && row.owner_subject.as_deref() == owner_subject
+            }) {
                 continue;
-            };
+            }
+            if self
+                .automatic_connection_configuration(&provider.id)
+                .is_none()
+            {
+                continue;
+            }
             if !matches!(
                 provider.auth,
                 AuthMethod::ApiKey { .. } | AuthMethod::Configuration
             ) {
-                continue;
-            }
-            if rows.iter().any(|row| {
-                row.provider_id == provider.id && row.owner_subject.as_deref() == owner_subject
-            }) {
                 continue;
             }
             let created = match self
@@ -311,32 +344,14 @@ impl ConnectionBroker {
                     continue;
                 }
             };
-            match self
-                .set_connection_configuration(
-                    organization_id,
-                    &created.connection_id,
-                    configuration,
-                    Vec::new(),
-                )
-                .await
-            {
-                Ok(_) => {
-                    configured += 1;
-                    if let Ok(Some(row)) =
-                        store::get_connection(&self.pool, &created.connection_id).await
-                    {
-                        rows.push(row);
-                    }
-                    tracing::info!(
-                        provider_id = provider.id,
-                        "detected Host connection configured"
-                    );
-                }
-                Err(error) => {
-                    let _ = store::delete_connection(&self.pool, &created.connection_id).await;
-                    tracing::warn!(provider_id = provider.id, %error, "detected connection configuration failed");
-                }
+            configured += 1;
+            if let Ok(Some(row)) = store::get_connection(&self.pool, &created.connection_id).await {
+                rows.push(row);
             }
+            tracing::info!(
+                provider_id = provider.id,
+                "detected Host connection configured"
+            );
         }
         configured
     }
@@ -358,6 +373,18 @@ impl ConnectionBroker {
             )
             .await?;
         let provider = self.provider(&provider_id)?;
+        let automatic_configuration = self.automatic_connection_configuration(&provider.id);
+        if let Some(configuration) = automatic_configuration.as_ref() {
+            let definitions = provider.connection_configuration_fields();
+            configuration::validate_mutation(definitions, configuration, &[])?;
+            if !configuration::complete(definitions, configuration) {
+                return Err(BrokerError::Invalid(format!(
+                    "detected {} configuration is incomplete",
+                    provider.id
+                )));
+            }
+            self.sealing_key()?;
+        }
         if let Some(scopes) = request.scopes.as_ref() {
             require_scope_subset(scopes, &integration_scopes)?;
         }
@@ -417,6 +444,18 @@ impl ConnectionBroker {
         }
         store::append_event(&self.pool, &row.id, EventKind::Created, Some(&provider.id)).await?;
         tracing::info!(connection_id = %row.id, provider_id = provider.id, "connection created");
+        if let Some(configuration) = automatic_configuration {
+            return match self
+                .set_connection_configuration(organization_id, &row.id, configuration, Vec::new())
+                .await
+            {
+                Ok(view) => Ok(view),
+                Err(error) => {
+                    let _ = store::delete_connection(&self.pool, &row.id).await;
+                    Err(error)
+                }
+            };
+        }
         self.view(row).await
     }
 
@@ -1286,6 +1325,31 @@ impl ConnectionBroker {
         store::delete_binding(&self.pool, &row.id, binding_id).await?;
         store::append_event(&self.pool, &row.id, EventKind::Unbound, None).await?;
         self.view(row).await
+    }
+
+    pub async fn update_policy(
+        &self,
+        organization_id: &OrganizationId,
+        id: &str,
+        shareability: Shareability,
+        max_invoke_level: u8,
+    ) -> Result<ConnectionView> {
+        if !(1..=2).contains(&max_invoke_level) {
+            return Err(BrokerError::Invalid(
+                "max_invoke_level must be 1 or 2".into(),
+            ));
+        }
+        let row = self.row_in_org(organization_id, id).await?;
+        store::update_policy(
+            &self.pool,
+            &row.id,
+            &row.organization_id,
+            shareability_str(shareability),
+            max_invoke_level,
+        )
+        .await?;
+        store::append_event(&self.pool, &row.id, EventKind::PolicyUpdated, None).await?;
+        self.get_connection_unscoped(&row.id).await
     }
 
     // ---- internals -----------------------------------------------------------

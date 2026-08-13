@@ -16,10 +16,12 @@ type PersistedSettings = {
 
 const shippedHostApi = "http://127.0.0.1:8787";
 const runtimeHostApi = import.meta.env.VITE_HOST_API?.trim();
+const shippedIdentityApi = "http://localhost:8788";
+const runtimeIdentityApi = import.meta.env.VITE_IDENTITY_API?.trim();
 
 const defaults: PersistedSettings = {
   hostApi: runtimeHostApi || shippedHostApi,
-  identityApi: "http://127.0.0.1:8788",
+  identityApi: runtimeIdentityApi || shippedIdentityApi,
   tursoUrl: "",
 };
 
@@ -31,10 +33,22 @@ function loadPersisted(): PersistedSettings {
     return {
       hostApi:
         parsed.hostApi?.trim() &&
-        !(runtimeHostApi && parsed.hostApi.trim() === shippedHostApi)
+        !(
+          runtimeHostApi &&
+          [shippedHostApi, "http://127.0.0.1:18787"].includes(
+            parsed.hostApi.trim(),
+          )
+        )
           ? parsed.hostApi.trim()
           : defaults.hostApi,
-      identityApi: parsed.identityApi?.trim() || defaults.identityApi,
+      identityApi:
+        parsed.identityApi?.trim() &&
+        !(
+          runtimeIdentityApi &&
+          parsed.identityApi.trim() === "http://127.0.0.1:8788"
+        )
+          ? parsed.identityApi.trim()
+          : defaults.identityApi,
       tursoUrl: parsed.tursoUrl?.trim() || "",
     };
   } catch {
