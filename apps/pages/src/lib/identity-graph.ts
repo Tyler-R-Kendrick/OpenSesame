@@ -142,8 +142,12 @@ export function vaultItemsForProvider(
 }
 
 export function suggestedLoginUri(provider: Provider): string {
-  const host = providerHosts(provider)[0];
-  return host ? `https://${host}` : "";
+  const hosts = providerHosts(provider);
+  const site =
+    hosts.find((host) => host === `${provider.id}.com`) ??
+    hosts.find((host) => !host.startsWith("api.")) ??
+    hosts[0];
+  return site ? `https://${site}` : "";
 }
 
 export function hasConnectorReminder(
@@ -192,4 +196,145 @@ export function firstRunProviders(providers: Provider[]): Provider[] {
       !provider.autoConfigurable,
   );
   return [...preferred, ...extra].slice(0, 3);
+}
+
+export type GraphDoorKind = "host" | "login" | "passkey" | "reminder";
+
+export type GraphDoor = {
+  kind: GraphDoorKind;
+  title: string;
+  detail: string;
+  verb: StatusVerb;
+  href: string | null;
+  action: string;
+};
+
+export function vaultCreateHref(
+  kind: "login" | "passkey" | "secret",
+  provider: Provider,
+  connection?: Connection | null,
+): string {
+  const params = new URLSearchParams();
+  params.set(
+    "name",
+    kind === "secret"
+      ? `${provider.displayName} connector`
+      : provider.displayName,
+  );
+  const uri = suggestedLoginUri(provider);
+  if (uri && kind !== "secret") params.set("uri", uri);
+  if (kind === "secret" && connection) {
+    params.set("ref", connection.connectionRef);
+  }
+  return `/vault/new/${kind}?${params.toString()}`;
+}
+
+export function grantReminderToAgent(
+  reminder: VaultItem,
+  agentId: string,
+): VaultItem {
+  if (reminder.kind !== "secret") return reminder;
+  if (reminder.grantees.includes(agentId)) return reminder;
+  return { ...reminder, grantees: [...reminder.grantees, agentId] };
+}
+
+export function graphDoors(
+  provider: Provider,
+  connections: Connection[],
+  items: VaultItem[],
+): GraphDoor[] {
+  const liveConnections = connections.filter(
+    (connection) => connection.status !== "revoked",
+  );
+  const liveItems = vaultItemsForProvider(items, provider);
+  const connection = liveConnections[0] ?? null;
+  const logins = liveItems.filter((item) => item.kind === "login");
+  const passkeys = liveItems.filter((item) => item.kind === "passkey");
+  const reminders = liveItems.filter((item) => item.kind === "secret");
+  const unfinished = liveConnections.find((row) => isUnfinished(row));
+  const hostVerb = unfinished
+    ? connectionVerb(unfinished.status)
+    : providerVerb(provider, connection);
+  const hostHref = unfinished
+    ? `/connections/${encodeURIComponent(provider.id)}/${encodeURIComponent(unfinished.connectionId)}#authorization`
+    : "#authorization";
+
+  return [
+    {
+      kind: "host",
+      title: "Host connector",
+      detail:
+        liveConnections.length === 0
+          ? "None. Authorize so agents can invoke without a pasted token."
+          : liveConnections
+              .map(
+                (item) =>
+                  `${item.logicalName} · ${VERB_LABEL[connectionVerb(item.status)]}`,
+              )
+              .join(" · "),
+      verb: hostVerb,
+      href: hostHref,
+      action:
+        liveConnections.length === 0
+          ? addPipe(provider) === "oauth"
+            ? "Authorize"
+            : addPipe(provider) === "key"
+              ? "Save a key"
+              : "Configure"
+          : unfinished
+            ? "Fix"
+            : "Open",
+    },
+    {
+      kind: "login",
+      title: "Vault login",
+      detail:
+        summarizeItems(logins) ??
+        `None saved. A ${provider.displayName} password lives here, not on the Host.`,
+      verb: logins.length > 0 ? "connected" : "idle",
+      href:
+        logins[0] !== undefined
+          ? `/vault/${logins[0].id}`
+          : vaultCreateHref("login", provider),
+      action: logins.length > 0 ? "Open" : "Save a login",
+    },
+    {
+      kind: "passkey",
+      title: "Passkey",
+      detail:
+        summarizeItems(passkeys) ??
+        "None. The private key stays on your phone or security key.",
+      verb: passkeys.length > 0 ? "connected" : "idle",
+      href:
+        passkeys[0] !== undefined
+          ? `/vault/${passkeys[0].id}`
+          : vaultCreateHref("passkey", provider),
+      action: passkeys.length > 0 ? "Open" : "Record metadata",
+    },
+    {
+      kind: "reminder",
+      title: "Vault reminder",
+      detail:
+        summarizeItems(reminders) ??
+        "None. A reminder stores the ConnectionRef, never the provider token.",
+      verb: reminders.length > 0 ? "connected" : "idle",
+      href:
+        reminders[0] !== undefined
+          ? `/vault/${reminders[0].id}`
+          : connection
+            ? vaultCreateHref("secret", provider, connection)
+            : "#authorization",
+      action:
+        reminders.length > 0
+          ? "Open"
+          : connection
+            ? "Remember"
+            : "Authorize first",
+    },
+  ];
+}
+
+function summarizeItems(items: VaultItem[]): string | null {
+  if (items.length === 0) return null;
+  return items.map((item) => `${item.name || itemSubtitle(item)}`).join(" · ");
 }

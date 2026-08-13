@@ -34,12 +34,12 @@ const CATEGORY: Record<ProviderCategory, readonly string[]> = {
     "passwordstate",
   ],
   local_storage: ["keychain", "keepass", "password-store", "plain"],
-  developer: [],
-  productivity: [],
+  developer: ["github", "vercel"],
+  productivity: ["linear"],
   communication: [],
   storage: [],
   crm: [],
-  payments: [],
+  payments: ["stripe"],
   identity: [],
   testing: [],
 };
@@ -57,6 +57,10 @@ const NAMES: Record<string, string> = {
   "bitwarden-secrets-manager": "Bitwarden Secrets Manager",
   "better-auth": "Better Auth",
   fido2: "FIDO2",
+  github: "GitHub",
+  linear: "Linear",
+  stripe: "Stripe",
+  vercel: "Vercel",
   foks: "FOKS",
   "gcp-kms": "Google Cloud KMS",
   "gcp-secret-manager": "Google Cloud Secret Manager",
@@ -172,6 +176,41 @@ const LLM = [
   ["huggingface", "https://huggingface.co/docs/inference-providers", "api_key"],
 ] as const;
 
+const HOST = [
+  {
+    id: "github",
+    docs: "https://docs.github.com/apps/oauth-apps",
+    auth: "oauth2_authorization_code",
+    refresh: false,
+    authorities: ["api.github.com", "github.com"],
+    operations: ["repository.read", "pull_request.create", "issue.create"],
+  },
+  {
+    id: "vercel",
+    docs: "https://vercel.com/docs/rest-api",
+    auth: "api_key",
+    refresh: false,
+    authorities: ["api.vercel.com", "vercel.com"],
+    operations: ["deployment.read", "project.write", "domain.read"],
+  },
+  {
+    id: "linear",
+    docs: "https://linear.app/developers/oauth-2-0-authentication",
+    auth: "oauth2_authorization_code",
+    refresh: true,
+    authorities: ["api.linear.app", "linear.app"],
+    operations: ["issue.read", "issue.create", "project.read"],
+  },
+  {
+    id: "stripe",
+    docs: "https://docs.stripe.com/keys",
+    auth: "api_key",
+    refresh: false,
+    authorities: ["api.stripe.com", "stripe.com"],
+    operations: ["customer.read", "charge.read", "invoice.read"],
+  },
+] as const;
+
 const IDENTITY = [
   [
     "better-auth",
@@ -186,7 +225,7 @@ const IDENTITY = [
   ],
 ] as const;
 
-const BUNDLED_REVISION = "2026-08-12.2";
+const BUNDLED_REVISION = "2026-08-13.1";
 
 function title(id: string): string {
   return (
@@ -235,6 +274,17 @@ export const bundledProviders: Provider[] = [
   ...parity.providers.map((id) =>
     preview(id, `https://fnox.jdx.dev/providers/${id}.html`, "configuration"),
   ),
+  ...HOST.map((entry) => {
+    const provider = preview(entry.id, entry.docs, entry.auth);
+    provider.supportsRefresh = entry.refresh;
+    provider.operations = [...entry.operations];
+    provider.egress = {
+      scheme: "https",
+      authorities: [...entry.authorities],
+      pathPrefixes: [],
+    };
+    return provider;
+  }),
   ...LLM.map(([id, docs, auth]) => preview(id, docs, auth, "developer")),
   ...IDENTITY.map(([id, docs, auth]) => {
     const provider = preview(id, docs, auth, "identity");

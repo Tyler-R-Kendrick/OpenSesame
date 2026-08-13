@@ -5,10 +5,13 @@ import {
   buildConnectorReminder,
   connectionVerb,
   firstRunProviders,
+  grantReminderToAgent,
+  graphDoors,
   hasConnectorReminder,
   itemMatchesProvider,
   providerVerb,
   unfinishedConnections,
+  vaultCreateHref,
   vaultItemsForProvider,
 } from "./identity-graph.js";
 import { createItem, newUri } from "./vault/model.js";
@@ -138,5 +141,37 @@ describe("identity graph", () => {
       "vercel",
       "linear",
     ]);
+  });
+
+  it("gives each identity-graph door a status and one Fix", () => {
+    const login = createItem("login", "Work GitHub");
+    if (login.kind === "login") {
+      login.uris = [newUri("https://github.com/login")];
+    }
+    const doors = graphDoors(provider(), [connection("pending")], [login]);
+    expect(doors.map((door) => [door.kind, door.action, door.verb])).toEqual([
+      ["host", "Fix", "needs_you"],
+      ["login", "Open", "connected"],
+      ["passkey", "Record metadata", "idle"],
+      ["reminder", "Remember", "idle"],
+    ]);
+    expect(doors[1]?.href).toBe(`/vault/${login.id}`);
+    expect(doors[3]?.href).toContain("ref=conn%3A%2F%2Forg%2Fgithub%2Fmain");
+  });
+
+  it("prefills a vault login from the provider home", () => {
+    expect(vaultCreateHref("login", provider())).toBe(
+      "/vault/new/login?name=GitHub&uri=https%3A%2F%2Fgithub.com",
+    );
+  });
+
+  it("adds an agent to a reminder without copying a token", () => {
+    const reminder = buildConnectorReminder(provider(), connection("active"));
+    const granted = grantReminderToAgent(reminder, "agt_release_bot");
+    expect(granted.kind).toBe("secret");
+    if (granted.kind === "secret") {
+      expect(granted.grantees).toEqual(["agt_release_bot"]);
+      expect(granted.value).toBe("");
+    }
   });
 });

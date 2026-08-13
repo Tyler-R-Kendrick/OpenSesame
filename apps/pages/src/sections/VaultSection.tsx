@@ -325,7 +325,7 @@ export function VaultWelcome() {
               Import Chrome, Bitwarden, or 1Password
             </Link>
             <Link className="btn btn--sm" to="/connections">
-              Authorize a Host connector instead
+              Connect GitHub, Vercel, or Linear
             </Link>
           </div>
         </div>
