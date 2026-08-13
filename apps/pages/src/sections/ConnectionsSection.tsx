@@ -27,6 +27,7 @@ import {
   IconX,
 } from "../components/Icons.js";
 import { PasskeyCeremonyNote } from "../components/PasskeyCeremonyNote.js";
+import { PagesCannotHostNote } from "../components/PlaneNote.js";
 import {
   type Binding,
   type BindingTargetKind,
@@ -75,6 +76,7 @@ import {
   firstRunDismissed,
   firstRunProviders,
   grantReminderToAgent,
+  grantableAgentId,
   graphDoors,
   hasConnectorReminder,
   providerVerb,
@@ -377,6 +379,7 @@ export function ConnectionsSection() {
   return (
     <div className="section__inner">
       <ConnectionsHead base={base} />
+      <PagesCannotHostNote ceremony="Host authorization" />
       <IdentitySessionNote />
 
       {flash ? (
@@ -533,6 +536,7 @@ function ConnectorSettingsPage({
       <Link className="conn-back" to="/connections">
         <IconChevronLeft size={16} /> All connections
       </Link>
+      <PagesCannotHostNote ceremony="Host authorization" />
       <IdentitySessionNote />
       <header className="conn-settings__head">
         <div>
@@ -1371,6 +1375,13 @@ function BindingEditor({
     event.preventDefault();
     const id = target.trim();
     if (!id) return;
+    if (kind === "agent" && !grantableAgentId(id)) {
+      onFlash({
+        tone: "err",
+        text: "Bind an agent, project, or device id — not user:demo.",
+      });
+      return;
+    }
     setBusy(true);
     try {
       await bindConnection(connection.connectionId, {
@@ -2051,8 +2062,16 @@ function GrantToAgent({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const id = agentId.trim();
-    if (!id || !connection) return;
+    const id = grantableAgentId(agentId);
+    if (!id || !connection) {
+      if (agentId.trim()) {
+        onFlash({
+          tone: "err",
+          text: "Workload identity is an agent id (agt_…), not user:demo.",
+        });
+      }
+      return;
+    }
     setBusy(true);
     try {
       await bindConnection(connection.connectionId, {

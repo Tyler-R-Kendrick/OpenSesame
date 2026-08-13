@@ -118,11 +118,11 @@ export function UnlockScreen() {
           <span className="mark mark--lg" aria-hidden="true">
             <IconVault size={24} />
           </span>
-          <h1>{firstRun ? "Create your vault" : "OpenSesame"}</h1>
+          <h1>{firstRun ? "Seal this device" : "OpenSesame"}</h1>
           <p>
             {firstRun
-              ? "Your master password derives the key that encrypts every item. It is never sent anywhere and never stored."
-              : "Unlock to decrypt this device's vault."}
+              ? "The master password unwraps the key that encrypts items stored on this device. It is never sent anywhere. Agents never receive those values."
+              : "Re-enter the master password. The key is not stored; a reload or a cold link asks for it again."}
           </p>
         </div>
 
@@ -239,7 +239,7 @@ export function UnlockScreen() {
                 ? "Deriving key…"
                 : "Unlocking…"
               : firstRun
-                ? "Create vault"
+                ? "Seal this device"
                 : "Unlock"}
           </button>
 
@@ -254,8 +254,8 @@ export function UnlockScreen() {
         <div className="unlock__foot">
           <p>
             {firstRun
-              ? "600,000 PBKDF2-SHA256 iterations, AES-256-GCM. Everything stays on this device."
-              : "Items are decrypted in memory only, and discarded when the vault locks."}
+              ? "600,000 PBKDF2-SHA256 iterations, AES-256-GCM. Human items stay on this device. Host connectors stay on the Host."
+              : "The vault key lives in memory only. Locking or reloading discards it."}
           </p>
           {!firstRun ? (
             showReset ? (

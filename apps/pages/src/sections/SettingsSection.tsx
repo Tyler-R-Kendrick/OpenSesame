@@ -623,7 +623,7 @@ export function SettingsSection() {
                 className="btn"
                 onClick={() => void purgeSample()}
               >
-                Remove {sampleCount} sample{" "}
+                Remove {sampleCount} SYNTHETIC{" "}
                 {sampleCount === 1 ? "item" : "items"}
               </button>
             ) : (
@@ -632,13 +632,13 @@ export function SettingsSection() {
                 className="btn"
                 onClick={() => void loadSample()}
               >
-                Load sample vault
+                Load SYNTHETIC sample items
               </button>
             )}
             <span className="hint">
-              Seven labelled items — including a deliberately weak and a
-              deliberately reused password — so the health report has something
-              true to say.
+              Opt-in only. Every row is badged SYNTHETIC. One action removes
+              them all. Includes a weak and a reused password so health has
+              something true to say.
             </span>
           </div>
 

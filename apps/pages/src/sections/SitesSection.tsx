@@ -20,6 +20,7 @@ import {
   IconTrash,
   IconX,
 } from "../components/Icons.js";
+import { PagesCannotHostNote } from "../components/PlaneNote.js";
 import {
   fetchPrincipal,
   identityBase,
@@ -500,6 +501,7 @@ export function SitesSection() {
   return (
     <div className="section__inner">
       <SitesHead base={base} />
+      <PagesCannotHostNote ceremony="Site claim and client registration" />
 
       {flash ? (
         <output className={`note note--${flash.tone} sites-flash`}>

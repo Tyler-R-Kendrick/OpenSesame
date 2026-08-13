@@ -229,6 +229,12 @@ export function vaultCreateHref(
   return `/vault/new/${kind}?${params.toString()}`;
 }
 
+export function grantableAgentId(raw: string): string | null {
+  const id = raw.trim();
+  if (!id || id === "user:demo" || id.startsWith("user:")) return null;
+  return id;
+}
+
 export function grantReminderToAgent(
   reminder: VaultItem,
   agentId: string,
