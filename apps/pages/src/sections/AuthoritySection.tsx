@@ -18,6 +18,7 @@ import {
   IconX,
 } from "../components/Icons.js";
 import { PasskeyCeremonyNote } from "../components/PasskeyCeremonyNote.js";
+import { PagesCannotHostNote } from "../components/PlaneNote.js";
 import {
   type HealthState,
   IdentityError,
@@ -292,6 +293,8 @@ export function AuthoritySection() {
         </p>
       </header>
 
+      <PagesCannotHostNote ceremony="Device login, claims, and protocol probes" />
+
       <PlaneStatus />
 
       <Outbox items={queue} online={online} onChange={refreshQueue} />
@@ -415,9 +418,10 @@ function PlaneStatus() {
           <PlaneCard name="Host API" url={hostBase()} probe={host} />
         </div>
         <p className="hint">
-          Both addresses come from your settings.{" "}
-          <Link to="/settings">Change them in Settings</Link> if you run these
-          services somewhere other than the loopback defaults.
+          GitHub Pages cannot host these planes. Both addresses come from
+          Settings. Loopback defaults will not answer from github.io.{" "}
+          <Link to="/settings">Change them in Settings</Link> if you run Host
+          and Identity yourself.
         </p>
       </div>
     </section>

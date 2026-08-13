@@ -19,6 +19,7 @@ import {
   IconSecret,
   IconShield,
 } from "../components/Icons.js";
+import { PagesCannotHostNote } from "../components/PlaneNote.js";
 import {
   IdentityError,
   currentSession,
@@ -47,10 +48,13 @@ export function AgentsSection() {
       <header className="section__head">
         <h1>Agents</h1>
         <p>
-          An agent never reads a secret out of this vault. It is handed a scoped
-          grant, it invokes through the Host, and the Host hands back a receipt.
+          Authorize, invoke, receipt. An agent never calls getSecret() and never
+          reads a value out of this device. It is handed a ConnectionRef, it
+          invokes through the Host, and the Host hands back a receipt.
         </p>
       </header>
+
+      <PagesCannotHostNote ceremony="Invoke and live receipts" />
 
       <SecretsAndCeilings />
       <TaskInspector online={online} />

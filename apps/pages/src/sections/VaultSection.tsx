@@ -136,7 +136,7 @@ function ItemRow({
         </span>
         <span className="vault__rowmeta">
           {item.sample ? (
-            <span className="chip chip--sample">sample</span>
+            <span className="chip chip--sample">SYNTHETIC</span>
           ) : null}
           {item.favorite ? (
             <IconStar size={15} filled className="is-fav" title="Favorite" />
@@ -248,7 +248,7 @@ export function VaultSection() {
                 ? "Search covers names, usernames, URLs, and visible custom fields — not concealed values."
                 : filter === "trash"
                   ? "Deleted items wait here until you purge them."
-                  : "Add your first item, import from another password manager, or load the sample vault from Settings."}
+                  : "Human items on this device: logins, passkeys, notes. Import from Bitwarden or 1Password, or authorize a Host connector instead."}
             </p>
             {!query && filter !== "trash" ? (
               // On narrow screens the detail pane is not rendered, so this is
@@ -306,12 +306,11 @@ export function VaultWelcome() {
           <span className="empty__mark" aria-hidden="true">
             <IconVault size={22} />
           </span>
-          <h3>Your vault is empty</h3>
+          <h3>Nothing sealed on this device</h3>
           <p>
-            Items are sealed with AES-256-GCM under a key derived from your
-            master password, then written to this device as ciphertext. Chrome
-            does not share its password file with this vault — export a CSV from
-            Chrome, then import it here.
+            This store is for human items on this machine. Host connectors and
+            agent grants live on the Host — they never appear here as secrets.
+            Chrome does not share its password file with this store.
           </p>
           <div className="actions">
             <Link className="btn btn--primary btn--sm" to="/vault/new/login">

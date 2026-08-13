@@ -1,19 +1,24 @@
 # @opensesame/pages
 
-The OpenSesame vault client — an installable PWA served from GitHub Pages.
+The OpenSesame authority console — an installable PWA served from GitHub Pages.
 
-It is a real end-to-end-encrypted vault, not a viewer over a remote one. The master password
-derives the key that decrypts every item; nothing is uploaded, and nothing else can open it.
+GitHub Pages cannot host the Host or Identity APIs. This page is the console: Connections,
+Agents, Authority, Sites, plus a sealed **This device** store for human items. Agents never
+call `getSecret()`. Host connectors never appear here as plaintext.
 
-## Five audiences, one encrypted store
+The master password unwraps the key for items stored on this device. It is not stored. A
+reload or a cold link asks for it again.
+
+## Rails
 
 | Section | Who | What it does |
 | --- | --- | --- |
-| **Vault** | humans | Logins, passkeys, cards, agent secrets, secure notes. Generator, TOTP, folders, favorites, trash, password health. |
-| **Agents** | agents | Secrets exposed as scoped grants bounded by a capability ceiling — never as plaintext. Live task inspection against the Host API. |
-| **Connections** | services | Authorize a third-party service once, then bind that one authorization to the projects and agents allowed to act through it. |
-| **Sites** | websites | Origin-derived public clients for static sites: register, rotate, revoke, and copy the integration snippet. |
-| **Authority** | developers | Principal session, device/CLI authorization, ownership claims, protocol profiles, offline ceremony outbox. |
+| **Connections** | operators | Authorize a service on the Host. Bind who can use it. Identity graph of Host + this-device doors. |
+| **Agents** | agents | Authorize → invoke → receipt. Grants bounded by a ceiling. Never plaintext. |
+| **Authority** | operators | Principal session, device/CLI authorization, ownership claims, protocol honesty. |
+| **Sites** | websites | Origin-derived public clients: register, rotate, revoke, integration snippet. |
+| **This device** | humans | Logins, passkeys, cards, notes. Generator, TOTP, folders, import. Not the Host. |
+| **Settings** | operators | Planes (Host/Identity URLs), seed data, export. |
 
 ## Cryptography
 

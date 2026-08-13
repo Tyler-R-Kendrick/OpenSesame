@@ -6,6 +6,7 @@ import {
   connectionVerb,
   firstRunProviders,
   grantReminderToAgent,
+  grantableAgentId,
   graphDoors,
   hasConnectorReminder,
   itemMatchesProvider,
@@ -163,6 +164,11 @@ describe("identity graph", () => {
     expect(vaultCreateHref("login", provider())).toBe(
       "/vault/new/login?name=GitHub&uri=https%3A%2F%2Fgithub.com",
     );
+  });
+
+  it("refuses user:demo as a workload identity", () => {
+    expect(grantableAgentId("user:demo")).toBeNull();
+    expect(grantableAgentId("agt_release_bot")).toBe("agt_release_bot");
   });
 
   it("adds an agent to a reminder without copying a token", () => {

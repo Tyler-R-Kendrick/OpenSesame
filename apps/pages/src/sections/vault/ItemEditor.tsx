@@ -9,6 +9,7 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { PasswordGenerator } from "../../components/PasswordGenerator.js";
+import { compileSecretToHost } from "../../lib/connections.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
   type CustomField,
@@ -110,6 +111,15 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
         next = { ...next, passwordChangedAt: new Date().toISOString() };
       }
       await store.saveItem(next);
+      if (next.kind === "secret" && next.connectionRef) {
+        try {
+          await compileSecretToHost(next);
+        } catch {
+          setError(
+            "Saved on this device. Host grant compile failed — Host may be disconnected.",
+          );
+        }
+      }
       navigate(`/vault/${next.id}`);
     } catch (caught) {
       setError(

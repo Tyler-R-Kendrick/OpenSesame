@@ -1,7 +1,5 @@
 import { type ReactNode, useMemo } from "react";
 import { NavLink, useLocation, useSearchParams } from "react-router";
-import { useIdentitySession } from "../lib/identity.js";
-import { useOnline } from "../lib/use-online.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
 import {
@@ -21,13 +19,14 @@ import {
   IconTrash,
   IconVault,
 } from "./Icons.js";
+import { RailPlaneStatus } from "./PlaneNote.js";
 
 const SECTIONS = [
-  { to: "/vault", label: "Vault", Icon: IconVault },
-  { to: "/agents", label: "Agents", Icon: IconAgent },
   { to: "/connections", label: "Connections", Icon: IconConnection },
-  { to: "/sites", label: "Sites", Icon: IconSite },
+  { to: "/agents", label: "Agents", Icon: IconAgent },
   { to: "/authority", label: "Authority", Icon: IconAuthority },
+  { to: "/sites", label: "Sites", Icon: IconSite },
+  { to: "/vault", label: "This device", Icon: IconVault },
   { to: "/settings", label: "Settings", Icon: IconSettings },
 ] as const;
 
@@ -160,8 +159,6 @@ function VaultFilters() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const online = useOnline();
-  const session = useIdentitySession();
   const store = useVaultStore();
   const inVault = location.pathname.startsWith("/vault");
 
@@ -174,7 +171,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           <div>
             <p className="rail__wordmark">OpenSesame</p>
-            <p className="rail__tagline">Encrypted vault</p>
+            <p className="rail__tagline">Authorization fabric</p>
           </div>
         </div>
 
@@ -197,17 +194,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <div className="rail__foot">
-          <p className="rail__status">
-            <span
-              className={`dot ${online ? "dot--ok" : "dot--warn"}`}
-              aria-hidden="true"
-            />
-            {online ? "Online" : "Offline"}
-            <span aria-hidden="true">·</span>
-            {session ? "Identity connected" : "No identity session"}
-          </p>
+          <RailPlaneStatus />
           <button type="button" className="rail__lock" onClick={store.lock}>
-            Lock vault
+            Lock this device
           </button>
         </div>
       </aside>
@@ -219,10 +208,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           <p className="topbar__title">OpenSesame</p>
           <span className="topbar__spacer" />
-          <output
-            className={`dot ${online ? "dot--ok" : "dot--warn"}`}
-            aria-label={online ? "Online" : "Offline"}
-          />
+          <RailPlaneStatus />
           <button type="button" className="rail__lock" onClick={store.lock}>
             Lock
           </button>

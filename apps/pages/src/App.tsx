@@ -30,7 +30,7 @@ export function App() {
   return (
     <AppShell>
       <Routes>
-        <Route path="/" element={<Navigate to="/vault" replace />} />
+        <Route path="/" element={<Navigate to="/connections" replace />} />
         <Route path="/vault" element={<VaultSection />}>
           <Route index element={<VaultWelcome />} />
           <Route path="health" element={<HealthPanel />} />
@@ -78,7 +78,7 @@ export function App() {
             </Framed>
           }
         />
-        <Route path="*" element={<Navigate to="/vault" replace />} />
+        <Route path="*" element={<Navigate to="/connections" replace />} />
       </Routes>
     </AppShell>
   );

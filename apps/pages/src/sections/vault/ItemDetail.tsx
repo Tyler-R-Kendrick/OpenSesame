@@ -21,6 +21,8 @@ import {
   IconTrash,
 } from "../../components/Icons.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
+import { connectionEvents, listConnections } from "../../lib/connections.js";
+import { usePlaneStatus } from "../../lib/planes.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
   type ItemKind,
@@ -138,7 +140,7 @@ export function ItemDetail() {
             {folder ? <span>{folder.name}</span> : null}
             <span>Updated {formatDate(item.updatedAt)}</span>
             {item.sample ? (
-              <span className="chip chip--sample">sample</span>
+              <span className="chip chip--sample">SYNTHETIC</span>
             ) : null}
             {inTrash ? <span className="chip chip--warn">In trash</span> : null}
           </div>
@@ -655,11 +657,31 @@ function ItemFields({
             )}
           </section>
 
+          <section className="detail__group">
+            <h2 className="detail__grouphead">Last receipt</h2>
+            <LastReceipt connectionRef={item.connectionRef} />
+          </section>
+
+          <div className="actions">
+            {item.connectionRef ? (
+              <Link
+                className="btn btn--primary btn--sm"
+                to={`/connections/${providerIdFromRef(item.connectionRef)}`}
+              >
+                Grant or invoke on the Host
+              </Link>
+            ) : (
+              <Link className="btn btn--sm" to="/connections">
+                Authorize a Host connector first
+              </Link>
+            )}
+          </div>
+
           <div className="note">
             <span>
               You can reveal this value; an agent never can. An agent receives a
-              grant bounded by the ceiling above and invokes through the Host,
-              which returns a receipt.
+              ConnectionRef, invokes through the Host, and the Host returns a
+              receipt. There is no getSecret().
             </span>
           </div>
         </>
@@ -675,4 +697,49 @@ function ItemFields({
         </section>
       );
   }
+}
+
+function providerIdFromRef(ref: string): string {
+  const parts = ref.split("/").filter(Boolean);
+  return parts.length >= 2 ? (parts[parts.length - 2] ?? "github") : "github";
+}
+
+function LastReceipt({ connectionRef }: { connectionRef: string }) {
+  const status = usePlaneStatus();
+  const [line, setLine] = useState("Checking Host…");
+
+  useEffect(() => {
+    if (!connectionRef) {
+      setLine("No ConnectionRef on this item.");
+      return;
+    }
+    if (status.host !== "live") {
+      setLine("Host disconnected — no receipt.");
+      return;
+    }
+    let cancelled = false;
+    void listConnections()
+      .then(async (rows) => {
+        const match = rows.find((row) => row.connectionRef === connectionRef);
+        if (!match) {
+          return "No Host connection for this ConnectionRef.";
+        }
+        const events = await connectionEvents(match.connectionId);
+        const last = events[0];
+        return last
+          ? `${last.kind} · ${last.at}${last.detail ? ` · ${last.detail}` : ""}`
+          : "No receipts yet.";
+      })
+      .then((next) => {
+        if (!cancelled) setLine(next);
+      })
+      .catch(() => {
+        if (!cancelled) setLine("Host disconnected — no receipt.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [connectionRef, status.host]);
+
+  return <p className="frow__notes">{line}</p>;
 }

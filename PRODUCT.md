@@ -12,25 +12,26 @@ delegated: Vite + TypeScript SPA with vite-plugin-pwa, built to static assets fo
 
 ## Users
 
-- **Humans** use it as a password manager and passkey store: logins, TOTP, cards, secure notes, generator, password health. This is the everyday job and the reason the app exists.
-- **Agents** use it as a secret store. They never read a secret out of the vault; they receive a scoped grant with a capability ceiling and invoke through the Host plane, which returns a receipt.
+- **Operators** use it as an authority console: Host connectors, agent grants, device login, site claims, receipts. This is the everyday job and the reason the Pages surface exists.
+- **Agents** invoke through a ConnectionRef. They never read a secret out of the device store; they receive a scoped grant with a capability ceiling and the Host returns a receipt. There is no `getSecret()`.
+- **Humans** keep logins, passkeys, cards, and notes on **this device** — a sealed store used to finish ceremonies, not a Bitwarden replacement.
 - **Websites** use it as an auth broker. A static site with no backend gets "Sign in with OpenSesame" through an origin-derived public client and PKCE.
-- **Developers** use it as an authority. They claim an origin as their application, attach aliases, read task ceilings, and audit receipts.
 
 ## Product Purpose
 
-OpenSesame is a private authorization fabric for the agentic era. This surface is its **vault client**: a real end-to-end-encrypted store that a human unlocks with a master password, an agent draws scoped authority from, a website authenticates against, and a developer governs. One encrypted store, four ways in.
+OpenSesame is a private authorization fabric for the agentic era. This surface is its **Pages client**: an authority console on static hosting, plus a sealed human store on the same device. Two stores. Host connectors never appear as plaintext here. GitHub Pages cannot host the Host or Identity APIs.
 
 ## Positioning
 
-A Bitwarden alternative whose vault holds the same things Bitwarden's does — and also holds authority, because the same person who owns the passwords owns the agents and the sites. Craft bar (user-pinned): Bitwarden and 1Password. Match their habits and their finish; never their brand marks or purple identity.
+An Infisical-class authority console that also keeps a human store on the device. Craft bar: Infisical Agent Proxy / `infisical run` for agents; Bitwarden/1Password habits only for the local human store. Never their brand marks. Not a password-vault product.
 
 ## Brand commitments
 
-- The vault holds real secrets. Master password derives the key that decrypts them; nothing else does.
-- Bitwarden/1Password information architecture and keyboard habits, executed at their craft level, in OpenSesame teal and navy.
-- Agents get grants, never plaintext. There is no `getSecret()` affordance anywhere in the UI.
-- Demonstration data is labeled and deletable, never seeded silently into a real vault.
+- Two stores, one console. Host holds connectors; this device holds human items.
+- Master password unwraps the device vault key. It is not stored. A reload asks for it again.
+- Agents get ConnectionRefs and grants, never plaintext. There is no `getSecret()` affordance anywhere in the UI.
+- Demonstration data is labeled SYNTHETIC and deletable, never seeded silently.
+- The rail tells the truth about Host and Identity. "Online" is not a Host status.
 
 ## Capabilities (this surface)
 

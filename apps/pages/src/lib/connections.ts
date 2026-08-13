@@ -469,6 +469,29 @@ export function unbindConnection(
   );
 }
 
+/** Push a vault secret's grantees onto the Host connection. Never binds user:demo. */
+export async function compileSecretToHost(item: {
+  connectionRef: string;
+  grantees: string[];
+}): Promise<void> {
+  if (!item.connectionRef) return;
+  const rows = await listConnections();
+  const match = rows.find((row) => row.connectionRef === item.connectionRef);
+  if (!match) return;
+  for (const agent of item.grantees) {
+    const id = agent.trim();
+    if (!id || id === "user:demo" || id.startsWith("user:")) continue;
+    const already = match.bindings.some(
+      (binding) => binding.targetKind === "agent" && binding.targetId === id,
+    );
+    if (already) continue;
+    await bindConnection(match.connectionId, {
+      targetKind: "agent",
+      targetId: id,
+    });
+  }
+}
+
 export function connectionEvents(id: string): Promise<ConnectionEvent[]> {
   return call(`/connections/${encodeURIComponent(id)}/events`, {}, (body) =>
     ListEventsResponseSchema.parse(body).events.map(toEvent),
