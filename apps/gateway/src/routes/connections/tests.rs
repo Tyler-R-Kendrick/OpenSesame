@@ -123,7 +123,7 @@ async fn discovery_configures_complete_host_credentials_once() {
         organization,
         opensesame_domain::OrganizationRole::Owner,
     );
-    for expected in [1, 0] {
+    for expected in [3, 0] {
         let (status, discovered) =
             as_session(&state, &owner, "POST", "/api/v1/connections/discover", None).await;
         assert_eq!(status, StatusCode::OK, "{discovered}");
@@ -131,9 +131,14 @@ async fn discovery_configures_complete_host_credentials_once() {
         let (status, body) = as_session(&state, &owner, "GET", "/api/v1/connections", None).await;
         assert_eq!(status, StatusCode::OK, "{body}");
         let connections = body["connections"].as_array().unwrap();
-        assert_eq!(connections.len(), 1, "{body}");
-        assert_eq!(connections[0]["provider_id"], "workos");
-        assert_eq!(connections[0]["status"], "active");
+        assert_eq!(connections.len(), 3, "{body}");
+        assert!(
+            connections
+                .iter()
+                .any(|connection| connection["provider_id"] == "workos"
+                    && connection["status"] == "active"),
+            "{body}"
+        );
         assert!(!body.to_string().contains("route-do-not-return"));
     }
 
