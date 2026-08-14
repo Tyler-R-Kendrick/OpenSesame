@@ -460,11 +460,16 @@ export async function connectProvisional(): Promise<IdentitySession> {
   // would otherwise land after the new one is set and take it with it.
   await settleRevokes();
   const epoch = sessionEpoch;
-  const res = await fetch(`${identityBase()}/v1/principals/provisional`, {
+  const issuer = identityBase();
+  if (!issuer) {
+    throw new IdentityError("No Identity API is configured.", 0);
+  }
+  const res = await fetch(`${issuer}/v1/principals/provisional`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     credentials: "include",
     body: "{}",
+    signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw new IdentityError(await readError(res), res.status);
   const body = (await res.json()) as {
@@ -556,10 +561,15 @@ export async function fetchPrincipal(): Promise<Principal> {
 
 export type HealthState = "unknown" | "reachable" | "unreachable";
 
+const PROBE_MS = 2500;
+
 export async function probeIdentity(): Promise<HealthState> {
+  const base = identityBase();
+  if (!base) return "unreachable";
   try {
-    const res = await fetch(`${identityBase()}/v1/health/live`, {
+    const res = await fetch(`${base}/v1/health/live`, {
       credentials: "omit",
+      signal: AbortSignal.timeout(PROBE_MS),
     });
     return res.ok ? "reachable" : "unreachable";
   } catch {
@@ -568,9 +578,12 @@ export async function probeIdentity(): Promise<HealthState> {
 }
 
 export async function probeHost(): Promise<HealthState> {
+  const base = hostBase();
+  if (!base) return "unreachable";
   try {
-    const res = await fetch(`${hostBase()}/api/v1/health`, {
+    const res = await fetch(`${base}/api/v1/health`, {
       credentials: "omit",
+      signal: AbortSignal.timeout(PROBE_MS),
     });
     return res.ok ? "reachable" : "unreachable";
   } catch {

@@ -200,7 +200,8 @@ pub mod http_security {
         "http://127.0.0.1:5175,http://localhost:5175,",
         "http://127.0.0.1:5176,http://localhost:5176,",
         "http://127.0.0.1:5177,http://localhost:5177,",
-        "http://127.0.0.1:5180,http://localhost:5180"
+        "http://127.0.0.1:5180,http://localhost:5180,",
+        "https://tyler-r-kendrick.github.io"
     );
 
     pub fn parse_cors_origins(raw: Option<&str>) -> Vec<String> {
@@ -261,6 +262,27 @@ pub mod http_security {
             .allow_credentials(true)
     }
 
+    /// Chrome Private Network Access: github.io → loopback daemon/Host.
+    fn allow_private_network<S>(router: Router<S>) -> Router<S>
+    where
+        S: Clone + Send + Sync + 'static,
+    {
+        router.layer(middleware::from_fn(|req: Request, next: Next| async move {
+            let wants = req
+                .headers()
+                .get("access-control-request-private-network")
+                .is_some_and(|value| value.as_bytes() == b"true");
+            let mut res = next.run(req).await;
+            if wants {
+                res.headers_mut().insert(
+                    HeaderName::from_static("access-control-allow-private-network"),
+                    HeaderValue::from_static("true"),
+                );
+            }
+            res
+        }))
+    }
+
     /// nosniff / DENY frame / no-referrer / no-store (+ optional HSTS).
     pub fn apply_security_headers<S>(router: Router<S>, hsts: bool) -> Router<S>
     where
@@ -306,7 +328,7 @@ pub mod http_security {
     where
         S: Clone + Send + Sync + 'static,
     {
-        apply_security_headers(router, hsts).layer(cors_layer(origins))
+        allow_private_network(apply_security_headers(router, hsts).layer(cors_layer(origins)))
     }
 }
 
@@ -374,6 +396,7 @@ mod tests {
         let origins = parse_cors_origins(None);
         assert!(origins.contains(&"http://127.0.0.1:5173".into()));
         assert!(origins.contains(&"http://127.0.0.1:5180".into()));
+        assert!(origins.contains(&"https://tyler-r-kendrick.github.io".into()));
         assert!(assert_cors_origins_allowed(&origins, false).is_ok());
     }
 
