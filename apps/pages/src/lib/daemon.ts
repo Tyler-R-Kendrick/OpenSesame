@@ -1,11 +1,12 @@
 import { loadSettings, saveSettings, shippedDaemonApi } from "./settings.js";
-import { normalizeApiBase } from "./urls.js";
+import { normalizeTailnetBase } from "./urls.js";
 
 export type DaemonHealth = {
   status: string;
   service: string;
   hostApi: string;
   identityApi: string;
+  tailscaleUrl: string | null;
 };
 
 const PROBE_MS = 2500;
@@ -13,7 +14,7 @@ const PROBE_MS = 2500;
 export async function probeDaemon(
   raw: string = loadSettings().daemonApi || shippedDaemonApi,
 ): Promise<DaemonHealth> {
-  const base = normalizeApiBase(raw);
+  const base = normalizeTailnetBase(raw);
   if (!base) {
     throw new Error("That daemon address is not one this page may call.");
   }
@@ -29,6 +30,7 @@ export async function probeDaemon(
     service?: unknown;
     host_api?: unknown;
     identity_api?: unknown;
+    tailscale_url?: unknown;
   };
   if (body.service !== "opensesame-daemon") {
     throw new Error("That URL answered, but it is not an OpenSesame daemon.");
@@ -44,6 +46,10 @@ export async function probeDaemon(
       typeof body.identity_api === "string" && body.identity_api
         ? body.identity_api
         : "http://127.0.0.1:8788",
+    tailscaleUrl:
+      typeof body.tailscale_url === "string" && body.tailscale_url
+        ? body.tailscale_url
+        : null,
   };
 }
 
@@ -53,9 +59,10 @@ export function applyDaemonPairing(
   health: DaemonHealth,
 ): void {
   const current = loadSettings();
+  const publicBase = health.tailscaleUrl || daemonApi;
   saveSettings({
     ...current,
-    daemonApi,
+    daemonApi: publicBase,
     hostApi: health.hostApi,
     identityApi: health.identityApi,
   });

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isLoopbackUrl, normalizeApiBase } from "./urls.js";
+import {
+  isLoopbackUrl,
+  normalizeApiBase,
+  normalizeTailnetBase,
+} from "./urls.js";
 
 describe("api base fences", () => {
   it("tells this machine apart from everywhere else", () => {
@@ -38,5 +42,15 @@ describe("api base fences", () => {
       normalizeApiBase("https://api.example.test/?next=http://evil.example"),
     ).toBeNull();
     expect(normalizeApiBase("https://api.example.test/#x")).toBeNull();
+  });
+
+  it("lets a tailnet name through without opening the rest of the LAN", () => {
+    expect(normalizeTailnetBase("https://box.tail.ts.net")).toBe(
+      "https://box.tail.ts.net",
+    );
+    expect(normalizeTailnetBase("http://opensesame:18790")).toBe(
+      "http://opensesame:18790",
+    );
+    expect(normalizeTailnetBase("http://192.168.1.9:18790")).toBeNull();
   });
 });
