@@ -27,6 +27,29 @@ export function normalizeApiBase(raw: string): string | null {
   return normalizeHttpBaseUrl(raw);
 }
 
+/** Loopback, https, Tailscale MagicDNS / CGNAT — for daemon pairing only. */
+export function normalizeTailnetBase(raw: string): string | null {
+  const allowed = normalizeHttpBaseUrl(raw);
+  if (allowed) return allowed;
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  if (url.username || url.password || url.search || url.hash) return null;
+  const host = url.hostname.toLowerCase().replace(/\.$/, "");
+  const tailnetName = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(host);
+  const tsNet = host.endsWith(".ts.net");
+  const cgnat =
+    /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}$/.test(host);
+  if (!tsNet && !cgnat && !(url.protocol === "http:" && tailnetName)) {
+    return null;
+  }
+  return `${url.origin}${url.pathname.replace(/\/$/, "")}`;
+}
+
 /**
  * Whether a base URL is this page's own origin.
  *

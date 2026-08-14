@@ -13,6 +13,11 @@ import {
   pageIsLoopback,
   shippedDaemonApi,
 } from "../lib/settings.js";
+import {
+  detectTailnet,
+  discoverTailscaleDaemon,
+  openTailscaleLogin,
+} from "../lib/tailscale.js";
 import { IconAlert } from "./Icons.js";
 
 export function RailPlaneStatus() {
@@ -42,22 +47,59 @@ export function ConnectThisMachine({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  async function finish(
+    health: Awaited<ReturnType<typeof probeDaemon>>,
+    via: string,
+  ) {
+    applyDaemonPairing(via, health);
+    setDaemonApi(health.tailscaleUrl || via);
+    try {
+      await connect();
+    } catch {
+      // Identity may still be down; pairing the daemon is enough to stop guessing loopback.
+    }
+    setMessage(
+      `Paired via ${health.tailscaleUrl || via}. Host ${health.hostApi}.`,
+    );
+    onPaired?.();
+  }
+
   async function pair() {
     setBusy(true);
     setMessage(null);
     try {
       const health = await probeDaemon(daemonApi);
-      applyDaemonPairing(daemonApi, health);
-      await connect();
-      setMessage(
-        `Paired ${health.service}. Host ${health.hostApi}. Identity ${health.identityApi}.`,
-      );
-      onPaired?.();
+      await finish(health, daemonApi);
     } catch (error) {
       setMessage(
         error instanceof Error
           ? error.message
           : "Could not reach a daemon on this machine.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pairTailscale() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const onTailnet = await detectTailnet();
+      if (!onTailnet) {
+        openTailscaleLogin();
+        setMessage(
+          "This browser is not on your tailnet. Connect Tailscale, then press the button again.",
+        );
+        return;
+      }
+      const health = await discoverTailscaleDaemon();
+      await finish(health, health.tailscaleUrl || daemonApi);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not discover a daemon on the tailnet.",
       );
     } finally {
       setBusy(false);
@@ -70,9 +112,9 @@ export function ConnectThisMachine({
         <div>
           <h2>Connect this machine</h2>
           <p>
-            GitHub Pages cannot host Host or Identity. Start{" "}
-            <code>opensesame-daemon</code> on this computer, then pair it. Local
-            Pages still auto-connects to loopback.
+            GitHub Pages cannot see 127.0.0.1. Connect Tailscale on this
+            browser, then this page finds the daemon through the tailnet
+            passthrough.
           </p>
         </div>
       </div>
@@ -91,9 +133,17 @@ export function ConnectThisMachine({
             type="button"
             className="btn btn--primary"
             disabled={busy}
+            onClick={() => void pairTailscale()}
+          >
+            {busy ? "Connecting…" : "Connect Tailscale"}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
             onClick={() => void pair()}
           >
-            {busy ? "Connecting…" : "Connect daemon"}
+            Use this URL
           </button>
         </div>
         {message ? <p className="hint">{message}</p> : null}

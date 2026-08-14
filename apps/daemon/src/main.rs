@@ -4,10 +4,11 @@
 //! Mutating routes require `OPENSESAME_OPERATOR_TOKEN` (`X-OpenSesame-Operator`).
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 use axum::{
-    extract::State,
-    http::{HeaderMap, StatusCode},
+    body::Bytes,
+    extract::{Request, State},
+    http::{HeaderMap, HeaderName, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{any, get, post},
     Json, Router,
 };
 use chrono::{Duration, Utc};
@@ -20,6 +21,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 use uuid::Uuid;
+
+mod tailscale;
 
 const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
 
@@ -210,6 +213,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/toolbar/approve_device", post(approve_device))
         .route("/v1/toolbar/approve_claim", post(approve_claim))
         .route("/v1/operator/invoke_l1", post(operator_invoke_l1))
+        .route("/host", any(proxy_host))
+        .route("/host/{*path}", any(proxy_host))
+        .route("/identity", any(proxy_identity))
+        .route("/identity/{*path}", any(proxy_identity))
         .with_state(state);
 
     let cors_origins = opensesame_host_core::http_security::cors_origins_from_env();
@@ -281,18 +288,121 @@ async fn main() -> anyhow::Result<()> {
     }
 
     tracing::info!(%listen, "daemon TCP listening");
+    let serve_listen = listen.clone();
+    tokio::task::spawn_blocking(move || match tailscale::enable_serve(&serve_listen) {
+        Ok(info) => tracing::info!(
+            dns = ?info.dns_name,
+            url = ?info.https_url,
+            "tailscale serve passthrough enabled"
+        ),
+        Err(error) => tracing::info!(%error, "tailscale serve not enabled"),
+    });
     axum::serve(tcp, app).await?;
     Ok(())
 }
 
 async fn daemon_health(State(st): State<App>) -> Json<Value> {
+    let ts = tailscale::info();
+    let public = ts.https_url.as_deref().and_then(|url| {
+        let trimmed = url.trim_end_matches('/');
+        (!trimmed.is_empty()).then_some(trimmed)
+    });
     Json(json!({
         "status": "ok",
         "service": "opensesame-daemon",
-        "host_api": st.host_api,
-        "identity_api": st.identity_api,
+        "host_api": public.map(|url| format!("{url}/host")).unwrap_or_else(|| st.host_api.clone()),
+        "identity_api": public.map(|url| format!("{url}/identity")).unwrap_or_else(|| st.identity_api.clone()),
+        "tailscale_url": public,
+        "tailscale_dns": ts.dns_name,
+        "tailscale_ip": ts.ip4,
         "uds": env::var("OPENSESAME_AGENT_SOCK").ok(),
     }))
+}
+
+async fn proxy_host(State(st): State<App>, req: Request) -> Response {
+    proxy_loopback(&st.host_api, "/host", req).await
+}
+
+async fn proxy_identity(State(st): State<App>, req: Request) -> Response {
+    proxy_loopback(&st.identity_api, "/identity", req).await
+}
+
+async fn proxy_loopback(base: &str, prefix: &str, req: Request) -> Response {
+    let path = req.uri().path();
+    let rest = path.strip_prefix(prefix).unwrap_or(path);
+    if rest.contains("..") {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+    let query = req
+        .uri()
+        .query()
+        .map(|q| format!("?{q}"))
+        .unwrap_or_default();
+    let url = format!("{}{}{}", base.trim_end_matches('/'), rest, query);
+    let method = req.method().clone();
+    let headers = req.headers().clone();
+    let body = match axum::body::to_bytes(req.into_body(), 2 * 1024 * 1024).await {
+        Ok(bytes) => bytes,
+        Err(_) => return StatusCode::PAYLOAD_TOO_LARGE.into_response(),
+    };
+    let client = reqwest::Client::new();
+    let mut forward = client.request(
+        reqwest::Method::from_bytes(method.as_str().as_bytes()).unwrap_or(reqwest::Method::GET),
+        &url,
+    );
+    for (name, value) in headers.iter() {
+        if skip_hop_header(name) {
+            continue;
+        }
+        if let (Ok(n), Ok(v)) = (
+            reqwest::header::HeaderName::from_bytes(name.as_str().as_bytes()),
+            reqwest::header::HeaderValue::from_bytes(value.as_bytes()),
+        ) {
+            forward = forward.header(n, v);
+        }
+    }
+    match forward.body(body.to_vec()).send().await {
+        Ok(upstream) => {
+            let status =
+                StatusCode::from_u16(upstream.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+            let mut response = Response::builder().status(status);
+            for (name, value) in upstream.headers() {
+                if let (Ok(n), Ok(v)) = (
+                    HeaderName::from_bytes(name.as_str().as_bytes()),
+                    axum::http::HeaderValue::from_bytes(value.as_bytes()),
+                ) {
+                    if !skip_hop_header(&n) {
+                        response = response.header(n, v);
+                    }
+                }
+            }
+            let bytes = upstream.bytes().await.unwrap_or_else(|_| Bytes::new());
+            response
+                .body(axum::body::Body::from(bytes))
+                .unwrap_or_else(|_| StatusCode::BAD_GATEWAY.into_response())
+        }
+        Err(error) => (
+            StatusCode::BAD_GATEWAY,
+            Json(json!({"error": error.to_string(), "upstream": url})),
+        )
+            .into_response(),
+    }
+}
+
+fn skip_hop_header(name: &HeaderName) -> bool {
+    matches!(
+        name.as_str(),
+        "connection"
+            | "keep-alive"
+            | "proxy-authenticate"
+            | "proxy-authorization"
+            | "te"
+            | "trailers"
+            | "transfer-encoding"
+            | "upgrade"
+            | "host"
+            | "content-length"
+    )
 }
 
 async fn toolbar_status(State(st): State<App>, headers: HeaderMap) -> Response {
