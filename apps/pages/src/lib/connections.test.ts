@@ -94,6 +94,7 @@ beforeEach(async () => {
   saveSettings({
     hostApi: HOST,
     identityApi: IDENTITY,
+    daemonApi: "http://127.0.0.1:18790",
     tursoUrl: "",
   });
   stubFetch((url) => {

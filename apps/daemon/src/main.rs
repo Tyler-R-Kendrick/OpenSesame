@@ -200,16 +200,7 @@ async fn main() -> anyhow::Result<()> {
         operator_token: resolve_operator_token(),
     };
     let app = Router::new()
-        .route(
-            "/health",
-            get(|| async {
-                Json(json!({
-                    "status":"ok",
-                    "service":"opensesame-daemon",
-                    "uds": env::var("OPENSESAME_AGENT_SOCK").ok(),
-                }))
-            }),
-        )
+        .route("/health", get(daemon_health))
         .route("/v1/list_sessions", post(list_sessions))
         .route("/v1/get_access_token", post(get_access_token))
         .route("/v1/mint_capability", post(mint_capability))
@@ -292,6 +283,16 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!(%listen, "daemon TCP listening");
     axum::serve(tcp, app).await?;
     Ok(())
+}
+
+async fn daemon_health(State(st): State<App>) -> Json<Value> {
+    Json(json!({
+        "status": "ok",
+        "service": "opensesame-daemon",
+        "host_api": st.host_api,
+        "identity_api": st.identity_api,
+        "uds": env::var("OPENSESAME_AGENT_SOCK").ok(),
+    }))
 }
 
 async fn toolbar_status(State(st): State<App>, headers: HeaderMap) -> Response {

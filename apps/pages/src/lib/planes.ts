@@ -9,7 +9,7 @@ import {
 } from "./identity.js";
 import { isLoopbackUrl } from "./urls.js";
 
-export type HostPlane = "live" | "loopback" | "down";
+export type HostPlane = "live" | "loopback" | "down" | "unset";
 export type IdentityPlane = "connected" | "none" | "down";
 
 export type PlaneStatus = {
@@ -23,6 +23,7 @@ export const PAGES_CANNOT_HOST =
   "GitHub Pages cannot host the Host or Identity APIs. Point Settings at a Host you run, or use this page as the authority console only.";
 
 export function classifyHost(base: string, health: HealthState): HostPlane {
+  if (!base.trim()) return "unset";
   if (health === "reachable") return "live";
   return isLoopbackUrl(base) ? "loopback" : "down";
 }
@@ -43,6 +44,8 @@ export function hostStatusLabel(host: HostPlane): string {
       return "Host not on this page";
     case "down":
       return "Host down";
+    case "unset":
+      return "Host not configured";
   }
 }
 

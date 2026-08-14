@@ -10,6 +10,7 @@ import {
   IconUpload,
   IconX,
 } from "../components/Icons.js";
+import { ConnectThisMachine } from "../components/PlaneNote.js";
 import { checkTurso, setTursoSessionToken } from "../lib/embedded-catalog.js";
 import { loadSettings, saveSettings } from "../lib/settings.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
@@ -99,6 +100,7 @@ export function SettingsSection() {
     saveSettings({
       hostApi: endpoints.hostApi.trim().replace(/\/$/, ""),
       identityApi: endpoints.identityApi.trim().replace(/\/$/, ""),
+      daemonApi: endpoints.daemonApi.trim().replace(/\/$/, ""),
       tursoUrl: endpoints.tursoUrl.trim(),
     });
     setTursoSessionToken(tursoToken);
@@ -473,10 +475,14 @@ export function SettingsSection() {
           <div>
             <h2>Planes</h2>
             <p>
-              Where the Identity and Host APIs live. This page is static
-              hosting; it cannot run either plane.
+              Where the Identity and Host APIs live. GitHub Pages cannot run
+              either plane. Locally they auto-connect. Remotely, pair the daemon
+              on this machine or paste a Host you run.
             </p>
           </div>
+        </div>
+        <div className="panel__body">
+          <ConnectThisMachine />
         </div>
         <form
           className="panel__body"
@@ -503,11 +509,28 @@ export function SettingsSection() {
                 id="host-api"
                 type="url"
                 value={endpoints.hostApi}
+                placeholder="http://127.0.0.1:8787"
                 onChange={(event) =>
                   setEndpoints({ ...endpoints, hostApi: event.target.value })
                 }
               />
             </div>
+          </div>
+          <div className="field">
+            <label htmlFor="daemon-api">Daemon on this machine</label>
+            <input
+              id="daemon-api"
+              type="url"
+              value={endpoints.daemonApi}
+              placeholder="http://127.0.0.1:18790"
+              onChange={(event) =>
+                setEndpoints({ ...endpoints, daemonApi: event.target.value })
+              }
+            />
+            <p className="hint">
+              From github.io, pair the daemon running on this computer. Local
+              Pages auto-connects to loopback Host and Identity.
+            </p>
           </div>
           <div className="set__pair">
             <div className="field">

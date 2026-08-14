@@ -7,6 +7,7 @@ describe("Pages CORS defaults", () => {
       expect.arrayContaining([
         "http://127.0.0.1:5180",
         "http://localhost:5180",
+        "https://tyler-r-kendrick.github.io",
       ]),
     );
   });

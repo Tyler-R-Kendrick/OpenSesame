@@ -17,6 +17,11 @@ describe("plane status", () => {
     expect(classifyHost("https://host.example", "unreachable")).toBe("down");
   });
 
+  it("treats an empty Host as unset, not down", () => {
+    expect(classifyHost("", "unknown")).toBe("unset");
+    expect(hostStatusLabel("unset")).toBe("Host not configured");
+  });
+
   it("does not treat a missing session as Identity down when the API answers", () => {
     expect(classifyIdentity(false, "reachable")).toBe("none");
     expect(classifyIdentity(true, "unreachable")).toBe("connected");

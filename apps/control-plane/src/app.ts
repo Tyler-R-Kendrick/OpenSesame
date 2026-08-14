@@ -20,6 +20,12 @@ import { projectRoutes } from "./routes/projects.js";
 export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   const app = new Hono<{ Variables: Variables }>();
 
+  app.use("*", async (c, next) => {
+    await next();
+    if (c.req.header("Access-Control-Request-Private-Network") === "true") {
+      c.header("Access-Control-Allow-Private-Network", "true");
+    }
+  });
   app.use(
     "*",
     cors({

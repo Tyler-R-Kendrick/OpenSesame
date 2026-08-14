@@ -89,6 +89,7 @@ import {
   useConnect,
   useIdentitySession,
 } from "../lib/identity.js";
+import { shouldAutoConnect } from "../lib/settings.js";
 import { useOnline } from "../lib/use-online.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import "./connections.css";
@@ -336,6 +337,7 @@ export function ConnectionsSection() {
 
   useEffect(() => {
     if (session || !online || connecting || connectError) return;
+    if (!shouldAutoConnect()) return;
     void connect();
   }, [session, online, connecting, connectError, connect]);
 
@@ -814,6 +816,7 @@ function IdentitySessionNote() {
   const { connecting, error, connect } = useConnect();
   const online = useOnline();
   if (session) return null;
+  if (!shouldAutoConnect() && !connecting && !error) return null;
   return (
     <div className="note note--warn conn-session-note">
       <IconLock />
@@ -835,11 +838,11 @@ function IdentitySessionNote() {
               {connecting ? "Connecting…" : "Try Identity again"}
             </button>
           </>
-        ) : (
+        ) : connecting ? (
           <p className="hint conn-connecting">
             <IconClock /> Establishing your private session…
           </p>
-        )}
+        ) : null}
       </div>
     </div>
   );
