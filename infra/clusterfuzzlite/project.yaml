@@ -1,0 +1,10 @@
+homepage: "https://github.com/Tyler-R-Kendrick/OpenSesame"
+language: rust
+main_repo: "https://github.com/Tyler-R-Kendrick/OpenSesame"
+fuzzing_engines:
+  - libfuzzer
+sanitizers:
+  - address
+architectures:
+  - x86_64
+file_github_issue: false

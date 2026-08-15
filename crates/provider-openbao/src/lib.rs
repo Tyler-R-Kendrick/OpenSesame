@@ -127,6 +127,46 @@ impl CredentialAuthority for MemoryAuthority {
     }
 }
 
+/// Parse `/sys/health` (or an equivalent) JSON object.
+///
+/// A sealed or uninitialized response never becomes a usable handle. A missing
+/// `sealed` field is unavailable, not "open".
+pub fn parse_sys_health(body: &Value) -> Result<AuthorityHealth, AuthorityError> {
+    let sealed = match body.get("sealed") {
+        Some(Value::Bool(v)) => *v,
+        _ => return Err(AuthorityError::Unavailable),
+    };
+    let initialized = match body.get("initialized") {
+        None => true,
+        Some(Value::Bool(v)) => *v,
+        Some(_) => return Err(AuthorityError::Provider("initialized is not a boolean".into())),
+    };
+    if !initialized {
+        return Err(AuthorityError::Unavailable);
+    }
+    Ok(AuthorityHealth {
+        sealed,
+        quorum_ok: !sealed,
+    })
+}
+
+/// Refuse to mint a credential handle from a health document that is sealed
+/// or missing required fields.
+pub fn handle_from_health(
+    body: &Value,
+    path: &str,
+) -> Result<CredentialHandle, AuthorityError> {
+    let health = parse_sys_health(body)?;
+    if health.sealed || !health.quorum_ok {
+        return Err(AuthorityError::Unavailable);
+    }
+    Ok(CredentialHandle {
+        id: format!("cred:{path}"),
+        mount: "transit".into(),
+        key_version: 1,
+    })
+}
+
 impl MemoryAuthority {
     fn ensure_available(&self) -> Result<(), AuthorityError> {
         if self.sealed || !self.quorum_ok {
@@ -284,14 +324,7 @@ impl CredentialAuthority for OpenBaoHttpAuthority {
                 }
                 other => other,
             })?;
-        let sealed = body
-            .get("sealed")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-        Ok(AuthorityHealth {
-            sealed,
-            quorum_ok: !sealed,
-        })
+        parse_sys_health(&body)
     }
 }
 
@@ -329,6 +362,15 @@ mod tests {
     fn from_env_absent() {
         std::env::remove_var("OPENSESAME_OPENBAO_URL");
         assert!(OpenBaoHttpAuthority::from_env().unwrap().is_none());
+    }
+
+    #[test]
+    fn health_missing_sealed_is_unavailable() {
+        assert!(parse_sys_health(&json!({})).is_err());
+        assert!(handle_from_health(&json!({"sealed": true}), "k").is_err());
+        let open = parse_sys_health(&json!({"sealed": false, "initialized": true})).unwrap();
+        assert!(!open.sealed);
+        assert!(open.quorum_ok);
     }
 
     #[tokio::test]

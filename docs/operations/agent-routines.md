@@ -38,9 +38,9 @@ are complementary, not redundant: CodeRabbit is push-triggered and diff-only;
 these routines are time-triggered (three of them) or PR-triggered-on-request
 (the fourth) and read the whole repo, not just a diff.
 
-## The four routine files
+## The routine files
 
-All four live under `ops/routines/` and are each a complete, self-contained
+All of them live under `ops/routines/` and are each a complete, self-contained
 prompt — every firing is a fresh session with no memory of prior runs, so
 each file restates the repo context, the hard rules, and the exact commands
 to run, the same way this document restates context for you.
@@ -49,6 +49,7 @@ to run, the same way this document restates context for you.
 |---|---|---|
 | `ops/routines/nightly-dependency-triage.md` | Nightly | Fix PR (`fix(deps): ...`) or a dated note in `docs/security/tooling-evaluation.md` |
 | `ops/routines/weekly-security-audit.md` | Weekly | New `docs/security/audit-YYYY-MM-DD-<topic>.md` + PR with any small fixes |
+| `ops/routines/nightly-fuzz-batch.md` | Nightly | Crash fix PR or a CLEAN log; never a `.github/` workflow |
 | `ops/routines/weekly-docs-drift.md` | Weekly | Fix PR (`fix(docs): ...`) correcting stale references |
 | `ops/routines/pr-security-review.md` | On demand | One structured review comment on a named PR |
 

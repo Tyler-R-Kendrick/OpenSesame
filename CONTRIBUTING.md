@@ -22,6 +22,9 @@ directory, and none should be added. Verification instead happens through:
 
 - Local git hooks (below), run on every commit and push.
 - `pnpm verify`, runnable locally or on demand, for the full gate suite.
+- Opt-in deeper gates (not in `verify`): `pnpm audit:fuzz`, `pnpm test:fuzz`,
+  `pnpm audit:kani`, `pnpm audit:miri`, `pnpm audit:shuttle`. See
+  `docs/validation/fuzzing.md`.
 - Scheduled Claude Code cloud sessions that run audits and report findings on a
   cadence — see `docs/operations/agent-routines.md` for the configured routines.
 - [CodeRabbit](https://coderabbit.ai), already installed as a GitHub App, which

@@ -36,6 +36,7 @@ members = [
   "apps/cli",
 ]
 default-members = ["apps/gateway", "apps/cli", "apps/worker"]
+exclude = ["fuzz"]
 
 [workspace.package]
 version = "0.1.0"

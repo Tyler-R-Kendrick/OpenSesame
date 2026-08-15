@@ -1,0 +1,28 @@
+{
+  "name": "@opensesame/fuzz",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:fuzz": "tsx src/run.ts",
+    "test:fuzz:batch": "tsx src/run.ts"
+  },
+  "dependencies": {
+    "@env-spec/parser": "0.4.1",
+    "@opensesame/audit": "workspace:*",
+    "@opensesame/auth-upstream": "workspace:*",
+    "@opensesame/claims": "workspace:*",
+    "@opensesame/contracts": "workspace:*",
+    "@opensesame/oauth-provider": "workspace:*",
+    "@opensesame/os-domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@jazzer.js/core": "2.1.0",
+    "@types/node": "22.15.29",
+    "tsx": "4.20.3",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10"
+  }
+}

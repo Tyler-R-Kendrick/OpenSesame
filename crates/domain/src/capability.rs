@@ -394,3 +394,52 @@ mod tests {
         }
     }
 }
+
+#[cfg(kani)]
+mod kani_proofs {
+    use super::*;
+
+    fn small_str() -> String {
+        let bytes: [u8; 2] = kani::any();
+        let a = (bytes[0] % 26) + b'a';
+        let b = (bytes[1] % 26) + b'a';
+        String::from_utf8(vec![a, b]).unwrap()
+    }
+
+    fn any_selector() -> ResourceSelector {
+        if kani::any() {
+            ResourceSelector::exact(small_str())
+        } else {
+            ResourceSelector::enumerated([small_str(), small_str()])
+        }
+    }
+
+    #[kani::proof]
+    fn subset_reflexive() {
+        let sel = any_selector();
+        assert!(sel.is_subset_of(&sel));
+    }
+
+    #[kani::proof]
+    fn different_action_is_disproven() {
+        let parent = Capability::new("read", ResourceSelector::exact("r"));
+        let child = Capability::new("write", ResourceSelector::exact("r"));
+        assert_eq!(child.is_attenuation_of(&parent), AttenuationResult::Disproven);
+    }
+
+    #[kani::proof]
+    fn intersection_is_subset() {
+        let a = CapabilitySet::new(vec![Capability::new("a", any_selector())]).canonicalize();
+        let b = CapabilitySet::new(vec![Capability::new("a", any_selector())]).canonicalize();
+        let inter = a.intersection(&b);
+        assert!(inter.is_subset_of(&a));
+        assert!(inter.is_subset_of(&b));
+    }
+
+    #[kani::proof]
+    fn remove_never_increases() {
+        let set = CapabilitySet::new(vec![Capability::new(small_str(), any_selector())]);
+        let removed = set.remove("a", &any_selector());
+        assert!(removed.capabilities.len() <= set.canonicalize().capabilities.len());
+    }
+}

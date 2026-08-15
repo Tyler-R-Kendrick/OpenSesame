@@ -18,5 +18,15 @@ ed25519-dalek = { workspace = true }
 rand = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
+shuttle = { version = "0.9.1", optional = true }
 
-[dev-dependencies]
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(kani)'] }
+
+[features]
+concurrency-test = ["dep:shuttle"]
+
+[[test]]
+name = "shuttle_replay"
+path = "tests/shuttle_replay.rs"
+required-features = ["concurrency-test"]

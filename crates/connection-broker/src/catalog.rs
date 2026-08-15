@@ -283,7 +283,9 @@ pub struct Catalog {
 }
 
 impl Catalog {
-    fn parse(raw: &str) -> Result<Self, CatalogError> {
+    /// Parse an untrusted catalog document. Unknown versions, empty provider
+    /// lists, and duplicate ids are errors — never a silent empty catalog.
+    pub fn parse(raw: &str) -> Result<Self, CatalogError> {
         let document: CatalogDocument = serde_json::from_str(raw)
             .map_err(|error| CatalogError::invalid(format!("catalog JSON is invalid: {error}")))?;
         if document.schema_version != CATALOG_SCHEMA_VERSION {

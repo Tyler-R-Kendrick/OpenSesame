@@ -69,6 +69,8 @@ pnpm audit:osv
 pnpm audit:cargo-audit
 pnpm audit:gitleaks
 pnpm audit:semgrep
+pnpm audit:fuzz             # cargo-fuzz short pass (not in verify)
+pnpm test:fuzz              # Jazzer.js short pass (not in verify)
 ```
 
 ### Per-plane local run
