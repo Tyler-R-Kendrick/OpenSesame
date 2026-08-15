@@ -21,6 +21,20 @@ pub enum OpenFgaError {
 
 pub type Result<T> = std::result::Result<T, OpenFgaError>;
 
+/// Interpret an OpenFGA Check HTTP body.
+///
+/// `allowed` is true only when the field is the JSON boolean `true`. A missing
+/// field is deny (fail closed). A non-boolean value is an error, never allow.
+pub fn parse_check_response(body: &Value) -> Result<bool> {
+    match body.get("allowed") {
+        None => Ok(false),
+        Some(Value::Bool(allowed)) => Ok(*allowed),
+        Some(_) => Err(OpenFgaError::Http(
+            "check response `allowed` is not a boolean".into(),
+        )),
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct OpenFgaClient {
     base: String,
@@ -177,10 +191,7 @@ impl OpenFgaClient {
         if !status.is_success() {
             return Err(OpenFgaError::Http(format!("{status}: {body}")));
         }
-        Ok(body
-            .get("allowed")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false))
+        parse_check_response(&body)
     }
 
     /// Minimal OpenSesame connection model for live drills.
@@ -251,6 +262,14 @@ mod tests {
     fn model_is_valid_json() {
         let m = OpenFgaClient::connection_model();
         assert_eq!(m["schema_version"], "1.1");
+    }
+
+    #[test]
+    fn check_response_is_fail_closed() {
+        assert!(!parse_check_response(&json!({})).unwrap());
+        assert!(!parse_check_response(&json!({"allowed": false})).unwrap());
+        assert!(parse_check_response(&json!({"allowed": true})).unwrap());
+        assert!(parse_check_response(&json!({"allowed": "yes"})).is_err());
     }
 
     #[tokio::test]

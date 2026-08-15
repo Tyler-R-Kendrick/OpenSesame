@@ -4,7 +4,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+concurrency-test = ["dep:shuttle"]
+
 [dependencies]
+shuttle = { version = "0.9.1", optional = true }
 opensesame-domain = { path = "../domain" }
 opensesame-redaction = { path = "../redaction" }
 opensesame-authz = { path = "../authz" }
@@ -26,3 +30,8 @@ tokio = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 serde_json = { workspace = true }
+
+[[test]]
+name = "shuttle_idempotency"
+path = "tests/shuttle_idempotency.rs"
+required-features = ["concurrency-test"]

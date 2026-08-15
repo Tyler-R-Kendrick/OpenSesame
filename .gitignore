@@ -1,4 +1,6 @@
 /target/
+fuzz/target/
+fuzz/artifacts/
 node_modules/
 /.pnpm-store/
 /.tools/

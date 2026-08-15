@@ -1,0 +1,205 @@
+[package]
+name = "opensesame-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+license = "MIT"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = { version = "0.4.10", features = ["arbitrary-derive"] }
+arbitrary = { version = "1.4.2", features = ["derive"] }
+chrono = { version = "0.4.41", features = ["serde"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+uuid = { version = "1.17.0", features = ["serde"] }
+jsonwebtoken = { version = "10.4.0", default-features = false, features = ["use_pem", "aws_lc_rs"] }
+
+opensesame-domain = { path = "../crates/domain" }
+opensesame-grants = { path = "../crates/grants" }
+opensesame-proof = { path = "../crates/proof" }
+opensesame-authn = { path = "../crates/authn" }
+opensesame-redaction = { path = "../crates/redaction" }
+opensesame-human-vault = { path = "../crates/human-vault" }
+opensesame-claims = { path = "../crates/claims" }
+opensesame-audit = { path = "../crates/audit" }
+opensesame-env-spec = { path = "../crates/env-spec" }
+opensesame-rotation = { path = "../crates/rotation" }
+opensesame-protocol-mcp = { path = "../crates/protocol-mcp" }
+opensesame-protocol-aauth = { path = "../crates/protocol-aauth", features = ["experimental-aauth"] }
+opensesame-connection-broker = { path = "../crates/connection-broker" }
+opensesame-provider-openbao = { path = "../crates/provider-openbao" }
+opensesame-provider-openfga = { path = "../crates/provider-openfga" }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "capability_algebra"
+path = "fuzz_targets/capability_algebra.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "grant_attenuation"
+path = "fuzz_targets/grant_attenuation.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "grant_serde"
+path = "fuzz_targets/grant_serde.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "canonical_json"
+path = "fuzz_targets/canonical_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "resource_match"
+path = "fuzz_targets/resource_match.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "jwt_jwk"
+path = "fuzz_targets/jwt_jwk.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "token_audience"
+path = "fuzz_targets/token_audience.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "device_auth"
+path = "fuzz_targets/device_auth.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "oidc_discovery"
+path = "fuzz_targets/oidc_discovery.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "aauth_parse"
+path = "fuzz_targets/aauth_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mcp_authz"
+path = "fuzz_targets/mcp_authz.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "claim_replay"
+path = "fuzz_targets/claim_replay.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "receipt_verify"
+path = "fuzz_targets/receipt_verify.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "redaction"
+path = "fuzz_targets/redaction.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "env_spec"
+path = "fuzz_targets/env_spec.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "connector_manifest"
+path = "fuzz_targets/connector_manifest.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "vault_envelope"
+path = "fuzz_targets/vault_envelope.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "broker_seal"
+path = "fuzz_targets/broker_seal.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "uri_normalize"
+path = "fuzz_targets/uri_normalize.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "openbao_response"
+path = "fuzz_targets/openbao_response.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "openfga_response"
+path = "fuzz_targets/openfga_response.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rotation_fsm"
+path = "fuzz_targets/rotation_fsm.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "protocol_negotiate"
+path = "fuzz_targets/protocol_negotiate.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "replay_cache"
+path = "fuzz_targets/replay_cache.rs"
+test = false
+doc = false
+bench = false

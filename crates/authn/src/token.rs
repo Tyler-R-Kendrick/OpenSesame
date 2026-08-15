@@ -15,6 +15,8 @@ pub enum TokenValidationError {
     Expired,
     #[error("issuer mix-up")]
     IssuerMixUp,
+    #[error("malformed discovery document")]
+    MalformedDiscovery,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

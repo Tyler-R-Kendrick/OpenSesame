@@ -78,6 +78,13 @@ pub fn unmap_person(mapped: &MappedPerson) -> Person {
     }
 }
 
+pub fn unmap_agent(mapped: &MappedAgent) -> Agent {
+    Agent {
+        id: mapped.source_agent_id.clone(),
+        instance_id: mapped.source_instance_id.clone(),
+    }
+}
+
 pub fn map_agent(agent: &Agent) -> MappedAgent {
     MappedAgent {
         actor_id: ActorId::from_uuid(deterministic_uuid("aauth-agent", &agent.id)),

@@ -16,6 +16,11 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 | **pnpm audit** | npm advisory DB for TS apps/packages | `pnpm audit` after dep bumps |
 | **Semgrep** | Static rules (`p/rust`, `p/typescript`) on source trees | `pnpm run audit:semgrep` (apps/crates/packages only) |
 | **Manual auth-path review** | Catches design bugs scanners miss | Bearer bypass, unauthenticated sync, prod fail-closed |
+| **cargo-fuzz / libFuzzer** | Persistent coverage-guided Rust fuzz | `pnpm audit:fuzz` / `pnpm audit:fuzz:batch` (`scripts/fuzz-*-gate.sh`) |
+| **Jazzer.js** | Coverage-guided TS parse/normalize fuzz | `pnpm test:fuzz` (`packages/fuzz`, `scripts/jazzer-gate.sh`) |
+| **Kani** | Bounded proofs on capability/grant/rotation | `pnpm audit:kani` (not in `verify`) |
+| **Miri** | UB on selected lib tests | `pnpm audit:miri` (nightly; weekly routine) |
+| **Shuttle** | Schedule exploration of idempotency/replay | `pnpm audit:shuttle` (`concurrency-test` feature) |
 
 ## Adopt later (CI / when credentials exist)
 

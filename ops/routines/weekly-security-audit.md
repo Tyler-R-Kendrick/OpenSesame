@@ -46,6 +46,13 @@ depth, attack that surface for the bug classes the series already knows
 about, write up what you found, and fix anything real, small, and low-risk
 on the spot.
 
+## Step 0 — optional Miri / Kani
+
+If `cargo kani --version` or a nightly+Miri toolchain is present, run
+`pnpm audit:kani` and/or `pnpm audit:miri`. A proof or UB failure becomes
+this week's audit surface. If the toolchain is missing, skip without
+installing one.
+
 ## Step 1 — pick the surface
 
 ```bash

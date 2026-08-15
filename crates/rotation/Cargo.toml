@@ -12,3 +12,15 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
+shuttle = { version = "0.9.1", optional = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(kani)'] }
+
+[features]
+concurrency-test = ["dep:shuttle"]
+
+[[test]]
+name = "shuttle_rotation"
+path = "tests/shuttle_rotation.rs"
+required-features = ["concurrency-test"]

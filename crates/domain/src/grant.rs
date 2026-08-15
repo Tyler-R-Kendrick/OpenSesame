@@ -56,12 +56,7 @@ impl Grant {
         if self.revoked_at.is_some() {
             return Err(DomainError::GrantRevoked);
         }
-        if let Some(nbf) = self.constraints.not_before {
-            if now < nbf {
-                return Err(DomainError::GrantTimeWindow);
-            }
-        }
-        if now >= self.constraints.expires_at {
+        if !interval_contains(now, self.constraints.not_before, self.constraints.expires_at) {
             return Err(DomainError::GrantTimeWindow);
         }
         Ok(())
@@ -130,6 +125,21 @@ impl Grant {
     }
 }
 
+/// Inclusive-start, exclusive-end validity window. Extracted so Kani can
+/// check the clock arithmetic without constructing a full [`Grant`].
+pub fn interval_contains(
+    now: DateTime<Utc>,
+    not_before: Option<DateTime<Utc>>,
+    expires_at: DateTime<Utc>,
+) -> bool {
+    if let Some(nbf) = not_before {
+        if now < nbf {
+            return false;
+        }
+    }
+    now < expires_at
+}
+
 /// Match a grant resource pattern. Wildcards keep their separator so
 /// `repo:acme/*` cannot reach `repo:acme-private/secrets`.
 pub fn resource_pattern_matches(pattern: &str, resource: &str) -> bool {
@@ -157,7 +167,7 @@ fn is_subset(child: &[String], parent: &[String]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Duration;
+    use chrono::{Duration, TimeZone};
 
     fn sample_parent() -> Grant {
         let now = Utc::now();
@@ -222,6 +232,15 @@ mod tests {
     }
 
     #[test]
+    fn interval_contains_is_half_open() {
+        let nbf = Utc.timestamp_opt(10, 0).unwrap();
+        let exp = Utc.timestamp_opt(20, 0).unwrap();
+        assert!(!interval_contains(Utc.timestamp_opt(9, 0).unwrap(), Some(nbf), exp));
+        assert!(interval_contains(nbf, Some(nbf), exp));
+        assert!(!interval_contains(exp, Some(nbf), exp));
+    }
+
+    #[test]
     fn resource_scope_is_enforced_with_segment_boundaries() {
         let mut g = sample_parent();
         assert!(g.permits_resource("repo:acme/catalog"));
@@ -247,5 +266,38 @@ mod tests {
     fn export_denied_by_default_invariant() {
         let g = sample_parent();
         assert!(!g.constraints.raw_credential_export);
+    }
+}
+
+#[cfg(kani)]
+mod kani_proofs {
+    use super::*;
+    use chrono::TimeZone;
+
+    fn dt(secs: i64) -> DateTime<Utc> {
+        Utc.timestamp_opt(secs.clamp(0, 2_000_000_000), 0)
+            .single()
+            .unwrap()
+    }
+
+    #[kani::proof]
+    fn interval_half_open() {
+        let now: i64 = kani::any();
+        kani::assume(now >= 0 && now < 10_000);
+        let nbf = dt(now.saturating_sub(10));
+        let exp = dt(now.saturating_add(10));
+        let t = dt(now);
+        assert!(interval_contains(t, Some(nbf), exp));
+        assert!(!interval_contains(exp, Some(nbf), exp));
+    }
+
+    #[kani::proof]
+    fn wildcard_does_not_cross_separator() {
+        assert!(resource_pattern_matches("repo:acme/*", "repo:acme/catalog"));
+        assert!(!resource_pattern_matches(
+            "repo:acme/*",
+            "repo:acme-private/catalog"
+        ));
+        assert!(!resource_pattern_matches("repo:acme:*", "repo:acme-extra"));
     }
 }

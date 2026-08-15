@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(kani, derive(kani::Arbitrary))]
 #[serde(rename_all = "snake_case")]
 pub enum RotationState {
     Scheduled,
@@ -127,5 +128,44 @@ mod tests {
             RotationState::Scheduled.transition(RotationState::Completed),
             Err(RotationError::InvalidTransition)
         );
+    }
+}
+
+#[cfg(kani)]
+mod kani_proofs {
+    use super::*;
+
+    #[kani::proof]
+    fn completed_is_a_sink() {
+        let from = RotationState::Completed;
+        for to in [
+            RotationState::Scheduled,
+            RotationState::Discovering,
+            RotationState::PreviousRevoked,
+            RotationState::RollbackStarted,
+            RotationState::Completed,
+        ] {
+            assert!(!from.can_transition(to));
+        }
+    }
+
+    #[kani::proof]
+    fn cannot_revoke_before_observe() {
+        assert!(!RotationState::CandidateInstalled.can_transition(RotationState::PreviousRevoked));
+        assert!(!RotationState::CandidateGenerated.can_transition(RotationState::PreviousRevoked));
+    }
+
+    #[kani::proof]
+    fn transition_matches_can_transition() {
+        let from: RotationState = kani::any();
+        let to: RotationState = kani::any();
+        match from.transition(to) {
+            Ok(next) => {
+                assert!(from.can_transition(to));
+                assert_eq!(next, to);
+            }
+            Err(RotationError::InvalidTransition) => assert!(!from.can_transition(to)),
+            Err(RotationError::Indeterminate) => {}
+        }
     }
 }
