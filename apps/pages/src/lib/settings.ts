@@ -49,7 +49,9 @@ function remoteDefaults(): PersistedSettings {
   return {
     hostApi: runtimeHostApi || "",
     identityApi: runtimeIdentityApi || "",
-    daemonApi: runtimeDaemonApi || shippedDaemonApi,
+    // github.io cannot reach loopback — leave empty so the pairing UI asks for
+    // the Tailscale Serve FQDN instead of looking like localhost will work.
+    daemonApi: runtimeDaemonApi || "",
     tursoUrl: "",
   };
 }

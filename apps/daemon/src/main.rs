@@ -315,7 +315,13 @@ async fn daemon_health(State(st): State<App>) -> Json<Value> {
         "tailscale_url": public,
         "tailscale_dns": ts.dns_name,
         "tailscale_ip": ts.ip4,
+        "tailscale_serve": ts.serve_enabled,
         "uds": env::var("OPENSESAME_AGENT_SOCK").ok(),
+        "pairing_hint": if public.is_some() {
+            "Paste tailscale_url into the github.io Connect this machine field."
+        } else {
+            "Enable Tailscale HTTPS + `tailscale serve`, then restart the daemon. curl http://127.0.0.1:18790/health and paste tailscale_url into github.io."
+        },
     }))
 }
 

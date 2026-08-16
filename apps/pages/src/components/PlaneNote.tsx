@@ -14,6 +14,7 @@ import {
   shippedDaemonApi,
 } from "../lib/settings.js";
 import {
+  assertDaemonReachableFromPage,
   detectTailnet,
   discoverTailscaleDaemon,
   openTailscaleLogin,
@@ -43,7 +44,7 @@ export function ConnectThisMachine({
 }) {
   const { connect } = useConnect();
   const [daemonApi, setDaemonApi] = useState(
-    () => loadSettings().daemonApi || shippedDaemonApi,
+    () => loadSettings().daemonApi || (pageIsLoopback() ? shippedDaemonApi : ""),
   );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -69,6 +70,7 @@ export function ConnectThisMachine({
     setBusy(true);
     setMessage(null);
     try {
+      assertDaemonReachableFromPage(daemonApi);
       const health = await probeDaemon(daemonApi);
       await finish(health, daemonApi);
     } catch (error) {
@@ -91,26 +93,37 @@ export function ConnectThisMachine({
         const health = await discoverTailscaleDaemon();
         await finish(health, health.tailscaleUrl || daemonApi);
         return;
-      } catch {
-        // Fall through to client install / wait.
-      }
-
-      const onTailnet = await detectTailnet();
-      if (!onTailnet) {
-        openTailscaleLogin();
-        setMessage(
-          "Install or open the Tailscale app on this machine and sign in there. This page cannot receive a Tailscale login callback — it waits until you are on the tailnet, then pairs the daemon.",
-        );
-        const joined = await waitForTailnet();
-        if (!joined) {
+      } catch (first) {
+        // If the operator already pasted a Serve URL, try that before install/wait.
+        if (daemonApi.trim()) {
+          try {
+            assertDaemonReachableFromPage(daemonApi);
+            const health = await probeDaemon(daemonApi);
+            await finish(health, daemonApi);
+            return;
+          } catch {
+            // Fall through.
+          }
+        }
+        const onTailnet = await detectTailnet();
+        if (!onTailnet) {
+          openTailscaleLogin();
           setMessage(
-            "Still not on the tailnet. Open the Tailscale app, finish sign-in, then press Connect Tailscale again.",
+            "Install or open the Tailscale app on this machine and sign in there. This page cannot receive a Tailscale login callback — it waits until you are on the tailnet, then pairs the daemon.",
           );
+          const joined = await waitForTailnet();
+          if (!joined) {
+            setMessage(
+              "Still not on the tailnet. Open the Tailscale app, finish sign-in, then press Connect Tailscale again.",
+            );
+            return;
+          }
+          const health = await discoverTailscaleDaemon();
+          await finish(health, health.tailscaleUrl || daemonApi);
           return;
         }
+        throw first;
       }
-      const health = await discoverTailscaleDaemon();
-      await finish(health, health.tailscaleUrl || daemonApi);
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -128,20 +141,22 @@ export function ConnectThisMachine({
         <div>
           <h2>Connect this machine</h2>
           <p>
-            GitHub Pages cannot see 127.0.0.1. This browser must be on your
-            Tailscale network (the Tailscale app on this machine), then the page
-            finds the daemon through Serve / MagicDNS. Signing in at the
-            Tailscale website alone is not enough — there is no auth postback
-            here.
+            GitHub Pages cannot see 127.0.0.1. Paste your daemon&apos;s Tailscale
+            Serve URL (<code>https://machine.tailnet.ts.net</code>), which you
+            get from{" "}
+            <code>curl -s http://127.0.0.1:18790/health</code> on the daemon
+            host (<code>tailscale_url</code>). Bare MagicDNS HTTPS names and
+            localhost will not work from this page.
           </p>
         </div>
       </div>
       <div className="panel__body">
         <div className="field">
-          <label htmlFor="daemon-url">Daemon</label>
+          <label htmlFor="daemon-url">Daemon (Tailscale Serve URL)</label>
           <input
             id="daemon-url"
             type="url"
+            placeholder="https://your-machine.tailnet.ts.net"
             value={daemonApi}
             onChange={(event) => setDaemonApi(event.target.value)}
           />
