@@ -323,9 +323,6 @@ export function VaultWelcome() {
               <IconUpload size={16} />
               Import
             </Link>
-            <Link className="btn btn--sm" to="/connections">
-              Connect GitHub, Vercel, or Linear
-            </Link>
           </div>
         </div>
       </div>
