@@ -48,6 +48,21 @@ describe("mcp-host tools", () => {
     ).toThrow("secret_tools_forbidden");
   });
 
+  it("forbids sealed-store reveal tool names", () => {
+    for (const name of [
+      "show",
+      "pass_show",
+      "sealed_store_show",
+      "password_store_read",
+      "get_secret",
+    ]) {
+      expect(() => assertsNoSecretTools([...hostTools, name])).toThrow(
+        /secret_tools_forbidden|forbidden/i,
+      );
+    }
+    expect(hostTools.join(" ")).not.toMatch(/getSecret|materialize|pass_show/i);
+  });
+
   it("does not hand the model the operator token it holds", () => {
     const env = {
       OPENSESAME_OPERATOR_TOKEN: "opensesame-dev-operator",

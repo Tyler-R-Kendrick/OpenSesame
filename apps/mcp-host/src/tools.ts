@@ -22,7 +22,13 @@ export const hostTools = [
 ] as const;
 
 export function assertsNoSecretTools(names: readonly string[]): void {
-  if (names.some((n) => /secret|materialize/i.test(n))) {
+  if (
+    names.some((n) =>
+      /secret|materialize|pass_show|sealed_store_show|password_store_read|^show$/i.test(
+        n,
+      ),
+    )
+  ) {
     throw new Error("secret_tools_forbidden");
   }
 }
