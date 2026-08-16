@@ -1,5 +1,5 @@
-import { kvGet, kvSet } from "./kv.js";
-import { isLoopbackUrl } from "./urls.js";
+import { kvGet, kvSet, kvSetDurable } from "./kv.js";
+import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
 
 export type PagesSettings = {
   hostApi: string;
@@ -24,6 +24,8 @@ export const shippedDaemonApi = "http://127.0.0.1:18790";
 const runtimeHostApi = import.meta.env.VITE_HOST_API?.trim();
 const runtimeIdentityApi = import.meta.env.VITE_IDENTITY_API?.trim();
 const runtimeDaemonApi = import.meta.env.VITE_DAEMON_API?.trim();
+
+const listeners = new Set<() => void>();
 
 /** True when this tab is served from the same machine it can reach on loopback. */
 export function pageIsLoopback(
@@ -99,6 +101,17 @@ export function loadSettings(): PagesSettings {
   return loadPersisted();
 }
 
+function emitSettings(): void {
+  for (const listener of listeners) listener();
+}
+
+export function subscribeSettings(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 export function saveSettings(next: PagesSettings): void {
   const defaults = defaultsForPage();
   const persisted: PersistedSettings = {
@@ -108,6 +121,34 @@ export function saveSettings(next: PagesSettings): void {
     tursoUrl: next.tursoUrl?.trim() ?? "",
   };
   kvSet(PERSIST_KEY, JSON.stringify(persisted));
+  emitSettings();
+}
+
+/** Persist pairing and wait for OPFS so a reload in this browser keeps Host. */
+export async function saveSettingsDurable(next: PagesSettings): Promise<void> {
+  const defaults = defaultsForPage();
+  const persisted: PersistedSettings = {
+    hostApi: next.hostApi.trim() || defaults.hostApi,
+    identityApi: next.identityApi.trim() || defaults.identityApi,
+    daemonApi: next.daemonApi.trim() || defaults.daemonApi,
+    tursoUrl: next.tursoUrl?.trim() ?? "",
+  };
+  await kvSetDurable(PERSIST_KEY, JSON.stringify(persisted));
+  emitSettings();
+}
+
+/**
+ * Host/daemon already pointed at a reachable-from-github.io endpoint — do not
+ * demand "Connect this machine" again until the operator clears Settings.
+ */
+export function hasRemoteHostPairing(
+  settings: PagesSettings = loadSettings(),
+): boolean {
+  const host = settings.hostApi.trim();
+  if (host && !isLoopbackUrl(host)) return true;
+  const daemon = settings.daemonApi.trim();
+  if (!daemon || isLoopbackUrl(daemon)) return false;
+  return normalizeTailnetBase(daemon) !== null;
 }
 
 /** Auto-connect Identity only when this page can actually reach it. */

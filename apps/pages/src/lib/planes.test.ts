@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { classifyHost, classifyIdentity, hostStatusLabel } from "./planes.js";
+import {
+  classifyHost,
+  classifyIdentity,
+  hostStatusLabel,
+  needsHostPairing,
+} from "./planes.js";
 
 describe("plane status", () => {
   it("calls a reachable Host live even on loopback", () => {
@@ -11,6 +16,13 @@ describe("plane status", () => {
       "loopback",
     );
     expect(hostStatusLabel("loopback")).toBe("Host not on this page");
+  });
+
+  it("keeps a configured Host pending while the first probe runs", () => {
+    expect(classifyHost("https://box.tail123.ts.net/host", "unknown")).toBe(
+      "pending",
+    );
+    expect(hostStatusLabel("pending")).toBe("Host checking");
   });
 
   it("calls a public Host that does not answer down", () => {
@@ -26,5 +38,32 @@ describe("plane status", () => {
     expect(classifyIdentity(false, "reachable")).toBe("none");
     expect(classifyIdentity(true, "unreachable")).toBe("connected");
     expect(classifyIdentity(false, "unreachable")).toBe("down");
+  });
+
+  it("does not demand Connect again once Host is live or still checking", () => {
+    expect(
+      needsHostPairing({
+        host: "live",
+        hostBase: "https://box.tail123.ts.net/host",
+        identity: "none",
+        identityBase: "https://box.tail123.ts.net/identity",
+      }),
+    ).toBe(false);
+    expect(
+      needsHostPairing({
+        host: "pending",
+        hostBase: "https://box.tail123.ts.net/host",
+        identity: "down",
+        identityBase: "https://box.tail123.ts.net/identity",
+      }),
+    ).toBe(false);
+    expect(
+      needsHostPairing({
+        host: "unset",
+        hostBase: "",
+        identity: "down",
+        identityBase: "",
+      }),
+    ).toBe(true);
   });
 });

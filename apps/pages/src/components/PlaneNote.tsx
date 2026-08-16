@@ -6,6 +6,7 @@ import {
   PAGES_CANNOT_HOST,
   hostStatusLabel,
   identityStatusLabel,
+  needsHostPairing,
   usePlaneStatus,
 } from "../lib/planes.js";
 import {
@@ -27,7 +28,7 @@ export function RailPlaneStatus() {
   return (
     <p className="rail__status">
       <span
-        className={`dot ${status.host === "live" ? "dot--ok" : "dot--warn"}`}
+        className={`dot ${status.host === "live" || status.host === "pending" ? "dot--ok" : "dot--warn"}`}
         aria-hidden="true"
       />
       <span>{hostStatusLabel(status.host)}</span>
@@ -53,10 +54,10 @@ export function ConnectThisMachine({
     health: Awaited<ReturnType<typeof probeDaemon>>,
     via: string,
   ) {
-    applyDaemonPairing(via, health);
+    await applyDaemonPairing(via, health);
     setDaemonApi(health.tailscaleUrl || via);
     setMessage(
-      `Paired via ${health.tailscaleUrl || via}. Host ${health.hostApi}.`,
+      `Paired via ${health.tailscaleUrl || via}. Host ${loadSettings().hostApi}.`,
     );
     onPaired?.();
     // Never block pairing on Identity — cross-origin /v1/principals/me used to
@@ -189,26 +190,27 @@ export function PagesCannotHostNote({
   ceremony: string;
 }) {
   const status = usePlaneStatus();
-  if (status.host === "live" && status.identity === "connected") return null;
-  if (
-    status.host === "unset" ||
-    (!pageIsLoopback() && status.host === "loopback")
-  ) {
-    return <ConnectThisMachine />;
+  // Host plane is ready (or still probing a saved pairing) — do not ask again.
+  if (status.host === "live" || status.host === "pending") return null;
+  if (!needsHostPairing(status)) {
+    if (status.host === "down") {
+      return (
+        <output className="note note--warn">
+          <IconAlert />
+          <div>
+            <p>
+              {ceremony} needs the Host API. {PAGES_CANNOT_HOST}
+            </p>
+            <p>
+              Configured Host: <code>{status.hostBase || "none"}</code> (
+              {hostStatusLabel(status.host).toLowerCase()}).{" "}
+              <Link to="/settings">Change it in Settings</Link>.
+            </p>
+          </div>
+        </output>
+      );
+    }
+    return null;
   }
-  return (
-    <output className="note note--warn">
-      <IconAlert />
-      <div>
-        <p>
-          {ceremony} needs the Host API. {PAGES_CANNOT_HOST}
-        </p>
-        <p>
-          Configured Host: <code>{status.hostBase || "none"}</code> (
-          {hostStatusLabel(status.host).toLowerCase()}).{" "}
-          <Link to="/settings">Change it in Settings</Link>.
-        </p>
-      </div>
-    </output>
-  );
+  return <ConnectThisMachine />;
 }
