@@ -92,6 +92,13 @@ cargo build -p opensesame-gateway -p opensesame-cli -p opensesame-daemon
 ./target/debug/opensesame-daemon --listen 127.0.0.1:18790
 ./target/debug/opensesame daemon status
 ./target/debug/opensesame login --flow device --no-browser --server http://127.0.0.1:8787
+
+# Sealed store (pass parity; never agent-facing reveal)
+./target/debug/opensesame init --sealed-store --path ~/.password-store
+./target/debug/opensesame insert Dev/api-token
+./target/debug/opensesame show Dev/api-token --reveal
+./target/debug/opensesame ls
+./target/debug/opensesame generate Dev/new --length 32
 ```
 
 **Pages (offline PWA) dev server:**
@@ -99,6 +106,7 @@ cargo build -p opensesame-gateway -p opensesame-cli -p opensesame-daemon
 pnpm --filter @opensesame/pages dev   # vite --port 5180 --strictPort
 ```
 
+Sealed-store Settings bridge: export/import a path manifest in Pages, then seal with the CLI before git.
 ## 4. Layout map
 
 | Path | Role |
@@ -106,7 +114,9 @@ pnpm --filter @opensesame/pages dev   # vite --port 5180 --strictPort
 | `crates/core`, `crates/host-core`, `crates/client-core` | WIT/Wasm polyglot core + product-SDK facades |
 | `apps/gateway` | Host API, `:8787` (`opensesame-gateway`) |
 | `apps/daemon` | Local host agent, `:18790` (`opensesame-daemon`) |
-| `apps/cli` | Host CLI, binary `opensesame` (`opensesame-cli`) |
+| `apps/cli` | Host CLI, binary `opensesame` (`opensesame-cli`) — includes sealed-store verbs |
+| `crates/sealed-store` | Git-native hierarchical sealed secret store (`pass` parity) |
+| `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store |
 | `apps/toolbar` | Daemon control stub (`opensesame-toolbar`) |
 | `apps/credential-agent` | Legacy credential agent (`opensesame-credential-agent`) |
 | `apps/callback-edge` | Edge callback service (`opensesame-callback-edge`) |

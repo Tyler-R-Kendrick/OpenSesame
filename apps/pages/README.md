@@ -98,6 +98,14 @@ configures remote Identity and Host addresses in **Settings** because static hos
 run either plane. Every section degrades to an honest disconnected state rather than pretending.
 
 Sample data is opt-in from Settings, badged in the UI, and removable in one action.
+
+## Git sealed store
+
+**Settings → Git sealed store** exports or imports a path manifest that maps vault
+items to `pass`-style paths (`Folder/name`). Seal those values with the Host CLI
+(`opensesame insert` / `show`) before committing ciphertext to git. Agents never
+see the manifest — they use ConnectionRefs only (ADR 0005 / 0037).
+
 ## Browser database
 
 The connector catalog opens `opensesame-connectors.db` directly in the PWA

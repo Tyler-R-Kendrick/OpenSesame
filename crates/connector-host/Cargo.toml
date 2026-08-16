@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 opensesame-domain = { path = "../domain" }
+opensesame-sealed-store = { path = "../sealed-store" }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

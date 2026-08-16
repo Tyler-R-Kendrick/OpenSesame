@@ -20,6 +20,11 @@ import {
   buildSample,
   sampleFolder,
 } from "../lib/vault/sample.js";
+import {
+  entriesToVaultItems,
+  vaultItemToEntry,
+  type StorePlainEntry,
+} from "../lib/vault/store-sync.js";
 import { ImportPanel } from "./settings/ImportPanel.js";
 import "./settings.css";
 
@@ -86,6 +91,74 @@ export function SettingsSection() {
     text: string;
   } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const storeFileRef = useRef<HTMLInputElement>(null);
+
+  function exportStoreManifest() {
+    try {
+      const active = items.filter((item) => item.deletedAt === null);
+      const entries = active.map((item) => vaultItemToEntry(item, folders));
+      const text = `${JSON.stringify(entries, null, 2)}\n`;
+      const url = URL.createObjectURL(
+        new Blob([text], { type: "application/json" }),
+      );
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `opensesame-store-manifest-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setDataMessage({
+        tone: "ok",
+        text: "Downloaded a plaintext path manifest for the unlocked vault. Seal it with `opensesame insert` / your store tooling — do not commit this file.",
+      });
+    } catch (caught) {
+      setDataMessage({
+        tone: "err",
+        text: caught instanceof Error ? caught.message : "Export failed.",
+      });
+    }
+  }
+
+  async function importStoreManifest(file: File) {
+    setDataMessage(null);
+    try {
+      const parsed = JSON.parse(await file.text()) as StorePlainEntry[];
+      if (!Array.isArray(parsed)) {
+        throw new Error("Expected a JSON array of store entries.");
+      }
+      const { items: incoming, folders: plannedFolders } = entriesToVaultItems(
+        parsed,
+        folders,
+      );
+      const nameToId = new Map(
+        folders.map((f) => [f.name.trim().toLowerCase(), f.id] as const),
+      );
+      for (const folder of plannedFolders) {
+        const key = folder.name.trim().toLowerCase();
+        if (nameToId.has(key)) continue;
+        const created = await store.addFolder(folder.name);
+        nameToId.set(key, created.id);
+      }
+      const remapped = incoming.map((item) => {
+        if (!item.folderId) return item;
+        const planned = plannedFolders.find((f) => f.id === item.folderId);
+        if (!planned) return item;
+        const id = nameToId.get(planned.name.trim().toLowerCase());
+        return id ? { ...item, folderId: id } : item;
+      });
+      await store.addItems(remapped);
+      setDataMessage({
+        tone: "ok",
+        text: `Merged ${remapped.length} sealed-store ${remapped.length === 1 ? "entry" : "entries"} into this device vault.`,
+      });
+    } catch (caught) {
+      setDataMessage({
+        tone: "err",
+        text: caught instanceof Error ? caught.message : "Import failed.",
+      });
+    } finally {
+      if (storeFileRef.current) storeFileRef.current.value = "";
+    }
+  }
 
   const [newFolder, setNewFolder] = useState("");
   const [confirmDestroy, setConfirmDestroy] = useState(false);
@@ -580,6 +653,51 @@ export function SettingsSection() {
       </section>
 
       <ImportPanel />
+
+      <section className="panel">
+        <div className="panel__head">
+          <div>
+            <h2>Git sealed store</h2>
+            <p>
+              Bridge this device vault with an{" "}
+              <code>opensesame</code> sealed store (
+              <code>~/.password-store</code> or{" "}
+              <code>OPENSESAME_STORE_DIR</code>). Manifests are plaintext while
+              unlocked — seal them with the CLI before committing to git. Agents
+              never receive these values; they use ConnectionRefs only.
+            </p>
+          </div>
+        </div>
+        <div className="panel__body">
+          <div className="actions">
+            <button type="button" className="btn" onClick={exportStoreManifest}>
+              <IconDownload size={16} />
+              Download store path manifest
+            </button>
+            <input
+              ref={storeFileRef}
+              id="store-manifest-file"
+              type="file"
+              accept="application/json"
+              className="visually-hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void importStoreManifest(file);
+              }}
+            />
+            <label htmlFor="store-manifest-file" className="btn">
+              <IconUpload size={16} />
+              Import store path manifest
+            </label>
+          </div>
+          <p className="hint">
+            CLI:{" "}
+            <code>
+              opensesame init --sealed-store && opensesame insert …
+            </code>
+          </p>
+        </div>
+      </section>
 
       <section className="panel">
         <div className="panel__head">
