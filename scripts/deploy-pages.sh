@@ -97,6 +97,10 @@ if [ ! -d "$PAGES_DIST" ]; then
   exit 1
 fi
 
+# GitHub Pages has no SPA rewrite. Serving index.html as 404.html makes deep
+# links (/sites, /broker/authorize, …) load the app instead of a dead page.
+cp "$PAGES_DIST/index.html" "$PAGES_DIST/404.html"
+
 # --- 3. Prepare a temporary worktree checked out onto gh-pages -------------
 
 cleanup_worktree() {

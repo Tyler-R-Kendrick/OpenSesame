@@ -28,6 +28,21 @@ import {
   useConnect,
   useIdentitySession,
 } from "../lib/identity.js";
+import {
+  addDomainRule,
+  approveConsent,
+  loadBrokerPolicy,
+  loadConsents,
+  pagesPublicBase,
+  removeDomainRule,
+  revokeConsent,
+  setDomainRuleEffect,
+  staticSiteExplicitSnippet,
+  staticSiteSnippet,
+  type BrokerPolicy,
+  type DomainEffect,
+  type SiteConsent,
+} from "../lib/site-broker.js";
 import { useOnline } from "../lib/use-online.js";
 import "./sites.css";
 
@@ -333,6 +348,7 @@ export function SitesSection() {
   const online = useOnline();
   const { connecting, error: connectError, connect } = useConnect();
   const base = identityBase();
+  const brokerBase = pagesPublicBase();
 
   const [clients, setClients] = useState<OAuthClient[] | null>(null);
   const [clientsError, setClientsError] = useState<string | null>(null);
@@ -344,6 +360,7 @@ export function SitesSection() {
   const [snippetClientId, setSnippetClientId] = useState<string | null>(null);
   const [originInput, setOriginInput] = useState("");
   const [callbackPath, setCallbackPath] = useState("/callback");
+  const [showIdentityClients, setShowIdentityClients] = useState(false);
 
   const token = session?.accessToken ?? null;
   /**
@@ -450,58 +467,16 @@ export function SitesSection() {
     };
   }, [originInput, callbackPath]);
 
-  if (!session) {
-    return (
-      <div className="section__inner">
-        <SitesHead base={base} />
-        <div className="panel">
-          <div className="panel__body">
-            <div className="empty sites-connect">
-              <span className="empty__mark">
-                <IconSite />
-              </span>
-              <h3>Connect to manage your sites</h3>
-              <p>
-                Your clients, registrations, and sign-in events all live on the
-                Identity plane at <code>{base}</code>, and none of it can be
-                read without a session.
-              </p>
-              {online ? null : (
-                <p className="note note--warn">
-                  <IconAlert /> This browser is offline. Connecting needs a
-                  reachable Identity plane — reconnect and try again.
-                </p>
-              )}
-              {connectError ? (
-                <p className="note note--err">
-                  <IconAlert /> {errorText(connectError)} Check that the
-                  Identity API is running at <code>{base}</code>, or change the
-                  address under Settings.
-                </p>
-              ) : null}
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={() => void connect()}
-                disabled={connecting || !online}
-              >
-                {connecting ? "Connecting…" : "Connect a provisional session"}
-              </button>
-              <p className="hint">
-                Lists clients and reads your audit trail. Registering a new
-                client needs a verified identity.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="section__inner">
-      <SitesHead base={base} />
-      <PagesCannotHostNote ceremony="Site claim and client registration" />
+      <SitesHead brokerBase={brokerBase} />
+
+      <StaticAuthPanel
+        brokerBase={brokerBase}
+        originInput={originInput}
+        onOriginInput={setOriginInput}
+        onFlash={setFlash}
+      />
 
       {flash ? (
         <output className={`note note--${flash.tone} sites-flash`}>
@@ -518,60 +493,538 @@ export function SitesSection() {
         </output>
       ) : null}
 
-      <ClientsPanel
-        clients={clients}
-        activeClients={activeClients}
-        loading={loadingClients}
-        error={clientsError}
-        online={online}
-        onRefresh={() => void refresh()}
-        onFlash={setFlash}
-        onUseSnippet={setSnippetClientId}
-        afterMutation={() => void refresh()}
-      />
+      <div className="panel">
+        <div className="panel__head sites-identity-toggle">
+          <div>
+            <h2>Identity-plane clients</h2>
+            <p className="hint" style={{ margin: "0.25rem 0 0" }}>
+              Optional. Register public OAuth clients on a live Identity API
+              when you need an issuer-minted token for the site itself — not
+              required for Shoo-style static hosting via the broker above.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn--sm"
+            onClick={() => setShowIdentityClients((v) => !v)}
+            aria-expanded={showIdentityClients}
+          >
+            {showIdentityClients ? "Hide" : "Show"}
+          </button>
+        </div>
+      </div>
 
-      <RegisterPanel
-        assurance={assurance}
-        online={online}
-        originInput={originInput}
-        onOriginInput={setOriginInput}
-        callbackPath={callbackPath}
-        onCallbackPath={setCallbackPath}
-        onFlash={setFlash}
-        onRegistered={(client) => {
-          setSnippetClientId(client.id);
-          void refresh();
-        }}
-      />
+      {showIdentityClients ? (
+        <>
+          <PagesCannotHostNote ceremony="Site claim and client registration" />
+          {!session ? (
+            <div className="panel">
+              <div className="panel__body">
+                <div className="empty sites-connect">
+                  <span className="empty__mark">
+                    <IconSite />
+                  </span>
+                  <h3>Connect Identity to manage registered clients</h3>
+                  <p>
+                    Client registration and audit events live on the Identity
+                    plane at <code>{base}</code>. Static-site broker auth above
+                    works without this.
+                  </p>
+                  {online ? null : (
+                    <p className="note note--warn">
+                      <IconAlert /> This browser is offline. Connecting needs a
+                      reachable Identity plane — reconnect and try again.
+                    </p>
+                  )}
+                  {connectError ? (
+                    <p className="note note--err">
+                      <IconAlert /> {errorText(connectError)} Check that the
+                      Identity API is running at <code>{base}</code>, or change
+                      the address under Settings.
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => void connect()}
+                    disabled={connecting || !online}
+                  >
+                    {connecting
+                      ? "Connecting…"
+                      : "Connect a provisional session"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <ClientsPanel
+                clients={clients}
+                activeClients={activeClients}
+                loading={loadingClients}
+                error={clientsError}
+                online={online}
+                onRefresh={() => void refresh()}
+                onFlash={setFlash}
+                onUseSnippet={setSnippetClientId}
+                afterMutation={() => void refresh()}
+              />
 
-      <SnippetPanel
-        base={base}
-        client={snippetClient}
-        clients={activeClients}
-        draft={draft}
-        pinned={snippetClientId !== null}
-        onSelect={setSnippetClientId}
-      />
+              <RegisterPanel
+                assurance={assurance}
+                online={online}
+                originInput={originInput}
+                onOriginInput={setOriginInput}
+                callbackPath={callbackPath}
+                onCallbackPath={setCallbackPath}
+                onFlash={setFlash}
+                onRegistered={(client) => {
+                  setSnippetClientId(client.id);
+                  void refresh();
+                }}
+              />
 
-      <ActivityPanel
-        events={events}
-        error={eventsError}
-        clients={clients ?? []}
-      />
+              <SnippetPanel
+                base={base}
+                client={snippetClient}
+                clients={activeClients}
+                draft={draft}
+                pinned={snippetClientId !== null}
+                onSelect={setSnippetClientId}
+              />
+
+              <ActivityPanel
+                events={events}
+                error={eventsError}
+                clients={clients ?? []}
+              />
+            </>
+          )}
+        </>
+      ) : null}
     </div>
   );
 }
 
-function SitesHead({ base }: { base: string }) {
+function SitesHead({ brokerBase }: { brokerBase: string }) {
   return (
     <header className="section__head">
       <h1>Sites</h1>
       <p>
-        A static page adds a sign-in button and gets an OAuth 2.0
-        authorization-code flow with PKCE S256 against <code>{base}</code>, on a
-        public client pinned to that site&rsquo;s own origin.
+        Give a static site the same auth benefit as{" "}
+        <a href="https://shoo.dev" rel="noreferrer">
+          shoo.dev
+        </a>
+        : origin-derived client, PKCE to a trusted upstream, CORS token
+        exchange in the browser, and a pairwise subject — brokered from{" "}
+        <code>{brokerBase}</code> with no server of your own.
       </p>
     </header>
+  );
+}
+
+function StaticAuthPanel({
+  brokerBase,
+  originInput,
+  onOriginInput,
+  onFlash,
+}: {
+  brokerBase: string;
+  originInput: string;
+  onOriginInput: (value: string) => void;
+  onFlash: (flash: Flash) => void;
+}) {
+  const [consents, setConsents] = useState<SiteConsent[]>(() => loadConsents());
+  const [policy, setPolicy] = useState<BrokerPolicy>(() => loadBrokerPolicy());
+  const [domainDraft, setDomainDraft] = useState("");
+  const [draftEffect, setDraftEffect] = useState<DomainEffect>("whitelist");
+  const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [snippetTab, setSnippetTab] = useState<"declarative" | "explicit">(
+    "declarative",
+  );
+  const panelId = useId();
+
+  const siteOrigin = useMemo(() => {
+    const check = checkOrigin(originInput);
+    return check.ok ? check.origin : null;
+  }, [originInput]);
+
+  const snippet = useMemo(() => {
+    if (!siteOrigin) return null;
+    return snippetTab === "explicit"
+      ? staticSiteExplicitSnippet({ brokerBase, siteOrigin })
+      : staticSiteSnippet({ brokerBase, siteOrigin });
+  }, [brokerBase, siteOrigin, snippetTab]);
+
+  const refreshConsents = useCallback(() => {
+    setConsents(loadConsents());
+  }, []);
+
+  const addDomainEntry = (raw: string, effect: DomainEffect) => {
+    const result = addDomainRule(raw, effect);
+    if ("error" in result) {
+      onFlash({ tone: "err", text: result.error });
+      return;
+    }
+    setPolicy(result);
+    setDomainDraft("");
+    onFlash({
+      tone: "ok",
+      text: `Added ${raw.trim()} as ${effect}.`,
+    });
+  };
+
+  const preApprove = () => {
+    if (!siteOrigin) return;
+    approveConsent(siteOrigin, "openid");
+    refreshConsents();
+    onFlash({
+      tone: "ok",
+      text: `Remembered consent for ${siteOrigin}.`,
+    });
+  };
+
+  const copy = async () => {
+    if (!snippet) return;
+    try {
+      await navigator.clipboard.writeText(snippet);
+      setCopied(true);
+      setCopyError(null);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopyError("Could not copy — select the snippet and copy manually.");
+    }
+  };
+
+  const alreadyApproved =
+    siteOrigin !== null && consents.some((c) => c.origin === siteOrigin);
+
+  const hasWhitelist = policy.rules.some((r) => r.effect === "whitelist");
+
+  return (
+    <div className="panel">
+      <div className="panel__head">
+        <h2>Static site auth</h2>
+        <p className="hint" style={{ margin: "0.35rem 0 0" }}>
+          Paste the snippet on any static host. The site opens this OpenSesame
+          origin; you approve it once; the upstream <code>id_token</code> is
+          delivered by <code>postMessage</code> (never <code>&quot;*&quot;</code>
+          ). OpenSesame does not re-sign — GitHub Pages cannot hold a private
+          key.
+        </p>
+      </div>
+      <div className="panel__body sites-pad">
+        <div className="sites-policy-block">
+          <h3 className="sites-policy-title">Domain rules</h3>
+          <p className="hint" style={{ margin: "0 0 0.75rem" }}>
+            Each domain has its own whitelist / blacklist toggle. Blacklist
+            always blocks. If any domain is whitelisted, only whitelisted
+            domains may use the broker (blacklist still wins on a more specific
+            match). With no whitelist rows, the broker stays open except for
+            blacklisted domains.
+          </p>
+
+          <form
+            className="sites-domain-add"
+            onSubmit={(event) => {
+              event.preventDefault();
+              addDomainEntry(domainDraft, draftEffect);
+            }}
+          >
+            <label className="field" style={{ flex: 1, margin: 0 }}>
+              <span className="field__label">Domain</span>
+              <input
+                type="text"
+                className="input"
+                placeholder="example.com, localhost:5173, or https://app.example.com"
+                value={domainDraft}
+                onChange={(event) => setDomainDraft(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+            <div
+              className="sites-effect-toggle"
+              role="group"
+              aria-label="New domain effect"
+            >
+              <button
+                type="button"
+                className={
+                  draftEffect === "whitelist"
+                    ? "sites-effect is-on is-allow"
+                    : "sites-effect"
+                }
+                onClick={() => setDraftEffect("whitelist")}
+              >
+                Whitelist
+              </button>
+              <button
+                type="button"
+                className={
+                  draftEffect === "blacklist"
+                    ? "sites-effect is-on is-deny"
+                    : "sites-effect"
+                }
+                onClick={() => setDraftEffect("blacklist")}
+              >
+                Blacklist
+              </button>
+            </div>
+            <button type="submit" className="btn btn--sm btn--primary">
+              <IconPlus /> Add
+            </button>
+          </form>
+
+          {policy.rules.length === 0 ? (
+            <p className="hint" style={{ marginTop: "0.75rem" }}>
+              No domain rules. Broker is open to every origin.
+            </p>
+          ) : (
+            <ul className="sites-domain-list">
+              {policy.rules.map((rule) => (
+                <li key={rule.domain} className="sites-domain-row">
+                  <code>{rule.domain}</code>
+                  <div className="sites-domain-row__actions">
+                    <div
+                      className="sites-effect-toggle"
+                      role="group"
+                      aria-label={`Rule for ${rule.domain}`}
+                    >
+                      <button
+                        type="button"
+                        className={
+                          rule.effect === "whitelist"
+                            ? "sites-effect is-on is-allow"
+                            : "sites-effect"
+                        }
+                        onClick={() =>
+                          setPolicy(setDomainRuleEffect(rule.domain, "whitelist"))
+                        }
+                      >
+                        Whitelist
+                      </button>
+                      <button
+                        type="button"
+                        className={
+                          rule.effect === "blacklist"
+                            ? "sites-effect is-on is-deny"
+                            : "sites-effect"
+                        }
+                        onClick={() =>
+                          setPolicy(setDomainRuleEffect(rule.domain, "blacklist"))
+                        }
+                      >
+                        Blacklist
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--danger"
+                      onClick={() => {
+                        setPolicy(removeDomainRule(rule.domain));
+                        onFlash({
+                          tone: "ok",
+                          text: `Removed ${rule.domain}.`,
+                        });
+                      }}
+                    >
+                      <IconTrash />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {hasWhitelist ? (
+            <p className="note note--warn" style={{ marginTop: "0.75rem" }}>
+              <IconAlert /> Whitelist is active — unlisted domains cannot use
+              the broker.
+            </p>
+          ) : null}
+        </div>
+
+        <label className="field">
+          <span className="field__label">Site origin (snippet)</span>
+          <input
+            type="url"
+            className="input"
+            placeholder="https://example.com or http://localhost:5173"
+            value={originInput}
+            onChange={(event) => onOriginInput(event.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
+
+        {siteOrigin ? (
+          <div className="sites-toolbar" style={{ marginBottom: "0.75rem" }}>
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={() => addDomainEntry(siteOrigin, "whitelist")}
+            >
+              <IconPlus /> Whitelist this origin
+            </button>
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={preApprove}
+              disabled={alreadyApproved}
+            >
+              {alreadyApproved ? "Consent remembered" : "Remember consent"}
+            </button>
+          </div>
+        ) : null}
+
+        {!snippet ? (
+          <div className="empty">
+            <span className="empty__mark">
+              <IconSite />
+            </span>
+            <h3>Enter the site origin</h3>
+            <p>
+              Use the exact origin the browser will report — including port for
+              localhost. Each port is approved separately for consent.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="sites-toolbar">
+              <div
+                className="sites-tabs"
+                role="tablist"
+                aria-label="Integration snippet"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={snippetTab === "declarative"}
+                  aria-controls={panelId}
+                  className={
+                    snippetTab === "declarative" ? "sites-tab is-on" : "sites-tab"
+                  }
+                  onClick={() => setSnippetTab("declarative")}
+                >
+                  Declarative
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={snippetTab === "explicit"}
+                  aria-controls={panelId}
+                  className={
+                    snippetTab === "explicit" ? "sites-tab is-on" : "sites-tab"
+                  }
+                  onClick={() => setSnippetTab("explicit")}
+                >
+                  Explicit JS
+                </button>
+              </div>
+              <button
+                type="button"
+                className="btn btn--sm sites-copy"
+                onClick={() => void copy()}
+              >
+                {copied ? <IconCheck /> : <IconCopy />}{" "}
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+            <pre
+              className="sites-code"
+              id={panelId}
+              role="tabpanel"
+              aria-label={
+                snippetTab === "declarative"
+                  ? "Declarative snippet"
+                  : "Explicit JS snippet"
+              }
+              // biome-ignore lint/a11y/noNoninteractiveTabindex: scrollable snippet
+              tabIndex={0}
+            >
+              <code>{snippet}</code>
+            </pre>
+            {copyError ? (
+              <p className="note note--err" role="alert">
+                <IconAlert /> {copyError}
+              </p>
+            ) : null}
+            <p className="hint">
+              Script URL: <code>{`${brokerBase}auth.js`}</code>. Broker:{" "}
+              <code>{`${brokerBase}broker/authorize`}</code>. Prefer{" "}
+              <code>OpenSesame.acceptSession</code> (or{" "}
+              <code>signInAndAccept</code> /{" "}
+              <code>data-opensesame-verify=&quot;true&quot;</code>) so the RP
+              verifies upstream JWKS with audience{" "}
+              <code>{`origin:${typeof location !== "undefined" ? location.origin : "…"}`}</code>{" "}
+              and derives{" "}
+              <code>sha256(pairwise_sub + &quot;:&quot; + siteOrigin)</code>.
+            </p>
+          </>
+        )}
+
+        <ApprovedOrigins
+          consents={consents}
+          onRevoke={(origin) => {
+            revokeConsent(origin);
+            refreshConsents();
+            onFlash({
+              tone: "ok",
+              text: `Revoked broker consent for ${origin}.`,
+            });
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ApprovedOrigins({
+  consents,
+  onRevoke,
+}: {
+  consents: SiteConsent[];
+  onRevoke: (origin: string) => void;
+}) {
+  if (consents.length === 0) {
+    return (
+      <p className="hint" style={{ marginTop: "1.25rem" }}>
+        No site origins approved yet. The first sign-in from a site prompts you
+        in the broker popup; approvals are remembered here and revocable.
+      </p>
+    );
+  }
+
+  return (
+    <div className="sites-approved" style={{ marginTop: "1.25rem" }}>
+      <h3 style={{ margin: "0 0 0.5rem", fontSize: "0.9375rem" }}>
+        Remembered consents
+      </h3>
+      <ul className="sites-list">
+        {consents.map((consent) => (
+          <li key={consent.origin} className="sites-client">
+            <div className="sites-client__top">
+              <div className="sites-client__title">
+                <h3>{consent.origin}</h3>
+                <p className="sites-client__id">
+                  scopes {consent.scopes.join(" ")} · approved{" "}
+                  {new Date(consent.approvedAt).toLocaleString()}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn--sm btn--danger"
+                onClick={() => onRevoke(consent.origin)}
+              >
+                <IconTrash /> Revoke
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

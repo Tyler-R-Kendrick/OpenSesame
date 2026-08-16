@@ -1,5 +1,11 @@
-import { loadSettings, saveSettings, shippedDaemonApi } from "./settings.js";
-import { normalizeTailnetBase } from "./urls.js";
+import { localNetworkFetch } from "./local-network-fetch.js";
+import {
+  loadSettings,
+  pageIsLoopback,
+  saveSettingsDurable,
+  shippedDaemonApi,
+} from "./settings.js";
+import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
 
 export type DaemonHealth = {
   status: string;
@@ -9,7 +15,7 @@ export type DaemonHealth = {
   tailscaleUrl: string | null;
 };
 
-const PROBE_MS = 2500;
+const PROBE_MS = 4000;
 
 export async function probeDaemon(
   raw: string = loadSettings().daemonApi || shippedDaemonApi,
@@ -18,9 +24,9 @@ export async function probeDaemon(
   if (!base) {
     throw new Error("That daemon address is not one this page may call.");
   }
-  const res = await fetch(`${base}/health`, {
+  const res = await localNetworkFetch(`${base}/health`, {
     credentials: "omit",
-    signal: AbortSignal.timeout(PROBE_MS),
+    timeoutMs: PROBE_MS,
   });
   if (!res.ok) {
     throw new Error(`Daemon ${res.status} at ${base}`);
@@ -53,17 +59,43 @@ export async function probeDaemon(
   };
 }
 
-/** Remember the daemon and the Host/Identity it advertised. */
-export function applyDaemonPairing(
+/**
+ * Remember the daemon and Host/Identity bases for this browser.
+ *
+ * From github.io, always pin Host/Identity to the Serve base we paired with.
+ * The daemon may still advertise loopback upstreams that this page cannot call.
+ */
+export async function applyDaemonPairing(
   daemonApi: string,
   health: DaemonHealth,
-): void {
+): Promise<void> {
   const current = loadSettings();
-  const publicBase = health.tailscaleUrl || daemonApi;
-  saveSettings({
+  const publicBase =
+    normalizeTailnetBase(health.tailscaleUrl || daemonApi) ||
+    normalizeTailnetBase(daemonApi);
+
+  let hostApi = health.hostApi.trim();
+  let identityApi = health.identityApi.trim();
+  let savedDaemon = publicBase || daemonApi.trim();
+
+  if (publicBase && !isLoopbackUrl(publicBase)) {
+    const root = publicBase.replace(/\/$/, "");
+    hostApi = `${root}/host`;
+    identityApi = `${root}/identity`;
+    savedDaemon = root;
+  } else if (!pageIsLoopback()) {
+    // Never persist loopback Host endpoints on a remote page — that forces
+    // "Connect this machine" on every navigation.
+    if (!hostApi || isLoopbackUrl(hostApi)) hostApi = current.hostApi;
+    if (!identityApi || isLoopbackUrl(identityApi)) {
+      identityApi = current.identityApi;
+    }
+  }
+
+  await saveSettingsDurable({
     ...current,
-    daemonApi: publicBase,
-    hostApi: health.hostApi,
-    identityApi: health.identityApi,
+    daemonApi: savedDaemon,
+    hostApi,
+    identityApi,
   });
 }

@@ -7,7 +7,12 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { probeDaemon } from "./daemon.js";
+import { localNetworkFetch } from "./local-network-fetch.js";
 import { loadSettings } from "./settings.js";
+
+const IDENTITY_FETCH_MS = 8000;
+const PROBE_MS = 4000;
 
 export type Principal = {
   id: string;
@@ -129,8 +134,9 @@ function setOrphan(next: boolean): void {
 /** Does the cookie alone still authenticate? `whenUnreachable` breaks the tie. */
 async function cookieAuthenticates(whenUnreachable: boolean): Promise<boolean> {
   try {
-    const res = await fetch(`${identityBase()}/v1/principals/me`, {
+    const res = await localNetworkFetch(`${identityBase()}/v1/principals/me`, {
       credentials: "include",
+      timeoutMs: PROBE_MS,
     });
     return res.ok;
   } catch {
@@ -169,9 +175,10 @@ export function endSession(): void {
 }
 
 function revokeRequest(bearer?: string): Promise<Response> {
-  return fetch(`${identityBase()}/v1/principals/provisional/revoke`, {
+  return localNetworkFetch(`${identityBase()}/v1/principals/provisional/revoke`, {
     method: "POST",
     credentials: "include",
+    timeoutMs: IDENTITY_FETCH_MS,
     ...(bearer ? { headers: { authorization: `Bearer ${bearer}` } } : {}),
   });
 }
@@ -250,7 +257,7 @@ async function mintHostSession(
   const unchanged = () =>
     currentSession()?.accessToken === identity.accessToken;
   const hostApi = hostBase();
-  const authorize = await fetch(`${hostApi}/api/v1/device/authorize`, {
+  const authorize = await localNetworkFetch(`${hostApi}/api/v1/device/authorize`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     credentials: "omit",
@@ -258,6 +265,7 @@ async function mintHostSession(
       client_id: "opensesame-pages",
       scope: "opensesame.session",
     }),
+    timeoutMs: IDENTITY_FETCH_MS,
   });
   if (!authorize.ok) {
     throw await hostSessionFailure(authorize, "Host session request failed");
@@ -297,7 +305,7 @@ async function mintHostSession(
     );
   }
 
-  const token = await fetch(`${hostApi}/api/v1/device/token`, {
+  const token = await localNetworkFetch(`${hostApi}/api/v1/device/token`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     credentials: "omit",
@@ -305,6 +313,7 @@ async function mintHostSession(
       device_code: grant.device_code,
       grant_type: "urn:ietf:params:oauth:grant-type:device_code",
     }),
+    timeoutMs: IDENTITY_FETCH_MS,
   });
   if (!token.ok) {
     throw await hostSessionFailure(token, "Host session exchange failed");
@@ -381,10 +390,11 @@ export async function hostFetch(
   if (init.body && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
-  const response = await fetch(`${hostBase()}${path}`, {
+  const response = await localNetworkFetch(`${hostBase()}${path}`, {
     ...init,
     headers,
     credentials: "omit",
+    timeoutMs: IDENTITY_FETCH_MS,
   });
   if (response.status === 401) clearHostSession();
   return response;
@@ -412,13 +422,14 @@ export async function identityFetch(
   if (init.body && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
-  const res = await fetch(`${identityBase()}${path}`, {
+  const res = await localNetworkFetch(`${identityBase()}${path}`, {
     ...init,
     headers,
     // An adopted token stands alone. Sending a cookie beside it would let a
     // survivor answer once the bearer is refused, running every ceremony as a
     // principal other than the one on screen — and hiding the refusal.
     credentials: active?.adopted ? "omit" : "include",
+    timeoutMs: IDENTITY_FETCH_MS,
   });
   if (res.status === 401 && active) noteUnauthorized();
   return res;
@@ -464,12 +475,12 @@ export async function connectProvisional(): Promise<IdentitySession> {
   if (!issuer) {
     throw new IdentityError("No Identity API is configured.", 0);
   }
-  const res = await fetch(`${issuer}/v1/principals/provisional`, {
+  const res = await localNetworkFetch(`${issuer}/v1/principals/provisional`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     credentials: "include",
     body: "{}",
-    signal: AbortSignal.timeout(8000),
+    timeoutMs: IDENTITY_FETCH_MS,
   });
   if (!res.ok) throw new IdentityError(await readError(res), res.status);
   const body = (await res.json()) as {
@@ -501,8 +512,9 @@ export async function connectProvisional(): Promise<IdentitySession> {
 async function resumeCookieSession(): Promise<IdentitySession | null> {
   if (session) return session;
   try {
-    const res = await fetch(`${identityBase()}/v1/principals/me`, {
+    const res = await localNetworkFetch(`${identityBase()}/v1/principals/me`, {
       credentials: "include",
+      timeoutMs: PROBE_MS,
     });
     if (!res.ok) return null;
     const body = (await res.json()) as { id?: unknown };
@@ -533,9 +545,10 @@ export async function adoptToken(accessToken: string): Promise<void> {
   // Prove the token itself works, with the cookie deliberately withheld. A
   // mistyped token would otherwise appear to work by riding a leftover cookie,
   // and every ceremony would run as the wrong principal.
-  const res = await fetch(`${identityBase()}/v1/principals/me`, {
+  const res = await localNetworkFetch(`${identityBase()}/v1/principals/me`, {
     headers: { authorization: `Bearer ${token}` },
     credentials: "omit",
+    timeoutMs: IDENTITY_FETCH_MS,
   });
   if (!res.ok) throw new IdentityError(await readError(res), res.status);
   const me = (await res.json()) as { id?: string };
@@ -561,15 +574,31 @@ export async function fetchPrincipal(): Promise<Principal> {
 
 export type HealthState = "unknown" | "reachable" | "unreachable";
 
-const PROBE_MS = 2500;
+/** True when Host API is the daemon's `/host` Serve proxy (paired node). */
+export function hostRoutedViaDaemon(hostApi: string, daemonApi: string): boolean {
+  const host = hostApi.trim().replace(/\/$/, "");
+  const daemon = daemonApi.trim().replace(/\/$/, "");
+  if (!host || !daemon) return false;
+  if (host === `${daemon}/host`) return true;
+  try {
+    const hostUrl = new URL(host);
+    const daemonUrl = new URL(daemon);
+    return (
+      hostUrl.origin === daemonUrl.origin &&
+      hostUrl.pathname.replace(/\/$/, "") === "/host"
+    );
+  } catch {
+    return false;
+  }
+}
 
 export async function probeIdentity(): Promise<HealthState> {
   const base = identityBase();
   if (!base) return "unreachable";
   try {
-    const res = await fetch(`${base}/v1/health/live`, {
+    const res = await localNetworkFetch(`${base}/v1/health/live`, {
       credentials: "omit",
-      signal: AbortSignal.timeout(PROBE_MS),
+      timeoutMs: PROBE_MS,
     });
     return res.ok ? "reachable" : "unreachable";
   } catch {
@@ -577,18 +606,48 @@ export async function probeIdentity(): Promise<HealthState> {
   }
 }
 
+/**
+ * Host plane reachability for the rail / Authority cards.
+ *
+ * Prefer a direct Host API health check. When Settings point Host at the paired
+ * daemon's `/host` proxy, a live daemon counts as Host reachable — connecting
+ * the node must flip the indicator even if gateway isn't on the upstream port.
+ */
 export async function probeHost(): Promise<HealthState> {
   const base = hostBase();
   if (!base) return "unreachable";
-  try {
-    const res = await fetch(`${base}/api/v1/health`, {
-      credentials: "omit",
-      signal: AbortSignal.timeout(PROBE_MS),
-    });
-    return res.ok ? "reachable" : "unreachable";
-  } catch {
-    return "unreachable";
-  }
+  const daemon = loadSettings().daemonApi.trim();
+  const viaDaemon = Boolean(daemon && hostRoutedViaDaemon(base, daemon));
+
+  const directOk = (async () => {
+    // When Host is daemon-proxied, don't wait long on a dead upstream port.
+    const timeoutMs = viaDaemon ? 2000 : PROBE_MS;
+    for (const path of ["/api/v1/health", "/health/live"]) {
+      try {
+        const res = await localNetworkFetch(`${base}${path}`, {
+          credentials: "omit",
+          timeoutMs,
+        });
+        if (res.ok) return true;
+      } catch {
+        // try next path
+      }
+    }
+    return false;
+  })();
+
+  const daemonOk = (async () => {
+    if (!viaDaemon || !daemon) return false;
+    try {
+      const health = await probeDaemon(daemon);
+      return health.service === "opensesame-daemon";
+    } catch {
+      return false;
+    }
+  })();
+
+  const [okDirect, okDaemon] = await Promise.all([directOk, daemonOk]);
+  return okDirect || okDaemon ? "reachable" : "unreachable";
 }
 
 /** Live orphan-cookie state, so a failed revoke puts the warning back. */

@@ -248,7 +248,7 @@ export function VaultSection() {
                 ? "Search covers names, usernames, URLs, and visible custom fields — not concealed values."
                 : filter === "trash"
                   ? "Deleted items wait here until you purge them."
-                  : "Human items on this device: logins, passkeys, notes. Import from Bitwarden or 1Password, or authorize a Host connector instead."}
+                  : "Human items on this device: logins, passkeys, notes, and agent secrets. Import a .env or password export, or authorize a Host connector instead."}
             </p>
             {!query && filter !== "trash" ? (
               // On narrow screens the detail pane is not rendered, so this is
@@ -310,7 +310,7 @@ export function VaultWelcome() {
           <p>
             This store is for human items on this machine. Host connectors and
             agent grants live on the Host — they never appear here as secrets.
-            Chrome does not share its password file with this store.
+            Start with a .env import or add a login by hand.
           </p>
           <div className="actions">
             <Link className="btn btn--primary btn--sm" to="/vault/new/login">
@@ -321,10 +321,7 @@ export function VaultWelcome() {
                 manager, so the import is offered here and not only in Settings. */}
             <Link className="btn btn--sm" to="/settings#import">
               <IconUpload size={16} />
-              Import Chrome, Bitwarden, or 1Password
-            </Link>
-            <Link className="btn btn--sm" to="/connections">
-              Connect GitHub, Vercel, or Linear
+              Import
             </Link>
           </div>
         </div>

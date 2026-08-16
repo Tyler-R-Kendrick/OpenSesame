@@ -48,6 +48,8 @@ void (async () => {
     "settings.v1",
     "outbox.v1",
     "connections.firstRun.v1",
+    "site-broker.consents.v1",
+    "site-broker.policy.v1",
   ]);
   vaultStore.rehydrate();
 

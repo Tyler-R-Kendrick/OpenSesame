@@ -2,7 +2,7 @@
 
 const sw = globalThis as unknown as ServiceWorkerGlobalScope;
 
-const CACHE = "opensesame-pages-v1";
+const CACHE = "opensesame-pages-v3";
 // @ts-expect-error replaced by vite-plugin-pwa during the service-worker build
 const shell = self.__WB_MANIFEST.find(
   (entry: { url: string } | string) =>
@@ -10,8 +10,13 @@ const shell = self.__WB_MANIFEST.find(
 );
 const fallback = new URL("index.html", sw.registration.scope).href;
 
-function isolated(response: Response): Response {
+function isolated(response: Response, requestUrl: URL): Response {
   if (response.status === 0) return response;
+  // Broker popups must keep window.opener so postMessage can reach the RP
+  // (ADR 0034). COOP same-origin would null opener and break delivery.
+  if (requestUrl.pathname.includes("/broker/")) {
+    return response;
+  }
   const headers = new Headers(response.headers);
   headers.set("Cross-Origin-Embedder-Policy", "require-corp");
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
@@ -61,15 +66,23 @@ sw.addEventListener("fetch", (event) => {
     return;
   event.respondWith(
     (async () => {
+      const url = new URL(request.url);
       if (request.mode === "navigate") {
         try {
           const response = await fetch(request);
+          // GitHub Pages has no SPA rewrite: deep links 404. Serve the shell.
+          if (!response.ok) {
+            const cached = await caches.match(fallback);
+            if (cached) return isolated(cached, url);
+            const shellResponse = await fetch(fallback);
+            return isolated(shellResponse, url);
+          }
           const cache = await caches.open(CACHE);
           await cache.put(fallback, response.clone());
-          return isolated(response);
+          return isolated(response, url);
         } catch {
           const cached = await caches.match(fallback);
-          if (cached) return isolated(cached);
+          if (cached) return isolated(cached, url);
           throw new Error("offline shell unavailable");
         }
       }

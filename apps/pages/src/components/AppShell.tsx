@@ -22,11 +22,11 @@ import {
 import { RailPlaneStatus } from "./PlaneNote.js";
 
 const SECTIONS = [
+  { to: "/vault", label: "Vault", Icon: IconVault },
   { to: "/connections", label: "Connections", Icon: IconConnection },
   { to: "/agents", label: "Agents", Icon: IconAgent },
   { to: "/authority", label: "Authority", Icon: IconAuthority },
   { to: "/sites", label: "Sites", Icon: IconSite },
-  { to: "/vault", label: "This device", Icon: IconVault },
   { to: "/settings", label: "Settings", Icon: IconSettings },
 ] as const;
 

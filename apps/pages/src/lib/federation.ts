@@ -258,11 +258,17 @@ export function hasAuthResponse(search: string = location.search): boolean {
   return params.has("code") || params.has("error");
 }
 
+export type CompletedSignIn = {
+  identity: UpstreamIdentity;
+  /** In-app path to resume (e.g. broker/authorize query) after upstream return. */
+  returnTo?: string;
+};
+
 /**
  * Finish a redirect that `beginSignIn` started. Returns null when this load is
  * not an upstream response, so it is safe to call on every startup.
  */
-export async function completeSignIn(): Promise<UpstreamIdentity | null> {
+export async function completeSignIn(): Promise<CompletedSignIn | null> {
   const params = new URLSearchParams(location.search);
   const code = params.get("code");
   const error = params.get("error");
@@ -334,7 +340,7 @@ export async function completeSignIn(): Promise<UpstreamIdentity | null> {
 
   const identity = readIdentity(tokens.id_token, pending);
   saveSession(identity);
-  return identity;
+  return { identity, returnTo: pending.returnTo };
 }
 
 /**

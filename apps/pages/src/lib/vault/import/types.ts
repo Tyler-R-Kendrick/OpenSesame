@@ -11,6 +11,7 @@ import type { UriMatch } from "../model.js";
 
 export type SourceId =
   | "opensesame"
+  | "env-file"
   | "bitwarden-json"
   | "bitwarden-csv"
   | "1password-1pux"
@@ -63,7 +64,12 @@ export type DraftCard = DraftBase & {
 
 export type DraftNote = DraftBase & { kind: "note" };
 
-export type DraftItem = DraftLogin | DraftCard | DraftNote;
+export type DraftSecret = DraftBase & {
+  kind: "secret";
+  value: string;
+};
+
+export type DraftItem = DraftLogin | DraftCard | DraftNote | DraftSecret;
 
 /** A record the adapter understood but declined to import, and why. */
 export type SkippedRecord = { name: string; reason: string };
@@ -140,6 +146,13 @@ export function draftCard(name: string): DraftCard {
 
 export function draftNote(name: string): DraftNote {
   return emptyDraft("note", name);
+}
+
+export function draftSecret(name: string): DraftSecret {
+  return {
+    ...emptyDraft("secret", name),
+    value: "",
+  };
 }
 
 /** Drop empty values so a draft never carries a field of nothing. */

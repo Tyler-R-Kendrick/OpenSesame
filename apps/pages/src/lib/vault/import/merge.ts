@@ -175,6 +175,16 @@ export function planMerge(
       case "note":
         items.push({ ...base, kind: "note" });
         break;
+      case "secret":
+        items.push({
+          ...base,
+          kind: "secret",
+          value: draft.value,
+          ceiling: [],
+          grantees: [],
+          connectionRef: "",
+        });
+        break;
     }
   }
 

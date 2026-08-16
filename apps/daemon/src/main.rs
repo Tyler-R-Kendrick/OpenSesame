@@ -288,6 +288,44 @@ async fn main() -> anyhow::Result<()> {
     }
 
     tracing::info!(%listen, "daemon TCP listening");
+    let tcp_app = app.clone();
+    let tcp_handle = tokio::spawn(async move {
+        if let Err(e) = axum::serve(tcp, tcp_app).await {
+            tracing::error!(error = %e, "tcp serve failed");
+        }
+    });
+    // Accept before Windows loopback probes / Tailscale Serve target selection.
+    tokio::task::yield_now().await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    // When Windows cannot reach WSL via 127.0.0.1, Serve targets the eth IP —
+    // bind that address so the proxy has somewhere to dial.
+    if let Some(port) = tailscale::listen_port(&listen) {
+        if let Some(bridge) = tailscale::wsl_bridge_listen(port) {
+            if bridge != listen {
+                let bridge_app = app.clone();
+                match tokio::net::TcpListener::bind(&bridge).await {
+                    Ok(bridge_tcp) => {
+                        tracing::info!(
+                            %bridge,
+                            "daemon TCP listening (WSL↔Windows Tailscale bridge)"
+                        );
+                        tokio::spawn(async move {
+                            if let Err(e) = axum::serve(bridge_tcp, bridge_app).await {
+                                tracing::error!(error = %e, "wsl bridge serve failed");
+                            }
+                        });
+                    }
+                    Err(e) => tracing::warn!(
+                        %bridge,
+                        error = %e,
+                        "failed to bind WSL Tailscale bridge listen"
+                    ),
+                }
+            }
+        }
+    }
+
     let serve_listen = listen.clone();
     tokio::task::spawn_blocking(move || match tailscale::enable_serve(&serve_listen) {
         Ok(info) => tracing::info!(
@@ -298,7 +336,7 @@ async fn main() -> anyhow::Result<()> {
         ),
         Err(error) => tracing::warn!(%error, "tailscale serve not enabled"),
     });
-    axum::serve(tcp, app).await?;
+    tcp_handle.await?;
     Ok(())
 }
 
@@ -358,7 +396,11 @@ async fn proxy_loopback(base: &str, prefix: &str, req: Request) -> Response {
         Ok(bytes) => bytes,
         Err(_) => return StatusCode::PAYLOAD_TOO_LARGE.into_response(),
     };
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .connect_timeout(std::time::Duration::from_secs(2))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new());
     let mut forward = client.request(
         reqwest::Method::from_bytes(method.as_str().as_bytes()).unwrap_or(reqwest::Method::GET),
         &url,

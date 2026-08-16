@@ -25,7 +25,9 @@ describe("runtime endpoint defaults", () => {
   });
 
   it("auto-connects on loopback and refuses loopback Identity from github.io", async () => {
-    const { shouldAutoConnect } = await import("./settings.js");
+    const { shouldAutoConnect, hasRemoteHostPairing } = await import(
+      "./settings.js"
+    );
     expect(
       shouldAutoConnect(
         {
@@ -59,5 +61,21 @@ describe("runtime endpoint defaults", () => {
         "tyler-r-kendrick.github.io",
       ),
     ).toBe(true);
+    expect(
+      hasRemoteHostPairing({
+        hostApi: "https://box.tail123.ts.net/host",
+        identityApi: "https://box.tail123.ts.net/identity",
+        daemonApi: "https://box.tail123.ts.net",
+        tursoUrl: "",
+      }),
+    ).toBe(true);
+    expect(
+      hasRemoteHostPairing({
+        hostApi: "http://127.0.0.1:8787",
+        identityApi: "http://127.0.0.1:8788",
+        daemonApi: "http://127.0.0.1:18790",
+        tursoUrl: "",
+      }),
+    ).toBe(false);
   });
 });

@@ -14,6 +14,7 @@ import {
   firefoxCsv,
   genericCsv,
 } from "./formats/browsers.js";
+import { envFile } from "./formats/env.js";
 import {
   dashlaneCsv,
   keepassCsv,
@@ -40,12 +41,15 @@ export {
   parseCsvCells,
   readHeaderRow,
 } from "./csv.js";
+export { parseDotenv } from "./formats/env.js";
 
 /**
- * Order is the detection chain. Specific formats come before general ones, and
- * `genericCsv` is deliberately last because it accepts almost any CSV.
+ * Order is the detection chain. `.env` is first — the primary import for
+ * sealing Host/agent material. Specific password-manager formats follow;
+ * `genericCsv` is last because it accepts almost any CSV.
  */
 export const ADAPTERS: ImportAdapter[] = [
+  envFile,
   bitwardenJson,
   protonpassJson,
   onepasswordPux,
@@ -141,7 +145,7 @@ export function parseImport(
   const adapter = forced ? adapterFor(forced) : detectFormat(input);
   if (!adapter) {
     throw new ImportError(
-      "This does not look like an export from a password manager. If you know what it is, name the format and it will be read again.",
+      "This does not look like a .env file or a password-manager export. If you know the format, name it and the file will be read again.",
     );
   }
   const result = adapter.parse(input);
@@ -157,6 +161,7 @@ export type ImportSummary = {
   logins: number;
   cards: number;
   notes: number;
+  secrets: number;
   withTotp: number;
   withoutPassword: number;
   folders: string[];
@@ -167,6 +172,7 @@ export function summarise(items: DraftItem[]): ImportSummary {
   let logins = 0;
   let cards = 0;
   let notes = 0;
+  let secrets = 0;
   let withTotp = 0;
   let withoutPassword = 0;
 
@@ -177,6 +183,7 @@ export function summarise(items: DraftItem[]): ImportSummary {
       if (item.totp) withTotp += 1;
       if (!item.password) withoutPassword += 1;
     } else if (item.kind === "card") cards += 1;
+    else if (item.kind === "secret") secrets += 1;
     else notes += 1;
   }
 
@@ -184,6 +191,7 @@ export function summarise(items: DraftItem[]): ImportSummary {
     logins,
     cards,
     notes,
+    secrets,
     withTotp,
     withoutPassword,
     folders: [...folders].sort((a, b) => a.localeCompare(b)),
