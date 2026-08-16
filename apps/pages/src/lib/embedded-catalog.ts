@@ -1,4 +1,4 @@
-import parity from "../../../../fnox/connectors/fnox-parity.json";
+import parity from "../../../../connectors/fnox-parity.json";
 import type { Provider, ProviderCategory } from "./connections.js";
 import { loadSettings } from "./settings.js";
 
