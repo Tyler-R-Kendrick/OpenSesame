@@ -13,6 +13,7 @@ opensesame-authn = { path = "../../crates/authn" }
 opensesame-domain = { path = "../../crates/domain" }
 opensesame-env-spec = { path = "../../crates/env-spec" }
 opensesame-connector-host = { path = "../../crates/connector-host" }
+opensesame-sealed-store = { path = "../../crates/sealed-store" }
 anyhow = { workspace = true }
 clap = { workspace = true }
 reqwest = { workspace = true }

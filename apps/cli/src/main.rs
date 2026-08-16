@@ -1,4 +1,5 @@
 mod connect;
+mod store;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use opensesame_authn::{
@@ -128,10 +129,85 @@ enum Commands {
         #[arg(value_enum)]
         shell: CompletionShell,
     },
-    /// Initialize a native .env.schema without overwriting an existing file.
+    /// Initialize a native .env.schema without overwriting an existing file,
+    /// or a sealed password store with `--sealed-store`.
     Init {
         #[arg(long, default_value = ".env.schema")]
         schema: PathBuf,
+        /// Initialize a git-native sealed secret store instead of .env.schema.
+        #[arg(long)]
+        sealed_store: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long = "recipient", value_name = "RECIPIENT")]
+        recipients: Vec<String>,
+        #[arg(long, default_value_t = true)]
+        git: bool,
+    },
+    /// Insert a secret into the sealed store (human only).
+    Insert {
+        name: String,
+        #[arg(long)]
+        echo: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
+    /// Generate and insert a password into the sealed store.
+    Generate {
+        name: String,
+        #[arg(long, default_value_t = 32)]
+        length: usize,
+        #[arg(long)]
+        no_symbols: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
+    /// Show a sealed-store entry (requires TTY or `--reveal`).
+    Show {
+        name: String,
+        #[arg(long)]
+        reveal: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
+    /// List sealed-store entries.
+    Ls {
+        prefix: Option<String>,
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
+    /// Find sealed-store entries by name substring.
+    Find {
+        query: String,
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
+    /// Remove a sealed-store entry.
+    Rm {
+        name: String,
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
+    /// Copy a sealed-store entry.
+    Cp {
+        from: String,
+        to: String,
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
+    /// Move a sealed-store entry.
+    Mv {
+        from: String,
+        to: String,
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
+    /// Run git in the sealed-store root.
+    Git {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+        #[arg(long)]
+        path: Option<PathBuf>,
     },
     /// Interactive provider and connection browser (never reveals material).
     Tui,
@@ -479,7 +555,38 @@ async fn main() -> anyhow::Result<()> {
         Commands::Completion { shell } => {
             print!("{}", completion_script(shell));
         }
-        Commands::Init { schema } => init_schema(&schema)?,
+        Commands::Init {
+            schema,
+            sealed_store,
+            path,
+            recipients,
+            git,
+        } => {
+            if sealed_store {
+                store::cmd_init(path, recipients, git)?;
+            } else {
+                init_schema(&schema)?;
+            }
+        }
+        Commands::Insert { name, echo, path } => store::cmd_insert(name, echo, path)?,
+        Commands::Generate {
+            name,
+            length,
+            no_symbols,
+            path,
+        } => store::cmd_generate(name, length, no_symbols, path)?,
+        Commands::Show { name, reveal, path } => store::cmd_show(name, reveal, path)?,
+        Commands::Ls { prefix, path } => store::cmd_ls(prefix, path)?,
+        Commands::Find { query, path } => store::cmd_find(query, path)?,
+        Commands::Rm { name, path } => store::cmd_rm(name, path)?,
+        Commands::Cp { from, to, path } => store::cmd_cp(from, to, path)?,
+        Commands::Mv { from, to, path } => store::cmd_mv(from, to, path)?,
+        Commands::Git { args, path } => {
+            let code = store::cmd_git(args, path)?;
+            if code != 0 {
+                std::process::exit(code);
+            }
+        }
         Commands::Tui => tui(&cli.server).await?,
         Commands::Dev {
             cmd,

@@ -628,6 +628,12 @@ pub enum HumanProviderPlan {
         executable: String,
         args: Vec<String>,
     },
+    /// In-process sealed store (password-store / sealed-local). Never shells to `pass`.
+    SealedStore {
+        operation: HumanProviderOperation,
+        store_dir: PathBuf,
+        name: String,
+    },
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -1116,10 +1122,52 @@ pub fn human_plan(
             ],
         ),
         ("password-store", HumanProviderOperation::Read) => {
-            command("pass", vec!["show".into(), resource.into()])
+            let store_dir = public_config
+                .get("store_dir")
+                .and_then(Value::as_str)
+                .map(PathBuf::from)
+                .unwrap_or_else(opensesame_sealed_store::resolve_store_dir);
+            HumanProviderPlan::SealedStore {
+                operation: HumanProviderOperation::Read,
+                store_dir,
+                name: resource.into(),
+            }
         }
         ("password-store", HumanProviderOperation::List) => {
-            command("pass", vec!["ls".into(), resource.into()])
+            let store_dir = public_config
+                .get("store_dir")
+                .and_then(Value::as_str)
+                .map(PathBuf::from)
+                .unwrap_or_else(opensesame_sealed_store::resolve_store_dir);
+            HumanProviderPlan::SealedStore {
+                operation: HumanProviderOperation::List,
+                store_dir,
+                name: resource.into(),
+            }
+        }
+        ("sealed-local", HumanProviderOperation::Read) => {
+            let store_dir = public_config
+                .get("store_dir")
+                .and_then(Value::as_str)
+                .map(PathBuf::from)
+                .unwrap_or_else(opensesame_sealed_store::resolve_store_dir);
+            HumanProviderPlan::SealedStore {
+                operation: HumanProviderOperation::Read,
+                store_dir,
+                name: resource.into(),
+            }
+        }
+        ("sealed-local", HumanProviderOperation::List) => {
+            let store_dir = public_config
+                .get("store_dir")
+                .and_then(Value::as_str)
+                .map(PathBuf::from)
+                .unwrap_or_else(opensesame_sealed_store::resolve_store_dir);
+            HumanProviderPlan::SealedStore {
+                operation: HumanProviderOperation::List,
+                store_dir,
+                name: resource.into(),
+            }
         }
         ("keychain", HumanProviderOperation::Read) if cfg!(target_os = "macos") => command(
             "security",
@@ -1230,6 +1278,45 @@ pub fn execute_human_plan(plan: HumanProviderPlan) -> Result<String, ProviderExe
                 .map(|value| value.trim_end_matches(['\r', '\n']).to_owned())
                 .map_err(|_| ProviderExecutionError::InvalidOutput)
         }
+        HumanProviderPlan::SealedStore {
+            operation,
+            store_dir,
+            name,
+        } => execute_sealed_store(operation, &store_dir, &name),
+    }
+}
+
+fn execute_sealed_store(
+    operation: HumanProviderOperation,
+    store_dir: &Path,
+    name: &str,
+) -> Result<String, ProviderExecutionError> {
+    match operation {
+        HumanProviderOperation::List => {
+            let names = opensesame_sealed_store::list_names(store_dir, name).map_err(|e| {
+                ProviderExecutionError::Unavailable(format!("sealed-store list: {e}"))
+            })?;
+            Ok(names.join("\n"))
+        }
+        HumanProviderOperation::Read => {
+            let password = std::env::var("OPENSESAME_STORE_PASSWORD").map_err(|_| {
+                ProviderExecutionError::Unavailable(
+                    "OPENSESAME_STORE_PASSWORD required to unlock sealed store".into(),
+                )
+            })?;
+            let key = opensesame_sealed_store::unlock_store_key(store_dir, password.as_bytes())
+                .map_err(|e| ProviderExecutionError::Unavailable(format!("unlock: {e}")))?;
+            let root = opensesame_sealed_store::StoreRoot::open(store_dir)
+                .map_err(|e| ProviderExecutionError::Unavailable(format!("open: {e}")))?;
+            let age_id = std::env::var("OPENSESAME_AGE_IDENTITY").ok();
+            let entry = root
+                .show_with_age_identity(name, &key, age_id.as_deref())
+                .map_err(|_| ProviderExecutionError::Failed)?;
+            Ok(entry.render().trim_end_matches(['\r', '\n']).to_owned())
+        }
+        HumanProviderOperation::Lease | HumanProviderOperation::Revoke => {
+            Err(ProviderExecutionError::Unsupported("sealed-store".into()))
+        }
     }
 }
 
@@ -1310,6 +1397,26 @@ mod tests {
         assert_eq!(plan.executable, "gcloud");
         assert!(plan.args.iter().any(|arg| arg == "input with spaces.txt"));
         assert!(!plan.args.iter().any(|arg| arg == "sh" || arg == "-c"));
+    }
+
+    #[test]
+    fn password_store_plan_does_not_shell_to_pass() {
+        let plan = human_plan(
+            "password-store",
+            HumanProviderOperation::List,
+            "/",
+            &serde_json::json!({"store_dir": "/tmp/store"}),
+        )
+        .unwrap();
+        match plan {
+            HumanProviderPlan::Command { executable, .. } => {
+                panic!("expected SealedStore, got command {executable}")
+            }
+            HumanProviderPlan::SealedStore { store_dir, .. } => {
+                assert_eq!(store_dir, PathBuf::from("/tmp/store"));
+            }
+            HumanProviderPlan::Environment(_) => panic!("unexpected environment"),
+        }
     }
 
     #[test]
