@@ -112,10 +112,10 @@ export function discoverErrorMessage(input: {
     "Paste the daemon's Tailscale Serve URL (https://YOUR-MACHINE.YOUR-TAILNET.ts.net).",
   );
   parts.push(
-    "On the machine running the daemon: curl -s http://127.0.0.1:18790/health — use the tailscale_url field.",
+    "On the daemon machine: curl -s http://127.0.0.1:18790/health — if Serve is off, open tailscale_serve_enable_url, sign in, restart the daemon, then paste tailscale_url here.",
   );
   parts.push(
-    "Requires `tailscale serve` (HTTPS enabled in the Tailscale admin DNS settings) and the OpenSesame daemon.",
+    "github.io cannot use localhost. Bare https://hostname MagicDNS names fail TLS; the FQDN .ts.net Serve URL is required.",
   );
   if (input.detail) parts.push(input.detail);
   return parts.join(" ");

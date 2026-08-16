@@ -293,9 +293,10 @@ async fn main() -> anyhow::Result<()> {
         Ok(info) => tracing::info!(
             dns = ?info.dns_name,
             url = ?info.https_url,
+            cli = ?info.cli_path,
             "tailscale serve passthrough enabled"
         ),
-        Err(error) => tracing::info!(%error, "tailscale serve not enabled"),
+        Err(error) => tracing::warn!(%error, "tailscale serve not enabled"),
     });
     axum::serve(tcp, app).await?;
     Ok(())
@@ -307,6 +308,13 @@ async fn daemon_health(State(st): State<App>) -> Json<Value> {
         let trimmed = url.trim_end_matches('/');
         (!trimmed.is_empty()).then_some(trimmed)
     });
+    let pairing_hint = if let Some(url) = ts.serve_enable_url.as_deref() {
+        format!("Enable Tailscale Serve in the admin UI: {url} — then restart the daemon and paste tailscale_url into github.io.")
+    } else if public.is_some() {
+        "Paste tailscale_url into the github.io Connect this machine field.".into()
+    } else {
+        "Tailscale Serve is not active. Install/start Tailscale, enable Serve HTTPS for this node, restart the daemon, then paste tailscale_url into github.io.".into()
+    };
     Json(json!({
         "status": "ok",
         "service": "opensesame-daemon",
@@ -316,12 +324,11 @@ async fn daemon_health(State(st): State<App>) -> Json<Value> {
         "tailscale_dns": ts.dns_name,
         "tailscale_ip": ts.ip4,
         "tailscale_serve": ts.serve_enabled,
+        "tailscale_serve_enable_url": ts.serve_enable_url,
+        "tailscale_cli": ts.cli_path,
+        "tailscale_error": ts.last_error,
         "uds": env::var("OPENSESAME_AGENT_SOCK").ok(),
-        "pairing_hint": if public.is_some() {
-            "Paste tailscale_url into the github.io Connect this machine field."
-        } else {
-            "Enable Tailscale HTTPS + `tailscale serve`, then restart the daemon. curl http://127.0.0.1:18790/health and paste tailscale_url into github.io."
-        },
+        "pairing_hint": pairing_hint,
     }))
 }
 
