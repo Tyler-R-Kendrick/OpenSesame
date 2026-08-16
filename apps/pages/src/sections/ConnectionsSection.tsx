@@ -1866,7 +1866,7 @@ function PipeDiagram() {
           <strong>Save a vault login</strong>
           <p>
             Your password or passkey for a website. Only you can reveal it.
-            Import from Bitwarden or Chrome if the vault is empty.
+            Import a .env or password export if the vault is empty.
           </p>
         </li>
         <li>
@@ -1920,7 +1920,7 @@ function AddSecretChooser({
           </Link>
         ) : null}
         <Link className="btn" to="/settings#import">
-          Import from Bitwarden or Chrome
+          Import
         </Link>
       </div>
     </section>

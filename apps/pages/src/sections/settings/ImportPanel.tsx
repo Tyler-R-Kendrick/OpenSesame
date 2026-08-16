@@ -7,6 +7,7 @@ import {
   IconInfo,
   IconLogin,
   IconNote,
+  IconSecret,
   IconUpload,
   IconX,
 } from "../../components/Icons.js";
@@ -69,6 +70,7 @@ const KIND_ICON = {
   login: IconLogin,
   card: IconCard,
   note: IconNote,
+  secret: IconSecret,
 } as const;
 
 function messageFrom(caught: unknown): string {
@@ -235,10 +237,11 @@ export function ImportPanel() {
     <section className="panel" id="import" ref={panelRef}>
       <div className="panel__head">
         <div>
-          <h2>Import from another password manager</h2>
+          <h2>Import</h2>
           <p>
-            The file is read in this tab and never uploaded. Review what was
-            found before anything is written into the vault.
+            Prefer a <code>.env</code> file — each key becomes an agent secret.
+            Password-manager exports still work. The file is read in this tab
+            and never uploaded; review before anything is written.
           </p>
         </div>
       </div>
@@ -268,7 +271,7 @@ export function ImportPanel() {
                 ref={fileRef}
                 id="manager-import"
                 type="file"
-                accept=".csv,.json,.1pux,.zip,text/csv,application/json"
+                accept=".env,.csv,.json,.1pux,.zip,text/plain,text/csv,application/json"
                 className="visually-hidden"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
@@ -288,8 +291,8 @@ export function ImportPanel() {
                 ))}
               </ul>
               <p className="hint">
-                Any other CSV works too, as long as it has columns that read
-                like a name, a username, and a password.
+                Start with a <code>.env</code> (<code>KEY=value</code> lines).
+                Any CSV with name, username, and password columns works too.
               </p>
             </details>
           </>
@@ -372,6 +375,12 @@ export function ImportPanel() {
               />
               <Count n={summary.cards} one="card" many="cards" kind="card" />
               <Count n={summary.notes} one="note" many="notes" kind="note" />
+              <Count
+                n={summary.secrets}
+                one="secret"
+                many="secrets"
+                kind="secret"
+              />
               {summary.withTotp > 0 ? (
                 <li className="imp__count">
                   <strong>{summary.withTotp}</strong>
@@ -628,7 +637,7 @@ function ItemTable({
         <thead>
           <tr>
             <th scope="col">Name</th>
-            <th scope="col">Username</th>
+            <th scope="col">Detail</th>
             <th scope="col">Folder</th>
           </tr>
         </thead>
@@ -636,7 +645,13 @@ function ItemTable({
           {shown.map((item) => (
             <tr key={item.id}>
               <th scope="row">{item.name}</th>
-              <td>{item.kind === "login" ? item.username || "—" : "—"}</td>
+              <td>
+                {item.kind === "login"
+                  ? item.username || "—"
+                  : item.kind === "secret"
+                    ? "agent secret"
+                    : "—"}
+              </td>
               <td>
                 {item.folderId ? (folders.get(item.folderId) ?? "—") : "—"}
               </td>
