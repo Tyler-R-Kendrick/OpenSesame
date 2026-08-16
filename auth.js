@@ -6,7 +6,7 @@
  * token endpoint on static hosting.
  *
  * Declarative (default):
- *   <script src="https://…/OpenSesame/opensesame.js" defer></script>
+ *   <script src="https://…/OpenSesame/auth.js" defer></script>
  *   <button type="button" data-opensesame-signin>Sign in</button>
  *   window.addEventListener("opensesame:signed_in", (e) => { … e.detail … });
  *
@@ -39,7 +39,7 @@
     try {
       if (scriptSrc) {
         var u = new URL(scriptSrc, window.location.href);
-        var path = u.pathname.replace(/\/?opensesame\.js$/i, "/");
+        var path = u.pathname.replace(/\/?auth\.js$/i, "/");
         return u.origin + path;
       }
     } catch (_e) {
@@ -491,7 +491,7 @@
         parseBoolean(el.getAttribute("data-opensesame-verify")) || defaults.verifyOnBind;
       var scope = el.getAttribute("data-opensesame-scope") || defaults.scope;
       runSignInFlow({ scope: scope }, verify).catch(function (error) {
-        console.error("[opensesame.js] sign-in failed", error);
+        console.error("[OpenSesame auth.js] sign-in failed", error);
       });
     });
   }
@@ -517,7 +517,7 @@
       var verify =
         parseBoolean(anchor.getAttribute("data-opensesame-verify")) || defaults.verifyOnBind;
       runSignInFlow(config, verify).catch(function (error) {
-        console.error("[opensesame.js] authorize link sign-in failed", error);
+        console.error("[OpenSesame auth.js] authorize link sign-in failed", error);
       });
     });
   }
