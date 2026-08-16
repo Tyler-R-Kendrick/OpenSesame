@@ -2,8 +2,8 @@
 
 The OpenSesame authority console — an installable PWA served from GitHub Pages.
 
-GitHub Pages cannot host the Host or Identity APIs. This page is the console: Connections,
-Agents, Authority, Sites, plus a sealed **This device** store for human items. Agents never
+GitHub Pages cannot host the Host or Identity APIs. This page is the console: a sealed
+**Vault** for human items, plus Connections, Agents, Authority, and Sites. Agents never
 call `getSecret()`. Host connectors never appear here as plaintext.
 
 The master password unwraps the key for items stored on this device. It is not stored. A
