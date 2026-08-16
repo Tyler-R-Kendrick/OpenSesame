@@ -69,8 +69,9 @@ Today OpenSesame has:
 
 | Piece | Location | Responsibility |
 |-------|----------|----------------|
-| Store engine | `crates/sealed-store` | Path CRUD, list/find/grep, git hooks, envelope open/seal |
-| Format adapters | same crate | `.osseal`, `.gpg`, `.age` |
+| Store engine | `crates/sealed-store` | Path CRUD, list/find/grep, git hooks, format dispatch |
+| Envelope crypto | `crates/human-vault` (existing) + sealed-store | Reuse AEAD/wrap primitives; `.osseal` on-disk framing in sealed-store |
+| Format adapters | `crates/sealed-store` | `.osseal`, `.gpg`, `.age` |
 | CLI verbs | `apps/cli` | Human UX; `--reveal` gates |
 | Provider plans | `crates/connector-host` | `password-store` / `sealed-local` use engine; no `pass` binary |
 | PWA sync | `apps/pages` | Map vault items ↔ paths; merge; settings |
