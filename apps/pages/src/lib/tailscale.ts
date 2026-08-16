@@ -1,4 +1,5 @@
 import { type DaemonHealth, probeDaemon } from "./daemon.js";
+import { localNetworkFetch } from "./local-network-fetch.js";
 import {
   loadSettings,
   pageIsLoopback,
@@ -16,9 +17,9 @@ import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
 export const TAILSCALE_CLIENT_URL = "https://tailscale.com/download";
 
 const HELLO = "https://hello.ts.net";
-const PROBE_MS = 2500;
+const PROBE_MS = 4000;
 const WAIT_INTERVAL_MS = 1500;
-const WAIT_TIMEOUT_MS = 120_000;
+const WAIT_TIMEOUT_MS = 45_000;
 
 export type CandidateOptions = {
   /** Include http://127.0.0.1:18790 — only useful when the page is on loopback. */
@@ -66,11 +67,14 @@ export function tailscaleCandidates(
 
 export async function detectTailnet(): Promise<boolean> {
   try {
-    await fetch(HELLO, {
+    // no-cors: opaque success means the OS resolved hello.ts.net on the tailnet.
+    // Hard timeout so Chrome's local-network permission dialog cannot strand us.
+    const res = await localNetworkFetch(HELLO, {
       mode: "no-cors",
-      signal: AbortSignal.timeout(PROBE_MS),
+      credentials: "omit",
+      timeoutMs: PROBE_MS,
     });
-    return true;
+    return res.type === "opaque" || res.type === "opaqueredirect" || res.ok;
   } catch {
     return false;
   }
@@ -121,8 +125,10 @@ export function discoverErrorMessage(input: {
   return parts.join(" ");
 }
 
-export async function discoverTailscaleDaemon(): Promise<DaemonHealth> {
-  const saved = loadSettings().daemonApi;
+export async function discoverTailscaleDaemon(
+  preferred?: string,
+): Promise<DaemonHealth> {
+  const saved = preferred?.trim() || loadSettings().daemonApi;
   const allowLoopback = pageIsLoopback();
   const candidates = tailscaleCandidates(saved, { allowLoopback });
   const errors: string[] = [];

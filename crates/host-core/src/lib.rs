@@ -262,7 +262,9 @@ pub mod http_security {
             .allow_credentials(true)
     }
 
-    /// Chrome Private Network Access: github.io → loopback daemon/Host.
+    /// Chrome Private Network Access / Local Network Access: github.io →
+    /// Tailscale Serve / loopback daemon. Always advertise allow on preflight
+    /// when the browser asks; also echo on the final response.
     fn allow_private_network<S>(router: Router<S>) -> Router<S>
     where
         S: Clone + Send + Sync + 'static,
@@ -311,6 +313,10 @@ pub mod http_security {
                     HeaderValue::from_static(
                         "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
                     ),
+                );
+                headers.insert(
+                    HeaderName::from_static("cross-origin-resource-policy"),
+                    HeaderValue::from_static("cross-origin"),
                 );
                 if hsts {
                     headers.insert(
@@ -510,6 +516,39 @@ mod http_security_layer_tests {
         assert_eq!(
             res.headers().get("access-control-allow-origin").unwrap(),
             "http://127.0.0.1:5173"
+        );
+        assert_eq!(
+            res.headers().get("cross-origin-resource-policy").unwrap(),
+            "cross-origin"
+        );
+    }
+
+    #[tokio::test]
+    async fn private_network_preflight_allows_github_pages() {
+        let app = apply_http_security(
+            Router::new().route("/health", get(|| async { "ok" })),
+            &["https://tyler-r-kendrick.github.io".into()],
+            false,
+        );
+        let res = app
+            .oneshot(
+                Request::builder()
+                    .method("OPTIONS")
+                    .uri("/health")
+                    .header(header::ORIGIN, "https://tyler-r-kendrick.github.io")
+                    .header(header::ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                    .header("access-control-request-private-network", "true")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(res.status().is_success() || res.status() == StatusCode::NO_CONTENT || res.status() == StatusCode::OK);
+        assert_eq!(
+            res.headers()
+                .get("access-control-allow-private-network")
+                .unwrap(),
+            "true"
         );
     }
 

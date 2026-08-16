@@ -4,8 +4,11 @@
 //! - `tailscale` missing on PATH while Windows `tailscale.exe` exists (WSL)
 //! - `tailscale serve --bg` hanging when Serve is not enabled on the tailnet,
 //!   printing `https://login.tailscale.com/f/serve?node=…` on stdout
-//! - WSL localhost ≠ Windows localhost: when invoking Windows Tailscale from
-//!   WSL, Serve must target the WSL eth IP, not 127.0.0.1
+//! - WSL localhost ≠ Windows localhost *unless* localhostForwarding / mirrored
+//!   networking is on. Prefer Serve → `http://127.0.0.1:port` when Windows can
+//!   reach the WSL daemon that way; otherwise Serve → WSL eth IP **and** bind
+//!   that eth IP (loopback-only leave Serve hanging). Do not prefer eth when
+//!   loopback works — Windows Tailscale Serve often hangs proxying to eth.
 
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -123,14 +126,58 @@ pub fn wsl_host_reachable_ipv4() -> Option<String> {
 
 fn serve_target(bin: &Path, port: u16) -> String {
     if is_wsl() && is_windows_tailscale(bin) {
-        if let Some(ip) = wsl_host_reachable_ipv4() {
-            return format!("http://{ip}:{port}");
+        // Prefer Windows loopback when mirrored/localhostForwarding reaches WSL.
+        if windows_loopback_reaches_daemon(port) {
+            return format!("http://127.0.0.1:{port}");
+        }
+        if let Some(bridge) = wsl_eth_listen(port) {
+            return format!("http://{bridge}");
         }
     }
     format!("http://127.0.0.1:{port}")
 }
 
+fn wsl_eth_listen(port: u16) -> Option<String> {
+    let ip = wsl_host_reachable_ipv4()?;
+    Some(format!("{ip}:{port}"))
+}
+
+/// True when Windows `curl.exe` can fetch this daemon via `127.0.0.1`.
+fn windows_loopback_reaches_daemon(port: u16) -> bool {
+    let curl = PathBuf::from("/mnt/c/Windows/System32/curl.exe");
+    if !curl.is_file() {
+        return false;
+    }
+    let url = format!("http://127.0.0.1:{port}/health");
+    let Ok(output) = run_command(
+        &curl,
+        &["-fsS", "--connect-timeout", "2", "--max-time", "3", &url],
+        Duration::from_secs(4),
+    ) else {
+        return false;
+    };
+    output.status.success()
+        && String::from_utf8_lossy(&output.stdout).contains("opensesame-daemon")
+}
+
+/// Extra TCP bind needed so Windows Tailscale Serve can reach a WSL daemon
+/// when loopback forwarding is unavailable.
+pub fn wsl_bridge_listen(port: u16) -> Option<String> {
+    let bin = resolve_tailscale_bin()?;
+    if !(is_wsl() && is_windows_tailscale(&bin)) {
+        return None;
+    }
+    if windows_loopback_reaches_daemon(port) {
+        return None;
+    }
+    wsl_eth_listen(port)
+}
+
 fn run_tailscale(bin: &Path, args: &[&str], timeout: Duration) -> Result<std::process::Output, String> {
+    run_command(bin, args, timeout)
+}
+
+fn run_command(bin: &Path, args: &[&str], timeout: Duration) -> Result<std::process::Output, String> {
     let child = Command::new(bin)
         .args(args)
         .stdout(Stdio::piped())
@@ -162,7 +209,8 @@ fn run_tailscale(bin: &Path, args: &[&str], timeout: Duration) -> Result<std::pr
             match rx.recv_timeout(Duration::from_secs(2)) {
                 Ok(Ok(output)) => Ok(output),
                 _ => Err(format!(
-                    "tailscale {} timed out after {}s",
+                    "{} {} timed out after {}s",
+                    bin.display(),
                     args.join(" "),
                     timeout.as_secs()
                 )),
@@ -357,6 +405,26 @@ mod tests {
         if path.is_file() {
             let resolved = resolve_tailscale_bin().expect("should find windows tailscale");
             assert!(resolved.ends_with("tailscale.exe"));
+        }
+    }
+
+    #[test]
+    fn wsl_bridge_listen_skipped_when_windows_loopback_works() {
+        let path = PathBuf::from("/mnt/c/Program Files/Tailscale/tailscale.exe");
+        if !(is_wsl() && path.is_file()) {
+            return;
+        }
+        // Daemon must already be listening on 127.0.0.1 for this probe; when it
+        // is not, bridge may be Some — both outcomes are valid for unit tests.
+        let _ = wsl_bridge_listen(18790);
+        let target = serve_target(&path, 18790);
+        assert!(
+            target.starts_with("http://127.0.0.1:") || target.starts_with("http://"),
+            "unexpected target {target}"
+        );
+        if windows_loopback_reaches_daemon(18790) {
+            assert_eq!(target, "http://127.0.0.1:18790");
+            assert!(wsl_bridge_listen(18790).is_none());
         }
     }
 }

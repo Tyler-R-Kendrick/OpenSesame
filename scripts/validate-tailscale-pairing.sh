@@ -24,6 +24,20 @@ if h.get("tailscale_serve"):
     need(bool(h.get("tailscale_url")), "tailscale_url set when serve active")
     need(str(h.get("tailscale_url", "")).endswith(".ts.net") or ".ts.net/" in str(h.get("tailscale_url")),
          "tailscale_url is *.ts.net")
+    url = str(h.get("tailscale_url") or "").rstrip("/")
+    import subprocess, json as _json
+    probe = subprocess.run(
+        ["curl", "-fsSk", "--connect-timeout", "5", "--max-time", "15", f"{url}/health"],
+        capture_output=True, text=True,
+    )
+    if probe.returncode != 0:
+        need(False, f"https Serve /health reachable ({probe.stderr.strip() or probe.stdout.strip() or 'curl failed'})")
+    else:
+        try:
+            remote = _json.loads(probe.stdout)
+            need(remote.get("service") == "opensesame-daemon", "https Serve /health returns daemon")
+        except Exception as e:
+            need(False, f"https Serve /health JSON ({e})")
     print("[validate] Serve is active — paste tailscale_url into github.io")
 else:
     need(h.get("tailscale_url") in (None, ""), "tailscale_url null until serve works")

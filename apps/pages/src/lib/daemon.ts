@@ -1,3 +1,4 @@
+import { localNetworkFetch } from "./local-network-fetch.js";
 import { loadSettings, saveSettings, shippedDaemonApi } from "./settings.js";
 import { normalizeTailnetBase } from "./urls.js";
 
@@ -9,7 +10,7 @@ export type DaemonHealth = {
   tailscaleUrl: string | null;
 };
 
-const PROBE_MS = 2500;
+const PROBE_MS = 4000;
 
 export async function probeDaemon(
   raw: string = loadSettings().daemonApi || shippedDaemonApi,
@@ -18,9 +19,9 @@ export async function probeDaemon(
   if (!base) {
     throw new Error("That daemon address is not one this page may call.");
   }
-  const res = await fetch(`${base}/health`, {
+  const res = await localNetworkFetch(`${base}/health`, {
     credentials: "omit",
-    signal: AbortSignal.timeout(PROBE_MS),
+    timeoutMs: PROBE_MS,
   });
   if (!res.ok) {
     throw new Error(`Daemon ${res.status} at ${base}`);
