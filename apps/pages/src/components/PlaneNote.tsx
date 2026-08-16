@@ -17,6 +17,7 @@ import {
   detectTailnet,
   discoverTailscaleDaemon,
   openTailscaleLogin,
+  waitForTailnet,
 } from "../lib/tailscale.js";
 import { IconAlert } from "./Icons.js";
 
@@ -85,13 +86,28 @@ export function ConnectThisMachine({
     setBusy(true);
     setMessage(null);
     try {
+      // Prefer discovery first — detectTailnet can lag behind a working Serve URL.
+      try {
+        const health = await discoverTailscaleDaemon();
+        await finish(health, health.tailscaleUrl || daemonApi);
+        return;
+      } catch {
+        // Fall through to client install / wait.
+      }
+
       const onTailnet = await detectTailnet();
       if (!onTailnet) {
         openTailscaleLogin();
         setMessage(
-          "This browser is not on your tailnet. Connect Tailscale, then press the button again.",
+          "Install or open the Tailscale app on this machine and sign in there. This page cannot receive a Tailscale login callback — it waits until you are on the tailnet, then pairs the daemon.",
         );
-        return;
+        const joined = await waitForTailnet();
+        if (!joined) {
+          setMessage(
+            "Still not on the tailnet. Open the Tailscale app, finish sign-in, then press Connect Tailscale again.",
+          );
+          return;
+        }
       }
       const health = await discoverTailscaleDaemon();
       await finish(health, health.tailscaleUrl || daemonApi);
@@ -112,9 +128,11 @@ export function ConnectThisMachine({
         <div>
           <h2>Connect this machine</h2>
           <p>
-            GitHub Pages cannot see 127.0.0.1. Connect Tailscale on this
-            browser, then this page finds the daemon through the tailnet
-            passthrough.
+            GitHub Pages cannot see 127.0.0.1. This browser must be on your
+            Tailscale network (the Tailscale app on this machine), then the page
+            finds the daemon through Serve / MagicDNS. Signing in at the
+            Tailscale website alone is not enough — there is no auth postback
+            here.
           </p>
         </div>
       </div>
