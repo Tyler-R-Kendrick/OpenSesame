@@ -141,12 +141,11 @@ export function ConnectThisMachine({
         <div>
           <h2>Connect this machine</h2>
           <p>
-            GitHub Pages cannot see 127.0.0.1. Paste your daemon&apos;s Tailscale
-            Serve URL (<code>https://machine.tailnet.ts.net</code>), which you
-            get from{" "}
-            <code>curl -s http://127.0.0.1:18790/health</code> on the daemon
-            host (<code>tailscale_url</code>). Bare MagicDNS HTTPS names and
-            localhost will not work from this page.
+            GitHub Pages cannot see 127.0.0.1. On the daemon machine run{" "}
+            <code>curl -s http://127.0.0.1:18790/health</code>. If Serve is off,
+            open <code>tailscale_serve_enable_url</code>, enable Serve, restart
+            the daemon, then paste <code>tailscale_url</code> (
+            <code>https://machine.tailnet.ts.net</code>) here.
           </p>
         </div>
       </div>
