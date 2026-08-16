@@ -26,8 +26,10 @@ One store, five readings of it:
 - **Services** are authorized once and then brokered. The Connections section
   runs the consent round trip, then binds one authorization to the projects and
   agents allowed to act through it.
-- **Websites** use OpenSesame as their auth broker. The Sites section registers
-  the origin-pinned public clients and shows the sign-in events they produced.
+- **Websites** use OpenSesame as their auth broker for static hosts (Shoo-style
+  origin profile via `/broker/authorize` + `auth.js`). The Sites section
+  issues the drop-in snippet and remembers approved RP origins; Identity-plane
+  client registration remains optional when a live issuer is available.
 - **Developers** treat it as the authority: prove identity, authorize devices,
   claim what those devices created, read what the protocol guarantees.
 

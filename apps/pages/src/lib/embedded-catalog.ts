@@ -318,6 +318,9 @@ let database: Promise<TursoDb> | null = null;
 let sessionToken = import.meta.env.VITE_TURSO_AUTH_TOKEN?.trim() ?? "";
 let lastMode: "embedded" | "remote" | "memory" = "memory";
 
+/** Turso WASM + OPFS can hang on some static hosts; never block the gallery on it. */
+const TURSO_OPEN_MS = 2500;
+
 export function tursoMode(): typeof lastMode {
   return lastMode;
 }
@@ -336,6 +339,24 @@ export async function checkTurso(): Promise<typeof lastMode> {
     lastMode = "memory";
   }
   return lastMode;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label}_timeout`));
+    }, ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 async function open(): Promise<TursoDb> {
@@ -366,7 +387,15 @@ async function open(): Promise<TursoDb> {
 }
 
 async function db(): Promise<TursoDb> {
-  database ??= open();
+  if (!database) {
+    database = withTimeout(open(), TURSO_OPEN_MS, "turso_open").catch(
+      (error) => {
+        database = null;
+        lastMode = "memory";
+        throw error;
+      },
+    );
+  }
   return database;
 }
 
@@ -411,9 +440,13 @@ export function decodeEmbeddedProviders(value: string): Provider[] | null {
 export async function readEmbeddedProviders(): Promise<Provider[]> {
   try {
     const connection = await db();
-    const row = await (
-      await connection.prepare("SELECT value FROM pwa_cache WHERE key = ?")
-    ).get("providers");
+    const row = await withTimeout(
+      (await connection.prepare("SELECT value FROM pwa_cache WHERE key = ?")).get(
+        "providers",
+      ),
+      TURSO_OPEN_MS,
+      "turso_read",
+    );
     if (typeof row?.value === "string") {
       const providers = decodeEmbeddedProviders(row.value);
       if (providers) return providers;
@@ -421,6 +454,7 @@ export async function readEmbeddedProviders(): Promise<Provider[]> {
     await writeEmbeddedProviders(bundledProviders);
   } catch {
     lastMode = "memory";
+    database = null;
   }
   return bundledProviders;
 }

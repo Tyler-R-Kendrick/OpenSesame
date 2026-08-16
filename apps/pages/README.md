@@ -13,11 +13,20 @@ reload or a cold link asks for it again.
 
 | Section | Who | What it does |
 | --- | --- | --- |
-| **Connections** | operators | Authorize a service on the Host. Bind who can use it. Identity graph of Host + this-device doors. |
+| **Vault** | humans | Logins, passkeys, cards, notes. Generator, TOTP, folders, import. Not the Host. |
+| **Connections** | operators | Authorize a service on the Host. Bind who can use it. Identity graph of Host + vault doors. |
 | **Agents** | agents | Authorize → invoke → receipt. Grants bounded by a ceiling. Never plaintext. |
 | **Authority** | operators | Principal session, device/CLI authorization, ownership claims, protocol honesty. |
-| **Sites** | websites | Origin-derived public clients: register, rotate, revoke, integration snippet. |
-| **This device** | humans | Logins, passkeys, cards, notes. Generator, TOTP, folders, import. Not the Host. |
+| **Sites** | websites | Static-site auth via `auth.js`: declarative `data-opensesame-signin` (or authorize link) by default; explicit `OpenSesame.signIn` / `signInAndAccept` when you want control. Optional Identity client registration. |
+
+Declarative Sites integration (no backend):
+
+```html
+<script src="https://tyler-r-kendrick.github.io/OpenSesame/auth.js" defer></script>
+<button type="button" data-opensesame-signin>Sign in</button>
+```
+
+Listen for `opensesame:signed_in`, or call `OpenSesame.signIn()` / `signInAndAccept()` when you need an explicit flow. Use `acceptSession` (or `data-opensesame-verify="true"`) to verify the upstream JWT and derive the pairwise subject.
 | **Settings** | operators | Planes (Host/Identity URLs), seed data, export. |
 
 ## Cryptography

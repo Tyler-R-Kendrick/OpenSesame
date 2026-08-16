@@ -63,6 +63,7 @@ import {
   needsScopeSelection,
 } from "../lib/connector-guidance.js";
 import {
+  bundledProviders,
   readEmbeddedProviders,
   writeEmbeddedProviders,
 } from "../lib/embedded-catalog.js";
@@ -265,12 +266,19 @@ export function ConnectionsSection() {
 
   const loadCatalog = useCallback(async () => {
     const id = ++catalogRun.current;
+    // Never leave the gallery blocked on Turso/OPFS — paint the bundle first.
+    setProviders(bundledProviders);
     const embedded = await readEmbeddedProviders();
     if (catalogRun.current !== id) return;
     setProviders(embedded);
     try {
       const nextProviders = await listProviders();
       if (catalogRun.current !== id) return;
+      if (nextProviders.length === 0) {
+        // An empty Host catalog must not wipe the built-in list on github.io.
+        setCatalogError(null);
+        return;
+      }
       setProviders(nextProviders);
       setCatalogError(null);
       void writeEmbeddedProviders(nextProviders);

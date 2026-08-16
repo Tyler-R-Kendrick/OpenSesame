@@ -28,7 +28,7 @@ export default defineConfig({
       srcDir: "src",
       filename: "sw.ts",
       registerType: "autoUpdate",
-      includeAssets: ["icon.svg"],
+      includeAssets: ["icon.svg", "auth.js"],
       manifest: {
         name: "OpenSesame",
         short_name: "OpenSesame",

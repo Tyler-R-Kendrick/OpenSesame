@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
-import { Navigate, Route, Routes } from "react-router";
+import { Navigate, Route, Routes, useLocation } from "react-router";
 import { AppShell } from "./components/AppShell.js";
+import { hasAuthResponse } from "./lib/federation.js";
 import { useSessionGuards, useTheme, useVault } from "./lib/vault/hooks.js";
+import { BrokerAuthorize } from "./screens/BrokerAuthorize.js";
+import { FederationReturn } from "./screens/FederationReturn.js";
 import { UnlockScreen } from "./screens/UnlockScreen.js";
 import { AgentsSection } from "./sections/AgentsSection.js";
 import { AuthoritySection } from "./sections/AuthoritySection.js";
@@ -18,7 +21,7 @@ function Framed({ children }: { children: ReactNode }) {
   return <main className="section">{children}</main>;
 }
 
-export function App() {
+function VaultApp() {
   const { status } = useVault();
   useTheme();
   useSessionGuards();
@@ -82,4 +85,22 @@ export function App() {
       </Routes>
     </AppShell>
   );
+}
+
+/**
+ * Broker + federated return run without unlocking the vault. Everything else
+ * stays behind the master-password gate.
+ */
+export function App() {
+  const location = useLocation();
+
+  if (hasAuthResponse(location.search)) {
+    return <FederationReturn />;
+  }
+
+  if (location.pathname === "/broker/authorize") {
+    return <BrokerAuthorize />;
+  }
+
+  return <VaultApp />;
 }

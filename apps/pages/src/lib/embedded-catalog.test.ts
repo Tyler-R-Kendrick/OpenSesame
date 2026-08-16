@@ -69,4 +69,11 @@ describe("embedded connector catalog", () => {
       ),
     ).toEqual(bundledProviders);
   });
+
+  it("ships a non-empty marketplace catalog (not only auto-configurables)", () => {
+    const marketplace = bundledProviders.filter(
+      (provider) => !provider.autoConfigurable,
+    );
+    expect(marketplace.length).toBeGreaterThan(20);
+  });
 });
