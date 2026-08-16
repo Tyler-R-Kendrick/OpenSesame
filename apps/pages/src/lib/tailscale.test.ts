@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  discoverErrorMessage,
   openTailscaleLogin,
   tailscaleCandidates,
   TAILSCALE_CLIENT_URL,
@@ -13,15 +14,21 @@ describe("tailnet pairing", () => {
     vi.restoreAllMocks();
   });
 
-  it("lists MagicDNS and loopback candidates", () => {
-    expect(tailscaleCandidates("https://laptop.tail.ts.net")).toEqual([
-      "https://laptop.tail.ts.net",
-      "https://opensesame",
-      "https://opensesame-daemon",
-      "http://opensesame:18790",
-      "http://opensesame-daemon:18790",
+  it("lists only usable Serve / loopback candidates", () => {
+    expect(
+      tailscaleCandidates("https://laptop.tail123.ts.net", {
+        allowLoopback: false,
+      }),
+    ).toEqual(["https://laptop.tail123.ts.net"]);
+
+    expect(tailscaleCandidates(undefined, { allowLoopback: true })).toEqual([
       "http://127.0.0.1:18790",
     ]);
+
+    // Bare https MagicDNS names cannot present a valid Tailscale Serve cert.
+    expect(
+      tailscaleCandidates("https://opensesame", { allowLoopback: false }),
+    ).toEqual([]);
   });
 
   it("allows Tailscale HTTPS and CGNAT, not arbitrary http", () => {
@@ -75,5 +82,16 @@ describe("tailnet pairing", () => {
         timeoutMs: 10,
       }),
     ).resolves.toBe(false);
+  });
+
+  it("explains why localhost cannot pair from github.io", () => {
+    const msg = discoverErrorMessage({
+      fromGithubPages: true,
+      triedLoopback: true,
+      detail: "Failed to fetch",
+    });
+    expect(msg).toMatch(/cannot reach 127\.0\.0\.1/i);
+    expect(msg).toMatch(/\.ts\.net/);
+    expect(msg).toMatch(/tailscale_url/);
   });
 });
