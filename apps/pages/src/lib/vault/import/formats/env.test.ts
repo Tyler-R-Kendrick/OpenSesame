@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { readHeaderRow } from "./csv.js";
-import { parseDotenv } from "./formats/env.js";
+import { readHeaderRow } from "../csv.js";
 import {
   type DetectInput,
   type DraftSecret,
   detectFormat,
   parseImport,
   summarise,
-} from "./index.js";
+} from "../index.js";
+import { parseDotenv } from "./env.js";
 
 function input(fileName: string, text: string): DetectInput {
   let json: unknown = null;
