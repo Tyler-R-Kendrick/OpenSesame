@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { probeDaemon } from "./daemon.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
 import { loadSettings } from "./settings.js";
 
@@ -573,6 +574,24 @@ export async function fetchPrincipal(): Promise<Principal> {
 
 export type HealthState = "unknown" | "reachable" | "unreachable";
 
+/** True when Host API is the daemon's `/host` Serve proxy (paired node). */
+export function hostRoutedViaDaemon(hostApi: string, daemonApi: string): boolean {
+  const host = hostApi.trim().replace(/\/$/, "");
+  const daemon = daemonApi.trim().replace(/\/$/, "");
+  if (!host || !daemon) return false;
+  if (host === `${daemon}/host`) return true;
+  try {
+    const hostUrl = new URL(host);
+    const daemonUrl = new URL(daemon);
+    return (
+      hostUrl.origin === daemonUrl.origin &&
+      hostUrl.pathname.replace(/\/$/, "") === "/host"
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function probeIdentity(): Promise<HealthState> {
   const base = identityBase();
   if (!base) return "unreachable";
@@ -587,18 +606,48 @@ export async function probeIdentity(): Promise<HealthState> {
   }
 }
 
+/**
+ * Host plane reachability for the rail / Authority cards.
+ *
+ * Prefer a direct Host API health check. When Settings point Host at the paired
+ * daemon's `/host` proxy, a live daemon counts as Host reachable — connecting
+ * the node must flip the indicator even if gateway isn't on the upstream port.
+ */
 export async function probeHost(): Promise<HealthState> {
   const base = hostBase();
   if (!base) return "unreachable";
-  try {
-    const res = await localNetworkFetch(`${base}/api/v1/health`, {
-      credentials: "omit",
-      timeoutMs: PROBE_MS,
-    });
-    return res.ok ? "reachable" : "unreachable";
-  } catch {
-    return "unreachable";
-  }
+  const daemon = loadSettings().daemonApi.trim();
+  const viaDaemon = Boolean(daemon && hostRoutedViaDaemon(base, daemon));
+
+  const directOk = (async () => {
+    // When Host is daemon-proxied, don't wait long on a dead upstream port.
+    const timeoutMs = viaDaemon ? 2000 : PROBE_MS;
+    for (const path of ["/api/v1/health", "/health/live"]) {
+      try {
+        const res = await localNetworkFetch(`${base}${path}`, {
+          credentials: "omit",
+          timeoutMs,
+        });
+        if (res.ok) return true;
+      } catch {
+        // try next path
+      }
+    }
+    return false;
+  })();
+
+  const daemonOk = (async () => {
+    if (!viaDaemon || !daemon) return false;
+    try {
+      const health = await probeDaemon(daemon);
+      return health.service === "opensesame-daemon";
+    } catch {
+      return false;
+    }
+  })();
+
+  const [okDirect, okDaemon] = await Promise.all([directOk, daemonOk]);
+  return okDirect || okDaemon ? "reachable" : "unreachable";
 }
 
 /** Live orphan-cookie state, so a failed revoke puts the warning back. */
