@@ -729,8 +729,8 @@ describe("control-plane API", () => {
         port: 0,
         publicUrl: "http://127.0.0.1:8788",
         issuer: "http://127.0.0.1:8788",
-        // This test exercises the no-workspace path; auto-seeding defaults on
-        // under vitest (allowDevDefaults) and would route past the 400.
+        // Keep bootstrapPersonalOrganization: false so device approve hits
+        // organization_id_required and quota tests are not pre-consumed.
         bootstrapPersonalOrganization: false,
       },
     });
@@ -791,6 +791,45 @@ describe("control-plane API", () => {
       headers: { cookie, origin: "https://evil.example" },
     });
     expect(read.status).toBe(200);
+  });
+
+  it("resolves principal mapping by issuer+subject and rejects email join", async () => {
+    const { app, config } = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+        mappingResolveToken: "test-mapping-token",
+      },
+    });
+    const verified = await verifiedPrincipal(app, "callout-map-sub");
+    const token = config.mappingResolveToken;
+
+    const ok = await app.request(
+      "/v1/principals/mapping/resolve?issuer=https%3A%2F%2Fmock.example&subject=callout-map-sub",
+      { headers: { authorization: `Bearer ${token}` } },
+    );
+    expect(ok.status).toBe(200);
+    const body = (await ok.json()) as {
+      principalId: string;
+      provisional: boolean;
+    };
+    expect(body.principalId).toBe(verified.principalId);
+    expect(body.provisional).toBe(false);
+
+    const byEmail = await app.request(
+      "/v1/principals/mapping/resolve?email=alice%40example.com&issuer=https%3A%2F%2Fmock.example&subject=callout-map-sub",
+      { headers: { authorization: `Bearer ${token}` } },
+    );
+    expect(byEmail.status).toBe(400);
+    const denied = (await byEmail.json()) as { error: string };
+    expect(denied.error).toBe("email_join_forbidden");
+
+    const missing = await app.request(
+      "/v1/principals/mapping/resolve?issuer=https%3A%2F%2Fmock.example&subject=no-such-sub",
+      { headers: { authorization: `Bearer ${token}` } },
+    );
+    expect(missing.status).toBe(404);
   });
 
   it("links and lists identities without email auto-link; collision returns 409", async () => {
@@ -1485,7 +1524,8 @@ describe("control-plane API", () => {
         port: 0,
         publicUrl: "http://127.0.0.1:8788",
         issuer: "http://127.0.0.1:8788",
-        // An auto-seeded personal workspace would consume the 1-org allowance.
+        // bootstrapPersonalOrganization: false — quota counts live memberships;
+        // auto-seeded personal workspace would consume the single org slot.
         bootstrapPersonalOrganization: false,
       },
     });

@@ -12,6 +12,7 @@ members = [
   "crates/storage",
   "crates/authn",
   "crates/authz",
+  "crates/xkeys",
   "crates/grants",
   "crates/broker",
   "crates/claims",
@@ -48,9 +49,12 @@ rust-version = "1.88"
 
 [workspace.dependencies]
 anyhow = "1.0.98"
+async-nats = "0.42.0"
 async-trait = "0.1.88"
 axum = { version = "0.8.4", features = ["macros"] }
 base64 = "0.22.1"
+bytes = "1.10.1"
+futures = "0.3.31"
 blake3 = "1.8.2"
 chrono = { version = "0.4.41", features = ["serde"] }
 crossterm = "0.29.0"

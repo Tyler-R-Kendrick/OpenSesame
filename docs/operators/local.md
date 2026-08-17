@@ -99,6 +99,33 @@ See `deploy/compose/docker-compose.yml` for Keycloak, Postgres, OpenFGA, OpenBao
 
 If Docker Engine cannot be installed (no elevated privileges), use the native binary path above — it exercises the same OpenFGA/OpenBao HTTP adapters.
 
+### NATS / JetStream (TaskBus)
+
+Compose already starts JetStream:
+
+```bash
+# from deploy/compose — nats:2.11.4 with -js
+# client port 4222 (monitoring 8222 inside the container network)
+```
+
+Point gateway and worker at the bus with placeholders only (no seeds or operator
+creds in git). Defaults stay in-memory for unit tests.
+
+```bash
+# <!-- TASKBUS_ENV -->
+export NATS_URL="nats://127.0.0.1:4222"          # or nats://nats:4222 in Compose
+export OPENSESAME_TASKBUS="${OPENSESAME_TASKBUS:-nats}"  # memory | nats
+# Stream / consumer names (configurable; defaults):
+#   subjects: opensesame.events.>
+#   durable:  opensesame-worker
+# Callout namespace reserved: opensesame.callout.>
+```
+
+Auth callout terminates on **Host** (`:8787`), not Identity. Architecture:
+[docs/architecture/task-bus-nats.md](../architecture/task-bus-nats.md)
+([ADR 0042](../adr/0042-nats-taskbus-auth-callout-and-xkeys.md)). Never put NATS
+operator seeds or xkey private keys in committed env files.
+
 ## Developer `@env-spec` (ADR 0006)
 
 Preferred project contract is committed `.env.schema` (not a custom vault env YAML).

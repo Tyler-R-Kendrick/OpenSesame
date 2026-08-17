@@ -35,10 +35,28 @@ export const AUDIT_METADATA_ALLOWLIST = new Set([
   "won",
   "count",
   "type",
+  // Secret/config changelog (metadata only — never values).
+  "configId",
+  "environment",
+  "keyNames",
+  "versionId",
+  "targetId",
+  "contentVersion",
+  "actor",
 ]);
 
+/**
+ * Keys that must never appear in audit metadata.
+ * Matches `value`, `secret`, `password`, `token` (and related) case-insensitively.
+ */
 const DENY_KEY =
-  /token|secret|password|authorization|cookie|code_verifier|user.?code|device.?code|refresh|bearer/i;
+  /value|token|secret|password|authorization|cookie|code_verifier|user.?code|device.?code|refresh|bearer/i;
+
+function truncateString(value: string): string {
+  return value.length > AUDIT_VALUE_MAX_LENGTH
+    ? `${value.slice(0, AUDIT_VALUE_MAX_LENGTH)}…`
+    : value;
+}
 
 /**
  * Longest string an audit value may carry.
@@ -59,14 +77,17 @@ export function redactAuditMetadata(
     if (DENY_KEY.test(key)) continue;
     if (!AUDIT_METADATA_ALLOWLIST.has(key)) continue;
     if (typeof value === "string") {
-      out[key] =
-        value.length > AUDIT_VALUE_MAX_LENGTH
-          ? `${value.slice(0, AUDIT_VALUE_MAX_LENGTH)}…`
-          : value;
+      out[key] = truncateString(value);
     } else if (typeof value === "number" || typeof value === "boolean") {
       out[key] = value;
     } else if (value === null) {
       out[key] = null;
+    } else if (
+      Array.isArray(value) &&
+      value.every((entry) => typeof entry === "string")
+    ) {
+      // keyNames (and similar) — names only, still length-bounded.
+      out[key] = value.map((entry) => truncateString(entry));
     }
   }
   return out;

@@ -38,6 +38,15 @@ describe("runtime endpoint defaults", () => {
     expect(loadSettings().mfaAppUrl).toBe("http://127.0.0.1:5177");
   });
 
+  it("persists active project id outside the vault", async () => {
+    const { loadSettings, saveSettings } = await import("./settings.js");
+    saveSettings({
+      ...loadSettings(),
+      activeProjectId: "prj_personal_001",
+    });
+    expect(loadSettings().activeProjectId).toBe("prj_personal_001");
+  });
+
   it("defaults capability connectors to WebCrypto encryption and GitHub history", async () => {
     const { loadSettings, saveSettings } = await import("./settings.js");
     saveSettings({

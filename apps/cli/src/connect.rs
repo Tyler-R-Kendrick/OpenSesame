@@ -124,6 +124,18 @@ pub enum ConnectCmd {
         #[arg(long = "max-invoke-level")]
         max_invoke_level: Option<u8>,
     },
+    /// Request connection credential rotation (never reveals secrets).
+    Rotate {
+        connector: String,
+        /// Schedule interval (`24h`, `3600`). Optional.
+        #[arg(long)]
+        interval: Option<String>,
+        #[arg(long)]
+        project: Option<String>,
+        /// Attempt refresh immediately after enqueue.
+        #[arg(long)]
+        execute_now: bool,
+    },
     /// Revoke a connector. Alias: `rm`.
     #[command(visible_alias = "rm")]
     Remove {
@@ -257,6 +269,12 @@ pub async fn run(server: &str, args: ConnectArgs) -> anyhow::Result<()> {
             )
             .await
         }
+        ConnectCmd::Rotate {
+            connector,
+            interval,
+            project,
+            execute_now,
+        } => rotate_connection(server, json, &connector, interval, project, execute_now).await,
         ConnectCmd::Remove { connector, yes } => remove(server, json, &connector, yes).await,
         ConnectCmd::Open { connector } => open(server, json, &connector).await,
         ConnectCmd::Inspect { service } => inspect(server, json, &service).await,
@@ -800,6 +818,62 @@ async fn update(
     )
     .await?;
     emit_connection(json_out, &updated, "Updated")
+}
+
+/// Human-only connection credential rotation. Response never includes secrets.
+async fn rotate_connection(
+    server: &str,
+    json_out: bool,
+    connector: &str,
+    interval: Option<String>,
+    project: Option<String>,
+    execute_now: bool,
+) -> anyhow::Result<()> {
+    let view = resolve_connection(server, connector).await?;
+    let id = view["connection_id"]
+        .as_str()
+        .ok_or_else(|| anyhow!("connection is missing connection_id"))?;
+    let mut body = json!({
+        "connection_id": id,
+        "execute_now": execute_now,
+    });
+    if let Some(interval) = interval {
+        body["interval"] = json!(interval);
+    }
+    if let Some(project) = project {
+        body["project_id"] = json!(project);
+    }
+    let result = api(
+        server,
+        reqwest::Method::POST,
+        "/api/v1/rotations",
+        Some(&body),
+    )
+    .await?;
+    for forbidden in [
+        "secret",
+        "password",
+        "token",
+        "access_token",
+        "refresh_token",
+        "api_key",
+        "value",
+    ] {
+        if result.get(forbidden).is_some() {
+            bail!("Host rotation response unexpectedly included `{forbidden}`");
+        }
+    }
+    if json_out {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+    } else {
+        println!(
+            "Rotation {}  [{}]\n  secrets_returned  {}",
+            result["id"].as_str().unwrap_or("-"),
+            result["status"].as_str().unwrap_or("-"),
+            result["secrets_returned"].as_bool().unwrap_or(false),
+        );
+    }
+    Ok(())
 }
 
 async fn remove(server: &str, json_out: bool, connector: &str, yes: bool) -> anyhow::Result<()> {

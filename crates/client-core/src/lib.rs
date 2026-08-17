@@ -20,6 +20,13 @@ pub use opensesame_human_vault as human_vault;
 #[cfg(feature = "wasm-bindgen")]
 pub mod wasm;
 
+pub mod snapshot;
+
+pub use snapshot::{
+    assert_ciphertext_only_json, refuse_deployment_seal_as_wrap_key, CiphertextSyncSnapshot,
+    SNAPSHOT_FORMAT, SNAPSHOT_VERSION,
+};
+
 pub mod wit_contract {
     pub const PACKAGE: &str = "opensesame:client@1.0.0";
 }
@@ -113,7 +120,7 @@ pub fn open(key: &DeviceKey, sealed: &[u8], aad: &[u8]) -> Result<Vec<u8>, Clien
 /// Encrypted sync store — RAM + optional sealed-blob persistence (ciphertext only).
 pub struct SyncStore {
     /// id -> (epoch, ciphertext)
-    entries: BTreeMap<String, (u64, Vec<u8>)>,
+    pub(crate) entries: BTreeMap<String, (u64, Vec<u8>)>,
     pub cursor: SyncCursor,
 }
 
@@ -317,5 +324,18 @@ mod tests {
         assert_eq!(from_disk.cursor.epoch, store.cursor.epoch);
         let disk_json = std::fs::read_to_string(&path).unwrap();
         assert!(!disk_json.contains("secret-payload-xyz"));
+    }
+
+    #[test]
+    fn opaque_blobs_match_server_view() {
+        let key = DeviceKey::generate();
+        let mut store = SyncStore::new("opaque-dev");
+        let blob = store.put_local(&key, "item-1", b"never-on-wire").unwrap();
+        let opaque = store.opaque_blobs();
+        assert_eq!(opaque.len(), 1);
+        assert_eq!(opaque[0].id, blob.id);
+        assert_eq!(opaque[0].ciphertext, blob.ciphertext);
+        let wire = serde_json::to_string(&opaque[0]).unwrap();
+        assert!(!wire.contains("never-on-wire"));
     }
 }

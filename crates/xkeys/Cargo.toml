@@ -1,0 +1,19 @@
+[package]
+name = "opensesame-xkeys"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "X25519 recipient seal/open AEAD for bus E2EE (never Host connection seal key)"
+rust-version.workspace = true
+
+[dependencies]
+chacha20poly1305 = { workspace = true }
+hkdf = { workspace = true }
+rand = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+x25519-dalek = { version = "2.0.1", features = ["static_secrets"] }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

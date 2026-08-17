@@ -39,6 +39,9 @@ pub struct IntegrationView {
     pub client_id_hint: Option<String>,
     pub has_client_secret: bool,
     pub configured_fields: Vec<crate::model::ConfiguredFieldView>,
+    /// GitHub App public page (`https://github.com/apps/…`), when known.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub github_app_html_url: Option<String>,
     pub connection_count: i64,
     pub created_by: String,
     pub created_at: String,
@@ -295,6 +298,10 @@ impl ConnectionBroker {
                 .and_then(|field| field.hint.clone()),
             has_client_secret: configuration.contains_key("client_secret"),
             configured_fields,
+            github_app_html_url: configuration
+                .get("html_url")
+                .cloned()
+                .filter(|url| url.starts_with("https://github.com/apps/")),
             connection_count: self
                 .integration_count(&row.organization_id, &row.id)
                 .await?,
@@ -340,6 +347,7 @@ impl ConnectionBroker {
                 provider.integration_configuration_fields(),
                 &configuration,
             ),
+            github_app_html_url: None,
             connection_count: 0,
             created_by: "deployment".into(),
             created_at: "1970-01-01T00:00:00+00:00".into(),
@@ -487,6 +495,15 @@ impl ConnectionBroker {
         if let Some(secret) = &credentials.webhook_secret {
             app_configuration.insert("webhook_secret".into(), secret.clone());
         }
+        // Public App page URL — used by Pages to open Install (never a secret).
+        if let Some(html_url) = credentials
+            .html_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            app_configuration.insert("html_url".into(), html_url.to_string());
+        }
         if let Some(existing) = self
             .list_integrations(organization_id)
             .await?
@@ -550,6 +567,29 @@ impl ConnectionBroker {
             app_id: app_id.clone(),
             private_key_pem: pem.clone(),
         }))
+    }
+
+    /// List GitHub App installations for backup/setup UX (ids + account login only).
+    pub async fn list_github_app_installations(
+        &self,
+        organization_id: &OrganizationId,
+        integration_id: &str,
+    ) -> Result<Vec<crate::installation::GithubInstallationSummary>> {
+        let Some(material) = self
+            .github_app_signing_material(organization_id, integration_id)
+            .await?
+        else {
+            return Err(BrokerError::Invalid(
+                "integration holds no GitHub App signing material".into(),
+            ));
+        };
+        crate::installation::list_app_installations(
+            &self.http,
+            crate::installation::DEFAULT_GITHUB_API_BASE,
+            &material,
+        )
+        .await
+        .map_err(|e| BrokerError::Invalid(e.to_string()))
     }
 
     pub async fn update_integration(

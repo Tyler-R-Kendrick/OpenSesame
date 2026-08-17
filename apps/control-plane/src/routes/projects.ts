@@ -11,10 +11,11 @@ import {
   ProjectResponseSchema,
   SetActiveProjectRequestSchema,
 } from "@opensesame/contracts";
-import type {
-  Project,
-  ProjectMembership,
-  ProjectRole,
+import {
+  PERSONAL_PROJECT_SLUG,
+  type Project,
+  type ProjectMembership,
+  type ProjectRole,
 } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
@@ -25,6 +26,9 @@ import { getUsage } from "../state.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 export const projectRoutes = new Hono<{ Variables: Variables }>();
+
+const PERSONAL_TOMB_NAME = "personal";
+const PERSONAL_VAULT_FOLDER_PREFIX = "vault_folder_";
 
 /** States a caller can still see and act on. */
 const VISIBLE_PROJECT_STATES = new Set(["provisional", "active"]);
@@ -126,12 +130,56 @@ function toResponse(project: Project, role: ProjectRole) {
   });
 }
 
+/** Hierarchy response plus opaque tomb/vault binding metadata (WP-B). */
+function projectDetailResponse(project: Project, role: ProjectRole) {
+  return {
+    ...toResponse(project, role),
+    sealedStoreTombName: project.sealedStoreTombName ?? null,
+    pagesVaultFolderId: project.pagesVaultFolderId ?? null,
+  };
+}
+
+function personalEnsureResponse(project: Project, created: boolean) {
+  return {
+    id: project.id,
+    organizationId: project.organizationId ?? null,
+    ownerPrincipalId: project.ownerPrincipalId ?? null,
+    slug: project.slug,
+    displayName: project.displayName,
+    state: project.state,
+    expiresAt: project.expiresAt?.toISOString() ?? null,
+    claimPolicyId: project.claimPolicyId ?? null,
+    sealedStoreTombName: project.sealedStoreTombName ?? null,
+    pagesVaultFolderId: project.pagesVaultFolderId ?? null,
+    createdAt: project.createdAt.toISOString(),
+    updatedAt: project.updatedAt.toISOString(),
+    created,
+  };
+}
+
 function membershipResponse(membership: ProjectMembership) {
   return ProjectMembershipResponseSchema.parse({
     ...membership,
     createdAt: membership.createdAt.toISOString(),
     updatedAt: membership.updatedAt.toISOString(),
   });
+}
+
+function findPersonalProject(
+  ctx: AppContext,
+  principalId: string,
+): Project | undefined {
+  for (const project of ctx.stores.projects.values()) {
+    if (
+      project.kind === "personal" &&
+      project.ownerPrincipalId === principalId &&
+      project.state !== "deleted" &&
+      project.state !== "deleting"
+    ) {
+      return project;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -144,27 +192,32 @@ export function ensurePersonalProject(
   ctx: AppContext,
   principalId: string,
 ): Project {
-  for (const project of ctx.stores.projects.values()) {
-    if (
-      project.kind === "personal" &&
-      project.ownerPrincipalId === principalId &&
-      project.state !== "deleted"
-    ) {
-      return project;
-    }
+  return ensurePersonalProjectInner(ctx, principalId).project;
+}
+
+function ensurePersonalProjectInner(
+  ctx: AppContext,
+  principalId: string,
+): { project: Project; created: boolean } {
+  const existing = findPersonalProject(ctx, principalId);
+  if (existing) {
+    return { project: existing, created: false };
   }
   const now = ctx.clock();
+  const projectId = `prj_${randomUUID()}`;
   const project: Project = {
-    id: `prj_${randomUUID()}`,
+    id: projectId,
     kind: "personal",
-    slug: `personal-${principalId.slice(-8)}`,
+    slug: PERSONAL_PROJECT_SLUG,
     displayName: "Personal",
     state: "active",
     ownerPrincipalId: principalId,
+    sealedStoreTombName: PERSONAL_TOMB_NAME,
+    pagesVaultFolderId: `${PERSONAL_VAULT_FOLDER_PREFIX}${projectId.slice(4, 12)}`,
     createdAt: now,
     updatedAt: now,
   };
-  ctx.stores.projects.set(project.id, project);
+  ctx.stores.projects.set(projectId, project);
   ctx.stores.projectMemberships.set(
     projectMembershipKey(project.id, principalId),
     {
@@ -175,7 +228,7 @@ export function ensurePersonalProject(
       updatedAt: now,
     },
   );
-  return project;
+  return { project, created: true };
 }
 
 /**
@@ -268,7 +321,8 @@ projectRoutes.post(
       return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
     }
 
-    const parsed = CreateProjectRequestSchema.safeParse(await c.req.json());
+    const rawBody = (await c.req.json()) as Record<string, unknown>;
+    const parsed = CreateProjectRequestSchema.safeParse(rawBody);
     if (!parsed.success) {
       return c.json(
         { error: "validation_error", details: parsed.error.flatten() },
@@ -295,6 +349,15 @@ projectRoutes.post(
       (derivedSlug.length > 0
         ? derivedSlug
         : `project-${randomUUID().slice(0, 8)}`);
+    if (slug === PERSONAL_PROJECT_SLUG) {
+      return c.json(
+        {
+          error: "validation_error",
+          message: "Use POST /v1/projects/personal/ensure for the personal project",
+        },
+        400,
+      );
+    }
     const slugTaken = visibleProjects(ctx, principalId, now).some(
       ({ project }) => project.slug === slug,
     );
@@ -315,6 +378,17 @@ projectRoutes.post(
         ? { organizationId: parsed.data.organizationId }
         : {}),
     };
+    const tomb =
+      typeof rawBody.sealedStoreTombName === "string"
+        ? rawBody.sealedStoreTombName.trim()
+        : "";
+    if (tomb) project.sealedStoreTombName = tomb;
+    const folder =
+      typeof rawBody.pagesVaultFolderId === "string"
+        ? rawBody.pagesVaultFolderId.trim()
+        : "";
+    if (folder) project.pagesVaultFolderId = folder;
+
     ctx.stores.projects.set(project.id, project);
     ctx.stores.projectMemberships.set(
       projectMembershipKey(project.id, principalId),
@@ -336,7 +410,7 @@ projectRoutes.post(
       metadata: { action: "project.create", slug: project.slug },
     });
 
-    return c.json(toResponse(project, "owner"), 201);
+    return c.json(projectDetailResponse(project, "owner"), 201);
   },
 );
 
@@ -347,12 +421,10 @@ projectRoutes.get("/active", requirePrincipal(), async (c) => {
   // the caller explicitly swapped to this project rather than falling back.
   const project = resolveActiveProject(ctx, principalId);
   const isFallback = ctx.stores.activeProjects.get(principalId) === undefined;
+  const role = roleFor(ctx, project, principalId) ?? "owner";
   return c.json(
     ActiveProjectResponseSchema.parse({
-      project: toResponse(
-        project,
-        roleFor(ctx, project, principalId) ?? "owner",
-      ),
+      project: toResponse(project, role),
       isFallback,
     }),
   );
@@ -389,6 +461,41 @@ projectRoutes.put("/active", requirePrincipal(), async (c) => {
     }),
   );
 });
+
+projectRoutes.post(
+  "/personal/ensure",
+  requirePrincipal(),
+  idempotencyMiddleware("projects.personal.ensure"),
+  async (c) => {
+    const ctx = c.get("ctx");
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
+    const principal = await ctx.repos.principals.getById(principalId);
+    if (!principal) {
+      return c.json({ error: "not_found" }, 404);
+    }
+
+    const { project, created } = ensurePersonalProjectInner(ctx, principalId);
+
+    if (created) {
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "project.personal.ensured",
+        outcome: "succeeded",
+        principalId,
+        projectId: project.id,
+        correlationId: c.get("correlationId"),
+        metadata: {
+          action: "project.personal.ensure",
+          slug: project.slug,
+          sealedStoreTombName: project.sealedStoreTombName,
+          pagesVaultFolderId: project.pagesVaultFolderId,
+          created: true,
+        },
+      });
+    }
+
+    return c.json(personalEnsureResponse(project, created), created ? 201 : 200);
+  },
+);
 
 projectRoutes.post(
   "/temporary",
@@ -497,7 +604,58 @@ projectRoutes.get("/:id", requirePrincipal(), async (c) => {
   if (!project || !role || !isVisible(project, ctx.clock())) {
     return c.json({ error: "not_found" }, 404);
   }
-  return c.json(toResponse(project, role));
+  return c.json(projectDetailResponse(project, role));
+});
+
+projectRoutes.patch("/:id", requirePrincipal(), async (c) => {
+  const ctx = c.get("ctx");
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
+  const project = ctx.stores.projects.get(c.req.param("id"));
+  const role = project && roleFor(ctx, project, principalId);
+  if (!project || !role || !isVisible(project, ctx.clock())) {
+    return c.json({ error: "not_found" }, 404);
+  }
+  if (role === "member") {
+    return c.json({ error: "admin_required" }, 403);
+  }
+
+  const body = (await c.req.json()) as {
+    displayName?: string;
+    sealedStoreTombName?: string | null;
+    pagesVaultFolderId?: string | null;
+  };
+
+  const next: Project = {
+    ...project,
+    updatedAt: ctx.clock(),
+  };
+  if (typeof body.displayName === "string") {
+    const displayName = body.displayName.trim();
+    if (!displayName || displayName.length > 128) {
+      return c.json(
+        { error: "validation_error", message: "invalid displayName" },
+        400,
+      );
+    }
+    next.displayName = displayName;
+  }
+  if (body.sealedStoreTombName !== undefined) {
+    if (body.sealedStoreTombName === null || !body.sealedStoreTombName.trim()) {
+      delete next.sealedStoreTombName;
+    } else {
+      next.sealedStoreTombName = body.sealedStoreTombName.trim();
+    }
+  }
+  if (body.pagesVaultFolderId !== undefined) {
+    if (body.pagesVaultFolderId === null || !body.pagesVaultFolderId.trim()) {
+      delete next.pagesVaultFolderId;
+    } else {
+      next.pagesVaultFolderId = body.pagesVaultFolderId.trim();
+    }
+  }
+
+  ctx.stores.projects.set(project.id, next);
+  return c.json(projectDetailResponse(next, role));
 });
 
 projectRoutes.delete("/:id", requirePrincipal(), async (c) => {

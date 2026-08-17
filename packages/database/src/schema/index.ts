@@ -172,6 +172,10 @@ export const projects = pgTable(
     state: text("state").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),
     claimPolicyId: text("claim_policy_id"),
+    /** Opaque sealed-store tomb name (Host/CLI); never a secret value. */
+    sealedStoreTombName: text("sealed_store_tomb_name"),
+    /** Opaque Pages vault folder id (client plane); Host never decrypts. */
+    pagesVaultFolderId: text("pages_vault_folder_id"),
     ...timestamps,
   },
   (t) => [
@@ -181,6 +185,9 @@ export const projects = pgTable(
     uniqueIndex("projects_personal_owner_uidx")
       .on(t.ownerPrincipalId)
       .where(sql`${t.kind} = 'personal'`),
+    uniqueIndex("projects_owner_personal_slug_uidx")
+      .on(t.ownerPrincipalId, t.slug)
+      .where(sql`${t.slug} = 'personal' and ${t.ownerPrincipalId} is not null`),
     check(
       "projects_kind_check",
       sql`${t.kind} in ('personal','standard','temporary')`,

@@ -38,9 +38,13 @@ pub use recipients::Recipients;
 pub use root::{resolve_store_dir, StoreError, StoreRoot};
 pub use store::{init_store, init_store_key, list_names, unlock_store_key, FormatHint};
 pub use tomb_registry::{
-    default_tombs_config_path, load_tomb_registry, resolve_tomb_paths, save_tomb_registry,
-    TombBackend, TombEntry, TombRegistry, TombRegistryError,
+    default_tombs_config_path, ensure_personal_project_tomb, load_tomb_registry,
+    personal_project_tomb_name, resolve_project_tomb_name, resolve_tomb_paths, save_tomb_registry,
+    TombBackend, TombEntry, TombRegistry, TombRegistryError, PERSONAL_PROJECT_TOMB_NAME,
 };
-pub use update::{apply_secret_update, UpdateMode, UpdateOptions};
+pub use update::{
+    apply_secret_update, rotate_secret_entry, RotationChangelogEvent, SecretRotation, UpdateMode,
+    UpdateOptions, CHANGELOG_SECRET_VALUE_CHANGED,
+};
 
 pub use opensesame_human_vault::{ItemDataKey, VaultRootKey};

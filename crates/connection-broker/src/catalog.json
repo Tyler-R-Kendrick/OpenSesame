@@ -989,7 +989,13 @@
         "authorities": ["api.vercel.com"],
         "path_prefixes": []
       },
-      "operations": ["deployment.read", "project.write", "domain.read"]
+      "operations": [
+        "deployment.read",
+        "project.write",
+        "domain.read",
+        "env.set",
+        "secrets.sync"
+      ]
     },
     {
       "id": "render",
@@ -1403,7 +1409,13 @@
         "authorities": ["backboard.railway.com"],
         "path_prefixes": []
       },
-      "operations": ["project.read", "deployment.write", "environment.read"]
+      "operations": [
+        "project.read",
+        "deployment.write",
+        "environment.read",
+        "env.set",
+        "secrets.sync"
+      ]
     },
     {
       "id": "1password",

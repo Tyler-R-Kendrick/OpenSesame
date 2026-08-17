@@ -8,6 +8,7 @@ import {
   type CreateBindingRequest,
   type CreateConnectionRequest,
   type CreateIntegrationRequest,
+  type CreateSyncTargetRequest,
   type DiscoverConnectionsResponse,
   DiscoverConnectionsResponseSchema,
   type Integration,
@@ -20,8 +21,17 @@ import {
   ListIntegrationsResponseSchema,
   type ListProvidersResponse,
   ListProvidersResponseSchema,
+  type ListSyncTargetsResponse,
+  ListSyncTargetsResponseSchema,
   type RevokeResponse,
   RevokeResponseSchema,
+  type SyncAllResponse,
+  SyncAllResponseSchema,
+  type SyncTarget,
+  type SyncTargetOutcome,
+  SyncTargetOutcomeSchema,
+  type SyncTargetRequest,
+  SyncTargetSchema,
   type UpdateIntegrationRequest,
 } from "@opensesame/contracts";
 
@@ -539,6 +549,72 @@ export function createApiClient(options: ApiClientOptions) {
         "connection_events",
         ListEventsResponseSchema,
         connectionPath(id, "/events"),
+      );
+    },
+
+    async listSyncTargets(query?: {
+      projectId?: string;
+      configId?: string;
+    }): Promise<ListSyncTargetsResponse> {
+      const params = new URLSearchParams();
+      if (query?.projectId) params.set("project_id", query.projectId);
+      if (query?.configId) params.set("config_id", query.configId);
+      const qs = params.toString();
+      return requestParsed(
+        "sync_targets",
+        ListSyncTargetsResponseSchema,
+        `/api/v1/sync-targets${qs ? `?${qs}` : ""}`,
+      );
+    },
+
+    async createSyncTarget(
+      body: CreateSyncTargetRequest,
+    ): Promise<SyncTarget> {
+      return requestParsed(
+        "sync_target_create",
+        SyncTargetSchema,
+        "/api/v1/sync-targets",
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    async getSyncTarget(id: string): Promise<SyncTarget> {
+      return requestParsed(
+        "sync_target",
+        SyncTargetSchema,
+        `/api/v1/sync-targets/${encodeURIComponent(id)}`,
+      );
+    },
+
+    async deleteSyncTarget(id: string): Promise<void> {
+      const res = await request(
+        `/api/v1/sync-targets/${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw await requestFailure("sync_target_delete", res);
+    },
+
+    async syncTarget(
+      id: string,
+      body: SyncTargetRequest = {},
+    ): Promise<SyncTargetOutcome> {
+      return requestParsed(
+        "sync_target_sync",
+        SyncTargetOutcomeSchema,
+        `/api/v1/sync-targets/${encodeURIComponent(id)}/sync`,
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    async syncAllTargets(configId: string): Promise<SyncAllResponse> {
+      return requestParsed(
+        "sync_targets_sync_all",
+        SyncAllResponseSchema,
+        "/api/v1/sync-targets/sync-all",
+        {
+          method: "POST",
+          body: JSON.stringify({ config_id: configId }),
+        },
       );
     },
 

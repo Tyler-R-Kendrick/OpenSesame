@@ -22,6 +22,7 @@ function prodBase(): ControlPlaneConfig {
     corsOrigins: ["https://app.example"],
     hostApiUrl: "https://host.example",
     operatorToken: "operator-secret",
+    mappingResolveToken: "mapping-resolve-secret",
   };
 }
 

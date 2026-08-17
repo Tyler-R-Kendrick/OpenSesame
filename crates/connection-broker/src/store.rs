@@ -821,3 +821,208 @@ pub async fn list_events(pool: &SqlitePool, connection_id: &str) -> Result<Vec<E
         })
         .collect())
 }
+
+// ---- sync_targets -----------------------------------------------------------
+
+#[derive(Clone, Debug)]
+pub struct SyncTargetRow {
+    pub id: String,
+    pub organization_id: String,
+    pub project_id: String,
+    pub config_id: String,
+    pub connection_id: String,
+    pub provider_id: String,
+    pub operation: String,
+    pub status: String,
+    pub status_detail: Option<String>,
+    pub content_version: Option<String>,
+    pub last_synced_at: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+fn sync_target_from_row(row: &sqlx::sqlite::SqliteRow) -> SyncTargetRow {
+    SyncTargetRow {
+        id: row.get("id"),
+        organization_id: row.get("organization_id"),
+        project_id: row.get("project_id"),
+        config_id: row.get("config_id"),
+        connection_id: row.get("connection_id"),
+        provider_id: row.get("provider_id"),
+        operation: row.get("operation"),
+        status: row.get("status"),
+        status_detail: row.get("status_detail"),
+        content_version: row.get("content_version"),
+        last_synced_at: row.get("last_synced_at"),
+        created_at: parse_time(&row.get::<String, _>("created_at")),
+        updated_at: parse_time(&row.get::<String, _>("updated_at")),
+    }
+}
+
+const SYNC_TARGET_COLUMNS: &str =
+    "id, organization_id, project_id, config_id, connection_id, provider_id, operation, \
+     status, status_detail, content_version, last_synced_at, created_at, updated_at";
+
+/// Idempotent DDL for sync targets. Lives here so WP-C does not own root
+/// `migrations/` / `crates/storage` registration (orchestrator may promote later).
+pub async fn ensure_sync_targets_schema(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS sync_targets (
+            id TEXT PRIMARY KEY,
+            organization_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            config_id TEXT NOT NULL,
+            connection_id TEXT NOT NULL,
+            provider_id TEXT NOT NULL,
+            operation TEXT NOT NULL,
+            status TEXT NOT NULL,
+            status_detail TEXT,
+            content_version TEXT,
+            last_synced_at TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+         )",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_sync_targets_org_config \
+         ON sync_targets(organization_id, config_id)",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_sync_targets_org_project \
+         ON sync_targets(organization_id, project_id)",
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn insert_sync_target(pool: &SqlitePool, row: &SyncTargetRow) -> Result<()> {
+    ensure_sync_targets_schema(pool).await?;
+    sqlx::query(
+        "INSERT INTO sync_targets (id, organization_id, project_id, config_id, connection_id, \
+         provider_id, operation, status, status_detail, content_version, last_synced_at, \
+         created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&row.id)
+    .bind(&row.organization_id)
+    .bind(&row.project_id)
+    .bind(&row.config_id)
+    .bind(&row.connection_id)
+    .bind(&row.provider_id)
+    .bind(&row.operation)
+    .bind(&row.status)
+    .bind(&row.status_detail)
+    .bind(&row.content_version)
+    .bind(&row.last_synced_at)
+    .bind(row.created_at.to_rfc3339())
+    .bind(row.updated_at.to_rfc3339())
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn get_sync_target(pool: &SqlitePool, id: &str) -> Result<Option<SyncTargetRow>> {
+    ensure_sync_targets_schema(pool).await?;
+    let row = sqlx::query(&format!(
+        "SELECT {SYNC_TARGET_COLUMNS} FROM sync_targets WHERE id = ?"
+    ))
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.as_ref().map(sync_target_from_row))
+}
+
+pub async fn list_sync_targets(
+    pool: &SqlitePool,
+    organization_id: &str,
+    project_id: Option<&str>,
+    config_id: Option<&str>,
+) -> Result<Vec<SyncTargetRow>> {
+    ensure_sync_targets_schema(pool).await?;
+    let rows = match (project_id, config_id) {
+        (Some(project), Some(config)) => {
+            sqlx::query(&format!(
+                "SELECT {SYNC_TARGET_COLUMNS} FROM sync_targets \
+                 WHERE organization_id = ? AND project_id = ? AND config_id = ? \
+                 ORDER BY created_at ASC"
+            ))
+            .bind(organization_id)
+            .bind(project)
+            .bind(config)
+            .fetch_all(pool)
+            .await?
+        }
+        (Some(project), None) => {
+            sqlx::query(&format!(
+                "SELECT {SYNC_TARGET_COLUMNS} FROM sync_targets \
+                 WHERE organization_id = ? AND project_id = ? ORDER BY created_at ASC"
+            ))
+            .bind(organization_id)
+            .bind(project)
+            .fetch_all(pool)
+            .await?
+        }
+        (None, Some(config)) => {
+            sqlx::query(&format!(
+                "SELECT {SYNC_TARGET_COLUMNS} FROM sync_targets \
+                 WHERE organization_id = ? AND config_id = ? ORDER BY created_at ASC"
+            ))
+            .bind(organization_id)
+            .bind(config)
+            .fetch_all(pool)
+            .await?
+        }
+        (None, None) => {
+            sqlx::query(&format!(
+                "SELECT {SYNC_TARGET_COLUMNS} FROM sync_targets \
+                 WHERE organization_id = ? ORDER BY created_at ASC"
+            ))
+            .bind(organization_id)
+            .fetch_all(pool)
+            .await?
+        }
+    };
+    Ok(rows.iter().map(sync_target_from_row).collect())
+}
+
+pub async fn delete_sync_target(
+    pool: &SqlitePool,
+    organization_id: &str,
+    id: &str,
+) -> Result<bool> {
+    ensure_sync_targets_schema(pool).await?;
+    let deleted = sqlx::query("DELETE FROM sync_targets WHERE id = ? AND organization_id = ?")
+        .bind(id)
+        .bind(organization_id)
+        .execute(pool)
+        .await?;
+    Ok(deleted.rows_affected() > 0)
+}
+
+pub async fn update_sync_target_status(
+    pool: &SqlitePool,
+    id: &str,
+    status: &str,
+    status_detail: Option<&str>,
+    content_version: Option<&str>,
+    last_synced_at: Option<&str>,
+) -> Result<()> {
+    ensure_sync_targets_schema(pool).await?;
+    sqlx::query(
+        "UPDATE sync_targets SET status = ?, status_detail = ?, content_version = COALESCE(?, content_version), \
+         last_synced_at = COALESCE(?, last_synced_at), updated_at = ? WHERE id = ?",
+    )
+    .bind(status)
+    .bind(status_detail)
+    .bind(content_version)
+    .bind(last_synced_at)
+    .bind(Utc::now().to_rfc3339())
+    .bind(id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}

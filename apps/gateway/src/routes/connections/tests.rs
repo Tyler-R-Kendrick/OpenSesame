@@ -1134,8 +1134,11 @@ async fn unknown_ids_and_providers_answer_in_contract_codes() {
         Some(json!({"provider_id": "github"})),
     )
     .await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
-    assert_eq!(body["error"], "integration_not_found");
+    // GitHub accepts a pasted access token when a sealing key is present, so
+    // create succeeds under a deployment integration rather than 404.
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(body["provider_id"], "github");
+    assert!(body["connection_id"].is_string());
 }
 
 /// A session mint, straight into state: device approval is exercised elsewhere and

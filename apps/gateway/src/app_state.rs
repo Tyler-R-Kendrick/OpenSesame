@@ -10,6 +10,7 @@ use opensesame_storage::Db;
 use opensesame_task_access::{
     distributed_task_authority_ok, is_postgres_database_url, PostgresTaskStore,
 };
+use opensesame_task_bus::TaskBus;
 use serde_json::Value;
 use std::{
     collections::HashMap,
@@ -93,6 +94,8 @@ pub struct AppState {
     /// Wakes the backup actor immediately after configuration changes or
     /// resync requests; the actor's tick covers ordinary mutations (ADR 0039).
     pub backup_notify: Arc<tokio::sync::Notify>,
+    /// Host event bus (`OPENSESAME_TASKBUS` / `NATS_URL`; memory by default).
+    pub task_bus: Arc<dyn TaskBus>,
 }
 
 impl AppState {
@@ -135,6 +138,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         db.pool().clone(),
         BrokerConfig::from_env()?,
     )?);
+    let task_bus = opensesame_task_bus::create_from_env().await?;
 
     Ok(AppState {
         resource: args.resource,
@@ -161,6 +165,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         frozen_intents: Arc::new(Mutex::new(HashMap::new())),
         receipt_verifier: Arc::new(receipt_verifier),
         backup_notify: Arc::new(tokio::sync::Notify::new()),
+        task_bus,
     })
 }
 
@@ -182,6 +187,8 @@ async fn resolve_distributed_task_authority(task_database_url: &str) -> bool {
 
 #[cfg(test)]
 pub async fn test_demo_state() -> AppState {
+    // Force memory bus before `build` so ambient NATS_URL cannot open sockets.
+    std::env::set_var("OPENSESAME_TASKBUS", "memory");
     let mut state = build(Args {
         listen: "127.0.0.1:0".parse().unwrap(),
         resource: "https://opensesame.test".into(),
@@ -200,6 +207,7 @@ pub async fn test_demo_state() -> AppState {
     state.broker = Arc::new(artifacts.broker);
     state.bootstrap = Arc::new(Mutex::new(artifacts.demo));
     state.connection_ref = artifacts.connection_ref;
+    state.task_bus = Arc::new(opensesame_task_bus::InMemoryTaskBus::default());
     state
 }
 

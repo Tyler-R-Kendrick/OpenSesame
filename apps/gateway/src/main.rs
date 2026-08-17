@@ -5,6 +5,7 @@ mod app_state;
 mod backup;
 mod bootstrap;
 mod config;
+mod identity_mapping;
 mod middleware;
 mod routes;
 mod task_engine;

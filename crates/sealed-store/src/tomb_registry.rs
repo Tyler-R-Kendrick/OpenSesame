@@ -166,6 +166,48 @@ impl TombRegistry {
     }
 }
 
+/// Canonical sealed-store tomb name for a principal's default personal project.
+pub const PERSONAL_PROJECT_TOMB_NAME: &str = "personal";
+
+/// Returns the frozen tomb name bound to the default personal project.
+pub fn personal_project_tomb_name() -> &'static str {
+    PERSONAL_PROJECT_TOMB_NAME
+}
+
+/// Resolve the tomb name from optional project binding metadata.
+///
+/// When `sealed_store_tomb_name` is absent or blank, falls back to the personal
+/// project tomb so multi-tomb registries stay coherent (ADR 0038).
+pub fn resolve_project_tomb_name(sealed_store_tomb_name: Option<&str>) -> &str {
+    match sealed_store_tomb_name.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(name) => name,
+        None => PERSONAL_PROJECT_TOMB_NAME,
+    }
+}
+
+/// Resolve an existing personal-project tomb, or register a portable entry.
+///
+/// Does not remove or rewrite other tombs — personal binding is additive.
+pub fn ensure_personal_project_tomb(
+    reg: &mut TombRegistry,
+    store: &str,
+    key: &str,
+) -> Result<TombEntry, TombRegistryError> {
+    let name = PERSONAL_PROJECT_TOMB_NAME;
+    if let Some(existing) = reg.tombs.iter().find(|t| t.name == name) {
+        return Ok(existing.clone());
+    }
+    let entry = TombEntry {
+        name: name.into(),
+        store: store.into(),
+        key: key.into(),
+        volume: None,
+        backend: TombBackend::Portable,
+    };
+    reg.add(entry.clone())?;
+    Ok(entry)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -203,5 +245,39 @@ mod tests {
         .unwrap();
         let resolved = resolve_tomb_paths(&reg, None).unwrap();
         assert_eq!(resolved.store, PathBuf::from("/tmp/a"));
+    }
+
+    #[test]
+    fn ensure_personal_project_tomb_is_idempotent() {
+        let mut reg = TombRegistry::default();
+        reg.add(TombEntry {
+            name: "work".into(),
+            store: "/tmp/work".into(),
+            key: "/tmp/work.key".into(),
+            volume: None,
+            backend: TombBackend::Portable,
+        })
+        .unwrap();
+
+        let first = ensure_personal_project_tomb(&mut reg, "~/tombs/personal", "~/keys/personal.key")
+            .unwrap();
+        assert_eq!(first.name, PERSONAL_PROJECT_TOMB_NAME);
+        assert_eq!(reg.tombs.len(), 2);
+        assert_eq!(reg.active.as_deref(), Some("work"));
+
+        let second =
+            ensure_personal_project_tomb(&mut reg, "/other/store", "/other/key").unwrap();
+        assert_eq!(second.store, "~/tombs/personal");
+        assert_eq!(reg.tombs.len(), 2);
+    }
+
+    #[test]
+    fn resolve_project_tomb_name_falls_back_to_personal() {
+        assert_eq!(
+            resolve_project_tomb_name(None),
+            PERSONAL_PROJECT_TOMB_NAME
+        );
+        assert_eq!(resolve_project_tomb_name(Some("  ")), PERSONAL_PROJECT_TOMB_NAME);
+        assert_eq!(resolve_project_tomb_name(Some("team-a")), "team-a");
     }
 }

@@ -28,7 +28,12 @@ import {
   vaultItemToEntry,
 } from "../lib/vault/store-sync.js";
 import { CapabilityConnectorsPanel } from "./settings/CapabilityConnectorsPanel.js";
+import { ActiveProjectPanel } from "./settings/ActiveProjectPanel.js";
+import { ChangelogPanel } from "./settings/ChangelogPanel.js";
+import { GithubBackupPanel } from "./settings/GithubBackupPanel.js";
 import { ImportPanel } from "./settings/ImportPanel.js";
+import { OfflineBackupPanel } from "./settings/OfflineBackupPanel.js";
+import { SyncTargetsPanel } from "./settings/SyncTargetsPanel.js";
 import { UnlockMethodsPanel } from "./settings/UnlockMethodsPanel.js";
 import "./settings.css";
 
@@ -72,7 +77,7 @@ type CategoryId = (typeof CATEGORIES)[number]["id"];
 /** `#import` predates the categories and deep-links into Vault data. */
 function categoryFromHash(hash: string): CategoryId | null {
   const raw = hash.replace(/^#/, "");
-  if (raw === "import") return "data";
+  if (raw === "import" || raw === "github-backup") return "data";
   const match = CATEGORIES.find((category) => category.id === raw);
   return match ? match.id : null;
 }
@@ -92,6 +97,12 @@ export function SettingsSection() {
   useEffect(() => {
     const fromHash = categoryFromHash(hash);
     if (fromHash) setCategory(fromHash);
+    const id = hash.replace(/^#/, "");
+    if (id === "github-backup" || id === "import") {
+      window.requestAnimationFrame(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
   }, [hash]);
 
   function selectCategory(next: CategoryId) {
@@ -723,7 +734,17 @@ export function SettingsSection() {
         </section>
       )}
 
+      {category !== "connectivity" ? null : <ActiveProjectPanel />}
+
       {category !== "connectivity" ? null : <CapabilityConnectorsPanel />}
+
+      {category !== "connectivity" ? null : <SyncTargetsPanel />}
+
+      {category !== "data" ? null : <GithubBackupPanel />}
+
+      {category !== "data" ? null : <ChangelogPanel />}
+
+      {category !== "data" ? null : <OfflineBackupPanel />}
 
       {category !== "data" ? null : <ImportPanel />}
 

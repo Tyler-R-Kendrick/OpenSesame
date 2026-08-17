@@ -215,6 +215,7 @@ export function entriesToVaultItems(
   return { items, folders };
 }
 
+
 export type ManifestMergePlan = {
   /** Brand-new items to append. */
   adds: VaultItem[];
@@ -296,4 +297,59 @@ export function planManifestMerge(
     // Only materialize folders an added item actually landed in.
     newFolders: newFolders.filter((f) => usedFolderIds.has(f.id)),
   };
+}
+
+/**
+ * Project-scoped store paths — keep entries under `projectFolder/` or bare
+ * names when the folder is null (personal / default).
+ */
+export function filterEntriesForProject(
+  entries: StorePlainEntry[],
+  projectFolder: string | null,
+): StorePlainEntry[] {
+  if (!projectFolder?.trim()) return entries;
+  const prefix = `${projectFolder.trim().replace(/\/+$/u, "")}/`;
+  return entries.filter((entry) => {
+    const { folder } = splitStorePath(entry.path);
+    if (!folder) return false;
+    return (
+      folder === projectFolder.trim() ||
+      folder.startsWith(prefix.slice(0, -1))
+    );
+  });
+}
+
+/** Opaque sync-blob id for a store path (Host stores ciphertext only). */
+export function storePathToSyncBlobId(
+  path: string,
+  projectId?: string | null,
+): string {
+  const trimmed = path.replace(/^\/+|\/+$/gu, "");
+  if (projectId?.trim()) {
+    return `project:${projectId.trim()}:${trimmed}`;
+  }
+  return trimmed;
+}
+
+/**
+ * Build Host sync blob descriptors from already-sealed ciphertext bytes.
+ * Callers must seal locally first — this never accepts plaintext secrets.
+ */
+export function sealedBytesToSyncBlobs(
+  items: Array<{ id: string; epoch: number; ciphertext: Uint8Array }>,
+): Array<{ id: string; epoch: number; ciphertextB64: string }> {
+  return items.map((item) => {
+    if (!item.ciphertext.length) {
+      throw new Error("refusing empty ciphertext sync blob");
+    }
+    let binary = "";
+    for (const byte of item.ciphertext) {
+      binary += String.fromCharCode(byte);
+    }
+    return {
+      id: item.id,
+      epoch: item.epoch,
+      ciphertextB64: btoa(binary),
+    };
+  });
 }

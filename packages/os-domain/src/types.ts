@@ -122,6 +122,16 @@ export interface Project {
   state: ProjectState;
   expiresAt?: Date;
   claimPolicyId?: string;
+  /**
+   * Opaque sealed-store tomb name for this project (Host/CLI interpret).
+   * Personal projects default to the canonical personal tomb binding.
+   */
+  sealedStoreTombName?: string;
+  /**
+   * Opaque Pages vault folder id for this project (client plane interpret).
+   * Host never decrypts vault contents.
+   */
+  pagesVaultFolderId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -135,6 +145,45 @@ export interface ProjectMembership {
   role: ProjectRole;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Canonical slug for a principal's default personal project. */
+export const PERSONAL_PROJECT_SLUG = "personal" as const;
+
+/** Secret/config environment scope within a project (Doppler-parity config). */
+export type SecretConfigEnvironment =
+  | "development"
+  | "staging"
+  | "production"
+  | "custom";
+
+/**
+ * Project-scoped secret config (env slice). Type shape only — values stay in
+ * sealed-store / vault; agents never receive raw secrets.
+ */
+export interface SecretConfig {
+  id: string;
+  projectId: string;
+  slug: string;
+  displayName: string;
+  environment: SecretConfigEnvironment;
+}
+
+/** Sync-target lifecycle status for Host fan-out (WP-C). */
+export type SyncTargetStatus = "idle" | "syncing" | "ready" | "error";
+
+/**
+ * Binds a project config to a connection + connector operation for sync fan-out.
+ * Type shape only in this package — no invoke / getSecret affordance.
+ */
+export interface SyncTarget {
+  id: string;
+  projectId: string;
+  configId: string;
+  connectionId: string;
+  providerId: string;
+  operation: string;
+  status: SyncTargetStatus;
 }
 
 export type ResourceState =
@@ -453,13 +502,41 @@ export type ConnectionDomainEventType =
   | "connection.unbound"
   | "connection.revoked";
 
+/** Personal project provisioning (WP-B). */
+export type ProjectDomainEventType = "project.personal.ensured";
+
+/** Secret/config changelog event types (frozen for WP-C/D/E). */
+export type SecretConfigDomainEventType =
+  | "secret.config.created"
+  | "secret.config.updated"
+  | "secret.config.deleted"
+  | "secret.value.changed";
+
+/** Sync-target event types (frozen for WP-C/D). */
+export type SyncTargetDomainEventType =
+  | "sync.target.created"
+  | "sync.target.synced"
+  | "sync.target.failed";
+
+/** Credential rotation event types (frozen for WP-E). */
+export type CredentialRotationDomainEventType =
+  | "credential.rotation.requested"
+  | "credential.rotation.succeeded"
+  | "credential.rotation.failed";
+
+/** Domain event types for projects / secrets / sync / rotation. */
+export type SecretsPlaneDomainEventType =
+  | ProjectDomainEventType
+  | SecretConfigDomainEventType
+  | SyncTargetDomainEventType
+  | CredentialRotationDomainEventType;
+
 /** Future domain event types — contracts only; no secret resolver in this slice. */
 export type FutureDomainEventType =
   | "connection.claimed"
   | "connection.delegated"
   | "authority.invocation.requested"
-  | "authority.invocation.completed"
-  | "credential.rotation.requested";
+  | "authority.invocation.completed";
 
 export interface SigningKeyProvider {
   getActiveSigningKeys(): Promise<readonly JsonWebKey[]>;

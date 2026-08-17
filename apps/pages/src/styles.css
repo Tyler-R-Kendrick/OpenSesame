@@ -462,6 +462,32 @@ input[type="radio"] {
   background: var(--err-wash);
 }
 
+.banner {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin: 0.75rem 1rem 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line));
+  border-radius: var(--radius);
+  background: var(--warn-wash);
+  font-size: 0.9rem;
+}
+
+.banner svg {
+  flex: none;
+  margin-top: 0.15rem;
+}
+
+.banner ul {
+  margin: 0.25rem 0 0.5rem;
+  padding-left: 1.1rem;
+}
+
+.banner--warn {
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--line));
+}
+
 .note svg {
   flex: none;
   margin-top: 0.1rem;

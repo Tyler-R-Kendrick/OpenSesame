@@ -51,6 +51,12 @@ import {
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
+import {
+  installVaultHostBackupFlushHooks,
+  pushSealedVaultToHost,
+} from "./host-backup.js";
+
+installVaultHostBackupFlushHooks();
 
 /**
  * Base key names. The store reads and writes them through the active
@@ -601,6 +607,16 @@ export class VaultStore {
     await kvSetDurable(this.#keys.body, JSON.stringify(sealed));
     this.#body.rev = rev;
     await this.#recordBodyRev(rev);
+    // Recoverability (ADR 0039): sealed ciphertext must leave the device for
+    // Host → outbox → GitHub. Local OPFS already succeeded; Host failure queues.
+    const headerJson = kvGet(this.#keys.header);
+    if (headerJson) {
+      await pushSealedVaultToHost({
+        headerJson,
+        bodyJson: JSON.stringify(sealed),
+        epoch: rev,
+      });
+    }
   }
 
   /**

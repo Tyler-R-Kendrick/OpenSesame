@@ -5,6 +5,7 @@ import {
 } from "@opensesame/database";
 import { createLogger } from "@opensesame/observability";
 import { startCleanupLoop } from "./cleanup.js";
+import { createTaskBusFromEnv } from "./taskBus.js";
 
 /**
  * Identity-plane cleanup worker (TS). Coexists with the Rust authority worker
@@ -27,6 +28,7 @@ async function main(): Promise<void> {
   const repos = createRepositories({ databaseUrl });
   const { db } = createDrizzle(databaseUrl);
   const oidcStore = createPostgresOidcStore(db);
+  const taskBus = await createTaskBusFromEnv();
   const intervalMs = Number(
     process.env.OPENSESAME_WORKER_INTERVAL_MS ?? "5000",
   );
@@ -37,15 +39,21 @@ async function main(): Promise<void> {
   // Claims, provisional sessions and temporary projects live in the control
   // plane's process. This worker cannot see them, and it used to be handed empty
   // maps — reporting successful ticks while expiring nothing, which reads as TTL
-  // enforcement that is not happening. It publishes the outbox, prunes the
-  // issuer's expired rows, and says so.
+  // enforcement that is not happening. It publishes the outbox to TaskBus, prunes
+  // the issuer's expired rows, and says so.
   log.warn(
-    { intervalMs },
-    "standalone cleanup worker: outbox and issuer row pruning — claim, session and project expiry run in-process in the control plane",
+    {
+      intervalMs,
+      taskBus:
+        process.env.OPENSESAME_TASKBUS ??
+        (process.env.NATS_URL ? "nats" : "memory"),
+    },
+    "standalone cleanup worker: outbox→TaskBus and issuer row pruning — claim, session and project expiry run in-process in the control plane",
   );
   await startCleanupLoop({
     repos,
     oidcStore,
+    taskBus,
     clock: () => new Date(),
     log,
     intervalMs,

@@ -625,6 +625,15 @@ export function CapabilityConnectorsPanel() {
                       localhost, webhooks are omitted. If permissions change,
                       Create the App again, Authorize, and Install.
                     </p>
+                    <p className="hint">
+                      Prefer{" "}
+                      <Link to="/settings#github-backup">
+                        Settings → Data → GitHub recoverability
+                      </Link>{" "}
+                      for Create App → Authorize → Install → private repo in one
+                      place. You can still create the App here if you only need
+                      History without backup.
+                    </p>
                     <button
                       type="button"
                       className="btn btn--primary btn--sm"

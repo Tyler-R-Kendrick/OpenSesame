@@ -111,6 +111,74 @@ pub async fn mint_installation_token(
     }
 }
 
+/// Summary of a GitHub App installation (never includes tokens).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GithubInstallationSummary {
+    pub id: String,
+    pub account_login: String,
+    pub account_type: String,
+    pub target_type: String,
+}
+
+#[derive(Deserialize)]
+struct GithubInstallationApiRow {
+    id: u64,
+    account: GithubInstallationAccount,
+    #[serde(default)]
+    target_type: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct GithubInstallationAccount {
+    login: String,
+    #[serde(rename = "type")]
+    account_type: String,
+}
+
+/// List installations for a GitHub App (JWT auth). Used by backup setup UX.
+pub async fn list_app_installations(
+    http: &reqwest::Client,
+    api_base: &str,
+    material: &GithubAppSigningMaterial,
+) -> Result<Vec<GithubInstallationSummary>, MintError> {
+    let jwt = mint_app_jwt(material).map_err(MintError::Transient)?;
+    let base = api_base.trim_end_matches('/');
+    let response = http
+        .get(format!("{base}/app/installations"))
+        .bearer_auth(&jwt)
+        .header("accept", "application/vnd.github+json")
+        .header("x-github-api-version", API_VERSION)
+        .header("user-agent", USER_AGENT)
+        .query(&[("per_page", "100")])
+        .send()
+        .await
+        .map_err(|e| MintError::Transient(e.into()))?;
+    match response.status().as_u16() {
+        200 => {
+            let rows: Vec<GithubInstallationApiRow> = response
+                .json()
+                .await
+                .map_err(|e| MintError::Transient(e.into()))?;
+            Ok(rows
+                .into_iter()
+                .map(|row| GithubInstallationSummary {
+                    id: row.id.to_string(),
+                    account_login: row.account.login,
+                    account_type: row.account.account_type,
+                    target_type: row.target_type.unwrap_or_else(|| "Unknown".into()),
+                })
+                .collect())
+        }
+        401 | 403 | 404 => Err(MintError::Suspended(format!(
+            "list installations returned {}",
+            response.status()
+        ))),
+        status => Err(MintError::Transient(anyhow::anyhow!(
+            "list installations returned {status}"
+        ))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
