@@ -24,6 +24,7 @@
   "dependencies": {
     "@opensesame/api-client": "workspace:*",
     "@opensesame/contracts": "workspace:*",
+    "@opensesame/qr": "workspace:^",
     "@opensesame/sdk-cli": "workspace:*",
     "zod": "3.25.67"
   },

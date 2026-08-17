@@ -4,6 +4,7 @@ import {
   assertSecureUrl,
   trimSlash,
 } from "./secure-url.js";
+import { encodeQrTerminal } from "@opensesame/qr";
 
 export interface DeviceAuthorizationResponse {
   device_code: string;
@@ -242,18 +243,25 @@ export class DeviceFlowClient {
   }
 
   /** Format user-facing instructions — never includes device_code. */
-  formatInstructions(start: SafeDeviceStart): string {
+  formatInstructions(
+    start: SafeDeviceStart,
+    options: { qr?: boolean } = {},
+  ): string {
     const lines = [
-      "To sign in, visit:",
-      "",
-      `  ${start.verificationUri}`,
-      "",
-      "Enter code:",
+      "To sign in, enter this shortcode:",
       "",
       `  ${start.userCode}`,
+      "",
+      "at:",
+      "",
+      `  ${start.verificationUri}`,
     ];
+    const scanUrl = start.verificationUriComplete ?? start.verificationUri;
     if (start.verificationUriComplete) {
       lines.push("", `Or open: ${start.verificationUriComplete}`);
+    }
+    if (options.qr) {
+      lines.push("", encodeQrTerminal(scanUrl), "");
     }
     return lines.join("\n");
   }

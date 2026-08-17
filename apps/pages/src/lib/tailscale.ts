@@ -112,15 +112,26 @@ export function discoverErrorMessage(input: {
       "This github.io page cannot reach 127.0.0.1 (or localhost).",
     );
   }
+  if (!input.fromGithubPages && input.triedLoopback) {
+    parts.push(
+      "No daemon answered on loopback (http://127.0.0.1:18790). Start opensesame-daemon on this machine, or paste its Tailscale Serve URL.",
+    );
+  }
   parts.push(
     "Paste the daemon's Tailscale Serve URL (https://YOUR-MACHINE.YOUR-TAILNET.ts.net).",
   );
   parts.push(
     "On the daemon machine: curl -s http://127.0.0.1:18790/health — if Serve is off, open tailscale_serve_enable_url, sign in, restart the daemon, then paste tailscale_url here.",
   );
-  parts.push(
-    "github.io cannot use localhost. Bare https://hostname MagicDNS names fail TLS; the FQDN .ts.net Serve URL is required.",
-  );
+  if (input.fromGithubPages) {
+    parts.push(
+      "github.io cannot use localhost. Bare https://hostname MagicDNS names fail TLS; the FQDN .ts.net Serve URL is required.",
+    );
+  } else {
+    parts.push(
+      "Bare https://hostname MagicDNS names fail TLS; use the FQDN ending in .ts.net.",
+    );
+  }
   if (input.detail) parts.push(input.detail);
   return parts.join(" ");
 }

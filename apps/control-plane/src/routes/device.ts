@@ -3,6 +3,7 @@ import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import {
   authenticatedPrincipalId,
+  ensurePersonalOrganization,
   hostApiEndpoint,
   membershipKey,
   serializeMembershipMutation,
@@ -39,9 +40,20 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
       400,
     );
   }
-  const memberships = [...ctx.stores.organizationMemberships.values()].filter(
+  let memberships = [...ctx.stores.organizationMemberships.values()].filter(
     (membership) => membership.principalId === principalId,
   );
+  // Local/dev Pages flow: a provisional principal with no workspace yet still
+  // needs a Host session. Seed the personal org on approve, not only at mint.
+  if (
+    memberships.length === 0 &&
+    ctx.config.bootstrapPersonalOrganization
+  ) {
+    ensurePersonalOrganization(ctx, principalId);
+    memberships = [...ctx.stores.organizationMemberships.values()].filter(
+      (membership) => membership.principalId === principalId,
+    );
+  }
   const organizationId =
     (typeof body.organization_id === "string"
       ? body.organization_id.trim()

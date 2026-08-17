@@ -345,9 +345,11 @@ export function VaultWelcome() {
         <h1>{live.length} items, sealed</h1>
         <p className="hint">
           Decrypted in memory for this session only. Locking discards the key
-          {header
+          {header?.kdf
             ? `; it is re-derived with ${header.kdf.iterations.toLocaleString()} PBKDF2 iterations`
-            : ""}
+            : header
+              ? "; unlock again with an enrolled passkey, PIN, or password"
+              : ""}
           .
         </p>
       </div>

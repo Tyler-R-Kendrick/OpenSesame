@@ -94,14 +94,14 @@ cargo build -p opensesame-gateway -p opensesame-cli -p opensesame-daemon
 ./target/debug/opensesame login --flow device --no-browser --server http://127.0.0.1:8787
 
 # Sealed store (pass parity; never agent-facing reveal)
-./target/debug/opensesame init --sealed-store --path ~/.password-store \
+./target/debug/opensesame pass init --path ~/.password-store \
   --remote https://github.com/you/password-store.git   # --remote optional
-./target/debug/opensesame insert Dev/api-token
-./target/debug/opensesame show Dev/api-token --reveal
-./target/debug/opensesame ls
-./target/debug/opensesame generate Dev/new --length 32
-./target/debug/opensesame seal manifest.json --shred   # encrypt a Pages manifest
-./target/debug/opensesame backup                       # commit + push to origin
+./target/debug/opensesame pass insert Dev/api-token
+./target/debug/opensesame pass show Dev/api-token --reveal
+./target/debug/opensesame pass ls
+./target/debug/opensesame pass generate Dev/new --length 32
+./target/debug/opensesame pass seal manifest.json --shred  # encrypt a Pages manifest
+./target/debug/opensesame pass backup                      # commit + push to origin
 # backup auth for GitHub HTTPS remotes: GITHUB_TOKEN → GitHub App
 # (GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY_PATH) → `gh auth token`
 ```
@@ -112,8 +112,8 @@ pnpm --filter @opensesame/pages dev   # vite --port 5180 --strictPort
 ```
 
 Sealed-store Settings bridge: export a path manifest in Pages, then
-`opensesame seal manifest.json --shred` encrypts it into the store and
-`opensesame backup` pushes ciphertext to the git remote. Importing a manifest
+`opensesame pass seal manifest.json --shred` encrypts it into the store and
+`opensesame pass backup` pushes ciphertext to the git remote. Importing a manifest
 in Pages merges by store path (idempotent), never duplicates.
 ## 4. Layout map
 
@@ -122,7 +122,7 @@ in Pages merges by store path (idempotent), never duplicates.
 | `crates/core`, `crates/host-core`, `crates/client-core` | WIT/Wasm polyglot core + product-SDK facades |
 | `apps/gateway` | Host API, `:8787` (`opensesame-gateway`) |
 | `apps/daemon` | Local host agent, `:18790` (`opensesame-daemon`) |
-| `apps/cli` | Host CLI, binary `opensesame` (`opensesame-cli`) — includes sealed-store verbs |
+| `apps/cli` | Host CLI, binary `opensesame` (`opensesame-cli`) — includes `pass` sealed-store verbs |
 | `crates/sealed-store` | Git-native hierarchical sealed secret store (`pass` parity) |
 | `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store |
 | `apps/toolbar` | Daemon control stub (`opensesame-toolbar`) |
@@ -153,7 +153,7 @@ in Pages merges by store path (idempotent), never duplicates.
 | `packages/env-spec-bridge` | env-spec ↔ runtime config bridge |
 | `skills/` | Agent skills — see §7 |
 | `wit/` | Polyglot core contracts (client, connector, core, host, mediation, proof, task) |
-| `docs/` | Architecture, ADRs, security, operators, validation, implementation docs |
+| `docs/` | Architecture, ADRs, security, operators, validation, implementation docs; competitor references under `docs/competitors/` |
 
 ## 5. Design rules that gate merges
 

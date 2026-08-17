@@ -74,7 +74,8 @@ function VaultFilters() {
       className={`rail__link${isActive ? " is-active" : ""}`}
       end
     >
-      {children}
+      {/* react-router NavLink children typing vs React 19 ReactNode */}
+      {children as never}
     </NavLink>
   );
 

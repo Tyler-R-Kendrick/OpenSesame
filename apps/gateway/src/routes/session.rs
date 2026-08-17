@@ -1,13 +1,16 @@
 use axum::{
     extract::State,
+    http::StatusCode,
     response::{IntoResponse, Response},
     Json,
 };
+use chrono::{Duration, Utc};
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
 
 use crate::app_state::AppState;
+use crate::config;
 use crate::middleware::auth::{
     require_demo_bootstrap, require_operator, require_session_or_operator, resolve_caller,
     same_principal_subject, Caller,
@@ -19,6 +22,82 @@ pub async fn status(State(st): State<AppState>, headers: axum::http::HeaderMap) 
     }
     let n = st.sessions.lock().unwrap().len();
     Json(json!({"active_sessions": n})).into_response()
+}
+
+/// One-shot Host session for local Pages / CLI without the Identity plane.
+///
+/// Gated to non-production + demo bootstrap (`OPENSESAME_DEV_BOOTSTRAP`). The
+/// browser never holds an operator token; this endpoint is the Host acting as
+/// the local authority IdP for connector OAuth on loopback.
+pub async fn local_mint(State(st): State<AppState>) -> Response {
+    if config::is_production_env() {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "local_session_forbidden",
+                "hint": "Host-local sessions are disabled in production. Use Identity device approval."
+            })),
+        )
+            .into_response();
+    }
+    let boot = match require_demo_bootstrap(&st) {
+        Ok(boot) => boot,
+        Err(resp) => return resp,
+    };
+
+    let _lifecycle = st.session_lifecycle.lock().unwrap();
+    let session_id = format!("sess_{}", uuid::Uuid::new_v4());
+    let session_digest = opensesame_claims::hash_secret(&session_id);
+    let principal = boot.principal.to_string();
+    let meta = json!({
+        "session_id": session_id,
+        "principal_id": principal,
+        "actor_id": boot.actor.to_string(),
+        "issuer": st.issuer,
+        "assurance": "local",
+        "organization_id": boot.org.to_string(),
+        "organization_role": "owner",
+        "project_id": boot.project.to_string(),
+        "credential_handle": format!("handle_{}", uuid::Uuid::new_v4()),
+        "approved_as": principal,
+        "expires_at": (Utc::now() + Duration::hours(8)).to_rfc3339(),
+        "local_session": true,
+    });
+    {
+        let mut sessions = st.sessions.lock().unwrap();
+        let now = Utc::now();
+        sessions.retain(|_, m| {
+            m.get("expires_at")
+                .and_then(|v| v.as_str())
+                .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+                .map(|dt| now < dt.with_timezone(&Utc))
+                .unwrap_or(false)
+        });
+        if sessions.len() >= 1024 {
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(json!({"error":"session_capacity"})),
+            )
+                .into_response();
+        }
+        let mut stored = meta.clone();
+        if let Some(obj) = stored.as_object_mut() {
+            obj.insert("session_id".into(), json!(session_digest));
+        }
+        sessions.insert(session_digest, stored);
+    }
+
+    (
+        StatusCode::OK,
+        Json(json!({
+            "token_type": "Bearer",
+            "expires_in": 28800,
+            "session": meta,
+            "access_token": format!("opaque-session:{session_id}"),
+            "local_session": true,
+        })),
+    )
+        .into_response()
 }
 
 pub async fn whoami(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
@@ -181,9 +260,10 @@ pub async fn list_connections(
 
 #[cfg(test)]
 mod tests {
-    use super::{revoke_matching_sessions, revoke_pending_authorizations, whoami};
+    use super::{local_mint, revoke_matching_sessions, revoke_pending_authorizations, whoami};
     use crate::app_state::{ApprovedDevice, DevicePending};
     use axum::extract::State;
+    use axum::http::StatusCode;
     use chrono::{Duration, Utc};
     use opensesame_domain::{OrganizationId, OrganizationRole, PrincipalId};
     use serde_json::json;
@@ -441,5 +521,41 @@ mod tests {
         assert_eq!(body["organization_role"], "admin");
         assert!(body["actor_id"].is_null());
         assert!(body["context"].is_null());
+    }
+
+    #[tokio::test]
+    async fn local_mint_issues_opaque_session_from_demo_bootstrap() {
+        let state = crate::app_state::test_demo_state().await;
+        let boot = state.bootstrap.lock().unwrap().clone().unwrap();
+
+        let response = local_mint(State(state.clone())).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let token = body["access_token"].as_str().unwrap();
+        assert!(token.starts_with("opaque-session:"));
+        assert_eq!(body["local_session"], true);
+        assert_eq!(
+            body["session"]["organization_id"],
+            boot.org.to_string()
+        );
+
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            format!("Bearer {token}").parse().unwrap(),
+        );
+        let whoami = whoami(State(state), headers).await;
+        assert_eq!(whoami.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn local_mint_requires_demo_bootstrap() {
+        let state = crate::app_state::test_demo_state().await;
+        *state.bootstrap.lock().unwrap() = None;
+        let response = local_mint(State(state)).await;
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     }
 }

@@ -302,6 +302,21 @@
   background: var(--surface-2);
 }
 
+.detail__update {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed var(--line);
+}
+
+.detail__update .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
 .frow {
   display: grid;
   grid-template-columns: 1fr auto;

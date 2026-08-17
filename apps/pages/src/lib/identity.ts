@@ -10,9 +10,12 @@ import { useCallback, useEffect, useState } from "react";
 import { probeDaemon } from "./daemon.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
 import { loadSettings } from "./settings.js";
+import { isLoopbackUrl } from "./urls.js";
 
 const IDENTITY_FETCH_MS = 8000;
 const PROBE_MS = 4000;
+/** Sentinel when Host minted the session without Identity (local authority). */
+const HOST_LOCAL_IDENTITY = "host-local";
 
 export type Principal = {
   id: string;
@@ -74,8 +77,10 @@ type HostSession = {
   hostApi: string;
   identityAccessToken: string;
 };
+export type AuthorityHostSession = HostSession;
 let hostSession: HostSession | null = null;
 let pendingHostSession: Promise<HostSession> | null = null;
+let pendingIdentitySession: Promise<IdentitySession> | null = null;
 /** In-flight revoke, so a reconnect cannot race its cookie teardown. */
 let pendingRevoke: Promise<void> | null = null;
 /**
@@ -211,15 +216,25 @@ export function clearHostSession(): void {
 }
 
 function currentHostSession(): HostSession | null {
-  const identity = currentSession();
   if (
     !hostSession ||
-    !identity ||
     hostSession.hostApi !== hostBase() ||
-    hostSession.identityAccessToken !== identity.accessToken ||
     hostSession.expiresAt <= Date.now()
   ) {
     hostSession = null;
+    return null;
+  }
+  // Host-local sessions do not bind to an Identity bearer.
+  if (hostSession.identityAccessToken === HOST_LOCAL_IDENTITY) {
+    return hostSession;
+  }
+  const identity = currentSession();
+  if (
+    !identity ||
+    hostSession.identityAccessToken !== identity.accessToken
+  ) {
+    hostSession = null;
+    return null;
   }
   return hostSession;
 }
@@ -249,6 +264,64 @@ async function hostSessionFailure(
     /* non-JSON error */
   }
   return new HostSessionError(code, `${fallback} (${response.status}).`);
+}
+
+/**
+ * True when Pages may use Host as the local authority IdP (no Identity URL).
+ * Host still enforces non-production + OPENSESAME_DEV_BOOTSTRAP server-side.
+ */
+export function hostLocalSessionEligible(
+  hostApi: string = hostBase(),
+): boolean {
+  return Boolean(hostApi) && isLoopbackUrl(hostApi);
+}
+
+/**
+ * Mint a Host session without Identity. Returns null when the Host refuses
+ * (production, no demo bootstrap) so callers can fall back to Identity.
+ */
+async function mintHostLocalSession(): Promise<HostSession | null> {
+  const hostApi = hostBase();
+  if (!hostLocalSessionEligible(hostApi)) return null;
+  const response = await localNetworkFetch(`${hostApi}/api/v1/session/local`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    credentials: "omit",
+    body: "{}",
+    timeoutMs: IDENTITY_FETCH_MS,
+  });
+  if (
+    response.status === 403 ||
+    response.status === 404 ||
+    response.status === 503
+  ) {
+    return null;
+  }
+  if (!response.ok) {
+    throw await hostSessionFailure(response, "Host-local session failed");
+  }
+  const issued = (await response.json()) as {
+    access_token?: unknown;
+    expires_in?: unknown;
+    local_session?: unknown;
+  };
+  if (
+    typeof issued.access_token !== "string" ||
+    !issued.access_token.startsWith("opaque-session:") ||
+    typeof issued.expires_in !== "number" ||
+    issued.expires_in <= 0
+  ) {
+    throw new HostSessionError(
+      "invalid_host",
+      "Host returned an invalid local session.",
+    );
+  }
+  return {
+    accessToken: issued.access_token,
+    expiresAt: Date.now() + issued.expires_in * 1000,
+    hostApi,
+    identityAccessToken: HOST_LOCAL_IDENTITY,
+  };
 }
 
 async function mintHostSession(
@@ -347,22 +420,64 @@ async function mintHostSession(
   };
 }
 
-async function ensureHostSession(): Promise<HostSession> {
-  const existing = currentHostSession();
-  if (existing) return existing;
-  const identity = currentSession();
-  if (!identity) {
-    throw new Error("Connect to Identity before using the Host.");
+/**
+ * Ensure an OpenSesame Identity principal for this tab.
+ *
+ * OpenSesame’s control plane is the IdP: a provisional principal is the default
+ * on-ramp. Better Auth / upstream IdP linking is optional and does not gate
+ * Host connector OAuth. Dedupes concurrent callers (Settings + Connections).
+ */
+export async function ensureIdentitySession(): Promise<IdentitySession> {
+  const existing = currentSession();
+  if (existing) {
+    return existing;
   }
+  if (!identityBase()) {
+    throw new IdentityError(
+      "No Identity API is configured. Set the Identity URL in Settings — OpenSesame issues your session there (upstream IdP / Better Auth is optional).",
+      0,
+    );
+  }
+  if (!pendingIdentitySession) {
+    pendingIdentitySession = connectProvisional();
+  }
+  const pending = pendingIdentitySession;
+  try {
+    return await pending;
+  } finally {
+    if (pendingIdentitySession === pending) pendingIdentitySession = null;
+  }
+}
+
+/**
+ * Mint (or reuse) a Host session.
+ * Prefers Host-local authority on loopback (no Identity plane). Falls back to
+ * Identity device approval when local mint is unavailable.
+ */
+export async function ensureHostSession(): Promise<HostSession> {
+  const existing = currentHostSession();
+  if (existing) {
+    return existing;
+  }
+
   if (!pendingHostSession) {
-    pendingHostSession = mintHostSession(identity).then((issued) => {
+    pendingHostSession = (async () => {
+      const local = await mintHostLocalSession();
+      if (local) {
+        hostSession = local;
+        return local;
+      }
+      const identity = await ensureIdentitySession();
+      const issued = await mintHostSession(identity);
       hostSession = issued;
       return issued;
-    });
+    })();
   }
   const pending = pendingHostSession;
   try {
     return await pending;
+  } catch (error) {
+    throw error;
   } finally {
     if (pendingHostSession === pending) pendingHostSession = null;
   }
@@ -600,7 +715,15 @@ export async function probeIdentity(): Promise<HealthState> {
       credentials: "omit",
       timeoutMs: PROBE_MS,
     });
-    return res.ok ? "reachable" : "unreachable";
+    if (!res.ok) return "unreachable";
+    // A foreign listener on :8788 can answer with 401 JSON and look "up".
+    // OpenSesame control-plane always returns `{ "status": "ok" }`.
+    try {
+      const body = (await res.json()) as { status?: unknown };
+      return body.status === "ok" ? "reachable" : "unreachable";
+    } catch {
+      return "unreachable";
+    }
   } catch {
     return "unreachable";
   }
@@ -687,12 +810,12 @@ export function useConnect(): {
     setConnecting(true);
     setError(null);
     try {
-      await connectProvisional();
+      await ensureIdentitySession();
     } catch (caught) {
       setError(
         caught instanceof Error
           ? caught.message
-          : "Could not reach the Identity API.",
+          : "Could not reach OpenSesame Identity.",
       );
     } finally {
       setConnecting(false);

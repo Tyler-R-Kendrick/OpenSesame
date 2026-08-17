@@ -62,8 +62,16 @@ export async function probeDaemon(
 /**
  * Remember the daemon and Host/Identity bases for this browser.
  *
- * From github.io, always pin Host/Identity to the Serve base we paired with.
- * The daemon may still advertise loopback upstreams that this page cannot call.
+ * From github.io (or any non-loopback page), pin Host/Identity to the Serve
+ * base we paired with — the daemon may still advertise loopback upstreams that
+ * this page cannot call.
+ *
+ * From localhost / 127.0.0.1 Pages, keep Host/Identity on the loopback
+ * upstreams the daemon advertises. Rewriting them to `https://…ts.net/host`
+ * breaks Settings pairing: the tab can already reach 127.0.0.1, and forcing
+ * Serve introduces CORS / Serve / TLS failures that look like "Tailscale
+ * connect failed." Still remember the Tailscale URL as `daemonApi` so QR /
+ * later github.io pairing have the FQDN.
  */
 export async function applyDaemonPairing(
   daemonApi: string,
@@ -78,12 +86,30 @@ export async function applyDaemonPairing(
   let identityApi = health.identityApi.trim();
   let savedDaemon = publicBase || daemonApi.trim();
 
-  if (publicBase && !isLoopbackUrl(publicBase)) {
+  if (pageIsLoopback()) {
+    if (publicBase && !isLoopbackUrl(publicBase)) {
+      savedDaemon = publicBase.replace(/\/$/, "");
+    } else {
+      savedDaemon = daemonApi.trim() || savedDaemon;
+    }
+    // Prefer daemon-advertised loopback planes; fall back to shipped locals.
+    if (!hostApi || !isLoopbackUrl(hostApi)) {
+      hostApi = current.hostApi && isLoopbackUrl(current.hostApi)
+        ? current.hostApi
+        : "http://127.0.0.1:8787";
+    }
+    if (!identityApi || !isLoopbackUrl(identityApi)) {
+      identityApi =
+        current.identityApi && isLoopbackUrl(current.identityApi)
+          ? current.identityApi
+          : "http://127.0.0.1:8788";
+    }
+  } else if (publicBase && !isLoopbackUrl(publicBase)) {
     const root = publicBase.replace(/\/$/, "");
     hostApi = `${root}/host`;
     identityApi = `${root}/identity`;
     savedDaemon = root;
-  } else if (!pageIsLoopback()) {
+  } else {
     // Never persist loopback Host endpoints on a remote page — that forces
     // "Connect this machine" on every navigation.
     if (!hostApi || isLoopbackUrl(hostApi)) hostApi = current.hostApi;

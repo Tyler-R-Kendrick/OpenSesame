@@ -5,6 +5,7 @@ import {
   parseTotp,
   secondsRemaining,
   totpCode,
+  totpSetupUri,
 } from "./totp.js";
 
 /** RFC 6238 Appendix B seed: the ASCII string "12345678901234567890". */
@@ -87,5 +88,23 @@ describe("period countdown", () => {
     expect(secondsRemaining(30, 0)).toBe(30);
     expect(secondsRemaining(30, 29_000)).toBe(1);
     expect(secondsRemaining(30, 30_000)).toBe(30);
+  });
+});
+
+describe("totpSetupUri", () => {
+  it("passes a valid otpauth URI through", () => {
+    const input = uri(6);
+    expect(totpSetupUri(input)).toBe(input);
+  });
+
+  it("builds an otpauth URI from a bare seed", () => {
+    const built = totpSetupUri(RFC_SEED_BASE32, {
+      label: "GitHub:ada",
+      issuer: "GitHub",
+    });
+    expect(built.startsWith("otpauth://totp/")).toBe(true);
+    expect(built).toContain(`secret=${RFC_SEED_BASE32}`);
+    expect(built).toContain("issuer=GitHub");
+    expect(parseTotp(built).digits).toBe(6);
   });
 });

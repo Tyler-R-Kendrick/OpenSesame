@@ -353,12 +353,6 @@ function TaskInspector({ online }: { online: boolean }) {
       setError("Enter the task run id you want to inspect.");
       return;
     }
-    if (!currentSession()) {
-      setError(
-        "Connect to Identity before asking the Host to describe a task.",
-      );
-      return;
-    }
     setBusy(true);
     setTask(null);
     try {
@@ -1039,7 +1033,10 @@ function ConnectPrincipal({ online }: { online: boolean }) {
           </span>
           <h3>Not connected to Identity</h3>
           <p>
-            Connecting creates a provisional principal on the Identity service.
+            Connecting creates a provisional principal on the Identity service
+            when you need the full Identity plane. On a local Host with
+            OPENSESAME_DEV_BOOTSTRAP, connector OAuth can use Host-local
+            authority without this step.
             That is enough to register an agent and read your own audit trail;
             it is not enough for anything that demands a verified human, and the
             API will say so plainly when you hit that line.

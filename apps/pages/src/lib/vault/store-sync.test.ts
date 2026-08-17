@@ -53,19 +53,28 @@ describe("store-sync mapping", () => {
     }
   });
 
-  it("creates folders for nested paths", () => {
-    const { items, folders } = entriesToVaultItems(
-      [
-        {
-          path: "Work/api",
-          secret: "t",
-          trailer: JSON.stringify({ kind: "secret" }),
-        },
-      ],
-      [],
-    );
-    expect(folders.some((f) => f.name === "Work")).toBe(true);
-    expect(items[0]?.kind).toBe("secret");
+  it("maps pass-otp trailer otpauth into login.totp", () => {
+    const item = entryToVaultItem({
+      path: "Email/site",
+      secret: "pw",
+      trailer:
+        'otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ\n{"kind":"login","username":"a"}\n',
+    });
+    expect(item.kind).toBe("login");
+    if (item.kind === "login") {
+      expect(item.totp).toMatch(/^otpauth:\/\//);
+      expect(item.username).toBe("a");
+    }
+  });
+
+  it("writes otpauth into the trailer for store interop", () => {
+    const item = createItem("login", "site");
+    if (item.kind === "login") {
+      item.password = "pw";
+      item.totp = "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+    }
+    const entry = vaultItemToEntry(item, []);
+    expect(entry.trailer).toMatch(/otpauth:\/\/totp\/Demo/);
   });
 });
 

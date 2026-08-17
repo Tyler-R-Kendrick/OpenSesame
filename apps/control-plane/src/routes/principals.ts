@@ -10,8 +10,6 @@ import {
 import { ConflictError } from "@opensesame/database";
 import type {
   ExternalIdentity,
-  Organization,
-  OrganizationMembership,
   Principal,
   ProvisionalSession,
 } from "@opensesame/os-domain";
@@ -20,7 +18,10 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
-import { authenticatedPrincipalId } from "./organizations.js";
+import {
+  authenticatedPrincipalId,
+  ensurePersonalOrganization,
+} from "./organizations.js";
 
 export const principalRoutes = new Hono<{ Variables: Variables }>();
 
@@ -91,28 +92,7 @@ principalRoutes.post(
     });
 
     if (ctx.config.bootstrapPersonalOrganization) {
-      const organization: Organization = {
-        id: `org:${randomUUID()}`,
-        slug: `local-${principal.id.slice(-8)}`,
-        displayName: "Personal workspace",
-        state: "active",
-        createdBy: principal.id,
-        createdAt: now,
-        updatedAt: now,
-      };
-      const membership: OrganizationMembership = {
-        organizationId: organization.id,
-        principalId: principal.id,
-        role: "owner",
-        createdAt: now,
-        updatedAt: now,
-      };
-      ctx.stores.organizations.set(organization.id, organization);
-      ctx.stores.organizationSlugs.set(organization.slug, organization.id);
-      ctx.stores.organizationMemberships.set(
-        `${organization.id}:${principal.id}`,
-        membership,
-      );
+      ensurePersonalOrganization(ctx, principal.id);
     }
 
     const accessToken = `pst_${randomBytes(24).toString("base64url")}`;

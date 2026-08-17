@@ -21,9 +21,9 @@ because its `OPENSESAME_PROVIDER_GITHUB_*` variables appeared nowhere in
 
 ## Decision
 
-1. **`opensesame backup` is the remote story.** It commits outstanding
+1. **`opensesame pass backup` is the remote story.** It commits outstanding
    changes, optionally sets `origin` (`--remote`), and pushes. Auto-push after
-   every store mutation is opt-in via `opensesame backup --auto-push true`,
+   every store mutation is opt-in via `opensesame pass backup --auto-push true`,
    recorded as `opensesame.autopush` in the store repo's git config. Push
    failures after a successful local mutation warn rather than fail: a lagging
    backup is recoverable, a blocked insert is not.
@@ -44,7 +44,7 @@ because its `OPENSESAME_PROVIDER_GITHUB_*` variables appeared nowhere in
    and MCP surfaces that reach connector-host cannot obtain a token; the human
    CLI (`opensesame lease acquire --reveal`) owns signing and the GitHub API
    call.
-5. **`opensesame seal` completes the ADR 0037 bridge.** It reads the Pages
+5. **`opensesame pass seal` completes the ADR 0037 bridge.** It reads the Pages
    manifest (`[{path, secret, trailer}]`), encrypts each entry into the store
    under the existing format-selection rules, records one commit, and with
    `--shred` overwrites and deletes the manifest. Pages-side import merges by

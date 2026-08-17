@@ -118,3 +118,30 @@ export function secondsRemaining(
 ): number {
   return period - (Math.floor(atMs / 1000) % period);
 }
+
+/**
+ * Build an otpauth:// URI suitable for authenticator QR enrollment.
+ * Passes through an existing otpauth URI after validating it.
+ */
+export function totpSetupUri(
+  raw: string,
+  opts: { label?: string; issuer?: string } = {},
+): string {
+  const trimmed = raw.trim();
+  if (!trimmed) throw new TotpParseError("the secret is empty");
+  if (/^otpauth:\/\//i.test(trimmed)) {
+    parseTotp(trimmed);
+    return trimmed;
+  }
+  const config = parseTotp(trimmed);
+  const secret = trimmed.replace(/[\s-]/g, "").replace(/=+$/, "").toUpperCase();
+  const label = encodeURIComponent(opts.label ?? "OpenSesame");
+  const params = new URLSearchParams({
+    secret,
+    digits: String(config.digits),
+    period: String(config.period),
+    algorithm: config.algorithm.replace("-", ""),
+  });
+  if (opts.issuer) params.set("issuer", opts.issuer);
+  return `otpauth://totp/${label}?${params.toString()}`;
+}

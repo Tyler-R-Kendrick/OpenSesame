@@ -26,6 +26,41 @@ export function authenticatedPrincipalId(value: string | undefined): string {
   return value;
 }
 
+export function ensurePersonalOrganization(
+  ctx: AppContext,
+  principalId: string,
+): OrganizationMembership {
+  for (const membership of ctx.stores.organizationMemberships.values()) {
+    if (membership.principalId === principalId) {
+      return membership;
+    }
+  }
+  const now = ctx.clock();
+  const organization: Organization = {
+    id: `org:${randomUUID()}`,
+    slug: `local-${randomUUID().slice(0, 8)}`,
+    displayName: "Personal workspace",
+    state: "active",
+    createdBy: principalId,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const membership: OrganizationMembership = {
+    organizationId: organization.id,
+    principalId,
+    role: "owner",
+    createdAt: now,
+    updatedAt: now,
+  };
+  ctx.stores.organizations.set(organization.id, organization);
+  ctx.stores.organizationSlugs.set(organization.slug, organization.id);
+  ctx.stores.organizationMemberships.set(
+    membershipKey(organization.id, principalId),
+    membership,
+  );
+  return membership;
+}
+
 export function membershipKey(
   organizationId: string,
   principalId: string,

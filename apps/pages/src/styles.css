@@ -467,6 +467,62 @@ input[type="radio"] {
   margin-top: 0.1rem;
 }
 
+.qr {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+  margin: 0;
+}
+
+.qr__img {
+  display: block;
+  border-radius: var(--radius);
+  background: #fff;
+  image-rendering: pixelated;
+}
+
+.qr__caption {
+  margin: 0;
+}
+
+.qr__shortcode {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.passkey-note {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+}
+
+.passkey-note__body {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.passkey-note__qr {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+}
+
+.conn-pair__qr {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  justify-items: start;
+}
+
+.detail__totp-qr {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: start;
+}
+
 .chip {
   display: inline-flex;
   align-items: center;

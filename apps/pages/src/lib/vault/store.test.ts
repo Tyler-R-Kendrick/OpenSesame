@@ -158,3 +158,78 @@ describe("VaultStore rollback detection", () => {
     ]);
   });
 });
+
+describe("VaultStore multi-method unlock", () => {
+  beforeEach(() => {
+    kvDelete(ATTEMPTS_KEY);
+    kvDelete(HEADER_KEY);
+    kvDelete(BODY_KEY);
+  });
+
+  it("unlocks with an enrolled PIN after locking", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.enrollPin("482910");
+    store.lock();
+
+    const reopened = new VaultStore();
+    await reopened.unlockWithPin("482910");
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+  });
+
+  it("requires TOTP after primary unlock when MFA is enrolled", async () => {
+    const { totpCode, parseTotp } = await import("./totp.js");
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    const uri = await store.enrollTotp();
+    const secret = new URL(uri).searchParams.get("secret");
+    expect(secret).toBeTruthy();
+    if (!secret) throw new Error("expected totp secret in otpauth URI");
+    store.lock();
+
+    const reopened = new VaultStore();
+    await reopened.unlock(PASSWORD);
+    expect(reopened.getSnapshot().awaitingTotp).toBe(true);
+    expect(reopened.getSnapshot().status).toBe("locked");
+
+    const code = await totpCode(parseTotp(secret));
+    await reopened.confirmTotp(code);
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+    expect(reopened.getSnapshot().awaitingTotp).toBe(false);
+  });
+
+  it("keeps at least one primary unlock method", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await expect(store.removePassword()).rejects.toThrow(
+      /at least one primary/,
+    );
+  });
+
+  it("can drop the password after a PIN is enrolled", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.enrollPin("482910");
+    await store.removePassword();
+    expect(store.getSnapshot().header?.wrap).toBeUndefined();
+    store.lock();
+
+    const reopened = new VaultStore();
+    await expect(reopened.unlock(PASSWORD)).rejects.toBeInstanceOf(
+      VaultCorruptError,
+    );
+    await reopened.unlockWithPin("482910");
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+  });
+
+  it("rejects sealed imports that have no password wrap", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.enrollPin("482910");
+    await store.removePassword();
+    const sealed = store.exportSealed();
+    await expect(store.importSealed(sealed, PASSWORD)).rejects.toThrow(
+      /no master-password unlock/,
+    );
+  });
+});

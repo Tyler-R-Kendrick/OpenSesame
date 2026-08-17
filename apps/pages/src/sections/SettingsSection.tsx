@@ -25,7 +25,9 @@ import {
   planManifestMerge,
   vaultItemToEntry,
 } from "../lib/vault/store-sync.js";
+import { CapabilityConnectorsPanel } from "./settings/CapabilityConnectorsPanel.js";
 import { ImportPanel } from "./settings/ImportPanel.js";
+import { UnlockMethodsPanel } from "./settings/UnlockMethodsPanel.js";
 import "./settings.css";
 
 const THEMES = [
@@ -108,7 +110,7 @@ export function SettingsSection() {
       URL.revokeObjectURL(url);
       setDataMessage({
         tone: "ok",
-        text: "Downloaded a plaintext path manifest for the unlocked vault. Seal it with `opensesame seal <file> --shred` — never commit the manifest itself.",
+        text: "Downloaded a plaintext path manifest for the unlocked vault. Seal it with `opensesame pass seal <file> --shred` — never commit the manifest itself.",
       });
     } catch (caught) {
       setDataMessage({
@@ -158,6 +160,8 @@ export function SettingsSection() {
       identityApi: endpoints.identityApi.trim().replace(/\/$/, ""),
       daemonApi: endpoints.daemonApi.trim().replace(/\/$/, ""),
       tursoUrl: endpoints.tursoUrl.trim(),
+      mfaAppUrl: endpoints.mfaAppUrl.trim().replace(/\/$/, ""),
+      capabilityConnectors: loadSettings().capabilityConnectors,
     });
     setTursoSessionToken(tursoToken);
     const mode = await checkTurso();
@@ -379,6 +383,8 @@ export function SettingsSection() {
         </div>
       </section>
 
+      <UnlockMethodsPanel />
+
       <section className="panel">
         <div className="panel__head">
           <div>
@@ -386,7 +392,7 @@ export function SettingsSection() {
             <p>
               Changing it re-wraps the vault key under a new derivation. Your
               items are not re-encrypted and nothing is re-uploaded, because
-              nothing was uploaded.
+              nothing was uploaded. Passkey and PIN unlocks stay enrolled.
             </p>
           </div>
         </div>
@@ -394,6 +400,12 @@ export function SettingsSection() {
           className="panel__body"
           onSubmit={(event) => void changeMaster(event)}
         >
+          {!header?.wrap || !header?.kdf ? (
+            <p className="hint">
+              This vault has no master-password unlock. Enroll one under Unlock
+              methods, or change unlock methods there.
+            </p>
+          ) : null}
           <div className="field">
             <label htmlFor="current-master">Current master password</label>
             <input
@@ -401,6 +413,7 @@ export function SettingsSection() {
               type="password"
               autoComplete="current-password"
               value={current}
+              disabled={!header?.wrap}
               onChange={(event) => setCurrent(event.target.value)}
             />
           </div>
@@ -412,6 +425,7 @@ export function SettingsSection() {
                 type="password"
                 autoComplete="new-password"
                 value={next}
+                disabled={!header?.wrap}
                 onChange={(event) => setNext(event.target.value)}
                 aria-describedby="next-master-strength"
               />
@@ -428,6 +442,7 @@ export function SettingsSection() {
                 type="password"
                 autoComplete="new-password"
                 value={confirm}
+                disabled={!header?.wrap}
                 onChange={(event) => setConfirm(event.target.value)}
               />
             </div>
@@ -437,12 +452,12 @@ export function SettingsSection() {
             <button
               type="submit"
               className="btn btn--primary"
-              disabled={rekeying || !current || nextTooWeak}
+              disabled={rekeying || !header?.wrap || !current || nextTooWeak}
               aria-busy={rekeying}
             >
               {rekeying ? "Re-wrapping…" : "Change master password"}
             </button>
-            {header ? (
+            {header?.kdf ? (
               <span className="hint">
                 {header.kdf.iterations.toLocaleString()} PBKDF2-SHA256
                 iterations
@@ -584,8 +599,26 @@ export function SettingsSection() {
               }
             />
             <p className="hint">
-              From github.io, pair the daemon running on this computer. Local
-              Pages auto-connects to loopback Host and Identity.
+              Local Pages keep Host/Identity on loopback after pairing. The
+              Tailscale Serve URL is stored for github.io / other devices. From
+              github.io, paste <code>https://machine.tailnet.ts.net</code> here
+              (this page cannot call 127.0.0.1).
+            </p>
+          </div>
+          <div className="field">
+            <label htmlFor="mfa-app-url">Mobile MFA app (optional)</label>
+            <input
+              id="mfa-app-url"
+              type="url"
+              value={endpoints.mfaAppUrl}
+              placeholder="http://127.0.0.1:5177"
+              onChange={(event) =>
+                setEndpoints({ ...endpoints, mfaAppUrl: event.target.value })
+              }
+            />
+            <p className="hint">
+              When this browser cannot finish a passkey, Authority shows a QR
+              that opens this URL on your phone.
             </p>
           </div>
           <div className="set__pair">
@@ -635,6 +668,8 @@ export function SettingsSection() {
         </form>
       </section>
 
+      <CapabilityConnectorsPanel />
+
       <ImportPanel />
 
       <section className="panel">
@@ -645,8 +680,10 @@ export function SettingsSection() {
               Bridge this device vault with an <code>opensesame</code> sealed
               store (<code>~/.password-store</code> or{" "}
               <code>OPENSESAME_STORE_DIR</code>). Manifests are plaintext while
-              unlocked — seal them with the CLI before committing to git. Agents
-              never receive these values; they use ConnectionRefs only.
+              unlocked — seal them with the CLI before committing to git. Use{" "}
+              <strong>Capability connectors → History</strong> to authorize
+              GitHub as the default remote for encrypted history. Agents never
+              receive these values; they use ConnectionRefs only.
             </p>
           </div>
         </div>
@@ -675,8 +712,8 @@ export function SettingsSection() {
           <p className="hint">
             CLI:{" "}
             <code>
-              opensesame init --sealed-store --remote &lt;git url&gt; &&
-              opensesame seal manifest.json --shred && opensesame backup
+              opensesame pass init --remote &lt;git url&gt; && opensesame pass
+              seal manifest.json --shred && opensesame pass backup
             </code>
           </p>
         </div>

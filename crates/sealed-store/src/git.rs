@@ -38,7 +38,7 @@ pub fn auto_commit(root: &Path, message: &str) -> Result<(), StoreError> {
     if !root.join(".git").exists() {
         eprintln!(
             "note: {} is not a git repository — the entry was written but not committed; \
-             run `opensesame git init` to start tracking ciphertext history",
+             run `opensesame pass git init` to start tracking ciphertext history",
             root.display()
         );
         return Ok(());
@@ -68,14 +68,14 @@ pub fn auto_commit(root: &Path, message: &str) -> Result<(), StoreError> {
         .status()
         .map_err(|e| StoreError::Git(e.to_string()))?;
     if !commit.success() {
-        // Non-fatal: store mutation already succeeded; caller can `opensesame git` later.
+        // Non-fatal: store mutation already succeeded; caller can `opensesame pass git` later.
         eprintln!("warning: git commit failed for sealed store (is user.email configured?)");
         return Ok(());
     }
     if auto_push_enabled(root) && remote_url(root).is_some() {
         // Best-effort: a backup that lags is recoverable, a blocked insert is not.
         if let Err(e) = push_backup(root, None) {
-            eprintln!("warning: auto-push failed ({e}); run `opensesame backup` to retry");
+            eprintln!("warning: auto-push failed ({e}); run `opensesame pass backup` to retry");
         }
     }
     Ok(())
@@ -151,7 +151,7 @@ pub fn set_auto_push(root: &Path, enabled: bool) -> Result<(), StoreError> {
 pub fn push_backup(root: &Path, token: Option<&str>) -> Result<(), StoreError> {
     if remote_url(root).is_none() {
         return Err(StoreError::Git(
-            "no backup remote configured; run `opensesame backup --remote <url>`".into(),
+            "no backup remote configured; run `opensesame pass backup --remote <url>`".into(),
         ));
     }
     let mut cmd = Command::new("git");
@@ -212,6 +212,7 @@ mod tests {
             &Entry {
                 secret: "x".into(),
                 trailer: String::new(),
+                otp: None,
             },
             &key,
         )
@@ -265,6 +266,7 @@ mod tests {
             &Entry {
                 secret: "y".into(),
                 trailer: String::new(),
+                otp: None,
             },
             &key,
         )

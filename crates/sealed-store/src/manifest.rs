@@ -47,9 +47,12 @@ pub fn seal_manifest(
     let existing = root.ls("")?;
     for manifest_entry in entries {
         let name = manifest_entry.path.trim().trim_matches('/').to_string();
+        // Same semantics as Entry::parse: an otpauth:// line in the trailer
+        // becomes structured OTP, so `pass otp` works on sealed entries.
         let entry = Entry {
             secret: manifest_entry.secret.clone(),
             trailer: manifest_entry.trailer.clone(),
+            otp: crate::otp::find_otpauth_in_trailer(&manifest_entry.trailer),
         };
         if existing.iter().any(|n| n == &name) && !replace {
             outcome.skipped.push(name);
@@ -91,6 +94,7 @@ mod tests {
             &Entry {
                 secret: "old".into(),
                 trailer: String::new(),
+                otp: None,
             },
             &key,
         )
