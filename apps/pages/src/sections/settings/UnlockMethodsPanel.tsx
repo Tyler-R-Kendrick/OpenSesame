@@ -1,32 +1,19 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { IconAlert, IconPasskey, IconShield } from "../../components/Icons.js";
 import { QrCode } from "../../components/QrCode.js";
+import { StatusNote } from "../../components/StatusNote.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { estimateStrength } from "../../lib/vault/password.js";
 import {
   MAX_PIN_LENGTH,
   MIN_PIN_LENGTH,
+  type WebauthnHostCheck,
   checkWebauthnHost,
   describeWebauthnError,
   listAvailableUnlockMethods,
-  type WebauthnHostCheck,
 } from "../../lib/vault/unlock-methods.js";
 
 const ENROLL_PASSKEY_FLAG = "os:enroll-passkey-after-host-fix";
-
-function Status({
-  message,
-}: { message: { tone: "ok" | "err"; text: string } | null }) {
-  if (!message) return null;
-  return (
-    <p
-      className={`note note--${message.tone}`}
-      role={message.tone === "err" ? "alert" : "status"}
-    >
-      <span>{message.text}</span>
-    </p>
-  );
-}
 
 export function UnlockMethodsPanel() {
   const { header } = useVault();
@@ -60,10 +47,7 @@ export function UnlockMethodsPanel() {
     if (sessionStorage.getItem(ENROLL_PASSKEY_FLAG) !== "1") return;
     if (!checkWebauthnHost().ok) return;
     sessionStorage.removeItem(ENROLL_PASSKEY_FLAG);
-    void run(
-      () => store.enrollPasskey(),
-      "Passkey unlock enrolled.",
-    );
+    void run(() => store.enrollPasskey(), "Passkey unlock enrolled.");
   }, [hasPasskey, busy, store]);
 
   async function run(action: () => Promise<void>, ok: string) {
@@ -145,7 +129,7 @@ export function UnlockMethodsPanel() {
         </div>
       </div>
       <div className="panel__body set__unlock">
-        <Status message={message} />
+        <StatusNote message={message} />
 
         <div className="set__unlock-row">
           <div>
@@ -158,7 +142,7 @@ export function UnlockMethodsPanel() {
                 : "Requires a PRF-capable platform passkey (Chrome / Edge on supported OS)."}
             </p>
             {!hasPasskey && !webauthnHost.ok ? (
-              <p className="note note--warn" role="status">
+              <output className="note note--warn">
                 <IconAlert size={18} />
                 <span>
                   {webauthnHost.reason}
@@ -170,10 +154,14 @@ export function UnlockMethodsPanel() {
                       resumes automatically.
                     </>
                   ) : (
-                    <> Use a DNS hostname (Tailscale MagicDNS, or localhost for local dev).</>
+                    <>
+                      {" "}
+                      Use a DNS hostname (Tailscale MagicDNS, or localhost for
+                      local dev).
+                    </>
                   )}
                 </span>
-              </p>
+              </output>
             ) : null}
           </div>
           <div className="actions">

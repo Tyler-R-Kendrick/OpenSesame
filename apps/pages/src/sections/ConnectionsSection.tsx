@@ -35,6 +35,7 @@ import {
   type ConnectionEvent,
   type ConnectionStatus,
   ConnectionsError,
+  type Integration,
   type Provider,
   type ProviderCategory,
   authorizeConnection,
@@ -47,13 +48,12 @@ import {
   listIntegrations,
   listProviders,
   openConsentPopup,
-  startGithubAppRegistration,
-  submitGithubAppManifest,
-  type Integration,
   refreshConnection,
   revokeConnection,
   setConnectionConfiguration,
   setConnectionCredential,
+  startGithubAppRegistration,
+  submitGithubAppManifest,
   unbindConnection,
   updateConnectionPolicy,
 } from "../lib/connections.js";
@@ -469,7 +469,10 @@ export function ConnectionsSection() {
               {loadError.unreachable ? (
                 <>
                   Start the configured Host service or{" "}
-                  <Link to="/settings">review connection settings</Link>.
+                  <Link to="/settings#connectivity">
+                    review connection settings
+                  </Link>
+                  .
                 </>
               ) : (
                 "Try refreshing the connection list."
@@ -2270,9 +2273,8 @@ function GalleryPanel({
             {sealKeyMissing ? (
               <p className="note note--warn conn-unconfigured">
                 <IconInfo />
-                This Host is missing{" "}
-                <code>OPENSESAME_CONNECTION_KEY</code>, so credentials cannot be
-                sealed yet. Set it and restart the Host.
+                This Host is missing <code>OPENSESAME_CONNECTION_KEY</code>, so
+                credentials cannot be sealed yet. Set it and restart the Host.
               </p>
             ) : null}
 
@@ -2431,7 +2433,6 @@ function ConnectorSetupGuide({ provider }: { provider: Provider }) {
   );
 }
 
-
 function GithubTenantAppPanel({
   provider,
   online,
@@ -2547,7 +2548,8 @@ function GithubTenantAppPanel({
     <div className="conn-github-app">
       <p className="hint">
         OpenSesame creates a GitHub App for this organization — you only confirm
-        it on GitHub. No client id or secret paste, and no manual OAuth App setup.
+        it on GitHub. No client id or secret paste, and no manual OAuth App
+        setup.
       </p>
       <div className="actions">
         <button
@@ -2842,8 +2844,7 @@ function ConnectForm({
     );
   }
 
-  const acceptsPat =
-    provider.id === "github" || provider.id === "gitlab";
+  const acceptsPat = provider.id === "github" || provider.id === "gitlab";
   const [oauthReady, setOauthReady] = useState(
     () => provider.configured || provider.id !== "github",
   );
@@ -2967,9 +2968,7 @@ function ConnectForm({
               className="btn btn--primary btn--sm"
               disabled={busy || !online || apiKey.trim() === ""}
             >
-              {busy
-                ? "Saving…"
-                : `Connect ${provider.displayName} with token`}
+              {busy ? "Saving…" : `Connect ${provider.displayName} with token`}
             </button>
           </div>
         </form>

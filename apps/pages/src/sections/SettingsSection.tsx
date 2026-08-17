@@ -1,4 +1,5 @@
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import {
   IconDownload,
   IconFolder,
@@ -11,6 +12,7 @@ import {
   IconX,
 } from "../components/Icons.js";
 import { ConnectThisMachine } from "../components/PlaneNote.js";
+import { StatusNote } from "../components/StatusNote.js";
 import { checkTurso, setTursoSessionToken } from "../lib/embedded-catalog.js";
 import { loadSettings, saveSettings } from "../lib/settings.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
@@ -52,23 +54,50 @@ const CLIPBOARD = [
   { value: 0, label: "Never clear" },
 ];
 
-function Status({
-  message,
-}: { message: { tone: "ok" | "err"; text: string } | null }) {
-  if (!message) return null;
-  return (
-    <p
-      className={`note note--${message.tone}`}
-      role={message.tone === "err" ? "alert" : "status"}
-    >
-      <span>{message.text}</span>
-    </p>
-  );
+/**
+ * Settings is a lot of unrelated panels; one wall of scroll buries them all.
+ * Each panel belongs to exactly one category, and only the active category
+ * renders.
+ */
+const CATEGORIES = [
+  { id: "general", label: "General" },
+  { id: "security", label: "Security" },
+  { id: "connectivity", label: "Connectivity" },
+  { id: "data", label: "Vault data" },
+  { id: "danger", label: "Danger" },
+] as const;
+
+type CategoryId = (typeof CATEGORIES)[number]["id"];
+
+/** `#import` predates the categories and deep-links into Vault data. */
+function categoryFromHash(hash: string): CategoryId | null {
+  const raw = hash.replace(/^#/, "");
+  if (raw === "import") return "data";
+  const match = CATEGORIES.find((category) => category.id === raw);
+  return match ? match.id : null;
 }
 
 export function SettingsSection() {
   const { prefs, items, folders, header } = useVault();
   const store = useVaultStore();
+  const { hash } = useLocation();
+  const navigate = useNavigate();
+
+  const [category, setCategory] = useState<CategoryId>(
+    () => categoryFromHash(hash) ?? "general",
+  );
+
+  // Links elsewhere in the app land on a category via the hash (`#import`
+  // from the vault's empty state, `#connectivity` from plane notes, …).
+  useEffect(() => {
+    const fromHash = categoryFromHash(hash);
+    if (fromHash) setCategory(fromHash);
+  }, [hash]);
+
+  function selectCategory(next: CategoryId) {
+    setCategory(next);
+    navigate(`#${next}`, { replace: true });
+  }
 
   const [endpoints, setEndpoints] = useState(() => loadSettings());
   const [endpointSaved, setEndpointSaved] = useState(false);
@@ -146,6 +175,10 @@ export function SettingsSection() {
   }
 
   const [newFolder, setNewFolder] = useState("");
+  const [sampleMessage, setSampleMessage] = useState<{
+    tone: "ok" | "err";
+    text: string;
+  } | null>(null);
   const [confirmDestroy, setConfirmDestroy] = useState(false);
 
   const sampleCount = items.filter((item) => item.sample).length;
@@ -268,7 +301,7 @@ export function SettingsSection() {
     } else {
       await store.addItems(buildSample(folder.id));
     }
-    setDataMessage({
+    setSampleMessage({
       tone: "ok",
       text: "Sample items added. Every one is badged and can be removed in one action.",
     });
@@ -278,7 +311,7 @@ export function SettingsSection() {
     const keep = items.filter((item) => !item.sample);
     const keepFolders = folders.filter((f) => f.name !== SAMPLE_FOLDER_NAME);
     await store.replaceAll(keep, keepFolders);
-    setDataMessage({ tone: "ok", text: "Sample items removed." });
+    setSampleMessage({ tone: "ok", text: "Sample items removed." });
   }
 
   return (
@@ -291,468 +324,497 @@ export function SettingsSection() {
         </p>
       </div>
 
-      <section className="panel">
-        <div className="panel__head">
-          <div>
-            <h2>Appearance</h2>
-            <p>Follows your system by default.</p>
-          </div>
-        </div>
-        <div className="panel__body">
-          <fieldset className="set__themes" aria-label="Theme">
-            {THEMES.map(({ id, label, Icon }) => (
-              <button
-                key={id}
-                type="button"
-                className="set__theme"
-                aria-pressed={prefs.theme === id}
-                onClick={() => store.setPrefs({ theme: id })}
-              >
-                <Icon size={18} />
-                {label}
-              </button>
-            ))}
-          </fieldset>
-        </div>
-      </section>
+      <nav className="set__nav" aria-label="Settings sections">
+        {CATEGORIES.map((entry) => (
+          <button
+            key={entry.id}
+            type="button"
+            className={`set__nav-link${entry.id === "danger" ? " set__nav-link--danger" : ""}`}
+            aria-current={category === entry.id ? "true" : undefined}
+            onClick={() => selectCategory(entry.id)}
+          >
+            {entry.label}
+          </button>
+        ))}
+      </nav>
 
-      <section className="panel">
-        <div className="panel__head">
-          <div>
-            <h2>Locking</h2>
-            <p>
-              Locking discards the decryption key from memory. Reopening needs
-              the master password again.
-            </p>
-          </div>
-        </div>
-        <div className="panel__body">
-          <div className="set__pair">
-            <div className="field">
-              <label htmlFor="autolock">Lock after inactivity</label>
-              <select
-                id="autolock"
-                value={prefs.autoLockMinutes}
-                onChange={(event) =>
-                  store.setPrefs({
-                    autoLockMinutes: Number(event.target.value),
-                  })
-                }
-              >
-                {AUTO_LOCK.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+      {category !== "general" ? null : (
+        <>
+          <section className="panel">
+            <div className="panel__head">
+              <div>
+                <h2>Appearance</h2>
+                <p>Follows your system by default.</p>
+              </div>
             </div>
-            <div className="field">
-              <label htmlFor="clipboard">Clear copied secrets after</label>
-              <select
-                id="clipboard"
-                value={prefs.clipboardClearSeconds}
-                onChange={(event) =>
-                  store.setPrefs({
-                    clipboardClearSeconds: Number(event.target.value),
-                  })
-                }
-              >
-                {CLIPBOARD.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={prefs.lockOnHide}
-              onChange={(event) =>
-                store.setPrefs({ lockOnHide: event.target.checked })
-              }
-            />
-            <span>Lock as soon as this tab goes to the background</span>
-          </label>
-          <p className="hint">
-            Clearing the clipboard only overwrites it if it still holds the
-            value OpenSesame put there, and some browsers refuse the read that
-            check needs.
-          </p>
-        </div>
-      </section>
-
-      <UnlockMethodsPanel />
-
-      <section className="panel">
-        <div className="panel__head">
-          <div>
-            <h2>Master password</h2>
-            <p>
-              Changing it re-wraps the vault key under a new derivation. Your
-              items are not re-encrypted and nothing is re-uploaded, because
-              nothing was uploaded. Passkey and PIN unlocks stay enrolled.
-            </p>
-          </div>
-        </div>
-        <form
-          className="panel__body"
-          onSubmit={(event) => void changeMaster(event)}
-        >
-          {!header?.wrap || !header?.kdf ? (
-            <p className="hint">
-              This vault has no master-password unlock. Enroll one under Unlock
-              methods, or change unlock methods there.
-            </p>
-          ) : null}
-          <div className="field">
-            <label htmlFor="current-master">Current master password</label>
-            <input
-              id="current-master"
-              type="password"
-              autoComplete="current-password"
-              value={current}
-              disabled={!header?.wrap}
-              onChange={(event) => setCurrent(event.target.value)}
-            />
-          </div>
-          <div className="set__pair">
-            <div className="field">
-              <label htmlFor="next-master">New master password</label>
-              <input
-                id="next-master"
-                type="password"
-                autoComplete="new-password"
-                value={next}
-                disabled={!header?.wrap}
-                onChange={(event) => setNext(event.target.value)}
-                aria-describedby="next-master-strength"
-              />
-              <span className="hint" id="next-master-strength">
-                {next
-                  ? `${nextStrength.label} · ${nextStrength.bits} bits`
-                  : "At least 12 characters, Fair or better"}
-              </span>
-            </div>
-            <div className="field">
-              <label htmlFor="confirm-master">Confirm</label>
-              <input
-                id="confirm-master"
-                type="password"
-                autoComplete="new-password"
-                value={confirm}
-                disabled={!header?.wrap}
-                onChange={(event) => setConfirm(event.target.value)}
-              />
-            </div>
-          </div>
-          <Status message={rekey} />
-          <div className="actions">
-            <button
-              type="submit"
-              className="btn btn--primary"
-              disabled={rekeying || !header?.wrap || !current || nextTooWeak}
-              aria-busy={rekeying}
-            >
-              {rekeying ? "Re-wrapping…" : "Change master password"}
-            </button>
-            {header?.kdf ? (
-              <span className="hint">
-                {header.kdf.iterations.toLocaleString()} PBKDF2-SHA256
-                iterations
-              </span>
-            ) : null}
-          </div>
-        </form>
-      </section>
-
-      <section className="panel">
-        <div className="panel__head">
-          <div>
-            <h2>Folders</h2>
-            <p>Folders are part of the encrypted body, like items.</p>
-          </div>
-        </div>
-        <div className="panel__body">
-          {folders.length > 0 ? (
-            <ul className="set__folders">
-              {folders.map((folder) => (
-                <li key={folder.id}>
-                  <IconFolder size={17} />
-                  <input
-                    defaultValue={folder.name}
-                    aria-label={`Rename ${folder.name}`}
-                    onBlur={(event) => {
-                      const name = event.target.value.trim();
-                      if (name && name !== folder.name) {
-                        void store.renameFolder(folder.id, name);
-                      }
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") event.currentTarget.blur();
-                    }}
-                  />
+            <div className="panel__body">
+              <fieldset className="set__themes" aria-label="Theme">
+                {THEMES.map(({ id, label, Icon }) => (
                   <button
+                    key={id}
                     type="button"
-                    className="icon-btn"
-                    aria-label={`Delete folder ${folder.name}`}
-                    title="Delete folder — its items stay in the vault"
-                    onClick={() => void store.deleteFolder(folder.id)}
+                    className="set__theme"
+                    aria-pressed={prefs.theme === id}
+                    onClick={() => store.setPrefs({ theme: id })}
                   >
-                    <IconX size={17} />
+                    <Icon size={18} />
+                    {label}
                   </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="hint">No folders yet.</p>
-          )}
-          <div className="set__pair">
-            <div className="field">
-              <label htmlFor="new-folder">New folder</label>
-              <input
-                id="new-folder"
-                value={newFolder}
-                onChange={(event) => setNewFolder(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && newFolder.trim()) {
-                    void store.addFolder(newFolder);
-                    setNewFolder("");
+                ))}
+              </fieldset>
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel__head">
+              <div>
+                <h2>Locking</h2>
+                <p>
+                  Locking discards the decryption key from memory. Reopening
+                  needs the master password again.
+                </p>
+              </div>
+            </div>
+            <div className="panel__body">
+              <div className="set__pair">
+                <div className="field">
+                  <label htmlFor="autolock">Lock after inactivity</label>
+                  <select
+                    id="autolock"
+                    value={prefs.autoLockMinutes}
+                    onChange={(event) =>
+                      store.setPrefs({
+                        autoLockMinutes: Number(event.target.value),
+                      })
+                    }
+                  >
+                    {AUTO_LOCK.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="clipboard">Clear copied secrets after</label>
+                  <select
+                    id="clipboard"
+                    value={prefs.clipboardClearSeconds}
+                    onChange={(event) =>
+                      store.setPrefs({
+                        clipboardClearSeconds: Number(event.target.value),
+                      })
+                    }
+                  >
+                    {CLIPBOARD.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={prefs.lockOnHide}
+                  onChange={(event) =>
+                    store.setPrefs({ lockOnHide: event.target.checked })
                   }
-                }}
+                />
+                <span>Lock as soon as this tab goes to the background</span>
+              </label>
+              <p className="hint">
+                Clearing the clipboard only overwrites it if it still holds the
+                value OpenSesame put there, and some browsers refuse the read
+                that check needs.
+              </p>
+            </div>
+          </section>
+        </>
+      )}
+
+      {category !== "security" ? null : <UnlockMethodsPanel />}
+
+      {category !== "security" ? null : (
+        <section className="panel">
+          <div className="panel__head">
+            <div>
+              <h2>Master password</h2>
+              <p>
+                Changing it re-wraps the vault key under a new derivation. Your
+                items are not re-encrypted and nothing is re-uploaded, because
+                nothing was uploaded. Passkey and PIN unlocks stay enrolled.
+              </p>
+            </div>
+          </div>
+          <form
+            className="panel__body"
+            onSubmit={(event) => void changeMaster(event)}
+          >
+            {!header?.wrap || !header?.kdf ? (
+              <p className="hint">
+                This vault has no master-password unlock. Enroll one under
+                Unlock methods, or change unlock methods there.
+              </p>
+            ) : null}
+            <div className="field">
+              <label htmlFor="current-master">Current master password</label>
+              <input
+                id="current-master"
+                type="password"
+                autoComplete="current-password"
+                value={current}
+                disabled={!header?.wrap}
+                onChange={(event) => setCurrent(event.target.value)}
               />
             </div>
-            <div className="field set__pairbtn">
+            <div className="set__pair">
+              <div className="field">
+                <label htmlFor="next-master">New master password</label>
+                <input
+                  id="next-master"
+                  type="password"
+                  autoComplete="new-password"
+                  value={next}
+                  disabled={!header?.wrap}
+                  onChange={(event) => setNext(event.target.value)}
+                  aria-describedby="next-master-strength"
+                />
+                <span className="hint" id="next-master-strength">
+                  {next
+                    ? `${nextStrength.label} · ${nextStrength.bits} bits`
+                    : "At least 12 characters, Fair or better"}
+                </span>
+              </div>
+              <div className="field">
+                <label htmlFor="confirm-master">Confirm</label>
+                <input
+                  id="confirm-master"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirm}
+                  disabled={!header?.wrap}
+                  onChange={(event) => setConfirm(event.target.value)}
+                />
+              </div>
+            </div>
+            <StatusNote message={rekey} />
+            <div className="actions">
               <button
-                type="button"
+                type="submit"
+                className="btn btn--primary"
+                disabled={rekeying || !header?.wrap || !current || nextTooWeak}
+                aria-busy={rekeying}
+              >
+                {rekeying ? "Re-wrapping…" : "Change master password"}
+              </button>
+              {header?.kdf ? (
+                <span className="hint">
+                  {header.kdf.iterations.toLocaleString()} PBKDF2-SHA256
+                  iterations
+                </span>
+              ) : null}
+            </div>
+          </form>
+        </section>
+      )}
+
+      {category !== "data" ? null : (
+        <section className="panel">
+          <div className="panel__head">
+            <div>
+              <h2>Folders</h2>
+              <p>Folders are part of the encrypted body, like items.</p>
+            </div>
+          </div>
+          <div className="panel__body">
+            {folders.length > 0 ? (
+              <ul className="set__folders">
+                {folders.map((folder) => (
+                  <li key={folder.id}>
+                    <IconFolder size={17} />
+                    <input
+                      defaultValue={folder.name}
+                      aria-label={`Rename ${folder.name}`}
+                      onBlur={(event) => {
+                        const name = event.target.value.trim();
+                        if (name && name !== folder.name) {
+                          void store.renameFolder(folder.id, name);
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") event.currentTarget.blur();
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      aria-label={`Delete folder ${folder.name}`}
+                      title="Delete folder — its items stay in the vault"
+                      onClick={() => void store.deleteFolder(folder.id)}
+                    >
+                      <IconX size={17} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="hint">No folders yet.</p>
+            )}
+            <form
+              className="set__inline"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!newFolder.trim()) return;
+                void store.addFolder(newFolder);
+                setNewFolder("");
+              }}
+            >
+              <div className="field set__inline-grow">
+                <label htmlFor="new-folder">New folder</label>
+                <input
+                  id="new-folder"
+                  value={newFolder}
+                  placeholder="e.g. Work"
+                  onChange={(event) => setNewFolder(event.target.value)}
+                />
+              </div>
+              <button
+                type="submit"
                 className="btn"
                 disabled={!newFolder.trim()}
-                onClick={() => {
-                  void store.addFolder(newFolder);
-                  setNewFolder("");
-                }}
               >
                 <IconPlus size={16} />
                 Add folder
               </button>
-            </div>
+            </form>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      <section className="panel">
-        <div className="panel__head">
-          <div>
-            <h2>Planes</h2>
-            <p>
-              Where the Identity and Host APIs live. GitHub Pages cannot run
-              either plane. Locally they auto-connect. Remotely, pair the daemon
-              on this machine or paste a Host you run.
-            </p>
-          </div>
-        </div>
-        <div className="panel__body">
-          <ConnectThisMachine />
-        </div>
-        <form
-          className="panel__body"
-          onSubmit={(event) => void saveEndpoints(event)}
-        >
-          <div className="set__pair">
-            <div className="field">
-              <label htmlFor="identity-api">Identity API</label>
-              <input
-                id="identity-api"
-                type="url"
-                value={endpoints.identityApi}
-                onChange={(event) =>
-                  setEndpoints({
-                    ...endpoints,
-                    identityApi: event.target.value,
-                  })
-                }
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="host-api">Host API</label>
-              <input
-                id="host-api"
-                type="url"
-                value={endpoints.hostApi}
-                placeholder="http://127.0.0.1:8787"
-                onChange={(event) =>
-                  setEndpoints({ ...endpoints, hostApi: event.target.value })
-                }
-              />
-            </div>
-          </div>
-          <div className="field">
-            <label htmlFor="daemon-api">Daemon on this machine</label>
-            <input
-              id="daemon-api"
-              type="url"
-              value={endpoints.daemonApi}
-              placeholder="http://127.0.0.1:18790"
-              onChange={(event) =>
-                setEndpoints({ ...endpoints, daemonApi: event.target.value })
-              }
-            />
-            <p className="hint">
-              Local Pages keep Host/Identity on loopback after pairing. The
-              Tailscale Serve URL is stored for github.io / other devices. From
-              github.io, paste <code>https://machine.tailnet.ts.net</code> here
-              (this page cannot call 127.0.0.1).
-            </p>
-          </div>
-          <div className="field">
-            <label htmlFor="mfa-app-url">Mobile MFA app (optional)</label>
-            <input
-              id="mfa-app-url"
-              type="url"
-              value={endpoints.mfaAppUrl}
-              placeholder="http://127.0.0.1:5177"
-              onChange={(event) =>
-                setEndpoints({ ...endpoints, mfaAppUrl: event.target.value })
-              }
-            />
-            <p className="hint">
-              When this browser cannot finish a passkey, Authority shows a QR
-              that opens this URL on your phone.
-            </p>
-          </div>
-          <div className="set__pair">
-            <div className="field">
-              <label htmlFor="turso-url">Turso sync URL (optional)</label>
-              <input
-                id="turso-url"
-                type="url"
-                placeholder="libsql://database-name.turso.io"
-                value={endpoints.tursoUrl}
-                onChange={(event) =>
-                  setEndpoints({ ...endpoints, tursoUrl: event.target.value })
-                }
-              />
-              <p className="hint">
-                Blank keeps the database entirely inside this PWA. A URL plus a
-                token enables explicit Turso push/pull sync.
-              </p>
-            </div>
-            <div className="field">
-              <label htmlFor="turso-token">
-                Turso auth token (this tab only)
-              </label>
-              <input
-                id="turso-token"
-                type="password"
-                autoComplete="off"
-                placeholder="Only needed for remote sync"
-                value={tursoToken}
-                onChange={(event) => setTursoToken(event.target.value)}
-              />
-              <p className="hint">
-                Never written to OPFS or the vault. Paste it again after a
-                reload when remote sync is needed.
+      {category !== "connectivity" ? null : (
+        <section className="panel">
+          <div className="panel__head">
+            <div>
+              <h2>Planes</h2>
+              <p>
+                Where the Identity and Host APIs live. GitHub Pages cannot run
+                either plane. Locally they auto-connect. Remotely, pair the
+                daemon on this machine or paste a Host you run.
               </p>
             </div>
           </div>
-          <Status message={databaseStatus} />
-          <div className="actions">
-            <button type="submit" className="btn btn--primary">
-              Save endpoints
-            </button>
-            {endpointSaved ? (
-              <output className="chip chip--ok">Saved</output>
-            ) : null}
+          <div className="panel__body">
+            <ConnectThisMachine />
           </div>
-        </form>
-      </section>
-
-      <CapabilityConnectorsPanel />
-
-      <ImportPanel />
-
-      <section className="panel">
-        <div className="panel__head">
-          <div>
-            <h2>Git sealed store</h2>
-            <p>
-              Bridge this device vault with an <code>opensesame</code> sealed
-              store (<code>~/.password-store</code> or{" "}
-              <code>OPENSESAME_STORE_DIR</code>). Manifests are plaintext while
-              unlocked — seal them with the CLI before committing to git. Use{" "}
-              <strong>Capability connectors → History</strong> to authorize
-              GitHub as the default remote for encrypted history. Agents never
-              receive these values; they use ConnectionRefs only.
-            </p>
-          </div>
-        </div>
-        <div className="panel__body">
-          <div className="actions">
-            <button type="button" className="btn" onClick={exportStoreManifest}>
-              <IconDownload size={16} />
-              Download store path manifest
-            </button>
-            <input
-              ref={storeFileRef}
-              id="store-manifest-file"
-              type="file"
-              accept="application/json"
-              className="visually-hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void importStoreManifest(file);
-              }}
-            />
-            <label htmlFor="store-manifest-file" className="btn">
-              <IconUpload size={16} />
-              Import store path manifest
-            </label>
-          </div>
-          <p className="hint">
-            CLI:{" "}
-            <code>
-              opensesame pass init --remote &lt;git url&gt; && opensesame pass
-              seal manifest.json --shred && opensesame pass backup
-            </code>
-          </p>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel__head">
-          <div>
-            <h2>Backup and move to another device</h2>
-            <p>
-              An OpenSesame export is the sealed body plus its key-wrapping
-              header. Anyone holding it still needs the master password. This is
-              not the same as the import above, which reads other products'
-              plaintext exports.
-            </p>
-          </div>
-        </div>
-        <div className="panel__body">
-          <div className="actions">
-            <button type="button" className="btn" onClick={exportVault}>
-              <IconDownload size={16} />
-              Export encrypted vault
-            </button>
-          </div>
-
-          <div className="set__pair">
-            <div className="field">
-              <label htmlFor="import-password">
-                Master password that export was sealed under
-              </label>
-              <input
-                id="import-password"
-                type="password"
-                autoComplete="off"
-                value={importPassword}
-                onChange={(event) => setImportPassword(event.target.value)}
-              />
+          <form
+            className="panel__body"
+            onSubmit={(event) => void saveEndpoints(event)}
+          >
+            <div className="set__pair">
+              <div className="field">
+                <label htmlFor="identity-api">Identity API</label>
+                <input
+                  id="identity-api"
+                  type="url"
+                  value={endpoints.identityApi}
+                  onChange={(event) =>
+                    setEndpoints({
+                      ...endpoints,
+                      identityApi: event.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="host-api">Host API</label>
+                <input
+                  id="host-api"
+                  type="url"
+                  value={endpoints.hostApi}
+                  placeholder="http://127.0.0.1:8787"
+                  onChange={(event) =>
+                    setEndpoints({ ...endpoints, hostApi: event.target.value })
+                  }
+                />
+              </div>
             </div>
-            <div className="field set__pairbtn">
+            <div className="field">
+              <label htmlFor="daemon-api">Daemon on this machine</label>
+              <input
+                id="daemon-api"
+                type="url"
+                value={endpoints.daemonApi}
+                placeholder="http://127.0.0.1:18790"
+                onChange={(event) =>
+                  setEndpoints({ ...endpoints, daemonApi: event.target.value })
+                }
+              />
+              <p className="hint">
+                Local Pages keep Host/Identity on loopback after pairing. The
+                Tailscale Serve URL is stored for github.io / other devices.
+                From github.io, paste{" "}
+                <code>https://machine.tailnet.ts.net</code> here (this page
+                cannot call 127.0.0.1).
+              </p>
+            </div>
+            <div className="field">
+              <label htmlFor="mfa-app-url">Mobile MFA app (optional)</label>
+              <input
+                id="mfa-app-url"
+                type="url"
+                value={endpoints.mfaAppUrl}
+                placeholder="http://127.0.0.1:5177"
+                onChange={(event) =>
+                  setEndpoints({ ...endpoints, mfaAppUrl: event.target.value })
+                }
+              />
+              <p className="hint">
+                When this browser cannot finish a passkey, Authority shows a QR
+                that opens this URL on your phone.
+              </p>
+            </div>
+            <div className="set__pair">
+              <div className="field">
+                <label htmlFor="turso-url">Turso sync URL (optional)</label>
+                <input
+                  id="turso-url"
+                  type="url"
+                  placeholder="libsql://database-name.turso.io"
+                  value={endpoints.tursoUrl}
+                  onChange={(event) =>
+                    setEndpoints({ ...endpoints, tursoUrl: event.target.value })
+                  }
+                />
+                <p className="hint">
+                  Blank keeps the database entirely inside this PWA. A URL plus
+                  a token enables explicit Turso push/pull sync.
+                </p>
+              </div>
+              <div className="field">
+                <label htmlFor="turso-token">
+                  Turso auth token (this tab only)
+                </label>
+                <input
+                  id="turso-token"
+                  type="password"
+                  autoComplete="off"
+                  placeholder="Only needed for remote sync"
+                  value={tursoToken}
+                  onChange={(event) => setTursoToken(event.target.value)}
+                />
+                <p className="hint">
+                  Never written to OPFS or the vault. Paste it again after a
+                  reload when remote sync is needed.
+                </p>
+              </div>
+            </div>
+            <StatusNote message={databaseStatus} />
+            <div className="actions">
+              <button type="submit" className="btn btn--primary">
+                Save endpoints
+              </button>
+              {endpointSaved ? (
+                <output className="chip chip--ok">Saved</output>
+              ) : null}
+            </div>
+          </form>
+        </section>
+      )}
+
+      {category !== "connectivity" ? null : <CapabilityConnectorsPanel />}
+
+      {category !== "data" ? null : <ImportPanel />}
+
+      {category !== "data" ? null : (
+        <section className="panel">
+          <div className="panel__head">
+            <div>
+              <h2>Git sealed store</h2>
+              <p>
+                Bridge this device vault with an <code>opensesame</code> sealed
+                store (<code>~/.password-store</code> or{" "}
+                <code>OPENSESAME_STORE_DIR</code>). Manifests are plaintext
+                while unlocked — seal them with the CLI before committing to
+                git. Use{" "}
+                <strong>Connectivity → Capability connectors → History</strong>{" "}
+                to authorize GitHub as the default remote for encrypted history.
+                Agents never receive these values; they use ConnectionRefs only.
+              </p>
+            </div>
+          </div>
+          <div className="panel__body">
+            <div className="actions">
+              <button
+                type="button"
+                className="btn"
+                onClick={exportStoreManifest}
+              >
+                <IconDownload size={16} />
+                Download store path manifest
+              </button>
+              <input
+                ref={storeFileRef}
+                id="store-manifest-file"
+                type="file"
+                accept="application/json"
+                className="visually-hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void importStoreManifest(file);
+                }}
+              />
+              <label htmlFor="store-manifest-file" className="btn">
+                <IconUpload size={16} />
+                Import store path manifest
+              </label>
+            </div>
+            <p className="hint">
+              CLI:{" "}
+              <code>
+                opensesame pass init --remote &lt;git url&gt; && opensesame pass
+                seal manifest.json --shred && opensesame pass backup
+              </code>
+            </p>
+          </div>
+        </section>
+      )}
+
+      {category !== "data" ? null : (
+        <section className="panel">
+          <div className="panel__head">
+            <div>
+              <h2>Backup and move to another device</h2>
+              <p>
+                An OpenSesame export is the sealed body plus its key-wrapping
+                header. Anyone holding it still needs the master password. This
+                is not the same as the import above, which reads other products'
+                plaintext exports.
+              </p>
+            </div>
+          </div>
+          <div className="panel__body">
+            <div className="actions">
+              <button type="button" className="btn" onClick={exportVault}>
+                <IconDownload size={16} />
+                Export encrypted vault
+              </button>
+            </div>
+
+            <div className="set__inline">
+              <div className="field set__inline-grow">
+                <label htmlFor="import-password">
+                  Master password that export was sealed under
+                </label>
+                <input
+                  id="import-password"
+                  type="password"
+                  autoComplete="off"
+                  value={importPassword}
+                  onChange={(event) => setImportPassword(event.target.value)}
+                />
+              </div>
               <input
                 ref={fileRef}
                 id="import-file"
@@ -769,95 +831,108 @@ export function SettingsSection() {
                 Choose an OpenSesame export
               </label>
             </div>
-          </div>
-          <p className="hint">
-            Importing merges items this vault does not already have by id.
-            Nothing is overwritten.
-          </p>
-
-          <hr className="set__rule" />
-
-          <div className="actions">
-            {sampleCount > 0 ? (
-              <button
-                type="button"
-                className="btn"
-                onClick={() => void purgeSample()}
-              >
-                Remove {sampleCount} SYNTHETIC{" "}
-                {sampleCount === 1 ? "item" : "items"}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn"
-                onClick={() => void loadSample()}
-              >
-                Load SYNTHETIC sample items
-              </button>
-            )}
-            <span className="hint">
-              Opt-in only. Every row is badged SYNTHETIC. One action removes
-              them all. Includes a weak and a reused password so health has
-              something true to say.
-            </span>
-          </div>
-
-          <Status message={dataMessage} />
-        </div>
-      </section>
-
-      <section className="panel set__danger">
-        <div className="panel__head">
-          <div>
-            <h2>Delete this vault</h2>
-            <p>
-              Removes the encrypted file from this browser. There is no copy
-              anywhere else unless you exported one.
+            <p className="hint">
+              Importing merges items this vault does not already have by id.
+              Nothing is overwritten.
             </p>
+
+            <StatusNote message={dataMessage} />
           </div>
-        </div>
-        <div className="panel__body">
-          {confirmDestroy ? (
-            <>
-              <p className="note note--err">
-                <span>
-                  {items.length} {items.length === 1 ? "item" : "items"} will be
-                  unrecoverable. Export first if you are not certain.
-                </span>
+        </section>
+      )}
+
+      {category !== "data" ? null : (
+        <section className="panel">
+          <div className="panel__head">
+            <div>
+              <h2>Sample data</h2>
+              <p>
+                Opt-in demonstration items, every row badged SYNTHETIC. Includes
+                a weak and a reused password so health has something true to
+                say.
               </p>
+            </div>
+          </div>
+          <div className="panel__body">
+            <div className="actions">
+              {sampleCount > 0 ? (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void purgeSample()}
+                >
+                  Remove {sampleCount} SYNTHETIC{" "}
+                  {sampleCount === 1 ? "item" : "items"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void loadSample()}
+                >
+                  Load SYNTHETIC sample items
+                </button>
+              )}
+              <span className="hint">One action removes them all.</span>
+            </div>
+            <StatusNote message={sampleMessage} />
+          </div>
+        </section>
+      )}
+
+      {category !== "danger" ? null : (
+        <section className="panel set__danger">
+          <div className="panel__head">
+            <div>
+              <h2>Delete this vault</h2>
+              <p>
+                Removes the encrypted file from this browser. There is no copy
+                anywhere else unless you exported one.
+              </p>
+            </div>
+          </div>
+          <div className="panel__body">
+            {confirmDestroy ? (
+              <>
+                <p className="note note--err">
+                  <span>
+                    {items.length} {items.length === 1 ? "item" : "items"} will
+                    be unrecoverable. Export first if you are not certain.
+                  </span>
+                </p>
+                <div className="actions">
+                  <button
+                    type="button"
+                    className="btn btn--danger"
+                    onClick={() => void store.destroy()}
+                  >
+                    <IconTrash size={16} />
+                    Delete permanently
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    onClick={() => setConfirmDestroy(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
               <div className="actions">
                 <button
                   type="button"
                   className="btn btn--danger"
-                  onClick={() => void store.destroy()}
+                  onClick={() => setConfirmDestroy(true)}
                 >
                   <IconTrash size={16} />
-                  Delete permanently
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--ghost"
-                  onClick={() => setConfirmDestroy(false)}
-                >
-                  Cancel
+                  Delete this vault
                 </button>
               </div>
-            </>
-          ) : (
-            <div className="actions">
-              <button
-                type="button"
-                className="btn btn--danger"
-                onClick={() => setConfirmDestroy(true)}
-              >
-                <IconTrash size={16} />
-                Delete this vault
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -58,18 +58,20 @@ export function DevicePage() {
         agents, projects, or resources. Sign in first so the Identity API can
         approve on your behalf (operator credentials never ship to the browser).
       </p>
-      <label htmlFor="user-code">User code</label>
-      <input
-        id="user-code"
-        autoComplete="one-time-code"
-        placeholder="ABCD-EFGH"
-        value={userCode}
-        disabled={busy}
-        onChange={(e) => setUserCode(e.target.value.toUpperCase())}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") void approve();
-        }}
-      />
+      <div className="field">
+        <label htmlFor="user-code">User code</label>
+        <input
+          id="user-code"
+          autoComplete="one-time-code"
+          placeholder="ABCD-EFGH"
+          value={userCode}
+          disabled={busy}
+          onChange={(e) => setUserCode(e.target.value.toUpperCase())}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void approve();
+          }}
+        />
+      </div>
       <div className="actions">
         <button
           type="button"
@@ -81,11 +83,7 @@ export function DevicePage() {
           {busy ? "Authorizing…" : "Authorize CLI"}
         </button>
       </div>
-      {status ? (
-        <p className="ok" role="status">
-          {status}
-        </p>
-      ) : null}
+      {status ? <output className="ok">{status}</output> : null}
       {error ? (
         <p className="err" role="alert">
           {error}

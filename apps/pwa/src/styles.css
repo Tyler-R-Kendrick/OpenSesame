@@ -1,28 +1,83 @@
+/* OpenSesame client PWA — shares the vault app's design language:
+   navy + teal, light and dark, rounded surfaces, quiet depth. */
+
 :root {
-  color-scheme: dark;
-  --bg: #0f172a;
-  --fg: #e2e8f0;
-  --muted: #94a3b8;
-  --accent: #3d9cf0;
-  --ok: #8fd4a8;
-  --err: #fca5a5;
-  --line: #334155;
-  font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-  background:
-    radial-gradient(circle at 20% 0%, #1e293b, transparent 55%),
-    var(--bg);
-  color: var(--fg);
-  min-height: 100%;
+  --canvas: #f2f5f9;
+  --surface: #ffffff;
+  --surface-2: #f7f9fc;
+  --surface-3: #eef2f8;
+
+  --ink: #0e1826;
+  --ink-2: #566880;
+  --ink-3: #7e8fa6;
+  --line: #dce4ef;
+  --line-strong: #c4d1e2;
+
+  --accent: #0d7268;
+  --accent-hover: #0a5c54;
+  --accent-ink: #ffffff;
+
+  --ok: #0f7a51;
+  --err: #b32424;
+
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgba(14, 24, 38, 0.06), 0 1px 1px
+    rgba(14, 24, 38, 0.04);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+    Arial, "Noto Sans", sans-serif;
+  font-synthesis-weight: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #0a121d;
+    --surface: #111d2c;
+    --surface-2: #162435;
+    --surface-3: #1c2c40;
+
+    --ink: #e7eefa;
+    --ink-2: #9db0c8;
+    --ink-3: #7488a2;
+    --line: #223349;
+    --line-strong: #2e4262;
+
+    --accent: #2fb3a3;
+    --accent-hover: #43c8b7;
+    --accent-ink: #04231f;
+
+    --ok: #35b57e;
+    --err: #ef6d6d;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  min-height: 100vh;
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 a:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .shell {
@@ -32,26 +87,27 @@ button:focus-visible {
 }
 
 .brand {
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  margin: 0 0 0.35rem;
+  letter-spacing: -0.021em;
+  margin: 0 0 0.2rem;
 }
 
 h1 {
-  font-weight: 600;
-  font-size: 1.35rem;
+  font-weight: 650;
+  font-size: 1.25rem;
+  letter-spacing: -0.021em;
   margin: 0 0 0.75rem;
 }
 
 .lede,
 .hint {
-  color: var(--muted);
+  color: var(--ink-2);
   line-height: 1.5;
 }
 
 .status {
-  margin-top: 2rem;
+  margin: 2rem 0 0;
   padding: 0;
   list-style: none;
   display: grid;
@@ -59,55 +115,94 @@ h1 {
 }
 
 .status li {
-  padding: 0.75rem 1rem;
-  background: rgba(15, 23, 42, 0.55);
+  padding: 0.7rem 0.9rem;
+  background: var(--surface);
   border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
   display: grid;
   gap: 0.2rem;
 }
 
 .status .label {
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--muted);
+  font-weight: 650;
+  color: var(--ink-2);
 }
 
 .status .value {
-  font-family: ui-monospace, monospace;
-  font-size: 0.92rem;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    monospace;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }
 
 .status li.is-up {
   border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
+  box-shadow: inset 3px 0 0 var(--ok), var(--shadow-sm);
 }
 
 .status li.is-down {
   border-color: color-mix(in srgb, var(--err) 55%, var(--line));
+  box-shadow: inset 3px 0 0 var(--err), var(--shadow-sm);
 }
 
 .actions {
   margin-top: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 button {
   appearance: none;
-  border: 1px solid var(--line);
-  background: #243246;
-  color: var(--fg);
-  padding: 0.55rem 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  padding: 0 0.85rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
   font: inherit;
+  font-weight: 550;
+  font-size: 0.9rem;
   cursor: pointer;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+button:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--ink-3);
 }
 
 button.primary {
   background: var(--accent);
   border-color: transparent;
-  color: #061018;
+  color: var(--accent-ink);
   font-weight: 600;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
 }
 
 button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+button[aria-busy="true"] {
+  cursor: progress;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
 }

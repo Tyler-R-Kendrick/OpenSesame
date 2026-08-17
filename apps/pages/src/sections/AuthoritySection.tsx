@@ -420,8 +420,8 @@ function PlaneStatus() {
         <p className="hint">
           GitHub Pages cannot host these planes. Both addresses come from
           Settings. Loopback defaults will not answer from github.io.{" "}
-          <Link to="/settings">Change them in Settings</Link> if you run Host
-          and Identity yourself.
+          <Link to="/settings#connectivity">Change them in Settings</Link> if
+          you run Host and Identity yourself.
         </p>
       </div>
     </section>
@@ -2286,10 +2286,7 @@ function describeConnectError(err: unknown): string {
     if (err.status === 403) {
       return "This deployment does not allow anonymous provisional principals. Sign in with the opensesame-id CLI and adopt the token it prints instead.";
     }
-    if (
-      err.status === 401 &&
-      /session control token/i.test(err.message)
-    ) {
+    if (err.status === 401 && /session control token/i.test(err.message)) {
       return `Something else is answering at ${identityBase()} (not OpenSesame Identity). Point Settings → Identity API at the control-plane (local default http://127.0.0.1:18788), or free that port and restart with pnpm --filter @opensesame/pages dev.`;
     }
     return `The Identity API answered ${err.status} when creating a provisional principal. ${

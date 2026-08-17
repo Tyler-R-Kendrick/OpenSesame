@@ -94,16 +94,18 @@ export function TaskAccessPage() {
         holds. Authority only narrows; widening requires a new task.
       </p>
       <form onSubmit={onInspect}>
-        <label htmlFor="task-run-id">Task run id</label>
-        <input
-          id="task-run-id"
-          name="task"
-          placeholder="taskrun_…"
-          value={draftId}
-          onChange={(e) => setDraftId(e.target.value)}
-          autoComplete="off"
-          spellCheck={false}
-        />
+        <div className="field">
+          <label htmlFor="task-run-id">Task run id</label>
+          <input
+            id="task-run-id"
+            name="task"
+            placeholder="taskrun_…"
+            value={draftId}
+            onChange={(e) => setDraftId(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </div>
         <div className="actions">
           <button
             type="submit"
@@ -116,15 +118,15 @@ export function TaskAccessPage() {
         </div>
       </form>
       {!taskId ? (
-        <p className="empty-hint" role="status">
+        <output className="empty-hint">
           Enter a task run id, or open this page with{" "}
           <code>?task=&lt;task_run_id&gt;</code>.
-        </p>
+        </output>
       ) : null}
       {loading && taskId ? (
-        <p className="lede" role="status" aria-busy="true">
+        <output className="lede" aria-busy="true">
           Loading task from Host API…
-        </p>
+        </output>
       ) : null}
       {error ? (
         <p className="err" role="alert">
