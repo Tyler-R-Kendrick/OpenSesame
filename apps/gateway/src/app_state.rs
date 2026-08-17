@@ -90,6 +90,9 @@ pub struct AppState {
     /// Public keys trusted to have signed a receipt, including retired ones, so a
     /// key rotation does not strand the receipts the old key signed.
     pub receipt_verifier: Arc<opensesame_audit::ReceiptVerifier>,
+    /// Wakes the backup actor immediately after configuration changes or
+    /// resync requests; the actor's tick covers ordinary mutations (ADR 0039).
+    pub backup_notify: Arc<tokio::sync::Notify>,
 }
 
 impl AppState {
@@ -157,6 +160,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         task_engine: new_task_engine(),
         frozen_intents: Arc::new(Mutex::new(HashMap::new())),
         receipt_verifier: Arc::new(receipt_verifier),
+        backup_notify: Arc::new(tokio::sync::Notify::new()),
     })
 }
 

@@ -469,6 +469,9 @@ impl ConnectionBroker {
 
     /// Seal credentials from the GitHub App Manifest conversion as this
     /// organization's GitHub integration so Authorize can run without env vars.
+    /// The App's private key and webhook secret are sealed alongside — they are
+    /// what lets the backup actor mint installation tokens server-side and
+    /// verify inbound webhooks (ADR 0039).
     pub async fn register_github_app_credentials(
         &self,
         organization_id: &OrganizationId,
@@ -476,6 +479,14 @@ impl ConnectionBroker {
         created_by: &str,
     ) -> Result<IntegrationView> {
         let key = format!("github-app-{}", credentials.id);
+        let mut app_configuration: Configuration = BTreeMap::new();
+        app_configuration.insert("app_id".into(), credentials.id.to_string());
+        if let Some(pem) = &credentials.pem {
+            app_configuration.insert("private_key_pem".into(), pem.clone());
+        }
+        if let Some(secret) = &credentials.webhook_secret {
+            app_configuration.insert("webhook_secret".into(), secret.clone());
+        }
         if let Some(existing) = self
             .list_integrations(organization_id)
             .await?
@@ -497,7 +508,7 @@ impl ConnectionBroker {
                         scopes: Some(crate::github_app::history_integration_scopes()),
                         client_id: Some(credentials.client_id.clone()),
                         client_secret: Some(credentials.client_secret.clone()),
-                        configuration_set: BTreeMap::new(),
+                        configuration_set: app_configuration,
                         configuration_clear: Vec::new(),
                     },
                 )
@@ -512,11 +523,33 @@ impl ConnectionBroker {
                 scopes: crate::github_app::history_integration_scopes(),
                 client_id: Some(credentials.client_id.clone()),
                 client_secret: Some(credentials.client_secret.clone()),
-                configuration: BTreeMap::new(),
+                configuration: app_configuration,
                 created_by: created_by.to_string(),
             },
         )
         .await
+    }
+
+    /// Unseal the GitHub App signing material for server-side installation
+    /// token minting. Never crosses the API boundary; the backup actor is the
+    /// only caller.
+    pub async fn github_app_signing_material(
+        &self,
+        organization_id: &OrganizationId,
+        integration_id: &str,
+    ) -> Result<Option<crate::installation::GithubAppSigningMaterial>> {
+        let row = self.integration_row(organization_id, integration_id).await?;
+        let configuration = self.integration_configuration(&row)?;
+        let (Some(app_id), Some(pem)) = (
+            configuration.get("app_id"),
+            configuration.get("private_key_pem"),
+        ) else {
+            return Ok(None);
+        };
+        Ok(Some(crate::installation::GithubAppSigningMaterial {
+            app_id: app_id.clone(),
+            private_key_pem: pem.clone(),
+        }))
     }
 
     pub async fn update_integration(

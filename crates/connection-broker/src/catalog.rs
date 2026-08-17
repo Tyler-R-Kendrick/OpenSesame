@@ -50,6 +50,24 @@ static OAUTH_INTEGRATION_FIELDS: LazyLock<Vec<ConfigurationFieldDef>> = LazyLock
             secret: true,
             required: true,
         },
+        // GitHub App Manifest registration seals its signing material here so
+        // the backup actor can mint installation tokens server-side and verify
+        // webhooks (ADR 0039). Optional: plain OAuth integrations never set them.
+        ConfigurationFieldDef {
+            name: "app_id".into(),
+            secret: false,
+            required: false,
+        },
+        ConfigurationFieldDef {
+            name: "private_key_pem".into(),
+            secret: true,
+            required: false,
+        },
+        ConfigurationFieldDef {
+            name: "webhook_secret".into(),
+            secret: true,
+            required: false,
+        },
     ]
 });
 static API_KEY_CONNECTION_FIELDS: LazyLock<Vec<ConfigurationFieldDef>> = LazyLock::new(|| {

@@ -1,6 +1,7 @@
 mod aauth;
 mod admin;
 mod agents;
+mod backup;
 mod connections;
 mod credential_connections;
 mod device;
@@ -59,6 +60,14 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/webhooks/github",
             get(github_app::webhook_ack).post(github_app::webhook_ack),
         )
+        .route(
+            "/api/v1/backup/target",
+            get(backup::get_target)
+                .put(backup::put_target)
+                .delete(backup::delete_target)
+                .layer(DefaultBodyLimit::max(8 * 1024)),
+        )
+        .route("/api/v1/backup/resync", post(backup::resync))
         .route(
             "/api/v1/credential-providers",
             get(credential_connections::catalog),
