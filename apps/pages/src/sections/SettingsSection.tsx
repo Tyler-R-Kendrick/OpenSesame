@@ -44,12 +44,15 @@ const THEMES = [
 ] as const;
 
 const AUTO_LOCK = [
-  { value: 1, label: "1 minute" },
-  { value: 5, label: "5 minutes" },
-  { value: 15, label: "15 minutes" },
-  { value: 30, label: "30 minutes" },
+  { value: 0, label: "Never (recommended)" },
   { value: 60, label: "1 hour" },
-  { value: 0, label: "Never" },
+  { value: 240, label: "4 hours" },
+  { value: 480, label: "8 hours" },
+  { value: 1440, label: "24 hours" },
+  { value: 30, label: "30 minutes" },
+  { value: 15, label: "15 minutes" },
+  { value: 5, label: "5 minutes" },
+  { value: 1, label: "1 minute" },
 ];
 
 const CLIPBOARD = [
@@ -381,8 +384,9 @@ export function SettingsSection() {
               <div>
                 <h2>Locking</h2>
                 <p>
-                  Locking discards the decryption key from memory. Reopening
-                  needs the master password again.
+                  Locking discards the vault decryption key from memory. Closing
+                  this window already does that. Idle auto-lock is off unless you
+                  turn it on below.
                 </p>
               </div>
             </div>
@@ -433,12 +437,25 @@ export function SettingsSection() {
                     store.setPrefs({ lockOnHide: event.target.checked })
                   }
                 />
-                <span>Lock as soon as this tab goes to the background</span>
+                <span>Lock when this tab goes to the background</span>
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={prefs.signOutOnLock}
+                  onChange={(event) =>
+                    store.setPrefs({ signOutOnLock: event.target.checked })
+                  }
+                />
+                <span>
+                  Also sign out of Identity when the vault locks (strict)
+                </span>
               </label>
               <p className="hint">
-                Clearing the clipboard only overwrites it if it still holds the
-                value OpenSesame put there, and some browsers refuse the read
-                that check needs.
+                Leave both options off for normal use. Auto-lock only drops the
+                vault key — you stay signed in to Host/Identity unless you enable
+                the strict option. Clearing the clipboard only overwrites it if
+                it still holds the value OpenSesame put there.
               </p>
             </div>
           </section>

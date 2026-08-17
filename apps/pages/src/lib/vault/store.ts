@@ -90,17 +90,66 @@ export type VaultPrefs = {
   autoLockMinutes: number;
   /** Lock as soon as the tab is hidden. */
   lockOnHide: boolean;
+  /**
+   * When true, vault lock also ends the Identity/Host session.
+   * Off by default — idle vault lock should not sign you out of everything.
+   */
+  signOutOnLock: boolean;
   /** Seconds before a copied secret is cleared from the clipboard. 0 disables. */
   clipboardClearSeconds: number;
   theme: "system" | "light" | "dark";
+  /**
+   * Bumped when defaults change so existing devices pick up a one-time
+   * migration (e.g. retiring the old 15-minute auto-lock default).
+   */
+  prefsRevision?: number;
 };
 
+/** Current prefs schema revision — bump when shipping a one-time prefs migrate. */
+export const VAULT_PREFS_REVISION = 2;
+
 export const defaultPrefs: VaultPrefs = {
-  autoLockMinutes: 15,
+  // Off by default: closing the window already drops the key from memory.
+  // Operators who want idle lock opt in under Settings → General → Locking.
+  autoLockMinutes: 0,
   lockOnHide: false,
+  signOutOnLock: false,
   clipboardClearSeconds: 30,
   theme: "system",
+  prefsRevision: VAULT_PREFS_REVISION,
 };
+
+/** Merge stored prefs with defaults and apply one-time migrations. */
+export function normalizeVaultPrefs(
+  raw: Partial<VaultPrefs> | null | undefined,
+): VaultPrefs {
+  const incoming = raw ?? {};
+  const merged: VaultPrefs = {
+    ...defaultPrefs,
+    ...incoming,
+    prefsRevision: Math.max(
+      Number(incoming.prefsRevision ?? 0) || 0,
+      VAULT_PREFS_REVISION,
+    ),
+  };
+  // Revision 2: the previous default was 15 minutes and signed the operator
+  // out of Identity on every lock — far too aggressive for normal use.
+  const priorRevision = Number(incoming.prefsRevision ?? 0) || 0;
+  if (priorRevision < 2 && incoming.autoLockMinutes === 15) {
+    merged.autoLockMinutes = 0;
+  }
+  if (typeof merged.signOutOnLock !== "boolean") {
+    merged.signOutOnLock = false;
+  }
+  if (
+    typeof merged.autoLockMinutes !== "number" ||
+    !Number.isFinite(merged.autoLockMinutes) ||
+    merged.autoLockMinutes < 0
+  ) {
+    merged.autoLockMinutes = 0;
+  }
+  return merged;
+}
 
 export type VaultState = {
   status: VaultStatus;
@@ -172,10 +221,10 @@ export class VaultStore {
 
   constructor() {
     this.#header = readJson<VaultHeader | null>(this.#keys.header, null);
-    this.#prefs = {
-      ...defaultPrefs,
-      ...readJson<Partial<VaultPrefs>>(this.#keys.prefs, {}),
-    };
+    this.#prefs = normalizeVaultPrefs(
+      readJson<Partial<VaultPrefs>>(this.#keys.prefs, {}),
+    );
+    this.#persistPrefsIfMigrated();
     this.#snapshot = this.#build();
   }
 
@@ -188,11 +237,17 @@ export class VaultStore {
     if (this.#vaultKey || this.#pendingVaultKey) return;
     this.#keys = scopedVaultKeys();
     this.#header = readJson<VaultHeader | null>(this.#keys.header, null);
-    this.#prefs = {
-      ...defaultPrefs,
-      ...readJson<Partial<VaultPrefs>>(this.#keys.prefs, {}),
-    };
+    this.#prefs = normalizeVaultPrefs(
+      readJson<Partial<VaultPrefs>>(this.#keys.prefs, {}),
+    );
+    this.#persistPrefsIfMigrated();
     this.#emit();
+  }
+
+  #persistPrefsIfMigrated(): void {
+    const stored = readJson<Partial<VaultPrefs>>(this.#keys.prefs, {});
+    if ((stored.prefsRevision ?? 0) >= VAULT_PREFS_REVISION) return;
+    kvSet(this.#keys.prefs, JSON.stringify(this.#prefs));
   }
 
   #build(): VaultState {
@@ -900,7 +955,11 @@ export class VaultStore {
   // —— preferences and auto-lock ————————————————————————————
 
   setPrefs(next: Partial<VaultPrefs>): void {
-    this.#prefs = { ...this.#prefs, ...next };
+    this.#prefs = normalizeVaultPrefs({
+      ...this.#prefs,
+      ...next,
+      prefsRevision: VAULT_PREFS_REVISION,
+    });
     kvSet(this.#keys.prefs, JSON.stringify(this.#prefs));
     this.#armIdleTimer();
     this.#emit();

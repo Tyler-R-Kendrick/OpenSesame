@@ -15,15 +15,18 @@ export function useVaultStore() {
 export function useSessionGuards(): void {
   const { prefs, status } = useVault();
 
-  // Locking means locked: drop the clipboard copy, revoke the Identity session
-  // (bearer, cookie, and derived Host session) and discard staged claim tokens,
-  // or control-plane and Host actions stay possible behind the unlock screen.
+  // Locking drops in-memory vault keys and clears secrets that left the vault
+  // (clipboard, staged claim tokens). Identity/Host stay signed in unless the
+  // operator opted into "sign out on lock" — idle vault lock must not kick
+  // them out of every plane.
   useEffect(
     () =>
       vaultStore.onLock(() => {
         clearCopiedSecret();
-        endSession();
         clearStagedClaimTokens();
+        if (vaultStore.getSnapshot().prefs.signOutOnLock) {
+          endSession();
+        }
       }),
     [],
   );
@@ -31,11 +34,45 @@ export function useSessionGuards(): void {
   useEffect(() => {
     if (status !== "unlocked") return;
     const touch = () => vaultStore.touch();
-    const events = ["pointerdown", "keydown", "focus"] as const;
-    for (const event of events) window.addEventListener(event, touch, true);
+    // Reading/scrolling counts as activity — not only clicks and keypresses.
+    const events = [
+      "pointerdown",
+      "pointermove",
+      "keydown",
+      "scroll",
+      "wheel",
+      "touchstart",
+      "focus",
+    ] as const;
+    let moveArmed = true;
+    const onMove = () => {
+      if (!moveArmed) return;
+      moveArmed = false;
+      touch();
+      window.setTimeout(() => {
+        moveArmed = true;
+      }, 15_000);
+    };
+    for (const event of events) {
+      if (event === "pointermove") {
+        window.addEventListener(event, onMove, { capture: true, passive: true });
+      } else {
+        window.addEventListener(event, touch, { capture: true, passive: true });
+      }
+    }
+    const onVisible = () => {
+      if (document.visibilityState === "visible") touch();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
-      for (const event of events)
-        window.removeEventListener(event, touch, true);
+      for (const event of events) {
+        if (event === "pointermove") {
+          window.removeEventListener(event, onMove, true);
+        } else {
+          window.removeEventListener(event, touch, true);
+        }
+      }
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [status]);
 
