@@ -6,17 +6,20 @@
  *   MOCK_AGENT_FLOW=1 pnpm --filter @opensesame/example-agent start
  */
 import { createHash, randomBytes } from "node:crypto";
+import { renderAgentCard, renderAuthMd } from "@opensesame/agent-protocols";
 import {
-  RegisterAgentResponseSchema,
   ClaimSessionResponseSchema,
+  RegisterAgentResponseSchema,
 } from "@opensesame/contracts";
 import { createControlPlaneClient, redactSecrets } from "@opensesame/sdk-cli";
-import { renderAuthMd, renderAgentCard } from "@opensesame/agent-protocols";
 
 const api = process.env.OPENSESAME_API_URL ?? "http://127.0.0.1:8788";
 
 function jkt(): string {
-  return createHash("sha256").update(randomBytes(32)).digest("base64url").slice(0, 43);
+  return createHash("sha256")
+    .update(randomBytes(32))
+    .digest("base64url")
+    .slice(0, 43);
 }
 
 function createMockFetch(): typeof fetch {
@@ -91,11 +94,18 @@ export async function runAnonymousAgentDemo(options?: {
   const times = options?.pollTimes ?? 5;
   let finalState = "pending";
   for (let i = 0; i < times; i += 1) {
-    const claimRaw = await cp.pollClaim(registered.claimId, registered.claimToken);
+    const claimRaw = await cp.pollClaim(
+      registered.claimId,
+      registered.claimToken,
+    );
     const claim = ClaimSessionResponseSchema.parse(claimRaw);
     finalState = claim.state;
     process.stdout.write(`Claim poll ${i + 1}: state=${claim.state}\n`);
-    if (claim.state === "completed" || claim.state === "denied" || claim.state === "expired") {
+    if (
+      claim.state === "completed" ||
+      claim.state === "denied" ||
+      claim.state === "expired"
+    ) {
       break;
     }
     await sleep(50);
@@ -111,18 +121,23 @@ export async function runAnonymousAgentDemo(options?: {
     name: "OpenSesame Agent API",
     url: api,
   });
-  process.stdout.write(`\n--- auth.md preview (${authMd.split("\n")[0]}) ---\n`);
+  process.stdout.write(
+    `\n--- auth.md preview (${authMd.split("\n")[0]}) ---\n`,
+  );
   process.stdout.write(`Agent card name: ${String(card.name)}\n`);
 
   return { claimId: registered.claimId, finalState };
 }
 
-const invokedDirectly = process.argv[1]?.includes("example-agent") ||
+const invokedDirectly =
+  process.argv[1]?.includes("example-agent") ||
   process.argv[1]?.endsWith("main.ts");
 
 if (invokedDirectly && process.env.VITEST !== "true") {
   runAnonymousAgentDemo().catch((err) => {
-    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+    process.stderr.write(
+      `${err instanceof Error ? err.message : String(err)}\n`,
+    );
     process.exit(1);
   });
 }
