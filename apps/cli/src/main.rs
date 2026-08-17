@@ -1,4 +1,5 @@
 mod connect;
+mod github;
 mod store;
 
 use clap::{Parser, Subcommand, ValueEnum};
@@ -8,7 +9,7 @@ use opensesame_authn::{
 };
 use opensesame_connector_host::providers::{
     crypto_plan, execute_crypto_plan, execute_human_plan, human_plan, CryptoOperation,
-    HumanProviderOperation,
+    HumanProviderOperation, HumanProviderPlan,
 };
 use opensesame_domain::DevDeliveryPolicy;
 use opensesame_env_spec::{parse_schema_file, resolve_for_delivery, schema_summary};
@@ -143,6 +144,9 @@ enum Commands {
         recipients: Vec<String>,
         #[arg(long, default_value_t = true)]
         git: bool,
+        /// Backup remote URL (git `origin`), e.g. a private GitHub repository.
+        #[arg(long)]
+        remote: Option<String>,
     },
     /// Insert a secret into the sealed store (human only).
     Insert {
@@ -206,6 +210,30 @@ enum Commands {
     Git {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
+    /// Seal a Pages plaintext path manifest into encrypted store entries.
+    Seal {
+        /// JSON manifest exported by Pages Settings → "Download store path manifest".
+        manifest: PathBuf,
+        /// Overwrite entries that already exist in the store.
+        #[arg(long)]
+        replace: bool,
+        /// Overwrite and delete the plaintext manifest after sealing.
+        #[arg(long)]
+        shred: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
+    /// Commit and push the sealed store to its backup remote (git `origin`).
+    Backup {
+        /// Set (or replace) the backup remote before pushing.
+        #[arg(long)]
+        remote: Option<String>,
+        /// Persist auto-push: push after every store mutation from now on.
+        #[arg(long)]
+        auto_push: Option<bool>,
         #[arg(long)]
         path: Option<PathBuf>,
     },
@@ -561,9 +589,10 @@ async fn main() -> anyhow::Result<()> {
             path,
             recipients,
             git,
+            remote,
         } => {
             if sealed_store {
-                store::cmd_init(path, recipients, git)?;
+                store::cmd_init(path, recipients, git, remote)?;
             } else {
                 init_schema(&schema)?;
             }
@@ -587,6 +616,17 @@ async fn main() -> anyhow::Result<()> {
                 std::process::exit(code);
             }
         }
+        Commands::Seal {
+            manifest,
+            replace,
+            shred,
+            path,
+        } => store::cmd_seal(manifest, replace, shred, path)?,
+        Commands::Backup {
+            remote,
+            auto_push,
+            path,
+        } => store::cmd_backup(remote, auto_push, path).await?,
         Commands::Tui => tui(&cli.server).await?,
         Commands::Dev {
             cmd,
@@ -1279,6 +1319,27 @@ async fn execute_connection_provider(
         resource,
         &connection.public_config,
     )?;
+    // GitHub App leases are minted natively: RS256 signing and the GitHub API
+    // call live here in the human CLI, so connector-host never holds a token.
+    if let HumanProviderPlan::GitHubApp {
+        app_id,
+        installation_id,
+        private_key_path,
+    } = plan
+    {
+        let config = github::GitHubAppConfig::resolve(app_id, installation_id, private_key_path)?;
+        let minted = github::mint_installation_token(&config).await?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "provider": "github-app",
+                "token_type": "token",
+                "token": minted.token,
+                "expires_at": minted.expires_at,
+            }))?
+        );
+        return Ok(());
+    }
     println!("{}", execute_human_plan(plan)?);
     Ok(())
 }
@@ -1429,17 +1490,17 @@ fn init_schema(path: &std::path::Path) -> anyhow::Result<()> {
 fn completion_script(shell: CompletionShell) -> &'static str {
     match shell {
         CompletionShell::Bash => {
-            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent' -- "${COMP_WORDS[COMP_CWORD]}") ); }
+            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init seal backup tui dev daemon task intent' -- "${COMP_WORDS[COMP_CWORD]}") ); }
 complete -F _opensesame opensesame
 "#
         }
         CompletionShell::Zsh => {
             r#"#compdef opensesame
-_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent)'
+_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init seal backup tui dev daemon task intent)'
 "#
         }
         CompletionShell::Fish => {
-            r#"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent'
+            r#"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init seal backup tui dev daemon task intent'
 "#
         }
     }

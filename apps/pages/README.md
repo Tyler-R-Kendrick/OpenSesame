@@ -111,9 +111,12 @@ Sample data is opt-in from Settings, badged in the UI, and removable in one acti
 ## Git sealed store
 
 **Settings → Git sealed store** exports or imports a path manifest that maps vault
-items to `pass`-style paths (`Folder/name`). Seal those values with the Host CLI
-(`opensesame insert` / `show`) before committing ciphertext to git. Agents never
-see the manifest — they use ConnectionRefs only (ADR 0005 / 0037).
+items to `pass`-style paths (`Folder/name`). Seal the manifest with the Host CLI —
+`opensesame seal manifest.json --shred` encrypts every entry into the store and
+deletes the plaintext — then `opensesame backup` pushes ciphertext to the store's
+git remote. Importing a manifest here merges by store path (re-imports are
+idempotent). Agents never see the manifest — they use ConnectionRefs only
+(ADR 0005 / 0037 / 0038).
 
 ## Browser database
 

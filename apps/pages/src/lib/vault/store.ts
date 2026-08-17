@@ -435,6 +435,36 @@ export class VaultStore {
   }
 
   /**
+   * Apply a manifest merge plan (see `planManifestMerge`): adds, in-place
+   * updates, and their folders land in one mutation so a failed write cannot
+   * apply half a manifest.
+   */
+  async applyManifestMerge(plan: {
+    adds: VaultItem[];
+    updates: VaultItem[];
+    newFolders: Folder[];
+  }): Promise<void> {
+    if (
+      plan.adds.length === 0 &&
+      plan.updates.length === 0 &&
+      plan.newFolders.length === 0
+    ) {
+      return;
+    }
+    await this.#mutate((body) => {
+      body.folders = [...body.folders, ...plan.newFolders];
+      const now = new Date().toISOString();
+      const updated = new Map(
+        plan.updates.map((item) => [item.id, { ...item, updatedAt: now }]),
+      );
+      body.items = [
+        ...body.items.map((item) => updated.get(item.id) ?? item),
+        ...plan.adds,
+      ];
+    });
+  }
+
+  /**
    * Apply an import plan. Items and their new folders land in one mutation, so
    * a failed write cannot leave folders behind with nothing in them.
    */

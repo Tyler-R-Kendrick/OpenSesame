@@ -21,9 +21,9 @@ import {
   sampleFolder,
 } from "../lib/vault/sample.js";
 import {
-  entriesToVaultItems,
-  vaultItemToEntry,
   type StorePlainEntry,
+  planManifestMerge,
+  vaultItemToEntry,
 } from "../lib/vault/store-sync.js";
 import { ImportPanel } from "./settings/ImportPanel.js";
 import "./settings.css";
@@ -108,7 +108,7 @@ export function SettingsSection() {
       URL.revokeObjectURL(url);
       setDataMessage({
         tone: "ok",
-        text: "Downloaded a plaintext path manifest for the unlocked vault. Seal it with `opensesame insert` / your store tooling — do not commit this file.",
+        text: "Downloaded a plaintext path manifest for the unlocked vault. Seal it with `opensesame seal <file> --shred` — never commit the manifest itself.",
       });
     } catch (caught) {
       setDataMessage({
@@ -125,30 +125,13 @@ export function SettingsSection() {
       if (!Array.isArray(parsed)) {
         throw new Error("Expected a JSON array of store entries.");
       }
-      const { items: incoming, folders: plannedFolders } = entriesToVaultItems(
-        parsed,
-        folders,
-      );
-      const nameToId = new Map(
-        folders.map((f) => [f.name.trim().toLowerCase(), f.id] as const),
-      );
-      for (const folder of plannedFolders) {
-        const key = folder.name.trim().toLowerCase();
-        if (nameToId.has(key)) continue;
-        const created = await store.addFolder(folder.name);
-        nameToId.set(key, created.id);
-      }
-      const remapped = incoming.map((item) => {
-        if (!item.folderId) return item;
-        const planned = plannedFolders.find((f) => f.id === item.folderId);
-        if (!planned) return item;
-        const id = nameToId.get(planned.name.trim().toLowerCase());
-        return id ? { ...item, folderId: id } : item;
-      });
-      await store.addItems(remapped);
+      // Merge by store path — re-importing the same manifest must not
+      // duplicate the vault.
+      const plan = planManifestMerge(parsed, items, folders);
+      await store.applyManifestMerge(plan);
       setDataMessage({
         tone: "ok",
-        text: `Merged ${remapped.length} sealed-store ${remapped.length === 1 ? "entry" : "entries"} into this device vault.`,
+        text: `Merged ${parsed.length} sealed-store ${parsed.length === 1 ? "entry" : "entries"}: ${plan.adds.length} added, ${plan.updates.length} updated, ${plan.unchanged} unchanged.`,
       });
     } catch (caught) {
       setDataMessage({
@@ -659,9 +642,8 @@ export function SettingsSection() {
           <div>
             <h2>Git sealed store</h2>
             <p>
-              Bridge this device vault with an{" "}
-              <code>opensesame</code> sealed store (
-              <code>~/.password-store</code> or{" "}
+              Bridge this device vault with an <code>opensesame</code> sealed
+              store (<code>~/.password-store</code> or{" "}
               <code>OPENSESAME_STORE_DIR</code>). Manifests are plaintext while
               unlocked — seal them with the CLI before committing to git. Agents
               never receive these values; they use ConnectionRefs only.
@@ -693,7 +675,8 @@ export function SettingsSection() {
           <p className="hint">
             CLI:{" "}
             <code>
-              opensesame init --sealed-store && opensesame insert …
+              opensesame init --sealed-store --remote &lt;git url&gt; &&
+              opensesame seal manifest.json --shred && opensesame backup
             </code>
           </p>
         </div>

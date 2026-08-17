@@ -94,11 +94,16 @@ cargo build -p opensesame-gateway -p opensesame-cli -p opensesame-daemon
 ./target/debug/opensesame login --flow device --no-browser --server http://127.0.0.1:8787
 
 # Sealed store (pass parity; never agent-facing reveal)
-./target/debug/opensesame init --sealed-store --path ~/.password-store
+./target/debug/opensesame init --sealed-store --path ~/.password-store \
+  --remote https://github.com/you/password-store.git   # --remote optional
 ./target/debug/opensesame insert Dev/api-token
 ./target/debug/opensesame show Dev/api-token --reveal
 ./target/debug/opensesame ls
 ./target/debug/opensesame generate Dev/new --length 32
+./target/debug/opensesame seal manifest.json --shred   # encrypt a Pages manifest
+./target/debug/opensesame backup                       # commit + push to origin
+# backup auth for GitHub HTTPS remotes: GITHUB_TOKEN → GitHub App
+# (GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY_PATH) → `gh auth token`
 ```
 
 **Pages (offline PWA) dev server:**
@@ -106,7 +111,10 @@ cargo build -p opensesame-gateway -p opensesame-cli -p opensesame-daemon
 pnpm --filter @opensesame/pages dev   # vite --port 5180 --strictPort
 ```
 
-Sealed-store Settings bridge: export/import a path manifest in Pages, then seal with the CLI before git.
+Sealed-store Settings bridge: export a path manifest in Pages, then
+`opensesame seal manifest.json --shred` encrypts it into the store and
+`opensesame backup` pushes ciphertext to the git remote. Importing a manifest
+in Pages merges by store path (idempotent), never duplicates.
 ## 4. Layout map
 
 | Path | Role |
@@ -159,7 +167,7 @@ Sealed-store Settings bridge: export/import a path manifest in Pages, then seal 
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0031).
+  0001–0038).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).

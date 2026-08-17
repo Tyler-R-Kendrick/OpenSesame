@@ -10,6 +10,7 @@ mod envelope;
 mod generate;
 mod git;
 mod gpg;
+mod manifest;
 mod path;
 mod recipients;
 mod root;
@@ -19,7 +20,11 @@ pub use age_fmt::{decrypt_age_file, encrypt_age_file, read_age_recipients};
 pub use entry::Entry;
 pub use envelope::{open_osseal, seal_osseal, OSSEAL_MAGIC};
 pub use generate::generate_password;
-pub use git::{auto_commit, ensure_git_repo, git_passthrough};
+pub use git::{
+    auto_commit, auto_push_enabled, ensure_git_repo, git_passthrough, push_backup, remote_url,
+    set_auto_push, set_remote, GIT_TOKEN_ENV,
+};
+pub use manifest::{parse_manifest, seal_manifest, ManifestEntry, SealOutcome};
 pub use gpg::{decrypt_gpg_file, encrypt_gpg_file, read_gpg_id};
 pub use path::{logical_to_relative, relative_to_logical};
 pub use recipients::Recipients;
