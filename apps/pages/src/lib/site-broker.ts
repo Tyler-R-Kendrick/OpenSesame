@@ -9,7 +9,12 @@
 import type { UpstreamIdentity } from "./federation.js";
 import { originClientId } from "./federation.js";
 import { kvDelete, kvGet, kvSet } from "./kv.js";
+import { scopedKey } from "./projects.js";
 
+/**
+ * Base key names — read and written through the active project's scope, so
+ * each project keeps its own approved-site list and domain policy.
+ */
 export const CONSENTS_KEY = "site-broker.consents.v1";
 export const POLICY_KEY = "site-broker.policy.v1";
 
@@ -174,7 +179,7 @@ export function scopeList(scope: string): string[] {
 }
 
 export function loadConsents(): SiteConsent[] {
-  const raw = kvGet(CONSENTS_KEY);
+  const raw = kvGet(scopedKey(CONSENTS_KEY));
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as { consents?: SiteConsent[] };
@@ -185,7 +190,7 @@ export function loadConsents(): SiteConsent[] {
 }
 
 function saveConsents(consents: SiteConsent[]): void {
-  kvSet(CONSENTS_KEY, JSON.stringify({ consents }));
+  kvSet(scopedKey(CONSENTS_KEY), JSON.stringify({ consents }));
 }
 
 export function consentFor(origin: string): SiteConsent | null {
@@ -235,12 +240,12 @@ export function touchConsent(origin: string): void {
 
 export function revokeConsent(origin: string): void {
   const next = loadConsents().filter((c) => c.origin !== origin);
-  if (next.length === 0) kvDelete(CONSENTS_KEY);
+  if (next.length === 0) kvDelete(scopedKey(CONSENTS_KEY));
   else saveConsents(next);
 }
 
 export function loadBrokerPolicy(): BrokerPolicy {
-  const raw = kvGet(POLICY_KEY);
+  const raw = kvGet(scopedKey(POLICY_KEY));
   if (!raw) return { rules: [] };
   try {
     const parsed = JSON.parse(raw) as {
@@ -291,7 +296,10 @@ function sortRules(rules: DomainRule[]): DomainRule[] {
 }
 
 function saveBrokerPolicy(policy: BrokerPolicy): void {
-  kvSet(POLICY_KEY, JSON.stringify({ rules: sortRules(policy.rules) }));
+  kvSet(
+    scopedKey(POLICY_KEY),
+    JSON.stringify({ rules: sortRules(policy.rules) }),
+  );
 }
 
 /**

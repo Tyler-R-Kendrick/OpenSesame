@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createItem, type Folder } from "./model.js";
+import { type Folder, createItem } from "./model.js";
 import {
+  entriesToVaultItems,
   entryToVaultItem,
   joinStorePath,
+  planManifestMerge,
   splitStorePath,
   vaultItemToEntry,
-  entriesToVaultItems,
 } from "./store-sync.js";
 
 describe("store-sync mapping", () => {
@@ -70,10 +71,79 @@ describe("store-sync mapping", () => {
     const item = createItem("login", "site");
     if (item.kind === "login") {
       item.password = "pw";
-      item.totp =
-        "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+      item.totp = "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
     }
     const entry = vaultItemToEntry(item, []);
     expect(entry.trailer).toMatch(/otpauth:\/\/totp\/Demo/);
+  });
+});
+
+describe("planManifestMerge", () => {
+  const folders: Folder[] = [
+    { id: "f1", name: "Email", createdAt: new Date().toISOString() },
+  ];
+
+  function existingLogin() {
+    const item = createItem("login", "github.com");
+    item.folderId = "f1";
+    if (item.kind === "login") {
+      item.password = "old";
+      item.username = "ada";
+    }
+    return item;
+  }
+
+  it("re-importing the same manifest is idempotent, not a duplicate", () => {
+    const current = existingLogin();
+    const manifest = [vaultItemToEntry(current, folders)];
+    const plan = planManifestMerge(manifest, [current], folders);
+    expect(plan.adds).toHaveLength(0);
+    expect(plan.updates).toHaveLength(0);
+    expect(plan.unchanged).toBe(1);
+    expect(plan.newFolders).toHaveLength(0);
+  });
+
+  it("updates an existing item in place when the secret changed", () => {
+    const current = existingLogin();
+    const entry = vaultItemToEntry(current, folders);
+    const plan = planManifestMerge(
+      [{ ...entry, secret: "rotated" }],
+      [current],
+      folders,
+    );
+    expect(plan.adds).toHaveLength(0);
+    expect(plan.updates).toHaveLength(1);
+    const updated = plan.updates[0];
+    expect(updated?.id).toBe(current.id);
+    expect(updated?.createdAt).toBe(current.createdAt);
+    if (updated?.kind === "login") {
+      expect(updated.password).toBe("rotated");
+    }
+  });
+
+  it("adds unseen paths with their new folders", () => {
+    const current = existingLogin();
+    const plan = planManifestMerge(
+      [
+        {
+          path: "Work/api",
+          secret: "t",
+          trailer: JSON.stringify({ kind: "secret" }),
+        },
+      ],
+      [current],
+      folders,
+    );
+    expect(plan.adds).toHaveLength(1);
+    expect(plan.updates).toHaveLength(0);
+    expect(plan.newFolders.map((f) => f.name)).toEqual(["Work"]);
+  });
+
+  it("a trashed item does not block re-adding its path", () => {
+    const current = existingLogin();
+    current.deletedAt = new Date().toISOString();
+    const entry = vaultItemToEntry(current, folders);
+    const plan = planManifestMerge([entry], [current], folders);
+    expect(plan.adds).toHaveLength(1);
   });
 });

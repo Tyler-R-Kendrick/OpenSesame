@@ -1,4 +1,5 @@
 mod connect;
+mod github;
 mod store;
 
 use clap::{Parser, Subcommand, ValueEnum};
@@ -8,7 +9,7 @@ use opensesame_authn::{
 };
 use opensesame_connector_host::providers::{
     crypto_plan, execute_crypto_plan, execute_human_plan, human_plan, CryptoOperation,
-    HumanProviderOperation,
+    HumanProviderOperation, HumanProviderPlan,
 };
 use opensesame_domain::DevDeliveryPolicy;
 use opensesame_env_spec::{parse_schema_file, resolve_for_delivery, schema_summary};
@@ -335,6 +336,9 @@ enum PassCmd {
         recipients: Vec<String>,
         #[arg(long, default_value_t = true)]
         git: bool,
+        /// Backup remote URL (git `origin`), e.g. a private GitHub repository.
+        #[arg(long)]
+        remote: Option<String>,
     },
     /// Insert a secret (human only).
     Insert {
@@ -414,6 +418,34 @@ enum PassCmd {
     Git {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Seal a Pages plaintext path manifest into encrypted store entries.
+    Seal {
+        /// JSON manifest exported by Pages Settings → "Download store path manifest".
+        manifest: PathBuf,
+        /// Overwrite entries that already exist in the store.
+        #[arg(long)]
+        replace: bool,
+        /// Overwrite and delete the plaintext manifest after sealing.
+        #[arg(long)]
+        shred: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Commit and push the store to its backup remote (git `origin`).
+    Backup {
+        /// Set (or replace) the backup remote before pushing.
+        #[arg(long)]
+        remote: Option<String>,
+        /// Persist auto-push: push after every store mutation from now on.
+        #[arg(long)]
+        auto_push: Option<bool>,
         #[arg(long)]
         path: Option<PathBuf>,
         #[arg(long)]
@@ -704,7 +736,8 @@ async fn main() -> anyhow::Result<()> {
                 path,
                 recipients,
                 git,
-            } => store::cmd_init(path, recipients, git)?,
+                remote,
+            } => store::cmd_init(path, recipients, git, remote)?,
             PassCmd::Insert {
                 name,
                 echo,
@@ -745,6 +778,19 @@ async fn main() -> anyhow::Result<()> {
                     std::process::exit(code);
                 }
             }
+            PassCmd::Seal {
+                manifest,
+                replace,
+                shred,
+                path,
+                tomb,
+            } => store::cmd_seal(manifest, replace, shred, path, tomb)?,
+            PassCmd::Backup {
+                remote,
+                auto_push,
+                path,
+                tomb,
+            } => store::cmd_backup(remote, auto_push, path, tomb).await?,
             PassCmd::Otp { cmd } => match cmd {
                 PassOtpCmd::Code { name, path, tomb } => store::cmd_otp_code(name, path, tomb)?,
                 PassOtpCmd::Insert {
@@ -1523,6 +1569,27 @@ async fn execute_connection_provider(
         resource,
         &connection.public_config,
     )?;
+    // GitHub App leases are minted natively: RS256 signing and the GitHub API
+    // call live here in the human CLI, so connector-host never holds a token.
+    if let HumanProviderPlan::GitHubApp {
+        app_id,
+        installation_id,
+        private_key_path,
+    } = plan
+    {
+        let config = github::GitHubAppConfig::resolve(app_id, installation_id, private_key_path)?;
+        let minted = github::mint_installation_token(&config).await?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "provider": "github-app",
+                "token_type": "token",
+                "token": minted.token,
+                "expires_at": minted.expires_at,
+            }))?
+        );
+        return Ok(());
+    }
     println!("{}", execute_human_plan(plan)?);
     Ok(())
 }

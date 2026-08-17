@@ -57,7 +57,13 @@ pub fn unlock_store_key(root: &Path, password: &[u8]) -> Result<ItemDataKey, Sto
 impl StoreRoot {
     fn entry_path(&self, name: &str, ext: &str) -> Result<PathBuf, StoreError> {
         let rel = logical_to_relative(name)?;
-        Ok(self.path.join(rel).with_extension(ext))
+        // Append, never `with_extension`: that would swallow the final label of
+        // dotted names, colliding `github.com` and `github.org` into one file
+        // and missing classic `pass` files like `github.com.gpg`.
+        let mut file = rel.into_os_string();
+        file.push(".");
+        file.push(ext);
+        Ok(self.path.join(file))
     }
 
     fn find_existing(&self, name: &str) -> Result<(PathBuf, FormatHint), StoreError> {
@@ -129,6 +135,22 @@ impl StoreRoot {
         };
         auto_commit(&self.path, &msg)?;
         Ok(())
+    }
+
+    /// Write (or overwrite) an entry without committing — manifest sealing
+    /// batches many writes into one commit.
+    pub(crate) fn write_entry_unchecked(
+        &self,
+        name: &str,
+        entry: &Entry,
+        key: &ItemDataKey,
+    ) -> Result<(), StoreError> {
+        let existing = self.find_existing(name).ok();
+        let keep_format = existing.as_ref().map(|(_, h)| *h);
+        if let Some((path, _)) = &existing {
+            let _ = fs::remove_file(path);
+        }
+        self.write_entry(name, entry, key, keep_format)
     }
 
     fn write_entry(
@@ -267,14 +289,26 @@ impl StoreRoot {
             .collect())
     }
 
-    pub fn cp(&self, from: &str, to: &str, key: &ItemDataKey) -> Result<(), StoreError> {
-        let entry = self.show(from, key)?;
+    pub fn cp(
+        &self,
+        from: &str,
+        to: &str,
+        key: &ItemDataKey,
+        age_identity: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let entry = self.show_with_age_identity(from, key, age_identity)?;
         self.insert(to, &entry, key)?;
         Ok(())
     }
 
-    pub fn mv(&self, from: &str, to: &str, key: &ItemDataKey) -> Result<(), StoreError> {
-        let entry = self.show(from, key)?;
+    pub fn mv(
+        &self,
+        from: &str,
+        to: &str,
+        key: &ItemDataKey,
+        age_identity: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let entry = self.show_with_age_identity(from, key, age_identity)?;
         self.insert(to, &entry, key)?;
         self.rm(from)?;
         Ok(())
@@ -310,6 +344,33 @@ mod tests {
         assert!(root.ls("Dev").unwrap().iter().any(|n| n.contains("token")));
         root.rm("Dev/token").unwrap();
         assert!(root.show("Dev/token", &key).is_err());
+    }
+
+    #[test]
+    fn dotted_names_keep_their_final_label() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = init_store(dir.path(), &[]).unwrap();
+        let key = ItemDataKey([4u8; 32]);
+        for (name, secret) in [("Email/github.com", "a"), ("Email/github.org", "b")] {
+            root.insert(
+                name,
+                &Entry {
+                    secret: secret.into(),
+                    trailer: String::new(),
+                    otp: None,
+                },
+                &key,
+            )
+            .unwrap();
+        }
+        // Distinct files — `.com` is part of the name, not an extension.
+        assert!(dir.path().join("Email/github.com.osseal").exists());
+        assert!(dir.path().join("Email/github.org.osseal").exists());
+        assert_eq!(root.show("Email/github.com", &key).unwrap().secret, "a");
+        assert_eq!(root.show("Email/github.org", &key).unwrap().secret, "b");
+        let names = root.ls("Email").unwrap();
+        assert!(names.contains(&"Email/github.com".to_string()));
+        assert!(names.contains(&"Email/github.org".to_string()));
     }
 
     #[test]

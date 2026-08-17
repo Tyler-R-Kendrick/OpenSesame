@@ -1,9 +1,10 @@
 use std::fs;
+use std::io::Write;
 use std::path::Path;
 use std::str::FromStr;
 
+use age::decrypt;
 use age::x25519::{Identity, Recipient};
-use age::{decrypt, encrypt};
 
 use crate::StoreError;
 
@@ -23,14 +24,27 @@ pub fn read_age_recipients(root: &Path) -> Result<Vec<String>, StoreError> {
         .collect())
 }
 
+/// Encrypt to every recipient listed, so any one matching identity can open
+/// the file — `pass` multi-key parity, not just the first line.
 pub fn encrypt_age_file(path: &Path, plaintext: &[u8], recipient_lines: &[String]) -> Result<(), StoreError> {
     if recipient_lines.is_empty() {
         return Err(StoreError::Age("no age recipients".into()));
     }
-    // Encrypt to the first recipient for v1 file writes (multi-recipient via Encryptor later).
-    let recipient =
-        Recipient::from_str(recipient_lines[0].trim()).map_err(|e| StoreError::Age(e.to_string()))?;
-    let ciphertext = encrypt(&recipient, plaintext).map_err(|e| StoreError::Age(e.to_string()))?;
+    let recipients: Vec<Recipient> = recipient_lines
+        .iter()
+        .map(|line| Recipient::from_str(line.trim()).map_err(|e| StoreError::Age(e.to_string())))
+        .collect::<Result<_, _>>()?;
+    let encryptor =
+        age::Encryptor::with_recipients(recipients.iter().map(|r| r as &dyn age::Recipient))
+            .map_err(|e| StoreError::Age(e.to_string()))?;
+    let mut ciphertext = Vec::new();
+    let mut writer = encryptor
+        .wrap_output(&mut ciphertext)
+        .map_err(|e| StoreError::Age(e.to_string()))?;
+    writer
+        .write_all(plaintext)
+        .and_then(|()| writer.finish().map(drop))
+        .map_err(|e| StoreError::Age(e.to_string()))?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -48,6 +62,25 @@ pub fn decrypt_age_file(path: &Path, identity_pem_or_key: &str) -> Result<Vec<u8
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn age_encrypts_to_every_recipient() {
+        let dir = tempfile::tempdir().unwrap();
+        let first = Identity::generate();
+        let second = Identity::generate();
+        let path = dir.path().join("multi.age");
+        encrypt_age_file(
+            &path,
+            b"shared",
+            &[first.to_public().to_string(), second.to_public().to_string()],
+        )
+        .unwrap();
+        use age::secrecy::ExposeSecret;
+        for id in [&first, &second] {
+            let key = id.to_string().expose_secret().to_string();
+            assert_eq!(decrypt_age_file(&path, &key).unwrap(), b"shared");
+        }
+    }
 
     #[test]
     fn age_round_trip_file() {
