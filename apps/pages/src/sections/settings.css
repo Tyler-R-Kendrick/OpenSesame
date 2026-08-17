@@ -1,3 +1,65 @@
+/* Category switcher: one row of pills, the active one filled. */
+.set__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.set__nav-link {
+  appearance: none;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 550;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+
+.set__nav-link:hover {
+  color: var(--ink);
+  background: var(--surface-3);
+}
+
+.set__nav-link[aria-current="true"] {
+  color: var(--accent-ink);
+  background: var(--accent);
+  font-weight: 600;
+}
+
+.set__nav-link--danger:hover {
+  color: var(--err);
+  background: var(--err-wash);
+}
+
+.set__nav-link--danger[aria-current="true"] {
+  color: #fff;
+  background: var(--err);
+}
+
+/* A text input with its action beside it, aligned to the control row. */
+.set__inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.set__inline-grow {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
 .set__themes {
   display: flex;
   gap: 0.4rem;
@@ -39,10 +101,6 @@
   align-items: start;
 }
 
-.set__pairbtn {
-  align-self: end;
-}
-
 .set__folders {
   list-style: none;
   margin: 0;
@@ -57,12 +115,6 @@
   align-items: center;
   gap: 0.5rem;
   color: var(--ink-2);
-}
-
-.set__rule {
-  border: none;
-  border-top: 1px solid var(--line);
-  margin: 0.35rem 0;
 }
 
 .set__danger {
@@ -144,6 +196,12 @@
   gap: 0.55rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--line);
+}
+
+/* A lone action button in a row keeps its own width instead of stretching. */
+.set__unlock-row > .btn,
+.set__unlock-row > .actions {
+  justify-self: start;
 }
 
 .set__unlock-row:last-of-type {

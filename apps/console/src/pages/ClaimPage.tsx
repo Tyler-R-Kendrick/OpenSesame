@@ -269,13 +269,15 @@ export function ClaimPage() {
             void load(next, false);
           }}
         >
-          <label htmlFor="claim-token">Paste claim token</label>
-          <input
-            id="claim-token"
-            placeholder="osc_clm_…"
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-          />
+          <div className="field">
+            <label htmlFor="claim-token">Paste claim token</label>
+            <input
+              id="claim-token"
+              placeholder="osc_clm_…"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+            />
+          </div>
           <div className="actions">
             <button type="submit" className="primary" disabled={!typed.trim()}>
               Review claim

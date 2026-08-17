@@ -1,22 +1,87 @@
+/* OpenSesame mobile MFA — shares the vault app's design language:
+   navy + teal, light and dark, rounded surfaces, quiet depth. */
+
 :root {
-  color-scheme: dark;
-  --bg: #0b1220;
-  --fg: #e8eef7;
-  --muted: #8fa3bf;
-  --accent: #3d9cf0;
-  --ok: #9fd0a8;
-  --err: #ff9b9b;
-  --line: #355074;
-  font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-  background:
-    radial-gradient(900px 500px at 10% -10%, #1c3a5a 0%, transparent 55%),
-    linear-gradient(160deg, #0b1220, #152238 40%, #0b1220);
-  color: var(--fg);
-  min-height: 100%;
+  --canvas: #f2f5f9;
+  --surface: #ffffff;
+  --surface-2: #f7f9fc;
+  --surface-3: #eef2f8;
+
+  --ink: #0e1826;
+  --ink-2: #566880;
+  --ink-3: #7e8fa6;
+  --line: #dce4ef;
+  --line-strong: #c4d1e2;
+
+  --accent: #0d7268;
+  --accent-hover: #0a5c54;
+  --accent-ink: #ffffff;
+  --accent-wash: #e4f6f3;
+
+  --ok: #0f7a51;
+  --ok-wash: #e3f6ec;
+  --err: #b32424;
+  --err-wash: #fceaea;
+
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgba(14, 24, 38, 0.06), 0 1px 1px
+    rgba(14, 24, 38, 0.04);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+    Arial, "Noto Sans", sans-serif;
+  font-synthesis-weight: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #0a121d;
+    --surface: #111d2c;
+    --surface-2: #162435;
+    --surface-3: #1c2c40;
+
+    --ink: #e7eefa;
+    --ink-2: #9db0c8;
+    --ink-3: #7488a2;
+    --line: #223349;
+    --line-strong: #2e4262;
+
+    --accent: #2fb3a3;
+    --accent-hover: #43c8b7;
+    --accent-ink: #04231f;
+    --accent-wash: #0f2f2c;
+
+    --ok: #35b57e;
+    --ok-wash: #0f2c22;
+    --err: #ef6d6d;
+    --err-wash: #351717;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  min-height: 100vh;
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 2px;
 }
 
 a:focus-visible,
@@ -24,6 +89,7 @@ button:focus-visible,
 input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .mfa {
@@ -33,56 +99,80 @@ input:focus-visible {
 }
 
 .brand {
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.021em;
   margin: 0;
 }
 
 h1 {
-  font-size: 1.35rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 650;
+  letter-spacing: -0.021em;
   margin: 0.35rem 0 0.75rem;
+  text-wrap: balance;
 }
 
 .lede,
 .hint {
-  color: var(--muted);
-  line-height: 1.45;
+  color: var(--ink-2);
+  line-height: 1.5;
 }
 
 .lede strong {
-  color: var(--fg);
+  color: var(--ink);
 }
 
 section {
-  margin-top: 1.75rem;
+  margin-top: 1.5rem;
+  padding: 1.1rem 1.2rem 1.2rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
+/* The step the deep link is asking for leads with the accent. */
 section.priority {
-  padding: 1rem;
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  box-shadow: inset 0 3px 0 var(--accent), var(--shadow-sm);
 }
 
 h2 {
   font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
   margin: 0 0 0.5rem;
 }
 
 label {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.3rem;
   margin-top: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-2);
 }
 
+/* Labels wrap their inputs, so undo the label typography for the value. */
 input {
   font: inherit;
-  padding: 0.75rem;
-  border-radius: 0.35rem;
-  border: 1px solid var(--line);
-  background: #0f1a2b;
-  color: inherit;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+input::placeholder {
+  color: var(--ink-3);
 }
 
 .row {
@@ -93,20 +183,42 @@ input {
 }
 
 button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font: inherit;
-  border: 0;
-  background: #243246;
-  color: var(--fg);
-  padding: 0.65rem 0.9rem;
-  border-radius: 0.35rem;
+  font-weight: 550;
+  font-size: 0.9rem;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  border-radius: var(--radius);
   margin-top: 0.75rem;
   cursor: pointer;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.row button {
+  margin-top: 0;
+}
+
+button:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--ink-3);
 }
 
 button.primary {
   background: var(--accent);
-  color: #041018;
+  border-color: transparent;
+  color: var(--accent-ink);
   font-weight: 600;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
 }
 
 button:disabled {
@@ -116,32 +228,33 @@ button:disabled {
 
 .status {
   margin-top: 1.25rem;
-  padding: 0.75rem 0.85rem;
-  border-left: 3px solid var(--muted);
-  background: rgba(15, 26, 43, 0.65);
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--ink);
 }
 
 .status-ok {
-  border-left-color: var(--ok);
-  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 35%, var(--line));
+  background: var(--ok-wash);
 }
 
 .status-err {
-  border-left-color: var(--err);
-  color: var(--err);
+  border-color: color-mix(in srgb, var(--err) 35%, var(--line));
+  background: var(--err-wash);
 }
 
 .status-info {
-  border-left-color: var(--accent);
-  color: var(--fg);
-}
-
-a {
-  color: #9ec9ff;
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  background: var(--accent-wash);
 }
 
 code {
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    monospace;
   font-size: 0.9em;
 }
 
@@ -154,7 +267,17 @@ code {
 
 .qr {
   display: block;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   background: #fff;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
   image-rendering: pixelated;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
 }

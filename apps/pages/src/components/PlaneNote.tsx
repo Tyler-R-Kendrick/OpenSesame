@@ -14,7 +14,6 @@ import {
   pageIsLoopback,
   shippedDaemonApi,
 } from "../lib/settings.js";
-import { isLoopbackUrl } from "../lib/urls.js";
 import {
   assertDaemonReachableFromPage,
   detectTailnet,
@@ -22,6 +21,7 @@ import {
   openTailscaleLogin,
   waitForTailnet,
 } from "../lib/tailscale.js";
+import { isLoopbackUrl } from "../lib/urls.js";
 import { IconAlert } from "./Icons.js";
 import { QrCode } from "./QrCode.js";
 
@@ -47,14 +47,14 @@ export function ConnectThisMachine({
 }) {
   const { connect } = useConnect();
   const [daemonApi, setDaemonApi] = useState(
-    () => loadSettings().daemonApi || (pageIsLoopback() ? shippedDaemonApi : ""),
+    () =>
+      loadSettings().daemonApi || (pageIsLoopback() ? shippedDaemonApi : ""),
   );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [showQr, setShowQr] = useState(false);
   const pairingUrl = daemonApi.trim();
-  const canShowPairingQr =
-    pairingUrl.length > 0 && !isLoopbackUrl(pairingUrl);
+  const canShowPairingQr = pairingUrl.length > 0 && !isLoopbackUrl(pairingUrl);
 
   async function finish(
     health: Awaited<ReturnType<typeof probeDaemon>>,
@@ -202,8 +202,7 @@ export function ConnectThisMachine({
               size={144}
             />
             <p className="hint">
-              Scan on another device to open{" "}
-              <code>{pairingUrl}</code>.
+              Scan on another device to open <code>{pairingUrl}</code>.
             </p>
           </div>
         ) : null}
@@ -233,7 +232,7 @@ export function PagesCannotHostNote({
             <p>
               Configured Host: <code>{status.hostBase || "none"}</code> (
               {hostStatusLabel(status.host).toLowerCase()}).{" "}
-              <Link to="/settings">Change it in Settings</Link>.
+              <Link to="/settings#connectivity">Change it in Settings</Link>.
             </p>
           </div>
         </output>
