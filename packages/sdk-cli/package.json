@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "@opensesame/contracts": "workspace:*",
-    "@opensesame/device-auth": "workspace:*"
+    "@opensesame/device-auth": "workspace:*",
+    "@opensesame/qr": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "22.15.29",

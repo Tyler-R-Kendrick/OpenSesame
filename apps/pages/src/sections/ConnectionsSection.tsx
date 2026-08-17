@@ -44,8 +44,12 @@ import {
   createConnection,
   discoverConnections,
   listConnections,
+  listIntegrations,
   listProviders,
   openConsentPopup,
+  startGithubAppRegistration,
+  submitGithubAppManifest,
+  type Integration,
   refreshConnection,
   revokeConnection,
   setConnectionConfiguration,
@@ -86,7 +90,9 @@ import {
 } from "../lib/identity-graph.js";
 import {
   HostSessionError,
+  ensureHostSession,
   hostBase,
+  hostLocalSessionEligible,
   useConnect,
   useIdentitySession,
 } from "../lib/identity.js";
@@ -187,8 +193,44 @@ function relative(iso: string | null): string | null {
 }
 
 function errorText(error: unknown): string {
-  if (error instanceof ConnectionsError) return error.message;
-  if (error instanceof Error) return error.message;
+  if (error instanceof HostSessionError) {
+    if (error.code === "setup_required") {
+      return `${error.message} Connect on Authority first so this page can mint a Host session, then try again.`;
+    }
+    return error.message;
+  }
+  if (error instanceof ConnectionsError) {
+    if (
+      error.code === "exchange_failed" &&
+      /bad credentials|401|unauthorized/i.test(error.message)
+    ) {
+      return "GitHub rejected that token. Use a classic PAT (ghp_…) or fine-grained token with Contents: Read and Write on the store repo (repo scope).";
+    }
+    if (error.code === "provider_unconfigured") {
+      return "OAuth App credentials are not set on this Host. Paste a personal access token instead — no OAuth App required.";
+    }
+    if (error.code === "integration_not_found") {
+      return "Host could not open this connector yet. Reload Connections after Identity is connected, or paste a GitHub PAT on the connector page.";
+    }
+    return error.message;
+  }
+  // Zod dumps every issue as JSON — one bad field across the catalog becomes
+  // dozens of "error lines" in the banner. Never render that wall.
+  if (
+    error &&
+    typeof error === "object" &&
+    "issues" in error &&
+    Array.isArray((error as { issues: unknown }).issues)
+  ) {
+    return "Host returned data this page does not understand. Try Reload, or pair Host again from Settings.";
+  }
+  if (error instanceof Error) {
+    const message = error.message.trim();
+    if (message.startsWith("[") || message.includes('"code":')) {
+      return "Host returned data this page does not understand. Try Reload, or pair Host again from Settings.";
+    }
+    return message;
+  }
   return "Something went wrong.";
 }
 
@@ -299,13 +341,8 @@ export function ConnectionsSection() {
       let configured = 0;
       try {
         configured = await discoverConnections();
-      } catch (error) {
-        if (
-          !(error instanceof ConnectionsError) ||
-          ![403, 404].includes(error.status)
-        ) {
-          throw error;
-        }
+      } catch {
+        // Discovery is best-effort — never block the connections list on it.
       }
       const nextConnections = await listConnections();
       if (connectionRun.current !== id) return;
@@ -339,11 +376,12 @@ export function ConnectionsSection() {
   }, [loadCatalog, session]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session && !hostLocalSessionEligible()) return;
     void loadConnections();
   }, [session, loadConnections]);
 
   useEffect(() => {
+    if (hostLocalSessionEligible()) return;
     if (session || !online || connecting || connectError) return;
     if (!shouldAutoConnect()) return;
     void connect();
@@ -371,7 +409,10 @@ export function ConnectionsSection() {
           providers === null || (session !== null && connections === null)
         }
         online={online}
-        canConfigure={session !== null && loadError?.setupRequired !== true}
+        canConfigure={
+          (session !== null || hostLocalSessionEligible()) &&
+          loadError?.setupRequired !== true
+        }
         configureHint={
           session === null
             ? "Host authorization waits on an Identity session. You can still save a vault login or import one below."
@@ -702,7 +743,9 @@ function ConnectorSettingsPage({
             <div className="panel__body">
               <p className="hint">{configureHint}</p>
             </div>
-          ) : provider.configured ? (
+          ) : provider.configured ||
+            provider.id === "github" ||
+            provider.id === "gitlab" ? (
             <ConnectForm
               provider={provider}
               online={online}
@@ -823,6 +866,7 @@ function IdentitySessionNote() {
   const session = useIdentitySession();
   const { connecting, error, connect } = useConnect();
   const online = useOnline();
+  if (hostLocalSessionEligible()) return null;
   if (session) return null;
   if (!shouldAutoConnect() && !connecting && !error) return null;
   return (
@@ -831,8 +875,8 @@ function IdentitySessionNote() {
       <div>
         <p>
           {error
-            ? "Identity is unreachable, so Host connectors cannot authorize yet. Vault logins, passkeys, and import still work on this device."
-            : "Connecting to Identity so Host connectors can authorize. Vault items on this identity stay available either way."}
+            ? "OpenSesame Identity is unreachable, so Host connectors cannot authorize yet. Vault logins, passkeys, and import still work on this device."
+            : "Starting your OpenSesame session so Host connectors can authorize. Vault items on this identity stay available either way."}
         </p>
         {error ? (
           <>
@@ -1133,6 +1177,7 @@ function ConnectionCard({
     const popup = openConsentPopup("about:blank");
     setBusy("authorize");
     try {
+      await ensureHostSession();
       const { authorizationUrl } = await authorizeConnection(
         connection.connectionId,
       );
@@ -2184,7 +2229,9 @@ function GalleryPanel({
     items: byCategory.get(category) ?? [],
   }));
 
-  const unconfigured = (providers ?? []).filter((p) => !p.configured).length;
+  const sealKeyMissing = (providers ?? []).some((provider) =>
+    provider.missingConfig.some((name) => name.includes("CONNECTION_KEY")),
+  );
 
   return (
     <section className="panel">
@@ -2220,12 +2267,12 @@ function GalleryPanel({
                 connectors
               </p>
             </div>
-            {unconfigured > 0 ? (
+            {sealKeyMissing ? (
               <p className="note note--warn conn-unconfigured">
                 <IconInfo />
-                {unconfigured} of {providers.length} connectors are not ready to
-                seal credentials on this Host. They remain visible with the
-                exact deployment settings still needed.
+                This Host is missing{" "}
+                <code>OPENSESAME_CONNECTION_KEY</code>, so credentials cannot be
+                sealed yet. Set it and restart the Host.
               </p>
             ) : null}
 
@@ -2318,6 +2365,9 @@ function ProviderTile({
 function DeploymentSetupGuide({ provider }: { provider: Provider }) {
   const callback = `${hostBase()}/api/v1/oauth/callback/${provider.id}`;
   const delegated = provider.id === "openrouter";
+  const missing = provider.missingConfig.filter(
+    (name) => !name.includes("CONNECTION_KEY"),
+  );
   return (
     <div className="conn-setup-guide">
       <ol>
@@ -2333,9 +2383,21 @@ function DeploymentSetupGuide({ provider }: { provider: Provider }) {
             Register this exact callback URL: <code>{callback}</code>
           </li>
         ) : null}
-        <li>
-          Set the missing Host settings shown below, then restart the Host.
-        </li>
+        {missing.length > 0 ? (
+          <li>
+            Optional OAuth app env vars on the Host (not required when using a
+            personal access token for GitHub/GitLab):
+            <ul className="conn-envs">
+              {missing.map((name) => (
+                <li key={name}>
+                  <code>{name}</code>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ) : (
+          <li>Restart the Host after updating provider credentials.</li>
+        )}
       </ol>
       <a
         className="conn-doc-link"
@@ -2365,6 +2427,143 @@ function ConnectorSetupGuide({ provider }: { provider: Provider }) {
       >
         <IconExternal size={16} /> Open {provider.displayName} setup guide
       </a>
+    </div>
+  );
+}
+
+
+function GithubTenantAppPanel({
+  provider,
+  online,
+  onFlash,
+  onReady,
+}: {
+  provider: Provider;
+  online: boolean;
+  onFlash: (flash: Flash) => void;
+  onReady: () => void;
+}) {
+  const [integrations, setIntegrations] = useState<Integration[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listIntegrations()
+      .then((rows) => {
+        if (cancelled) return;
+        const github = rows.filter(
+          (row) =>
+            row.providerId === "github" &&
+            row.enabled &&
+            row.configured &&
+            row.source === "organization",
+        );
+        setIntegrations(github);
+        if (github.length > 0 || provider.configured) onReady();
+      })
+      .catch(() => {
+        if (!cancelled) setIntegrations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [onReady, provider.configured]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("github_app");
+    if (!result) return;
+    const reason = params.get("reason");
+    if (result === "registered") {
+      onFlash({
+        tone: "ok",
+        text: "GitHub App registered for this organization. You can Authorize with GitHub now.",
+      });
+      onReady();
+      void listIntegrations().then((rows) =>
+        setIntegrations(
+          rows.filter(
+            (row) =>
+              row.providerId === "github" &&
+              row.enabled &&
+              row.configured &&
+              row.source === "organization",
+          ),
+        ),
+      );
+    } else if (result === "error") {
+      onFlash({
+        tone: "err",
+        text: `GitHub App registration failed${reason ? `: ${reason}` : ""}. Try again.`,
+      });
+    }
+    params.delete("github_app");
+    params.delete("reason");
+    params.delete("integration");
+    const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", next);
+  }, [onFlash, onReady]);
+
+  const ready = (integrations?.length ?? 0) > 0 || provider.configured;
+
+  async function deploy() {
+    setBusy(true);
+    try {
+      const registration = await startGithubAppRegistration({
+        returnTo: `${window.location.origin}${window.location.pathname}`,
+        displayName: `OpenSesame ${provider.displayName}`,
+      });
+      onFlash({
+        tone: "ok",
+        text: "Sending you to GitHub to create the app…",
+      });
+      submitGithubAppManifest(registration);
+      window.setTimeout(() => {
+        setBusy(false);
+        onFlash({
+          tone: "err",
+          text: "GitHub did not open. Hard-refresh so CSP allows form posts to github.com, then try again.",
+        });
+      }, 2500);
+    } catch (error) {
+      onFlash({ tone: "err", text: errorText(error) });
+      setBusy(false);
+    }
+  }
+
+  if (ready) {
+    return (
+      <p className="hint">
+        {provider.configured
+          ? "This Host already has deployment GitHub OAuth credentials."
+          : `Tenant GitHub App ready${
+              integrations?.[0] ? ` (${integrations[0].displayName})` : ""
+            }. Use Authorize below.`}
+      </p>
+    );
+  }
+
+  return (
+    <div className="conn-github-app">
+      <p className="hint">
+        OpenSesame creates a GitHub App for this organization — you only confirm
+        it on GitHub. No client id or secret paste, and no manual OAuth App setup.
+      </p>
+      <div className="actions">
+        <button
+          type="button"
+          className="btn btn--primary btn--sm"
+          disabled={!online || busy}
+          onClick={() => void deploy()}
+        >
+          <IconExternal size={16} />
+          {busy ? "Opening GitHub…" : "Create GitHub App for this organization"}
+        </button>
+      </div>
+      <p className="hint">
+        Continues in this tab on github.com — not a popup. After you confirm the
+        app, GitHub returns you here.
+      </p>
     </div>
   );
 }
@@ -2411,6 +2610,7 @@ function ConnectForm({
     setBusy(true);
     let created = false;
     try {
+      await ensureHostSession();
       const connection = await createConnection({
         providerId: provider.id,
         displayName: name.trim() || provider.displayName,
@@ -2468,6 +2668,7 @@ function ConnectForm({
       const connection = await createConnection({
         providerId: provider.id,
         displayName: name.trim() || provider.displayName,
+        scopes: scopes.length > 0 ? scopes : undefined,
       });
       created = true;
       await setConnectionCredential(connection.connectionId, apiKey.trim());
@@ -2641,63 +2842,138 @@ function ConnectForm({
     );
   }
 
+  const acceptsPat =
+    provider.id === "github" || provider.id === "gitlab";
+  const [oauthReady, setOauthReady] = useState(
+    () => provider.configured || provider.id !== "github",
+  );
+
   return (
-    <form className="conn-tile__body" onSubmit={connectOauth}>
-      <PasskeyCeremonyNote />
-      <ConnectorSetupGuide provider={provider} />
-      <div className="field">
-        <label className="label" htmlFor={nameId}>
-          Name it
-        </label>
-        <input
-          id={nameId}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
+    <div className="conn-tile__body">
+      {provider.id === "github" ? (
+        <GithubTenantAppPanel
+          provider={provider}
+          online={online}
+          onFlash={onFlash}
+          onReady={() => setOauthReady(true)}
         />
-        <p className="hint">
-          How it reads in this list. The provider never sees it.
-        </p>
-      </div>
+      ) : null}
+      <form onSubmit={connectOauth}>
+        <PasskeyCeremonyNote />
+        <ConnectorSetupGuide provider={provider} />
+        {!oauthReady && acceptsPat ? (
+          <p className="hint">
+            After the GitHub App is created (above), Authorize works. A personal
+            access token below is an alternative if you already have one.
+          </p>
+        ) : null}
+        <div className="field">
+          <label className="label" htmlFor={nameId}>
+            Name it
+          </label>
+          <input
+            id={nameId}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+          <p className="hint">
+            How it reads in this list. The provider never sees it.
+          </p>
+        </div>
 
-      {provider.scopes.length > 0 ? (
-        <fieldset className="conn-scope-picker">
-          <legend className="label">Ask for</legend>
-          {provider.scopes.map((scope) => (
-            <label className="check" key={scope.name}>
-              <input
-                type="checkbox"
-                checked={scopes.includes(scope.name)}
-                onChange={() => toggle(scope.name)}
-              />
-              <span>
-                <code>{scope.name}</code>
-                {scope.sensitive ? (
-                  <span className="chip chip--warn chip--sm">broad</span>
-                ) : null}
-                <span className="hint">{scope.description}</span>
-              </span>
+        {provider.scopes.length > 0 ? (
+          <fieldset className="conn-scope-picker">
+            <legend className="label">Ask for</legend>
+            {provider.scopes.map((scope) => (
+              <label className="check" key={scope.name}>
+                <input
+                  type="checkbox"
+                  checked={scopes.includes(scope.name)}
+                  onChange={() => toggle(scope.name)}
+                />
+                <span>
+                  <code>{scope.name}</code>
+                  {scope.sensitive ? (
+                    <span className="chip chip--warn chip--sm">broad</span>
+                  ) : null}
+                  <span className="hint">{scope.description}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        ) : null}
+
+        <div className="actions">
+          <button
+            type="submit"
+            className="btn btn--primary btn--sm"
+            disabled={
+              busy ||
+              !online ||
+              missingScope ||
+              (provider.id === "github" ? !oauthReady : !provider.configured)
+            }
+          >
+            <IconExternal size={16} />
+            {busy
+              ? "Waiting for consent…"
+              : `Authorize with ${provider.displayName}`}
+          </button>
+        </div>
+        {missingScope ? (
+          <p className="hint">
+            Pick at least one scope — an authorization with none can do nothing.
+          </p>
+        ) : null}
+        {provider.id === "github" && !oauthReady ? (
+          <p className="hint">
+            Create the organization GitHub App above first, or use a personal
+            access token below.
+          </p>
+        ) : null}
+        {provider.id !== "github" && !provider.configured ? (
+          <p className="hint">
+            OAuth authorize needs Host client credentials for this provider.
+          </p>
+        ) : null}
+      </form>
+
+      {acceptsPat ? (
+        <form className="cap-pat" onSubmit={(event) => void saveKey(event)}>
+          <div className="field">
+            <label className="label" htmlFor={`${keyId}-pat`}>
+              Or connect with a personal access token
             </label>
-          ))}
-        </fieldset>
+            <input
+              id={`${keyId}-pat`}
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={
+                provider.id === "github"
+                  ? "ghp_… or github_pat_… (repo scope)"
+                  : "glpat-…"
+              }
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+            />
+            <p className="hint">
+              Sealed on the Host immediately. Never stored in this browser.
+            </p>
+          </div>
+          <div className="actions">
+            <button
+              type="submit"
+              className="btn btn--primary btn--sm"
+              disabled={busy || !online || apiKey.trim() === ""}
+            >
+              {busy
+                ? "Saving…"
+                : `Connect ${provider.displayName} with token`}
+            </button>
+          </div>
+        </form>
       ) : null}
-
-      <div className="actions">
-        <button
-          type="submit"
-          className="btn btn--primary btn--sm"
-          disabled={busy || !online || missingScope}
-        >
-          <IconExternal size={16} />
-          {busy
-            ? "Waiting for consent…"
-            : `Authorize with ${provider.displayName}`}
-        </button>
-      </div>
-      {missingScope ? (
-        <p className="hint">
-          Pick at least one scope — an authorization with none can do nothing.
-        </p>
-      ) : null}
-    </form>
+    </div>
   );
 }

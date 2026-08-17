@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { QrCode } from "./QrCode.js";
 import {
   assertionPayload,
   creationOptionsFromJson,
@@ -40,6 +41,7 @@ export function App() {
   const [principalId, setPrincipalId] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [totpSecret, setTotpSecret] = useState("");
+  const [totpOtpauthUrl, setTotpOtpauthUrl] = useState("");
   const [totpCode, setTotpCode] = useState("");
   const [status, setStatus] = useState(
     deep.userCode
@@ -222,6 +224,7 @@ export function App() {
         return;
       }
       setTotpSecret(body.secret ?? "");
+      setTotpOtpauthUrl(body.otpauthUrl ?? "");
       report("ok", "TOTP enrolled. Scan or copy the secret below.");
     } finally {
       setBusy(null);
@@ -380,7 +383,24 @@ export function App() {
             Enroll TOTP
           </button>
         </div>
-        {totpSecret ? <p className="hint">Secret (base64): {totpSecret}</p> : null}
+        {totpOtpauthUrl || totpSecret ? (
+          <div className="totp-enroll">
+            {totpOtpauthUrl ? (
+              <QrCode
+                value={totpOtpauthUrl}
+                label="Scan to enroll this TOTP secret in an authenticator app"
+              />
+            ) : null}
+            {totpSecret ? (
+              <p className="hint">Secret (base64): {totpSecret}</p>
+            ) : null}
+            {totpOtpauthUrl ? (
+              <p className="hint">
+                otpauth: <code>{totpOtpauthUrl}</code>
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         <label>
           TOTP code
           <input

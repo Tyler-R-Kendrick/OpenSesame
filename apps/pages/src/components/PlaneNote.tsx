@@ -14,6 +14,7 @@ import {
   pageIsLoopback,
   shippedDaemonApi,
 } from "../lib/settings.js";
+import { isLoopbackUrl } from "../lib/urls.js";
 import {
   assertDaemonReachableFromPage,
   detectTailnet,
@@ -22,6 +23,7 @@ import {
   waitForTailnet,
 } from "../lib/tailscale.js";
 import { IconAlert } from "./Icons.js";
+import { QrCode } from "./QrCode.js";
 
 export function RailPlaneStatus() {
   const status = usePlaneStatus();
@@ -49,6 +51,10 @@ export function ConnectThisMachine({
   );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [showQr, setShowQr] = useState(false);
+  const pairingUrl = daemonApi.trim();
+  const canShowPairingQr =
+    pairingUrl.length > 0 && !isLoopbackUrl(pairingUrl);
 
   async function finish(
     health: Awaited<ReturnType<typeof probeDaemon>>,
@@ -177,7 +183,30 @@ export function ConnectThisMachine({
           >
             Use this URL
           </button>
+          {canShowPairingQr ? (
+            <button
+              type="button"
+              className="btn btn--ghost"
+              disabled={busy}
+              onClick={() => setShowQr((value) => !value)}
+            >
+              {showQr ? "Hide QR" : "Show QR"}
+            </button>
+          ) : null}
         </div>
+        {showQr && canShowPairingQr ? (
+          <div className="conn-pair__qr">
+            <QrCode
+              value={pairingUrl}
+              label="Scan to open this daemon Tailscale URL on another device"
+              size={144}
+            />
+            <p className="hint">
+              Scan on another device to open{" "}
+              <code>{pairingUrl}</code>.
+            </p>
+          </div>
+        ) : null}
         {message ? <p className="hint">{message}</p> : null}
       </div>
     </div>

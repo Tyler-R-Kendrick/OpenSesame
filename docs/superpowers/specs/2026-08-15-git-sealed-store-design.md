@@ -17,7 +17,7 @@ Today OpenSesame has:
 
 ## Goals
 
-1. **CLI-first sealed store** under the `opensesame` binary (no `pass` subcommand namespace)
+1. **CLI-first sealed store** under `opensesame pass` (mirrors Unix `pass`)
 2. **Interop** with classic `~/.password-store` (`.gpg`, optional `.age`)
 3. **PWA bridge** so Pages vault items sync with the same logical tree
 4. **Agent path** that never exposes `show` / `getSecret` — only ConnectionRef → authorize → invoke → receipt
@@ -34,8 +34,8 @@ Today OpenSesame has:
 | Topic | Choice |
 |-------|--------|
 | Approach | Native Rust store engine + format adapters |
-| CLI naming | Top-level verbs on `opensesame` (insert/show/…); no `pass` group |
-| Store init | `opensesame init --sealed-store` (existing `init` for `.env.schema` unchanged) |
+| CLI naming | `opensesame pass …` verbs (init/insert/show/…); mirrors Unix `pass` |
+| Store init | `opensesame pass init` (top-level `init` remains `.env.schema` only) |
 | Default root | `PASSWORD_STORE_DIR` → else `~/.password-store`; override `OPENSESAME_STORE_DIR` |
 | New ciphertext | `.osseal` (OpenSesame envelope) |
 | Classic | Read/write `.gpg` (Sequoia preferred, `gpg` fallback); `.age` when recipients present |
@@ -114,27 +114,27 @@ For PWA round-trip, sealed body MAY include a JSON metadata trailer after a blan
 ### Recipient policy
 
 - Mutating writes encrypt to all recipients listed for that format
-- Changing recipients re-encrypts affected entries (explicit `opensesame init --sealed-store` re-init or a dedicated rewrap command in implementation)
+- Changing recipients re-encrypts affected entries (explicit `opensesame pass init` re-init or a dedicated rewrap command in implementation)
 - Private keys never enter the git tree
 
 ## CLI surface
 
-Human-only store verbs on the host CLI binary `opensesame`:
+Human-only store verbs under `opensesame pass` (Unix `pass` parity):
 
 | Command | Behavior |
 |---------|----------|
-| `init --sealed-store [--path] [--recipient …]` | Create store root, recipients file(s), optional `git init` |
-| `insert <name>` | Insert (prompt or stdin); encrypt; git commit if repo |
-| `generate <name> [--length] [--no-symbols] …` | Generate + insert |
-| `show <name>` | Decrypt to stdout; requires TTY or `--reveal` |
-| `ls [path]` | List tree |
-| `find <query>` / `grep <query>` | Name / decrypted-content search (human only) |
-| `cp` / `mv` / `rm` / `edit` | `pass` semantics |
-| `git <args…>` | Git passthrough in store root |
+| `pass init [--path] [--recipient …]` | Create store root, recipients file(s), optional `git init` |
+| `pass insert <name>` | Insert (prompt or stdin); encrypt; git commit if repo |
+| `pass generate <name> [--length] [--no-symbols] …` | Generate + insert |
+| `pass show <name>` | Decrypt to stdout; requires TTY or `--reveal` |
+| `pass ls [path]` | List tree |
+| `pass find <query>` | Name search (human only) |
+| `pass cp` / `pass mv` / `pass rm` | `pass` semantics |
+| `pass git <args…>` | Git passthrough in store root |
 
 **Unchanged:**
 
-- `opensesame init` without `--sealed-store` continues to initialize `.env.schema`
+- Top-level `opensesame init` continues to initialize `.env.schema` only
 - `opensesame secret get/list` remain connection-scoped human reads; `password-store` provider uses the engine
 - Host `invoke` / MCP / agent APIs do **not** gain reveal commands
 
@@ -188,7 +188,7 @@ Human-only store verbs on the host CLI binary `opensesame`:
 
 | Condition | Behavior |
 |-----------|----------|
-| Missing store / not initialized | Clear error with `init --sealed-store` hint |
+| Missing store / not initialized | Clear error with `pass init` hint |
 | No matching recipient / wrong passphrase | Fail closed; no plaintext |
 | Corrupt AEAD / GPG | Fail closed |
 | `show` without TTY and without `--reveal` | Bail with same message family as `secret get` |

@@ -54,8 +54,14 @@ export function providerVerb(
   connection: Connection | null,
 ): StatusVerb {
   if (connection) return connectionVerb(connection.status);
-  if (!provider.configured && !provider.autoConfigurable)
+  // Only the Host sealing key is a page-wide deployment fault. Missing OAuth
+  // app env vars are the normal default for the catalog — not tile errors.
+  if (
+    !provider.configured &&
+    provider.missingConfig.some((name) => name.includes("CONNECTION_KEY"))
+  ) {
     return "needs_install";
+  }
   return "idle";
 }
 

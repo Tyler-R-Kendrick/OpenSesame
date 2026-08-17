@@ -94,4 +94,15 @@ describe("tailnet pairing", () => {
     expect(msg).toMatch(/\.ts\.net/);
     expect(msg).toMatch(/tailscale_url/);
   });
+
+  it("explains missing local daemon without the github.io-only line", () => {
+    const msg = discoverErrorMessage({
+      fromGithubPages: false,
+      triedLoopback: true,
+      detail: "http://127.0.0.1:18790: Timed out",
+    });
+    expect(msg).toMatch(/No daemon answered on loopback/);
+    expect(msg).not.toMatch(/github\.io cannot use localhost/);
+    expect(msg).toMatch(/Timed out/);
+  });
 });

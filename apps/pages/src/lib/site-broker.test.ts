@@ -1,20 +1,22 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { kvDelete } from "./kv.js";
 import {
+  CONSENTS_KEY,
+  POLICY_KEY,
   addDomainRule,
   approveConsent,
+  brokerAuthorizeUrl,
   buildErrorMessage,
   buildSuccessMessage,
-  brokerAuthorizeUrl,
   consentCovers,
-  CONSENTS_KEY,
   deliverToRp,
+  isBrokerRestricted,
   loadBrokerPolicy,
   loadConsents,
   normalizeDomainEntry,
   originMatchesDomainEntry,
   originMayUseBroker,
   parseBrokerRequest,
-  POLICY_KEY,
   removeDomainRule,
   revokeConsent,
   scriptTagSrc,
@@ -22,7 +24,6 @@ import {
   staticSiteExplicitSnippet,
   staticSiteSnippet,
 } from "./site-broker.js";
-import { kvDelete } from "./kv.js";
 
 afterEach(() => {
   kvDelete(CONSENTS_KEY);
@@ -85,9 +86,24 @@ describe("consent", () => {
 });
 
 describe("domain rules", () => {
-  it("defaults to open (no rules)", () => {
+  it("defaults to public (no rules)", () => {
     expect(loadBrokerPolicy()).toEqual({ rules: [] });
+    expect(isBrokerRestricted()).toBe(false);
     expect(originMayUseBroker("http://localhost:9999")).toBe(true);
+  });
+
+  it("stays public with only blocked domains", () => {
+    addDomainRule("evil.test", "blacklist");
+    expect(isBrokerRestricted()).toBe(false);
+    expect(originMayUseBroker("https://ok.test")).toBe(true);
+    expect(originMayUseBroker("https://evil.test")).toBe(false);
+  });
+
+  it("becomes restricted when the first allowed domain is added", () => {
+    addDomainRule("example.com", "whitelist");
+    expect(isBrokerRestricted()).toBe(true);
+    expect(originMayUseBroker("https://app.example.com")).toBe(true);
+    expect(originMayUseBroker("https://other.test")).toBe(false);
   });
 
   it("normalises and matches host, subdomain, and origin entries", () => {
@@ -95,9 +111,9 @@ describe("domain rules", () => {
     expect(normalizeDomainEntry("https://App.Example.com/")).toBe(
       "https://app.example.com",
     );
-    expect(originMatchesDomainEntry("https://foo.example.com", "example.com")).toBe(
-      true,
-    );
+    expect(
+      originMatchesDomainEntry("https://foo.example.com", "example.com"),
+    ).toBe(true);
     expect(originMatchesDomainEntry("https://evil.com", "example.com")).toBe(
       false,
     );
@@ -106,7 +122,7 @@ describe("domain rules", () => {
     ).toBe(true);
   });
 
-  it("uses per-row whitelist and blacklist toggles", () => {
+  it("uses per-row allow and block effects", () => {
     addDomainRule("example.com", "whitelist");
     expect(originMayUseBroker("https://app.example.com")).toBe(true);
     expect(originMayUseBroker("https://other.test")).toBe(false);
@@ -117,6 +133,7 @@ describe("domain rules", () => {
 
     setDomainRuleEffect("example.com", "blacklist");
     expect(originMayUseBroker("https://ok.example.com")).toBe(false);
+    expect(isBrokerRestricted()).toBe(false);
 
     removeDomainRule("example.com");
     removeDomainRule("evil.example.com");
@@ -167,9 +184,9 @@ describe("messages and snippets", () => {
     expect(scriptTagSrc(base)).toBe(
       "https://tyler-r-kendrick.github.io/OpenSesame/auth.js",
     );
-    expect(brokerAuthorizeUrl({ origin: "http://localhost:5173", state: "x" }, base)).toContain(
-      "/broker/authorize",
-    );
+    expect(
+      brokerAuthorizeUrl({ origin: "http://localhost:5173", state: "x" }, base),
+    ).toContain("/broker/authorize");
     const snippet = staticSiteSnippet({
       brokerBase: base,
       siteOrigin: "http://localhost:5173",

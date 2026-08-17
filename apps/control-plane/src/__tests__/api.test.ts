@@ -87,6 +87,58 @@ describe("control-plane API", () => {
     });
   });
 
+  it("seeds a personal workspace on device approve when provisional had none", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ status: "approved" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    try {
+      const { app, ctx } = createControlPlane({
+        config: {
+          port: 0,
+          publicUrl: "http://127.0.0.1:8788",
+          issuer: "http://127.0.0.1:8788",
+          bootstrapPersonalOrganization: false,
+          hostApiUrl: "http://127.0.0.1:8787",
+          operatorToken: "opensesame-dev-operator",
+        },
+      });
+      const created = await provisional(app);
+      const listed = await app.request("/v1/organizations", {
+        headers: { authorization: `Bearer ${created.accessToken}` },
+      });
+      expect(
+        ((await listed.json()) as { organizations: unknown[] }).organizations,
+      ).toEqual([]);
+
+      ctx.config.bootstrapPersonalOrganization = true;
+      const approval = await app.request("/v1/device/approve", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${created.accessToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ user_code: "ABCD-EFGH" }),
+      });
+      expect(approval.status).toBe(200);
+      const after = await app.request("/v1/organizations", {
+        headers: { authorization: `Bearer ${created.accessToken}` },
+      });
+      expect(await after.json()).toMatchObject({
+        organizations: [
+          { displayName: "Personal workspace", role: "owner", state: "active" },
+        ],
+      });
+      expect(fetchMock).toHaveBeenCalled();
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
   it("rejects provisional session id as Bearer or cookie credential", async () => {
     const { app } = createControlPlane({
       config: {

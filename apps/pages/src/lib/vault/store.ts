@@ -19,10 +19,12 @@ import {
   WrongPasswordError,
   assertSealed,
   createVault,
+  importVaultKey,
   openJson,
   rewrapVaultKey,
   sealJson,
   unlockVaultKey,
+  wrapVaultKeyWithPassword,
 } from "./crypto.js";
 import {
   type Folder,
@@ -31,6 +33,24 @@ import {
   emptyBody,
 } from "./model.js";
 import { estimateStrength } from "./password.js";
+import { totpSetupUri } from "./totp.js";
+import {
+  type VaultUnlocks,
+  assertKeepsPrimaryUnlock,
+  assertPinPolicy,
+  createPasskeyUnlockCeremony,
+  exportRawVaultKey,
+  getPasskeyUnlockCeremony,
+  openTotpSecret,
+  randomTotpSecret,
+  sealTotpSecret,
+  totpCodeMatches,
+  unwrapVaultKeyWithPin,
+  unwrapVaultKeyWithPrf,
+  webauthnRpId,
+  wrapVaultKeyWithPin,
+  wrapVaultKeyWithPrf,
+} from "./unlock-methods.js";
 
 /**
  * Base key names. The store reads and writes them through the active
@@ -86,6 +106,11 @@ export type VaultState = {
   lockedOutUntil: number | null;
   failedAttempts: number;
   /**
+   * True after a primary unlock (password / PIN / passkey) when MFA is enrolled
+   * and the authenticator code has not been confirmed yet.
+   */
+  awaitingTotp: boolean;
+  /**
    * False when this browser gives the app no persistent storage, so the vault
    * lives only until the tab closes. Worth saying out loud before someone
    * trusts it with their only copy of a password.
@@ -125,6 +150,8 @@ export function assertMasterPasswordPolicy(password: string): void {
 
 export class VaultStore {
   #vaultKey: CryptoKey | null = null;
+  /** Primary unwrap succeeded; waiting on optional TOTP before activating. */
+  #pendingVaultKey: CryptoKey | null = null;
   #body: VaultBody = emptyBody();
   #header: VaultHeader | null = null;
   #prefs: VaultPrefs = defaultPrefs;
@@ -152,7 +179,7 @@ export class VaultStore {
    * scope is recomputed here before anything is read.
    */
   rehydrate(): void {
-    if (this.#vaultKey) return;
+    if (this.#vaultKey || this.#pendingVaultKey) return;
     this.#keys = scopedVaultKeys();
     this.#header = readJson<VaultHeader | null>(this.#keys.header, null);
     this.#prefs = {
@@ -165,7 +192,10 @@ export class VaultStore {
   #build(): VaultState {
     const attempts = readJson<{ fails: number; until: number }>(
       this.#keys.attempts,
-      { fails: 0, until: 0 },
+      {
+        fails: 0,
+        until: 0,
+      },
     );
     return {
       status: this.#vaultKey ? "unlocked" : this.#header ? "locked" : "empty",
@@ -175,6 +205,7 @@ export class VaultStore {
       prefs: this.#prefs,
       lockedOutUntil: attempts.until > Date.now() ? attempts.until : null,
       failedAttempts: attempts.fails,
+      awaitingTotp: this.#pendingVaultKey !== null && this.#vaultKey === null,
       durable: kvDurability() !== "memory",
     };
   }
@@ -198,6 +229,7 @@ export class VaultStore {
     const { header, vaultKey } = await createVault(password, hint);
     this.#header = header;
     this.#vaultKey = vaultKey;
+    this.#pendingVaultKey = null;
     this.#body = emptyBody();
     try {
       await kvSetDurable(this.#keys.header, JSON.stringify(header));
@@ -219,75 +251,303 @@ export class VaultStore {
     this.#emit();
   }
 
-  async unlock(password: string): Promise<void> {
+  #assertNotLockedOut(): void {
     const attempts = readJson<{ fails: number; until: number }>(
       this.#keys.attempts,
-      { fails: 0, until: 0 },
+      {
+        fails: 0,
+        until: 0,
+      },
     );
     if (attempts.until > Date.now()) {
       const seconds = Math.ceil((attempts.until - Date.now()) / 1000);
       throw new Error(`Too many attempts. Try again in ${seconds}s.`);
     }
+  }
+
+  #recordFailedUnlock(): void {
+    const attempts = readJson<{ fails: number; until: number }>(
+      this.#keys.attempts,
+      {
+        fails: 0,
+        until: 0,
+      },
+    );
+    const fails = attempts.fails + 1;
+    const until =
+      fails >= LOCK_AFTER_FAILS
+        ? Date.now() +
+          Math.min(
+            BASE_LOCKOUT_MS * 2 ** (fails - LOCK_AFTER_FAILS),
+            MAX_LOCKOUT_MS,
+          )
+        : 0;
+    kvSet(this.#keys.attempts, JSON.stringify({ fails, until }));
+    this.#emit();
+  }
+
+  async #loadBody(vaultKey: CryptoKey): Promise<VaultBody> {
+    const sealed = readJson<SealedBlob | null>(this.#keys.body, null);
+    if (!sealed) return emptyBody();
+    try {
+      const body = await openJson<VaultBody>(vaultKey, sealed);
+      const rev = body.rev ?? 0;
+      if (rev < (this.#header?.bodyRev ?? 0)) {
+        throw new VaultCorruptError(
+          "this vault file is older than the last write recorded on this device. " +
+            "If you restored a backup, import it from Settings instead; " +
+            "the vault here was not opened, so nothing has been lost yet",
+        );
+      }
+      return {
+        v: 1,
+        items: body.items ?? [],
+        folders: body.folders ?? [],
+        rev,
+      };
+    } catch (error) {
+      throw error instanceof VaultCorruptError
+        ? error
+        : new VaultCorruptError("unreadable body");
+    }
+  }
+
+  async #activateSession(vaultKey: CryptoKey): Promise<void> {
+    this.#vaultKey = vaultKey;
+    this.#pendingVaultKey = null;
+    try {
+      this.#body = await this.#loadBody(vaultKey);
+    } catch (error) {
+      this.#vaultKey = null;
+      this.#body = emptyBody();
+      throw error;
+    }
+    kvDelete(this.#keys.attempts);
+    this.touch();
+    this.#armIdleTimer();
+    this.#emit();
+  }
+
+  /** After primary unwrap: either activate or wait for TOTP MFA. */
+  async #afterPrimaryUnwrap(vaultKey: CryptoKey): Promise<void> {
+    if (this.#header?.unlocks?.totp) {
+      this.#pendingVaultKey = vaultKey;
+      this.#emit();
+      return;
+    }
+    await this.#activateSession(vaultKey);
+  }
+
+  async unlock(password: string): Promise<void> {
+    this.#assertNotLockedOut();
     if (!this.#header) throw new Error("There is no vault on this device yet.");
 
     let vaultKey: CryptoKey;
     try {
       vaultKey = await unlockVaultKey(this.#header, password);
     } catch (error) {
-      // Only a wrong password counts. A corrupt or unsupported header fails for
-      // every password, so counting it would lock the user out of a vault no
-      // password can open.
       if (!(error instanceof WrongPasswordError)) throw error;
-      const fails = attempts.fails + 1;
-      const until =
-        fails >= LOCK_AFTER_FAILS
-          ? Date.now() +
-            Math.min(
-              BASE_LOCKOUT_MS * 2 ** (fails - LOCK_AFTER_FAILS),
-              MAX_LOCKOUT_MS,
-            )
-          : 0;
-      kvSet(this.#keys.attempts, JSON.stringify({ fails, until }));
+      this.#recordFailedUnlock();
+      throw error;
+    }
+    await this.#afterPrimaryUnwrap(vaultKey);
+  }
+
+  async unlockWithPin(pin: string): Promise<void> {
+    this.#assertNotLockedOut();
+    if (!this.#header) throw new Error("There is no vault on this device yet.");
+    const record = this.#header.unlocks?.pin;
+    if (!record) throw new Error("This vault has no PIN unlock.");
+
+    let raw: Uint8Array;
+    try {
+      raw = await unwrapVaultKeyWithPin(record, pin);
+    } catch (error) {
+      if (!(error instanceof WrongPasswordError)) throw error;
+      this.#recordFailedUnlock();
+      throw new WrongPasswordError("That PIN did not unlock the vault.");
+    }
+    const vaultKey = await importVaultKey(raw);
+    raw.fill(0);
+    await this.#afterPrimaryUnwrap(vaultKey);
+  }
+
+  async unlockWithPasskey(): Promise<void> {
+    this.#assertNotLockedOut();
+    if (!this.#header) throw new Error("There is no vault on this device yet.");
+    const record = this.#header.unlocks?.passkey;
+    if (!record) throw new Error("This vault has no passkey unlock.");
+
+    let prfOutput: ArrayBuffer;
+    try {
+      prfOutput = await getPasskeyUnlockCeremony(record, webauthnRpId());
+    } catch (error) {
+      throw error instanceof Error
+        ? error
+        : new Error("Passkey unlock failed.");
+    }
+
+    let raw: Uint8Array;
+    try {
+      raw = await unwrapVaultKeyWithPrf(record, prfOutput);
+    } catch (error) {
+      if (!(error instanceof WrongPasswordError)) throw error;
+      this.#recordFailedUnlock();
+      throw new WrongPasswordError("That passkey did not unlock the vault.");
+    }
+    const vaultKey = await importVaultKey(raw);
+    raw.fill(0);
+    await this.#afterPrimaryUnwrap(vaultKey);
+  }
+
+  async confirmTotp(code: string): Promise<void> {
+    this.#assertNotLockedOut();
+    const pending = this.#pendingVaultKey;
+    const gate = this.#header?.unlocks?.totp;
+    if (!pending || !gate) {
+      throw new Error("Enter a primary unlock method first.");
+    }
+    const secret = await openTotpSecret(pending, gate);
+    const ok = await totpCodeMatches(secret, code, gate.digits, gate.period);
+    if (!ok) {
+      this.#recordFailedUnlock();
+      throw new WrongPasswordError("That authenticator code is not valid.");
+    }
+    await this.#activateSession(pending);
+  }
+
+  cancelTotpChallenge(): void {
+    this.#pendingVaultKey = null;
+    this.#emit();
+  }
+
+  async #persistHeader(next: VaultHeader): Promise<void> {
+    const previous = this.#header;
+    this.#header = next;
+    try {
+      await kvSetDurable(this.#keys.header, JSON.stringify(next));
+    } catch (error) {
+      this.#header = previous;
       this.#emit();
       throw error;
     }
-
-    this.#vaultKey = vaultKey;
-    const sealed = readJson<SealedBlob | null>(this.#keys.body, null);
-    if (sealed) {
-      try {
-        const body = await openJson<VaultBody>(vaultKey, sealed);
-        // The revision is sealed with the body, so only the vault key can move
-        // it. Behind what the header last saw means this file is an older copy —
-        // a restored backup, a synced-over write — and opening it silently would
-        // hand back passwords that were changed and items that were deleted.
-        const rev = body.rev ?? 0;
-        if (rev < (this.#header?.bodyRev ?? 0)) {
-          throw new VaultCorruptError(
-            "this vault file is older than the last write recorded on this device. " +
-              "If you restored a backup, import it from Settings instead; " +
-              "the vault here was not opened, so nothing has been lost yet",
-          );
-        }
-        this.#body = {
-          v: 1,
-          items: body.items ?? [],
-          folders: body.folders ?? [],
-          rev,
-        };
-      } catch (error) {
-        this.#vaultKey = null;
-        throw error instanceof VaultCorruptError
-          ? error
-          : new VaultCorruptError("unreadable body");
-      }
-    } else {
-      this.#body = emptyBody();
-    }
-    kvDelete(this.#keys.attempts);
-    this.touch();
-    this.#armIdleTimer();
     this.#emit();
+  }
+
+  #requireUnlocked(): { vaultKey: CryptoKey; header: VaultHeader } {
+    if (!this.#vaultKey || !this.#header) {
+      throw new Error("Unlock the vault before changing unlock methods.");
+    }
+    return { vaultKey: this.#vaultKey, header: this.#header };
+  }
+
+  async enrollPasskey(): Promise<void> {
+    const { vaultKey, header } = this.#requireUnlocked();
+    const raw = await exportRawVaultKey(vaultKey);
+    try {
+      const ceremony = await createPasskeyUnlockCeremony(webauthnRpId());
+      const record = await wrapVaultKeyWithPrf(
+        raw,
+        ceremony.prfOutput,
+        ceremony.prfSalt,
+        ceremony.credential.rawId,
+        ceremony.userId,
+      );
+      const unlocks: VaultUnlocks = {
+        ...header.unlocks,
+        passkey: record,
+      };
+      await this.#persistHeader({ ...header, unlocks });
+    } finally {
+      raw.fill(0);
+    }
+  }
+
+  async removePasskey(): Promise<void> {
+    if (!this.#header?.unlocks?.passkey) return;
+    assertKeepsPrimaryUnlock(this.#header, "passkey");
+    const { passkey: _removed, ...rest } = this.#header.unlocks;
+    await this.#persistHeader({
+      ...this.#header,
+      unlocks: Object.keys(rest).length ? rest : undefined,
+    });
+  }
+
+  async enrollPin(pin: string): Promise<void> {
+    const { vaultKey, header } = this.#requireUnlocked();
+    assertPinPolicy(pin);
+    const raw = await exportRawVaultKey(vaultKey);
+    try {
+      const record = await wrapVaultKeyWithPin(raw, pin);
+      const unlocks: VaultUnlocks = {
+        ...header.unlocks,
+        pin: record,
+      };
+      await this.#persistHeader({ ...header, unlocks });
+    } finally {
+      raw.fill(0);
+    }
+  }
+
+  async removePin(): Promise<void> {
+    if (!this.#header?.unlocks?.pin) return;
+    assertKeepsPrimaryUnlock(this.#header, "pin");
+    const { pin: _removed, ...rest } = this.#header.unlocks;
+    await this.#persistHeader({
+      ...this.#header,
+      unlocks: Object.keys(rest).length ? rest : undefined,
+    });
+  }
+
+  async enrollPassword(password: string): Promise<void> {
+    const { vaultKey, header } = this.#requireUnlocked();
+    assertMasterPasswordPolicy(password);
+    const raw = await exportRawVaultKey(vaultKey);
+    try {
+      const { kdf, wrap } = await wrapVaultKeyWithPassword(raw, password);
+      await this.#persistHeader({ ...header, kdf, wrap });
+    } finally {
+      raw.fill(0);
+    }
+  }
+
+  async removePassword(): Promise<void> {
+    if (!this.#header?.wrap) return;
+    assertKeepsPrimaryUnlock(this.#header, "password");
+    const { wrap: _w, kdf: _k, ...rest } = this.#header;
+    await this.#persistHeader({
+      ...rest,
+      wrap: undefined,
+      kdf: undefined,
+    });
+  }
+
+  /**
+   * Enroll optional TOTP as a second factor after any primary unlock.
+   * Returns an otpauth URI for QR / authenticator setup.
+   */
+  async enrollTotp(): Promise<string> {
+    const { vaultKey, header } = this.#requireUnlocked();
+    const secret = randomTotpSecret();
+    const gate = await sealTotpSecret(vaultKey, secret);
+    const unlocks: VaultUnlocks = {
+      ...header.unlocks,
+      totp: gate,
+    };
+    await this.#persistHeader({ ...header, unlocks });
+    return totpSetupUri(secret, {
+      label: "OpenSesame vault",
+      issuer: "OpenSesame",
+    });
+  }
+
+  async removeTotp(): Promise<void> {
+    if (!this.#header?.unlocks?.totp) return;
+    const { totp: _removed, ...rest } = this.#header.unlocks;
+    await this.#persistHeader({
+      ...this.#header,
+      unlocks: Object.keys(rest).length ? rest : undefined,
+    });
   }
 
   /** Run on every lock — used to wipe secrets that left the vault (clipboard). */
@@ -298,6 +558,7 @@ export class VaultStore {
 
   lock = (): void => {
     this.#vaultKey = null;
+    this.#pendingVaultKey = null;
     this.#body = emptyBody();
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
@@ -315,20 +576,14 @@ export class VaultStore {
     hint?: string,
   ): Promise<void> {
     if (!this.#header) throw new Error("There is no vault to re-key.");
+    if (!this.#header.wrap || !this.#header.kdf) {
+      throw new Error(
+        "This vault has no master password. Add one under Unlock methods first.",
+      );
+    }
     assertMasterPasswordPolicy(next);
     const header = await rewrapVaultKey(this.#header, current, next, hint);
-    const previous = this.#header;
-    this.#header = header;
-    try {
-      await kvSetDurable(this.#keys.header, JSON.stringify(header));
-    } catch (error) {
-      // The vault key is unchanged, so the old password still opens what is on
-      // disk. Saying otherwise would lock the owner out of their own vault.
-      this.#header = previous;
-      this.#emit();
-      throw error;
-    }
-    this.#emit();
+    await this.#persistHeader(header);
   }
 
   // —— persistence ——————————————————————————————————————————
@@ -546,6 +801,11 @@ export class VaultStore {
       !parsed.body
     ) {
       throw new Error("That file is not an OpenSesame vault export.");
+    }
+    if (!parsed.header.wrap || !parsed.header.kdf) {
+      throw new Error(
+        "That export has no master-password unlock. Re-export from a vault that still has a password enrolled, or unlock the source vault and merge items another way.",
+      );
     }
     const key = await unlockVaultKey(parsed.header, password);
     const incoming = await openJson<VaultBody>(key, parsed.body);

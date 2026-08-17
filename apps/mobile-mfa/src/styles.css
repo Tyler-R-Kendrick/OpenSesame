@@ -144,3 +144,17 @@ code {
   font-family: ui-monospace, monospace;
   font-size: 0.9em;
 }
+
+.totp-enroll {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+  justify-items: start;
+}
+
+.qr {
+  display: block;
+  border-radius: 0.5rem;
+  background: #fff;
+  image-rendering: pixelated;
+}

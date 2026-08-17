@@ -50,6 +50,12 @@ enum Commands {
         no_browser: bool,
         #[arg(long, value_enum, default_value = "auto")]
         open_browser: OpenBrowserArg,
+        /// Print a terminal QR for verification_uri_complete (default: on for TTY).
+        #[arg(long, default_value = "false")]
+        qr: bool,
+        /// Suppress the device-login QR even on a TTY.
+        #[arg(long, default_value = "false")]
+        no_qr: bool,
     },
     Logout,
     Status,
@@ -129,85 +135,16 @@ enum Commands {
         #[arg(value_enum)]
         shell: CompletionShell,
     },
-    /// Initialize a native .env.schema without overwriting an existing file,
-    /// or a sealed password store with `--sealed-store`.
+    /// Initialize a native .env.schema without overwriting an existing file.
     Init {
         #[arg(long, default_value = ".env.schema")]
         schema: PathBuf,
-        /// Initialize a git-native sealed secret store instead of .env.schema.
-        #[arg(long)]
-        sealed_store: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long = "recipient", value_name = "RECIPIENT")]
-        recipients: Vec<String>,
-        #[arg(long, default_value_t = true)]
-        git: bool,
     },
-    /// Insert a secret into the sealed store (human only).
-    Insert {
-        name: String,
-        #[arg(long)]
-        echo: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-    },
-    /// Generate and insert a password into the sealed store.
-    Generate {
-        name: String,
-        #[arg(long, default_value_t = 32)]
-        length: usize,
-        #[arg(long)]
-        no_symbols: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-    },
-    /// Show a sealed-store entry (requires TTY or `--reveal`).
-    Show {
-        name: String,
-        #[arg(long)]
-        reveal: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-    },
-    /// List sealed-store entries.
-    Ls {
-        prefix: Option<String>,
-        #[arg(long)]
-        path: Option<PathBuf>,
-    },
-    /// Find sealed-store entries by name substring.
-    Find {
-        query: String,
-        #[arg(long)]
-        path: Option<PathBuf>,
-    },
-    /// Remove a sealed-store entry.
-    Rm {
-        name: String,
-        #[arg(long)]
-        path: Option<PathBuf>,
-    },
-    /// Copy a sealed-store entry.
-    Cp {
-        from: String,
-        to: String,
-        #[arg(long)]
-        path: Option<PathBuf>,
-    },
-    /// Move a sealed-store entry.
-    Mv {
-        from: String,
-        to: String,
-        #[arg(long)]
-        path: Option<PathBuf>,
-    },
-    /// Run git in the sealed-store root.
-    Git {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-        #[arg(long)]
-        path: Option<PathBuf>,
+    /// Password-store management (`pass` parity): init, insert, show, ls, …
+    #[command(name = "pass")]
+    Pass {
+        #[command(subcommand)]
+        cmd: PassCmd,
     },
     /// Interactive provider and connection browser (never reveals material).
     Tui,
@@ -387,6 +324,210 @@ enum SyncCmd {
     },
 }
 
+/// Sealed password-store verbs under `opensesame pass` (`pass` CLI parity).
+#[derive(Subcommand, Debug)]
+enum PassCmd {
+    /// Initialize a git-native sealed secret store.
+    Init {
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long = "recipient", value_name = "RECIPIENT")]
+        recipients: Vec<String>,
+        #[arg(long, default_value_t = true)]
+        git: bool,
+    },
+    /// Insert a secret (human only).
+    Insert {
+        name: String,
+        #[arg(long)]
+        echo: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Generate and insert a password.
+    Generate {
+        name: String,
+        #[arg(long, default_value_t = 32)]
+        length: usize,
+        #[arg(long)]
+        no_symbols: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Show an entry (requires TTY or `--reveal`).
+    Show {
+        name: String,
+        #[arg(long)]
+        reveal: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// List entries.
+    Ls {
+        prefix: Option<String>,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Find entries by name substring.
+    Find {
+        query: String,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Remove an entry.
+    Rm {
+        name: String,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Copy an entry.
+    Cp {
+        from: String,
+        to: String,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Move an entry.
+    Mv {
+        from: String,
+        to: String,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Run git in the sealed-store root.
+    Git {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// OTP tokens (pass-otp parity).
+    Otp {
+        #[command(subcommand)]
+        cmd: PassOtpCmd,
+    },
+    /// Update / rotate secrets (pass-update parity).
+    Update {
+        #[arg(required = true)]
+        names: Vec<String>,
+        #[arg(short = 'l', long, default_value_t = 32)]
+        length: usize,
+        #[arg(short = 'a', long)]
+        auto_length: bool,
+        #[arg(short = 'n', long)]
+        no_symbols: bool,
+        #[arg(short = 'p', long)]
+        provide: bool,
+        #[arg(short = 'm', long)]
+        multiline: bool,
+        #[arg(short = 'i', long)]
+        include: Option<String>,
+        #[arg(short = 'e', long)]
+        exclude: Option<String>,
+        #[arg(short = 'f', long)]
+        force: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Multi-tomb registry.
+    Tomb {
+        #[command(subcommand)]
+        cmd: PassTombCmd,
+    },
+    /// Open active / named tomb (Linux Tomb mount when applicable).
+    Open {
+        name: Option<String>,
+    },
+    /// Close active / named tomb.
+    Close {
+        name: Option<String>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum PassOtpCmd {
+    /// Generate a TOTP code.
+    Code {
+        name: String,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Insert a new OTP entry from an otpauth URI.
+    Insert {
+        name: Option<String>,
+        #[arg(short, long)]
+        force: bool,
+        #[arg(short, long)]
+        echo: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Append / replace otpauth URI on an existing entry.
+    Append {
+        name: String,
+        #[arg(short, long)]
+        force: bool,
+        #[arg(short, long)]
+        echo: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Show the stored otpauth URI.
+    Uri {
+        name: String,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Validate an otpauth URI.
+    Validate { uri: String },
+}
+
+#[derive(Subcommand, Debug)]
+enum PassTombCmd {
+    List,
+    Add {
+        name: String,
+        #[arg(long)]
+        store: String,
+        #[arg(long)]
+        key: String,
+        #[arg(long)]
+        volume: Option<String>,
+        #[arg(long)]
+        linux: bool,
+    },
+    Rm { name: String },
+    Use { name: String },
+}
+
 #[derive(Deserialize)]
 struct CliConnection {
     id: String,
@@ -505,7 +646,9 @@ async fn main() -> anyhow::Result<()> {
             flow,
             no_browser,
             open_browser,
-        } => login(&cli.server, flow, no_browser, open_browser).await?,
+            qr,
+            no_qr,
+        } => login(&cli.server, flow, no_browser, open_browser, qr, no_qr).await?,
         Commands::Logout => {
             let path = session_path()?;
             let _ = std::fs::remove_file(path);
@@ -555,38 +698,114 @@ async fn main() -> anyhow::Result<()> {
         Commands::Completion { shell } => {
             print!("{}", completion_script(shell));
         }
-        Commands::Init {
-            schema,
-            sealed_store,
-            path,
-            recipients,
-            git,
-        } => {
-            if sealed_store {
-                store::cmd_init(path, recipients, git)?;
-            } else {
-                init_schema(&schema)?;
+        Commands::Init { schema } => init_schema(&schema)?,
+        Commands::Pass { cmd } => match cmd {
+            PassCmd::Init {
+                path,
+                recipients,
+                git,
+            } => store::cmd_init(path, recipients, git)?,
+            PassCmd::Insert {
+                name,
+                echo,
+                path,
+                tomb,
+            } => store::cmd_insert(name, echo, path, tomb)?,
+            PassCmd::Generate {
+                name,
+                length,
+                no_symbols,
+                path,
+                tomb,
+            } => store::cmd_generate(name, length, no_symbols, path, tomb)?,
+            PassCmd::Show {
+                name,
+                reveal,
+                path,
+                tomb,
+            } => store::cmd_show(name, reveal, path, tomb)?,
+            PassCmd::Ls { prefix, path, tomb } => store::cmd_ls(prefix, path, tomb)?,
+            PassCmd::Find { query, path, tomb } => store::cmd_find(query, path, tomb)?,
+            PassCmd::Rm { name, path, tomb } => store::cmd_rm(name, path, tomb)?,
+            PassCmd::Cp {
+                from,
+                to,
+                path,
+                tomb,
+            } => store::cmd_cp(from, to, path, tomb)?,
+            PassCmd::Mv {
+                from,
+                to,
+                path,
+                tomb,
+            } => store::cmd_mv(from, to, path, tomb)?,
+            PassCmd::Git { args, path, tomb } => {
+                let code = store::cmd_git(args, path, tomb)?;
+                if code != 0 {
+                    std::process::exit(code);
+                }
             }
-        }
-        Commands::Insert { name, echo, path } => store::cmd_insert(name, echo, path)?,
-        Commands::Generate {
-            name,
-            length,
-            no_symbols,
-            path,
-        } => store::cmd_generate(name, length, no_symbols, path)?,
-        Commands::Show { name, reveal, path } => store::cmd_show(name, reveal, path)?,
-        Commands::Ls { prefix, path } => store::cmd_ls(prefix, path)?,
-        Commands::Find { query, path } => store::cmd_find(query, path)?,
-        Commands::Rm { name, path } => store::cmd_rm(name, path)?,
-        Commands::Cp { from, to, path } => store::cmd_cp(from, to, path)?,
-        Commands::Mv { from, to, path } => store::cmd_mv(from, to, path)?,
-        Commands::Git { args, path } => {
-            let code = store::cmd_git(args, path)?;
-            if code != 0 {
-                std::process::exit(code);
-            }
-        }
+            PassCmd::Otp { cmd } => match cmd {
+                PassOtpCmd::Code { name, path, tomb } => store::cmd_otp_code(name, path, tomb)?,
+                PassOtpCmd::Insert {
+                    name,
+                    force,
+                    echo,
+                    path,
+                    tomb,
+                } => store::cmd_otp_insert(name, force, echo, path, tomb)?,
+                PassOtpCmd::Append {
+                    name,
+                    force,
+                    echo,
+                    path,
+                    tomb,
+                } => store::cmd_otp_append(name, force, echo, path, tomb)?,
+                PassOtpCmd::Uri { name, path, tomb } => store::cmd_otp_uri(name, path, tomb)?,
+                PassOtpCmd::Validate { uri } => store::cmd_otp_validate(uri)?,
+            },
+            PassCmd::Update {
+                names,
+                length,
+                auto_length,
+                no_symbols,
+                provide,
+                multiline,
+                include,
+                exclude,
+                force,
+                path,
+                tomb,
+            } => store::cmd_update(
+                names,
+                store::UpdateCliOpts {
+                    length,
+                    auto_length,
+                    no_symbols,
+                    provide,
+                    multiline,
+                    include,
+                    exclude,
+                    force,
+                },
+                path,
+                tomb,
+            )?,
+            PassCmd::Tomb { cmd } => match cmd {
+                PassTombCmd::List => store::cmd_tomb_list()?,
+                PassTombCmd::Add {
+                    name,
+                    store: store_path,
+                    key,
+                    volume,
+                    linux,
+                } => store::cmd_tomb_add(name, store_path, key, volume, linux)?,
+                PassTombCmd::Rm { name } => store::cmd_tomb_rm(name)?,
+                PassTombCmd::Use { name } => store::cmd_tomb_use(name)?,
+            },
+            PassCmd::Open { name } => store::cmd_open(name)?,
+            PassCmd::Close { name } => store::cmd_close(name)?,
+        },
         Commands::Tui => tui(&cli.server).await?,
         Commands::Dev {
             cmd,
@@ -910,6 +1129,8 @@ async fn login(
     flow: FlowArg,
     no_browser: bool,
     open_browser: OpenBrowserArg,
+    qr: bool,
+    no_qr: bool,
 ) -> anyhow::Result<()> {
     let explicit = match flow {
         FlowArg::Auto => LoginFlow::Auto,
@@ -935,11 +1156,19 @@ async fn login(
     let selected = resolve_login_flow(explicit, &signals);
     eprintln!("selected_flow={selected:?}");
 
+    let show_qr = if no_qr {
+        false
+    } else if qr {
+        true
+    } else {
+        std::io::IsTerminal::is_terminal(&std::io::stdout())
+    };
+
     match selected {
-        LoginFlow::Device | LoginFlow::Auto => device_login(server).await?,
+        LoginFlow::Device | LoginFlow::Auto => device_login(server, show_qr).await?,
         LoginFlow::Loopback => {
             eprintln!("loopback PKCE selected; falling back to device when no external IdP configured in local profile");
-            device_login(server).await?;
+            device_login(server, show_qr).await?;
         }
         LoginFlow::Ciba => anyhow::bail!("CIBA not enabled by issuer profile"),
         LoginFlow::Workload => {
@@ -949,7 +1178,7 @@ async fn login(
     Ok(())
 }
 
-async fn device_login(server: &str) -> anyhow::Result<()> {
+async fn device_login(server: &str, show_qr: bool) -> anyhow::Result<()> {
     let client = reqwest::Client::new();
     let auth: serde_json::Value = client
         .post(format!("{server}/api/v1/device/authorize"))
@@ -969,6 +1198,9 @@ async fn device_login(server: &str) -> anyhow::Result<()> {
     let device_code = field("device_code")?;
     let user_code = field("user_code")?;
     let verification_uri = field("verification_uri")?;
+    let verification_uri_complete = auth["verification_uri_complete"]
+        .as_str()
+        .map(str::to_string);
     let interval = auth["interval"].as_u64().unwrap_or(5).clamp(1, 60);
     // The server chooses this number. Clamped, because chrono answers an
     // out-of-range second count with a panic rather than an error.
@@ -978,7 +1210,19 @@ async fn device_login(server: &str) -> anyhow::Result<()> {
         .clamp(1, MAX_DEVICE_CODE_TTL_SECS);
 
     // Never print device_code
-    println!("Open {verification_uri} and enter code: {user_code}");
+    println!("Shortcode: {user_code}");
+    println!("Open {verification_uri} and enter the shortcode above.");
+    if let Some(ref complete) = verification_uri_complete {
+        println!("Or open: {complete}");
+    }
+    if show_qr {
+        let scan = verification_uri_complete
+            .as_deref()
+            .unwrap_or(verification_uri.as_str());
+        if let Err(err) = qr2term::print_qr(scan) {
+            eprintln!("(QR unavailable: {err})");
+        }
+    }
     println!(
         "If that page asks for a passkey, this terminal is not your phone or YubiKey. Use TOTP, email, or approve on your phone, then return here."
     );
@@ -1429,17 +1673,17 @@ fn init_schema(path: &std::path::Path) -> anyhow::Result<()> {
 fn completion_script(shell: CompletionShell) -> &'static str {
     match shell {
         CompletionShell::Bash => {
-            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent' -- "${COMP_WORDS[COMP_CWORD]}") ); }
+            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init pass tui dev daemon task intent' -- "${COMP_WORDS[COMP_CWORD]}") ); }
 complete -F _opensesame opensesame
 "#
         }
         CompletionShell::Zsh => {
             r#"#compdef opensesame
-_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent)'
+_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init pass tui dev daemon task intent)'
 "#
         }
         CompletionShell::Fish => {
-            r#"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init tui dev daemon task intent'
+            r#"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init pass tui dev daemon task intent'
 "#
         }
     }

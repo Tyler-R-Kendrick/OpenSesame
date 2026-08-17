@@ -4,6 +4,7 @@ mod agents;
 mod connections;
 mod credential_connections;
 mod device;
+pub(crate) mod github_app;
 mod health;
 mod intents;
 mod protected_resource;
@@ -42,9 +43,22 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/device/token", post(device::token))
         .route("/api/v1/device/approve", post(device::approve))
         .route("/api/v1/session", get(session::status))
+        .route("/api/v1/session/local", post(session::local_mint))
         .route("/api/v1/sessions/revoke", post(session::revoke))
         .route("/api/v1/whoami", get(session::whoami))
         .route("/api/v1/providers", get(connections::list_providers))
+        .route(
+            "/api/v1/providers/github/app",
+            post(github_app::register_start).layer(DefaultBodyLimit::max(8 * 1024)),
+        )
+        .route(
+            "/api/v1/oauth/github-app/callback",
+            get(github_app::register_callback),
+        )
+        .route(
+            "/api/v1/webhooks/github",
+            get(github_app::webhook_ack).post(github_app::webhook_ack),
+        )
         .route(
             "/api/v1/credential-providers",
             get(credential_connections::catalog),
@@ -108,6 +122,12 @@ pub fn router(state: AppState) -> Router {
             delete(connections::delete_binding),
         )
         .route("/api/v1/connections/{id}/events", get(connections::events))
+        .route(
+            "/api/v1/connections/{id}/github/repos",
+            get(connections::list_github_repos)
+                .post(connections::create_github_repo)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
         .route(
             "/api/v1/oauth/callback/{provider_id}",
             get(connections::oauth_callback),

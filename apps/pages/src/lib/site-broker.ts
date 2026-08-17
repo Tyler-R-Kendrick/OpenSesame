@@ -436,16 +436,25 @@ export function removeDomainRule(domain: string): BrokerPolicy {
  * Domain gate before consent:
  * - Best matching blacklist → refuse
  * - Best matching whitelist → allow
- * - No match, but any whitelist exists → refuse (closed world)
- * - No match, no whitelists → allow (open)
+ * - No match, but any whitelist exists → refuse (closed / restricted)
+ * - No match, no whitelists → allow (public / open)
+ *
+ * Public until the first allowed (whitelist) domain is added. Optional blocked
+ * domains apply in both modes.
  */
 export function originMayUseBroker(origin: string): boolean {
   const { rules } = loadBrokerPolicy();
   const best = bestMatchingRule(origin, rules);
   if (best?.effect === "blacklist") return false;
   if (best?.effect === "whitelist") return true;
-  const hasWhitelist = rules.some((r) => r.effect === "whitelist");
-  return !hasWhitelist;
+  return !isBrokerRestricted({ rules });
+}
+
+/** True when at least one allow-list domain exists (closed world). */
+export function isBrokerRestricted(
+  policy: BrokerPolicy = loadBrokerPolicy(),
+): boolean {
+  return policy.rules.some((r) => r.effect === "whitelist");
 }
 
 export function domainFilterDenialMessage(
@@ -454,9 +463,9 @@ export function domainFilterDenialMessage(
 ): string {
   const best = bestMatchingRule(origin, policy.rules);
   if (best?.effect === "blacklist") {
-    return `This origin matches a blacklisted domain (${best.domain}).`;
+    return `This origin matches a blocked domain (${best.domain}).`;
   }
-  return "This origin is not on the whitelist. Add it as Whitelist on the Sites page, or remove all whitelist rules to open the broker again.";
+  return "This origin is not on the allow list. Add it under Sites → Domain access, or remove every allowed domain to make the broker public again.";
 }
 
 export function buildSuccessMessage(

@@ -76,6 +76,8 @@ export type Provider = {
   autoConfigurable: boolean;
   /** Exact environment variables the deployment is missing. Empty when configured. */
   missingConfig: string[];
+  /** Host OAuth callback URL for this provider, when applicable. */
+  callbackUrl: string | null;
   scopes: ScopeDef[];
   egress: Egress;
   operations: string[];
@@ -237,6 +239,7 @@ function toProvider(value: unknown): Provider {
     configured: raw.configured,
     autoConfigurable: raw.auto_configurable,
     missingConfig: raw.missing_config,
+    callbackUrl: raw.callback_url,
     scopes: raw.scopes,
     egress: toEgress(raw.egress),
     operations: raw.operations,
@@ -300,6 +303,106 @@ function toEvent(value: unknown): ConnectionEvent {
 
 /* --------------------------------------------------------------- requests */
 
+
+export type Integration = {
+  id: string;
+  key: string;
+  providerId: string;
+  displayName: string;
+  source: string;
+  enabled: boolean;
+  configured: boolean;
+  scopes: string[];
+};
+
+export type GithubAppRegistration = {
+  action: string;
+  state: string;
+  manifest: Record<string, unknown>;
+  redirectUrl: string;
+};
+
+function toIntegration(value: unknown): Integration {
+  const raw = value as Record<string, unknown>;
+  return {
+    id: String(raw.id ?? ""),
+    key: String(raw.key ?? ""),
+    providerId: String(raw.provider_id ?? ""),
+    displayName: String(raw.display_name ?? ""),
+    source: String(raw.source ?? ""),
+    enabled: Boolean(raw.enabled),
+    configured: Boolean(raw.configured),
+    scopes: Array.isArray(raw.scopes) ? raw.scopes.map(String) : [],
+  };
+}
+
+export function listIntegrations(): Promise<Integration[]> {
+  return call("/integrations", {}, (body) => {
+    const raw = body as { integrations?: unknown[] };
+    return (raw.integrations ?? []).map(toIntegration);
+  });
+}
+
+/** Begin tenant GitHub App Manifest registration (Host seals client credentials). */
+export function startGithubAppRegistration(body: {
+  returnTo: string;
+  displayName?: string;
+}): Promise<GithubAppRegistration> {
+  return call(
+    "/providers/github/app",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        return_to: body.returnTo,
+        ...(body.displayName ? { display_name: body.displayName } : {}),
+      }),
+    },
+    (payload) => {
+      const raw = payload as Record<string, unknown>;
+      if (
+        typeof raw.action !== "string" ||
+        typeof raw.state !== "string" ||
+        !raw.manifest ||
+        typeof raw.manifest !== "object"
+      ) {
+        throw new ConnectionsError(0, "invalid_host", "Host returned an invalid GitHub App registration.");
+      }
+      return {
+        action: raw.action,
+        state: raw.state,
+        manifest: raw.manifest as Record<string, unknown>,
+        redirectUrl: String(raw.redirect_url ?? ""),
+      };
+    },
+  );
+}
+
+/** Browser POST to github.com/settings/apps/new — required by the Manifest flow.
+ *  Navigates this tab (not a popup). CSP must allow form-action https://github.com.
+ */
+export function submitGithubAppManifest(registration: GithubAppRegistration): void {
+  if (!registration.action.startsWith("https://github.com/")) {
+    throw new ConnectionsError(
+      0,
+      "invalid_host",
+      "GitHub App registration URL is not github.com — refusing to submit.",
+    );
+  }
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = `${registration.action}?state=${encodeURIComponent(registration.state)}`;
+  form.acceptCharset = "UTF-8";
+  form.target = "_self";
+  const input = document.createElement("input");
+  input.type = "hidden";
+  input.name = "manifest";
+  input.value = JSON.stringify(registration.manifest);
+  form.appendChild(input);
+  document.body.appendChild(form);
+  form.submit();
+  // If CSP or a browser policy blocks the navigation, the caller must recover the UI.
+}
+
 export function listProviders(): Promise<Provider[]> {
   return call("/providers", {}, (body) =>
     ListProvidersResponseSchema.parse(body).providers.map(toProvider),
@@ -329,6 +432,7 @@ export function createConnection(body: {
   displayName?: string;
   scopes?: string[];
   projectId?: string;
+  integrationId?: string;
 }): Promise<Connection> {
   return call(
     "/connections",
@@ -339,6 +443,7 @@ export function createConnection(body: {
         ...(body.displayName ? { display_name: body.displayName } : {}),
         ...(body.scopes ? { scopes: body.scopes } : {}),
         ...(body.projectId ? { project_id: body.projectId } : {}),
+        ...(body.integrationId ? { integration_id: body.integrationId } : {}),
       }),
     },
     toConnection,

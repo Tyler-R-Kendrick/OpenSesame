@@ -23,7 +23,7 @@ OpenSesame is a private authorization fabric for the agentic era. This surface i
 
 ## Positioning
 
-An Infisical-class authority console that also keeps a human store on the device. Craft bar: Infisical Agent Proxy / `infisical run` for agents; Bitwarden/1Password habits only for the local human store. Never their brand marks. Not a password-vault product.
+An Infisical-class authority console that also keeps a human store on the device. Craft bar: Infisical Agent Proxy / `infisical run` for agents ([docs/competitors/infisical.md](docs/competitors/infisical.md)); Bitwarden/1Password habits only for the local human store ([docs/competitors/bitwarden.md](docs/competitors/bitwarden.md)). Never their brand marks. Not a password-vault product. Direct CLI competitor for the git-sealed store path: Unix [`pass`](docs/competitors/pass.md) (`password-store`). Connector/secrets peers: Doppler, Vault, fnox, SOPS, age, Vercel Connect, Oomol Open Connector, Nango — see [docs/competitors](docs/competitors/index.md).
 
 ## Brand commitments
 
@@ -36,15 +36,19 @@ An Infisical-class authority console that also keeps a human store on the device
 ## Capabilities (this surface)
 
 - Create and unlock an E2EE vault: PBKDF2-SHA256 master key, AES-GCM wrapped vault key, sealed blob in OPFS
+- Unlock with passkey (WebAuthn PRF), PIN, and/or master password; optional TOTP MFA after primary unwrap
 - Vault items: login, passkey, card, secret, note — full create/edit/delete, folders, favorites, trash
 - Password generator (characters and passphrase), strength estimation, password health report (weak, reused, old)
-- TOTP codes generated in-page from stored seeds
+- TOTP codes generated in-page from stored seeds; store-bridge prefers pass-otp `otpauth://` trailer lines
+- Update password / secret on a single vault item (generate or enter); notes and TOTP preserved
 - Clipboard copy with automatic clear; auto-lock on idle and on tab hide
-- Passkey unlock via WebAuthn PRF where the platform supports it
+- Passkey unlock via WebAuthn PRF where the platform supports it (enroll in Settings)
 - Agents: scoped secret grants with capability ceilings; live task inspection against the Host API
 - Sites: origin-derived clients, application claim ceremony, integration snippet
 - Authority: device/CLI authorization, ownership claims, protocol profile honesty, offline ceremony outbox
 - Encrypted export and import; installable PWA
+- Settings capability connectors: encryption key vault (default WebCrypto) and git history/persistence (default GitHub with OAuth)
+- Host CLI sealed store: `opensesame pass otp` / `pass update` / multi-tomb registry (`pass tomb`, `open`/`close`) — see ADR 0038
 
 ## Constraints
 

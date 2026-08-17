@@ -17,6 +17,7 @@ function prodBase(): ControlPlaneConfig {
     logLevel: "info",
     allowPrincipalBearer: false,
     allowDevDefaults: false,
+    bootstrapPersonalOrganization: false,
     isProduction: true,
     corsOrigins: ["https://app.example"],
     hostApiUrl: "https://host.example",
@@ -61,5 +62,29 @@ describe("assertListenHostAllowed", () => {
   it("allows 0.0.0.0 when OPENSESAME_ALLOW_NONLOCAL=1", () => {
     process.env.OPENSESAME_ALLOW_NONLOCAL = "1";
     expect(() => assertListenHostAllowed("0.0.0.0")).not.toThrow();
+  });
+});
+
+describe("loadConfig personal workspace bootstrap", () => {
+  it("enables personal org bootstrap for local development without DEV_BOOTSTRAP", async () => {
+    const { loadConfig } = await import("../config.js");
+    const config = loadConfig({
+      OPENSESAME_ENV: "development",
+      OPENSESAME_ALLOW_DEV_DEFAULTS: "true",
+    });
+    expect(config.bootstrapPersonalOrganization).toBe(true);
+    expect(config.allowDevDefaults).toBe(true);
+  });
+
+  it("keeps personal org bootstrap off in production", async () => {
+    const { loadConfig } = await import("../config.js");
+    const config = loadConfig({
+      OPENSESAME_ENV: "production",
+      NODE_ENV: "production",
+      OPENSESAME_CLAIM_PEPPER: "unique-claim-pepper-not-dev",
+      OPENSESAME_OPERATOR_TOKEN: "operator-secret",
+      OPENSESAME_CORS_ORIGINS: "https://app.example",
+    });
+    expect(config.bootstrapPersonalOrganization).toBe(false);
   });
 });

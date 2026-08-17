@@ -27,3 +27,5 @@ crossterm = { workspace = true }
 ratatui = { workspace = true }
 uuid = { workspace = true }
 directories = "6.0.0"
+qr2term = "0.3.3"
+regex = "1.11.1"

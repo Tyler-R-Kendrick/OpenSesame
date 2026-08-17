@@ -73,8 +73,128 @@
   border-bottom-color: color-mix(in srgb, var(--err) 22%, var(--line));
 }
 
+.cap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.cap-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.cap-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cap-card__head h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.cap-card__head p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.cap-card .field {
+  margin: 0;
+}
+
+.cap-pat {
+  margin-top: 0.35rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--line);
+}
+
+.cap-github .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.cap-github .actions input[type="text"] {
+  flex: 1 1 12rem;
+  min-width: 10rem;
+}
+
+.set__unlock {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.set__unlock-row {
+  display: grid;
+  gap: 0.55rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.set__unlock-row:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.set__unlock-row h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+}
+
+.set__unlock-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.set__unlock-form input {
+  flex: 1 1 8rem;
+  min-width: 7rem;
+}
+
+.set__unlock-totp {
+  display: grid;
+  gap: 0.55rem;
+  justify-items: start;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.set__unlock-secret {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 0.7rem;
+  color: var(--ink-3);
+}
+
 @media (max-width: 640px) {
   .set__pair {
     grid-template-columns: 1fr;
+  }
+
+  .cap-card__head {
+    flex-direction: column;
   }
 }

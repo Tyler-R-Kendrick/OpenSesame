@@ -8,11 +8,13 @@ describe("embedded connector catalog", () => {
   it("contains every Fnox, LLM, and identity provider once", () => {
     const ids = bundledProviders.map((provider) => provider.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(41);
+    expect(ids).toHaveLength(43);
     for (const id of [
+      "webcrypto",
       "azure-key-vault-secrets",
       "bitwarden",
       "github",
+      "gitlab",
       "vercel",
       "linear",
       "stripe",
@@ -49,6 +51,19 @@ describe("embedded connector catalog", () => {
       bundledProviders.find((provider) => provider.id === "github")
         ?.displayName,
     ).toBe("GitHub");
+    expect(
+      bundledProviders.find((provider) => provider.id === "github")?.operations,
+    ).toEqual(
+      expect.arrayContaining([
+        "repository.read",
+        "contents.write",
+        "git.push",
+      ]),
+    );
+    expect(
+      bundledProviders.find((provider) => provider.id === "webcrypto")
+        ?.category,
+    ).toBe("encryption");
     expect(workos?.egress).toEqual({
       scheme: "https",
       authorities: ["api.workos.com"],

@@ -29,8 +29,12 @@ import {
   useIdentitySession,
 } from "../lib/identity.js";
 import {
+  type BrokerPolicy,
+  type DomainEffect,
+  type SiteConsent,
   addDomainRule,
   approveConsent,
+  isBrokerRestricted,
   loadBrokerPolicy,
   loadConsents,
   pagesPublicBase,
@@ -39,9 +43,6 @@ import {
   setDomainRuleEffect,
   staticSiteExplicitSnippet,
   staticSiteSnippet,
-  type BrokerPolicy,
-  type DomainEffect,
-  type SiteConsent,
 } from "../lib/site-broker.js";
 import { useOnline } from "../lib/use-online.js";
 import "./sites.css";
@@ -615,8 +616,8 @@ function SitesHead({ brokerBase }: { brokerBase: string }) {
         <a href="https://shoo.dev" rel="noreferrer">
           shoo.dev
         </a>
-        : origin-derived client, PKCE to a trusted upstream, CORS token
-        exchange in the browser, and a pairwise subject — brokered from{" "}
+        : origin-derived client, PKCE to a trusted upstream, CORS token exchange
+        in the browser, and a pairwise subject — brokered from{" "}
         <code>{brokerBase}</code> with no server of your own.
       </p>
     </header>
@@ -637,7 +638,6 @@ function StaticAuthPanel({
   const [consents, setConsents] = useState<SiteConsent[]>(() => loadConsents());
   const [policy, setPolicy] = useState<BrokerPolicy>(() => loadBrokerPolicy());
   const [domainDraft, setDomainDraft] = useState("");
-  const [draftEffect, setDraftEffect] = useState<DomainEffect>("whitelist");
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [snippetTab, setSnippetTab] = useState<"declarative" | "explicit">(
@@ -661,6 +661,10 @@ function StaticAuthPanel({
     setConsents(loadConsents());
   }, []);
 
+  const restricted = isBrokerRestricted(policy);
+  const allowed = policy.rules.filter((r) => r.effect === "whitelist");
+  const blocked = policy.rules.filter((r) => r.effect === "blacklist");
+
   const addDomainEntry = (raw: string, effect: DomainEffect) => {
     const result = addDomainRule(raw, effect);
     if ("error" in result) {
@@ -669,9 +673,16 @@ function StaticAuthPanel({
     }
     setPolicy(result);
     setDomainDraft("");
+    const becameRestricted =
+      effect === "whitelist" && !isBrokerRestricted(policy);
     onFlash({
       tone: "ok",
-      text: `Added ${raw.trim()} as ${effect}.`,
+      text:
+        effect === "whitelist"
+          ? becameRestricted
+            ? `Allowed ${raw.trim()}. The broker is now restricted to allowed domains.`
+            : `Allowed ${raw.trim()}.`
+          : `Blocked ${raw.trim()}.`,
     });
   };
 
@@ -700,8 +711,6 @@ function StaticAuthPanel({
   const alreadyApproved =
     siteOrigin !== null && consents.some((c) => c.origin === siteOrigin);
 
-  const hasWhitelist = policy.rules.some((r) => r.effect === "whitelist");
-
   return (
     <div className="panel">
       <div className="panel__head">
@@ -709,27 +718,40 @@ function StaticAuthPanel({
         <p className="hint" style={{ margin: "0.35rem 0 0" }}>
           Paste the snippet on any static host. The site opens this OpenSesame
           origin; you approve it once; the upstream <code>id_token</code> is
-          delivered by <code>postMessage</code> (never <code>&quot;*&quot;</code>
+          delivered by <code>postMessage</code> (never{" "}
+          <code>&quot;*&quot;</code>
           ). OpenSesame does not re-sign — GitHub Pages cannot hold a private
           key.
         </p>
       </div>
       <div className="panel__body sites-pad">
         <div className="sites-policy-block">
-          <h3 className="sites-policy-title">Domain rules</h3>
+          <div className="sites-policy-head">
+            <h3 className="sites-policy-title">Domain access</h3>
+            <span
+              className={
+                restricted
+                  ? "sites-policy-badge sites-policy-badge--restricted"
+                  : "sites-policy-badge sites-policy-badge--public"
+              }
+            >
+              {restricted ? "Restricted" : "Public"}
+            </span>
+          </div>
           <p className="hint" style={{ margin: "0 0 0.75rem" }}>
-            Each domain has its own whitelist / blacklist toggle. Blacklist
-            always blocks. If any domain is whitelisted, only whitelisted
-            domains may use the broker (blacklist still wins on a more specific
-            match). With no whitelist rows, the broker stays open except for
-            blacklisted domains.
+            {restricted
+              ? "Only allowed domains may use the broker. Blocked domains still win on a more specific match. Remove every allowed domain to make the broker public again."
+              : "The broker is public — any origin may use it. Optionally block domains you want to refuse. Allowing a domain switches the broker to restricted mode."}
           </p>
 
           <form
             className="sites-domain-add"
             onSubmit={(event) => {
               event.preventDefault();
-              addDomainEntry(domainDraft, draftEffect);
+              addDomainEntry(
+                domainDraft,
+                restricted ? "whitelist" : "blacklist",
+              );
             }}
           >
             <label className="field" style={{ flex: 1, margin: 0 }}>
@@ -744,104 +766,126 @@ function StaticAuthPanel({
                 spellCheck={false}
               />
             </label>
-            <div
-              className="sites-effect-toggle"
-              role="group"
-              aria-label="New domain effect"
-            >
-              <button
-                type="button"
-                className={
-                  draftEffect === "whitelist"
-                    ? "sites-effect is-on is-allow"
-                    : "sites-effect"
-                }
-                onClick={() => setDraftEffect("whitelist")}
-              >
-                Whitelist
-              </button>
-              <button
-                type="button"
-                className={
-                  draftEffect === "blacklist"
-                    ? "sites-effect is-on is-deny"
-                    : "sites-effect"
-                }
-                onClick={() => setDraftEffect("blacklist")}
-              >
-                Blacklist
-              </button>
-            </div>
-            <button type="submit" className="btn btn--sm btn--primary">
-              <IconPlus /> Add
-            </button>
+            {restricted ? (
+              <>
+                <button type="submit" className="btn btn--sm btn--primary">
+                  <IconPlus /> Allow
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  onClick={() => addDomainEntry(domainDraft, "blacklist")}
+                >
+                  Block
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="submit" className="btn btn--sm">
+                  <IconPlus /> Block
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--sm btn--primary"
+                  onClick={() => addDomainEntry(domainDraft, "whitelist")}
+                >
+                  <IconShield /> Restrict to…
+                </button>
+              </>
+            )}
           </form>
 
-          {policy.rules.length === 0 ? (
-            <p className="hint" style={{ marginTop: "0.75rem" }}>
-              No domain rules. Broker is open to every origin.
-            </p>
-          ) : (
-            <ul className="sites-domain-list">
-              {policy.rules.map((rule) => (
-                <li key={rule.domain} className="sites-domain-row">
-                  <code>{rule.domain}</code>
-                  <div className="sites-domain-row__actions">
-                    <div
-                      className="sites-effect-toggle"
-                      role="group"
-                      aria-label={`Rule for ${rule.domain}`}
-                    >
+          {restricted && allowed.length > 0 ? (
+            <div className="sites-domain-group">
+              <h4 className="sites-domain-group__title">Allowed</h4>
+              <ul className="sites-domain-list">
+                {allowed.map((rule) => (
+                  <li key={rule.domain} className="sites-domain-row">
+                    <code>{rule.domain}</code>
+                    <div className="sites-domain-row__actions">
                       <button
                         type="button"
-                        className={
-                          rule.effect === "whitelist"
-                            ? "sites-effect is-on is-allow"
-                            : "sites-effect"
-                        }
+                        className="btn btn--sm"
                         onClick={() =>
-                          setPolicy(setDomainRuleEffect(rule.domain, "whitelist"))
+                          setPolicy(
+                            setDomainRuleEffect(rule.domain, "blacklist"),
+                          )
                         }
                       >
-                        Whitelist
+                        Move to blocked
                       </button>
                       <button
                         type="button"
-                        className={
-                          rule.effect === "blacklist"
-                            ? "sites-effect is-on is-deny"
-                            : "sites-effect"
-                        }
-                        onClick={() =>
-                          setPolicy(setDomainRuleEffect(rule.domain, "blacklist"))
-                        }
+                        className="btn btn--sm btn--danger"
+                        onClick={() => {
+                          const next = removeDomainRule(rule.domain);
+                          setPolicy(next);
+                          onFlash({
+                            tone: "ok",
+                            text: isBrokerRestricted(next)
+                              ? `Removed ${rule.domain}.`
+                              : `Removed ${rule.domain}. The broker is public again.`,
+                          });
+                        }}
                       >
-                        Blacklist
+                        <IconTrash />
                       </button>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn--sm btn--danger"
-                      onClick={() => {
-                        setPolicy(removeDomainRule(rule.domain));
-                        onFlash({
-                          tone: "ok",
-                          text: `Removed ${rule.domain}.`,
-                        });
-                      }}
-                    >
-                      <IconTrash />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
-          {hasWhitelist ? (
+          {blocked.length > 0 ? (
+            <div className="sites-domain-group">
+              <h4 className="sites-domain-group__title">Blocked</h4>
+              <ul className="sites-domain-list">
+                {blocked.map((rule) => (
+                  <li key={rule.domain} className="sites-domain-row">
+                    <code>{rule.domain}</code>
+                    <div className="sites-domain-row__actions">
+                      {restricted ? (
+                        <button
+                          type="button"
+                          className="btn btn--sm"
+                          onClick={() =>
+                            setPolicy(
+                              setDomainRuleEffect(rule.domain, "whitelist"),
+                            )
+                          }
+                        >
+                          Move to allowed
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--danger"
+                        onClick={() => {
+                          setPolicy(removeDomainRule(rule.domain));
+                          onFlash({
+                            tone: "ok",
+                            text: `Unblocked ${rule.domain}.`,
+                          });
+                        }}
+                      >
+                        <IconTrash />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : !restricted ? (
+            <p className="hint" style={{ marginTop: "0.75rem" }}>
+              No blocked domains. The broker stays public until you allow at
+              least one domain.
+            </p>
+          ) : null}
+
+          {restricted ? (
             <p className="note note--warn" style={{ marginTop: "0.75rem" }}>
-              <IconAlert /> Whitelist is active — unlisted domains cannot use
-              the broker.
+              <IconAlert /> Restricted — unlisted domains cannot use the broker.
             </p>
           ) : null}
         </div>
@@ -866,7 +910,10 @@ function StaticAuthPanel({
               className="btn btn--sm"
               onClick={() => addDomainEntry(siteOrigin, "whitelist")}
             >
-              <IconPlus /> Whitelist this origin
+              <IconPlus />{" "}
+              {restricted
+                ? "Allow this origin"
+                : "Restrict broker to this origin"}
             </button>
             <button
               type="button"
@@ -904,7 +951,9 @@ function StaticAuthPanel({
                   aria-selected={snippetTab === "declarative"}
                   aria-controls={panelId}
                   className={
-                    snippetTab === "declarative" ? "sites-tab is-on" : "sites-tab"
+                    snippetTab === "declarative"
+                      ? "sites-tab is-on"
+                      : "sites-tab"
                   }
                   onClick={() => setSnippetTab("declarative")}
                 >

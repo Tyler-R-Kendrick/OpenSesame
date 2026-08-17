@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { hostRoutedViaDaemon, probeHost } from "./identity.js";
+import { hostRoutedViaDaemon, probeHost, probeIdentity } from "./identity.js";
 import { saveSettings } from "./settings.js";
 
 describe("host plane probe", () => {
@@ -32,6 +32,11 @@ describe("host plane probe", () => {
       identityApi: "https://box.tail123.ts.net/identity",
       daemonApi: "https://box.tail123.ts.net",
       tursoUrl: "",
+      mfaAppUrl: "",
+      capabilityConnectors: {
+        encryption: { providerId: "webcrypto" },
+        history: { providerId: "github" },
+      },
     });
     vi.stubGlobal(
       "fetch",
@@ -61,6 +66,11 @@ describe("host plane probe", () => {
       identityApi: "https://box.tail123.ts.net/identity",
       daemonApi: "https://box.tail123.ts.net",
       tursoUrl: "",
+      mfaAppUrl: "",
+      capabilityConnectors: {
+        encryption: { providerId: "webcrypto" },
+        history: { providerId: "github" },
+      },
     });
     vi.stubGlobal(
       "fetch",
@@ -69,5 +79,55 @@ describe("host plane probe", () => {
       }),
     );
     await expect(probeHost()).resolves.toBe("unreachable");
+  });
+});
+
+describe("identity plane probe", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("requires OpenSesame health JSON, not a foreign 401 on the same port", async () => {
+    saveSettings({
+      hostApi: "http://127.0.0.1:18787",
+      identityApi: "http://127.0.0.1:8788",
+      daemonApi: "http://127.0.0.1:18790",
+      tursoUrl: "",
+      mfaAppUrl: "",
+      capabilityConnectors: {
+        encryption: { providerId: "webcrypto" },
+        history: { providerId: "github" },
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          { error: "invalid session control token" },
+          { status: 401 },
+        ),
+      ),
+    );
+    await expect(probeIdentity()).resolves.toBe("unreachable");
+  });
+
+  it("marks control-plane live health as reachable", async () => {
+    saveSettings({
+      hostApi: "http://127.0.0.1:18787",
+      identityApi: "http://127.0.0.1:18788",
+      daemonApi: "http://127.0.0.1:18790",
+      tursoUrl: "",
+      mfaAppUrl: "",
+      capabilityConnectors: {
+        encryption: { providerId: "webcrypto" },
+        history: { providerId: "github" },
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ status: "ok" })),
+    );
+    await expect(probeIdentity()).resolves.toBe("reachable");
   });
 });

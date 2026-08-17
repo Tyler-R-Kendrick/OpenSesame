@@ -4,6 +4,7 @@ import { loadSettings } from "./settings.js";
 
 const CATEGORY: Record<ProviderCategory, readonly string[]> = {
   encryption: [
+    "webcrypto",
     "age",
     "fido2",
     "yubikey",
@@ -34,7 +35,7 @@ const CATEGORY: Record<ProviderCategory, readonly string[]> = {
     "passwordstate",
   ],
   local_storage: ["keychain", "keepass", "password-store", "plain"],
-  developer: ["github", "vercel"],
+  developer: ["github", "gitlab", "vercel"],
   productivity: ["linear"],
   communication: [],
   storage: [],
@@ -58,6 +59,7 @@ const NAMES: Record<string, string> = {
   "better-auth": "Better Auth",
   fido2: "FIDO2",
   github: "GitHub",
+  gitlab: "GitLab",
   linear: "Linear",
   stripe: "Stripe",
   vercel: "Vercel",
@@ -69,6 +71,7 @@ const NAMES: Record<string, string> = {
   "password-store": "password-store",
   "proton-pass": "Proton Pass",
   "sealed-local": "Sealed local",
+  webcrypto: "WebCrypto",
   "encrypted-remote": "Encrypted remote",
   vault: "HashiCorp Vault",
   workos: "WorkOS",
@@ -183,7 +186,21 @@ const HOST = [
     auth: "oauth2_authorization_code",
     refresh: false,
     authorities: ["api.github.com", "github.com"],
-    operations: ["repository.read", "pull_request.create", "issue.create"],
+    operations: [
+      "repository.read",
+      "contents.write",
+      "git.push",
+      "pull_request.create",
+      "issue.create",
+    ],
+  },
+  {
+    id: "gitlab",
+    docs: "https://docs.gitlab.com/ee/api/oauth2.html",
+    auth: "oauth2_authorization_code",
+    refresh: true,
+    authorities: ["gitlab.com"],
+    operations: ["project.read", "repository.write", "merge_request.create"],
   },
   {
     id: "vercel",
@@ -259,8 +276,9 @@ function preview(
     authKind,
     supportsRefresh: false,
     configured: false,
-    autoConfigurable: id === "plain" || id === "sealed-local",
+    autoConfigurable: id === "plain" || id === "sealed-local" || id === "webcrypto",
     missingConfig: [],
+    callbackUrl: null,
     scopes: [],
     egress: { scheme: "none", authorities: [], pathPrefixes: [] },
     operations: [
@@ -271,6 +289,19 @@ function preview(
 }
 
 export const bundledProviders: Provider[] = [
+  (() => {
+    const provider = preview(
+      "webcrypto",
+      "https://developer.mozilla.org/docs/Web/API/Web_Crypto_API",
+      "configuration",
+      "encryption",
+    );
+    provider.displayName = "WebCrypto (this device)";
+    provider.autoConfigurable = true;
+    provider.configured = true;
+    provider.operations = ["key.wrap", "key.unwrap", "aead.seal"];
+    return provider;
+  })(),
   ...parity.providers.map((id) =>
     preview(id, `https://fnox.jdx.dev/providers/${id}.html`, "configuration"),
   ),

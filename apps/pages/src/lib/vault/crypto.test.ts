@@ -42,15 +42,15 @@ describe("vault key lifecycle", () => {
 
   it("uses at least the OWASP PBKDF2 floor", async () => {
     const { header } = await createVault(PASSWORD);
-    expect(header.kdf.iterations).toBeGreaterThanOrEqual(600_000);
-    expect(header.kdf.alg).toBe("PBKDF2-SHA256");
+    expect(header.kdf?.iterations).toBeGreaterThanOrEqual(600_000);
+    expect(header.kdf?.alg).toBe("PBKDF2-SHA256");
   });
 
   it("mints a distinct salt and wrapped key per vault", async () => {
     const a = await createVault(PASSWORD);
     const b = await createVault(PASSWORD);
-    expect(a.header.kdf.saltB64).not.toBe(b.header.kdf.saltB64);
-    expect(a.header.wrap.ctB64).not.toBe(b.header.wrap.ctB64);
+    expect(a.header.kdf?.saltB64).not.toBe(b.header.kdf?.saltB64);
+    expect(a.header.wrap?.ctB64).not.toBe(b.header.wrap?.ctB64);
   });
 
   it("never stores the password or plaintext in the header", async () => {
@@ -135,6 +135,35 @@ describe("changing the master password", () => {
       PASSWORD,
       "a whole new passphrase here",
     );
-    expect(next.kdf.saltB64).not.toBe(header.kdf.saltB64);
+    expect(next.kdf?.saltB64).not.toBe(header.kdf?.saltB64);
+  });
+});
+
+describe("password-optional headers", () => {
+  it("refuses password unlock when wrap is missing", async () => {
+    const { header } = await createVault(PASSWORD);
+    const { wrap: _w, kdf: _k, ...rest } = header;
+    await expect(
+      unlockVaultKey(rest as typeof header, PASSWORD),
+    ).rejects.toBeInstanceOf(VaultCorruptError);
+  });
+
+  it("preserves unlocks when re-wrapping the password", async () => {
+    const { header } = await createVault(PASSWORD);
+    const withUnlocks = {
+      ...header,
+      unlocks: {
+        pin: {
+          kdf: header.kdf!,
+          wrap: header.wrap!,
+        },
+      },
+    };
+    const next = await rewrapVaultKey(
+      withUnlocks,
+      PASSWORD,
+      "a whole new passphrase here",
+    );
+    expect(next.unlocks?.pin).toEqual(withUnlocks.unlocks.pin);
   });
 });
