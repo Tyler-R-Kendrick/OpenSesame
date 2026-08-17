@@ -6,9 +6,12 @@ import {
   parseSealedStore,
   persistSealedStore,
 } from "@opensesame/client-core";
-import { useCallback, useEffect, useState } from "react";
+import { type Session, createOpenSesame } from "@opensesame/sdk-browser";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const hostApi = import.meta.env.VITE_HOST_API ?? "http://127.0.0.1:8787";
+const issuer =
+  import.meta.env.VITE_OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
 
 function statusLabel(value: boolean | null, up: string, down: string): string {
   if (value === null) return "Checking…";
@@ -22,6 +25,47 @@ export function App() {
   const [persistOk, setPersistOk] = useState<string>("Checking…");
   const [persistErr, setPersistErr] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [identityBusy, setIdentityBusy] = useState(false);
+  const [identityErr, setIdentityErr] = useState<string | null>(null);
+
+  const sesame = useMemo(
+    () => createOpenSesame({ issuer, clientId: "opensesame-pwa" }),
+    [],
+  );
+
+  useEffect(() => {
+    void sesame.getSession().then(setSession);
+  }, [sesame]);
+
+  const continueAsGuest = useCallback(async () => {
+    setIdentityBusy(true);
+    setIdentityErr(null);
+    try {
+      // A provisional principal is the default on-ramp: no account needed.
+      // Claiming later (linking an identity) keeps the same principal id.
+      setSession(await sesame.continueAnonymously());
+    } catch (e) {
+      setIdentityErr(
+        e instanceof Error
+          ? e.message
+          : "Could not start a guest session. Is the Identity API up?",
+      );
+    } finally {
+      setIdentityBusy(false);
+    }
+  }, [sesame]);
+
+  const signOut = useCallback(async () => {
+    setIdentityBusy(true);
+    setIdentityErr(null);
+    try {
+      await sesame.signOut();
+      setSession(null);
+    } finally {
+      setIdentityBusy(false);
+    }
+  }, [sesame]);
 
   const refresh = useCallback(async () => {
     setBusy(true);
@@ -91,6 +135,51 @@ export function App() {
         Health for the Host API and optional local daemon, plus sealed OPFS sync
         persistence. This surface never shows raw credentials.
       </p>
+      <section className="identity" aria-label="Identity">
+        <h2>Identity</h2>
+        {session ? (
+          <p role="status">
+            {session.anonymous
+              ? `Guest session active (${session.sub ?? "provisional principal"}). `
+              : `Signed in as ${session.sub ?? "unknown"}. `}
+            {session.anonymous
+              ? "This session is provisional — claim it later in the console to keep the same principal id."
+              : null}
+          </p>
+        ) : (
+          <p>
+            No session. Continue as a guest — no account needed. Claiming later
+            attaches ownership without changing any ids.
+          </p>
+        )}
+        <div className="actions">
+          {session ? (
+            <button
+              type="button"
+              disabled={identityBusy}
+              aria-busy={identityBusy}
+              onClick={() => void signOut()}
+            >
+              Sign out
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="primary"
+              disabled={identityBusy}
+              aria-busy={identityBusy}
+              onClick={() => void continueAsGuest()}
+            >
+              {identityBusy ? "Starting…" : "Continue as guest"}
+            </button>
+          )}
+        </div>
+        {identityErr ? (
+          <p className="err" role="alert">
+            {identityErr}
+          </p>
+        ) : null}
+      </section>
       <ul className="status" aria-live="polite" aria-busy={busy}>
         <li className={hostOk === false ? "is-down" : hostOk ? "is-up" : ""}>
           <span className="label">Host API</span>

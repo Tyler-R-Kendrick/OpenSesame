@@ -190,6 +190,36 @@ async function dispatch(
 
   switch (command.name) {
     case "login": {
+      if (command.mode === "anonymous") {
+        // Guest on-ramp: a provisional principal with no upstream identity.
+        // Claiming later (identity link) keeps the same principal id, so
+        // anything created as a guest survives the upgrade.
+        const cp = createControlPlaneClient({ baseUrl: api, fetchImpl });
+        const session = await cp.createProvisionalSession();
+        const expiresAt = Date.parse(session.expiresAt);
+        await saveSession({
+          accessToken: session.accessToken,
+          ...(Number.isNaN(expiresAt) ? {} : { expiresAt }),
+          issuer,
+          clientId,
+          anonymous: true,
+          principalId: session.principalId,
+        });
+        emit(
+          command.flags,
+          `Signed in as guest (${session.principalId}). This session is provisional — link an identity later to keep it; the principal id will not change.`,
+          {
+            ok: true,
+            mode: "anonymous",
+            principalId: session.principalId,
+            state: session.state,
+            assurance: session.assurance,
+            expiresAt: session.expiresAt,
+          },
+        );
+        return 0;
+      }
+
       if (command.mode === "loopback") {
         const tokens = await loopbackLogin({
           issuer,

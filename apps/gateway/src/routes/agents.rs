@@ -126,6 +126,12 @@ pub struct ClaimCompleteRequest {
     /// Code displayed by the device being claimed — the human consent proof.
     user_code: String,
     narrow_actions: Option<Vec<String>>,
+    /// The human principal taking ownership, in either the canonical Host
+    /// spelling (`principal:<uuid>`) or Identity's `prn_<uuid>` spelling. The
+    /// operator-authenticated completer (the Identity plane proxy) names the
+    /// principal it authenticated; without it the claim can only bind to the
+    /// dev bootstrap principal.
+    claimed_by_principal: Option<String>,
 }
 
 /// Wrong user codes tolerated per claim before completion is refused outright.
@@ -241,12 +247,29 @@ pub async fn complete(
         )
             .into_response();
     }
-    let boot = match require_demo_bootstrap(&st) {
-        Ok(b) => b,
-        Err(resp) => return resp,
+    // Bind the approving human, not the demo bootstrap identity: the completer
+    // (operator-authenticated, e.g. the Identity plane proxy) names the
+    // principal it authenticated. A supplied principal it cannot spell is a
+    // refusal, never a silent fallback to somebody else.
+    let claimant = match req.claimed_by_principal.as_deref() {
+        Some(raw) => match crate::middleware::auth::parse_principal(raw) {
+            Some(principal) => Some(principal),
+            None => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error":"invalid_principal"})),
+                )
+                    .into_response();
+            }
+        },
+        None => None,
     };
     // Claiming must not silently widen the requested grant.
     if let Some(actions) = &req.narrow_actions {
+        let boot = match require_demo_bootstrap(&st) {
+            Ok(b) => b,
+            Err(resp) => return resp,
+        };
         let parent_actions = &boot.grant.actions;
         if actions
             .iter()
@@ -259,12 +282,21 @@ pub async fn complete(
                 .into_response();
         }
     }
+    let claimant = match claimant {
+        Some(principal) => principal,
+        // Dev seam: without an explicit claimant only the local demo bootstrap
+        // principal is available, and only where the demo seed is enabled.
+        None => match require_demo_bootstrap(&st) {
+            Ok(boot) => boot.principal,
+            Err(resp) => return resp,
+        },
+    };
     session.state = ClaimState::Claimed;
     session.claimed_at = Some(Utc::now());
-    session.claimed_by_principal_id = Some(boot.principal);
+    session.claimed_by_principal_id = Some(claimant);
     (
         StatusCode::OK,
-        Json(json!({"state":"claimed","principal_id": boot.principal.to_string()})),
+        Json(json!({"state":"claimed","principal_id": claimant.to_string()})),
     )
         .into_response()
 }
@@ -362,5 +394,15 @@ mod tests {
             complete_gate(&s, TEST_PEPPER, TEST_CLAIM_ID, "tok", "", 0),
             CompleteGate::NoUserCode
         );
+    }
+
+    #[test]
+    fn a_claimant_binds_in_either_principal_spelling_and_garbage_is_refused() {
+        use crate::middleware::auth::parse_principal;
+        let canonical = PrincipalId::new();
+        let identity_spelling = format!("prn_{}", canonical.as_uuid());
+        assert_eq!(parse_principal(&identity_spelling), Some(canonical));
+        assert_eq!(parse_principal(&canonical.to_string()), Some(canonical));
+        assert!(parse_principal("user@example.com").is_none());
     }
 }

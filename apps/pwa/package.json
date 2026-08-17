@@ -12,6 +12,7 @@
   "dependencies": {
     "@opensesame/api-client": "workspace:*",
     "@opensesame/client-core": "workspace:*",
+    "@opensesame/sdk-browser": "workspace:*",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },

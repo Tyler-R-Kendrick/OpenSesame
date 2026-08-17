@@ -20,6 +20,20 @@ export interface TokenResponse {
   scope?: string;
 }
 
+/**
+ * `POST /v1/principals/provisional` response (control-plane product API).
+ * Product APIs speak camelCase; this is not an RFC 6749 token endpoint.
+ */
+export interface ProvisionalSessionResponse {
+  principalId?: string;
+  state?: string;
+  assurance?: string;
+  sessionId?: string;
+  accessToken?: string;
+  expiresAt?: string;
+  tokenType?: string;
+}
+
 export interface Session {
   accessToken: string;
   idToken?: string;
