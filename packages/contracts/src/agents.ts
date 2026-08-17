@@ -9,6 +9,8 @@ export const AgentStateSchema = z.enum([
 
 export const RegisterAgentRequestSchema = z.object({
   displayName: z.string().min(1).max(128),
+  /** Project the agent belongs to; defaults to the caller's active project. */
+  projectId: z.string().optional(),
   provider: z.string().optional(),
   softwareIdentity: z.string().optional(),
   publicKeyJkt: z.string().min(8),
@@ -20,6 +22,7 @@ export type RegisterAgentRequest = z.infer<typeof RegisterAgentRequestSchema>;
 export const RegisterAgentResponseSchema = z.object({
   agentId: z.string(),
   instanceId: z.string(),
+  projectId: z.string(),
   state: z.literal("provisional"),
   claimId: z.string(),
   claimToken: z.string().regex(/^osc_clm_/),

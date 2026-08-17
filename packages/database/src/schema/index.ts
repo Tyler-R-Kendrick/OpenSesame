@@ -161,6 +161,8 @@ export const projects = pgTable(
   "projects",
   {
     id: text("id").primaryKey(),
+    /** personal = auto-provisioned default; standard = user-created; temporary = TTL/claim flow. */
+    kind: text("kind").notNull().default("standard"),
     organizationId: text("organization_id").references(() => organizations.id),
     ownerPrincipalId: text("owner_principal_id").references(
       () => principals.id,
@@ -175,9 +177,43 @@ export const projects = pgTable(
   (t) => [
     index("projects_organization_id_idx").on(t.organizationId),
     index("projects_owner_principal_id_idx").on(t.ownerPrincipalId),
+    // One personal project per principal — the always-present default scope.
+    uniqueIndex("projects_personal_owner_uidx")
+      .on(t.ownerPrincipalId)
+      .where(sql`${t.kind} = 'personal'`),
+    check(
+      "projects_kind_check",
+      sql`${t.kind} in ('personal','standard','temporary')`,
+    ),
     check(
       "projects_state_check",
       sql`${t.state} in ('provisional','active','expired','deleting','deleted')`,
+    ),
+  ],
+);
+
+/** Optional sharing: grants a principal a role on a project. */
+export const projectMemberships = pgTable(
+  "project_memberships",
+  {
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principals.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("project_memberships_project_principal_uidx").on(
+      t.projectId,
+      t.principalId,
+    ),
+    index("project_memberships_principal_id_idx").on(t.principalId),
+    check(
+      "project_memberships_role_check",
+      sql`${t.role} in ('owner','admin','member')`,
     ),
   ],
 );
@@ -253,6 +289,8 @@ export const agents = pgTable(
   "agents",
   {
     id: text("id").primaryKey(),
+    /** Project the agent belongs to (defaults to the owner's personal project). */
+    projectId: text("project_id").references(() => projects.id),
     ownerPrincipalId: text("owner_principal_id").references(
       () => principals.id,
     ),
@@ -270,6 +308,7 @@ export const agents = pgTable(
       sql`${t.state} in ('provisional','claimed','suspended','revoked')`,
     ),
     index("agents_owner_principal_id_idx").on(t.ownerPrincipalId),
+    index("agents_project_id_idx").on(t.projectId),
   ],
 );
 
@@ -701,6 +740,7 @@ export const schema = {
   organizations,
   teams,
   projects,
+  projectMemberships,
   resources,
   ownerships,
   agents,

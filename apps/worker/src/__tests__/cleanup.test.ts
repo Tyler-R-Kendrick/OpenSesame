@@ -91,6 +91,7 @@ describe("cleanup worker", () => {
     const clock = createFakeClock(fixtures.now);
     const project: Project = {
       id: "proj_1",
+      kind: "temporary",
       ownerPrincipalId: "prn_1",
       slug: "temp",
       displayName: "Temp",

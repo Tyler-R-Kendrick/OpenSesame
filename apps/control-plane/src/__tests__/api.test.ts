@@ -88,14 +88,12 @@ describe("control-plane API", () => {
   });
 
   it("seeds a personal workspace on device approve when provisional had none", async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(
-        new Response(JSON.stringify({ status: "approved" }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
-      );
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ status: "approved" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
     try {
       const { app, ctx } = createControlPlane({
         config: {
@@ -1991,5 +1989,342 @@ describe("control-plane API", () => {
         server.close((err) => (err ? reject(err) : resolve()));
       });
     }
+  });
+});
+
+describe("projects hierarchy and sharing", () => {
+  const config = {
+    port: 0,
+    publicUrl: "http://127.0.0.1:8788",
+    issuer: "http://127.0.0.1:8788",
+  };
+
+  it("provisions one personal project and uses it as the active default", async () => {
+    const { app } = createControlPlane({ config });
+    const created = await provisional(app);
+    const auth = { authorization: `Bearer ${created.accessToken}` };
+
+    const list = await app.request("/v1/projects", { headers: auth });
+    expect(list.status).toBe(200);
+    const { projects } = (await list.json()) as {
+      projects: Array<{
+        id: string;
+        kind: string;
+        role: string;
+        state: string;
+      }>;
+    };
+    expect(projects).toHaveLength(1);
+    expect(projects[0]).toMatchObject({
+      kind: "personal",
+      role: "owner",
+      state: "active",
+    });
+
+    // Listing again must not mint a second personal project.
+    const again = await app.request("/v1/projects", { headers: auth });
+    expect(
+      ((await again.json()) as { projects: unknown[] }).projects,
+    ).toHaveLength(1);
+
+    const active = await app.request("/v1/projects/active", { headers: auth });
+    expect(active.status).toBe(200);
+    const activeBody = (await active.json()) as {
+      project: { id: string };
+      isFallback: boolean;
+    };
+    expect(activeBody.isFallback).toBe(true);
+    expect(activeBody.project.id).toBe(projects[0]?.id);
+  });
+
+  it("denies standard project creation to provisional principals", async () => {
+    const { app } = createControlPlane({ config });
+    const created = await provisional(app);
+    const res = await app.request("/v1/projects", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${created.accessToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ displayName: "Nope" }),
+    });
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { reasons: string[] };
+    expect(body.reasons).toContain("provisional_action_not_permitted");
+  });
+
+  it("creates, swaps to, shares, and unshares a project", async () => {
+    const { app } = createControlPlane({ config });
+    const owner = await verifiedPrincipal(app, "project-owner");
+    const member = await verifiedPrincipal(app, "project-member");
+
+    const created = await app.request("/v1/projects", {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ displayName: "Shared Research" }),
+    });
+    expect(created.status).toBe(201);
+    const project = (await created.json()) as {
+      id: string;
+      kind: string;
+      slug: string;
+      role: string;
+    };
+    expect(project.kind).toBe("standard");
+    expect(project.slug).toBe("shared-research");
+    expect(project.role).toBe("owner");
+
+    // Swap the owner's active project to the new one.
+    const swapped = await app.request("/v1/projects/active", {
+      method: "PUT",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ projectId: project.id }),
+    });
+    expect(swapped.status).toBe(200);
+    expect(
+      (await swapped.json()) as {
+        project: { id: string };
+        isFallback: boolean;
+      },
+    ).toMatchObject({ project: { id: project.id }, isFallback: false });
+
+    // Before sharing, the other principal cannot see it.
+    const before = await app.request(`/v1/projects/${project.id}`, {
+      headers: member.auth,
+    });
+    expect(before.status).toBe(404);
+
+    const share = await app.request(`/v1/projects/${project.id}/members`, {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ principalId: member.principalId, role: "member" }),
+    });
+    expect(share.status).toBe(201);
+
+    // The member now sees the shared project alongside their personal one.
+    const memberList = await app.request("/v1/projects", {
+      headers: member.auth,
+    });
+    const memberProjects = (
+      (await memberList.json()) as {
+        projects: Array<{ id: string; role: string; kind: string }>;
+      }
+    ).projects;
+    expect(memberProjects).toHaveLength(2);
+    expect(
+      memberProjects.find((entry) => entry.id === project.id),
+    ).toMatchObject({ role: "member", kind: "standard" });
+
+    // A plain member cannot manage sharing.
+    const memberShare = await app.request(
+      `/v1/projects/${project.id}/members`,
+      {
+        method: "POST",
+        headers: { ...member.auth, "content-type": "application/json" },
+        body: JSON.stringify({
+          principalId: owner.principalId,
+          role: "member",
+        }),
+      },
+    );
+    expect(memberShare.status).toBe(403);
+
+    // Members can swap to the shared project.
+    const memberSwap = await app.request("/v1/projects/active", {
+      method: "PUT",
+      headers: { ...member.auth, "content-type": "application/json" },
+      body: JSON.stringify({ projectId: project.id }),
+    });
+    expect(memberSwap.status).toBe(200);
+
+    // Unshare: the member loses the project and falls back to personal.
+    const remove = await app.request(
+      `/v1/projects/${project.id}/members/${member.principalId}`,
+      { method: "DELETE", headers: owner.auth },
+    );
+    expect(remove.status).toBe(204);
+    const afterRemove = await app.request(`/v1/projects/${project.id}`, {
+      headers: member.auth,
+    });
+    expect(afterRemove.status).toBe(404);
+    const memberActive = await app.request("/v1/projects/active", {
+      headers: member.auth,
+    });
+    expect(
+      (await memberActive.json()) as {
+        isFallback: boolean;
+        project: { kind: string };
+      },
+    ).toMatchObject({ isFallback: true, project: { kind: "personal" } });
+  });
+
+  it("keeps the personal project unshareable, undeletable, and quota-free", async () => {
+    const { app } = createControlPlane({ config });
+    const owner = await verifiedPrincipal(app, "personal-owner");
+    const other = await verifiedPrincipal(app, "personal-other");
+
+    const list = await app.request("/v1/projects", { headers: owner.auth });
+    const personal = (
+      (await list.json()) as { projects: Array<{ id: string; kind: string }> }
+    ).projects.find((entry) => entry.kind === "personal");
+    expect(personal).toBeDefined();
+    if (!personal) throw new Error("personal project missing");
+
+    const share = await app.request(`/v1/projects/${personal.id}/members`, {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ principalId: other.principalId, role: "member" }),
+    });
+    expect(share.status).toBe(409);
+    expect((await share.json()) as { error: string }).toEqual({
+      error: "personal_project_not_shareable",
+    });
+
+    const del = await app.request(`/v1/projects/${personal.id}`, {
+      method: "DELETE",
+      headers: owner.auth,
+    });
+    expect(del.status).toBe(409);
+    expect((await del.json()) as { error: string }).toEqual({
+      error: "personal_project_immutable",
+    });
+  });
+
+  it("fences the last owner and owner-role grants", async () => {
+    const { app } = createControlPlane({ config });
+    const owner = await verifiedPrincipal(app, "fence-owner");
+    const admin = await verifiedPrincipal(app, "fence-admin");
+
+    const created = await app.request("/v1/projects", {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ displayName: "Fenced" }),
+    });
+    const project = (await created.json()) as { id: string };
+
+    await app.request(`/v1/projects/${project.id}/members`, {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ principalId: admin.principalId, role: "admin" }),
+    });
+
+    // An admin cannot mint or demote owners.
+    const adminMint = await app.request(
+      `/v1/projects/${project.id}/members/${owner.principalId}`,
+      {
+        method: "PATCH",
+        headers: { ...admin.auth, "content-type": "application/json" },
+        body: JSON.stringify({ role: "member" }),
+      },
+    );
+    expect(adminMint.status).toBe(403);
+
+    // The last owner can be neither demoted nor removed.
+    const demote = await app.request(
+      `/v1/projects/${project.id}/members/${owner.principalId}`,
+      {
+        method: "PATCH",
+        headers: { ...owner.auth, "content-type": "application/json" },
+        body: JSON.stringify({ role: "member" }),
+      },
+    );
+    expect(demote.status).toBe(409);
+    const removeSelf = await app.request(
+      `/v1/projects/${project.id}/members/${owner.principalId}`,
+      { method: "DELETE", headers: owner.auth },
+    );
+    expect(removeSelf.status).toBe(409);
+  });
+
+  it("falls back to personal after the active project is deleted", async () => {
+    const { app } = createControlPlane({ config });
+    const owner = await verifiedPrincipal(app, "delete-owner");
+
+    const created = await app.request("/v1/projects", {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ displayName: "Doomed" }),
+    });
+    const project = (await created.json()) as { id: string };
+
+    await app.request("/v1/projects/active", {
+      method: "PUT",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ projectId: project.id }),
+    });
+
+    const del = await app.request(`/v1/projects/${project.id}`, {
+      method: "DELETE",
+      headers: owner.auth,
+    });
+    expect(del.status).toBe(204);
+
+    const active = await app.request("/v1/projects/active", {
+      headers: owner.auth,
+    });
+    expect(
+      (await active.json()) as {
+        isFallback: boolean;
+        project: { kind: string };
+      },
+    ).toMatchObject({ isFallback: true, project: { kind: "personal" } });
+
+    const gone = await app.request(`/v1/projects/${project.id}`, {
+      headers: owner.auth,
+    });
+    expect(gone.status).toBe(404);
+  });
+
+  it("registers agents into the caller's active project", async () => {
+    const { app } = createControlPlane({ config });
+    const owner = await verifiedPrincipal(app, "agent-owner");
+
+    const personalList = await app.request("/v1/projects", {
+      headers: owner.auth,
+    });
+    const personal = (
+      (await personalList.json()) as {
+        projects: Array<{ id: string; kind: string }>;
+      }
+    ).projects.find((entry) => entry.kind === "personal");
+    if (!personal) throw new Error("personal project missing");
+
+    const first = await app.request("/v1/agents", {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({
+        displayName: "Default Agent",
+        publicKeyJkt: "jkt-default-agent",
+      }),
+    });
+    expect(first.status).toBe(201);
+    expect(((await first.json()) as { projectId: string }).projectId).toBe(
+      personal.id,
+    );
+
+    const created = await app.request("/v1/projects", {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ displayName: "Agent Home" }),
+    });
+    const project = (await created.json()) as { id: string };
+    await app.request("/v1/projects/active", {
+      method: "PUT",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({ projectId: project.id }),
+    });
+
+    const second = await app.request("/v1/agents", {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({
+        displayName: "Scoped Agent",
+        publicKeyJkt: "jkt-scoped-agent",
+      }),
+    });
+    expect(second.status).toBe(201);
+    expect(((await second.json()) as { projectId: string }).projectId).toBe(
+      project.id,
+    );
   });
 });

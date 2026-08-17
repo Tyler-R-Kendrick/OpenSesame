@@ -43,6 +43,8 @@ export interface ProvisionalQuota {
   maxAgents: number;
   maxOrganizations: number;
   maxOAuthClients: number;
+  /** Persistent (non-temporary, non-personal) projects a principal may own. */
+  maxProjects: number;
 }
 
 /**
@@ -56,6 +58,7 @@ export const DEFAULT_PROVISIONAL_QUOTA: ProvisionalQuota = {
   maxAgents: 2,
   maxOrganizations: 0,
   maxOAuthClients: 0,
+  maxProjects: 0,
 };
 
 /**
@@ -68,6 +71,7 @@ export const DEFAULT_VERIFIED_QUOTA: ProvisionalQuota = {
   maxAgents: 25,
   maxOrganizations: 10,
   maxOAuthClients: 25,
+  maxProjects: 25,
 };
 
 const HIGH_RISK_ACTIONS = new Set([
@@ -94,12 +98,15 @@ export interface ProvisionalUsage {
   agents: number;
   organizations: number;
   oauthClients: number;
+  projects: number;
 }
 
 /** Which quota field, if any, a given action spends. */
-function quotaFieldFor(
-  action: string,
-): { usage: keyof ProvisionalUsage; limit: keyof ProvisionalQuota; reason: string } | null {
+function quotaFieldFor(action: string): {
+  usage: keyof ProvisionalUsage;
+  limit: keyof ProvisionalQuota;
+  reason: string;
+} | null {
   switch (action) {
     case "project.create_temporary":
       return {
@@ -120,6 +127,12 @@ function quotaFieldFor(
         usage: "organizations",
         limit: "maxOrganizations",
         reason: "quota_organizations",
+      };
+    case "project.create":
+      return {
+        usage: "projects",
+        limit: "maxProjects",
+        reason: "quota_projects",
       };
     case "oauth.client.register":
       return {
@@ -147,6 +160,7 @@ export class ProvisionalPolicy {
       agents: 0,
       organizations: 0,
       oauthClients: 0,
+      projects: 0,
     },
   ): AuthorizationDecision {
     // High-risk actions are denied for every subject. Nothing in this system
@@ -187,7 +201,9 @@ export class ProvisionalPolicy {
 
     return {
       effect: "allow",
-      reasons: [provisional ? "provisional_policy_allow" : "assurance_not_provisional"],
+      reasons: [
+        provisional ? "provisional_policy_allow" : "assurance_not_provisional",
+      ],
     };
   }
 }
