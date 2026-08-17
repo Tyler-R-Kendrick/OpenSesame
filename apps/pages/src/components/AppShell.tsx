@@ -20,6 +20,7 @@ import {
   IconVault,
 } from "./Icons.js";
 import { RailPlaneStatus } from "./PlaneNote.js";
+import { ProjectSwitcher } from "./ProjectSwitcher.js";
 
 const SECTIONS = [
   { to: "/vault", label: "Vault", Icon: IconVault },
@@ -175,6 +176,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
+        <ProjectSwitcher />
+
         <div className="rail__scroll">
           <nav aria-label="Sections">
             {SECTIONS.map(({ to, label, Icon }) => (
@@ -207,6 +210,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <IconVault size={17} />
           </span>
           <p className="topbar__title">OpenSesame</p>
+          <ProjectSwitcher />
           <span className="topbar__spacer" />
           <RailPlaneStatus />
           <button type="button" className="rail__lock" onClick={store.lock}>

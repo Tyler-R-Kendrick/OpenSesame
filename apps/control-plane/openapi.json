@@ -468,6 +468,166 @@
         }
       }
     },
+    "/v1/projects": {
+      "get": {
+        "summary": "List projects the caller can use, provisioning the personal default on first touch",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projects and caller roles, personal project first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["projects"],
+                  "properties": {
+                    "projects": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Project"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a project; the creator becomes owner",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Project created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project body"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Verified identity or quota required"
+          },
+          "404": {
+            "description": "Organization not found"
+          },
+          "409": {
+            "description": "Slug already exists"
+          }
+        }
+      }
+    },
+    "/v1/projects/active": {
+      "get": {
+        "summary": "Currently active project (falls back to the personal project)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveProject"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Swap the caller's active project",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetActiveProject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Active project swapped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveProject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "404": {
+            "description": "Project or membership not found"
+          }
+        }
+      }
+    },
     "/v1/projects/temporary": {
       "post": {
         "summary": "Create temporary provisional project",
@@ -488,6 +648,305 @@
         "responses": {
           "201": {
             "description": "Created"
+          }
+        }
+      }
+    },
+    "/v1/projects/{id}": {
+      "get": {
+        "summary": "Get a project the caller can use, including their role",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project or membership not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a project (owner only; the personal project never)",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Project deleted"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Owner role required"
+          },
+          "404": {
+            "description": "Project or membership not found"
+          },
+          "409": {
+            "description": "Personal project cannot be deleted"
+          }
+        }
+      }
+    },
+    "/v1/projects/{id}/members": {
+      "get": {
+        "summary": "List project memberships (owner or admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Memberships",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["members"],
+                  "properties": {
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProjectMembership"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Owner or admin role required"
+          },
+          "404": {
+            "description": "Project or membership not found"
+          }
+        }
+      },
+      "post": {
+        "summary": "Share a project with an existing principal (owner or admin)",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header. Personal projects are never shareable.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddProjectMember"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Membership created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMembership"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Owner or admin role required"
+          },
+          "404": {
+            "description": "Principal not found"
+          },
+          "409": {
+            "description": "Membership exists, principal is inactive, or project is personal"
+          }
+        }
+      }
+    },
+    "/v1/projects/{id}/members/{principalId}": {
+      "patch": {
+        "summary": "Change a project membership role (owner or admin)",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header. Owner grants and revocations take an owner actor.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "principalId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeProjectMemberRole"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Membership updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMembership"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid membership role body"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Owner or admin role required"
+          },
+          "404": {
+            "description": "Project (`not_found`) or target membership (`membership_not_found`) not found"
+          },
+          "409": {
+            "description": "Last owner cannot be demoted"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove a project membership (owner or admin, or the member leaving)",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "principalId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Membership removed"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Owner or admin role required"
+          },
+          "404": {
+            "description": "Project (`not_found`) or target membership (`membership_not_found`) not found"
+          },
+          "409": {
+            "description": "Last owner cannot be removed, or project is personal"
           }
         }
       }
@@ -873,6 +1332,170 @@
         "properties": {
           "role": {
             "$ref": "#/components/schemas/OrganizationRole"
+          }
+        }
+      },
+      "ProjectState": {
+        "type": "string",
+        "enum": ["provisional", "active", "expired", "deleting", "deleted"]
+      },
+      "ProjectKind": {
+        "type": "string",
+        "enum": ["personal", "standard", "temporary"]
+      },
+      "ProjectRole": {
+        "type": "string",
+        "enum": ["owner", "admin", "member"]
+      },
+      "CreateProject": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["displayName"],
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 64,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "organizationId": {
+            "type": "string"
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "slug",
+          "displayName",
+          "state",
+          "role",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProjectKind"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ProjectState"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          },
+          "ownerPrincipalId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ActiveProject": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["project", "isFallback"],
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "isFallback": {
+            "type": "boolean",
+            "description": "True when the active project fell back to the personal default."
+          }
+        }
+      },
+      "SetActiveProject": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["projectId"],
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "ProjectMembership": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "projectId",
+          "principalId",
+          "role",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "principalId": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AddProjectMember": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["principalId", "role"],
+        "properties": {
+          "principalId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          }
+        }
+      },
+      "ChangeProjectMemberRole": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role"],
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/ProjectRole"
           }
         }
       },

@@ -11,6 +11,7 @@ import {
   kvSet,
   kvSetDurable,
 } from "../kv.js";
+import { scopedKey } from "../projects.js";
 import {
   type SealedBlob,
   VaultCorruptError,
@@ -31,10 +32,30 @@ import {
 } from "./model.js";
 import { estimateStrength } from "./password.js";
 
+/**
+ * Base key names. The store reads and writes them through the active
+ * project's scope (`scopedKey`), so each project keeps its own sealed vault.
+ */
 export const HEADER_KEY = "vault.header.v1";
 export const BODY_KEY = "vault.body.v1";
 export const ATTEMPTS_KEY = "vault.attempts.v1";
 export const PREFS_KEY = "vault.prefs.v1";
+
+type VaultKeys = {
+  header: string;
+  body: string;
+  attempts: string;
+  prefs: string;
+};
+
+function scopedVaultKeys(): VaultKeys {
+  return {
+    header: scopedKey(HEADER_KEY),
+    body: scopedKey(BODY_KEY),
+    attempts: scopedKey(ATTEMPTS_KEY),
+    prefs: scopedKey(PREFS_KEY),
+  };
+}
 
 export type VaultStatus = "empty" | "locked" | "unlocked";
 
@@ -114,32 +135,38 @@ export class VaultStore {
   /** Serializes body writes so overlapping mutations cannot land out of order. */
   #writeChain: Promise<unknown> = Promise.resolve();
   #lockHandlers = new Set<() => void>();
+  #keys: VaultKeys = scopedVaultKeys();
 
   constructor() {
-    this.#header = readJson<VaultHeader | null>(HEADER_KEY, null);
+    this.#header = readJson<VaultHeader | null>(this.#keys.header, null);
     this.#prefs = {
       ...defaultPrefs,
-      ...readJson<Partial<VaultPrefs>>(PREFS_KEY, {}),
+      ...readJson<Partial<VaultPrefs>>(this.#keys.prefs, {}),
     };
     this.#snapshot = this.#build();
   }
 
-  /** Re-read plaintext state once OPFS hydration has filled the KV cache. */
+  /**
+   * Re-read plaintext state once OPFS hydration has filled the KV cache.
+   * Hydration is also when the active project becomes known, so the key
+   * scope is recomputed here before anything is read.
+   */
   rehydrate(): void {
     if (this.#vaultKey) return;
-    this.#header = readJson<VaultHeader | null>(HEADER_KEY, null);
+    this.#keys = scopedVaultKeys();
+    this.#header = readJson<VaultHeader | null>(this.#keys.header, null);
     this.#prefs = {
       ...defaultPrefs,
-      ...readJson<Partial<VaultPrefs>>(PREFS_KEY, {}),
+      ...readJson<Partial<VaultPrefs>>(this.#keys.prefs, {}),
     };
     this.#emit();
   }
 
   #build(): VaultState {
-    const attempts = readJson<{ fails: number; until: number }>(ATTEMPTS_KEY, {
-      fails: 0,
-      until: 0,
-    });
+    const attempts = readJson<{ fails: number; until: number }>(
+      this.#keys.attempts,
+      { fails: 0, until: 0 },
+    );
     return {
       status: this.#vaultKey ? "unlocked" : this.#header ? "locked" : "empty",
       header: this.#header,
@@ -173,7 +200,7 @@ export class VaultStore {
     this.#vaultKey = vaultKey;
     this.#body = emptyBody();
     try {
-      await kvSetDurable(HEADER_KEY, JSON.stringify(header));
+      await kvSetDurable(this.#keys.header, JSON.stringify(header));
       await this.#persist();
     } catch (error) {
       // A vault whose header never reached disk cannot be unlocked again, so
@@ -181,22 +208,22 @@ export class VaultStore {
       this.#header = null;
       this.#vaultKey = null;
       this.#body = emptyBody();
-      kvDelete(HEADER_KEY);
-      kvDelete(BODY_KEY);
+      kvDelete(this.#keys.header);
+      kvDelete(this.#keys.body);
       this.#emit();
       throw error;
     }
-    kvDelete(ATTEMPTS_KEY);
+    kvDelete(this.#keys.attempts);
     this.touch();
     this.#armIdleTimer();
     this.#emit();
   }
 
   async unlock(password: string): Promise<void> {
-    const attempts = readJson<{ fails: number; until: number }>(ATTEMPTS_KEY, {
-      fails: 0,
-      until: 0,
-    });
+    const attempts = readJson<{ fails: number; until: number }>(
+      this.#keys.attempts,
+      { fails: 0, until: 0 },
+    );
     if (attempts.until > Date.now()) {
       const seconds = Math.ceil((attempts.until - Date.now()) / 1000);
       throw new Error(`Too many attempts. Try again in ${seconds}s.`);
@@ -220,13 +247,13 @@ export class VaultStore {
               MAX_LOCKOUT_MS,
             )
           : 0;
-      kvSet(ATTEMPTS_KEY, JSON.stringify({ fails, until }));
+      kvSet(this.#keys.attempts, JSON.stringify({ fails, until }));
       this.#emit();
       throw error;
     }
 
     this.#vaultKey = vaultKey;
-    const sealed = readJson<SealedBlob | null>(BODY_KEY, null);
+    const sealed = readJson<SealedBlob | null>(this.#keys.body, null);
     if (sealed) {
       try {
         const body = await openJson<VaultBody>(vaultKey, sealed);
@@ -257,7 +284,7 @@ export class VaultStore {
     } else {
       this.#body = emptyBody();
     }
-    kvDelete(ATTEMPTS_KEY);
+    kvDelete(this.#keys.attempts);
     this.touch();
     this.#armIdleTimer();
     this.#emit();
@@ -293,7 +320,7 @@ export class VaultStore {
     const previous = this.#header;
     this.#header = header;
     try {
-      await kvSetDurable(HEADER_KEY, JSON.stringify(header));
+      await kvSetDurable(this.#keys.header, JSON.stringify(header));
     } catch (error) {
       // The vault key is unchanged, so the old password still opens what is on
       // disk. Saying otherwise would lock the owner out of their own vault.
@@ -316,7 +343,7 @@ export class VaultStore {
     assertSealed(sealed);
     // Awaited, so a disk that refuses the write reaches `#mutate`'s rollback
     // instead of leaving memory ahead of what survives a reload.
-    await kvSetDurable(BODY_KEY, JSON.stringify(sealed));
+    await kvSetDurable(this.#keys.body, JSON.stringify(sealed));
     this.#body.rev = rev;
     await this.#recordBodyRev(rev);
   }
@@ -332,7 +359,7 @@ export class VaultStore {
     const next: VaultHeader = { ...header, bodyRev: rev };
     this.#header = next;
     try {
-      await kvSetDurable(HEADER_KEY, JSON.stringify(next));
+      await kvSetDurable(this.#keys.header, JSON.stringify(next));
     } catch {
       // The body is safely stored; only the rollback witness is behind. Losing
       // it costs detection, not data, and the next write will catch it up.
@@ -486,7 +513,7 @@ export class VaultStore {
   /** Encrypted export — the sealed body plus its header, portable to another device. */
   exportSealed(): string {
     if (!this.#header) throw new Error("There is no vault to export.");
-    const body = kvGet(BODY_KEY);
+    const body = kvGet(this.#keys.body);
     if (!body) throw new Error("There is nothing stored to export yet.");
     return JSON.stringify(
       {
@@ -554,9 +581,9 @@ export class VaultStore {
       .then(async () => {
         // Awaited, so this resolves only once the files are actually gone.
         await Promise.all([
-          kvDeleteDurable(HEADER_KEY),
-          kvDeleteDurable(BODY_KEY),
-          kvDeleteDurable(ATTEMPTS_KEY),
+          kvDeleteDurable(this.#keys.header),
+          kvDeleteDurable(this.#keys.body),
+          kvDeleteDurable(this.#keys.attempts),
         ]);
       });
     this.#writeChain = done;
@@ -568,7 +595,7 @@ export class VaultStore {
 
   setPrefs(next: Partial<VaultPrefs>): void {
     this.#prefs = { ...this.#prefs, ...next };
-    kvSet(PREFS_KEY, JSON.stringify(this.#prefs));
+    kvSet(this.#keys.prefs, JSON.stringify(this.#prefs));
     this.#armIdleTimer();
     this.#emit();
   }

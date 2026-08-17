@@ -5,12 +5,11 @@ import { BrowserRouter } from "react-router";
 import { App } from "./App.js";
 import { kvHydrate } from "./lib/kv.js";
 import {
-  ATTEMPTS_KEY,
-  BODY_KEY,
-  HEADER_KEY,
-  PREFS_KEY,
-  vaultStore,
-} from "./lib/vault/store.js";
+  PROJECTS_KEY,
+  projectScopedKeys,
+  rehydrateProjects,
+} from "./lib/projects.js";
+import { vaultStore } from "./lib/vault/store.js";
 import "./styles.css";
 
 const root = document.getElementById("root");
@@ -40,17 +39,16 @@ if (framed()) {
 void (async () => {
   // OPFS is async and the store reads its header synchronously, so pull the
   // persisted keys into the KV cache and re-read before the first paint.
+  // The project registry hydrates first: which vault and consent keys exist
+  // depends on which project is active.
   await kvHydrate([
-    HEADER_KEY,
-    BODY_KEY,
-    ATTEMPTS_KEY,
-    PREFS_KEY,
+    PROJECTS_KEY,
     "settings.v1",
     "outbox.v1",
     "connections.firstRun.v1",
-    "site-broker.consents.v1",
-    "site-broker.policy.v1",
   ]);
+  rehydrateProjects();
+  await kvHydrate(projectScopedKeys());
   vaultStore.rehydrate();
 
   createRoot(root).render(

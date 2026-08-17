@@ -29,6 +29,7 @@ function createMockFetch(): typeof fetch {
         JSON.stringify({
           agentId: "agt_demo",
           instanceId: "inst_demo",
+          projectId: "prj_demo_personal",
           state: "provisional",
           claimId,
           claimToken: "osc_clm_demo.secretvalue000000000000000000000000",

@@ -9,7 +9,12 @@
 import type { UpstreamIdentity } from "./federation.js";
 import { originClientId } from "./federation.js";
 import { kvDelete, kvGet, kvSet } from "./kv.js";
+import { scopedKey } from "./projects.js";
 
+/**
+ * Base key names — read and written through the active project's scope, so
+ * each project keeps its own approved-site list and domain policy.
+ */
 export const CONSENTS_KEY = "site-broker.consents.v1";
 export const POLICY_KEY = "site-broker.policy.v1";
 
@@ -96,7 +101,9 @@ export function scriptTagSrc(base: string = pagesPublicBase()): string {
  */
 export function parseBrokerRequest(
   search: string,
-): { ok: true; request: BrokerRequest } | { ok: false; error: string; detail: string } {
+):
+  | { ok: true; request: BrokerRequest }
+  | { ok: false; error: string; detail: string } {
   const params = new URLSearchParams(
     search.startsWith("?") ? search.slice(1) : search,
   );
@@ -158,7 +165,8 @@ export function parseBrokerRequest(
 function looksLikeEnoughEntropy(state: string): boolean {
   try {
     const padded = state.replace(/-/g, "+").replace(/_/g, "/");
-    const pad = padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
+    const pad =
+      padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
     const binary = atob(padded + pad);
     return binary.length >= MIN_STATE_BYTES;
   } catch {
@@ -171,7 +179,7 @@ export function scopeList(scope: string): string[] {
 }
 
 export function loadConsents(): SiteConsent[] {
-  const raw = kvGet(CONSENTS_KEY);
+  const raw = kvGet(scopedKey(CONSENTS_KEY));
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as { consents?: SiteConsent[] };
@@ -182,7 +190,7 @@ export function loadConsents(): SiteConsent[] {
 }
 
 function saveConsents(consents: SiteConsent[]): void {
-  kvSet(CONSENTS_KEY, JSON.stringify({ consents }));
+  kvSet(scopedKey(CONSENTS_KEY), JSON.stringify({ consents }));
 }
 
 export function consentFor(origin: string): SiteConsent | null {
@@ -190,7 +198,10 @@ export function consentFor(origin: string): SiteConsent | null {
 }
 
 /** True when prior consent covers every requested scope. */
-export function consentCovers(consent: SiteConsent | null, scope: string): boolean {
+export function consentCovers(
+  consent: SiteConsent | null,
+  scope: string,
+): boolean {
   if (!consent) return false;
   const needed = new Set(scopeList(scope));
   const have = new Set(consent.scopes);
@@ -206,12 +217,16 @@ export function approveConsent(origin: string, scope: string): SiteConsent {
   const existing = loadConsents();
   const next: SiteConsent = {
     origin,
-    scopes: Array.from(new Set([...(consentFor(origin)?.scopes ?? []), ...scopes])),
+    scopes: Array.from(
+      new Set([...(consentFor(origin)?.scopes ?? []), ...scopes]),
+    ),
     approvedAt: consentFor(origin)?.approvedAt ?? now,
     lastUsedAt: now,
   };
   const without = existing.filter((c) => c.origin !== origin);
-  saveConsents([...without, next].sort((a, b) => a.origin.localeCompare(b.origin)));
+  saveConsents(
+    [...without, next].sort((a, b) => a.origin.localeCompare(b.origin)),
+  );
   return next;
 }
 
@@ -225,12 +240,12 @@ export function touchConsent(origin: string): void {
 
 export function revokeConsent(origin: string): void {
   const next = loadConsents().filter((c) => c.origin !== origin);
-  if (next.length === 0) kvDelete(CONSENTS_KEY);
+  if (next.length === 0) kvDelete(scopedKey(CONSENTS_KEY));
   else saveConsents(next);
 }
 
 export function loadBrokerPolicy(): BrokerPolicy {
-  const raw = kvGet(POLICY_KEY);
+  const raw = kvGet(scopedKey(POLICY_KEY));
   if (!raw) return { rules: [] };
   try {
     const parsed = JSON.parse(raw) as {
@@ -281,7 +296,10 @@ function sortRules(rules: DomainRule[]): DomainRule[] {
 }
 
 function saveBrokerPolicy(policy: BrokerPolicy): void {
-  kvSet(POLICY_KEY, JSON.stringify({ rules: sortRules(policy.rules) }));
+  kvSet(
+    scopedKey(POLICY_KEY),
+    JSON.stringify({ rules: sortRules(policy.rules) }),
+  );
 }
 
 /**
@@ -397,9 +415,7 @@ export function setDomainRuleEffect(
   const target = normalizeDomainEntry(domain) ?? domain.toLowerCase();
   const next: BrokerPolicy = {
     rules: sortRules(
-      current.rules.map((r) =>
-        r.domain === target ? { ...r, effect } : r,
-      ),
+      current.rules.map((r) => (r.domain === target ? { ...r, effect } : r)),
     ),
   };
   saveBrokerPolicy(next);
@@ -529,11 +545,14 @@ export function staticSiteSnippet(opts: {
   siteOrigin: string;
 }): string {
   const script = scriptTagSrc(opts.brokerBase);
-  const authorize = brokerAuthorizeUrl({
-    origin: opts.siteOrigin,
-    state: "", // placeholder stripped below — link omits state so auto-links fill it
-    scope: "openid",
-  }, opts.brokerBase);
+  const authorize = brokerAuthorizeUrl(
+    {
+      origin: opts.siteOrigin,
+      state: "", // placeholder stripped below — link omits state so auto-links fill it
+      scope: "openid",
+    },
+    opts.brokerBase,
+  );
   // brokerAuthorizeUrl always sets state; for the declarative link we want no state.
   const authorizeLink = (() => {
     const url = new URL(authorize);

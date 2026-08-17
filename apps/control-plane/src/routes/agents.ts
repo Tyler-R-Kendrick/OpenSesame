@@ -1,15 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { Hono } from "hono";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   RegisterAgentRequestSchema,
   RegisterAgentResponseSchema,
 } from "@opensesame/contracts";
 import type { Agent, AgentInstance } from "@opensesame/os-domain";
-import type { Variables } from "../middleware/context.js";
+import { Hono } from "hono";
 import { requirePrincipal } from "../middleware/auth.js";
+import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { getUsage } from "../state.js";
+import { authenticatedPrincipalId } from "./organizations.js";
+import { resolveActiveProject, roleFor } from "./projects.js";
 
 export const agentRoutes = new Hono<{ Variables: Variables }>();
 
@@ -19,19 +21,26 @@ agentRoutes.post(
   idempotencyMiddleware("agents.register"),
   async (c) => {
     const ctx = c.get("ctx");
-    const principalId = c.get("principalId")!;
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
     const principal = await ctx.repos.principals.getById(principalId);
     if (!principal) return c.json({ error: "not_found" }, 404);
 
     const parsed = RegisterAgentRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
-      return c.json({ error: "validation_error", details: parsed.error.flatten() }, 400);
+      return c.json(
+        { error: "validation_error", details: parsed.error.flatten() },
+        400,
+      );
     }
 
     const decision = ctx.policy.evaluate(
       principal,
       {
-        subject: { type: "principal", id: principal.id, assurance: principal.assurance },
+        subject: {
+          type: "principal",
+          id: principal.id,
+          assurance: principal.assurance,
+        },
         action: "agent.register_ephemeral",
         resource: { type: "agent", id: "*" },
       },
@@ -41,17 +50,33 @@ agentRoutes.post(
       return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
     }
 
+    // Agents always belong to a project: the requested one when the caller
+    // may use it, otherwise the caller's active (default: personal) project.
+    let projectId: string;
+    if (parsed.data.projectId) {
+      const project = ctx.stores.projects.get(parsed.data.projectId);
+      if (!project || !roleFor(ctx, project, principalId)) {
+        return c.json({ error: "project_not_found" }, 404);
+      }
+      projectId = project.id;
+    } else {
+      projectId = resolveActiveProject(ctx, principalId).id;
+    }
+
     const now = ctx.clock();
     const agentId = `agt_${randomUUID()}`;
     const instanceId = `agi_${randomUUID()}`;
 
     const agent: Agent = {
       id: agentId,
+      projectId,
       ownerPrincipalId: principalId,
       displayName: parsed.data.displayName,
       state: "provisional",
       createdAt: now,
-      ...(parsed.data.provider !== undefined ? { provider: parsed.data.provider } : {}),
+      ...(parsed.data.provider !== undefined
+        ? { provider: parsed.data.provider }
+        : {}),
       ...(parsed.data.softwareIdentity !== undefined
         ? { softwareIdentity: parsed.data.softwareIdentity }
         : {}),
@@ -98,6 +123,7 @@ agentRoutes.post(
     const body = RegisterAgentResponseSchema.parse({
       agentId,
       instanceId,
+      projectId,
       state: "provisional",
       claimId: claim.session.id,
       claimToken: claim.token,
@@ -115,7 +141,7 @@ agentRoutes.post(
   idempotencyMiddleware("agents.claim"),
   async (c) => {
     const ctx = c.get("ctx");
-    const principalId = c.get("principalId")!;
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
     const agentId = c.req.param("id");
     const agent = ctx.stores.agents.get(agentId);
     // A claim asserts `ownerPrincipalId` in its manifest and flips the agent to

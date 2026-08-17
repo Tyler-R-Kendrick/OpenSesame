@@ -5,6 +5,7 @@ import type {
   Organization,
   OrganizationMembership,
   Project,
+  ProjectMembership,
   ProvisionalSession,
 } from "@opensesame/os-domain";
 
@@ -20,6 +21,12 @@ export interface AppStores {
   /** session token → session id */
   provisionalTokens: Map<string, string>;
   projects: Map<string, Project>;
+  /** `${projectId}:${principalId}` → membership */
+  projectMemberships: Map<string, ProjectMembership>;
+  /** project id → tail of serialized membership mutations */
+  projectMembershipMutations: Map<string, Promise<void>>;
+  /** principalId → active (swapped-in) project id */
+  activeProjects: Map<string, string>;
   organizations: Map<string, Organization>;
   /** `${organizationId}:${principalId}` → membership */
   organizationMemberships: Map<string, OrganizationMembership>;
@@ -50,6 +57,9 @@ export function createAppStores(): AppStores {
     provisionalSessions: new Map(),
     provisionalTokens: new Map(),
     projects: new Map(),
+    projectMemberships: new Map(),
+    projectMembershipMutations: new Map(),
+    activeProjects: new Map(),
     organizations: new Map(),
     organizationMemberships: new Map(),
     organizationMembershipMutations: new Map(),
@@ -97,13 +107,18 @@ export function getUsage(
   agents: number;
   organizations: number;
   oauthClients: number;
+  projects: number;
 } {
   let temporaryProjects = 0;
+  let projects = 0;
   for (const project of stores.projects.values()) {
     if (project.ownerPrincipalId !== principalId) continue;
     if (!LIVE_PROJECT_STATES.has(project.state)) continue;
     if (project.expiresAt && project.expiresAt <= now) continue;
-    temporaryProjects += 1;
+    // The always-present personal project never spends a quota slot.
+    if (project.kind === "personal") continue;
+    if (project.kind === "temporary") temporaryProjects += 1;
+    else projects += 1;
   }
 
   let agents = 0;
@@ -133,6 +148,7 @@ export function getUsage(
     agents,
     organizations,
     oauthClients,
+    projects,
   };
 }
 

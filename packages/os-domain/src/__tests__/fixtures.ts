@@ -1,5 +1,9 @@
+import {
+  digestUserCode,
+  generateClaimToken,
+  generateUserCode,
+} from "../crypto/claim-token.js";
 import { digestManifest } from "../crypto/digest.js";
-import { generateClaimToken, digestUserCode, generateUserCode } from "../crypto/claim-token.js";
 import type {
   Agent,
   AgentInstance,
@@ -47,6 +51,7 @@ export const fixtures = {
   provisionalProject(overrides: Partial<Project> = {}): Project {
     return {
       id: "prj_temp_001",
+      kind: "temporary",
       slug: "temp-demo",
       displayName: "Temporary Demo",
       state: "provisional",
@@ -75,7 +80,9 @@ export const fixtures = {
     };
   },
 
-  provisionalSession(overrides: Partial<ProvisionalSession> = {}): ProvisionalSession {
+  provisionalSession(
+    overrides: Partial<ProvisionalSession> = {},
+  ): ProvisionalSession {
     return {
       id: "psess_001",
       principalId: "prn_test_provisional_001",

@@ -101,8 +101,20 @@ export type ProjectState =
   | "deleting"
   | "deleted";
 
+/**
+ * Projects are the top-level grouping: vaults, agents, sites and other
+ * resources all belong to exactly one project.
+ *
+ * - `personal` — auto-provisioned default project every principal gets;
+ *   cannot be shared or deleted.
+ * - `standard` — user-created project; optionally shareable via memberships.
+ * - `temporary` — TTL-bound project minted through the claims flow.
+ */
+export type ProjectKind = "personal" | "standard" | "temporary";
+
 export interface Project {
   id: string;
+  kind: ProjectKind;
   organizationId?: string;
   ownerPrincipalId?: PrincipalId;
   slug: string;
@@ -110,6 +122,17 @@ export interface Project {
   state: ProjectState;
   expiresAt?: Date;
   claimPolicyId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type ProjectRole = "owner" | "admin" | "member";
+
+/** Grants a principal access to a shared project. */
+export interface ProjectMembership {
+  projectId: string;
+  principalId: PrincipalId;
+  role: ProjectRole;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -160,6 +183,8 @@ export type AgentState = "provisional" | "claimed" | "suspended" | "revoked";
 
 export interface Agent {
   id: string;
+  /** Project the agent belongs to (defaults to the owner's personal project). */
+  projectId?: string;
   /** Principal that registered the agent — only they may claim or mutate it. */
   ownerPrincipalId: string;
   displayName: string;

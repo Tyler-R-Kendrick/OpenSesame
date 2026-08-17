@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { fixtures } from "@opensesame/os-domain";
+import { describe, expect, it } from "vitest";
 import {
   DEFAULT_VERIFIED_QUOTA,
   ProvisionalPolicy,
@@ -15,6 +15,7 @@ describe("ProvisionalPolicy", () => {
     agents: 0,
     organizations: 0,
     oauthClients: 0,
+    projects: 0,
     ...over,
   });
 
@@ -66,7 +67,8 @@ describe("ProvisionalPolicy", () => {
     };
     const verified = fixtures.verifiedPrincipal();
     expect(
-      policy.evaluate(verified, request, usage({ temporaryProjects: 4 })).effect,
+      policy.evaluate(verified, request, usage({ temporaryProjects: 4 }))
+        .effect,
     ).toBe("allow");
     const d = policy.evaluate(
       verified,
@@ -115,7 +117,8 @@ describe("ProvisionalPolicy", () => {
       resource: { type: "oauth_client", id: "*" },
     };
     expect(
-      policy.evaluate(verified, clientRequest, usage({ oauthClients: 3 })).effect,
+      policy.evaluate(verified, clientRequest, usage({ oauthClients: 3 }))
+        .effect,
     ).toBe("allow");
     const clientDenied = policy.evaluate(
       verified,
