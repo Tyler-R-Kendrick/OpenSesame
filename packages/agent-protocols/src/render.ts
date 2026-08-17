@@ -4,6 +4,7 @@ export interface AuthMdConfig {
   authorizationServer: string;
   consoleOrigin: string;
   agentRegisterPath?: string;
+  provisionalPath?: string;
   claimPath?: string;
   devicePath?: string;
   registrationModes?: string[];
@@ -16,7 +17,11 @@ export interface AuthMdConfig {
 }
 
 export function renderAuthMd(config: AuthMdConfig): string {
-  const registerPath = config.agentRegisterPath ?? "/api/v1/agents/register";
+  // Defaults must be paths the control plane actually mounts (/v1, app.ts) —
+  // a documented endpoint that 404s teaches every reader the wrong ceremony.
+  const registerPath = config.agentRegisterPath ?? "/v1/agents";
+  const provisionalPath =
+    config.provisionalPath ?? "/v1/principals/provisional";
   const claimPath = config.claimPath ?? "/claim";
   const devicePath = config.devicePath ?? "/device";
   const modes = (config.registrationModes ?? ["anonymous", "pre_registered"]).join(
@@ -57,11 +62,22 @@ OIDC discovery: \`${config.authorizationServer}/.well-known/openid-configuration
 
 ${modes}
 
+## Guest (anonymous) session — humans and agents
+
+\`POST ${config.authorizationServer}${provisionalPath}\`
+
+No account is needed: the response is a provisional principal and a short-lived
+bearer. Claiming later — linking an upstream identity — keeps the same
+principal id, so nothing created as a guest is lost.
+Revoke: \`POST ${config.authorizationServer}${provisionalPath}/revoke\`
+
 ## Anonymous agent bootstrap
 
 \`POST ${config.authorizationServer}${registerPath}\`
 
-Agents may register with a proof key (${proof}) and receive a claim session.
+Registration authenticates as a principal, which may itself be provisional
+(guest). Agents register with a proof key (${proof}) and receive a claim
+session for a human to take ownership later.
 No long-lived secrets are returned in this document.
 
 ## Claim ceremony

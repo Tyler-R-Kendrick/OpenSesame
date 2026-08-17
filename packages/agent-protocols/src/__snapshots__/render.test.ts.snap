@@ -45,11 +45,22 @@ OIDC discovery: \`http://127.0.0.1:8788/.well-known/openid-configuration\`
 
 anonymous, pre_registered
 
+## Guest (anonymous) session — humans and agents
+
+\`POST http://127.0.0.1:8788/v1/principals/provisional\`
+
+No account is needed: the response is a provisional principal and a short-lived
+bearer. Claiming later — linking an upstream identity — keeps the same
+principal id, so nothing created as a guest is lost.
+Revoke: \`POST http://127.0.0.1:8788/v1/principals/provisional/revoke\`
+
 ## Anonymous agent bootstrap
 
-\`POST http://127.0.0.1:8788/api/v1/agents/register\`
+\`POST http://127.0.0.1:8788/v1/agents\`
 
-Agents may register with a proof key (JWK thumbprint (publicKeyJkt)) and receive a claim session.
+Registration authenticates as a principal, which may itself be provisional
+(guest). Agents register with a proof key (JWK thumbprint (publicKeyJkt)) and receive a claim
+session for a human to take ownership later.
 No long-lived secrets are returned in this document.
 
 ## Claim ceremony

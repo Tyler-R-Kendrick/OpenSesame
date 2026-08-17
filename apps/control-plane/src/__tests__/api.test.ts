@@ -729,6 +729,9 @@ describe("control-plane API", () => {
         port: 0,
         publicUrl: "http://127.0.0.1:8788",
         issuer: "http://127.0.0.1:8788",
+        // This test exercises the no-workspace path; auto-seeding defaults on
+        // under vitest (allowDevDefaults) and would route past the 400.
+        bootstrapPersonalOrganization: false,
       },
     });
     expect(config.operatorToken).toBeTruthy();
@@ -759,6 +762,7 @@ describe("control-plane API", () => {
         publicUrl: "http://127.0.0.1:8788",
         issuer: "http://127.0.0.1:8788",
         corsOrigins: ["https://console.example"],
+        bootstrapPersonalOrganization: false,
       },
     });
     const created = await provisional(app);
@@ -1234,6 +1238,7 @@ describe("control-plane API", () => {
         port: 0,
         publicUrl: "http://127.0.0.1:8788",
         issuer: "http://127.0.0.1:8788",
+        bootstrapPersonalOrganization: false,
       },
     });
     const principal = await provisional(app);
@@ -1480,6 +1485,8 @@ describe("control-plane API", () => {
         port: 0,
         publicUrl: "http://127.0.0.1:8788",
         issuer: "http://127.0.0.1:8788",
+        // An auto-seeded personal workspace would consume the 1-org allowance.
+        bootstrapPersonalOrganization: false,
       },
     });
     // A small allowance so the fence is reached in a couple of requests.

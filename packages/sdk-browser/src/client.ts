@@ -5,6 +5,7 @@ import type {
   OidcDiscoveryDocument,
   OpenSesameBrowserClient,
   OpenSesameBrowserConfig,
+  ProvisionalSessionResponse,
   Session,
   StorageLike,
   TokenResponse,
@@ -384,7 +385,7 @@ export function createOpenSesame(
     },
 
     async continueAnonymously() {
-      const res = await fetchImpl(`${apiBase}/v1/principals/anonymous`, {
+      const res = await fetchImpl(`${apiBase}/v1/principals/provisional`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -395,8 +396,31 @@ export function createOpenSesame(
       if (!res.ok) {
         throw new Error(`Anonymous session failed: ${res.status}`);
       }
-      const tokens = (await res.json()) as TokenResponse;
-      const session = toSession(tokens, true, { issuer, clientId });
+      const body = (await res.json()) as ProvisionalSessionResponse;
+      if (typeof body.accessToken !== "string" || body.accessToken === "") {
+        throw new Error("Anonymous session response carried no access token");
+      }
+      const expiresAt =
+        typeof body.expiresAt === "string"
+          ? Date.parse(body.expiresAt)
+          : undefined;
+      const session: Session = {
+        accessToken: body.accessToken,
+        anonymous: true,
+        raw: {
+          access_token: body.accessToken,
+          token_type: body.tokenType ?? "Bearer",
+          ...(expiresAt !== undefined && !Number.isNaN(expiresAt)
+            ? { expires_in: Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)) }
+            : {}),
+        },
+      };
+      if (expiresAt !== undefined && !Number.isNaN(expiresAt)) {
+        session.expiresAt = expiresAt;
+      }
+      if (typeof body.principalId === "string") {
+        session.sub = body.principalId;
+      }
       saveSession(session);
       return session;
     },
@@ -477,9 +501,22 @@ export function createOpenSesame(
     },
 
     async signOut() {
+      const session = readSession();
       refreshTokenMemory = undefined;
       storage.removeItem(SESSION_KEY);
       storage.removeItem(PKCE_KEY);
+      // A provisional session authenticates by its token alone, so clearing
+      // client storage is not enough — end it server-side too.
+      if (session?.anonymous && session.accessToken) {
+        try {
+          await fetchImpl(`${apiBase}/v1/principals/provisional/revoke`, {
+            method: "POST",
+            headers: { authorization: `Bearer ${session.accessToken}` },
+          });
+        } catch {
+          // local sign-out still succeeds if the control plane is unreachable
+        }
+      }
       try {
         const meta = await discovery();
         if (meta.end_session_endpoint) {

@@ -97,18 +97,26 @@ describe("createOpenSesame", () => {
     expect(storage.getItem("opensesame:pkce")).toBeTruthy();
   });
 
+  // The control plane mounts /v1/principals/provisional and answers in the
+  // product API's camelCase shape (apps/control-plane/src/routes/principals.ts).
+  // Pin both here: mocking a path or shape the server does not serve is how the
+  // guest button ships broken while CI stays green.
   it("continueAnonymously stores session from control plane", async () => {
     const storage = new MemStorage();
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.endsWith("/v1/principals/anonymous")) {
+      if (url.endsWith("/v1/principals/provisional")) {
         return new Response(
           JSON.stringify({
-            access_token: "anon-token",
-            token_type: "Bearer",
-            expires_in: 3600,
+            principalId: "prn_guest",
+            state: "provisional",
+            assurance: "provisional",
+            sessionId: "ps_1",
+            accessToken: "anon-token",
+            expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+            tokenType: "Bearer",
           }),
-          { status: 200 },
+          { status: 201 },
         );
       }
       throw new Error(`unexpected fetch ${url}`);
@@ -123,7 +131,68 @@ describe("createOpenSesame", () => {
     const session = await sesame.continueAnonymously();
     expect(session.anonymous).toBe(true);
     expect(session.accessToken).toBe("anon-token");
+    expect(session.sub).toBe("prn_guest");
+    expect(session.expiresAt).toBeGreaterThan(Date.now());
     expect((await sesame.getSession())?.accessToken).toBe("anon-token");
+  });
+
+  it("continueAnonymously refuses a response without an access token", async () => {
+    const storage = new MemStorage();
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ principalId: "prn_guest" }), {
+          status: 201,
+        }),
+    );
+    const sesame = createOpenSesame({
+      issuer: "http://127.0.0.1:8788",
+      storage,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    await expect(sesame.continueAnonymously()).rejects.toThrow(
+      /no access token/,
+    );
+  });
+
+  it("signOut revokes an anonymous session server-side", async () => {
+    const storage = new MemStorage();
+    storage.setItem(
+      "opensesame:session",
+      JSON.stringify({
+        accessToken: "pst_guest",
+        anonymous: true,
+        raw: { access_token: "pst_guest", token_type: "Bearer" },
+      }),
+    );
+    const seen: Array<{ path: string; auth?: string }> = [];
+    const fetchImpl = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input)).pathname;
+        const headers = new Headers(init?.headers);
+        seen.push({
+          path,
+          ...(headers.get("authorization")
+            ? { auth: headers.get("authorization") as string }
+            : {}),
+        });
+        if (path === "/.well-known/openid-configuration") {
+          return new Response(JSON.stringify({}), { status: 404 });
+        }
+        return new Response(null, { status: 204 });
+      },
+    );
+    const sesame = createOpenSesame({
+      issuer: "http://127.0.0.1:8788",
+      storage,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    await sesame.signOut();
+    expect(await sesame.getSession()).toBeNull();
+    expect(seen).toContainEqual({
+      path: "/v1/principals/provisional/revoke",
+      auth: "Bearer pst_guest",
+    });
   });
 
   // The control plane mounts these under /v1 (apps/control-plane/src/app.ts).
@@ -302,15 +371,16 @@ describe("createOpenSesame", () => {
 
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.endsWith("/v1/principals/anonymous")) {
+      if (url.endsWith("/v1/principals/provisional")) {
         return new Response(
           JSON.stringify({
-            access_token: "at",
-            token_type: "Bearer",
-            expires_in: 3600,
-            refresh_token: "rt-secret",
+            principalId: "prn_guest",
+            sessionId: "ps_1",
+            accessToken: "at",
+            expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+            tokenType: "Bearer",
           }),
-          { status: 200 },
+          { status: 201 },
         );
       }
       throw new Error(`unexpected fetch ${url}`);
@@ -325,8 +395,6 @@ describe("createOpenSesame", () => {
     expect(local.getItem("opensesame:session")).toBeNull();
     const stored = sessionStore.getItem("opensesame:session");
     expect(stored).toBeTruthy();
-    expect(stored).not.toContain("rt-secret");
-    expect(stored).not.toContain("refresh_token");
   });
 
   it("refuses an id_token that answers a different ceremony", async () => {

@@ -15,11 +15,28 @@ device_authorization_endpoint: ${issuer}/device/auth
 jwks_uri: ${issuer}/jwks
 registration_endpoint: ${issuer}/reg
 
+## Registration modes
+
+anonymous (guest), upstream (OIDC / passkey)
+
+## Guest (anonymous) session — humans and agents
+
+No account is needed. \`POST ${publicUrl}/v1/principals/provisional\` mints a
+provisional principal and a short-lived bearer (\`pst_…\`). Claiming later —
+linking an upstream identity — keeps the same principal id, so nothing created
+as a guest is lost. Revoke: \`POST ${publicUrl}/v1/principals/provisional/revoke\`.
+
+Agents register under a principal (which may itself be provisional):
+\`POST ${publicUrl}/v1/agents\` returns a claim session (user code + claim
+token) for a human to take ownership later.
+
 ## Product APIs
 
 - health: ${publicUrl}/v1/health/live
-- provisional: POST ${publicUrl}/v1/principals/provisional
+- provisional (guest on-ramp): POST ${publicUrl}/v1/principals/provisional
+- provisional revoke: POST ${publicUrl}/v1/principals/provisional/revoke
 - me: GET ${publicUrl}/v1/principals/me
+- link identity (claim upgrade): POST ${publicUrl}/v1/principals/link-identities
 - temporary project: POST ${publicUrl}/v1/projects/temporary
 - claims: ${publicUrl}/v1/claims
 - agents: POST ${publicUrl}/v1/agents

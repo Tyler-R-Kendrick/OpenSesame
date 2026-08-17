@@ -27,7 +27,21 @@ function createMockFetch(): typeof fetch {
   let polls = 0;
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    if (url.endsWith("/api/v1/agents/register") && init?.method === "POST") {
+    if (url.endsWith("/v1/principals/provisional") && init?.method === "POST") {
+      return new Response(
+        JSON.stringify({
+          principalId: "prn_demo_guest",
+          state: "provisional",
+          assurance: "provisional",
+          sessionId: "ps_demo",
+          accessToken: "pst_demo",
+          expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+          tokenType: "Bearer",
+        }),
+        { status: 201 },
+      );
+    }
+    if (url.endsWith("/v1/agents") && init?.method === "POST") {
       return new Response(
         JSON.stringify({
           agentId: "agt_demo",
@@ -42,7 +56,7 @@ function createMockFetch(): typeof fetch {
         }),
       );
     }
-    if (url.includes(`/api/v1/claims/${claimId}`)) {
+    if (url.includes(`/v1/claims/${claimId}`)) {
       polls += 1;
       return new Response(
         JSON.stringify({

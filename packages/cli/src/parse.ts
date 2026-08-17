@@ -13,7 +13,7 @@ export type ParsedCommand =
   | { name: "help" }
   | {
       name: "login";
-      mode: "device" | "loopback" | "auto";
+      mode: "device" | "loopback" | "anonymous" | "auto";
       qrPreference: "auto" | "on" | "off";
       flags: GlobalFlags;
     }
@@ -79,10 +79,12 @@ export function parseArgs(argv: string[]): ParsedCommand {
     const device = takeFlag(args, "--device");
     const loopback = takeFlag(args, "--loopback");
     const noBrowser = takeFlag(args, "--no-browser");
+    const anonymous = takeFlag(args, "--anonymous") || takeFlag(args, "--guest");
     const qr = takeFlag(args, "--qr");
     const noQr = takeFlag(args, "--no-qr");
-    let mode: "device" | "loopback" | "auto" = "auto";
-    if (device || noBrowser) mode = "device";
+    let mode: "device" | "loopback" | "anonymous" | "auto" = "auto";
+    if (anonymous) mode = "anonymous";
+    else if (device || noBrowser) mode = "device";
     else if (loopback) mode = "loopback";
     let qrPreference: "auto" | "on" | "off" = "auto";
     if (noQr) qrPreference = "off";
@@ -163,6 +165,9 @@ export const SessionFileSchema = z.object({
   expiresAt: z.number().optional(),
   issuer: z.string().url(),
   clientId: z.string(),
+  /** Guest (provisional) session: claimable later, principal id preserved. */
+  anonymous: z.boolean().optional(),
+  principalId: z.string().optional(),
 });
 export type SessionFile = z.infer<typeof SessionFileSchema>;
 
@@ -170,7 +175,9 @@ export function helpText(): string {
   return `opensesame-id — OpenSesame identity CLI (alias: opensesame-identity)
 
 Commands:
-  login [--device|--loopback|--no-browser] [--qr|--no-qr]
+  login [--device|--loopback|--no-browser|--anonymous] [--qr|--no-qr]
+                  --anonymous (alias --guest): start as a provisional guest;
+                  link an identity later to keep the same principal id
   auth status
   logout
   whoami
