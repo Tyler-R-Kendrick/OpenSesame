@@ -227,7 +227,12 @@ async function dispatch(
       });
       const start = await device.start();
       if (!command.flags.json) {
-        process.stdout.write(`${device.formatInstructions(start)}\n\n`);
+        const wantQr =
+          command.qrPreference === "on" ||
+          (command.qrPreference === "auto" && Boolean(process.stdout.isTTY));
+        process.stdout.write(
+          `${device.formatInstructions(start, { qr: wantQr })}\n\n`,
+        );
       } else {
         emit(command.flags, "", {
           ok: true,

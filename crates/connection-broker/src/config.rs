@@ -31,6 +31,8 @@ pub struct BrokerConfig {
     redirect_allowlist: Vec<String>,
     providers: BTreeMap<String, ProviderConfig>,
     detected_connections: BTreeMap<String, BTreeMap<String, String>>,
+    /// Override for GitHub REST API (tests). Default `https://api.github.com`.
+    github_api_base: Option<String>,
 }
 
 impl std::fmt::Debug for BrokerConfig {
@@ -44,6 +46,7 @@ impl std::fmt::Debug for BrokerConfig {
                 "detected_connections",
                 &self.detected_connections.keys().collect::<Vec<_>>(),
             )
+            .field("github_api_base", &self.github_api_base)
             .finish()
     }
 }
@@ -101,6 +104,7 @@ impl BrokerConfig {
                 .collect(),
             providers,
             detected_connections,
+            github_api_base: None,
         })
     }
 
@@ -113,7 +117,20 @@ impl BrokerConfig {
             redirect_allowlist: Vec::new(),
             providers: BTreeMap::new(),
             detected_connections: BTreeMap::new(),
+            github_api_base: None,
         }
+    }
+
+    pub fn with_github_api_base(mut self, base: impl Into<String>) -> Self {
+        self.github_api_base = Some(base.into());
+        self
+    }
+
+    pub fn github_api_base(&self) -> &str {
+        self.github_api_base
+            .as_deref()
+            .unwrap_or("https://api.github.com")
+            .trim_end_matches('/')
     }
 
     pub fn with_provider(mut self, id: &str, cfg: ProviderConfig) -> Self {
@@ -185,9 +202,46 @@ impl BrokerConfig {
 
     /// A redirect target is either our own callback or an explicitly allowlisted
     /// origin. An open redirect here would hand the authorization code away.
+    /// Pages return URLs after GitHub App Manifest registration.
+    pub fn return_to_allowed(&self, return_to: &str) -> bool {
+        let Ok(url) = url::Url::parse(return_to) else {
+            return false;
+        };
+        if !matches!(url.scheme(), "http" | "https") {
+            return false;
+        }
+        let host = url.host_str().unwrap_or("");
+        if matches!(host, "127.0.0.1" | "localhost" | "[::1]") {
+            return true;
+        }
+        let origin = url.origin().ascii_serialization();
+        self.redirect_allowlist
+            .iter()
+            .any(|allowed| allowed == return_to || allowed.trim_end_matches('/') == origin)
+    }
+
     pub fn redirect_allowed(&self, provider_id: &str, redirect_uri: &str) -> bool {
         if redirect_uri == self.callback_url(provider_id) {
             return true;
+        }
+        // Loopback Hosts treat 127.0.0.1 and localhost as the same callback host.
+        if let (Ok(expected), Ok(actual)) = (
+            url::Url::parse(&self.callback_url(provider_id)),
+            url::Url::parse(redirect_uri),
+        ) {
+            let loopback_pair = |a: Option<&str>, b: Option<&str>| {
+                matches!(
+                    (a, b),
+                    (Some("127.0.0.1"), Some("localhost")) | (Some("localhost"), Some("127.0.0.1"))
+                )
+            };
+            if expected.scheme() == actual.scheme()
+                && expected.port_or_known_default() == actual.port_or_known_default()
+                && expected.path() == actual.path()
+                && loopback_pair(expected.host_str(), actual.host_str())
+            {
+                return true;
+            }
         }
         let Ok(url) = url::Url::parse(redirect_uri) else {
             return false;
@@ -283,6 +337,19 @@ fn detect_connection_configuration_with(
         configuration
             .entry("address".into())
             .or_insert_with(|| "http://127.0.0.1:8200".into());
+    }
+
+    if provider.id == "github" {
+        if let Some(token) = read_env("GITHUB_TOKEN")
+            .or_else(|| read_env("GH_TOKEN"))
+            .or_else(|| read_env(&env_var_name("github", "TOKEN")))
+        {
+            configuration.insert("access_token".into(), token);
+        }
+    }
+
+    if provider.id == "github" && configuration.contains_key("access_token") {
+        return Some(configuration);
     }
 
     provider

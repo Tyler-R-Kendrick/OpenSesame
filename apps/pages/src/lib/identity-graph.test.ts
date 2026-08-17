@@ -36,6 +36,7 @@ function provider(overrides: Partial<Provider> = {}): Provider {
     },
     operations: [],
     ...overrides,
+    callbackUrl: overrides.callbackUrl ?? null,
   };
 }
 
@@ -86,10 +87,17 @@ describe("identity graph", () => {
     ]);
   });
 
-  it("does not call a missing Host client needs-you", () => {
-    expect(providerVerb(provider({ configured: false }), null)).toBe(
-      "needs_install",
-    );
+  it("treats unconfigured OAuth apps as idle, not install errors", () => {
+    expect(providerVerb(provider({ configured: false }), null)).toBe("idle");
+    expect(
+      providerVerb(
+        provider({
+          configured: false,
+          missingConfig: ["OPENSESAME_CONNECTION_KEY"],
+        }),
+        null,
+      ),
+    ).toBe("needs_install");
     expect(connectionVerb("pending")).toBe("needs_you");
     expect(connectionVerb("error")).toBe("broken");
   });

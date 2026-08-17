@@ -105,8 +105,10 @@ export function loadConfig(
     logLevel: env.OPENSESAME_LOG_LEVEL ?? env.LOG_LEVEL ?? "info",
     allowPrincipalBearer,
     allowDevDefaults,
-    bootstrapPersonalOrganization:
-      !isProduction && allowDevDefaults && truthy(env.OPENSESAME_DEV_BOOTSTRAP),
+    // Pages (and Host device sessions) need an organization claim. Local/dev
+    // stacks mint a personal workspace with the provisional principal — do not
+    // gate that on OPENSESAME_DEV_BOOTSTRAP (Host demo seed only).
+    bootstrapPersonalOrganization: !isProduction && allowDevDefaults,
     isProduction,
     corsOrigins: (
       env.OPENSESAME_CORS_ORIGINS ??

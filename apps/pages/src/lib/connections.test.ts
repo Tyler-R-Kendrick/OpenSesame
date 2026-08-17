@@ -16,10 +16,14 @@ import {
   currentSession,
   identityFetch,
 } from "./identity.js";
-import { saveSettings } from "./settings.js";
+import {
+  saveSettings,
+  shippedHostApi,
+  shippedIdentityApi,
+} from "./settings.js";
 
-const HOST = "http://127.0.0.1:8787";
-const IDENTITY = "http://127.0.0.1:8788";
+const HOST = shippedHostApi;
+const IDENTITY = shippedIdentityApi;
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -38,6 +42,10 @@ function stubFetch(handler: (url: string, init?: RequestInit) => Response) {
 
 function stubHostFetch(handler: (url: string, init?: RequestInit) => Response) {
   return stubFetch((url, init) => {
+    if (url === `${HOST}/api/v1/session/local`) {
+      // Force Identity device-approval path in unit tests unless a test opts in.
+      return jsonResponse({ error: "demo_bootstrap_unavailable" }, 503);
+    }
     if (url === `${HOST}/api/v1/device/authorize`) {
       return jsonResponse({ device_code: "dc_pages", user_code: "ABCD-EFGH" });
     }
@@ -96,6 +104,11 @@ beforeEach(async () => {
     identityApi: IDENTITY,
     daemonApi: "http://127.0.0.1:18790",
     tursoUrl: "",
+    mfaAppUrl: "",
+    capabilityConnectors: {
+      encryption: { providerId: "webcrypto" },
+      history: { providerId: "github" },
+    },
   });
   stubFetch((url) => {
     if (url === `${IDENTITY}/v1/principals/me`) {
@@ -320,19 +333,102 @@ describe("transport", () => {
     ).toHaveLength(1);
   });
 
-  it("refuses Host access without an Identity session", async () => {
+  it("mints an OpenSesame provisional session before Host access", async () => {
     clearSession();
-    const spy = stubFetch(() => jsonResponse({ connections: [] }));
+    const spy = stubFetch((url) => {
+      if (url === `${IDENTITY}/v1/principals/me`) {
+        return jsonResponse({}, 401);
+      }
+      if (url === `${IDENTITY}/v1/principals/provisional`) {
+        return jsonResponse({
+          principalId: "principal_auto",
+          accessToken: "identity_auto",
+          expiresAt: "2099-01-01T00:00:00Z",
+        });
+      }
+      if (url === `${HOST}/api/v1/session/local`) {
+        return jsonResponse({ error: "demo_bootstrap_unavailable" }, 503);
+      }
+      if (url === `${HOST}/api/v1/device/authorize`) {
+        return jsonResponse({
+          device_code: "dc_auto",
+          user_code: "AUTO-CODE",
+        });
+      }
+      if (url === `${IDENTITY}/v1/device/approve`) {
+        return jsonResponse({ ok: true });
+      }
+      if (url === `${HOST}/api/v1/device/token`) {
+        return jsonResponse({
+          access_token: "opaque-session:sess_auto",
+          expires_in: 28_800,
+        });
+      }
+      if (url === `${HOST}/api/v1/connections`) {
+        return jsonResponse({ connections: [] });
+      }
+      return jsonResponse({ error: "unexpected" }, 500);
+    });
 
-    const error = await listConnections().catch((caught) => caught);
+    await listConnections();
 
-    expect((error as Error).message).toContain("Connect to Identity");
-    expect(spy).not.toHaveBeenCalled();
+    expect(currentSession()?.accessToken).toBe("identity_auto");
+    expect(
+      spy.mock.calls.some(
+        ([url]) => String(url) === `${IDENTITY}/v1/principals/provisional`,
+      ),
+    ).toBe(true);
+    expect(
+      spy.mock.calls.some(
+        ([url]) => String(url) === `${HOST}/api/v1/connections`,
+      ),
+    ).toBe(true);
+  });
+
+  it("uses Host-local session without Identity when available", async () => {
+    clearSession();
+    clearHostSession();
+    const spy = stubFetch((url) => {
+      if (url === `${HOST}/api/v1/session/local`) {
+        return jsonResponse({
+          access_token: "opaque-session:sess_local",
+          expires_in: 28_800,
+          local_session: true,
+        });
+      }
+      if (url === `${HOST}/api/v1/connections`) {
+        return jsonResponse({ connections: [] });
+      }
+      return jsonResponse({ error: "unexpected" }, 500);
+    });
+
+    await listConnections();
+
+    expect(currentSession()).toBeNull();
+    expect(
+      spy.mock.calls.some(
+        ([url]) => String(url) === `${HOST}/api/v1/session/local`,
+      ),
+    ).toBe(true);
+    expect(
+      spy.mock.calls.some(
+        ([url]) => String(url) === `${IDENTITY}/v1/principals/provisional`,
+      ),
+    ).toBe(false);
+    const conn = spy.mock.calls.find(
+      ([url]) => String(url) === `${HOST}/api/v1/connections`,
+    );
+    expect(new Headers(conn?.[1]?.headers).get("authorization")).toBe(
+      "Bearer opaque-session:sess_local",
+    );
   });
 
   it("classifies an unfinished organization setup as a Host-session gate", async () => {
     clearHostSession();
     stubFetch((url) => {
+      if (url === `${HOST}/api/v1/session/local`) {
+        return jsonResponse({ error: "demo_bootstrap_unavailable" }, 503);
+      }
       if (url === `${HOST}/api/v1/device/authorize`) {
         return jsonResponse({
           device_code: "dc_pages",
@@ -441,16 +537,35 @@ describe("awaiting consent", () => {
 });
 
 describe("locking", () => {
-  it("forgets Host authority with the Identity session", async () => {
-    const spy = stubHostFetch(() => jsonResponse({ connections: [] }));
+  it("forgets Host authority with the Identity session, then remints on next Host call", async () => {
+    const spy = stubHostFetch((url) => {
+      if (url === `${IDENTITY}/v1/principals/me`) {
+        return jsonResponse({}, 401);
+      }
+      if (url === `${IDENTITY}/v1/principals/provisional`) {
+        return jsonResponse({
+          principalId: "principal_remint",
+          accessToken: "identity_remint",
+          expiresAt: "2099-01-01T00:00:00Z",
+        });
+      }
+      return jsonResponse({ connections: [] });
+    });
     await listConnections();
 
     clearSession();
-    await expect(listConnections()).rejects.toThrow("Connect to Identity");
+    await listConnections();
+
+    expect(currentSession()?.accessToken).toBe("identity_remint");
     expect(
       spy.mock.calls.filter(
         ([url]) => String(url) === `${HOST}/api/v1/connections`,
       ),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
+    expect(
+      spy.mock.calls.filter(
+        ([url]) => String(url) === `${HOST}/api/v1/device/authorize`,
+      ),
+    ).toHaveLength(2);
   });
 });

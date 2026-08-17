@@ -25,6 +25,7 @@ const provider = (overrides: Partial<Provider> = {}): Provider => ({
   operations: [],
   configurationFields: [],
   ...overrides,
+  callbackUrl: overrides.callbackUrl ?? null,
 });
 
 describe("connector setup guidance", () => {

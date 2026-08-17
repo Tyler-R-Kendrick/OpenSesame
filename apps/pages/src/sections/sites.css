@@ -32,10 +32,50 @@
   background: var(--surface-2);
 }
 
+.sites-policy-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
 .sites-policy-title {
-  margin: 0 0 0.35rem;
+  margin: 0;
   font-size: 0.9375rem;
   font-weight: 650;
+}
+
+.sites-policy-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-pill, 999px);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.sites-policy-badge--public {
+  background: color-mix(in srgb, var(--ok, #2a7a4b) 16%, transparent);
+  color: var(--ok, #2a7a4b);
+}
+
+.sites-policy-badge--restricted {
+  background: color-mix(in srgb, var(--warn, #a86b12) 18%, transparent);
+  color: var(--warn, #a86b12);
+}
+
+.sites-domain-group {
+  margin-top: 0.85rem;
+}
+
+.sites-domain-group__title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--ink-2);
 }
 
 .sites-domain-add {

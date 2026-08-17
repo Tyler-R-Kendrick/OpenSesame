@@ -7,7 +7,19 @@ describe("parseArgs", () => {
     expect(cmd).toEqual({
       name: "login",
       mode: "device",
+      qrPreference: "auto",
       flags: { json: true },
+    });
+  });
+
+  it("parses login --device --qr and --no-qr", () => {
+    expect(parseArgs(["login", "--device", "--qr"])).toMatchObject({
+      name: "login",
+      qrPreference: "on",
+    });
+    expect(parseArgs(["login", "--device", "--no-qr"])).toMatchObject({
+      name: "login",
+      qrPreference: "off",
     });
   });
 

@@ -17,6 +17,14 @@ use std::{
 };
 
 #[derive(Clone)]
+pub struct GithubAppPending {
+    pub organization_id: OrganizationId,
+    pub created_by: String,
+    pub return_to: String,
+    pub expires_at: std::time::Instant,
+}
+
+#[derive(Clone)]
 pub struct DevicePending {
     /// `hash_secret(user_code)` — the low-entropy code is never held in cleartext.
     pub user_code_hash: String,
@@ -49,6 +57,8 @@ pub struct AppState {
     pub broker: Arc<Broker>,
     pub sessions: Arc<Mutex<HashMap<String, Value>>>,
     pub device_codes: Arc<Mutex<HashMap<String, DevicePending>>>,
+    /// Pending GitHub App Manifest handshakes (state → org + return_to).
+    pub github_app_pending: Arc<Mutex<HashMap<String, GithubAppPending>>>,
     /// Serializes device-token minting with principal/org session revocation.
     pub session_lifecycle: Arc<Mutex<()>>,
     /// Timestamps of failed `user_code` approval guesses (global cooldown fence).
@@ -130,6 +140,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         broker: Arc::new(boot.broker),
         sessions: Arc::new(Mutex::new(HashMap::new())),
         device_codes: Arc::new(Mutex::new(HashMap::new())),
+        github_app_pending: Arc::new(Mutex::new(HashMap::new())),
         session_lifecycle: Arc::new(Mutex::new(())),
         device_approve_failures: Arc::new(Mutex::new(Vec::new())),
         claims: Arc::new(Mutex::new(HashMap::new())),

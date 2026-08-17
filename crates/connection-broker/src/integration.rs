@@ -467,6 +467,58 @@ impl ConnectionBroker {
             .await
     }
 
+    /// Seal credentials from the GitHub App Manifest conversion as this
+    /// organization's GitHub integration so Authorize can run without env vars.
+    pub async fn register_github_app_credentials(
+        &self,
+        organization_id: &OrganizationId,
+        credentials: &crate::github_app::GithubAppCredentials,
+        created_by: &str,
+    ) -> Result<IntegrationView> {
+        let key = format!("github-app-{}", credentials.id);
+        if let Some(existing) = self
+            .list_integrations(organization_id)
+            .await?
+            .into_iter()
+            .find(|integration| {
+                integration.provider_id == "github"
+                    && integration.key == key
+                    && integration.source == IntegrationSource::Organization
+            })
+        {
+            return self
+                .update_integration(
+                    organization_id,
+                    &existing.id,
+                    UpdateIntegration {
+                        key: None,
+                        display_name: Some(credentials.name.clone()),
+                        enabled: Some(true),
+                        scopes: Some(crate::github_app::history_integration_scopes()),
+                        client_id: Some(credentials.client_id.clone()),
+                        client_secret: Some(credentials.client_secret.clone()),
+                        configuration_set: BTreeMap::new(),
+                        configuration_clear: Vec::new(),
+                    },
+                )
+                .await;
+        }
+        self.create_integration(
+            organization_id,
+            CreateIntegration {
+                key,
+                provider_id: "github".into(),
+                display_name: credentials.name.clone(),
+                scopes: crate::github_app::history_integration_scopes(),
+                client_id: Some(credentials.client_id.clone()),
+                client_secret: Some(credentials.client_secret.clone()),
+                configuration: BTreeMap::new(),
+                created_by: created_by.to_string(),
+            },
+        )
+        .await
+    }
+
     pub async fn update_integration(
         &self,
         organization_id: &OrganizationId,
@@ -621,15 +673,55 @@ impl ConnectionBroker {
         requested_id: Option<&str>,
     ) -> Result<(String, String, ProviderConfig, Vec<String>, Option<String>)> {
         let candidates = self.list_integrations(organization_id).await?;
-        let candidates: Vec<_> = candidates
+        let configured_candidates: Vec<_> = candidates
             .into_iter()
             .filter(|i| provider_id.is_none_or(|provider| i.provider_id == provider))
             .filter(|i| i.enabled && i.configured)
-            .filter(|i| requested_id.is_none_or(|id| i.id == id))
             .collect();
+        // A connection may still carry `deployment:github` from the PAT /
+        // unconfigured-env path. Once a tenant GitHub App is sealed, OAuth must
+        // prefer that org integration instead of failing on missing env vars.
+        let candidates: Vec<_> = if let Some(requested) = requested_id {
+            let exact: Vec<_> = configured_candidates
+                .iter()
+                .filter(|i| i.id == requested)
+                .cloned()
+                .collect();
+            if !exact.is_empty() {
+                exact
+            } else if requested.starts_with(DEPLOYMENT_PREFIX) {
+                configured_candidates
+            } else {
+                Vec::new()
+            }
+        } else {
+            configured_candidates
+        };
         let view = match candidates.as_slice() {
             [only] => only,
-            [] => return Err(BrokerError::IntegrationNotFound),
+            [] => {
+                // GitHub/GitLab history can seal a personal access token without an
+                // OAuth App. Still refuse when there is no sealing key — we would
+                // create a row we could never activate.
+                if let Some(provider_id) = provider_id.filter(|id| {
+                    crate::accepts_pasted_access_token(id) && self.config.key().is_some()
+                }) {
+                    let provider = self.provider(provider_id)?;
+                    let scopes: Vec<String> = provider
+                        .scopes
+                        .iter()
+                        .map(|scope| scope.name.to_string())
+                        .collect();
+                    return Ok((
+                        format!("{DEPLOYMENT_PREFIX}{provider_id}"),
+                        provider_id.to_string(),
+                        ProviderConfig::default(),
+                        scopes,
+                        None,
+                    ));
+                }
+                return Err(BrokerError::IntegrationNotFound);
+            }
             _ => return Err(BrokerError::IntegrationRequired),
         };
         if view.source != IntegrationSource::Organization {

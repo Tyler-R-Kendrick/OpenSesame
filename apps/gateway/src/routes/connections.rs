@@ -11,8 +11,8 @@ use axum::{
     Json,
 };
 use opensesame_connection_broker::{
-    parse_shareability, BindRequest, BindingTargetKind, BrokerError, CreateConnection,
-    CreateIntegration, UpdateIntegration,
+    accepts_pasted_access_token, parse_shareability, BindRequest, BindingTargetKind, BrokerError,
+    CreateConnection, CreateIntegration, UpdateIntegration,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -108,7 +108,7 @@ async fn owned(
     }
 }
 
-fn broker_error(e: BrokerError) -> Response {
+pub(crate) fn broker_error(e: BrokerError) -> Response {
     let status = StatusCode::from_u16(e.http_status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
     if matches!(
         e,
@@ -625,6 +625,38 @@ pub async fn set_credential(
             "configuration_set or configuration_clear is required".into(),
         ));
     }
+
+    // GitHub/GitLab history: a pasted personal access token is sealed as a
+    // bearer credential (no OAuth App required). Prefer this when the only
+    // secret field is `api_key` / the legacy `value` body.
+    if body.configuration_clear.is_empty()
+        && configuration_set.len() == 1
+        && (configuration_set.contains_key("api_key")
+            || configuration_set.contains_key("access_token"))
+    {
+        if let Ok(view) = st
+            .connection_broker
+            .get_connection(&organization_id, &id)
+            .await
+        {
+            if accepts_pasted_access_token(&view.provider_id) {
+                let token = configuration_set
+                    .get("access_token")
+                    .or_else(|| configuration_set.get("api_key"))
+                    .cloned()
+                    .unwrap_or_default();
+                return match st
+                    .connection_broker
+                    .set_access_token(&organization_id, &id, &token)
+                    .await
+                {
+                    Ok(view) => Json(view).into_response(),
+                    Err(e) => broker_error(e),
+                };
+            }
+        }
+    }
+
     match st
         .connection_broker
         .set_connection_configuration(
@@ -878,6 +910,102 @@ fn escape_html(raw: &str) -> String {
         }
     }
     out
+}
+
+/// List GitHub repositories for an authorized connection (Host-mediated egress).
+pub async fn list_github_repos(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+) -> Response {
+    let who = match authorize(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Err(resp) = owned(&st, &who, &organization_id, &id).await {
+        return resp;
+    }
+    match st
+        .connection_broker
+        .list_github_repos(&organization_id, &id)
+        .await
+    {
+        Ok(repos) => Json(json!({
+            "repositories": repos.iter().map(|r| json!({
+                "full_name": r.full_name,
+                "name": r.name,
+                "private": r.private,
+                "clone_url": r.clone_url,
+                "html_url": r.html_url,
+                "default_branch": r.default_branch,
+            })).collect::<Vec<_>>(),
+        }))
+        .into_response(),
+        Err(e) => broker_error(e),
+    }
+}
+
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CreateGithubRepoBody {
+    pub name: Option<String>,
+    /// Defaults to true — private password-store remotes.
+    pub private: Option<bool>,
+    pub description: Option<String>,
+}
+
+/// Create a GitHub repository (private by default) for sealed-store history.
+pub async fn create_github_repo(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+    body: String,
+) -> Response {
+    let who = match authorize(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Err(resp) = owned(&st, &who, &organization_id, &id).await {
+        return resp;
+    }
+    let body: CreateGithubRepoBody = match parse_body(&body) {
+        Ok(b) => b,
+        Err(resp) => return resp,
+    };
+    let name = body
+        .name
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("opensesame-passwords");
+    let private = body.private.unwrap_or(true);
+    match st
+        .connection_broker
+        .create_github_repo(
+            &organization_id,
+            &id,
+            name,
+            private,
+            body.description.as_deref(),
+        )
+        .await
+    {
+        Ok(repo) => (
+            StatusCode::CREATED,
+            Json(json!({
+                "full_name": repo.full_name,
+                "name": repo.name,
+                "private": repo.private,
+                "clone_url": repo.clone_url,
+                "html_url": repo.html_url,
+                "default_branch": repo.default_branch,
+            })),
+        )
+            .into_response(),
+        Err(e) => broker_error(e),
+    }
 }
 
 #[cfg(test)]

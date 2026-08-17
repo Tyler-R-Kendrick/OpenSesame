@@ -56,7 +56,7 @@ pub fn auto_commit(root: &Path, message: &str) -> Result<(), StoreError> {
         .status()
         .map_err(|e| StoreError::Git(e.to_string()))?;
     if !commit.success() {
-        // Non-fatal: store mutation already succeeded; caller can `opensesame git` later.
+        // Non-fatal: store mutation already succeeded; caller can `opensesame pass git` later.
         eprintln!("warning: git commit failed for sealed store (is user.email configured?)");
     }
     Ok(())
@@ -102,6 +102,7 @@ mod tests {
             &Entry {
                 secret: "x".into(),
                 trailer: String::new(),
+                otp: None,
             },
             &key,
         )

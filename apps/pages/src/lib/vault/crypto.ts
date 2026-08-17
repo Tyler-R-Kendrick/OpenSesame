@@ -3,10 +3,12 @@
  *
  * Master password → PBKDF2-SHA256 → master key (MK).
  * MK wraps a random 256-bit vault key (VK) with AES-GCM.
+ * Alternate unlocks (PIN, WebAuthn PRF) store additional wraps of the same VK.
  * VK seals the item collection with AES-GCM.
  *
- * Only ciphertext reaches OPFS. MK and VK exist as non-extractable CryptoKeys
- * for the life of the unlocked session and are dropped on lock.
+ * Only ciphertext reaches OPFS. VK is extractable in-memory so Settings can
+ * enroll extra wraps during an unlocked session; raw key material never hits
+ * durable storage. Keys are dropped on lock.
  */
 
 /** OWASP 2023 floor for PBKDF2-HMAC-SHA256. */
@@ -18,8 +20,8 @@ const IV_BYTES = 12;
 const VAULT_KEY_BYTES = 32;
 
 export class WrongPasswordError extends Error {
-  constructor() {
-    super("That master password did not unlock the vault.");
+  constructor(message = "That credential did not unlock the vault.") {
+    super(message);
     this.name = "WrongPasswordError";
   }
 }
@@ -40,9 +42,15 @@ export type KdfParams = {
 /** Plaintext header — safe to store unencrypted; reveals no vault content. */
 export type VaultHeader = {
   v: 1;
-  kdf: KdfParams;
-  /** AES-GCM(MK) over the raw vault key. */
-  wrap: SealedBlob;
+  /** Present when a master-password wrap is enrolled. */
+  kdf?: KdfParams;
+  /** AES-GCM(MK) over the raw vault key — password unlock. */
+  wrap?: SealedBlob;
+  /**
+   * Alternate unlock wraps (passkey PRF, PIN) and optional TOTP second factor.
+   * At least one of `wrap` or `unlocks.passkey` / `unlocks.pin` must exist.
+   */
+  unlocks?: import("./unlock-methods.js").VaultUnlocks;
   createdAt: string;
   /** Optional self-authored reminder. Never the password itself. */
   hint?: string;
@@ -118,8 +126,10 @@ async function decrypt(key: CryptoKey, blob: SealedBlob): Promise<Uint8Array> {
   return new Uint8Array(plain);
 }
 
-async function importVaultKey(raw: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", raw as BufferSource, "AES-GCM", false, [
+export async function importVaultKey(raw: Uint8Array): Promise<CryptoKey> {
+  // Extractable so Settings can enroll passkey/PIN wraps of the same vault key
+  // during an unlocked session. The raw key never reaches OPFS — only ciphertext.
+  return crypto.subtle.importKey("raw", raw as BufferSource, "AES-GCM", true, [
     "encrypt",
     "decrypt",
   ]);
@@ -166,8 +176,11 @@ export async function unlockVaultKey(
   header: VaultHeader,
   password: string,
 ): Promise<CryptoKey> {
-  if (header.v !== 1 || header.kdf.alg !== "PBKDF2-SHA256") {
+  if (header.v !== 1) {
     throw new VaultCorruptError("unsupported vault format");
+  }
+  if (!header.wrap || !header.kdf || header.kdf.alg !== "PBKDF2-SHA256") {
+    throw new VaultCorruptError("this vault has no master-password unlock");
   }
   // The wrap already binds these — derive with different ones and the tag fails —
   // so a header outside what this app ever writes is a tampered or damaged file,
@@ -202,6 +215,7 @@ export async function unlockVaultKey(
 /**
  * Re-wrap the same vault key under a new master password. Items are untouched,
  * so a password change never needs to decrypt and re-encrypt the collection.
+ * Passkey / PIN / TOTP unlock records are preserved on the header.
  */
 export async function rewrapVaultKey(
   header: VaultHeader,
@@ -210,6 +224,9 @@ export async function rewrapVaultKey(
   /** Omit to keep the existing hint; pass "" to clear it. */
   hint?: string,
 ): Promise<VaultHeader> {
+  if (!header.wrap || !header.kdf || header.kdf.alg !== "PBKDF2-SHA256") {
+    throw new VaultCorruptError("this vault has no master-password unlock");
+  }
   const currentMaster = await deriveMasterKey(
     currentPassword,
     b64ToBytes(header.kdf.saltB64),
@@ -241,10 +258,29 @@ export async function rewrapVaultKey(
     },
     wrap,
     createdAt: header.createdAt,
+    ...(header.unlocks ? { unlocks: header.unlocks } : {}),
     ...(nextHint ? { hint: nextHint } : {}),
     // The body is untouched by a re-key, so how far it has got carries over. A
     // fresh header would forget it and take the rollback check with it.
     ...(header.bodyRev !== undefined ? { bodyRev: header.bodyRev } : {}),
+  };
+}
+
+/** Wrap a raw vault key under a master password (enroll or re-add password unlock). */
+export async function wrapVaultKeyWithPassword(
+  rawVaultKey: Uint8Array,
+  password: string,
+): Promise<{ kdf: KdfParams; wrap: SealedBlob }> {
+  const salt = randomBytes(SALT_BYTES);
+  const masterKey = await deriveMasterKey(password, salt, PBKDF2_ITERATIONS);
+  const wrap = await encrypt(masterKey, rawVaultKey);
+  return {
+    kdf: {
+      alg: "PBKDF2-SHA256",
+      saltB64: bytesToB64(salt),
+      iterations: PBKDF2_ITERATIONS,
+    },
+    wrap,
   };
 }
 

@@ -16,6 +16,11 @@ thiserror = { workspace = true }
 zeroize = { workspace = true }
 age = { version = "0.11.1", features = ["armor"] }
 directories = "6.0.0"
+hmac = { workspace = true }
+sha1 = "0.10.6"
+sha2 = { workspace = true }
+url = { workspace = true }
+regex = "1.11.1"
 
 [dev-dependencies]
 tempfile = "3.20.0"
