@@ -2,6 +2,7 @@
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 
 mod app_state;
+mod backup;
 mod bootstrap;
 mod config;
 mod middleware;
@@ -21,6 +22,9 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     config::assert_cors_origins().map_err(anyhow::Error::msg)?;
     let state = app_state::build(args.clone()).await?;
+    // The backup actor drains the transactional outbox for the process's
+    // lifetime; secret mutations wake it via `backup_notify` (ADR 0039).
+    tokio::spawn(backup::run(state.clone()));
     let hsts = args.resource.starts_with("https://");
     let app = opensesame_host_core::http_security::apply_http_security(
         routes::router(state),

@@ -464,8 +464,70 @@ pub async fn activate_credential_unless_revoked(
             .bind(&now)
         .execute(&mut *transaction)
         .await?;
+    append_backup_outbox(
+        &mut transaction,
+        "connection.credential.stored",
+        &c.connection_id,
+        activation.event_kind.as_str(),
+    )
+    .await?;
     transaction.commit().await?;
     Ok(CredentialActivationOutcome::Activated)
+}
+
+/// Broadcast a secret-change event in the same transaction as the mutation it
+/// describes (transactional outbox, ADR 0039). The backup actor drains these;
+/// payloads carry references only, never material.
+async fn append_backup_outbox(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    event_type: &str,
+    connection_id: &str,
+    detail: &str,
+) -> Result<()> {
+    sqlx::query(
+        "INSERT INTO outbox_events (id, event_type, payload_json, created_at) VALUES (?, ?, ?, ?)",
+    )
+    .bind(uuid::Uuid::now_v7().to_string())
+    .bind(event_type)
+    .bind(
+        serde_json::json!({"connection_id": connection_id, "detail": detail}).to_string(),
+    )
+    .bind(Utc::now().to_rfc3339())
+    .execute(&mut **transaction)
+    .await?;
+    Ok(())
+}
+
+/// Every sealed credential row, for backup snapshots. Ciphertext only — the
+/// deployment key that opens these never travels with them (ADR 0039).
+pub async fn list_sealed_credentials(pool: &SqlitePool) -> Result<Vec<CredentialRow>> {
+    let rows = sqlx::query(
+        "SELECT connection_id, version, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, last_refreshed_at, configured_fields \
+         FROM connection_credentials ORDER BY connection_id",
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|r| CredentialRow {
+            connection_id: r.get("connection_id"),
+            version: r.get("version"),
+            sealed: SealedBlob {
+                ciphertext: r.get("ciphertext"),
+                nonce: r.get("nonce"),
+                aad_digest: r.get("aad_digest"),
+            },
+            token_type: r.get("token_type"),
+            expires_at: r
+                .get::<Option<String>, _>("expires_at")
+                .map(|s| parse_time(&s)),
+            refreshable: r.get::<i64, _>("refreshable") != 0,
+            last_refreshed_at: r
+                .get::<Option<String>, _>("last_refreshed_at")
+                .map(|s| parse_time(&s)),
+            configured_field_names: parse_list(&r.get::<String, _>("configured_fields")),
+        })
+        .collect())
 }
 
 pub async fn get_credential(
@@ -537,15 +599,31 @@ pub async fn clear_credential_unless_revoked(
         .bind(connection_id)
         .execute(&mut *transaction)
         .await?;
+    append_backup_outbox(
+        &mut transaction,
+        "connection.credential.cleared",
+        connection_id,
+        "cleared",
+    )
+    .await?;
     transaction.commit().await?;
     Ok(CredentialActivationOutcome::Activated)
 }
 
 pub async fn delete_credential(pool: &SqlitePool, connection_id: &str) -> Result<()> {
+    let mut transaction = pool.begin().await?;
     sqlx::query("DELETE FROM connection_credentials WHERE connection_id = ?")
         .bind(connection_id)
-        .execute(pool)
+        .execute(&mut *transaction)
         .await?;
+    append_backup_outbox(
+        &mut transaction,
+        "connection.credential.deleted",
+        connection_id,
+        "deleted",
+    )
+    .await?;
+    transaction.commit().await?;
     Ok(())
 }
 

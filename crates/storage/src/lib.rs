@@ -86,6 +86,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0007_provider_connections",
         include_str!("../../../migrations/0007_provider_connections.sql"),
     ),
+    (
+        "0008_backup_outbox",
+        include_str!("../../../migrations/0008_backup_outbox.sql"),
+    ),
 ];
 
 impl Db {
@@ -465,6 +469,7 @@ impl Db {
         wrapping_json: &str,
         ad_digest: &str,
     ) -> anyhow::Result<()> {
+        let mut transaction = self.pool.begin().await?;
         sqlx::query(
             "INSERT INTO encrypted_item_revisions (id, vault_id, item_id, revision, envelope_version, ciphertext, wrapping_json, ad_digest, created_at) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?)",
         )
@@ -476,8 +481,20 @@ impl Db {
         .bind(wrapping_json)
         .bind(ad_digest)
         .bind(Utc::now().to_rfc3339())
-        .execute(&self.pool)
+        .execute(&mut *transaction)
         .await?;
+        append_outbox_tx(
+            &mut transaction,
+            "vault.item_revision.written",
+            &serde_json::json!({
+                "vault_id": vault_id,
+                "item_id": item_id,
+                "revision": revision,
+            })
+            .to_string(),
+        )
+        .await?;
+        transaction.commit().await?;
         Ok(())
     }
 
@@ -513,6 +530,7 @@ impl Db {
             .bind(owner_id)
             .execute(&mut *transaction)
             .await?;
+            append_sync_blob_outbox(&mut transaction, owner_id, &blob.id, epoch).await?;
             transaction.commit().await?;
             return Ok(SyncWriteOutcome::Accepted);
         }
@@ -542,6 +560,7 @@ impl Db {
         .bind(Utc::now().to_rfc3339())
         .execute(&mut *transaction)
         .await?;
+        append_sync_blob_outbox(&mut transaction, owner_id, &blob.id, epoch).await?;
         transaction.commit().await?;
         Ok(SyncWriteOutcome::Accepted)
     }
@@ -626,6 +645,335 @@ impl Db {
         transaction.commit().await?;
         Ok(Some(cursor))
     }
+
+    // —— transactional outbox (ADR 0039) ————————————————————————
+
+    /// Broadcast a change event in its own transaction. Mutations that already
+    /// hold a transaction use [`append_outbox_tx`] instead, so the event and
+    /// the change it describes commit or roll back together.
+    pub async fn append_outbox(&self, event_type: &str, payload_json: &str) -> anyhow::Result<String> {
+        let mut transaction = self.pool.begin().await?;
+        let id = append_outbox_tx(&mut transaction, event_type, payload_json).await?;
+        transaction.commit().await?;
+        Ok(id)
+    }
+
+    /// Claim due unpublished events for one worker pass. Claimed rows have
+    /// their `available_at` pushed `lease_seconds` into the future, so a
+    /// crashed worker's claim expires instead of wedging the queue.
+    pub async fn claim_outbox_batch(
+        &self,
+        limit: i64,
+        lease_seconds: i64,
+    ) -> anyhow::Result<Vec<OutboxEvent>> {
+        let now = Utc::now();
+        let mut transaction = self.pool.begin().await?;
+        let rows = sqlx::query(
+            "SELECT id, event_type, payload_json, created_at, attempts FROM outbox_events \
+             WHERE published_at IS NULL AND (available_at IS NULL OR available_at <= ?) \
+             ORDER BY created_at, id LIMIT ?",
+        )
+        .bind(now.to_rfc3339())
+        .bind(limit)
+        .fetch_all(&mut *transaction)
+        .await?;
+        let events: Vec<OutboxEvent> = rows
+            .into_iter()
+            .map(|row| OutboxEvent {
+                id: row.get("id"),
+                event_type: row.get("event_type"),
+                payload_json: row.get("payload_json"),
+                created_at: row.get("created_at"),
+                attempts: row.get("attempts"),
+            })
+            .collect();
+        if !events.is_empty() {
+            let lease = (now + chrono::Duration::seconds(lease_seconds)).to_rfc3339();
+            for event in &events {
+                sqlx::query("UPDATE outbox_events SET available_at = ? WHERE id = ?")
+                    .bind(&lease)
+                    .bind(&event.id)
+                    .execute(&mut *transaction)
+                    .await?;
+            }
+        }
+        transaction.commit().await?;
+        Ok(events)
+    }
+
+    pub async fn mark_outbox_published(&self, ids: &[String]) -> anyhow::Result<()> {
+        let now = Utc::now().to_rfc3339();
+        let mut transaction = self.pool.begin().await?;
+        for id in ids {
+            sqlx::query("UPDATE outbox_events SET published_at = ?, last_error = NULL WHERE id = ?")
+                .bind(&now)
+                .bind(id)
+                .execute(&mut *transaction)
+                .await?;
+        }
+        transaction.commit().await?;
+        Ok(())
+    }
+
+    /// Compensation for a failed delivery: release the claim, count the
+    /// attempt, and back the event off so retries do not spin.
+    pub async fn park_outbox(
+        &self,
+        ids: &[String],
+        error: &str,
+        backoff_seconds: i64,
+    ) -> anyhow::Result<()> {
+        let available = (Utc::now() + chrono::Duration::seconds(backoff_seconds)).to_rfc3339();
+        let mut transaction = self.pool.begin().await?;
+        for id in ids {
+            sqlx::query(
+                "UPDATE outbox_events SET available_at = ?, attempts = attempts + 1, last_error = ? \
+                 WHERE id = ? AND published_at IS NULL",
+            )
+            .bind(&available)
+            .bind(error)
+            .bind(id)
+            .execute(&mut *transaction)
+            .await?;
+        }
+        transaction.commit().await?;
+        Ok(())
+    }
+
+    /// Terminal compensation for a poison event: record the failure and stop
+    /// retrying. Full-snapshot resync reconciles whatever the event described.
+    pub async fn dead_letter_outbox(&self, ids: &[String], error: &str) -> anyhow::Result<()> {
+        let now = Utc::now().to_rfc3339();
+        let mut transaction = self.pool.begin().await?;
+        for id in ids {
+            sqlx::query(
+                "UPDATE outbox_events SET published_at = ?, last_error = ? WHERE id = ? AND published_at IS NULL",
+            )
+            .bind(&now)
+            .bind(error)
+            .bind(id)
+            .execute(&mut *transaction)
+            .await?;
+        }
+        transaction.commit().await?;
+        Ok(())
+    }
+
+    pub async fn count_unpublished_outbox(&self) -> anyhow::Result<i64> {
+        Ok(sqlx::query(
+            "SELECT COUNT(*) AS count FROM outbox_events WHERE published_at IS NULL",
+        )
+        .fetch_one(&self.pool)
+        .await?
+        .get("count"))
+    }
+
+    // —— backup targets (ADR 0039) ——————————————————————————————
+
+    pub async fn upsert_backup_target(&self, target: &BackupTarget) -> anyhow::Result<()> {
+        let now = Utc::now().to_rfc3339();
+        sqlx::query(
+            "INSERT INTO backup_targets (organization_id, integration_id, installation_id, owner, repo, branch, enabled, status, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+             ON CONFLICT(organization_id) DO UPDATE SET \
+               integration_id = excluded.integration_id, \
+               installation_id = excluded.installation_id, \
+               owner = excluded.owner, \
+               repo = excluded.repo, \
+               branch = excluded.branch, \
+               enabled = excluded.enabled, \
+               status = excluded.status, \
+               last_error = NULL, \
+               updated_at = excluded.updated_at",
+        )
+        .bind(&target.organization_id)
+        .bind(&target.integration_id)
+        .bind(&target.installation_id)
+        .bind(&target.owner)
+        .bind(&target.repo)
+        .bind(&target.branch)
+        .bind(i64::from(target.enabled))
+        .bind(&target.status)
+        .bind(&now)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_backup_target(
+        &self,
+        organization_id: &str,
+    ) -> anyhow::Result<Option<BackupTarget>> {
+        let row = sqlx::query(
+            "SELECT organization_id, integration_id, installation_id, owner, repo, branch, enabled, status, last_commit_sha, last_synced_at, last_error \
+             FROM backup_targets WHERE organization_id = ?",
+        )
+        .bind(organization_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|row| BackupTarget {
+            organization_id: row.get("organization_id"),
+            integration_id: row.get("integration_id"),
+            installation_id: row.get("installation_id"),
+            owner: row.get("owner"),
+            repo: row.get("repo"),
+            branch: row.get("branch"),
+            enabled: row.get::<i64, _>("enabled") != 0,
+            status: row.get("status"),
+            last_commit_sha: row.get("last_commit_sha"),
+            last_synced_at: row.get("last_synced_at"),
+            last_error: row.get("last_error"),
+        }))
+    }
+
+    /// Record the outcome of a backup pass without touching the configuration.
+    pub async fn record_backup_outcome(
+        &self,
+        organization_id: &str,
+        status: &str,
+        last_commit_sha: Option<&str>,
+        last_error: Option<&str>,
+    ) -> anyhow::Result<()> {
+        sqlx::query(
+            "UPDATE backup_targets SET status = ?, \
+               last_commit_sha = COALESCE(?, last_commit_sha), \
+               last_synced_at = CASE WHEN ? IS NOT NULL THEN ? ELSE last_synced_at END, \
+               last_error = ?, updated_at = ? WHERE organization_id = ?",
+        )
+        .bind(status)
+        .bind(last_commit_sha)
+        .bind(last_commit_sha)
+        .bind(Utc::now().to_rfc3339())
+        .bind(last_error)
+        .bind(Utc::now().to_rfc3339())
+        .bind(organization_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn delete_backup_target(&self, organization_id: &str) -> anyhow::Result<()> {
+        sqlx::query("DELETE FROM backup_targets WHERE organization_id = ?")
+            .bind(organization_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Ciphertext rows a snapshot is built from. Only sealed bytes leave this
+    /// query; there is no plaintext anywhere in the backup path.
+    pub async fn list_encrypted_item_revisions(
+        &self,
+    ) -> anyhow::Result<Vec<EncryptedItemRevision>> {
+        let rows = sqlx::query(
+            "SELECT vault_id, item_id, revision, ciphertext, wrapping_json, ad_digest FROM encrypted_item_revisions ORDER BY vault_id, item_id, revision",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| EncryptedItemRevision {
+                vault_id: row.get("vault_id"),
+                item_id: row.get("item_id"),
+                revision: row.get("revision"),
+                ciphertext: row.get("ciphertext"),
+                wrapping_json: row.get("wrapping_json"),
+                ad_digest: row.get("ad_digest"),
+            })
+            .collect())
+    }
+
+    pub async fn list_all_sync_blobs(&self) -> anyhow::Result<Vec<(String, StoredSyncBlob)>> {
+        let rows = sqlx::query(
+            "SELECT id, owner_id, epoch, ciphertext FROM encrypted_sync_blobs ORDER BY owner_id, epoch, id",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                (
+                    row.get("owner_id"),
+                    StoredSyncBlob {
+                        id: row.get("id"),
+                        epoch: row.get::<i64, _>("epoch") as u64,
+                        ciphertext: row.get("ciphertext"),
+                    },
+                )
+            })
+            .collect())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct OutboxEvent {
+    pub id: String,
+    pub event_type: String,
+    pub payload_json: String,
+    pub created_at: String,
+    pub attempts: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BackupTarget {
+    pub organization_id: String,
+    pub integration_id: String,
+    pub installation_id: String,
+    pub owner: String,
+    pub repo: String,
+    pub branch: String,
+    pub enabled: bool,
+    pub status: String,
+    pub last_commit_sha: Option<String>,
+    pub last_synced_at: Option<String>,
+    pub last_error: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct EncryptedItemRevision {
+    pub vault_id: String,
+    pub item_id: String,
+    pub revision: i64,
+    pub ciphertext: Vec<u8>,
+    pub wrapping_json: String,
+    pub ad_digest: String,
+}
+
+/// Append a change event inside an open transaction — the transactional-outbox
+/// write that makes "every secret mutation broadcasts an event" crash-safe.
+/// Shared with `connection-broker`, which writes the same pool.
+pub async fn append_outbox_tx(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    event_type: &str,
+    payload_json: &str,
+) -> anyhow::Result<String> {
+    let id = uuid::Uuid::now_v7().to_string();
+    sqlx::query(
+        "INSERT INTO outbox_events (id, event_type, payload_json, created_at) VALUES (?, ?, ?, ?)",
+    )
+    .bind(&id)
+    .bind(event_type)
+    .bind(payload_json)
+    .bind(Utc::now().to_rfc3339())
+    .execute(&mut **transaction)
+    .await?;
+    Ok(id)
+}
+
+async fn append_sync_blob_outbox(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    owner_id: &str,
+    blob_id: &str,
+    epoch: i64,
+) -> anyhow::Result<()> {
+    append_outbox_tx(
+        transaction,
+        "sync.blob.written",
+        &serde_json::json!({"owner_id": owner_id, "blob_id": blob_id, "epoch": epoch}).to_string(),
+    )
+    .await?;
+    Ok(())
 }
 
 #[async_trait]
@@ -1098,5 +1446,153 @@ mod tests {
                 "{version} left a line comment inside a statement"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn outbox_claim_publish_park_dead_letter_lifecycle() {
+        let db = Db::connect_memory().await.unwrap();
+        let first = db
+            .append_outbox("sync.blob.written", r#"{"blob_id":"b1"}"#)
+            .await
+            .unwrap();
+        let second = db
+            .append_outbox("connection.credential.stored", r#"{"connection_id":"c1"}"#)
+            .await
+            .unwrap();
+        assert_eq!(db.count_unpublished_outbox().await.unwrap(), 2);
+
+        // Claiming leases the rows: a second immediate claim sees nothing.
+        let claimed = db.claim_outbox_batch(10, 60).await.unwrap();
+        assert_eq!(claimed.len(), 2);
+        assert_eq!(claimed[0].id, first);
+        assert!(db.claim_outbox_batch(10, 60).await.unwrap().is_empty());
+
+        // Success path.
+        db.mark_outbox_published(&[first.clone()]).await.unwrap();
+        assert_eq!(db.count_unpublished_outbox().await.unwrap(), 1);
+
+        // Compensation path: park releases the claim after the backoff.
+        db.park_outbox(&[second.clone()], "github 502", 0)
+            .await
+            .unwrap();
+        let retried = db.claim_outbox_batch(10, 60).await.unwrap();
+        assert_eq!(retried.len(), 1);
+        assert_eq!(retried[0].id, second);
+        assert_eq!(retried[0].attempts, 1);
+
+        // Terminal compensation: dead-letter records the error and stops retries.
+        db.dead_letter_outbox(&[second.clone()], "poison payload")
+            .await
+            .unwrap();
+        assert_eq!(db.count_unpublished_outbox().await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn sync_blob_writes_broadcast_an_outbox_event_atomically() {
+        let db = Db::connect_memory().await.unwrap();
+        let blob = StoredSyncBlob {
+            id: "blob-1".into(),
+            epoch: 1,
+            ciphertext: vec![1, 2, 3],
+        };
+        assert_eq!(
+            db.write_sync_blob("owner-1", &blob, 10, 10).await.unwrap(),
+            SyncWriteOutcome::Accepted
+        );
+        let events = db.claim_outbox_batch(10, 60).await.unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type, "sync.blob.written");
+        assert!(events[0].payload_json.contains("blob-1"));
+    }
+
+    #[tokio::test]
+    async fn backup_target_round_trip_and_outcome_recording() {
+        let db = Db::connect_memory().await.unwrap();
+        let organization = OrganizationId::new();
+        sqlx::query("INSERT INTO organizations (id, name, created_at) VALUES (?, 'Org', ?)")
+            .bind(organization.to_string())
+            .bind(Utc::now().to_rfc3339())
+            .execute(db.pool())
+            .await
+            .unwrap();
+        let target = BackupTarget {
+            organization_id: organization.to_string(),
+            integration_id: "github-app-1".into(),
+            installation_id: "12345678".into(),
+            owner: "acme".into(),
+            repo: "opensesame-passwords".into(),
+            branch: "main".into(),
+            enabled: true,
+            status: "pending".into(),
+            last_commit_sha: None,
+            last_synced_at: None,
+            last_error: None,
+        };
+        db.upsert_backup_target(&target).await.unwrap();
+        let loaded = db
+            .get_backup_target(&organization.to_string())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(loaded.repo, "opensesame-passwords");
+        assert!(loaded.enabled);
+
+        db.record_backup_outcome(&organization.to_string(), "ok", Some("abc123"), None)
+            .await
+            .unwrap();
+        let synced = db
+            .get_backup_target(&organization.to_string())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(synced.status, "ok");
+        assert_eq!(synced.last_commit_sha.as_deref(), Some("abc123"));
+        assert!(synced.last_synced_at.is_some());
+
+        // A failed pass keeps the last good commit but records the error.
+        db.record_backup_outcome(&organization.to_string(), "suspended", None, Some("401"))
+            .await
+            .unwrap();
+        let suspended = db
+            .get_backup_target(&organization.to_string())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(suspended.status, "suspended");
+        assert_eq!(suspended.last_commit_sha.as_deref(), Some("abc123"));
+        assert_eq!(suspended.last_error.as_deref(), Some("401"));
+    }
+
+    #[tokio::test]
+    async fn backup_outbox_migration_applies_to_an_already_migrated_database() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        for (version, sql) in MIGRATIONS {
+            if *version == "0008_backup_outbox" {
+                continue;
+            }
+            for statement in split_statements(sql) {
+                sqlx::query(&statement).execute(&pool).await.unwrap();
+            }
+        }
+        assert!(sqlx::query("SELECT 1 FROM backup_targets LIMIT 0")
+            .execute(&pool)
+            .await
+            .is_err());
+        for statement in split_statements(include_str!("../../../migrations/0008_backup_outbox.sql"))
+        {
+            sqlx::query(&statement).execute(&pool).await.unwrap();
+        }
+        sqlx::query("SELECT attempts FROM outbox_events LIMIT 0")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("SELECT 1 FROM backup_targets LIMIT 0")
+            .execute(&pool)
+            .await
+            .unwrap();
     }
 }

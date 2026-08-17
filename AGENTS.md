@@ -115,6 +115,12 @@ Sealed-store Settings bridge: export a path manifest in Pages, then
 `opensesame pass seal manifest.json --shred` encrypts it into the store and
 `opensesame pass backup` pushes ciphertext to the git remote. Importing a manifest
 in Pages merges by store path (idempotent), never duplicates.
+
+Server-side backup (ADR 0039): gateway-held secrets need no CLI at all —
+register the GitHub App (`POST /api/v1/providers/github/app`), install it on
+the org, then `PUT /api/v1/backup/target` once. Every credential/sync/vault
+mutation broadcasts an outbox event; the gateway's backup actor persists a
+full ciphertext snapshot to the repo with compensating retries/suspension.
 ## 4. Layout map
 
 | Path | Role |
@@ -167,7 +173,7 @@ in Pages merges by store path (idempotent), never duplicates.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0038).
+  0001–0039).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).

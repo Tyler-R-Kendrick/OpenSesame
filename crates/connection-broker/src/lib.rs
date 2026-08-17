@@ -15,6 +15,7 @@ pub mod egress;
 pub mod error;
 pub mod flow;
 pub mod github_app;
+pub mod installation;
 pub mod integration;
 pub mod model;
 pub mod store;
