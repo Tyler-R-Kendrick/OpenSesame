@@ -88,14 +88,12 @@ describe("control-plane API", () => {
   });
 
   it("seeds a personal workspace on device approve when provisional had none", async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(
-        new Response(JSON.stringify({ status: "approved" }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
-      );
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ status: "approved" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
     try {
       const { app, ctx } = createControlPlane({
         config: {
