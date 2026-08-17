@@ -4,11 +4,11 @@
  */
 
 import {
-  createItem,
-  newId,
   type Folder,
   type SecretItem,
   type VaultItem,
+  createItem,
+  newId,
 } from "./model.js";
 
 export type StorePlainEntry = {
@@ -58,7 +58,10 @@ export function mergeOtpauthIntoTrailer(
 }
 
 /** Split `Email/github.com` into folder + name. */
-export function splitStorePath(path: string): { folder: string | null; name: string } {
+export function splitStorePath(path: string): {
+  folder: string | null;
+  name: string;
+} {
   const trimmed = path.replace(/^\/+|\/+$/gu, "");
   const idx = trimmed.lastIndexOf("/");
   if (idx <= 0) {
@@ -96,7 +99,8 @@ export function entryToVaultItem(
   const { name } = splitStorePath(entry.path);
   const meta = parseTrailerMeta(entry.trailer);
   const otpauth = extractOtpauthFromTrailer(entry.trailer);
-  const kind = meta.kind === "secret" ? "secret" : meta.kind === "note" ? "note" : "login";
+  const kind =
+    meta.kind === "secret" ? "secret" : meta.kind === "note" ? "note" : "login";
 
   if (kind === "secret") {
     const item = createItem("secret", name) as SecretItem;
@@ -156,10 +160,11 @@ export function vaultItemToEntry(
     meta.connectionRef = item.connectionRef || undefined;
   } else if (item.kind === "note") {
     secret = item.notes;
-    delete meta.notes;
+    meta.notes = undefined;
   } else if (item.kind === "card") {
     secret = item.number;
-    meta.notes = [item.cardholder, item.notes].filter(Boolean).join("\n") || undefined;
+    meta.notes =
+      [item.cardholder, item.notes].filter(Boolean).join("\n") || undefined;
   } else {
     secret = item.credentialIdB64;
   }
@@ -196,11 +201,99 @@ export function entriesToVaultItems(
   entries: StorePlainEntry[],
   existingFolders: Folder[],
 ): { items: VaultItem[]; folders: Folder[] } {
-  const { folders, folderIdByName } = ensureFoldersForEntries(entries, existingFolders);
+  const { folders, folderIdByName } = ensureFoldersForEntries(
+    entries,
+    existingFolders,
+  );
   const items = entries.map((entry) => {
     const { folder } = splitStorePath(entry.path);
-    const folderId = folder ? (folderIdByName.get(folder.toLowerCase()) ?? null) : null;
+    const folderId = folder
+      ? (folderIdByName.get(folder.toLowerCase()) ?? null)
+      : null;
     return entryToVaultItem(entry, folderId);
   });
   return { items, folders };
+}
+
+export type ManifestMergePlan = {
+  /** Brand-new items to append. */
+  adds: VaultItem[];
+  /** Existing items with incoming content grafted on (same id, createdAt). */
+  updates: VaultItem[];
+  /** Entries identical to what the vault already holds. */
+  unchanged: number;
+  /** Folders the plan needs that do not exist yet. */
+  newFolders: Folder[];
+};
+
+function normalizedPath(path: string): string {
+  return path
+    .replace(/^\/+|\/+$/gu, "")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Merge manifest entries into the vault by store path instead of blind
+ * append, so re-importing the same manifest is idempotent rather than a
+ * duplicate of every item.
+ */
+export function planManifestMerge(
+  entries: StorePlainEntry[],
+  existingItems: VaultItem[],
+  existingFolders: Folder[],
+): ManifestMergePlan {
+  const byPath = new Map<string, VaultItem>();
+  for (const item of existingItems) {
+    if (item.deletedAt !== null) continue;
+    const entry = vaultItemToEntry(item, existingFolders);
+    byPath.set(normalizedPath(entry.path), item);
+  }
+
+  const { folders, folderIdByName } = ensureFoldersForEntries(
+    entries,
+    existingFolders,
+  );
+  const knownFolderIds = new Set(existingFolders.map((f) => f.id));
+  const newFolders = folders.filter((f) => !knownFolderIds.has(f.id));
+  const usedFolderIds = new Set<string>();
+
+  const adds: VaultItem[] = [];
+  const updates: VaultItem[] = [];
+  let unchanged = 0;
+  for (const entry of entries) {
+    const { folder } = splitStorePath(entry.path);
+    const folderId = folder
+      ? (folderIdByName.get(folder.toLowerCase()) ?? null)
+      : null;
+    const incoming = entryToVaultItem(entry, folderId);
+    const current = byPath.get(normalizedPath(entry.path));
+    if (!current) {
+      if (folderId) usedFolderIds.add(folderId);
+      adds.push(incoming);
+      continue;
+    }
+    const currentEntry = vaultItemToEntry(current, folders);
+    if (
+      currentEntry.secret === entry.secret &&
+      currentEntry.trailer.trim() === entry.trailer.trim()
+    ) {
+      unchanged += 1;
+      continue;
+    }
+    updates.push({
+      ...incoming,
+      id: current.id,
+      createdAt: current.createdAt,
+      folderId: current.folderId,
+      favorite: current.favorite,
+    });
+  }
+  return {
+    adds,
+    updates,
+    unchanged,
+    // Only materialize folders an added item actually landed in.
+    newFolders: newFolders.filter((f) => usedFolderIds.has(f.id)),
+  };
 }

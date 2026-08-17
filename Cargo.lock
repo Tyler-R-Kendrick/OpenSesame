@@ -2228,10 +2228,12 @@ name = "opensesame-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "chrono",
  "clap",
  "crossterm 0.29.0",
  "directories",
+ "jsonwebtoken",
  "opensesame-authn",
  "opensesame-connector-host",
  "opensesame-domain",
@@ -2243,6 +2245,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",

@@ -415,7 +415,11 @@ pub fn catalog() -> Vec<ProviderDefinition> {
             &[WorkloadIdentity],
             BOTH,
             "http:github-app",
-            &["GITHUB_APP_ID"],
+            &[
+                "GITHUB_APP_ID",
+                "GITHUB_APP_PRIVATE_KEY_PATH",
+                "GITHUB_APP_INSTALLATION_ID",
+            ],
         ),
         provider(
             "github-oauth",
@@ -489,6 +493,21 @@ pub struct ProviderProbe {
 /// Harmless local readiness probe. This never reads a secret and never upgrades
 /// support status; provider-specific live tests remain a separate evidence gate.
 pub fn probe_local(provider: &ProviderDefinition) -> ProviderProbe {
+    if provider.adapter == "http:github-app" {
+        let has = |name: &str| std::env::var(name).map(|v| !v.is_empty()).unwrap_or(false);
+        let configured =
+            has("GITHUB_APP_ID") && (has("GITHUB_APP_PRIVATE_KEY") || has("GITHUB_APP_PRIVATE_KEY_PATH"));
+        return ProviderProbe {
+            available: configured,
+            adapter: provider.adapter.clone(),
+            detail: if configured {
+                "GitHub App credentials configured; lease via opensesame CLI".into()
+            } else {
+                "set GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY_PATH to enable".into()
+            },
+            live: false,
+        };
+    }
     let Some(executable) = provider.adapter.strip_prefix("cli:") else {
         let builtin = matches!(
             provider.adapter.as_str(),
@@ -633,6 +652,16 @@ pub enum HumanProviderPlan {
         operation: HumanProviderOperation,
         store_dir: PathBuf,
         name: String,
+    },
+    /// GitHub App installation-token mint (RS256 app JWT → installation token).
+    /// Planned here; executed natively by the human CLI, which owns the signing
+    /// and HTTP implementation. Carries the key *path*, never key material.
+    /// Unset fields fall back to `GITHUB_APP_*` environment variables at
+    /// execution time.
+    GitHubApp {
+        app_id: Option<String>,
+        installation_id: Option<String>,
+        private_key_path: Option<String>,
     },
 }
 
@@ -836,6 +865,14 @@ fn config(config: &Value, key: &str) -> Result<String, ProviderExecutionError> {
         .filter(|value| !value.trim().is_empty())
         .map(str::to_owned)
         .ok_or_else(|| ProviderExecutionError::MissingConfig(key.into()))
+}
+
+fn config_opt(config: &Value, key: &str) -> Option<String> {
+    config
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_owned)
 }
 
 /// Build an argv-only provider operation. The resource is always one argument;
@@ -1235,6 +1272,15 @@ pub fn human_plan(
                 resource.into(),
             ],
         ),
+        // Resource is the installation id, or `auto` to let a single-install
+        // app resolve it. Connection config may pin app_id / key path.
+        ("github-app", HumanProviderOperation::Lease) => HumanProviderPlan::GitHubApp {
+            app_id: config_opt(public_config, "app_id"),
+            installation_id: config_opt(public_config, "installation_id").or_else(|| {
+                (resource != "auto").then(|| resource.to_string())
+            }),
+            private_key_path: config_opt(public_config, "private_key_path"),
+        },
         ("custom-command", HumanProviderOperation::Lease) => {
             let executable = config(public_config, "executable")?;
             let args = public_config
@@ -1283,6 +1329,12 @@ pub fn execute_human_plan(plan: HumanProviderPlan) -> Result<String, ProviderExe
             store_dir,
             name,
         } => execute_sealed_store(operation, &store_dir, &name),
+        // The mint needs RS256 signing and GitHub API calls, which live in the
+        // CLI (`opensesame lease acquire`). Agent/MCP surfaces reach this arm
+        // and are refused — an installation token is human-lease material.
+        HumanProviderPlan::GitHubApp { .. } => Err(ProviderExecutionError::Unavailable(
+            "github-app leases are minted by the opensesame CLI".into(),
+        )),
     }
 }
 
@@ -1415,7 +1467,57 @@ mod tests {
             HumanProviderPlan::SealedStore { store_dir, .. } => {
                 assert_eq!(store_dir, PathBuf::from("/tmp/store"));
             }
-            HumanProviderPlan::Environment(_) => panic!("unexpected environment"),
+            other => panic!("unexpected plan {other:?}"),
+        }
+    }
+
+    #[test]
+    fn github_app_plan_is_native_and_never_carries_key_material() {
+        let plan = human_plan(
+            "github-app",
+            HumanProviderOperation::Lease,
+            "12345678",
+            &serde_json::json!({
+                "app_id": "424242",
+                "private_key_path": "/keys/app.pem"
+            }),
+        )
+        .unwrap();
+        match &plan {
+            HumanProviderPlan::GitHubApp {
+                app_id,
+                installation_id,
+                private_key_path,
+            } => {
+                assert_eq!(app_id.as_deref(), Some("424242"));
+                assert_eq!(installation_id.as_deref(), Some("12345678"));
+                // The plan names a file; the PEM itself must never enter a plan.
+                assert_eq!(private_key_path.as_deref(), Some("/keys/app.pem"));
+            }
+            other => panic!("unexpected plan {other:?}"),
+        }
+        // connector-host itself refuses to execute it — the CLI owns the mint,
+        // so no agent/MCP surface can reach a token through this crate.
+        assert!(matches!(
+            execute_human_plan(plan),
+            Err(ProviderExecutionError::Unavailable(_))
+        ));
+    }
+
+    #[test]
+    fn github_app_auto_resource_defers_installation_resolution() {
+        let plan = human_plan(
+            "github-app",
+            HumanProviderOperation::Lease,
+            "auto",
+            &serde_json::json!({}),
+        )
+        .unwrap();
+        match plan {
+            HumanProviderPlan::GitHubApp {
+                installation_id, ..
+            } => assert!(installation_id.is_none()),
+            other => panic!("unexpected plan {other:?}"),
         }
     }
 

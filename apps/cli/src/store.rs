@@ -7,9 +7,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use opensesame_sealed_store::{
     apply_secret_update, default_tombs_config_path, ensure_git_repo, generate_password,
-    git_passthrough, init_store, init_store_key, load_tomb_registry, parse_otpauth,
-    resolve_store_dir, resolve_tomb_paths, save_tomb_registry, totp_code, unlock_store_key,
-    validate_otpauth, Entry, TombBackend, TombEntry, UpdateMode, UpdateOptions, StoreRoot,
+    git_passthrough, init_store, init_store_key, load_tomb_registry, parse_manifest, parse_otpauth,
+    push_backup, remote_url, resolve_store_dir, resolve_tomb_paths, save_tomb_registry,
+    seal_manifest, set_auto_push, set_remote, totp_code, unlock_store_key, validate_otpauth, Entry,
+    TombBackend, TombEntry, UpdateMode, UpdateOptions, StoreRoot,
 };
 use regex::Regex;
 
@@ -28,7 +29,7 @@ fn prompt_password(prompt: &str) -> anyhow::Result<String> {
             return Ok(p);
         }
     }
-    prompt_line(prompt)
+    prompt_secret_hidden(prompt)
 }
 
 fn prompt_line(prompt: &str) -> anyhow::Result<String> {
@@ -39,9 +40,37 @@ fn prompt_line(prompt: &str) -> anyhow::Result<String> {
     Ok(line.trim_end_matches(['\r', '\n']).to_string())
 }
 
+/// Read a secret without echoing it — `pass` parity. Non-TTY stdin (pipes,
+/// heredocs) falls back to a plain line read, since nothing echoes there.
 fn prompt_secret_hidden(prompt: &str) -> anyhow::Result<String> {
-    // Best-effort: still line-based (no rpassword dep); echo off is not guaranteed.
-    prompt_line(prompt)
+    use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
+    if !io::stdin().is_terminal() {
+        return prompt_line(prompt);
+    }
+    eprint!("{prompt}: ");
+    let _ = io::stderr().flush();
+    crossterm::terminal::enable_raw_mode()?;
+    let mut buf = String::new();
+    let outcome = loop {
+        match crossterm::event::read() {
+            Ok(Event::Key(key)) if key.kind != KeyEventKind::Release => match key.code {
+                KeyCode::Enter => break Ok(buf.clone()),
+                KeyCode::Backspace => {
+                    buf.pop();
+                }
+                KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    break Err(anyhow::anyhow!("interrupted"));
+                }
+                KeyCode::Char(c) => buf.push(c),
+                _ => {}
+            },
+            Ok(_) => {}
+            Err(error) => break Err(error.into()),
+        }
+    };
+    let _ = crossterm::terminal::disable_raw_mode();
+    eprintln!();
+    outcome
 }
 
 /// Resolve store root: explicit `--path` > `--tomb` / active registry > env defaults.
@@ -74,21 +103,33 @@ fn open_unlocked(
     Ok((root, key))
 }
 
-pub fn cmd_init(path: Option<PathBuf>, recipients: Vec<String>, git: bool) -> anyhow::Result<()> {
+pub fn cmd_init(
+    path: Option<PathBuf>,
+    recipients: Vec<String>,
+    git: bool,
+    remote: Option<String>,
+) -> anyhow::Result<()> {
     let root_path = path.unwrap_or_else(resolve_store_dir);
     init_store(&root_path, &recipients).map_err(|e| anyhow::anyhow!("{e}"))?;
     let password = prompt_password("New store passphrase")?;
     let confirm = if std::env::var("OPENSESAME_STORE_PASSWORD").is_ok() {
         password.clone()
     } else {
-        prompt_line("Confirm passphrase")?
+        prompt_secret_hidden("Confirm passphrase")?
     };
     if password != confirm {
         anyhow::bail!("passphrases do not match");
     }
     init_store_key(&root_path, password.as_bytes()).map_err(|e| anyhow::anyhow!("{e}"))?;
-    if git {
+    if git || remote.is_some() {
         ensure_git_repo(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
+        if let Some(url) = &remote {
+            set_remote(&root_path, url).map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
+        // The key and recipients files are part of the store's history from
+        // commit one, so a clone restores an openable store.
+        opensesame_sealed_store::auto_commit(&root_path, "Initialize sealed store")
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
     }
     println!("initialized sealed store at {}", root_path.display());
     Ok(())
@@ -101,8 +142,12 @@ pub fn cmd_insert(
     tomb: Option<String>,
 ) -> anyhow::Result<()> {
     let (root, key) = open_unlocked(path, tomb.as_deref())?;
-    let _ = echo;
-    let secret = prompt_line(&format!("Enter password for {name}"))?;
+    let prompt = format!("Enter password for {name}");
+    let secret = if echo {
+        prompt_line(&prompt)?
+    } else {
+        prompt_secret_hidden(&prompt)?
+    };
     root.insert(
         &name,
         &Entry {
@@ -196,7 +241,9 @@ pub fn cmd_cp(
     tomb: Option<String>,
 ) -> anyhow::Result<()> {
     let (root, key) = open_unlocked(path, tomb.as_deref())?;
-    root.cp(&from, &to, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let age_id = std::env::var("OPENSESAME_AGE_IDENTITY").ok();
+    root.cp(&from, &to, &key, age_id.as_deref())
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(())
 }
 
@@ -207,13 +254,114 @@ pub fn cmd_mv(
     tomb: Option<String>,
 ) -> anyhow::Result<()> {
     let (root, key) = open_unlocked(path, tomb.as_deref())?;
-    root.mv(&from, &to, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let age_id = std::env::var("OPENSESAME_AGE_IDENTITY").ok();
+    root.mv(&from, &to, &key, age_id.as_deref())
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(())
 }
 
 pub fn cmd_git(args: Vec<String>, path: Option<PathBuf>, tomb: Option<String>) -> anyhow::Result<i32> {
     let root_path = resolve_root(path, tomb.as_deref())?;
     git_passthrough(&root_path, &args).map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+/// Seal a Pages "store path manifest" (plaintext JSON export) into encrypted
+/// entries, then optionally shred the manifest so plaintext never lingers.
+pub fn cmd_seal(
+    manifest: PathBuf,
+    replace: bool,
+    shred: bool,
+    path: Option<PathBuf>,
+    tomb: Option<String>,
+) -> anyhow::Result<()> {
+    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let json = std::fs::read_to_string(&manifest)?;
+    let entries = parse_manifest(&json).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let outcome =
+        seal_manifest(&root, &key, &entries, replace).map_err(|e| anyhow::anyhow!("{e}"))?;
+    if shred {
+        shred_file(&manifest)?;
+    }
+    println!(
+        "{}",
+        serde_json::json!({
+            "sealed": outcome.sealed,
+            "skipped": outcome.skipped,
+            "rejected": outcome
+                .rejected
+                .iter()
+                .map(|(name, reason)| serde_json::json!({"path": name, "reason": reason}))
+                .collect::<Vec<_>>(),
+            "manifest_shredded": shred,
+            "store": root.path,
+        })
+    );
+    if !shred {
+        eprintln!(
+            "reminder: {} is plaintext — delete it (or re-run with --shred); never commit it",
+            manifest.display()
+        );
+    }
+    Ok(())
+}
+
+/// Best-effort overwrite-then-remove for a plaintext manifest. Not proof
+/// against journaling filesystems, but better than leaving the bytes named.
+fn shred_file(path: &Path) -> anyhow::Result<()> {
+    if let Ok(meta) = std::fs::metadata(path) {
+        let zeros = vec![0u8; meta.len() as usize];
+        let _ = std::fs::write(path, &zeros);
+    }
+    std::fs::remove_file(path)?;
+    Ok(())
+}
+
+/// Commit outstanding changes and push the store to its backup remote.
+/// GitHub HTTPS remotes authenticate via `GITHUB_TOKEN`/`GH_TOKEN`, a
+/// configured GitHub App (installation token minted on the fly), or an
+/// ambient `gh` login — in that order; other remotes use git's own helpers.
+pub async fn cmd_backup(
+    remote: Option<String>,
+    auto_push: Option<bool>,
+    path: Option<PathBuf>,
+    tomb: Option<String>,
+) -> anyhow::Result<()> {
+    let root_path = resolve_root(path, tomb.as_deref())?;
+    let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
+    ensure_git_repo(&root.path).map_err(|e| anyhow::anyhow!("{e}"))?;
+    opensesame_sealed_store::auto_commit(&root.path, "Backup sealed store")
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    if let Some(url) = &remote {
+        set_remote(&root.path, url).map_err(|e| anyhow::anyhow!("{e}"))?;
+    }
+    if let Some(enabled) = auto_push {
+        set_auto_push(&root.path, enabled).map_err(|e| anyhow::anyhow!("{e}"))?;
+    }
+    let Some(url) = remote_url(&root.path) else {
+        anyhow::bail!(
+            "no backup remote configured — run `opensesame pass backup --remote <url>` once"
+        );
+    };
+    let token = if is_github_https(&url) {
+        crate::github::resolve_push_token().await
+    } else {
+        None
+    };
+    push_backup(&root.path, token.as_deref()).map_err(|e| anyhow::anyhow!("{e}"))?;
+    println!(
+        "{}",
+        serde_json::json!({
+            "status": "pushed",
+            "remote": url,
+            "auth": if token.is_some() { "github-token" } else { "ambient-git" },
+            "auto_push": opensesame_sealed_store::auto_push_enabled(&root.path),
+        })
+    );
+    Ok(())
+}
+
+fn is_github_https(url: &str) -> bool {
+    url.starts_with("https://github.com/") || url.starts_with("https://www.github.com/")
 }
 
 // —— OTP ——————————————————————————————————————————————————
@@ -575,6 +723,14 @@ mod tests {
     #[test]
     fn require_reveal_allows_flag() {
         assert!(require_reveal(true).is_ok());
+    }
+
+    #[test]
+    fn github_token_injection_is_https_github_only() {
+        assert!(is_github_https("https://github.com/me/store.git"));
+        assert!(!is_github_https("https://gitlab.com/me/store.git"));
+        assert!(!is_github_https("git@github.com:me/store.git"));
+        assert!(!is_github_https("https://github.com.evil.example/x.git"));
     }
 
     #[test]

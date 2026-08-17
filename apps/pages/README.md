@@ -122,9 +122,12 @@ or paste a **personal access token** with `repo` scope — Host seals it and nev
 returns it to the browser. Then pick or create a private `opensesame-passwords`
 repo. Host also auto-discovers `GITHUB_TOKEN` / `GH_TOKEN` when present.
 **Settings → Git sealed store** exports or imports a path manifest that maps vault
-items to `pass`-style paths (`Folder/name`). Seal those values with the Host CLI
-(`opensesame pass insert` / `pass show`) before committing ciphertext to git. Agents never
-see the manifest — they use ConnectionRefs only (ADR 0005 / 0037).
+items to `pass`-style paths (`Folder/name`). Seal the manifest with the Host CLI —
+`opensesame pass seal manifest.json --shred` encrypts every entry into the store and
+deletes the plaintext — then `opensesame pass backup` pushes ciphertext to the store's
+git remote. Importing a manifest here merges by store path (re-imports are
+idempotent). Agents never see the manifest — they use ConnectionRefs only
+(ADR 0005 / 0037 / 0038).
 
 ## Browser database
 
