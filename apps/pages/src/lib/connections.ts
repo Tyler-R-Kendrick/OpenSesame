@@ -133,6 +133,8 @@ export type Connection = {
   logicalName: string;
   displayName: string;
   providerId: string;
+  /** Tenant integration that sealed this connection's OAuth/App credentials. */
+  integrationId: string | null;
   status: ConnectionStatus;
   statusDetail: string | null;
   organizationId: string;
@@ -271,6 +273,7 @@ function toConnection(value: unknown): Connection {
     logicalName: raw.logical_name,
     displayName: raw.display_name,
     providerId: raw.provider_id,
+    integrationId: raw.integration_id,
     status: raw.status,
     statusDetail: raw.status_detail,
     organizationId: raw.organization_id,
@@ -313,6 +316,8 @@ export type Integration = {
   enabled: boolean;
   configured: boolean;
   scopes: string[];
+  /** Public GitHub App page when this is a tenant App integration. */
+  githubAppHtmlUrl: string | null;
 };
 
 export type GithubAppRegistration = {
@@ -324,6 +329,8 @@ export type GithubAppRegistration = {
 
 function toIntegration(value: unknown): Integration {
   const raw = value as Record<string, unknown>;
+  const html =
+    typeof raw.github_app_html_url === "string" ? raw.github_app_html_url.trim() : "";
   return {
     id: String(raw.id ?? ""),
     key: String(raw.key ?? ""),
@@ -333,6 +340,8 @@ function toIntegration(value: unknown): Integration {
     enabled: Boolean(raw.enabled),
     configured: Boolean(raw.configured),
     scopes: Array.isArray(raw.scopes) ? raw.scopes.map(String) : [],
+    githubAppHtmlUrl:
+      html.startsWith("https://github.com/apps/") ? html : null,
   };
 }
 

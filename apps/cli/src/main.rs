@@ -248,6 +248,16 @@ enum ConnectionCmd {
         #[arg(long)]
         config: Option<String>,
     },
+    /// Request credential rotation (never returns secrets).
+    Rotate {
+        id: String,
+        #[arg(long)]
+        interval: Option<String>,
+        #[arg(long)]
+        project: Option<String>,
+        #[arg(long)]
+        execute_now: bool,
+    },
     Remove {
         id: String,
     },
@@ -456,7 +466,7 @@ enum PassCmd {
         #[command(subcommand)]
         cmd: PassOtpCmd,
     },
-    /// Update / rotate secrets (pass-update parity).
+    /// Update / rotate secrets (pass-update parity). Prints new secret (human TTY).
     Update {
         #[arg(required = true)]
         names: Vec<String>,
@@ -476,6 +486,34 @@ enum PassCmd {
         exclude: Option<String>,
         #[arg(short = 'f', long)]
         force: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Rotate first-line secrets without printing plaintext unless `--reveal`.
+    Rotate {
+        #[arg(required = true)]
+        names: Vec<String>,
+        #[arg(short = 'l', long, default_value_t = 32)]
+        length: usize,
+        #[arg(short = 'a', long)]
+        auto_length: bool,
+        #[arg(short = 'n', long)]
+        no_symbols: bool,
+        #[arg(short = 'p', long)]
+        provide: bool,
+        #[arg(short = 'm', long)]
+        multiline: bool,
+        #[arg(short = 'i', long)]
+        include: Option<String>,
+        #[arg(short = 'e', long)]
+        exclude: Option<String>,
+        #[arg(short = 'f', long)]
+        force: bool,
+        /// Print the new secret (TTY / human only — never for agents).
+        #[arg(long)]
+        reveal: bool,
         #[arg(long)]
         path: Option<PathBuf>,
         #[arg(long)]
@@ -834,6 +872,35 @@ async fn main() -> anyhow::Result<()> {
                     exclude,
                     force,
                 },
+                path,
+                tomb,
+            )?,
+            PassCmd::Rotate {
+                names,
+                length,
+                auto_length,
+                no_symbols,
+                provide,
+                multiline,
+                include,
+                exclude,
+                force,
+                reveal,
+                path,
+                tomb,
+            } => store::cmd_rotate(
+                names,
+                store::UpdateCliOpts {
+                    length,
+                    auto_length,
+                    no_symbols,
+                    provide,
+                    multiline,
+                    include,
+                    exclude,
+                    force,
+                },
+                reveal,
                 path,
                 tomb,
             )?,
@@ -1504,6 +1571,48 @@ async fn connection_cmd(server: &str, output: &str, cmd: ConnectionCmd) -> anyho
                 .error_for_status()?
                 .json()
                 .await?
+        }
+        ConnectionCmd::Rotate {
+            id,
+            interval,
+            project,
+            execute_now,
+        } => {
+            let mut body = json!({
+                "connection_id": id,
+                "execute_now": execute_now,
+            });
+            if let Some(interval) = interval {
+                body["interval"] = json!(interval);
+            }
+            if let Some(project) = project {
+                body["project_id"] = json!(project);
+            }
+            let result: serde_json::Value = client
+                .post(format!("{base}/api/v1/rotations"))
+                .bearer_auth(&token)
+                .json(&body)
+                .send()
+                .await?
+                .error_for_status()?
+                .json()
+                .await?;
+            for forbidden in [
+                "secret",
+                "password",
+                "token",
+                "access_token",
+                "refresh_token",
+                "api_key",
+                "value",
+            ] {
+                if result.get(forbidden).is_some() {
+                    anyhow::bail!(
+                        "Host rotation response unexpectedly included `{forbidden}`"
+                    );
+                }
+            }
+            result
         }
         ConnectionCmd::Remove { id } => {
             client

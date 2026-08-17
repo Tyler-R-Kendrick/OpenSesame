@@ -10,7 +10,7 @@ and connector decisions stay honest about parity and deliberate gaps.
 | Tomb | Adjacent / inspiration | Linux dm-crypt volume + key separation; motivates multi-tomb registry | [`tomb.md`](tomb.md) |
 | Infisical | Craft bar (agents) | Agent/secret delivery (`infisical run`, Agent Proxy) | [`infisical.md`](infisical.md) |
 | Bitwarden | Craft bar (human UI habits) | Password-manager UX (+ Secrets Manager SKU); never brand marks | [`bitwarden.md`](bitwarden.md) |
-| Doppler | Adjacent / craft bar | Cloud secrets platform + env injection CLI | [`doppler.md`](doppler.md) |
+| Doppler | Adjacent / craft bar | Cloud secrets platform + env injection CLI; capability parity via Host projects / SyncTarget / changelog — not a clone; catalog `doppler` ≠ this feature set | [`doppler.md`](doppler.md) |
 | HashiCorp Vault / OpenBao | Provider / prior art | Dynamic secrets, transit, PKI | [`hashicorp-vault.md`](hashicorp-vault.md) |
 | fnox | Peer / compatibility | Multi-provider secrets CLI; Host catalog Fnox parity | [`fnox.md`](fnox.md) |
 | SOPS | Adjacent | Encrypted structured config in git (GitOps) | [`sops.md`](sops.md) |
@@ -33,6 +33,15 @@ the same category.
 Pattern for new entries: add `docs/competitors/<slug>.md` with overview →
 feature surface → differentiators → OpenSesame mapping, then link it from this
 table.
+
+### Platform foundations (not a competitor page)
+
+NATS JetStream is OpenSesame’s greenfield TaskBus (ADR 0002 / ADR 0042), not a
+secrets-platform peer. Architecture:
+[`docs/architecture/task-bus-nats.md`](../architecture/task-bus-nats.md).
+Doppler’s sync/changelog habits map to Host SyncTarget + durable audit
+([ADR 0041](../adr/0041-projects-sync-targets-and-secret-changelog.md)); do not
+invent a fake “NATS competitor” row.
 
 ## Sources and fair use
 

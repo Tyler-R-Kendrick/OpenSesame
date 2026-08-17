@@ -63,6 +63,23 @@ export const fixtures = {
     };
   },
 
+  /** Default personal project for a verified (or provisional) principal. */
+  personalProject(overrides: Partial<Project> = {}): Project {
+    return {
+      id: "prj_personal_001",
+      kind: "personal",
+      slug: "personal",
+      displayName: "Personal",
+      state: "active",
+      ownerPrincipalId: "prn_test_verified_001",
+      sealedStoreTombName: "personal",
+      pagesVaultFolderId: "vault_folder_personal",
+      createdAt: FIXED_NOW,
+      updatedAt: FIXED_NOW,
+      ...overrides,
+    };
+  },
+
   provisionalResource(overrides: Partial<Resource> = {}): Resource {
     const manifest = { kind: "env", name: "demo" };
     return {

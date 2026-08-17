@@ -21,6 +21,7 @@ import {
 } from "./Icons.js";
 import { RailPlaneStatus } from "./PlaneNote.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
+import { BackupRecoverabilityBanner } from "./BackupRecoverabilityBanner.js";
 
 const SECTIONS = [
   { to: "/vault", label: "Vault", Icon: IconVault },
@@ -218,6 +219,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             Lock
           </button>
         </header>
+
+        <BackupRecoverabilityBanner />
 
         {children}
 

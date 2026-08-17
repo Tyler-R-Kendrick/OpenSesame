@@ -14,8 +14,8 @@ use crate::app_state::AppState;
 use crate::middleware::auth::{require_session, session_subject};
 
 #[derive(Deserialize)]
-pub struct SyncPushBody {
-    blobs: Vec<SyncBlob>,
+pub(crate) struct SyncPushBody {
+    pub(crate) blobs: Vec<SyncBlob>,
 }
 
 #[derive(Deserialize)]
@@ -30,8 +30,9 @@ pub struct SyncPullBody {
 const MAX_SYNC_BLOBS: usize = 4096;
 /// Per-principal blob ceiling so one identity cannot starve every tenant.
 const MAX_BLOBS_PER_OWNER: usize = 512;
-/// Per-blob ciphertext ceiling — sync carries sealed records, not file payloads.
-const MAX_CIPHERTEXT_BYTES: usize = 256 * 1024;
+/// Per-blob ciphertext ceiling — vault sealed bodies can exceed small limits;
+/// still bounded so sync is not a file dump.
+const MAX_CIPHERTEXT_BYTES: usize = 2 * 1024 * 1024;
 /// Device id length cap (client-supplied keys).
 const MAX_DEVICE_ID_LEN: usize = 128;
 /// Global durable cursor ceiling; existing devices can always advance at quota.
@@ -83,6 +84,9 @@ pub async fn push(
                     .into_response();
             }
         }
+    }
+    if accepted > 0 {
+        st.backup_notify.notify_one();
     }
     let store_size = match st.db.count_sync_blobs().await {
         Ok(count) => count,

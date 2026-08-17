@@ -7,6 +7,9 @@ import {
   planManifestMerge,
   splitStorePath,
   vaultItemToEntry,
+  filterEntriesForProject,
+  storePathToSyncBlobId,
+  sealedBytesToSyncBlobs,
 } from "./store-sync.js";
 
 describe("store-sync mapping", () => {
@@ -75,6 +78,30 @@ describe("store-sync mapping", () => {
     }
     const entry = vaultItemToEntry(item, []);
     expect(entry.trailer).toMatch(/otpauth:\/\/totp\/Demo/);
+  });
+
+  it("filters store entries to a project folder", () => {
+    const entries = [
+      { path: "personal/api", secret: "a", trailer: "{}" },
+      { path: "work/api", secret: "b", trailer: "{}" },
+      { path: "orphan", secret: "c", trailer: "{}" },
+    ];
+    expect(filterEntriesForProject(entries, "personal").map((e) => e.path)).toEqual([
+      "personal/api",
+    ]);
+    expect(filterEntriesForProject(entries, null)).toHaveLength(3);
+  });
+
+  it("maps sealed bytes to opaque sync blobs without plaintext", () => {
+    const id = storePathToSyncBlobId("Email/github.com", "p1");
+    expect(id).toBe("project:p1:Email/github.com");
+    const blobs = sealedBytesToSyncBlobs([
+      { id, epoch: 4, ciphertext: new Uint8Array([1, 2, 3]) },
+    ]);
+    expect(blobs[0]?.ciphertextB64).toBe(btoa("\u0001\u0002\u0003"));
+    expect(() =>
+      sealedBytesToSyncBlobs([{ id: "x", epoch: 1, ciphertext: new Uint8Array() }]),
+    ).toThrow(/empty ciphertext/);
   });
 });
 

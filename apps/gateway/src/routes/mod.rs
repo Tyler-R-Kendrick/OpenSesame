@@ -2,16 +2,21 @@ mod aauth;
 mod admin;
 mod agents;
 mod backup;
+mod changelog;
 mod connections;
 mod credential_connections;
 mod device;
 pub(crate) mod github_app;
 mod health;
 mod intents;
+mod nats_callout;
 mod protected_resource;
 mod receipts;
+mod rotation;
 mod session;
 mod sync;
+mod sync_blobs;
+mod sync_targets;
 mod tasks;
 
 use axum::{
@@ -47,6 +52,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/session/local", post(session::local_mint))
         .route("/api/v1/sessions/revoke", post(session::revoke))
         .route("/api/v1/whoami", get(session::whoami))
+        .route("/api/v1/nats/auth/callout", post(nats_callout::callout))
         .route("/api/v1/providers", get(connections::list_providers))
         .route(
             "/api/v1/providers/github/app",
@@ -68,6 +74,10 @@ pub fn router(state: AppState) -> Router {
                 .layer(DefaultBodyLimit::max(8 * 1024)),
         )
         .route("/api/v1/backup/resync", post(backup::resync))
+        .route(
+            "/api/v1/integrations/{id}/github/installations",
+            get(backup::list_installations),
+        )
         .route(
             "/api/v1/credential-providers",
             get(credential_connections::catalog),
@@ -151,6 +161,42 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/admin/authority", post(admin::set_authority))
         .route("/api/v1/sync/push", post(sync::push))
         .route("/api/v1/sync/pull", post(sync::pull))
+        // WP-F: opaque ciphertext snapshot + guarded push (never plaintext / deployment seal).
+        .route("/api/v1/sync/blobs/snapshot", post(sync_blobs::snapshot))
+        .route("/api/v1/sync/blobs/push", post(sync_blobs::push_opaque))
+        // WP-D: project secret/config changelog (metadata only).
+        .route(
+            "/api/v1/projects/{project_id}/changelog",
+            get(changelog::list_for_project),
+        )
+        .route("/api/v1/changelog", post(changelog::record))
+        // WP-C: sync targets — ConnectionRef fan-out; never returns secrets.
+        .route(
+            "/api/v1/sync-targets",
+            get(sync_targets::list)
+                .post(sync_targets::create)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/sync-targets/sync-all",
+            post(sync_targets::sync_all).layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/sync-targets/{id}",
+            get(sync_targets::get).delete(sync_targets::delete),
+        )
+        .route(
+            "/api/v1/sync-targets/{id}/sync",
+            post(sync_targets::sync_one).layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        // WP-E: credential rotation request (never returns secrets).
+        .route(
+            "/api/v1/rotations",
+            get(rotation::list_jobs)
+                .post(rotation::request)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route("/api/v1/rotations/{id}", get(rotation::get_job))
         .route(
             "/api/v1/tasks",
             get(tasks::list_tasks).post(tasks::start_task),

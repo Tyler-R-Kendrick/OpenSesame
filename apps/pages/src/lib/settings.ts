@@ -15,6 +15,11 @@ export type PagesSettings = {
   mfaAppUrl: string;
   /** Capability → Host connector bindings (encryption, git history, …). */
   capabilityConnectors: CapabilityConnectorMap;
+  /**
+   * Active Host project id for secrets/env scope (outside the encrypted vault).
+   * Empty until personal/ensure or the operator picks a project.
+   */
+  activeProjectId?: string;
 };
 
 const PERSIST_KEY = "settings.v1";
@@ -26,6 +31,7 @@ type PersistedSettings = {
   tursoUrl: string;
   mfaAppUrl: string;
   capabilityConnectors: CapabilityConnectorMap;
+  activeProjectId: string;
 };
 
 /** Local Host for `pages-dev.sh` — avoids the common :8787 collision. */
@@ -75,6 +81,7 @@ function localDefaults(): PersistedSettings {
     tursoUrl: "",
     mfaAppUrl: runtimeMfaAppUrl || shippedMfaAppUrl,
     capabilityConnectors: defaultCapabilityConnectors(),
+    activeProjectId: "",
   };
 }
 
@@ -89,6 +96,7 @@ function remoteDefaults(): PersistedSettings {
     // Remote Pages: operator must point at a reachable MFA PWA.
     mfaAppUrl: runtimeMfaAppUrl || "",
     capabilityConnectors: defaultCapabilityConnectors(),
+    activeProjectId: "",
   };
 }
 
@@ -134,6 +142,10 @@ function loadPersisted(): PersistedSettings {
       capabilityConnectors: normalizeCapabilityConnectors(
         parsed.capabilityConnectors,
       ),
+      activeProjectId:
+        typeof parsed.activeProjectId === "string"
+          ? parsed.activeProjectId.trim()
+          : defaults.activeProjectId,
     };
   } catch {
     return { ...defaults };
@@ -166,6 +178,7 @@ function persistShape(next: PagesSettings): PersistedSettings {
     capabilityConnectors: normalizeCapabilityConnectors(
       next.capabilityConnectors ?? defaults.capabilityConnectors,
     ),
+    activeProjectId: next.activeProjectId?.trim() ?? "",
   };
 }
 

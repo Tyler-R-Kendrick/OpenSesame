@@ -2,6 +2,7 @@ import type { ClaimEngine } from "@opensesame/claims";
 import type { OidcStore, Repositories } from "@opensesame/database";
 import type { Logger } from "@opensesame/observability";
 import type { Clock, Project, ProvisionalSession } from "@opensesame/os-domain";
+import { MemoryTaskBus, outboxToBusEvent, type TaskBus } from "./taskBus.js";
 
 export interface FakeClock {
   now: Date;
@@ -58,6 +59,12 @@ export interface CleanupDeps {
   repos: Repositories;
   clock: Clock;
   log?: Logger;
+  /**
+   * Bus sink for outbox drain. Defaults to in-memory (tests). Production
+   * standalone worker injects NATS or memory via `createTaskBusFromEnv`.
+   * Publish-then-markPublished keeps the outbox authoritative (ADR 0010).
+   */
+  taskBus?: TaskBus;
 }
 
 export interface CleanupResult {
@@ -85,7 +92,7 @@ export const EXPIRED_PROJECT_RETENTION_MS = 60 * 60 * 1000;
 
 /**
  * One cleanup tick: expire claims past TTL, drop provisional sessions/projects,
- * and mark outbox events published (local sink).
+ * and publish due outbox events to TaskBus before marking them published.
  */
 export async function runCleanupTick(
   deps: CleanupDeps,
@@ -96,6 +103,7 @@ export async function runCleanupTick(
   let expiredProjects = 0;
   let reapedProjects = 0;
   let outboxPublished = 0;
+  const taskBus = deps.taskBus ?? new MemoryTaskBus();
 
   const claims = deps.claims;
   const claimStore = deps.claimStore;
@@ -178,9 +186,23 @@ export async function runCleanupTick(
 
   const pending = await deps.repos.outbox.listUnpublished(100);
   for (const event of pending) {
-    if (event.availableAt <= now) {
+    if (event.availableAt > now) {
+      continue;
+    }
+    try {
+      await taskBus.publish(outboxToBusEvent(event));
       await deps.repos.outbox.markPublished(event.id, now);
       outboxPublished += 1;
+    } catch (err) {
+      // Leave unpublished so the next tick retries (ADR 0010 outbox remains SoT).
+      deps.log?.error(
+        {
+          err: err instanceof Error ? err.message : String(err),
+          outboxId: event.id,
+          eventType: event.eventType,
+        },
+        "outbox publish failed; will retry",
+      );
     }
   }
 

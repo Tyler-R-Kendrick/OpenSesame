@@ -3,7 +3,11 @@
 How a user authorizes a third-party service once, and how that authorization is brokered to
 organizations, projects and agents. Decisions and rationale are in ADR 0032; enforcement
 invariants come from ADR 0005. Provider-template and organization-integration decisions are
-in ADR 0035.
+in ADR 0035. Projects-first scope, sync targets, and durable secret changelog are in
+[ADR 0041](../adr/0041-projects-sync-targets-and-secret-changelog.md). TaskBus / NATS
+foundations for sync and rotation events are in
+[ADR 0042](../adr/0042-nats-taskbus-auth-callout-and-xkeys.md) and
+[task-bus-nats.md](task-bus-nats.md).
 
 ## Planes
 
@@ -258,6 +262,72 @@ directly into the tenant-bound sealed store and never enter an API response; inc
 configuration is ignored, the first local owner/admin organization claims discovery for that
 Host process, production requires the Host operator, and a revoked connection is not silently
 recreated.
+
+## Projects (secrets / env scope)
+
+Host **Project** is the primary secrets and environment scope
+([ADR 0041](../adr/0041-projects-sync-targets-and-secret-changelog.md)). Connections may
+optionally narrow with `project_id`. Every authenticated principal can obtain an
+idempotent **default personal project** that may bind sealed-store tomb name and Pages
+vault folder metadata (opaque strings). Shared project/env secrets use project-scoped
+authority entries plus connection `shareability` / bindings — not server-readable vault
+plaintext.
+
+`SecretConfig` hangs off a project with an environment
+(`development` | `staging` | `production` | `custom`). Catalog provider `doppler` remains
+a SaaS connector only; it is not the projects/sync feature set.
+
+## Sync targets
+
+A **SyncTarget** binds a project config to a connection and a catalog connector operation
+for fan-out (Vercel, Railway, GitHub Actions, etc.). Agents never receive raw secrets.
+
+```text
+SecretConfig (project + env)
+        │
+        │  many SyncTargets
+        ▼
+┌─────────────────────────────────────────┐
+│ Host SyncTarget                         │
+│  connection_id + provider operation     │
+│  status: idle | syncing | ready | error │
+└───────────────────┬─────────────────────┘
+                    │
+                    ▼
+        ConnectionRef → authorize → invoke → receipt
+                    │
+                    ▼
+              connector-host egress
+              (sealed connection creds)
+```
+
+Lifecycle:
+
+1. Create SyncTarget (project + config + connection + operation) → `idle`.
+2. `POST …/sync` loads sealed connection credentials on Host, authorizes, invokes the
+   connector op to push the project config secret set — **never** returns values to the
+   client.
+3. Fan-out: one config, many targets; partial failure records per-target error without
+   erasing sibling successes.
+4. Emit bus events (`sync.target.created|synced|failed`) via TaskBus
+   ([task-bus-nats.md](task-bus-nats.md)).
+
+Do not shell the Doppler CLI for OpenSesame-native sync. Do not push Pages vault
+plaintext through a server that can read VRKs.
+
+## Secret / config changelog
+
+Durable change logging is team audit, not only sealed-store git history:
+
+| Source | Role |
+|--------|------|
+| Identity audit hash chain | Authoritative principal/config metadata events |
+| Host receipts | Invoke / sync / rotation outcomes |
+| Broker / TaskBus events | `secret.config.*`, `secret.value.changed`, sync + rotation |
+
+Events carry project/config ids, actor, environment, key **names**, version id, and
+timestamp — never secret values or reversible digests of values. Sealed-store git commits
+remain local ciphertext history for the human store.
 
 ## Verification
 

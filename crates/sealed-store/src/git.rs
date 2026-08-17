@@ -72,10 +72,26 @@ pub fn auto_commit(root: &Path, message: &str) -> Result<(), StoreError> {
         eprintln!("warning: git commit failed for sealed store (is user.email configured?)");
         return Ok(());
     }
-    if auto_push_enabled(root) && remote_url(root).is_some() {
-        // Best-effort: a backup that lags is recoverable, a blocked insert is not.
-        if let Err(e) = push_backup(root, None) {
-            eprintln!("warning: auto-push failed ({e}); run `opensesame pass backup` to retry");
+    match remote_url(root) {
+        None => {
+            eprintln!(
+                "warning: sealed store has no git remote — ciphertext is local-only and not recoverable if this machine is lost; \
+                 run `opensesame pass remote set <url>` then `opensesame pass backup`, or enable autopush"
+            );
+        }
+        Some(_) if auto_push_enabled(root) => {
+            // Best-effort: a backup that lags is recoverable, a blocked insert is not.
+            if let Err(e) = push_backup(root, None) {
+                eprintln!(
+                    "warning: auto-push failed ({e}); run `opensesame pass backup` to retry"
+                );
+            }
+        }
+        Some(_) => {
+            eprintln!(
+                "warning: sealed store has a remote but autopush is off — run `opensesame pass backup` \
+                 or `git config opensesame.autopush true` so regenerations reach GitHub"
+            );
         }
     }
     Ok(())

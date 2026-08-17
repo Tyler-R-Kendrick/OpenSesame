@@ -407,6 +407,7 @@ export const ConnectionErrorCodeSchema = z.enum([
   "redirect_not_allowed",
   "binding_exists",
   "binding_not_found",
+  "sync_target_not_found",
   "unsupported_credential",
   "invalid_request",
   "internal_error",

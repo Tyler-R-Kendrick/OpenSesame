@@ -4,6 +4,8 @@ import {
   hasRemoteHostPairing,
   loadSettings,
   saveSettings,
+  shippedHostApi,
+  shippedIdentityApi,
 } from "./settings.js";
 
 describe("daemon pairing", () => {
@@ -57,8 +59,8 @@ describe("daemon pairing", () => {
       href: "http://localhost:5180/OpenSesame/settings",
     });
     saveSettings({
-      hostApi: "http://127.0.0.1:8787",
-      identityApi: "http://127.0.0.1:8788",
+      hostApi: shippedHostApi,
+      identityApi: shippedIdentityApi,
       daemonApi: "http://127.0.0.1:18790",
       tursoUrl: "",
       mfaAppUrl: "",
@@ -70,13 +72,13 @@ describe("daemon pairing", () => {
     await applyDaemonPairing("http://127.0.0.1:18790", {
       status: "ok",
       service: "opensesame-daemon",
-      hostApi: "http://127.0.0.1:8787",
-      identityApi: "http://127.0.0.1:8788",
+      hostApi: shippedHostApi,
+      identityApi: shippedIdentityApi,
       tailscaleUrl: "https://box.tail123.ts.net",
     });
     const settings = loadSettings();
     expect(settings.daemonApi).toBe("https://box.tail123.ts.net");
-    expect(settings.hostApi).toBe("http://127.0.0.1:8787");
-    expect(settings.identityApi).toBe("http://127.0.0.1:8788");
+    expect(settings.hostApi).toBe(shippedHostApi);
+    expect(settings.identityApi).toBe(shippedIdentityApi);
   });
 });

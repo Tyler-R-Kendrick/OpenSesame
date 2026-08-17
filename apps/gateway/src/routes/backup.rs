@@ -6,7 +6,7 @@
 //! token material, never plaintext.
 
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
@@ -71,7 +71,12 @@ pub async fn get_target(
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PutTargetBody {
-    pub integration_id: String,
+    /// Preferred: GitHub connection that can list/create repos.
+    #[serde(default)]
+    pub connection_id: Option<String>,
+    /// Required when `connection_id` is absent; otherwise derived from the connection.
+    #[serde(default)]
+    pub integration_id: Option<String>,
     pub installation_id: String,
     pub owner: String,
     pub repo: String,
@@ -113,11 +118,66 @@ pub async fn put_target(
             .into_response();
     }
     let organization = st.connection_organization;
+    let integration_id = if let Some(connection_id) = body
+        .connection_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+    {
+        match st
+            .connection_broker
+            .get_connection(&organization, connection_id)
+            .await
+        {
+            Ok(view) if view.provider_id == "github" => {
+                match view.integration_id {
+                    Some(id) => id,
+                    None => {
+                        return (
+                            StatusCode::UNPROCESSABLE_ENTITY,
+                            Json(json!({
+                                "error": "integration_required",
+                                "hint": "that GitHub connection is not bound to a tenant App integration — Create GitHub App under History first",
+                            })),
+                        )
+                            .into_response();
+                    }
+                }
+            }
+            Ok(_) => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error":"invalid_request","hint":"connection must be a GitHub connection"})),
+                )
+                    .into_response();
+            }
+            Err(_) => {
+                return (
+                    StatusCode::NOT_FOUND,
+                    Json(json!({"error":"connection_not_found"})),
+                )
+                    .into_response();
+            }
+        }
+    } else if let Some(id) = body
+        .integration_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+    {
+        id.to_string()
+    } else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_request","hint":"connection_id or integration_id is required"})),
+        )
+            .into_response();
+    };
     // The target is only usable if the integration can mint installation
     // tokens; refusing here beats a silently suspended actor later.
     match st
         .connection_broker
-        .github_app_signing_material(&organization, &body.integration_id)
+        .github_app_signing_material(&organization, &integration_id)
         .await
     {
         Ok(Some(_)) => {}
@@ -141,11 +201,12 @@ pub async fn put_target(
     }
     let target = BackupTarget {
         organization_id: organization.to_string(),
-        integration_id: body.integration_id,
+        integration_id,
         installation_id: body.installation_id,
         owner: body.owner,
         repo: body.repo,
-        branch: body.branch.unwrap_or_else(|| "main".into()),
+        // ADR 0043: recoverability defaults to the production env branch.
+        branch: body.branch.unwrap_or_else(|| "env/production".into()),
         enabled: body.enabled.unwrap_or(true),
         status: "pending".into(),
         last_commit_sha: None,
@@ -166,6 +227,44 @@ pub async fn put_target(
     }
     st.backup_notify.notify_one();
     (StatusCode::OK, Json(json!({"target": target_view(&target)}))).into_response()
+}
+
+/// `GET /api/v1/integrations/{id}/github/installations` — App installs only (no tokens).
+pub async fn list_installations(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+) -> Response {
+    if let Err(resp) = require_configurator(&st, &headers) {
+        return resp;
+    }
+    let organization = st.connection_organization;
+    match st
+        .connection_broker
+        .list_github_app_installations(&organization, &id)
+        .await
+    {
+        Ok(rows) => (
+            StatusCode::OK,
+            Json(json!({
+                "installations": rows.iter().map(|row| json!({
+                    "id": row.id,
+                    "account_login": row.account_login,
+                    "account_type": row.account_type,
+                    "target_type": row.target_type,
+                })).collect::<Vec<_>>(),
+            })),
+        )
+            .into_response(),
+        Err(error) => (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(json!({
+                "error": error.code(),
+                "hint": error.to_string(),
+            })),
+        )
+            .into_response(),
+    }
 }
 
 pub async fn delete_target(
@@ -383,5 +482,99 @@ mod tests {
         )
         .await;
         assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn put_target_defaults_to_env_production_branch() {
+        let state = state().await;
+        let integration = register_app(&state).await;
+        let (status, body) = call(
+            &state,
+            "PUT",
+            "/api/v1/backup/target",
+            None,
+            Some(json!({
+                "integration_id": integration,
+                "installation_id": "99",
+                "owner": "acme",
+                "repo": "opensesame-passwords",
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["target"]["branch"], "env/production");
+    }
+
+    #[tokio::test]
+    async fn put_target_accepts_connection_id_for_github_only() {
+        let state = state().await;
+        let integration = register_app(&state).await;
+        let connection = state
+            .connection_broker
+            .create_connection(
+                &state.connection_organization,
+                opensesame_connection_broker::CreateConnection {
+                    provider_id: "github".into(),
+                    integration_id: Some(integration.clone()),
+                    owner_subject: Some("user:demo".into()),
+                    display_name: Some("History".into()),
+                    logical_name: None,
+                    project_id: None,
+                    scopes: None,
+                    shareability: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let (status, body) = call(
+            &state,
+            "PUT",
+            "/api/v1/backup/target",
+            None,
+            Some(json!({
+                "connection_id": connection.connection_id,
+                "installation_id": "4242",
+                "owner": "acme",
+                "repo": "opensesame-passwords",
+                "branch": "env/staging",
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["target"]["integration_id"], integration);
+        assert_eq!(body["target"]["branch"], "env/staging");
+
+        let (status, body) = call(
+            &state,
+            "PUT",
+            "/api/v1/backup/target",
+            None,
+            Some(json!({
+                "connection_id": "connection:missing",
+                "installation_id": "1",
+                "owner": "acme",
+                "repo": "r",
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+    }
+
+    #[tokio::test]
+    async fn installations_route_refuses_integrations_without_app_material() {
+        let state = state().await;
+        let (status, body) = call(
+            &state,
+            "GET",
+            "/api/v1/integrations/missing/github/installations",
+            None,
+            None,
+        )
+        .await;
+        assert!(
+            status == StatusCode::NOT_FOUND || status == StatusCode::UNPROCESSABLE_ENTITY,
+            "{status} {body}"
+        );
     }
 }

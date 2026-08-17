@@ -28,12 +28,14 @@ opensesame-host-core = { path = "../../crates/host-core" }
 opensesame-redaction = { path = "../../crates/redaction" }
 opensesame-provider-openfga = { path = "../../crates/provider-openfga" }
 opensesame-provider-openbao = { path = "../../crates/provider-openbao" }
+opensesame-task-bus = { path = "../../crates/task-bus", features = ["jetstream"] }
 anyhow = { workspace = true }
 reqwest = { workspace = true }
 axum = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true }
 tower-http = { workspace = true }
 tracing = { workspace = true }

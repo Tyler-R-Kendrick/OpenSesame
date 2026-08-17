@@ -17,3 +17,12 @@ export {
   type AuditChainVerdict,
   type ChainedAuditSinkOptions,
 } from "./chain.js";
+export {
+  SECRET_CHANGELOG_EVENT_TYPES,
+  isSecretChangelogEventType,
+  recordSecretChangelog,
+  filterSecretChangelogEvents,
+  type SecretChangelogEventType,
+  type SecretChangelogMetadata,
+  type RecordSecretChangelogInput,
+} from "./changelog.js";

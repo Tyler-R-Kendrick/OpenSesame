@@ -8,9 +8,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use opensesame_sealed_store::{
     apply_secret_update, default_tombs_config_path, ensure_git_repo, generate_password,
     git_passthrough, init_store, init_store_key, load_tomb_registry, parse_manifest, parse_otpauth,
-    push_backup, remote_url, resolve_store_dir, resolve_tomb_paths, save_tomb_registry,
-    seal_manifest, set_auto_push, set_remote, totp_code, unlock_store_key, validate_otpauth, Entry,
-    TombBackend, TombEntry, UpdateMode, UpdateOptions, StoreRoot,
+    push_backup, remote_url, resolve_store_dir, resolve_tomb_paths, rotate_secret_entry,
+    save_tomb_registry, seal_manifest, set_auto_push, set_remote, totp_code, unlock_store_key,
+    validate_otpauth, Entry, TombBackend, TombEntry, UpdateMode, UpdateOptions, StoreRoot,
 };
 use regex::Regex;
 
@@ -571,6 +571,97 @@ pub fn cmd_update(
             println!("updated {name}");
         }
         let _ = &mut update_opts;
+    }
+    Ok(())
+}
+
+/// Rotate first-line secrets without printing plaintext unless `--reveal`.
+/// Agents must not call this path for secret disclosure (ADR 0005).
+pub fn cmd_rotate(
+    names: Vec<String>,
+    opts: UpdateCliOpts,
+    reveal: bool,
+    path: Option<PathBuf>,
+    tomb: Option<String>,
+) -> anyhow::Result<()> {
+    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let update_opts = UpdateOptions {
+        mode: if opts.multiline {
+            UpdateMode::Multiline
+        } else {
+            UpdateMode::FirstLine
+        },
+        length: opts.length,
+        auto_length: opts.auto_length,
+        symbols: !opts.no_symbols,
+        include: opts
+            .include
+            .as_deref()
+            .map(Regex::new)
+            .transpose()
+            .map_err(|e| anyhow::anyhow!("include regex: {e}"))?,
+        exclude: opts
+            .exclude
+            .as_deref()
+            .map(Regex::new)
+            .transpose()
+            .map_err(|e| anyhow::anyhow!("exclude regex: {e}"))?,
+    };
+
+    let mut targets = Vec::new();
+    for name in names {
+        let listed = root.ls(&name).map_err(|e| anyhow::anyhow!("{e}"))?;
+        if listed.is_empty() {
+            if root.show(&name, &key).is_ok() {
+                targets.push(name);
+            } else {
+                anyhow::bail!("no entries under {name}");
+            }
+        } else {
+            targets.extend(listed);
+        }
+    }
+    targets.sort();
+    targets.dedup();
+
+    for name in targets {
+        let entry = root.show(&name, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
+        if !opts.force {
+            let ans = prompt_line(&format!(
+                "Rotate password for {name}? [y/N]"
+            ))?;
+            if !matches!(ans.to_ascii_lowercase().as_str(), "y" | "yes") {
+                eprintln!("skipped {name}");
+                continue;
+            }
+        }
+        let provided = if opts.provide {
+            let a = prompt_secret_hidden(&format!("Enter the new password for {name}"))?;
+            let b = prompt_secret_hidden(&format!("Retype the new password for {name}"))?;
+            if a != b {
+                anyhow::bail!("passwords do not match");
+            }
+            Some(a)
+        } else {
+            None
+        };
+        let Some(rotated) = rotate_secret_entry(&name, &entry, provided, &update_opts, None) else {
+            eprintln!("skipped {name} (include/exclude)");
+            continue;
+        };
+        root.insert_or_replace(&name, &rotated.entry, &key)
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        // Changelog metadata only — never agent-facing secret dump.
+        eprintln!(
+            "rotated {name} (changelog {} version {})",
+            rotated.changelog.event_type, rotated.changelog.version_id
+        );
+        if reveal {
+            require_reveal(true)?;
+            println!("{}", rotated.entry.secret);
+        } else {
+            println!("rotated {name}");
+        }
     }
     Ok(())
 }

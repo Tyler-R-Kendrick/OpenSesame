@@ -24,6 +24,11 @@ export interface ControlPlaneConfig {
   hostApiUrl: string;
   /** Server-only operator token for Host API mutations. Empty in production if unset. */
   operatorToken: string;
+  /**
+   * Shared secret for Host → Identity principal mapping resolve.
+   * Empty rejects mapping resolve in production; allowDevDefaults may omit in tests.
+   */
+  mappingResolveToken: string;
 }
 
 const DEV_CLAIM_PEPPER = "dev-claim-pepper-change-me";
@@ -128,6 +133,16 @@ export function loadConfig(
       if (isProduction) return "";
       return "opensesame-dev-operator";
     })(),
+    mappingResolveToken: (() => {
+      const t =
+        env.OPENSESAME_MAPPING_RESOLVE_TOKEN ??
+        env.OPENSESAME_NATS_CALLOUT_SECRET ??
+        "";
+      if (t) return t;
+      if (isProduction) return "";
+      // Local/dev default aligned with gateway callout shared secret.
+      return allowDevDefaults ? "opensesame-dev-mapping-resolve" : "";
+    })(),
   };
   if (env.DATABASE_URL) {
     config.databaseUrl = env.DATABASE_URL;
@@ -154,6 +169,11 @@ export function assertSecureConfig(
   if (config.isProduction && !config.operatorToken) {
     throw new Error(
       "OPENSESAME_OPERATOR_TOKEN must be set in production for Host API device-approve proxy",
+    );
+  }
+  if (config.isProduction && !config.mappingResolveToken) {
+    throw new Error(
+      "OPENSESAME_MAPPING_RESOLVE_TOKEN (or OPENSESAME_NATS_CALLOUT_SECRET) must be set in production",
     );
   }
   if (config.isProduction && !config.corsOrigins.length) {

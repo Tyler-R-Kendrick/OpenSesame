@@ -9,6 +9,7 @@ import {
   runCleanupTick,
   startCleanupLoop,
 } from "../cleanup.js";
+import { MemoryTaskBus } from "../taskBus.js";
 
 describe("cleanup worker", () => {
   it("expires claim via fake clock", async () => {
@@ -192,5 +193,59 @@ describe("cleanup worker", () => {
     // The throwing first tick did not end the loop.
     expect(calls).toBeGreaterThanOrEqual(3);
     expect(errors[0]).toContain("cleanup tick failed");
+  });
+
+  it("publishes outbox to TaskBus before markPublished", async () => {
+    const clock = createFakeClock(fixtures.now);
+    const repos = createRepositories();
+    await repos.outbox.append({
+      id: "outbox_1",
+      aggregateType: "principal",
+      aggregateId: "prn_1",
+      eventType: "principal.created",
+      payload: { principalId: "prn_1" },
+      availableAt: fixtures.now,
+    });
+    const bus = new MemoryTaskBus();
+    const result = await runCleanupTick({
+      repos,
+      clock: clock.asClock(),
+      taskBus: bus,
+    });
+    expect(result.outboxPublished).toBe(1);
+    expect(bus.published).toHaveLength(1);
+    expect(bus.published[0]?.type).toBe("principal.created");
+    expect(bus.published[0]?.data.principalId).toBe("prn_1");
+    expect(await repos.outbox.listUnpublished()).toHaveLength(0);
+  });
+
+  it("leaves outbox unpublished when TaskBus publish fails", async () => {
+    const clock = createFakeClock(fixtures.now);
+    const repos = createRepositories();
+    await repos.outbox.append({
+      id: "outbox_2",
+      aggregateType: "principal",
+      aggregateId: "prn_2",
+      eventType: "principal.created",
+      payload: {},
+      availableAt: fixtures.now,
+    });
+    const errors: string[] = [];
+    const result = await runCleanupTick({
+      repos,
+      clock: clock.asClock(),
+      taskBus: {
+        publish: async () => {
+          throw new Error("nats down");
+        },
+      },
+      log: {
+        info: () => {},
+        error: (_obj: unknown, msg: string) => errors.push(msg),
+      } as never,
+    });
+    expect(result.outboxPublished).toBe(0);
+    expect(await repos.outbox.listUnpublished()).toHaveLength(1);
+    expect(errors[0]).toContain("outbox publish failed");
   });
 });

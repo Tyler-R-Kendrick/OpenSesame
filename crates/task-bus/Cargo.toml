@@ -3,9 +3,25 @@ name = "opensesame-task-bus"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "TaskBus trait with in-memory and optional NATS JetStream adapters"
+
+[features]
+## JetStream adapter is on by default so the crate always compiles the NATS
+## path; runtime still defaults to in-memory unless `NATS_URL` /
+## `OPENSESAME_TASKBUS=nats` is set.
+default = ["jetstream"]
+jetstream = ["dep:async-nats", "dep:bytes", "dep:futures", "dep:tokio"]
 
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
+async-nats = { workspace = true, optional = true }
+bytes = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
 serde_json = { workspace = true }

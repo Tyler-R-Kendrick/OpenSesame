@@ -8,6 +8,7 @@
 //! carries token material — callers get a [`ConnectionRef`] and status.
 
 pub mod catalog;
+pub mod changelog_hook;
 pub mod config;
 pub mod configuration;
 pub mod crypto;
@@ -18,7 +19,9 @@ pub mod github_app;
 pub mod installation;
 pub mod integration;
 pub mod model;
+pub mod rotation;
 pub mod store;
+pub mod sync_target;
 pub mod token;
 
 use std::collections::BTreeMap;
@@ -39,10 +42,18 @@ use rand::RngCore;
 use sqlx::SqlitePool;
 
 pub use crate::catalog::{AuthMethod, Provider};
+pub use crate::changelog_hook::{
+    clear_secret_changelog_for_tests, list_secret_changelog, record_secret_changelog,
+    redact_changelog_metadata, ChangelogEntry, RecordSecretChangelog,
+};
 pub use crate::config::{BrokerConfig, ProviderConfig};
 pub use crate::github_app::{
     build_manifest, convert_manifest_code, history_app_permissions, history_integration_scopes,
     is_github_app_client_id, GithubAppCredentials, GITHUB_APP_REGISTER_URL,
+};
+pub use crate::installation::{
+    list_app_installations, mint_installation_token, GithubAppSigningMaterial,
+    GithubInstallationSummary, InstallationToken, MintError, DEFAULT_GITHUB_API_BASE,
 };
 pub use crate::egress::GithubRepo;
 pub use crate::error::{BrokerError, Result};
@@ -50,6 +61,15 @@ pub use crate::integration::{
     CreateIntegration, IntegrationSource, IntegrationView, UpdateIntegration,
 };
 pub use crate::model::*;
+pub use crate::rotation::{
+    consume_rotation_events, execute_connection_rotation, policy_due_at, request_rotation,
+    RotationJob, RotationPolicy, RotationRegistry, RotationService, RotationStatus, RotationTarget,
+    EVENT_ROTATION_FAILED, EVENT_ROTATION_REQUESTED, EVENT_ROTATION_SUCCEEDED,
+};
+pub use crate::sync_target::{
+    CreateSyncTarget, EmptySecretSource, MapSecretSource, SyncOutcome, SyncSecretSource,
+    SyncTargetStatus, SyncTargetView,
+};
 
 use crate::store::{AuthorizationRow, ConnectionRow, CredentialRow};
 use crate::token::TokenSet;

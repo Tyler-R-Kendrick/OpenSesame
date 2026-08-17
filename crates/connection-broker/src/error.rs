@@ -41,6 +41,8 @@ pub enum BrokerError {
     BindingExists,
     #[error("binding not found")]
     BindingNotFound,
+    #[error("sync target not found")]
+    SyncTargetNotFound,
     /// `POST /credential` against an OAuth provider, or `authorize` against an
     /// api_key one.
     #[error("credential kind not supported by provider `{0}`")]
@@ -75,6 +77,7 @@ impl BrokerError {
             Self::RedirectNotAllowed => "redirect_not_allowed",
             Self::BindingExists => "binding_exists",
             Self::BindingNotFound => "binding_not_found",
+            Self::SyncTargetNotFound => "sync_target_not_found",
             Self::UnsupportedCredential(_) => "unsupported_credential",
             Self::Invalid(_) => "invalid_request",
             Self::Storage(_) | Self::Serde(_) => "internal_error",
@@ -96,7 +99,10 @@ impl BrokerError {
 
     pub fn http_status(&self) -> u16 {
         match self {
-            Self::ConnectionNotFound | Self::BindingNotFound | Self::IntegrationNotFound => 404,
+            Self::ConnectionNotFound
+            | Self::BindingNotFound
+            | Self::SyncTargetNotFound
+            | Self::IntegrationNotFound => 404,
             Self::ProviderUnconfigured { .. } | Self::SealUnavailable(_) => 503,
             Self::BindingExists | Self::IntegrationConflict | Self::IntegrationInUse => 409,
             Self::IntegrationReadOnly => 403,

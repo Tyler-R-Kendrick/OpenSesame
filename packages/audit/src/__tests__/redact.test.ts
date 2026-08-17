@@ -46,4 +46,24 @@ describe("redactAuditMetadata", () => {
     expect(out.issuer.startsWith("https://idp.example/")).toBe(true);
     expect(out.issuer.endsWith("…")).toBe(true);
   });
+
+  it("keeps changelog key names and rejects secret-bearing keys", () => {
+    expect(
+      redactAuditMetadata({
+        configId: "cfg",
+        environment: "development",
+        keyNames: ["FOO", "BAR"],
+        versionId: "v1",
+        value: "plaintext",
+        secret: "s",
+        password: "p",
+        token: "t",
+      }),
+    ).toEqual({
+      configId: "cfg",
+      environment: "development",
+      keyNames: ["FOO", "BAR"],
+      versionId: "v1",
+    });
+  });
 });

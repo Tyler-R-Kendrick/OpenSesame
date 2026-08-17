@@ -1,4 +1,10 @@
-import { AUDIT_CHAIN_GENESIS, verifyAuditChain } from "@opensesame/audit";
+import {
+  AUDIT_CHAIN_GENESIS,
+  filterSecretChangelogEvents,
+  isSecretChangelogEventType,
+  redactAuditMetadata,
+  verifyAuditChain,
+} from "@opensesame/audit";
 import {
   AuditChainVerifyResponseSchema,
   AuditEventListResponseSchema,
@@ -17,9 +23,40 @@ auditRoutes.get("/events", requirePrincipal(), async (c) => {
     Math.max(Number.parseInt(limitRaw ?? "50", 10) || 50, 1),
     200,
   );
+  const changelogOnly =
+    c.req.query("changelog") === "1" ||
+    c.req.query("changelog") === "true" ||
+    c.req.query("scope") === "changelog";
+  const projectId = c.req.query("projectId")?.trim() || undefined;
+  const eventType = c.req.query("eventType")?.trim() || undefined;
+
+  // Pull a wider window when filtering so changelog rows are not buried under
+  // unrelated principal activity, then slice to the caller limit.
+  const fetchLimit = changelogOnly || projectId || eventType ? 200 : limit;
 
   // Callers may only list their own audit trail in this slice.
-  const events = await ctx.repos.auditEvents.list({ principalId, limit });
+  let events = await ctx.repos.auditEvents.list({
+    principalId,
+    limit: fetchLimit,
+  });
+
+  if (changelogOnly) {
+    events = filterSecretChangelogEvents(events, {
+      ...(projectId ? { projectId } : {}),
+    });
+  } else if (projectId) {
+    events = events.filter((e) => e.projectId === projectId);
+  }
+
+  if (eventType) {
+    if (changelogOnly && !isSecretChangelogEventType(eventType)) {
+      return c.json({ error: "event_type_not_changelog" }, 400);
+    }
+    events = events.filter((e) => e.eventType === eventType);
+  }
+
+  events = events.slice(0, limit);
+
   const body = AuditEventListResponseSchema.parse({
     events: events.map((e) => ({
       id: e.id,
@@ -27,7 +64,8 @@ auditRoutes.get("/events", requirePrincipal(), async (c) => {
       eventType: e.eventType,
       outcome: e.outcome,
       correlationId: e.correlationId,
-      metadata: e.metadata,
+      // Defense in depth: re-redact on read so legacy rows cannot leak values.
+      metadata: redactAuditMetadata(e.metadata),
       ...(e.principalId !== undefined ? { principalId: e.principalId } : {}),
       ...(e.actorType !== undefined ? { actorType: e.actorType } : {}),
       ...(e.actorId !== undefined ? { actorId: e.actorId } : {}),

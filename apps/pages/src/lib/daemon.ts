@@ -4,6 +4,8 @@ import {
   pageIsLoopback,
   saveSettingsDurable,
   shippedDaemonApi,
+  shippedHostApi,
+  shippedIdentityApi,
 } from "./settings.js";
 import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
 
@@ -92,17 +94,18 @@ export async function applyDaemonPairing(
     } else {
       savedDaemon = daemonApi.trim() || savedDaemon;
     }
-    // Prefer daemon-advertised loopback planes; fall back to shipped locals.
+    // Prefer daemon-advertised loopback planes; fall back to shipped locals
+    // (pages-dev Host :18787 / Identity :18788 — not the classic :8787 collision).
     if (!hostApi || !isLoopbackUrl(hostApi)) {
       hostApi = current.hostApi && isLoopbackUrl(current.hostApi)
         ? current.hostApi
-        : "http://127.0.0.1:8787";
+        : shippedHostApi;
     }
     if (!identityApi || !isLoopbackUrl(identityApi)) {
       identityApi =
         current.identityApi && isLoopbackUrl(current.identityApi)
           ? current.identityApi
-          : "http://127.0.0.1:8788";
+          : shippedIdentityApi;
     }
   } else if (publicBase && !isLoopbackUrl(publicBase)) {
     const root = publicBase.replace(/\/$/, "");

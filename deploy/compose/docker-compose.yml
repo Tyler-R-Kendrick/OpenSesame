@@ -65,6 +65,8 @@ services:
       OPENSESAME_ISSUER: "http://keycloak:8080/realms/opensesame"
       OPENSESAME_RESOURCE: "http://gateway:8787"
       OPENSESAME_DB: "postgres://opensesame:change-me-in-real-deploy@postgres:5432/opensesame"
+      OPENSESAME_TASKBUS: nats
+      NATS_URL: nats://nats:4222
     ports: ["8787:8787"]
     depends_on: [postgres, openfga, keycloak, openbao, nats]
 
@@ -72,6 +74,9 @@ services:
     build:
       context: ../..
       dockerfile: deploy/compose/Dockerfile.worker
+    environment:
+      OPENSESAME_TASKBUS: nats
+      NATS_URL: nats://nats:4222
     depends_on: [gateway, nats]
 
   callback-edge:

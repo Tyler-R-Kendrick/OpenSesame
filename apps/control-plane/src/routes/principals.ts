@@ -458,3 +458,81 @@ principalRoutes.delete("/identities/:id", requirePrincipal(), async (c) => {
   });
   return c.json({ deleted: true, id: identityId });
 });
+
+/**
+ * Host-plane mapping resolve (ADR 0042).
+ *
+ * Looks up canonical principal by upstream issuer + subject only.
+ * Email is never accepted as a join key — requests that send `email` are denied.
+ * Authenticated with OPENSESAME_MAPPING_RESOLVE_TOKEN (service secret), not a user session.
+ */
+principalRoutes.get("/mapping/resolve", async (c) => {
+  const ctx = c.get("ctx");
+  const expected = ctx.config.mappingResolveToken;
+  if (!expected) {
+    return c.json({ error: "mapping_resolve_disabled" }, 503);
+  }
+  const auth = c.req.header("authorization") ?? "";
+  const bearer = auth.toLowerCase().startsWith("bearer ")
+    ? auth.slice(7).trim()
+    : "";
+  const headerToken = c.req.header("x-opensesame-mapping-token")?.trim() ?? "";
+  const presented = bearer || headerToken;
+  if (!presented || presented !== expected) {
+    return c.json({ error: "unauthorized" }, 401);
+  }
+
+  const email = c.req.query("email")?.trim();
+  if (email) {
+    return c.json(
+      {
+        error: "email_join_forbidden",
+        message: "Principal mapping resolve never joins by email",
+      },
+      400,
+    );
+  }
+
+  const issuer = c.req.query("issuer")?.trim() ?? "";
+  const subject = c.req.query("subject")?.trim() ?? "";
+  const kind = c.req.query("kind")?.trim() || "oidc";
+  if (!issuer || !subject) {
+    return c.json(
+      { error: "validation_error", message: "issuer and subject are required" },
+      400,
+    );
+  }
+
+  const fromMappings = await ctx.mappings.findByUpstream(issuer, subject);
+  if (fromMappings) {
+    return c.json({
+      principalId: fromMappings.principalId,
+      provisional: fromMappings.provisional,
+      assurance: fromMappings.provisional ? "provisional" : "verified",
+      issuer,
+      subject,
+    });
+  }
+
+  const identity = await ctx.repos.externalIdentities.findByTuple({
+    kind,
+    issuer,
+    subject,
+  });
+  if (!identity) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
+  const principal = await ctx.repos.principals.getById(identity.principalId);
+  const provisional =
+    principal?.state === "provisional" ||
+    principal?.assurance === "provisional";
+
+  return c.json({
+    principalId: identity.principalId,
+    provisional: Boolean(provisional),
+    assurance: principal?.assurance ?? identity.assurance,
+    issuer: identity.issuer,
+    subject: identity.subject,
+  });
+});

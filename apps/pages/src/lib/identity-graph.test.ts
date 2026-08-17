@@ -47,6 +47,7 @@ function connection(status: Connection["status"]): Connection {
     logicalName: "github/main",
     displayName: "GitHub",
     providerId: "github",
+    integrationId: null,
     status,
     statusDetail: null,
     organizationId: "org_1",
