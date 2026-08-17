@@ -6,8 +6,9 @@ GitHub Pages cannot host the Host or Identity APIs. This page is the console: a 
 **Vault** for human items, plus Connections, Agents, Authority, and Sites. Agents never
 call `getSecret()`. Host connectors never appear here as plaintext.
 
-The master password unwraps the key for items stored on this device. It is not stored. A
-reload or a cold link asks for it again.
+The vault key for items on this device can be unwrapped with a **passkey** (WebAuthn
+PRF), a **PIN**, and/or a **master password**, with optional authenticator MFA after
+primary unlock. Credentials are not stored. A reload or a cold link asks again.
 
 ## Rails
 
@@ -27,18 +28,22 @@ Declarative Sites integration (no backend):
 ```
 
 Listen for `opensesame:signed_in`, or call `OpenSesame.signIn()` / `signInAndAccept()` when you need an explicit flow. Use `acceptSession` (or `data-opensesame-verify="true"`) to verify the upstream JWT and derive the pairwise subject.
-| **Settings** | operators | Planes (Host/Identity URLs), seed data, export. |
+| **Settings** | operators | Planes (Host/Identity URLs), unlock methods, seed data, export. |
 
 ## Cryptography
 
-- Master password → PBKDF2-SHA256, 600,000 iterations (OWASP 2023 floor) → master key.
-- Master key wraps a random 256-bit vault key with AES-GCM. Changing the master password
-  re-wraps that key; items are never re-encrypted.
+- Primary unlock peers: master password or PIN → PBKDF2-SHA256 (600,000 iterations,
+  OWASP 2023 floor) → AES-GCM wrap of the vault key; or WebAuthn PRF → HKDF → AES-GCM wrap.
+- Optional TOTP MFA runs after any primary unwrap; the authenticator seed is sealed under
+  the vault key.
+- Changing the master password re-wraps that key; items are never re-encrypted. Passkey and
+  PIN wraps stay enrolled.
 - The item collection is sealed with AES-256-GCM under the vault key and written to OPFS as
   ciphertext. A fresh 96-bit nonce per write; the GCM tag detects tampering and doubles as the
-  password check.
-- Keys are non-extractable `CryptoKey` handles held in memory for the unlocked session only.
-  Locking drops them. Nothing vault-related touches `localStorage` or `sessionStorage`.
+  credential check.
+- The vault key is held in memory for the unlocked session (extractable only so Settings can
+  enroll extra wraps). Locking drops it. Nothing vault-related touches `localStorage` or
+  `sessionStorage`.
 - TOTP codes are computed in-page from the stored seed (RFC 6238, verified against the
   specification's own test vectors).
 - The password health report runs entirely locally and never contacts a breach service.
@@ -110,9 +115,15 @@ Sample data is opt-in from Settings, badged in the UI, and removable in one acti
 
 ## Git sealed store
 
+**Settings → Capability connectors** binds encryption (default WebCrypto on this
+device) and history/persistence (default GitHub). Connect GitHub with **OAuth**
+(requires `OPENSESAME_PROVIDER_GITHUB_CLIENT_ID` / `_CLIENT_SECRET` on the Host)
+or paste a **personal access token** with `repo` scope — Host seals it and never
+returns it to the browser. Then pick or create a private `opensesame-passwords`
+repo. Host also auto-discovers `GITHUB_TOKEN` / `GH_TOKEN` when present.
 **Settings → Git sealed store** exports or imports a path manifest that maps vault
 items to `pass`-style paths (`Folder/name`). Seal those values with the Host CLI
-(`opensesame insert` / `show`) before committing ciphertext to git. Agents never
+(`opensesame pass insert` / `pass show`) before committing ciphertext to git. Agents never
 see the manifest — they use ConnectionRefs only (ADR 0005 / 0037).
 
 ## Browser database

@@ -6,7 +6,7 @@
   "description": "GitHub Pages installable PWA — offline client shell for OpenSesame",
   "scripts": {
     "dev": "bash ../../scripts/pages-dev.sh",
-    "dev:web": "vite --port 5180 --strictPort",
+    "dev:web": "vite --port 5180 --strictPort --host localhost",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --port 5180",
     "typecheck": "tsc --noEmit",
@@ -16,6 +16,7 @@
     "@opensesame/api-client": "workspace:*",
     "@opensesame/client-core": "workspace:*",
     "@opensesame/contracts": "workspace:*",
+    "@opensesame/qr": "workspace:^",
     "@opensesame/sdk-browser": "workspace:*",
     "@tursodatabase/sync-wasm": "0.7.2",
     "react": "19.2.8",

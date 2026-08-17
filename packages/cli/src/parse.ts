@@ -14,6 +14,7 @@ export type ParsedCommand =
   | {
       name: "login";
       mode: "device" | "loopback" | "auto";
+      qrPreference: "auto" | "on" | "off";
       flags: GlobalFlags;
     }
   | { name: "auth-status"; flags: GlobalFlags }
@@ -78,10 +79,15 @@ export function parseArgs(argv: string[]): ParsedCommand {
     const device = takeFlag(args, "--device");
     const loopback = takeFlag(args, "--loopback");
     const noBrowser = takeFlag(args, "--no-browser");
+    const qr = takeFlag(args, "--qr");
+    const noQr = takeFlag(args, "--no-qr");
     let mode: "device" | "loopback" | "auto" = "auto";
     if (device || noBrowser) mode = "device";
     else if (loopback) mode = "loopback";
-    return { name: "login", mode, flags };
+    let qrPreference: "auto" | "on" | "off" = "auto";
+    if (noQr) qrPreference = "off";
+    else if (qr) qrPreference = "on";
+    return { name: "login", mode, qrPreference, flags };
   }
 
   if (cmd === "auth" && args[0] === "status") {
@@ -164,7 +170,7 @@ export function helpText(): string {
   return `opensesame-id — OpenSesame identity CLI (alias: opensesame-identity)
 
 Commands:
-  login [--device|--loopback|--no-browser]
+  login [--device|--loopback|--no-browser] [--qr|--no-qr]
   auth status
   logout
   whoami
@@ -179,5 +185,6 @@ Global:
   --issuer <url>  OIDC issuer (default OPENSESAME_ISSUER or http://127.0.0.1:8788)
   --api <url>     Identity control plane API base
   --client-id <id>
+  --qr / --no-qr  Device login: print a terminal QR (default: on for TTY)
 `;
 }

@@ -94,11 +94,11 @@ cargo build -p opensesame-gateway -p opensesame-cli -p opensesame-daemon
 ./target/debug/opensesame login --flow device --no-browser --server http://127.0.0.1:8787
 
 # Sealed store (pass parity; never agent-facing reveal)
-./target/debug/opensesame init --sealed-store --path ~/.password-store
-./target/debug/opensesame insert Dev/api-token
-./target/debug/opensesame show Dev/api-token --reveal
-./target/debug/opensesame ls
-./target/debug/opensesame generate Dev/new --length 32
+./target/debug/opensesame pass init --path ~/.password-store
+./target/debug/opensesame pass insert Dev/api-token
+./target/debug/opensesame pass show Dev/api-token --reveal
+./target/debug/opensesame pass ls
+./target/debug/opensesame pass generate Dev/new --length 32
 ```
 
 **Pages (offline PWA) dev server:**
@@ -114,7 +114,7 @@ Sealed-store Settings bridge: export/import a path manifest in Pages, then seal 
 | `crates/core`, `crates/host-core`, `crates/client-core` | WIT/Wasm polyglot core + product-SDK facades |
 | `apps/gateway` | Host API, `:8787` (`opensesame-gateway`) |
 | `apps/daemon` | Local host agent, `:18790` (`opensesame-daemon`) |
-| `apps/cli` | Host CLI, binary `opensesame` (`opensesame-cli`) — includes sealed-store verbs |
+| `apps/cli` | Host CLI, binary `opensesame` (`opensesame-cli`) — includes `pass` sealed-store verbs |
 | `crates/sealed-store` | Git-native hierarchical sealed secret store (`pass` parity) |
 | `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store |
 | `apps/toolbar` | Daemon control stub (`opensesame-toolbar`) |
@@ -145,7 +145,7 @@ Sealed-store Settings bridge: export/import a path manifest in Pages, then seal 
 | `packages/env-spec-bridge` | env-spec ↔ runtime config bridge |
 | `skills/` | Agent skills — see §7 |
 | `wit/` | Polyglot core contracts (client, connector, core, host, mediation, proof, task) |
-| `docs/` | Architecture, ADRs, security, operators, validation, implementation docs |
+| `docs/` | Architecture, ADRs, security, operators, validation, implementation docs; competitor references under `docs/competitors/` |
 
 ## 5. Design rules that gate merges
 
@@ -159,7 +159,7 @@ Sealed-store Settings bridge: export/import a path manifest in Pages, then seal 
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0031).
+  0001–0038).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).

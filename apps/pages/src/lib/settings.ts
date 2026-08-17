@@ -1,3 +1,8 @@
+import {
+  type CapabilityConnectorMap,
+  defaultCapabilityConnectors,
+  normalizeCapabilityConnectors,
+} from "./capabilities.js";
 import { kvGet, kvSet, kvSetDurable } from "./kv.js";
 import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
 
@@ -6,6 +11,10 @@ export type PagesSettings = {
   identityApi: string;
   daemonApi: string;
   tursoUrl: string;
+  /** Optional Mobile MFA PWA URL for passkey ceremony handoff QR. */
+  mfaAppUrl: string;
+  /** Capability → Host connector bindings (encryption, git history, …). */
+  capabilityConnectors: CapabilityConnectorMap;
 };
 
 const PERSIST_KEY = "settings.v1";
@@ -15,15 +24,35 @@ type PersistedSettings = {
   identityApi: string;
   daemonApi: string;
   tursoUrl: string;
+  mfaAppUrl: string;
+  capabilityConnectors: CapabilityConnectorMap;
 };
 
-export const shippedHostApi = "http://127.0.0.1:8787";
-export const shippedIdentityApi = "http://127.0.0.1:8788";
+/** Local Host for `pages-dev.sh` — avoids the common :8787 collision. */
+export const shippedHostApi = "http://127.0.0.1:18787";
+/** Local Identity for `pages-dev.sh` — avoids the common :8788 collision. */
+export const shippedIdentityApi = "http://127.0.0.1:18788";
 export const shippedDaemonApi = "http://127.0.0.1:18790";
+export const shippedMfaAppUrl = "http://127.0.0.1:5177";
+
+/** Legacy loopback endpoints we replace when VITE_* is set at runtime. */
+const LEGACY_HOST_APIS = [
+  shippedHostApi,
+  "http://127.0.0.1:8787",
+  "http://localhost:8787",
+  "http://localhost:18787",
+] as const;
+const LEGACY_IDENTITY_APIS = [
+  shippedIdentityApi,
+  "http://127.0.0.1:8788",
+  "http://localhost:8788",
+  "http://localhost:18788",
+] as const;
 
 const runtimeHostApi = import.meta.env.VITE_HOST_API?.trim();
 const runtimeIdentityApi = import.meta.env.VITE_IDENTITY_API?.trim();
 const runtimeDaemonApi = import.meta.env.VITE_DAEMON_API?.trim();
+const runtimeMfaAppUrl = import.meta.env.VITE_MFA_APP_URL?.trim();
 
 const listeners = new Set<() => void>();
 
@@ -44,6 +73,8 @@ function localDefaults(): PersistedSettings {
     identityApi: runtimeIdentityApi || shippedIdentityApi,
     daemonApi: runtimeDaemonApi || shippedDaemonApi,
     tursoUrl: "",
+    mfaAppUrl: runtimeMfaAppUrl || shippedMfaAppUrl,
+    capabilityConnectors: defaultCapabilityConnectors(),
   };
 }
 
@@ -55,6 +86,9 @@ function remoteDefaults(): PersistedSettings {
     // the Tailscale Serve FQDN instead of looking like localhost will work.
     daemonApi: runtimeDaemonApi || "",
     tursoUrl: "",
+    // Remote Pages: operator must point at a reachable MFA PWA.
+    mfaAppUrl: runtimeMfaAppUrl || "",
+    capabilityConnectors: defaultCapabilityConnectors(),
   };
 }
 
@@ -67,13 +101,15 @@ function loadPersisted(): PersistedSettings {
   try {
     const raw = kvGet(PERSIST_KEY);
     if (!raw) return { ...defaults };
-    const parsed = JSON.parse(raw) as Partial<PersistedSettings>;
+    const parsed = JSON.parse(raw) as Partial<PersistedSettings> & {
+      capabilityConnectors?: Partial<CapabilityConnectorMap>;
+    };
     return {
       hostApi:
         parsed.hostApi?.trim() &&
         !(
           runtimeHostApi &&
-          [shippedHostApi, "http://127.0.0.1:18787"].includes(
+          (LEGACY_HOST_APIS as readonly string[]).includes(
             parsed.hostApi.trim(),
           )
         )
@@ -83,7 +119,7 @@ function loadPersisted(): PersistedSettings {
         parsed.identityApi?.trim() &&
         !(
           runtimeIdentityApi &&
-          [shippedIdentityApi, "http://localhost:8788"].includes(
+          (LEGACY_IDENTITY_APIS as readonly string[]).includes(
             parsed.identityApi.trim(),
           )
         )
@@ -91,6 +127,13 @@ function loadPersisted(): PersistedSettings {
           : defaults.identityApi,
       daemonApi: parsed.daemonApi?.trim() || defaults.daemonApi,
       tursoUrl: parsed.tursoUrl?.trim() || "",
+      mfaAppUrl:
+        parsed.mfaAppUrl !== undefined
+          ? parsed.mfaAppUrl.trim()
+          : defaults.mfaAppUrl,
+      capabilityConnectors: normalizeCapabilityConnectors(
+        parsed.capabilityConnectors,
+      ),
     };
   } catch {
     return { ...defaults };
@@ -112,28 +155,28 @@ export function subscribeSettings(listener: () => void): () => void {
   };
 }
 
-export function saveSettings(next: PagesSettings): void {
+function persistShape(next: PagesSettings): PersistedSettings {
   const defaults = defaultsForPage();
-  const persisted: PersistedSettings = {
+  return {
     hostApi: next.hostApi.trim() || defaults.hostApi,
     identityApi: next.identityApi.trim() || defaults.identityApi,
     daemonApi: next.daemonApi.trim() || defaults.daemonApi,
     tursoUrl: next.tursoUrl?.trim() ?? "",
+    mfaAppUrl: next.mfaAppUrl?.trim() ?? "",
+    capabilityConnectors: normalizeCapabilityConnectors(
+      next.capabilityConnectors ?? defaults.capabilityConnectors,
+    ),
   };
-  kvSet(PERSIST_KEY, JSON.stringify(persisted));
+}
+
+export function saveSettings(next: PagesSettings): void {
+  kvSet(PERSIST_KEY, JSON.stringify(persistShape(next)));
   emitSettings();
 }
 
 /** Persist pairing and wait for OPFS so a reload in this browser keeps Host. */
 export async function saveSettingsDurable(next: PagesSettings): Promise<void> {
-  const defaults = defaultsForPage();
-  const persisted: PersistedSettings = {
-    hostApi: next.hostApi.trim() || defaults.hostApi,
-    identityApi: next.identityApi.trim() || defaults.identityApi,
-    daemonApi: next.daemonApi.trim() || defaults.daemonApi,
-    tursoUrl: next.tursoUrl?.trim() ?? "",
-  };
-  await kvSetDurable(PERSIST_KEY, JSON.stringify(persisted));
+  await kvSetDurable(PERSIST_KEY, JSON.stringify(persistShape(next)));
   emitSettings();
 }
 

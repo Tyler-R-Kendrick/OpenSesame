@@ -301,6 +301,7 @@ mod tests {
             &Entry {
                 secret: "abc".into(),
                 trailer: String::new(),
+                otp: None,
             },
             &key,
         )
@@ -321,6 +322,7 @@ mod tests {
             &Entry {
                 secret: "v".into(),
                 trailer: String::new(),
+                otp: None,
             },
             &key,
         )

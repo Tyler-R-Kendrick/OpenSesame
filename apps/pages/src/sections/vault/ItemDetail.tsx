@@ -21,6 +21,7 @@ import {
   IconTrash,
 } from "../../components/Icons.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
+import { QrCode } from "../../components/QrCode.js";
 import { connectionEvents, listConnections } from "../../lib/connections.js";
 import { usePlaneStatus } from "../../lib/planes.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
@@ -31,7 +32,8 @@ import {
   browsableUrl,
   hostOf,
 } from "../../lib/vault/model.js";
-import { estimateStrength } from "../../lib/vault/password.js";
+import { estimateStrength, generate } from "../../lib/vault/password.js";
+import { totpSetupUri } from "../../lib/vault/totp.js";
 
 const KIND_ICON: Record<ItemKind, typeof IconLogin> = {
   login: IconLogin,
@@ -176,6 +178,16 @@ export function ItemDetail() {
         copied={copied}
         failed={failed}
         copy={copy}
+        onUpdateSecret={async (next) => {
+          const updated = { ...item, updatedAt: new Date().toISOString() };
+          if (updated.kind === "login") {
+            updated.password = next;
+            updated.passwordChangedAt = new Date().toISOString();
+          } else if (updated.kind === "secret") {
+            updated.value = next;
+          }
+          await store.saveItem(updated);
+        }}
       />
 
       {item.fields.length > 0 ? (
@@ -300,7 +312,119 @@ type FieldsProps = {
   copied: string | null;
   failed: string | null;
   copy: (key: string, value: string) => Promise<void>;
+  onUpdateSecret: (next: string) => Promise<void>;
 };
+
+function UpdateSecretPanel({
+  label,
+  onUpdate,
+}: {
+  label: string;
+  onUpdate: (next: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"generate" | "provide">("generate");
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function apply() {
+    setError(null);
+    setBusy(true);
+    try {
+      const next =
+        mode === "generate"
+          ? generate({
+              mode: "characters",
+              length: 32,
+              lower: true,
+              upper: true,
+              digits: true,
+              symbols: true,
+              avoidAmbiguous: true,
+            })
+          : value;
+      if (!next) throw new Error("Enter a new value.");
+      await onUpdate(next);
+      setOpen(false);
+      setValue("");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Update failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="btn btn--sm"
+        onClick={() => setOpen(true)}
+      >
+        Update {label}
+      </button>
+    );
+  }
+
+  return (
+    <div className="detail__update">
+      <div className="sites-effect-toggle" role="group" aria-label="Update mode">
+        <button
+          type="button"
+          className={mode === "generate" ? "sites-effect is-on is-allow" : "sites-effect"}
+          onClick={() => setMode("generate")}
+        >
+          Generate
+        </button>
+        <button
+          type="button"
+          className={mode === "provide" ? "sites-effect is-on is-allow" : "sites-effect"}
+          onClick={() => setMode("provide")}
+        >
+          Enter
+        </button>
+      </div>
+      {mode === "provide" ? (
+        <input
+          type="password"
+          className="input"
+          autoComplete="new-password"
+          placeholder={`New ${label}`}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+      ) : (
+        <p className="hint">Generates a 32-character password and saves it.</p>
+      )}
+      {error ? (
+        <p className="note note--err" role="alert">
+          <span>{error}</span>
+        </p>
+      ) : null}
+      <div className="actions">
+        <button
+          type="button"
+          className="btn btn--primary btn--sm"
+          disabled={busy}
+          onClick={() => void apply()}
+        >
+          {busy ? "Saving…" : "Save new value"}
+        </button>
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          onClick={() => {
+            setOpen(false);
+            setError(null);
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ItemFields({
   item,
@@ -309,6 +433,7 @@ function ItemFields({
   copied,
   failed,
   copy,
+  onUpdateSecret,
 }: FieldsProps) {
   switch (item.kind) {
     case "login":
@@ -363,34 +488,72 @@ function ItemFields({
                 {revealed.has("password") ? (
                   <StrengthBar password={item.password} />
                 ) : null}
+                <UpdateSecretPanel label="password" onUpdate={onUpdateSecret} />
               </FieldRow>
-            ) : null}
+            ) : (
+              <UpdateSecretPanel label="password" onUpdate={onUpdateSecret} />
+            )}
 
             {item.totp ? (
-              <FieldRow
-                label="Authenticator code"
-                actions={
-                  <button
-                    type="button"
-                    className={`icon-btn${copied === "totp" ? " is-on" : ""}`}
-                    onClick={() => {
-                      void currentTotp(item.totp)
-                        .then((code) => copy("totp", code))
-                        .catch(() => undefined);
-                    }}
-                    aria-label="Copy current code"
-                    title="Copy current code"
-                  >
-                    {copied === "totp" ? (
-                      <IconCheck size={17} />
-                    ) : (
-                      <IconCopy size={17} />
-                    )}
-                  </button>
-                }
-              >
-                <TotpCode secret={item.totp} />
-              </FieldRow>
+              <>
+                <FieldRow
+                  label="Authenticator code"
+                  actions={
+                    <button
+                      type="button"
+                      className={`icon-btn${copied === "totp" ? " is-on" : ""}`}
+                      onClick={() => {
+                        void currentTotp(item.totp)
+                          .then((code) => copy("totp", code))
+                          .catch(() => undefined);
+                      }}
+                      aria-label="Copy current code"
+                      title="Copy current code"
+                    >
+                      {copied === "totp" ? (
+                        <IconCheck size={17} />
+                      ) : (
+                        <IconCopy size={17} />
+                      )}
+                    </button>
+                  }
+                >
+                  <TotpCode secret={item.totp} />
+                </FieldRow>
+                <FieldRow
+                  label="Setup QR"
+                  actions={
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => toggle("totp-qr")}
+                    >
+                      {revealed.has("totp-qr") ? "Hide" : "Show"}
+                    </button>
+                  }
+                >
+                  {revealed.has("totp-qr") ? (
+                    <div className="detail__totp-qr">
+                      <QrCode
+                        value={totpSetupUri(item.totp, {
+                          label: item.name || "OpenSesame",
+                          issuer: "OpenSesame",
+                        })}
+                        label="Scan to enroll this authenticator secret in an authenticator app"
+                        size={144}
+                      />
+                      <p className="hint">
+                        Scan with an authenticator app. The QR encodes the same
+                        seed that powers the code above.
+                      </p>
+                    </div>
+                  ) : (
+                    <span className="frow__value frow__value--muted">
+                      Hidden — shows the otpauth enrollment QR.
+                    </span>
+                  )}
+                </FieldRow>
+              </>
             ) : null}
           </section>
 
@@ -611,6 +774,7 @@ function ItemFields({
                 label="secret value"
                 revealed={revealed.has("value")}
               />
+              <UpdateSecretPanel label="secret" onUpdate={onUpdateSecret} />
             </FieldRow>
             {item.connectionRef ? (
               <FieldRow

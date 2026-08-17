@@ -19,9 +19,10 @@ agents. The Host CLI previously shelled out to the external `pass` binary for
    auto-commit, and ciphertext formats (`.osseal`, `.gpg`, `.age`).
 2. Reuse `opensesame-human-vault` AEAD primitives for `.osseal` content
    encryption; wrap a store VRK under a passphrase in `.opensesame-key`.
-3. Expose human store verbs on the `opensesame` binary without a `pass`
-   subcommand: `init --sealed-store`, `insert`, `generate`, `show`, `ls`,
-   `find`, `cp`, `mv`, `rm`, `git`.
+3. Expose human store verbs under `opensesame pass` to mirror the Unix `pass`
+   CLI: `pass init`, `pass insert`, `pass generate`, `pass show`, `pass ls`,
+   `pass find`, `pass cp`, `pass mv`, `pass rm`, `pass git`. Keep top-level
+   `opensesame init` for `.env.schema` only.
 4. Resolve the store root as `OPENSESAME_STORE_DIR` → `PASSWORD_STORE_DIR` →
    `~/.password-store`.
 5. Replace connector-host shell-out to `pass` with in-process sealed-store
@@ -40,3 +41,6 @@ agents. The Host CLI previously shelled out to the external `pass` binary for
 - Operators can commit ciphertext to source control; plaintext manifests from
   Pages must not be committed.
 - ADR 0005 invariants are preserved: no agent `getSecret()` / `show`.
+- Competitive positioning vs Unix `pass` is recorded under
+  [docs/competitors/pass.md](../competitors/pass.md) (direct competitor for
+  the human CLI sealed-store slot).

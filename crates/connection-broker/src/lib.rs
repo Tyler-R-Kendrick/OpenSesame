@@ -11,8 +11,10 @@ pub mod catalog;
 pub mod config;
 pub mod configuration;
 pub mod crypto;
+pub mod egress;
 pub mod error;
 pub mod flow;
+pub mod github_app;
 pub mod integration;
 pub mod model;
 pub mod store;
@@ -37,6 +39,11 @@ use sqlx::SqlitePool;
 
 pub use crate::catalog::{AuthMethod, Provider};
 pub use crate::config::{BrokerConfig, ProviderConfig};
+pub use crate::github_app::{
+    build_manifest, convert_manifest_code, history_app_permissions, history_integration_scopes,
+    is_github_app_client_id, GithubAppCredentials, GITHUB_APP_REGISTER_URL,
+};
+pub use crate::egress::GithubRepo;
 pub use crate::error::{BrokerError, Result};
 pub use crate::integration::{
     CreateIntegration, IntegrationSource, IntegrationView, UpdateIntegration,
@@ -225,6 +232,10 @@ impl ConnectionBroker {
         &self.config
     }
 
+    pub fn http_client(&self) -> &reqwest::Client {
+        &self.http
+    }
+
     // ---- catalog -------------------------------------------------------------
 
     pub fn list_providers(&self) -> Result<Vec<ProviderView>> {
@@ -319,7 +330,8 @@ impl ConnectionBroker {
             if !matches!(
                 provider.auth,
                 AuthMethod::ApiKey { .. } | AuthMethod::Configuration
-            ) {
+            ) && !accepts_pasted_access_token(&provider.id)
+            {
                 continue;
             }
             let created = match self
@@ -375,13 +387,17 @@ impl ConnectionBroker {
         let provider = self.provider(&provider_id)?;
         let automatic_configuration = self.automatic_connection_configuration(&provider.id);
         if let Some(configuration) = automatic_configuration.as_ref() {
-            let definitions = provider.connection_configuration_fields();
-            configuration::validate_mutation(definitions, configuration, &[])?;
-            if !configuration::complete(definitions, configuration) {
-                return Err(BrokerError::Invalid(format!(
-                    "detected {} configuration is incomplete",
-                    provider.id
-                )));
+            if !(accepts_pasted_access_token(&provider.id)
+                && configuration.contains_key("access_token"))
+            {
+                let definitions = provider.connection_configuration_fields();
+                configuration::validate_mutation(definitions, configuration, &[])?;
+                if !configuration::complete(definitions, configuration) {
+                    return Err(BrokerError::Invalid(format!(
+                        "detected {} configuration is incomplete",
+                        provider.id
+                    )));
+                }
             }
             self.sealing_key()?;
         }
@@ -445,6 +461,24 @@ impl ConnectionBroker {
         store::append_event(&self.pool, &row.id, EventKind::Created, Some(&provider.id)).await?;
         tracing::info!(connection_id = %row.id, provider_id = provider.id, "connection created");
         if let Some(configuration) = automatic_configuration {
+            if accepts_pasted_access_token(&provider.id) {
+                if let Some(token) = configuration
+                    .get("access_token")
+                    .or_else(|| configuration.get("api_key"))
+                    .cloned()
+                {
+                    return match self
+                        .set_access_token(organization_id, &row.id, &token)
+                        .await
+                    {
+                        Ok(view) => Ok(view),
+                        Err(error) => {
+                            let _ = store::delete_connection(&self.pool, &row.id).await;
+                            Err(error)
+                        }
+                    };
+                }
+            }
             return match self
                 .set_connection_configuration(organization_id, &row.id, configuration, Vec::new())
                 .await
@@ -573,7 +607,7 @@ impl ConnectionBroker {
                 (!row.integration_id.is_empty()).then_some(row.integration_id.as_str()),
             )
             .await?;
-        if row.integration_id.is_empty() {
+        if row.integration_id != integration_id {
             store::set_integration_id(&self.pool, &row.id, &integration_id).await?;
             row.integration_id = integration_id;
         }
@@ -617,13 +651,23 @@ impl ConnectionBroker {
         let pkce = flow::Pkce::generate();
         let state = flow::new_state();
         let expires_at = Utc::now() + chrono::Duration::seconds(flow::STATE_TTL_SECONDS);
+        let client_id = config.provider(&provider.id).client_id.unwrap_or_default();
+        // GitHub Apps: classic `scope=` values (e.g. `repo`) do not grant
+        // repository Administration. Omitting scope authorizes every permission
+        // configured on the App (including administration:write for POST /user/repos).
+        let authorize_scopes: &[String] =
+            if provider.id == "github" && is_github_app_client_id(&client_id) {
+                &[]
+            } else {
+                &scopes
+            };
         let authorization_url = flow::build_authorize_url(
             provider,
             &config,
             flow::AuthorizeParams {
-                client_id: &config.provider(&provider.id).client_id.unwrap_or_default(),
+                client_id: &client_id,
                 redirect_uri: &redirect_uri,
-                scopes: &scopes,
+                scopes: authorize_scopes,
                 state: &state,
                 code_challenge: &pkce.challenge,
             },
@@ -1093,6 +1137,146 @@ impl ConnectionBroker {
         .await
     }
 
+    /// Seal a pasted personal access token for providers that accept bearer
+    /// tokens (GitHub / GitLab). Activates the connection without an OAuth App.
+    pub async fn set_access_token(
+        &self,
+        organization_id: &OrganizationId,
+        id: &str,
+        access_token: &str,
+    ) -> Result<ConnectionView> {
+        let token = access_token.trim();
+        if token.is_empty() {
+            return Err(BrokerError::Invalid("access token is required".into()));
+        }
+        if token.len() > crate::MAX_CREDENTIAL_BYTES {
+            return Err(BrokerError::Invalid(format!(
+                "access token exceeds {} bytes",
+                crate::MAX_CREDENTIAL_BYTES
+            )));
+        }
+        let mut row = self.row_in_org(organization_id, id).await?;
+        let provider = self.provider(&row.provider_id)?;
+        if !accepts_pasted_access_token(&provider.id) {
+            return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
+        }
+        let (integration_id, _, _, _, expected_integration_updated_at) = self
+            .resolve_integration(
+                organization_id,
+                Some(&provider.id),
+                (!row.integration_id.is_empty()).then_some(row.integration_id.as_str()),
+            )
+            .await?;
+        if row.integration_id.is_empty() {
+            store::set_integration_id(&self.pool, &row.id, &integration_id).await?;
+            row.integration_id = integration_id;
+        }
+        let account_label = self.probe_access_token_account(&provider.id, token).await?;
+        let key = *self.sealing_key()?;
+        let current = store::get_credential(&self.pool, &row.id).await?;
+        let expected_version = current
+            .as_ref()
+            .map(|credential| credential.version.clone());
+        let tokens = TokenSet {
+            access_token: token.to_string(),
+            refresh_token: None,
+            token_type: "Bearer".into(),
+            expires_at: None,
+            scopes: row.requested_scopes.clone(),
+            configuration: BTreeMap::new(),
+        };
+        match self
+            .store_tokens(
+                &key,
+                &row,
+                &tokens,
+                TokenActivation {
+                    refreshed_at: None,
+                    account_label: account_label.as_deref(),
+                    expected_integration_updated_at: expected_integration_updated_at.as_deref(),
+                    event_kind: EventKind::Authorized,
+                    event_detail: Some("personal access token sealed"),
+                    expected_credential_version: Some(expected_version.as_deref()),
+                },
+            )
+            .await?
+        {
+            store::CredentialActivationOutcome::Activated => {}
+            store::CredentialActivationOutcome::Revoked => {
+                return Err(BrokerError::Invalid("connection is revoked".into()));
+            }
+            store::CredentialActivationOutcome::Superseded => {
+                return self.get_connection_unscoped(&row.id).await;
+            }
+        }
+        tracing::info!(
+            connection_id = %row.id,
+            provider_id = provider.id,
+            "access token sealed"
+        );
+        self.get_connection_unscoped(&row.id).await
+    }
+
+    async fn probe_access_token_account(
+        &self,
+        provider_id: &str,
+        token: &str,
+    ) -> Result<Option<String>> {
+        match provider_id {
+            "github" => {
+                let url = format!("{}/user", self.config.github_api_base());
+                let res = self
+                    .http
+                    .get(&url)
+                    .header("Authorization", format!("Bearer {token}"))
+                    .header("Accept", "application/vnd.github+json")
+                    .header("User-Agent", "OpenSesame-Host/0.1")
+                    .header("X-GitHub-Api-Version", "2022-11-28")
+                    .send()
+                    .await
+                    .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
+                let status = res.status();
+                let text = res.text().await.map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
+                if !(200..300).contains(&status.as_u16()) {
+                    let snippet: String = text.chars().take(160).collect();
+                    return Err(BrokerError::ExchangeFailed(format!(
+                        "GitHub rejected the token ({status}): {snippet}"
+                    )));
+                }
+                let body: serde_json::Value = serde_json::from_str(&text)
+                    .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
+                Ok(body
+                    .get("login")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()))
+            }
+            "gitlab" => {
+                let res = self
+                    .http
+                    .get("https://gitlab.com/api/v4/user")
+                    .header("Authorization", format!("Bearer {token}"))
+                    .header("User-Agent", "OpenSesame-Host/0.1")
+                    .send()
+                    .await
+                    .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
+                let status = res.status();
+                let text = res.text().await.map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
+                if !(200..300).contains(&status.as_u16()) {
+                    return Err(BrokerError::ExchangeFailed(format!(
+                        "GitLab rejected the token ({status})"
+                    )));
+                }
+                let body: serde_json::Value = serde_json::from_str(&text)
+                    .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
+                Ok(body
+                    .get("username")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()))
+            }
+            _ => Ok(None),
+        }
+    }
+
     pub async fn set_connection_configuration(
         &self,
         organization_id: &OrganizationId,
@@ -1551,6 +1735,13 @@ fn parse_owner_kind(raw: &str) -> ConnectionOwnerKind {
         "device" => ConnectionOwnerKind::Device,
         _ => ConnectionOwnerKind::Organization,
     }
+}
+
+/// Providers whose REST APIs accept a personal access token as a Bearer
+/// credential (same shape as an OAuth access token). Enables Host-mediated
+/// history setup without registering an OAuth App.
+pub fn accepts_pasted_access_token(provider_id: &str) -> bool {
+    matches!(provider_id, "github" | "gitlab")
 }
 
 pub fn shareability_str(s: Shareability) -> &'static str {

@@ -96,7 +96,9 @@ export function scriptTagSrc(base: string = pagesPublicBase()): string {
  */
 export function parseBrokerRequest(
   search: string,
-): { ok: true; request: BrokerRequest } | { ok: false; error: string; detail: string } {
+):
+  | { ok: true; request: BrokerRequest }
+  | { ok: false; error: string; detail: string } {
   const params = new URLSearchParams(
     search.startsWith("?") ? search.slice(1) : search,
   );
@@ -158,7 +160,8 @@ export function parseBrokerRequest(
 function looksLikeEnoughEntropy(state: string): boolean {
   try {
     const padded = state.replace(/-/g, "+").replace(/_/g, "/");
-    const pad = padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
+    const pad =
+      padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
     const binary = atob(padded + pad);
     return binary.length >= MIN_STATE_BYTES;
   } catch {
@@ -190,7 +193,10 @@ export function consentFor(origin: string): SiteConsent | null {
 }
 
 /** True when prior consent covers every requested scope. */
-export function consentCovers(consent: SiteConsent | null, scope: string): boolean {
+export function consentCovers(
+  consent: SiteConsent | null,
+  scope: string,
+): boolean {
   if (!consent) return false;
   const needed = new Set(scopeList(scope));
   const have = new Set(consent.scopes);
@@ -206,12 +212,16 @@ export function approveConsent(origin: string, scope: string): SiteConsent {
   const existing = loadConsents();
   const next: SiteConsent = {
     origin,
-    scopes: Array.from(new Set([...(consentFor(origin)?.scopes ?? []), ...scopes])),
+    scopes: Array.from(
+      new Set([...(consentFor(origin)?.scopes ?? []), ...scopes]),
+    ),
     approvedAt: consentFor(origin)?.approvedAt ?? now,
     lastUsedAt: now,
   };
   const without = existing.filter((c) => c.origin !== origin);
-  saveConsents([...without, next].sort((a, b) => a.origin.localeCompare(b.origin)));
+  saveConsents(
+    [...without, next].sort((a, b) => a.origin.localeCompare(b.origin)),
+  );
   return next;
 }
 
@@ -397,9 +407,7 @@ export function setDomainRuleEffect(
   const target = normalizeDomainEntry(domain) ?? domain.toLowerCase();
   const next: BrokerPolicy = {
     rules: sortRules(
-      current.rules.map((r) =>
-        r.domain === target ? { ...r, effect } : r,
-      ),
+      current.rules.map((r) => (r.domain === target ? { ...r, effect } : r)),
     ),
   };
   saveBrokerPolicy(next);
@@ -420,16 +428,25 @@ export function removeDomainRule(domain: string): BrokerPolicy {
  * Domain gate before consent:
  * - Best matching blacklist → refuse
  * - Best matching whitelist → allow
- * - No match, but any whitelist exists → refuse (closed world)
- * - No match, no whitelists → allow (open)
+ * - No match, but any whitelist exists → refuse (closed / restricted)
+ * - No match, no whitelists → allow (public / open)
+ *
+ * Public until the first allowed (whitelist) domain is added. Optional blocked
+ * domains apply in both modes.
  */
 export function originMayUseBroker(origin: string): boolean {
   const { rules } = loadBrokerPolicy();
   const best = bestMatchingRule(origin, rules);
   if (best?.effect === "blacklist") return false;
   if (best?.effect === "whitelist") return true;
-  const hasWhitelist = rules.some((r) => r.effect === "whitelist");
-  return !hasWhitelist;
+  return !isBrokerRestricted({ rules });
+}
+
+/** True when at least one allow-list domain exists (closed world). */
+export function isBrokerRestricted(
+  policy: BrokerPolicy = loadBrokerPolicy(),
+): boolean {
+  return policy.rules.some((r) => r.effect === "whitelist");
 }
 
 export function domainFilterDenialMessage(
@@ -438,9 +455,9 @@ export function domainFilterDenialMessage(
 ): string {
   const best = bestMatchingRule(origin, policy.rules);
   if (best?.effect === "blacklist") {
-    return `This origin matches a blacklisted domain (${best.domain}).`;
+    return `This origin matches a blocked domain (${best.domain}).`;
   }
-  return "This origin is not on the whitelist. Add it as Whitelist on the Sites page, or remove all whitelist rules to open the broker again.";
+  return "This origin is not on the allow list. Add it under Sites → Domain access, or remove every allowed domain to make the broker public again.";
 }
 
 export function buildSuccessMessage(
@@ -529,11 +546,14 @@ export function staticSiteSnippet(opts: {
   siteOrigin: string;
 }): string {
   const script = scriptTagSrc(opts.brokerBase);
-  const authorize = brokerAuthorizeUrl({
-    origin: opts.siteOrigin,
-    state: "", // placeholder stripped below — link omits state so auto-links fill it
-    scope: "openid",
-  }, opts.brokerBase);
+  const authorize = brokerAuthorizeUrl(
+    {
+      origin: opts.siteOrigin,
+      state: "", // placeholder stripped below — link omits state so auto-links fill it
+      scope: "openid",
+    },
+    opts.brokerBase,
+  );
   // brokerAuthorizeUrl always sets state; for the declarative link we want no state.
   const authorizeLink = (() => {
     const url = new URL(authorize);

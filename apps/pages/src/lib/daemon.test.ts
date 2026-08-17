@@ -31,6 +31,11 @@ describe("daemon pairing", () => {
       identityApi: "",
       daemonApi: "",
       tursoUrl: "",
+      mfaAppUrl: "",
+      capabilityConnectors: {
+        encryption: { providerId: "webcrypto" },
+        history: { providerId: "github" },
+      },
     });
     await applyDaemonPairing("https://box.tail123.ts.net", {
       status: "ok",
@@ -44,5 +49,34 @@ describe("daemon pairing", () => {
     expect(settings.hostApi).toBe("https://box.tail123.ts.net/host");
     expect(settings.identityApi).toBe("https://box.tail123.ts.net/identity");
     expect(hasRemoteHostPairing(settings)).toBe(true);
+  });
+
+  it("keeps loopback Host/Identity when Pages itself is on localhost", async () => {
+    vi.stubGlobal("location", {
+      hostname: "localhost",
+      href: "http://localhost:5180/OpenSesame/settings",
+    });
+    saveSettings({
+      hostApi: "http://127.0.0.1:8787",
+      identityApi: "http://127.0.0.1:8788",
+      daemonApi: "http://127.0.0.1:18790",
+      tursoUrl: "",
+      mfaAppUrl: "",
+      capabilityConnectors: {
+        encryption: { providerId: "webcrypto" },
+        history: { providerId: "github" },
+      },
+    });
+    await applyDaemonPairing("http://127.0.0.1:18790", {
+      status: "ok",
+      service: "opensesame-daemon",
+      hostApi: "http://127.0.0.1:8787",
+      identityApi: "http://127.0.0.1:8788",
+      tailscaleUrl: "https://box.tail123.ts.net",
+    });
+    const settings = loadSettings();
+    expect(settings.daemonApi).toBe("https://box.tail123.ts.net");
+    expect(settings.hostApi).toBe("http://127.0.0.1:8787");
+    expect(settings.identityApi).toBe("http://127.0.0.1:8788");
   });
 });

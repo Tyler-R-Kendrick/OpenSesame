@@ -73,6 +73,13 @@ describe("DeviceFlowClient", () => {
       "SECRET_DEVICE_CODE",
     );
     expect(client.formatInstructions(start)).toContain("ABCD-EFGH");
+    expect(client.formatInstructions(start)).toContain("shortcode");
+    expect(client.formatInstructions(start, { qr: false })).not.toMatch(/█|▀|▄/u);
+    const withQr = client.formatInstructions(start, { qr: true });
+    expect(withQr.split("\n").length).toBeGreaterThan(
+      client.formatInstructions(start).split("\n").length,
+    );
+    expect(withQr).toMatch(/█|▀|▄/u);
 
     const pending = await client.pollOnce();
     expect(pending.status).toBe("authorization_pending");

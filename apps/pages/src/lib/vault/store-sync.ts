@@ -26,6 +26,37 @@ export type OsMeta = {
   connectionRef?: string;
 };
 
+/** First otpauth:// line in a pass-otp style trailer, if any. */
+export function extractOtpauthFromTrailer(trailer: string): string | null {
+  for (const line of trailer.split(/\r?\n/u)) {
+    const t = line.trim();
+    if (/^otpauth:\/\//iu.test(t)) return t;
+  }
+  return null;
+}
+
+/** Drop otpauth lines from trailer text. */
+export function stripOtpauthFromTrailer(trailer: string): string {
+  return trailer
+    .split(/\r?\n/u)
+    .filter((line) => !/^otpauth:\/\//iu.test(line.trim()))
+    .join("\n");
+}
+
+/** Ensure trailer contains exactly one otpauth line when totp is set. */
+export function mergeOtpauthIntoTrailer(
+  trailer: string,
+  otpauth: string | null | undefined,
+): string {
+  const without = stripOtpauthFromTrailer(trailer).replace(/\n+$/u, "");
+  if (!otpauth?.trim()) {
+    return without ? `${without}\n` : "";
+  }
+  const uri = otpauth.trim();
+  if (!without) return `${uri}\n`;
+  return `${without}\n${uri}\n`;
+}
+
 /** Split `Email/github.com` into folder + name. */
 export function splitStorePath(path: string): { folder: string | null; name: string } {
   const trimmed = path.replace(/^\/+|\/+$/gu, "");
@@ -48,12 +79,13 @@ export function joinStorePath(folder: string | null, name: string): string {
 
 /** Parse an OpenSesame JSON trailer after a blank line, if present. */
 export function parseTrailerMeta(trailer: string): OsMeta {
-  const text = trailer.trim();
-  if (!text.startsWith("{")) return { notes: trailer.trim() || undefined };
+  const withoutOtp = stripOtpauthFromTrailer(trailer);
+  const text = withoutOtp.trim();
+  if (!text.startsWith("{")) return { notes: text || undefined };
   try {
     return JSON.parse(text) as OsMeta;
   } catch {
-    return { notes: trailer.trim() || undefined };
+    return { notes: text || undefined };
   }
 }
 
@@ -63,6 +95,7 @@ export function entryToVaultItem(
 ): VaultItem {
   const { name } = splitStorePath(entry.path);
   const meta = parseTrailerMeta(entry.trailer);
+  const otpauth = extractOtpauthFromTrailer(entry.trailer);
   const kind = meta.kind === "secret" ? "secret" : meta.kind === "note" ? "note" : "login";
 
   if (kind === "secret") {
@@ -84,7 +117,7 @@ export function entryToVaultItem(
   if (item.kind === "login") {
     item.password = entry.secret;
     item.username = meta.username ?? "";
-    item.totp = meta.totp ?? "";
+    item.totp = otpauth ?? meta.totp ?? "";
     item.notes = meta.notes ?? "";
     item.uris = (meta.uris ?? []).map((uri) => ({
       id: newId(),
@@ -106,10 +139,17 @@ export function vaultItemToEntry(
   const meta: OsMeta = { kind: item.kind, notes: item.notes || undefined };
 
   let secret = "";
+  let otpauth: string | null = null;
   if (item.kind === "login") {
     secret = item.password;
     meta.username = item.username || undefined;
-    meta.totp = item.totp || undefined;
+    if (item.totp) {
+      if (/^otpauth:\/\//iu.test(item.totp.trim())) {
+        otpauth = item.totp.trim();
+      } else {
+        meta.totp = item.totp;
+      }
+    }
     meta.uris = item.uris.map((u) => u.uri).filter(Boolean);
   } else if (item.kind === "secret") {
     secret = item.value;
@@ -124,7 +164,8 @@ export function vaultItemToEntry(
     secret = item.credentialIdB64;
   }
 
-  const trailer = `${JSON.stringify(meta)}\n`;
+  const jsonTrailer = `${JSON.stringify(meta)}\n`;
+  const trailer = mergeOtpauthIntoTrailer(jsonTrailer, otpauth);
   return { path, secret, trailer };
 }
 

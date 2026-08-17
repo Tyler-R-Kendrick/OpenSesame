@@ -31,7 +31,11 @@ Product license: **MIT** (see `LICENSE`).
 | 1Password `op://` SecretRef | Late-binding prior art — insufficient (materializes into process) |
 | OpenClaw / agentgateway OAuth exchange | Gateway-injection prior art |
 | Boundary / CyberArk Secretless | Credential injection prior art |
-| Nango / Bitwarden / Vaultwarden / Infisical | Study only; no incompatible source copy |
+| Nango / Bitwarden / Vaultwarden / Infisical | Study only; no incompatible source copy — see [docs/competitors](docs/competitors/index.md) |
+| Doppler / fnox / SOPS / age | Adjacent or primitive — see [docs/competitors](docs/competitors/index.md) |
+| Vercel Connect / Oomol Open Connector | Adjacent connector gateways — see [docs/competitors](docs/competitors/index.md) |
+| HashiCorp Vault | Prior art; prefer OpenBao provider — [docs/competitors/hashicorp-vault.md](docs/competitors/hashicorp-vault.md) |
+| Unix `pass` (password-store) | **Direct competitor** for CLI git-sealed secrets — see [docs/competitors/pass.md](docs/competitors/pass.md) |
 
 ## Rejected
 
