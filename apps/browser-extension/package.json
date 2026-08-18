@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
+    "test": "node --test tests/pact.test.mjs",
     "test:e2e": "playwright test",
     "test:install": "playwright install chromium"
   },

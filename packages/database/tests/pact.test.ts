@@ -1,0 +1,99 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+import {
+  assertDurableSurvivesPartition,
+  assertExclusiveClaim,
+  assertNoSecretFields,
+  assertSourceOrder,
+} from "@opensesame/testing";
+import { createRepositories } from "../src/index.js";
+
+const here = dirname(fileURLToPath(import.meta.url));
+
+describe("PACT — outbox claim", () => {
+  it("memory claim hides the row from a second claimant", async () => {
+    const repos = createRepositories();
+    await repos.outbox.append({
+      id: "outbox_pact",
+      aggregateType: "principal",
+      aggregateId: "prn_pact",
+      eventType: "principal.created",
+      payload: {},
+    });
+    const now = new Date();
+    await assertExclusiveClaim(async () => {
+      const claimed = await repos.outbox.claimUnpublished(1, now, 30_000);
+      return claimed.length === 1;
+    }, 16);
+  });
+
+  it("unpublished rows survive a failed mark after claim", async () => {
+    const repos = createRepositories();
+    await repos.outbox.append({
+      id: "outbox_partition",
+      aggregateType: "principal",
+      aggregateId: "prn_part",
+      eventType: "principal.created",
+      payload: {},
+    });
+    const now = new Date();
+    await assertDurableSurvivesPartition(
+      async () => (await repos.outbox.listUnpublished()).length,
+      async () => {
+        const claimed = await repos.outbox.claimUnpublished(1, now, 30_000);
+        expect(claimed).toHaveLength(1);
+        await repos.outbox.releaseClaim(claimed[0]!.id, "nats down");
+      },
+    );
+  });
+
+  it("postgres claim uses SKIP LOCKED after selecting unpublished rows", () => {
+    assertSourceOrder(
+      readFileSync(join(here, "../src/repos/postgres.ts"), "utf8"),
+      [
+        "claimUnpublished",
+        "outboxClaimToken",
+        "skipLocked: true",
+        "outboxHoldActive",
+      ],
+    );
+  });
+
+  it("outbox contract: claimed rows do not smuggle secret fields", async () => {
+    const repos = createRepositories();
+    await repos.outbox.append({
+      id: "outbox_contract",
+      aggregateType: "principal",
+      aggregateId: "prn_contract",
+      eventType: "principal.created",
+      payload: { principalId: "prn_contract" },
+    });
+    const now = new Date();
+    const claimed = await repos.outbox.claimUnpublished(1, now, 30_000);
+    expect(claimed).toHaveLength(1);
+    assertNoSecretFields(claimed[0]);
+    assertNoSecretFields(claimed[0]!.payload);
+  });
+
+  it.skipIf(!process.env.DATABASE_URL)(
+    "postgres SKIP LOCKED exclusive claim under two drainers",
+    async () => {
+      const repos = createRepositories();
+      const id = `outbox_pact_pg_${Date.now()}`;
+      await repos.outbox.append({
+        id,
+        aggregateType: "principal",
+        aggregateId: "prn_pact_pg",
+        eventType: "principal.created",
+        payload: {},
+      });
+      const now = new Date();
+      await assertExclusiveClaim(async () => {
+        const claimed = await repos.outbox.claimUnpublished(8, now, 30_000);
+        return claimed.some((row) => row.id === id);
+      }, 8);
+    },
+  );
+});

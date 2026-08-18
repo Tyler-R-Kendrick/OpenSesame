@@ -26,6 +26,7 @@
     "postgres": "3.4.7"
   },
   "devDependencies": {
+    "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "drizzle-kit": "0.31.10",
     "tsx": "4.19.4",

@@ -26,3 +26,14 @@ test-results/
 .output/
 .wxt/
 package-lock.json
+# deepsec workspace secrets/local state (config+INFO stay tracked under .deepsec/.gitignore rules)
+.deepsec/.env*
+.deepsec/.vercel/
+.deepsec/node_modules/
+.deepsec/data/*/files/
+.deepsec/data/*/runs/
+.deepsec/data/*/setup/
+.deepsec/findings/
+.deepsec/data/*/debug/
+.serena/
+
