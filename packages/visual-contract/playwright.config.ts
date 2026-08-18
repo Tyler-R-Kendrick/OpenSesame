@@ -1,4 +1,6 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 5180;
@@ -19,15 +21,33 @@ const BASE_URL = `http://${HOST}:${PORT}`;
 const PREVIEW_ENV = { VITE_BASE: "/" };
 
 /**
- * Root already pins @playwright/test to 1.55.1 (matched by this package's
- * own devDependency) with a preinstalled Chromium at PLAYWRIGHT_BROWSERS_PATH
- * (see env below). When versions match, Playwright's default browser
- * resolution already finds it via PLAYWRIGHT_BROWSERS_PATH, so this
- * executablePath override only kicks in as a defensive fallback (e.g. a
- * version drift, or a runtime where PLAYWRIGHT_BROWSERS_PATH isn't set) and
- * is a no-op otherwise.
+ * Prefer a pinned Chromium at /opt/pw-browsers (container image). Otherwise
+ * use the newest full Chromium already in the Playwright cache so this suite
+ * does not depend on a matching `chromium_headless_shell-<rev>` download.
  */
 const PINNED_CHROMIUM = "/opt/pw-browsers/chromium";
+
+function resolveChromium(): string | undefined {
+  if (existsSync(PINNED_CHROMIUM)) return PINNED_CHROMIUM;
+  const root =
+    process.env.PLAYWRIGHT_BROWSERS_PATH ??
+    join(homedir(), ".cache", "ms-playwright");
+  if (!existsSync(root)) return undefined;
+  const dirs = readdirSync(root)
+    .filter((name) => /^chromium-\d+$/.test(name))
+    .sort(
+      (a, b) =>
+        Number(b.slice("chromium-".length)) -
+        Number(a.slice("chromium-".length)),
+    );
+  for (const dir of dirs) {
+    const chrome = join(root, dir, "chrome-linux", "chrome");
+    if (existsSync(chrome)) return chrome;
+  }
+  return undefined;
+}
+
+const chromiumPath = resolveChromium();
 
 /**
  * Chromium's own process sandbox refuses to start when the launching process
@@ -40,7 +60,7 @@ const PINNED_CHROMIUM = "/opt/pw-browsers/chromium";
 const isRoot = typeof process.getuid === "function" && process.getuid() === 0;
 
 const launchOptions = {
-  ...(existsSync(PINNED_CHROMIUM) ? { executablePath: PINNED_CHROMIUM } : {}),
+  ...(chromiumPath ? { executablePath: chromiumPath } : {}),
   ...(isRoot ? { args: ["--no-sandbox"] } : {}),
 };
 

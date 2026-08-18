@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Playwright + pixelmatch visual regression contract that renders apps/pages and diffs it against the .impeccable/screenshots design baselines",
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run && playwright test",
     "test:visual": "playwright test",
     "typecheck": "tsc --noEmit"
   },

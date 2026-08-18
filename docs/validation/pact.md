@@ -34,7 +34,7 @@ Do not add a suite that only documents the happy path.
 | Identity claims / quota / MFA | `pact-chaos.test.ts` exclusive + quota + serializeKeyed | check-then-set; fence increment-before-verify | concurrent idempotency / org+claim quota | OpenAPI: every `security` path documents 401 |
 | Identity audit chain | concurrent appends stay one chain (`packages/audit` `pact.test.ts`) | `timingSafeEqual` source-order | failed append does not advance the tip | no secret fields on chained events |
 | Worker outbox drain | exclusive `claimUnpublished` | claim → publish → mark → release source-order | TaskBus partition keeps the row | CloudEvent has no secret fields |
-| Database outbox | exclusive memory claim | Postgres `SKIP LOCKED` + `outboxClaimToken` source-order | release after failed mark; live SKIP LOCKED when `DATABASE_URL` is set | claimed row has no secret fields |
+| Database outbox | exclusive memory claim | Postgres `SKIP LOCKED` + `outboxClaimToken` source-order | release after failed mark; live SKIP LOCKED via PGlite (or `DATABASE_URL`) | claimed row has no secret fields |
 | Host GitHub webhook | exclusive delivery claim | HMAC → claim → append → rollback | TaskBus partition; duplicate body | 401 malformed signature |
 | Host backup / TaskBus | capacity/rate under lock | configurator before outbox; ping gated; session `pending_events` is 0 (no global depth leak) | wake despite bus down | TaskBus OpenAPI 401/403/422 |
 | Host changelog | org-scoped list | event-type allowlist; no cross-tenant read | concurrent records from two orgs never mix | metadata-only rows |
@@ -67,7 +67,7 @@ Do not add a suite that only documents the happy path.
 | Pages PWA / console / mobile-mfa | loopback operator pin; b64url round-trip | remote operator headers empty; empty QR refused | claim stash stays in sessionStorage; QR encode stable | no `getSecret`; stash JSON only |
 | mock-upstream-idp | loopback listen | PKCE required | authorization code is single-use | `codes.delete` before PKCE verify |
 | example RPs / agent / headless | pairwise `sub` differs by sector | claimToken / `device_code` never printed | poll/device partition fails closed | mock `DO_NOT_PRINT` device_code |
-| redteam / visual-contract | corpus covers four classes; identical PNGs match | 404 mock has no secrets; dimension mismatch fails | unmatched routes stay 404; inverted PNG exceeds budget | no `getSecret` tool; `VISUAL_UPDATE` opt-in |
+| redteam / visual-contract | corpus covers four classes; identical PNGs match | 404 mock has no secrets; dimension mismatch fails; live mcp-host confused-deputy / credential / malformed / injection-as-data | unmatched routes stay 404; inverted PNG exceeds budget | no `getSecret` tool; Playwright `test` vs `.impeccable/screenshots`; `VISUAL_UPDATE` opt-in |
 | fuzz oracles / env-spec / config | terminal claims; `@sensitive` values null; strict tsconfig | secret fields redacted; missing schema exits 2 | concurrent parse stays secret-free | JSON parser id; package exports tsconfig only |
 | grants / static-mesh / toolbar / credential-agent | attenuation increments depth; advertise/resolve stable | expanded actions refused; path ids refused; remote daemon URL refused | cross-org child refused; unknown service empty; missing operator 401 | grant/mesh JSON has no secret fields; mint returns null secrets |
 | eve-deepsec (out of workspace) | GLM 5.2 pinned to blackbox | `deepsec process/sandbox` refused before spawn | missing install fails closed | README keeps the app out of `pnpm-workspace.yaml` |
@@ -93,4 +93,6 @@ Reference call sites: `apps/gateway/src/github_webhook.rs`,
 `packages/telemetry/src/__tests__/pact.test.ts`,
 `packages/identity-atproto/src/__tests__/pact.test.ts`,
 `packages/redteam/src/pact.test.ts`,
-`packages/visual-contract/src/compare.pact.test.ts`.
+`packages/redteam/src/structural.pact.test.ts`,
+`packages/visual-contract/src/compare.pact.test.ts`,
+`packages/visual-contract/tests/vault-visual-contract.spec.ts`.

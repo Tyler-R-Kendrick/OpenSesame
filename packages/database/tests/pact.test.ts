@@ -9,6 +9,7 @@ import {
   assertSourceOrder,
 } from "@opensesame/testing";
 import { createRepositories } from "../src/index.js";
+import { withPostgresRepos } from "./pg-harness.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -77,11 +78,9 @@ describe("PACT — outbox claim", () => {
     assertNoSecretFields(claimed[0]!.payload);
   });
 
-  it.skipIf(!process.env.DATABASE_URL)(
-    "postgres SKIP LOCKED exclusive claim under two drainers",
-    async () => {
-      const repos = createRepositories();
-      const id = `outbox_pact_pg_${Date.now()}`;
+  it("postgres SKIP LOCKED exclusive claim under concurrent drainers", async () => {
+    await withPostgresRepos(async (repos) => {
+      const id = `outbox_pact_pg_${Date.now()}_${Math.random().toString(16).slice(2)}`;
       await repos.outbox.append({
         id,
         aggregateType: "principal",
@@ -94,6 +93,6 @@ describe("PACT — outbox claim", () => {
         const claimed = await repos.outbox.claimUnpublished(8, now, 30_000);
         return claimed.some((row) => row.id === id);
       }, 8);
-    },
-  );
+    });
+  });
 });

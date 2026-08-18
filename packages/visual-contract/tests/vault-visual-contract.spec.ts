@@ -2,70 +2,54 @@
  * Visual contract for the six .impeccable/screenshots baselines, reproduced
  * against a live apps/pages build/preview (see ../playwright.config.ts).
  *
- * Selectors and flow below are taken directly from the current source, not
- * guessed:
- *  - apps/pages/src/App.tsx            (routing / lock gate)
- *  - apps/pages/src/pages/UnlockPage.tsx (first-run PIN creation form)
- *  - apps/pages/src/pages/VaultPage.tsx  (.vault-panel / .vault-list markup)
- *  - apps/pages/src/components/VaultShell.tsx (post-unlock chrome)
- *  - apps/pages/src/lib/lock.ts / lib/kv.ts (session state is memory-only;
- *    the PIN hash persists to OPFS, both scoped to the browser context)
+ * Selectors and flow are taken from current source, not the retired PIN-first
+ * UnlockPage:
+ *  - apps/pages/src/App.tsx              (lock gate before Routes)
+ *  - apps/pages/src/screens/UnlockScreen.tsx (.unlock__card, #master / #confirm)
+ *  - apps/pages/src/sections/VaultSection.tsx (.vault list after unlock)
+ *  - apps/pages/src/components/AppShell.tsx (Vault nav after unlock)
  *
- * Every test gets its own fresh Playwright browser context (Playwright's
- * default), so apps/pages always sees a true first run here: hasUnlockPin()
- * is false, isUnlocked() is false. There is no way to reach a "returning
- * user" unlock form or a pre-populated vault from a clean context, so this
- * suite intentionally only exercises the first-run creation flow.
- *
- * KNOWN CAVEAT (flagged rather than silently resolved, per WP7 instructions):
- * under this app's routing, "/" -> redirect to "/vault" -> redirect to
- * "/unlock" while locked, so the very first paint of the app root IS the
- * unlock screen. "pages-*" and "vault-unlock-*" are therefore the *same*
- * screen. We still capture them at two distinct points so they are not
- * literally identical file bytes and so each has a defensible meaning:
- *   - pages-*        : first paint, right after the unlock card mounts —
- *                       "what does the app shell look like on load".
- *   - vault-unlock-*  : the same screen after webfonts have settled
- *                       (document.fonts.ready) — "the unlock screen at rest".
- * If apps/pages ever grows a real loading/splash state distinct from the
- * unlock screen, this suite should be revisited so "pages-*" captures that
- * instead. Until then, expect these two baselines to be visually very close.
+ * Every test gets a fresh Playwright browser context, so apps/pages always
+ * sees a true first run: vault status is "empty". First-run create is a
+ * master password (≥12 chars, strength score ≥2) plus the recovery checkbox.
  */
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { captureAndVerify } from "../src/compare.js";
 
-/** >= the app's MIN_PIN_LEN (6); arbitrary otherwise. */
-const UNLOCK_PIN = "visual-contract-000000";
+/** Matches apps/pages store tests; length ≥12 and strength score ≥2. */
+const MASTER_PASSWORD = "correct horse battery staple";
 
 async function settleFonts(page: Page): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
 }
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const style = document.createElement("style");
+    style.textContent =
+      "*, *::before, *::after { animation: none !important; transition: none !important; }";
+    const mount = () => document.head.append(style);
+    if (document.head) mount();
+    else document.addEventListener("DOMContentLoaded", mount, { once: true });
+  });
+});
+
 async function completeFirstRunUnlock(page: Page): Promise<void> {
-  await page.goto("/unlock");
-  await page.locator("#unlock-pin").waitFor({ state: "visible" });
+  await page.goto("/");
+  await page.locator(".unlock__card").waitFor({ state: "visible" });
 
-  await page.locator("#unlock-pin").fill(UNLOCK_PIN);
-  await page.locator("#unlock-confirm").fill(UNLOCK_PIN);
-  await page.getByRole("button", { name: "Create vault unlock" }).click();
-
-  await page.waitForURL(/\/vault$/);
+  await page.locator("#master").fill(MASTER_PASSWORD);
+  await page.locator("#confirm").fill(MASTER_PASSWORD);
   await page
-    .getByRole("heading", { name: "Vault" })
-    .waitFor({ state: "visible" });
+    .getByLabel("I understand this vault cannot be recovered.")
+    .check();
+  await page.getByRole("button", { name: "Seal this device" }).click();
 
-  // VaultPage starts sealStatus at "Checking sealed store…" and flips it
-  // asynchronously (OPFS-backed sealed-store round trip) by re-rendering the
-  // same ".seal-chip" node in place, so we poll its text rather than wait
-  // for the node to detach. Best-effort: proceed with whatever sealStatus
-  // currently reads if it's still checking after a short grace period,
-  // rather than hard-failing the capture over it.
-  await expect(page.locator(".seal-chip"))
-    .not.toHaveText(/Checking sealed store/, { timeout: 5_000 })
-    .catch(() => {
-      /* best-effort */
-    });
+  await page.locator(".vault").waitFor({ state: "visible" });
+  await page
+    .getByRole("heading", { name: "All items" })
+    .waitFor({ state: "visible" });
 
   await settleFonts(page);
 }
@@ -73,21 +57,23 @@ async function completeFirstRunUnlock(page: Page): Promise<void> {
 test.describe("Authority Vault visual contract", () => {
   test("pages: initial app shell on load", async ({ page }, testInfo) => {
     await page.goto("/");
-    // First paint of whatever the router lands on while locked ("/unlock",
-    // per App.tsx's redirect chain) — captured before waiting on fonts.
-    await page.locator(".unlock-card").waitFor({ state: "visible" });
+    await page.locator(".unlock__card").waitFor({ state: "visible" });
+    await settleFonts(page);
     await captureAndVerify(page, `pages-${testInfo.project.name}`, testInfo);
   });
 
-  test("vault-unlock: first-run PIN creation form, settled", async ({
+  test("vault-unlock: first-run master-password form, settled", async ({
     page,
   }, testInfo) => {
-    await page.goto("/unlock");
-    await page.locator(".unlock-card").waitFor({ state: "visible" });
-    await expect(page.locator("#unlock-pin")).toBeVisible();
-    await expect(page.locator("#unlock-confirm")).toBeVisible();
+    await page.goto("/");
+    await page.locator(".unlock__card").waitFor({ state: "visible" });
     await expect(
-      page.getByRole("button", { name: "Create vault unlock" }),
+      page.getByRole("heading", { name: "Seal this device" }),
+    ).toBeVisible();
+    await expect(page.locator("#master")).toBeVisible();
+    await expect(page.locator("#confirm")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Seal this device" }),
     ).toBeVisible();
     await settleFonts(page);
     await captureAndVerify(
@@ -101,7 +87,7 @@ test.describe("Authority Vault visual contract", () => {
     page,
   }, testInfo) => {
     await completeFirstRunUnlock(page);
-    await expect(page.locator(".vault-panel")).toBeVisible();
+    await expect(page.locator(".vault")).toBeVisible();
     await captureAndVerify(
       page,
       `vault-list-${testInfo.project.name}`,
