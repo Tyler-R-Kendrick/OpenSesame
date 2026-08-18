@@ -85,6 +85,9 @@ struct MintCapReq {
     audience: String,
     #[serde(default)]
     scopes: Vec<String>,
+    /// Bind the capability to this host session when more than one exists.
+    #[serde(default)]
+    session_id: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -194,30 +197,19 @@ async fn main() -> anyhow::Result<()> {
     );
     let host_api = args.host_api.trim_end_matches('/').to_string();
     let hsts = host_api.starts_with("https://");
+    let http = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .connect_timeout(std::time::Duration::from_secs(2))
+        .build()?;
     let state = App {
         sessions: Arc::new(Mutex::new(sessions)),
         capabilities: Arc::new(Mutex::new(HashMap::new())),
         host_api,
         identity_api: args.identity_api.trim_end_matches('/').to_string(),
-        http: reqwest::Client::new(),
+        http,
         operator_token: resolve_operator_token(),
     };
-    let app = Router::new()
-        .route("/health", get(daemon_health))
-        .route("/v1/list_sessions", post(list_sessions))
-        .route("/v1/get_access_token", post(get_access_token))
-        .route("/v1/mint_capability", post(mint_capability))
-        .route("/v1/introspect_capability", post(introspect_capability))
-        .route("/v1/revoke", post(revoke))
-        .route("/v1/toolbar/status", get(toolbar_status))
-        .route("/v1/toolbar/approve_device", post(approve_device))
-        .route("/v1/toolbar/approve_claim", post(approve_claim))
-        .route("/v1/operator/invoke_l1", post(operator_invoke_l1))
-        .route("/host", any(proxy_host))
-        .route("/host/{*path}", any(proxy_host))
-        .route("/identity", any(proxy_identity))
-        .route("/identity/{*path}", any(proxy_identity))
-        .with_state(state);
+    let app = router(state);
 
     let cors_origins = opensesame_host_core::http_security::cors_origins_from_env();
     let is_production = std::env::var("OPENSESAME_ENV").ok().as_deref() == Some("production")
@@ -340,45 +332,48 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn daemon_health(State(st): State<App>) -> Json<Value> {
+async fn daemon_health() -> Json<Value> {
+    // Unauthenticated liveness. The public Serve URL is the pairing address;
+    // node IPs, DNS, CLI path, and admin enable URLs stay on /v1/toolbar/status.
+    let ts = tailscale::info();
+    let tailscale_url = ts.https_url.as_deref().and_then(|url| {
+        let trimmed = url.trim_end_matches('/');
+        (!trimmed.is_empty()).then_some(trimmed)
+    });
+    Json(json!({
+        "status": "ok",
+        "service": "opensesame-daemon",
+        "tailscale_url": tailscale_url,
+    }))
+}
+
+fn pairing_view(st: &App) -> Value {
     let ts = tailscale::info();
     let public = ts.https_url.as_deref().and_then(|url| {
         let trimmed = url.trim_end_matches('/');
         (!trimmed.is_empty()).then_some(trimmed)
     });
-    let pairing_hint = if let Some(url) = ts.serve_enable_url.as_deref() {
-        format!("Enable Tailscale Serve in the admin UI: {url} — then restart the daemon and paste tailscale_url into github.io.")
-    } else if public.is_some() {
-        "Paste tailscale_url into the github.io Connect this machine field.".into()
-    } else {
-        "Tailscale Serve is not active. Install/start Tailscale, enable Serve HTTPS for this node, restart the daemon, then paste tailscale_url into github.io.".into()
-    };
-    Json(json!({
-        "status": "ok",
-        "service": "opensesame-daemon",
+    json!({
         "host_api": public.map(|url| format!("{url}/host")).unwrap_or_else(|| st.host_api.clone()),
         "identity_api": public.map(|url| format!("{url}/identity")).unwrap_or_else(|| st.identity_api.clone()),
         "tailscale_url": public,
-        "tailscale_dns": ts.dns_name,
-        "tailscale_ip": ts.ip4,
         "tailscale_serve": ts.serve_enabled,
-        "tailscale_serve_enable_url": ts.serve_enable_url,
-        "tailscale_cli": ts.cli_path,
-        "tailscale_error": ts.last_error,
-        "uds": env::var("OPENSESAME_AGENT_SOCK").ok(),
-        "pairing_hint": pairing_hint,
-    }))
+    })
 }
 
 async fn proxy_host(State(st): State<App>, req: Request) -> Response {
-    proxy_loopback(&st.host_api, "/host", req).await
+    let base = st.host_api.clone();
+    proxy_loopback(&st, &base, "/host", req).await
 }
 
 async fn proxy_identity(State(st): State<App>, req: Request) -> Response {
-    proxy_loopback(&st.identity_api, "/identity", req).await
+    let base = st.identity_api.clone();
+    proxy_loopback(&st, &base, "/identity", req).await
 }
 
-async fn proxy_loopback(base: &str, prefix: &str, req: Request) -> Response {
+const MAX_PROXY_BODY: usize = 2 * 1024 * 1024;
+
+async fn proxy_loopback(st: &App, base: &str, prefix: &str, req: Request) -> Response {
     let path = req.uri().path();
     let rest = path.strip_prefix(prefix).unwrap_or(path);
     if rest.contains("..") {
@@ -392,16 +387,11 @@ async fn proxy_loopback(base: &str, prefix: &str, req: Request) -> Response {
     let url = format!("{}{}{}", base.trim_end_matches('/'), rest, query);
     let method = req.method().clone();
     let headers = req.headers().clone();
-    let body = match axum::body::to_bytes(req.into_body(), 2 * 1024 * 1024).await {
+    let body = match axum::body::to_bytes(req.into_body(), MAX_PROXY_BODY).await {
         Ok(bytes) => bytes,
         Err(_) => return StatusCode::PAYLOAD_TOO_LARGE.into_response(),
     };
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .connect_timeout(std::time::Duration::from_secs(2))
-        .build()
-        .unwrap_or_else(|_| reqwest::Client::new());
-    let mut forward = client.request(
+    let mut forward = st.http.request(
         reqwest::Method::from_bytes(method.as_str().as_bytes()).unwrap_or(reqwest::Method::GET),
         &url,
     );
@@ -418,6 +408,12 @@ async fn proxy_loopback(base: &str, prefix: &str, req: Request) -> Response {
     }
     match forward.body(body.to_vec()).send().await {
         Ok(upstream) => {
+            if upstream
+                .content_length()
+                .is_some_and(|len| len > MAX_PROXY_BODY as u64)
+            {
+                return StatusCode::PAYLOAD_TOO_LARGE.into_response();
+            }
             let status =
                 StatusCode::from_u16(upstream.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
             let mut response = Response::builder().status(status);
@@ -432,49 +428,72 @@ async fn proxy_loopback(base: &str, prefix: &str, req: Request) -> Response {
                 }
             }
             let bytes = upstream.bytes().await.unwrap_or_else(|_| Bytes::new());
+            if bytes.len() > MAX_PROXY_BODY {
+                return StatusCode::PAYLOAD_TOO_LARGE.into_response();
+            }
             response
                 .body(axum::body::Body::from(bytes))
                 .unwrap_or_else(|_| StatusCode::BAD_GATEWAY.into_response())
         }
-        Err(error) => (
+        Err(_) => (
             StatusCode::BAD_GATEWAY,
-            Json(json!({"error": error.to_string(), "upstream": url})),
+            Json(json!({"error": "upstream_unreachable"})),
         )
             .into_response(),
     }
 }
 
+fn router(state: App) -> Router {
+    Router::new()
+        .route("/health", get(daemon_health))
+        .route("/v1/list_sessions", post(list_sessions))
+        .route("/v1/get_access_token", post(get_access_token))
+        .route("/v1/mint_capability", post(mint_capability))
+        .route("/v1/introspect_capability", post(introspect_capability))
+        .route("/v1/revoke", post(revoke))
+        .route("/v1/toolbar/status", get(toolbar_status))
+        .route("/v1/toolbar/approve_device", post(approve_device))
+        .route("/v1/toolbar/approve_claim", post(approve_claim))
+        .route("/v1/operator/invoke_l1", post(operator_invoke_l1))
+        .route("/host", any(proxy_host))
+        .route("/host/{*path}", any(proxy_host))
+        .route("/identity", any(proxy_identity))
+        .route("/identity/{*path}", any(proxy_identity))
+        .with_state(state)
+}
+
 fn skip_hop_header(name: &HeaderName) -> bool {
-    matches!(
-        name.as_str(),
-        "connection"
-            | "keep-alive"
-            | "proxy-authenticate"
-            | "proxy-authorization"
-            | "te"
-            | "trailers"
-            | "transfer-encoding"
-            | "upgrade"
-            | "host"
-            | "content-length"
-    )
+    opensesame_host_core::http_security::is_hop_or_forwarding_header(name.as_str())
 }
 
 async fn toolbar_status(State(st): State<App>, headers: HeaderMap) -> Response {
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
-    let sessions = st.sessions.lock().unwrap().len();
-    let caps = st.capabilities.lock().unwrap().len();
-    Json(json!({
-        "daemon": "ok",
-        "sessions": sessions,
-        "capabilities": caps,
-        "materialize": "denied_by_default",
-        "approvals": ["approve_device", "approve_claim"],
-        "auth": "operator_token_required_for_mutations"
-    }))
-    .into_response()
+    let sessions = match st.sessions.lock() {
+        Ok(guard) => guard.len(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+    let caps = match st.capabilities.lock() {
+        Ok(guard) => guard.len(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+    let mut body = pairing_view(&st);
+    if let Some(obj) = body.as_object_mut() {
+        obj.insert("daemon".into(), json!("ok"));
+        obj.insert("sessions".into(), json!(sessions));
+        obj.insert("capabilities".into(), json!(caps));
+        obj.insert("materialize".into(), json!("denied_by_default"));
+        obj.insert(
+            "approvals".into(),
+            json!(["approve_device", "approve_claim"]),
+        );
+        obj.insert(
+            "auth".into(),
+            json!("operator_token_required_for_mutations"),
+        );
+    }
+    Json(body).into_response()
 }
 
 async fn approve_device(
@@ -519,8 +538,13 @@ async fn approve_claim(
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
-    // Both paths need the device's user code: the operator token proves a human
-    // is driving, the code proves which device they are approving.
+    if !opensesame_host_core::http_security::is_safe_path_id(&req.claim_id) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid_claim_id"})),
+        )
+            .into_response();
+    }
     let Some(user_code) = req.user_code.clone() else {
         return Json(json!({
             "error": "user_code_required",
@@ -528,11 +552,11 @@ async fn approve_claim(
         }))
         .into_response();
     };
-    // Prefer Host API agent-claim complete (operator + claim_token). Fallback: Identity API.
+    let claim_id = &req.claim_id;
     if let Some(claim_token) = req.claim_token {
         let url = format!(
             "{}/api/v1/agent-claims/{}/complete",
-            st.host_api, req.claim_id
+            st.host_api, claim_id
         );
         let forward = match operator_forward(&st, &url) {
             Ok(f) => f,
@@ -545,13 +569,22 @@ async fn approve_claim(
         {
             Ok(resp) => {
                 let status = resp.status().as_u16();
-                let body = resp.text().await.unwrap_or_default();
-                Json(json!({"forwarded_to": url, "status": status, "body": body})).into_response()
+                Json(json!({"status": status})).into_response()
             }
-            Err(e) => Json(json!({"error": e.to_string()})).into_response(),
+            Err(_) => Json(json!({"error": "upstream_unreachable"})).into_response(),
         };
     }
-    let url = format!("{}/v1/claims/{}/complete", st.identity_api, req.claim_id);
+    if !opensesame_host_core::daemon::base_url_is_local(&st.identity_api) {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "remote_identity_api",
+                "hint": "point OPENSESAME_ISSUER at loopback to complete claims"
+            })),
+        )
+            .into_response();
+    }
+    let url = format!("{}/v1/claims/{}/complete", st.identity_api, claim_id);
     let mut builder = st
         .http
         .post(&url)
@@ -562,11 +595,10 @@ async fn approve_claim(
     match builder.send().await {
         Ok(resp) => {
             let status = resp.status().as_u16();
-            let body = resp.text().await.unwrap_or_default();
-            Json(json!({"forwarded_to": url, "status": status, "body": body})).into_response()
+            Json(json!({"status": status})).into_response()
         }
-        Err(e) => Json(json!({
-            "error": e.to_string(),
+        Err(_) => Json(json!({
+            "error": "upstream_unreachable",
             "hint": "claim complete requires authenticated Identity API session or claim_token"
         }))
         .into_response(),
@@ -662,10 +694,23 @@ async fn mint_capability(
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
-    let sessions = st.sessions.lock().unwrap();
-    let Some(session) = sessions.values().next() else {
-        return Json(json!({"error":"no_session","hint":"use opensesame login on host"}))
-            .into_response();
+    let sessions = match st.sessions.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let session = if let Some(id) = req.session_id.as_deref() {
+        sessions.get(id)
+    } else if sessions.len() == 1 {
+        sessions.values().next()
+    } else {
+        None
+    };
+    let Some(session) = session else {
+        return Json(json!({
+            "error":"no_session",
+            "hint":"pass session_id from /v1/list_sessions"
+        }))
+        .into_response();
     };
     let cap = SessionCapability {
         id: format!("cap:{}", Uuid::new_v4()),
@@ -731,4 +776,124 @@ async fn revoke(State(st): State<App>, headers: HeaderMap, Json(body): Json<Valu
         st.capabilities.lock().unwrap().remove(id);
     }
     Json(json!({"ok": true})).into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hop_headers_include_forwarding_spoof_set() {
+        for name in [
+            "x-forwarded-for",
+            "X-Forwarded-Host",
+            "forwarded",
+            "x-real-ip",
+        ] {
+            assert!(
+                opensesame_host_core::http_security::is_hop_or_forwarding_header(name),
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn claim_ids_reject_path_and_query_injection() {
+        use opensesame_host_core::http_security::is_safe_path_id;
+        assert!(is_safe_path_id("clm_abc12345"));
+        assert!(!is_safe_path_id("../complete"));
+        assert!(!is_safe_path_id("clm?x=1"));
+        assert!(!is_safe_path_id("clm#frag"));
+        assert!(!is_safe_path_id("clm/../../admin"));
+    }
+
+    #[test]
+    fn production_proxy_strips_forwarding_headers_before_upstream() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("main.rs"),
+            &["skip_hop_header", "forward.header"],
+        );
+        let src = include_str!("main.rs");
+        assert!(src.contains("is_hop_or_forwarding_header"));
+        assert!(src.contains("is_safe_path_id"));
+        assert!(src.contains("upstream_unreachable"));
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("main.rs"),
+            &[
+                "if rest.contains(\"..\")",
+                "BAD_REQUEST",
+                "upstream_unreachable",
+            ],
+        );
+    }
+
+    fn test_app(host_api: &str) -> (Router, App) {
+        let http = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_millis(400))
+            .connect_timeout(std::time::Duration::from_millis(200))
+            .build()
+            .unwrap();
+        let state = App {
+            sessions: Arc::new(Mutex::new(HashMap::new())),
+            capabilities: Arc::new(Mutex::new(HashMap::new())),
+            host_api: host_api.to_string(),
+            identity_api: "http://127.0.0.1:1".into(),
+            http,
+            operator_token: DEV_OPERATOR_TOKEN.into(),
+        };
+        (router(state.clone()), state)
+    }
+
+    #[tokio::test]
+    async fn proxy_returns_bad_gateway_when_host_is_partitioned() {
+        use axum::body::{to_bytes, Body};
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let (app, _) = test_app("http://127.0.0.1:1");
+        let req = Request::builder()
+            .uri("/host/health")
+            .body(Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_GATEWAY);
+        let body = to_bytes(res.into_body(), 1024).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error"], "upstream_unreachable");
+        assert!(json.get("token").is_none());
+        assert!(json.get("operator_token").is_none());
+    }
+
+    #[tokio::test]
+    async fn proxy_rejects_path_traversal_before_dialing() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let (app, _) = test_app("http://127.0.0.1:1");
+        let req = Request::builder()
+            .uri("/host/foo/../secret")
+            .body(Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn health_is_opaque() {
+        use axum::body::{to_bytes, Body};
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let (app, _) = test_app("http://127.0.0.1:8787");
+        let req = Request::builder().uri("/health").body(Body::empty()).unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = to_bytes(res.into_body(), 1024).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["status"], "ok");
+        let text = json.to_string();
+        assert!(!text.contains(DEV_OPERATOR_TOKEN));
+        assert!(!text.contains("access_token"));
+    }
 }

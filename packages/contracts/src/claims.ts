@@ -59,6 +59,11 @@ export const CompleteClaimRequestSchema = z.object({
    * so the approver must prove they are looking at that device.
    */
   userCode: z.string().min(4).max(64),
+  /**
+   * Optional claim bearer. When present it must match this claim; Identity
+   * already requires an authenticated principal plus the user code.
+   */
+  claimToken: z.string().regex(/^osc_clm_/).optional(),
   destination: z.record(z.unknown()).optional(),
   idempotencyKey: z.string().min(8).optional(),
 });

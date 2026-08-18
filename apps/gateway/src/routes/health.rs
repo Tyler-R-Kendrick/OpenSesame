@@ -45,16 +45,12 @@ pub async fn ready(State(st): State<AppState>) -> impl IntoResponse {
 
 pub async fn authority(State(st): State<AppState>) -> impl IntoResponse {
     let ok = st.db.authority_quorum_ok().await.unwrap_or(false);
-    Json(json!({"quorum_ok": ok, "class_a2_a3": if ok {"available"} else {"fail_closed"}}))
+    Json(json!({"ok": ok}))
 }
 
 pub async fn degraded(State(st): State<AppState>) -> impl IntoResponse {
     let ok = st.db.authority_quorum_ok().await.unwrap_or(false);
-    Json(json!({
-        "authority": if ok {"ok"} else {"degraded"},
-        "a0_local_e2ee": "available",
-        "a2_authority_required": if ok {"available"} else {"denied"}
-    }))
+    Json(json!({"ok": ok}))
 }
 
 pub async fn providers(

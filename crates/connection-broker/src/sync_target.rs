@@ -292,6 +292,11 @@ impl ConnectionBroker {
         secrets: Arc<dyn SyncSecretSource>,
     ) -> Result<SyncOutcome> {
         let row = self.sync_target_in_org(organization_id, id).await?;
+        if SyncTargetStatus::parse(&row.status) == SyncTargetStatus::Syncing {
+            return Err(BrokerError::Invalid(
+                "sync already in progress for this target".into(),
+            ));
+        }
         store::update_sync_target_status(
             &self.pool,
             &row.id,

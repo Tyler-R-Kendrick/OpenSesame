@@ -16,6 +16,7 @@ pub mod egress;
 pub mod error;
 pub mod flow;
 pub mod github_app;
+pub mod github_webhook_hmac;
 pub mod installation;
 pub mod integration;
 pub mod model;
@@ -43,8 +44,9 @@ use sqlx::SqlitePool;
 
 pub use crate::catalog::{AuthMethod, Provider};
 pub use crate::changelog_hook::{
-    clear_secret_changelog_for_tests, list_secret_changelog, record_secret_changelog,
-    redact_changelog_metadata, ChangelogEntry, RecordSecretChangelog,
+    clear_secret_changelog_for_tests, is_allowed_changelog_event_type, list_secret_changelog,
+    record_secret_changelog, redact_changelog_metadata, ChangelogEntry, RecordSecretChangelog,
+    CHANGELOG_EVENT_TYPES,
 };
 pub use crate::config::{BrokerConfig, ProviderConfig};
 pub use crate::github_app::{

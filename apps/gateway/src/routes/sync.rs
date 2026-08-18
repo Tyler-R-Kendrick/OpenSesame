@@ -26,6 +26,8 @@ pub struct SyncPullBody {
     device_id: Option<String>,
 }
 
+/// Per-request blob count so one push cannot walk the whole store.
+const MAX_BLOBS_PER_REQUEST: usize = 64;
 /// Global blob ceiling (shared store).
 const MAX_SYNC_BLOBS: usize = 4096;
 /// Per-principal blob ceiling so one identity cannot starve every tenant.
@@ -46,6 +48,13 @@ pub async fn push(
     let owner_id = match require_session(&st, &headers) {
         Ok((_, meta)) => session_subject(&meta),
         Err(resp) => return resp,
+    };
+    if body.blobs.len() > MAX_BLOBS_PER_REQUEST {
+        return (
+            StatusCode::PAYLOAD_TOO_LARGE,
+            Json(json!({"error": "too_many_blobs", "max": MAX_BLOBS_PER_REQUEST})),
+        )
+            .into_response();
     };
     let mut accepted = 0u32;
     let mut rejected_foreign = 0u32;
@@ -88,17 +97,6 @@ pub async fn push(
     if accepted > 0 {
         st.backup_notify.notify_one();
     }
-    let store_size = match st.db.count_sync_blobs().await {
-        Ok(count) => count,
-        Err(error) => {
-            tracing::error!(error = %error, "encrypted sync count failed");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": "sync_storage_failed"})),
-            )
-                .into_response();
-        }
-    };
     (
         StatusCode::OK,
         Json(json!({
@@ -106,8 +104,6 @@ pub async fn push(
             "rejected_foreign_owner": rejected_foreign,
             "rejected_oversize": rejected_oversize,
             "rejected_session_quota": rejected_quota,
-            "store_size": store_size,
-            "capacity": MAX_SYNC_BLOBS,
             "owner_capacity": MAX_BLOBS_PER_OWNER,
             "max_ciphertext_bytes": MAX_CIPHERTEXT_BYTES
         })),

@@ -569,6 +569,17 @@ impl ConnectionBroker {
         }))
     }
 
+    /// Unseal GitHub App webhook secret for signature verification (Host only).
+    pub async fn github_webhook_secret(
+        &self,
+        organization_id: &OrganizationId,
+        integration_id: &str,
+    ) -> Result<Option<String>> {
+        let row = self.integration_row(organization_id, integration_id).await?;
+        let configuration = self.integration_configuration(&row)?;
+        Ok(configuration.get("webhook_secret").cloned())
+    }
+
     /// List GitHub App installations for backup/setup UX (ids + account login only).
     pub async fn list_github_app_installations(
         &self,

@@ -20,4 +20,6 @@ pub enum TaskAccessError {
     CeilingImmutable,
     #[error("storage error: {0}")]
     Storage(String),
+    #[error("task store at capacity")]
+    Capacity,
 }

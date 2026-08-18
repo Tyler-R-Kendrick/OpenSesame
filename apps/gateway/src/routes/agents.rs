@@ -26,14 +26,13 @@ pub async fn create_identity(
     Json(req): Json<AgentIdentityRequest>,
 ) -> impl IntoResponse {
     // Evict expired claim sessions to bound memory / DoS surface.
+    // Lock order: claims then claim_user_code_attempts (must match complete).
     {
         let mut map = st.claims.lock().unwrap();
         let now = Utc::now();
         map.retain(|_, s| s.expires_at > now);
-        st.claim_user_code_attempts
-            .lock()
-            .unwrap()
-            .retain(|id, _| map.contains_key(id));
+        let mut attempts = st.claim_user_code_attempts.lock().unwrap();
+        attempts.retain(|id, _| map.contains_key(id));
         if map.len() >= 256 {
             return (
                 StatusCode::TOO_MANY_REQUESTS,
@@ -80,6 +79,7 @@ pub async fn create_identity(
         expires_at: Utc::now() + Duration::minutes(15),
         claimed_at: None,
         claimed_by_principal_id: None,
+        narrowed_actions: None,
     };
     let claim_id = session.id.to_string();
     st.claims.lock().unwrap().insert(claim_id.clone(), session);
@@ -110,6 +110,9 @@ pub async fn poll(
     let Some(session) = map.get(&id) else {
         return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
     };
+    if Utc::now() >= session.expires_at {
+        return (StatusCode::GONE, Json(json!({"error":"expired"}))).into_response();
+    }
     if !hash_eq(&hash_secret(&req.claim_token), &session.claim_token_hash) {
         return (
             StatusCode::UNAUTHORIZED,
@@ -191,11 +194,15 @@ pub async fn complete(
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
-    let mut attempts = st.claim_user_code_attempts.lock().unwrap();
+    // Lock order: claims then claim_user_code_attempts (must match create_identity).
     let mut map = st.claims.lock().unwrap();
+    let mut attempts = st.claim_user_code_attempts.lock().unwrap();
     let Some(session) = map.get_mut(&id) else {
         return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
     };
+    if Utc::now() >= session.expires_at {
+        return (StatusCode::GONE, Json(json!({"error":"expired"}))).into_response();
+    }
     // The operator token proves *a* human is driving the console; the user code
     // proves they are looking at the device that asked to be claimed.
     let prior = attempts.get(&id).copied().unwrap_or(0);
@@ -294,6 +301,7 @@ pub async fn complete(
     session.state = ClaimState::Claimed;
     session.claimed_at = Some(Utc::now());
     session.claimed_by_principal_id = Some(claimant);
+    session.narrowed_actions = req.narrow_actions.clone();
     (
         StatusCode::OK,
         Json(json!({"state":"claimed","principal_id": claimant.to_string()})),
@@ -330,6 +338,7 @@ mod tests {
             expires_at: Utc::now() + Duration::minutes(15),
             claimed_at: None,
             claimed_by_principal_id: None,
+            narrowed_actions: None,
         }
     }
 
@@ -404,5 +413,28 @@ mod tests {
         assert_eq!(parse_principal(&identity_spelling), Some(canonical));
         assert_eq!(parse_principal(&canonical.to_string()), Some(canonical));
         assert!(parse_principal("user@example.com").is_none());
+    }
+
+    #[tokio::test]
+    async fn complete_without_operator_fails_closed() {
+        let state = crate::app_state::test_demo_state().await;
+        let response = complete(
+            State(state),
+            axum::http::HeaderMap::new(),
+            Path("missing".into()),
+            Json(ClaimCompleteRequest {
+                claim_token: "tok".into(),
+                user_code: "ABCD-1234".into(),
+                narrow_actions: None,
+                claimed_by_principal: None,
+            }),
+        )
+        .await;
+        assert!(
+            response.status() == StatusCode::UNAUTHORIZED
+                || response.status() == StatusCode::SERVICE_UNAVAILABLE,
+            "got {}",
+            response.status()
+        );
     }
 }

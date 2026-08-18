@@ -16,6 +16,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
+use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct GithubAppPending {
@@ -94,8 +95,8 @@ pub struct AppState {
     /// Wakes the backup actor immediately after configuration changes or
     /// resync requests; the actor's tick covers ordinary mutations (ADR 0039).
     pub backup_notify: Arc<tokio::sync::Notify>,
-    /// Host event bus (`OPENSESAME_TASKBUS` / `NATS_URL`; memory by default).
-    pub task_bus: Arc<dyn TaskBus>,
+    /// Host event bus (`OPENSESAME_TASKBUS` / `NATS_URL` / stored operator config).
+    pub task_bus: Arc<RwLock<Arc<dyn TaskBus>>>,
 }
 
 impl AppState {
@@ -138,7 +139,17 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         db.pool().clone(),
         BrokerConfig::from_env()?,
     )?);
-    let task_bus = opensesame_task_bus::create_from_env().await?;
+    let resolved = crate::taskbus_config::resolve(&db).await?;
+    let task_bus = match crate::taskbus_config::build_bus(&resolved).await {
+        Ok(bus) => bus,
+        Err(error) => {
+            tracing::warn!(
+                %error,
+                "TaskBus connect failed at boot — falling back to in-memory"
+            );
+            Arc::new(opensesame_task_bus::InMemoryTaskBus::default())
+        }
+    };
 
     Ok(AppState {
         resource: args.resource,
@@ -165,7 +176,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         frozen_intents: Arc::new(Mutex::new(HashMap::new())),
         receipt_verifier: Arc::new(receipt_verifier),
         backup_notify: Arc::new(tokio::sync::Notify::new()),
-        task_bus,
+        task_bus: Arc::new(RwLock::new(task_bus)),
     })
 }
 
@@ -186,7 +197,21 @@ async fn resolve_distributed_task_authority(task_database_url: &str) -> bool {
 }
 
 #[cfg(test)]
+pub mod test_env {
+    use std::sync::Mutex;
+
+    static LOCK: Mutex<()> = Mutex::new(());
+
+    /// Serialize tests that mutate process env (`OPENSESAME_*`, `NATS_URL`, …).
+    pub fn lock() -> std::sync::MutexGuard<'static, ()> {
+        LOCK.lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
+
+#[cfg(test)]
 pub async fn test_demo_state() -> AppState {
+    let _guard = test_env::lock();
     // Force memory bus before `build` so ambient NATS_URL cannot open sockets.
     std::env::set_var("OPENSESAME_TASKBUS", "memory");
     let mut state = build(Args {
@@ -207,7 +232,9 @@ pub async fn test_demo_state() -> AppState {
     state.broker = Arc::new(artifacts.broker);
     state.bootstrap = Arc::new(Mutex::new(artifacts.demo));
     state.connection_ref = artifacts.connection_ref;
-    state.task_bus = Arc::new(opensesame_task_bus::InMemoryTaskBus::default());
+    state.task_bus = Arc::new(RwLock::new(Arc::new(
+        opensesame_task_bus::InMemoryTaskBus::default(),
+    )));
     state
 }
 

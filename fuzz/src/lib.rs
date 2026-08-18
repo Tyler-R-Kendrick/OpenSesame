@@ -16,6 +16,13 @@ use opensesame_authn::{
 use opensesame_claims::{assert_claim_token, complete_claim, hash_secret};
 use opensesame_connection_broker::catalog::Catalog;
 use opensesame_connection_broker::crypto::{open, seal, SealedBlob};
+use opensesame_connection_broker::github_webhook_hmac::{
+    sign_hub_signature_256, verify_hub_signature_256,
+};
+use opensesame_authz::{
+    callout_permissions, evaluate_callout, permissions_include_system, CalloutEval,
+};
+use opensesame_task_bus::validate_nats_url;
 use opensesame_domain::{
     canonicalize_json, digest_json, resource_pattern_matches, ActorId, ActorInstanceId,
     Capability, CapabilitySet, ClaimSession, ClaimSessionId, ClaimState, DowngradePolicy, Grant,
@@ -46,8 +53,9 @@ use crate::oracles::{
 };
 use crate::types::{
     BoundedJson, CapabilityAlgebraInput, ClaimReplayInput, DeviceAuthInput, FuzzGrant,
-    GrantPairInput, JwtJwkInput, RedactionInput, ReplayCacheInput, ResourceMatchInput,
-    RotationSeqInput, TokenAudienceInput, UriNormalizeInput, VaultMutateInput,
+    GithubWebhookHmacInput, GrantPairInput, JwtJwkInput, NatsCalloutEvalInput, RedactionInput,
+    ReplayCacheInput, ResourceMatchInput, RotationSeqInput, TokenAudienceInput, UriNormalizeInput,
+    VaultMutateInput,
 };
 
 pub const MAX_PARSER_BYTES: usize = 4096;
@@ -318,6 +326,7 @@ pub fn fuzz_claim_replay(input: ClaimReplayInput) {
         expires_at: expires,
         claimed_at: None,
         claimed_by_principal_id: None,
+        narrowed_actions: None,
     };
     let first = assert_claim_token(&session, &token);
     if input.start_claimed {
@@ -600,6 +609,92 @@ pub fn fuzz_replay_cache(input: ReplayCacheInput) {
     assert!(accepted <= cap, "cache must fail closed at capacity");
 }
 
+/// Oracle: honest GitHub HMAC accepts; body/header tampering never accepts.
+pub fn fuzz_github_webhook_hmac(input: GithubWebhookHmacInput) {
+    if input.secret.is_empty() {
+        return;
+    }
+    let secret = match std::str::from_utf8(&input.secret) {
+        Ok(s) if !s.is_empty() => s,
+        _ => return,
+    };
+    let Some(header) = sign_hub_signature_256(secret, &input.body) else {
+        return;
+    };
+    assert!(
+        verify_hub_signature_256(secret, &input.body, &header),
+        "honest signature must verify"
+    );
+    if input.flip_body_bit && !input.body.is_empty() {
+        let mut bad = input.body.clone();
+        bad[0] ^= 0xff;
+        assert!(
+            !verify_hub_signature_256(secret, &bad, &header),
+            "tampered body must fail closed"
+        );
+    }
+    if input.truncate_header && header.len() > 10 {
+        let truncated = &header[..header.len() - 2];
+        assert!(
+            !verify_hub_signature_256(secret, &input.body, truncated),
+            "truncated signature must fail closed"
+        );
+    }
+    assert!(!verify_hub_signature_256(secret, &input.body, ""));
+    assert!(!verify_hub_signature_256(secret, &input.body, "sha256=00"));
+}
+
+/// Oracle: callout never grants system subjects; email join / unknown issuer deny.
+pub fn fuzz_nats_callout_eval(input: NatsCalloutEvalInput) {
+    let issuer = if input.issuer_empty {
+        String::new()
+    } else {
+        "https://identity.fuzz".into()
+    };
+    let subject = if input.subject_empty {
+        String::new()
+    } else {
+        "sub-fuzz".into()
+    };
+    let mut project_ids = Vec::new();
+    for i in 0..input.project_count {
+        project_ids.push(format!("proj_{i}"));
+    }
+    let eval = CalloutEval {
+        issuer_allowed: input.issuer_allowed,
+        email_join_attempted: input.email_join,
+        issuer,
+        subject,
+        mapped_principal_id: if input.mapped {
+            Some("prn_fuzz".into())
+        } else {
+            None
+        },
+        provisional: input.provisional,
+        project_ids,
+    };
+    match evaluate_callout(&eval) {
+        Ok(allow) => {
+            assert!(!input.email_join);
+            assert!(input.issuer_allowed);
+            assert!(input.mapped);
+            assert!(!eval.issuer.is_empty() && !eval.subject.is_empty());
+            assert!(!permissions_include_system(&allow.permissions));
+            let perms = callout_permissions(
+                &allow.principal_id,
+                allow.provisional,
+                &eval.project_ids,
+            );
+            assert!(!permissions_include_system(&perms));
+            assert!(
+                !perms.publish.iter().any(|s| s.contains(".system.")),
+                "user ACLs must never publish system.>"
+            );
+        }
+        Err(_) => {}
+    }
+}
+
 fn truncate(data: &[u8]) -> &[u8] {
     if data.len() > MAX_PARSER_BYTES {
         &data[..MAX_PARSER_BYTES]
@@ -640,4 +735,50 @@ pub fn fuzz_grant_from(g: FuzzGrant) -> Grant {
 
 pub fn fuzz_caps(set: impl IntoIterator<Item = Capability>) -> CapabilitySet {
     CapabilitySet::new(set.into_iter().collect())
+}
+
+#[cfg(test)]
+mod oracle_smoke {
+    use super::*;
+    use crate::types::{GithubWebhookHmacInput, NatsCalloutEvalInput};
+
+    #[test]
+    fn taskbus_url_oracle_accepts_nats_rejects_http() {
+        assert!(validate_nats_url("nats://127.0.0.1:4222").is_ok());
+        assert!(validate_nats_url("tls://box:4222").is_ok());
+        assert!(validate_nats_url("http://127.0.0.1:4222").is_err());
+        assert!(validate_nats_url("nats://bad host").is_err());
+    }
+
+    #[test]
+    fn webhook_hmac_oracle_honest_and_tamper() {
+        fuzz_github_webhook_hmac(GithubWebhookHmacInput {
+            secret: b"whsec".to_vec(),
+            body: br#"{"a":1}"#.to_vec(),
+            flip_body_bit: true,
+            truncate_header: true,
+        });
+    }
+
+    #[test]
+    fn callout_oracle_never_grants_system() {
+        fuzz_nats_callout_eval(NatsCalloutEvalInput {
+            issuer_allowed: true,
+            email_join: false,
+            issuer_empty: false,
+            subject_empty: false,
+            mapped: true,
+            provisional: false,
+            project_count: 2,
+        });
+        fuzz_nats_callout_eval(NatsCalloutEvalInput {
+            issuer_allowed: true,
+            email_join: true,
+            issuer_empty: false,
+            subject_empty: false,
+            mapped: true,
+            provisional: false,
+            project_count: 1,
+        });
+    }
 }

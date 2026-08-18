@@ -24,7 +24,18 @@ use crate::routes::connections::broker_error;
 
 #[allow(clippy::result_large_err)]
 fn authorize(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, Response> {
-    resolve_caller(st, headers)
+    let who = resolve_caller(st, headers)?;
+    if !who.can_configure_integrations() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "forbidden",
+                "hint": "owner or admin role required to configure sync targets"
+            })),
+        )
+            .into_response());
+    }
+    Ok(who)
 }
 
 const OPERATOR_ORGANIZATION_HEADER: &str = "x-opensesame-organization";
@@ -140,7 +151,12 @@ async fn publish_sync_bus(
         chrono::Utc::now().to_rfc3339(),
         data,
     );
-    st.task_bus.publish(event).await.map_err(|e| {
+    st.task_bus
+        .read()
+        .await
+        .publish(event)
+        .await
+        .map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({"error": "bus_publish_failed", "hint": e.to_string()})),
@@ -489,7 +505,7 @@ mod tests {
         assert!(!outcome.to_string().contains("vercel_live_token"));
         assert!(outcome["ok"].as_bool().unwrap());
 
-        let events = st.task_bus.drain(20).await.unwrap();
+        let events = st.task_bus.read().await.drain(20).await.unwrap();
         assert!(events.iter().any(|e| e.r#type == "sync.target.created"));
         assert!(events.iter().any(|e| e.r#type == "sync.target.synced"));
         for event in &events {
