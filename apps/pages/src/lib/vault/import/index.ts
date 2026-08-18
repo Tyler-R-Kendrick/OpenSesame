@@ -204,9 +204,8 @@ export function duplicateKey(item: {
   name: string;
   username?: string;
 }): string {
-  return [
-    item.kind,
-    item.name.trim().toLowerCase(),
-    (item.username ?? "").trim().toLowerCase(),
-  ].join("\u0000");
+  const kind = item.kind;
+  const name = item.name.trim().toLowerCase();
+  const username = (item.username ?? "").trim().toLowerCase();
+  return JSON.stringify([kind, name, username]);
 }

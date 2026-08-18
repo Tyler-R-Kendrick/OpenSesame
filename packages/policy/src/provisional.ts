@@ -45,6 +45,8 @@ export interface ProvisionalQuota {
   maxOAuthClients: number;
   /** Persistent (non-temporary, non-personal) projects a principal may own. */
   maxProjects: number;
+  /** Live (non-terminal) claims a principal may hold. */
+  maxClaims: number;
 }
 
 /**
@@ -59,6 +61,7 @@ export const DEFAULT_PROVISIONAL_QUOTA: ProvisionalQuota = {
   maxOrganizations: 0,
   maxOAuthClients: 0,
   maxProjects: 0,
+  maxClaims: 8,
 };
 
 /**
@@ -72,6 +75,7 @@ export const DEFAULT_VERIFIED_QUOTA: ProvisionalQuota = {
   maxOrganizations: 10,
   maxOAuthClients: 25,
   maxProjects: 25,
+  maxClaims: 64,
 };
 
 const HIGH_RISK_ACTIONS = new Set([
@@ -99,6 +103,7 @@ export interface ProvisionalUsage {
   organizations: number;
   oauthClients: number;
   projects: number;
+  claims: number;
 }
 
 /** Which quota field, if any, a given action spends. */
@@ -140,6 +145,8 @@ function quotaFieldFor(action: string): {
         limit: "maxOAuthClients",
         reason: "quota_oauth_clients",
       };
+    case "claim.create":
+      return { usage: "claims", limit: "maxClaims", reason: "quota_claims" };
     default:
       return null;
   }
@@ -161,6 +168,7 @@ export class ProvisionalPolicy {
       organizations: 0,
       oauthClients: 0,
       projects: 0,
+      claims: 0,
     },
   ): AuthorizationDecision {
     // High-risk actions are denied for every subject. Nothing in this system

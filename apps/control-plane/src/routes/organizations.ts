@@ -18,6 +18,7 @@ import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { getUsage } from "../state.js";
+import { serializeKeyed } from "../serialize.js";
 
 export const organizationRoutes = new Hono<{ Variables: Variables }>();
 
@@ -224,8 +225,17 @@ organizationRoutes.post(
       );
     }
 
-    // Assurance says who someone is; it does not say they may mint organizations
-    // forever. Without this the store grew for as long as a caller kept asking.
+    const parsed = CreateOrganizationRequestSchema.safeParse(
+      await c.req.json(),
+    );
+    if (!parsed.success) {
+      return c.json(
+        { error: "validation_error", details: parsed.error.flatten() },
+        400,
+      );
+    }
+
+    return serializeKeyed(ctx.stores.principalMutations, principalId, async () => {
     const decision = ctx.policy.evaluate(
       principal,
       {
@@ -241,16 +251,6 @@ organizationRoutes.post(
     );
     if (decision.effect === "deny") {
       return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
-    }
-
-    const parsed = CreateOrganizationRequestSchema.safeParse(
-      await c.req.json(),
-    );
-    if (!parsed.success) {
-      return c.json(
-        { error: "validation_error", details: parsed.error.flatten() },
-        400,
-      );
     }
 
     if (ctx.stores.organizationSlugs.has(parsed.data.slug)) {
@@ -288,6 +288,7 @@ organizationRoutes.post(
     });
 
     return c.json(toResponse(org, "owner"), 201);
+    });
   },
 );
 

@@ -454,6 +454,9 @@
     // Already a fully prepared request — leave it alone.
     if (parsed.searchParams.get("state")) return null;
 
+    var allowedOrigin = brokerOriginFromBase(defaults.brokerBase);
+    if (parsed.origin !== allowedOrigin) return null;
+
     var origin = parsed.searchParams.get("origin") || window.location.origin;
     var clientId = parsed.searchParams.get("client_id") || "origin:" + origin;
     if (clientId !== "origin:" + origin) return null;

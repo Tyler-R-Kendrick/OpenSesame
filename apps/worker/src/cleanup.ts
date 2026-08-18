@@ -90,6 +90,23 @@ export interface CleanupResult {
  */
 export const EXPIRED_PROJECT_RETENTION_MS = 60 * 60 * 1000;
 
+let outboxDrainTail: Promise<void> = Promise.resolve();
+
+async function withOutboxDrainLock<T>(fn: () => Promise<T>): Promise<T> {
+  let release = () => {};
+  const turn = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const previous = outboxDrainTail;
+  outboxDrainTail = previous.then(() => turn);
+  await previous;
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
+
 /**
  * One cleanup tick: expire claims past TTL, drop provisional sessions/projects,
  * and publish due outbox events to TaskBus before marking them published.
@@ -184,16 +201,19 @@ export async function runCleanupTick(
     }
   }
 
-  const pending = await deps.repos.outbox.listUnpublished(100);
+  const pending = await withOutboxDrainLock(() =>
+    deps.repos.outbox.claimUnpublished(100, now),
+  );
   for (const event of pending) {
-    if (event.availableAt > now) {
-      continue;
-    }
     try {
       await taskBus.publish(outboxToBusEvent(event));
       await deps.repos.outbox.markPublished(event.id, now);
       outboxPublished += 1;
     } catch (err) {
+      await deps.repos.outbox.releaseClaim(
+        event.id,
+        err instanceof Error ? err.message : String(err),
+      );
       // Leave unpublished so the next tick retries (ADR 0010 outbox remains SoT).
       deps.log?.error(
         {

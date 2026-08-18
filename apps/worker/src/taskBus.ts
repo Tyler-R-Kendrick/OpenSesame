@@ -2,10 +2,20 @@
  * Identity-plane TaskBus sink for outbox drain.
  *
  * Mirrors `crates/task-bus` CloudEvents shape. Default is in-memory (tests).
- * When `OPENSESAME_TASKBUS=nats` (or unset with `NATS_URL`), publishes via a
- * minimal NATS client to `opensesame.events.{type}` (JetStream stream must
- * already capture that subject — gateway ensures it on connect).
+ * When `OPENSESAME_TASKBUS=nats` (or unset with `NATS_URL`), publishes via the
+ * official `nats` JetStream client to `opensesame.events.{type}`.
+ *
+ * Host (Rust `NatsJetStreamTaskBus`) owns creating stream `OPENSESAME_EVENTS`
+ * for `opensesame.events.>`. The worker does **not** silently fall back to
+ * core-NATS PUB: JetStream publish must succeed or the drain fails loudly.
  */
+
+import {
+  connect,
+  type JetStreamClient,
+  type NatsConnection,
+  StringCodec,
+} from "nats";
 
 export interface BusEvent {
   id: string;
@@ -54,8 +64,7 @@ export function resolveTaskBusBackend(
 }
 
 /**
- * Build a TaskBus from env. Memory never opens sockets; nats uses a thin
- * core-NATS publisher (JetStream stores messages when the stream exists).
+ * Build a TaskBus from env. Memory never opens sockets; nats uses JetStream.
  */
 export async function createTaskBusFromEnv(
   env: NodeJS.ProcessEnv = process.env,
@@ -67,10 +76,11 @@ export async function createTaskBusFromEnv(
   if (!url) {
     throw new Error("NATS_URL required for nats TaskBus");
   }
-  return NatsCoreTaskBus.connect(url);
+  return NatsJetStreamTaskBus.connect(url);
 }
 
 const SUBJECT_PREFIX = "opensesame.events";
+const STREAM_NAME = "OPENSESAME_EVENTS";
 
 export function outboxToBusEvent(event: {
   id: string;
@@ -99,80 +109,44 @@ export function eventSubject(eventType: string): string {
 }
 
 /**
- * Minimal core-NATS PUB client (no external dep). JetStream retains messages
- * when stream `OPENSESAME_EVENTS` captures `opensesame.events.>`.
+ * JetStream publisher. Relies on Host having created `OPENSESAME_EVENTS`.
+ * A missing stream surfaces as a publish error — never silent core-NATS PUB.
  */
-export class NatsCoreTaskBus implements TaskBus {
-  #socket: import("node:net").Socket;
-  #writeChain: Promise<void> = Promise.resolve();
+export class NatsJetStreamTaskBus implements TaskBus {
+  #nc: NatsConnection;
+  #js: JetStreamClient;
+  #codec = StringCodec();
 
-  private constructor(socket: import("node:net").Socket) {
-    this.#socket = socket;
+  private constructor(nc: NatsConnection, js: JetStreamClient) {
+    this.#nc = nc;
+    this.#js = js;
   }
 
-  static async connect(natsUrl: string): Promise<NatsCoreTaskBus> {
-    const { hostname, port } = parseNatsUrl(natsUrl);
-    const net = await import("node:net");
-    const socket = await new Promise<import("node:net").Socket>(
-      (resolve, reject) => {
-        const s = net.createConnection({ host: hostname, port }, () =>
-          resolve(s),
-        );
-        s.once("error", reject);
-      },
-    );
-    socket.setEncoding("utf8");
-    await writeRaw(
-      socket,
-      `CONNECT ${JSON.stringify({
-        verbose: false,
-        pedantic: false,
-        name: "opensesame-worker",
-        lang: "node",
-        version: "0.1.0",
-        protocol: 1,
-      })}\r\n`,
-    );
-    // Consume INFO/PONG noise so it does not fill the buffer unread.
-    socket.on("data", () => {
-      /* drain */
-    });
-    return new NatsCoreTaskBus(socket);
+  static async connect(natsUrl: string): Promise<NatsJetStreamTaskBus> {
+    const nc = await connect({ servers: natsUrl, name: "opensesame-worker" });
+    const jsm = await nc.jetstreamManager();
+    try {
+      await jsm.streams.info(STREAM_NAME);
+    } catch (caught) {
+      await nc.close().catch(() => undefined);
+      throw new Error(
+        `JetStream stream ${STREAM_NAME} missing — start Host with OPENSESAME_TASKBUS=nats so it creates the stream (${caught instanceof Error ? caught.message : String(caught)})`,
+      );
+    }
+    return new NatsJetStreamTaskBus(nc, nc.jetstream());
   }
 
   async publish(event: BusEvent): Promise<void> {
     const subject = eventSubject(event.type);
-    const payload = Buffer.from(JSON.stringify(event), "utf8");
-    const frame = `PUB ${subject} ${payload.length}\r\n`;
-    this.#writeChain = this.#writeChain.then(async () => {
-      await writeRaw(this.#socket, frame);
-      await writeRaw(this.#socket, payload);
-      await writeRaw(this.#socket, "\r\n");
-    });
-    await this.#writeChain;
+    const payload = this.#codec.encode(JSON.stringify(event));
+    // JetStream publish — not core NATS PUB. Fails if stream does not capture subject.
+    await this.#js.publish(subject, payload);
   }
 
   async close(): Promise<void> {
-    await new Promise<void>((resolve) => {
-      this.#socket.end(() => resolve());
-    });
+    await this.#nc.drain();
   }
 }
 
-function parseNatsUrl(url: string): { hostname: string; port: number } {
-  const normalized = url.includes("://") ? url : `nats://${url}`;
-  const parsed = new URL(normalized);
-  return {
-    hostname: parsed.hostname || "127.0.0.1",
-    port: parsed.port ? Number(parsed.port) : 4222,
-  };
-}
-
-function writeRaw(
-  socket: import("node:net").Socket,
-  data: string | Buffer,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    socket.write(data, (err) => (err ? reject(err) : resolve()));
-  });
-}
+/** @deprecated Use NatsJetStreamTaskBus — kept name alias for clarity in logs. */
+export const NatsCoreTaskBus = NatsJetStreamTaskBus;

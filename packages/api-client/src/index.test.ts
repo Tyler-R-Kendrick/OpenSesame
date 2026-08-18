@@ -1,4 +1,8 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { assertSourceOrder } from "@opensesame/testing";
 import {
   accessTokenHash,
   createApiClient,
@@ -295,5 +299,25 @@ describe("normalizeHttpBaseUrl", () => {
     ).toBeNull();
     expect(normalizeHttpBaseUrl("file:///etc/passwd")).toBeNull();
     expect(normalizeHttpBaseUrl("not a url")).toBeNull();
+  });
+});
+
+describe("PACT — browser extension loopback pin", () => {
+  it("popup and background refuse a rewritten remote hostApiBase", () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const ext = join(here, "../../../apps/browser-extension");
+    assertSourceOrder(
+      readFileSync(join(ext, "entrypoints/background.ts"), "utf8"),
+      ["normalizeLoopbackBaseUrl", "if (normalized) return normalized", "DEFAULT_HOST"],
+    );
+    assertSourceOrder(
+      readFileSync(join(ext, "entrypoints/popup/main.ts"), "utf8"),
+      [
+        "normalizeLoopbackBaseUrl(raw)",
+        "if (!value)",
+        "chrome.storage.local.set({ hostApiBase: value })",
+      ],
+    );
+    expect(normalizeLoopbackBaseUrl("https://evil.example")).toBeNull();
   });
 });

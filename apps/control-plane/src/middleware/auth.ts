@@ -38,7 +38,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
  * deployment listed, or the service's own origin. A bearer token is unaffected:
  * a caller that had to attach a token was not tricked into attaching it.
  */
-function cookieAuthAllowed(
+export function cookieAuthAllowed(
   ctx: AppContext,
   method: string,
   origin: string | undefined,

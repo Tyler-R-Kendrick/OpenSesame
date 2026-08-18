@@ -23,7 +23,7 @@ import {
   openJson,
   rewrapVaultKey,
   sealJson,
-  unlockVaultKey,
+  unwrapRawVaultKeyFromPassword,
   wrapVaultKeyWithPassword,
 } from "./crypto.js";
 import {
@@ -39,7 +39,6 @@ import {
   assertKeepsPrimaryUnlock,
   assertPinPolicy,
   createPasskeyUnlockCeremony,
-  exportRawVaultKey,
   getPasskeyUnlockCeremony,
   openTotpSecret,
   randomTotpSecret,
@@ -205,6 +204,8 @@ export function assertMasterPasswordPolicy(password: string): void {
 
 export class VaultStore {
   #vaultKey: CryptoKey | null = null;
+  /** Raw VK for enroll-only wrapKey substitutes; wiped on lock. */
+  #rawVaultKey: Uint8Array | null = null;
   /** Primary unwrap succeeded; waiting on optional TOTP before activating. */
   #pendingVaultKey: CryptoKey | null = null;
   #body: VaultBody = emptyBody();
@@ -285,11 +286,29 @@ export class VaultStore {
 
   // —— session ——————————————————————————————————————————————
 
+  #stashRaw(raw: Uint8Array): void {
+    this.#zeroRaw();
+    this.#rawVaultKey = raw;
+  }
+
+  #zeroRaw(): void {
+    this.#rawVaultKey?.fill(0);
+    this.#rawVaultKey = null;
+  }
+
+  #requireRaw(): Uint8Array {
+    if (!this.#rawVaultKey) {
+      throw new Error("Unlock the vault before changing unlock methods.");
+    }
+    return this.#rawVaultKey;
+  }
+
   async create(password: string, hint?: string): Promise<void> {
     assertMasterPasswordPolicy(password);
-    const { header, vaultKey } = await createVault(password, hint);
+    const { header, vaultKey, rawVaultKey } = await createVault(password, hint);
     this.#header = header;
     this.#vaultKey = vaultKey;
+    this.#stashRaw(rawVaultKey);
     this.#pendingVaultKey = null;
     this.#body = emptyBody();
     try {
@@ -300,6 +319,7 @@ export class VaultStore {
       // leave nothing behind that would claim otherwise.
       this.#header = null;
       this.#vaultKey = null;
+      this.#zeroRaw();
       this.#body = emptyBody();
       kvDelete(this.#keys.header);
       kvDelete(this.#keys.body);
@@ -380,6 +400,7 @@ export class VaultStore {
       this.#body = await this.#loadBody(vaultKey);
     } catch (error) {
       this.#vaultKey = null;
+      this.#zeroRaw();
       this.#body = emptyBody();
       throw error;
     }
@@ -403,14 +424,16 @@ export class VaultStore {
     this.#assertNotLockedOut();
     if (!this.#header) throw new Error("There is no vault on this device yet.");
 
-    let vaultKey: CryptoKey;
+    let raw: Uint8Array;
     try {
-      vaultKey = await unlockVaultKey(this.#header, password);
+      raw = await unwrapRawVaultKeyFromPassword(this.#header, password);
     } catch (error) {
       if (!(error instanceof WrongPasswordError)) throw error;
       this.#recordFailedUnlock();
       throw error;
     }
+    this.#stashRaw(raw);
+    const vaultKey = await importVaultKey(raw);
     await this.#afterPrimaryUnwrap(vaultKey);
   }
 
@@ -428,8 +451,8 @@ export class VaultStore {
       this.#recordFailedUnlock();
       throw new WrongPasswordError("That PIN did not unlock the vault.");
     }
+    this.#stashRaw(raw);
     const vaultKey = await importVaultKey(raw);
-    raw.fill(0);
     await this.#afterPrimaryUnwrap(vaultKey);
   }
 
@@ -456,8 +479,8 @@ export class VaultStore {
       this.#recordFailedUnlock();
       throw new WrongPasswordError("That passkey did not unlock the vault.");
     }
+    this.#stashRaw(raw);
     const vaultKey = await importVaultKey(raw);
-    raw.fill(0);
     await this.#afterPrimaryUnwrap(vaultKey);
   }
 
@@ -503,25 +526,21 @@ export class VaultStore {
   }
 
   async enrollPasskey(): Promise<void> {
-    const { vaultKey, header } = this.#requireUnlocked();
-    const raw = await exportRawVaultKey(vaultKey);
-    try {
-      const ceremony = await createPasskeyUnlockCeremony(webauthnRpId());
-      const record = await wrapVaultKeyWithPrf(
-        raw,
-        ceremony.prfOutput,
-        ceremony.prfSalt,
-        ceremony.credential.rawId,
-        ceremony.userId,
-      );
-      const unlocks: VaultUnlocks = {
-        ...header.unlocks,
-        passkey: record,
-      };
-      await this.#persistHeader({ ...header, unlocks });
-    } finally {
-      raw.fill(0);
-    }
+    const { header } = this.#requireUnlocked();
+    const raw = this.#requireRaw();
+    const ceremony = await createPasskeyUnlockCeremony(webauthnRpId());
+    const record = await wrapVaultKeyWithPrf(
+      raw,
+      ceremony.prfOutput,
+      ceremony.prfSalt,
+      ceremony.credential.rawId,
+      ceremony.userId,
+    );
+    const unlocks: VaultUnlocks = {
+      ...header.unlocks,
+      passkey: record,
+    };
+    await this.#persistHeader({ ...header, unlocks });
   }
 
   async removePasskey(): Promise<void> {
@@ -535,19 +554,14 @@ export class VaultStore {
   }
 
   async enrollPin(pin: string): Promise<void> {
-    const { vaultKey, header } = this.#requireUnlocked();
+    const { header } = this.#requireUnlocked();
     assertPinPolicy(pin);
-    const raw = await exportRawVaultKey(vaultKey);
-    try {
-      const record = await wrapVaultKeyWithPin(raw, pin);
-      const unlocks: VaultUnlocks = {
-        ...header.unlocks,
-        pin: record,
-      };
-      await this.#persistHeader({ ...header, unlocks });
-    } finally {
-      raw.fill(0);
-    }
+    const record = await wrapVaultKeyWithPin(this.#requireRaw(), pin);
+    const unlocks: VaultUnlocks = {
+      ...header.unlocks,
+      pin: record,
+    };
+    await this.#persistHeader({ ...header, unlocks });
   }
 
   async removePin(): Promise<void> {
@@ -561,15 +575,13 @@ export class VaultStore {
   }
 
   async enrollPassword(password: string): Promise<void> {
-    const { vaultKey, header } = this.#requireUnlocked();
+    const { header } = this.#requireUnlocked();
     assertMasterPasswordPolicy(password);
-    const raw = await exportRawVaultKey(vaultKey);
-    try {
-      const { kdf, wrap } = await wrapVaultKeyWithPassword(raw, password);
-      await this.#persistHeader({ ...header, kdf, wrap });
-    } finally {
-      raw.fill(0);
-    }
+    const { kdf, wrap } = await wrapVaultKeyWithPassword(
+      this.#requireRaw(),
+      password,
+    );
+    await this.#persistHeader({ ...header, kdf, wrap });
   }
 
   async removePassword(): Promise<void> {
@@ -619,6 +631,7 @@ export class VaultStore {
 
   lock = (): void => {
     this.#vaultKey = null;
+    this.#zeroRaw();
     this.#pendingVaultKey = null;
     this.#body = emptyBody();
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
@@ -908,7 +921,9 @@ export class VaultStore {
         "That export has no master-password unlock. Re-export from a vault that still has a password enrolled, or unlock the source vault and merge items another way.",
       );
     }
-    const key = await unlockVaultKey(parsed.header, password);
+    const raw = await unwrapRawVaultKeyFromPassword(parsed.header, password);
+    const key = await importVaultKey(raw);
+    raw.fill(0);
     const incoming = await openJson<VaultBody>(key, parsed.body);
 
     if (!this.#vaultKey) throw new Error("Unlock this vault before importing.");

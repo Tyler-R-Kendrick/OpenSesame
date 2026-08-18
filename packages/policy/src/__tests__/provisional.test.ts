@@ -16,6 +16,7 @@ describe("ProvisionalPolicy", () => {
     organizations: 0,
     oauthClients: 0,
     projects: 0,
+    claims: 0,
     ...over,
   });
 
@@ -91,6 +92,20 @@ describe("ProvisionalPolicy", () => {
     );
     expect(d.effect).toBe("deny");
     expect(d.reasons).toContain("provisional_quota_projects");
+  });
+
+  it("caps live claims", () => {
+    const d = policy.evaluate(
+      fixtures.provisionalPrincipal(),
+      {
+        subject: { type: "principal", id: "prn_x" },
+        action: "claim.create",
+        resource: { type: "claim", id: "*" },
+      },
+      usage({ claims: 8 }),
+    );
+    expect(d.effect).toBe("deny");
+    expect(d.reasons).toContain("provisional_quota_claims");
   });
 
   it("caps organizations and OAuth clients for verified principals", () => {

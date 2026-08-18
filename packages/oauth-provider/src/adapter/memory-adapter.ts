@@ -29,11 +29,31 @@ export function createMemoryAdapterConstructor(): OidcAdapterConstructor {
     return `${model}:${id}`;
   }
 
+  function dropIndexes(model: string, id: string, payload: AdapterPayload): void {
+    const composite = key(model, id);
+    if (payload.grantId) {
+      const set = byGrant.get(payload.grantId);
+      set?.delete(composite);
+      if (set && set.size === 0) byGrant.delete(payload.grantId);
+    }
+    if (typeof payload.userCode === "string") {
+      if (byUserCode.get(payload.userCode) === composite) {
+        byUserCode.delete(payload.userCode);
+      }
+    }
+    if (typeof payload.uid === "string") {
+      if (byUid.get(payload.uid) === composite) {
+        byUid.delete(payload.uid);
+      }
+    }
+  }
+
   function purgeExpired(model: string, id: string): AdapterPayload | undefined {
     const entry = bag(model).get(id);
     if (!entry) return undefined;
     if (entry.expiresAt !== null && entry.expiresAt <= Date.now()) {
       bag(model).delete(id);
+      dropIndexes(model, id, entry.payload);
       return undefined;
     }
     return entry.payload;
@@ -87,15 +107,7 @@ export function createMemoryAdapterConstructor(): OidcAdapterConstructor {
     async destroy(id: string): Promise<void> {
       const existing = bag(this.name).get(id);
       bag(this.name).delete(id);
-      if (existing?.payload.grantId) {
-        byGrant.get(existing.payload.grantId)?.delete(key(this.name, id));
-      }
-      if (typeof existing?.payload.userCode === "string") {
-        byUserCode.delete(existing.payload.userCode);
-      }
-      if (typeof existing?.payload.uid === "string") {
-        byUid.delete(existing.payload.uid);
-      }
+      if (existing) dropIndexes(this.name, id, existing.payload);
     }
 
     async consume(id: string): Promise<void> {

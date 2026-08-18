@@ -210,4 +210,25 @@ describe("cli session file", () => {
     expect(code).toBe(1);
     expect(out).toMatch(/Not authenticated/);
   });
+
+  it("keeps the session file when refresh is partitioned", async () => {
+    await writeSession({
+      accessToken: "at-keep",
+      refreshToken: "rt-keep",
+      issuer: ISSUER,
+      clientId: "opensesame-cli",
+      expiresAt: Date.now() - 1000,
+    });
+    const partitioned = vi.fn(async () => {
+      throw new Error("ECONNREFUSED");
+    }) as unknown as typeof fetch;
+    const code = await runCli(["whoami", "--issuer", ISSUER], {
+      fetchImpl: partitioned,
+    });
+    expect(code).toBe(1);
+    expect(out).toMatch(/Not authenticated/);
+    const saved = JSON.parse(await readFile(sessionFile(), "utf8"));
+    expect(saved.accessToken).toBe("at-keep");
+    expect(saved.refreshToken).toBe("rt-keep");
+  });
 });

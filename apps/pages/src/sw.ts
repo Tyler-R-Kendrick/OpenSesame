@@ -15,7 +15,16 @@ function isolated(response: Response, requestUrl: URL): Response {
   // Broker popups must keep window.opener so postMessage can reach the RP
   // (ADR 0034). COOP same-origin would null opener and break delivery.
   if (requestUrl.pathname.includes("/broker/")) {
-    return response;
+    const headers = new Headers(response.headers);
+    headers.set("Cross-Origin-Embedder-Policy", "credentialless");
+    headers.set("Cross-Origin-Resource-Policy", "same-origin");
+    headers.set("X-Frame-Options", "DENY");
+    headers.set("Referrer-Policy", "no-referrer");
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
   }
   const headers = new Headers(response.headers);
   headers.set("Cross-Origin-Embedder-Policy", "require-corp");

@@ -50,6 +50,14 @@ export interface AppStores {
   claimApprovalAttempts: Map<string, number>;
   /** mfa subject → failed verification attempts (brute-force fence) */
   mfaFailures: Map<string, number>;
+  /** principalId → serialized quota mutations */
+  principalMutations: Map<string, Promise<void>>;
+  /** Idempotency-Key inflight locks */
+  idempotencyLocks: Map<string, Promise<void>>;
+  /** client fingerprint → provisional mint timestamps */
+  provisionalMints: Map<string, number[]>;
+  /** unauthenticated MFA fingerprint → attempt timestamps */
+  mfaAnon: Map<string, number[]>;
 }
 
 export function createAppStores(): AppStores {
@@ -72,6 +80,10 @@ export function createAppStores(): AppStores {
     totpSecrets: new Map(),
     claimApprovalAttempts: new Map(),
     mfaFailures: new Map(),
+    principalMutations: new Map(),
+    idempotencyLocks: new Map(),
+    provisionalMints: new Map(),
+    mfaAnon: new Map(),
   };
 }
 
@@ -108,6 +120,7 @@ export function getUsage(
   organizations: number;
   oauthClients: number;
   projects: number;
+  claims: number;
 } {
   let temporaryProjects = 0;
   let projects = 0;
@@ -149,6 +162,7 @@ export function getUsage(
     organizations,
     oauthClients,
     projects,
+    claims: 0,
   };
 }
 

@@ -23,7 +23,10 @@ export class MemoryPairwiseSubjectStore implements PairwiseSubjectStore {
     principalId: string,
     sectorIdentifier: string,
   ): Promise<PairwiseSubject> {
-    const existing = await this.find(principalId, sectorIdentifier);
+    // Do not `await this.find()` here: that yields and two callers can both
+    // observe a miss, mint different `sub` values, and last-write-wins.
+    const key = this.key(principalId, sectorIdentifier);
+    const existing = this.map.get(key);
     if (existing) return existing;
     const subject: PairwiseSubject = {
       principalId,
@@ -31,7 +34,7 @@ export class MemoryPairwiseSubjectStore implements PairwiseSubjectStore {
       subject: randomBytes(32).toString("base64url"),
       createdAt: new Date(),
     };
-    this.map.set(this.key(principalId, sectorIdentifier), subject);
+    this.map.set(key, subject);
     return subject;
   }
 }
@@ -47,9 +50,15 @@ export function createPairwiseIdentifierCallback(store: PairwiseSubjectStore) {
     client: { clientId?: string; sectorIdentifier?: string },
   ): Promise<string> => {
     const sector =
-      (typeof client.sectorIdentifier === "string" && client.sectorIdentifier) ||
-      client.clientId ||
-      "default";
+      (typeof client.sectorIdentifier === "string" &&
+        client.sectorIdentifier.trim()) ||
+      (typeof client.clientId === "string" && client.clientId.trim()) ||
+      "";
+    if (!sector) {
+      throw new Error(
+        "pairwiseIdentifier: client must supply sectorIdentifier or clientId (refusing a shared default sector)",
+      );
+    }
     const mapping = await store.getOrCreate(accountId, sector);
     return mapping.subject;
   };

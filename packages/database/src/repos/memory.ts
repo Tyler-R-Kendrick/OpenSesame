@@ -11,6 +11,7 @@ import type {
 import {
   ConflictError,
   NotFoundError,
+  OUTBOX_CLAIM_HOLD_MS,
   type AuditEventRepository,
   type BetterAuthSubjectRepository,
   type ClaimItemRepository,
@@ -18,6 +19,8 @@ import {
   type ExternalIdentityRepository,
   type NewOutboxEvent,
   type OutboxRepository,
+  outboxClaimToken,
+  outboxHoldActive,
   type PrincipalRepository,
   type Repositories,
   type TransactionFn,
@@ -47,20 +50,9 @@ function cloneBytes(value: Uint8Array): Uint8Array {
 }
 
 function cloneClaim(session: ClaimSession): ClaimSession {
-  return {
-    ...session,
-    tokenDigest: cloneBytes(session.tokenDigest),
-    ...(session.userCodeDigest
-      ? { userCodeDigest: cloneBytes(session.userCodeDigest) }
-      : {}),
-    targetManifest: { ...session.targetManifest },
-    ...(session.requestedDestination
-      ? { requestedDestination: { ...session.requestedDestination } }
-      : {}),
-    ...(session.requestedGrant
-      ? { requestedGrant: { ...session.requestedGrant } }
-      : {}),
-  };
+  // structuredClone matches the Postgres JSON round-trip: nested
+  // reviewDecision / manifest objects must not share references with the store.
+  return structuredClone(session);
 }
 
 type PendingOp = () => void;
@@ -385,11 +377,55 @@ export class MemoryRepositories implements Repositories {
     },
 
     listUnpublished: async (limit = 100) => {
+      const now = new Date();
       return [...this.#store.outbox.values()]
-        .filter((row) => row.publishedAt === undefined)
+        .filter(
+          (row) =>
+            row.publishedAt === undefined && !outboxHoldActive(row.lastError, now),
+        )
         .sort((a, b) => a.availableAt.getTime() - b.availableAt.getTime())
         .slice(0, limit)
         .map((row) => ({ ...row, payload: { ...row.payload } }));
+    },
+
+    claimUnpublished: async (limit = 100, now = new Date(), holdMs = OUTBOX_CLAIM_HOLD_MS) => {
+      const claimed: OutboxEvent[] = [];
+      const token = outboxClaimToken(now, holdMs);
+      const rows = [...this.#store.outbox.values()]
+        .filter(
+          (row) =>
+            row.publishedAt === undefined &&
+            row.availableAt <= now &&
+            !outboxHoldActive(row.lastError, now),
+        )
+        .sort((a, b) => a.availableAt.getTime() - b.availableAt.getTime())
+        .slice(0, limit);
+      for (const row of rows) {
+        const next = {
+          ...row,
+          payload: { ...row.payload },
+          attempts: row.attempts + 1,
+          lastError: token,
+        };
+        this.#store.outbox.set(row.id, next);
+        claimed.push({ ...next, payload: { ...next.payload } });
+      }
+      return claimed;
+    },
+
+    releaseClaim: async (id, error) => {
+      const row = this.#store.outbox.get(id);
+      if (!row || row.publishedAt !== undefined) return;
+      this.#store.outbox.set(id, {
+        ...row,
+        payload: { ...row.payload },
+        ...(error ? { lastError: error } : {}),
+      });
+      if (!error) {
+        const next = { ...row, payload: { ...row.payload } };
+        delete next.lastError;
+        this.#store.outbox.set(id, next);
+      }
     },
 
     markPublished: async (id, publishedAt = new Date()) => {
@@ -397,6 +433,7 @@ export class MemoryRepositories implements Repositories {
       if (!row) {
         throw new NotFoundError(`outbox event not found: ${id}`);
       }
+      if (row.publishedAt !== undefined) return;
       this.#store.outbox.set(id, { ...row, publishedAt });
     },
   };

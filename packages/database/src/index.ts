@@ -19,6 +19,11 @@ export {
   type OidcStore,
   type OidcStorePayload,
 } from "./oidc-store.js";
+export {
+  createPostgresPairwiseStore,
+  type PairwiseSubjectRecord,
+  type PairwiseSubjectStore,
+} from "./pairwise-store.js";
 export { withOutbox, appendOutboxInTransaction } from "./tx.js";
 export { runMigrations } from "./migrate.js";
 export { resetDatabase } from "./reset.js";

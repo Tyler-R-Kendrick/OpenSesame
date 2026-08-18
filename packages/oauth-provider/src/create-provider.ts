@@ -135,6 +135,11 @@ export function createOpenSesameProvider(
       "createOpenSesameProvider: a persistent adapter is required in production (refusing MemoryAdapter, which loses grants and makes revocation per-process)",
     );
   }
+  if (env.isProduction && !options.pairwiseStore) {
+    throw new Error(
+      "createOpenSesameProvider: a persistent pairwise subject store is required in production (refusing MemoryPairwiseSubjectStore, which mints a new sub per process)",
+    );
+  }
 
   const pairwiseStore = options.pairwiseStore ?? new MemoryPairwiseSubjectStore();
   const admission = createClientAdmissionPolicy(env);

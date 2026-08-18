@@ -12,8 +12,28 @@ function sortKeys(value: unknown): unknown {
   if (value === null || typeof value !== "object") {
     return value;
   }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (value instanceof Map) {
+    const out: Record<string, unknown> = {};
+    const entries = [...value.entries()].sort(([a], [b]) =>
+      String(a).localeCompare(String(b)),
+    );
+    for (const [key, item] of entries) {
+      out[String(key)] = sortKeys(item);
+    }
+    return out;
+  }
   if (Array.isArray(value)) {
     return value.map(sortKeys);
+  }
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) {
+    const toJSON = (value as { toJSON?: () => unknown }).toJSON;
+    if (typeof toJSON === "function") {
+      return sortKeys(toJSON.call(value));
+    }
   }
   const obj = value as Record<string, unknown>;
   const out: Record<string, unknown> = {};

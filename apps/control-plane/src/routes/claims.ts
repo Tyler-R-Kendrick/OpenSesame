@@ -31,6 +31,8 @@ import {
   escapeHtml,
 } from "../middleware/security-headers.js";
 import { authenticatedPrincipalId } from "./organizations.js";
+import { serializeKeyed } from "../serialize.js";
+import { getUsage } from "../state.js";
 
 /** Wrong user codes tolerated per claim before approval is refused outright. */
 const MAX_CLAIM_APPROVAL_ATTEMPTS = 5;
@@ -150,6 +152,40 @@ claimRoutes.post(
       );
     }
 
+    const principal = await ctx.repos.principals.getById(principalId);
+    if (!principal) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+
+    return serializeKeyed(ctx.stores.principalMutations, principalId, async () => {
+      const now = ctx.clock();
+      const liveClaims = ctx.claimStore.listSessions().filter((session) => {
+        if (session.creatorPrincipalId !== principalId) return false;
+        if (session.expiresAt <= now) return false;
+        return (
+          session.state !== "completed" &&
+          session.state !== "denied" &&
+          session.state !== "revoked" &&
+          session.state !== "expired"
+        );
+      }).length;
+      const decision = ctx.policy.evaluate(
+        principal,
+        {
+          subject: {
+            type: "principal",
+            id: principal.id,
+            assurance: principal.assurance,
+          },
+          action: "claim.create",
+          resource: { type: "claim", id: "*" },
+        },
+        { ...getUsage(ctx.stores, principalId, now), claims: liveClaims },
+      );
+      if (decision.effect === "deny") {
+        return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
+      }
+
     const created = await ctx.claims.createClaim({
       type: parsed.data.type,
       targetManifest: parsed.data.targetManifest,
@@ -187,6 +223,7 @@ claimRoutes.post(
       pollIntervalSeconds: 5,
     });
     return c.json(body, 201);
+    });
   },
 );
 
@@ -227,10 +264,7 @@ claimRoutes.post("/present", async (c) => {
     return c.json(toClaimResponse(session));
   } catch (err) {
     if (err instanceof DomainError) {
-      return c.json(
-        { error: err.code, message: err.message },
-        domainErrorStatus(err),
-      );
+      return c.json({ error: err.code }, domainErrorStatus(err));
     }
     throw err;
   }
@@ -260,8 +294,9 @@ claimRoutes.post(
       // Approval is the human consent step. Being *some* authenticated principal
       // proves nothing about the device being claimed, so require the user code
       // it displayed, with a per-claim attempt fence behind it.
-      const attempts = ctx.stores.claimApprovalAttempts.get(id) ?? 0;
-      if (attempts >= MAX_CLAIM_APPROVAL_ATTEMPTS) {
+      const attempts = (ctx.stores.claimApprovalAttempts.get(id) ?? 0) + 1;
+      ctx.stores.claimApprovalAttempts.set(id, attempts);
+      if (attempts > MAX_CLAIM_APPROVAL_ATTEMPTS) {
         await auditClaimDenial(ctx, {
           claimId: id,
           principalId,
@@ -279,9 +314,6 @@ claimRoutes.post(
           session.userCodeDigest,
         )
       ) {
-        ctx.stores.claimApprovalAttempts.set(id, attempts + 1);
-        // Guesses against a ~40-bit user code are the attack this fence exists for,
-        // and a trail of successes only would show none of them.
         await auditClaimDenial(ctx, {
           claimId: id,
           principalId,
@@ -289,6 +321,29 @@ claimRoutes.post(
           correlationId: c.get("correlationId"),
         });
         return c.json({ error: "invalid_user_code" }, 401);
+      }
+      ctx.stores.claimApprovalAttempts.delete(id);
+      const claimToken =
+        parsed.data.claimToken ?? extractClaimToken(c) ?? undefined;
+      if (claimToken) {
+        const parts = parseClaimToken(claimToken);
+        if (
+          !parts ||
+          parts.publicId !== id ||
+          !verifyClaimToken(
+            ctx.config.claimPepper,
+            claimToken,
+            session.tokenDigest,
+          )
+        ) {
+          await auditClaimDenial(ctx, {
+            claimId: id,
+            principalId,
+            reason: "invalid_claim_token",
+            correlationId: c.get("correlationId"),
+          });
+          return c.json({ error: "invalid_claim_token" }, 401);
+        }
       }
       ctx.stores.claimApprovalAttempts.delete(id);
 
@@ -334,7 +389,12 @@ claimRoutes.post(
         typeof manifest.projectId === "string" ? manifest.projectId : undefined;
       if (projectId) {
         const project = ctx.stores.projects.get(projectId);
-        if (project && project.state === "provisional") {
+        if (
+          project &&
+          project.state === "provisional" &&
+          (project.ownerPrincipalId === principalId ||
+            project.ownerPrincipalId === undefined)
+        ) {
           const now = ctx.clock();
           // A claim can be completed after the project it names has run out of
           // time. Activating it then would hand back a project that is past its
@@ -353,7 +413,11 @@ claimRoutes.post(
         typeof manifest.agentId === "string" ? manifest.agentId : undefined;
       if (agentId) {
         const agent = ctx.stores.agents.get(agentId);
-        if (agent && agent.state === "provisional") {
+        if (
+          agent &&
+          agent.state === "provisional" &&
+          agent.ownerPrincipalId === principalId
+        ) {
           ctx.stores.agents.set(agentId, { ...agent, state: "claimed" });
         }
       }
@@ -386,10 +450,7 @@ claimRoutes.post(
       });
     } catch (err) {
       if (err instanceof DomainError) {
-        return c.json(
-          { error: err.code, message: err.message },
-          domainErrorStatus(err),
-        );
+        return c.json({ error: err.code }, domainErrorStatus(err));
       }
       throw err;
     }
@@ -420,10 +481,7 @@ claimRoutes.post("/:id/deny", requirePrincipal(), async (c) => {
     return c.json(toClaimResponse(session));
   } catch (err) {
     if (err instanceof DomainError) {
-      return c.json(
-        { error: err.code, message: err.message },
-        domainErrorStatus(err),
-      );
+      return c.json({ error: err.code }, domainErrorStatus(err));
     }
     throw err;
   }

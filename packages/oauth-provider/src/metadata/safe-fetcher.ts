@@ -1,3 +1,6 @@
+import { lookup as dnsLookup } from "node:dns/promises";
+import http from "node:http";
+import https from "node:https";
 import { isIP } from "node:net";
 import type { OAuthProviderEnv } from "../types.js";
 
@@ -152,14 +155,169 @@ export interface MetadataFetchResult {
   contentType: string | null;
 }
 
+const MAX_METADATA_BODY_BYTES = 64 * 1024;
+
+/** Injected DNS lookup — `{ all: true }` so every resolved address is judged. */
+export type MetadataDnsLookup = (
+  hostname: string,
+  options: { all: true },
+) => Promise<Array<{ address: string; family: number }>>;
+
+export interface PinnedMetadataResponse {
+  status: number;
+  contentType: string | null;
+  body: string;
+}
+
 /**
- * Stub SafeMetadataFetcher — validates URL then optionally fetches when CIMD is enabled.
- * Does not follow redirects to private targets (redirects disabled).
+ * HTTP(S) GET pinned to a resolved address, with SNI/Host of the original name.
+ * Redirects are refused — a 3xx to a private IP must not be followed.
+ */
+export type MetadataTransport = (args: {
+  url: URL;
+  address: string;
+  timeoutMs: number;
+}) => Promise<PinnedMetadataResponse>;
+
+export interface SafeMetadataFetcherOptions {
+  lookup?: MetadataDnsLookup;
+  transport?: MetadataTransport;
+}
+
+function hostnameOf(url: URL): string {
+  return url.hostname.replace(/^\[|\]$/g, "");
+}
+
+/**
+ * Resolve `url` and refuse if **any** address is private/special.
+ * Literal IPs are judged without DNS.
+ */
+export async function resolveSafeMetadataAddresses(
+  url: URL,
+  lookupFn: MetadataDnsLookup,
+): Promise<string[]> {
+  const host = hostnameOf(url);
+  if (isIP(host)) {
+    if (isPrivateOrSpecialIp(host)) {
+      throw new UnsafeMetadataUrlError(`Blocked address: ${host}`);
+    }
+    return [host];
+  }
+  let records: Array<{ address: string; family: number }>;
+  try {
+    records = await lookupFn(host, { all: true });
+  } catch {
+    throw new UnsafeMetadataUrlError(`DNS lookup failed for ${host}`);
+  }
+  if (!records.length) {
+    throw new UnsafeMetadataUrlError(`No DNS records for ${host}`);
+  }
+  const addresses = [...new Set(records.map((r) => r.address))];
+  for (const addr of addresses) {
+    if (isPrivateOrSpecialIp(addr)) {
+      throw new UnsafeMetadataUrlError(`Blocked resolved address: ${addr}`);
+    }
+  }
+  return addresses;
+}
+
+function defaultPinnedTransport(args: {
+  url: URL;
+  address: string;
+  timeoutMs: number;
+}): Promise<PinnedMetadataResponse> {
+  const { url, address, timeoutMs } = args;
+  const proto = url.protocol === "https:" ? https : http;
+  const port = url.port
+    ? Number(url.port)
+    : url.protocol === "https:"
+      ? 443
+      : 80;
+  const servername = hostnameOf(url);
+  const path = `${url.pathname}${url.search}` || "/";
+
+  return new Promise((resolve, reject) => {
+    const req = proto.request(
+      {
+        hostname: address,
+        port,
+        path,
+        method: "GET",
+        headers: {
+          host: url.host,
+          accept: "application/json",
+        },
+        timeout: timeoutMs,
+        ...(url.protocol === "https:" ? { servername } : {}),
+        family: address.includes(":") ? 6 : 4,
+      },
+      (res) => {
+        const status = res.statusCode ?? 0;
+        if (status >= 300 && status < 400) {
+          res.resume();
+          reject(new UnsafeMetadataUrlError("Metadata fetch refused a redirect"));
+          return;
+        }
+        const contentType = headerToString(res.headers["content-type"]);
+        if (!contentType.toLowerCase().includes("application/json")) {
+          res.resume();
+          reject(
+            new UnsafeMetadataUrlError(
+              "Metadata content-type must be application/json",
+            ),
+          );
+          return;
+        }
+        const chunks: Buffer[] = [];
+        let size = 0;
+        res.on("data", (chunk: Buffer) => {
+          size += chunk.length;
+          if (size > MAX_METADATA_BODY_BYTES) {
+            req.destroy();
+            reject(new UnsafeMetadataUrlError("Metadata body exceeds 64KiB"));
+            return;
+          }
+          chunks.push(chunk);
+        });
+        res.on("end", () => {
+          resolve({
+            status,
+            contentType,
+            body: Buffer.concat(chunks).toString("utf8"),
+          });
+        });
+        res.on("error", reject);
+      },
+    );
+    req.on("timeout", () => {
+      req.destroy();
+      reject(new UnsafeMetadataUrlError("Metadata fetch timed out"));
+    });
+    req.on("error", (err) => {
+      reject(new UnsafeMetadataUrlError(`Metadata fetch failed: ${err.message}`));
+    });
+    req.end();
+  });
+}
+
+function headerToString(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value.join(", ");
+  return value ?? "";
+}
+
+/**
+ * SSRF-hardened metadata fetcher for experimental CIMD / remote client metadata.
+ *
+ * Hostname denylist is not enough: a public name can resolve to RFC1918 or
+ * link-local metadata. Every resolved address is judged, then the GET is pinned
+ * to a verified IP with the original name as SNI/Host (rewriting the URL to an
+ * IP would break TLS). Redirects are disabled; body size and JSON content-type
+ * are capped.
  */
 export class SafeMetadataFetcher {
   constructor(
     private readonly env: Pick<OAuthProviderEnv, "cimdEnabled">,
-    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly options: SafeMetadataFetcherOptions = {},
   ) {}
 
   async fetch(rawUrl: string): Promise<MetadataFetchResult> {
@@ -169,18 +327,22 @@ export class SafeMetadataFetcher {
       );
     }
     const url = assertSafeMetadataUrl(rawUrl);
-    const res = await this.fetchImpl(url, {
-      redirect: "error",
-      headers: { accept: "application/json" },
-      signal: AbortSignal.timeout(5_000),
+    const lookupFn: MetadataDnsLookup =
+      this.options.lookup ?? ((hostname) => dnsLookup(hostname, { all: true }));
+    const addresses = await resolveSafeMetadataAddresses(url, lookupFn);
+    const transport = this.options.transport ?? defaultPinnedTransport;
+    const res = await transport({
+      url,
+      address: addresses[0]!,
+      timeoutMs: 5_000,
     });
-    if (!res.ok) {
+    if (res.status < 200 || res.status >= 300) {
       throw new UnsafeMetadataUrlError(`Metadata fetch failed: HTTP ${res.status}`);
     }
     return {
       url: url.toString(),
-      body: await res.text(),
-      contentType: res.headers.get("content-type"),
+      body: res.body,
+      contentType: res.contentType,
     };
   }
 }

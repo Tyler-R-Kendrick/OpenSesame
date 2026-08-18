@@ -308,14 +308,11 @@ export function filterEntriesForProject(
   projectFolder: string | null,
 ): StorePlainEntry[] {
   if (!projectFolder?.trim()) return entries;
-  const prefix = `${projectFolder.trim().replace(/\/+$/u, "")}/`;
+  const folder = projectFolder.trim().replace(/\/+$/u, "");
+  const prefix = `${folder}/`;
   return entries.filter((entry) => {
-    const { folder } = splitStorePath(entry.path);
-    if (!folder) return false;
-    return (
-      folder === projectFolder.trim() ||
-      folder.startsWith(prefix.slice(0, -1))
-    );
+    const path = entry.path.replace(/^\/+/u, "");
+    return path === folder || path.startsWith(prefix);
   });
 }
 

@@ -332,6 +332,13 @@ describe("createOpenSesame", () => {
           );
         }
         if (url.endsWith("/claims/clm_1/complete")) {
+          expect(init?.headers).toMatchObject({
+            authorization: "Bearer at",
+            "x-claim-token": "osc_clm_x.secret",
+          });
+          expect(JSON.parse(String(init?.body)).claimToken).toBe(
+            "osc_clm_x.secret",
+          );
           return new Response(
             JSON.stringify({
               id: "clm_1",
@@ -359,6 +366,7 @@ describe("createOpenSesame", () => {
     expect(current.state).toBe("presented");
     const done = await sesame.completeClaim("clm_1", {
       acceptedItemIds: ["a"],
+      claimToken: "osc_clm_x.secret",
     });
     expect(done.state).toBe("completed");
   });

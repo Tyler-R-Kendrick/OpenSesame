@@ -17,7 +17,6 @@ export const LOG_REDACT_PATHS = [
   "device_code",
   "client_secret",
   "password",
-  "code",
   "code_verifier",
   "authorization",
   "cookie",
@@ -33,7 +32,6 @@ export const LOG_REDACT_PATHS = [
   "*.device_code",
   "*.client_secret",
   "*.password",
-  "*.code",
   "*.code_verifier",
 ] as const;
 
@@ -44,7 +42,7 @@ export const LOG_REDACT_PATHS = [
  * `ctx.session.access_token`. This pattern backs a deep walk instead.
  */
 export const SENSITIVE_KEY_PATTERN =
-  /^(?:authorization|cookie|set-cookie|access[_-]?token|refresh[_-]?token|id[_-]?token|claim[_-]?token|attempt[_-]?token|session[_-]?token|operator[_-]?token|bearer|token|user[_-]?code|device[_-]?code|client[_-]?secret|secret|password|passphrase|pin|private[_-]?key|code|code[_-]?verifier|assertion|dpop|ciphertext)$/i;
+  /^(?:authorization|cookie|set-cookie|access[_-]?token|refresh[_-]?token|id[_-]?token|claim[_-]?token|attempt[_-]?token|session[_-]?token|operator[_-]?token|bearer|token|user[_-]?code|device[_-]?code|client[_-]?secret|api[_-]?key|api[_-]?secret|secret|password|passphrase|pin|private[_-]?key|authorization[_-]?code|code[_-]?verifier|assertion|dpop|ciphertext)$/i;
 
 const CENSOR = "[Redacted]";
 /** Depth ceiling so a hostile/cyclic object cannot stall the logger. */

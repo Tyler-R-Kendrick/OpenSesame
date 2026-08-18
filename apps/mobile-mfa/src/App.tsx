@@ -350,6 +350,7 @@ export function App() {
         <label>
           Access token (required for MFA)
           <input
+            type="password"
             value={accessToken}
             onChange={(e) => setAccessToken(e.target.value)}
             disabled={busy !== null}

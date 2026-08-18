@@ -71,7 +71,31 @@ function isLoopbackHost(hostname: string): boolean {
   const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
   if (host === "localhost" || host.endsWith(".localhost")) return true;
   if (host === "::1") return true;
+  const embedded = ipv4FromMappedIpv6(host);
+  if (embedded) return isLoopbackV4(embedded);
+  return isLoopbackV4(host);
+}
+
+function isLoopbackV4(host: string): boolean {
   return /^127(?:\.\d{1,3}){3}$/u.test(host);
+}
+
+function ipv4FromMappedIpv6(host: string): string | null {
+  const dotted = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/u.exec(host);
+  if (dotted) return dotted[1] ?? null;
+  const mappedHex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host);
+  if (mappedHex) return hextetsToIpv4(mappedHex[1]!, mappedHex[2]!);
+  const compat = /^::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host);
+  if (compat && compat[1] !== "ffff") {
+    return hextetsToIpv4(compat[1]!, compat[2]!);
+  }
+  return null;
+}
+
+function hextetsToIpv4(hiHex: string, loHex: string): string {
+  const hi = Number.parseInt(hiHex, 16);
+  const lo = Number.parseInt(loHex, 16);
+  return `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`;
 }
 
 /**
@@ -83,20 +107,23 @@ function isPrivateHost(hostname: string): boolean {
   const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
   if (isLoopbackHost(host)) return true;
   if (host === "0.0.0.0" || host === "::" || host === "localhost") return true;
-  // IPv4 literals in the ranges that never appear on the public internet.
-  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/u.exec(host);
-  if (v4) {
-    const [a, b] = [Number(v4[1]), Number(v4[2])];
-    if (a === 10 || a === 127 || a === 0) return true;
-    if (a === 169 && b === 254) return true; // link-local, incl. cloud metadata
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    return false;
-  }
-  // IPv6 unique-local (fc00::/7) and link-local (fe80::/10).
+  const embedded = ipv4FromMappedIpv6(host);
+  if (embedded) return isPrivateV4(embedded);
+  if (isPrivateV4(host)) return true;
   if (/^f[cd][0-9a-f]{2}:/u.test(host)) return true;
   if (/^fe[89ab][0-9a-f]:/u.test(host)) return true;
   return host.endsWith(".internal") || host.endsWith(".local");
+}
+
+function isPrivateV4(host: string): boolean {
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/u.exec(host);
+  if (!v4) return false;
+  const [a, b] = [Number(v4[1]), Number(v4[2])];
+  if (a === 10 || a === 127 || a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  return false;
 }
 
 /**

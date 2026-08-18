@@ -35,6 +35,26 @@ export interface UnitOfWork {
 
 export type TransactionFn<T> = (uow: UnitOfWork) => Promise<T>;
 
+/** Live drain claim encoded in `OutboxEvent.lastError`. */
+export const OUTBOX_CLAIM_PREFIX = "claim:";
+export const OUTBOX_CLAIM_HOLD_MS = 30_000;
+
+export function outboxHoldActive(
+  lastError: string | undefined,
+  now: Date,
+): boolean {
+  if (!lastError?.startsWith(OUTBOX_CLAIM_PREFIX)) return false;
+  const until = Number(lastError.slice(OUTBOX_CLAIM_PREFIX.length));
+  return Number.isFinite(until) && until > now.getTime();
+}
+
+export function outboxClaimToken(
+  now: Date,
+  holdMs = OUTBOX_CLAIM_HOLD_MS,
+): string {
+  return `${OUTBOX_CLAIM_PREFIX}${now.getTime() + holdMs}`;
+}
+
 export interface PrincipalRepository {
   create(principal: Principal, uow?: UnitOfWork): Promise<Principal>;
   getById(id: string): Promise<Principal | null>;
@@ -96,6 +116,17 @@ export interface AuditEventRepository {
 export interface OutboxRepository {
   append(event: NewOutboxEvent, uow?: UnitOfWork): Promise<OutboxEvent>;
   listUnpublished(limit?: number): Promise<OutboxEvent[]>;
+  /**
+   * Atomically claim unpublished rows for one drain pass. A live `claim:<deadlineMs>`
+   * token in `lastError` hides the row from other workers until the hold expires.
+   */
+  claimUnpublished(
+    limit?: number,
+    now?: Date,
+    holdMs?: number,
+  ): Promise<OutboxEvent[]>;
+  /** Drop a live claim so the next tick can retry immediately. */
+  releaseClaim(id: string, error?: string): Promise<void>;
   markPublished(id: string, publishedAt?: Date): Promise<void>;
 }
 

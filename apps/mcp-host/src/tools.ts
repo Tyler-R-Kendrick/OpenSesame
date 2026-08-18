@@ -277,11 +277,15 @@ function textContent(text: string) {
 
 function toolError(label: string, e: unknown) {
   const message = e instanceof Error ? e.message : String(e);
-  return {
-    // An error message can carry a URL, a header, or a quoted request body, so it
-    // goes through the same fence as a success. A refusal here is reported as the
-    // refusal it is rather than being retried into the model's context.
-    content: textContent(scrubLocalSecrets(`${label}: ${message}`)),
-    isError: true,
-  };
+  try {
+    return {
+      content: textContent(forAgent(`${label}: ${message}`)),
+      isError: true,
+    };
+  } catch {
+    return {
+      content: textContent(`${label}: refused`),
+      isError: true,
+    };
+  }
 }

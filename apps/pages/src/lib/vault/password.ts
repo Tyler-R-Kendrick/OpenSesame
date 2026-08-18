@@ -1,8 +1,8 @@
 /** Password generation and strength estimation. All randomness from crypto.getRandomValues. */
 
-const LOWER = "abcdefghijkmnopqrstuvwxyz";
-const UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-const DIGITS = "23456789";
+const LOWER = "abcdefghijklmnopqrstuvwxyz";
+const UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const DIGITS = "0123456789";
 const SYMBOLS = "!@#$%^&*()-_=+[]{};:,.?";
 const AMBIGUOUS = "il1Lo0O";
 
@@ -396,9 +396,9 @@ export function generatorEntropyBits(options: GeneratorOptions): number {
     return Math.round(base + (options.includeNumber ? Math.log2(10) : 0));
   }
   let alphabet = 0;
-  if (options.lower) alphabet += options.avoidAmbiguous ? 24 : 25;
-  if (options.upper) alphabet += options.avoidAmbiguous ? 23 : 24;
-  if (options.digits) alphabet += options.avoidAmbiguous ? 7 : 8;
+  if (options.lower) alphabet += options.avoidAmbiguous ? 24 : 26;
+  if (options.upper) alphabet += options.avoidAmbiguous ? 24 : 26;
+  if (options.digits) alphabet += options.avoidAmbiguous ? 8 : 10;
   if (options.symbols) alphabet += SYMBOLS.length;
   if (alphabet === 0) return 0;
   return Math.round(options.length * Math.log2(alphabet));

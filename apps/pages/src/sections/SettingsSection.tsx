@@ -31,6 +31,7 @@ import { CapabilityConnectorsPanel } from "./settings/CapabilityConnectorsPanel.
 import { ActiveProjectPanel } from "./settings/ActiveProjectPanel.js";
 import { ChangelogPanel } from "./settings/ChangelogPanel.js";
 import { GithubBackupPanel } from "./settings/GithubBackupPanel.js";
+import { TaskBusPanel } from "./settings/TaskBusPanel.js";
 import { ImportPanel } from "./settings/ImportPanel.js";
 import { OfflineBackupPanel } from "./settings/OfflineBackupPanel.js";
 import { SyncTargetsPanel } from "./settings/SyncTargetsPanel.js";
@@ -81,6 +82,7 @@ type CategoryId = (typeof CATEGORIES)[number]["id"];
 function categoryFromHash(hash: string): CategoryId | null {
   const raw = hash.replace(/^#/, "");
   if (raw === "import" || raw === "github-backup") return "data";
+  if (raw === "taskbus") return "connectivity";
   const match = CATEGORIES.find((category) => category.id === raw);
   return match ? match.id : null;
 }
@@ -756,6 +758,8 @@ export function SettingsSection() {
       {category !== "connectivity" ? null : <CapabilityConnectorsPanel />}
 
       {category !== "connectivity" ? null : <SyncTargetsPanel />}
+
+      {category !== "connectivity" ? null : <TaskBusPanel />}
 
       {category !== "data" ? null : <GithubBackupPanel />}
 
