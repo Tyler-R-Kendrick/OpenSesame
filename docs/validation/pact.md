@@ -56,10 +56,21 @@ Do not add a suite that only documents the happy path.
 | Claims engine | exclusive `completeClaim` CAS | completed session JSON has no raw token | 8-way complete: one `won` | token stays off the session record |
 | Device-auth projection | slow_down interval caps at 60s | projection has no secret fields | 20 slow_downs stay at 60s | no `user_code` / `device_code` in UI JSON |
 | Observability | depth ceiling before recurse | nested `access_token` / `pin` redacted | cyclic objects terminate | `[Redacted]` not plaintext |
-| QR | empty payload refused | `assertPayload` before encode | — | `QrEncodeError` |
+| QR | empty payload refused | `assertPayload` before encode | concurrent encodes of one payload are identical | `QrEncodeError` |
 | Client-core | `sealDevOnly` gated by `isDevOrTestEnv` | no `getSecret(` | production NODE_ENV never XORs | blobs are ciphertext-only |
 | CLI device SDK | `expires_in >= 0` is real expiry | printed instructions omit `device_code` | `expires_in: 0` does not spin | interval floor 5, cap 60 |
-| Auth-upstream | `principalId` stable on upgrade | no email auto-link | — | unknown principal throws |
+| Auth-upstream | `principalId` stable on upgrade | no email auto-link | concurrent upgrades to one upstream keep a single mapping | unknown principal throws |
+| os-domain | terminal claims stay terminal | malformed claim tokens parse as null | concurrent complete does not mutate the original session | fixtures have no secret fields |
+| agent-protocols | concurrent renders are deterministic | secret-shaped config refused | poisoned field yields no partial doc | `assertSafeConfig` before interpolate |
+| telemetry | allowlisted events only | forbidden values dropped not redacted | concurrent secret tracks never leak | sanitize before capture |
+| identity-atproto / nostr | DID/pubkey format required | garbage DID/pubkey refused while disabled | concurrent verify never succeeds | factory disabled unless flag is exactly `true` |
+| Pages PWA / console / mobile-mfa | loopback operator pin; b64url round-trip | remote operator headers empty; empty QR refused | claim stash stays in sessionStorage; QR encode stable | no `getSecret`; stash JSON only |
+| mock-upstream-idp | loopback listen | PKCE required | authorization code is single-use | `codes.delete` before PKCE verify |
+| example RPs / agent / headless | pairwise `sub` differs by sector | claimToken / `device_code` never printed | poll/device partition fails closed | mock `DO_NOT_PRINT` device_code |
+| redteam / visual-contract | corpus covers four classes; identical PNGs match | 404 mock has no secrets; dimension mismatch fails | unmatched routes stay 404; inverted PNG exceeds budget | no `getSecret` tool; `VISUAL_UPDATE` opt-in |
+| fuzz oracles / env-spec / config | terminal claims; `@sensitive` values null; strict tsconfig | secret fields redacted; missing schema exits 2 | concurrent parse stays secret-free | JSON parser id; package exports tsconfig only |
+| grants / static-mesh / toolbar / credential-agent | attenuation increments depth; advertise/resolve stable | expanded actions refused; path ids refused; remote daemon URL refused | cross-org child refused; unknown service empty; missing operator 401 | grant/mesh JSON has no secret fields; mint returns null secrets |
+| eve-deepsec (out of workspace) | GLM 5.2 pinned to blackbox | `deepsec process/sandbox` refused before spawn | missing install fails closed | README keeps the app out of `pnpm-workspace.yaml` |
 
 Reference call sites: `apps/gateway/src/github_webhook.rs`,
 `apps/gateway/src/main.rs` (`pact_coverage`),
@@ -76,4 +87,10 @@ Reference call sites: `apps/gateway/src/github_webhook.rs`,
 `packages/sdk-browser/src/pact.test.ts`,
 `packages/sdk-server/src/pact.test.ts`,
 `apps/mcp-client/src/pact.test.ts`,
-`apps/browser-extension/tests/pact.test.mjs`.
+`apps/browser-extension/tests/pact.test.mjs`,
+`packages/os-domain/src/__tests__/pact.test.ts`,
+`packages/agent-protocols/src/pact.test.ts`,
+`packages/telemetry/src/__tests__/pact.test.ts`,
+`packages/identity-atproto/src/__tests__/pact.test.ts`,
+`packages/redteam/src/pact.test.ts`,
+`packages/visual-contract/src/compare.pact.test.ts`.

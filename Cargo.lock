@@ -2434,6 +2434,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tower",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -2658,6 +2659,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.19",
+ "tokio",
 ]
 
 [[package]]
@@ -2759,6 +2761,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "opensesame-host-core",
  "reqwest",
  "serde_json",
  "tokio",

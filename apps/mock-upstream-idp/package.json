@@ -27,6 +27,7 @@
     "jose": "6.2.8"
   },
   "devDependencies": {
+    "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "tsx": "4.19.4",
     "typescript": "5.8.3",

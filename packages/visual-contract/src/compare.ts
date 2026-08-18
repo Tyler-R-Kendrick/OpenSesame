@@ -35,7 +35,7 @@ export const OUTPUT_DIR = join(PACKAGE_ROOT, "output");
 /** pixelmatch's own per-pixel perceptual-color-difference sensitivity. */
 const PIXELMATCH_THRESHOLD = 0.1;
 /** Share of pixels allowed to differ before the contract is considered broken. */
-const MAX_DIFF_RATIO = 0.015;
+export const MAX_DIFF_RATIO = 0.015;
 
 export function isUpdateMode(): boolean {
   return process.env.VISUAL_UPDATE === "1";
@@ -63,30 +63,22 @@ export interface VisualCompareResult {
   diffPixelCount: number;
   diffRatio: number;
   totalPixels: number;
+  /** Present when dimensions match and a pixel-diff image was produced. */
+  diffPng?: Buffer;
 }
 
 /**
- * Compare a captured PNG on disk against the checked-in baseline for `name`.
- * On mismatch, writes output/<name>-diff.png (pixelmatch's visual diff) and
- * output/<name>-actual.png (the raw capture) for a human to inspect.
+ * Pixel-diff two PNG buffers. Used by the Playwright contract and by unit
+ * tests that must not touch `.impeccable/screenshots`.
  */
-export function compareAgainstBaseline(
-  name: string,
-  capturedPngPath: string,
+export function comparePngBuffers(
+  baseline: Buffer,
+  captured: Buffer,
 ): VisualCompareResult {
-  const baseline = baselinePath(name);
-  if (!existsSync(baseline)) {
-    throw new Error(
-      `No .impeccable baseline for "${name}" at ${baseline}. If this screen is new or intentionally changing, run with VISUAL_UPDATE=1 to create/update it deliberately, then review the PNG in "git diff --stat" before committing.`,
-    );
-  }
-
-  const img1 = PNG.sync.read(readFileSync(baseline));
-  const img2 = PNG.sync.read(readFileSync(capturedPngPath));
+  const img1 = PNG.sync.read(baseline);
+  const img2 = PNG.sync.read(captured);
 
   if (img1.width !== img2.width || img1.height !== img2.height) {
-    mkdirSync(OUTPUT_DIR, { recursive: true });
-    copyFileSync(capturedPngPath, actualPath(name));
     const totalPixels = img1.width * img1.height;
     return {
       matched: false,
@@ -111,14 +103,51 @@ export function compareAgainstBaseline(
   const totalPixels = width * height;
   const diffRatio = totalPixels === 0 ? 0 : diffPixelCount / totalPixels;
   const matched = diffRatio <= MAX_DIFF_RATIO;
+  return {
+    matched,
+    diffPixelCount,
+    diffRatio,
+    totalPixels,
+    diffPng: PNG.sync.write(diff),
+  };
+}
 
-  if (!matched) {
+/**
+ * Compare a captured PNG on disk against the checked-in baseline for `name`.
+ * On mismatch, writes output/<name>-diff.png (pixelmatch's visual diff) and
+ * output/<name>-actual.png (the raw capture) for a human to inspect.
+ */
+export function compareAgainstBaseline(
+  name: string,
+  capturedPngPath: string,
+): VisualCompareResult {
+  const baseline = baselinePath(name);
+  if (!existsSync(baseline)) {
+    throw new Error(
+      `No .impeccable baseline for "${name}" at ${baseline}. If this screen is new or intentionally changing, run with VISUAL_UPDATE=1 to create/update it deliberately, then review the PNG in "git diff --stat" before committing.`,
+    );
+  }
+
+  const result = comparePngBuffers(
+    readFileSync(baseline),
+    readFileSync(capturedPngPath),
+  );
+
+  if (result.diffPixelCount < 0) {
     mkdirSync(OUTPUT_DIR, { recursive: true });
-    writeFileSync(diffPath(name), PNG.sync.write(diff));
+    copyFileSync(capturedPngPath, actualPath(name));
+    return result;
+  }
+
+  if (!result.matched) {
+    mkdirSync(OUTPUT_DIR, { recursive: true });
+    if (result.diffPng) {
+      writeFileSync(diffPath(name), result.diffPng);
+    }
     copyFileSync(capturedPngPath, actualPath(name));
   }
 
-  return { matched, diffPixelCount, diffRatio, totalPixels };
+  return result;
 }
 
 /** Overwrite the checked-in baseline for `name` with a fresh capture. */

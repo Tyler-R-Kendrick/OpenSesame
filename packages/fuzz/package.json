@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@jazzer.js/core": "2.1.0",
+    "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "tsx": "4.20.3",
     "typescript": "5.8.3",

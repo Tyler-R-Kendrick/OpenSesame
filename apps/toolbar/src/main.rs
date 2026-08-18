@@ -2,6 +2,33 @@
 use clap::{Parser, Subcommand};
 use serde_json::{json, Value};
 
+/// Present the operator token when there is one. Left off, the daemon says so
+/// plainly, which is better than this deciding the call is pointless.
+fn as_operator(req: reqwest::RequestBuilder, token: Option<&str>) -> reqwest::RequestBuilder {
+    match token {
+        Some(t) if !t.is_empty() => req.header("x-opensesame-operator", t),
+        _ => req,
+    }
+}
+
+/// Why a refusal happened, when the reason is one the caller can fix.
+fn operator_hint(status: reqwest::StatusCode, had_token: bool) -> &'static str {
+    if status == reqwest::StatusCode::UNAUTHORIZED && !had_token {
+        return " — set OPENSESAME_OPERATOR_TOKEN to the daemon's operator token";
+    }
+    ""
+}
+
+/// Operator token is for this machine. A remote base would ship it off-box.
+fn assert_daemon_url_allowed(url: &str) -> Result<(), String> {
+    if opensesame_host_core::daemon::base_url_is_local(url) {
+        return Ok(());
+    }
+    Err(format!(
+        "daemon URL `{url}` is not loopback; operator token stays on this machine"
+    ))
+}
+
 #[derive(Parser)]
 #[command(
     name = "opensesame-toolbar",
@@ -21,23 +48,6 @@ struct Cli {
     operator_token: Option<String>,
     #[command(subcommand)]
     cmd: Commands,
-}
-
-/// Present the operator token when there is one. Left off, the daemon says so
-/// plainly, which is better than this deciding the call is pointless.
-fn as_operator(req: reqwest::RequestBuilder, token: Option<&str>) -> reqwest::RequestBuilder {
-    match token {
-        Some(t) if !t.is_empty() => req.header("x-opensesame-operator", t),
-        _ => req,
-    }
-}
-
-/// Why a refusal happened, when the reason is one the caller can fix.
-fn operator_hint(status: reqwest::StatusCode, had_token: bool) -> &'static str {
-    if status == reqwest::StatusCode::UNAUTHORIZED && !had_token {
-        return " — set OPENSESAME_OPERATOR_TOKEN to the daemon's operator token";
-    }
-    ""
 }
 
 #[derive(Subcommand)]
@@ -72,6 +82,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let client = reqwest::Client::new();
     let base = cli.daemon.trim_end_matches('/');
+    assert_daemon_url_allowed(base).map_err(anyhow::Error::msg)?;
     let operator = cli.operator_token.as_deref();
     let had_token = operator.is_some_and(|t| !t.is_empty());
     match cli.cmd {
@@ -205,4 +216,45 @@ async fn print_json_or_text(text: String) -> anyhow::Result<()> {
         Err(_) => println!("{}", json!({"status": text.trim()})),
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod pact {
+    use super::*;
+
+    #[test]
+    fn property_loopback_daemon_is_allowed() {
+        assert!(assert_daemon_url_allowed("http://127.0.0.1:18790").is_ok());
+        assert!(assert_daemon_url_allowed("http://localhost:18790/").is_ok());
+        assert!(assert_daemon_url_allowed("https://[::1]:18790").is_ok());
+    }
+
+    #[test]
+    fn adversarial_remote_daemon_is_refused() {
+        for bad in [
+            "https://evil.example",
+            "http://10.0.0.5:18790",
+            "http://127.0.0.1@evil.test/",
+            "ftp://127.0.0.1:18790",
+        ] {
+            assert!(assert_daemon_url_allowed(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn chaos_missing_operator_hint_only_on_401() {
+        assert!(operator_hint(reqwest::StatusCode::UNAUTHORIZED, false)
+            .contains("OPENSESAME_OPERATOR_TOKEN"));
+        assert_eq!(operator_hint(reqwest::StatusCode::UNAUTHORIZED, true), "");
+        assert_eq!(operator_hint(reqwest::StatusCode::BAD_GATEWAY, false), "");
+    }
+
+    #[test]
+    fn contract_source_pins_loopback_before_any_operator_header() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("main.rs"),
+            &["assert_daemon_url_allowed(base)", "as_operator("],
+        );
+        assert!(include_str!("main.rs").contains("x-opensesame-operator"));
+    }
 }

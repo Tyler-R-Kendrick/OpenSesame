@@ -57,14 +57,24 @@ export class MemoryPrincipalMappingStore implements PrincipalMappingStore {
   }
 
   async save(mapping: PrincipalMapping): Promise<PrincipalMapping> {
+    // Exclusive check-and-set: two concurrent upgrades of different
+    // principals to the same upstream must not both win after awaiting
+    // findByUpstream (that yield is the check-then-set mutant).
+    if (mapping.upstreamProviderId && mapping.upstreamSubject) {
+      const key = this.upstreamKey(
+        mapping.upstreamProviderId,
+        mapping.upstreamSubject,
+      );
+      const existing = this.byUpstream.get(key);
+      if (existing && existing.principalId !== mapping.principalId) {
+        throw new Error(
+          "Upstream identity already linked to a different principal",
+        );
+      }
+      this.byUpstream.set(key, mapping);
+    }
     this.byBa.set(mapping.betterAuthUserId, mapping);
     this.byPrincipal.set(mapping.principalId, mapping);
-    if (mapping.upstreamProviderId && mapping.upstreamSubject) {
-      this.byUpstream.set(
-        this.upstreamKey(mapping.upstreamProviderId, mapping.upstreamSubject),
-        mapping,
-      );
-    }
     if (mapping.email) {
       this.byEmail.set(mapping.email.toLowerCase(), mapping);
     }

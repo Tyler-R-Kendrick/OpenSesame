@@ -12,3 +12,13 @@ pub use adapter::*;
 
 #[cfg(all(test, feature = "experimental-aauth"))]
 mod tests;
+
+#[cfg(test)]
+mod pact {
+    #[test]
+    fn adapter_is_feature_gated() {
+        let src = include_str!("lib.rs");
+        assert!(src.contains("#[cfg(feature = \"experimental-aauth\")]"));
+        assert!(src.contains("Disabled by default"));
+    }
+}
