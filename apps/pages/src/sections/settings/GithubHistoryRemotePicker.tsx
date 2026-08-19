@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { CapabilityConnectorBinding } from "../../lib/capabilities.js";
+import type { Connection } from "../../lib/connections.js";
 import {
   DEFAULT_PASSWORD_REPO_NAME,
+  type GithubRepoSummary,
   createGithubPasswordRepo,
   listGithubRepos,
   remoteFromRepo,
-  type GithubRepoSummary,
 } from "../../lib/github-history.js";
-import type { CapabilityConnectorBinding } from "../../lib/capabilities.js";
-import type { Connection } from "../../lib/connections.js";
 
 type Props = {
   binding: CapabilityConnectorBinding;
@@ -28,9 +28,10 @@ export function GithubHistoryRemotePicker({
   const [newName, setNewName] = useState(DEFAULT_PASSWORD_REPO_NAME);
   const [error, setError] = useState<string | null>(null);
 
-  const active = connection?.status === "active" && Boolean(connection.connectionId);
+  const active =
+    connection?.status === "active" && Boolean(connection.connectionId);
 
-  async function refreshRepos() {
+  const refreshRepos = useCallback(async () => {
     if (!connection?.connectionId || connection.status !== "active") {
       setRepos([]);
       return;
@@ -49,11 +50,11 @@ export function GithubHistoryRemotePicker({
     } finally {
       setLoading(false);
     }
-  }
+  }, [connection]);
 
   useEffect(() => {
     void refreshRepos();
-  }, [connection?.connectionId, connection?.status]);
+  }, [refreshRepos]);
 
   async function createPrivate() {
     if (!connection?.connectionId) return;
@@ -152,8 +153,8 @@ export function GithubHistoryRemotePicker({
           <strong>private</strong> under your GitHub user, then binds it as the
           sealed-store remote. If create fails with a GitHub App connection,
           Install the App on your GitHub account (All repositories), then{" "}
-          <strong>Re-authorize with OAuth</strong>, or paste a{" "}
-          <code>repo</code>-scoped personal access token.
+          <strong>Re-authorize with OAuth</strong>, or paste a <code>repo</code>
+          -scoped personal access token.
         </p>
       </div>
 

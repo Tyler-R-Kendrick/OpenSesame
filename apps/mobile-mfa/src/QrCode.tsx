@@ -23,12 +23,6 @@ export function QrCode({
 
   if (!src) return null;
   return (
-    <img
-      className="qr"
-      src={src}
-      width={size}
-      height={size}
-      alt={label}
-    />
+    <img className="qr" src={src} width={size} height={size} alt={label} />
   );
 }

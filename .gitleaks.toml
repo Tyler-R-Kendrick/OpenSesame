@@ -10,6 +10,7 @@ description = "Build outputs, package stores, and local tooling (must prune for 
 paths = [
   '''(^|/)\.git(?:/|$)''',
   '''(^|/)\.tools(?:/|$)''',
+  '''(^|/)\.stryker-tmp(?:/|$)''',
   '''(^|/)\.deepsec/\.env[^/]*$''',
   '''(^|/)\.impeccable/live/sessions(?:/|$)''',
   '''(^|/)artifacts(?:/|$)''',
@@ -23,6 +24,7 @@ paths = [
   '''(^|/)\.wxt(?:/|$)''',
   '''(^|/)sbom(?:/|$)''',
   '''(^|/)test-results(?:/|$)''',
+  '''(^|/)packages/visual-contract/output(?:/|$)''',
   '''(^|/)\.headroom-cache(?:/|$)''',
   '''(^|/)\.superpowers(?:/|$)''',
   '''(?i)\.(?:log|sqlite|sqlite-.*)$''',

@@ -47,3 +47,55 @@ describe("local-network-fetch", () => {
     expect(init.targetAddressSpace).toBe("local");
   });
 });
+
+describe("local-network-fetch edges", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("leaves unparseable and public URLs unannotated", () => {
+    expect(targetAddressSpaceFor("http://[::1")).toBeUndefined();
+    expect(targetAddressSpaceFor("http://172.32.0.1")).toBeUndefined();
+    expect(targetAddressSpaceFor("http://100.63.0.1")).toBeUndefined();
+    expect(targetAddressSpaceFor("http://10.1.2.3")).toBe("local");
+    expect(targetAddressSpaceFor("http://172.16.0.1")).toBe("local");
+    expect(targetAddressSpaceFor("http://192.168.0.1")).toBe("local");
+    expect(targetAddressSpaceFor("http://169.254.1.1")).toBe("local");
+    expect(targetAddressSpaceFor("http://printer.local")).toBe("local");
+    expect(targetAddressSpaceFor("http://devbox.localhost")).toBe("loopback");
+  });
+
+  it("propagates an outer abort signal into the fetch", async () => {
+    const outer = new AbortController();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(init.signal?.reason ?? new Error("aborted"));
+            });
+          }),
+      ),
+    );
+    const pending = localNetworkFetch("https://example.com/x", {
+      signal: outer.signal,
+      timeoutMs: 5000,
+    });
+    outer.abort(new Error("user cancelled"));
+    await expect(pending).rejects.toThrow(/cancelled/);
+  });
+
+  it("honors an already-aborted outer signal without fetching", async () => {
+    const outer = new AbortController();
+    outer.abort(new Error("pre-aborted"));
+    const spy = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+      Promise.reject(init?.signal?.reason ?? new Error("went anyway")),
+    );
+    vi.stubGlobal("fetch", spy);
+    await expect(
+      localNetworkFetch("https://example.com", { signal: outer.signal }),
+    ).rejects.toThrow(/pre-aborted/);
+  });
+});

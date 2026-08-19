@@ -1,5 +1,10 @@
 import { DomainError, invalidTransition } from "../errors.js";
-import type { AssuranceLevel, ClaimSession, ClaimState, Clock } from "../types.js";
+import type {
+  AssuranceLevel,
+  ClaimSession,
+  ClaimState,
+  Clock,
+} from "../types.js";
 
 const TERMINAL: ReadonlySet<ClaimState> = new Set([
   "completed",
@@ -25,7 +30,9 @@ export function canTransitionClaim(from: ClaimState, to: ClaimState): boolean {
 
 function assertNotExpired(session: ClaimSession, now: Date): void {
   if (session.state === "expired") {
-    throw new DomainError("EXPIRED", "Claim already expired", { id: session.id });
+    throw new DomainError("EXPIRED", "Claim already expired", {
+      id: session.id,
+    });
   }
   if (now >= session.expiresAt && !TERMINAL.has(session.state)) {
     throw new DomainError("EXPIRED", "Claim expired", {

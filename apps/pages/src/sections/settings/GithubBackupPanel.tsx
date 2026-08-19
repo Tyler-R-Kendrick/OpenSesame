@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { IconAlert, IconCheck } from "../../components/Icons.js";
 import {
+  type BackupStatus,
+  type GithubInstallation,
   branchForEnvironment,
   deleteBackupTarget,
   filterGithubBackupConnections,
@@ -13,28 +16,26 @@ import {
   ownerRepoFromRemote,
   putBackupTarget,
   resyncBackup,
-  type BackupStatus,
-  type GithubInstallation,
 } from "../../lib/backup.js";
 import { CAPABILITIES } from "../../lib/capabilities.js";
 import {
-  awaitConsent,
+  type Connection,
+  type Integration,
   authorizeConnection,
+  awaitConsent,
   createConnection,
   listConnections,
   listIntegrations,
   openConsentPopup,
   startGithubAppRegistration,
   submitGithubAppManifest,
-  type Connection,
-  type Integration,
 } from "../../lib/connections.js";
 import {
-  createGithubPasswordRepo,
   DEFAULT_PASSWORD_REPO_NAME,
+  type GithubRepoSummary,
+  createGithubPasswordRepo,
   listGithubRepos,
   remoteFromRepo,
-  type GithubRepoSummary,
 } from "../../lib/github-history.js";
 import {
   ensureHostSession,
@@ -44,16 +45,12 @@ import {
 import { usePlaneStatus } from "../../lib/planes.js";
 import { loadSettings, saveSettings } from "../../lib/settings.js";
 import { useOnline } from "../../lib/use-online.js";
-import { IconAlert, IconCheck } from "../../components/Icons.js";
 
 type Flash = { tone: "ok" | "err" | "warn"; text: string };
 
-const HISTORY_SCOPES =
-  CAPABILITIES.find((row) => row.id === "history")?.authScopes?.("github") ?? [
-    "read:user",
-    "repo",
-    "workflow",
-  ];
+const HISTORY_SCOPES = CAPABILITIES.find(
+  (row) => row.id === "history",
+)?.authScopes?.("github") ?? ["read:user", "repo", "workflow"];
 
 function bindHistoryConnection(connectionId: string) {
   const current = loadSettings();
@@ -266,13 +263,7 @@ export function GithubBackupPanel() {
     return () => {
       cancelled = true;
     };
-  }, [
-    selected?.connectionId,
-    selected?.integrationId,
-    selected?.status,
-    orgGithub?.id,
-    installationId,
-  ]);
+  }, [selected, orgGithub?.id, installationId]);
 
   async function onCreateApp() {
     setBusy("create-app");
@@ -346,8 +337,7 @@ export function GithubBackupPanel() {
         setFlash({
           tone: "err",
           text:
-            outcome.connection.statusDetail ??
-            "GitHub refused authorization.",
+            outcome.connection.statusDetail ?? "GitHub refused authorization.",
         });
       } else {
         setFlash({
@@ -375,7 +365,11 @@ export function GithubBackupPanel() {
         tone: "warn",
         text: "Open github.com → Settings → Applications → Installed GitHub Apps and install OpenSesame Recoverability (All repositories), then refresh.",
       });
-      window.open("https://github.com/settings/installations", "_blank", "noopener");
+      window.open(
+        "https://github.com/settings/installations",
+        "_blank",
+        "noopener",
+      );
       return;
     }
     setFlash({
@@ -442,9 +436,7 @@ export function GithubBackupPanel() {
       });
       setRemote(remoteFromRepo(created));
       setRepos(
-        filterPrivateGithubRepos(
-          await listGithubRepos(selected.connectionId),
-        ),
+        filterPrivateGithubRepos(await listGithubRepos(selected.connectionId)),
       );
       setFlash({
         tone: "ok",
@@ -529,8 +521,8 @@ export function GithubBackupPanel() {
           <>
             {target ? (
               <p className={`note note--${healthy ? "ok" : "warn"}`}>
-                {healthy ? <IconCheck /> : <IconAlert />}{" "}
-                {target.owner}/{target.repo}@{target.branch} — status{" "}
+                {healthy ? <IconCheck /> : <IconAlert />} {target.owner}/
+                {target.repo}@{target.branch} — status{" "}
                 <strong>{target.status}</strong>
                 {status && status.pendingEvents > 0
                   ? ` · ${status.pendingEvents} pending`
@@ -549,10 +541,10 @@ export function GithubBackupPanel() {
             )}
 
             {!hostLive ? (
-              <p className="note note--warn" role="status">
+              <output className="note note--warn">
                 Host API is not reachable from this tab yet. Pair or start the
                 local Host so GitHub App setup can complete.
-              </p>
+              </output>
             ) : null}
 
             <ol className="stack github-backup-steps">
@@ -567,8 +559,8 @@ export function GithubBackupPanel() {
                   </p>
                 ) : (
                   <p className="hint">
-                    OpenSesame deploys a tenant GitHub App for you. Confirm it on
-                    GitHub in this tab — no client secrets to paste.
+                    OpenSesame deploys a tenant GitHub App for you. Confirm it
+                    on GitHub in this tab — no client secrets to paste.
                   </p>
                 )}
                 <div className="actions">
@@ -617,10 +609,7 @@ export function GithubBackupPanel() {
                       }}
                     >
                       {githubConnections.map((row) => (
-                        <option
-                          key={row.connectionId}
-                          value={row.connectionId}
-                        >
+                        <option key={row.connectionId} value={row.connectionId}>
                           {row.displayName || row.logicalName}
                           {row.accountLabel ? ` · ${row.accountLabel}` : ""}
                           {row.status !== "active" ? ` (${row.status})` : ""}
@@ -632,9 +621,7 @@ export function GithubBackupPanel() {
                 <div className="actions">
                   <button
                     type="button"
-                    className={
-                      connectionActive ? "btn" : "btn btn--primary"
-                    }
+                    className={connectionActive ? "btn" : "btn btn--primary"}
                     disabled={anyBusy || !hostLive || !appReady}
                     aria-busy={busy === "authorize"}
                     onClick={() => void onAuthorize()}
@@ -666,9 +653,7 @@ export function GithubBackupPanel() {
                   Installation
                   <select
                     value={installationId}
-                    onChange={(event) =>
-                      setInstallationId(event.target.value)
-                    }
+                    onChange={(event) => setInstallationId(event.target.value)}
                     disabled={!appReady}
                   >
                     <option value="">
@@ -713,9 +698,7 @@ export function GithubBackupPanel() {
                   Repository
                   <select
                     value={remote}
-                    disabled={
-                      !connectionActive || loadingRepos || anyBusy
-                    }
+                    disabled={!connectionActive || loadingRepos || anyBusy}
                     onChange={(event) => setRemote(event.target.value)}
                   >
                     <option value="">
@@ -738,9 +721,7 @@ export function GithubBackupPanel() {
                     <input
                       id="backup-new-repo"
                       value={newRepoName}
-                      onChange={(event) =>
-                        setNewRepoName(event.target.value)
-                      }
+                      onChange={(event) => setNewRepoName(event.target.value)}
                       disabled={anyBusy || !connectionActive}
                     />
                     <button
@@ -783,8 +764,7 @@ export function GithubBackupPanel() {
                 </select>
                 <span className="hint">
                   Each environment backs up to its own branch in the same
-                  private repo. Production is the default recoverability
-                  branch.
+                  private repo. Production is the default recoverability branch.
                 </span>
               </li>
             </ol>

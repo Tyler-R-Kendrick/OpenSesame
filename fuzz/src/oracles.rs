@@ -127,10 +127,15 @@ pub fn assert_no_secret_fields(value: &Value) {
 
 pub fn assert_redacted_text_hides(original: &str, redacted: &str) {
     let lower = original.to_ascii_lowercase();
-    if lower.contains("bearer ") || lower.contains("basic ") {
+    let has_authorization_value = ["bearer ", "basic "].iter().any(|scheme| {
+        lower
+            .match_indices(scheme)
+            .any(|(index, found)| !lower[index + found.len()..].trim_start().is_empty())
+    });
+    if has_authorization_value {
         assert!(
             redacted.contains("[REDACTED]"),
-            "authorization schemes must redact"
+            "authorization schemes must redact: original={original:?} redacted={redacted:?}"
         );
     }
 }

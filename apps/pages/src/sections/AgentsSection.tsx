@@ -1036,10 +1036,10 @@ function ConnectPrincipal({ online }: { online: boolean }) {
             Connecting creates a provisional principal on the Identity service
             when you need the full Identity plane. On a local Host with
             OPENSESAME_DEV_BOOTSTRAP, connector OAuth can use Host-local
-            authority without this step.
-            That is enough to register an agent and read your own audit trail;
-            it is not enough for anything that demands a verified human, and the
-            API will say so plainly when you hit that line.
+            authority without this step. That is enough to register an agent and
+            read your own audit trail; it is not enough for anything that
+            demands a verified human, and the API will say so plainly when you
+            hit that line.
           </p>
           <button
             type="button"

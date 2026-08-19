@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createOpenSesameProvider, isPkceRequired } from "../create-provider.js";
+import {
+  createOpenSesameProvider,
+  isPkceRequired,
+} from "../create-provider.js";
 
 describe("PKCE", () => {
   it("requires PKCE for all clients (S256-only provider)", () => {
@@ -26,9 +29,9 @@ describe("PKCE", () => {
     });
 
     expect(isPkceRequired(bundle, {}, { clientAuthMethod: "none" })).toBe(true);
-    expect(isPkceRequired(bundle, {}, { clientAuthMethod: "client_secret_basic" })).toBe(
-      true,
-    );
+    expect(
+      isPkceRequired(bundle, {}, { clientAuthMethod: "client_secret_basic" }),
+    ).toBe(true);
     expect(bundle.configuration.features).toMatchObject({
       deviceFlow: { enabled: true },
       revocation: { enabled: true },

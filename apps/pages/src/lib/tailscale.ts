@@ -1,10 +1,6 @@
 import { type DaemonHealth, probeDaemon } from "./daemon.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
-import {
-  loadSettings,
-  pageIsLoopback,
-  shippedDaemonApi,
-} from "./settings.js";
+import { loadSettings, pageIsLoopback, shippedDaemonApi } from "./settings.js";
 import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
 
 /**
@@ -108,9 +104,7 @@ export function discoverErrorMessage(input: {
 }): string {
   const parts: string[] = [];
   if (input.fromGithubPages && input.triedLoopback) {
-    parts.push(
-      "This github.io page cannot reach 127.0.0.1 (or localhost).",
-    );
+    parts.push("This github.io page cannot reach 127.0.0.1 (or localhost).");
   }
   if (!input.fromGithubPages && input.triedLoopback) {
     parts.push(

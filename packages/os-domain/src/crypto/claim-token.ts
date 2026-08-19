@@ -34,7 +34,9 @@ export function hmacDigest(
   secret: string,
 ): Uint8Array {
   const key =
-    typeof pepper === "string" ? Buffer.from(pepper, "utf8") : Buffer.from(pepper);
+    typeof pepper === "string"
+      ? Buffer.from(pepper, "utf8")
+      : Buffer.from(pepper);
   const h = createHmac("sha256", key);
   const writeLenPrefixed = (s: string) => {
     const b = Buffer.from(s, "utf8");
@@ -96,7 +98,12 @@ export function digestClaimToken(
   if (!parsed) {
     return null;
   }
-  return hmacDigest(pepper, CLAIM_TOKEN_PURPOSE, parsed.publicId, parsed.secret);
+  return hmacDigest(
+    pepper,
+    CLAIM_TOKEN_PURPOSE,
+    parsed.publicId,
+    parsed.secret,
+  );
 }
 
 export function verifyClaimToken(
@@ -165,7 +172,7 @@ export function generateUserCode(byteCount = 5): string {
   const totalChars = Math.ceil((byteCount * 8) / 5);
   for (let i = 0; i < totalChars; i++) {
     const idx = Number(bits & 0x1fn);
-    chars.push(CROCKFORD_ALPHABET[idx]!);
+    chars.push(CROCKFORD_ALPHABET.charAt(idx));
     bits >>= 5n;
   }
   const raw = chars.join("");

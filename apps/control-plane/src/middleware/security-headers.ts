@@ -26,7 +26,10 @@ export function apiSecurityHeaders() {
     );
     const publicUrl = c.get("ctx").config.publicUrl;
     if (publicUrl.startsWith("https://")) {
-      c.header("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
+      c.header(
+        "Strict-Transport-Security",
+        "max-age=63072000; includeSubDomains",
+      );
     }
   });
 }

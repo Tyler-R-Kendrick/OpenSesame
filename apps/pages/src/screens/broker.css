@@ -4,9 +4,11 @@
   min-height: 100vh;
   margin: 0;
   padding: 2rem 1.25rem 3rem;
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, #d8efe9 0%, transparent 55%),
-    linear-gradient(180deg, #f2f5f9 0%, #e8eef6 100%);
+  background: radial-gradient(
+      ellipse 80% 50% at 50% -10%,
+      #d8efe9 0%,
+      transparent 55%
+    ), linear-gradient(180deg, #f2f5f9 0%, #e8eef6 100%);
   color: #0e1826;
   font-family: "Segoe UI", system-ui, sans-serif;
 }

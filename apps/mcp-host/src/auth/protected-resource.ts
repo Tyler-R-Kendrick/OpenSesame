@@ -5,7 +5,8 @@
  * DPoP is advertised only when OPENSESAME_DPOP_ENABLED=true on the gateway.
  */
 
-export const PROTECTED_RESOURCE_WELL_KNOWN = "/.well-known/oauth-protected-resource";
+export const PROTECTED_RESOURCE_WELL_KNOWN =
+  "/.well-known/oauth-protected-resource";
 
 export interface ProtectedResourceNotes {
   profile: string;
@@ -14,7 +15,9 @@ export interface ProtectedResourceNotes {
   dpopAdvertised: boolean;
 }
 
-export function summarizeProtectedResource(body: Record<string, unknown>): ProtectedResourceNotes {
+export function summarizeProtectedResource(
+  body: Record<string, unknown>,
+): ProtectedResourceNotes {
   const schemes = Array.isArray(body.authorization_servers)
     ? body.authorization_servers
     : [];

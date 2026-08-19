@@ -7,7 +7,11 @@ export {
   type SafeDeviceStart,
   type TokenSuccess,
 } from "./device-flow.js";
-export { loopbackLogin, type LoopbackLoginConfig, type LoopbackTokens } from "./loopback.js";
+export {
+  loopbackLogin,
+  type LoopbackLoginConfig,
+  type LoopbackTokens,
+} from "./loopback.js";
 export {
   createControlPlaneClient,
   type ControlPlaneClient,

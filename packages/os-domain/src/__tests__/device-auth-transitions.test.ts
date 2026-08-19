@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  DomainError,
   approveDeviceAuth,
   canTransitionDeviceAuth,
   consumeDeviceAuth,
   denyDeviceAuth,
-  DomainError,
   expireDeviceAuth,
   recordDevicePoll,
 } from "../index.js";
@@ -22,9 +22,9 @@ describe("device authorization state machine", () => {
   });
 
   it("allows pending→denied and pending→expired", () => {
-    expect(denyDeviceAuth(fixtures.pendingDeviceAuth(), fixtures.now).state).toBe(
-      "denied",
-    );
+    expect(
+      denyDeviceAuth(fixtures.pendingDeviceAuth(), fixtures.now).state,
+    ).toBe("denied");
     expect(
       expireDeviceAuth(fixtures.pendingDeviceAuth(), fixtures.now).state,
     ).toBe("expired");
@@ -44,7 +44,9 @@ describe("device authorization state machine", () => {
     const s = fixtures.pendingDeviceAuth({
       expiresAt: new Date(fixtures.now.getTime() - 1),
     });
-    expect(() => approveDeviceAuth(s, "prn_x", fixtures.now)).toThrow(DomainError);
+    expect(() => approveDeviceAuth(s, "prn_x", fixtures.now)).toThrow(
+      DomainError,
+    );
   });
 
   it("records polls without changing state", () => {

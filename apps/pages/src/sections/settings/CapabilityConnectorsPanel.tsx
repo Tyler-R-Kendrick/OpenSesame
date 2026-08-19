@@ -1,15 +1,23 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import {
+  IconAlert,
+  IconCheck,
+  IconExternal,
+  IconLock,
+} from "../../components/Icons.js";
+import {
   CAPABILITIES,
-  type CapabilityId,
-  connectorLabel,
   type CapabilityConnectorBinding,
   type CapabilityConnectorMap,
+  type CapabilityId,
+  connectorLabel,
 } from "../../lib/capabilities.js";
 import {
-  awaitConsent,
+  type Connection,
+  type Provider,
   authorizeConnection,
+  awaitConsent,
   createConnection,
   listConnections,
   listIntegrations,
@@ -18,8 +26,6 @@ import {
   setConnectionCredential,
   startGithubAppRegistration,
   submitGithubAppManifest,
-  type Connection,
-  type Provider,
 } from "../../lib/connections.js";
 import {
   ensureHostSession,
@@ -27,10 +33,13 @@ import {
   useConnect,
   useIdentitySession,
 } from "../../lib/identity.js";
-import { useOnline } from "../../lib/use-online.js";
-import { loadSettings, saveSettings, shouldAutoConnect } from "../../lib/settings.js";
 import { usePlaneStatus } from "../../lib/planes.js";
-import { IconCheck, IconExternal, IconLock, IconAlert } from "../../components/Icons.js";
+import {
+  loadSettings,
+  saveSettings,
+  shouldAutoConnect,
+} from "../../lib/settings.js";
+import { useOnline } from "../../lib/use-online.js";
 import { GithubHistoryRemotePicker } from "./GithubHistoryRemotePicker.js";
 
 type Flash = { tone: "ok" | "err" | "warn"; text: string };
@@ -48,7 +57,7 @@ function githubAppFailureReason(raw: string | null): string {
     case "conversion_failed":
       return "GitHub created the app but Host could not exchange the one-time code. Retry Create GitHub App while Host stays reachable.";
     default:
-      return raw!.trim();
+      return (raw ?? "").trim();
   }
 }
 
@@ -57,7 +66,9 @@ function connectionFor(
   connections: Connection[],
 ): Connection | undefined {
   if (binding.connectionId) {
-    const byId = connections.find((c) => c.connectionId === binding.connectionId);
+    const byId = connections.find(
+      (c) => c.connectionId === binding.connectionId,
+    );
     if (byId) return byId;
   }
   return (
@@ -163,6 +174,7 @@ export function CapabilityConnectorsPanel() {
     void connect();
   }, [session, online, connecting, connectError, connect]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Host/session changes intentionally trigger refresh
   useEffect(() => {
     void refreshConnections();
     void refreshProviders();
@@ -183,22 +195,20 @@ export function CapabilityConnectorsPanel() {
       providerId: patch.providerId ?? current.providerId,
     };
     const connectionId =
-      patch.connectionId !== undefined
-        ? patch.connectionId
-        : current.connectionId;
-    const remote = patch.remote !== undefined ? patch.remote : current.remote;
-    if (connectionId) merged.connectionId = connectionId;
-    if (remote) merged.remote = remote;
-    if (
       patch.providerId &&
       patch.providerId !== current.providerId &&
       patch.connectionId === undefined
-    ) {
-      delete merged.connectionId;
-    }
+        ? undefined
+        : patch.connectionId !== undefined
+          ? patch.connectionId
+          : current.connectionId;
+    const remote = patch.remote !== undefined ? patch.remote : current.remote;
+    if (connectionId) merged.connectionId = connectionId;
+    if (remote) merged.remote = remote;
     persist({ ...bindings, [id]: merged });
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: callback query params are consumed once on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const result = params.get("github_app");
@@ -398,7 +408,10 @@ export function CapabilityConnectorsPanel() {
           scopes,
         });
       }
-      const active = await setConnectionCredential(connection.connectionId, token);
+      const active = await setConnectionCredential(
+        connection.connectionId,
+        token,
+      );
       await refreshConnections();
       if (active.status !== "active") {
         throw new Error(
@@ -453,19 +466,19 @@ export function CapabilityConnectorsPanel() {
             <IconAlert size={18} />
             <span>
               Could not start an OpenSesame session: {connectError}. Check the
-              Identity URL in Settings (OpenSesame control plane — not a third-party
-              IdP).
+              Identity URL in Settings (OpenSesame control plane — not a
+              third-party IdP).
             </span>
           </p>
         ) : !hostLocalSessionEligible() && connecting && !session ? (
-          <p className="note note--warn" role="status">
+          <output className="note note--warn">
             <IconLock size={18} />
             <span>Starting your OpenSesame session…</span>
-          </p>
+          </output>
         ) : hostLocalSessionEligible() ? (
           <p className="hint">
-            Local Host is the authority for this tab — Identity plane not required
-            for connector OAuth.
+            Local Host is the authority for this tab — Identity plane not
+            required for connector OAuth.
           </p>
         ) : null}
         {flash ? (
@@ -473,7 +486,11 @@ export function CapabilityConnectorsPanel() {
             className={`note note--${flash.tone === "warn" ? "warn" : flash.tone}`}
             role={flash.tone === "err" ? "alert" : "status"}
           >
-            {flash.tone === "ok" ? <IconCheck size={18} /> : <IconAlert size={18} />}
+            {flash.tone === "ok" ? (
+              <IconCheck size={18} />
+            ) : (
+              <IconAlert size={18} />
+            )}
             <span>{flash.text}</span>
           </p>
         ) : null}
@@ -484,13 +501,16 @@ export function CapabilityConnectorsPanel() {
             const connection = connectionFor(binding, connections);
             const status = statusLabel(def.id, binding, connection);
             const needsAuth = def.requiresAuth(binding.providerId);
-            const providerMeta = providers.find((p) => p.id === binding.providerId);
+            const providerMeta = providers.find(
+              (p) => p.id === binding.providerId,
+            );
             const oauthReady =
               providerMeta?.configured === true ||
               (binding.providerId === "github" && githubOrgReady);
             const showPat =
               needsAuth &&
-              (binding.providerId === "github" || binding.providerId === "gitlab");
+              (binding.providerId === "github" ||
+                binding.providerId === "gitlab");
             return (
               <li key={def.id} className="cap-card">
                 <div className="cap-card__head">
@@ -616,14 +636,14 @@ export function CapabilityConnectorsPanel() {
                 binding.providerId === "github" ? (
                   <div className="cap-github-app">
                     <p className="hint">
-                      OpenSesame deploys a tenant GitHub App for you — confirm it
-                      on GitHub, Authorize, then Install the App on your account
-                      (All repositories). Administration + Contents + Workflows
-                      are required so History can create/list private password
-                      repos and push ciphertext. OAuth alone is not enough to
-                      create repos. No env vars or client secrets to paste. On
-                      localhost, webhooks are omitted. If permissions change,
-                      Create the App again, Authorize, and Install.
+                      OpenSesame deploys a tenant GitHub App for you — confirm
+                      it on GitHub, Authorize, then Install the App on your
+                      account (All repositories). Administration + Contents +
+                      Workflows are required so History can create/list private
+                      password repos and push ciphertext. OAuth alone is not
+                      enough to create repos. No env vars or client secrets to
+                      paste. On localhost, webhooks are omitted. If permissions
+                      change, Create the App again, Authorize, and Install.
                     </p>
                     <p className="hint">
                       Prefer{" "}
@@ -698,7 +718,8 @@ export function CapabilityConnectorsPanel() {
                         type="button"
                         className="btn btn--primary btn--sm"
                         disabled={
-                          busy !== null || !(patByCapability[def.id] ?? "").trim()
+                          busy !== null ||
+                          !(patByCapability[def.id] ?? "").trim()
                         }
                         aria-busy={busy === def.id}
                         onClick={() => void connectWithPat(def.id)}

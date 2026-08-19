@@ -6,14 +6,16 @@ import type { Clock, Resource, ResourceState } from "../types.js";
  * provisional -> active | expired | quarantined
  * expired -> deleting -> deleted
  */
-const ALLOWED: ReadonlyMap<ResourceState, ReadonlySet<ResourceState>> = new Map([
-  ["provisional", new Set(["active", "expired", "quarantined"])],
-  ["active", new Set(["expired", "deleting", "quarantined"])],
-  ["expired", new Set(["deleting", "quarantined"])],
-  ["quarantined", new Set(["deleting", "expired"])],
-  ["deleting", new Set(["deleted"])],
-  ["deleted", new Set()],
-]);
+const ALLOWED: ReadonlyMap<ResourceState, ReadonlySet<ResourceState>> = new Map(
+  [
+    ["provisional", new Set(["active", "expired", "quarantined"])],
+    ["active", new Set(["expired", "deleting", "quarantined"])],
+    ["expired", new Set(["deleting", "quarantined"])],
+    ["quarantined", new Set(["deleting", "expired"])],
+    ["deleting", new Set(["deleted"])],
+    ["deleted", new Set()],
+  ],
+);
 
 export function canTransitionResource(
   from: ResourceState,

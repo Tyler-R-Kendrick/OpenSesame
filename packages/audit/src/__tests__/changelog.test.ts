@@ -1,10 +1,10 @@
 import type { AuditEvent } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
+  SECRET_CHANGELOG_EVENT_TYPES,
   filterSecretChangelogEvents,
   isSecretChangelogEventType,
   recordSecretChangelog,
-  SECRET_CHANGELOG_EVENT_TYPES,
 } from "../changelog.js";
 import { redactAuditMetadata } from "../redact.js";
 

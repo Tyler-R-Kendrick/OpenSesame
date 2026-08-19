@@ -246,7 +246,9 @@ export async function resolveSafeMetadataAddresses(
   return addresses;
 }
 
-function defaultPinnedTransport(args: {
+// Exported for tests: the SSRF policy lives in SafeMetadataFetcher.fetch, this
+// is the raw pinned GET it delegates to once an address is verified.
+export function defaultPinnedTransport(args: {
   url: URL;
   address: string;
   timeoutMs: number;

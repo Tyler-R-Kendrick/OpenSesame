@@ -7,10 +7,7 @@
     "./tsconfig.base.json": "./tsconfig.base.json",
     "./package.json": "./package.json"
   },
-  "files": [
-    "tsconfig.base.json",
-    "tsconfig.library.json"
-  ],
+  "files": ["tsconfig.base.json", "tsconfig.library.json"],
   "scripts": {
     "typecheck": "node -e \"require('node:fs').accessSync('tsconfig.base.json')\"",
     "test": "node --test test/config.test.mjs"

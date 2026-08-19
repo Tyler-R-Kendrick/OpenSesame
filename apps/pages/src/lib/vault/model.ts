@@ -161,6 +161,12 @@ function base(kind: ItemKind, name: string): BaseItem {
   };
 }
 
+export function createItem(kind: "login", name?: string): LoginItem;
+export function createItem(kind: "passkey", name?: string): PasskeyItem;
+export function createItem(kind: "card", name?: string): CardItem;
+export function createItem(kind: "secret", name?: string): SecretItem;
+export function createItem(kind: "note", name?: string): NoteItem;
+export function createItem(kind: ItemKind, name?: string): VaultItem;
 export function createItem(kind: ItemKind, name = ""): VaultItem {
   const b = base(kind, name);
   switch (kind) {

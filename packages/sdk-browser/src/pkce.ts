@@ -4,7 +4,10 @@ export function base64UrlEncode(bytes: Uint8Array): string {
   for (const b of bytes) {
     binary += String.fromCharCode(b);
   }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/u, "");
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/u, "");
 }
 
 export function randomString(byteLength = 32): string {

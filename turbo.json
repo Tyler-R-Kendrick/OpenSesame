@@ -21,7 +21,8 @@
     },
     "test:e2e": {
       "dependsOn": ["^build"],
-      "cache": false
+      "cache": false,
+      "env": ["PLAYWRIGHT_BASE_URL", "OPENSESAME_OPERATOR_TOKEN"]
     }
   }
 }

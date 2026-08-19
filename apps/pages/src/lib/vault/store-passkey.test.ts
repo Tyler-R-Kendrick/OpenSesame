@@ -1,0 +1,137 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { kvDelete } from "../kv.js";
+import { WrongPasswordError, randomBytes } from "./crypto.js";
+import { ATTEMPTS_KEY, BODY_KEY, HEADER_KEY, VaultStore } from "./store.js";
+import type { PasskeyCeremony } from "./unlock-methods.js";
+
+const PASSWORD = "correct horse battery staple";
+
+/**
+ * The WebAuthn ceremony needs a real authenticator; everything around it —
+ * wrapping, unwrapping, header persistence — runs for real. These stand-ins
+ * return the PRF output a platform authenticator would have produced.
+ */
+const ceremony = vi.hoisted(() => ({
+  prfOutput: null as ArrayBuffer | null,
+  failCreate: null as Error | null,
+  failGet: null as Error | null,
+  noPrf: false,
+}));
+
+vi.mock("./unlock-methods.js", async () => {
+  const actual = await vi.importActual<typeof import("./unlock-methods.js")>(
+    "./unlock-methods.js",
+  );
+  return {
+    ...actual,
+    createPasskeyUnlockCeremony: async (): Promise<PasskeyCeremony> => {
+      if (ceremony.failCreate) throw ceremony.failCreate;
+      ceremony.prfOutput = randomBytes(32).buffer as ArrayBuffer;
+      return {
+        credential: { rawId: randomBytes(16).buffer } as PublicKeyCredential,
+        prfOutput: ceremony.prfOutput,
+        prfSalt: randomBytes(16),
+        userId: randomBytes(16),
+      };
+    },
+    getPasskeyUnlockCeremony: async (): Promise<ArrayBuffer> => {
+      if (ceremony.failGet) throw ceremony.failGet;
+      if (ceremony.noPrf || !ceremony.prfOutput) {
+        throw new Error(
+          "This authenticator did not return a WebAuthn PRF result for unlock.",
+        );
+      }
+      return ceremony.prfOutput;
+    },
+  };
+});
+
+beforeEach(() => {
+  kvDelete(ATTEMPTS_KEY);
+  kvDelete(HEADER_KEY);
+  kvDelete(BODY_KEY);
+  ceremony.prfOutput = null;
+  ceremony.failCreate = null;
+  ceremony.failGet = null;
+  ceremony.noPrf = false;
+});
+
+describe("VaultStore passkey unlock", () => {
+  it("enrolls a passkey and unlocks with it after locking", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.enrollPasskey();
+    expect(store.getSnapshot().header?.unlocks?.passkey).toBeDefined();
+    store.lock();
+
+    const reopened = new VaultStore();
+    await reopened.unlockWithPasskey();
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+    expect(reopened.isUnlocked()).toBe(true);
+  });
+
+  it("removes an enrolled passkey and refuses it afterwards", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.enrollPasskey();
+    await store.removePasskey();
+    expect(store.getSnapshot().header?.unlocks?.passkey).toBeUndefined();
+    store.lock();
+
+    const reopened = new VaultStore();
+    await expect(reopened.unlockWithPasskey()).rejects.toThrow(
+      /no passkey unlock/,
+    );
+  });
+
+  it("keeps the last primary method when removing a passkey", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.enrollPasskey();
+    await store.removePassword();
+    await expect(store.removePasskey()).rejects.toThrow(/at least one primary/);
+  });
+
+  it("surfaces a cancelled ceremony without counting a failed attempt", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.enrollPasskey();
+    store.lock();
+
+    ceremony.failGet = new Error(
+      "Passkey was cancelled or timed out. Try again, or use a PIN / password unlock instead.",
+    );
+    const reopened = new VaultStore();
+    await expect(reopened.unlockWithPasskey()).rejects.toThrow(/cancelled/);
+    // A cancelled ceremony is not a wrong credential.
+    expect(reopened.getSnapshot().failedAttempts).toBe(0);
+  });
+
+  it("counts a passkey whose PRF does not unwrap the vault", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.enrollPasskey();
+    store.lock();
+
+    // A different passkey: the ceremony succeeds but the wrap does not open.
+    ceremony.prfOutput = randomBytes(32).buffer as ArrayBuffer;
+    const reopened = new VaultStore();
+    await expect(reopened.unlockWithPasskey()).rejects.toBeInstanceOf(
+      WrongPasswordError,
+    );
+    expect(reopened.getSnapshot().failedAttempts).toBe(1);
+  });
+
+  it("normalizes a non-Error ceremony failure", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.enrollPasskey();
+    store.lock();
+
+    ceremony.failGet = "string failure" as unknown as Error;
+    const reopened = new VaultStore();
+    await expect(reopened.unlockWithPasskey()).rejects.toThrow(
+      /Passkey unlock failed/,
+    );
+  });
+});

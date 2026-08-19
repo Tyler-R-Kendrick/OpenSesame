@@ -27,10 +27,7 @@ export function createControlPlaneClient(config: ControlPlaneClientConfig) {
   // the calls that follow it within the same client.
   let bearer = config.accessToken;
 
-  async function request(
-    path: string,
-    init?: RequestInit,
-  ): Promise<Response> {
+  async function request(path: string, init?: RequestInit): Promise<Response> {
     const headers = new Headers(init?.headers);
     headers.set("accept", "application/json");
     if (bearer) {

@@ -15,8 +15,8 @@ fn is_sensitive_key(key: &str) -> bool {
 /// Prefix-preserving patterns: the captured label survives, the value does not.
 static TEXT_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
     [
-        r"(?i)(Bearer\s+)[A-Za-z0-9\-_./+=]+",
-        r"(?i)(Basic\s+)[A-Za-z0-9+/=]+",
+        r"(?i)(Bearer\s+)\S+",
+        r"(?i)(Basic\s+)\S+",
         // Any `key=value` / `key: value` pair whose label looks secret. Backend
         // errors routinely echo the query string or header that failed.
         r#"(?i)\b(password|passwd|secret|client[_-]?secret|api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|id[_-]?token|device[_-]?code|user[_-]?code|claim[_-]?token|code[_-]?verifier|private[_-]?key|token|authorization|cookie)\b(["']?\s*[=:]\s*["']?)[^&\s,;)\]}"']+"#,
@@ -79,6 +79,14 @@ mod tests {
         let v = redact_json(&json!({"access_token": "secret", "ok": 1}));
         assert_eq!(v["access_token"], "[REDACTED]");
         assert_eq!(v["ok"], 1);
+    }
+
+    #[test]
+    fn redacts_complete_authorization_values_but_not_an_empty_scheme() {
+        assert_eq!(redact_text("Basic "), "Basic ");
+        let redacted = redact_text("Authorization: Bearer odd~token!?");
+        assert!(redacted.contains("[REDACTED]"));
+        assert!(!redacted.contains("odd~token!?"));
     }
 
     #[test]

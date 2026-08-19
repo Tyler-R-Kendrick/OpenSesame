@@ -14,7 +14,11 @@ export function BackupRecoverabilityBanner() {
   const [hostPush, setHostPush] = useState(getVaultHostBackupState);
   const [backupHint, setBackupHint] = useState<string | null>(null);
 
-  useEffect(() => subscribeVaultHostBackup(() => setHostPush(getVaultHostBackupState())), []);
+  useEffect(
+    () =>
+      subscribeVaultHostBackup(() => setHostPush(getVaultHostBackupState())),
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;

@@ -4,6 +4,7 @@ import {
   MAX_QUEUE_LENGTH,
   QUEUE_TTL_MS,
   clearStagedClaimTokens,
+  dequeue,
   enqueue,
   loadQueue,
 } from "./queue.js";
@@ -63,6 +64,53 @@ describe("offline outbox", () => {
     expect(kvGet(KEY)).not.toContain("secret");
 
     clearStagedClaimTokens();
+    expect(loadQueue()).toEqual([]);
+  });
+});
+
+describe("offline outbox edge cases", () => {
+  it("drops a corrupt or non-list durable payload", () => {
+    kvSet(KEY, "{corrupt");
+    expect(loadQueue()).toEqual([]);
+    kvSet(KEY, JSON.stringify({ not: "a list" }));
+    expect(loadQueue()).toEqual([]);
+  });
+
+  it("rewrites storage when an older build left claim rows on disk", () => {
+    kvSet(
+      KEY,
+      JSON.stringify([
+        {
+          kind: "claim_complete",
+          claimToken: "osc_clm_old.secret",
+          id: "c1",
+          createdAt: new Date().toISOString(),
+        },
+        {
+          kind: "device_approve",
+          userCode: "KEEP",
+          id: "d1",
+          createdAt: new Date().toISOString(),
+        },
+      ]),
+    );
+
+    expect(loadQueue().map((item) => item.id)).toEqual(["d1"]);
+    expect(kvGet(KEY)).not.toContain("claim_complete");
+    expect(kvGet(KEY)).not.toContain("secret");
+  });
+
+  it("dequeues staged claims and durable device approvals by id", () => {
+    const claim = enqueue({
+      kind: "claim_complete",
+      claimToken: "osc_clm_x.secret",
+    });
+    const device = enqueue({ kind: "device_approve", userCode: "ABCD" });
+
+    dequeue(claim.id);
+    expect(loadQueue().map((item) => item.id)).toEqual([device.id]);
+
+    dequeue(device.id);
     expect(loadQueue()).toEqual([]);
   });
 });

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { ClientAdmissionError, createClientAdmissionPolicy } from "../clients/admission.js";
+import {
+  ClientAdmissionError,
+  createClientAdmissionPolicy,
+} from "../clients/admission.js";
 import { createOpenSesameProvider } from "../create-provider.js";
 import type { OAuthClientRecord } from "../types.js";
 
@@ -29,7 +32,9 @@ describe("origin client restrictions", () => {
     expect(policy.isModeEnabled("origin_profile")).toBe(false);
     expect(policy.isModeEnabled("dynamic_registration")).toBe(false);
     expect(policy.isModeEnabled("client_metadata_document")).toBe(false);
-    expect(() => policy.assertAdmissible(baseClient)).toThrow(ClientAdmissionError);
+    expect(() => policy.assertAdmissible(baseClient)).toThrow(
+      ClientAdmissionError,
+    );
   });
 
   it("allows origin_profile when enabled but forbids offline_access and client_credentials", () => {

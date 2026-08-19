@@ -1,9 +1,9 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "./schema/index.js";
-import { MemoryRepositories } from "./repos/memory.js";
-import { PostgresRepositories, type Database } from "./repos/postgres.js";
 import type { Repositories } from "./repos/interfaces.js";
+import { MemoryRepositories } from "./repos/memory.js";
+import { type Database, PostgresRepositories } from "./repos/postgres.js";
+import * as schema from "./schema/index.js";
 
 export function createSqlClient(databaseUrl: string) {
   return postgres(databaseUrl, { max: 10, prepare: false });

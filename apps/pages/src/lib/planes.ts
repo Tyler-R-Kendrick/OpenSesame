@@ -7,7 +7,11 @@ import {
   probeIdentity,
   useIdentitySession,
 } from "./identity.js";
-import { hasRemoteHostPairing, pageIsLoopback, subscribeSettings } from "./settings.js";
+import {
+  hasRemoteHostPairing,
+  pageIsLoopback,
+  subscribeSettings,
+} from "./settings.js";
 import { isLoopbackUrl } from "./urls.js";
 
 export type HostPlane = "live" | "loopback" | "down" | "unset" | "pending";

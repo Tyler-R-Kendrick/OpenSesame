@@ -276,7 +276,8 @@ function preview(
     authKind,
     supportsRefresh: false,
     configured: false,
-    autoConfigurable: id === "plain" || id === "sealed-local" || id === "webcrypto",
+    autoConfigurable:
+      id === "plain" || id === "sealed-local" || id === "webcrypto",
     missingConfig: [],
     callbackUrl: null,
     scopes: [],
@@ -372,7 +373,11 @@ export async function checkTurso(): Promise<typeof lastMode> {
   return lastMode;
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  label: string,
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new Error(`${label}_timeout`));
@@ -472,9 +477,9 @@ export async function readEmbeddedProviders(): Promise<Provider[]> {
   try {
     const connection = await db();
     const row = await withTimeout(
-      (await connection.prepare("SELECT value FROM pwa_cache WHERE key = ?")).get(
-        "providers",
-      ),
+      (
+        await connection.prepare("SELECT value FROM pwa_cache WHERE key = ?")
+      ).get("providers"),
       TURSO_OPEN_MS,
       "turso_read",
     );

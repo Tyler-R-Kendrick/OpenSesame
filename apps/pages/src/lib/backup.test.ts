@@ -4,14 +4,14 @@ const hostFetch = vi.hoisted(() => vi.fn());
 vi.mock("./identity.js", () => ({ hostFetch }));
 
 import {
-  getBackupStatus,
-  installationIdFromLocation,
-  putBackupTarget,
+  branchForEnvironment,
   filterGithubBackupConnections,
   filterPrivateGithubRepos,
+  getBackupStatus,
+  installationIdFromLocation,
   listGithubInstallations,
-  branchForEnvironment,
   ownerRepoFromRemote,
+  putBackupTarget,
 } from "./backup.js";
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -78,7 +78,9 @@ describe("backup workflow client", () => {
   });
 
   it("maps remotes and environments to owner/repo/branch", () => {
-    expect(ownerRepoFromRemote("https://github.com/acme/opensesame-passwords.git")).toEqual({
+    expect(
+      ownerRepoFromRemote("https://github.com/acme/opensesame-passwords.git"),
+    ).toEqual({
       owner: "acme",
       repo: "opensesame-passwords",
     });
@@ -134,7 +136,12 @@ describe("backup workflow client", () => {
             account_type: "Organization",
             target_type: "Organization",
           },
-          { id: "bad", account_login: "x", account_type: "User", target_type: "User" },
+          {
+            id: "bad",
+            account_login: "x",
+            account_type: "User",
+            target_type: "User",
+          },
         ],
       }),
     );
@@ -194,5 +201,149 @@ describe("backup workflow client", () => {
     ).toBe("123456");
     expect(installationIdFromLocation("?installation_id=evil'--")).toBeNull();
     expect(installationIdFromLocation("")).toBeNull();
+  });
+});
+
+describe("backup workflow edge cases", () => {
+  beforeEach(() => {
+    hostFetch.mockReset();
+  });
+
+  it("reports an unset target with an empty queue", async () => {
+    hostFetch.mockResolvedValue(jsonResponse(200, { target: null }));
+    await expect(getBackupStatus()).resolves.toEqual({
+      target: null,
+      pendingEvents: 0,
+    });
+  });
+
+  it("surfaces hint, error, then status when reads fail", async () => {
+    hostFetch.mockResolvedValue(jsonResponse(403, { hint: "owner only" }));
+    await expect(getBackupStatus()).rejects.toThrow(/owner only/);
+
+    hostFetch.mockResolvedValue(jsonResponse(500, { error: "backup_broken" }));
+    await expect(getBackupStatus()).rejects.toThrow(/backup_broken/);
+
+    hostFetch.mockResolvedValue(new Response("no", { status: 502 }));
+    await expect(getBackupStatus()).rejects.toThrow(
+      /Could not read backup status \(502\)/,
+    );
+  });
+
+  it("drops non-numeric and non-object installation rows", async () => {
+    hostFetch.mockResolvedValue(
+      jsonResponse(200, { installations: [null, "x", { id: "12" }] }),
+    );
+    await expect(listGithubInstallations("int-1")).resolves.toEqual([
+      { id: "12", accountLogin: "", accountType: "", targetType: "" },
+    ]);
+    hostFetch.mockResolvedValue(jsonResponse(200, {}));
+    await expect(listGithubInstallations("int-1")).resolves.toEqual([]);
+    hostFetch.mockResolvedValue(jsonResponse(403, { hint: "no access" }));
+    await expect(listGithubInstallations("int-1")).rejects.toThrow(/no access/);
+  });
+
+  it("sends optional target fields only when set", async () => {
+    hostFetch.mockResolvedValue(
+      jsonResponse(200, {
+        target: { owner: "acme", repo: "r", enabled: false, status: "ok" },
+      }),
+    );
+    const target = await putBackupTarget({
+      integrationId: "int-1",
+      installationId: "9",
+      owner: "acme",
+      repo: "r",
+      branch: "env/production",
+      enabled: false,
+    });
+    const [, init] = hostFetch.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toEqual({
+      integration_id: "int-1",
+      installation_id: "9",
+      owner: "acme",
+      repo: "r",
+      branch: "env/production",
+      enabled: false,
+    });
+    // Defaults fill in for fields the API omits.
+    expect(target.branch).toBe("main");
+    expect(target.lastCommitSha).toBeNull();
+  });
+
+  it("removes the target and queues resyncs, surfacing failures", async () => {
+    const { deleteBackupTarget, resyncBackup } = await import("./backup.js");
+
+    hostFetch.mockResolvedValue(jsonResponse(200, {}));
+    await expect(deleteBackupTarget()).resolves.toBeUndefined();
+    expect(hostFetch.mock.calls[0]?.[1]).toMatchObject({ method: "DELETE" });
+
+    hostFetch.mockResolvedValue(jsonResponse(409, { hint: "disable first" }));
+    await expect(deleteBackupTarget()).rejects.toThrow(/disable first/);
+
+    hostFetch.mockResolvedValue(jsonResponse(200, {}));
+    await expect(resyncBackup()).resolves.toBeUndefined();
+    expect(hostFetch.mock.calls[2]?.[0]).toContain("/api/v1/backup/resync");
+
+    hostFetch.mockResolvedValue(jsonResponse(500, {}));
+    await expect(resyncBackup()).rejects.toThrow(
+      /Could not queue a resync \(500\)/,
+    );
+  });
+
+  it("parses owner/repo from clone URLs and full names only", () => {
+    expect(ownerRepoFromRemote("acme/opensesame-passwords")).toEqual({
+      owner: "acme",
+      repo: "opensesame-passwords",
+    });
+    // A trailing slash after .git is not unwrapped — only the slash is trimmed.
+    expect(ownerRepoFromRemote("https://github.com/acme/store.git/")).toEqual({
+      owner: "acme",
+      repo: "store.git",
+    });
+    expect(ownerRepoFromRemote("https://github.com/acme")).toBeNull();
+    expect(ownerRepoFromRemote("just-one-part")).toBeNull();
+    expect(ownerRepoFromRemote("  ")).toBeNull();
+  });
+
+  it("sanitizes custom environment names into branch names", () => {
+    expect(branchForEnvironment("staging")).toBe("env/staging");
+    expect(branchForEnvironment("blue green!")).toBe("env/blue-green-");
+  });
+
+  it("explains known GitHub App failure codes plainly", async () => {
+    const { githubAppFailureReason } = await import("./backup.js");
+    expect(githubAppFailureReason(null)).toBe("unknown error");
+    expect(githubAppFailureReason("  ")).toBe("unknown error");
+    expect(githubAppFailureReason("missing_state")).toMatch(
+      /incomplete redirect/,
+    );
+    expect(githubAppFailureReason("missing_code")).toMatch(
+      /incomplete redirect/,
+    );
+    expect(githubAppFailureReason("unknown_or_expired_state")).toMatch(
+      /expired/,
+    );
+    expect(githubAppFailureReason("expired_state")).toMatch(/expired/);
+    expect(githubAppFailureReason("conversion_failed")).toMatch(
+      /one-time code/,
+    );
+    expect(githubAppFailureReason("something_else")).toBe("something_else");
+  });
+
+  it("refuses to build an install URL from a non-Github page or an empty name", async () => {
+    const { githubAppInstallUrl } = await import("./backup.js");
+    expect(
+      githubAppInstallUrl({ htmlUrl: "https://evil.example/apps/x" }),
+    ).toBeNull();
+    expect(
+      githubAppInstallUrl({
+        htmlUrl: "https://github.com/apps/opensesame-recoverability/",
+      }),
+    ).toBe(
+      "https://github.com/apps/opensesame-recoverability/installations/new",
+    );
+    expect(githubAppInstallUrl({ displayName: "!!!" })).toBeNull();
+    expect(githubAppInstallUrl({ displayName: "" })).toBeNull();
   });
 });

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  type ControlPlaneConfig,
   assertListenHostAllowed,
   assertSecureConfig,
-  type ControlPlaneConfig,
 } from "../config.js";
 
 function prodBase(): ControlPlaneConfig {
@@ -52,8 +52,8 @@ describe("assertSecureConfig", () => {
 
 describe("assertListenHostAllowed", () => {
   afterEach(() => {
-    delete process.env.OPENSESAME_ALLOW_NONLOCAL;
-    delete process.env.OPENSESAME_DAEMON_ALLOW_NONLOCAL;
+    Reflect.deleteProperty(process.env, "OPENSESAME_ALLOW_NONLOCAL");
+    Reflect.deleteProperty(process.env, "OPENSESAME_DAEMON_ALLOW_NONLOCAL");
   });
 
   it("allows loopback", () => {

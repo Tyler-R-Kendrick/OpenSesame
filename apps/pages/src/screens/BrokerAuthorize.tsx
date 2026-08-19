@@ -6,15 +6,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
+  FederationError,
+  type UpstreamIdentity,
   beginSignIn,
   clearSession,
   defaultUpstream,
   displayName,
-  FederationError,
   loadSession,
-  type UpstreamIdentity,
 } from "../lib/federation.js";
 import {
+  type BrokerRequest,
   approveConsent,
   buildErrorMessage,
   buildSuccessMessage,
@@ -25,7 +26,6 @@ import {
   originMayUseBroker,
   parseBrokerRequest,
   touchConsent,
-  type BrokerRequest,
 } from "../lib/site-broker.js";
 import "./broker.css";
 
@@ -86,17 +86,20 @@ export function BrokerAuthorize() {
     [searchParams],
   );
 
-  const deny = useCallback((request: BrokerRequest) => {
-    const message = buildErrorMessage(
-      request.state,
-      "consent_denied",
-      "You refused this origin.",
-    );
-    deliverToRp(message, request.origin, {
-      redirectUri: searchParams.get("redirect_uri"),
-    });
-    setPhase({ kind: "done", via: "Denied. You can close this window." });
-  }, [searchParams]);
+  const deny = useCallback(
+    (request: BrokerRequest) => {
+      const message = buildErrorMessage(
+        request.state,
+        "consent_denied",
+        "You refused this origin.",
+      );
+      deliverToRp(message, request.origin, {
+        redirectUri: searchParams.get("redirect_uri"),
+      });
+      setPhase({ kind: "done", via: "Denied. You can close this window." });
+    },
+    [searchParams],
+  );
 
   useEffect(() => {
     if (!parsed.ok) {

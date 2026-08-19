@@ -12,7 +12,7 @@ import { DeviceFlowClient } from "@opensesame/sdk-cli";
 const issuer = process.env.OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
 const clientId = process.env.OPENSESAME_CLIENT_ID ?? "opensesame-cli";
 
-function createMockFetch(): typeof fetch {
+export function createMockFetch(): typeof fetch {
   let polls = 0;
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
@@ -41,9 +41,12 @@ function createMockFetch(): typeof fetch {
     if (url.endsWith("/token")) {
       polls += 1;
       if (polls < 2) {
-        return new Response(JSON.stringify({ error: "authorization_pending" }), {
-          status: 400,
-        });
+        return new Response(
+          JSON.stringify({ error: "authorization_pending" }),
+          {
+            status: 400,
+          },
+        );
       }
       return new Response(
         JSON.stringify({
@@ -67,14 +70,19 @@ export async function runHeadlessDeviceLogin(options?: {
     fetchImpl:
       options?.fetchImpl ??
       (process.env.MOCK_DEVICE_FLOW === "1" ? createMockFetch() : fetch),
-    sleep: options?.sleep ?? (async (ms) => {
-      await new Promise((r) => setTimeout(r, ms));
-    }),
+    sleep:
+      options?.sleep ??
+      (async (ms) => {
+        await new Promise((r) => setTimeout(r, ms));
+      }),
   });
 
   const start = await client.start();
   const instructions = client.formatInstructions(start);
-  if (instructions.includes("DO_NOT_PRINT") || /device_code/iu.test(instructions)) {
+  if (
+    instructions.includes("DO_NOT_PRINT") ||
+    /device_code/iu.test(instructions)
+  ) {
     throw new Error("device_code leaked into user instructions");
   }
   process.stdout.write(`${instructions}\n\nWaiting for approval…\n`);
@@ -93,7 +101,9 @@ const isMain =
 
 if (isMain) {
   runHeadlessDeviceLogin().catch((err) => {
-    process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+    process.stderr.write(
+      `${err instanceof Error ? err.message : String(err)}\n`,
+    );
     process.exit(1);
   });
 }

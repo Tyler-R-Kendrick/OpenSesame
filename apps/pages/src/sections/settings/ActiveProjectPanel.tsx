@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
+import { IconAlert, IconCheck } from "../../components/Icons.js";
 import {
   identityFetch,
   useConnect,
   useIdentitySession,
 } from "../../lib/identity.js";
+import { usePlaneStatus } from "../../lib/planes.js";
 import {
   loadSettings,
   saveSettings,
   shouldAutoConnect,
 } from "../../lib/settings.js";
-import { usePlaneStatus } from "../../lib/planes.js";
 import { useOnline } from "../../lib/use-online.js";
-import { IconCheck, IconAlert } from "../../components/Icons.js";
 
 export type ProjectSummary = {
   id: string;
@@ -102,20 +102,18 @@ export function ActiveProjectPanel() {
       setFlash({
         tone: "err",
         text:
-          caught instanceof Error
-            ? caught.message
-            : "Could not load projects.",
+          caught instanceof Error ? caught.message : "Could not load projects.",
       });
     } finally {
       setBusy(false);
     }
   }, [session, activeId]);
 
+  // Intentionally once per session and plane readiness; refresh is user-triggered after.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: readiness changes intentionally trigger refresh
   useEffect(() => {
     if (!session || !online || plane.identity !== "connected") return;
     void refresh();
-    // Intentionally once per session+plane readiness; refresh() is user-triggered after.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.principalId, online, plane.identity]);
 
   function selectProject(projectId: string) {
@@ -132,16 +130,16 @@ export function ActiveProjectPanel() {
         <div>
           <h2>Active project</h2>
           <p>
-            Secrets and env scope default to your personal project. Selection
-            is stored with endpoint prefs (not inside the encrypted vault).
+            Secrets and env scope default to your personal project. Selection is
+            stored with endpoint prefs (not inside the encrypted vault).
           </p>
         </div>
       </div>
       <div className="panel__body">
         {!online ? (
-          <p className="note note--warn" role="status">
+          <output className="note note--warn">
             Offline — project list needs Identity.
-          </p>
+          </output>
         ) : null}
         {!session ? (
           <div className="actions">
@@ -178,7 +176,8 @@ export function ActiveProjectPanel() {
             </div>
             {active ? (
               <p className="hint">
-                Tomb binding: <code>{active.sealedStoreTombName ?? "personal"}</code>
+                Tomb binding:{" "}
+                <code>{active.sealedStoreTombName ?? "personal"}</code>
                 {active.pagesVaultFolderId
                   ? ` · Vault folder: ${active.pagesVaultFolderId}`
                   : null}

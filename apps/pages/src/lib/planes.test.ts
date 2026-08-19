@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   classifyHost,
   classifyIdentity,
   hostStatusLabel,
+  identityStatusLabel,
   needsHostPairing,
 } from "./planes.js";
+import { saveSettings } from "./settings.js";
 
 describe("plane status", () => {
   it("calls a reachable Host live even on loopback", () => {
@@ -65,5 +67,64 @@ describe("plane status", () => {
         identityBase: "",
       }),
     ).toBe(true);
+  });
+});
+
+describe("plane status labels and pairing guards", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("labels every plane state", () => {
+    expect(hostStatusLabel("live")).toBe("Host live");
+    expect(hostStatusLabel("down")).toBe("Host down");
+    expect(identityStatusLabel("connected")).toBe("Identity connected");
+    expect(identityStatusLabel("none")).toBe("No identity session");
+    expect(identityStatusLabel("down")).toBe("Identity down");
+  });
+
+  it("asks for pairing only when a loopback Host is useless here", () => {
+    // This runtime has no location — treated as loopback.
+    expect(
+      needsHostPairing({
+        host: "loopback",
+        hostBase: "http://127.0.0.1:8787",
+        identity: "down",
+        identityBase: "",
+      }),
+    ).toBe(false);
+
+    vi.stubGlobal("location", {
+      hostname: "me.github.io",
+      href: "https://me.github.io/OpenSesame/",
+    });
+    expect(
+      needsHostPairing({
+        host: "loopback",
+        hostBase: "http://127.0.0.1:8787",
+        identity: "down",
+        identityBase: "",
+      }),
+    ).toBe(true);
+    // A down Host with a working remote pairing does not nag again.
+    saveSettings({
+      hostApi: "https://box.tail123.ts.net/host",
+      identityApi: "https://box.tail123.ts.net/identity",
+      daemonApi: "https://box.tail123.ts.net",
+      tursoUrl: "",
+      mfaAppUrl: "",
+      capabilityConnectors: {
+        encryption: { providerId: "webcrypto" },
+        history: { providerId: "github" },
+      },
+    });
+    expect(
+      needsHostPairing({
+        host: "down",
+        hostBase: "https://box.tail123.ts.net/host",
+        identity: "down",
+        identityBase: "https://box.tail123.ts.net/identity",
+      }),
+    ).toBe(false);
   });
 });

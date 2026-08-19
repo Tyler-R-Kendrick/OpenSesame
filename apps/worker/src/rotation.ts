@@ -58,17 +58,23 @@ const FORBIDDEN_KEYS = new Set([
 export function assertNoSecrets(payload: Record<string, unknown>): void {
   for (const key of Object.keys(payload)) {
     if (FORBIDDEN_KEYS.has(key.toLowerCase())) {
-      throw new Error(`rotation payload must not include secret field \`${key}\``);
+      throw new Error(
+        `rotation payload must not include secret field \`${key}\``,
+      );
     }
   }
 }
 
-export function toPublicJobView(data: Record<string, unknown>): RotationJobView {
+export function toPublicJobView(
+  data: Record<string, unknown>,
+): RotationJobView {
   assertNoSecrets(data);
   const target = data.target as Record<string, unknown> | undefined;
   const statusRaw = String(data.status ?? "requested");
   const status =
-    statusRaw === "succeeded" || statusRaw === "failed" ? statusRaw : "requested";
+    statusRaw === "succeeded" || statusRaw === "failed"
+      ? statusRaw
+      : "requested";
   const view: RotationJobView = {
     id: String(data.rotation_id ?? data.id ?? ""),
     status,

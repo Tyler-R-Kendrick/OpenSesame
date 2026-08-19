@@ -1,9 +1,9 @@
+import { createHash, randomBytes } from "node:crypto";
 import {
-  createServer,
   type IncomingMessage,
   type ServerResponse,
+  createServer,
 } from "node:http";
-import { createHash, randomBytes } from "node:crypto";
 import {
   assertDiscoveredUrl,
   assertDiscoveryBelongsToIssuer,

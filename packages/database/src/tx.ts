@@ -1,5 +1,9 @@
-import type { NewOutboxEvent, Repositories, UnitOfWork } from "./repos/interfaces.js";
 import type { OutboxEvent } from "@opensesame/os-domain";
+import type {
+  NewOutboxEvent,
+  Repositories,
+  UnitOfWork,
+} from "./repos/interfaces.js";
 
 /**
  * Run domain work and append an outbox event in the same transaction.

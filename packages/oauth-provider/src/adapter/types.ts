@@ -21,8 +21,14 @@ export interface PostgresOidcStore {
     expiresAt: Date | null,
   ): Promise<void>;
   find(model: string, id: string): Promise<OidcAdapterPayload | undefined>;
-  findByUserCode(model: string, userCode: string): Promise<OidcAdapterPayload | undefined>;
-  findByUid(model: string, uid: string): Promise<OidcAdapterPayload | undefined>;
+  findByUserCode(
+    model: string,
+    userCode: string,
+  ): Promise<OidcAdapterPayload | undefined>;
+  findByUid(
+    model: string,
+    uid: string,
+  ): Promise<OidcAdapterPayload | undefined>;
   destroy(model: string, id: string): Promise<void>;
   consume(model: string, id: string): Promise<void>;
   revokeByGrantId(grantId: string): Promise<void>;
@@ -37,9 +43,15 @@ export function createPostgresAdapterConstructor(
   return class PostgresAdapter implements OidcAdapter {
     constructor(private readonly name: string) {}
 
-    async upsert(id: string, payload: OidcAdapterPayload, expiresIn?: number): Promise<void> {
+    async upsert(
+      id: string,
+      payload: OidcAdapterPayload,
+      expiresIn?: number,
+    ): Promise<void> {
       const expiresAt =
-        typeof expiresIn === "number" ? new Date(Date.now() + expiresIn * 1000) : null;
+        typeof expiresIn === "number"
+          ? new Date(Date.now() + expiresIn * 1000)
+          : null;
       await store.upsert(this.name, id, payload, expiresAt);
     }
 
@@ -47,7 +59,9 @@ export function createPostgresAdapterConstructor(
       return store.find(this.name, id);
     }
 
-    async findByUserCode(userCode: string): Promise<OidcAdapterPayload | undefined> {
+    async findByUserCode(
+      userCode: string,
+    ): Promise<OidcAdapterPayload | undefined> {
       return store.findByUserCode(this.name, userCode);
     }
 

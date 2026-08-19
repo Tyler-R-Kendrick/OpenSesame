@@ -1,12 +1,17 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
+import {
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+  createServer,
+} from "node:http";
 import { SignJWT } from "jose";
 import {
+  type MockIdpConfig,
+  type MockIdpKeys,
   assertMockIdpListenAllowed,
   createMockIdpKeys,
   readMockIdpConfig,
-  type MockIdpConfig,
-  type MockIdpKeys,
 } from "./config.js";
 
 type AuthCode = {
@@ -38,12 +43,18 @@ function securityHeaders(
     ...extra,
   };
   if (issuer.startsWith("https://")) {
-    headers["strict-transport-security"] = "max-age=63072000; includeSubDomains";
+    headers["strict-transport-security"] =
+      "max-age=63072000; includeSubDomains";
   }
   return headers;
 }
 
-function sendJson(res: ServerResponse, status: number, body: unknown, issuer = ""): void {
+function sendJson(
+  res: ServerResponse,
+  status: number,
+  body: unknown,
+  issuer = "",
+): void {
   const payload = JSON.stringify(body);
   res.writeHead(
     status,
@@ -97,10 +108,22 @@ export async function createMockUpstreamIdp(
     subject_types_supported: ["public"],
     id_token_signing_alg_values_supported: ["RS256"],
     scopes_supported: ["openid", "profile", "email"],
-    token_endpoint_auth_methods_supported: ["client_secret_post", "client_secret_basic"],
+    token_endpoint_auth_methods_supported: [
+      "client_secret_post",
+      "client_secret_basic",
+    ],
     code_challenge_methods_supported: ["S256"],
     grant_types_supported: ["authorization_code", "refresh_token"],
-    claims_supported: ["sub", "email", "name", "iss", "aud", "exp", "iat", "nonce"],
+    claims_supported: [
+      "sub",
+      "email",
+      "name",
+      "iss",
+      "aud",
+      "exp",
+      "iat",
+      "nonce",
+    ],
   };
 
   async function issueTokens(params: {
@@ -138,7 +161,10 @@ export async function createMockUpstreamIdp(
       const url = new URL(req.url ?? "/", config.issuer);
       const path = url.pathname;
 
-      if (req.method === "GET" && path === "/.well-known/openid-configuration") {
+      if (
+        req.method === "GET" &&
+        path === "/.well-known/openid-configuration"
+      ) {
         return sendJson(res, 200, discovery, config.issuer);
       }
 
@@ -153,7 +179,8 @@ export async function createMockUpstreamIdp(
         const state = url.searchParams.get("state");
         const nonce = url.searchParams.get("nonce") ?? undefined;
         const scope = url.searchParams.get("scope") ?? "openid";
-        const codeChallenge = url.searchParams.get("code_challenge") ?? undefined;
+        const codeChallenge =
+          url.searchParams.get("code_challenge") ?? undefined;
         const codeChallengeMethod =
           url.searchParams.get("code_challenge_method") ?? undefined;
 
@@ -161,10 +188,20 @@ export async function createMockUpstreamIdp(
           return sendJson(res, 400, { error: "invalid_client" }, config.issuer);
         }
         if (!config.redirectUris.includes(redirectUri)) {
-          return sendJson(res, 400, { error: "invalid_redirect_uri" }, config.issuer);
+          return sendJson(
+            res,
+            400,
+            { error: "invalid_redirect_uri" },
+            config.issuer,
+          );
         }
         if (responseType !== "code") {
-          return sendJson(res, 400, { error: "unsupported_response_type" }, config.issuer);
+          return sendJson(
+            res,
+            400,
+            { error: "unsupported_response_type" },
+            config.issuer,
+          );
         }
         if (!codeChallenge || (codeChallengeMethod ?? "") !== "S256") {
           return sendJson(
@@ -202,9 +239,13 @@ export async function createMockUpstreamIdp(
         const body = parseForm(await readBody(req));
         const grantType = body.get("grant_type");
         const clientId = body.get("client_id") ?? basicClientId(req) ?? "";
-        const clientSecret = body.get("client_secret") ?? basicClientSecret(req) ?? "";
+        const clientSecret =
+          body.get("client_secret") ?? basicClientSecret(req) ?? "";
 
-        if (clientId !== config.clientId || clientSecret !== config.clientSecret) {
+        if (
+          clientId !== config.clientId ||
+          clientSecret !== config.clientSecret
+        ) {
           return sendJson(res, 401, { error: "invalid_client" }, config.issuer);
         }
 
@@ -214,7 +255,12 @@ export async function createMockUpstreamIdp(
           const stored = codes.get(code);
           codes.delete(code);
           if (!stored || stored.redirectUri !== redirectUri) {
-            return sendJson(res, 400, { error: "invalid_grant" }, config.issuer);
+            return sendJson(
+              res,
+              400,
+              { error: "invalid_grant" },
+              config.issuer,
+            );
           }
           const verifier = body.get("code_verifier") ?? "";
           if (
@@ -247,7 +293,12 @@ export async function createMockUpstreamIdp(
           return sendJson(res, 200, tokens, config.issuer);
         }
 
-        return sendJson(res, 400, { error: "unsupported_grant_type" }, config.issuer);
+        return sendJson(
+          res,
+          400,
+          { error: "unsupported_grant_type" },
+          config.issuer,
+        );
       }
 
       if (req.method === "GET" && path === "/userinfo") {
@@ -255,23 +306,38 @@ export async function createMockUpstreamIdp(
         if (!auth.startsWith("Bearer ")) {
           return sendJson(res, 401, { error: "invalid_token" }, config.issuer);
         }
-        return sendJson(res, 200, {
-          sub: config.testUser.sub,
-          email: config.testUser.email,
-          name: config.testUser.name,
-        }, config.issuer);
+        return sendJson(
+          res,
+          200,
+          {
+            sub: config.testUser.sub,
+            email: config.testUser.email,
+            name: config.testUser.name,
+          },
+          config.issuer,
+        );
       }
 
       if (req.method === "GET" && path === "/health") {
-        return sendJson(res, 200, { ok: true, issuer: config.issuer }, config.issuer);
+        return sendJson(
+          res,
+          200,
+          { ok: true, issuer: config.issuer },
+          config.issuer,
+        );
       }
 
       sendJson(res, 404, { error: "not_found" }, config.issuer);
     } catch (err) {
-      sendJson(res, 500, {
-        error: "server_error",
-        error_description: err instanceof Error ? err.message : String(err),
-      }, config.issuer);
+      sendJson(
+        res,
+        500,
+        {
+          error: "server_error",
+          error_description: err instanceof Error ? err.message : String(err),
+        },
+        config.issuer,
+      );
     }
   });
 

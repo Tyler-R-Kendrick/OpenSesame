@@ -22,10 +22,16 @@ describe("createControlPlaneClient", () => {
 
   it("will not carry a bearer token over cleartext", () => {
     expect(() =>
-      createControlPlaneClient({ baseUrl: "http://api.example", accessToken: "at" }),
+      createControlPlaneClient({
+        baseUrl: "http://api.example",
+        accessToken: "at",
+      }),
     ).toThrow(/https/i);
     expect(() =>
-      createControlPlaneClient({ baseUrl: "https://api.example", accessToken: "at" }),
+      createControlPlaneClient({
+        baseUrl: "https://api.example",
+        accessToken: "at",
+      }),
     ).not.toThrow();
   });
 

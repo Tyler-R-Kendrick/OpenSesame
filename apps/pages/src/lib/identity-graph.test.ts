@@ -190,3 +190,145 @@ describe("identity graph", () => {
     }
   });
 });
+
+describe("identity graph branches", () => {
+  it("maps every connection status verb", () => {
+    expect(connectionVerb("active")).toBe("connected");
+    expect(connectionVerb("needs_reauth")).toBe("needs_you");
+    expect(connectionVerb("expired")).toBe("needs_you");
+    expect(connectionVerb("revoked")).toBe("idle");
+    // A live connection decides the verb, not the provider config.
+    expect(
+      providerVerb(provider({ configured: false }), connection("active")),
+    ).toBe("connected");
+  });
+
+  it("adds the consumer host for linear and stripe tiles", async () => {
+    const { providerHosts } = await import("./identity-graph.js");
+    expect(
+      providerHosts(provider({ id: "linear", displayName: "Linear" })),
+    ).toContain("linear.app");
+    expect(
+      providerHosts(provider({ id: "stripe", displayName: "Stripe" })),
+    ).toContain("stripe.com");
+  });
+
+  it("ignores deleted items when matching a provider", () => {
+    const login = createItem("login", "GitHub");
+    login.deletedAt = "2026-08-12T00:00:00Z";
+    expect(itemMatchesProvider(login, provider())).toBe(false);
+  });
+
+  it("matches logins by exact host, www-stripped host, and uri text", () => {
+    const acme = provider({
+      id: "acme",
+      displayName: "Acme",
+      egress: {
+        scheme: "https",
+        authorities: ["api.acme.com"],
+        pathPrefixes: [],
+      },
+    });
+    const byHost = createItem("login", "Work");
+    if (byHost.kind === "login") {
+      byHost.uris = [newUri("https://api.acme.com/x")];
+    }
+    const byWww = createItem("login", "Work");
+    if (byWww.kind === "login") {
+      byWww.uris = [newUri("https://www.api.acme.com/x")];
+    }
+    const byUriText = createItem("login", "Work");
+    if (byUriText.kind === "login") {
+      byUriText.uris = [newUri("https://acme.com/signin")];
+    }
+    const unrelated = createItem("login", "Work");
+    if (unrelated.kind === "login") {
+      unrelated.uris = [newUri("https://unrelated.example/")];
+    }
+    expect(itemMatchesProvider(byHost, acme)).toBe(true);
+    expect(itemMatchesProvider(byWww, acme)).toBe(true);
+    expect(itemMatchesProvider(byUriText, acme)).toBe(true);
+    expect(itemMatchesProvider(unrelated, acme)).toBe(false);
+  });
+
+  it("matches passkeys and secrets by rpId and ConnectionRef", () => {
+    const acme = provider({
+      id: "acme",
+      displayName: "Acme",
+      egress: { scheme: "https", authorities: [], pathPrefixes: [] },
+    });
+    const passkey = createItem("passkey", "Key");
+    if (passkey.kind === "passkey") passkey.rpId = "www.acme.com";
+    expect(itemMatchesProvider(passkey, acme)).toBe(true);
+    if (passkey.kind === "passkey") passkey.rpId = "unrelated.example";
+    expect(itemMatchesProvider(passkey, acme)).toBe(false);
+
+    const secret = createItem("secret", "CI");
+    if (secret.kind === "secret") {
+      secret.connectionRef = "conn://org/acme/main";
+    }
+    expect(itemMatchesProvider(secret, acme)).toBe(true);
+    if (secret.kind === "secret") {
+      secret.connectionRef = "conn://org/other/main";
+    }
+    expect(itemMatchesProvider(secret, acme)).toBe(false);
+  });
+
+  it("remembers first-run dismissal in local storage", async () => {
+    const { dismissFirstRun, firstRunDismissed } = await import(
+      "./identity-graph.js"
+    );
+    expect(firstRunDismissed()).toBe(false);
+    dismissFirstRun();
+    expect(firstRunDismissed()).toBe(true);
+  });
+
+  it("fills first-run picks with non-auto-configurable extras", () => {
+    const picked = firstRunProviders([
+      provider({ id: "stripe", displayName: "Stripe" }),
+      provider({ id: "acme", displayName: "Acme" }),
+      provider({ id: "webcrypto", autoConfigurable: true }),
+    ]);
+    expect(picked.map((item) => item.id)).toEqual(["stripe", "acme"]);
+  });
+
+  it("treats configuration providers as key pipes", () => {
+    expect(addPipe(provider({ authKind: "configuration" }))).toBe("key");
+  });
+
+  it("leaves non-secret reminders and duplicate grants untouched", () => {
+    const login = createItem("login", "GitHub");
+    expect(grantReminderToAgent(login, "agt_x")).toBe(login);
+
+    const reminder = buildConnectorReminder(provider(), connection("active"));
+    const granted = grantReminderToAgent(reminder, "agt_x");
+    expect(grantReminderToAgent(granted, "agt_x")).toBe(granted);
+  });
+
+  it("falls back to the first host, then to nothing, for suggested URIs", () => {
+    const acme = provider({
+      id: "acme",
+      displayName: "Acme",
+      egress: {
+        scheme: "https",
+        authorities: ["api.acme.com"],
+        pathPrefixes: [],
+      },
+    });
+    expect(vaultCreateHref("login", acme)).toBe(
+      "/vault/new/login?name=Acme&uri=https%3A%2F%2Fapi.acme.com",
+    );
+    const hostless = provider({
+      id: "zz",
+      displayName: "ZZ",
+      egress: { scheme: "none", authorities: [], pathPrefixes: [] },
+    });
+    expect(vaultCreateHref("login", hostless)).toBe("/vault/new/login?name=ZZ");
+  });
+});
+
+describe("addPipe fallback", () => {
+  it("treats an unrecognized auth kind as a login pipe", () => {
+    expect(addPipe(provider({ authKind: "oidc" as never }))).toBe("login");
+  });
+});

@@ -9,10 +9,12 @@ cd "$ROOT"
 SECONDS_PER_TARGET="${FUZZ_SECONDS:-3600}"
 BUDGET="${FUZZ_BATCH_BUDGET:-}"
 
-if ! cargo fuzz --version >/dev/null 2>&1; then
+if ! cargo +nightly fuzz --version >/dev/null 2>&1; then
   echo "fuzz-batch: cargo-fuzz is not installed (cargo install cargo-fuzz)" >&2
   exit 1
 fi
+
+cargo +nightly metadata --format-version 1 --manifest-path fuzz/Cargo.toml --locked --no-deps >/dev/null
 
 start=$(date +%s)
 fail=0
@@ -28,7 +30,7 @@ for f in fuzz/fuzz_targets/*.rs; do
   corpus="fuzz/corpus/$target"
   mkdir -p "$corpus" fuzz/artifacts
   echo "==> $target (${SECONDS_PER_TARGET}s)"
-  if ! cargo fuzz run "$target" --fuzz-dir fuzz -- \
+  if ! cargo +nightly fuzz run "$target" --fuzz-dir fuzz -- \
       -max_total_time="$SECONDS_PER_TARGET" \
       -timeout=10 \
       -artifact_prefix="$ROOT/fuzz/artifacts/" \

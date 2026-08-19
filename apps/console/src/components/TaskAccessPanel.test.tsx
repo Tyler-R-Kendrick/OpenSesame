@@ -1,7 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { buildTaskAccessViewModel, TaskAccessPanel } from "./TaskAccessPanel.js";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import {
+  TaskAccessPanel,
+  buildTaskAccessViewModel,
+} from "./TaskAccessPanel.js";
 
 describe("TaskAccessPanel", () => {
   it("renders ceiling vs current columns and ratchet message", () => {
@@ -15,7 +18,9 @@ describe("TaskAccessPanel", () => {
       ],
       current_capabilities: [{ action: "read", resource: "repo:a" }],
     });
-    const html = renderToStaticMarkup(createElement(TaskAccessPanel, { model }));
+    const html = renderToStaticMarkup(
+      createElement(TaskAccessPanel, { model }),
+    );
     expect(html).toContain("task-abc");
     expect(html).toContain("Ceiling");
     expect(html).toContain("Current");

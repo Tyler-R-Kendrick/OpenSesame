@@ -19,10 +19,15 @@ if ! command -v cargo >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! cargo fuzz --version >/dev/null 2>&1; then
+if ! cargo +nightly fuzz --version >/dev/null 2>&1; then
   echo "fuzz-pr-gate: cargo-fuzz is not installed." >&2
   echo "  cargo install cargo-fuzz" >&2
   echo "  rustup toolchain install nightly  # cargo-fuzz needs nightly rustc" >&2
+  exit 1
+fi
+
+if ! cargo +nightly metadata --format-version 1 --manifest-path fuzz/Cargo.toml --locked --no-deps >/dev/null; then
+  echo "fuzz-pr-gate: fuzz/Cargo.lock is stale; refresh and commit it before fuzzing" >&2
   exit 1
 fi
 
@@ -85,8 +90,8 @@ fail=0
 for target in $targets; do
   corpus="fuzz/corpus/$target"
   mkdir -p "$corpus" fuzz/artifacts
-  echo "--> cargo fuzz run $target -max_total_time=$SECONDS_PER_TARGET"
-  if ! cargo fuzz run "$target" --fuzz-dir fuzz -- \
+  echo "--> cargo +nightly fuzz run $target -max_total_time=$SECONDS_PER_TARGET"
+  if ! cargo +nightly fuzz run "$target" --fuzz-dir fuzz -- \
       -max_total_time="$SECONDS_PER_TARGET" \
       -timeout=10 \
       -artifact_prefix="$ROOT/fuzz/artifacts/" \

@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
-import type { PrincipalMappingStore } from "./mapping.js";
 import { noEmailAutoLinkPolicy } from "./email-link.js";
+import type { PrincipalMappingStore } from "./mapping.js";
 import type { UpstreamOidcProviderRegistry } from "./oidc-registry.js";
 import type { PasskeySeam } from "./passkey.js";
 
@@ -22,7 +22,8 @@ export interface CreateUpstreamAuthOptions {
  * Account linking by email is disabled; principal IDs live in PrincipalMappingStore.
  */
 export function createUpstreamAuth(options: CreateUpstreamAuthOptions) {
-  const socialProviders = options.providerRegistry?.toBetterAuthSocialConfig() ?? {};
+  const socialProviders =
+    options.providerRegistry?.toBetterAuthSocialConfig() ?? {};
 
   const auth = betterAuth({
     baseURL: options.baseURL,

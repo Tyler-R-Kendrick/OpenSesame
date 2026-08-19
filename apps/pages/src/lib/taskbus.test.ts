@@ -91,3 +91,48 @@ describe("taskbus client", () => {
     expect(result.config.lastError).toMatch(/refused/);
   });
 });
+
+describe("taskbus client errors and defaults", () => {
+  beforeEach(() => hostFetch.mockReset());
+
+  it("fills defaults for a sparse config payload", async () => {
+    hostFetch.mockResolvedValue(jsonResponse(200, {}));
+    await expect(getTaskBusConfig()).resolves.toEqual({
+      backend: "memory",
+      natsUrl: null,
+      source: "default",
+      status: "ok",
+      lastError: null,
+    });
+  });
+
+  it("surfaces the hint, then the error, then the status on failed writes", async () => {
+    hostFetch.mockResolvedValue(jsonResponse(500, { hint: "NATS is down" }));
+    await expect(putTaskBusConfig({ backend: "nats" })).rejects.toThrow(
+      /NATS is down/,
+    );
+
+    hostFetch.mockResolvedValue(jsonResponse(500, { error: "nats_refused" }));
+    await expect(putTaskBusConfig({ backend: "nats" })).rejects.toThrow(
+      /nats_refused/,
+    );
+
+    hostFetch.mockResolvedValue(jsonResponse(500, {}));
+    await expect(putTaskBusConfig({ backend: "memory" })).rejects.toThrow(
+      /Could not save TaskBus config \(500\)/,
+    );
+
+    hostFetch.mockResolvedValue(new Response("oops", { status: 502 }));
+    await expect(getTaskBusConfig()).rejects.toThrow(
+      /Could not read TaskBus config \(502\)/,
+    );
+  });
+
+  it("throws on ping failures other than 422", async () => {
+    hostFetch.mockResolvedValue(jsonResponse(500, { hint: "boom" }));
+    await expect(pingTaskBus()).rejects.toThrow(/boom/);
+
+    hostFetch.mockResolvedValue(new Response("oops", { status: 503 }));
+    await expect(pingTaskBus()).rejects.toThrow(/TaskBus ping failed \(503\)/);
+  });
+});

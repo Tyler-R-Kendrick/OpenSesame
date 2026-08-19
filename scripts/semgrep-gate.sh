@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 mkdir -p artifacts/security
+export SEMGREP_SETTINGS_FILE="${SEMGREP_SETTINGS_FILE:-$ROOT/artifacts/security/semgrep-settings.yml}"
+export SEMGREP_LOG_FILE="${SEMGREP_LOG_FILE:-$ROOT/artifacts/security/semgrep-user.log}"
 
 if ! command -v semgrep >/dev/null 2>&1; then
   echo "semgrep not installed" >&2

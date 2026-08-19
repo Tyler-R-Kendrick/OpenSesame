@@ -1,8 +1,8 @@
 import {
-  ORIGIN_PROFILE_FORBIDDEN_SCOPES,
   type ClientAdmissionMode,
   type OAuthClientRecord,
   type OAuthProviderEnv,
+  ORIGIN_PROFILE_FORBIDDEN_SCOPES,
 } from "../types.js";
 
 export class ClientAdmissionError extends Error {
@@ -25,7 +25,10 @@ export interface ClientAdmissionPolicy {
 }
 
 export function createClientAdmissionPolicy(
-  env: Pick<OAuthProviderEnv, "originClientsEnabled" | "dcrEnabled" | "cimdEnabled">,
+  env: Pick<
+    OAuthProviderEnv,
+    "originClientsEnabled" | "dcrEnabled" | "cimdEnabled"
+  >,
 ): ClientAdmissionPolicy {
   return {
     isModeEnabled(mode: ClientAdmissionMode): boolean {
@@ -77,7 +80,9 @@ export function createClientAdmissionPolicy(
 
     assertOriginScopes(scopes: string[]): void {
       for (const scope of scopes) {
-        if ((ORIGIN_PROFILE_FORBIDDEN_SCOPES as readonly string[]).includes(scope)) {
+        if (
+          (ORIGIN_PROFILE_FORBIDDEN_SCOPES as readonly string[]).includes(scope)
+        ) {
           throw new ClientAdmissionError(
             "origin_forbidden_scope",
             `Origin-profile clients may not request scope "${scope}"`,
@@ -89,6 +94,8 @@ export function createClientAdmissionPolicy(
 }
 
 /** Defaults: pre_registered only; origin/DCR/CIMD off unless env enables them. */
-export function defaultAdmissionFromEnv(env: OAuthProviderEnv): ClientAdmissionPolicy {
+export function defaultAdmissionFromEnv(
+  env: OAuthProviderEnv,
+): ClientAdmissionPolicy {
   return createClientAdmissionPolicy(env);
 }

@@ -567,9 +567,7 @@ export function createApiClient(options: ApiClientOptions) {
       );
     },
 
-    async createSyncTarget(
-      body: CreateSyncTargetRequest,
-    ): Promise<SyncTarget> {
+    async createSyncTarget(body: CreateSyncTargetRequest): Promise<SyncTarget> {
       return requestParsed(
         "sync_target_create",
         SyncTargetSchema,

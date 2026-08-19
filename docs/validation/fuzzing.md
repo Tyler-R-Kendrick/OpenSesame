@@ -64,8 +64,8 @@ A crash is a panic, sanitizer hit, or failed `assert!`.
 
 ## Crash triage
 
-1. Confirm reproducibility: `cargo fuzz run <target> fuzz/artifacts/<file>`
-2. Minimize: `cargo fuzz tmin <target> <crash>`
+1. Confirm reproducibility: `cargo +nightly fuzz run <target> fuzz/artifacts/<file>`
+2. Minimize: `cargo +nightly fuzz tmin <target> <crash>`
 3. Copy the minimized input to `fuzz/regressions/<target>/`
 4. Fix the product code (not the harness, unless the oracle was wrong)
 5. Write `docs/security/audit-YYYY-MM-DD-fuzz-<target>.md`
@@ -80,7 +80,7 @@ files under `infra/clusterfuzzlite/` are the CFL/OSS-Fuzz contract:
 
 - `project.yaml` — language rust, libFuzzer, address sanitizer
 - `Dockerfile` — `gcr.io/oss-fuzz-base/base-builder-rust`
-- `build.sh` — `cargo fuzz build --release` and seed corpus zips
+- `build.sh` — `cargo +nightly fuzz build --release` and seed corpus zips
 
 To submit to hosted OSS-Fuzz later, copy those three files into
 `projects/opensesame/` on `google/oss-fuzz`. Do not open that PR until

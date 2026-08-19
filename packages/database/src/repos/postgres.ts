@@ -164,12 +164,20 @@ function mapOutbox(row: typeof schema.outboxEvents.$inferSelect): OutboxEvent {
 }
 
 function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: string }).code === "23505"
-  );
+  // postgres-js surfaces the PG error code on the error itself; the PGlite
+  // driver wraps the original error in `cause`. Check both so the conflict
+  // mapping behaves identically under either driver.
+  for (const candidate of [err, (err as { cause?: unknown } | null)?.cause]) {
+    if (
+      typeof candidate === "object" &&
+      candidate !== null &&
+      "code" in candidate &&
+      (candidate as { code?: string }).code === "23505"
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 class PostgresUnitOfWork implements UnitOfWork {

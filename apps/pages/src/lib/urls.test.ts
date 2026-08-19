@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  credentialsFor,
   isLoopbackUrl,
+  isSameOrigin,
   normalizeApiBase,
   normalizeTailnetBase,
 } from "./urls.js";
@@ -52,5 +54,45 @@ describe("api base fences", () => {
       "http://opensesame:18790",
     );
     expect(normalizeTailnetBase("http://192.168.1.9:18790")).toBeNull();
+  });
+});
+
+describe("tailnet base fence", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("rejects credentials, queries, fragments, and non-http(s) schemes", () => {
+    expect(normalizeTailnetBase("ftp://box.tail.ts.net")).toBeNull();
+    expect(normalizeTailnetBase("https://user:pw@box.tail.ts.net")).toBeNull();
+    expect(normalizeTailnetBase("https://box.tail.ts.net/?x=1")).toBeNull();
+    expect(normalizeTailnetBase("https://box.tail.ts.net/#frag")).toBeNull();
+    // Plain https is fine anywhere — the generic API-base fence accepts it.
+    expect(normalizeTailnetBase("https://evil.example")).toBe(
+      "https://evil.example",
+    );
+    expect(normalizeTailnetBase("::not a url::")).toBeNull();
+    expect(normalizeTailnetBase("")).toBeNull();
+  });
+
+  it("sends ambient credentials only to this page's own origin", () => {
+    vi.stubGlobal("location", {
+      href: "https://me.github.io/OpenSesame/",
+      origin: "https://me.github.io",
+    });
+    expect(isSameOrigin("https://me.github.io/OpenSesame")).toBe(true);
+    expect(isSameOrigin("https://other.example")).toBe(false);
+    expect(credentialsFor("https://me.github.io/OpenSesame")).toBe("include");
+    expect(credentialsFor("https://other.example")).toBe("omit");
+  });
+
+  it("treats an unparseable base as cross-origin", () => {
+    vi.stubGlobal("location", { href: "::no base::", origin: "" });
+    expect(isSameOrigin("https://me.github.io")).toBe(false);
+  });
+
+  it("treats a location-less runtime as cross-origin", () => {
+    expect(isSameOrigin("https://me.github.io")).toBe(false);
+    expect(credentialsFor("https://me.github.io")).toBe("omit");
   });
 });

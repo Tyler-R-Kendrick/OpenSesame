@@ -17,7 +17,8 @@ export const auditRoutes = new Hono<{ Variables: Variables }>();
 
 auditRoutes.get("/events", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = c.get("principalId");
+  if (!principalId) return c.json({ error: "unauthorized" }, 401);
   const limitRaw = c.req.query("limit");
   const limit = Math.min(
     Math.max(Number.parseInt(limitRaw ?? "50", 10) || 50, 1),
@@ -102,7 +103,8 @@ auditRoutes.get("/events", requirePrincipal(), async (c) => {
  */
 auditRoutes.get("/events/verify", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = c.get("principalId");
+  if (!principalId) return c.json({ error: "unauthorized" }, 401);
   const events = await ctx.repos.auditEvents.list({ limit: 200 });
   const oldestFirst = [...events].reverse();
   // The window starts wherever the run does, so the first event is measured

@@ -22,7 +22,7 @@ function jkt(): string {
     .slice(0, 43);
 }
 
-function createMockFetch(): typeof fetch {
+export function createMockFetch(): typeof fetch {
   const claimId = "clm_demo";
   let polls = 0;
   return (async (input: RequestInfo | URL, init?: RequestInit) => {

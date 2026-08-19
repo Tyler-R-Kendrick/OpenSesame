@@ -2,6 +2,7 @@ import { type ReactNode, useMemo } from "react";
 import { NavLink, useLocation, useSearchParams } from "react-router";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
+import { BackupRecoverabilityBanner } from "./BackupRecoverabilityBanner.js";
 import {
   IconAgent,
   IconAuthority,
@@ -21,7 +22,6 @@ import {
 } from "./Icons.js";
 import { RailPlaneStatus } from "./PlaneNote.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
-import { BackupRecoverabilityBanner } from "./BackupRecoverabilityBanner.js";
 
 const SECTIONS = [
   { to: "/vault", label: "Vault", Icon: IconVault },

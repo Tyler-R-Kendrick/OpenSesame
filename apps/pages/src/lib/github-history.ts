@@ -47,7 +47,9 @@ export async function listGithubRepos(
   const body = (await res.json()) as { repositories?: unknown };
   const rows = Array.isArray(body.repositories) ? body.repositories : [];
   return rows
-    .filter((row): row is Record<string, unknown> => !!row && typeof row === "object")
+    .filter(
+      (row): row is Record<string, unknown> => !!row && typeof row === "object",
+    )
     .map(toRepo)
     .filter((repo) => repo.cloneUrl.startsWith("https://"));
 }
@@ -81,9 +83,7 @@ export async function createGithubPasswordRepo(
       error?: string;
     };
     throw new Error(
-      body.hint ||
-        body.error ||
-        `Could not create GitHub repo (${res.status})`,
+      body.hint || body.error || `Could not create GitHub repo (${res.status})`,
     );
   }
   const raw = (await res.json()) as Record<string, unknown>;
