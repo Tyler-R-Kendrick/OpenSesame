@@ -51,6 +51,15 @@ function cloneBytes(value: Uint8Array): Uint8Array {
   return new Uint8Array(value);
 }
 
+function cloneAuthorizationRequest(
+  request: AuthorizationRequest,
+): AuthorizationRequest {
+  // Same reason as cloneClaim: authorizationDetails is nested JSON, and the
+  // Postgres implementation round-trips it. A shallow copy would let a caller
+  // mutate a stored row here and not there.
+  return structuredClone(request);
+}
+
 function cloneClaim(session: ClaimSession): ClaimSession {
   // structuredClone matches the Postgres JSON round-trip: nested
   // reviewDecision / manifest objects must not share references with the store.
@@ -275,17 +284,20 @@ export class MemoryRepositories implements Repositories {
           `authorization request already exists: ${request.id}`,
         );
       }
-      const row: AuthorizationRequest = { ...request };
+      const row = cloneAuthorizationRequest(request);
       const apply = () => {
-        this.#store.authorizationRequests.set(row.id, { ...row });
+        this.#store.authorizationRequests.set(
+          row.id,
+          cloneAuthorizationRequest(row),
+        );
       };
       applyNowOrDefer(uow, apply);
-      return { ...row };
+      return cloneAuthorizationRequest(row);
     },
 
     getById: async (id) => {
       const row = this.#store.authorizationRequests.get(id);
-      return row ? { ...row } : null;
+      return row ? cloneAuthorizationRequest(row) : null;
     },
 
     listForPrincipal: async (principalId, filter) => {
@@ -293,7 +305,9 @@ export class MemoryRepositories implements Repositories {
         .filter((row) => row.principalId === principalId)
         .filter((row) => !filter?.status || row.status === filter.status)
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      return rows.slice(0, filter?.limit ?? 50).map((row) => ({ ...row }));
+      return rows
+        .slice(0, filter?.limit ?? 50)
+        .map((row) => cloneAuthorizationRequest(row));
     },
 
     updateWithVersion: async (id, expectedVersion, patch, uow) => {
@@ -314,10 +328,13 @@ export class MemoryRepositories implements Repositories {
         version: current.version + 1,
       };
       const apply = () => {
-        this.#store.authorizationRequests.set(id, { ...merged });
+        this.#store.authorizationRequests.set(
+          id,
+          cloneAuthorizationRequest(merged),
+        );
       };
       applyNowOrDefer(uow, apply);
-      return { ...merged };
+      return cloneAuthorizationRequest(merged);
     },
   };
 

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type {
+  AuthorizationRequest,
   ClaimSession,
   ExternalIdentity,
   Principal,
@@ -181,5 +182,97 @@ describe("MemoryRepositories", () => {
     expect(outbox.eventType).toBe("principal.created");
     const unpublished = await repos.outbox.listUnpublished();
     expect(unpublished.map((e) => e.id)).toContain(outbox.id);
+  });
+});
+
+describe("authorizationRequests repository", () => {
+  function makeRequest(
+    overrides: Partial<AuthorizationRequest> = {},
+  ): AuthorizationRequest {
+    const now = new Date();
+    return {
+      id: overrides.id ?? randomUUID(),
+      principalId: overrides.principalId ?? randomUUID(),
+      requesterRef: "req_opaque",
+      authorizationDetails: [{ type: "connection_delegation" }],
+      requestDigest: "a".repeat(64),
+      bindingMessage: "Read acme/catalog issues",
+      status: "pending",
+      intervalSeconds: 5,
+      createdAt: now,
+      expiresAt: new Date(now.getTime() + 300_000),
+      version: 1,
+      ...overrides,
+    };
+  }
+
+  it("adversarial: two approvers racing cannot both believe they settled it", async () => {
+    const repos = new MemoryRepositories();
+    const created = await repos.authorizationRequests.create(makeRequest());
+
+    await repos.authorizationRequests.updateWithVersion(
+      created.id,
+      created.version,
+      { status: "approved" },
+    );
+    // The loser read the same version and must be told, not silently applied.
+    await expect(
+      repos.authorizationRequests.updateWithVersion(
+        created.id,
+        created.version,
+        { status: "denied" },
+      ),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it("contract: an inbox lists only its own principal's requests", async () => {
+    const repos = new MemoryRepositories();
+    const mine = randomUUID();
+    const theirs = randomUUID();
+    await repos.authorizationRequests.create(
+      makeRequest({ principalId: mine }),
+    );
+    await repos.authorizationRequests.create(
+      makeRequest({ principalId: theirs }),
+    );
+
+    const listed = await repos.authorizationRequests.listForPrincipal(mine);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.principalId).toBe(mine);
+  });
+
+  it("property: filtering by status excludes settled requests", async () => {
+    const repos = new MemoryRepositories();
+    const principalId = randomUUID();
+    const open = await repos.authorizationRequests.create(
+      makeRequest({ principalId }),
+    );
+    const closed = await repos.authorizationRequests.create(
+      makeRequest({ principalId }),
+    );
+    await repos.authorizationRequests.updateWithVersion(
+      closed.id,
+      closed.version,
+      { status: "denied" },
+    );
+
+    const pending = await repos.authorizationRequests.listForPrincipal(
+      principalId,
+      { status: "pending" },
+    );
+    expect(pending.map((r) => r.id)).toEqual([open.id]);
+  });
+
+  it("chaos: a stored request is a copy, so mutating it cannot rewrite the row", async () => {
+    const repos = new MemoryRepositories();
+    const created = await repos.authorizationRequests.create(makeRequest());
+    created.status = "approved";
+    created.authorizationDetails.push({ type: "smuggled" });
+
+    const fresh = await repos.authorizationRequests.getById(created.id);
+    expect(fresh?.status).toBe("pending");
+    expect(fresh?.authorizationDetails).toEqual([
+      { type: "connection_delegation" },
+    ]);
   });
 });
