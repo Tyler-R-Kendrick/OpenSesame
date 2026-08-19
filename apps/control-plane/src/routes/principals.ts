@@ -1,4 +1,9 @@
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  randomBytes,
+  randomUUID,
+  timingSafeEqual,
+} from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
 import {
@@ -15,15 +20,52 @@ import type {
 } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { requirePrincipal, cookieAuthAllowed } from "../middleware/auth.js";
+import { cookieAuthAllowed, requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { serializeKeyed } from "../serialize.js";
 import {
   authenticatedPrincipalId,
   ensurePersonalOrganization,
 } from "./organizations.js";
 
 export const principalRoutes = new Hono<{ Variables: Variables }>();
+
+const MAX_PROVISIONAL = 1024;
+const PROVISIONAL_MINT_WINDOW_MS = 60_000;
+const PROVISIONAL_MINT_PER_CLIENT = 10;
+const PROVISIONAL_MINT_GLOBAL = 120;
+const PROVISIONAL_MINT_KEYS = 2048;
+
+function consumeProvisionalMintBudget(
+  map: Map<string, number[]>,
+  fingerprint: string,
+  now: number,
+): boolean {
+  for (const [key, values] of map) {
+    const live = values.filter((at) => now - at < PROVISIONAL_MINT_WINDOW_MS);
+    if (live.length === 0) map.delete(key);
+    else if (live.length !== values.length) map.set(key, live);
+  }
+  const global = map.get("__global__") ?? [];
+  const client = map.get(fingerprint) ?? [];
+  if (
+    global.length >= PROVISIONAL_MINT_GLOBAL ||
+    client.length >= PROVISIONAL_MINT_PER_CLIENT
+  ) {
+    return false;
+  }
+  global.push(now);
+  client.push(now);
+  map.set("__global__", global);
+  map.set(fingerprint, client);
+  while (map.size > PROVISIONAL_MINT_KEYS) {
+    const victim = [...map.keys()].find((key) => key !== "__global__");
+    if (victim === undefined) break;
+    map.delete(victim);
+  }
+  return true;
+}
 
 principalRoutes.post(
   "/provisional",
@@ -32,124 +74,139 @@ principalRoutes.post(
     const ctx = c.get("ctx");
     const now = ctx.clock();
 
-    // Evict expired provisional sessions/tokens, then enforce capacity.
-    const MAX_PROVISIONAL = 1024;
-    for (const [id, session] of ctx.stores.provisionalSessions) {
-      if (session.expiresAt.getTime() <= now.getTime()) {
-        ctx.stores.provisionalSessions.delete(id);
-      }
-    }
-    for (const [token, sessionId] of ctx.stores.provisionalTokens) {
-      if (!ctx.stores.provisionalSessions.has(sessionId)) {
-        ctx.stores.provisionalTokens.delete(token);
-      }
-    }
-    if (ctx.stores.provisionalSessions.size >= MAX_PROVISIONAL) {
-      return c.json(
-        {
-          error: "provisional_capacity",
-          message: "Too many provisional sessions",
-        },
-        429,
-      );
-    }
+    return serializeKeyed(
+      ctx.stores.principalMutations,
+      "provisional-mint",
+      async () => {
+        // Expiry removes both the live lease and its unclaimed durable identity.
+        for (const [id, session] of ctx.stores.provisionalSessions) {
+          if (session.expiresAt.getTime() > now.getTime()) continue;
+          ctx.stores.provisionalSessions.delete(id);
+          const deleted = await ctx.repos.principals.deleteUnlinkedProvisional(
+            session.principalId,
+          );
+          if (deleted)
+            await ctx.mappings.deleteProvisional(session.principalId);
+        }
+        for (const [token, sessionId] of ctx.stores.provisionalTokens) {
+          if (!ctx.stores.provisionalSessions.has(sessionId)) {
+            ctx.stores.provisionalTokens.delete(token);
+          }
+        }
+        if (ctx.stores.provisionalSessions.size >= MAX_PROVISIONAL) {
+          return c.json(
+            {
+              error: "provisional_capacity",
+              message: "Too many provisional sessions",
+            },
+            429,
+          );
+        }
 
-    const fingerprint = createHash("sha256")
-      .update(c.req.header("user-agent") ?? "")
-      .update("|")
-      .update(c.req.header("origin") ?? "")
-      .digest("hex")
-      .slice(0, 16);
-    const windowMs = 60_000;
-    const stamps = (ctx.stores.provisionalMints.get(fingerprint) ?? []).filter(
-      (at) => now.getTime() - at < windowMs,
-    );
-    if (stamps.length >= 10) {
-      return c.json({ error: "rate_limited" }, 429);
-    }
-    stamps.push(now.getTime());
-    ctx.stores.provisionalMints.set(fingerprint, stamps);
+        const fingerprint = createHash("sha256")
+          .update(c.req.header("user-agent") ?? "")
+          .update("|")
+          .update(c.req.header("origin") ?? "")
+          .digest("hex")
+          .slice(0, 16);
+        if (
+          !consumeProvisionalMintBudget(
+            ctx.stores.provisionalMints,
+            fingerprint,
+            now.getTime(),
+          )
+        ) {
+          return c.json({ error: "rate_limited" }, 429);
+        }
 
-    const { mapping, session } = await createProvisionalPrincipal(
-      ctx.mappings,
-      {
-        ttlMs: ctx.config.provisionalTtlMs,
-        quotaProfile: "anonymous",
-        allowedActions: [
-          "project.create_temporary",
-          "resource.create_temporary",
-          "claim.create",
-          "agent.register_ephemeral",
-          "session.continue_anonymous",
-        ],
+        const { mapping, session } = await createProvisionalPrincipal(
+          ctx.mappings,
+          {
+            ttlMs: ctx.config.provisionalTtlMs,
+            quotaProfile: "anonymous",
+            allowedActions: [
+              "project.create_temporary",
+              "resource.create_temporary",
+              "claim.create",
+              "agent.register_ephemeral",
+              "session.continue_anonymous",
+            ],
+          },
+        );
+
+        // Align expires with injected clock for tests
+        const provisionalSession: ProvisionalSession = {
+          ...session,
+          createdAt: now,
+          expiresAt: new Date(now.getTime() + ctx.config.provisionalTtlMs),
+        };
+
+        const principal: Principal = {
+          id: mapping.principalId,
+          state: "provisional",
+          assurance: "provisional",
+          createdAt: now,
+          updatedAt: now,
+          version: 1,
+        };
+        try {
+          await ctx.repos.principals.create(principal);
+          await ctx.repos.betterAuthSubjects.link({
+            betterAuthUserId: mapping.betterAuthUserId,
+            principalId: mapping.principalId,
+            linkedAt: now,
+          });
+        } catch (error) {
+          await ctx.repos.principals.deleteUnlinkedProvisional(principal.id);
+          await ctx.mappings.deleteProvisional(principal.id);
+          throw error;
+        }
+
+        if (ctx.config.bootstrapPersonalOrganization) {
+          ensurePersonalOrganization(ctx, principal.id);
+        }
+
+        const accessToken = `pst_${randomBytes(24).toString("base64url")}`;
+        ctx.stores.provisionalSessions.set(
+          provisionalSession.id,
+          provisionalSession,
+        );
+        ctx.stores.provisionalTokens.set(accessToken, provisionalSession.id);
+
+        setCookie(c, ctx.config.provisionalCookieName, accessToken, {
+          httpOnly: true,
+          sameSite: "Lax",
+          path: "/",
+          maxAge: Math.floor(ctx.config.provisionalTtlMs / 1000),
+          secure: ctx.config.publicUrl.startsWith("https://"),
+        });
+
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "principal.provisional_created",
+          outcome: "succeeded",
+          principalId: principal.id,
+          sessionId: provisionalSession.id,
+          correlationId: c.get("correlationId"),
+          actorType: "human",
+          metadata: {
+            action: "principal.provisional_create",
+            quotaProfile: "anonymous",
+          },
+        });
+
+        return c.json(
+          {
+            principalId: principal.id,
+            state: principal.state,
+            assurance: principal.assurance,
+            sessionId: provisionalSession.id,
+            accessToken,
+            expiresAt: provisionalSession.expiresAt.toISOString(),
+            tokenType: "Bearer",
+          },
+          201,
+        );
       },
-    );
-
-    // Align expires with injected clock for tests
-    const provisionalSession: ProvisionalSession = {
-      ...session,
-      createdAt: now,
-      expiresAt: new Date(now.getTime() + ctx.config.provisionalTtlMs),
-    };
-
-    const principal: Principal = {
-      id: mapping.principalId,
-      state: "provisional",
-      assurance: "provisional",
-      createdAt: now,
-      updatedAt: now,
-      version: 1,
-    };
-    await ctx.repos.principals.create(principal);
-    await ctx.repos.betterAuthSubjects.link({
-      betterAuthUserId: mapping.betterAuthUserId,
-      principalId: mapping.principalId,
-      linkedAt: now,
-    });
-
-    if (ctx.config.bootstrapPersonalOrganization) {
-      ensurePersonalOrganization(ctx, principal.id);
-    }
-
-    const accessToken = `pst_${randomBytes(24).toString("base64url")}`;
-    ctx.stores.provisionalSessions.set(
-      provisionalSession.id,
-      provisionalSession,
-    );
-    ctx.stores.provisionalTokens.set(accessToken, provisionalSession.id);
-
-    setCookie(c, ctx.config.provisionalCookieName, accessToken, {
-      httpOnly: true,
-      sameSite: "Lax",
-      path: "/",
-      maxAge: Math.floor(ctx.config.provisionalTtlMs / 1000),
-      secure: ctx.config.publicUrl.startsWith("https://"),
-    });
-
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "principal.provisional_created",
-      outcome: "succeeded",
-      principalId: principal.id,
-      sessionId: provisionalSession.id,
-      correlationId: c.get("correlationId"),
-      actorType: "human",
-      metadata: {
-        action: "principal.provisional_create",
-        quotaProfile: "anonymous",
-      },
-    });
-
-    return c.json(
-      {
-        principalId: principal.id,
-        state: principal.state,
-        assurance: principal.assurance,
-        sessionId: provisionalSession.id,
-        accessToken,
-        expiresAt: provisionalSession.expiresAt.toISOString(),
-        tokenType: "Bearer",
-      },
-      201,
     );
   },
 );
@@ -171,9 +228,7 @@ principalRoutes.post("/provisional/revoke", async (c) => {
   const authenticated = c.get("provisionalSessionId");
   if (authenticated) revoking.add(authenticated);
   if (cookie) {
-    if (
-      !cookieAuthAllowed(ctx, c.req.method, c.req.header("origin"))
-    ) {
+    if (!cookieAuthAllowed(ctx, c.req.method, c.req.header("origin"))) {
       return c.json({ error: "forbidden", hint: "origin required" }, 403);
     }
     const fromCookie = ctx.stores.provisionalTokens.get(cookie);

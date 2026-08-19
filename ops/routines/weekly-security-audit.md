@@ -19,7 +19,7 @@ Read first, for orientation: `docs/security/security-boundaries.md`,
 `docs/security/threat-model.md`, `docs/security/identity-threat-model.md`,
 and `security/claude-review-checklist.md` (the distilled checklist of
 concrete bug classes this series has already found — auth bypass, SSRF,
-injection, token/secret handling, boundary/fence violations, quota bounds,
+injection, token/secret handling, boundary/fence violations, quota bounds, <!-- gitleaks:allow -- prose -->
 audit-chain integrity, and more, each item citing the audit doc it came
 from).
 

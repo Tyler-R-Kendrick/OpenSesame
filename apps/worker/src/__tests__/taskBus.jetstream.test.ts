@@ -42,7 +42,9 @@ describe("NatsJetStreamTaskBus", () => {
     connect.mockResolvedValue({
       drain: vi.fn().mockResolvedValue(undefined),
       jetstreamManager: jetstreamManager.mockResolvedValue({
-        streams: { info: vi.fn().mockResolvedValue({ name: "OPENSESAME_EVENTS" }) },
+        streams: {
+          info: vi.fn().mockResolvedValue({ name: "OPENSESAME_EVENTS" }),
+        },
       }),
       jetstream: jetstream.mockReturnValue({ publish }),
     });

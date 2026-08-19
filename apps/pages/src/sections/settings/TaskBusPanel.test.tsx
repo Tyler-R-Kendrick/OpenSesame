@@ -1,5 +1,3 @@
-/** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cleanup,
   fireEvent,
@@ -8,6 +6,8 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+/** @vitest-environment jsdom */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../lib/use-online.js", () => ({
   useOnline: () => true,
@@ -91,7 +91,9 @@ describe("TaskBusPanel render", () => {
     await waitForConfigLoaded();
     expect(getTaskBusConfig).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: /^Save$/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Ping from Host/i })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Ping from Host/i }),
+    ).toBeTruthy();
   });
 
   it("saves selected nats backend through putTaskBusConfig", async () => {
@@ -104,7 +106,9 @@ describe("TaskBusPanel render", () => {
     });
     render(<TaskBusPanel />);
     await waitForConfigLoaded();
-    expect(await screen.findByPlaceholderText("nats://127.0.0.1:4222")).toBeTruthy();
+    expect(
+      await screen.findByPlaceholderText("nats://127.0.0.1:4222"),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^Save$/i }));
     const status = await screen.findByRole("status");
     expect(status.textContent).toMatch(/applied/i);
@@ -120,7 +124,9 @@ describe("TaskBusPanel render", () => {
     await waitForConfigLoaded();
     await user.click(screen.getByRole("button", { name: /Ping from Host/i }));
     await waitFor(() => expect(pingTaskBus).toHaveBeenCalled());
-    expect(screen.getByRole("status").textContent).toMatch(/Host reached TaskBus/i);
+    expect(screen.getByRole("status").textContent).toMatch(
+      /Host reached TaskBus/i,
+    );
   });
 
   it("shows env override notice and disables save controls", async () => {

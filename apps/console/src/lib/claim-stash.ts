@@ -27,6 +27,9 @@ const STASH_KEY = "opensesame.claim";
 
 export function writeClaimStash(next: ClaimStash): void {
   try {
+    // The bearer must survive same-tab sign-in; sessionStorage is tab-scoped
+    // and keeps it out of URLs/history.
+    // ast-grep-ignore: ts-localstorage-set
     sessionStorage.setItem(STASH_KEY, JSON.stringify(next));
   } catch {
     // Storage is unavailable. The ceremony still works in a single sitting.

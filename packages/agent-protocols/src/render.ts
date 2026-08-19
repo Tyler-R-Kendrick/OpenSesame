@@ -58,9 +58,9 @@ export function renderAuthMd(config: AuthMdConfig): string {
     config.provisionalPath ?? "/v1/principals/provisional";
   const claimPath = config.claimPath ?? "/claim";
   const devicePath = config.devicePath ?? "/device";
-  const modes = (config.registrationModes ?? ["anonymous", "pre_registered"]).join(
-    ", ",
-  );
+  const modes = (
+    config.registrationModes ?? ["anonymous", "pre_registered"]
+  ).join(", ");
   const proof = config.proofKeyMechanism ?? "JWK thumbprint (publicKeyJkt)";
   const preClaim = (
     config.preClaimRestrictions ?? [
@@ -74,7 +74,9 @@ export function renderAuthMd(config: AuthMdConfig): string {
   const postClaim =
     config.postClaimBehavior ??
     "Human principal owns or delegates to the agent actor; principal id stays distinct from agent id.";
-  const audiences = (config.tokenAudiences ?? [config.protectedResource]).join(", ");
+  const audiences = (config.tokenAudiences ?? [config.protectedResource]).join(
+    ", ",
+  );
   const poll = config.pollIntervalSeconds ?? 5;
   const ttl = config.claimTtlSeconds ?? 900;
 
@@ -161,7 +163,9 @@ export interface AgentCardConfig {
   documentationUrl?: string;
 }
 
-export function renderAgentCard(config: AgentCardConfig): Record<string, unknown> {
+export function renderAgentCard(
+  config: AgentCardConfig,
+): Record<string, unknown> {
   assertSafeConfig("agentCard", config);
   const card = {
     name: config.name,

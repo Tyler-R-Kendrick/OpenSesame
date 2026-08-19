@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertNoSecretFields, assertSourceOrder } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 import { runAnonymousAgentDemo } from "./main.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -22,7 +22,7 @@ describe("PACT — example-agent", () => {
     assertSourceOrder(readFileSync(join(here, "main.ts"), "utf8"), [
       "redactSecrets(registered)",
       "if (JSON.stringify(safe).includes(registered.claimToken))",
-      "throw new Error(\"claimToken was not redacted\")",
+      'throw new Error("claimToken was not redacted")',
     ]);
   });
 
@@ -31,7 +31,10 @@ describe("PACT — example-agent", () => {
     let polls = 0;
     const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.endsWith("/v1/principals/provisional") && init?.method === "POST") {
+      if (
+        url.endsWith("/v1/principals/provisional") &&
+        init?.method === "POST"
+      ) {
         return new Response(
           JSON.stringify({
             principalId: "prn_demo_guest",

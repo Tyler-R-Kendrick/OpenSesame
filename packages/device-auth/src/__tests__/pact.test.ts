@@ -1,7 +1,11 @@
 import { fixtures } from "@opensesame/os-domain";
-import { describe, expect, it } from "vitest";
 import { assertNoSecretFields } from "@opensesame/testing";
-import { applySlowDown, initialPollInterval, projectDeviceAuth } from "../index.js";
+import { describe, expect, it } from "vitest";
+import {
+  applySlowDown,
+  initialPollInterval,
+  projectDeviceAuth,
+} from "../index.js";
 
 describe("PACT — device-auth projection", () => {
   it("contract: UI projection has no secret fields", () => {

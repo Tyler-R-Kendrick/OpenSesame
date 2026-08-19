@@ -9,6 +9,7 @@ import {
   cacheCiphertextSnapshot,
   enqueueOfflineMutation,
   parseOfflineBackup,
+  MAX_OFFLINE_BACKUP_BYTES,
   serializeOfflineBackup,
 } from "../../lib/vault/offline-backup.js";
 import { BODY_KEY } from "../../lib/vault/store.js";
@@ -84,6 +85,13 @@ export function OfflineBackupPanel() {
       setMessage({
         tone: "err",
         text: "Enter the master password that backup was sealed under.",
+      });
+      return;
+    }
+    if (file.size > MAX_OFFLINE_BACKUP_BYTES) {
+      setMessage({
+        tone: "err",
+        text: "That offline backup is larger than 64 MB.",
       });
       return;
     }

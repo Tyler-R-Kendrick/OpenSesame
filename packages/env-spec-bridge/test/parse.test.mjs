@@ -1,9 +1,9 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync, unlinkSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const bin = join(__dirname, "../bin/opensesame-env-parse.mjs");
@@ -84,7 +84,7 @@ test("chaos: concurrent parses of one schema stay secret-free", () => {
   writeFileSync(
     path,
     `# @sensitive
-TOKEN=sk_live_concurrent
+TOKEN=sk_live_concurrent # gitleaks:allow -- fixture
 `,
   );
   try {
@@ -93,7 +93,7 @@ TOKEN=sk_live_concurrent
     );
     for (const r of runs) {
       assert.equal(r.status, 0, r.stderr);
-      assert.equal(r.stdout.includes("sk_live_concurrent"), false);
+      assert.equal(r.stdout.includes("sk_live_concurrent"), false); // gitleaks:allow -- fixture
     }
   } finally {
     unlinkSync(path);
@@ -102,7 +102,7 @@ TOKEN=sk_live_concurrent
 
 test("contract: output is JSON with schema_path and parser id", () => {
   const path = join(__dirname, "tmp-contract.env.schema");
-  writeFileSync(path, `# @public\nAPI=http://127.0.0.1:1\n`);
+  writeFileSync(path, "# @public\nAPI=http://127.0.0.1:1\n");
   try {
     const r = spawnSync(process.execPath, [bin, path], { encoding: "utf8" });
     const j = JSON.parse(r.stdout);

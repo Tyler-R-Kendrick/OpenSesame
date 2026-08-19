@@ -29,11 +29,13 @@ describe("PACT helpers", () => {
     expect(() =>
       assertSourceOrder("append(); claim();", ["claim()", "append()"]),
     ).toThrow(/missing append/);
+    expect(() => assertNoSecretFields({ ok: true, access_token: "x" })).toThrow(
+      /access_token/,
+    );
     expect(() =>
-      assertNoSecretFields({ ok: true, access_token: "x" }),
-    ).toThrow(/access_token/);
-    expect(() =>
-      assertNoSecretFields({ ok: true, claimToken: "osc_clm_x" }, ["claimToken"]),
+      assertNoSecretFields({ ok: true, claimToken: "osc_clm_x" }, [
+        "claimToken",
+      ]),
     ).not.toThrow();
     expect(() => assertNoSecretFields({ ok: true })).not.toThrow();
     assertFailClosedStatuses({ "200": {}, "401": {} }, ["401"]);
@@ -44,13 +46,17 @@ describe("PACT helpers", () => {
 
   it("caps concurrent wins and keeps durable work after a partition", async () => {
     let n = 0;
-    const wins = await assertAtMostWins(() => {
-      n += 1;
-      return n <= 3;
-    }, 3, 16);
+    const wins = await assertAtMostWins(
+      () => {
+        n += 1;
+        return n <= 3;
+      },
+      3,
+      16,
+    );
     expect(wins).toBe(3);
 
-    let durable = 1;
+    const durable = 1;
     await assertDurableSurvivesPartition(
       () => durable,
       async () => {

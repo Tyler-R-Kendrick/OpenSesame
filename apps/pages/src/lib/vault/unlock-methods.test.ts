@@ -29,6 +29,7 @@ describe("unlock method listing", () => {
     const { header } = await createVault(PASSWORD);
     expect(listAvailableUnlockMethods(header)).toEqual(["password"]);
     expect(preferredUnlockMethod(header)).toBe("password");
+    if (!header.wrap || !header.kdf) throw new Error("missing password wrap");
 
     const withPasskey = {
       ...header,
@@ -37,11 +38,11 @@ describe("unlock method listing", () => {
           credentialIdB64: "YQ==",
           userIdB64: "YQ==",
           prfSaltB64: "YQ==",
-          wrap: header.wrap!,
+          wrap: header.wrap,
         },
         pin: {
-          kdf: header.kdf!,
-          wrap: header.wrap!,
+          kdf: header.kdf,
+          wrap: header.wrap,
         },
       },
     };
@@ -116,9 +117,9 @@ describe("WebAuthn host preflight", () => {
     expect(check.ok).toBe(false);
     expect(check.fixUrl).toBe("http://localhost:5180/settings#unlock");
     expect(check.reason).toMatch(/loopback IP/i);
-    expect(describeWebauthnError(new Error("This is an invalid domain."))).toMatch(
-      /localhost|DNS hostname|invalid domain/i,
-    );
+    expect(
+      describeWebauthnError(new Error("This is an invalid domain.")),
+    ).toMatch(/localhost|DNS hostname|invalid domain/i);
   });
 
   it("maps Chrome SecurityError invalid-domain into remediation copy", () => {

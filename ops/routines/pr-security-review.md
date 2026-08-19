@@ -85,7 +85,7 @@ For each changed file in the diff:
    items that **fail** or are **ambiguous** (needs a human answer).
 3. For anything the checklist doesn't cover but that looks like a real
    security problem by the same standards the audit series applies (auth
-   bypass, SSRF, injection, secret handling, boundary/fence gaps — see
+	   bypass, SSRF, injection, secret handling, boundary/fence gaps — see <!-- gitleaks:allow -- prose -->
    `docs/security/threat-model.md` for the fuller taxonomy this repo uses),
    flag it too, and note it is outside the numbered checklist.
 4. Note anything that looks like **good** defense that's easy to miss (e.g.

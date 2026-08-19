@@ -8,13 +8,20 @@ import type { AssuranceLevel, ExternalIdentity } from "@opensesame/os-domain";
 export interface NostrIdentityAdapter {
   readonly id: "nostr";
   readonly enabled: boolean;
-  createChallenge(): Promise<{ challengeId: string; message: string; expiresAt: Date }>;
+  createChallenge(): Promise<{
+    challengeId: string;
+    message: string;
+    expiresAt: Date;
+  }>;
   verifySignedChallenge(input: {
     challengeId: string;
     pubkey: string;
     signature: string;
   }): Promise<{
-    external: Pick<ExternalIdentity, "kind" | "issuer" | "subject" | "assurance">;
+    external: Pick<
+      ExternalIdentity,
+      "kind" | "issuer" | "subject" | "assurance"
+    >;
   }>;
 }
 

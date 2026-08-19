@@ -43,7 +43,7 @@ Do not add a suite that only documents the happy path.
 | Callback-edge | HMAC verify_slice | path segments reject traversal | unconfigured secret is 503 not open | health `{status:ok}`; 401 bad MAC |
 | Daemon | hop-header strip | path-id allowlist; proxy rejects `..` | upstream partition → 502 `upstream_unreachable` | opaque `/health` |
 | Pages vault / queue / auth.js | non-extractable VK; PIN ≥8 | postMessage origin pin; iss then aud | claim tokens never hit OPFS | TaskBus GET schema rejects secrets |
-| MCP host | no secret tool names | `toolError` → `forAgent`; Host audience pin | Host fetch throw → `host_unavailable` | credential-shaped payloads refused |
+| MCP host | no secret tool names (`src/pact.test.ts`) | `toolError` → `forAgent`; Host audience pin | Host fetch throw → `host_unavailable` | credential-shaped payloads refused |
 | Client CLI | session file 0600 via temp+rename | `emit` redacts before print | partitioned refresh leaves the file | `token_type` kept; tokens redacted |
 | Browser extension | loopback `hostApiBase` only | remote rewrite refused | health error does not persist an unnormalized host | popup saves only after `normalizeLoopbackBaseUrl` |
 | Contracts package | claim types round-trip | Zod rejects http NATS URLs + extra secrets | extra TaskBus credential fields rejected | `pact-contract.test.ts` |
@@ -55,7 +55,7 @@ Do not add a suite that only documents the happy path.
 | Workload worker | operator compare is length-hiding | empty token → 503; wrong token → 401 | probe task join fail → 503 | `/health/ready` and `/v1/providers` gated |
 | Claims engine | exclusive `completeClaim` CAS | completed session JSON has no raw token | 8-way complete: one `won` | token stays off the session record |
 | Device-auth projection | slow_down interval caps at 60s | projection has no secret fields | 20 slow_downs stay at 60s | no `user_code` / `device_code` in UI JSON |
-| Observability | depth ceiling before recurse | nested `access_token` / `pin` redacted | cyclic objects terminate | `[Redacted]` not plaintext |
+| Observability | `token_type` kept; depth ceiling before recurse | nested `access_token` / `pin` redacted | cyclic objects terminate | `[Redacted]` not plaintext |
 | QR | empty payload refused | `assertPayload` before encode | concurrent encodes of one payload are identical | `QrEncodeError` |
 | Client-core | `sealDevOnly` gated by `isDevOrTestEnv` | no `getSecret(` | production NODE_ENV never XORs | blobs are ciphertext-only |
 | CLI device SDK | `expires_in >= 0` is real expiry | printed instructions omit `device_code` | `expires_in: 0` does not spin | interval floor 5, cap 60 |
@@ -70,6 +70,11 @@ Do not add a suite that only documents the happy path.
 | redteam / visual-contract | corpus covers four classes; identical PNGs match | 404 mock has no secrets; dimension mismatch fails; live mcp-host confused-deputy / credential / malformed / injection-as-data | unmatched routes stay 404; inverted PNG exceeds budget | no `getSecret` tool; Playwright `test` vs `.impeccable/screenshots`; `VISUAL_UPDATE` opt-in |
 | fuzz oracles / env-spec / config | terminal claims; `@sensitive` values null; strict tsconfig | secret fields redacted; missing schema exits 2 | concurrent parse stays secret-free | JSON parser id; package exports tsconfig only |
 | grants / static-mesh / toolbar / credential-agent | attenuation increments depth; advertise/resolve stable | expanded actions refused; path ids refused; remote daemon URL refused | cross-org child refused; unknown service empty; missing operator 401 | grant/mesh JSON has no secret fields; mint returns null secrets |
+| TaskBus NATS URL | nats/tls accepted | http and embedded userinfo refused | system types stay on `opensesame.events.system` | `validate_nats_url` before `async_nats::connect` |
+| Sealed-store paths | nested logical names round-trip | `..` / NUL / absolute refused | interleaved rejects stay closed | `.osseal`/`.age` strip to logical names |
+| Human-vault envelopes | KDF band accepts what wrap writes | hostile Argon params fail closed | bad nonces error, never panic | envelopes are ciphertext-only |
+| Host redaction | `token_type` kept across shapes | substring `token` does not redact `token_type` | concurrent redact never leaks values | redacted JSON has no secret values |
+| Connection env sync | vercel/railway only | doppler/infisical/craft-bar ids refused | interleaved checks stay fail-closed | https host pin before `send()` |
 | eve-deepsec (out of workspace) | GLM 5.2 pinned to blackbox | `deepsec process/sandbox` refused before spawn | missing install fails closed | README keeps the app out of `pnpm-workspace.yaml` |
 
 Reference call sites: `apps/gateway/src/github_webhook.rs`,
@@ -95,4 +100,5 @@ Reference call sites: `apps/gateway/src/github_webhook.rs`,
 `packages/redteam/src/pact.test.ts`,
 `packages/redteam/src/structural.pact.test.ts`,
 `packages/visual-contract/src/compare.pact.test.ts`,
-`packages/visual-contract/tests/vault-visual-contract.spec.ts`.
+`packages/visual-contract/tests/vault-visual-contract.spec.ts`,
+`apps/mcp-host/src/pact.test.ts`.

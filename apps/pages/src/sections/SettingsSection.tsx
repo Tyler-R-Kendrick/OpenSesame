@@ -27,14 +27,14 @@ import {
   planManifestMerge,
   vaultItemToEntry,
 } from "../lib/vault/store-sync.js";
-import { CapabilityConnectorsPanel } from "./settings/CapabilityConnectorsPanel.js";
 import { ActiveProjectPanel } from "./settings/ActiveProjectPanel.js";
+import { CapabilityConnectorsPanel } from "./settings/CapabilityConnectorsPanel.js";
 import { ChangelogPanel } from "./settings/ChangelogPanel.js";
 import { GithubBackupPanel } from "./settings/GithubBackupPanel.js";
-import { TaskBusPanel } from "./settings/TaskBusPanel.js";
 import { ImportPanel } from "./settings/ImportPanel.js";
 import { OfflineBackupPanel } from "./settings/OfflineBackupPanel.js";
 import { SyncTargetsPanel } from "./settings/SyncTargetsPanel.js";
+import { TaskBusPanel } from "./settings/TaskBusPanel.js";
 import { UnlockMethodsPanel } from "./settings/UnlockMethodsPanel.js";
 import "./settings.css";
 
@@ -105,7 +105,9 @@ export function SettingsSection() {
     const id = hash.replace(/^#/, "");
     if (id === "github-backup" || id === "import") {
       window.requestAnimationFrame(() => {
-        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        document
+          .getElementById(id)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
   }, [hash]);
@@ -387,8 +389,8 @@ export function SettingsSection() {
                 <h2>Locking</h2>
                 <p>
                   Locking discards the vault decryption key from memory. Closing
-                  this window already does that. Idle auto-lock is off unless you
-                  turn it on below.
+                  this window already does that. Idle auto-lock is off unless
+                  you turn it on below.
                 </p>
               </div>
             </div>
@@ -455,9 +457,9 @@ export function SettingsSection() {
               </label>
               <p className="hint">
                 Leave both options off for normal use. Auto-lock only drops the
-                vault key — you stay signed in to Host/Identity unless you enable
-                the strict option. Clearing the clipboard only overwrites it if
-                it still holds the value OpenSesame put there.
+                vault key — you stay signed in to Host/Identity unless you
+                enable the strict option. Clearing the clipboard only overwrites
+                it if it still holds the value OpenSesame put there.
               </p>
             </div>
           </section>
@@ -815,8 +817,9 @@ export function SettingsSection() {
             <p className="hint">
               CLI:{" "}
               <code>
-                opensesame pass init --remote &lt;git url&gt; && opensesame pass
-                seal manifest.json --shred && opensesame pass backup
+                {
+                  "opensesame pass init --remote \u003cgit url\u003e \u0026\u0026 opensesame pass seal manifest.json --shred \u0026\u0026 opensesame pass backup"
+                }
               </code>
             </p>
           </div>

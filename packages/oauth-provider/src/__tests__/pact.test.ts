@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
 import { assertSourceOrder } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 import { createOpenSesameProvider } from "../create-provider.js";
 import { MemoryPairwiseSubjectStore } from "../pairwise/store.js";
 

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ext = join(here, "..");
@@ -42,5 +42,8 @@ test("chaos: health errors do not persist an unnormalized host", () => {
     'type: "opensesame.health"',
     "Could not load status",
   ]);
-  assert.equal(src.includes("chrome.storage.local.set({ hostApiBase: raw })"), false);
+  assert.equal(
+    src.includes("chrome.storage.local.set({ hostApiBase: raw })"),
+    false,
+  );
 });

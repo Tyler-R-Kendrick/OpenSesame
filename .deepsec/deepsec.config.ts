@@ -4,11 +4,8 @@ import { generatedMatchersPlugin } from "./generated-matchers.js";
 export default defineConfig({
   defaultThinkingLevel: "medium", // <deepsec:default-thinking-level>
   defaultModel: "zai/glm-5.2", // <deepsec:default-model>
-  ai: {"mode":"gateway","provider":"vercel"}, // <deepsec:model-route>
-  defaultThinkingLevel: "medium",
-  defaultModel: "zai/glm-5.2",
+  ai: { mode: "gateway", provider: "vercel" }, // <deepsec:model-route>
   defaultAgent: "pi", // <deepsec:default-agent>
-  ai: { mode: "gateway", provider: "vercel" },
   projects: [
     {
       id: "opensesame",

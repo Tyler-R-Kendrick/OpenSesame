@@ -224,7 +224,7 @@ pub fn list_secret_changelog(
         .cloned()
         .collect();
     entries.sort_by(|a, b| b.occurred_at.cmp(&a.occurred_at));
-    entries.into_iter().take(limit.max(1).min(200)).collect()
+    entries.into_iter().take(limit.clamp(1, 200)).collect()
 }
 
 /// Clear the in-memory Host changelog (tests / local reset only).
@@ -238,7 +238,6 @@ mod tests {
 
     #[test]
     fn record_strips_secret_values() {
-        clear_secret_changelog_for_tests();
         let mut metadata = Map::new();
         metadata.insert("value".into(), json!("plaintext-secret"));
         metadata.insert("password".into(), json!("hunter2"));

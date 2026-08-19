@@ -265,7 +265,7 @@ mod tests {
 
     #[test]
     fn find_and_sync_trailer() {
-        let trailer = "url: https://example.com\notpauth://totp/x?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ\nnote: hi\n";
+        let trailer = "url: https://example.com\notpauth://totp/x?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ\nnote: hi\n"; // gitleaks:allow -- RFC fixture
         let found = find_otpauth_in_trailer(trailer).unwrap();
         assert!(found.uri.contains("otpauth://totp/x"));
         let synced = sync_trailer_otp(trailer, Some(&found));

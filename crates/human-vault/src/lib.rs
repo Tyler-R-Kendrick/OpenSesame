@@ -162,6 +162,18 @@ pub fn decrypt_item(
         .map_err(|_| VaultCryptoError::Aead)
 }
 
+/// Decrypt only when the caller's independently reconstructed context matches.
+pub fn decrypt_item_with_ad(
+    idk: &ItemDataKey,
+    envelope: &EncryptedEnvelope,
+    expected_ad: &AssociatedData,
+) -> Result<Vec<u8>, VaultCryptoError> {
+    if ad_digest(expected_ad)? != envelope.ad_digest {
+        return Err(VaultCryptoError::AdMismatch);
+    }
+    decrypt_item(idk, envelope)
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PasswordWrapper {
     pub salt: String,
@@ -575,5 +587,73 @@ mod tests {
         )
         .unwrap();
         assert_eq!(decrypt_item(&idk, &env).unwrap(), pt);
+    }
+}
+
+#[cfg(test)]
+mod pact {
+    use super::*;
+
+    #[test]
+    fn property_kdf_band_accepts_what_wrap_writes() {
+        assert!(assert_argon_params_accepted(MIN_ARGON_M_KIB, MIN_ARGON_T, 1).is_ok());
+        assert!(assert_argon_params_accepted(MAX_ARGON_M_KIB, MAX_ARGON_T, MAX_ARGON_P).is_ok());
+    }
+
+    #[test]
+    fn adversarial_hostile_kdf_params_fail_closed() {
+        assert!(assert_argon_params_accepted(MIN_ARGON_M_KIB - 1, MIN_ARGON_T, 1).is_err());
+        assert!(assert_argon_params_accepted(MAX_ARGON_M_KIB + 1, MIN_ARGON_T, 1).is_err());
+        assert!(assert_argon_params_accepted(MIN_ARGON_M_KIB, MIN_ARGON_T, 0).is_err());
+        assert!(
+            assert_argon_params_accepted(MIN_ARGON_M_KIB, MIN_ARGON_T, MAX_ARGON_P + 1).is_err()
+        );
+    }
+
+    #[test]
+    fn chaos_many_bad_nonces_never_panic() {
+        let idk = ItemDataKey::generate();
+        let env = encrypt_item(
+            &idk,
+            b"x",
+            AssociatedData {
+                envelope_version: ENVELOPE_VERSION,
+                item_id: "i".into(),
+                organization_id: "o".into(),
+                project_id: "p".into(),
+                collection_id: "c".into(),
+                key_id: "k".into(),
+                revision: 1,
+            },
+        )
+        .unwrap();
+        for len in [0usize, 1, 12, 23, 25, 64] {
+            let mut hostile = env.clone();
+            hostile.nonce = STANDARD.encode(vec![0u8; len]);
+            assert!(decrypt_item(&idk, &hostile).is_err());
+        }
+    }
+
+    #[test]
+    fn contract_envelopes_are_ciphertext_only() {
+        let idk = ItemDataKey::generate();
+        let env = encrypt_item(
+            &idk,
+            b"secret-item",
+            AssociatedData {
+                envelope_version: ENVELOPE_VERSION,
+                item_id: "i".into(),
+                organization_id: "o".into(),
+                project_id: "p".into(),
+                collection_id: "c".into(),
+                key_id: "k".into(),
+                revision: 1,
+            },
+        )
+        .unwrap();
+        let json = serde_json::to_string(&env).unwrap();
+        assert!(!json.contains("secret-item"));
+        assert!(!json.contains("access_token"));
+        assert_eq!(decrypt_item(&idk, &env).unwrap(), b"secret-item");
     }
 }

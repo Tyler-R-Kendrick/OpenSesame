@@ -53,3 +53,41 @@ mod tests {
         let _ = evil;
     }
 }
+
+#[cfg(test)]
+mod pact {
+    use super::*;
+
+    #[test]
+    fn property_authorized_request_wit_is_accepted() {
+        let ok = r#"
+          interface http { authorized-request: func(req: string) -> string; }
+        "#;
+        assert!(assert_wit_forbids_secrets_get(ok).is_ok());
+    }
+
+    #[test]
+    fn adversarial_secrets_get_spellings_are_refused() {
+        for evil in [
+            "secrets.get: func(ref: string) -> string;",
+            "secret-get: func(ref: string) -> string; authorized-request: func();",
+        ] {
+            assert!(assert_wit_forbids_secrets_get(evil).is_err(), "{evil}");
+        }
+    }
+
+    #[test]
+    fn chaos_commented_mention_does_not_open_secrets_get() {
+        let documented = r#"
+          // agents must never call secrets.get
+          interface http { authorized-request: func(req: string) -> string; }
+        "#;
+        assert!(assert_wit_forbids_secrets_get(documented).is_ok());
+    }
+
+    #[test]
+    fn contract_repo_wit_forbids_secrets_get() {
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        assert_repo_wit_forbids_secrets_get(&root).unwrap();
+    }
+}

@@ -2,7 +2,7 @@ import type { ClaimEngine } from "@opensesame/claims";
 import type { OidcStore, Repositories } from "@opensesame/database";
 import type { Logger } from "@opensesame/observability";
 import type { Clock, Project, ProvisionalSession } from "@opensesame/os-domain";
-import { MemoryTaskBus, outboxToBusEvent, type TaskBus } from "./taskBus.js";
+import { MemoryTaskBus, type TaskBus, outboxToBusEvent } from "./taskBus.js";
 
 export interface FakeClock {
   now: Date;

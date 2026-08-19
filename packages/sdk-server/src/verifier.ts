@@ -84,10 +84,12 @@ function ipv4FromMappedIpv6(host: string): string | null {
   const dotted = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/u.exec(host);
   if (dotted) return dotted[1] ?? null;
   const mappedHex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host);
-  if (mappedHex) return hextetsToIpv4(mappedHex[1]!, mappedHex[2]!);
+  if (mappedHex?.[1] && mappedHex[2]) {
+    return hextetsToIpv4(mappedHex[1], mappedHex[2]);
+  }
   const compat = /^::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host);
-  if (compat && compat[1] !== "ffff") {
-    return hextetsToIpv4(compat[1]!, compat[2]!);
+  if (compat?.[1] && compat[2] && compat[1] !== "ffff") {
+    return hextetsToIpv4(compat[1], compat[2]);
   }
   return null;
 }
@@ -193,6 +195,8 @@ export function createOpenSesameVerifier(
 ): OpenSesameVerifier {
   const issuer = trimSlash(config.issuer);
   const audiences = asAudienceList(config.audience);
+  const defaultAudience = audiences[0];
+  if (!defaultAudience) throw new Error("audience must not be empty");
   assertSecureUrl(issuer, "issuer");
   const algorithms = config.algorithms ?? [...DEFAULT_ALLOWED_ALGORITHMS];
   // An explicit JWKS URI is checked while the verifier is being built, not on the
@@ -267,7 +271,7 @@ export function createOpenSesameVerifier(
       };
       const verifyOptions =
         audiences.length === 1
-          ? { ...common, audience: audiences[0]! }
+          ? { ...common, audience: defaultAudience }
           : { ...common, audience: audiences };
 
       const { payload, protectedHeader } = await jwtVerify(
@@ -323,7 +327,7 @@ export function createOpenSesameVerifier(
       const identity: VerifiedIdentity = {
         sub: payload.sub,
         iss: payload.iss,
-        aud: (payload.aud as string | string[]) ?? audiences[0]!,
+        aud: (payload.aud as string | string[]) ?? defaultAudience,
         payload,
         accessToken: token,
       };

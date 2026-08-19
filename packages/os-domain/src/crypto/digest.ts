@@ -45,7 +45,9 @@ function sortKeys(value: unknown): unknown {
 
 export function sha256Hex(data: string | Uint8Array): string {
   const h = createHash("sha256");
-  h.update(typeof data === "string" ? Buffer.from(data, "utf8") : Buffer.from(data));
+  h.update(
+    typeof data === "string" ? Buffer.from(data, "utf8") : Buffer.from(data),
+  );
   return `sha256:${h.digest("hex")}`;
 }
 

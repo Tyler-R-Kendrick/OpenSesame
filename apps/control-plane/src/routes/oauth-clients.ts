@@ -11,6 +11,7 @@ import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { serializeKeyed } from "../serialize.js";
 import { getUsage } from "../state.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
@@ -147,11 +148,6 @@ oauthClientRoutes.post(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
-    const denied = await assertVerified(ctx, principalId, "register");
-    if (denied) return denied;
-    const overQuota = await assertRegistrationQuota(ctx, principalId);
-    if (overQuota) return overQuota;
-
     const parsed = CreateOAuthClientRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
       return c.json(
@@ -160,63 +156,76 @@ oauthClientRoutes.post(
       );
     }
 
-    if (parsed.data.admissionMode !== "pre_registered") {
-      return c.json(
-        {
-          error: "admission_mode_disabled",
-          message:
-            "Only pre_registered clients may be created via this API; DCR/CIMD/origin profiles are feature-gated",
-        },
-        400,
-      );
-    }
+    // ponytail: registration is low-volume; one lock also makes sector ownership
+    // atomic. Split into durable principal/sector locks if registration throughput matters.
+    return serializeKeyed(
+      ctx.stores.principalMutations,
+      "oauth-clients",
+      async () => {
+        const denied = await assertVerified(ctx, principalId, "register");
+        if (denied) return denied;
+        const overQuota = await assertRegistrationQuota(ctx, principalId);
+        if (overQuota) return overQuota;
 
-    if (
-      sectorClaimedByAnother(ctx, principalId, parsed.data.sectorIdentifier)
-    ) {
-      return c.json(
-        {
-          error: "sector_identifier_taken",
-          message:
-            "another principal already registered a client under this sectorIdentifier",
-        },
-        409,
-      );
-    }
+        if (parsed.data.admissionMode !== "pre_registered") {
+          return c.json(
+            {
+              error: "admission_mode_disabled",
+              message:
+                "Only pre_registered clients may be created via this API; DCR/CIMD/origin profiles are feature-gated",
+            },
+            400,
+          );
+        }
 
-    const now = ctx.clock();
-    const client: OAuthClientRecord = {
-      id: `cli_${randomUUID()}`,
-      ownerPrincipalId: principalId,
-      admissionMode: "pre_registered",
-      displayName: parsed.data.displayName,
-      redirectUris: parsed.data.redirectUris,
-      sectorIdentifier: parsed.data.sectorIdentifier,
-      grantTypes: parsed.data.grantTypes,
-      responseTypes: parsed.data.responseTypes,
-      tokenEndpointAuthMethod: parsed.data.tokenEndpointAuthMethod,
-      allowedScopes: parsed.data.allowedScopes,
-      allowedResources: parsed.data.allowedResources,
-      state: "active",
-      createdAt: now,
-      updatedAt: now,
-    };
-    ctx.stores.oauthClients.set(client.id, client);
+        if (
+          sectorClaimedByAnother(ctx, principalId, parsed.data.sectorIdentifier)
+        ) {
+          return c.json(
+            {
+              error: "sector_identifier_taken",
+              message:
+                "another principal already registered a client under this sectorIdentifier",
+            },
+            409,
+          );
+        }
 
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "oauth_client.created",
-      outcome: "succeeded",
-      principalId,
-      clientId: client.id,
-      correlationId: c.get("correlationId"),
-      metadata: {
-        action: "oauth_client.create",
-        admissionMode: client.admissionMode,
-        sectorIdentifier: client.sectorIdentifier,
+        const now = ctx.clock();
+        const client: OAuthClientRecord = {
+          id: `cli_${randomUUID()}`,
+          ownerPrincipalId: principalId,
+          admissionMode: "pre_registered",
+          displayName: parsed.data.displayName,
+          redirectUris: parsed.data.redirectUris,
+          sectorIdentifier: parsed.data.sectorIdentifier,
+          grantTypes: parsed.data.grantTypes,
+          responseTypes: parsed.data.responseTypes,
+          tokenEndpointAuthMethod: parsed.data.tokenEndpointAuthMethod,
+          allowedScopes: parsed.data.allowedScopes,
+          allowedResources: parsed.data.allowedResources,
+          state: "active",
+          createdAt: now,
+          updatedAt: now,
+        };
+        ctx.stores.oauthClients.set(client.id, client);
+
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "oauth_client.created",
+          outcome: "succeeded",
+          principalId,
+          clientId: client.id,
+          correlationId: c.get("correlationId"),
+          metadata: {
+            action: "oauth_client.create",
+            admissionMode: client.admissionMode,
+            sectorIdentifier: client.sectorIdentifier,
+          },
+        });
+
+        return c.json(toResponse(client), 201);
       },
-    });
-
-    return c.json(toResponse(client), 201);
+    );
   },
 );
 

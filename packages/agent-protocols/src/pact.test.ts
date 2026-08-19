@@ -1,11 +1,8 @@
-import { describe, expect, it } from "vitest";
-import {
-  assertNoSecretFields,
-  assertSourceOrder,
-} from "@opensesame/testing";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertNoSecretFields, assertSourceOrder } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 import { renderAgentCard, renderAuthMd } from "./render.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -24,7 +21,9 @@ describe("PACT — agent-protocols", () => {
     );
     expect(new Set(mds).size).toBe(1);
     expect(mds[0]).toContain("Never print `device_code`");
-    assertNoSecretFields(renderAgentCard({ name: "card", url: config.authorizationServer }));
+    assertNoSecretFields(
+      renderAgentCard({ name: "card", url: config.authorizationServer }),
+    );
   });
 
   it("adversarial: secret-shaped config is refused before render", () => {
@@ -50,7 +49,7 @@ describe("PACT — agent-protocols", () => {
     assertSourceOrder(readFileSync(join(here, "render.ts"), "utf8"), [
       "function assertSafeConfig",
       "export function renderAuthMd",
-      "assertSafeConfig(\"authMd\", config)",
+      'assertSafeConfig("authMd", config)',
     ]);
   });
 });

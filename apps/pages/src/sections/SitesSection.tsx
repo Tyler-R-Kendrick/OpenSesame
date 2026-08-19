@@ -337,7 +337,7 @@ import { sesame } from "./auth.js";
 // Verifies state, replays the stored PKCE verifier, and exchanges ?code=
 // for tokens. Throws if state does not match or the code is missing.
 const session = await sesame.handleRedirectCallback();
-console.log(session.sub, session.accessToken);
+console.log("OpenSesame sign-in complete", { sub: session.sub });
 
 // Anywhere else in the site:
 const current = await sesame.getSession(); // null when absent or expired

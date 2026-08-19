@@ -13,7 +13,10 @@ export interface AtprotoIdentityAdapter {
     pds?: string;
     accessJwt?: string;
   }): Promise<{
-    external: Pick<ExternalIdentity, "kind" | "issuer" | "subject" | "assurance">;
+    external: Pick<
+      ExternalIdentity,
+      "kind" | "issuer" | "subject" | "assurance"
+    >;
   }>;
 }
 

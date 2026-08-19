@@ -22,7 +22,8 @@
       "**/node_modules/**",
       "**/target/**",
       "**/.tools/**",
-      "**/sbom/**"
+      "**/sbom/**",
+      "apps/pages/public/auth.js"
     ]
   }
 }

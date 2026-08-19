@@ -1,9 +1,9 @@
 import { fixtures } from "@opensesame/os-domain";
-import { describe, expect, it } from "vitest";
 import {
   assertAtMostWins,
   checkThenSetAdmitsDoubleClaim,
 } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 import { DEFAULT_PROVISIONAL_QUOTA, ProvisionalPolicy } from "../index.js";
 
 const claimReq = {

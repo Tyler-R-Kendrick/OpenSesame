@@ -62,7 +62,7 @@ describe("vault key lifecycle", () => {
 
   it("produces ciphertext that does not contain the plaintext", async () => {
     const { vaultKey } = await createVault(PASSWORD);
-    const sealed = await sealJson(vaultKey, { secret: "hunter2-unmistakable" });
+    const sealed = await sealJson(vaultKey, { secret: "hunter2-unmistakable" }); // gitleaks:allow -- fixture
     expect(sealed.ctB64).not.toContain("hunter2");
     expect(atob(sealed.ctB64)).not.toContain("hunter2");
   });
@@ -150,12 +150,13 @@ describe("password-optional headers", () => {
 
   it("preserves unlocks when re-wrapping the password", async () => {
     const { header } = await createVault(PASSWORD);
+    if (!header.kdf || !header.wrap) throw new Error("missing password wrap");
     const withUnlocks = {
       ...header,
       unlocks: {
         pin: {
-          kdf: header.kdf!,
-          wrap: header.wrap!,
+          kdf: header.kdf,
+          wrap: header.wrap,
         },
       },
     };

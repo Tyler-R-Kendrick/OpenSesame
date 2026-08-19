@@ -1,26 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
 import { IconAlert, IconCheck } from "../../components/Icons.js";
 import {
-  getTaskBusConfig,
-  pingTaskBus,
-  putTaskBusConfig,
-  type TaskBusConfig,
-} from "../../lib/taskbus.js";
-import {
   ensureHostSession,
   hostLocalSessionEligible,
   useIdentitySession,
 } from "../../lib/identity.js";
-import { useOnline } from "../../lib/use-online.js";
 import { usePlaneStatus } from "../../lib/planes.js";
 import {
   taskBusControlsDisabled,
   taskBusEnvOverrideNotice,
-  taskBusSaveFlash,
   taskBusPingFlash,
-  taskBusStatusTone,
+  taskBusSaveFlash,
   taskBusShowNatsUrlField,
+  taskBusStatusTone,
 } from "../../lib/taskbus-panel.js";
+import {
+  type TaskBusConfig,
+  getTaskBusConfig,
+  pingTaskBus,
+  putTaskBusConfig,
+} from "../../lib/taskbus.js";
+import { useOnline } from "../../lib/use-online.js";
 
 type Flash = { tone: "ok" | "err" | "warn"; text: string };
 
@@ -111,8 +111,8 @@ export function TaskBusPanel() {
           <p>
             Messaging for backup wakes, webhooks, and rotation. Configure the
             URL the <strong>Host</strong> dials — e.g.{" "}
-            <code>nats://your-box.tailXXXX.ts.net:4222</code>. This browser never
-            opens NATS.
+            <code>nats://your-box.tailXXXX.ts.net:4222</code>. This browser
+            never opens NATS.
           </p>
         </div>
       </div>
@@ -126,9 +126,7 @@ export function TaskBusPanel() {
         ) : (
           <div className="stack">
             {config ? (
-              <p
-                className={`note note--${taskBusStatusTone(config)}`}
-              >
+              <p className={`note note--${taskBusStatusTone(config)}`}>
                 {config.lastError ? <IconAlert /> : <IconCheck />} backend{" "}
                 <strong>{config.backend}</strong> · source{" "}
                 <strong>{config.source}</strong> · {config.status}

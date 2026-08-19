@@ -1,10 +1,6 @@
-import { describe, expect, it } from "vitest";
 import { PNG } from "pngjs";
-import {
-  MAX_DIFF_RATIO,
-  comparePngBuffers,
-  isUpdateMode,
-} from "./compare.js";
+import { describe, expect, it } from "vitest";
+import { MAX_DIFF_RATIO, comparePngBuffers, isUpdateMode } from "./compare.js";
 
 function solidPng(width: number, height: number, fill: number): Buffer {
   const img = new PNG({ width, height });
@@ -45,11 +41,12 @@ describe("PACT — visual-contract compare", () => {
 
   it("contract: rebaseline is opt-in via VISUAL_UPDATE=1", () => {
     const previous = process.env.VISUAL_UPDATE;
-    delete process.env.VISUAL_UPDATE;
+    Reflect.deleteProperty(process.env, "VISUAL_UPDATE");
     expect(isUpdateMode()).toBe(false);
     process.env.VISUAL_UPDATE = "1";
     expect(isUpdateMode()).toBe(true);
-    if (previous === undefined) delete process.env.VISUAL_UPDATE;
-    else process.env.VISUAL_UPDATE = previous;
+    if (previous === undefined) {
+      Reflect.deleteProperty(process.env, "VISUAL_UPDATE");
+    } else process.env.VISUAL_UPDATE = previous;
   });
 });

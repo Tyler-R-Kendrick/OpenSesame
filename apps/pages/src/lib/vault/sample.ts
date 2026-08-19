@@ -24,7 +24,7 @@ export function buildSample(folderId: string): VaultItem[] {
   const bank = createItem("login", "Northwind Bank");
   if (bank.kind === "login") {
     bank.username = "avery@example.com";
-    bank.password = "Fjord-Lantern-Cobalt-7";
+    bank.password = "Fjord-Lantern-Cobalt-7"; // gitleaks:allow -- sample vault
     bank.totp = "JBSWY3DPEHPK3PXP";
     bank.uris = [newUri("https://northwind.example.com")];
     bank.passwordChangedAt = daysAgo(40);
@@ -77,7 +77,7 @@ export function buildSample(folderId: string): VaultItem[] {
 
   const secret = createItem("secret", "Deploy webhook");
   if (secret.kind === "secret") {
-    secret.value = "whsec_3f7a1c9d4b8e2a6f0c5d1e9b7a3f2c8d";
+    secret.value = "whsec_3f7a1c9d4b8e2a6f0c5d1e9b7a3f2c8d"; // gitleaks:allow -- sample vault
     secret.connectionRef = "conn_deploy_webhook";
     secret.grantees = ["agt_release_bot"];
     secret.ceiling = [

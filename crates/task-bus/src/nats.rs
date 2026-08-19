@@ -48,6 +48,7 @@ pub struct NatsJetStreamTaskBus {
 
 impl NatsJetStreamTaskBus {
     pub async fn connect(config: NatsJetStreamConfig) -> anyhow::Result<Self> {
+        crate::validate_nats_url(&config.nats_url).map_err(|e| anyhow::anyhow!("{e}"))?;
         let client = async_nats::connect(config.nats_url.as_str()).await?;
         let js = jetstream::new(client);
 

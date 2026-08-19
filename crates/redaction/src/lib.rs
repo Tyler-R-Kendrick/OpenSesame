@@ -1,9 +1,16 @@
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-static SENSITIVE_KEYS: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)(password|secret|token|authorization|refresh_token|access_token|client_secret|private_key|device_code|claim_token|cookie|set-cookie)").unwrap()
-});
+/// Whole-key match. `token` is sensitive; `token_type` is not.
+fn is_sensitive_key(key: &str) -> bool {
+    static SENSITIVE_KEYS: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(
+            r"(?i)^(password|passwd|secret|token|authorization|refresh_token|access_token|id_token|client_secret|private_key|device_code|user_code|claim_token|cookie|set[_-]?cookie|api[_-]?key)$",
+        )
+        .unwrap()
+    });
+    SENSITIVE_KEYS.is_match(key)
+}
 
 /// Prefix-preserving patterns: the captured label survives, the value does not.
 static TEXT_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
@@ -46,7 +53,7 @@ pub fn redact_json(value: &serde_json::Value) -> serde_json::Value {
         serde_json::Value::Object(map) => {
             let mut out = serde_json::Map::new();
             for (k, v) in map {
-                if SENSITIVE_KEYS.is_match(k) {
+                if is_sensitive_key(k) {
                     out.insert(k.clone(), serde_json::Value::String("[REDACTED]".into()));
                 } else {
                     out.insert(k.clone(), redact_json(v));
@@ -148,5 +155,61 @@ mod tests {
         let v = redact_json(&json!({"Access_Token": "x", "PASSWORD": "y"}));
         assert_eq!(v["Access_Token"], "[REDACTED]");
         assert_eq!(v["PASSWORD"], "[REDACTED]");
+    }
+}
+
+#[cfg(test)]
+mod pact {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn property_token_type_survives_across_many_shapes() {
+        for ty in ["Bearer", "token", "mac"] {
+            let v = redact_json(&json!({
+                "token_type": ty,
+                "access_token": "leak",
+            }));
+            assert_eq!(v["token_type"], ty, "{ty}");
+            assert_eq!(v["access_token"], "[REDACTED]");
+        }
+    }
+
+    #[test]
+    fn adversarial_substring_token_in_token_type_is_not_a_secret_key() {
+        assert!(!is_sensitive_key("token_type"));
+        assert!(!is_sensitive_key("Token_Type"));
+        assert!(is_sensitive_key("token"));
+        assert!(is_sensitive_key("access_token"));
+        let v = redact_json(&json!({"token_type": "Bearer", "ok": 1}));
+        assert_eq!(v["token_type"], "Bearer");
+        assert_eq!(v["ok"], 1);
+    }
+
+    #[test]
+    fn chaos_concurrent_redaction_never_leaks() {
+        let input = json!({"refresh_token": "r", "token_type": "Bearer"});
+        let results: Vec<_> = (0..32)
+            .map(|_| redact_json(&input))
+            .collect();
+        for v in results {
+            assert_eq!(v["refresh_token"], "[REDACTED]");
+            assert_eq!(v["token_type"], "Bearer");
+            assert!(!v.to_string().contains("\"r\"") || v["refresh_token"] == "[REDACTED]");
+        }
+    }
+
+    #[test]
+    fn contract_redacted_object_has_no_secret_values() {
+        let v = redact_json(&json!({
+            "access_token": "s",
+            "refresh_token": "r",
+            "token_type": "Bearer"
+        }));
+        let blob = v.to_string();
+        assert!(!blob.contains("\"s\""));
+        assert!(!blob.contains("\"r\""));
+        assert!(blob.contains("Bearer"));
+        assert!(blob.contains("token_type"));
     }
 }

@@ -1,12 +1,9 @@
-import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  assertNoSecretFields,
-  assertSourceOrder,
-} from "@opensesame/testing";
 import { createCursor } from "@opensesame/client-core";
+import { assertNoSecretFields, assertSourceOrder } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 
 const here = dirname(fileURLToPath(import.meta.url));
 

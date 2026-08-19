@@ -7,6 +7,7 @@
   "scripts": {
     "test": "vitest run && playwright test",
     "test:visual": "playwright test",
+    "test:integration": "playwright test",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

@@ -6,7 +6,6 @@ import {
   PrincipalMeResponseSchema,
 } from "@opensesame/contracts";
 import { DEFAULT_PROVISIONAL_QUOTA } from "@opensesame/policy";
-import { describe, expect, it } from "vitest";
 import {
   assertAtMostWins,
   assertExclusiveClaim,
@@ -16,9 +15,10 @@ import {
   checkThenSetAdmitsDoubleClaim,
   countConcurrentWins,
 } from "@opensesame/testing";
-import { buildOpenApiDocument } from "../openapi.js";
+import { describe, expect, it } from "vitest";
 import { loadConfig } from "../config.js";
 import { createControlPlane } from "../create-app.js";
+import { buildOpenApiDocument } from "../openapi.js";
 import { serializeKeyed } from "../serialize.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -73,8 +73,10 @@ describe("PACT — Identity plane mutation oracles", () => {
 
   it("claims increment the fence before verify and quota before create", () => {
     assertSourceOrder(src("../routes/claims.ts"), [
-      "serializeKeyed(ctx.stores.principalMutations, principalId",
-      "action: \"claim.create\"",
+      "return serializeKeyed(",
+      "ctx.stores.principalMutations",
+      "principalId",
+      'action: "claim.create"',
       "ctx.claims.createClaim",
     ]);
     assertSourceOrder(src("../routes/claims.ts"), [
@@ -85,15 +87,34 @@ describe("PACT — Identity plane mutation oracles", () => {
 
   it("MFA fingerprints and increments before verify", () => {
     assertSourceOrder(src("../routes/mfa.ts"), [
-      "ctx.stores.mfaAnon.set(fingerprint, stamps)",
+      "consumeAnonymousMfaBudget(ctx.stores.mfaAnon, fingerprint, now)",
       "ctx.stores.mfaFailures.set(fenceKey, prior + 1)",
       "ctx.passkeys.verify",
     ]);
   });
 
+  it("project and OAuth client creation serialize quota before insert", () => {
+    assertSourceOrder(src("../routes/projects.ts"), [
+      "return serializeKeyed(",
+      "ctx.stores.principalMutations",
+      "principalId",
+      'action: "project.create"',
+      "ctx.stores.projects.set",
+    ]);
+    assertSourceOrder(src("../routes/oauth-clients.ts"), [
+      "return serializeKeyed(",
+      "ctx.stores.principalMutations",
+      '"oauth-clients"',
+      "assertRegistrationQuota",
+      "ctx.stores.oauthClients.set",
+    ]);
+  });
+
   it("organization create serializes quota check before insert", () => {
     assertSourceOrder(src("../routes/organizations.ts"), [
-      "serializeKeyed(ctx.stores.principalMutations, principalId",
+      "return serializeKeyed(",
+      "ctx.stores.principalMutations",
+      "principalId",
       "organization.create",
       "ctx.stores.organizations.set",
     ]);
@@ -101,7 +122,7 @@ describe("PACT — Identity plane mutation oracles", () => {
 
   it("provisional mint fingerprints before create", () => {
     assertSourceOrder(src("../routes/principals.ts"), [
-      "ctx.stores.provisionalMints.set(fingerprint, stamps)",
+      "ctx.stores.provisionalMints",
       "createProvisionalPrincipal",
     ]);
   });
@@ -246,6 +267,16 @@ describe("PACT — Identity plane property / chaos / authz", () => {
     );
   });
 
+  it("rejects oversized request bodies before route parsing", async () => {
+    const { app } = plane();
+    const res = await app.request("/v1/mfa/passkey/assert", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ credentialId: "x".repeat(257 * 1024) }),
+    });
+    expect(res.status).toBe(413);
+  });
+
   it("exclusive in-memory claim wins once", async () => {
     const keys = new Set<string>();
     await assertExclusiveClaim(() => {
@@ -310,7 +341,9 @@ describe("PACT — Identity plane contract / fail-closed", () => {
         try {
           assertFailClosedStatuses(op.responses, ["401"]);
         } catch (err) {
-          throw new Error(`${method.toUpperCase()} ${path}: ${(err as Error).message}`);
+          throw new Error(
+            `${method.toUpperCase()} ${path}: ${(err as Error).message}`,
+          );
         }
       }
     }

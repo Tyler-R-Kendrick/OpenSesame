@@ -1,11 +1,12 @@
-import { describe, expect, it } from "vitest";
 import {
   assertAtMostWins,
   assertExclusiveClaim,
   assertNoSecretFields,
   checkThenSetAdmitsDoubleClaim,
 } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 import {
+  authenticateClaim,
   canTransitionClaim,
   completeClaim,
   elevatePrincipalAssurance,
@@ -13,7 +14,6 @@ import {
   parseClaimToken,
   presentClaim,
   reviewClaim,
-  authenticateClaim,
 } from "../index.js";
 
 describe("PACT — os-domain", () => {
@@ -70,7 +70,9 @@ describe("PACT — os-domain", () => {
     const p = fixtures.provisionalPrincipal();
     await Promise.all(
       Array.from({ length: 32 }, () =>
-        Promise.resolve(elevatePrincipalAssurance(p, "verified", "active", fixtures.now)),
+        Promise.resolve(
+          elevatePrincipalAssurance(p, "verified", "active", fixtures.now),
+        ),
       ),
     ).then((all) => {
       for (const next of all) {

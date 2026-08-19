@@ -21,6 +21,29 @@ pub enum OpenFgaError {
 
 pub type Result<T> = std::result::Result<T, OpenFgaError>;
 
+/// Operator PDP base URL: https, or loopback http. No userinfo (SSRF / credential leak).
+pub fn assert_pdp_base_url(raw: &str) -> Result<()> {
+    let url = url::Url::parse(raw.trim()).map_err(|e| OpenFgaError::Config(e.to_string()))?;
+    if !url.username().is_empty() || url.password().is_some() {
+        return Err(OpenFgaError::Config(
+            "PDP URL must not embed credentials".into(),
+        ));
+    }
+    let loopback = match url.host() {
+        Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
+        Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
+        Some(url::Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
+        None => false,
+    };
+    match url.scheme() {
+        "https" => Ok(()),
+        "http" if loopback => Ok(()),
+        _ => Err(OpenFgaError::Config(
+            "PDP URL must be https or loopback http".into(),
+        )),
+    }
+}
+
 /// Interpret an OpenFGA Check HTTP body.
 ///
 /// `allowed` is true only when the field is the JSON boolean `true`. A missing
@@ -63,6 +86,7 @@ impl OpenFgaClient {
         let store_id = std::env::var("OPENSESAME_OPENFGA_STORE_ID").map_err(|_| {
             OpenFgaError::Config("OPENSESAME_OPENFGA_STORE_ID required when URL is set".into())
         })?;
+        assert_pdp_base_url(&base)?;
         Ok(Some(Self::new(base, store_id)))
     }
 
@@ -75,6 +99,7 @@ impl OpenFgaClient {
     }
 
     pub async fn health(&self) -> Result<()> {
+        assert_pdp_base_url(&self.base)?;
         let url = format!("{}/healthz", self.base);
         let resp = self
             .http
@@ -93,6 +118,7 @@ impl OpenFgaClient {
     }
 
     pub async fn create_store(&self, name: &str) -> Result<String> {
+        assert_pdp_base_url(&self.base)?;
         let url = format!("{}/stores", self.base);
         let resp = self
             .http
@@ -116,6 +142,7 @@ impl OpenFgaClient {
     }
 
     pub async fn write_authorization_model(&self, model: Value) -> Result<String> {
+        assert_pdp_base_url(&self.base)?;
         let url = format!(
             "{}/stores/{}/authorization-models",
             self.base, self.store_id
@@ -143,6 +170,7 @@ impl OpenFgaClient {
     }
 
     pub async fn write_tuples(&self, writes: &[TupleKey]) -> Result<()> {
+        assert_pdp_base_url(&self.base)?;
         let url = format!("{}/stores/{}/write", self.base, self.store_id);
         let writes: Vec<Value> = writes
             .iter()
@@ -169,6 +197,7 @@ impl OpenFgaClient {
     }
 
     pub async fn check_tuple(&self, tuple: &TupleKey) -> Result<bool> {
+        assert_pdp_base_url(&self.base)?;
         let url = format!("{}/stores/{}/check", self.base, self.store_id);
         let resp = self
             .http
@@ -270,6 +299,69 @@ mod tests {
         assert!(!parse_check_response(&json!({"allowed": false})).unwrap());
         assert!(parse_check_response(&json!({"allowed": true})).unwrap());
         assert!(parse_check_response(&json!({"allowed": "yes"})).is_err());
+    }
+}
+
+#[cfg(test)]
+mod pact {
+    use super::*;
+
+    #[test]
+    fn property_https_and_loopback_http_are_accepted() {
+        for ok in [
+            "https://fga.example",
+            "http://127.0.0.1:8080",
+            "http://localhost:8080",
+            "http://[::1]:8080",
+        ] {
+            assert!(assert_pdp_base_url(ok).is_ok(), "{ok}");
+        }
+    }
+
+    #[test]
+    fn adversarial_cleartext_remote_and_userinfo_are_refused() {
+        for bad in [
+            "http://evil.example/check",
+            "https://user:secret@fga.example",
+            "ftp://127.0.0.1",
+            "not-a-url",
+        ] {
+            assert!(assert_pdp_base_url(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn chaos_missing_allowed_never_becomes_allow() {
+        for body in [json!({}), json!({"allowed": false}), json!({"allowed": "yes"})] {
+            let allowed = parse_check_response(&body).unwrap_or(false);
+            assert!(!allowed, "{body}");
+        }
+    }
+
+    #[test]
+    fn contract_http_guard_is_in_source_before_send() {
+        let src = include_str!("lib.rs");
+        let production = src.split("#[cfg(test)]").next().unwrap();
+        for method in [
+            "health",
+            "create_store",
+            "write_authorization_model",
+            "write_tuples",
+            "check_tuple",
+        ] {
+            let body = production
+                .split(&format!("pub async fn {method}"))
+                .nth(1)
+                .unwrap_or_else(|| panic!("{method}"));
+            let body = body.split("\n    pub async fn ").next().unwrap();
+            let pin = body
+                .find("assert_pdp_base_url(&self.base)")
+                .unwrap_or_else(|| panic!("{method} guard"));
+            let send = body
+                .find(".send()")
+                .unwrap_or_else(|| panic!("{method} send"));
+            assert!(pin < send, "{method}");
+        }
     }
 
     #[tokio::test]

@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import { defineTool } from "eve/tools";
@@ -46,13 +46,19 @@ export default defineTool({
     const hits: Candidate[] = [];
     const cap = limit ?? 40;
     for (const jsonPath of jsonFiles) {
-      let data: { path?: string; candidates?: Array<{ vulnSlug?: string; line?: number }> };
+      let data: {
+        path?: string;
+        candidates?: Array<{ vulnSlug?: string; line?: number }>;
+      };
       try {
         data = JSON.parse(readFileSync(jsonPath, "utf8")) as typeof data;
       } catch {
         continue;
       }
-      const rel = typeof data.path === "string" ? data.path : relative(repoRoot, jsonPath);
+      const rel =
+        typeof data.path === "string"
+          ? data.path
+          : relative(repoRoot, jsonPath);
       if (pathPrefix && !rel.startsWith(pathPrefix)) continue;
       for (const c of data.candidates ?? []) {
         const s = c.vulnSlug;

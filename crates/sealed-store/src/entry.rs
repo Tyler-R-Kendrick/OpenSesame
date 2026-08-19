@@ -86,7 +86,7 @@ mod tests {
 
     #[test]
     fn parses_otpauth_from_trailer() {
-        let text = "password\n\nurl: https://x\notpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ\n";
+        let text = "password\n\nurl: https://x\notpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ\n"; // gitleaks:allow -- RFC fixture
         let e = Entry::parse(text);
         assert_eq!(e.secret, "password");
         assert!(e.otp.is_some());
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn with_otp_injects_trailer_line() {
         let otp = parse_otpauth(
-            "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+            "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", // gitleaks:allow -- RFC fixture
         )
         .unwrap();
         let e = Entry {

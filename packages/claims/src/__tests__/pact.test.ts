@@ -1,6 +1,6 @@
 import { fixtures } from "@opensesame/os-domain";
-import { describe, expect, it } from "vitest";
 import { countConcurrentWins } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 import { ClaimEngine, MemoryClaimStore } from "../index.js";
 
 describe("PACT — claim exclusive complete", () => {

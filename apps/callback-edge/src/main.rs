@@ -153,6 +153,8 @@ mod tests {
         );
     }
 
+    // The process-global environment must stay locked until the handler has read it.
+    #[allow(clippy::await_holding_lock)]
     #[tokio::test]
     async fn missing_secret_is_unconfigured_not_open() {
         let _guard = env_lock();
@@ -166,6 +168,8 @@ mod tests {
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     }
 
+    // The process-global environment must stay locked until the handler has read it.
+    #[allow(clippy::await_holding_lock)]
     #[tokio::test]
     async fn valid_hmac_is_accepted() {
         let _guard = env_lock();

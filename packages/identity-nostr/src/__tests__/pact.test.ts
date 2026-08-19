@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { assertAtMostWins, assertSourceOrder } from "@opensesame/testing";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertAtMostWins, assertSourceOrder } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 import {
   NOSTR_ASSURANCE,
   assertNostrPubkey,
@@ -16,8 +16,12 @@ const hex = "ab".repeat(32);
 describe("PACT — identity-nostr", () => {
   it("property: pubkey is 64 lowercase hex, never a principal id", () => {
     expect(() => assertNostrPubkey(hex)).not.toThrow();
-    expect(() => assertNostrPubkey("npub1alice")).toThrow(/nostr_pubkey_invalid/);
-    expect(() => assertNostrPubkey("prn_alice")).toThrow(/nostr_pubkey_invalid/);
+    expect(() => assertNostrPubkey("npub1alice")).toThrow(
+      /nostr_pubkey_invalid/,
+    );
+    expect(() => assertNostrPubkey("prn_alice")).toThrow(
+      /nostr_pubkey_invalid/,
+    );
     expect(NOSTR_ASSURANCE).toBe("self_asserted");
   });
 
@@ -56,7 +60,7 @@ describe("PACT — identity-nostr", () => {
     );
     assertSourceOrder(readFileSync(join(here, "../index.ts"), "utf8"), [
       "assertNostrPubkey(input.pubkey)",
-      "throw new Error(\"nostr_adapter_unimplemented\")",
+      'throw new Error("nostr_adapter_unimplemented")',
     ]);
   });
 });

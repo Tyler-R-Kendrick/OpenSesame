@@ -3,13 +3,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRepositories } from "@opensesame/database";
 import { fixtures } from "@opensesame/os-domain";
-import { describe, expect, it } from "vitest";
 import {
   assertDurableSurvivesPartition,
   assertExclusiveClaim,
   assertNoSecretFields,
   assertSourceOrder,
 } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 import { createFakeClock, runCleanupTick } from "../cleanup.js";
 import { MemoryTaskBus } from "../taskBus.js";
 

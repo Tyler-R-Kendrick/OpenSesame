@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type {
+  AuditActorType,
   AuditEvent,
   AuditOutcome,
-  AuditActorType,
 } from "@opensesame/os-domain";
 import { redactAuditMetadata } from "./redact.js";
 

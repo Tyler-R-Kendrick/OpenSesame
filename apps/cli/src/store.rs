@@ -10,7 +10,7 @@ use opensesame_sealed_store::{
     git_passthrough, init_store, init_store_key, load_tomb_registry, parse_manifest, parse_otpauth,
     push_backup, remote_url, resolve_store_dir, resolve_tomb_paths, rotate_secret_entry,
     save_tomb_registry, seal_manifest, set_auto_push, set_remote, totp_code, unlock_store_key,
-    validate_otpauth, Entry, TombBackend, TombEntry, UpdateMode, UpdateOptions, StoreRoot,
+    validate_otpauth, Entry, StoreRoot, TombBackend, TombEntry, UpdateMode, UpdateOptions,
 };
 use regex::Regex;
 
@@ -260,7 +260,11 @@ pub fn cmd_mv(
     Ok(())
 }
 
-pub fn cmd_git(args: Vec<String>, path: Option<PathBuf>, tomb: Option<String>) -> anyhow::Result<i32> {
+pub fn cmd_git(
+    args: Vec<String>,
+    path: Option<PathBuf>,
+    tomb: Option<String>,
+) -> anyhow::Result<i32> {
     let root_path = resolve_root(path, tomb.as_deref())?;
     git_passthrough(&root_path, &args).map_err(|e| anyhow::anyhow!("{e}"))
 }
@@ -398,7 +402,10 @@ pub fn cmd_otp_code(
         .duration_since(UNIX_EPOCH)
         .map_err(|e| anyhow::anyhow!("{e}"))?
         .as_secs();
-    println!("{}", totp_code(&otp, now).map_err(|e| anyhow::anyhow!("{e}"))?);
+    println!(
+        "{}",
+        totp_code(&otp, now).map_err(|e| anyhow::anyhow!("{e}"))?
+    );
     Ok(())
 }
 
@@ -627,9 +634,7 @@ pub fn cmd_rotate(
     for name in targets {
         let entry = root.show(&name, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
         if !opts.force {
-            let ans = prompt_line(&format!(
-                "Rotate password for {name}? [y/N]"
-            ))?;
+            let ans = prompt_line(&format!("Rotate password for {name}? [y/N]"))?;
             if !matches!(ans.to_ascii_lowercase().as_str(), "y" | "yes") {
                 eprintln!("skipped {name}");
                 continue;
@@ -745,12 +750,7 @@ fn which_tomb() -> Option<PathBuf> {
 }
 
 /// Build argv for `tomb open|close` (no sudo).
-pub fn linux_tomb_args(
-    open: bool,
-    volume: &Path,
-    key: &Path,
-    mount: &Path,
-) -> Vec<String> {
+pub fn linux_tomb_args(open: bool, volume: &Path, key: &Path, mount: &Path) -> Vec<String> {
     if open {
         vec![
             "open".into(),

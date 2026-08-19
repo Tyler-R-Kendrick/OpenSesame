@@ -17,6 +17,7 @@ import {
   identityFetch,
 } from "./identity.js";
 import {
+  loadSettings,
   saveSettings,
   shippedHostApi,
   shippedIdentityApi,
@@ -132,6 +133,17 @@ afterEach(() => {
 });
 
 describe("Identity cookie resume", () => {
+  it("drops a bearer before sending to a changed Identity origin", async () => {
+    saveSettings({ ...loadSettings(), identityApi: "http://127.0.0.1:19999" });
+    const fetch = stubFetch(() => jsonResponse({ error: "unauthorized" }, 401));
+
+    await identityFetch("/v1/principals/me");
+
+    expect(currentSession()).toBeNull();
+    const headers = new Headers(fetch.mock.calls[0]?.[1]?.headers);
+    expect(headers.has("authorization")).toBe(false);
+  });
+
   it("keeps the same principal without exposing or replacing its bearer", async () => {
     clearSession();
     const fetch = stubFetch((url) => {

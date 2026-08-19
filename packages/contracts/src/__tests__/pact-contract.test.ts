@@ -1,3 +1,7 @@
+import {
+  assertFailClosedStatuses,
+  assertNoSecretFields,
+} from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
 import {
   CreateClaimRequestSchema,
@@ -10,10 +14,6 @@ import {
   TaskBusConfigSchema,
 } from "../taskbus.js";
 import { taskBusOpenApi } from "../taskbus.openapi.js";
-import {
-  assertFailClosedStatuses,
-  assertNoSecretFields,
-} from "@opensesame/testing";
 
 describe("PACT — published contracts fail closed", () => {
   it("TaskBus OpenAPI documents authz and forbids secret fields", () => {
@@ -113,7 +113,12 @@ describe("PACT — published contracts fail closed", () => {
   });
 
   it("chaos: extra credential fields on TaskBus configs are rejected", () => {
-    for (const leak of ["access_token", "refresh_token", "client_secret", "pem"]) {
+    for (const leak of [
+      "access_token",
+      "refresh_token",
+      "client_secret",
+      "pem",
+    ]) {
       expect(
         TaskBusConfigSchema.safeParse({
           backend: "memory",

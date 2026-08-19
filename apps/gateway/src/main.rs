@@ -1,5 +1,6 @@
 //! OpenSesame Host API (gateway).
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
+#![cfg_attr(test, allow(clippy::await_holding_lock))] // Tests serialize process-global env mutations.
 
 mod app_state;
 mod backup;
@@ -87,7 +88,11 @@ mod pact_coverage {
     fn device_capacity_check_holds_the_map_lock() {
         opensesame_host_core::pact::assert_source_order(
             include_str!("routes/device.rs"),
-            &["device_codes.lock()", "map.len() >= 512", "map.insert"],
+            &[
+                "device_codes.lock()",
+                "map.len() >= MAX_PENDING_DEVICE_CODES",
+                "map.insert",
+            ],
         );
     }
 
@@ -170,4 +175,3 @@ mod pact_coverage {
         );
     }
 }
-

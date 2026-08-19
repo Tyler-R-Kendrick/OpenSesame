@@ -9,10 +9,12 @@
   "scripts": {
     "start": "node --import tsx src/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:integration": "vitest run src/pact.test.ts src/tools.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
+    "@opensesame/observability": "workspace:*",
     "@opensesame/telemetry": "workspace:*",
     "posthog-node": "5.48.1",
     "zod": "3.25.67"

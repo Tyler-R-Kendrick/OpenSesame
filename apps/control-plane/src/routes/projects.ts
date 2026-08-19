@@ -22,6 +22,7 @@ import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { serializeKeyed } from "../serialize.js";
 import { getUsage } from "../state.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
@@ -299,28 +300,6 @@ projectRoutes.post(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
-    const principal = await ctx.repos.principals.getById(principalId);
-    if (!principal) {
-      return c.json({ error: "not_found" }, 404);
-    }
-
-    const decision = ctx.policy.evaluate(
-      principal,
-      {
-        subject: {
-          type: "principal",
-          id: principal.id,
-          assurance: principal.assurance,
-        },
-        action: "project.create",
-        resource: { type: "project", id: "*" },
-      },
-      getUsage(ctx.stores, principalId, ctx.clock()),
-    );
-    if (decision.effect === "deny") {
-      return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
-    }
-
     const rawBody = (await c.req.json()) as Record<string, unknown>;
     const parsed = CreateProjectRequestSchema.safeParse(rawBody);
     if (!parsed.success) {
@@ -330,87 +309,120 @@ projectRoutes.post(
       );
     }
 
-    if (parsed.data.organizationId) {
-      const membership = ctx.stores.organizationMemberships.get(
-        `${parsed.data.organizationId}:${principalId}`,
-      );
-      const organization = ctx.stores.organizations.get(
-        parsed.data.organizationId,
-      );
-      if (!organization || organization.state === "deleted" || !membership) {
-        return c.json({ error: "organization_not_found" }, 404);
-      }
-    }
+    return serializeKeyed(
+      ctx.stores.principalMutations,
+      principalId,
+      async () => {
+        const principal = await ctx.repos.principals.getById(principalId);
+        if (!principal) {
+          return c.json({ error: "not_found" }, 404);
+        }
 
-    const now = ctx.clock();
-    const derivedSlug = slugify(parsed.data.displayName);
-    const slug =
-      parsed.data.slug ??
-      (derivedSlug.length > 0
-        ? derivedSlug
-        : `project-${randomUUID().slice(0, 8)}`);
-    if (slug === PERSONAL_PROJECT_SLUG) {
-      return c.json(
-        {
-          error: "validation_error",
-          message: "Use POST /v1/projects/personal/ensure for the personal project",
-        },
-        400,
-      );
-    }
-    const slugTaken = visibleProjects(ctx, principalId, now).some(
-      ({ project }) => project.slug === slug,
-    );
-    if (slugTaken) {
-      return c.json({ error: "slug_taken" }, 409);
-    }
+        const decision = ctx.policy.evaluate(
+          principal,
+          {
+            subject: {
+              type: "principal",
+              id: principal.id,
+              assurance: principal.assurance,
+            },
+            action: "project.create",
+            resource: { type: "project", id: "*" },
+          },
+          getUsage(ctx.stores, principalId, ctx.clock()),
+        );
+        if (decision.effect === "deny") {
+          return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
+        }
 
-    const project: Project = {
-      id: `prj_${randomUUID()}`,
-      kind: "standard",
-      slug,
-      displayName: parsed.data.displayName,
-      state: "active",
-      ownerPrincipalId: principalId,
-      createdAt: now,
-      updatedAt: now,
-      ...(parsed.data.organizationId !== undefined
-        ? { organizationId: parsed.data.organizationId }
-        : {}),
-    };
-    const tomb =
-      typeof rawBody.sealedStoreTombName === "string"
-        ? rawBody.sealedStoreTombName.trim()
-        : "";
-    if (tomb) project.sealedStoreTombName = tomb;
-    const folder =
-      typeof rawBody.pagesVaultFolderId === "string"
-        ? rawBody.pagesVaultFolderId.trim()
-        : "";
-    if (folder) project.pagesVaultFolderId = folder;
+        if (parsed.data.organizationId) {
+          const membership = ctx.stores.organizationMemberships.get(
+            `${parsed.data.organizationId}:${principalId}`,
+          );
+          const organization = ctx.stores.organizations.get(
+            parsed.data.organizationId,
+          );
+          if (
+            !organization ||
+            organization.state === "deleted" ||
+            !membership
+          ) {
+            return c.json({ error: "organization_not_found" }, 404);
+          }
+        }
 
-    ctx.stores.projects.set(project.id, project);
-    ctx.stores.projectMemberships.set(
-      projectMembershipKey(project.id, principalId),
-      {
-        projectId: project.id,
-        principalId,
-        role: "owner",
-        createdAt: now,
-        updatedAt: now,
+        const now = ctx.clock();
+        const derivedSlug = slugify(parsed.data.displayName);
+        const slug =
+          parsed.data.slug ??
+          (derivedSlug.length > 0
+            ? derivedSlug
+            : `project-${randomUUID().slice(0, 8)}`);
+        if (slug === PERSONAL_PROJECT_SLUG) {
+          return c.json(
+            {
+              error: "validation_error",
+              message:
+                "Use POST /v1/projects/personal/ensure for the personal project",
+            },
+            400,
+          );
+        }
+        const slugTaken = visibleProjects(ctx, principalId, now).some(
+          ({ project }) => project.slug === slug,
+        );
+        if (slugTaken) {
+          return c.json({ error: "slug_taken" }, 409);
+        }
+
+        const project: Project = {
+          id: `prj_${randomUUID()}`,
+          kind: "standard",
+          slug,
+          displayName: parsed.data.displayName,
+          state: "active",
+          ownerPrincipalId: principalId,
+          createdAt: now,
+          updatedAt: now,
+          ...(parsed.data.organizationId !== undefined
+            ? { organizationId: parsed.data.organizationId }
+            : {}),
+        };
+        const tomb =
+          typeof rawBody.sealedStoreTombName === "string"
+            ? rawBody.sealedStoreTombName.trim()
+            : "";
+        if (tomb) project.sealedStoreTombName = tomb;
+        const folder =
+          typeof rawBody.pagesVaultFolderId === "string"
+            ? rawBody.pagesVaultFolderId.trim()
+            : "";
+        if (folder) project.pagesVaultFolderId = folder;
+
+        ctx.stores.projects.set(project.id, project);
+        ctx.stores.projectMemberships.set(
+          projectMembershipKey(project.id, principalId),
+          {
+            projectId: project.id,
+            principalId,
+            role: "owner",
+            createdAt: now,
+            updatedAt: now,
+          },
+        );
+
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "project.created",
+          outcome: "succeeded",
+          principalId,
+          projectId: project.id,
+          correlationId: c.get("correlationId"),
+          metadata: { action: "project.create", slug: project.slug },
+        });
+
+        return c.json(projectDetailResponse(project, "owner"), 201);
       },
     );
-
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "project.created",
-      outcome: "succeeded",
-      principalId,
-      projectId: project.id,
-      correlationId: c.get("correlationId"),
-      metadata: { action: "project.create", slug: project.slug },
-    });
-
-    return c.json(projectDetailResponse(project, "owner"), 201);
   },
 );
 
@@ -493,7 +505,10 @@ projectRoutes.post(
       });
     }
 
-    return c.json(personalEnsureResponse(project, created), created ? 201 : 200);
+    return c.json(
+      personalEnsureResponse(project, created),
+      created ? 201 : 200,
+    );
   },
 );
 
@@ -644,20 +659,32 @@ projectRoutes.patch("/:id", requirePrincipal(), async (c) => {
   }
   if (body.sealedStoreTombName !== undefined) {
     if (body.sealedStoreTombName === null || !body.sealedStoreTombName.trim()) {
-      delete next.sealedStoreTombName;
+      Reflect.deleteProperty(next, "sealedStoreTombName");
     } else {
-      if (!tombName.test(body.sealedStoreTombName.trim()) || body.sealedStoreTombName.includes("..")) {
-        return c.json({ error: "validation_error", message: "invalid sealedStoreTombName" }, 400);
+      if (
+        !tombName.test(body.sealedStoreTombName.trim()) ||
+        body.sealedStoreTombName.includes("..")
+      ) {
+        return c.json(
+          { error: "validation_error", message: "invalid sealedStoreTombName" },
+          400,
+        );
       }
       next.sealedStoreTombName = body.sealedStoreTombName.trim();
     }
   }
   if (body.pagesVaultFolderId !== undefined) {
     if (body.pagesVaultFolderId === null || !body.pagesVaultFolderId.trim()) {
-      delete next.pagesVaultFolderId;
+      Reflect.deleteProperty(next, "pagesVaultFolderId");
     } else {
-      if (!folderId.test(body.pagesVaultFolderId.trim()) || body.pagesVaultFolderId.includes("..")) {
-        return c.json({ error: "validation_error", message: "invalid pagesVaultFolderId" }, 400);
+      if (
+        !folderId.test(body.pagesVaultFolderId.trim()) ||
+        body.pagesVaultFolderId.includes("..")
+      ) {
+        return c.json(
+          { error: "validation_error", message: "invalid pagesVaultFolderId" },
+          400,
+        );
       }
       next.pagesVaultFolderId = body.pagesVaultFolderId.trim();
     }

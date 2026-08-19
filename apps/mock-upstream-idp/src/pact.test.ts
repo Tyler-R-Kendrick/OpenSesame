@@ -1,15 +1,15 @@
 import { createHash, randomBytes } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   assertExclusiveClaim,
   assertNoSecretFields,
   assertSourceOrder,
 } from "@opensesame/testing";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { createMockUpstreamIdp } from "./server.js";
+import { describe, expect, it } from "vitest";
 import { assertMockIdpListenAllowed } from "./config.js";
+import { createMockUpstreamIdp } from "./server.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -33,9 +33,9 @@ async function listenIdp() {
 describe("PACT — mock-upstream-idp", () => {
   it("property: listen is loopback-only without an override", () => {
     expect(() => assertMockIdpListenAllowed("127.0.0.1")).not.toThrow();
-    expect(() =>
-      assertMockIdpListenAllowed("0.0.0.0", {}),
-    ).toThrow(/not loopback/);
+    expect(() => assertMockIdpListenAllowed("0.0.0.0", {})).toThrow(
+      /not loopback/,
+    );
   });
 
   it("adversarial: PKCE is required and wrong client is 400", async () => {
@@ -43,7 +43,10 @@ describe("PACT — mock-upstream-idp", () => {
     try {
       const noPkce = new URL(`${base}/authorize`);
       noPkce.searchParams.set("client_id", idp.config.clientId);
-      noPkce.searchParams.set("redirect_uri", idp.config.redirectUris[0] ?? "http://127.0.0.1/cb");
+      noPkce.searchParams.set(
+        "redirect_uri",
+        idp.config.redirectUris[0] ?? "http://127.0.0.1/cb",
+      );
       noPkce.searchParams.set("response_type", "code");
       const res = await fetch(noPkce, { redirect: "manual" });
       expect(res.status).toBe(400);
@@ -61,7 +64,9 @@ describe("PACT — mock-upstream-idp", () => {
     idp.config.redirectUris = [redirectUri];
     try {
       const verifier = randomBytes(32).toString("base64url");
-      const challenge = createHash("sha256").update(verifier).digest("base64url");
+      const challenge = createHash("sha256")
+        .update(verifier)
+        .digest("base64url");
       const authUrl = new URL(`${base}/authorize`);
       authUrl.searchParams.set("client_id", idp.config.clientId);
       authUrl.searchParams.set("redirect_uri", redirectUri);
@@ -71,7 +76,9 @@ describe("PACT — mock-upstream-idp", () => {
       authUrl.searchParams.set("code_challenge_method", "S256");
       const authRes = await fetch(authUrl, { redirect: "manual" });
       const location = authRes.headers.get("location");
-      const code = new URL(location ?? "http://127.0.0.1/").searchParams.get("code");
+      const code = new URL(location ?? "http://127.0.0.1/").searchParams.get(
+        "code",
+      );
       expect(code).toBeTruthy();
 
       const tokenBody = new URLSearchParams({

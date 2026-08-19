@@ -19,6 +19,8 @@ import type { SealedBlob, VaultHeader } from "./crypto.js";
 
 export const OFFLINE_BACKUP_FORMAT = "opensesame-offline-backup" as const;
 export const OFFLINE_BACKUP_VERSION = 1 as const;
+export const MAX_OFFLINE_BACKUP_BYTES = 64 * 1024 * 1024;
+const MAX_SYNC_BLOBS = 4096;
 
 export type SyncBlobCiphertext = {
   id: string;
@@ -126,7 +128,9 @@ export function buildOfflineBackup(input: {
   return envelope;
 }
 
-export function serializeOfflineBackup(envelope: OfflineBackupEnvelope): string {
+export function serializeOfflineBackup(
+  envelope: OfflineBackupEnvelope,
+): string {
   if (envelope.deploymentSealUsed !== false) {
     throw new Error("offline backup must not use deployment seal");
   }
@@ -136,6 +140,9 @@ export function serializeOfflineBackup(envelope: OfflineBackupEnvelope): string 
 }
 
 export function parseOfflineBackup(fileText: string): OfflineBackupEnvelope {
+  if (fileText.length > MAX_OFFLINE_BACKUP_BYTES) {
+    throw new Error("That offline backup is larger than 64 MB.");
+  }
   assertCiphertextOnlyBackupJson(fileText);
   let parsed: unknown;
   try {
@@ -147,7 +154,10 @@ export function parseOfflineBackup(fileText: string): OfflineBackupEnvelope {
     throw new Error("That file is not an OpenSesame offline backup.");
   }
   const row = parsed as Record<string, unknown>;
-  if (row.format !== OFFLINE_BACKUP_FORMAT || row.v !== OFFLINE_BACKUP_VERSION) {
+  if (
+    row.format !== OFFLINE_BACKUP_FORMAT ||
+    row.v !== OFFLINE_BACKUP_VERSION
+  ) {
     throw new Error("That file is not an OpenSesame offline backup.");
   }
   if (row.deploymentSealUsed !== false) {
@@ -162,6 +172,10 @@ export function parseOfflineBackup(fileText: string): OfflineBackupEnvelope {
   const syncBlobs = Array.isArray(row.syncBlobs)
     ? (row.syncBlobs as SyncBlobCiphertext[])
     : [];
+  if (syncBlobs.length > MAX_SYNC_BLOBS) {
+    throw new Error("That backup has too many sync blobs.");
+  }
+  let syncBytes = 0;
   for (const blob of syncBlobs) {
     if (
       !blob ||
@@ -171,6 +185,10 @@ export function parseOfflineBackup(fileText: string): OfflineBackupEnvelope {
       !blob.ciphertextB64
     ) {
       throw new Error("That backup has a malformed sync blob.");
+    }
+    syncBytes += blob.ciphertextB64.length;
+    if (syncBytes > MAX_OFFLINE_BACKUP_BYTES) {
+      throw new Error("That backup's sync ciphertext is larger than 64 MB.");
     }
   }
   return {
@@ -192,9 +210,7 @@ function cacheKey(projectId: string | null): string {
 }
 
 /** Persist last known ciphertext envelope for offline reads. */
-export function cacheCiphertextSnapshot(
-  envelope: OfflineBackupEnvelope,
-): void {
+export function cacheCiphertextSnapshot(envelope: OfflineBackupEnvelope): void {
   const json = serializeOfflineBackup(envelope);
   kvSet(cacheKey(envelope.projectId), json);
 }
@@ -224,7 +240,10 @@ function loadMutationQueue(): OfflineVaultMutation[] {
 }
 
 function saveMutationQueue(items: OfflineVaultMutation[]): void {
-  kvSet(MUTATION_QUEUE_KEY, JSON.stringify(items.slice(-MAX_OFFLINE_MUTATIONS)));
+  kvSet(
+    MUTATION_QUEUE_KEY,
+    JSON.stringify(items.slice(-MAX_OFFLINE_MUTATIONS)),
+  );
 }
 
 /** Queue a ciphertext mutation while offline (never plaintext). */

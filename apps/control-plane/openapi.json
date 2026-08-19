@@ -86,9 +86,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "organizations"
-                  ],
+                  "required": ["organizations"],
                   "properties": {
                     "organizations": {
                       "type": "array",
@@ -222,9 +220,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "members"
-                  ],
+                  "required": ["members"],
                   "properties": {
                     "members": {
                       "type": "array",
@@ -502,9 +498,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "projects"
-                  ],
+                  "required": ["projects"],
                   "properties": {
                     "projects": {
                       "type": "array",
@@ -790,9 +784,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "members"
-                  ],
+                  "required": ["members"],
                   "properties": {
                     "members": {
                       "type": "array",
@@ -1097,10 +1089,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "acceptedItemIds",
-                  "userCode"
-                ],
+                "required": ["acceptedItemIds", "userCode"],
                 "properties": {
                   "acceptedItemIds": {
                     "type": "array",
@@ -1296,28 +1285,16 @@
     "schemas": {
       "OrganizationState": {
         "type": "string",
-        "enum": [
-          "provisional",
-          "active",
-          "suspended",
-          "deleted"
-        ]
+        "enum": ["provisional", "active", "suspended", "deleted"]
       },
       "OrganizationRole": {
         "type": "string",
-        "enum": [
-          "owner",
-          "admin",
-          "member"
-        ]
+        "enum": ["owner", "admin", "member"]
       },
       "CreateOrganization": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "slug",
-          "displayName"
-        ],
+        "required": ["slug", "displayName"],
         "properties": {
           "slug": {
             "type": "string",
@@ -1407,10 +1384,7 @@
       "AddOrganizationMember": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "principalId",
-          "role"
-        ],
+        "required": ["principalId", "role"],
         "properties": {
           "principalId": {
             "type": "string",
@@ -1424,9 +1398,7 @@
       "ChangeOrganizationMemberRole": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "role"
-        ],
+        "required": ["role"],
         "properties": {
           "role": {
             "$ref": "#/components/schemas/OrganizationRole"
@@ -1435,36 +1407,20 @@
       },
       "ProjectState": {
         "type": "string",
-        "enum": [
-          "provisional",
-          "active",
-          "expired",
-          "deleting",
-          "deleted"
-        ]
+        "enum": ["provisional", "active", "expired", "deleting", "deleted"]
       },
       "ProjectKind": {
         "type": "string",
-        "enum": [
-          "personal",
-          "standard",
-          "temporary"
-        ]
+        "enum": ["personal", "standard", "temporary"]
       },
       "ProjectRole": {
         "type": "string",
-        "enum": [
-          "owner",
-          "admin",
-          "member"
-        ]
+        "enum": ["owner", "admin", "member"]
       },
       "CreateProject": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "displayName"
-        ],
+        "required": ["displayName"],
         "properties": {
           "displayName": {
             "type": "string",
@@ -1537,10 +1493,7 @@
       "ActiveProject": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "project",
-          "isFallback"
-        ],
+        "required": ["project", "isFallback"],
         "properties": {
           "project": {
             "$ref": "#/components/schemas/Project"
@@ -1554,9 +1507,7 @@
       "SetActiveProject": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "projectId"
-        ],
+        "required": ["projectId"],
         "properties": {
           "projectId": {
             "type": "string",
@@ -1597,10 +1548,7 @@
       "AddProjectMember": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "principalId",
-          "role"
-        ],
+        "required": ["principalId", "role"],
         "properties": {
           "principalId": {
             "type": "string",
@@ -1614,9 +1562,7 @@
       "ChangeProjectMemberRole": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "role"
-        ],
+        "required": ["role"],
         "properties": {
           "role": {
             "$ref": "#/components/schemas/ProjectRole"
@@ -1625,9 +1571,7 @@
       },
       "DeviceApproval": {
         "type": "object",
-        "required": [
-          "user_code"
-        ],
+        "required": ["user_code"],
         "properties": {
           "user_code": {
             "type": "string",
@@ -1640,11 +1584,7 @@
       },
       "DeviceApprovalResult": {
         "type": "object",
-        "required": [
-          "ok",
-          "status",
-          "body"
-        ],
+        "required": ["ok", "status", "body"],
         "properties": {
           "ok": {
             "type": "boolean"

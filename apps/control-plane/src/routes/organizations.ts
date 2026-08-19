@@ -17,8 +17,8 @@ import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
-import { getUsage } from "../state.js";
 import { serializeKeyed } from "../serialize.js";
+import { getUsage } from "../state.js";
 
 export const organizationRoutes = new Hono<{ Variables: Variables }>();
 
@@ -235,60 +235,67 @@ organizationRoutes.post(
       );
     }
 
-    return serializeKeyed(ctx.stores.principalMutations, principalId, async () => {
-    const decision = ctx.policy.evaluate(
-      principal,
-      {
-        subject: {
-          type: "principal",
-          id: principal.id,
-          assurance: principal.assurance,
-        },
-        action: "organization.create",
-        resource: { type: "organization", id: "*" },
+    return serializeKeyed(
+      ctx.stores.principalMutations,
+      principalId,
+      async () => {
+        const decision = ctx.policy.evaluate(
+          principal,
+          {
+            subject: {
+              type: "principal",
+              id: principal.id,
+              assurance: principal.assurance,
+            },
+            action: "organization.create",
+            resource: { type: "organization", id: "*" },
+          },
+          getUsage(ctx.stores, principalId, ctx.clock()),
+        );
+        if (decision.effect === "deny") {
+          return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
+        }
+
+        if (ctx.stores.organizationSlugs.has(parsed.data.slug)) {
+          return c.json({ error: "slug_taken" }, 409);
+        }
+
+        const now = ctx.clock();
+        const org: Organization = {
+          // Rust Host APIs use the canonical opaque-id spelling `org:<uuid>`.
+          id: `org:${randomUUID()}`,
+          slug: parsed.data.slug,
+          displayName: parsed.data.displayName,
+          state: "active",
+          createdBy: principalId,
+          createdAt: now,
+          updatedAt: now,
+        };
+        ctx.stores.organizations.set(org.id, org);
+        ctx.stores.organizationSlugs.set(org.slug, org.id);
+        ctx.stores.organizationMemberships.set(
+          membershipKey(org.id, principalId),
+          {
+            organizationId: org.id,
+            principalId,
+            role: "owner",
+            createdAt: now,
+            updatedAt: now,
+          },
+        );
+
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "organization.created",
+          outcome: "succeeded",
+          principalId,
+          organizationId: org.id,
+          correlationId: c.get("correlationId"),
+          metadata: { action: "organization.create", slug: org.slug },
+        });
+
+        return c.json(toResponse(org, "owner"), 201);
       },
-      getUsage(ctx.stores, principalId, ctx.clock()),
     );
-    if (decision.effect === "deny") {
-      return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
-    }
-
-    if (ctx.stores.organizationSlugs.has(parsed.data.slug)) {
-      return c.json({ error: "slug_taken" }, 409);
-    }
-
-    const now = ctx.clock();
-    const org: Organization = {
-      // Rust Host APIs use the canonical opaque-id spelling `org:<uuid>`.
-      id: `org:${randomUUID()}`,
-      slug: parsed.data.slug,
-      displayName: parsed.data.displayName,
-      state: "active",
-      createdBy: principalId,
-      createdAt: now,
-      updatedAt: now,
-    };
-    ctx.stores.organizations.set(org.id, org);
-    ctx.stores.organizationSlugs.set(org.slug, org.id);
-    ctx.stores.organizationMemberships.set(membershipKey(org.id, principalId), {
-      organizationId: org.id,
-      principalId,
-      role: "owner",
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "organization.created",
-      outcome: "succeeded",
-      principalId,
-      organizationId: org.id,
-      correlationId: c.get("correlationId"),
-      metadata: { action: "organization.create", slug: org.slug },
-    });
-
-    return c.json(toResponse(org, "owner"), 201);
-    });
   },
 );
 

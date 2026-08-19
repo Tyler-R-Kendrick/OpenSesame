@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { assertSourceOrder } from "@opensesame/testing";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertSourceOrder } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 import { sealDevOnly } from "./index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));

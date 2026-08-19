@@ -3,13 +3,13 @@ import { type Folder, createItem } from "./model.js";
 import {
   entriesToVaultItems,
   entryToVaultItem,
+  filterEntriesForProject,
   joinStorePath,
   planManifestMerge,
-  splitStorePath,
-  vaultItemToEntry,
-  filterEntriesForProject,
-  storePathToSyncBlobId,
   sealedBytesToSyncBlobs,
+  splitStorePath,
+  storePathToSyncBlobId,
+  vaultItemToEntry,
 } from "./store-sync.js";
 
 describe("store-sync mapping", () => {
@@ -61,7 +61,7 @@ describe("store-sync mapping", () => {
       path: "Email/site",
       secret: "pw",
       trailer:
-        'otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ\n{"kind":"login","username":"a"}\n',
+        'otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ\n{"kind":"login","username":"a"}\n', // gitleaks:allow -- RFC fixture
     });
     expect(item.kind).toBe("login");
     if (item.kind === "login") {
@@ -74,7 +74,7 @@ describe("store-sync mapping", () => {
     const item = createItem("login", "site");
     if (item.kind === "login") {
       item.password = "pw";
-      item.totp = "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+      item.totp = "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"; // gitleaks:allow -- RFC fixture
     }
     const entry = vaultItemToEntry(item, []);
     expect(entry.trailer).toMatch(/otpauth:\/\/totp\/Demo/);
@@ -86,9 +86,9 @@ describe("store-sync mapping", () => {
       { path: "work/api", secret: "b", trailer: "{}" },
       { path: "orphan", secret: "c", trailer: "{}" },
     ];
-    expect(filterEntriesForProject(entries, "personal").map((e) => e.path)).toEqual([
-      "personal/api",
-    ]);
+    expect(
+      filterEntriesForProject(entries, "personal").map((e) => e.path),
+    ).toEqual(["personal/api"]);
     expect(filterEntriesForProject(entries, null)).toHaveLength(3);
   });
 
@@ -100,7 +100,9 @@ describe("store-sync mapping", () => {
     ]);
     expect(blobs[0]?.ciphertextB64).toBe(btoa("\u0001\u0002\u0003"));
     expect(() =>
-      sealedBytesToSyncBlobs([{ id: "x", epoch: 1, ciphertext: new Uint8Array() }]),
+      sealedBytesToSyncBlobs([
+        { id: "x", epoch: 1, ciphertext: new Uint8Array() },
+      ]),
     ).toThrow(/empty ciphertext/);
   });
 });

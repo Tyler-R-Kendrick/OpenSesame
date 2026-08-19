@@ -60,7 +60,11 @@ function idpFetch(): typeof fetch {
     }
     if (url.endsWith("/token")) {
       return new Response(
-        JSON.stringify({ access_token: "at-1", token_type: "Bearer", expires_in: 3600 }),
+        JSON.stringify({
+          access_token: "at-1",
+          token_type: "Bearer",
+          expires_in: 3600,
+        }),
       );
     }
     if (url.endsWith("/v1/principals/me")) {
@@ -94,7 +98,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  delete process.env.OPENSESAME_STATE_DIR;
+  Reflect.deleteProperty(process.env, "OPENSESAME_STATE_DIR");
 });
 
 describe("cli session file", () => {
@@ -106,11 +110,16 @@ describe("cli session file", () => {
     expect(code).toBe(0);
     const info = await stat(sessionFile());
     expect(info.mode & 0o777).toBe(0o600);
-    expect(JSON.parse(await readFile(sessionFile(), "utf8")).accessToken).toBe("at-1");
+    expect(JSON.parse(await readFile(sessionFile(), "utf8")).accessToken).toBe(
+      "at-1",
+    );
   });
 
   it("takes the private bits back from a file left open by an earlier version", async () => {
-    await writeSession({ accessToken: "old", issuer: ISSUER, clientId: "c" }, 0o644);
+    await writeSession(
+      { accessToken: "old", issuer: ISSUER, clientId: "c" },
+      0o644,
+    );
     const code = await runCli(["login", "--device", "--issuer", ISSUER], {
       fetchImpl: idpFetch(),
       sleep: async () => undefined,
@@ -124,7 +133,9 @@ describe("cli session file", () => {
       { accessToken: "at-1", issuer: ISSUER, clientId: "opensesame-cli" },
       0o644,
     );
-    const code = await runCli(["whoami", "--issuer", ISSUER], { fetchImpl: idpFetch() });
+    const code = await runCli(["whoami", "--issuer", ISSUER], {
+      fetchImpl: idpFetch(),
+    });
     expect(code).toBe(1);
     expect(err).toMatch(/readable or writable by others/);
     expect(out).toMatch(/Not authenticated/);
@@ -137,22 +148,32 @@ describe("cli session file", () => {
       clientId: "opensesame-cli",
     });
     const seen: Array<string | null> = [];
-    const watchful = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      seen.push(new Headers(init?.headers).get("authorization"));
-      if (String(input).endsWith("/v1/principals/me")) {
-        return new Response(JSON.stringify({ id: "p-1" }), { status: 200 });
-      }
-      throw new Error(`unexpected ${String(input)}`);
-    }) as unknown as typeof fetch;
+    const watchful = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        seen.push(new Headers(init?.headers).get("authorization"));
+        if (String(input).endsWith("/v1/principals/me")) {
+          return new Response(JSON.stringify({ id: "p-1" }), { status: 200 });
+        }
+        throw new Error(`unexpected ${String(input)}`);
+      },
+    ) as unknown as typeof fetch;
 
     const elsewhere = await runCli(
-      ["whoami", "--issuer", "https://idp.other.test", "--api", "https://api.other.test"],
+      [
+        "whoami",
+        "--issuer",
+        "https://idp.other.test",
+        "--api",
+        "https://api.other.test",
+      ],
       { fetchImpl: watchful },
     );
     expect(elsewhere).toBe(1);
     expect(seen).toHaveLength(0);
 
-    const home = await runCli(["whoami", "--issuer", ISSUER], { fetchImpl: watchful });
+    const home = await runCli(["whoami", "--issuer", ISSUER], {
+      fetchImpl: watchful,
+    });
     expect(home).toBe(0);
     expect(seen).toEqual(["Bearer at-1"]);
   });
@@ -206,7 +227,9 @@ describe("cli session file", () => {
       clientId: "opensesame-cli",
       expiresAt: Date.now() - 1000,
     });
-    const code = await runCli(["whoami", "--issuer", ISSUER], { fetchImpl: idpFetch() });
+    const code = await runCli(["whoami", "--issuer", ISSUER], {
+      fetchImpl: idpFetch(),
+    });
     expect(code).toBe(1);
     expect(out).toMatch(/Not authenticated/);
   });

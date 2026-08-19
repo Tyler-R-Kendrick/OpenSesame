@@ -106,7 +106,9 @@ export function hostAuthHeaders(base = hostApiBase()): Record<string, string> {
     }
     const allowed = process.env.OPENSESAME_HOST_AUDIENCE?.trim();
     if (allowed && new URL(base).origin !== new URL(allowed).origin) {
-      throw new Error("OPENSESAME_SERVER does not match OPENSESAME_HOST_AUDIENCE");
+      throw new Error(
+        "OPENSESAME_SERVER does not match OPENSESAME_HOST_AUDIENCE",
+      );
     }
     const token = session.startsWith("opaque-session:")
       ? session

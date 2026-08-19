@@ -1,13 +1,17 @@
 import { generateKeyPairSync } from "node:crypto";
-import Provider, { errors, type ClientMetadata, type Configuration } from "oidc-provider";
+import Provider, {
+  errors,
+  type ClientMetadata,
+  type Configuration,
+} from "oidc-provider";
 import { createMemoryAdapterConstructor } from "./adapter/memory-adapter.js";
 import type { OidcAdapterConstructor } from "./adapter/types.js";
 import { createClientAdmissionPolicy } from "./clients/admission.js";
 import { readOAuthProviderEnv } from "./env.js";
 import { SafeMetadataFetcher } from "./metadata/safe-fetcher.js";
 import {
-  createPairwiseIdentifierCallback,
   MemoryPairwiseSubjectStore,
+  createPairwiseIdentifierCallback,
 } from "./pairwise/store.js";
 import type { OAuthProviderEnv, PairwiseSubjectStore } from "./types.js";
 
@@ -94,7 +98,9 @@ function resolveJwks(
       throw new Error("OPENSESAME_JWKS_JSON is not valid JSON");
     }
     if (!Array.isArray(parsed.keys) || parsed.keys.length === 0) {
-      throw new Error("OPENSESAME_JWKS_JSON must contain a non-empty `keys` array");
+      throw new Error(
+        "OPENSESAME_JWKS_JSON must contain a non-empty `keys` array",
+      );
     }
     return { keys: parsed.keys };
   }
@@ -118,7 +124,8 @@ export function createOpenSesameProvider(
 ): OpenSesameProviderBundle {
   const baseEnv = readOAuthProviderEnv(options.processEnv ?? process.env);
   const env: OAuthProviderEnv = {
-    originClientsEnabled: options.env?.originClientsEnabled ?? baseEnv.originClientsEnabled,
+    originClientsEnabled:
+      options.env?.originClientsEnabled ?? baseEnv.originClientsEnabled,
     dcrEnabled: options.env?.dcrEnabled ?? baseEnv.dcrEnabled,
     cimdEnabled: options.env?.cimdEnabled ?? baseEnv.cimdEnabled,
     issuer: options.issuer ?? options.env?.issuer ?? baseEnv.issuer,
@@ -141,7 +148,8 @@ export function createOpenSesameProvider(
     );
   }
 
-  const pairwiseStore = options.pairwiseStore ?? new MemoryPairwiseSubjectStore();
+  const pairwiseStore =
+    options.pairwiseStore ?? new MemoryPairwiseSubjectStore();
   const admission = createClientAdmissionPolicy(env);
   const metadataFetcher = new SafeMetadataFetcher(env);
   const adapter: OidcAdapterConstructor =
@@ -169,10 +177,19 @@ export function createOpenSesameProvider(
       resourceIndicators: {
         enabled: true,
         defaultResource: async () => undefined,
-        getResourceServerInfo: async (_ctx: unknown, resourceIndicator: string) => {
+        getResourceServerInfo: async (
+          _ctx: unknown,
+          resourceIndicator: string,
+        ) => {
           // Without this check any client could obtain a signed JWT audienced to
           // an arbitrary resource server (RFC 8707 invalid_target).
-          if (!isResourceAllowed(resourceIndicator, env.allowedResources, env.issuer)) {
+          if (
+            !isResourceAllowed(
+              resourceIndicator,
+              env.allowedResources,
+              env.issuer,
+            )
+          ) {
             throw new errors.InvalidTarget(
               "resource indicator is not an allowed resource server",
             );

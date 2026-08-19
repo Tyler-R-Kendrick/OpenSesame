@@ -217,3 +217,47 @@ mod tests {
         assert_eq!(open(&sealed, &b).unwrap(), b"stable");
     }
 }
+
+#[cfg(test)]
+mod pact {
+    use super::*;
+
+    #[test]
+    fn property_seal_open_round_trips_many_payloads() {
+        let kp = XKeyPair::generate();
+        for payload in [b"" as &[u8], b"x", b"nats-e2ee-payload", &[7u8; 1024]] {
+            let sealed = seal(payload, &kp.public_key()).unwrap();
+            assert_eq!(open(&sealed, &kp).unwrap(), payload);
+        }
+    }
+
+    #[test]
+    fn adversarial_wrong_recipient_and_truncation_fail_closed() {
+        let alice = XKeyPair::generate();
+        let bob = XKeyPair::generate();
+        let sealed = seal(b"secret", &alice.public_key()).unwrap();
+        assert_eq!(open(&sealed, &bob), Err(XkeysError::Aead));
+        assert_eq!(open(&sealed[..8], &alice), Err(XkeysError::Truncated));
+    }
+
+    #[test]
+    fn chaos_tamper_never_opens() {
+        let kp = XKeyPair::generate();
+        let sealed = seal(b"hello", &kp.public_key()).unwrap();
+        for i in [0usize, sealed.len() / 2, sealed.len() - 1] {
+            let mut hostile = sealed.clone();
+            hostile[i] ^= 0xff;
+            assert!(open(&hostile, &kp).is_err());
+        }
+    }
+
+    #[test]
+    fn contract_production_source_does_not_load_host_seal_env() {
+        let src = include_str!("lib.rs");
+        let code = src.split("#[cfg(test)]").next().unwrap_or(src);
+        assert!(!code.contains("std::env") && !code.contains("ENV_CONNECTION"));
+        let sealed = seal(b"secret-item", &XKeyPair::generate().public_key()).unwrap();
+        let json = String::from_utf8_lossy(&sealed);
+        assert!(!json.contains("secret-item"));
+    }
+}

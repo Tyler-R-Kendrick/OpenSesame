@@ -1,6 +1,6 @@
+import type { ClaimStore } from "@opensesame/claims";
 import type { ClaimItem, ClaimSession, Clock } from "@opensesame/os-domain";
 import { DomainError } from "@opensesame/os-domain";
-import type { ClaimStore } from "@opensesame/claims";
 
 /**
  * In-memory ClaimStore with CAS + list support for worker cleanup.
@@ -71,7 +71,10 @@ export class IndexedClaimStore implements ClaimStore {
     this.items.set(claimId, structuredClone(items));
   }
 
-  async create(session: ClaimSession, items: ClaimItem[]): Promise<ClaimSession> {
+  async create(
+    session: ClaimSession,
+    items: ClaimItem[],
+  ): Promise<ClaimSession> {
     return this.withLock(session.id, async () => {
       this.prune();
       if (this.sessions.size >= this.maxSessions) {

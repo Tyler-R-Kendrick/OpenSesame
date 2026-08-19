@@ -41,9 +41,7 @@ export function taskBusPingFlash(
   };
 }
 
-export function taskBusStatusTone(
-  config: TaskBusConfig,
-): "ok" | "warn" {
+export function taskBusStatusTone(config: TaskBusConfig): "ok" | "warn" {
   if (config.lastError || config.status.includes("fail")) {
     return "warn";
   }
@@ -54,6 +52,8 @@ export function taskBusShowNatsUrlField(backend: "memory" | "nats"): boolean {
   return backend === "nats";
 }
 
-export function taskBusEnvOverrideNotice(source: TaskBusConfig["source"]): boolean {
+export function taskBusEnvOverrideNotice(
+  source: TaskBusConfig["source"],
+): boolean {
   return source === "env";
 }

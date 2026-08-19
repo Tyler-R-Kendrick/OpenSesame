@@ -1,18 +1,15 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { AuditEvent } from "@opensesame/os-domain";
+import { assertNoSecretFields, assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
-import {
-  assertNoSecretFields,
-  assertSourceOrder,
-} from "@opensesame/testing";
 import { appendAuditEvent } from "../append.js";
 import {
   AUDIT_CHAIN_GENESIS,
   createChainedAuditSink,
   verifyAuditChain,
 } from "../chain.js";
-import type { AuditEvent } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -31,7 +28,7 @@ describe("PACT — identity audit chain", () => {
   it("compares digests with timingSafeEqual after hashing canonical fields", () => {
     assertSourceOrder(readFileSync(join(here, "../chain.ts"), "utf8"), [
       "canonicalAuditPayload",
-      "createHash(\"sha256\")",
+      'createHash("sha256")',
       "timingSafeEqual",
       "queue.then",
     ]);

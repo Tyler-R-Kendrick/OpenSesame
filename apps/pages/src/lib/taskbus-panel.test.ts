@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
   GetTaskBusResponseSchema,
   PingTaskBusResponseSchema,
   PutTaskBusResponseSchema,
 } from "@opensesame/contracts";
+import { describe, expect, it } from "vitest";
 import {
   taskBusControlsDisabled,
   taskBusEnvOverrideNotice,
@@ -32,13 +32,13 @@ describe("taskbus panel logic", () => {
 
   it("derives save and ping flash copy", () => {
     expect(taskBusSaveFlash(true, stored).tone).toBe("ok");
-    expect(taskBusSaveFlash(false, { ...stored, lastError: "refused" }).text).toMatch(
-      /refused/,
-    );
+    expect(
+      taskBusSaveFlash(false, { ...stored, lastError: "refused" }).text,
+    ).toMatch(/refused/);
     expect(taskBusPingFlash(true, stored).tone).toBe("ok");
-    expect(taskBusPingFlash(false, { ...stored, lastError: "timeout" }).tone).toBe(
-      "err",
-    );
+    expect(
+      taskBusPingFlash(false, { ...stored, lastError: "timeout" }).tone,
+    ).toBe("err");
   });
 
   it("shows NATS field and env notice appropriately", () => {

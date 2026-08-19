@@ -407,6 +407,7 @@ fn flatten_scopes(scopes: &[String]) -> Vec<String> {
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)] // Directly receives the create subcommand's flat CLI flags.
 async fn create(
     server: &str,
     json_out: bool,
@@ -429,11 +430,11 @@ async fn create(
     let providers = list_providers(server).await?;
     let provider = find_provider(&providers, service)?;
     if help {
-        print_service_help(&provider);
+        print_service_help(provider);
         return Ok(());
     }
 
-    if !provider_flag(&provider, "configured") && !provider_flag(&provider, "auto_configurable") {
+    if !provider_flag(provider, "configured") && !provider_flag(provider, "auto_configurable") {
         let missing = string_list(&provider["missing_config"]);
         if !missing.is_empty() {
             eprintln!(
@@ -457,7 +458,7 @@ async fn create(
         }
     }
 
-    if !provider_flag(&provider, "auto_configurable") {
+    if !provider_flag(provider, "auto_configurable") {
         let fields = provider
             .get("connection_configuration_fields")
             .and_then(Value::as_array)
@@ -503,8 +504,7 @@ async fn create(
     let auth_kind = provider["auth_kind"].as_str().unwrap_or("");
     let mut view = created;
     if !configuration.is_empty() {
-        let configuration_set: serde_json::Map<String, Value> =
-            configuration.into_iter().map(|(k, v)| (k, v)).collect();
+        let configuration_set: serde_json::Map<String, Value> = configuration.into_iter().collect();
         let mut cred = json!({ "configuration_set": configuration_set });
         if auth_kind == "api_key" {
             if let Some(key) = configuration_set.get("api_key").and_then(Value::as_str) {
@@ -519,7 +519,7 @@ async fn create(
         )
         .await?;
     } else if auth_kind == "oauth2_authorization_code"
-        && provider_flag(&provider, "configured")
+        && provider_flag(provider, "configured")
         && view["status"].as_str() != Some("active")
     {
         view = authorize_oauth(server, &id, no_browser, yes).await?;
@@ -601,7 +601,7 @@ async fn authorize_oauth(
         open_url(url);
     }
     if yes && !io::stdin().is_terminal() {
-        return Ok(get_connection(server, id).await?);
+        return get_connection(server, id).await;
     }
     eprintln!("Waiting for the provider to return control to the Host…");
     let deadline = Instant::now() + CONSENT_TIMEOUT;
@@ -661,10 +661,7 @@ async fn list(
         println!("No connectors. Create one with `opensesame connect create <service>`.");
         return Ok(());
     }
-    println!(
-        "{:<28} {:<18} {:<12} {}",
-        "UID", "PROVIDER", "STATUS", "REF"
-    );
+    println!("{:<28} {:<18} {:<12} REF", "UID", "PROVIDER", "STATUS");
     for item in connections {
         println!(
             "{:<28} {:<18} {:<12} {}",
@@ -1257,9 +1254,7 @@ fn operator_header() -> String {
 fn authorization_headers() -> Vec<String> {
     let mut headers = Vec::new();
     if let Ok(token) = crate::load_access_token() {
-        if token.starts_with("operator:") {
-            headers.push(format!("Bearer {token}"));
-        } else if token.starts_with("opaque-session:") {
+        if token.starts_with("operator:") || token.starts_with("opaque-session:") {
             headers.push(format!("Bearer {token}"));
         }
     }

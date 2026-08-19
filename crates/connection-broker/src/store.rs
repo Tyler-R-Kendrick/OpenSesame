@@ -145,6 +145,8 @@ pub async fn insert_connection(pool: &SqlitePool, c: &ConnectionRow) -> Result<(
 }
 
 pub async fn get_connection(pool: &SqlitePool, id: &str) -> Result<Option<ConnectionRow>> {
+    // CONNECTION_COLUMNS is a compile-time constant; only `id` is data and it is bound.
+    // ast-grep-ignore: sql-format-injection
     let row = sqlx::query(&format!(
         "SELECT {CONNECTION_COLUMNS} FROM connections WHERE id = ?"
     ))
@@ -166,6 +168,8 @@ pub async fn list_connections(
     pool: &SqlitePool,
     organization_id: &str,
 ) -> Result<Vec<ConnectionRow>> {
+    // CONNECTION_COLUMNS is a compile-time constant; organization_id is bound.
+    // ast-grep-ignore: sql-format-injection
     let rows = sqlx::query(&format!(
         "SELECT {CONNECTION_COLUMNS} FROM connections WHERE organization_id = ? ORDER BY created_at ASC"
     ))
@@ -271,6 +275,13 @@ pub async fn invalidate_credential_unless_revoked(
         .bind(id)
         .execute(&mut *transaction)
         .await?;
+    append_backup_outbox(
+        &mut transaction,
+        "connection.credential.invalidated",
+        id,
+        detail,
+    )
+    .await?;
     sqlx::query("INSERT INTO connection_events (id, connection_id, kind, detail, at) VALUES (?, ?, ?, ?, ?)")
         .bind(uuid::Uuid::now_v7().to_string())
         .bind(id)
@@ -298,6 +309,13 @@ pub async fn revoke_local(pool: &SqlitePool, id: &str) -> Result<()> {
         .bind(id)
         .execute(&mut *transaction)
         .await?;
+    append_backup_outbox(
+        &mut transaction,
+        "connection.credential.revoked",
+        id,
+        "revoked",
+    )
+    .await?;
     transaction.commit().await?;
     Ok(())
 }
@@ -489,9 +507,7 @@ async fn append_backup_outbox(
     )
     .bind(uuid::Uuid::now_v7().to_string())
     .bind(event_type)
-    .bind(
-        serde_json::json!({"connection_id": connection_id, "detail": detail}).to_string(),
-    )
+    .bind(serde_json::json!({"connection_id": connection_id, "detail": detail}).to_string())
     .bind(Utc::now().to_rfc3339())
     .execute(&mut **transaction)
     .await?;
@@ -927,6 +943,8 @@ pub async fn insert_sync_target(pool: &SqlitePool, row: &SyncTargetRow) -> Resul
 
 pub async fn get_sync_target(pool: &SqlitePool, id: &str) -> Result<Option<SyncTargetRow>> {
     ensure_sync_targets_schema(pool).await?;
+    // SYNC_TARGET_COLUMNS is a compile-time constant; only `id` is data and it is bound.
+    // ast-grep-ignore: sql-format-injection
     let row = sqlx::query(&format!(
         "SELECT {SYNC_TARGET_COLUMNS} FROM sync_targets WHERE id = ?"
     ))
@@ -945,6 +963,8 @@ pub async fn list_sync_targets(
     ensure_sync_targets_schema(pool).await?;
     let rows = match (project_id, config_id) {
         (Some(project), Some(config)) => {
+            // SYNC_TARGET_COLUMNS is constant; all data values are bound below.
+            // ast-grep-ignore: sql-format-injection
             sqlx::query(&format!(
                 "SELECT {SYNC_TARGET_COLUMNS} FROM sync_targets \
                  WHERE organization_id = ? AND project_id = ? AND config_id = ? \
@@ -957,6 +977,8 @@ pub async fn list_sync_targets(
             .await?
         }
         (Some(project), None) => {
+            // SYNC_TARGET_COLUMNS is constant; all data values are bound below.
+            // ast-grep-ignore: sql-format-injection
             sqlx::query(&format!(
                 "SELECT {SYNC_TARGET_COLUMNS} FROM sync_targets \
                  WHERE organization_id = ? AND project_id = ? ORDER BY created_at ASC"
@@ -967,6 +989,8 @@ pub async fn list_sync_targets(
             .await?
         }
         (None, Some(config)) => {
+            // SYNC_TARGET_COLUMNS is constant; all data values are bound below.
+            // ast-grep-ignore: sql-format-injection
             sqlx::query(&format!(
                 "SELECT {SYNC_TARGET_COLUMNS} FROM sync_targets \
                  WHERE organization_id = ? AND config_id = ? ORDER BY created_at ASC"
@@ -977,6 +1001,8 @@ pub async fn list_sync_targets(
             .await?
         }
         (None, None) => {
+            // SYNC_TARGET_COLUMNS is constant; all data values are bound below.
+            // ast-grep-ignore: sql-format-injection
             sqlx::query(&format!(
                 "SELECT {SYNC_TARGET_COLUMNS} FROM sync_targets \
                  WHERE organization_id = ? ORDER BY created_at ASC"

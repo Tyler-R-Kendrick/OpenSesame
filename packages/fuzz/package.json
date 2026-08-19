@@ -19,7 +19,7 @@
     "@opensesame/os-domain": "workspace:*"
   },
   "devDependencies": {
-    "@jazzer.js/core": "2.1.0",
+    "@jazzer.js/core": "4.0.0",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "tsx": "4.20.3",

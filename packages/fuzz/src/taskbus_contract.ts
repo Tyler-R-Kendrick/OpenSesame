@@ -1,9 +1,9 @@
-import { FuzzedDataProvider } from "./provider.js";
 import {
   GetTaskBusResponseSchema,
   PutTaskBusRequestSchema,
   TaskBusConfigSchema,
 } from "@opensesame/contracts";
+import { FuzzedDataProvider } from "./provider.js";
 
 export function fuzz(data: Buffer): void {
   const p = new FuzzedDataProvider(data);

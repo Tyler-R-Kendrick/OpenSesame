@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { assertAtMostWins, assertSourceOrder } from "@opensesame/testing";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertAtMostWins, assertSourceOrder } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 import {
   ATPROTO_ASSURANCE,
   assertAtprotoDid,
@@ -45,15 +45,15 @@ describe("PACT — identity-atproto", () => {
   });
 
   it("contract: factory stays disabled unless the flag is exactly true", () => {
-    expect(createAtprotoAdapter({ OPENSESAME_ATPROTO_ENABLED: "" }).enabled).toBe(
-      false,
-    );
-    expect(createAtprotoAdapter({ OPENSESAME_ATPROTO_ENABLED: "1" }).enabled).toBe(
-      false,
-    );
+    expect(
+      createAtprotoAdapter({ OPENSESAME_ATPROTO_ENABLED: "" }).enabled,
+    ).toBe(false);
+    expect(
+      createAtprotoAdapter({ OPENSESAME_ATPROTO_ENABLED: "1" }).enabled,
+    ).toBe(false);
     assertSourceOrder(readFileSync(join(here, "../index.ts"), "utf8"), [
       "assertAtprotoDid(input.did)",
-      "throw new Error(\"atproto_adapter_unimplemented\")",
+      'throw new Error("atproto_adapter_unimplemented")',
     ]);
   });
 });

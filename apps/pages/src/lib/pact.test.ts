@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
 import { assertSourceOrder } from "@opensesame/testing";
-import { createVault } from "./vault/crypto.js";
-import { MIN_PIN_LENGTH, wrapVaultKeyWithPin } from "./vault/unlock-methods.js";
+import { describe, expect, it } from "vitest";
 import { kvGet } from "./kv.js";
 import { clearStagedClaimTokens, enqueue } from "./queue.js";
+import { createVault } from "./vault/crypto.js";
+import { MIN_PIN_LENGTH, wrapVaultKeyWithPin } from "./vault/unlock-methods.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -23,7 +23,9 @@ describe("PACT — Pages vault / queue / authz", () => {
 
     const raw = new Uint8Array(32);
     crypto.getRandomValues(raw);
-    await expect(wrapVaultKeyWithPin(raw, "123")).rejects.toThrow(/PIN must be/);
+    await expect(wrapVaultKeyWithPin(raw, "123")).rejects.toThrow(
+      /PIN must be/,
+    );
     expect(MIN_PIN_LENGTH).toBeGreaterThanOrEqual(8);
     raw.fill(0);
   });
@@ -47,6 +49,16 @@ describe("PACT — Pages vault / queue / authz", () => {
       "claims.iss",
       "claims.aud",
     ]);
+  });
+
+  it("passkey host repair survives the cross-origin localhost hop", () => {
+    const src = readFileSync(
+      join(here, "../sections/settings/UnlockMethodsPanel.tsx"),
+      "utf8",
+    );
+    expect(src).toContain('searchParams.set(ENROLL_PASSKEY_PARAM, "1")');
+    expect(src).toContain("window.location.assign(url)");
+    expect(src).not.toContain("sessionStorage");
   });
 
   it("contract: TaskBus Host responses parse strictly and reject secrets", async () => {

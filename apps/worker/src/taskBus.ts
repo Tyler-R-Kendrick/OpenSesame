@@ -11,10 +11,10 @@
  */
 
 import {
-  connect,
   type JetStreamClient,
   type NatsConnection,
   StringCodec,
+  connect,
 } from "nats";
 
 export interface BusEvent {
@@ -46,7 +46,11 @@ export function resolveTaskBusBackend(
 ): TaskBusBackend {
   const explicit = env.OPENSESAME_TASKBUS?.trim().toLowerCase();
   const natsUrl = env.NATS_URL?.trim();
-  if (explicit === "memory" || explicit === "inmemory" || explicit === "in-memory") {
+  if (
+    explicit === "memory" ||
+    explicit === "inmemory" ||
+    explicit === "in-memory"
+  ) {
     return "memory";
   }
   if (explicit === "nats" || explicit === "jetstream") {

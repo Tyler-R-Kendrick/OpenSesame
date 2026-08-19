@@ -30,6 +30,8 @@ pub struct GithubAppPending {
 pub struct DevicePending {
     /// `hash_secret(user_code)` — the low-entropy code is never held in cleartext.
     pub user_code_hash: String,
+    pub client_id: String,
+    pub scope: String,
     pub expires_at: chrono::DateTime<chrono::Utc>,
     pub approved: Option<ApprovedDevice>,
 }

@@ -35,16 +35,15 @@ impl GitHubAppConfig {
             .context("GitHub App id missing — set GITHUB_APP_ID")?;
         let installation_id =
             installation_id.or_else(|| non_empty_env("GITHUB_APP_INSTALLATION_ID"));
-        let private_key_pem = match private_key_path
-            .or_else(|| non_empty_env("GITHUB_APP_PRIVATE_KEY_PATH"))
-        {
-            Some(path) => std::fs::read_to_string(&path)
-                .with_context(|| format!("reading GitHub App private key from {path}"))?,
-            None => non_empty_env("GITHUB_APP_PRIVATE_KEY").context(
-                "GitHub App private key missing — set GITHUB_APP_PRIVATE_KEY_PATH (PEM file) \
+        let private_key_pem =
+            match private_key_path.or_else(|| non_empty_env("GITHUB_APP_PRIVATE_KEY_PATH")) {
+                Some(path) => std::fs::read_to_string(&path)
+                    .with_context(|| format!("reading GitHub App private key from {path}"))?,
+                None => non_empty_env("GITHUB_APP_PRIVATE_KEY").context(
+                    "GitHub App private key missing — set GITHUB_APP_PRIVATE_KEY_PATH (PEM file) \
                  or GITHUB_APP_PRIVATE_KEY (inline PEM)",
-            )?,
-        };
+                )?,
+            };
         Ok(Self {
             app_id,
             installation_id,

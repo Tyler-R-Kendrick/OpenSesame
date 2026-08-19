@@ -752,9 +752,10 @@ components:
         scope: { type: string }
     DeviceTokenRequest:
       type: object
-      required: [device_code, grant_type]
+      required: [device_code, client_id, grant_type]
       properties:
         device_code: { type: string }
+        client_id: { type: string, enum: [opensesame-cli, opensesame-pages] }
         grant_type: { type: string, const: "urn:ietf:params:oauth:grant-type:device_code" }
     HostSession:
       type: object

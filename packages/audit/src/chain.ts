@@ -87,6 +87,8 @@ export interface ChainedAuditSinkOptions {
    * the same queue that serializes appends.
    */
   tip?: string | (() => Promise<string | undefined>);
+  /** Retry once after another process wins the durable predecessor slot. */
+  retryOnConflict?: (error: unknown) => boolean;
 }
 
 /**
@@ -118,17 +120,26 @@ export function createChainedAuditSink(
         tip = AUDIT_CHAIN_GENESIS;
       }
     }
-    const previousDigest = tip;
-    const linked: AuditEvent = {
-      ...event,
-      previousDigest,
-      digest: auditEventDigest(event, previousDigest),
-    };
-    const stored = await inner.append(linked, uow);
-    // Only advance once the event is durable; a failed append must not leave a
-    // gap that later events would be measured against.
-    tip = linked.digest ?? previousDigest;
-    return stored;
+    for (let attempt = 0; ; attempt += 1) {
+      const previousDigest = tip;
+      const linked: AuditEvent = {
+        ...event,
+        previousDigest,
+        digest: auditEventDigest(event, previousDigest),
+      };
+      try {
+        const stored = await inner.append(linked, uow);
+        // Only advance once the event is durable; a failed append must not leave a
+        // gap that later events would be measured against.
+        tip = linked.digest ?? previousDigest;
+        return stored;
+      } catch (error) {
+        if (attempt > 0 || !resolveTip || !options.retryOnConflict?.(error)) {
+          throw error;
+        }
+        tip = (await resolveTip()) ?? AUDIT_CHAIN_GENESIS;
+      }
+    }
   }
 
   return {
@@ -168,10 +179,7 @@ export function verifyAuditChain(
       return { ok: false, reason: "broken", eventId: event.id };
     }
     if (
-      !equalDigest(
-        auditEventDigest(event, event.previousDigest),
-        event.digest,
-      )
+      !equalDigest(auditEventDigest(event, event.previousDigest), event.digest)
     ) {
       return { ok: false, reason: "altered", eventId: event.id };
     }

@@ -24,7 +24,44 @@ async function settleFonts(page: Page): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
 }
 
+async function mockPlaneApis(page: Page): Promise<void> {
+  await page.route("http://127.0.0.1:18787/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/v1/health" || path === "/health/live") {
+      await route.fulfill({ json: { status: "ok" } });
+    } else if (path === "/api/v1/session/local") {
+      await route.fulfill({
+        json: {
+          access_token: "opaque-session:visual-contract",
+          expires_in: 3600,
+          local_session: true,
+        },
+      });
+    } else if (path === "/api/v1/sync/blobs/push") {
+      await route.fulfill({
+        status: 500,
+        json: { error: "sync_storage_failed" },
+      });
+    } else if (path === "/api/v1/backup/target") {
+      await route.fulfill({
+        json: { target: { status: "active" }, pending_events: 4 },
+      });
+    } else {
+      await route.fulfill({ status: 401, json: { error: "unauthorized" } });
+    }
+  });
+  await page.route("http://127.0.0.1:18788/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    await route.fulfill(
+      path === "/v1/health/live"
+        ? { json: { status: "ok" } }
+        : { status: 401, json: { error: "unauthorized" } },
+    );
+  });
+}
+
 test.beforeEach(async ({ page }) => {
+  await mockPlaneApis(page);
   await page.addInitScript(() => {
     const style = document.createElement("style");
     style.textContent =
@@ -41,9 +78,7 @@ async function completeFirstRunUnlock(page: Page): Promise<void> {
 
   await page.locator("#master").fill(MASTER_PASSWORD);
   await page.locator("#confirm").fill(MASTER_PASSWORD);
-  await page
-    .getByLabel("I understand this vault cannot be recovered.")
-    .check();
+  await page.getByLabel("I understand this vault cannot be recovered.").check();
   await page.getByRole("button", { name: "Seal this device" }).click();
 
   await page.locator(".vault").waitFor({ state: "visible" });

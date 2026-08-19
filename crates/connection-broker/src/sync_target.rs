@@ -491,6 +491,11 @@ impl ConnectionBroker {
         if entries.is_empty() {
             return Ok(());
         }
+        if !env_sync_provider_supported(provider_id) {
+            return Err(BrokerError::Invalid(format!(
+                "sync invoke for provider `{provider_id}` / `{operation}` is not implemented"
+            )));
+        }
         match provider_id {
             "vercel" => self.sync_vercel(tokens, entries, project_id, config_id).await,
             "railway" => {
@@ -594,6 +599,12 @@ impl ConnectionBroker {
     }
 }
 
+/// Env/secret push is implemented only for these catalog ids. Others (including
+/// craft-bar names like `doppler`) fail closed rather than calling a CLI.
+fn env_sync_provider_supported(provider_id: &str) -> bool {
+    matches!(provider_id, "vercel" | "railway")
+}
+
 fn content_version_for(target_id: &str, key_names: &[String]) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
@@ -625,5 +636,44 @@ mod unit_tests {
         assert!(a.starts_with("cv_"));
         let c = content_version_for("t1", &["FOO".into()]);
         assert_ne!(a, c);
+    }
+}
+
+#[cfg(test)]
+mod pact {
+    use super::env_sync_provider_supported;
+
+    #[test]
+    fn property_only_vercel_and_railway_are_live_env_sync() {
+        for id in ["vercel", "railway"] {
+            assert!(env_sync_provider_supported(id), "{id}");
+        }
+    }
+
+    #[test]
+    fn adversarial_catalog_craft_bar_ids_are_refused() {
+        for id in ["doppler", "infisical", "vault", "aws", "github", ""] {
+            assert!(!env_sync_provider_supported(id), "{id}");
+        }
+    }
+
+    #[test]
+    fn chaos_interleaved_checks_stay_fail_closed() {
+        let ids = ["doppler", "vercel", "infisical", "railway", "doppler"];
+        let allowed: Vec<_> = ids
+            .iter()
+            .copied()
+            .filter(|id| env_sync_provider_supported(id))
+            .collect();
+        assert_eq!(allowed, ["vercel", "railway"]);
+    }
+
+    #[test]
+    fn contract_https_egress_guard_is_in_source_before_send() {
+        let src = include_str!("sync_target.rs");
+        let production = src.split("#[cfg(test)]").next().unwrap();
+        let https = production.find("sync egress requires https").expect("https fence");
+        let send = production.find(".send().await").expect("send");
+        assert!(https < send);
     }
 }

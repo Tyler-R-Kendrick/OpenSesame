@@ -8,7 +8,7 @@ import type {
   OutboxEvent,
   Principal,
 } from "@opensesame/os-domain";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, notExists, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type postgres from "postgres";
 import * as schema from "../schema/index.js";
@@ -21,14 +21,14 @@ import {
   type ExternalIdentityRepository,
   type NewOutboxEvent,
   NotFoundError,
-  type OutboxRepository,
   OUTBOX_CLAIM_HOLD_MS,
-  outboxClaimToken,
-  outboxHoldActive,
+  type OutboxRepository,
   type PrincipalRepository,
   type Repositories,
   type TransactionFn,
   type UnitOfWork,
+  outboxClaimToken,
+  outboxHoldActive,
 } from "./interfaces.js";
 
 export type Database = PostgresJsDatabase<typeof schema>;
@@ -239,6 +239,24 @@ export class PostgresRepositories implements Repositories {
         .limit(1);
       return row ? mapPrincipal(row) : null;
     },
+    deleteUnlinkedProvisional: async (id, uow) => {
+      const rows = await dbOf(uow, this.db)
+        .delete(schema.principals)
+        .where(
+          and(
+            eq(schema.principals.id, id),
+            eq(schema.principals.state, "provisional"),
+            notExists(
+              dbOf(uow, this.db)
+                .select({ id: schema.externalIdentities.id })
+                .from(schema.externalIdentities)
+                .where(eq(schema.externalIdentities.principalId, id)),
+            ),
+          ),
+        )
+        .returning({ id: schema.principals.id });
+      return rows.length > 0;
+    },
 
     update: async (id, patch, expectedVersion, uow) => {
       const [row] = await dbOf(uow, this.db)
@@ -305,7 +323,7 @@ export class PostgresRepositories implements Repositories {
       } catch (err) {
         if (isUniqueViolation(err)) {
           throw new ConflictError(
-            `external identity collision for kind+issuer+tenant+subject`,
+            "external identity collision for kind+issuer+tenant+subject",
           );
         }
         throw err;

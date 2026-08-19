@@ -17,6 +17,29 @@ pub enum AuthorityError {
     Provider(String),
 }
 
+/// Operator authority base URL: https, or loopback http. No userinfo.
+pub fn assert_authority_base_url(raw: &str) -> Result<(), AuthorityError> {
+    let url = url::Url::parse(raw.trim()).map_err(|e| AuthorityError::Provider(e.to_string()))?;
+    if !url.username().is_empty() || url.password().is_some() {
+        return Err(AuthorityError::Provider(
+            "authority URL must not embed credentials".into(),
+        ));
+    }
+    let loopback = match url.host() {
+        Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
+        Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
+        Some(url::Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
+        None => false,
+    };
+    match url.scheme() {
+        "https" => Ok(()),
+        "http" if loopback => Ok(()),
+        _ => Err(AuthorityError::Provider(
+            "authority URL must be https or loopback http".into(),
+        )),
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CredentialHandle {
     pub id: String,
@@ -196,6 +219,7 @@ impl OpenBaoHttpAuthority {
             .or_else(|_| std::env::var("BAO_TOKEN"))
             .or_else(|_| std::env::var("VAULT_TOKEN"))
             .map_err(|_| AuthorityError::Provider("OPENSESAME_OPENBAO_TOKEN required".into()))?;
+        assert_authority_base_url(&base)?;
         Ok(Some(Self::new(base, token)))
     }
 
@@ -214,6 +238,7 @@ impl OpenBaoHttpAuthority {
         body: Option<Value>,
     ) -> Result<Value, AuthorityError> {
         let url = format!("{}{}", self.base, path);
+        assert_authority_base_url(&self.base)?;
         let mut req = self
             .http
             .request(method, &url)
@@ -371,6 +396,57 @@ mod tests {
         let open = parse_sys_health(&json!({"sealed": false, "initialized": true})).unwrap();
         assert!(!open.sealed);
         assert!(open.quorum_ok);
+    }
+}
+
+#[cfg(test)]
+mod pact {
+    use super::*;
+
+    #[test]
+    fn property_https_and_loopback_http_are_accepted() {
+        for ok in [
+            "https://bao.example",
+            "http://127.0.0.1:8200",
+            "http://localhost:8200",
+            "http://[::1]:8200",
+        ] {
+            assert!(assert_authority_base_url(ok).is_ok(), "{ok}");
+        }
+    }
+
+    #[test]
+    fn adversarial_cleartext_remote_userinfo_and_bearer_are_refused() {
+        for bad in [
+            "http://evil.example",
+            "https://user:secret@bao.example",
+            "ftp://127.0.0.1",
+        ] {
+            assert!(assert_authority_base_url(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[tokio::test]
+    async fn chaos_sealed_and_missing_health_never_mint_handles() {
+        let sealed = MemoryAuthority {
+            quorum_ok: true,
+            sealed: true,
+        };
+        assert!(sealed.create_handle("k").await.is_err());
+        assert!(parse_sys_health(&json!({})).is_err());
+        assert!(handle_from_health(&json!({"sealed": true}), "k").is_err());
+    }
+
+    #[test]
+    fn contract_url_guard_is_in_source_before_send() {
+        let src = include_str!("lib.rs");
+        let production = src.split("#[cfg(test)]").next().unwrap();
+        let request = production.split("async fn request").nth(1).expect("request");
+        let pin = request
+            .find("assert_authority_base_url(&self.base)")
+            .expect("assert_authority_base_url");
+        let send = request.find(".send()").expect("send");
+        assert!(pin < send);
     }
 
     #[tokio::test]

@@ -1,13 +1,15 @@
-import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertSourceOrder } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 function pairwiseSub(sector: string): string {
-  const digest = Array.from(new TextEncoder().encode(`${sector}:demo-principal`))
+  const digest = Array.from(
+    new TextEncoder().encode(`${sector}:demo-principal`),
+  )
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
     .slice(0, 32);
@@ -31,7 +33,7 @@ describe("PACT — example relying party", () => {
   it("chaos: redirect callback replaces the URL so the code is not left in history", () => {
     assertSourceOrder(readFileSync(join(here, "RpApp.tsx"), "utf8"), [
       "handleRedirectCallback",
-      "history.replaceState(null, \"\", \"/\")",
+      'history.replaceState(null, "", "/")',
     ]);
   });
 

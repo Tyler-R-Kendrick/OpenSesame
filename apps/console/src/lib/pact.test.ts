@@ -1,17 +1,14 @@
-import { afterEach, describe, expect, it } from "vitest";
-import {
-  assertNoSecretFields,
-  assertSourceOrder,
-} from "@opensesame/testing";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isLoopbackUrl, operatorHeadersFor } from "./urls.js";
+import { assertNoSecretFields, assertSourceOrder } from "@opensesame/testing";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   clearClaimStash,
   readClaimStash,
   writeClaimStash,
 } from "./claim-stash.js";
+import { isLoopbackUrl, operatorHeadersFor } from "./urls.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -38,7 +35,9 @@ describe("PACT — console operator + claim stash", () => {
     expect(operatorHeadersFor("http://127.0.0.1:8787", "op")).toEqual({
       authorization: "Bearer operator:op",
     });
-    expect(operatorHeadersFor("https://gateway.example.test", "op")).toEqual({});
+    expect(operatorHeadersFor("https://gateway.example.test", "op")).toEqual(
+      {},
+    );
   });
 
   it("adversarial: remote hosts and metadata IPs never get the operator token", () => {
@@ -71,9 +70,9 @@ describe("PACT — console operator + claim stash", () => {
       "sessionStorage.setItem",
       "JSON.stringify(next)",
     ]);
-    expect(readFileSync(join(here, "../pages/ClaimPage.tsx"), "utf8")).not.toMatch(
-      /searchParams.*token/,
-    );
+    expect(
+      readFileSync(join(here, "../pages/ClaimPage.tsx"), "utf8"),
+    ).not.toMatch(/searchParams.*token/);
   });
 
   it("contract: stash JSON is the only claim-token store and operator pin is loopback", () => {

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import McpHostStructuralProvider, {
-  type RedteamVars,
-} from "./mcp-provider.js";
+import McpHostStructuralProvider, { type RedteamVars } from "./mcp-provider.js";
 
 type ToolResponse = {
   isError?: boolean;
@@ -65,7 +63,10 @@ describe("PACT — redteam structural (live mcp-host)", () => {
     it("operator_invoke_l1 without a frozen intent is refused", async () => {
       const data = await probe({
         calls: [
-          { tool: "operator_invoke_l1", params: { connection_ref: "conn://demo" } },
+          {
+            tool: "operator_invoke_l1",
+            params: { connection_ref: "conn://demo" },
+          },
         ],
       });
       expect(data.calls[0]?.response.isError).toBe(true);

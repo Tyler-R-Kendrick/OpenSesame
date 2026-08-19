@@ -411,7 +411,12 @@ export function createOpenSesame(
           access_token: body.accessToken,
           token_type: body.tokenType ?? "Bearer",
           ...(expiresAt !== undefined && !Number.isNaN(expiresAt)
-            ? { expires_in: Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)) }
+            ? {
+                expires_in: Math.max(
+                  0,
+                  Math.floor((expiresAt - Date.now()) / 1000),
+                ),
+              }
             : {}),
         },
       };

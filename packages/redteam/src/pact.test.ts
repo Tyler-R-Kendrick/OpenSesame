@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, it } from "vitest";
 import {
   assertDurableSurvivesPartition,
   assertSourceOrder,
 } from "@opensesame/testing";
+import { describe, it } from "vitest";
 import { startMockUpstream } from "./mock-upstream.js";
 
 const here = dirname(fileURLToPath(import.meta.url));

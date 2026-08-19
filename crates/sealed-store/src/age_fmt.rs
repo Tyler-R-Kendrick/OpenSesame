@@ -26,7 +26,23 @@ pub fn read_age_recipients(root: &Path) -> Result<Vec<String>, StoreError> {
 
 /// Encrypt to every recipient listed, so any one matching identity can open
 /// the file — `pass` multi-key parity, not just the first line.
-pub fn encrypt_age_file(path: &Path, plaintext: &[u8], recipient_lines: &[String]) -> Result<(), StoreError> {
+pub fn encrypt_age_file(
+    path: &Path,
+    plaintext: &[u8],
+    recipient_lines: &[String],
+) -> Result<(), StoreError> {
+    let ciphertext = encrypt_age(plaintext, recipient_lines)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, ciphertext)?;
+    Ok(())
+}
+
+pub(crate) fn encrypt_age(
+    plaintext: &[u8],
+    recipient_lines: &[String],
+) -> Result<Vec<u8>, StoreError> {
     if recipient_lines.is_empty() {
         return Err(StoreError::Age("no age recipients".into()));
     }
@@ -45,18 +61,20 @@ pub fn encrypt_age_file(path: &Path, plaintext: &[u8], recipient_lines: &[String
         .write_all(plaintext)
         .and_then(|()| writer.finish().map(drop))
         .map_err(|e| StoreError::Age(e.to_string()))?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(path, ciphertext)?;
-    Ok(())
+    Ok(ciphertext)
 }
 
 pub fn decrypt_age_file(path: &Path, identity_pem_or_key: &str) -> Result<Vec<u8>, StoreError> {
+    decrypt_age(&fs::read(path)?, identity_pem_or_key)
+}
+
+pub(crate) fn decrypt_age(
+    ciphertext: &[u8],
+    identity_pem_or_key: &str,
+) -> Result<Vec<u8>, StoreError> {
     let identity = Identity::from_str(identity_pem_or_key.trim())
         .map_err(|e| StoreError::Age(e.to_string()))?;
-    let ciphertext = fs::read(path)?;
-    decrypt(&identity, &ciphertext).map_err(|e| StoreError::Age(e.to_string()))
+    decrypt(&identity, ciphertext).map_err(|e| StoreError::Age(e.to_string()))
 }
 
 #[cfg(test)]
@@ -72,7 +90,10 @@ mod tests {
         encrypt_age_file(
             &path,
             b"shared",
-            &[first.to_public().to_string(), second.to_public().to_string()],
+            &[
+                first.to_public().to_string(),
+                second.to_public().to_string(),
+            ],
         )
         .unwrap();
         use age::secrecy::ExposeSecret;

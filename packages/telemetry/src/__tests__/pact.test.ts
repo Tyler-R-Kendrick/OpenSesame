@@ -1,12 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   assertAtMostWins,
   assertNoSecretFields,
   assertSourceOrder,
 } from "@opensesame/testing";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 import {
   ALLOWED_EVENTS,
   createTelemetry,
@@ -35,7 +35,10 @@ describe("PACT — telemetry", () => {
     });
     for (const row of redactionTest) {
       events.length = 0;
-      telemetry.track("mcp_tool_call", { tool: "task_start", [row.key]: row.value });
+      telemetry.track("mcp_tool_call", {
+        tool: "task_start",
+        [row.key]: row.value,
+      });
       expect(events[0]?.props).not.toHaveProperty(row.key);
       expect(JSON.stringify(events[0]?.props)).not.toContain(row.value);
     }

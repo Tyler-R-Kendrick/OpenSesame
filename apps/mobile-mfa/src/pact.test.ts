@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { encodeQrSvg, QrEncodeError } from "@opensesame/qr";
-import { assertSourceOrder } from "@opensesame/testing";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { QrEncodeError, encodeQrSvg } from "@opensesame/qr";
+import { assertSourceOrder } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 import { b64urlToBytes, bytesToB64url } from "./webauthn.js";
 
 const here = dirname(fileURLToPath(import.meta.url));

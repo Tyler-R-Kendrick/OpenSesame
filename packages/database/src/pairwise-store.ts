@@ -45,7 +45,9 @@ function mapRow(
  * `principal_id` is a FK to `principals`. Callers must persist the principal
  * before minting a pairwise subject.
  */
-export function createPostgresPairwiseStore(db: Database): PairwiseSubjectStore {
+export function createPostgresPairwiseStore(
+  db: Database,
+): PairwiseSubjectStore {
   const pair = (principalId: string, sectorIdentifier: string) =>
     and(
       eq(schema.pairwiseSubjects.principalId, principalId),

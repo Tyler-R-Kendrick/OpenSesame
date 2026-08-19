@@ -19,6 +19,8 @@ const CENTRAL_SIGNATURE = 0x02014b50;
 const LOCAL_SIGNATURE = 0x04034b50;
 /** The EOCD is last, but a trailing comment of up to 64 KiB may follow it. */
 const MAX_EOCD_SCAN = 0xffff + 22;
+const MAX_ARCHIVE_ENTRIES = 4096;
+const MAX_EXPANDED_BYTES = 64 * 1024 * 1024;
 
 type CentralEntry = {
   name: string;
@@ -49,6 +51,9 @@ function readCentralDirectory(
       "That archive uses ZIP64, which this importer cannot read. Export a smaller archive, or unzip it and import export.data directly.",
     );
   }
+  if (count > MAX_ARCHIVE_ENTRIES) {
+    throw new ZipError("That archive has too many entries.");
+  }
 
   const entries: CentralEntry[] = [];
   let cursor = directoryOffset;
@@ -64,6 +69,12 @@ function readCentralDirectory(
     const nameLength = view.getUint16(cursor + 28, true);
     const extraLength = view.getUint16(cursor + 30, true);
     const commentLength = view.getUint16(cursor + 32, true);
+    if (
+      cursor + 46 + nameLength + extraLength + commentLength >
+      view.byteLength
+    ) {
+      throw new ZipError("That archive's directory is truncated.");
+    }
     entries.push({
       method: view.getUint16(cursor + 10, true),
       compressedSize: view.getUint32(cursor + 20, true),
@@ -88,7 +99,26 @@ async function inflateRaw(input: Uint8Array): Promise<Uint8Array> {
   const stream = new Blob([input as BlobPart])
     .stream()
     .pipeThrough(new DecompressionStream("deflate-raw"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_EXPANDED_BYTES) {
+      await reader.cancel();
+      throw new ZipError("That archive entry expands beyond 64 MB.");
+    }
+    chunks.push(value);
+  }
+  const output = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return output;
 }
 
 /**
@@ -114,6 +144,9 @@ export async function readZipText(
       }.`,
     );
   }
+  if (entry.uncompressedSize > MAX_EXPANDED_BYTES) {
+    throw new ZipError("That archive entry expands beyond 64 MB.");
+  }
 
   // The central directory records name and extra lengths that may differ from
   // the local header's, so the payload offset has to come from the local one.
@@ -127,13 +160,25 @@ export async function readZipText(
   const nameLength = view.getUint16(local + 26, true);
   const extraLength = view.getUint16(local + 28, true);
   const start = local + 30 + nameLength + extraLength;
+  if (start + entry.compressedSize > bytes.byteLength) {
+    throw new ZipError("That archive's entry payload is truncated.");
+  }
   const payload = bytes.subarray(start, start + entry.compressedSize);
 
-  if (entry.method === 0) return new TextDecoder().decode(payload);
+  if (entry.method === 0) {
+    if (payload.byteLength > MAX_EXPANDED_BYTES) {
+      throw new ZipError("That archive entry is larger than 64 MB.");
+    }
+    return new TextDecoder().decode(payload);
+  }
   if (entry.method !== 8) {
     throw new ZipError(
       `That archive uses compression method ${entry.method}, which this importer cannot read.`,
     );
   }
-  return new TextDecoder().decode(await inflateRaw(payload));
+  const expanded = await inflateRaw(payload);
+  if (expanded.byteLength !== entry.uncompressedSize) {
+    throw new ZipError("That archive entry's expanded size is inconsistent.");
+  }
+  return new TextDecoder().decode(expanded);
 }

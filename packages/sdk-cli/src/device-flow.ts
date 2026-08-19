@@ -1,10 +1,10 @@
+import { encodeQrTerminal } from "@opensesame/qr";
 import {
   assertDiscoveredUrl,
   assertDiscoveryBelongsToIssuer,
   assertSecureUrl,
   trimSlash,
 } from "./secure-url.js";
-import { encodeQrTerminal } from "@opensesame/qr";
 
 export interface DeviceAuthorizationResponse {
   device_code: string;
@@ -157,7 +157,8 @@ export class DeviceFlowClient {
       ),
       MAX_POLL_INTERVAL_SECONDS,
     );
-    this.#expiresAt = Date.now() +
+    this.#expiresAt =
+      Date.now() +
       (Number.isFinite(data.expires_in) && data.expires_in >= 0
         ? data.expires_in * 1000
         : 15 * 60 * 1000);

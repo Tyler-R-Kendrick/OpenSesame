@@ -63,7 +63,10 @@ export const CompleteClaimRequestSchema = z.object({
    * Optional claim bearer. When present it must match this claim; Identity
    * already requires an authenticated principal plus the user code.
    */
-  claimToken: z.string().regex(/^osc_clm_/).optional(),
+  claimToken: z
+    .string()
+    .regex(/^osc_clm_/)
+    .optional(),
   destination: z.record(z.unknown()).optional(),
   idempotencyKey: z.string().min(8).optional(),
 });

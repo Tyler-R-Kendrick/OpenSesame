@@ -27,6 +27,10 @@ import {
   wrapVaultKeyWithPassword,
 } from "./crypto.js";
 import {
+  installVaultHostBackupFlushHooks,
+  pushSealedVaultToHost,
+} from "./host-backup.js";
+import {
   type Folder,
   type VaultBody,
   type VaultItem,
@@ -50,10 +54,6 @@ import {
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
-import {
-  installVaultHostBackupFlushHooks,
-  pushSealedVaultToHost,
-} from "./host-backup.js";
 
 installVaultHostBackupFlushHooks();
 
@@ -64,7 +64,7 @@ installVaultHostBackupFlushHooks();
 export const HEADER_KEY = "vault.header.v1";
 export const BODY_KEY = "vault.body.v1";
 export const ATTEMPTS_KEY = "vault.attempts.v1";
-export const PREFS_KEY = "vault.prefs.v1";
+export const PREFS_KEY = "vault.prefs.v1"; // gitleaks:allow -- storage key, not a credential
 
 type VaultKeys = {
   header: string;

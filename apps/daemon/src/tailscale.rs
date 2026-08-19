@@ -25,7 +25,6 @@ static LAST_SERVE_ERROR: Mutex<Option<String>> = Mutex::new(None);
 pub struct TailscaleInfo {
     pub dns_name: Option<String>,
     pub https_url: Option<String>,
-    pub ip4: Option<String>,
     /// True when `tailscale serve` is proxying to this daemon.
     pub serve_enabled: bool,
     /// Admin URL to enable Serve on the tailnet when missing.
@@ -156,8 +155,7 @@ fn windows_loopback_reaches_daemon(port: u16) -> bool {
     ) else {
         return false;
     };
-    output.status.success()
-        && String::from_utf8_lossy(&output.stdout).contains("opensesame-daemon")
+    output.status.success() && String::from_utf8_lossy(&output.stdout).contains("opensesame-daemon")
 }
 
 /// Extra TCP bind needed so Windows Tailscale Serve can reach a WSL daemon
@@ -173,11 +171,19 @@ pub fn wsl_bridge_listen(port: u16) -> Option<String> {
     wsl_eth_listen(port)
 }
 
-fn run_tailscale(bin: &Path, args: &[&str], timeout: Duration) -> Result<std::process::Output, String> {
+fn run_tailscale(
+    bin: &Path,
+    args: &[&str],
+    timeout: Duration,
+) -> Result<std::process::Output, String> {
     run_command(bin, args, timeout)
 }
 
-fn run_command(bin: &Path, args: &[&str], timeout: Duration) -> Result<std::process::Output, String> {
+fn run_command(
+    bin: &Path,
+    args: &[&str],
+    timeout: Duration,
+) -> Result<std::process::Output, String> {
     let child = Command::new(bin)
         .args(args)
         .stdout(Stdio::piped())
@@ -195,9 +201,7 @@ fn run_command(bin: &Path, args: &[&str], timeout: Duration) -> Result<std::proc
         Err(_) => {
             #[cfg(unix)]
             {
-                let _ = Command::new("kill")
-                    .args(["-9", &pid.to_string()])
-                    .status();
+                let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
             }
             #[cfg(windows)]
             {
@@ -261,20 +265,8 @@ pub fn info() -> TailscaleInfo {
         .and_then(Value::as_str)
         .map(|name| name.trim_end_matches('.').to_string())
         .filter(|name| !name.is_empty());
-    let ip4 = json
-        .pointer("/Self/TailscaleIPs")
-        .and_then(Value::as_array)
-        .and_then(|ips| {
-            ips.iter()
-                .filter_map(Value::as_str)
-                .find(|ip| ip.contains('.'))
-                .map(str::to_string)
-        });
     let (serve_enabled, serve_enable_url, serve_err) = serve_status(&bin);
-    let cached_enable = LAST_SERVE_ENABLE_URL
-        .lock()
-        .ok()
-        .and_then(|g| g.clone());
+    let cached_enable = LAST_SERVE_ENABLE_URL.lock().ok().and_then(|g| g.clone());
     let cached_err = LAST_SERVE_ERROR.lock().ok().and_then(|g| g.clone());
     let https_url = if serve_enabled {
         dns.as_ref().map(|name| format!("https://{name}"))
@@ -284,7 +276,6 @@ pub fn info() -> TailscaleInfo {
     TailscaleInfo {
         dns_name: dns,
         https_url,
-        ip4,
         serve_enabled,
         serve_enable_url: serve_enable_url.or(cached_enable),
         cli_path,
@@ -309,7 +300,9 @@ fn serve_status(bin: &Path) -> (bool, Option<String>, Option<String>) {
             Value::Object(map) => !map.is_empty(),
             Value::Array(items) => !items.is_empty(),
             Value::Bool(flag) => flag,
-            Value::String(s) => !s.trim().is_empty() && !s.to_ascii_lowercase().contains("no serve"),
+            Value::String(s) => {
+                !s.trim().is_empty() && !s.to_ascii_lowercase().contains("no serve")
+            }
             _ => false,
         };
         return (active, enable_url, None);

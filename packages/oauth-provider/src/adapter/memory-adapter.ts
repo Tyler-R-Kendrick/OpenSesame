@@ -29,7 +29,11 @@ export function createMemoryAdapterConstructor(): OidcAdapterConstructor {
     return `${model}:${id}`;
   }
 
-  function dropIndexes(model: string, id: string, payload: AdapterPayload): void {
+  function dropIndexes(
+    model: string,
+    id: string,
+    payload: AdapterPayload,
+  ): void {
     const composite = key(model, id);
     if (payload.grantId) {
       const set = byGrant.get(payload.grantId);
@@ -62,7 +66,11 @@ export function createMemoryAdapterConstructor(): OidcAdapterConstructor {
   return class MemoryAdapter implements Adapter {
     constructor(private readonly name: string) {}
 
-    async upsert(id: string, payload: AdapterPayload, expiresIn?: number): Promise<void> {
+    async upsert(
+      id: string,
+      payload: AdapterPayload,
+      expiresIn?: number,
+    ): Promise<void> {
       const expiresAt =
         typeof expiresIn === "number" ? Date.now() + expiresIn * 1000 : null;
       bag(this.name).set(id, { payload: { ...payload }, expiresAt });
@@ -88,7 +96,9 @@ export function createMemoryAdapterConstructor(): OidcAdapterConstructor {
       return purgeExpired(this.name, id);
     }
 
-    async findByUserCode(userCode: string): Promise<AdapterPayload | undefined> {
+    async findByUserCode(
+      userCode: string,
+    ): Promise<AdapterPayload | undefined> {
       const composite = byUserCode.get(userCode);
       if (!composite) return undefined;
       const [model, id] = splitComposite(composite);
@@ -131,7 +141,9 @@ export function createMemoryAdapterConstructor(): OidcAdapterConstructor {
   };
 }
 
-function splitComposite(composite: string): [string | undefined, string | undefined] {
+function splitComposite(
+  composite: string,
+): [string | undefined, string | undefined] {
   const idx = composite.indexOf(":");
   if (idx < 0) return [undefined, undefined];
   return [composite.slice(0, idx), composite.slice(idx + 1)];

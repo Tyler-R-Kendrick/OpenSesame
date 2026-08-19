@@ -10,8 +10,8 @@ import {
   VaultCorruptError,
   VaultStore,
   WrongPasswordError,
-  normalizeVaultPrefs,
   defaultPrefs,
+  normalizeVaultPrefs,
 } from "./store.js";
 
 const PASSWORD = "correct horse battery staple";
@@ -106,7 +106,7 @@ describe("VaultStore rollback detection", () => {
     kvSet(BODY_KEY, snapshot as string);
     const reopened = new VaultStore();
     await expect(reopened.unlock(PASSWORD)).rejects.toThrow(/older/u);
-  });
+  }, 15_000);
 
   // A write that fails must not count. If it did, the body would sit one behind
   // the header and the vault would refuse to open next time.

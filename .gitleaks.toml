@@ -10,6 +10,8 @@ description = "Build outputs, package stores, and local tooling (must prune for 
 paths = [
   '''(^|/)\.git(?:/|$)''',
   '''(^|/)\.tools(?:/|$)''',
+  '''(^|/)\.deepsec/\.env[^/]*$''',
+  '''(^|/)\.impeccable/live/sessions(?:/|$)''',
   '''(^|/)artifacts(?:/|$)''',
   '''(^|/)target(?:/|$)''',
   '''(^|/)node_modules(?:/|$)''',

@@ -1,13 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
 import {
   assertDurableSurvivesPartition,
   assertExclusiveClaim,
   assertNoSecretFields,
   assertSourceOrder,
 } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 import { createRepositories } from "../src/index.js";
 import { withPostgresRepos } from "./pg-harness.js";
 
@@ -45,7 +46,9 @@ describe("PACT — outbox claim", () => {
       async () => {
         const claimed = await repos.outbox.claimUnpublished(1, now, 30_000);
         expect(claimed).toHaveLength(1);
-        await repos.outbox.releaseClaim(claimed[0]!.id, "nats down");
+        const [row] = claimed;
+        if (!row) throw new Error("missing claimed outbox row");
+        await repos.outbox.releaseClaim(row.id, "nats down");
       },
     );
   });
@@ -74,13 +77,15 @@ describe("PACT — outbox claim", () => {
     const now = new Date();
     const claimed = await repos.outbox.claimUnpublished(1, now, 30_000);
     expect(claimed).toHaveLength(1);
-    assertNoSecretFields(claimed[0]);
-    assertNoSecretFields(claimed[0]!.payload);
+    const [row] = claimed;
+    if (!row) throw new Error("missing claimed outbox row");
+    assertNoSecretFields(row);
+    assertNoSecretFields(row.payload);
   });
 
   it("postgres SKIP LOCKED exclusive claim under concurrent drainers", async () => {
     await withPostgresRepos(async (repos) => {
-      const id = `outbox_pact_pg_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      const id = `outbox_pact_pg_${randomUUID()}`;
       await repos.outbox.append({
         id,
         aggregateType: "principal",

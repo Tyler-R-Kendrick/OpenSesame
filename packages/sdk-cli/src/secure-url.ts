@@ -16,10 +16,12 @@ function ipv4FromMappedIpv6(host: string): string | null {
   const dotted = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/u.exec(host);
   if (dotted) return dotted[1] ?? null;
   const mappedHex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host);
-  if (mappedHex) return hextetsToIpv4(mappedHex[1]!, mappedHex[2]!);
+  if (mappedHex?.[1] && mappedHex[2]) {
+    return hextetsToIpv4(mappedHex[1], mappedHex[2]);
+  }
   const compat = /^::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/u.exec(host);
-  if (compat && compat[1] !== "ffff") {
-    return hextetsToIpv4(compat[1]!, compat[2]!);
+  if (compat?.[1] && compat[2] && compat[1] !== "ffff") {
+    return hextetsToIpv4(compat[1], compat[2]);
   }
   return null;
 }

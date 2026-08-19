@@ -147,6 +147,7 @@ mod tests {
         assert!(validate_nats_url("http://127.0.0.1:4222").is_err());
         assert!(validate_nats_url("nats://127.0.0.1:4222").is_ok());
         assert!(validate_nats_url("tls://box.tailnet.ts.net:4222").is_ok());
+        assert!(validate_nats_url("nats://user:secret@127.0.0.1:4222").is_err());
     }
 
     #[test]

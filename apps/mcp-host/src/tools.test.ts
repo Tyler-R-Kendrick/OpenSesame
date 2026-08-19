@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { assertSourceOrder } from "@opensesame/testing";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   AgentPayloadRefused,
   REDACTED,
@@ -186,8 +186,8 @@ describe("mcp-host tools", () => {
     expect(calls[0]?.url).toBe("http://127.0.0.1:8787/api/v1/tasks");
     expect(calls[0]?.auth).toBe("Bearer operator:opensesame-dev-operator");
     expect(body.task_run_id).toBe("task-1");
-    delete process.env.OPENSESAME_SERVER;
-    delete process.env.OPENSESAME_OPERATOR_TOKEN;
+    Reflect.deleteProperty(process.env, "OPENSESAME_SERVER");
+    Reflect.deleteProperty(process.env, "OPENSESAME_OPERATOR_TOKEN");
   });
 
   it("refuses a Host API base that would carry credentials off the machine", () => {
@@ -222,11 +222,11 @@ describe("mcp-host tools", () => {
     expect(hostAuthHeaders("https://api.example.test").authorization).toBe(
       "Bearer opaque-session:sess-1",
     );
-    delete process.env.OPENSESAME_ACCESS_TOKEN;
+    Reflect.deleteProperty(process.env, "OPENSESAME_ACCESS_TOKEN");
     expect(
       hostAuthHeaders("https://api.example.test").authorization,
     ).toBeUndefined();
-    delete process.env.OPENSESAME_OPERATOR_TOKEN;
+    Reflect.deleteProperty(process.env, "OPENSESAME_OPERATOR_TOKEN");
   });
 
   it("refuses a session token aimed at a Host API outside OPENSESAME_HOST_AUDIENCE", () => {
@@ -238,8 +238,8 @@ describe("mcp-host tools", () => {
     expect(hostAuthHeaders("https://host.example.test").authorization).toBe(
       "Bearer opaque-session:sess-1",
     );
-    delete process.env.OPENSESAME_ACCESS_TOKEN;
-    delete process.env.OPENSESAME_HOST_AUDIENCE;
+    Reflect.deleteProperty(process.env, "OPENSESAME_ACCESS_TOKEN");
+    Reflect.deleteProperty(process.env, "OPENSESAME_HOST_AUDIENCE");
   });
 
   it("authenticates daemon calls and confines the daemon to loopback", async () => {
@@ -256,8 +256,8 @@ describe("mcp-host tools", () => {
 
     process.env.OPENSESAME_DAEMON_URL = "https://daemon.example.test";
     expect(() => daemonBase()).toThrow("loopback");
-    delete process.env.OPENSESAME_DAEMON_URL;
-    delete process.env.OPENSESAME_OPERATOR_TOKEN;
+    Reflect.deleteProperty(process.env, "OPENSESAME_DAEMON_URL");
+    Reflect.deleteProperty(process.env, "OPENSESAME_OPERATOR_TOKEN");
   });
 
   it("task context tracks active run", () => {
@@ -325,8 +325,8 @@ describe("mcp-host tools", () => {
       'const res = await hostFetch("/health/ready")',
       'toolError("host_unavailable"',
     ]);
-    delete process.env.OPENSESAME_SERVER;
-    delete process.env.OPENSESAME_OPERATOR_TOKEN;
+    Reflect.deleteProperty(process.env, "OPENSESAME_SERVER");
+    Reflect.deleteProperty(process.env, "OPENSESAME_OPERATOR_TOKEN");
   });
 
   it("forgets a spent intent", () => {

@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process";
+import { relative } from "node:path";
 
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
-import { repoRoot } from "../lib/paths";
+import { assertRepoFile, repoRoot } from "../lib/paths";
 
 export default defineTool({
   description:
@@ -15,9 +16,19 @@ export default defineTool({
     maxMatches: z.number().int().min(1).max(80).optional(),
   }),
   execute({ pattern, path, glob, maxMatches }) {
-    const args = ["-n", "--no-heading", "-m", String(maxMatches ?? 40), "--", pattern];
+    const searchPath = path
+      ? relative(repoRoot, assertRepoFile(path)) || "."
+      : ".";
+    const args = [
+      "-n",
+      "--no-heading",
+      "-m",
+      String(maxMatches ?? 40),
+      "--",
+      pattern,
+    ];
     if (glob) args.unshift("--glob", glob);
-    args.push(path ?? ".");
+    args.push(searchPath);
     const result = spawnSync("rg", args, {
       cwd: repoRoot,
       encoding: "utf8",

@@ -15,7 +15,9 @@ export interface PrincipalMapping {
 }
 
 export interface PrincipalMappingStore {
-  findByBetterAuthUserId(betterAuthUserId: string): Promise<PrincipalMapping | undefined>;
+  findByBetterAuthUserId(
+    betterAuthUserId: string,
+  ): Promise<PrincipalMapping | undefined>;
   findByPrincipalId(principalId: string): Promise<PrincipalMapping | undefined>;
   findByUpstream(
     providerId: string,
@@ -23,6 +25,7 @@ export interface PrincipalMappingStore {
   ): Promise<PrincipalMapping | undefined>;
   findByEmail(email: string): Promise<PrincipalMapping | undefined>;
   save(mapping: PrincipalMapping): Promise<PrincipalMapping>;
+  deleteProvisional(principalId: string): Promise<boolean>;
 }
 
 export class MemoryPrincipalMappingStore implements PrincipalMappingStore {
@@ -41,7 +44,9 @@ export class MemoryPrincipalMappingStore implements PrincipalMappingStore {
     return this.byBa.get(betterAuthUserId);
   }
 
-  async findByPrincipalId(principalId: string): Promise<PrincipalMapping | undefined> {
+  async findByPrincipalId(
+    principalId: string,
+  ): Promise<PrincipalMapping | undefined> {
     return this.byPrincipal.get(principalId);
   }
 
@@ -79,5 +84,14 @@ export class MemoryPrincipalMappingStore implements PrincipalMappingStore {
       this.byEmail.set(mapping.email.toLowerCase(), mapping);
     }
     return mapping;
+  }
+
+  async deleteProvisional(principalId: string): Promise<boolean> {
+    const mapping = this.byPrincipal.get(principalId);
+    if (!mapping?.provisional) return false;
+    this.byPrincipal.delete(principalId);
+    this.byBa.delete(mapping.betterAuthUserId);
+    if (mapping.email) this.byEmail.delete(mapping.email.toLowerCase());
+    return true;
   }
 }
