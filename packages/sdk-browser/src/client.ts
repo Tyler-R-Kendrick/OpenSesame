@@ -456,12 +456,15 @@ export function createOpenSesame(
     },
 
     async readClaim(claimId, claimToken) {
-      const res = await fetchImpl(`${apiBase}/v1/claims/${claimId}`, {
-        headers: {
-          accept: "application/json",
-          "x-claim-token": claimToken,
+      const res = await fetchImpl(
+        `${apiBase}/v1/claims/${encodeURIComponent(claimId)}`,
+        {
+          headers: {
+            accept: "application/json",
+            "x-claim-token": claimToken,
+          },
         },
-      });
+      );
       if (!res.ok) {
         throw new Error(`readClaim failed: ${res.status}`);
       }
@@ -473,6 +476,7 @@ export function createOpenSesame(
       if (!session) {
         throw new Error("Authentication required to complete claim");
       }
+      const encodedId = encodeURIComponent(claimId);
       const body: Record<string, unknown> = {
         acceptedItemIds: decision.acceptedItemIds,
       };
@@ -481,15 +485,25 @@ export function createOpenSesame(
       if (decision.idempotencyKey !== undefined) {
         body.idempotencyKey = decision.idempotencyKey;
       }
-      const res = await fetchImpl(`${apiBase}/v1/claims/${claimId}/complete`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          accept: "application/json",
-          authorization: `Bearer ${session.accessToken}`,
+      if (decision.claimToken !== undefined) {
+        body.claimToken = decision.claimToken;
+      }
+      const headers: Record<string, string> = {
+        "content-type": "application/json",
+        accept: "application/json",
+        authorization: `Bearer ${session.accessToken}`,
+      };
+      if (decision.claimToken) {
+        headers["x-claim-token"] = decision.claimToken;
+      }
+      const res = await fetchImpl(
+        `${apiBase}/v1/claims/${encodedId}/complete`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
         },
-        body: JSON.stringify(body),
-      });
+      );
       if (!res.ok) {
         throw new Error(`completeClaim failed: ${res.status}`);
       }

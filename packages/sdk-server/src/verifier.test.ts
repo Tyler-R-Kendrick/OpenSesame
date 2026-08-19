@@ -173,6 +173,8 @@ describe("createOpenSesameVerifier", () => {
       "https://172.20.0.5/jwks",
       "https://192.168.1.1/jwks",
       "https://[fd00::1]/jwks",
+      "https://[::ffff:127.0.0.1]/jwks",
+      "https://[::ffff:7f00:1]/jwks",
       "https://vault.internal/jwks",
     ]) {
       const verifier = createOpenSesameVerifier({

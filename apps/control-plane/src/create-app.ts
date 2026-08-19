@@ -9,6 +9,7 @@ import { ClaimEngine } from "@opensesame/claims";
 import {
   createDrizzle,
   createPostgresOidcStore,
+  createPostgresPairwiseStore,
   createRepositories,
 } from "@opensesame/database";
 import {
@@ -68,14 +69,11 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const repos: typeof baseRepos = {
     ...baseRepos,
     auditEvents: {
-      append: (event, uow) =>
-        uow === undefined
-          ? chainedAudit.append(event)
-          : baseRepos.auditEvents.append(event, uow),
+      append: (event, uow) => chainedAudit.append(event, uow),
       list: (filter) => baseRepos.auditEvents.list(filter),
     },
   };
-  const claimStore = new IndexedClaimStore();
+  const claimStore = new IndexedClaimStore(clock);
   const claims = new ClaimEngine({
     pepper: config.claimPepper,
     store: claimStore,
@@ -85,14 +83,23 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   // authorization codes, refresh tokens, device flows — in Postgres. On the
   // in-memory adapter every restart silently invalidates live sessions and a
   // consumed authorization code stops being remembered as consumed.
-  const oidcStore = config.databaseUrl
-    ? createPostgresOidcStore(createDrizzle(config.databaseUrl).db)
+  const drizzleBundle = config.databaseUrl
+    ? createDrizzle(config.databaseUrl)
+    : undefined;
+  const oidcStore = drizzleBundle
+    ? createPostgresOidcStore(drizzleBundle.db)
+    : undefined;
+  const pairwiseStore = drizzleBundle
+    ? createPostgresPairwiseStore(drizzleBundle.db)
     : undefined;
   const oauth = createOpenSesameProvider({
     issuer: config.issuer,
     processEnv: options.processEnv ?? process.env,
-    ...(oidcStore
-      ? { adapter: createPostgresAdapterConstructor(oidcStore) }
+    ...(oidcStore && pairwiseStore
+      ? {
+          adapter: createPostgresAdapterConstructor(oidcStore),
+          pairwiseStore,
+        }
       : {}),
   });
   const mappings = new MemoryPrincipalMappingStore();

@@ -172,11 +172,11 @@ describe("VaultStore multi-method unlock", () => {
   it("unlocks with an enrolled PIN after locking", async () => {
     const store = new VaultStore();
     await store.create(PASSWORD);
-    await store.enrollPin("482910");
+    await store.enrollPin("48291037");
     store.lock();
 
     const reopened = new VaultStore();
-    await reopened.unlockWithPin("482910");
+    await reopened.unlockWithPin("48291037");
     expect(reopened.getSnapshot().status).toBe("unlocked");
   });
 
@@ -212,7 +212,7 @@ describe("VaultStore multi-method unlock", () => {
   it("can drop the password after a PIN is enrolled", async () => {
     const store = new VaultStore();
     await store.create(PASSWORD);
-    await store.enrollPin("482910");
+    await store.enrollPin("48291037");
     await store.removePassword();
     expect(store.getSnapshot().header?.wrap).toBeUndefined();
     store.lock();
@@ -221,14 +221,14 @@ describe("VaultStore multi-method unlock", () => {
     await expect(reopened.unlock(PASSWORD)).rejects.toBeInstanceOf(
       VaultCorruptError,
     );
-    await reopened.unlockWithPin("482910");
+    await reopened.unlockWithPin("48291037");
     expect(reopened.getSnapshot().status).toBe("unlocked");
   });
 
   it("rejects sealed imports that have no password wrap", async () => {
     const store = new VaultStore();
     await store.create(PASSWORD);
-    await store.enrollPin("482910");
+    await store.enrollPin("48291037");
     await store.removePassword();
     const sealed = store.exportSealed();
     await expect(store.importSealed(sealed, PASSWORD)).rejects.toThrow(

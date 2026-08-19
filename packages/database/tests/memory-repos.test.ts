@@ -66,6 +66,27 @@ describe("MemoryRepositories", () => {
     expect(await repos.principals.getById(principal.id)).toEqual(created);
   });
 
+  it("cloneClaim isolates reviewDecision mutations", async () => {
+    const repos = new MemoryRepositories();
+    const created = await repos.claimSessions.create(
+      makeClaim({
+        reviewDecision: { verdict: "allow", nested: { note: "orig" } },
+      }),
+    );
+    const loaded = await repos.claimSessions.getById(created.id);
+    expect(loaded?.reviewDecision).toEqual({
+      verdict: "allow",
+      nested: { note: "orig" },
+    });
+    (loaded?.reviewDecision as { nested: { note: string } }).nested.note =
+      "mutated";
+    const again = await repos.claimSessions.getById(created.id);
+    expect(again?.reviewDecision).toEqual({
+      verdict: "allow",
+      nested: { note: "orig" },
+    });
+  });
+
   it("rejects external identity unique collision on kind+issuer+tenant+subject", async () => {
     const repos = new MemoryRepositories();
     const a = await repos.principals.create(makePrincipal());

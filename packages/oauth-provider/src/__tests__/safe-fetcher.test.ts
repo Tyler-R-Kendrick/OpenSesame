@@ -66,4 +66,59 @@ describe("SafeMetadataFetcher SSRF denylist", () => {
       /CIMD/,
     );
   });
+
+  it("refuses a public hostname that resolves to a private address", async () => {
+    const lookup = async () => [{ address: "127.0.0.1", family: 4 }];
+    const transport = async () => {
+      throw new Error("transport must not run after a private resolution");
+    };
+    const fetcher = new SafeMetadataFetcher(
+      { cimdEnabled: true },
+      { lookup, transport },
+    );
+    await expect(fetcher.fetch("https://clients.example.com/client.json")).rejects.toThrow(
+      /Blocked resolved address/,
+    );
+  });
+
+  it("refuses when any resolved address is private (mixed A/AAAA)", async () => {
+    const lookup = async () => [
+      { address: "8.8.8.8", family: 4 },
+      { address: "10.0.0.9", family: 4 },
+    ];
+    const fetcher = new SafeMetadataFetcher(
+      { cimdEnabled: true },
+      {
+        lookup,
+        transport: async () => {
+          throw new Error("must not fetch");
+        },
+      },
+    );
+    await expect(fetcher.fetch("https://clients.example.com/client.json")).rejects.toThrow(
+      /Blocked resolved address/,
+    );
+  });
+
+  it("pins the GET to a verified public address and requires JSON", async () => {
+    const lookup = async () => [{ address: "8.8.8.8", family: 4 }];
+    const fetcher = new SafeMetadataFetcher(
+      { cimdEnabled: true },
+      {
+        lookup,
+        transport: async ({ url, address }) => {
+          expect(address).toBe("8.8.8.8");
+          expect(url.hostname).toBe("clients.example.com");
+          return {
+            status: 200,
+            contentType: "application/json",
+            body: '{"client_id":"x"}',
+          };
+        },
+      },
+    );
+    const result = await fetcher.fetch("https://clients.example.com/client.json");
+    expect(result.body).toContain("client_id");
+    expect(result.contentType).toBe("application/json");
+  });
 });

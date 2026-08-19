@@ -248,4 +248,24 @@ describe("cleanup worker", () => {
     expect(await repos.outbox.listUnpublished()).toHaveLength(1);
     expect(errors[0]).toContain("outbox publish failed");
   });
+
+  it("does not double-publish when two ticks race", async () => {
+    const clock = createFakeClock(fixtures.now);
+    const repos = createRepositories();
+    await repos.outbox.append({
+      id: "outbox_race",
+      aggregateType: "principal",
+      aggregateId: "prn_race",
+      eventType: "principal.created",
+      payload: {},
+      availableAt: fixtures.now,
+    });
+    const bus = new MemoryTaskBus();
+    await Promise.all([
+      runCleanupTick({ repos, clock: clock.asClock(), taskBus: bus }),
+      runCleanupTick({ repos, clock: clock.asClock(), taskBus: bus }),
+    ]);
+    expect(bus.published).toHaveLength(1);
+    expect(await repos.outbox.listUnpublished()).toHaveLength(0);
+  });
 });

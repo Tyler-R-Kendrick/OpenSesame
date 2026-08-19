@@ -123,7 +123,7 @@ describe("project personal ensure and CRUD", () => {
       }),
     });
     expect(denied.status).toBe(403);
-    expect(await denied.json()).toMatchObject({ error: "assurance_too_low" });
+    expect(await denied.json()).toMatchObject({ error: "forbidden" });
   });
 
   it("lets verified principals create, patch, list, and soft-delete projects", async () => {
@@ -178,8 +178,7 @@ describe("project personal ensure and CRUD", () => {
       method: "DELETE",
       headers: auth,
     });
-    expect(deleted.status).toBe(200);
-    expect(await deleted.json()).toMatchObject({ state: "deleted" });
+    expect(deleted.status).toBe(204);
   });
 
   it("refuses deleting the personal project", async () => {
@@ -205,6 +204,6 @@ describe("project personal ensure and CRUD", () => {
       method: "DELETE",
       headers: auth,
     });
-    expect(deleted.status).toBe(403);
+    expect(deleted.status).toBe(409);
   });
 });

@@ -56,13 +56,19 @@ export function initialPollInterval(intervalSeconds: number): PollIntervalState 
   return { intervalSeconds, slowDownCount: 0 };
 }
 
-/** Increase interval after slow_down (RFC 8628). */
+/** Increase interval after slow_down (RFC 8628). A server may ask the
+ * client to slow down; it may not ask it to stop polling. */
+export const MAX_POLL_INTERVAL_SECONDS = 60;
+
 export function applySlowDown(
   state: PollIntervalState,
   bumpSeconds = 5,
 ): PollIntervalState {
   return {
-    intervalSeconds: state.intervalSeconds + bumpSeconds,
+    intervalSeconds: Math.min(
+      state.intervalSeconds + bumpSeconds,
+      MAX_POLL_INTERVAL_SECONDS,
+    ),
     slowDownCount: state.slowDownCount + 1,
   };
 }

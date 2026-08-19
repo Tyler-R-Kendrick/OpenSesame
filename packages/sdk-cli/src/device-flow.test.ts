@@ -87,7 +87,7 @@ describe("DeviceFlowClient", () => {
     const slow = await client.pollOnce();
     expect(slow.status).toBe("slow_down");
     if (slow.status === "slow_down") {
-      expect(slow.intervalSeconds).toBe(6);
+      expect(slow.intervalSeconds).toBe(10);
     }
 
     polls = 0;

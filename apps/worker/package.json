@@ -19,9 +19,11 @@
     "@opensesame/claims": "workspace:*",
     "@opensesame/database": "workspace:*",
     "@opensesame/observability": "workspace:*",
-    "@opensesame/os-domain": "workspace:*"
+    "@opensesame/os-domain": "workspace:*",
+    "nats": "2.29.3"
   },
   "devDependencies": {
+    "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "tsx": "4.19.4",
     "typescript": "5.8.3",

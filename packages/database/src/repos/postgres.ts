@@ -22,6 +22,9 @@ import {
   type NewOutboxEvent,
   NotFoundError,
   type OutboxRepository,
+  OUTBOX_CLAIM_HOLD_MS,
+  outboxClaimToken,
+  outboxHoldActive,
   type PrincipalRepository,
   type Repositories,
   type TransactionFn,
@@ -262,7 +265,11 @@ export class PostgresRepositories implements Repositories {
         )
         .returning();
       if (!row) {
-        const existing = await this.principals.getById(id);
+        const [existing] = await dbOf(uow, this.db)
+          .select()
+          .from(schema.principals)
+          .where(eq(schema.principals.id, id))
+          .limit(1);
         if (!existing) throw new NotFoundError(`principal not found: ${id}`);
         throw new ConflictError(
           `principal version conflict: expected ${expectedVersion}, got ${existing.version}`,
@@ -514,7 +521,11 @@ export class PostgresRepositories implements Repositories {
         )
         .returning();
       if (!row) {
-        const existing = await this.claimSessions.getById(id);
+        const [existing] = await dbOf(uow, this.db)
+          .select()
+          .from(schema.claimSessions)
+          .where(eq(schema.claimSessions.id, id))
+          .limit(1);
         if (!existing) {
           throw new NotFoundError(`claim session not found: ${id}`);
         }
@@ -637,23 +648,85 @@ export class PostgresRepositories implements Repositories {
     },
 
     listUnpublished: async (limit = 100) => {
+      const now = new Date();
       const rows = await this.db
         .select()
         .from(schema.outboxEvents)
         .where(isNull(schema.outboxEvents.publishedAt))
         .orderBy(schema.outboxEvents.availableAt)
-        .limit(limit);
-      return rows.map(mapOutbox);
+        .limit(limit * 4);
+      return rows
+        .filter((row) => !outboxHoldActive(row.lastError ?? undefined, now))
+        .slice(0, limit)
+        .map(mapOutbox);
+    },
+
+    claimUnpublished: async (
+      limit = 100,
+      now = new Date(),
+      holdMs = OUTBOX_CLAIM_HOLD_MS,
+    ) => {
+      const token = outboxClaimToken(now, holdMs);
+      return this.db.transaction(async (tx) => {
+        const candidates = await tx
+          .select()
+          .from(schema.outboxEvents)
+          .where(
+            and(
+              isNull(schema.outboxEvents.publishedAt),
+              sql`${schema.outboxEvents.availableAt} <= ${now}`,
+            ),
+          )
+          .orderBy(schema.outboxEvents.availableAt)
+          .limit(limit * 4)
+          .for("update", { skipLocked: true });
+        const claimed: OutboxEvent[] = [];
+        for (const row of candidates) {
+          if (outboxHoldActive(row.lastError ?? undefined, now)) continue;
+          if (claimed.length >= limit) break;
+          const [updated] = await tx
+            .update(schema.outboxEvents)
+            .set({ lastError: token, attempts: row.attempts + 1 })
+            .where(eq(schema.outboxEvents.id, row.id))
+            .returning();
+          if (updated) claimed.push(mapOutbox(updated));
+        }
+        return claimed;
+      });
+    },
+
+    releaseClaim: async (id, error) => {
+      await this.db
+        .update(schema.outboxEvents)
+        .set({ lastError: error ?? null })
+        .where(
+          and(
+            eq(schema.outboxEvents.id, id),
+            isNull(schema.outboxEvents.publishedAt),
+          ),
+        );
     },
 
     markPublished: async (id, publishedAt = new Date()) => {
       const [row] = await this.db
         .update(schema.outboxEvents)
-        .set({ publishedAt })
-        .where(eq(schema.outboxEvents.id, id))
+        .set({ publishedAt, lastError: null })
+        .where(
+          and(
+            eq(schema.outboxEvents.id, id),
+            isNull(schema.outboxEvents.publishedAt),
+          ),
+        )
         .returning();
       if (!row) {
-        throw new NotFoundError(`outbox event not found: ${id}`);
+        const [existing] = await this.db
+          .select()
+          .from(schema.outboxEvents)
+          .where(eq(schema.outboxEvents.id, id))
+          .limit(1);
+        if (!existing) {
+          throw new NotFoundError(`outbox event not found: ${id}`);
+        }
       }
     },
   };

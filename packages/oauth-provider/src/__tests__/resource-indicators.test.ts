@@ -67,6 +67,21 @@ describe("createOpenSesameProvider fail-closed config", () => {
     ).toThrow(/persistent adapter is required in production/);
   });
 
+  it("refuses the in-memory pairwise store in production", () => {
+    const adapter = () => {
+      throw new Error("adapter unused");
+    };
+    expect(() =>
+      createOpenSesameProvider({
+        issuer: ISSUER,
+        env: { isProduction: true },
+        processEnv: {},
+        jwks: { keys: [{ kty: "RSA" }] },
+        adapter: adapter as never,
+      }),
+    ).toThrow(/persistent pairwise subject store is required in production/);
+  });
+
   it("rejects a malformed OPENSESAME_JWKS_JSON", () => {
     expect(() =>
       createOpenSesameProvider({

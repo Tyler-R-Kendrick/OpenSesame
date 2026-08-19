@@ -9,23 +9,27 @@
 
 import {
   type KdfParams,
+  MAX_PBKDF2_ITERATIONS,
   PBKDF2_ITERATIONS,
+  SALT_BYTES,
   type SealedBlob,
   VaultCorruptError,
   type VaultHeader,
   WrongPasswordError,
+  assertKdfParams,
   b64ToBytes,
   bytesToB64,
   randomBytes,
 } from "./crypto.js";
 import { parseTotp, totpCode } from "./totp.js";
 
-const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const PRF_INFO = new TextEncoder().encode("opensesame/vault/webauthn-prf/v1");
 
-export const MIN_PIN_LENGTH = 4;
+export const MIN_PIN_LENGTH = 8;
 export const MAX_PIN_LENGTH = 12;
+/** PIN wraps use at least the password floor; extra iterations raise offline cost. */
+export const PIN_PBKDF2_ITERATIONS = 1_200_000;
 
 export type PasskeyUnlockRecord = {
   credentialIdB64: string;
@@ -88,6 +92,12 @@ export function assertPinPolicy(pin: string): void {
   }
   if (/\s/.test(normalized)) {
     throw new Error("PIN cannot contain spaces.");
+  }
+  if (/^(.)\1+$/u.test(normalized)) {
+    throw new Error("PIN cannot be a repeated character.");
+  }
+  if ("01234567890123456789".includes(normalized) || "98765432109876543210".includes(normalized)) {
+    throw new Error("PIN cannot be a sequential run of digits.");
   }
 }
 
@@ -162,6 +172,9 @@ export async function kekFromWebauthnPrf(
 export async function exportRawVaultKey(
   vaultKey: CryptoKey,
 ): Promise<Uint8Array> {
+  if (!vaultKey.extractable) {
+    throw new Error("vault key is not extractable");
+  }
   const raw = new Uint8Array(await crypto.subtle.exportKey("raw", vaultKey));
   return raw;
 }
@@ -172,13 +185,13 @@ export async function wrapVaultKeyWithPin(
 ): Promise<PinUnlockRecord> {
   assertPinPolicy(pin);
   const salt = randomBytes(SALT_BYTES);
-  const kek = await deriveAesKeyFromPassword(pin, salt, PBKDF2_ITERATIONS);
+  const kek = await deriveAesKeyFromPassword(pin, salt, PIN_PBKDF2_ITERATIONS);
   const wrap = await encryptWithKey(kek, rawVaultKey);
   return {
     kdf: {
       alg: "PBKDF2-SHA256",
       saltB64: bytesToB64(salt),
-      iterations: PBKDF2_ITERATIONS,
+      iterations: PIN_PBKDF2_ITERATIONS,
     },
     wrap,
   };
@@ -192,6 +205,7 @@ export async function unwrapVaultKeyWithPin(
   if (record.kdf.alg !== "PBKDF2-SHA256") {
     throw new VaultCorruptError("unsupported PIN unlock format");
   }
+  assertKdfParams(record.kdf);
   const kek = await deriveAesKeyFromPassword(
     pin,
     b64ToBytes(record.kdf.saltB64),

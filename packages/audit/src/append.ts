@@ -7,7 +7,7 @@ import type {
 import { redactAuditMetadata } from "./redact.js";
 
 export interface AuditSink {
-  append(event: AuditEvent): Promise<AuditEvent>;
+  append(event: AuditEvent, uow?: unknown): Promise<AuditEvent>;
 }
 
 export interface AppendAuditEventInput {

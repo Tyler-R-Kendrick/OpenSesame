@@ -22,6 +22,12 @@ describe("pairwise subjects", () => {
     expect(a).not.toBe("principal-1");
   });
 
+  it("refuses a shared default sector when clientId and sector are missing", async () => {
+    const store = new MemoryPairwiseSubjectStore();
+    const pairwise = createPairwiseIdentifierCallback(store);
+    await expect(pairwise({}, "principal-1", {})).rejects.toThrow(/sectorIdentifier or clientId/);
+  });
+
   it("returns different subjects across sectors", async () => {
     const store = new MemoryPairwiseSubjectStore();
     const pairwise = createPairwiseIdentifierCallback(store);

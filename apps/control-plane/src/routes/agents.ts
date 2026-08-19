@@ -96,7 +96,9 @@ agentRoutes.post(
     ctx.stores.agents.set(agentId, agent);
     ctx.stores.agentInstances.set(instanceId, instance);
 
-    const claim = await ctx.claims.createClaim({
+    let claim: Awaited<ReturnType<typeof ctx.claims.createClaim>>;
+    try {
+      claim = await ctx.claims.createClaim({
       type: "agent",
       targetManifest: {
         agentId,
@@ -109,6 +111,11 @@ agentRoutes.post(
       creatorInstanceId: instanceId,
       proofKeyJkt: parsed.data.publicKeyJkt,
     });
+    } catch (error) {
+      ctx.stores.agents.delete(agentId);
+      ctx.stores.agentInstances.delete(instanceId);
+      throw error;
+    }
 
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "agent.registered",

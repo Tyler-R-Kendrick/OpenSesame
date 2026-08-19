@@ -1,5 +1,9 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { assertSourceOrder } from "@opensesame/testing";
 import {
   AgentPayloadRefused,
   REDACTED,
@@ -27,6 +31,8 @@ import {
   updateTaskFromResponse,
 } from "./task-context.js";
 import { assertsNoSecretTools, hostTools, registerHostTools } from "./tools.js";
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 describe("mcp-host tools", () => {
   beforeEach(() => {
@@ -223,6 +229,19 @@ describe("mcp-host tools", () => {
     delete process.env.OPENSESAME_OPERATOR_TOKEN;
   });
 
+  it("refuses a session token aimed at a Host API outside OPENSESAME_HOST_AUDIENCE", () => {
+    process.env.OPENSESAME_ACCESS_TOKEN = "sess-1";
+    process.env.OPENSESAME_HOST_AUDIENCE = "https://host.example.test";
+    expect(() => hostAuthHeaders("https://evil.example.test")).toThrow(
+      /HOST_AUDIENCE/,
+    );
+    expect(hostAuthHeaders("https://host.example.test").authorization).toBe(
+      "Bearer opaque-session:sess-1",
+    );
+    delete process.env.OPENSESAME_ACCESS_TOKEN;
+    delete process.env.OPENSESAME_HOST_AUDIENCE;
+  });
+
   it("authenticates daemon calls and confines the daemon to loopback", async () => {
     process.env.OPENSESAME_OPERATOR_TOKEN = "op-token";
     const calls: Array<{ url: string; auth: string | null }> = [];
@@ -281,6 +300,33 @@ describe("mcp-host tools", () => {
     updateTaskFromResponse({ task_run_id: "fresh", state_version: 1 });
     expect(getTaskContext()?.taskRunId).toBe("fresh");
     expect(getTaskContext()?.frozenIntent).toBeUndefined();
+  });
+
+  it("PACT — tool errors and Host auth go through forAgent / audience pin", () => {
+    assertSourceOrder(readFileSync(join(here, "tools.ts"), "utf8"), [
+      "function toolError",
+      "forAgent(`${label}: ${message}`)",
+    ]);
+    assertSourceOrder(readFileSync(join(here, "host-api.ts"), "utf8"), [
+      "OPENSESAME_HOST_AUDIENCE",
+      "does not match OPENSESAME_HOST_AUDIENCE",
+    ]);
+    expect(hostTools.join(" ")).not.toMatch(/secret|materialize/i);
+  });
+
+  it("chaos: Host partition fails closed and host_ready maps it to toolError", async () => {
+    process.env.OPENSESAME_SERVER = "http://127.0.0.1:8787";
+    process.env.OPENSESAME_OPERATOR_TOKEN = "opensesame-dev-operator";
+    setFetchForTests(async () => {
+      throw new Error("ECONNREFUSED");
+    });
+    await expect(hostFetch("/health/ready")).rejects.toThrow(/ECONNREFUSED/);
+    assertSourceOrder(readFileSync(join(here, "tools.ts"), "utf8"), [
+      'const res = await hostFetch("/health/ready")',
+      'toolError("host_unavailable"',
+    ]);
+    delete process.env.OPENSESAME_SERVER;
+    delete process.env.OPENSESAME_OPERATOR_TOKEN;
   });
 
   it("forgets a spent intent", () => {

@@ -638,6 +638,7 @@ export async function awaitConsent(
   const deadline = Date.now() + CONSENT_TIMEOUT_MS;
 
   let settled = false;
+  let sawMessage = false;
   let onMessage: ((event: MessageEvent) => void) | null = null;
 
   const messaged = new Promise<void>((resolve) => {
@@ -646,6 +647,7 @@ export async function awaitConsent(
       const data = obj(event.data);
       if (data.type !== "opensesame:connection") return;
       if (data.connectionId !== connectionId) return;
+      sawMessage = true;
       resolve();
     };
     window.addEventListener("message", onMessage);
@@ -656,7 +658,11 @@ export async function awaitConsent(
       if (signal?.aborted) return { result: "abandoned" };
       if (Date.now() > deadline) return { result: "abandoned" };
 
-      await Promise.race([messaged, sleep(POLL_MS)]);
+      if (sawMessage) {
+        await sleep(POLL_MS);
+      } else {
+        await Promise.race([messaged, sleep(POLL_MS)]);
+      }
 
       const connection = await getConnection(connectionId).catch(() => null);
       if (connection && connection.status !== "pending") {

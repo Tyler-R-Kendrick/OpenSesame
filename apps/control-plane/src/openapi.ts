@@ -30,7 +30,10 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
       "/v1/principals/provisional": {
         post: {
           summary: "Create provisional principal + session",
-          responses: { "201": { description: "Created" } },
+          responses: {
+            "201": { description: "Created" },
+            "429": { description: "Rate fence" },
+          },
         },
       },
       "/v1/principals/me": {
@@ -66,6 +69,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
                 },
               },
             },
+            "401": { description: "Unauthorized" },
           },
         },
         post: {
@@ -119,6 +123,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
                 },
               },
             },
+            "401": { description: "Unauthorized" },
             "404": { description: "Organization or membership not found" },
           },
         },
@@ -155,6 +160,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
                 },
               },
             },
+            "401": { description: "Unauthorized" },
             "403": { description: "Owner role required" },
             "404": {
               description: "Caller membership not found (`not_found`)",
@@ -354,6 +360,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
                 },
               },
             },
+            "401": { description: "Unauthorized" },
           },
         },
         post: {
@@ -407,6 +414,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
                 },
               },
             },
+            "401": { description: "Unauthorized" },
           },
         },
         put: {
@@ -448,7 +456,11 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
               schema: { type: "string" },
             },
           ],
-          responses: { "201": { description: "Created" } },
+          responses: {
+            "201": { description: "Created" },
+            "401": { description: "Missing principal bearer" },
+            "403": { description: "Quota exceeded" },
+          },
         },
       },
       "/v1/projects/{id}": {
@@ -472,6 +484,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
                 },
               },
             },
+            "401": { description: "Unauthorized" },
             "404": { description: "Project or membership not found" },
           },
         },
@@ -529,6 +542,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
                 },
               },
             },
+            "401": { description: "Unauthorized" },
             "403": { description: "Owner or admin role required" },
             "404": { description: "Project or membership not found" },
           },
@@ -669,7 +683,11 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
               schema: { type: "string" },
             },
           ],
-          responses: { "201": { description: "Created" } },
+          responses: {
+            "201": { description: "Created" },
+            "401": { description: "Missing principal bearer" },
+            "403": { description: "Quota exceeded" },
+          },
         },
       },
       "/v1/claims/{id}": {
@@ -699,7 +717,10 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
       "/v1/claims/present": {
         post: {
           summary: "Present claim token",
-          responses: { "200": { description: "Presented" } },
+          responses: {
+            "200": { description: "Presented" },
+            "401": { description: "Missing or invalid claim token" },
+          },
         },
       },
       "/v1/claims/{id}/complete": {
@@ -759,7 +780,10 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
               schema: { type: "string" },
             },
           ],
-          responses: { "200": { description: "Denied" } },
+          responses: {
+            "200": { description: "Denied" },
+            "401": { description: "Missing principal bearer" },
+          },
         },
       },
       "/v1/claims/{id}/poll": {
@@ -790,7 +814,11 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
         post: {
           summary: "Register provisional agent",
           security: [{ bearerAuth: [] }],
-          responses: { "201": { description: "Created" } },
+          responses: {
+            "201": { description: "Created" },
+            "401": { description: "Missing principal bearer" },
+            "403": { description: "Quota exceeded" },
+          },
         },
       },
       "/v1/agents/{id}/claim": {
@@ -805,7 +833,10 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
               schema: { type: "string" },
             },
           ],
-          responses: { "201": { description: "Claim started" } },
+          responses: {
+            "201": { description: "Claim started" },
+            "401": { description: "Missing principal bearer" },
+          },
         },
       },
       "/auth.md": {
@@ -824,6 +855,17 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
         get: {
           summary: "RFC 9728 protected resource metadata",
           responses: { "200": { description: "Metadata" } },
+        },
+      },
+      "/v1/mfa/passkey/assert": {
+        post: {
+          summary: "Verify a passkey assertion (unauthenticated, fenced)",
+          responses: {
+            "200": { description: "Assertion accepted" },
+            "400": { description: "Invalid request" },
+            "401": { description: "Assertion failed" },
+            "429": { description: "Rate fence" },
+          },
         },
       },
     },

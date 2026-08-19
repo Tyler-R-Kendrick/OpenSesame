@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { AuditEvent } from "@opensesame/os-domain";
 import type { AuditSink } from "./append.js";
 
@@ -69,6 +69,13 @@ export function auditEventDigest(
     .digest("hex");
 }
 
+function equalDigest(left: string, right: string): boolean {
+  const a = Buffer.from(left);
+  const b = Buffer.from(right);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
 export interface ChainedAuditSinkOptions {
   /**
    * Digest of the newest event already in the store.
@@ -99,7 +106,7 @@ export function createChainedAuditSink(
   let resolved = resolveTip === undefined;
   let queue: Promise<unknown> = Promise.resolve();
 
-  async function link(event: AuditEvent): Promise<AuditEvent> {
+  async function link(event: AuditEvent, uow?: unknown): Promise<AuditEvent> {
     if (!resolved && resolveTip) {
       // A store that cannot be read leaves the tip at genesis: refusing to write
       // the event would lose the trail entirely, which is worse than a chain with
@@ -117,7 +124,7 @@ export function createChainedAuditSink(
       previousDigest,
       digest: auditEventDigest(event, previousDigest),
     };
-    const stored = await inner.append(linked);
+    const stored = await inner.append(linked, uow);
     // Only advance once the event is durable; a failed append must not leave a
     // gap that later events would be measured against.
     tip = linked.digest ?? previousDigest;
@@ -125,10 +132,10 @@ export function createChainedAuditSink(
   }
 
   return {
-    append(event: AuditEvent): Promise<AuditEvent> {
+    append(event: AuditEvent, uow?: unknown): Promise<AuditEvent> {
       const next = queue.then(
-        () => link(event),
-        () => link(event),
+        () => link(event, uow),
+        () => link(event, uow),
       );
       queue = next.catch(() => undefined);
       return next;
@@ -157,10 +164,15 @@ export function verifyAuditChain(
     if (event.digest === undefined || event.previousDigest === undefined) {
       return { ok: false, reason: "unlinked", eventId: event.id };
     }
-    if (event.previousDigest !== expected) {
+    if (!equalDigest(event.previousDigest, expected)) {
       return { ok: false, reason: "broken", eventId: event.id };
     }
-    if (auditEventDigest(event, event.previousDigest) !== event.digest) {
+    if (
+      !equalDigest(
+        auditEventDigest(event, event.previousDigest),
+        event.digest,
+      )
+    ) {
       return { ok: false, reason: "altered", eventId: event.id };
     }
     expected = event.digest;

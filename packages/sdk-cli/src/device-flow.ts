@@ -149,13 +149,18 @@ export class DeviceFlowClient {
     }
     this.#deviceCode = data.device_code;
     this.#intervalSeconds = Math.min(
-      data.interval ?? 5,
+      Math.max(
+        Number.isFinite(data.interval) && (data.interval ?? 0) > 0
+          ? Number(data.interval)
+          : 5,
+        5,
+      ),
       MAX_POLL_INTERVAL_SECONDS,
     );
-    this.#expiresAt =
-      typeof data.expires_in === "number"
-        ? Date.now() + data.expires_in * 1000
-        : undefined;
+    this.#expiresAt = Date.now() +
+      (Number.isFinite(data.expires_in) && data.expires_in >= 0
+        ? data.expires_in * 1000
+        : 15 * 60 * 1000);
     const safe: SafeDeviceStart = {
       userCode: data.user_code,
       verificationUri: data.verification_uri,
@@ -276,7 +281,7 @@ export function redactSecrets<T>(value: T): T {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
     if (
-      /device_code|access_token|refresh_token|id_token|code_verifier|client_secret|client_assertion|claimToken|claim_token|operator|password|secret|cookie|authorization|api[-_]?key/iu.test(
+      /device_code|access_token|refresh_token|id_token|code_verifier|client_secret|client_assertion|claimToken|claim_token|operator|password|passphrase|secret|cookie|authorization|api[-_]?key|private_key|signing_key|bearer/iu.test(
         k,
       )
     ) {

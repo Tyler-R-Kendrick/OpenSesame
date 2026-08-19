@@ -6,16 +6,15 @@
  * Alternate unlocks (PIN, WebAuthn PRF) store additional wraps of the same VK.
  * VK seals the item collection with AES-GCM.
  *
- * Only ciphertext reaches OPFS. VK is extractable in-memory so Settings can
- * enroll extra wraps during an unlocked session; raw key material never hits
- * durable storage. Keys are dropped on lock.
+ * Only ciphertext reaches OPFS. The in-session CryptoKey is non-extractable;
+ * enrollment uses a private raw copy held by VaultStore and wiped on lock.
  */
 
 /** OWASP 2023 floor for PBKDF2-HMAC-SHA256. */
 export const PBKDF2_ITERATIONS = 600_000;
 /** Above this, deriving is indistinguishable from a hung tab. */
-const MAX_PBKDF2_ITERATIONS = 10_000_000;
-const SALT_BYTES = 16;
+export const MAX_PBKDF2_ITERATIONS = 10_000_000;
+export const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const VAULT_KEY_BYTES = 32;
 
@@ -126,10 +125,24 @@ async function decrypt(key: CryptoKey, blob: SealedBlob): Promise<Uint8Array> {
   return new Uint8Array(plain);
 }
 
+export function assertKdfParams(kdf: KdfParams): void {
+  if (kdf.alg !== "PBKDF2-SHA256") {
+    throw new VaultCorruptError("unsupported key derivation");
+  }
+  if (
+    !Number.isInteger(kdf.iterations) ||
+    kdf.iterations < PBKDF2_ITERATIONS ||
+    kdf.iterations > MAX_PBKDF2_ITERATIONS
+  ) {
+    throw new VaultCorruptError("key derivation parameters were altered");
+  }
+  if (b64ToBytes(kdf.saltB64).length !== SALT_BYTES) {
+    throw new VaultCorruptError("key derivation salt is the wrong size");
+  }
+}
+
 export async function importVaultKey(raw: Uint8Array): Promise<CryptoKey> {
-  // Extractable so Settings can enroll passkey/PIN wraps of the same vault key
-  // during an unlocked session. The raw key never reaches OPFS — only ciphertext.
-  return crypto.subtle.importKey("raw", raw as BufferSource, "AES-GCM", true, [
+  return crypto.subtle.importKey("raw", raw as BufferSource, "AES-GCM", false, [
     "encrypt",
     "decrypt",
   ]);
@@ -143,6 +156,8 @@ function zero(bytes: Uint8Array): void {
 export type VaultKeyBundle = {
   header: VaultHeader;
   vaultKey: CryptoKey;
+  /** Caller must zero after stashing. */
+  rawVaultKey: Uint8Array;
 };
 
 /** First run: mint a vault key and wrap it under a new master password. */
@@ -155,8 +170,6 @@ export async function createVault(
   const rawVaultKey = randomBytes(VAULT_KEY_BYTES);
   const wrap = await encrypt(masterKey, rawVaultKey);
   const vaultKey = await importVaultKey(rawVaultKey);
-  zero(rawVaultKey);
-
   const header: VaultHeader = {
     v: 1,
     kdf: {
@@ -168,45 +181,38 @@ export async function createVault(
     createdAt: new Date().toISOString(),
     ...(hint ? { hint } : {}),
   };
-  return { header, vaultKey };
+  return { header, vaultKey, rawVaultKey };
 }
 
 /** Unlock: derive MK from the password and unwrap VK. GCM tag verifies the password. */
-export async function unlockVaultKey(
+export async function unwrapRawVaultKeyFromPassword(
   header: VaultHeader,
   password: string,
-): Promise<CryptoKey> {
+): Promise<Uint8Array> {
   if (header.v !== 1) {
     throw new VaultCorruptError("unsupported vault format");
   }
   if (!header.wrap || !header.kdf || header.kdf.alg !== "PBKDF2-SHA256") {
     throw new VaultCorruptError("this vault has no master-password unlock");
   }
-  // The wrap already binds these — derive with different ones and the tag fails —
-  // so a header outside what this app ever writes is a tampered or damaged file,
-  // and saying that is more use than reporting a wrong password. The ceiling also
-  // stops a header that would derive for minutes and look like a hung tab.
-  if (
-    !Number.isInteger(header.kdf.iterations) ||
-    header.kdf.iterations < PBKDF2_ITERATIONS ||
-    header.kdf.iterations > MAX_PBKDF2_ITERATIONS
-  ) {
-    throw new VaultCorruptError("key derivation parameters were altered");
-  }
-  if (b64ToBytes(header.kdf.saltB64).length !== SALT_BYTES) {
-    throw new VaultCorruptError("key derivation salt is the wrong size");
-  }
+  assertKdfParams(header.kdf);
   const masterKey = await deriveMasterKey(
     password,
     b64ToBytes(header.kdf.saltB64),
     header.kdf.iterations,
   );
-  let rawVaultKey: Uint8Array;
   try {
-    rawVaultKey = await decrypt(masterKey, header.wrap);
+    return await decrypt(masterKey, header.wrap);
   } catch {
     throw new WrongPasswordError();
   }
+}
+
+export async function unlockVaultKey(
+  header: VaultHeader,
+  password: string,
+): Promise<CryptoKey> {
+  const rawVaultKey = await unwrapRawVaultKeyFromPassword(header, password);
   const vaultKey = await importVaultKey(rawVaultKey);
   zero(rawVaultKey);
   return vaultKey;
@@ -227,6 +233,7 @@ export async function rewrapVaultKey(
   if (!header.wrap || !header.kdf || header.kdf.alg !== "PBKDF2-SHA256") {
     throw new VaultCorruptError("this vault has no master-password unlock");
   }
+  assertKdfParams(header.kdf);
   const currentMaster = await deriveMasterKey(
     currentPassword,
     b64ToBytes(header.kdf.saltB64),

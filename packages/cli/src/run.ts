@@ -81,20 +81,77 @@ async function loadSession(): Promise<SessionFile | null> {
   }
 }
 
-/**
- * A session is only the session for the issuer that minted it, and only until it
- * expires. Reusing it against another issuer would forward one host's bearer to
- * another host named by an environment variable.
- */
-function sessionFor(
+function sessionMatchesIssuer(
   session: SessionFile | null,
   issuer: string,
 ): SessionFile | null {
   if (!session) return null;
   if (trimSlash(session.issuer) !== trimSlash(issuer)) return null;
-  if (session.expiresAt !== undefined && session.expiresAt <= Date.now())
-    return null;
   return session;
+}
+
+async function refreshSession(
+  session: SessionFile,
+  fetchImpl: typeof fetch,
+): Promise<SessionFile | null> {
+  if (!session.refreshToken) return null;
+  try {
+    const discovery = await fetchImpl(
+      `${trimSlash(session.issuer)}/.well-known/openid-configuration`,
+    );
+    if (!discovery.ok) return null;
+    const meta = (await discovery.json()) as { token_endpoint?: string };
+    const tokenEndpoint = meta.token_endpoint;
+    if (!tokenEndpoint) return null;
+    const issuerOrigin = new URL(session.issuer).origin;
+    if (new URL(tokenEndpoint).origin !== issuerOrigin) return null;
+    const body = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: session.refreshToken,
+      client_id: session.clientId,
+    });
+    const res = await fetchImpl(tokenEndpoint, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    if (!res.ok) return null;
+    const tokens = (await res.json()) as {
+      access_token?: string;
+      refresh_token?: string;
+      expires_in?: number;
+    };
+    if (!tokens.access_token) return null;
+    const next: SessionFile = {
+      ...session,
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token ?? session.refreshToken,
+      ...(typeof tokens.expires_in === "number"
+        ? { expiresAt: Date.now() + tokens.expires_in * 1000 }
+        : {}),
+    };
+    await saveSession(next);
+    return next;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A session is only the session for the issuer that minted it, and only until it
+ * expires. An expired access token is refreshed when a refresh token is present.
+ */
+async function sessionFor(
+  session: SessionFile | null,
+  issuer: string,
+  fetchImpl: typeof fetch,
+): Promise<SessionFile | null> {
+  const matched = sessionMatchesIssuer(session, issuer);
+  if (!matched) return null;
+  if (matched.expiresAt === undefined || matched.expiresAt > Date.now()) {
+    return matched;
+  }
+  return refreshSession(matched, fetchImpl);
 }
 
 async function saveSession(session: SessionFile): Promise<void> {
@@ -117,11 +174,17 @@ async function clearSession(): Promise<void> {
 }
 
 function emit(flags: { json: boolean }, human: string, data: unknown): void {
+  const redacted = redactSecrets(data);
   if (flags.json) {
-    process.stdout.write(`${JSON.stringify(redactSecrets(data), null, 2)}\n`);
-  } else {
-    process.stdout.write(`${human}\n`);
+    process.stdout.write(`${JSON.stringify(redacted, null, 2)}\n`);
+    return;
   }
+  const trimmed = human.trimStart();
+  const safeHuman =
+    trimmed.startsWith("{") || trimmed.startsWith("[")
+      ? JSON.stringify(redacted, null, 2)
+      : human;
+  process.stdout.write(`${safeHuman}\n`);
 }
 
 function publicKeyJktPlaceholder(): string {
@@ -295,7 +358,7 @@ async function dispatch(
     }
 
     case "auth-status": {
-      const session = sessionFor(await loadSession(), issuer);
+      const session = await sessionFor(await loadSession(), issuer, fetchImpl);
       const cp = createControlPlaneClient({
         baseUrl: api,
         ...(session ? { accessToken: session.accessToken } : {}),
@@ -312,7 +375,7 @@ async function dispatch(
 
     case "logout": {
       // The local file goes either way; only a session minted here can be revoked.
-      const session = sessionFor(await loadSession(), issuer);
+      const session = await sessionFor(await loadSession(), issuer, fetchImpl);
       if (session) {
         const cp = createControlPlaneClient({
           baseUrl: api,
@@ -331,7 +394,7 @@ async function dispatch(
     }
 
     case "whoami": {
-      const session = sessionFor(await loadSession(), issuer);
+      const session = await sessionFor(await loadSession(), issuer, fetchImpl);
       if (!session) {
         emit(command.flags, "Not authenticated.", { authenticated: false });
         return 1;
@@ -347,7 +410,7 @@ async function dispatch(
     }
 
     case "project-create": {
-      const session = sessionFor(await loadSession(), issuer);
+      const session = await sessionFor(await loadSession(), issuer, fetchImpl);
       if (!session) {
         process.stderr.write("Login required.\n");
         return 1;
@@ -371,7 +434,7 @@ async function dispatch(
     }
 
     case "claim-poll": {
-      const session = sessionFor(await loadSession(), issuer);
+      const session = await sessionFor(await loadSession(), issuer, fetchImpl);
       const cp = createControlPlaneClient({
         baseUrl: api,
         ...(session ? { accessToken: session.accessToken } : {}),

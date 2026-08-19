@@ -625,6 +625,9 @@ projectRoutes.patch("/:id", requirePrincipal(), async (c) => {
     pagesVaultFolderId?: string | null;
   };
 
+  const tombName = /^[A-Za-z0-9._-]{1,64}$/;
+  const folderId = /^[A-Za-z0-9._:/-]{1,128}$/;
+
   const next: Project = {
     ...project,
     updatedAt: ctx.clock(),
@@ -643,6 +646,9 @@ projectRoutes.patch("/:id", requirePrincipal(), async (c) => {
     if (body.sealedStoreTombName === null || !body.sealedStoreTombName.trim()) {
       delete next.sealedStoreTombName;
     } else {
+      if (!tombName.test(body.sealedStoreTombName.trim()) || body.sealedStoreTombName.includes("..")) {
+        return c.json({ error: "validation_error", message: "invalid sealedStoreTombName" }, 400);
+      }
       next.sealedStoreTombName = body.sealedStoreTombName.trim();
     }
   }
@@ -650,11 +656,25 @@ projectRoutes.patch("/:id", requirePrincipal(), async (c) => {
     if (body.pagesVaultFolderId === null || !body.pagesVaultFolderId.trim()) {
       delete next.pagesVaultFolderId;
     } else {
+      if (!folderId.test(body.pagesVaultFolderId.trim()) || body.pagesVaultFolderId.includes("..")) {
+        return c.json({ error: "validation_error", message: "invalid pagesVaultFolderId" }, 400);
+      }
       next.pagesVaultFolderId = body.pagesVaultFolderId.trim();
     }
   }
 
   ctx.stores.projects.set(project.id, next);
+  await appendAuditEvent(ctx.repos.auditEvents, {
+    eventType: "project.updated",
+    outcome: "succeeded",
+    principalId,
+    projectId: project.id,
+    correlationId: c.get("correlationId"),
+    metadata: {
+      action: "project.patch",
+      displayName: next.displayName,
+    },
+  });
   return c.json(projectDetailResponse(next, role));
 });
 

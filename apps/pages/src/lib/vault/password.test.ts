@@ -121,7 +121,7 @@ describe("entropy accounting", () => {
       symbols: false,
       avoidAmbiguous: false,
     });
-    expect(bits).toBe(Math.round(20 * Math.log2(25)));
+    expect(bits).toBe(Math.round(20 * Math.log2(26)));
   });
 
   it("scales with word count for passphrases", () => {

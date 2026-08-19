@@ -1,5 +1,6 @@
 import { createMiddleware } from "hono/factory";
 import type { Variables } from "./context.js";
+import { serializeKeyed } from "../serialize.js";
 
 /** Cached responses are short-lived: they hold the original body verbatim. */
 export const IDEMPOTENCY_TTL_MS = 10 * 60_000;
@@ -32,6 +33,7 @@ export function idempotencyMiddleware(scope: string) {
     const now = ctx.clock().getTime();
     const cacheKey = `${scope}:${caller}:${c.req.method}:${c.req.path}:${key}`;
 
+    return serializeKeyed(ctx.stores.idempotencyLocks, cacheKey, async () => {
     for (const [k, record] of ctx.stores.idempotency) {
       if (record.expiresAt <= now) ctx.stores.idempotency.delete(k);
     }
@@ -49,8 +51,6 @@ export function idempotencyMiddleware(scope: string) {
       try {
         const clone = c.res.clone();
         const body = await clone.json();
-        // Deliberately no header replay: re-issuing `Set-Cookie` to a different
-        // HTTP client would hand out a session that was minted for someone else.
         ctx.stores.idempotency.set(cacheKey, {
           status: c.res.status,
           body,
@@ -60,5 +60,6 @@ export function idempotencyMiddleware(scope: string) {
         // non-JSON success — skip cache
       }
     }
+    });
   });
 }

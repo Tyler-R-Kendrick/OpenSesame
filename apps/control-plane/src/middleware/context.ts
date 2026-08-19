@@ -13,8 +13,14 @@ export function withContext(ctx: AppContext) {
     c.set("ctx", ctx);
     c.set(
       "correlationId",
-      c.req.header("x-correlation-id") ?? crypto.randomUUID(),
+      sanitizeCorrelationId(c.req.header("x-correlation-id")),
     );
     await next();
   });
+}
+
+/** Reject log-injection / oversized client correlation ids. */
+export function sanitizeCorrelationId(header: string | undefined): string {
+  if (header && /^[\w.-]{1,128}$/.test(header)) return header;
+  return crypto.randomUUID();
 }

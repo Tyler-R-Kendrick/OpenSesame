@@ -11,7 +11,6 @@ import {
   assertKeepsPrimaryUnlock,
   checkWebauthnHost,
   describeWebauthnError,
-  exportRawVaultKey,
   listAvailableUnlockMethods,
   preferredUnlockMethod,
   randomTotpSecret,
@@ -23,7 +22,7 @@ import {
 } from "./unlock-methods.js";
 
 const PASSWORD = "correct horse battery staple";
-const PIN = "482910";
+const PIN = "48291037";
 
 describe("unlock method listing", () => {
   it("lists password by default and prefers passkey when present", async () => {
@@ -64,9 +63,8 @@ describe("unlock method listing", () => {
 
 describe("PIN wrap", () => {
   it("round-trips the vault key", async () => {
-    const { vaultKey } = await createVault(PASSWORD);
+    const { vaultKey, rawVaultKey: raw } = await createVault(PASSWORD);
     const sealed = await sealJson(vaultKey, { via: "pin" });
-    const raw = await exportRawVaultKey(vaultKey);
     const record = await wrapVaultKeyWithPin(raw, PIN);
     raw.fill(0);
 
@@ -77,12 +75,11 @@ describe("PIN wrap", () => {
   });
 
   it("rejects the wrong PIN", async () => {
-    const { vaultKey } = await createVault(PASSWORD);
-    const raw = await exportRawVaultKey(vaultKey);
+    const { rawVaultKey: raw } = await createVault(PASSWORD);
     const record = await wrapVaultKeyWithPin(raw, PIN);
     raw.fill(0);
     await expect(
-      unwrapVaultKeyWithPin(record, "000000"),
+      unwrapVaultKeyWithPin(record, "48291038"),
     ).rejects.toBeInstanceOf(WrongPasswordError);
   });
 });

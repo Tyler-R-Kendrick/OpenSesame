@@ -101,6 +101,13 @@ export function hostAuthHeaders(base = hostApiBase()): Record<string, string> {
   }
   const session = process.env.OPENSESAME_ACCESS_TOKEN?.trim();
   if (session) {
+    if (!isLoopbackBase(base) && new URL(base).protocol !== "https:") {
+      throw new Error("OPENSESAME_ACCESS_TOKEN requires https off loopback");
+    }
+    const allowed = process.env.OPENSESAME_HOST_AUDIENCE?.trim();
+    if (allowed && new URL(base).origin !== new URL(allowed).origin) {
+      throw new Error("OPENSESAME_SERVER does not match OPENSESAME_HOST_AUDIENCE");
+    }
     const token = session.startsWith("opaque-session:")
       ? session
       : `opaque-session:${session}`;

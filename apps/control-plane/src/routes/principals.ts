@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
 import {
@@ -15,7 +15,7 @@ import type {
 } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { requirePrincipal } from "../middleware/auth.js";
+import { requirePrincipal, cookieAuthAllowed } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import {
@@ -53,6 +53,22 @@ principalRoutes.post(
         429,
       );
     }
+
+    const fingerprint = createHash("sha256")
+      .update(c.req.header("user-agent") ?? "")
+      .update("|")
+      .update(c.req.header("origin") ?? "")
+      .digest("hex")
+      .slice(0, 16);
+    const windowMs = 60_000;
+    const stamps = (ctx.stores.provisionalMints.get(fingerprint) ?? []).filter(
+      (at) => now.getTime() - at < windowMs,
+    );
+    if (stamps.length >= 10) {
+      return c.json({ error: "rate_limited" }, 429);
+    }
+    stamps.push(now.getTime());
+    ctx.stores.provisionalMints.set(fingerprint, stamps);
 
     const { mapping, session } = await createProvisionalPrincipal(
       ctx.mappings,
@@ -155,6 +171,11 @@ principalRoutes.post("/provisional/revoke", async (c) => {
   const authenticated = c.get("provisionalSessionId");
   if (authenticated) revoking.add(authenticated);
   if (cookie) {
+    if (
+      !cookieAuthAllowed(ctx, c.req.method, c.req.header("origin"))
+    ) {
+      return c.json({ error: "forbidden", hint: "origin required" }, 403);
+    }
     const fromCookie = ctx.stores.provisionalTokens.get(cookie);
     if (fromCookie) revoking.add(fromCookie);
   }
@@ -478,7 +499,7 @@ principalRoutes.get("/mapping/resolve", async (c) => {
     : "";
   const headerToken = c.req.header("x-opensesame-mapping-token")?.trim() ?? "";
   const presented = bearer || headerToken;
-  if (!presented || presented !== expected) {
+  if (!presented || !tokenEq(presented, expected)) {
     return c.json({ error: "unauthorized" }, 401);
   }
 
@@ -536,3 +557,9 @@ principalRoutes.get("/mapping/resolve", async (c) => {
     subject: identity.subject,
   });
 });
+
+function tokenEq(presented: string, expected: string): boolean {
+  const left = createHash("sha256").update(presented).digest();
+  const right = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(left, right);
+}

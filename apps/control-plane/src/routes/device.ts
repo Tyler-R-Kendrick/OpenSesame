@@ -93,14 +93,23 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
         },
         body: JSON.stringify({
           user_code: userCode,
-          // Always bind to the authenticated Identity principal — never trust client-supplied principal.
           principal: principalId,
-          // Organization and role come from Identity state. Browser-supplied role is ignored.
           organization_id: organizationId,
           organization_role: membership.role,
         }),
+        redirect: "error",
         signal: AbortSignal.timeout(5_000),
       });
+      if (!res.ok) {
+        ctx.log.warn(
+          { status: res.status },
+          "device approve proxy rejected by Host",
+        );
+        return c.json(
+          { error: "host_approval_failed" },
+          res.status === 404 ? 404 : 502,
+        );
+      }
       const text = await res.text();
       let payload: unknown = text;
       try {
@@ -108,16 +117,7 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
       } catch {
         /* keep text */
       }
-      // `url` is deliberately not echoed: the Host API address is internal
-      // topology, and callers only need the approval outcome.
-      return c.json(
-        {
-          ok: res.ok,
-          status: res.status,
-          body: payload,
-        },
-        res.ok ? 200 : res.status === 404 ? 404 : 502,
-      );
+      return c.json({ ok: true, status: res.status, body: payload });
     } catch (err) {
       ctx.log.warn(
         { err: err instanceof Error ? err.message : String(err) },

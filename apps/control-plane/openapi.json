@@ -40,6 +40,9 @@
         "responses": {
           "201": {
             "description": "Created"
+          },
+          "429": {
+            "description": "Rate fence"
           }
         }
       }
@@ -83,7 +86,9 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["organizations"],
+                  "required": [
+                    "organizations"
+                  ],
                   "properties": {
                     "organizations": {
                       "type": "array",
@@ -95,6 +100,9 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         }
       },
@@ -177,6 +185,9 @@
               }
             }
           },
+          "401": {
+            "description": "Unauthorized"
+          },
           "404": {
             "description": "Organization or membership not found"
           }
@@ -211,7 +222,9 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["members"],
+                  "required": [
+                    "members"
+                  ],
                   "properties": {
                     "members": {
                       "type": "array",
@@ -223,6 +236,9 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized"
           },
           "403": {
             "description": "Owner role required"
@@ -486,7 +502,9 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["projects"],
+                  "required": [
+                    "projects"
+                  ],
                   "properties": {
                     "projects": {
                       "type": "array",
@@ -498,6 +516,9 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         }
       },
@@ -581,6 +602,9 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         }
       },
@@ -648,6 +672,12 @@
         "responses": {
           "201": {
             "description": "Created"
+          },
+          "401": {
+            "description": "Missing principal bearer"
+          },
+          "403": {
+            "description": "Quota exceeded"
           }
         }
       }
@@ -683,6 +713,9 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized"
           },
           "404": {
             "description": "Project or membership not found"
@@ -757,7 +790,9 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["members"],
+                  "required": [
+                    "members"
+                  ],
                   "properties": {
                     "members": {
                       "type": "array",
@@ -769,6 +804,9 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized"
           },
           "403": {
             "description": "Owner or admin role required"
@@ -971,6 +1009,12 @@
         "responses": {
           "201": {
             "description": "Created"
+          },
+          "401": {
+            "description": "Missing principal bearer"
+          },
+          "403": {
+            "description": "Quota exceeded"
           }
         }
       }
@@ -1014,6 +1058,9 @@
         "responses": {
           "200": {
             "description": "Presented"
+          },
+          "401": {
+            "description": "Missing or invalid claim token"
           }
         }
       }
@@ -1050,7 +1097,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["acceptedItemIds", "userCode"],
+                "required": [
+                  "acceptedItemIds",
+                  "userCode"
+                ],
                 "properties": {
                   "acceptedItemIds": {
                     "type": "array",
@@ -1103,6 +1153,9 @@
         "responses": {
           "200": {
             "description": "Denied"
+          },
+          "401": {
+            "description": "Missing principal bearer"
           }
         }
       }
@@ -1151,6 +1204,12 @@
         "responses": {
           "201": {
             "description": "Created"
+          },
+          "401": {
+            "description": "Missing principal bearer"
+          },
+          "403": {
+            "description": "Quota exceeded"
           }
         }
       }
@@ -1176,6 +1235,9 @@
         "responses": {
           "201": {
             "description": "Claim started"
+          },
+          "401": {
+            "description": "Missing principal bearer"
           }
         }
       }
@@ -1209,22 +1271,53 @@
           }
         }
       }
+    },
+    "/v1/mfa/passkey/assert": {
+      "post": {
+        "summary": "Verify a passkey assertion (unauthenticated, fenced)",
+        "responses": {
+          "200": {
+            "description": "Assertion accepted"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Assertion failed"
+          },
+          "429": {
+            "description": "Rate fence"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
       "OrganizationState": {
         "type": "string",
-        "enum": ["provisional", "active", "suspended", "deleted"]
+        "enum": [
+          "provisional",
+          "active",
+          "suspended",
+          "deleted"
+        ]
       },
       "OrganizationRole": {
         "type": "string",
-        "enum": ["owner", "admin", "member"]
+        "enum": [
+          "owner",
+          "admin",
+          "member"
+        ]
       },
       "CreateOrganization": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["slug", "displayName"],
+        "required": [
+          "slug",
+          "displayName"
+        ],
         "properties": {
           "slug": {
             "type": "string",
@@ -1314,7 +1407,10 @@
       "AddOrganizationMember": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["principalId", "role"],
+        "required": [
+          "principalId",
+          "role"
+        ],
         "properties": {
           "principalId": {
             "type": "string",
@@ -1328,7 +1424,9 @@
       "ChangeOrganizationMemberRole": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["role"],
+        "required": [
+          "role"
+        ],
         "properties": {
           "role": {
             "$ref": "#/components/schemas/OrganizationRole"
@@ -1337,20 +1435,36 @@
       },
       "ProjectState": {
         "type": "string",
-        "enum": ["provisional", "active", "expired", "deleting", "deleted"]
+        "enum": [
+          "provisional",
+          "active",
+          "expired",
+          "deleting",
+          "deleted"
+        ]
       },
       "ProjectKind": {
         "type": "string",
-        "enum": ["personal", "standard", "temporary"]
+        "enum": [
+          "personal",
+          "standard",
+          "temporary"
+        ]
       },
       "ProjectRole": {
         "type": "string",
-        "enum": ["owner", "admin", "member"]
+        "enum": [
+          "owner",
+          "admin",
+          "member"
+        ]
       },
       "CreateProject": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["displayName"],
+        "required": [
+          "displayName"
+        ],
         "properties": {
           "displayName": {
             "type": "string",
@@ -1423,7 +1537,10 @@
       "ActiveProject": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["project", "isFallback"],
+        "required": [
+          "project",
+          "isFallback"
+        ],
         "properties": {
           "project": {
             "$ref": "#/components/schemas/Project"
@@ -1437,7 +1554,9 @@
       "SetActiveProject": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["projectId"],
+        "required": [
+          "projectId"
+        ],
         "properties": {
           "projectId": {
             "type": "string",
@@ -1478,7 +1597,10 @@
       "AddProjectMember": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["principalId", "role"],
+        "required": [
+          "principalId",
+          "role"
+        ],
         "properties": {
           "principalId": {
             "type": "string",
@@ -1492,7 +1614,9 @@
       "ChangeProjectMemberRole": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["role"],
+        "required": [
+          "role"
+        ],
         "properties": {
           "role": {
             "$ref": "#/components/schemas/ProjectRole"
@@ -1501,7 +1625,9 @@
       },
       "DeviceApproval": {
         "type": "object",
-        "required": ["user_code"],
+        "required": [
+          "user_code"
+        ],
         "properties": {
           "user_code": {
             "type": "string",
@@ -1514,7 +1640,11 @@
       },
       "DeviceApprovalResult": {
         "type": "object",
-        "required": ["ok", "status", "body"],
+        "required": [
+          "ok",
+          "status",
+          "body"
+        ],
         "properties": {
           "ok": {
             "type": "boolean"

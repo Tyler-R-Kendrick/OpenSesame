@@ -14,6 +14,18 @@ function capture() {
 }
 
 describe("redactDeep", () => {
+  it("redacts api_key and leaves diagnostic `code` fields", () => {
+    const out = redactDeep({
+      api_key: "sk_live",
+      apikey: "sk_live2",
+      code: 404,
+      authorization_code: "leak",
+    }) as Record<string, unknown>;
+    expect(out.api_key).toBe("[Redacted]");
+    expect(out.apikey).toBe("[Redacted]");
+    expect(out.code).toBe(404);
+    expect(out.authorization_code).toBe("[Redacted]");
+  });
   it("censors sensitive keys below the first level", () => {
     const out = redactDeep({
       ctx: { session: { access_token: "LEAK", safe: "ok" } },
