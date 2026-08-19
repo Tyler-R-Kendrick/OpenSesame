@@ -1,0 +1,39 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`redaction characterization > keeps exactly this much of a realistic authorization-inbox event 1`] = `
+{
+  "approvalId": "approval_1",
+  "authReqId": "areq_1",
+  "bindingMessageDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "connectionId": "connection_1",
+  "decidedByKind": "agent",
+  "delegationId": "dlg_1",
+  "invocationId": "inv_1",
+  "offerId": "dlgo_1",
+  "requestDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+}
+`;
+
+exports[`redaction characterization > keeps exactly this much of a realistic claim/connection event 1`] = `
+{
+  "action": "claim.completed",
+  "agentId": "agt_1",
+  "claimId": "clm_1",
+  "count": 3,
+  "fromState": "reviewed",
+  "idempotencyKey": "idem-1",
+  "organizationId": "org_1",
+  "outcome": "succeeded",
+  "projectId": "prj_1",
+  "quotaProfile": "anonymous",
+  "state": "completed",
+  "toState": "completed",
+  "won": true,
+}
+`;
+
+exports[`redaction characterization > truncates long values rather than letting the trail grow unbounded 1`] = `
+{
+  "issuer": "https://issuer.example/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…",
+}
+`;

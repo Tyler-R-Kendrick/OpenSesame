@@ -173,3 +173,36 @@ mod tests {
         assert!(github[0].sources.iter().any(|s| s.kind == SourceKind::Mcp));
     }
 }
+
+#[cfg(test)]
+mod characterization {
+    use super::*;
+
+    /// Snapshot of the wire shape of a discovery report.
+    ///
+    /// This does not assert the shape is *right* — the tests above do that. It
+    /// pins what the route actually serializes, so a new field has to be looked
+    /// at and accepted rather than shipped unnoticed. On this route that matters
+    /// more than most: the whole contract is that a provider is named and its
+    /// credential never is, and the cheapest way to break it is to add a
+    /// helpful-looking field.
+    ///
+    /// If this fails, read the diff. A new key here is a disclosure decision.
+    #[test]
+    fn contract_report_wire_shape_is_pinned() {
+        let env = |name: &str| match name {
+            "HOME" => Some("/home/tester".to_string()),
+            "STRIPE_SECRET_KEY" => Some("PLANTED-VALUE-MUST-NOT-ESCAPE".to_string()),
+            "VAULT_TOKEN" => Some("PLANTED-VALUE-MUST-NOT-ESCAPE".to_string()),
+            _ => None,
+        };
+        let read_file = |path: &PathBuf| {
+            (path == &PathBuf::from("/home/tester/.mcp.json")).then(|| {
+                r#"{"mcpServers": {"github": {"command": "npx"}}}"#.to_string()
+            })
+        };
+
+        let report = report_with(&env, &read_file);
+        insta::assert_json_snapshot!(report);
+    }
+}

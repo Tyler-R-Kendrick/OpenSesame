@@ -312,9 +312,10 @@ pub fn scan(
 ) -> Vec<Detection> {
     let mut found: BTreeMap<String, Vec<Source>> = BTreeMap::new();
     let mut note = |provider: &str, kind: SourceKind, name: String| {
-        let sources = found.entry(provider.to_string()).or_default();
-        if !sources.iter().any(|s| s.kind == kind && s.name == name) {
-            sources.push(Source { kind, name });
+        let sources: &mut Vec<Source> = found.entry(provider.to_string()).or_default();
+        let source = Source { kind, name };
+        if !sources.contains(&source) {
+            sources.push(source);
         }
     };
 
@@ -474,13 +475,250 @@ mod tests {
         assert!(mcp_server_names(r#"{"other": 1}"#).is_empty());
     }
 
+    fn files(pairs: &[(&str, &str)]) -> impl Fn(&PathBuf) -> Option<String> + use<> {
+        let owned: Vec<(String, String)> = pairs
+            .iter()
+            .map(|(p, c)| ((*p).to_string(), (*c).to_string()))
+            .collect();
+        move |path: &PathBuf| {
+            owned
+                .iter()
+                .find(|(p, _)| PathBuf::from(p) == *path)
+                .map(|(_, c)| c.clone())
+        }
+    }
+
+    const AWS_CREDENTIALS: &str = "[default]\naws_access_key_id = DEFAULTKEY\naws_secret_access_key = DEFAULTSECRET\naws_session_token = DEFAULTSESSION\n\n[work]\naws_access_key_id = WORKKEY\naws_secret_access_key = WORKSECRET\n";
+
+    const AWS_CONFIG: &str =
+        "[default]\nregion = us-east-1\n\n[profile work]\nregion = eu-west-2\n";
+
+    #[test]
+    fn property_each_aws_credential_field_reads_its_own_ini_key() {
+        // One assertion per field: a deleted match arm here would silently stop
+        // detecting one kind of credential while the others still worked.
+        let env = env_from(&[("HOME", "/home/t")]);
+        let read = files(&[("/home/t/.aws/credentials", AWS_CREDENTIALS)]);
+        for (field, expected) in [
+            ("access_key_id", "DEFAULTKEY"),
+            ("secret_access_key", "DEFAULTSECRET"),
+            ("session_token", "DEFAULTSESSION"),
+        ] {
+            assert_eq!(
+                detected_aws_file_value(field, &env, &read).as_deref(),
+                Some(expected),
+                "{field}"
+            );
+        }
+        // A field with no ini key of its own must not fall through to another's.
+        assert_eq!(detected_aws_file_value("key_id", &env, &read), None);
+    }
+
+    #[test]
+    fn contract_the_selected_aws_profile_wins_in_both_files() {
+        let env = env_from(&[("HOME", "/home/t"), ("AWS_PROFILE", "work")]);
+        let read = files(&[
+            ("/home/t/.aws/credentials", AWS_CREDENTIALS),
+            ("/home/t/.aws/config", AWS_CONFIG),
+        ]);
+        assert_eq!(
+            detected_aws_file_value("access_key_id", &env, &read).as_deref(),
+            Some("WORKKEY")
+        );
+        // The config file spells a non-default profile "profile work", and the
+        // credentials file spells the same profile "work".
+        assert_eq!(
+            detected_aws_file_value("region", &env, &read).as_deref(),
+            Some("eu-west-2")
+        );
+    }
+
+    #[test]
+    fn contract_default_profile_region_is_not_read_from_a_profile_section() {
+        let env = env_from(&[("HOME", "/home/t")]);
+        let read = files(&[("/home/t/.aws/config", AWS_CONFIG)]);
+        assert_eq!(
+            detected_aws_file_value("region", &env, &read).as_deref(),
+            Some("us-east-1")
+        );
+    }
+
+    #[test]
+    fn property_aws_file_locations_honour_their_overrides() {
+        let env = env_from(&[
+            ("HOME", "/home/t"),
+            ("AWS_SHARED_CREDENTIALS_FILE", "/elsewhere/creds"),
+            ("AWS_CONFIG_FILE", "/elsewhere/config"),
+        ]);
+        let read = files(&[
+            ("/elsewhere/creds", AWS_CREDENTIALS),
+            ("/elsewhere/config", AWS_CONFIG),
+            // The home-relative paths hold something else entirely; reading them
+            // would be reading the wrong machine's credentials.
+            ("/home/t/.aws/credentials", "[default]\naws_access_key_id = WRONG\n"),
+        ]);
+        assert_eq!(
+            detected_aws_file_value("access_key_id", &env, &read).as_deref(),
+            Some("DEFAULTKEY")
+        );
+        assert_eq!(
+            detected_aws_file_value("region", &env, &read).as_deref(),
+            Some("us-east-1")
+        );
+    }
+
+    #[test]
+    fn contract_aws_reads_nothing_when_there_is_no_home_and_no_override() {
+        let env = env_from(&[]);
+        assert_eq!(
+            detected_aws_file_value("access_key_id", &env, &no_files()),
+            None
+        );
+    }
+
+    #[test]
+    fn contract_gcp_credentials_come_from_the_override_then_the_default_path() {
+        let adc = r#"{"project_id": "proj-from-file"}"#;
+        let env = env_from(&[("HOME", "/home/t")]);
+        let read = files(&[(
+            "/home/t/.config/gcloud/application_default_credentials.json",
+            adc,
+        )]);
+        assert_eq!(detected_gcp_file(&env, &read).as_deref(), Some(adc));
+
+        let overridden = env_from(&[
+            ("HOME", "/home/t"),
+            ("GOOGLE_APPLICATION_CREDENTIALS", "/keys/sa.json"),
+        ]);
+        let read_override = files(&[("/keys/sa.json", r#"{"project_id": "proj-override"}"#)]);
+        assert_eq!(
+            detected_gcp_file(&overridden, &read_override).as_deref(),
+            Some(r#"{"project_id": "proj-override"}"#)
+        );
+
+        // Nothing configured is not the same as an empty credential.
+        assert_eq!(detected_gcp_file(&env_from(&[]), &no_files()), None);
+    }
+
+    #[test]
+    fn property_gcp_project_id_falls_back_to_the_quota_project() {
+        let env = env_from(&[("HOME", "/home/t")]);
+        let path = "/home/t/.config/gcloud/application_default_credentials.json";
+        let named = files(&[(path, r#"{"project_id": "primary"}"#)]);
+        assert_eq!(
+            detected_file_value("gcp", "project_id", &env, &named).as_deref(),
+            Some("primary")
+        );
+        let quota_only = files(&[(path, r#"{"quota_project_id": "fallback"}"#)]);
+        assert_eq!(
+            detected_file_value("gcp", "project_id", &env, &quota_only).as_deref(),
+            Some("fallback")
+        );
+        let neither = files(&[(path, r#"{"client_email": "x@y.z"}"#)]);
+        assert_eq!(
+            detected_file_value("gcp", "project_id", &env, &neither),
+            None
+        );
+    }
+
+    #[test]
+    fn contract_token_dotfiles_are_read_per_provider() {
+        let env = env_from(&[("HOME", "/home/t")]);
+        let read = files(&[
+            ("/home/t/.vault-token", "vault-token-value"),
+            ("/home/t/.bao-token", "bao-token-value"),
+        ]);
+        assert_eq!(
+            detected_file_value("vault", "token", &env, &read).as_deref(),
+            Some("vault-token-value")
+        );
+        assert_eq!(
+            detected_file_value("openbao", "token", &env, &read).as_deref(),
+            Some("bao-token-value")
+        );
+        // A provider with no file convention must not borrow another's.
+        assert_eq!(detected_file_value("stripe", "api_key", &env, &read), None);
+    }
+
+    #[test]
+    fn adversarial_a_source_is_listed_once_however_many_names_match() {
+        // huggingface has two aliases; setting both must not report the same
+        // provider twice, and must not collapse two distinct variables into one.
+        let env = env_from(&[
+            ("HF_TOKEN", "a"),
+            ("HUGGING_FACE_HUB_TOKEN", "b"),
+            ("OPENSESAME_PROVIDER_HUGGINGFACE_API_KEY", "c"),
+        ]);
+        let found = scan(&env, &no_files());
+        let hf: Vec<_> = found
+            .iter()
+            .filter(|d| d.provider_id == "huggingface")
+            .collect();
+        assert_eq!(hf.len(), 1, "one entry per provider");
+        let mut names: Vec<&str> = hf[0].sources.iter().map(|s| s.name.as_str()).collect();
+        names.sort_unstable();
+        assert_eq!(
+            names,
+            vec![
+                "HF_TOKEN",
+                "HUGGING_FACE_HUB_TOKEN",
+                "OPENSESAME_PROVIDER_HUGGINGFACE_API_KEY"
+            ]
+        );
+    }
+
+    #[test]
+    fn property_aws_predicates_name_exactly_the_aws_providers_and_fields() {
+        // These gate whether environment credentials suppress a file read, so a
+        // predicate that answered true for everything would mix two machines'
+        // AWS keys together.
+        for id in ["aws", "aws-kms", "aws-ps", "aws-bedrock"] {
+            assert!(is_aws_provider(id), "{id}");
+        }
+        for id in ["stripe", "gcp", "azure-sm", ""] {
+            assert!(!is_aws_provider(id), "{id}");
+        }
+        for field in ["access_key_id", "secret_access_key", "session_token"] {
+            assert!(is_aws_credential_field(field), "{field}");
+        }
+        for field in ["region", "key_id", ""] {
+            assert!(!is_aws_credential_field(field), "{field}");
+        }
+    }
+
+    #[test]
+    fn contract_file_detection_routes_each_provider_to_its_own_reader() {
+        let env = env_from(&[("HOME", "/home/t")]);
+        let read = files(&[
+            ("/home/t/.aws/credentials", AWS_CREDENTIALS),
+            (
+                "/home/t/.config/gcloud/application_default_credentials.json",
+                r#"{"project_id": "p"}"#,
+            ),
+        ]);
+        // Reached through the router rather than the reader, so deleting the
+        // arm that routes there is caught.
+        assert_eq!(
+            detected_file_value("aws-bedrock", "access_key_id", &env, &read).as_deref(),
+            Some("DEFAULTKEY")
+        );
+        assert_eq!(
+            detected_file_value("gcp-kms", "service_account_json", &env, &read).as_deref(),
+            Some(r#"{"project_id": "p"}"#)
+        );
+    }
+
     #[test]
     fn chaos_ini_parsing_ignores_comments_and_other_sections() {
-        let ini = "[default]\n# comment\naws_access_key_id = AKIAEXAMPLE\n\n[other]\naws_access_key_id = NOPE\n";
+        let ini = "[default]\n# hash comment = NOPE\n; semicolon comment = NOPE\naws_access_key_id = AKIAEXAMPLE\n\n[other]\naws_access_key_id = NOPE\n";
         assert_eq!(
             ini_value(ini, "default", "aws_access_key_id").as_deref(),
             Some("AKIAEXAMPLE")
         );
         assert_eq!(ini_value(ini, "missing", "aws_access_key_id"), None);
+        // Both comment markers must be skipped inside the matching section, or a
+        // commented-out line becomes a credential.
+        assert_eq!(ini_value(ini, "default", "# hash comment"), None);
+        assert_eq!(ini_value(ini, "default", "; semicolon comment"), None);
     }
 }
