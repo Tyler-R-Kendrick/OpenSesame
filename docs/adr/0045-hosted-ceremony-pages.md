@@ -115,6 +115,46 @@ In-repo prior art already covers most of the mechanics:
    `GET /v1/claims/:id/verify` page remains the zero-JS landing fallback
    that claim creation already advertises as `verificationUri`.
 
+## Amendment 2026-08-19 — what "Pages dogfoods the ceremonies" means
+
+Decision 1 excludes the Pages origin from *hosting* ceremonies, and that
+exclusion stands. The reason is sharper than decision 1 stated, and worth
+recording because the obvious reading of "dogfood the ceremony experience
+on Pages" would violate it.
+
+A shareable ceremony page is reachable by anyone holding a link, and it
+parses attacker-suppliable input (a fragment token, a user code) before
+any authentication. `apps/ceremonies` is deliberately tiny — four pages
+and three lib modules — precisely so that a hostile link lands on the
+smallest surface we can build. The Pages origin is the opposite: it holds
+the E2EE vault, its sections run to thousands of lines each, and a
+gate-free ceremony route would run *before* the unlock gate. Hosting
+anonymous ceremonies there would move the most attacker-exposed surface
+onto the highest-value origin, which is the inverse of what ADR 0034's
+caution was protecting.
+
+Dogfooding does not require that. What it requires is that Pages exercise
+the *same components*, and it does so inside surfaces the user has already
+authenticated to:
+
+- Pages renders the shared ceremony components (`packages/ceremony-kit`,
+  pure logic; JSX copied per app per the `@opensesame/qr` convention) in
+  its authenticated Authority surface, replacing the two hand-rolled
+  device-approve implementations at `AuthoritySection.tsx:965,1978`. This
+  makes this ADR's own consequence — "the device-approve flow currently
+  exists three times" — actionable rather than aspirational.
+- Pages renders the ADR 0046 authorization inbox for a signed-in user
+  reviewing their own pending requests. An inbox is inherently an
+  authenticated surface, so it is the strongest dogfood case available.
+- Any ceremony token that touches Pages follows the two-tier discipline
+  already in `apps/pages/src/lib/queue.ts`: device codes may persist,
+  claim bearers stay in memory for the tab only, never reach OPFS, and are
+  purged on vault lock. Ceremony code on Pages reuses that module rather
+  than inventing storage.
+
+Anything shareable still deep-links to `apps/ceremonies`, which remains
+the canonical hosted surface.
+
 ## Consequences
 
 - Ceremony links become shareable artifacts with a stable, minimal
