@@ -19,6 +19,7 @@ members = [
   "crates/human-vault",
   "crates/sealed-store",
   "crates/connection-broker",
+  "crates/connection-detect",
   "crates/connector-host",
   "crates/connector-sdk",
   "crates/env-spec",

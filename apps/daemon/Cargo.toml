@@ -10,6 +10,7 @@ name = "opensesame-daemon"
 path = "src/main.rs"
 
 [dependencies]
+opensesame-connection-detect = { path = "../../crates/connection-detect" }
 opensesame-host-core = { path = "../../crates/host-core" }
 anyhow = { workspace = true }
 axum = { workspace = true }

@@ -22,6 +22,7 @@ use std::{
 };
 use uuid::Uuid;
 
+mod discovery;
 mod tailscale;
 
 const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
@@ -481,6 +482,7 @@ fn router(state: App) -> Router {
         .route("/v1/mint_capability", post(mint_capability))
         .route("/v1/introspect_capability", post(introspect_capability))
         .route("/v1/revoke", post(revoke))
+        .route("/v1/discover", post(discover))
         .route("/v1/toolbar/status", get(toolbar_status))
         .route("/v1/toolbar/approve_device", post(approve_device))
         .route("/v1/toolbar/approve_claim", post(approve_claim))
@@ -494,6 +496,18 @@ fn router(state: App) -> Router {
 
 fn skip_hop_header(name: &HeaderName) -> bool {
     opensesame_host_core::http_security::is_hop_or_forwarding_header(name.as_str())
+}
+
+/// Report which connectors look configured on this machine (ADR 0047).
+///
+/// Operator-gated even though it mutates nothing: the threat here is
+/// disclosure, not modification, and a list of which credentials a machine
+/// holds is a more valuable target than the capability minting beside it.
+async fn discover(State(st): State<App>, headers: HeaderMap) -> Response {
+    if let Err(resp) = require_operator(&st, &headers) {
+        return resp;
+    }
+    Json(discovery::report()).into_response()
 }
 
 async fn toolbar_status(State(st): State<App>, headers: HeaderMap) -> Response {
@@ -945,5 +959,23 @@ mod tests {
         let text = json.to_string();
         assert!(!text.contains(DEV_OPERATOR_TOKEN));
         assert!(!text.contains("access_token"));
+    }
+
+    #[tokio::test]
+    async fn adversarial_discovery_is_refused_without_the_operator_token() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        // A co-resident process reaches this port as easily as the toolbar
+        // does, and this route names which credentials the machine holds.
+        let (app, _) = test_app("http://127.0.0.1:8787");
+        let req = Request::builder()
+            .method("POST")
+            .uri("/v1/discover")
+            .body(Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
     }
 }
