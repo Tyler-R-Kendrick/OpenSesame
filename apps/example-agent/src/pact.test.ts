@@ -71,6 +71,7 @@ describe("PACT — example-agent", () => {
           type: "agent",
           state: "pending",
           targetManifestDigest: "sha256:demo",
+          items: [],
           expiresAt: new Date(Date.now() + 900_000).toISOString(),
           version: 1,
         }),

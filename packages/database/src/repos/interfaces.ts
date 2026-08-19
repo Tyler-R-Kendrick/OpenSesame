@@ -152,11 +152,28 @@ export interface AuthorizationRequestRepository {
   /**
    * Optimistic concurrency, as for claims: two approvers racing must not both
    * believe they settled the request.
+   *
+   * The patch names exactly the fields a decision may move. It is deliberately
+   * narrower than "any column": `requestDigest`, `authorizationDetails`, and
+   * `bindingMessage` are what an approver consented to, and a repository that
+   * accepted edits to them would let a settled request describe something
+   * other than the thing that was approved. Narrowing here also keeps the
+   * memory and Postgres implementations honest — a field one applies and the
+   * other silently drops is a divergence tests would pass straight through.
    */
   updateWithVersion(
     id: string,
     expectedVersion: number,
-    patch: Partial<Omit<AuthorizationRequest, "id" | "createdAt" | "version">>,
+    patch: Partial<
+      Pick<
+        AuthorizationRequest,
+        | "status"
+        | "expiresAt"
+        | "decidedAt"
+        | "decidedByPrincipalId"
+        | "decidedByKind"
+      >
+    >,
     uow?: UnitOfWork,
   ): Promise<AuthorizationRequest>;
 }

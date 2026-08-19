@@ -485,7 +485,7 @@ export function createOpenSesame(
       const body: Record<string, unknown> = {
         acceptedItemIds: decision.acceptedItemIds,
       };
-      if (decision.userCode !== undefined) body.userCode = decision.userCode;
+      body.userCode = decision.userCode;
       if (decision.destination !== undefined)
         body.destination = decision.destination;
       if (decision.idempotencyKey !== undefined) {

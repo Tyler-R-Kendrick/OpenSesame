@@ -13,9 +13,18 @@ const presentation = (items?: ClaimPresentation["items"]): ClaimPresentation =>
 
 describe("claim projection", () => {
   it("property: an itemless claim accepts an empty set, not an unknown one", () => {
-    // Every claim the server mints today is itemless. Mapping the absent field
-    // to `undefined` made the page refuse to complete any of them.
-    expect(toClaim(presentation()).itemIds).toEqual([]);
+    // Every claim the server mints today is itemless, and it says so by
+    // projecting an empty array. Reading that as "unknown" made the page
+    // refuse to complete any of them.
+    expect(toClaim(presentation([])).itemIds).toEqual([]);
+  });
+
+  it("adversarial: a claim that never says what it covers is refused", () => {
+    // Empty and absent are different answers. Treating the second as the first
+    // is how an item-bearing claim gets accepted without anyone seeing what
+    // was in it — so the page stops rather than guessing, even though
+    // presenting has already spent the token by this point.
+    expect(() => toClaim(presentation())).toThrow(/did not report/);
   });
 
   it("contract: a claim with items names every one of them", () => {

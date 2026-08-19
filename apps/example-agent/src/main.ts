@@ -64,6 +64,7 @@ export function createMockFetch(): typeof fetch {
           type: "agent",
           state: polls < 2 ? "pending" : "completed",
           targetManifestDigest: "sha256:demo",
+          items: [],
           expiresAt: new Date(Date.now() + 900_000).toISOString(),
           version: 1,
           ...(polls >= 2 ? { completedByPrincipalId: "prn_demo" } : {}),

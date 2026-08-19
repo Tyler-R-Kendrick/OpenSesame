@@ -80,7 +80,16 @@ fn bridge_bin() -> PathBuf {
 /// Invoke the Node `@env-spec/parser` bridge.
 pub fn parse_schema_file(path: &Path) -> Result<EnvSpecDocument, EnvSpecError> {
     let bin = bridge_bin();
-    let out = Command::new("node").arg(&bin).arg(path).output()?;
+    // Run the bridge on a bare Node. An inherited `NODE_OPTIONS` decides what
+    // loads into this process before the script does, so it can fail the parse
+    // for reasons that have nothing to do with the schema (`--import tsx`
+    // does exactly that) and, with `--require`, can put someone else's code
+    // inside the thing that reads our configuration. Neither belongs here.
+    let out = Command::new("node")
+        .env_remove("NODE_OPTIONS")
+        .arg(&bin)
+        .arg(path)
+        .output()?;
     if !out.status.success() {
         return Err(EnvSpecError::Bridge(
             String::from_utf8_lossy(&out.stderr).into(),

@@ -119,6 +119,22 @@ producer), `approval_id` on `InvocationReceipt` (`receipt.rs:37`, always
    verifiable form, so an approval can be audited against exactly what the
    human saw. The state machine mirrors the existing
    `AwaitingApproval` edges rather than inventing a parallel one.
+8b. **An inbox is addressed by a handle, not by a principal id.**
+   Creating a request names the approver by an opaque, server-minted
+   handle (`inbox_<id>.<mac>`, the id under an HMAC keyed by the
+   deployment pepper), issued only to its owner by
+   `GET /v1/authorization-requests/inbox-ref`. Knowing who somebody is
+   must not be enough to put attacker-authored text in front of them, and
+   an addressable-by-id inbox answers, for any id, whether it exists —
+   the create route would be a principal-id oracle with a 201/404 split.
+   Holding the handle *is* the authorization to ask, the same shape as the
+   claim links this service already hands out. A handle that fails its MAC
+   and a handle for a principal that is gone answer identically, so
+   nothing is left to probe. This does not replace per-request
+   authorization: it makes the addressing itself unguessable, and the
+   relationship model that would let the server say *why* a given
+   requester may ask a given approver is still owed (the identity plane
+   has no repository for delegations or ownerships today).
 9. **Multi-approver by set, not by count.** An `ApprovalSet` mirrors
    `AcknowledgementSet` (`crates/domain/src/mediation.rs:74`): it records
    *which* approver settled *which* requirement, refuses an approver the

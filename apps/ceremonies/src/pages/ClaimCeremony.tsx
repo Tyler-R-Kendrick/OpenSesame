@@ -46,18 +46,25 @@ const OPEN: ReadonlySet<string> = new Set([
   "reviewed",
 ]);
 
+/**
+ * An itemless claim accepts an empty set — the manifest digest on the page is
+ * what the reviewer vouches for. An *absent* `items` is a different thing: the
+ * server projects the field on every claim, so its absence means whatever is
+ * answering does not report what a claim covers, and there is nothing to
+ * accept by id. Refuse rather than guess.
+ */
 function toClaim(presented: ClaimPresentation): Claim {
+  if (!Array.isArray(presented.items)) {
+    throw new Error(
+      "This service did not report what the claim covers, so there was nothing to accept by id. Ask for a fresh claim link.",
+    );
+  }
   return {
     id: presented.id,
     type: presented.type,
     state: presented.state,
     targetManifestDigest: presented.targetManifestDigest,
-    // The projection carries `items` only when the claim has any: an absent
-    // field IS the empty item set, and the manifest digest shown on the page
-    // is what the reviewer vouches for. Accepting it as `[]` matches the
-    // server contract (`acceptedItemIds` must name every accepted item, and
-    // an itemless claim has none to name).
-    itemIds: presented.items?.map((item) => item.id) ?? [],
+    itemIds: presented.items.map((item) => item.id),
   };
 }
 

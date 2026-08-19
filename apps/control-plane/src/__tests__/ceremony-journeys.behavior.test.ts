@@ -149,12 +149,30 @@ describe("Journey: someone shares a claim with a person who has no account", () 
   });
 });
 
+/**
+ * Given the person has shared the handle that addresses their inbox.
+ *
+ * Asking someone is not something you can do just by knowing who they are:
+ * the person hands out an address, and holding it is what lets you ask.
+ */
+async function theyShareTheirInboxHandle(
+  app: ReturnType<typeof aDeployment>,
+  who: { accessToken: string },
+): Promise<string> {
+  const res = await app.request("/v1/authorization-requests/inbox-ref", {
+    headers: { authorization: `Bearer ${who.accessToken}` },
+  });
+  expect(res.status).toBe(200);
+  return ((await res.json()) as { approverRef: string }).approverRef;
+}
+
 describe("Journey: an agent asks a person to authorize something", () => {
   it("the request waits, the person reads what it would do, and answers", async () => {
     // Given a person, and an agent acting on its own behalf
     const app = aDeployment();
     const person = await aGuestArrives(app);
     const agent = await aGuestArrives(app);
+    const personsInbox = await theyShareTheirInboxHandle(app, person);
 
     // When the agent asks for authority it does not have
     const asked = await app.request("/v1/authorization-requests", {
@@ -165,7 +183,7 @@ describe("Journey: an agent asks a person to authorize something", () => {
         "idempotency-key": `journey-ask-${++nonce}`,
       },
       body: JSON.stringify({
-        principalId: person.principalId,
+        approverRef: personsInbox,
         bindingMessage: "Read acme/catalog issues",
         authorizationDetails: [
           {
@@ -229,6 +247,7 @@ describe("Journey: an agent asks a person to authorize something", () => {
     const app = aDeployment();
     const person = await aGuestArrives(app);
     const agent = await aGuestArrives(app);
+    const personsInbox = await theyShareTheirInboxHandle(app, person);
     const asked = await app.request("/v1/authorization-requests", {
       method: "POST",
       headers: {
@@ -237,7 +256,7 @@ describe("Journey: an agent asks a person to authorize something", () => {
         "idempotency-key": `journey-ttl-${++nonce}`,
       },
       body: JSON.stringify({
-        principalId: person.principalId,
+        approverRef: personsInbox,
         bindingMessage: "Something nobody gets around to",
         authorizationDetails: [{ type: "connection_delegation" }],
         ttlSeconds: 30,

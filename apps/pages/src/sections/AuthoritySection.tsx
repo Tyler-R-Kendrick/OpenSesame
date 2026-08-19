@@ -1108,6 +1108,11 @@ function ClaimArea({
   onQueue: () => void;
 }) {
   const [token, setToken] = useState("");
+  /**
+   * The consent code the claim's creator read out. The server requires it on
+   * completion, so a link on its own is not enough to accept a claim.
+   */
+  const [userCode, setUserCode] = useState("");
   const [revealed, setRevealed] = useState(false);
   const [presented, setPresented] = useState<ClaimView | null>(null);
   const [completed, setCompleted] = useState<ClaimView | null>(null);
@@ -1118,6 +1123,7 @@ function ClaimArea({
 
   function reset() {
     setToken("");
+    setUserCode("");
     setPresented(null);
     setCompleted(null);
     setOutcome(null);
@@ -1165,8 +1171,21 @@ function ClaimArea({
       return;
     }
 
+    const code = userCode.trim();
+    if (!code) {
+      // Asked for before presenting, not after: presenting spends the token,
+      // and discovering the code is missing afterwards would spend it for
+      // nothing.
+      setOutcome({
+        tone: "err",
+        message:
+          "Enter the consent code the claim's creator read out. The Identity API requires it to complete, so the link alone is not enough to accept.",
+      });
+      return;
+    }
+
     if (!online) {
-      enqueue({ kind: "claim_complete", claimToken: trimmed });
+      enqueue({ kind: "claim_complete", claimToken: trimmed, userCode: code });
       onQueue();
       reset();
       setOutcome({
@@ -1251,6 +1270,15 @@ function ClaimArea({
       return;
     }
     const acceptedItemIds = presented.items.map((item) => item.id);
+    const consentCode = userCode.trim();
+    if (!consentCode) {
+      setOutcome({
+        tone: "err",
+        message:
+          "Enter the consent code the claim's creator read out — the Identity API refuses a completion without it.",
+      });
+      return;
+    }
     const claimToken = token.trim();
     if (!claimToken) {
       setOutcome({
@@ -1269,6 +1297,7 @@ function ClaimArea({
       // and the API will not attach ownership on the strength of it.
       const done = (await client.completeClaim(presented.id, {
         acceptedItemIds,
+        userCode: consentCode,
         claimToken,
       })) as ClaimView;
       if (currentSession()?.accessToken !== active.accessToken) {
@@ -1401,6 +1430,26 @@ function ClaimArea({
                         is masked by default and held in memory only — staging
                         it offline does not write it to disk, so it does not
                         survive a reload or a vault lock.
+                      </p>
+                    </div>
+                    <div className="field">
+                      <label className="label" htmlFor="authority-claim-code">
+                        Consent code
+                      </label>
+                      <input
+                        id="authority-claim-code"
+                        type="text"
+                        autoComplete="off"
+                        spellCheck={false}
+                        placeholder="WORD-WORD"
+                        value={userCode}
+                        disabled={busy !== null}
+                        onChange={(event) => setUserCode(event.target.value)}
+                      />
+                      <p className="hint">
+                        Read out by whoever created the claim. It travels
+                        separately from the link on purpose: holding the token
+                        is not meant to be enough to accept.
                       </p>
                     </div>
                     <div className="actions">
@@ -2037,6 +2086,7 @@ function Outbox({
       try {
         await client.completeClaim(claim.id, {
           acceptedItemIds,
+          userCode: item.userCode,
           claimToken: item.claimToken,
         });
       } catch (err) {
