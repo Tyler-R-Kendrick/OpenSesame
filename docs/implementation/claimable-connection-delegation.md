@@ -531,8 +531,9 @@ responses.
 
 **Phase 2 — claim ceremony + humans.**
 Gateway claim endpoint with control-plane claimant assertion; state-blind
-claim page in the **console** (§7), rendering the full item manifest and
-requiring named `accepted_item_ids`; provisional-principal path with
+`/delegate` page in the **ceremonies app** (§7, ADR 0045), rendering the
+full item manifest and requiring named `accepted_item_ids`;
+provisional-principal path with
 policy action + quota; mandatory user-code fence; proof-of-possession
 verification; `osc_dlg_` in `assertSafeText`; audit events + allowlist
 keys; identity-plane projection via outbox (`resource_bundle` claim
@@ -565,17 +566,19 @@ re-delegation depth > 1 by default; cross-organization delegation
 Formerly open questions; each resolved for the most secure option, with
 the rationale recorded so a future loosening is a deliberate act.
 
-1. **Claim UX host: console.** The claim ceremony binds authority, so it
-   runs on the authenticated identity-plane surface that already proves
-   the needed properties: fragment transport with `history.replaceState`
-   stripping, principal pinning re-read immediately before completion,
-   single-spend in-flight guards, and `claimPageSecurityHeaders()`
-   (`apps/console/src/pages/ClaimPage.tsx`). The static Pages origin is
-   ruled out for the ceremony itself: ADR 0034's own analysis
-   ("possession of the token is equivalent to being the user at the
-   broker origin") is exactly the property a claim page must not have on
-   a GitHub-Pages origin. Pages/PWA may deep-link into the console claim
-   page; guests arrive via the existing provisional-principal flow.
+1. **Claim UX host: the standalone ceremonies app** (originally resolved
+   as "console"; amended by ADR 0045). The claim ceremony binds
+   authority, so it runs on a dedicated shareable surface that carries
+   the properties the console's `ClaimPage` proved: fragment transport
+   with `history.replaceState` stripping, principal pinning re-read
+   immediately before completion, single-spend in-flight guards, frame
+   refusal, and the `claimPageSecurityHeaders()` header set. The static
+   Pages origin stays ruled out: ADR 0034's own analysis ("possession of
+   the token is equivalent to being the user at the broker origin") is
+   exactly the property a claim page must not have on a GitHub-Pages
+   origin. The console keeps the authenticated management UI
+   (mint/list/revoke, burned surfacing); guests arrive via the existing
+   provisional-principal flow, offered in place on the ceremony page.
 2. **`burned` handling: fail closed, no new channel.** A re-presented
    token proves the link leaked, so the offer *and* every delegation
    minted from it are revoked in the same transaction (§3.1–3.2). The

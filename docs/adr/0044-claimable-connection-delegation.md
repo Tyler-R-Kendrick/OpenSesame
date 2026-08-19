@@ -2,6 +2,8 @@
 
 Status: Proposed
 Date: 2026-08-19
+Amended by: ADR 0045 (decision 10's ceremony host moved to the standalone
+ceremonies app; every other property of that decision stands)
 
 ## Context
 
@@ -120,10 +122,14 @@ attenuation (repo + permission subset, ≤ 1 h) that
    receipts already carry `delegation_chain`; delegated invocations must
    populate it.
 10. **Security-first resolutions of the open design choices.**
-    The claim ceremony is hosted by the **console** (the authenticated
-    surface with fragment transport, principal pinning, and claim-page
-    security headers already proven in `ClaimPage`), never the static
-    Pages origin. Burned offers surface in the console offer list plus
+    The claim ceremony is hosted by the **standalone ceremonies app**
+    (ADR 0045) — a dedicated, shareable, frame-refusing surface carrying
+    the properties proven in the console's `ClaimPage` (fragment
+    transport + scrub, principal pinning, single-spend fences, claim-page
+    security headers) — never the static Pages origin, per ADR 0034's
+    token-possession analysis. The console keeps the authenticated
+    management UI (mint, list, revoke). Burned offers surface in the
+    console offer list plus
     the audit trail — there is no silent path, and no notification
     channel is invented for v1. **Budgets decrement atomically and
     synchronously** in the broker, in the same transaction as intent

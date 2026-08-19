@@ -66,6 +66,12 @@ export interface ClaimPresentation {
 export interface ClaimDecision {
   /** Every accepted item by id. There is no wildcard — the server refuses one. */
   acceptedItemIds: string[];
+  /**
+   * The human consent code the claim's creation displayed. The server requires
+   * it on completion (with a per-claim attempt fence): holding the link alone
+   * must not be enough to accept, so the code travels out-of-band.
+   */
+  userCode?: string;
   destination?: Record<string, unknown>;
   idempotencyKey?: string;
   /**
