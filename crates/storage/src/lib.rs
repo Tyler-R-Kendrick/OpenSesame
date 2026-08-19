@@ -90,6 +90,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0008_backup_outbox",
         include_str!("../../../migrations/0008_backup_outbox.sql"),
     ),
+    (
+        "0009_host_kv",
+        include_str!("../../../migrations/0009_host_kv.sql"),
+    ),
 ];
 
 impl Db {
@@ -766,6 +770,51 @@ impl Db {
         .fetch_one(&self.pool)
         .await?
         .get("count"))
+    }
+
+    // —— host operator kv ————————————————————————————————
+
+    pub async fn get_host_kv(&self, key: &str) -> anyhow::Result<Option<String>> {
+        let row = sqlx::query("SELECT value FROM host_kv WHERE key = ?")
+            .bind(key)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row.map(|r| r.get::<String, _>("value")))
+    }
+
+    pub async fn set_host_kv(&self, key: &str, value: &str) -> anyhow::Result<()> {
+        sqlx::query(
+            "INSERT INTO host_kv (key, value, updated_at) VALUES (?, ?, ?) \
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+        )
+        .bind(key)
+        .bind(value)
+        .bind(Utc::now().to_rfc3339())
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Insert `key` only when absent. Returns `true` when this call claimed the key.
+    pub async fn try_claim_host_kv(&self, key: &str, value: &str) -> anyhow::Result<bool> {
+        let result = sqlx::query(
+            "INSERT INTO host_kv (key, value, updated_at) VALUES (?, ?, ?) \
+             ON CONFLICT(key) DO NOTHING",
+        )
+        .bind(key)
+        .bind(value)
+        .bind(Utc::now().to_rfc3339())
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn delete_host_kv(&self, key: &str) -> anyhow::Result<()> {
+        sqlx::query("DELETE FROM host_kv WHERE key = ?")
+            .bind(key)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     // —— backup targets (ADR 0039) ——————————————————————————————
@@ -1561,6 +1610,74 @@ mod tests {
         assert_eq!(suspended.status, "suspended");
         assert_eq!(suspended.last_commit_sha.as_deref(), Some("abc123"));
         assert_eq!(suspended.last_error.as_deref(), Some("401"));
+    }
+
+    #[tokio::test]
+    async fn host_kv_round_trip_and_overwrite() {
+        let db = Db::connect_memory().await.unwrap();
+        assert!(db.get_host_kv("taskbus.backend").await.unwrap().is_none());
+        db.set_host_kv("taskbus.backend", "memory").await.unwrap();
+        db.set_host_kv("taskbus.nats_url", "nats://127.0.0.1:4222")
+            .await
+            .unwrap();
+        assert_eq!(
+            db.get_host_kv("taskbus.backend").await.unwrap().as_deref(),
+            Some("memory")
+        );
+        db.set_host_kv("taskbus.backend", "nats").await.unwrap();
+        assert_eq!(
+            db.get_host_kv("taskbus.backend").await.unwrap().as_deref(),
+            Some("nats")
+        );
+        db.delete_host_kv("taskbus.nats_url").await.unwrap();
+        assert!(db.get_host_kv("taskbus.nats_url").await.unwrap().is_none());
+        db.set_host_kv("github.delivery.abc", "outbox-1").await.unwrap();
+        assert_eq!(
+            db.get_host_kv("github.delivery.abc")
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("outbox-1")
+        );
+        assert!(
+            !db.try_claim_host_kv("github.delivery.abc", "outbox-2")
+                .await
+                .unwrap()
+        );
+        assert!(
+            db.try_claim_host_kv("github.delivery.new", "outbox-3")
+                .await
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn try_claim_host_kv_is_exclusive_under_concurrency() {
+        let db = Db::connect_memory().await.unwrap();
+        let db = std::sync::Arc::new(db);
+        let mut handles = Vec::new();
+        for i in 0..32 {
+            let db = db.clone();
+            handles.push(tokio::spawn(async move {
+                db.try_claim_host_kv("github.delivery.race", &format!("w{i}"))
+                    .await
+                    .unwrap()
+            }));
+        }
+        let mut wins = 0usize;
+        for handle in handles {
+            if handle.await.unwrap() {
+                wins += 1;
+            }
+        }
+        assert_eq!(wins, 1);
+        assert_eq!(
+            db.get_host_kv("github.delivery.race")
+                .await
+                .unwrap()
+                .is_some(),
+            true
+        );
     }
 
     #[tokio::test]

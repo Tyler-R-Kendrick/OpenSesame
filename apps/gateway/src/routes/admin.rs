@@ -1,5 +1,6 @@
 use axum::{
     extract::State,
+    http::StatusCode,
     response::{IntoResponse, Response},
     Json,
 };
@@ -22,6 +23,13 @@ pub async fn set_authority(
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
-    st.db.set_authority_quorum(body.quorum_ok).await.ok();
+    if let Err(err) = st.db.set_authority_quorum(body.quorum_ok).await {
+        tracing::error!(error = %err, "authority quorum write failed");
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "quorum_write_failed"})),
+        )
+            .into_response();
+    }
     Json(json!({"quorum_ok": body.quorum_ok})).into_response()
 }

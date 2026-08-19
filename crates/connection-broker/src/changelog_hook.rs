@@ -19,8 +19,27 @@ use serde::Serialize;
 use serde_json::{json, Map, Value};
 use uuid::Uuid;
 
-/// Maximum retained Host changelog rows (ring buffer).
-const MAX_ENTRIES: usize = 4096;
+/// Maximum retained Host changelog rows per organization (ring buffer).
+const MAX_ENTRIES_PER_ORG: usize = 512;
+
+/// Frozen Host changelog event types (must match the module docs).
+pub const CHANGELOG_EVENT_TYPES: &[&str] = &[
+    "secret.config.created",
+    "secret.config.updated",
+    "secret.config.deleted",
+    "secret.value.changed",
+    "sync.target.created",
+    "sync.target.synced",
+    "sync.target.failed",
+    "credential.rotation.requested",
+    "credential.rotation.succeeded",
+    "credential.rotation.failed",
+    "project.personal.ensured",
+];
+
+pub fn is_allowed_changelog_event_type(event_type: &str) -> bool {
+    CHANGELOG_EVENT_TYPES.contains(&event_type)
+}
 
 /// Metadata-only changelog row for Host listing APIs.
 #[derive(Debug, Clone, Serialize)]
@@ -67,9 +86,10 @@ pub struct RecordSecretChangelog {
     pub metadata: Map<String, Value>,
 }
 
-fn store() -> &'static Mutex<VecDeque<ChangelogEntry>> {
-    static STORE: OnceLock<Mutex<VecDeque<ChangelogEntry>>> = OnceLock::new();
-    STORE.get_or_init(|| Mutex::new(VecDeque::new()))
+fn store() -> &'static Mutex<std::collections::HashMap<String, VecDeque<ChangelogEntry>>> {
+    static STORE: OnceLock<Mutex<std::collections::HashMap<String, VecDeque<ChangelogEntry>>>> =
+        OnceLock::new();
+    STORE.get_or_init(|| Mutex::new(std::collections::HashMap::new()))
 }
 
 fn deny_metadata_key(key: &str) -> bool {
@@ -173,23 +193,38 @@ pub fn record_secret_changelog(input: RecordSecretChangelog) -> ChangelogEntry {
     };
 
     let mut guard = store().lock().expect("changelog store poisoned");
-    guard.push_back(entry.clone());
-    while guard.len() > MAX_ENTRIES {
-        guard.pop_front();
+    let org_key = entry
+        .organization_id
+        .clone()
+        .unwrap_or_else(|| "_unscoped".into());
+    let ring = guard.entry(org_key).or_default();
+    ring.push_back(entry.clone());
+    while ring.len() > MAX_ENTRIES_PER_ORG {
+        ring.pop_front();
     }
     entry
 }
 
-/// List changelog events for a project (newest first).
-pub fn list_secret_changelog(project_id: &str, limit: usize) -> Vec<ChangelogEntry> {
+/// List changelog events for a project **in one organization** (newest first).
+///
+/// The store is org-keyed. Scanning every org for a caller-supplied project id
+/// is a cross-tenant read; callers must pass the authenticated organization.
+pub fn list_secret_changelog(
+    organization_id: &str,
+    project_id: &str,
+    limit: usize,
+) -> Vec<ChangelogEntry> {
     let guard = store().lock().expect("changelog store poisoned");
-    guard
+    let Some(ring) = guard.get(organization_id) else {
+        return Vec::new();
+    };
+    let mut entries: Vec<_> = ring
         .iter()
-        .rev()
         .filter(|e| e.project_id == project_id)
-        .take(limit.max(1).min(200))
         .cloned()
-        .collect()
+        .collect();
+    entries.sort_by(|a, b| b.occurred_at.cmp(&a.occurred_at));
+    entries.into_iter().take(limit.max(1).min(200)).collect()
 }
 
 /// Clear the in-memory Host changelog (tests / local reset only).
@@ -239,20 +274,35 @@ mod tests {
         record_secret_changelog(RecordSecretChangelog {
             event_type: "sync.target.synced".into(),
             project_id: "p_a".into(),
+            organization_id: Some("org_a".into()),
             target_id: Some("st_1".into()),
             content_version: Some("cv_1".into()),
             ..Default::default()
         });
         record_secret_changelog(RecordSecretChangelog {
             event_type: "secret.config.created".into(),
-            project_id: "p_b".into(),
+            project_id: "p_a".into(),
+            organization_id: Some("org_b".into()),
             config_id: Some("cfg".into()),
+            key_names: vec!["STRIPE_API_KEY".into()],
             ..Default::default()
         });
-        let a = list_secret_changelog("p_a", 10);
+        let a = list_secret_changelog("org_a", "p_a", 10);
         assert_eq!(a.len(), 1);
         assert_eq!(a[0].event_type, "sync.target.synced");
         assert_eq!(a[0].target_id.as_deref(), Some("st_1"));
         assert_eq!(a[0].content_version.as_deref(), Some("cv_1"));
+        let b = list_secret_changelog("org_b", "p_a", 10);
+        assert_eq!(b.len(), 1);
+        assert_eq!(b[0].key_names, vec!["STRIPE_API_KEY"]);
+        assert!(list_secret_changelog("org_a", "p_a", 10)
+            .iter()
+            .all(|e| e.organization_id.as_deref() == Some("org_a")));
+    }
+
+    #[test]
+    fn allowlist_matches_frozen_event_types() {
+        assert!(is_allowed_changelog_event_type("secret.value.changed"));
+        assert!(!is_allowed_changelog_event_type("secret.value.exfiltrated"));
     }
 }

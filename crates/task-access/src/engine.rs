@@ -87,8 +87,17 @@ pub struct InMemoryTaskStore {
 }
 
 impl InMemoryTaskStore {
+    pub const MAX_RUNS: usize = 512;
+
     pub fn new() -> Self {
         Self::default()
+    }
+
+    fn prune_expired(
+        runs: &mut HashMap<TaskRunId, TaskRun>,
+        now: DateTime<Utc>,
+    ) {
+        runs.retain(|_, run| run.maximum_expires_at > now);
     }
 }
 
@@ -98,7 +107,12 @@ impl TaskStore for InMemoryTaskStore {
     }
 
     fn save_run(&self, run: &TaskRun) -> Result<(), TaskAccessError> {
-        lock_map(&self.runs)?.insert(run.id, run.clone());
+        let mut runs = lock_map(&self.runs)?;
+        Self::prune_expired(&mut runs, Utc::now());
+        if !runs.contains_key(&run.id) && runs.len() >= Self::MAX_RUNS {
+            return Err(TaskAccessError::Capacity);
+        }
+        runs.insert(run.id, run.clone());
         Ok(())
     }
 
@@ -233,7 +247,9 @@ impl TaskStore for InMemoryTaskStore {
     }
 
     fn list_runs(&self) -> Result<Vec<TaskRun>, TaskAccessError> {
-        Ok(lock_map(&self.runs)?.values().cloned().collect())
+        let mut runs = lock_map(&self.runs)?;
+        Self::prune_expired(&mut runs, Utc::now());
+        Ok(runs.values().cloned().collect())
     }
 }
 

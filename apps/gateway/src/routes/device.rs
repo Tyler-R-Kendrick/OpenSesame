@@ -39,9 +39,9 @@ pub async fn authorize(
     State(st): State<AppState>,
     Json(req): Json<DeviceAuthorizeRequest>,
 ) -> impl IntoResponse {
+    let now = Utc::now();
     {
         let mut map = st.device_codes.lock().unwrap();
-        let now = Utc::now();
         map.retain(|_, p| p.expires_at > now);
         if map.len() >= 512 {
             return (
@@ -50,34 +50,31 @@ pub async fn authorize(
             )
                 .into_response();
         }
+        let device_code = format!("dc_{}", uuid::Uuid::new_v4());
+        let user_code = opensesame_claims::generate_user_code();
+        let expires_at = now + Duration::minutes(15);
+        let device_digest = hash_secret(&device_code);
+        map.insert(
+            device_digest.clone(),
+            crate::app_state::DevicePending {
+                user_code_hash: user_code_digest(&st.claim_pepper, &device_digest, &user_code),
+                expires_at,
+                approved: None,
+            },
+        );
+        drop(map);
+        return Json(json!({
+            "device_code": device_code,
+            "user_code": user_code,
+            "verification_uri": format!("{}/device", st.resource),
+            "verification_uri_complete": format!("{}/device?user_code={}", st.resource, user_code),
+            "expires_in": 900,
+            "interval": 5,
+            "client_id": req.client_id,
+            "scope": req.scope.unwrap_or_else(|| "opensesame.session".into())
+        }))
+        .into_response();
     }
-    let device_code = format!("dc_{}", uuid::Uuid::new_v4());
-    let user_code = opensesame_claims::generate_user_code();
-    let expires_at = Utc::now() + Duration::minutes(15);
-    let device_digest = hash_secret(&device_code);
-    // Keyed and matched by digest — neither bearer is retained in cleartext. The
-    // user code is low entropy, so its digest is keyed by the server pepper and
-    // bound to this device code.
-    st.device_codes.lock().unwrap().insert(
-        device_digest.clone(),
-        crate::app_state::DevicePending {
-            user_code_hash: user_code_digest(&st.claim_pepper, &device_digest, &user_code),
-            expires_at,
-            approved: None,
-        },
-    );
-    // device_code returned once to client process — never logged
-    Json(json!({
-        "device_code": device_code,
-        "user_code": user_code,
-        "verification_uri": format!("{}/device", st.resource),
-        "verification_uri_complete": format!("{}/device?user_code={}", st.resource, user_code),
-        "expires_in": 900,
-        "interval": 5,
-        "client_id": req.client_id,
-        "scope": req.scope.unwrap_or_else(|| "opensesame.session".into())
-    }))
-    .into_response()
 }
 
 /// Server-side copy of the session metadata with the bearer swapped for its
@@ -240,18 +237,18 @@ pub async fn approve(
         return resp;
     }
     let now = Utc::now();
-    {
-        let mut failures = st.device_approve_failures.lock().unwrap();
-        if prune_failures(&mut failures, now) >= MAX_APPROVE_FAILURES {
-            return (
-                StatusCode::TOO_MANY_REQUESTS,
-                Json(json!({
-                    "error": "too_many_attempts",
-                    "retry_after_seconds": APPROVE_FAILURE_WINDOW_SECS,
-                })),
-            )
-                .into_response();
-        }
+    // Hold the failure fence across the guess so concurrent misses cannot all
+    // observe count < MAX and then all push.
+    let mut failures = st.device_approve_failures.lock().unwrap();
+    if prune_failures(&mut failures, now) >= MAX_APPROVE_FAILURES {
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(json!({
+                "error": "too_many_attempts",
+                "retry_after_seconds": APPROVE_FAILURE_WINDOW_SECS,
+            })),
+        )
+            .into_response();
     }
 
     let mut map = st.device_codes.lock().unwrap();
@@ -261,6 +258,7 @@ pub async fn approve(
     for (device_digest, pending) in map.iter_mut() {
         let attempt_hash = user_code_digest(&st.claim_pepper, device_digest, &req.user_code);
         if hash_eq(&attempt_hash, &pending.user_code_hash) {
+            drop(failures);
             let operator_default =
                 if req.organization_id.is_none() && req.organization_role.is_none() {
                     match require_demo_bootstrap(&st) {
@@ -289,7 +287,9 @@ pub async fn approve(
         }
     }
     // A miss costs the guesser budget, not the pending authorizations.
-    st.device_approve_failures.lock().unwrap().push(now);
+    // Push while still holding `failures` — a second lock here deadlocks
+    // `std::sync::Mutex` and lets concurrent misses all observe count < MAX.
+    failures.push(now);
     (
         StatusCode::NOT_FOUND,
         Json(json!({"error":"unknown_user_code"})),
@@ -344,6 +344,24 @@ mod tests {
             .await
             .unwrap();
         serde_json::from_slice(&body).unwrap()
+    }
+
+    #[test]
+    fn authorize_capacity_check_holds_the_map_lock() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("device.rs"),
+            &["device_codes.lock()", "map.len() >= 512", "map.insert"],
+        );
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("device.rs"),
+            &[
+                "pub async fn approve",
+                "device_approve_failures.lock()",
+                "prune_failures",
+                "device_codes.lock()",
+                "failures.push(now)",
+            ],
+        );
     }
 
     #[test]
@@ -565,5 +583,93 @@ mod tests {
         assert!(foreign_principal["session"]["actor_id"].is_null());
         assert!(foreign_principal["session"]["project_id"].is_null());
         assert!(foreign_principal["session"]["credential_handle"].is_null());
+    }
+
+    #[tokio::test]
+    async fn authorize_capacity_fence_holds_under_interleaving() {
+        let state = crate::app_state::test_demo_state().await;
+        {
+            let mut map = state.device_codes.lock().unwrap();
+            for i in 0..500 {
+                map.insert(format!("fill-{i}"), pending("digest", "BCDFGHJK"));
+            }
+        }
+        let mut joins = Vec::new();
+        for _ in 0..32 {
+            let st = state.clone();
+            joins.push(tokio::spawn(async move {
+                authorize(
+                    State(st),
+                    Json(DeviceAuthorizeRequest {
+                        client_id: "cli".into(),
+                        scope: None,
+                    }),
+                )
+                .await
+                .into_response()
+                .status()
+            }));
+        }
+        let mut created = 0usize;
+        let mut fenced = 0usize;
+        for join in joins {
+            let status = join.await.expect("join");
+            if status == StatusCode::OK {
+                created += 1;
+            } else {
+                assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+                fenced += 1;
+            }
+        }
+        assert!(created <= 12, "capacity 512 with 500 live: got {created} creates");
+        assert!(created + fenced == 32);
+        assert!(state.device_codes.lock().unwrap().len() <= 512);
+    }
+
+    #[tokio::test]
+    async fn approve_failure_fence_holds_under_interleaving() {
+        use crate::config::DEV_OPERATOR_TOKEN;
+        use axum::http::HeaderMap;
+
+        let state = crate::app_state::test_demo_state().await;
+        let mut headers = HeaderMap::new();
+        headers.insert("x-opensesame-operator", DEV_OPERATOR_TOKEN.parse().unwrap());
+        let mut joins = Vec::new();
+        for _ in 0..32 {
+            let st = state.clone();
+            let h = headers.clone();
+            joins.push(tokio::spawn(async move {
+                approve(
+                    State(st),
+                    h,
+                    Json(DeviceApproveRequest {
+                        user_code: "XXXX-YYYY".into(),
+                        principal: None,
+                        organization_id: None,
+                        organization_role: None,
+                    }),
+                )
+                .await
+                .into_response()
+                .status()
+            }));
+        }
+        let mut unknown = 0usize;
+        let mut limited = 0usize;
+        for join in joins {
+            let status = join.await.expect("join");
+            if status == StatusCode::NOT_FOUND {
+                unknown += 1;
+            } else {
+                assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+                limited += 1;
+            }
+        }
+        assert!(
+            unknown <= MAX_APPROVE_FAILURES,
+            "concurrent misses must not exceed the fence: {unknown}"
+        );
+        assert_eq!(unknown + limited, 32);
+        assert!(state.device_approve_failures.lock().unwrap().len() <= MAX_APPROVE_FAILURES);
     }
 }

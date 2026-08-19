@@ -17,6 +17,7 @@ mod session;
 mod sync;
 mod sync_blobs;
 mod sync_targets;
+mod taskbus_config;
 mod tasks;
 
 use axum::{
@@ -27,6 +28,7 @@ use axum::{
 use tower_http::trace::TraceLayer;
 
 use crate::app_state::AppState;
+use crate::github_webhook;
 
 pub fn router(state: AppState) -> Router {
     Router::new()
@@ -53,6 +55,16 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/sessions/revoke", post(session::revoke))
         .route("/api/v1/whoami", get(session::whoami))
         .route("/api/v1/nats/auth/callout", post(nats_callout::callout))
+        .route(
+            "/api/v1/operator/taskbus",
+            get(taskbus_config::get_config)
+                .put(taskbus_config::put_config)
+                .layer(DefaultBodyLimit::max(4 * 1024)),
+        )
+        .route(
+            "/api/v1/operator/taskbus/ping",
+            post(taskbus_config::ping),
+        )
         .route("/api/v1/providers", get(connections::list_providers))
         .route(
             "/api/v1/providers/github/app",
@@ -64,7 +76,9 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/api/v1/webhooks/github",
-            get(github_app::webhook_ack).post(github_app::webhook_ack),
+            get(github_webhook::webhook_get)
+                .post(github_webhook::webhook)
+                .layer(DefaultBodyLimit::max(1024 * 1024)),
         )
         .route(
             "/api/v1/backup/target",
@@ -88,11 +102,15 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/api/v1/credential-connections",
-            get(credential_connections::list).post(credential_connections::create),
+            get(credential_connections::list)
+                .post(credential_connections::create)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route(
             "/api/v1/credential-connections/{id}",
-            put(credential_connections::update).delete(credential_connections::delete),
+            put(credential_connections::update)
+                .delete(credential_connections::delete)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route(
             "/api/v1/integrations",
@@ -162,8 +180,14 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/sync/push", post(sync::push))
         .route("/api/v1/sync/pull", post(sync::pull))
         // WP-F: opaque ciphertext snapshot + guarded push (never plaintext / deployment seal).
-        .route("/api/v1/sync/blobs/snapshot", post(sync_blobs::snapshot))
-        .route("/api/v1/sync/blobs/push", post(sync_blobs::push_opaque))
+        .route(
+            "/api/v1/sync/blobs/snapshot",
+            post(sync_blobs::snapshot).layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/sync/blobs/push",
+            post(sync_blobs::push_opaque).layer(DefaultBodyLimit::max(1024 * 1024)),
+        )
         // WP-D: project secret/config changelog (metadata only).
         .route(
             "/api/v1/projects/{project_id}/changelog",

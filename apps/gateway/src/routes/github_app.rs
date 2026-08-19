@@ -251,10 +251,6 @@ pub async fn register_callback(
     }
 }
 
-pub async fn webhook_ack() -> Response {
-    StatusCode::NO_CONTENT.into_response()
-}
-
 fn urlencoding_encode(value: &str) -> String {
     let mut out = String::new();
     for byte in value.bytes() {

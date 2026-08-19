@@ -37,4 +37,8 @@ pub struct ClaimSession {
     pub expires_at: DateTime<Utc>,
     pub claimed_at: Option<DateTime<Utc>>,
     pub claimed_by_principal_id: Option<PrincipalId>,
+    /// Optional subset of the parent grant chosen at claim time. Empty/None
+    /// means the requested grant is unchanged.
+    #[serde(default)]
+    pub narrowed_actions: Option<Vec<String>>,
 }

@@ -5,15 +5,11 @@ pub const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
 pub const DEV_CLAIM_PEPPER: &str = "opensesame-dev-claim-pepper";
 
 pub fn constant_time_eq(a: &str, b: &str) -> bool {
-    let (aa, bb) = (a.as_bytes(), b.as_bytes());
-    if aa.len() != bb.len() {
-        return false;
-    }
-    let mut diff = 0u8;
-    for (x, y) in aa.iter().zip(bb.iter()) {
-        diff |= x ^ y;
-    }
-    diff == 0
+    use sha2::{Digest, Sha256};
+    // Compare digests so a length mismatch cannot return early.
+    let ha = Sha256::digest(a.as_bytes());
+    let hb = Sha256::digest(b.as_bytes());
+    ha.iter().zip(hb.iter()).fold(0u8, |d, (x, y)| d | (x ^ y)) == 0
 }
 
 #[derive(Parser, Debug, Clone)]

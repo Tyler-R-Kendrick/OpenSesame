@@ -7,7 +7,6 @@ use axum::{
 use chrono::{Duration, Utc};
 use opensesame_broker::InvokeInput;
 use opensesame_domain::*;
-use opensesame_provider_openbao::CredentialAuthority;
 use opensesame_provider_openfga::TupleKey;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -93,7 +92,10 @@ pub async fn create(
         .unwrap_or(default_ref);
     let level = body.invoke_level.unwrap_or(1);
 
-    if level >= 3 || body.operation == "credential.resolve" || body.operation.contains("secret") {
+    if level >= 3
+        || body.operation.eq_ignore_ascii_case("credential.resolve")
+        || body.operation.to_ascii_lowercase().contains("secret")
+    {
         return (
             StatusCode::FORBIDDEN,
             Json(json!({
@@ -131,21 +133,6 @@ pub async fn create(
                     Json(json!({"error": "openfga_unavailable", "type":"about:blank"})),
                 )
                     .into_response();
-            }
-        }
-    }
-
-    // Prove OpenBao path never materializes bearer to agent
-    if let Some(bao) = &st.openbao {
-        if let Ok(h) = bao.create_handle("github/acme").await {
-            if let Err(e) = bao
-                .use_credential(
-                    &h,
-                    opensesame_provider_openbao::CredentialOperation::BearerHttpPlaceholder,
-                )
-                .await
-            {
-                tracing::warn!(error = %e, "openbao use_credential failed (non-fatal for invoke)");
             }
         }
     }

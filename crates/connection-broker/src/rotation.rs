@@ -577,6 +577,48 @@ mod tests {
         assert!(!text.contains("access_token"));
     }
 
+    #[tokio::test]
+    async fn request_keeps_the_job_when_the_bus_is_partitioned() {
+        use async_trait::async_trait;
+        use opensesame_task_bus::BusEvent;
+
+        struct DownBus;
+        #[async_trait]
+        impl TaskBus for DownBus {
+            async fn publish(&self, _event: BusEvent) -> anyhow::Result<()> {
+                anyhow::bail!("nats down");
+            }
+            async fn drain(&self, _max: usize) -> anyhow::Result<Vec<BusEvent>> {
+                Ok(vec![])
+            }
+        }
+
+        let registry = RotationRegistry::new();
+        let err = request_rotation(
+            &registry,
+            &DownBus,
+            policy_target(),
+            Some("proj_1".into()),
+            Some("org_1".into()),
+            None,
+        )
+        .await;
+        assert!(err.is_err(), "partition must surface to the caller");
+        let jobs = registry.list_jobs();
+        assert_eq!(jobs.len(), 1, "durable job must survive bus partition");
+        assert_eq!(jobs[0].status, RotationStatus::Requested);
+        assert!(!jobs[0].public_view().to_string().contains("access_token"));
+    }
+
+    #[test]
+    fn request_inserts_before_publish() {
+        let src = include_str!("rotation.rs");
+        let production = src.split("#[cfg(test)]").next().unwrap_or(src);
+        let insert = production.find("registry.insert_job(job)").expect("insert");
+        let publish = production.find("bus.publish").expect("publish");
+        assert!(insert < publish, "job must be durable before the bus write");
+    }
+
     #[test]
     fn policy_due_when_never_run() {
         let policy = RotationPolicy::new("1h", policy_target(), None, None);

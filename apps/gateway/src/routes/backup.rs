@@ -16,9 +16,12 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::app_state::AppState;
-use crate::middleware::auth::resolve_caller;
+use crate::middleware::auth::{resolve_caller, Caller};
 
-fn require_configurator(st: &AppState, headers: &axum::http::HeaderMap) -> Result<(), Response> {
+fn require_configurator(
+    st: &AppState,
+    headers: &axum::http::HeaderMap,
+) -> Result<Caller, Response> {
     let who = resolve_caller(st, headers)?;
     if !who.can_configure_integrations() {
         return Err((
@@ -27,7 +30,7 @@ fn require_configurator(st: &AppState, headers: &axum::http::HeaderMap) -> Resul
         )
             .into_response());
     }
-    Ok(())
+    Ok(who)
 }
 
 fn target_view(target: &BackupTarget) -> serde_json::Value {
@@ -49,15 +52,21 @@ pub async fn get_target(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
 ) -> Response {
-    if let Err(resp) = require_configurator(&st, &headers) {
-        return resp;
-    }
-    let organization = st.connection_organization.to_string();
+    let who = match require_configurator(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    let organization = who.organization(st.connection_organization).to_string();
     let target = match st.db.get_backup_target(&organization).await {
         Ok(target) => target,
         Err(error) => return internal(error),
     };
-    let pending = st.db.count_unpublished_outbox().await.unwrap_or(0);
+    // The Host outbox is gateway-wide. A tenant session must not learn the
+    // unpublished depth of every other organization's backup work.
+    let pending = match who {
+        Caller::Operator => st.db.count_unpublished_outbox().await.unwrap_or(0),
+        Caller::Session { .. } => 0,
+    };
     (
         StatusCode::OK,
         Json(json!({
@@ -94,14 +103,26 @@ fn valid_repo_segment(value: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
 }
 
+fn valid_branch(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 200
+        && !value.contains("..")
+        && !value.contains('\\')
+        && value
+            .chars()
+            .all(|c| c.is_ascii() && !c.is_control() && c != ' ' && c != '?')
+}
+
 pub async fn put_target(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
     Json(body): Json<PutTargetBody>,
 ) -> Response {
-    if let Err(resp) = require_configurator(&st, &headers) {
-        return resp;
-    }
+    let who = match require_configurator(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    let organization = who.organization(st.connection_organization);
     if !valid_repo_segment(&body.owner) || !valid_repo_segment(&body.repo) {
         return (
             StatusCode::BAD_REQUEST,
@@ -117,7 +138,17 @@ pub async fn put_target(
         )
             .into_response();
     }
-    let organization = st.connection_organization;
+    let branch = body
+        .branch
+        .clone()
+        .unwrap_or_else(|| "env/production".into());
+    if !valid_branch(&branch) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_request","hint":"branch must be a Git ref name"})),
+        )
+            .into_response();
+    }
     let integration_id = if let Some(connection_id) = body
         .connection_id
         .as_deref()
@@ -191,10 +222,10 @@ pub async fn put_target(
             )
                 .into_response();
         }
-        Err(error) => {
+        Err(_error) => {
             return (
                 StatusCode::NOT_FOUND,
-                Json(json!({"error":"integration_not_found","detail": error.to_string()})),
+                Json(json!({"error":"integration_not_found"})),
             )
                 .into_response();
         }
@@ -206,7 +237,7 @@ pub async fn put_target(
         owner: body.owner,
         repo: body.repo,
         // ADR 0043: recoverability defaults to the production env branch.
-        branch: body.branch.unwrap_or_else(|| "env/production".into()),
+        branch,
         enabled: body.enabled.unwrap_or(true),
         status: "pending".into(),
         last_commit_sha: None,
@@ -218,14 +249,15 @@ pub async fn put_target(
     }
     // A fresh target gets a full snapshot immediately: the resync event both
     // wakes the actor and reconciles anything dead-lettered while unconfigured.
-    if let Err(error) = st
+    let outbox_id = match st
         .db
         .append_outbox("backup.resync", &json!({"reason":"target_updated"}).to_string())
         .await
     {
-        return internal(error);
-    }
-    st.backup_notify.notify_one();
+        Ok(id) => id,
+        Err(error) => return internal(error),
+    };
+    crate::backup_bus::publish_backup_wake(&st, &outbox_id).await;
     (StatusCode::OK, Json(json!({"target": target_view(&target)}))).into_response()
 }
 
@@ -235,10 +267,11 @@ pub async fn list_installations(
     headers: axum::http::HeaderMap,
     Path(id): Path<String>,
 ) -> Response {
-    if let Err(resp) = require_configurator(&st, &headers) {
-        return resp;
-    }
-    let organization = st.connection_organization;
+    let who = match require_configurator(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    let organization = who.organization(st.connection_organization);
     match st
         .connection_broker
         .list_github_app_installations(&organization, &id)
@@ -260,7 +293,7 @@ pub async fn list_installations(
             StatusCode::UNPROCESSABLE_ENTITY,
             Json(json!({
                 "error": error.code(),
-                "hint": error.to_string(),
+                "hint": "backup source is unavailable",
             })),
         )
             .into_response(),
@@ -271,10 +304,11 @@ pub async fn delete_target(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
 ) -> Response {
-    if let Err(resp) = require_configurator(&st, &headers) {
-        return resp;
-    }
-    let organization = st.connection_organization.to_string();
+    let who = match require_configurator(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    let organization = who.organization(st.connection_organization).to_string();
     if let Err(error) = st.db.delete_backup_target(&organization).await {
         return internal(error);
     }
@@ -285,18 +319,48 @@ pub async fn resync(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
 ) -> Response {
-    if let Err(resp) = require_configurator(&st, &headers) {
-        return resp;
+    let who = match require_configurator(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    let organization = who.organization(st.connection_organization).to_string();
+    if !resync_allowed() {
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(json!({"error":"rate_limited","hint":"wait before requesting another resync"})),
+        )
+            .into_response();
     }
-    if let Err(error) = st
+    let outbox_id = match st
         .db
-        .append_outbox("backup.resync", &json!({"reason":"requested"}).to_string())
+        .append_outbox(
+            "backup.resync",
+            &json!({"reason":"requested","organization_id": organization}).to_string(),
+        )
         .await
     {
-        return internal(error);
-    }
-    st.backup_notify.notify_one();
+        Ok(id) => id,
+        Err(error) => return internal(error),
+    };
+    crate::backup_bus::publish_backup_wake(&st, &outbox_id).await;
     (StatusCode::ACCEPTED, Json(json!({"status":"queued"}))).into_response()
+}
+
+fn resync_allowed() -> bool {
+    use std::sync::{Mutex, OnceLock};
+    use std::time::{Duration, Instant};
+    static WINDOW: OnceLock<Mutex<Vec<Instant>>> = OnceLock::new();
+    let mut stamps = WINDOW
+        .get_or_init(|| Mutex::new(Vec::new()))
+        .lock()
+        .unwrap_or_else(|p| p.into_inner());
+    let cutoff = Instant::now() - Duration::from_secs(60);
+    stamps.retain(|at| *at > cutoff);
+    if stamps.len() >= 6 {
+        return false;
+    }
+    stamps.push(Instant::now());
+    true
 }
 
 fn internal(error: anyhow::Error) -> Response {
@@ -576,5 +640,87 @@ mod tests {
             status == StatusCode::NOT_FOUND || status == StatusCode::UNPROCESSABLE_ENTITY,
             "{status} {body}"
         );
+    }
+
+    #[tokio::test]
+    async fn list_installations_is_scoped_to_caller_organization() {
+        let state = state().await;
+        let integration = register_app(&state).await;
+        let foreign = opensesame_domain::OrganizationId::new();
+        let headers = test_session_headers(
+            &state,
+            "prn_foreign",
+            foreign,
+            opensesame_domain::OrganizationRole::Owner,
+        );
+        let (status, body) = call(
+            &state,
+            "GET",
+            &format!("/api/v1/integrations/{integration}/github/installations"),
+            Some(headers),
+            None,
+        )
+        .await;
+        if status == StatusCode::OK {
+            let rows = body["installations"].as_array().expect("installations");
+            assert!(
+                rows.is_empty(),
+                "foreign org must not see another org's GitHub App installs: {body}"
+            );
+        } else {
+            assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+        }
+    }
+
+    #[tokio::test]
+    async fn resync_publishes_backup_wake_on_taskbus() {
+        let _guard = crate::app_state::test_env::lock();
+        use opensesame_task_bus::{InMemoryTaskBus, TaskBus};
+        use std::sync::Arc;
+        use tokio::sync::RwLock;
+
+        std::env::set_var("OPENSESAME_TASKBUS", "memory");
+        let mut state = state().await;
+        let mem = Arc::new(InMemoryTaskBus::default());
+        let as_dyn: Arc<dyn opensesame_task_bus::TaskBus> = mem.clone();
+        state.task_bus = Arc::new(RwLock::new(as_dyn));
+
+        let (status, body) = call(&state, "POST", "/api/v1/backup/resync", None, None).await;
+        assert_eq!(status, StatusCode::ACCEPTED, "{body}");
+        assert_eq!(state.db.count_unpublished_outbox().await.unwrap(), 1);
+
+        let events = mem.drain(10).await.unwrap();
+        assert!(
+            events.iter().any(|e| e.r#type == "system.backup.wake"),
+            "expected backup wake on bus, got {events:?}"
+        );
+        assert!(events.iter().all(|e| !e.data.to_string().contains("BEGIN RSA")));
+    }
+
+    #[tokio::test]
+    async fn session_backup_status_does_not_reveal_global_outbox_depth() {
+        let state = state().await;
+        state
+            .db
+            .append_outbox("backup.resync", r#"{"reason":"requested"}"#)
+            .await
+            .unwrap();
+        let headers = test_session_headers(
+            &state,
+            "prn_owner",
+            state.connection_organization,
+            opensesame_domain::OrganizationRole::Owner,
+        );
+        let (status, body) = call(
+            &state,
+            "GET",
+            "/api/v1/backup/target",
+            Some(headers),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["pending_events"].as_i64().unwrap(), 0);
+        assert!(state.db.count_unpublished_outbox().await.unwrap() >= 1);
     }
 }

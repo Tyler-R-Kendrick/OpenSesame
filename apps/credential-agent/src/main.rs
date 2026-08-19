@@ -36,6 +36,10 @@ const ENV_ENABLE_LEGACY: &str = "OPENSESAME_LEGACY_CREDENTIAL_AGENT";
 /// Capabilities are pruned on mint; the cap only bounds a burst.
 const MAX_CAPABILITIES: usize = 1024;
 
+fn lock_map<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 #[derive(Clone)]
 struct App {
     sessions: Arc<Mutex<HashMap<String, HostSession>>>,
@@ -87,6 +91,8 @@ struct MintCapReq {
     audience: String,
     #[serde(default)]
     scopes: Vec<String>,
+    #[serde(default)]
+    session_id: Option<String>,
 }
 
 #[tokio::main]
@@ -145,10 +151,7 @@ async fn list_sessions(State(st): State<App>, headers: HeaderMap) -> Response {
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
-    let sessions: Vec<_> = st
-        .sessions
-        .lock()
-        .unwrap()
+    let sessions: Vec<_> = lock_map(&st.sessions)
         .values()
         .map(|s| json!({"id": s.id, "principal": s.principal}))
         .collect();
@@ -171,9 +174,19 @@ async fn mint_capability(
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
-    let sessions = st.sessions.lock().unwrap();
-    let Some(session) = sessions.values().next() else {
-        return Json(json!({"error":"no_session","hint":"use opensesame login on host"}))
+    let sessions = lock_map(&st.sessions);
+    let session = if let Some(id) = req.session_id.as_deref() {
+        sessions.get(id)
+    } else if sessions.len() == 1 {
+        sessions.values().next()
+    } else {
+        None
+    };
+    let Some(session) = session else {
+        return Json(json!({
+            "error":"no_session",
+            "hint":"pass session_id from /v1/list_sessions"
+        }))
             .into_response();
     };
     let cap = SessionCapability {
@@ -189,7 +202,7 @@ async fn mint_capability(
     };
     drop(sessions);
     {
-        let mut caps = st.capabilities.lock().unwrap();
+        let mut caps = lock_map(&st.capabilities);
         let now = Utc::now();
         caps.retain(|_, c| c.expires_at > now);
         if caps.len() >= MAX_CAPABILITIES {
@@ -224,7 +237,7 @@ async fn introspect_capability(
         return resp;
     }
     let id = body.get("id").and_then(|v| v.as_str()).unwrap_or("");
-    let caps = st.capabilities.lock().unwrap();
+    let caps = lock_map(&st.capabilities);
     match caps.get(id) {
         Some(c) if c.expires_at > Utc::now() => Json(json!({
             "active": true,
@@ -242,7 +255,7 @@ async fn revoke(State(st): State<App>, headers: HeaderMap, Json(body): Json<Valu
         return resp;
     }
     if let Some(id) = body.get("id").and_then(|v| v.as_str()) {
-        st.capabilities.lock().unwrap().remove(id);
+        lock_map(&st.capabilities).remove(id);
     }
     Json(json!({"ok": true})).into_response()
 }

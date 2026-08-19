@@ -10,7 +10,10 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use opensesame_connection_broker::{list_secret_changelog, record_secret_changelog, RecordSecretChangelog};
+use opensesame_connection_broker::{
+    is_allowed_changelog_event_type, list_secret_changelog, record_secret_changelog,
+    RecordSecretChangelog,
+};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -34,8 +37,16 @@ pub async fn list_for_project(
     Path(project_id): Path<String>,
     Query(query): Query<ListQuery>,
 ) -> Response {
-    if let Err(resp) = resolve_caller(&st, &headers) {
-        return resp;
+    let caller = match resolve_caller(&st, &headers) {
+        Ok(c) => c,
+        Err(resp) => return resp,
+    };
+    if !caller.can_configure_integrations() {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "forbidden"})),
+        )
+            .into_response();
     }
     if project_id.trim().is_empty() || project_id.len() > 128 {
         return (
@@ -44,11 +55,11 @@ pub async fn list_for_project(
         )
             .into_response();
     }
+    let organization_id = caller.organization(st.connection_organization).to_string();
     let limit = query.limit.clamp(1, 200);
-    let events = list_secret_changelog(&project_id, limit);
-    // Authz gate: session/operator already required. Project membership is
-    // enforced by Identity/project APIs; Host returns only metadata rows that
-    // were recorded for this project id.
+    // Host-owned store: filter by the authenticated organization, never by a
+    // caller-supplied project id across tenants.
+    let events = list_secret_changelog(&organization_id, &project_id, limit);
     (
         StatusCode::OK,
         Json(json!({
@@ -65,8 +76,6 @@ pub struct RecordBody {
     project_id: String,
     #[serde(default)]
     organization_id: Option<String>,
-    #[serde(default)]
-    actor_id: Option<String>,
     #[serde(default)]
     config_id: Option<String>,
     #[serde(default)]
@@ -95,12 +104,7 @@ pub async fn record(
         Ok(c) => c,
         Err(resp) => return resp,
     };
-    // Humans/operators only — not a general agent write surface.
-    if !matches!(
-        caller,
-        crate::middleware::auth::Caller::Operator
-            | crate::middleware::auth::Caller::Session { .. }
-    ) {
+    if !caller.can_configure_integrations() {
         return (
             StatusCode::FORBIDDEN,
             Json(json!({"error": "forbidden"})),
@@ -114,11 +118,32 @@ pub async fn record(
         )
             .into_response();
     }
+    if !is_allowed_changelog_event_type(&body.event_type) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid_event_type"})),
+        )
+            .into_response();
+    }
+    let organization_id = caller.organization(st.connection_organization).to_string();
+    if let Some(claimed) = body.organization_id.as_deref() {
+        if claimed != organization_id {
+            return (
+                StatusCode::FORBIDDEN,
+                Json(json!({"error": "forbidden"})),
+            )
+                .into_response();
+        }
+    }
+    let actor_id = match &caller {
+        crate::middleware::auth::Caller::Operator => Some("operator".into()),
+        crate::middleware::auth::Caller::Session { subject, .. } => Some(subject.clone()),
+    };
     let entry = record_secret_changelog(RecordSecretChangelog {
         event_type: body.event_type,
         project_id: body.project_id,
-        organization_id: body.organization_id,
-        actor_id: body.actor_id,
+        organization_id: Some(organization_id),
+        actor_id,
         config_id: body.config_id,
         environment: body.environment,
         key_names: body.key_names,
@@ -240,5 +265,174 @@ mod tests {
             "unexpected status {}",
             res.status()
         );
+    }
+
+    #[tokio::test]
+    async fn list_does_not_leak_another_organization_changelog() {
+        clear_secret_changelog_for_tests();
+        let (router, state) = app().await;
+        let boot = state.bootstrap.lock().unwrap().clone().unwrap();
+        let owner = crate::app_state::test_session_headers(
+            &state,
+            &format!("prn_{}", boot.principal.as_uuid()),
+            boot.org,
+            OrganizationRole::Owner,
+        );
+        let mut record_headers = owner.clone();
+        record_headers.insert(
+            axum::http::header::CONTENT_TYPE,
+            "application/json".parse().unwrap(),
+        );
+        let mut record_req = Request::builder()
+            .method("POST")
+            .uri("/api/v1/changelog")
+            .body(Body::from(
+                serde_json::json!({
+                    "event_type": "secret.value.changed",
+                    "project_id": boot.project.to_string(),
+                    "key_names": ["DATABASE_URL"]
+                })
+                .to_string(),
+            ))
+            .unwrap();
+        for (k, v) in record_headers.iter() {
+            record_req.headers_mut().insert(k, v.clone());
+        }
+        let record_res = router.clone().oneshot(record_req).await.unwrap();
+        assert_eq!(record_res.status(), StatusCode::CREATED);
+
+        let foreign = opensesame_domain::OrganizationId::new();
+        let other = crate::app_state::test_session_headers(
+            &state,
+            "prn_other",
+            foreign,
+            OrganizationRole::Owner,
+        );
+        let mut list_req = Request::builder()
+            .method("GET")
+            .uri(format!(
+                "/api/v1/projects/{}/changelog?limit=10",
+                boot.project
+            ))
+            .body(Body::empty())
+            .unwrap();
+        for (k, v) in other.iter() {
+            list_req.headers_mut().insert(k, v.clone());
+        }
+        let list_res = router.oneshot(list_req).await.unwrap();
+        assert_eq!(list_res.status(), StatusCode::OK);
+        let list_body = axum::body::to_bytes(list_res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let list_json: serde_json::Value = serde_json::from_slice(&list_body).unwrap();
+        let events = list_json["events"].as_array().expect("events");
+        assert!(events.is_empty(), "cross-tenant changelog must be empty");
+        assert!(!list_json.to_string().contains("DATABASE_URL"));
+    }
+
+    #[tokio::test]
+    async fn record_rejects_unknown_event_types() {
+        clear_secret_changelog_for_tests();
+        let (router, state) = app().await;
+        let boot = state.bootstrap.lock().unwrap().clone().unwrap();
+        let mut headers = crate::app_state::test_session_headers(
+            &state,
+            &format!("prn_{}", boot.principal.as_uuid()),
+            boot.org,
+            OrganizationRole::Owner,
+        );
+        headers.insert(
+            axum::http::header::CONTENT_TYPE,
+            "application/json".parse().unwrap(),
+        );
+        let mut req = Request::builder()
+            .method("POST")
+            .uri("/api/v1/changelog")
+            .body(Body::from(
+                serde_json::json!({
+                    "event_type": "secret.value.exfiltrated",
+                    "project_id": boot.project.to_string()
+                })
+                .to_string(),
+            ))
+            .unwrap();
+        for (k, v) in headers.iter() {
+            req.headers_mut().insert(k, v.clone());
+        }
+        let res = router.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn concurrent_records_from_two_orgs_never_mix() {
+        clear_secret_changelog_for_tests();
+        let (router, state) = app().await;
+        let project = state
+            .bootstrap
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .project
+            .to_string();
+        let org_a = crate::app_state::test_session_headers(
+            &state,
+            "prn_a",
+            opensesame_domain::OrganizationId::new(),
+            OrganizationRole::Owner,
+        );
+        let org_b = crate::app_state::test_session_headers(
+            &state,
+            "prn_b",
+            opensesame_domain::OrganizationId::new(),
+            OrganizationRole::Owner,
+        );
+        let mut joins = Vec::new();
+        for i in 0..16 {
+            for headers in [&org_a, &org_b] {
+                let mut req = Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/changelog")
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "event_type": "secret.value.changed",
+                            "project_id": project,
+                            "key_names": [if headers.get(axum::http::header::AUTHORIZATION)
+                                == org_a.get(axum::http::header::AUTHORIZATION) { "ORG_A_KEY" } else { "ORG_B_KEY" }],
+                            "version_id": format!("v{i}")
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap();
+                for (k, v) in headers.iter() {
+                    req.headers_mut().insert(k, v.clone());
+                }
+                let r = router.clone();
+                joins.push(tokio::spawn(async move { r.oneshot(req).await.unwrap() }));
+            }
+        }
+        for join in joins {
+            assert_eq!(join.await.unwrap().status(), StatusCode::CREATED);
+        }
+        for (headers, forbidden) in [(&org_a, "ORG_B_KEY"), (&org_b, "ORG_A_KEY")] {
+            let mut list = Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/projects/{project}/changelog?limit=200"))
+                .body(Body::empty())
+                .unwrap();
+            for (k, v) in headers.iter() {
+                list.headers_mut().insert(k, v.clone());
+            }
+            let res = router.clone().oneshot(list).await.unwrap();
+            assert_eq!(res.status(), StatusCode::OK);
+            let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let text = json.to_string();
+            assert!(!text.contains(forbidden), "{text}");
+            assert_eq!(json["events"].as_array().unwrap().len(), 16);
+        }
     }
 }

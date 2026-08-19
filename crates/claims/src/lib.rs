@@ -155,6 +155,7 @@ mod tests {
             expires_at: Utc::now() + Duration::minutes(10),
             claimed_at: None,
             claimed_by_principal_id: None,
+            narrowed_actions: None,
         }
     }
 

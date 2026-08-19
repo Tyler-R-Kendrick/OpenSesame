@@ -37,7 +37,10 @@ map_targets() {
     crates/claims/*) echo claim_replay ;;
     crates/audit/*) echo receipt_verify ;;
     crates/env-spec/*) echo env_spec ;;
-    crates/connection-broker/*) echo connector_manifest broker_seal ;;
+    crates/connection-broker/*) echo connector_manifest broker_seal github_webhook_hmac ;;
+    crates/authz/*) echo nats_callout_eval ;;
+    crates/task-bus/*) echo taskbus_url xkeys_envelope ;;
+    crates/xkeys/*) echo xkeys_envelope ;;
     crates/protocol-mcp/*) echo mcp_authz resource_match ;;
     crates/protocol-aauth/*) echo aauth_parse protocol_negotiate ;;
     crates/provider-openbao/*) echo openbao_response ;;

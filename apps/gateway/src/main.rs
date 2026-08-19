@@ -3,12 +3,15 @@
 
 mod app_state;
 mod backup;
+mod backup_bus;
 mod bootstrap;
 mod config;
+mod github_webhook;
 mod identity_mapping;
 mod middleware;
 mod routes;
 mod task_engine;
+mod taskbus_config;
 
 use clap::Parser;
 use config::Args;
@@ -26,6 +29,8 @@ async fn main() -> anyhow::Result<()> {
     // The backup actor drains the transactional outbox for the process's
     // lifetime; secret mutations wake it via `backup_notify` (ADR 0039).
     tokio::spawn(backup::run(state.clone()));
+    // When TaskBus is NATS, a dedicated durable consumer accelerates wakes.
+    tokio::spawn(backup_bus::run_system_wake_consumer(state.clone()));
     let hsts = args.resource.starts_with("https://");
     let app = opensesame_host_core::http_security::apply_http_security(
         routes::router(state),
@@ -40,3 +45,129 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app).await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod pact_coverage {
+    /// Mutation oracles for Host durable / quota / consent paths.
+    /// See `docs/validation/pact.md`.
+    #[test]
+    fn webhook_verifies_then_claims_then_appends() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("github_webhook.rs"),
+            &[
+                "if !well_formed_hub_signature",
+                ".github_webhook_secret(",
+                "if !verify_hub_signature_256",
+                "try_claim_host_kv",
+                "append_outbox",
+                "delete_host_kv",
+            ],
+        );
+        opensesame_host_core::pact::check_then_set_admits_double_claim();
+        opensesame_host_core::pact::exclusive_claim_is_single_winner();
+    }
+
+    #[test]
+    fn agent_complete_is_operator_gated_before_claim_locks() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("routes/agents.rs"),
+            &[
+                "claim_token alone must not self-complete",
+                "must match create_identity",
+                "match complete_gate(",
+            ],
+        );
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("routes/agents.rs"),
+            &["st.claims.lock()", "map.len() >= 256"],
+        );
+    }
+
+    #[test]
+    fn device_capacity_check_holds_the_map_lock() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("routes/device.rs"),
+            &["device_codes.lock()", "map.len() >= 512", "map.insert"],
+        );
+    }
+
+    #[test]
+    fn rotation_authorizes_then_loads_connection_then_enqueues() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("routes/rotation.rs"),
+            &[
+                "fn authorize(st: &AppState, headers: &axum::http::HeaderMap)",
+                ".get_connection(&organization_id, connection_id)",
+                "let job = match request_rotation(",
+            ],
+        );
+    }
+
+    #[test]
+    fn sync_blobs_require_session_before_opaque_contract() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("routes/sync_blobs.rs"),
+            &[
+                "require_session(&st, &headers)",
+                "assert_opaque_sync_json(&raw)",
+            ],
+        );
+    }
+
+    #[test]
+    fn backup_resync_is_configurator_gated_before_outbox() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("routes/backup.rs"),
+            &[
+                "pub async fn resync",
+                "if !resync_allowed()",
+                "reason\":\"requested\",\"organization_id\"",
+            ],
+        );
+    }
+
+    #[test]
+    fn nats_callout_ignores_self_asserted_project_ids() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("routes/nats_callout.rs"),
+            &["project_ids: vec![]"],
+        );
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("routes/nats_callout.rs"),
+            &[
+                "identity mapping resolve failed",
+                "decide_nats_callout(&cfg, req, mapped)",
+            ],
+        );
+    }
+
+    #[test]
+    fn changelog_lists_only_the_caller_organization() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("routes/changelog.rs"),
+            &[
+                "caller.organization(st.connection_organization)",
+                "list_secret_changelog(&organization_id, &project_id, limit)",
+            ],
+        );
+    }
+
+    #[test]
+    fn taskbus_ping_is_configurator_gated() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("routes/taskbus_config.rs"),
+            &[
+                "pub async fn ping",
+                "view(&resolved, \"reachable\"",
+            ],
+        );
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("routes/taskbus_config.rs"),
+            &[
+                "fn require_configurator",
+                "pub async fn ping",
+            ],
+        );
+    }
+}
+

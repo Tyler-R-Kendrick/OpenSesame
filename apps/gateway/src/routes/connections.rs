@@ -879,8 +879,14 @@ fn callback_page(outcome: CallbackOutcome) -> Response {
   var el = document.getElementById("opensesame-payload");
   var message = JSON.parse(el.dataset.payload);
   if (window.opener) {{
-    window.opener.postMessage(message, "*");
-    window.close();
+    var target = "";
+    try {{
+      if (document.referrer) target = new URL(document.referrer).origin;
+    }} catch (_e) {{}}
+    if (target) {{
+      window.opener.postMessage(message, target);
+      window.close();
+    }}
   }}
 }})();
 </script>

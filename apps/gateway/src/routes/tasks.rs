@@ -8,7 +8,7 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use opensesame_domain::*;
-use opensesame_task_access::{StartTaskParams, TaskStore};
+use opensesame_task_access::{StartTaskParams, TaskAccessError, TaskStore};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -157,15 +157,23 @@ pub async fn start_task(
             now,
         )
         .map_err(bad_req)?;
-    let run = eng
-        .start_task(StartTaskParams {
+    let run = match eng.start_task(StartTaskParams {
             template_id: TaskTemplateId::new(),
             authority_context: ctx,
             ceiling: ceiling.clone(),
             maximum_expires_at: now + ttl,
             now,
-        })
-        .map_err(bad_req)?;
+        }) {
+        Ok(run) => run,
+        Err(TaskAccessError::Capacity) => {
+            return Err(err_json(
+                StatusCode::TOO_MANY_REQUESTS,
+                "task_capacity",
+                "in-memory task store is at capacity",
+            ));
+        }
+        Err(e) => return Err(bad_req(e)),
+    };
     Ok((
         StatusCode::CREATED,
         Json(json!({

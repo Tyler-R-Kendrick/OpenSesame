@@ -137,6 +137,33 @@ pub async fn request(
         }
     };
 
+    if let RotationTarget::Connection { connection_id } = &target {
+        if st
+            .connection_broker
+            .get_connection(&organization_id, connection_id)
+            .await
+            .is_err()
+        {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": "connection_not_found"})),
+            )
+                .into_response();
+        }
+    }
+    if let RotationTarget::StorePath { path } = &target {
+        if path.contains("..") || path.contains('\0') {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "error": "invalid_request",
+                    "hint": "store_path must not traverse"
+                })),
+            )
+                .into_response();
+        }
+    }
+
     let mut policy_id = None;
     if let Some(interval) = body.interval.filter(|s| !s.trim().is_empty()) {
         let policy = registry().upsert_policy(RotationPolicy::new(
@@ -148,9 +175,10 @@ pub async fn request(
         policy_id = Some(policy.id);
     }
 
+    let bus = st.task_bus.read().await;
     let job = match request_rotation(
         registry(),
-        st.task_bus.as_ref(),
+        bus.as_ref(),
         target.clone(),
         body.project_id.clone(),
         Some(organization_id.to_string()),
@@ -179,7 +207,7 @@ pub async fn request(
         if let RotationTarget::Connection { .. } = &target {
             match execute_connection_rotation(
                 registry(),
-                st.task_bus.as_ref(),
+                bus.as_ref(),
                 st.connection_broker.as_ref(),
                 &organization_id,
                 &job.id,
@@ -215,19 +243,24 @@ pub async fn get_job(
     headers: axum::http::HeaderMap,
     Path(id): Path<String>,
 ) -> Response {
-    let _who = match authorize(&st, &headers) {
+    let who = match authorize(&st, &headers) {
         Ok(who) => who,
         Err(resp) => return resp,
     };
+    let organization_id = match caller_organization(&st, &who, &headers) {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+    let org = organization_id.to_string();
     match registry().get_job(&id) {
-        Some(job) => {
+        Some(job) if job.organization_id.as_deref() == Some(org.as_str()) => {
             let mut view = job.public_view();
             if let Some(obj) = view.as_object_mut() {
                 obj.insert("secrets_returned".into(), json!(false));
             }
             Json(view).into_response()
         }
-        None => (
+        Some(_) | None => (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "not_found", "hint": "rotation job not found"})),
         )
@@ -240,13 +273,19 @@ pub async fn list_jobs(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
 ) -> Response {
-    let _who = match authorize(&st, &headers) {
+    let who = match authorize(&st, &headers) {
         Ok(who) => who,
         Err(resp) => return resp,
     };
+    let organization_id = match caller_organization(&st, &who, &headers) {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+    let org = organization_id.to_string();
     let jobs: Vec<_> = registry()
         .list_jobs()
         .into_iter()
+        .filter(|j| j.organization_id.as_deref() == Some(org.as_str()))
         .map(|j| {
             let mut view = j.public_view();
             if let Some(obj) = view.as_object_mut() {

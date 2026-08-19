@@ -476,6 +476,50 @@ impl<'a> Arbitrary<'a> for ReplayCacheInput {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct GithubWebhookHmacInput {
+    pub secret: Vec<u8>,
+    pub body: Vec<u8>,
+    pub flip_body_bit: bool,
+    pub truncate_header: bool,
+}
+
+impl<'a> Arbitrary<'a> for GithubWebhookHmacInput {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(Self {
+            secret: bounded_bytes(u, 64)?,
+            body: bounded_bytes(u, 512)?,
+            flip_body_bit: bool::arbitrary(u)?,
+            truncate_header: bool::arbitrary(u)?,
+        })
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct NatsCalloutEvalInput {
+    pub issuer_allowed: bool,
+    pub email_join: bool,
+    pub issuer_empty: bool,
+    pub subject_empty: bool,
+    pub mapped: bool,
+    pub provisional: bool,
+    pub project_count: u8,
+}
+
+impl<'a> Arbitrary<'a> for NatsCalloutEvalInput {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(Self {
+            issuer_allowed: bool::arbitrary(u)?,
+            email_join: bool::arbitrary(u)?,
+            issuer_empty: bool::arbitrary(u)?,
+            subject_empty: bool::arbitrary(u)?,
+            mapped: bool::arbitrary(u)?,
+            provisional: bool::arbitrary(u)?,
+            project_count: u.int_in_range(0..=4)?,
+        })
+    }
+}
+
 fn bounded_text(u: &mut Unstructured<'_>, max: usize) -> Result<String> {
     let n = u.int_in_range(0..=max)?;
     let mut s = String::with_capacity(n);

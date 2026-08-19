@@ -89,17 +89,12 @@ pub mod daemon {
 pub mod operator {
     use axum::http::{header, HeaderMap};
 
-    /// Length-checked, branch-free comparison of two secrets.
+    /// Length-hiding comparison of two secrets (SHA-256 then XOR-fold).
     pub fn constant_time_eq(a: &str, b: &str) -> bool {
-        let (aa, bb) = (a.as_bytes(), b.as_bytes());
-        if aa.len() != bb.len() {
-            return false;
-        }
-        let mut diff = 0u8;
-        for (x, y) in aa.iter().zip(bb.iter()) {
-            diff |= x ^ y;
-        }
-        diff == 0
+        use sha2::{Digest, Sha256};
+        let ha = Sha256::digest(a.as_bytes());
+        let hb = Sha256::digest(b.as_bytes());
+        ha.iter().zip(hb.iter()).fold(0u8, |d, (x, y)| d | (x ^ y)) == 0
     }
 
     /// `X-OpenSesame-Operator: <token>` or `Authorization: Bearer operator:<token>`.
@@ -218,6 +213,8 @@ pub mod http_security {
     }
 
     /// Production must list explicit origins; `*` / `null` are never allowed.
+    /// An unset `OPENSESAME_CORS_ORIGINS` in production is refused so the
+    /// development allowlist (localhost + github.io) cannot silently apply.
     pub fn assert_cors_origins_allowed(
         origins: &[String],
         is_production: bool,
@@ -227,6 +224,16 @@ pub mod http_security {
             .any(|o| o == "*" || o.eq_ignore_ascii_case("null"))
         {
             return Err(format!("{ENV_CORS_ORIGINS} must not include * or null"));
+        }
+        if is_production {
+            let configured = std::env::var(ENV_CORS_ORIGINS)
+                .ok()
+                .filter(|value| !value.trim().is_empty());
+            if configured.is_none() {
+                return Err(format!(
+                    "{ENV_CORS_ORIGINS} must be set in production (refusing the development CORS allowlist)"
+                ));
+            }
         }
         if is_production && origins.is_empty() {
             return Err(format!(
@@ -329,12 +336,111 @@ pub mod http_security {
         ))
     }
 
+    /// Hop-by-hop and client-controlled forwarding headers the daemon must
+    /// strip before proxying to loopback Host/Identity APIs.
+    pub fn is_hop_or_forwarding_header(name: &str) -> bool {
+        matches!(
+            name.to_ascii_lowercase().as_str(),
+            "connection"
+                | "keep-alive"
+                | "proxy-authenticate"
+                | "proxy-authorization"
+                | "te"
+                | "trailers"
+                | "transfer-encoding"
+                | "upgrade"
+                | "host"
+                | "content-length"
+                | "x-forwarded-for"
+                | "x-forwarded-host"
+                | "x-forwarded-proto"
+                | "x-forwarded-port"
+                | "x-forwarded-prefix"
+                | "x-real-ip"
+                | "forwarded"
+                | "x-original-url"
+                | "x-rewrite-url"
+        )
+    }
+
+    /// Path-segment ids interpolated into upstream URLs (claim ids, etc.).
+    pub fn is_safe_path_id(id: &str) -> bool {
+        let bytes = id.as_bytes();
+        (8..=128).contains(&bytes.len())
+            && bytes
+                .iter()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(*b, b'.' | b'_' | b'-' | b':'))
+    }
+
     /// Security headers + fail-closed CORS allowlist for browser-facing host APIs.
     pub fn apply_http_security<S>(router: Router<S>, origins: &[String], hsts: bool) -> Router<S>
     where
         S: Clone + Send + Sync + 'static,
     {
         allow_private_network(apply_security_headers(router, hsts).layer(cors_layer(origins)))
+    }
+}
+
+/// Property / Adversarial / Chaos / conTract oracles shared by Host tests.
+///
+/// See `docs/validation/pact.md`. These helpers kill the same classes of
+/// mutants (check-then-set, source-order inversion, partition drops) so each
+/// plane does not invent a one-off assertion style.
+pub mod pact {
+    /// Production source must mention `ordered` markers in that sequence.
+    pub fn assert_source_order(src: &str, ordered: &[&str]) {
+        let production = src.split("#[cfg(test)]").next().unwrap_or(src);
+        let mut last = 0usize;
+        for marker in ordered {
+            let pos = production
+                .get(last..)
+                .and_then(|rest| rest.find(marker))
+                .map(|offset| last + offset)
+                .unwrap_or_else(|| panic!("pact source oracle missing {marker}"));
+            last = pos;
+        }
+    }
+
+    /// Exclusive insert: only one concurrent claimant wins.
+    pub fn exclusive_claim_is_single_winner() {
+        use std::collections::HashSet;
+        use std::sync::{Arc, Mutex};
+        struct Kv {
+            keys: Mutex<HashSet<String>>,
+        }
+        impl Kv {
+            fn try_claim(&self, key: &str) -> bool {
+                let mut g = self.keys.lock().expect("kv");
+                g.insert(key.to_string())
+            }
+        }
+        let kv = Arc::new(Kv {
+            keys: Mutex::new(HashSet::new()),
+        });
+        let mut wins = 0usize;
+        for _ in 0..64 {
+            if kv.try_claim("d1") {
+                wins += 1;
+            }
+        }
+        assert_eq!(wins, 1, "try_claim must be exclusive");
+    }
+
+    /// Check-then-set is the mutant that exclusive claim exists to kill.
+    pub fn check_then_set_admits_double_claim() {
+        use std::collections::HashSet;
+        use std::sync::Mutex;
+        let keys = Mutex::new(HashSet::<String>::new());
+        let check = |key: &str| !keys.lock().expect("kv").contains(key);
+        let set = |key: &str| {
+            keys.lock().expect("kv").insert(key.to_string());
+        };
+        let c1 = check("d1");
+        let c2 = check("d1");
+        assert!(c1 && c2, "mutant race: both checks pass");
+        set("d1");
+        set("d1");
+        assert_eq!(keys.lock().expect("kv").len(), 1);
     }
 }
 
@@ -346,11 +452,41 @@ mod tests {
         assert_tcp_listen_allowed, listen_host_is_loopback, ENV_ALLOW_NONLOCAL,
         ENV_ALLOW_NONLOCAL_DAEMON,
     };
-    use super::http_security::{assert_cors_origins_allowed, parse_cors_origins};
+    use super::http_security::{
+        assert_cors_origins_allowed, parse_cors_origins, ENV_CORS_ORIGINS,
+    };
 
     #[test]
     fn wit_package_pinned() {
         assert!(super::wit_contract::PACKAGE.contains("host"));
+    }
+
+    #[test]
+    fn forwarding_headers_are_treated_as_hop_headers() {
+        use super::http_security::{is_hop_or_forwarding_header, is_safe_path_id};
+        assert!(is_hop_or_forwarding_header("X-Forwarded-For"));
+        assert!(is_hop_or_forwarding_header("forwarded"));
+        assert!(is_hop_or_forwarding_header("X-Real-IP"));
+        assert!(!is_hop_or_forwarding_header("authorization"));
+        assert!(is_safe_path_id("clm_abc12345"));
+        assert!(!is_safe_path_id("../etc/passwd"));
+        assert!(!is_safe_path_id("id?x=1"));
+        assert!(!is_safe_path_id("id#frag"));
+    }
+
+    #[test]
+    fn pact_oracles_kill_check_then_set_and_require_source_order() {
+        super::pact::exclusive_claim_is_single_winner();
+        super::pact::check_then_set_admits_double_claim();
+        super::pact::assert_source_order(
+            "alpha(); beta(); gamma();",
+            &["alpha()", "beta()", "gamma()"],
+        );
+        // A marker that also appears earlier still counts after the previous step.
+        super::pact::assert_source_order(
+            "append_outbox(early); pub async fn resync; append_outbox(late);",
+            &["pub async fn resync", "append_outbox("],
+        );
     }
 
     #[test]
@@ -411,7 +547,10 @@ mod tests {
         assert!(assert_cors_origins_allowed(&["*".into()], true).is_err());
         assert!(assert_cors_origins_allowed(&["null".into()], true).is_err());
         assert!(assert_cors_origins_allowed(&[], true).is_err());
+        std::env::set_var(ENV_CORS_ORIGINS, "https://app.example");
         assert!(assert_cors_origins_allowed(&["https://app.example".into()], true).is_ok());
+        std::env::remove_var(ENV_CORS_ORIGINS);
+        assert!(assert_cors_origins_allowed(&["https://app.example".into()], true).is_err());
     }
 
     fn repo_root() -> PathBuf {

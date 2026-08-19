@@ -171,6 +171,9 @@ pub async fn push_opaque(
     headers: axum::http::HeaderMap,
     Json(raw): Json<Value>,
 ) -> Response {
+    if let Err(resp) = require_session(&st, &headers) {
+        return resp;
+    }
     if let Err(code) = assert_opaque_sync_json(&raw) {
         return (StatusCode::BAD_REQUEST, Json(json!({"error": code}))).into_response();
     }
@@ -251,5 +254,32 @@ mod tests {
         assert!(project_scoped("project:p1:x", Some("p1")));
         assert!(!project_scoped("project:p2:x", Some("p1")));
         assert!(project_scoped("anything", None));
+    }
+
+    #[tokio::test]
+    async fn snapshot_without_session_fails_closed() {
+        let state = crate::app_state::test_demo_state().await;
+        let response = snapshot(
+            State(state),
+            axum::http::HeaderMap::new(),
+            Json(SyncBlobsSnapshotQuery {
+                since_epoch: 0,
+                project_id: None,
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn push_without_session_fails_closed() {
+        let state = crate::app_state::test_demo_state().await;
+        let response = push_opaque(
+            State(state),
+            axum::http::HeaderMap::new(),
+            Json(json!({"blobs":[{"id":"a","epoch":1,"ciphertext":[1]}]})),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 }

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::app_state::AppState;
-use crate::middleware::auth::require_session;
+use crate::middleware::auth::{require_operator, require_session};
 
 #[derive(Serialize)]
 struct ConnectionView {
@@ -55,10 +55,6 @@ pub struct UpdateConnection {
 
 fn empty_object() -> Value {
     json!({})
-}
-
-fn authenticated(st: &AppState, headers: &axum::http::HeaderMap) -> Result<(), Response> {
-    require_session(st, headers).map(|_| ())
 }
 
 fn session_scope(
@@ -246,7 +242,7 @@ pub async fn test_provider(
     Path(provider_id): Path<String>,
     headers: axum::http::HeaderMap,
 ) -> Response {
-    if let Err(response) = authenticated(&st, &headers) {
+    if let Err(response) = require_operator(&st, &headers) {
         return response;
     }
     let Some(provider) = providers::find(&provider_id) else {
@@ -266,8 +262,8 @@ pub async fn test_provider(
                 "detail": {"sealed": health.sealed, "quorum_ok": health.quorum_ok}
             }))
             .into_response(),
-            Err(error) => {
-                Json(json!({"available": false, "live": false, "detail": error.to_string()}))
+            Err(_error) => {
+                Json(json!({"available": false, "live": false, "detail": "openbao_unreachable"}))
                     .into_response()
             }
         };

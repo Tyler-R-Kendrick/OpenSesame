@@ -26,9 +26,19 @@ pub const DEFAULT_STREAM_NAME: &str = "OPENSESAME_EVENTS";
 pub const DEFAULT_SUBJECT_PREFIX: &str = "opensesame.events";
 /// Durable pull consumer used by workers that drain the bus.
 pub const DEFAULT_CONSUMER_NAME: &str = "opensesame-worker";
-/// Reserved subject prefix for Host NATS auth callout (WP-H); not used here.
+/// Durable consumer for Host backup wakes.
+pub const BACKUP_CONSUMER_NAME: &str = "opensesame-backup";
+/// Durable consumer for GitHub webhook wakes.
+pub const GITHUB_WEBHOOK_CONSUMER_NAME: &str = "opensesame-github-wh";
+/// Reserved subject prefix for Host NATS auth callout.
 pub const CALLOUT_SUBJECT_PREFIX: &str = "opensesame.callout";
+/// System subjects Host alone publishes (not callout-user publishable).
+pub const SYSTEM_SUBJECT_PREFIX: &str = "opensesame.events.system";
 
+mod envelope;
+mod validate;
+pub use envelope::{open_event_data, seal_event_data, sealed_to_json, SealedEventData};
+pub use validate::{is_system_event_type, system_event_subject, validate_nats_url};
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BusEvent {
     pub id: String,
@@ -124,27 +134,49 @@ impl TaskBusBackend {
 }
 
 /// Construct a TaskBus from environment (memory by default).
+///
+/// Precedence for callers that also load durable Host config should resolve
+/// env first, then stored URL — see gateway `taskbus_config`.
 pub async fn create_from_env() -> anyhow::Result<Arc<dyn TaskBus>> {
     match TaskBusBackend::from_env()? {
         TaskBusBackend::Memory => Ok(Arc::new(InMemoryTaskBus::default())),
         TaskBusBackend::Nats => {
-            #[cfg(feature = "jetstream")]
-            {
-                let url = std::env::var("NATS_URL")?;
-                let bus = NatsJetStreamTaskBus::connect(NatsJetStreamConfig {
-                    nats_url: url,
-                    ..NatsJetStreamConfig::default()
-                })
-                .await?;
-                Ok(Arc::new(bus))
-            }
-            #[cfg(not(feature = "jetstream"))]
-            {
-                anyhow::bail!(
-                    "OPENSESAME_TASKBUS=nats / NATS_URL set but opensesame-task-bus \
-                     was built without the `jetstream` feature"
-                );
-            }
+            let url = std::env::var("NATS_URL")?;
+            create_nats(&url).await
+        }
+    }
+}
+
+/// Connect a JetStream TaskBus to an explicit URL (Host operator ping / apply).
+pub async fn create_nats(nats_url: &str) -> anyhow::Result<Arc<dyn TaskBus>> {
+    #[cfg(feature = "jetstream")]
+    {
+        let bus = NatsJetStreamTaskBus::connect(NatsJetStreamConfig {
+            nats_url: nats_url.to_string(),
+            ..NatsJetStreamConfig::default()
+        })
+        .await?;
+        Ok(Arc::new(bus))
+    }
+    #[cfg(not(feature = "jetstream"))]
+    {
+        let _ = nats_url;
+        anyhow::bail!(
+            "opensesame-task-bus was built without the `jetstream` feature"
+        );
+    }
+}
+
+/// Build memory or nats from explicit backend + optional URL.
+pub async fn create(backend: TaskBusBackend, nats_url: Option<&str>) -> anyhow::Result<Arc<dyn TaskBus>> {
+    match backend {
+        TaskBusBackend::Memory => Ok(Arc::new(InMemoryTaskBus::default())),
+        TaskBusBackend::Nats => {
+            let url = nats_url
+                .map(str::trim)
+                .filter(|u| !u.is_empty())
+                .ok_or_else(|| anyhow::anyhow!("nats backend requires nats_url"))?;
+            create_nats(url).await
         }
     }
 }
@@ -191,13 +223,39 @@ mod tests {
     }
 
     #[test]
-    fn backend_defaults_to_memory_without_env() {
-        // Avoid clobbering a developer's real env if set; only assert the
-        // documented default when neither var is present.
-        let taskbus = std::env::var_os("OPENSESAME_TASKBUS");
-        let nats = std::env::var_os("NATS_URL");
-        if taskbus.is_none() && nats.is_none() {
-            assert_eq!(TaskBusBackend::from_env().unwrap(), TaskBusBackend::Memory);
-        }
+    fn backend_from_env_matrix() {
+        let saved_taskbus = std::env::var_os("OPENSESAME_TASKBUS");
+        let saved_nats = std::env::var_os("NATS_URL");
+        let restore = || {
+            match &saved_taskbus {
+                Some(v) => std::env::set_var("OPENSESAME_TASKBUS", v),
+                None => std::env::remove_var("OPENSESAME_TASKBUS"),
+            }
+            match &saved_nats {
+                Some(v) => std::env::set_var("NATS_URL", v),
+                None => std::env::remove_var("NATS_URL"),
+            }
+        };
+
+        std::env::remove_var("OPENSESAME_TASKBUS");
+        std::env::remove_var("NATS_URL");
+        assert_eq!(TaskBusBackend::from_env().unwrap(), TaskBusBackend::Memory);
+
+        std::env::set_var("NATS_URL", "nats://127.0.0.1:4222");
+        assert_eq!(TaskBusBackend::from_env().unwrap(), TaskBusBackend::Nats);
+
+        std::env::set_var("OPENSESAME_TASKBUS", "memory");
+        assert_eq!(TaskBusBackend::from_env().unwrap(), TaskBusBackend::Memory);
+
+        std::env::set_var("OPENSESAME_TASKBUS", "nats");
+        assert!(TaskBusBackend::from_env().is_ok());
+
+        std::env::remove_var("NATS_URL");
+        assert!(TaskBusBackend::from_env().is_err());
+
+        std::env::set_var("OPENSESAME_TASKBUS", "bogus");
+        assert!(TaskBusBackend::from_env().is_err());
+
+        restore();
     }
 }

@@ -67,7 +67,8 @@ pub struct CalloutEval {
 /// Build minimal vs project-scoped NATS subjects for a principal.
 ///
 /// Provisional principals get only the opaque capability inbox under
-/// `opensesame.callout.>` — never project event streams.
+/// `opensesame.callout.>` — never project event streams and never Host
+/// `opensesame.events.system.>` subjects.
 pub fn callout_permissions(principal_id: &str, provisional: bool, project_ids: &[String]) -> CalloutPermissions {
     if provisional {
         let inbox = format!("opensesame.callout.principal.{principal_id}.>");
@@ -92,7 +93,23 @@ pub fn callout_permissions(principal_id: &str, provisional: bool, project_ids: &
             subscribe.push(subj);
         }
     }
+    // Never grant system.> — Host publishers only. Enforced in release too.
+    publish.retain(|s| !subject_covers_system(s));
+    subscribe.retain(|s| !subject_covers_system(s));
     CalloutPermissions { publish, subscribe }
+}
+
+fn subject_covers_system(subject: &str) -> bool {
+    subject.contains("opensesame.events.system") || subject.contains(".system.")
+}
+
+/// True when a permission subject would cover Host system streams (forbidden for users).
+pub fn permissions_include_system(permissions: &CalloutPermissions) -> bool {
+    permissions
+        .publish
+        .iter()
+        .chain(permissions.subscribe.iter())
+        .any(|s| s.contains("opensesame.events.system") || s.contains(".system."))
 }
 
 /// Pure allow/deny evaluation for NATS auth callout.
@@ -213,6 +230,17 @@ mod tests {
     }
 
     #[test]
+    fn provisional_and_verified_never_get_system_subjects() {
+        let e = base_eval();
+        let allow = evaluate_callout(&e).unwrap();
+        assert!(!permissions_include_system(&allow.permissions));
+        let mut provisional = base_eval();
+        provisional.provisional = true;
+        let allow = evaluate_callout(&provisional).unwrap();
+        assert!(!permissions_include_system(&allow.permissions));
+    }
+
+    #[test]
     fn issuer_allowlist_exact_match() {
         assert!(issuer_on_allowlist(
             "https://identity.test",
@@ -223,5 +251,25 @@ mod tests {
             "https://identity.test"
         ));
         assert!(!issuer_on_allowlist("https://identity.test", ""));
+    }
+
+    #[test]
+    fn multi_issuer_allowlist_admits_any_listed_issuer() {
+        let allowlist = "https://identity.a, https://identity.b\nhttps://identity.c";
+        assert!(issuer_on_allowlist("https://identity.a", allowlist));
+        assert!(issuer_on_allowlist("https://identity.b", allowlist));
+        assert!(issuer_on_allowlist("https://identity.c", allowlist));
+        assert!(!issuer_on_allowlist("https://identity.evil", allowlist));
+    }
+
+    #[test]
+    fn callout_permissions_never_grant_system_wildcard() {
+        let perms = callout_permissions("prn_x", false, &["proj_1".into(), "proj_2".into()]);
+        assert!(!permissions_include_system(&perms));
+        assert!(perms
+            .publish
+            .iter()
+            .all(|s| s.starts_with("opensesame.events.project.")));
+        assert!(!perms.publish.iter().any(|s| s.contains("system")));
     }
 }

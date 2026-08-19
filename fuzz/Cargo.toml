@@ -30,6 +30,9 @@ opensesame-rotation = { path = "../crates/rotation" }
 opensesame-protocol-mcp = { path = "../crates/protocol-mcp" }
 opensesame-protocol-aauth = { path = "../crates/protocol-aauth", features = ["experimental-aauth"] }
 opensesame-connection-broker = { path = "../crates/connection-broker" }
+opensesame-authz = { path = "../crates/authz" }
+opensesame-task-bus = { path = "../crates/task-bus" }
+opensesame-xkeys = { path = "../crates/xkeys" }
 opensesame-provider-openbao = { path = "../crates/provider-openbao" }
 opensesame-provider-openfga = { path = "../crates/provider-openfga" }
 
@@ -200,6 +203,34 @@ bench = false
 [[bin]]
 name = "replay_cache"
 path = "fuzz_targets/replay_cache.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "github_webhook_hmac"
+path = "fuzz_targets/github_webhook_hmac.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "nats_callout_eval"
+path = "fuzz_targets/nats_callout_eval.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "taskbus_url"
+path = "fuzz_targets/taskbus_url.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "xkeys_envelope"
+path = "fuzz_targets/xkeys_envelope.rs"
 test = false
 doc = false
 bench = false
