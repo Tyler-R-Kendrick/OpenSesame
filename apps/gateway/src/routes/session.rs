@@ -303,6 +303,8 @@ mod tests {
         let organization_id = OrganizationId::new();
         let approved = |principal: &str, organization_id| DevicePending {
             user_code_hash: "digest".into(),
+            client_id: "opensesame-cli".into(),
+            scope: "opensesame.session".into(),
             expires_at: Utc::now() + Duration::minutes(5),
             approved: Some(ApprovedDevice {
                 principal: principal.into(),
@@ -338,6 +340,8 @@ mod tests {
             "target".into(),
             DevicePending {
                 user_code_hash: "digest".into(),
+                client_id: "opensesame-cli".into(),
+                scope: "opensesame.session".into(),
                 expires_at: Utc::now() + Duration::minutes(5),
                 approved: Some(ApprovedDevice {
                     principal: principal.to_string(),
@@ -394,6 +398,8 @@ mod tests {
             "device".to_string(),
             DevicePending {
                 user_code_hash: "digest".into(),
+                client_id: "opensesame-cli".into(),
+                scope: "opensesame.session".into(),
                 expires_at: Utc::now() + Duration::minutes(5),
                 approved: Some(ApprovedDevice {
                     principal: "prn_target".into(),

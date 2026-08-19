@@ -16,21 +16,14 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::app_state::AppState;
-use crate::middleware::auth::{resolve_caller, Caller};
+use crate::middleware::auth::{require_operator, resolve_caller, Caller};
 
 fn require_configurator(
     st: &AppState,
     headers: &axum::http::HeaderMap,
 ) -> Result<Caller, Response> {
-    let who = resolve_caller(st, headers)?;
-    if !who.can_configure_integrations() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(json!({"error":"forbidden","hint":"owner or admin role required to configure backup"})),
-        )
-            .into_response());
-    }
-    Ok(who)
+    require_operator(st, headers)?;
+    Ok(Caller::Operator)
 }
 
 fn target_view(target: &BackupTarget) -> serde_json::Value {
@@ -48,10 +41,7 @@ fn target_view(target: &BackupTarget) -> serde_json::Value {
     })
 }
 
-pub async fn get_target(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Response {
+pub async fn get_target(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
     let who = match require_configurator(&st, &headers) {
         Ok(who) => who,
         Err(resp) => return resp,
@@ -160,11 +150,10 @@ pub async fn put_target(
             .get_connection(&organization, connection_id)
             .await
         {
-            Ok(view) if view.provider_id == "github" => {
-                match view.integration_id {
-                    Some(id) => id,
-                    None => {
-                        return (
+            Ok(view) if view.provider_id == "github" => match view.integration_id {
+                Some(id) => id,
+                None => {
+                    return (
                             StatusCode::UNPROCESSABLE_ENTITY,
                             Json(json!({
                                 "error": "integration_required",
@@ -172,9 +161,8 @@ pub async fn put_target(
                             })),
                         )
                             .into_response();
-                    }
                 }
-            }
+            },
             Ok(_) => {
                 return (
                     StatusCode::BAD_REQUEST,
@@ -251,14 +239,21 @@ pub async fn put_target(
     // wakes the actor and reconciles anything dead-lettered while unconfigured.
     let outbox_id = match st
         .db
-        .append_outbox("backup.resync", &json!({"reason":"target_updated"}).to_string())
+        .append_outbox(
+            "backup.resync",
+            &json!({"reason":"target_updated"}).to_string(),
+        )
         .await
     {
         Ok(id) => id,
         Err(error) => return internal(error),
     };
     crate::backup_bus::publish_backup_wake(&st, &outbox_id).await;
-    (StatusCode::OK, Json(json!({"target": target_view(&target)}))).into_response()
+    (
+        StatusCode::OK,
+        Json(json!({"target": target_view(&target)})),
+    )
+        .into_response()
 }
 
 /// `GET /api/v1/integrations/{id}/github/installations` — App installs only (no tokens).
@@ -267,10 +262,13 @@ pub async fn list_installations(
     headers: axum::http::HeaderMap,
     Path(id): Path<String>,
 ) -> Response {
-    let who = match require_configurator(&st, &headers) {
+    let who = match resolve_caller(&st, &headers) {
         Ok(who) => who,
         Err(resp) => return resp,
     };
+    if !who.can_configure_integrations() {
+        return StatusCode::FORBIDDEN.into_response();
+    }
     let organization = who.organization(st.connection_organization);
     match st
         .connection_broker
@@ -300,10 +298,7 @@ pub async fn list_installations(
     }
 }
 
-pub async fn delete_target(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Response {
+pub async fn delete_target(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
     let who = match require_configurator(&st, &headers) {
         Ok(who) => who,
         Err(resp) => return resp,
@@ -315,10 +310,7 @@ pub async fn delete_target(
     (StatusCode::OK, Json(json!({"deleted": true}))).into_response()
 }
 
-pub async fn resync(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Response {
+pub async fn resync(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
     let who = match require_configurator(&st, &headers) {
         Ok(who) => who,
         Err(resp) => return resp,
@@ -428,7 +420,10 @@ mod tests {
                 .unwrap(),
             None => request.body(Body::empty()).unwrap(),
         };
-        let response = super::super::router(state.clone()).oneshot(request).await.unwrap();
+        let response = super::super::router(state.clone())
+            .oneshot(request)
+            .await
+            .unwrap();
         let status = response.status();
         let bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
         let value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
@@ -436,12 +431,14 @@ mod tests {
     }
 
     async fn register_app(state: &AppState) -> String {
-        sqlx::query("INSERT OR IGNORE INTO organizations (id, name, created_at) VALUES (?, 'Org', ?)")
-            .bind(state.connection_organization.to_string())
-            .bind(chrono::Utc::now().to_rfc3339())
-            .execute(state.db.pool())
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT OR IGNORE INTO organizations (id, name, created_at) VALUES (?, 'Org', ?)",
+        )
+        .bind(state.connection_organization.to_string())
+        .bind(chrono::Utc::now().to_rfc3339())
+        .execute(state.db.pool())
+        .await
+        .unwrap();
         state
             .connection_broker
             .register_github_app_credentials(
@@ -452,7 +449,10 @@ mod tests {
                     client_id: "Iv1.x".into(),
                     client_secret: "s".into(),
                     html_url: None,
-                    pem: Some("-----BEGIN RSA PRIVATE KEY-----\nstub\n-----END RSA PRIVATE KEY-----".into()),
+                    pem: Some(
+                        "-----BEGIN RSA PRIVATE KEY-----\nstub\n-----END RSA PRIVATE KEY-----"
+                            .into(),
+                    ),
                     webhook_secret: None,
                 },
                 "test",
@@ -472,7 +472,7 @@ mod tests {
             opensesame_domain::OrganizationRole::Member,
         );
         let (status, _) = call(&state, "GET", "/api/v1/backup/target", Some(headers), None).await;
-        assert_eq!(status, StatusCode::FORBIDDEN);
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
     }
 
     #[tokio::test]
@@ -694,11 +694,13 @@ mod tests {
             events.iter().any(|e| e.r#type == "system.backup.wake"),
             "expected backup wake on bus, got {events:?}"
         );
-        assert!(events.iter().all(|e| !e.data.to_string().contains("BEGIN RSA")));
+        assert!(events
+            .iter()
+            .all(|e| !e.data.to_string().contains("BEGIN RSA")));
     }
 
     #[tokio::test]
-    async fn session_backup_status_does_not_reveal_global_outbox_depth() {
+    async fn tenant_session_cannot_access_host_global_backup() {
         let state = state().await;
         state
             .db
@@ -711,16 +713,9 @@ mod tests {
             state.connection_organization,
             opensesame_domain::OrganizationRole::Owner,
         );
-        let (status, body) = call(
-            &state,
-            "GET",
-            "/api/v1/backup/target",
-            Some(headers),
-            None,
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK, "{body}");
-        assert_eq!(body["pending_events"].as_i64().unwrap(), 0);
+        let (status, body) =
+            call(&state, "GET", "/api/v1/backup/target", Some(headers), None).await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
         assert!(state.db.count_unpublished_outbox().await.unwrap() >= 1);
     }
 }

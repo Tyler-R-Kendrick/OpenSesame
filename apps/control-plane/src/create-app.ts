@@ -65,6 +65,13 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       const [newest] = await baseRepos.auditEvents.list({ limit: 1 });
       return newest?.digest;
     },
+    retryOnConflict: (error) => {
+      const pg = error as { code?: string; constraint_name?: string };
+      return (
+        pg.code === "23505" &&
+        pg.constraint_name === "audit_events_previous_digest_uidx"
+      );
+    },
   });
   const repos: typeof baseRepos = {
     ...baseRepos,

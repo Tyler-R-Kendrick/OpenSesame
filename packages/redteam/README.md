@@ -6,8 +6,11 @@ stdio MCP server that fronts the Host API / daemon with the tools
 `task_start`, `task_status`, `task_invoke`, `task_terminate`, `daemon_status`,
 `host_ready`, and `operator_invoke_l1`.
 
-This package is intentionally **not** part of the default `pnpm test` run. It
-runs on its own via `pnpm --filter @opensesame/redteam redteam`, and via the
+This package is part of the default `pnpm test` run (`vitest` covers the
+corpus PACT plus a live `apps/mcp-host` structural pass of confused-deputy,
+credential-exfiltration, malformed-input, and prompt-injection-as-data). The
+full promptfoo eval, including the Anthropic prompt-injection class, still
+runs on its own via `pnpm --filter @opensesame/redteam redteam` and the
 root-level `pnpm test:redteam` alias.
 
 ## What this tests, and why

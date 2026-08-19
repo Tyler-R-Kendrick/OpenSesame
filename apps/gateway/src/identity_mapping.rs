@@ -121,12 +121,14 @@ fn urlencoding_encode(s: &str) -> String {
 }
 
 /// In-memory mapper used by callout unit tests (no Identity HTTP).
+#[cfg(test)]
 #[derive(Clone, Default)]
 pub struct MemoryPrincipalMapper {
     /// key: "issuer\\0subject"
     entries: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, MappedPrincipal>>>,
 }
 
+#[cfg(test)]
 impl MemoryPrincipalMapper {
     pub fn new() -> Self {
         Self::default()

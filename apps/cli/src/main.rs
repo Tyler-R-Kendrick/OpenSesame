@@ -525,13 +525,9 @@ enum PassCmd {
         cmd: PassTombCmd,
     },
     /// Open active / named tomb (Linux Tomb mount when applicable).
-    Open {
-        name: Option<String>,
-    },
+    Open { name: Option<String> },
     /// Close active / named tomb.
-    Close {
-        name: Option<String>,
-    },
+    Close { name: Option<String> },
 }
 
 #[derive(Subcommand, Debug)]
@@ -594,8 +590,12 @@ enum PassTombCmd {
         #[arg(long)]
         linux: bool,
     },
-    Rm { name: String },
-    Use { name: String },
+    Rm {
+        name: String,
+    },
+    Use {
+        name: String,
+    },
 }
 
 #[derive(Deserialize)]
@@ -1360,6 +1360,7 @@ async fn device_login(server: &str, show_qr: bool) -> anyhow::Result<()> {
             .post(format!("{server}/api/v1/device/token"))
             .json(&json!({
                 "device_code": device_code,
+                "client_id": "opensesame-cli",
                 "grant_type": "urn:ietf:params:oauth:grant-type:device_code"
             }))
             .send()
@@ -1607,9 +1608,7 @@ async fn connection_cmd(server: &str, output: &str, cmd: ConnectionCmd) -> anyho
                 "value",
             ] {
                 if result.get(forbidden).is_some() {
-                    anyhow::bail!(
-                        "Host rotation response unexpectedly included `{forbidden}`"
-                    );
+                    anyhow::bail!("Host rotation response unexpectedly included `{forbidden}`");
                 }
             }
             result

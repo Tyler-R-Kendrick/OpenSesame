@@ -408,7 +408,7 @@ Repo work cannot create SaaS resources; write precise operator runbooks:
    existing default project belongs to another product — do not mix); paste-in
    telemetry contract that mirrors `packages/telemetry` exactly (allowed
    events/props enumerated; prohibited: MCP arguments/results, authorization
-   headers, tokens, vault/ceremony content, prompts, user identifiers —
+	   headers, tokens, vault/ceremony content, prompts, user identifiers — <!-- gitleaks:allow -- prose -->
    anonymous only); settings: session replay **off**, autocapture off, US
    region (or chosen region recorded here), retention target, project access
    list; where the env vars go (`.env.schema` names); free-tier note.

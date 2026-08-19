@@ -10,6 +10,7 @@ name = "opensesame-toolbar"
 path = "src/main.rs"
 
 [dependencies]
+opensesame-host-core = { path = "../../crates/host-core" }
 anyhow = { workspace = true }
 clap = { workspace = true }
 reqwest = { workspace = true }

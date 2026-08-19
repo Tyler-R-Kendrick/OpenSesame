@@ -20,6 +20,33 @@ function memorySink() {
 }
 
 describe("audit chain", () => {
+  it("reloads the durable tip when another writer wins the predecessor", async () => {
+    const rows: AuditEvent[] = [];
+    let first = true;
+    const sink = createChainedAuditSink(
+      {
+        append: async (event) => {
+          if (first) {
+            first = false;
+            throw Object.assign(new Error("predecessor used"), {
+              code: "conflict",
+            });
+          }
+          rows.push(event);
+          return event;
+        },
+      },
+      {
+        tip: async () => "winner-tip",
+        retryOnConflict: (error) =>
+          (error as { code?: string }).code === "conflict",
+      },
+    );
+
+    await appendAuditEvent(sink, { eventType: "a.one", outcome: "succeeded" });
+    expect(rows[0]?.previousDigest).toBe("winner-tip");
+  });
+
   it("links each event to the one before it", async () => {
     const store = memorySink();
     const sink = createChainedAuditSink(store);

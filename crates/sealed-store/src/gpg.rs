@@ -22,23 +22,50 @@ pub fn read_gpg_id(root: &Path) -> Result<Vec<String>, StoreError> {
 }
 
 pub fn decrypt_gpg_file(path: &Path) -> Result<Vec<u8>, StoreError> {
-    let output = Command::new("gpg")
+    decrypt_gpg(&fs::read(path)?)
+}
+
+pub(crate) fn decrypt_gpg(ciphertext: &[u8]) -> Result<Vec<u8>, StoreError> {
+    let mut child = Command::new("gpg")
         .args(["--quiet", "--batch", "--decrypt"])
-        .arg(path)
-        .output()
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| StoreError::Gpg(e.to_string()))?;
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| StoreError::Gpg("gpg stdin".into()))?
+        .write_all(ciphertext)
+        .map_err(|e| StoreError::Gpg(e.to_string()))?;
+    let output = child
+        .wait_with_output()
         .map_err(|e| StoreError::Gpg(e.to_string()))?;
     if !output.status.success() {
-        return Err(StoreError::Gpg(String::from_utf8_lossy(&output.stderr).into()));
+        return Err(StoreError::Gpg(
+            String::from_utf8_lossy(&output.stderr).into(),
+        ));
     }
     Ok(output.stdout)
 }
 
-pub fn encrypt_gpg_file(path: &Path, plaintext: &[u8], recipients: &[String]) -> Result<(), StoreError> {
-    if recipients.is_empty() {
-        return Err(StoreError::Gpg("no .gpg-id recipients".into()));
-    }
+pub fn encrypt_gpg_file(
+    path: &Path,
+    plaintext: &[u8],
+    recipients: &[String],
+) -> Result<(), StoreError> {
+    let ciphertext = encrypt_gpg(plaintext, recipients)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
+    }
+    fs::write(path, ciphertext)?;
+    Ok(())
+}
+
+pub(crate) fn encrypt_gpg(plaintext: &[u8], recipients: &[String]) -> Result<Vec<u8>, StoreError> {
+    if recipients.is_empty() {
+        return Err(StoreError::Gpg("no .gpg-id recipients".into()));
     }
     let mut args = vec![
         "--quiet".into(),
@@ -50,12 +77,10 @@ pub fn encrypt_gpg_file(path: &Path, plaintext: &[u8], recipients: &[String]) ->
         args.push("--recipient".into());
         args.push(r.clone());
     }
-    args.push("--output".into());
-    args.push(path.display().to_string());
     let mut child = Command::new("gpg")
         .args(&args)
         .stdin(Stdio::piped())
-        .stdout(Stdio::null())
+        .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| StoreError::Gpg(e.to_string()))?;
@@ -72,7 +97,9 @@ pub fn encrypt_gpg_file(path: &Path, plaintext: &[u8], recipients: &[String]) ->
         .wait_with_output()
         .map_err(|e| StoreError::Gpg(e.to_string()))?;
     if !output.status.success() {
-        return Err(StoreError::Gpg(String::from_utf8_lossy(&output.stderr).into()));
+        return Err(StoreError::Gpg(
+            String::from_utf8_lossy(&output.stderr).into(),
+        ));
     }
-    Ok(())
+    Ok(output.stdout)
 }

@@ -37,6 +37,8 @@ export type Principal = {
 export type IdentitySession = {
   principalId: string;
   accessToken: string;
+  /** Normalized scheme/host/port that issued this credential. */
+  issuerOrigin: string;
   /**
    * Absent for a token the operator pasted in: only the API knows its horizon,
    * and guessing one would drop a working token. A 401 ends it instead.
@@ -97,6 +99,10 @@ function emit(): void {
 }
 
 export function currentSession(): IdentitySession | null {
+  if (session && session.issuerOrigin !== identityOrigin()) {
+    clearSession();
+    return null;
+  }
   if (session?.expiresAt && Date.parse(session.expiresAt) <= Date.now()) {
     session = null;
     clearHostSession();
@@ -157,7 +163,10 @@ async function cookieAuthenticates(whenUnreachable: boolean): Promise<boolean> {
 export function endSession(): void {
   // Send the bearer we are about to forget: an adopted CLI token has no cookie,
   // so it is the only thing that identifies the session to revoke.
-  const bearer = session?.cookieOnly ? undefined : session?.accessToken;
+  const bearer =
+    session && !session.cookieOnly && session.issuerOrigin === identityOrigin()
+      ? session.accessToken
+      : undefined;
   clearSession();
   setOrphan(false);
   // Unconditional, because a reload loses the in-memory bearer while the
@@ -180,12 +189,15 @@ export function endSession(): void {
 }
 
 function revokeRequest(bearer?: string): Promise<Response> {
-  return localNetworkFetch(`${identityBase()}/v1/principals/provisional/revoke`, {
-    method: "POST",
-    credentials: "include",
-    timeoutMs: IDENTITY_FETCH_MS,
-    ...(bearer ? { headers: { authorization: `Bearer ${bearer}` } } : {}),
-  });
+  return localNetworkFetch(
+    `${identityBase()}/v1/principals/provisional/revoke`,
+    {
+      method: "POST",
+      credentials: "include",
+      timeoutMs: IDENTITY_FETCH_MS,
+      ...(bearer ? { headers: { authorization: `Bearer ${bearer}` } } : {}),
+    },
+  );
 }
 
 async function recheckOrphan(): Promise<void> {
@@ -204,6 +216,14 @@ async function settleRevokes(): Promise<void> {
 
 export function identityBase(): string {
   return loadSettings().identityApi.replace(/\/$/, "");
+}
+
+function identityOrigin(): string {
+  try {
+    return new URL(identityBase()).origin;
+  } catch {
+    return "";
+  }
 }
 
 export function hostBase(): string {
@@ -229,10 +249,7 @@ function currentHostSession(): HostSession | null {
     return hostSession;
   }
   const identity = currentSession();
-  if (
-    !identity ||
-    hostSession.identityAccessToken !== identity.accessToken
-  ) {
+  if (!identity || hostSession.identityAccessToken !== identity.accessToken) {
     hostSession = null;
     return null;
   }
@@ -330,16 +347,19 @@ async function mintHostSession(
   const unchanged = () =>
     currentSession()?.accessToken === identity.accessToken;
   const hostApi = hostBase();
-  const authorize = await localNetworkFetch(`${hostApi}/api/v1/device/authorize`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    credentials: "omit",
-    body: JSON.stringify({
-      client_id: "opensesame-pages",
-      scope: "opensesame.session",
-    }),
-    timeoutMs: IDENTITY_FETCH_MS,
-  });
+  const authorize = await localNetworkFetch(
+    `${hostApi}/api/v1/device/authorize`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "omit",
+      body: JSON.stringify({
+        client_id: "opensesame-pages",
+        scope: "opensesame.session",
+      }),
+      timeoutMs: IDENTITY_FETCH_MS,
+    },
+  );
   if (!authorize.ok) {
     throw await hostSessionFailure(authorize, "Host session request failed");
   }
@@ -384,6 +404,7 @@ async function mintHostSession(
     credentials: "omit",
     body: JSON.stringify({
       device_code: grant.device_code,
+      client_id: "opensesame-pages",
       grant_type: "urn:ietf:params:oauth:grant-type:device_code",
     }),
     timeoutMs: IDENTITY_FETCH_MS,
@@ -619,6 +640,7 @@ export async function connectProvisional(): Promise<IdentitySession> {
     principalId: body.principalId,
     accessToken: body.accessToken,
     expiresAt: body.expiresAt,
+    issuerOrigin: new URL(issuer).origin,
   };
   emit();
   return session;
@@ -640,6 +662,7 @@ async function resumeCookieSession(): Promise<IdentitySession | null> {
       // never sent as a bearer; the HttpOnly cookie authenticates requests.
       accessToken: `cookie:${body.id}`,
       cookieOnly: true,
+      issuerOrigin: identityOrigin(),
     };
     setOrphan(false);
     emit();
@@ -657,6 +680,7 @@ export async function adoptToken(accessToken: string): Promise<void> {
   await settleRevokes();
   const token = accessToken.trim();
   const epoch = sessionEpoch;
+  const issuerOrigin = identityOrigin();
   // Prove the token itself works, with the cookie deliberately withheld. A
   // mistyped token would otherwise appear to work by riding a leftover cookie,
   // and every ceremony would run as the wrong principal.
@@ -677,6 +701,7 @@ export async function adoptToken(accessToken: string): Promise<void> {
     principalId: me.id ?? "unknown",
     accessToken: token,
     adopted: true,
+    issuerOrigin,
     // No horizon: the API issued this token and never told us when it dies.
     // Inventing one would drop a token the API still accepts; a 401 ends it.
   };
@@ -690,7 +715,10 @@ export async function fetchPrincipal(): Promise<Principal> {
 export type HealthState = "unknown" | "reachable" | "unreachable";
 
 /** True when Host API is the daemon's `/host` Serve proxy (paired node). */
-export function hostRoutedViaDaemon(hostApi: string, daemonApi: string): boolean {
+export function hostRoutedViaDaemon(
+  hostApi: string,
+  daemonApi: string,
+): boolean {
   const host = hostApi.trim().replace(/\/$/, "");
   const daemon = daemonApi.trim().replace(/\/$/, "");
   if (!host || !daemon) return false;

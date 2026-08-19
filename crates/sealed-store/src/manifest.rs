@@ -118,7 +118,7 @@ mod tests {
         assert!(sealed.trailer.contains("login"));
 
         // replace overwrites
-        let outcome = seal_manifest(&root, &key, &entries[1..2].to_vec(), true).unwrap();
+        let outcome = seal_manifest(&root, &key, &entries[1..2], true).unwrap();
         assert_eq!(outcome.sealed, 1);
         assert_eq!(root.show("Dev/existing", &key).unwrap().secret, "clobber");
     }

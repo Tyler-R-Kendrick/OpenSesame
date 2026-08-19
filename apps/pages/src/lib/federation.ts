@@ -203,6 +203,8 @@ type PendingAuth = {
 };
 
 function storePending(pending: PendingAuth): void {
+  // PKCE state must survive the upstream redirect in this static PWA.
+  // ast-grep-ignore: ts-localstorage-set
   sessionStorage.setItem(PKCE_KEY, JSON.stringify(pending));
 }
 
@@ -421,6 +423,8 @@ export function clearAuthResponseFromUrl(): void {
  * survive the upstream redirect and popup navigations within this tab.
  */
 export function saveSession(identity: UpstreamIdentity): void {
+  // The verified assertion must survive same-tab navigation but not the tab.
+  // ast-grep-ignore: ts-localstorage-set
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(identity));
 }
 

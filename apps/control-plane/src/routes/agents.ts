@@ -99,18 +99,18 @@ agentRoutes.post(
     let claim: Awaited<ReturnType<typeof ctx.claims.createClaim>>;
     try {
       claim = await ctx.claims.createClaim({
-      type: "agent",
-      targetManifest: {
-        agentId,
-        instanceId,
-        ownerPrincipalId: principalId,
-        publicKeyJkt: parsed.data.publicKeyJkt,
-      },
-      creatorPrincipalId: principalId,
-      creatorAgentId: agentId,
-      creatorInstanceId: instanceId,
-      proofKeyJkt: parsed.data.publicKeyJkt,
-    });
+        type: "agent",
+        targetManifest: {
+          agentId,
+          instanceId,
+          ownerPrincipalId: principalId,
+          publicKeyJkt: parsed.data.publicKeyJkt,
+        },
+        creatorPrincipalId: principalId,
+        creatorAgentId: agentId,
+        creatorInstanceId: instanceId,
+        proofKeyJkt: parsed.data.publicKeyJkt,
+      });
     } catch (error) {
       ctx.stores.agents.delete(agentId);
       ctx.stores.agentInstances.delete(instanceId);

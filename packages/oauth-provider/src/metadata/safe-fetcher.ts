@@ -35,7 +35,10 @@ export function assertSafeMetadataUrl(rawUrl: string): URL {
     throw new UnsafeMetadataUrlError(`Unsupported protocol: ${url.protocol}`);
   }
 
-  const host = url.hostname.toLowerCase().replace(/\.$/, "").replace(/^\[|\]$/g, "");
+  const host = url.hostname
+    .toLowerCase()
+    .replace(/\.$/, "")
+    .replace(/^\[|\]$/g, "");
   if (BLOCKED_HOSTNAMES.has(host) || host.endsWith(".localhost")) {
     throw new UnsafeMetadataUrlError(`Blocked hostname: ${host}`);
   }
@@ -59,10 +62,15 @@ function expandIpv6(ip: string): number[] | null {
   // Trailing dotted-quad (::ffff:127.0.0.1) becomes two hextets.
   const dotted = /^(.*:)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(text);
   if (dotted) {
-    const octets = dotted[2]!.split(".").map(Number);
-    if (octets.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
-    const hi = ((octets[0]! << 8) | octets[1]!).toString(16);
-    const lo = ((octets[2]! << 8) | octets[3]!).toString(16);
+    const octets = (dotted[2] ?? "").split(".").map(Number);
+    if (
+      octets.length !== 4 ||
+      octets.some((n) => !Number.isInteger(n) || n < 0 || n > 255)
+    )
+      return null;
+    const [a = 0, b = 0, c = 0, d = 0] = octets;
+    const hi = ((a << 8) | b).toString(16);
+    const lo = ((c << 8) | d).toString(16);
     text = `${dotted[1]}${hi}:${lo}`;
   }
 
@@ -87,19 +95,28 @@ function isPrivateOrSpecialIpv6(ip: string): boolean {
   const parts = expandIpv6(ip);
   // Unparseable IPv6 is treated as unsafe rather than allowed through.
   if (!parts) return true;
+  const [
+    first = 0xffff,
+    ,
+    ,
+    ,
+    ,
+    sixth = 0xffff,
+    seventh = 0xffff,
+    eighth = 0xffff,
+  ] = parts;
 
   const isZeroPrefix = parts.slice(0, 5).every((h) => h === 0);
   // IPv4-mapped (::ffff:0:0/96) and IPv4-compatible (::/96) carry an IPv4 target.
-  if (isZeroPrefix && (parts[5] === 0xffff || parts[5] === 0)) {
-    const hi = parts[6]!;
-    const lo = parts[7]!;
+  if (isZeroPrefix && (sixth === 0xffff || sixth === 0)) {
+    const hi = seventh;
+    const lo = eighth;
     const embedded = `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`;
     if (embedded === "0.0.0.0") return true; // :: unspecified
     if (hi === 0 && lo === 1) return true; // ::1 loopback
     return isPrivateOrSpecialIpv4(embedded);
   }
 
-  const first = parts[0]!;
   if ((first & 0xfe00) === 0xfc00) return true; // fc00::/7 unique-local
   if ((first & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
   if ((first & 0xff00) === 0xff00) return true; // ff00::/8 multicast
@@ -115,22 +132,28 @@ function isPrivateOrSpecialIpv6(ip: string): boolean {
 function embeddedIpv4(parts: number[]): string | null {
   const dotted = (hi: number, lo: number) =>
     `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`;
+  const [first, second, third, , , , seventh, eighth] = parts;
   if (
-    parts[0] === 0x0064 &&
-    parts[1] === 0xff9b &&
+    first === 0x0064 &&
+    second === 0xff9b &&
     parts.slice(2, 6).every((h) => h === 0)
   ) {
-    return dotted(parts[6]!, parts[7]!);
+    return seventh === undefined || eighth === undefined
+      ? null
+      : dotted(seventh, eighth);
   }
-  if (parts[0] === 0x2002) {
-    return dotted(parts[1]!, parts[2]!);
+  if (first === 0x2002) {
+    return second === undefined || third === undefined
+      ? null
+      : dotted(second, third);
   }
   return null;
 }
 
 function isPrivateOrSpecialIpv4(ip: string): boolean {
   const parts = ip.split(".").map((p) => Number(p));
-  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n))) return true;
+  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n)))
+    return true;
   const [a, b] = parts as [number, number, number, number];
   if (a === 0) return true;
   if (a === 10) return true;
@@ -146,7 +169,9 @@ function isPrivateOrSpecialIpv4(ip: string): boolean {
 }
 
 function isPrivateOrSpecialIp(ip: string): boolean {
-  return ip.includes(":") ? isPrivateOrSpecialIpv6(ip) : isPrivateOrSpecialIpv4(ip);
+  return ip.includes(":")
+    ? isPrivateOrSpecialIpv6(ip)
+    : isPrivateOrSpecialIpv4(ip);
 }
 
 export interface MetadataFetchResult {
@@ -255,7 +280,9 @@ function defaultPinnedTransport(args: {
         const status = res.statusCode ?? 0;
         if (status >= 300 && status < 400) {
           res.resume();
-          reject(new UnsafeMetadataUrlError("Metadata fetch refused a redirect"));
+          reject(
+            new UnsafeMetadataUrlError("Metadata fetch refused a redirect"),
+          );
           return;
         }
         const contentType = headerToString(res.headers["content-type"]);
@@ -294,7 +321,9 @@ function defaultPinnedTransport(args: {
       reject(new UnsafeMetadataUrlError("Metadata fetch timed out"));
     });
     req.on("error", (err) => {
-      reject(new UnsafeMetadataUrlError(`Metadata fetch failed: ${err.message}`));
+      reject(
+        new UnsafeMetadataUrlError(`Metadata fetch failed: ${err.message}`),
+      );
     });
     req.end();
   });
@@ -330,14 +359,18 @@ export class SafeMetadataFetcher {
     const lookupFn: MetadataDnsLookup =
       this.options.lookup ?? ((hostname) => dnsLookup(hostname, { all: true }));
     const addresses = await resolveSafeMetadataAddresses(url, lookupFn);
+    const address = addresses[0];
+    if (!address) throw new UnsafeMetadataUrlError("DNS returned no addresses");
     const transport = this.options.transport ?? defaultPinnedTransport;
     const res = await transport({
       url,
-      address: addresses[0]!,
+      address,
       timeoutMs: 5_000,
     });
     if (res.status < 200 || res.status >= 300) {
-      throw new UnsafeMetadataUrlError(`Metadata fetch failed: HTTP ${res.status}`);
+      throw new UnsafeMetadataUrlError(
+        `Metadata fetch failed: HTTP ${res.status}`,
+      );
     }
     return {
       url: url.toString(),

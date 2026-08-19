@@ -18,6 +18,7 @@ const SECRET_RW: &[Capability] = &[
 const CRYPTO: &[Capability] = &[Capability::Encrypt, Capability::Decrypt, Capability::Test];
 const LEASE: &[Capability] = &[Capability::Lease, Capability::Revoke, Capability::Test];
 
+#[allow(clippy::too_many_arguments)] // Mirrors the flat ProviderDefinition catalog rows below.
 fn provider(
     id: &str,
     display_name: &str,

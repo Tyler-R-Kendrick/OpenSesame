@@ -9,10 +9,7 @@
       "default": "./src/index.ts"
     }
   },
-  "files": [
-    "src",
-    "dist"
-  ],
+  "files": ["src", "dist"],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -24,6 +21,7 @@
     "@opensesame/qr": "workspace:^"
   },
   "devDependencies": {
+    "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "typescript": "5.8.3",
     "vitest": "4.1.10"

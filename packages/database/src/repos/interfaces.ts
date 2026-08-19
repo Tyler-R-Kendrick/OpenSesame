@@ -10,6 +10,7 @@ import type {
 
 export class ConflictError extends Error {
   override readonly name = "ConflictError";
+  // biome-ignore lint/complexity/noUselessConstructor: Error needs the message passed to super.
   constructor(message: string) {
     super(message);
   }
@@ -17,6 +18,7 @@ export class ConflictError extends Error {
 
 export class NotFoundError extends Error {
   override readonly name = "NotFoundError";
+  // biome-ignore lint/complexity/noUselessConstructor: Error needs the message passed to super.
   constructor(message: string) {
     super(message);
   }
@@ -58,6 +60,7 @@ export function outboxClaimToken(
 export interface PrincipalRepository {
   create(principal: Principal, uow?: UnitOfWork): Promise<Principal>;
   getById(id: string): Promise<Principal | null>;
+  deleteUnlinkedProvisional(id: string, uow?: UnitOfWork): Promise<boolean>;
   update(
     id: string,
     patch: Partial<Omit<Principal, "id" | "createdAt">>,
@@ -67,7 +70,10 @@ export interface PrincipalRepository {
 }
 
 export interface ExternalIdentityRepository {
-  create(identity: ExternalIdentity, uow?: UnitOfWork): Promise<ExternalIdentity>;
+  create(
+    identity: ExternalIdentity,
+    uow?: UnitOfWork,
+  ): Promise<ExternalIdentity>;
   getById(id: string): Promise<ExternalIdentity | null>;
   findByTuple(input: {
     kind: string;

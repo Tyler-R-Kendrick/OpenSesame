@@ -161,7 +161,6 @@ pub async fn record(
 mod tests {
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
-    use opensesame_connection_broker::clear_secret_changelog_for_tests;
     use opensesame_domain::OrganizationRole;
     use tower::ServiceExt;
 
@@ -173,7 +172,6 @@ mod tests {
 
     #[tokio::test]
     async fn list_returns_metadata_without_secret_values() {
-        clear_secret_changelog_for_tests();
         let (router, state) = app().await;
         let boot = state.bootstrap.lock().unwrap().clone().unwrap();
         let headers = crate::app_state::test_session_headers(
@@ -252,7 +250,6 @@ mod tests {
 
     #[tokio::test]
     async fn list_requires_auth() {
-        clear_secret_changelog_for_tests();
         let (router, _) = app().await;
         let req = Request::builder()
             .method("GET")
@@ -269,7 +266,6 @@ mod tests {
 
     #[tokio::test]
     async fn list_does_not_leak_another_organization_changelog() {
-        clear_secret_changelog_for_tests();
         let (router, state) = app().await;
         let boot = state.bootstrap.lock().unwrap().clone().unwrap();
         let owner = crate::app_state::test_session_headers(
@@ -332,7 +328,6 @@ mod tests {
 
     #[tokio::test]
     async fn record_rejects_unknown_event_types() {
-        clear_secret_changelog_for_tests();
         let (router, state) = app().await;
         let boot = state.bootstrap.lock().unwrap().clone().unwrap();
         let mut headers = crate::app_state::test_session_headers(
@@ -365,7 +360,6 @@ mod tests {
 
     #[tokio::test]
     async fn concurrent_records_from_two_orgs_never_mix() {
-        clear_secret_changelog_for_tests();
         let (router, state) = app().await;
         let project = state
             .bootstrap

@@ -3,9 +3,9 @@ import type {
   DeviceAuthorizationState,
 } from "@opensesame/os-domain";
 import {
+  type Clock,
   maybeExpireDeviceAuth,
   recordDevicePoll,
-  type Clock,
 } from "@opensesame/os-domain";
 
 /** RFC 8628 token endpoint error codes for device flow. */
@@ -52,7 +52,9 @@ export interface PollIntervalState {
   slowDownCount: number;
 }
 
-export function initialPollInterval(intervalSeconds: number): PollIntervalState {
+export function initialPollInterval(
+  intervalSeconds: number,
+): PollIntervalState {
   return { intervalSeconds, slowDownCount: 0 };
 }
 

@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { QrCode } from "./QrCode.js";
 import {
+  type PublicKeyCredentialCreationOptionsJSON,
+  type PublicKeyCredentialRequestOptionsJSON,
   assertionPayload,
   creationOptionsFromJson,
   registrationResponseJson,
   requestOptionsFromJson,
-  type PublicKeyCredentialCreationOptionsJSON,
-  type PublicKeyCredentialRequestOptionsJSON,
 } from "./webauthn.js";
 
-const identityApi = import.meta.env.VITE_IDENTITY_API ?? "http://127.0.0.1:8788";
+const identityApi =
+  import.meta.env.VITE_IDENTITY_API ?? "http://127.0.0.1:8788";
 
 type StatusKind = "info" | "ok" | "err";
 
@@ -62,7 +63,8 @@ export function App() {
       const next = parseDeepLink();
       if (next.userCode) {
         setUserCode(next.userCode);
-        report("info", `Deep-link user code ${next.userCode}`);
+        setStatusKind("info");
+        setStatus(`Deep-link user code ${next.userCode}`);
       }
     };
     window.addEventListener("hashchange", onHash);
@@ -96,7 +98,10 @@ export function App() {
   function authHeaders(): Record<string, string> | null {
     const token = accessToken.trim();
     if (!token) {
-      report("err", "Paste a session access token (pst_…) first — principal Bearer is not accepted.");
+      report(
+        "err",
+        "Paste a session access token (pst_…) first — principal Bearer is not accepted.",
+      );
       return null;
     }
     return {
@@ -119,10 +124,13 @@ export function App() {
     }
 
     try {
-      const optsRes = await fetch(`${base}/v1/mfa/passkey/registration-options`, {
-        method: "POST",
-        headers,
-      });
+      const optsRes = await fetch(
+        `${base}/v1/mfa/passkey/registration-options`,
+        {
+          method: "POST",
+          headers,
+        },
+      );
       const optsBody = (await optsRes.json().catch(() => ({}))) as {
         options?: PublicKeyCredentialCreationOptionsJSON;
         error?: string;
@@ -131,7 +139,9 @@ export function App() {
       if (!optsRes.ok || !optsBody.options) {
         report(
           "err",
-          optsBody.hint ?? optsBody.error ?? `Registration options failed (${optsRes.status})`,
+          optsBody.hint ??
+            optsBody.error ??
+            `Registration options failed (${optsRes.status})`,
         );
         return;
       }
@@ -153,14 +163,22 @@ export function App() {
         hint?: string;
       };
       if (!reg.ok) {
-        report("err", regBody.hint ?? regBody.error ?? `Passkey register failed (${reg.status})`);
+        report(
+          "err",
+          regBody.hint ??
+            regBody.error ??
+            `Passkey register failed (${reg.status})`,
+        );
         return;
       }
 
-      const authOptsRes = await fetch(`${base}/v1/mfa/passkey/authentication-options`, {
-        method: "POST",
-        headers,
-      });
+      const authOptsRes = await fetch(
+        `${base}/v1/mfa/passkey/authentication-options`,
+        {
+          method: "POST",
+          headers,
+        },
+      );
       const authOptsBody = (await authOptsRes.json().catch(() => ({}))) as {
         options?: PublicKeyCredentialRequestOptionsJSON;
         error?: string;
@@ -176,7 +194,10 @@ export function App() {
         requestOptionsFromJson(authOptsBody.options),
       )) as PublicKeyCredential | null;
       if (!assertion) {
-        report("ok", `Passkey registered for ${regBody.principalId ?? "session"}`);
+        report(
+          "ok",
+          `Passkey registered for ${regBody.principalId ?? "session"}`,
+        );
         return;
       }
       const assertRes = await fetch(`${base}/v1/mfa/passkey/assert`, {
@@ -220,7 +241,10 @@ export function App() {
         hint?: string;
       };
       if (!res.ok) {
-        report("err", body.hint ?? body.error ?? `TOTP enroll failed (${res.status})`);
+        report(
+          "err",
+          body.hint ?? body.error ?? `TOTP enroll failed (${res.status})`,
+        );
         return;
       }
       setTotpSecret(body.secret ?? "");
@@ -304,10 +328,10 @@ export function App() {
       </p>
 
       {claimId ? (
-        <p className="hint" role="status">
+        <output className="hint">
           Deep-link claim id <code>{claimId}</code> — complete ownership claims
           in the Identity console, not this MFA surface.
-        </p>
+        </output>
       ) : null}
 
       <section className={deepLinkPrimary ? "priority" : undefined}>

@@ -34,9 +34,9 @@ struct Args {
 
 #[derive(Clone)]
 struct WorkerState {
-    id: String,
     providers: Arc<Vec<ProviderDefinition>>,
     operator_token: String,
+    #[allow(clippy::type_complexity)] // A single timestamped cache does not warrant a wrapper type.
     last_probe: Arc<Mutex<Option<(Instant, Vec<ProviderProbe>)>>>,
 }
 
@@ -49,7 +49,6 @@ async fn main() -> anyhow::Result<()> {
         .or_else(|_| std::env::var("OPENSESAME_OPERATOR_TOKEN"))
         .unwrap_or_default();
     let state = WorkerState {
-        id: args.id,
         providers: Arc::new(configured),
         operator_token,
         last_probe: Arc::new(Mutex::new(None)),
@@ -60,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/providers", get(list_providers))
         .with_state(state);
     let listener = tokio::net::TcpListener::bind(&args.listen).await?;
-    tracing::info!(listen=%args.listen, "workload connector host ready");
+    tracing::info!(worker_id=%args.id, listen=%args.listen, "workload connector host ready");
     axum::serve(listener, app).await?;
     Ok(())
 }
@@ -179,7 +178,6 @@ mod tests {
 
     fn dummy_state(token: &str) -> WorkerState {
         WorkerState {
-            id: "w".into(),
             providers: Arc::new(vec![]),
             operator_token: token.into(),
             last_probe: Arc::new(Mutex::new(None)),

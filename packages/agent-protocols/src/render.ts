@@ -16,7 +16,41 @@ export interface AuthMdConfig {
   claimTtlSeconds?: number;
 }
 
+function assertSafeText(label: string, value: string): void {
+  const lower = value;
+  if (
+    lower.includes("sk_live") ||
+    lower.includes("sk_test") ||
+    lower.includes("BEGIN PRIVATE KEY") ||
+    lower.includes("BEGIN RSA PRIVATE KEY") ||
+    lower.includes("osc_clm_") ||
+    /\bdevice_code\b/.test(lower) ||
+    /Bearer [A-Za-z0-9\-_]{20,}/.test(lower)
+  ) {
+    throw new Error(`agent_protocol_secret_refused:${label}`);
+  }
+}
+
+function assertSafeConfig(label: string, value: unknown): void {
+  if (typeof value === "string") {
+    assertSafeText(label, value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const [i, item] of value.entries()) {
+      assertSafeConfig(`${label}[${i}]`, item);
+    }
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const [key, child] of Object.entries(value)) {
+      assertSafeConfig(key, child);
+    }
+  }
+}
+
 export function renderAuthMd(config: AuthMdConfig): string {
+  assertSafeConfig("authMd", config);
   // Defaults must be paths the control plane actually mounts (/v1, app.ts) —
   // a documented endpoint that 404s teaches every reader the wrong ceremony.
   const registerPath = config.agentRegisterPath ?? "/v1/agents";
@@ -24,9 +58,9 @@ export function renderAuthMd(config: AuthMdConfig): string {
     config.provisionalPath ?? "/v1/principals/provisional";
   const claimPath = config.claimPath ?? "/claim";
   const devicePath = config.devicePath ?? "/device";
-  const modes = (config.registrationModes ?? ["anonymous", "pre_registered"]).join(
-    ", ",
-  );
+  const modes = (
+    config.registrationModes ?? ["anonymous", "pre_registered"]
+  ).join(", ");
   const proof = config.proofKeyMechanism ?? "JWK thumbprint (publicKeyJkt)";
   const preClaim = (
     config.preClaimRestrictions ?? [
@@ -40,11 +74,13 @@ export function renderAuthMd(config: AuthMdConfig): string {
   const postClaim =
     config.postClaimBehavior ??
     "Human principal owns or delegates to the agent actor; principal id stays distinct from agent id.";
-  const audiences = (config.tokenAudiences ?? [config.protectedResource]).join(", ");
+  const audiences = (config.tokenAudiences ?? [config.protectedResource]).join(
+    ", ",
+  );
   const poll = config.pollIntervalSeconds ?? 5;
   const ttl = config.claimTtlSeconds ?? 900;
 
-  return `# ${config.serviceName} authentication
+  const md = `# ${config.serviceName} authentication
 
 This document is generated from live OpenSesame configuration.
 
@@ -111,6 +147,7 @@ ${audiences}
 
 This document must never embed client secrets, private keys, bearer tokens, or reusable credentials.
 `;
+  return md;
 }
 
 export interface AgentCardConfig {
@@ -126,8 +163,11 @@ export interface AgentCardConfig {
   documentationUrl?: string;
 }
 
-export function renderAgentCard(config: AgentCardConfig): Record<string, unknown> {
-  return {
+export function renderAgentCard(
+  config: AgentCardConfig,
+): Record<string, unknown> {
+  assertSafeConfig("agentCard", config);
+  const card = {
     name: config.name,
     description:
       config.description ??
@@ -158,4 +198,6 @@ export function renderAgentCard(config: AgentCardConfig): Record<string, unknown
       config.documentationUrl ?? `${config.url.replace(/\/+$/u, "")}/auth.md`,
     // Explicitly absent: credentials, tokens, private endpoints
   };
+  assertSafeConfig("agentCard.output", card);
+  return card;
 }

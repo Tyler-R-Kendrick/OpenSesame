@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const hostFetch = vi.hoisted(() => vi.fn());
 vi.mock("./identity.js", () => ({ hostFetch }));
 
-import { getTaskBusConfig, putTaskBusConfig, pingTaskBus } from "./taskbus.js";
+import { getTaskBusConfig, pingTaskBus, putTaskBusConfig } from "./taskbus.js";
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -65,7 +65,10 @@ describe("taskbus client", () => {
 
   it("surfaces Host errors from failed get", async () => {
     hostFetch.mockResolvedValue(
-      jsonResponse(403, { error: "forbidden", hint: "owner or admin role required" }),
+      jsonResponse(403, {
+        error: "forbidden",
+        hint: "owner or admin role required",
+      }),
     );
     await expect(getTaskBusConfig()).rejects.toThrow(/owner or admin/);
   });

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { Writable } from "node:stream";
+import { describe, expect, it } from "vitest";
 import { createLogger, redactDeep } from "../logger.js";
 
 function capture() {
@@ -30,11 +30,14 @@ describe("redactDeep", () => {
     const out = redactDeep({
       ctx: { session: { access_token: "LEAK", safe: "ok" } },
       items: [{ claim_token: "LEAK2" }, { keep: 1 }],
-    }) as Record<string, any>;
+    }) as {
+      ctx: { session: Record<string, unknown> };
+      items: Array<Record<string, unknown>>;
+    };
     expect(out.ctx.session.access_token).toBe("[Redacted]");
     expect(out.ctx.session.safe).toBe("ok");
-    expect(out.items[0].claim_token).toBe("[Redacted]");
-    expect(out.items[1].keep).toBe(1);
+    expect(out.items[0]?.claim_token).toBe("[Redacted]");
+    expect(out.items[1]?.keep).toBe(1);
   });
 
   it("survives cycles without stalling", () => {

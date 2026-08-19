@@ -156,7 +156,7 @@ mod tests {
     #[test]
     fn first_line_preserves_trailer_and_otp() {
         let otp = parse_otpauth(
-            "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+            "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", // gitleaks:allow -- RFC fixture
         )
         .unwrap();
         let entry = Entry {

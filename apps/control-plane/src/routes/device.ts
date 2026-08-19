@@ -45,10 +45,7 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
   );
   // Local/dev Pages flow: a provisional principal with no workspace yet still
   // needs a Host session. Seed the personal org on approve, not only at mint.
-  if (
-    memberships.length === 0 &&
-    ctx.config.bootstrapPersonalOrganization
-  ) {
+  if (memberships.length === 0 && ctx.config.bootstrapPersonalOrganization) {
     ensurePersonalOrganization(ctx, principalId);
     memberships = [...ctx.stores.organizationMemberships.values()].filter(
       (membership) => membership.principalId === principalId,

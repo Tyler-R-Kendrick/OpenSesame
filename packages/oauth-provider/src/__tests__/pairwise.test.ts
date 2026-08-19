@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  createPairwiseIdentifierCallback,
   MemoryPairwiseSubjectStore,
+  createPairwiseIdentifierCallback,
 } from "../pairwise/store.js";
 
 describe("pairwise subjects", () => {
@@ -25,7 +25,9 @@ describe("pairwise subjects", () => {
   it("refuses a shared default sector when clientId and sector are missing", async () => {
     const store = new MemoryPairwiseSubjectStore();
     const pairwise = createPairwiseIdentifierCallback(store);
-    await expect(pairwise({}, "principal-1", {})).rejects.toThrow(/sectorIdentifier or clientId/);
+    await expect(pairwise({}, "principal-1", {})).rejects.toThrow(
+      /sectorIdentifier or clientId/,
+    );
   });
 
   it("returns different subjects across sectors", async () => {

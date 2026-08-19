@@ -784,6 +784,13 @@ async fn stale_unknown_provider_can_always_revoke_locally() {
         .unwrap();
     assert!(outcome.revoked);
     assert_eq!(outcome.provider_revocation, ProviderRevocation::Unsupported);
+    let revoke_events: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM outbox_events WHERE event_type = 'connection.credential.revoked'",
+    )
+    .fetch_one(db.pool())
+    .await
+    .unwrap();
+    assert_eq!(revoke_events, 1);
     assert!(store::get_credential(db.pool(), &connection.connection_id)
         .await
         .unwrap()
@@ -2351,7 +2358,7 @@ mod sync_target_tests {
         assert!(!text.contains("vercel_token"));
         assert!(wire.get("access_token").is_none());
         assert!(wire.get("value").is_none());
-        assert_eq!(outcome.ok, false);
+        assert!(!outcome.ok);
         assert_eq!(outcome.target.status, SyncTargetStatus::Error);
     }
 

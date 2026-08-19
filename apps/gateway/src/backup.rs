@@ -185,7 +185,10 @@ async fn compensate_retry(
     reason: &str,
 ) -> anyhow::Result<()> {
     if attempts + 1 >= MAX_ATTEMPTS {
-        tracing::warn!(reason, "backup batch dead-lettered after {MAX_ATTEMPTS} attempts");
+        tracing::warn!(
+            reason,
+            "backup batch dead-lettered after {MAX_ATTEMPTS} attempts"
+        );
         state.db.dead_letter_outbox(ids, reason).await?;
         return Ok(());
     }
@@ -248,6 +251,8 @@ pub struct SnapshotFile {
 /// vault revisions are E2EE bytes the server never could read.
 pub async fn snapshot(state: &AppState) -> anyhow::Result<Vec<SnapshotFile>> {
     let b64 = base64::engine::general_purpose::STANDARD;
+    let path_component =
+        |value: &str| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(value.as_bytes());
     let mut files = vec![SnapshotFile {
         path: "README.md".into(),
         content: "# OpenSesame backup store\n\nCiphertext snapshots written by the OpenSesame \
@@ -259,8 +264,9 @@ pub async fn snapshot(state: &AppState) -> anyhow::Result<Vec<SnapshotFile>> {
     let credentials = broker_store::list_sealed_credentials(state.db.pool()).await?;
     for row in &credentials {
         files.push(SnapshotFile {
-            path: format!("connections/{}.json", row.connection_id),
+            path: format!("connections/{}.json", path_component(&row.connection_id)),
             content: serde_json::to_string_pretty(&json!({
+                "connection_id": row.connection_id,
                 "version": row.version,
                 "sealed": {
                     "ciphertext_b64": b64.encode(&row.sealed.ciphertext),
@@ -276,8 +282,14 @@ pub async fn snapshot(state: &AppState) -> anyhow::Result<Vec<SnapshotFile>> {
 
     for (owner_id, blob) in state.db.list_all_sync_blobs().await? {
         files.push(SnapshotFile {
-            path: format!("sync/{owner_id}/{}.json", blob.id),
+            path: format!(
+                "sync/{}/{}.json",
+                path_component(&owner_id),
+                path_component(&blob.id)
+            ),
             content: serde_json::to_string_pretty(&json!({
+                "owner_id": owner_id,
+                "blob_id": blob.id,
                 "epoch": blob.epoch,
                 "ciphertext_b64": b64.encode(&blob.ciphertext),
             }))?,
@@ -288,9 +300,13 @@ pub async fn snapshot(state: &AppState) -> anyhow::Result<Vec<SnapshotFile>> {
         files.push(SnapshotFile {
             path: format!(
                 "vault/{}/{}/{}.json",
-                revision.vault_id, revision.item_id, revision.revision
+                path_component(&revision.vault_id),
+                path_component(&revision.item_id),
+                revision.revision
             ),
             content: serde_json::to_string_pretty(&json!({
+                "vault_id": revision.vault_id,
+                "item_id": revision.item_id,
                 "ciphertext_b64": b64.encode(&revision.ciphertext),
                 "wrapping": revision.wrapping_json,
                 "ad_digest": revision.ad_digest,
@@ -449,7 +465,10 @@ impl GithubSnapshotClient {
             }
         }
 
-        let parents = parent.as_ref().map(|sha| vec![sha.clone()]).unwrap_or_default();
+        let parents = parent
+            .as_ref()
+            .map(|sha| vec![sha.clone()])
+            .unwrap_or_default();
         let (status, commit) = self
             .send_json(
                 reqwest::Method::POST,
@@ -639,12 +658,14 @@ mod tests {
 
     async fn insert_org(state: &AppState) -> String {
         let organization = state.connection_organization.to_string();
-        sqlx::query("INSERT OR IGNORE INTO organizations (id, name, created_at) VALUES (?, 'Org', ?)")
-            .bind(&organization)
-            .bind(chrono::Utc::now().to_rfc3339())
-            .execute(state.db.pool())
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT OR IGNORE INTO organizations (id, name, created_at) VALUES (?, 'Org', ?)",
+        )
+        .bind(&organization)
+        .bind(chrono::Utc::now().to_rfc3339())
+        .execute(state.db.pool())
+        .await
+        .unwrap();
         organization
     }
 
@@ -739,10 +760,10 @@ mod tests {
             .collect();
         assert!(paths.contains(&"README.md"));
         assert!(paths.contains(&"manifest.json"));
-        assert!(paths.contains(&"sync/owner-1/blob-1.json"));
+        assert!(paths.contains(&"sync/b3duZXItMQ/YmxvYi0x.json"));
         let blob_entry = entries
             .iter()
-            .find(|entry| entry["path"] == "sync/owner-1/blob-1.json")
+            .find(|entry| entry["path"] == "sync/b3duZXItMQ/YmxvYi0x.json")
             .unwrap();
         // Ciphertext travels base64-wrapped; the raw bytes never appear.
         assert!(blob_entry["content"]
@@ -825,7 +846,9 @@ mod tests {
         let state = state_with_broker().await;
         state.db.append_outbox("backup.resync", "{}").await.unwrap();
         let mut cache = None;
-        pass(&state, "http://127.0.0.1:1", &mut cache).await.unwrap();
+        pass(&state, "http://127.0.0.1:1", &mut cache)
+            .await
+            .unwrap();
         assert_eq!(state.db.count_unpublished_outbox().await.unwrap(), 0);
     }
 }

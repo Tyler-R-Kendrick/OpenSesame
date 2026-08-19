@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
 import { assertSourceOrder } from "@opensesame/testing";
+import { describe, expect, it } from "vitest";
 import {
   accessTokenHash,
   createApiClient,
@@ -308,7 +308,11 @@ describe("PACT — browser extension loopback pin", () => {
     const ext = join(here, "../../../apps/browser-extension");
     assertSourceOrder(
       readFileSync(join(ext, "entrypoints/background.ts"), "utf8"),
-      ["normalizeLoopbackBaseUrl", "if (normalized) return normalized", "DEFAULT_HOST"],
+      [
+        "normalizeLoopbackBaseUrl",
+        "if (normalized) return normalized",
+        "DEFAULT_HOST",
+      ],
     );
     assertSourceOrder(
       readFileSync(join(ext, "entrypoints/popup/main.ts"), "utf8"),

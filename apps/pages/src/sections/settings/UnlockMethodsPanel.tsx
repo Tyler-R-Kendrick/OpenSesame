@@ -13,7 +13,7 @@ import {
   listAvailableUnlockMethods,
 } from "../../lib/vault/unlock-methods.js";
 
-const ENROLL_PASSKEY_FLAG = "os:enroll-passkey-after-host-fix";
+const ENROLL_PASSKEY_PARAM = "enroll-passkey";
 
 export function UnlockMethodsPanel() {
   const { header } = useVault();
@@ -44,9 +44,11 @@ export function UnlockMethodsPanel() {
 
   useEffect(() => {
     if (hasPasskey || busy) return;
-    if (sessionStorage.getItem(ENROLL_PASSKEY_FLAG) !== "1") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get(ENROLL_PASSKEY_PARAM) !== "1") return;
     if (!checkWebauthnHost().ok) return;
-    sessionStorage.removeItem(ENROLL_PASSKEY_FLAG);
+    url.searchParams.delete(ENROLL_PASSKEY_PARAM);
+    window.history.replaceState(null, "", url);
     void run(() => store.enrollPasskey(), "Passkey unlock enrolled.");
   }, [hasPasskey, busy, store]);
 
@@ -72,8 +74,9 @@ export function UnlockMethodsPanel() {
       setMessage({ tone: "err", text: formatFallback(check) });
       return;
     }
-    sessionStorage.setItem(ENROLL_PASSKEY_FLAG, "1");
-    window.location.assign(check.fixUrl);
+    const url = new URL(check.fixUrl);
+    url.searchParams.set(ENROLL_PASSKEY_PARAM, "1");
+    window.location.assign(url);
   }
 
   function formatFallback(check: WebauthnHostCheck): string {

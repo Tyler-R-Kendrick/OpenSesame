@@ -29,7 +29,10 @@ async function main(): Promise<void> {
   const only = process.argv[2];
   const dir = path.dirname(fileURLToPath(import.meta.url));
   const files = (await readdir(dir))
-    .filter((name) => name.endsWith(".ts") && !SKIP.has(name))
+    .filter(
+      (name) =>
+        name.endsWith(".ts") && !name.endsWith(".test.ts") && !SKIP.has(name),
+    )
     .filter((name) => (only ? name.startsWith(only) : true));
   for (const name of files) {
     const fileUrl = pathToFileURL(path.join(dir, name)).href;

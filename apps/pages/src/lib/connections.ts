@@ -306,7 +306,6 @@ function toEvent(value: unknown): ConnectionEvent {
 
 /* --------------------------------------------------------------- requests */
 
-
 export type Integration = {
   id: string;
   key: string;
@@ -330,7 +329,9 @@ export type GithubAppRegistration = {
 function toIntegration(value: unknown): Integration {
   const raw = value as Record<string, unknown>;
   const html =
-    typeof raw.github_app_html_url === "string" ? raw.github_app_html_url.trim() : "";
+    typeof raw.github_app_html_url === "string"
+      ? raw.github_app_html_url.trim()
+      : "";
   return {
     id: String(raw.id ?? ""),
     key: String(raw.key ?? ""),
@@ -340,8 +341,7 @@ function toIntegration(value: unknown): Integration {
     enabled: Boolean(raw.enabled),
     configured: Boolean(raw.configured),
     scopes: Array.isArray(raw.scopes) ? raw.scopes.map(String) : [],
-    githubAppHtmlUrl:
-      html.startsWith("https://github.com/apps/") ? html : null,
+    githubAppHtmlUrl: html.startsWith("https://github.com/apps/") ? html : null,
   };
 }
 
@@ -374,7 +374,11 @@ export function startGithubAppRegistration(body: {
         !raw.manifest ||
         typeof raw.manifest !== "object"
       ) {
-        throw new ConnectionsError(0, "invalid_host", "Host returned an invalid GitHub App registration.");
+        throw new ConnectionsError(
+          0,
+          "invalid_host",
+          "Host returned an invalid GitHub App registration.",
+        );
       }
       return {
         action: raw.action,
@@ -389,7 +393,9 @@ export function startGithubAppRegistration(body: {
 /** Browser POST to github.com/settings/apps/new — required by the Manifest flow.
  *  Navigates this tab (not a popup). CSP must allow form-action https://github.com.
  */
-export function submitGithubAppManifest(registration: GithubAppRegistration): void {
+export function submitGithubAppManifest(
+  registration: GithubAppRegistration,
+): void {
   if (!registration.action.startsWith("https://github.com/")) {
     throw new ConnectionsError(
       0,

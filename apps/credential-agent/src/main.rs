@@ -119,6 +119,20 @@ async fn main() -> anyhow::Result<()> {
         capabilities: Arc::new(Mutex::new(HashMap::new())),
         operator_token: std::env::var("OPENSESAME_OPERATOR_TOKEN").unwrap_or_default(),
     };
+    let app = router(state);
+    let listen = args.listen.to_string();
+    // Same bind fence as opensesame-daemon (legacy binary still ships for compat).
+    opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
+    tracing::info!(
+        %listen,
+        "credential-agent listening (deprecated; prefer opensesame-daemon)"
+    );
+    let listener = tokio::net::TcpListener::bind(args.listen).await?;
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+fn router(state: App) -> Router {
     let app = Router::new()
         .route(
             "/health",
@@ -134,17 +148,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/introspect_capability", post(introspect_capability))
         .route("/v1/revoke", post(revoke))
         .with_state(state);
-    let app = opensesame_host_core::http_security::apply_security_headers(app, false);
-    let listen = args.listen.to_string();
-    // Same bind fence as opensesame-daemon (legacy binary still ships for compat).
-    opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
-    tracing::info!(
-        %listen,
-        "credential-agent listening (deprecated; prefer opensesame-daemon)"
-    );
-    let listener = tokio::net::TcpListener::bind(args.listen).await?;
-    axum::serve(listener, app).await?;
-    Ok(())
+    opensesame_host_core::http_security::apply_security_headers(app, false)
 }
 
 async fn list_sessions(State(st): State<App>, headers: HeaderMap) -> Response {
@@ -258,4 +262,115 @@ async fn revoke(State(st): State<App>, headers: HeaderMap, Json(body): Json<Valu
         lock_map(&st.capabilities).remove(id);
     }
     Json(json!({"ok": true})).into_response()
+}
+
+#[cfg(test)]
+mod pact {
+    use super::*;
+    use axum::body::{to_bytes, Body};
+    use axum::http::{header, Request};
+    use tower::ServiceExt;
+
+    const OP: &str = "test-operator-token";
+
+    fn test_app() -> Router {
+        let mut sessions = HashMap::new();
+        sessions.insert(
+            "host-demo".into(),
+            HostSession {
+                id: "host-demo".into(),
+                principal: "user:demo".into(),
+                _refresh_sealed: true,
+            },
+        );
+        router(App {
+            sessions: Arc::new(Mutex::new(sessions)),
+            capabilities: Arc::new(Mutex::new(HashMap::new())),
+            operator_token: OP.into(),
+        })
+    }
+
+    fn operator_req(uri: &str, method: &str, body: Value) -> Request<Body> {
+        Request::builder()
+            .method(method)
+            .uri(uri)
+            .header(header::CONTENT_TYPE, "application/json")
+            .header("x-opensesame-operator", OP)
+            .body(Body::from(body.to_string()))
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn property_health_is_opaque() {
+        let app = test_app();
+        let res = app
+            .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = to_bytes(res.into_body(), 1024).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["status"], "ok");
+        let text = json.to_string();
+        assert!(!text.contains(OP));
+        assert!(!text.contains("refresh"));
+    }
+
+    #[tokio::test]
+    async fn adversarial_mint_without_operator_is_401() {
+        let app = test_app();
+        let req = Request::builder()
+            .method("POST")
+            .uri("/v1/mint_capability")
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(json!({"audience":"https://api.example"}).to_string()))
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn chaos_get_access_token_never_dumps_refresh() {
+        let app = test_app();
+        let req = Request::builder()
+            .method("POST")
+            .uri("/v1/get_access_token")
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from("{}"))
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        let body = to_bytes(res.into_body(), 2048).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error"], "use_mint_capability");
+        assert!(json.get("refresh_token").is_none());
+        assert!(json.get("access_token").is_none());
+    }
+
+    #[tokio::test]
+    async fn contract_mint_response_has_null_secrets() {
+        let app = test_app();
+        let res = app
+            .oneshot(operator_req(
+                "/v1/mint_capability",
+                "POST",
+                json!({"audience":"https://api.example"}),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = to_bytes(res.into_body(), 4096).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(json["capability"]["id"].as_str().unwrap().starts_with("cap:"));
+        assert!(json["refresh_token"].is_null());
+        assert!(json["webauthn_material"].is_null());
+        assert!(json["secrets"].is_null());
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("main.rs"),
+            &[
+                "caps.retain",
+                "if caps.len() >= MAX_CAPABILITIES",
+                "caps.insert",
+            ],
+        );
+    }
 }

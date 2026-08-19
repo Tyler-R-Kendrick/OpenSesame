@@ -21,6 +21,7 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 | **Kani** | Bounded proofs on capability/grant/rotation | `pnpm audit:kani` (not in `verify`) |
 | **Miri** | UB on selected lib tests | `pnpm audit:miri` (nightly; weekly routine) |
 | **Shuttle** | Schedule exploration of idempotency/replay | `pnpm audit:shuttle` (`concurrency-test` feature) |
+| **deepsec** | Pattern SAST + AI triage (`zai/glm-5.2` via AI Gateway) | `pnpm audit:deepsec`; AI process done 2026-08-18 — `docs/security/audit-2026-08-17-deepsec.md` |
 
 ## Adopt later (CI / when credentials exist)
 
@@ -28,7 +29,6 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 |------|-----|----------------|
 | [claude-code-security-review](https://github.com/anthropics/claude-code-security-review) | PR review agent | Needs Anthropic API + GitHub Action wiring |
 | [codex-security](https://github.com/openai/codex-security) | Agent security review | Needs OpenAI / Codex CI |
-| [deepsec](https://github.com/vercel-labs/deepsec) | Vercel/Next-oriented deep scan | Better once we have a Vercel-deployed surface |
 | [promptfoo](https://github.com/promptfoo/promptfoo) | LLM red-team / prompt injection | Valuable for MCP/agent surfaces; needs eval suites + model keys |
 | [SkillSpector](https://github.com/NVIDIA/SkillSpector) | Skill/tool-call security | Relevant when we ship agent skills at scale |
 | Semgrep CI + custom rules | Continuous SAST | Wire after baseline is clean |

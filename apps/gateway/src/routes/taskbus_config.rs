@@ -14,22 +14,11 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::app_state::AppState;
-use crate::middleware::auth::resolve_caller;
+use crate::middleware::auth::require_operator;
 use crate::taskbus_config::{self, TaskBusConfigView, TaskBusSource};
 
 fn require_configurator(st: &AppState, headers: &axum::http::HeaderMap) -> Result<(), Response> {
-    let who = resolve_caller(st, headers)?;
-    if !who.can_configure_integrations() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(json!({
-                "error": "forbidden",
-                "hint": "owner or admin role required to configure TaskBus"
-            })),
-        )
-            .into_response());
-    }
-    Ok(())
+    require_operator(st, headers)
 }
 
 fn view(
@@ -39,17 +28,17 @@ fn view(
 ) -> TaskBusConfigView {
     TaskBusConfigView {
         backend: taskbus_config::backend_label(resolved.backend).into(),
-        nats_url: resolved.nats_url.as_deref().map(taskbus_config::redact_nats_url),
+        nats_url: resolved
+            .nats_url
+            .as_deref()
+            .map(taskbus_config::redact_nats_url),
         source: resolved.source.clone(),
         status: status.into(),
         last_error,
     }
 }
 
-pub async fn get_config(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Response {
+pub async fn get_config(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
     if let Err(resp) = require_configurator(&st, &headers) {
         return resp;
     }
@@ -60,7 +49,11 @@ pub async fn get_config(
             } else {
                 "ok"
             };
-            (StatusCode::OK, Json(json!({ "taskbus": view(&resolved, status, None) }))).into_response()
+            (
+                StatusCode::OK,
+                Json(json!({ "taskbus": view(&resolved, status, None) })),
+            )
+                .into_response()
         }
         Err(error) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -155,10 +148,7 @@ pub async fn put_config(
     }
 }
 
-pub async fn ping(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Response {
+pub async fn ping(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
     if let Err(resp) = require_configurator(&st, &headers) {
         return resp;
     }
@@ -259,18 +249,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn member_cannot_read_or_write_taskbus() {
+    async fn tenant_sessions_cannot_read_or_write_host_taskbus() {
         let _guard = env_lock();
         let state = memory_state().await;
         let headers = test_session_headers(
             &state,
             "prn_member",
             state.connection_organization,
-            opensesame_domain::OrganizationRole::Member,
+            opensesame_domain::OrganizationRole::Owner,
         );
-        let (status, _) =
-            call(&state, "GET", "/api/v1/operator/taskbus", Some(headers.clone()), None).await;
-        assert_eq!(status, StatusCode::FORBIDDEN);
+        let (status, _) = call(
+            &state,
+            "GET",
+            "/api/v1/operator/taskbus",
+            Some(headers.clone()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
         let (status, _) = call(
             &state,
             "PUT",
@@ -279,7 +275,7 @@ mod tests {
             Some(json!({"backend": "memory"})),
         )
         .await;
-        assert_eq!(status, StatusCode::FORBIDDEN);
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
     }
 
     #[tokio::test]
@@ -436,10 +432,7 @@ mod tests {
         let backend = obj.get("backend").and_then(|v| v.as_str()).unwrap();
         assert!(backend == "memory" || backend == "nats", "{backend}");
         let source = obj.get("source").and_then(|v| v.as_str()).unwrap();
-        assert!(
-            matches!(source, "env" | "stored" | "default"),
-            "{source}"
-        );
+        assert!(matches!(source, "env" | "stored" | "default"), "{source}");
         assert!(obj.get("status").and_then(|v| v.as_str()).is_some());
         if let Some(url) = obj.get("nats_url").and_then(|v| v.as_str()) {
             let lower = url.to_ascii_lowercase();

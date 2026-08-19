@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  assertSafeMetadataUrl,
   SafeMetadataFetcher,
   UnsafeMetadataUrlError,
+  assertSafeMetadataUrl,
 } from "../metadata/safe-fetcher.js";
 
 describe("SafeMetadataFetcher SSRF denylist", () => {
@@ -18,7 +18,9 @@ describe("SafeMetadataFetcher SSRF denylist", () => {
       "http://[::1]/meta.json",
     ];
     for (const url of blocked) {
-      expect(() => assertSafeMetadataUrl(url), url).toThrow(UnsafeMetadataUrlError);
+      expect(() => assertSafeMetadataUrl(url), url).toThrow(
+        UnsafeMetadataUrlError,
+      );
     }
   });
 
@@ -47,24 +49,30 @@ describe("SafeMetadataFetcher SSRF denylist", () => {
       "http://[2002:a9fe:a9fe::1]/latest/meta-data",
     ];
     for (const url of blocked) {
-      expect(() => assertSafeMetadataUrl(url), url).toThrow(UnsafeMetadataUrlError);
+      expect(() => assertSafeMetadataUrl(url), url).toThrow(
+        UnsafeMetadataUrlError,
+      );
     }
   });
 
   it("allows public https URLs structurally", () => {
-    const url = assertSafeMetadataUrl("https://clients.example.com/client.json");
-    expect(url.hostname).toBe("clients.example.com");
-    expect(assertSafeMetadataUrl("https://8.8.8.8/client.json").hostname).toBe("8.8.8.8");
-    expect(assertSafeMetadataUrl("https://[2606:4700::1111]/c.json").hostname).toBe(
-      "[2606:4700::1111]",
+    const url = assertSafeMetadataUrl(
+      "https://clients.example.com/client.json",
     );
+    expect(url.hostname).toBe("clients.example.com");
+    expect(assertSafeMetadataUrl("https://8.8.8.8/client.json").hostname).toBe(
+      "8.8.8.8",
+    );
+    expect(
+      assertSafeMetadataUrl("https://[2606:4700::1111]/c.json").hostname,
+    ).toBe("[2606:4700::1111]");
   });
 
   it("refuses fetch when CIMD is disabled", async () => {
     const fetcher = new SafeMetadataFetcher({ cimdEnabled: false });
-    await expect(fetcher.fetch("https://clients.example.com/client.json")).rejects.toThrow(
-      /CIMD/,
-    );
+    await expect(
+      fetcher.fetch("https://clients.example.com/client.json"),
+    ).rejects.toThrow(/CIMD/);
   });
 
   it("refuses a public hostname that resolves to a private address", async () => {
@@ -76,9 +84,9 @@ describe("SafeMetadataFetcher SSRF denylist", () => {
       { cimdEnabled: true },
       { lookup, transport },
     );
-    await expect(fetcher.fetch("https://clients.example.com/client.json")).rejects.toThrow(
-      /Blocked resolved address/,
-    );
+    await expect(
+      fetcher.fetch("https://clients.example.com/client.json"),
+    ).rejects.toThrow(/Blocked resolved address/);
   });
 
   it("refuses when any resolved address is private (mixed A/AAAA)", async () => {
@@ -95,9 +103,9 @@ describe("SafeMetadataFetcher SSRF denylist", () => {
         },
       },
     );
-    await expect(fetcher.fetch("https://clients.example.com/client.json")).rejects.toThrow(
-      /Blocked resolved address/,
-    );
+    await expect(
+      fetcher.fetch("https://clients.example.com/client.json"),
+    ).rejects.toThrow(/Blocked resolved address/);
   });
 
   it("pins the GET to a verified public address and requires JSON", async () => {
@@ -117,7 +125,9 @@ describe("SafeMetadataFetcher SSRF denylist", () => {
         },
       },
     );
-    const result = await fetcher.fetch("https://clients.example.com/client.json");
+    const result = await fetcher.fetch(
+      "https://clients.example.com/client.json",
+    );
     expect(result.body).toContain("client_id");
     expect(result.contentType).toBe("application/json");
   });

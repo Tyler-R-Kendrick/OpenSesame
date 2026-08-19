@@ -14,9 +14,11 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
     "@opensesame/api-client": "workspace:*",
+    "@opensesame/observability": "workspace:*",
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "tsx": "4.19.4",
     "typescript": "5.8.3",

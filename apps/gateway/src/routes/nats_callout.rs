@@ -19,7 +19,7 @@ use serde_json::json;
 
 use crate::app_state::AppState;
 use crate::config::constant_time_eq;
-use crate::identity_mapping::{IdentityMappingClient, MappedPrincipal, MemoryPrincipalMapper};
+use crate::identity_mapping::{IdentityMappingClient, MappedPrincipal};
 
 /// Shared secret header / bearer for callout requests from the NATS bridge.
 pub const CALLOUT_TOKEN_HEADER: &str = "x-opensesame-callout-token";
@@ -268,6 +268,7 @@ pub async fn callout(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::identity_mapping::MemoryPrincipalMapper;
 
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
         crate::app_state::test_env::lock()
@@ -358,7 +359,7 @@ mod tests {
             NatsCalloutRequest {
                 issuer: "https://identity.test".into(),
                 subject: "oidc-sub-9".into(),
-                user_nkey: "UBO2MQV67TQTVIRV3XFTEZOACM4WLOCMCDMAWN5QVN5PI2N6JHTVDRON".into(),
+                user_nkey: "UBO2MQV67TQTVIRV3XFTEZOACM4WLOCMCDMAWN5QVN5PI2N6JHTVDRON".into(), // gitleaks:allow -- public test NKey
                 server_id: "NB5FCQYBGNXSL27AGZYUX5QZ2KKIFUKVDZCL5R7NIUS4562JT4WEWKQV".into(),
                 email: None,
                 join_by_email: false,

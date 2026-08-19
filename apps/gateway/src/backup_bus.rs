@@ -33,8 +33,7 @@ pub async fn publish_backup_wake(st: &AppState, outbox_id: &str) {
     );
     debug_assert!(
         event.subject(DEFAULT_SUBJECT_PREFIX).starts_with(SYSTEM_SUBJECT_PREFIX),
-        "backup wakes must land under {}",
-        SYSTEM_SUBJECT_PREFIX
+        "backup wakes must land under {SYSTEM_SUBJECT_PREFIX}",
     );
     let bus = st.task_bus.read().await;
     if let Err(error) = bus.publish(event).await {

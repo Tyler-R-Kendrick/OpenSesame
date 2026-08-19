@@ -124,7 +124,7 @@ pub fn resolve_tomb_paths(
         .iter()
         .find(|t| t.name == key)
         .cloned()
-        .ok_or_else(|| TombRegistryError::NotFound(key))?;
+        .ok_or(TombRegistryError::NotFound(key))?;
     Ok(ResolvedTomb {
         store: expand_user(&entry.store),
         key: expand_user(&entry.key),

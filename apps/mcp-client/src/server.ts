@@ -8,6 +8,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { createApiClient, normalizeHttpBaseUrl } from "@opensesame/api-client";
+import { forAgent } from "@opensesame/observability";
 import { toolsManifest } from "./tools.js";
 
 /**
@@ -42,6 +43,27 @@ function requireAccessToken(): string {
   return tok;
 }
 
+function requireIdentityToken(): string {
+  const tok = process.env.OPENSESAME_IDENTITY_TOKEN?.trim();
+  if (!tok) {
+    throw new Error("OPENSESAME_IDENTITY_TOKEN required for Identity claims");
+  }
+  return tok;
+}
+
+function modelText(value: unknown) {
+  return [{ type: "text" as const, text: forAgent(JSON.stringify(value)) }];
+}
+
+function modelError(label: string, error: unknown) {
+  try {
+    const message = error instanceof Error ? error.message : String(error);
+    return { content: modelText({ error: label, message }), isError: true };
+  } catch {
+    return { content: modelText({ error: label }), isError: true };
+  }
+}
+
 const server = new McpServer({
   name: "opensesame-mcp-client",
   version: "0.1.0",
@@ -52,7 +74,7 @@ server.tool("host_health", "Check Host API liveness", {}, async () => {
   const health = await client.health();
   const daemon = await client.probeDaemon();
   return {
-    content: [{ type: "text", text: JSON.stringify({ health, daemon, tools: toolsManifest }) }],
+    content: modelText({ health, daemon, tools: toolsManifest }),
   };
 });
 
@@ -63,12 +85,9 @@ server.tool("whoami", "Host API whoami (opaque session)", {}, async () => {
       accessToken: requireAccessToken(),
     });
     const data = await client.whoami();
-    return { content: [{ type: "text", text: JSON.stringify(data) }] };
+    return { content: modelText(data) };
   } catch (e) {
-    return {
-      content: [{ type: "text", text: `error: ${e instanceof Error ? e.message : String(e)}` }],
-      isError: true,
-    };
+    return modelError("whoami_failed", e);
   }
 });
 
@@ -83,12 +102,9 @@ server.tool(
         accessToken: requireAccessToken(),
       });
       const data = await client.listConnections();
-      return { content: [{ type: "text", text: JSON.stringify(data) }] };
+      return { content: modelText(data) };
     } catch (e) {
-      return {
-        content: [{ type: "text", text: `error: ${e instanceof Error ? e.message : String(e)}` }],
-        isError: true,
-      };
+      return modelError("list_connections_failed", e);
     }
   },
 );
@@ -113,12 +129,9 @@ server.tool(
         resource,
         invokeLevel: 1,
       });
-      return { content: [{ type: "text", text: JSON.stringify(data) }] };
+      return { content: modelText(data) };
     } catch (e) {
-      return {
-        content: [{ type: "text", text: `error: ${e instanceof Error ? e.message : String(e)}` }],
-        isError: true,
-      };
+      return modelError("invoke_failed", e);
     }
   },
 );
@@ -129,30 +142,28 @@ server.tool(
   {
     claimId: z.string(),
     claimToken: z.string().describe("osc_clm_… claim bearer (required)"),
-    accessToken: z.string().optional(),
   },
-  async ({ claimId, claimToken, accessToken }) => {
+  async ({ claimId, claimToken }) => {
     const base = identityUrl.replace(/\/$/, "");
     const headers: Record<string, string> = {
       accept: "application/json",
       "x-claim-token": claimToken,
     };
-    const tok = accessToken ?? process.env.OPENSESAME_ACCESS_TOKEN;
-    if (tok) headers.authorization = `Bearer ${tok}`;
     try {
-      const res = await fetch(`${base}/v1/claims/${encodeURIComponent(claimId)}`, {
-        headers,
-      });
+      headers.authorization = `Bearer ${requireIdentityToken()}`;
+      const res = await fetch(
+        `${base}/v1/claims/${encodeURIComponent(claimId)}`,
+        {
+          headers,
+        },
+      );
       const text = await res.text();
       return {
-        content: [{ type: "text", text: JSON.stringify({ status: res.status, body: text }) }],
+        content: modelText({ status: res.status, body: text }),
         isError: !res.ok,
       };
     } catch (e) {
-      return {
-        content: [{ type: "text", text: `error: ${e instanceof Error ? e.message : String(e)}` }],
-        isError: true,
-      };
+      return modelError("present_claim_failed", e);
     }
   },
 );

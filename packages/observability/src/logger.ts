@@ -1,10 +1,15 @@
-import { pino, type Logger, type LoggerOptions, type DestinationStream } from "pino";
+import {
+  type DestinationStream,
+  type Logger,
+  type LoggerOptions,
+  pino,
+} from "pino";
 
 /** Paths redacted from structured logs (tokens, codes, secrets). */
 export const LOG_REDACT_PATHS = [
   "req.headers.authorization",
   "req.headers.cookie",
-  "res.headers[\"set-cookie\"]",
+  'res.headers["set-cookie"]',
   "access_token",
   "refresh_token",
   "id_token",
@@ -68,7 +73,9 @@ function walk(value: unknown, depth: number, seen: WeakSet<object>): unknown {
 
   const out: Record<string, unknown> = {};
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    out[key] = SENSITIVE_KEY_PATTERN.test(key) ? CENSOR : walk(item, depth + 1, seen);
+    out[key] = SENSITIVE_KEY_PATTERN.test(key)
+      ? CENSOR
+      : walk(item, depth + 1, seen);
   }
   return out;
 }

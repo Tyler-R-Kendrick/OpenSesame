@@ -96,7 +96,10 @@ export function assertPinPolicy(pin: string): void {
   if (/^(.)\1+$/u.test(normalized)) {
     throw new Error("PIN cannot be a repeated character.");
   }
-  if ("01234567890123456789".includes(normalized) || "98765432109876543210".includes(normalized)) {
+  if (
+    "01234567890123456789".includes(normalized) ||
+    "98765432109876543210".includes(normalized)
+  ) {
     throw new Error("PIN cannot be a sequential run of digits.");
   }
 }
@@ -301,7 +304,9 @@ export function checkWebauthnHost(
 ): WebauthnHostCheck {
   const resolvedHref =
     href ??
-    (typeof window === "undefined" ? "http://localhost/" : window.location.href);
+    (typeof window === "undefined"
+      ? "http://localhost/"
+      : window.location.href);
   let host =
     hostname?.trim() ||
     (typeof window !== "undefined" ? window.location.hostname : "");
@@ -403,9 +408,7 @@ export function assertWebauthnHost(): WebauthnHostCheck {
 }
 
 /** Prefer localhost for loopback IPs so WebAuthn can run. */
-export function localhostEquivalentHref(
-  href?: string,
-): string | null {
+export function localhostEquivalentHref(href?: string): string | null {
   return checkWebauthnHost(undefined, href).fixUrl;
 }
 
@@ -441,29 +444,29 @@ export async function createPasskeyUnlockCeremony(
   let credential: PublicKeyCredential | null;
   try {
     credential = (await navigator.credentials.create({
-    publicKey: {
-      challenge: randomBytes(32) as BufferSource,
-      rp: { id: rpId, name: "OpenSesame" },
-      user: {
-        id: userId as BufferSource,
-        name: "vault-unlock",
-        displayName: "OpenSesame vault unlock",
+      publicKey: {
+        challenge: randomBytes(32) as BufferSource,
+        rp: { id: rpId, name: "OpenSesame" },
+        user: {
+          id: userId as BufferSource,
+          name: "vault-unlock",
+          displayName: "OpenSesame vault unlock",
+        },
+        pubKeyCredParams: [
+          { type: "public-key", alg: -7 },
+          { type: "public-key", alg: -257 },
+        ],
+        authenticatorSelection: {
+          residentKey: "preferred",
+          requireResidentKey: false,
+          userVerification: "required",
+        },
+        timeout: 120_000,
+        extensions: {
+          prf: { eval: { first: prfSalt } },
+        } as AuthenticationExtensionsClientInputs,
       },
-      pubKeyCredParams: [
-        { type: "public-key", alg: -7 },
-        { type: "public-key", alg: -257 },
-      ],
-      authenticatorSelection: {
-        residentKey: "preferred",
-        requireResidentKey: false,
-        userVerification: "required",
-      },
-      timeout: 120_000,
-      extensions: {
-        prf: { eval: { first: prfSalt } },
-      } as AuthenticationExtensionsClientInputs,
-    },
-  })) as PublicKeyCredential | null;
+    })) as PublicKeyCredential | null;
   } catch (error) {
     throw new Error(describeWebauthnError(error));
   }
@@ -489,22 +492,22 @@ export async function getPasskeyUnlockCeremony(
   let credential: PublicKeyCredential | null;
   try {
     credential = (await navigator.credentials.get({
-    publicKey: {
-      challenge: randomBytes(32) as BufferSource,
-      rpId,
-      allowCredentials: [
-        {
-          type: "public-key",
-          id: b64ToBytes(record.credentialIdB64) as BufferSource,
-        },
-      ],
-      userVerification: "required",
-      timeout: 120_000,
-      extensions: {
-        prf: { eval: { first: prfSalt } },
-      } as AuthenticationExtensionsClientInputs,
-    },
-  })) as PublicKeyCredential | null;
+      publicKey: {
+        challenge: randomBytes(32) as BufferSource,
+        rpId,
+        allowCredentials: [
+          {
+            type: "public-key",
+            id: b64ToBytes(record.credentialIdB64) as BufferSource,
+          },
+        ],
+        userVerification: "required",
+        timeout: 120_000,
+        extensions: {
+          prf: { eval: { first: prfSalt } },
+        } as AuthenticationExtensionsClientInputs,
+      },
+    })) as PublicKeyCredential | null;
   } catch (error) {
     throw new Error(describeWebauthnError(error));
   }

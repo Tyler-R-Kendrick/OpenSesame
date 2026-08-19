@@ -1,14 +1,20 @@
-import { Hono } from "hono";
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   issueAuthenticationChallenge,
   issueRegistrationChallenge,
   verifyRegistrationAttestation,
 } from "@opensesame/auth-upstream";
+import { Hono } from "hono";
 import type { AppContext } from "../context.js";
-import type { Variables } from "../middleware/context.js";
 import { requirePrincipal } from "../middleware/auth.js";
+import type { Variables } from "../middleware/context.js";
+import { authenticatedPrincipalId } from "./organizations.js";
 
 /** Minimal WebAuthn registration response shape (SimpleWebAuthn JSON). */
 type RegistrationResponseBody = {
@@ -25,18 +31,19 @@ type RegistrationResponseBody = {
 };
 
 /** DEV/test TOTP: HMAC-SHA1 truncated to 6 digits (RFC 6238-style). */
-function totpCode(secretB64: string, step = 30, digits = 6, at = Date.now()): string {
+function totpCode(
+  secretB64: string,
+  step = 30,
+  digits = 6,
+  at = Date.now(),
+): string {
   const key = Buffer.from(secretB64, "base64");
   const counter = Math.floor(at / 1000 / step);
   const buf = Buffer.alloc(8);
   buf.writeBigUInt64BE(BigInt(counter));
   const hmac = createHmac("sha1", key).update(buf).digest();
-  const offset = hmac[hmac.length - 1]! & 0x0f;
-  const bin =
-    ((hmac[offset]! & 0x7f) << 24) |
-    ((hmac[offset + 1]! & 0xff) << 16) |
-    ((hmac[offset + 2]! & 0xff) << 8) |
-    (hmac[offset + 3]! & 0xff);
+  const offset = (hmac.at(-1) ?? 0) & 0x0f;
+  const bin = hmac.readUInt32BE(offset) & 0x7fffffff;
   const otp = bin % 10 ** digits;
   return otp.toString().padStart(digits, "0");
 }
@@ -66,6 +73,9 @@ const MAX_MFA_FAILURES = 5;
 const MAX_MFA_FENCE_ENTRIES = 4096;
 const MFA_ANON_WINDOW_MS = 60_000;
 const MFA_ANON_MAX = 20;
+const MFA_ANON_GLOBAL_MAX = 200;
+const MFA_ANON_FENCE_ENTRIES = 4096;
+const MAX_PASSKEY_FIELD_LENGTH = 16 * 1024;
 
 function pruneMfaFailures(map: Map<string, number>): void {
   if (map.size <= MAX_MFA_FENCE_ENTRIES) return;
@@ -74,13 +84,52 @@ function pruneMfaFailures(map: Map<string, number>): void {
   for (const key of keys) map.delete(key);
 }
 
-function clientFingerprint(c: { req: { header: (name: string) => string | undefined } }): string {
+function clientFingerprint(c: {
+  req: { header: (name: string) => string | undefined };
+}): string {
   return createHash("sha256")
     .update(c.req.header("user-agent") ?? "")
     .update("|")
     .update(c.req.header("origin") ?? c.req.header("x-forwarded-for") ?? "")
     .digest("hex")
     .slice(0, 16);
+}
+
+function consumeAnonymousMfaBudget(
+  map: Map<string, number[]>,
+  fingerprint: string,
+  now: number,
+): boolean {
+  for (const [key, values] of map) {
+    const live = values.filter((at) => now - at < MFA_ANON_WINDOW_MS);
+    if (live.length === 0) map.delete(key);
+    else if (live.length !== values.length) map.set(key, live);
+  }
+  const global = map.get("__global__") ?? [];
+  const client = map.get(fingerprint) ?? [];
+  if (global.length >= MFA_ANON_GLOBAL_MAX || client.length >= MFA_ANON_MAX) {
+    return false;
+  }
+  global.push(now);
+  client.push(now);
+  map.set("__global__", global);
+  map.set(fingerprint, client);
+  while (map.size > MFA_ANON_FENCE_ENTRIES) {
+    const victim = [...map.keys()].find((key) => !key.startsWith("__"));
+    if (victim === undefined) break;
+    map.delete(victim);
+  }
+  return true;
+}
+
+function shouldAuditAnonymousDenial(
+  map: Map<string, number[]>,
+  now: number,
+): boolean {
+  const last = map.get("__audit__")?.[0];
+  if (last !== undefined && now - last < MFA_ANON_WINDOW_MS) return false;
+  map.set("__audit__", [now]);
+  return true;
 }
 
 /**
@@ -104,7 +153,9 @@ async function auditMfaDenial(
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: input.eventType,
     outcome: "denied",
-    ...(input.principalId !== undefined ? { principalId: input.principalId } : {}),
+    ...(input.principalId !== undefined
+      ? { principalId: input.principalId }
+      : {}),
     ...(input.correlationId !== undefined
       ? { correlationId: input.correlationId }
       : {}),
@@ -117,17 +168,21 @@ async function auditMfaDenial(
 export const mfaRoutes = new Hono<{ Variables: Variables }>();
 
 /** Issue a one-time WebAuthn registration challenge (required in production). */
-mfaRoutes.post("/passkey/registration-options", requirePrincipal(), async (c) => {
-  const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
-  const rp = rpFromConfig(ctx.config.publicUrl);
-  const { challenge, options } = await issueRegistrationChallenge(
-    ctx.passkeyChallenges,
-    rp,
-    { principalId },
-  );
-  return c.json({ ok: true, challenge, options });
-});
+mfaRoutes.post(
+  "/passkey/registration-options",
+  requirePrincipal(),
+  async (c) => {
+    const ctx = c.get("ctx");
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
+    const rp = rpFromConfig(ctx.config.publicUrl);
+    const { challenge, options } = await issueRegistrationChallenge(
+      ctx.passkeyChallenges,
+      rp,
+      { principalId },
+    );
+    return c.json({ ok: true, challenge, options });
+  },
+);
 
 /**
  * Register a passkey.
@@ -137,7 +192,7 @@ mfaRoutes.post("/passkey/registration-options", requirePrincipal(), async (c) =>
  */
 mfaRoutes.post("/passkey/register", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   const body = await c.req.json<
     | {
         credentialId: string;
@@ -195,50 +250,67 @@ mfaRoutes.post("/passkey/register", requirePrincipal(), async (c) => {
 });
 
 /** Issue a one-time WebAuthn challenge (required for production assert). */
-mfaRoutes.post("/passkey/authentication-options", requirePrincipal(), async (c) => {
-  const ctx = c.get("ctx");
-  const principalId = c.get("principalId")!;
-  const rp = rpFromConfig(ctx.config.publicUrl);
-  const { challenge, options } = await issueAuthenticationChallenge(
-    ctx.passkeyChallenges,
-    rp,
-    { principalId },
-  );
-  return c.json({ ok: true, challenge, options });
-});
+mfaRoutes.post(
+  "/passkey/authentication-options",
+  requirePrincipal(),
+  async (c) => {
+    const ctx = c.get("ctx");
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
+    const rp = rpFromConfig(ctx.config.publicUrl);
+    const { challenge, options } = await issueAuthenticationChallenge(
+      ctx.passkeyChallenges,
+      rp,
+      { principalId },
+    );
+    return c.json({ ok: true, challenge, options });
+  },
+);
 
 mfaRoutes.post("/passkey/assert", async (c) => {
   const ctx = c.get("ctx");
+  const now = ctx.clock().getTime();
+  const fingerprint = clientFingerprint(c);
+  if (!consumeAnonymousMfaBudget(ctx.stores.mfaAnon, fingerprint, now)) {
+    return c.json({ ok: false, error: "rate_limited" }, 429);
+  }
   const body = await c.req.json<{
     credentialId: string;
     clientDataJSON: string;
     authenticatorData: string;
     signature: string;
   }>();
-  if (!body.credentialId || !body.signature) {
+  if (
+    !body.credentialId ||
+    !body.signature ||
+    [
+      body.credentialId,
+      body.clientDataJSON,
+      body.authenticatorData,
+      body.signature,
+    ].some(
+      (value) =>
+        typeof value !== "string" || value.length > MAX_PASSKEY_FIELD_LENGTH,
+    )
+  ) {
     return c.json({ error: "invalid_request" }, 400);
   }
-  const now = ctx.clock().getTime();
-  const fingerprint = clientFingerprint(c);
-  const stamps = (ctx.stores.mfaAnon.get(fingerprint) ?? []).filter(
-    (at) => now - at < MFA_ANON_WINDOW_MS,
-  );
-  if (stamps.length >= MFA_ANON_MAX) {
-    return c.json({ ok: false, error: "rate_limited" }, 429);
-  }
-  stamps.push(now);
-  ctx.stores.mfaAnon.set(fingerprint, stamps);
   pruneMfaFailures(ctx.stores.mfaFailures);
-  const fenceKey = `passkey:${body.credentialId}`;
+  const credentialDigest = createHash("sha256")
+    .update(body.credentialId)
+    .digest("hex")
+    .slice(0, 32);
+  const fenceKey = `passkey:${credentialDigest}`;
   const prior = ctx.stores.mfaFailures.get(fenceKey) ?? 0;
   if (prior >= MAX_MFA_FAILURES) {
-    await auditMfaDenial(ctx, {
-      eventType: "mfa.passkey.assert",
-      reason: "too_many_attempts",
-      correlationId: c.get("correlationId"),
-      targetType: "passkey",
-      targetId: body.credentialId,
-    });
+    if (shouldAuditAnonymousDenial(ctx.stores.mfaAnon, now)) {
+      await auditMfaDenial(ctx, {
+        eventType: "mfa.passkey.assert",
+        reason: "too_many_attempts",
+        correlationId: c.get("correlationId"),
+        targetType: "passkey_digest",
+        targetId: credentialDigest,
+      });
+    }
     return c.json({ ok: false, error: "too_many_attempts" }, 429);
   }
   ctx.stores.mfaFailures.set(fenceKey, prior + 1);
@@ -249,13 +321,15 @@ mfaRoutes.post("/passkey/assert", async (c) => {
     signature: Buffer.from(body.signature, "base64"),
   });
   if (!result.ok) {
-    await auditMfaDenial(ctx, {
-      eventType: "mfa.passkey.assert",
-      reason: "assertion_failed",
-      correlationId: c.get("correlationId"),
-      targetType: "passkey",
-      targetId: body.credentialId,
-    });
+    if (shouldAuditAnonymousDenial(ctx.stores.mfaAnon, now)) {
+      await auditMfaDenial(ctx, {
+        eventType: "mfa.passkey.assert",
+        reason: "assertion_failed",
+        correlationId: c.get("correlationId"),
+        targetType: "passkey_digest",
+        targetId: credentialDigest,
+      });
+    }
     return c.json({ ok: false }, 401);
   }
   ctx.stores.mfaFailures.delete(fenceKey);
@@ -277,7 +351,7 @@ mfaRoutes.post("/totp/enroll", requirePrincipal(), async (c) => {
       403,
     );
   }
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   const secret = randomBytes(20);
   const secretB64 = secret.toString("base64");
   ctx.stores.totpSecrets.set(principalId, secretB64);
@@ -301,7 +375,7 @@ mfaRoutes.post("/totp/verify", requirePrincipal(), async (c) => {
       403,
     );
   }
-  const principalId = c.get("principalId")!;
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
   const body = await c.req.json<{ code: string; principalId?: string }>();
   if (body.principalId && body.principalId !== principalId) {
     return c.json({ ok: false, error: "principal_mismatch" }, 403);

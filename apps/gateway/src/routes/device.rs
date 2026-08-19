@@ -21,6 +21,12 @@ use crate::middleware::auth::{require_demo_bootstrap, require_operator, same_pri
 /// caller cancel every pending login).
 const MAX_APPROVE_FAILURES: usize = 10;
 const APPROVE_FAILURE_WINDOW_SECS: i64 = 60;
+const MAX_PENDING_DEVICE_CODES: usize = 512;
+const DEVICE_SCOPE: &str = "opensesame.session";
+
+fn admitted_client(client_id: &str) -> bool {
+    matches!(client_id, "opensesame-cli" | "opensesame-pages")
+}
 
 /// Drops failures older than the window and reports how many remain.
 fn prune_failures(failures: &mut Vec<chrono::DateTime<Utc>>, now: chrono::DateTime<Utc>) -> usize {
@@ -39,16 +45,40 @@ pub async fn authorize(
     State(st): State<AppState>,
     Json(req): Json<DeviceAuthorizeRequest>,
 ) -> impl IntoResponse {
+    if !admitted_client(&req.client_id) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"unauthorized_client"})),
+        )
+            .into_response();
+    }
+    let scope = req.scope.unwrap_or_else(|| DEVICE_SCOPE.into());
+    if scope != DEVICE_SCOPE {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_scope"})),
+        )
+            .into_response();
+    }
     let now = Utc::now();
     {
         let mut map = st.device_codes.lock().unwrap();
         map.retain(|_, p| p.expires_at > now);
-        if map.len() >= 512 {
-            return (
-                StatusCode::TOO_MANY_REQUESTS,
-                Json(json!({"error":"device_code_capacity"})),
-            )
-                .into_response();
+        if map.len() >= MAX_PENDING_DEVICE_CODES {
+            let oldest_unapproved = map
+                .iter()
+                .filter(|(_, pending)| pending.approved.is_none())
+                .min_by_key(|(_, pending)| pending.expires_at)
+                .map(|(digest, _)| digest.clone());
+            if let Some(digest) = oldest_unapproved {
+                map.remove(&digest);
+            } else {
+                return (
+                    StatusCode::TOO_MANY_REQUESTS,
+                    Json(json!({"error":"device_code_capacity"})),
+                )
+                    .into_response();
+            }
         }
         let device_code = format!("dc_{}", uuid::Uuid::new_v4());
         let user_code = opensesame_claims::generate_user_code();
@@ -58,12 +88,14 @@ pub async fn authorize(
             device_digest.clone(),
             crate::app_state::DevicePending {
                 user_code_hash: user_code_digest(&st.claim_pepper, &device_digest, &user_code),
+                client_id: req.client_id.clone(),
+                scope: scope.clone(),
                 expires_at,
                 approved: None,
             },
         );
         drop(map);
-        return Json(json!({
+        Json(json!({
             "device_code": device_code,
             "user_code": user_code,
             "verification_uri": format!("{}/device", st.resource),
@@ -71,9 +103,9 @@ pub async fn authorize(
             "expires_in": 900,
             "interval": 5,
             "client_id": req.client_id,
-            "scope": req.scope.unwrap_or_else(|| "opensesame.session".into())
+            "scope": scope
         }))
-        .into_response();
+        .into_response()
     }
 }
 
@@ -90,6 +122,7 @@ fn stored_session_meta(meta: &serde_json::Value, session_digest: &str) -> serde_
 #[derive(Deserialize)]
 pub struct DeviceTokenRequest {
     device_code: String,
+    client_id: String,
     grant_type: String,
 }
 
@@ -114,6 +147,13 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
         )
             .into_response();
     };
+    if pending.client_id != req.client_id {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_grant"})),
+        )
+            .into_response();
+    }
     if Utc::now() >= pending.expires_at {
         return (
             StatusCode::BAD_REQUEST,
@@ -155,6 +195,8 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
         "project_id": project_id,
         "credential_handle": credential_handle,
         "approved_as": approved.principal,
+        "client_id": pending.client_id,
+        "scope": pending.scope,
         "expires_at": (Utc::now() + Duration::hours(8)).to_rfc3339()
     });
     {
@@ -283,7 +325,15 @@ pub async fn approve(
                 organization_id: organization.0,
                 organization_role: organization.1,
             });
-            return (StatusCode::OK, Json(json!({"status":"approved"}))).into_response();
+            return (
+                StatusCode::OK,
+                Json(json!({
+                    "status":"approved",
+                    "client_id": pending.client_id,
+                    "scope": pending.scope,
+                })),
+            )
+                .into_response();
         }
     }
     // A miss costs the guesser budget, not the pending authorizations.
@@ -308,6 +358,8 @@ mod tests {
     fn pending(device_digest: &str, user_code: &str) -> DevicePending {
         DevicePending {
             user_code_hash: user_code_digest(TEST_PEPPER, device_digest, user_code),
+            client_id: "opensesame-cli".into(),
+            scope: DEVICE_SCOPE.into(),
             expires_at: Utc::now() + Duration::minutes(15),
             approved: None,
         }
@@ -323,6 +375,8 @@ mod tests {
             hash_secret(device_code),
             DevicePending {
                 user_code_hash: "digest".into(),
+                client_id: "opensesame-cli".into(),
+                scope: DEVICE_SCOPE.into(),
                 expires_at: Utc::now() + Duration::minutes(5),
                 approved: Some(ApprovedDevice {
                     principal,
@@ -335,6 +389,7 @@ mod tests {
             State(state.clone()),
             Json(DeviceTokenRequest {
                 device_code: device_code.into(),
+                client_id: "opensesame-cli".into(),
                 grant_type: "urn:ietf:params:oauth:grant-type:device_code".into(),
             }),
         )
@@ -350,7 +405,11 @@ mod tests {
     fn authorize_capacity_check_holds_the_map_lock() {
         opensesame_host_core::pact::assert_source_order(
             include_str!("device.rs"),
-            &["device_codes.lock()", "map.len() >= 512", "map.insert"],
+            &[
+                "device_codes.lock()",
+                "map.len() >= MAX_PENDING_DEVICE_CODES",
+                "map.insert",
+            ],
         );
         opensesame_host_core::pact::assert_source_order(
             include_str!("device.rs"),
@@ -389,6 +448,53 @@ mod tests {
             &user_code_digest(TEST_PEPPER, "other-device", "BCDFGHJK"),
             &entry.user_code_hash
         ));
+    }
+
+    #[tokio::test]
+    async fn unknown_clients_and_client_swaps_fail_closed() {
+        let state = crate::app_state::test_demo_state().await;
+        let unknown = authorize(
+            State(state.clone()),
+            Json(DeviceAuthorizeRequest {
+                client_id: "attacker-client".into(),
+                scope: Some(DEVICE_SCOPE.into()),
+            }),
+        )
+        .await
+        .into_response();
+        assert_eq!(unknown.status(), StatusCode::BAD_REQUEST);
+        assert!(state.device_codes.lock().unwrap().is_empty());
+
+        let device_code = "dc_bound";
+        state.device_codes.lock().unwrap().insert(
+            hash_secret(device_code),
+            DevicePending {
+                user_code_hash: "digest".into(),
+                client_id: "opensesame-cli".into(),
+                scope: DEVICE_SCOPE.into(),
+                expires_at: Utc::now() + Duration::minutes(5),
+                approved: Some(ApprovedDevice {
+                    principal: opensesame_domain::PrincipalId::new().to_string(),
+                    organization_id: opensesame_domain::OrganizationId::new(),
+                    organization_role: opensesame_domain::OrganizationRole::Member,
+                }),
+            },
+        );
+        let swapped = token(
+            State(state.clone()),
+            Json(DeviceTokenRequest {
+                device_code: device_code.into(),
+                client_id: "opensesame-pages".into(),
+                grant_type: "urn:ietf:params:oauth:grant-type:device_code".into(),
+            }),
+        )
+        .await;
+        assert_eq!(swapped.status(), StatusCode::BAD_REQUEST);
+        assert!(state
+            .device_codes
+            .lock()
+            .unwrap()
+            .contains_key(&hash_secret(device_code)));
     }
 
     #[test]
@@ -497,6 +603,8 @@ mod tests {
             hash_secret(device_code),
             DevicePending {
                 user_code_hash: "digest".into(),
+                client_id: "opensesame-cli".into(),
+                scope: DEVICE_SCOPE.into(),
                 expires_at: Utc::now() + Duration::minutes(5),
                 approved: Some(ApprovedDevice {
                     principal: principal.clone(),
@@ -511,6 +619,7 @@ mod tests {
             State(state.clone()),
             Json(DeviceTokenRequest {
                 device_code: device_code.into(),
+                client_id: "opensesame-cli".into(),
                 grant_type: "urn:ietf:params:oauth:grant-type:device_code".into(),
             }),
         )
@@ -601,7 +710,7 @@ mod tests {
                 authorize(
                     State(st),
                     Json(DeviceAuthorizeRequest {
-                        client_id: "cli".into(),
+                        client_id: "opensesame-cli".into(),
                         scope: None,
                     }),
                 )
@@ -621,9 +730,9 @@ mod tests {
                 fenced += 1;
             }
         }
-        assert!(created <= 12, "capacity 512 with 500 live: got {created} creates");
+        assert_eq!(created, 32, "old unapproved grants should be evicted");
         assert!(created + fenced == 32);
-        assert!(state.device_codes.lock().unwrap().len() <= 512);
+        assert!(state.device_codes.lock().unwrap().len() <= MAX_PENDING_DEVICE_CODES);
     }
 
     #[tokio::test]

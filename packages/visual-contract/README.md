@@ -21,13 +21,13 @@ The six baselines it enforces:
 | Baseline | What it captures |
 | --- | --- |
 | `pages-desktop.png` / `pages-mobile.png` | First paint of the app shell on load |
-| `vault-unlock-desktop.png` / `vault-unlock-mobile.png` | The unlock screen, settled (first-run PIN creation form) |
+| `vault-unlock-desktop.png` / `vault-unlock-mobile.png` | The unlock screen, settled (first-run master-password form) |
 | `vault-list-desktop.png` / `vault-list-mobile.png` | The vault landing page, right after completing unlock |
 
 ## Running it locally
 
 ```bash
-# from the repo root, after `pnpm install`
+# from the repo root, after `pnpm install` — also part of `pnpm test`
 pnpm test:visual
 # equivalent to:
 pnpm --filter @opensesame/visual-contract test:visual
@@ -47,9 +47,9 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
    `desktop` (1440×900, matching the checked-in baselines) and `mobile`
    (390×844, `devices["iPhone 13"]` with
    `isMobile`/`hasTouch`) — driving the real first-run unlock flow using the
-   selectors read directly from `apps/pages/src/pages/UnlockPage.tsx`
-   (`#unlock-pin`, `#unlock-confirm`, the `"Create vault unlock"` button) and
-   `VaultPage.tsx`/`VaultShell.tsx` (`.vault-panel`, `.vault-list`).
+   selectors read directly from `apps/pages/src/screens/UnlockScreen.tsx`
+   (`#master`, `#confirm`, the `"Seal this device"` button) and
+   `VaultSection.tsx` (`.vault`, heading `"All items"`).
 3. Screenshots each screen with `page.screenshot()` (not Playwright's own
    `toHaveScreenshot` snapshot mechanism — we need exact, stable output
    filenames to diff against the pre-existing `.impeccable/screenshots/*.png`
@@ -98,14 +98,17 @@ they're correct. In practice that means:
 ## Known caveats (read before trusting a "pass")
 
 - **`pages-*` and `vault-unlock-*` currently show the same screen.**
-  `apps/pages`' routing (`src/App.tsx`) redirects `/` → `/vault` →
-  `/unlock` while the vault is locked, and every Playwright test gets a
-  fresh browser context (no stored PIN, no OPFS state), so both baselines
-  land on the unlock screen. They are captured at two different points —
-  `pages-*` right as the unlock card mounts, `vault-unlock-*` after
-  `document.fonts.ready` — so they aren't literally byte-identical files,
-  but expect them to look very close. If `apps/pages` ever grows a real
-  loading/splash state distinct from the unlock screen, revisit
+  `apps/pages` (`src/App.tsx`) renders `UnlockScreen` for every URL while
+  the vault is locked, and every Playwright test gets a fresh browser
+  context (empty OPFS, no enrolled password), so both baselines land on
+  the first-run master-password form. They are captured at two different
+  points — `pages-*` right as `.unlock__card` mounts, `vault-unlock-*`
+  after `document.fonts.ready` — so they aren't literally byte-identical
+  files, but expect them to look very close. Both captures wait for
+  `document.fonts.ready` so a blocked webfonts fetch cannot flake the
+  first-paint shot. Animations and transitions are disabled for capture so
+  the `.unlock__card` settle keyframe cannot land mid-tween. If `apps/pages`
+  ever grows a real loading/splash state distinct from unlock, revisit
   `tests/vault-visual-contract.spec.ts` so `pages-*` captures that instead.
 - **Resolved: desktop viewport now matches the checked-in baselines.** This
   package was originally speced with a 1280×800 desktop viewport, but the

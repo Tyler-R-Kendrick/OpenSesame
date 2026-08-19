@@ -6,3 +6,10 @@ export {
   type CreateLoggerOptions,
   type Logger,
 } from "./logger.js";
+export {
+  AgentPayloadRefused,
+  REDACTED,
+  forAgent,
+  looksLikeCredential,
+  scrubLocalSecrets,
+} from "./agent-payload.js";

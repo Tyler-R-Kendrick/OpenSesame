@@ -1,6 +1,6 @@
 import { createMiddleware } from "hono/factory";
-import type { Variables } from "./context.js";
 import { serializeKeyed } from "../serialize.js";
+import type { Variables } from "./context.js";
 
 /** Cached responses are short-lived: they hold the original body verbatim. */
 export const IDEMPOTENCY_TTL_MS = 10 * 60_000;
@@ -34,32 +34,32 @@ export function idempotencyMiddleware(scope: string) {
     const cacheKey = `${scope}:${caller}:${c.req.method}:${c.req.path}:${key}`;
 
     return serializeKeyed(ctx.stores.idempotencyLocks, cacheKey, async () => {
-    for (const [k, record] of ctx.stores.idempotency) {
-      if (record.expiresAt <= now) ctx.stores.idempotency.delete(k);
-    }
-
-    const cached = ctx.stores.idempotency.get(cacheKey);
-    if (cached) {
-      c.header("Idempotency-Replayed", "true");
-      return c.json(cached.body as never, cached.status as 200);
-    }
-
-    await next();
-
-    if (c.res && c.res.status >= 200 && c.res.status < 300) {
-      if (ctx.stores.idempotency.size >= IDEMPOTENCY_MAX_ENTRIES) return;
-      try {
-        const clone = c.res.clone();
-        const body = await clone.json();
-        ctx.stores.idempotency.set(cacheKey, {
-          status: c.res.status,
-          body,
-          expiresAt: now + IDEMPOTENCY_TTL_MS,
-        });
-      } catch {
-        // non-JSON success — skip cache
+      for (const [k, record] of ctx.stores.idempotency) {
+        if (record.expiresAt <= now) ctx.stores.idempotency.delete(k);
       }
-    }
+
+      const cached = ctx.stores.idempotency.get(cacheKey);
+      if (cached) {
+        c.header("Idempotency-Replayed", "true");
+        return c.json(cached.body as never, cached.status as 200);
+      }
+
+      await next();
+
+      if (c.res && c.res.status >= 200 && c.res.status < 300) {
+        if (ctx.stores.idempotency.size >= IDEMPOTENCY_MAX_ENTRIES) return;
+        try {
+          const clone = c.res.clone();
+          const body = await clone.json();
+          ctx.stores.idempotency.set(cacheKey, {
+            status: c.res.status,
+            body,
+            expiresAt: now + IDEMPOTENCY_TTL_MS,
+          });
+        } catch {
+          // non-JSON success — skip cache
+        }
+      }
     });
   });
 }

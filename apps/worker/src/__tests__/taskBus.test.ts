@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  eventSubject,
   MemoryTaskBus,
+  eventSubject,
   outboxToBusEvent,
   resolveTaskBusBackend,
 } from "../taskBus.js";
@@ -12,9 +12,9 @@ describe("taskBus", () => {
   });
 
   it("selects nats when NATS_URL is set", () => {
-    expect(
-      resolveTaskBusBackend({ NATS_URL: "nats://127.0.0.1:4222" }),
-    ).toBe("nats");
+    expect(resolveTaskBusBackend({ NATS_URL: "nats://127.0.0.1:4222" })).toBe(
+      "nats",
+    );
   });
 
   it("requires NATS_URL for explicit nats", () => {

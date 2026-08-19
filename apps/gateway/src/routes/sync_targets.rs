@@ -11,9 +11,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use opensesame_connection_broker::{
-    BrokerError, CreateSyncTarget, EmptySecretSource, MapSecretSource, SyncSecretSource,
-};
+use opensesame_connection_broker::{CreateSyncTarget, EmptySecretSource, SyncSecretSource};
 use opensesame_task_bus::BusEvent;
 use serde::Deserialize;
 use serde_json::json;
@@ -415,7 +413,9 @@ mod tests {
         http::{Request, StatusCode},
         Router,
     };
-    use opensesame_connection_broker::CreateConnection;
+    use opensesame_connection_broker::{
+        BrokerConfig, BrokerError, ConnectionBroker, CreateConnection, MapSecretSource,
+    };
     use opensesame_domain::{OrganizationRole, Shareability};
     use tower::ServiceExt;
 
@@ -430,7 +430,14 @@ mod tests {
 
     #[tokio::test]
     async fn sync_target_crud_and_bus_without_secret_leak() {
-        let st = test_demo_state().await;
+        let mut st = test_demo_state().await;
+        st.connection_broker = Arc::new(
+            ConnectionBroker::new(
+                st.db.pool().clone(),
+                BrokerConfig::in_memory(Some([42u8; 32]), "http://127.0.0.1:8787"),
+            )
+            .unwrap(),
+        );
         let org = st.connection_organization;
         let connection = st
             .connection_broker

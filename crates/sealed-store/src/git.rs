@@ -33,7 +33,7 @@ pub fn ensure_git_repo(root: &Path) -> Result<(), StoreError> {
     Ok(())
 }
 
-/// Commit all changes when `root` is a git repository. No-op otherwise.
+/// Commit only ciphertext and store configuration when `root` is a git repository.
 pub fn auto_commit(root: &Path, message: &str) -> Result<(), StoreError> {
     if !root.join(".git").exists() {
         eprintln!(
@@ -44,8 +44,33 @@ pub fn auto_commit(root: &Path, message: &str) -> Result<(), StoreError> {
         return Ok(());
     }
     let _ = ensure_git_repo(root);
+    let listed = Command::new("git")
+        .args(["ls-files", "-co", "--exclude-standard", "-z"])
+        .current_dir(root)
+        .output()
+        .map_err(|e| StoreError::Git(e.to_string()))?;
+    if !listed.status.success() {
+        return Err(StoreError::Git("git ls-files failed".into()));
+    }
+    let paths: Vec<_> = listed
+        .stdout
+        .split(|byte| *byte == 0)
+        .filter_map(|bytes| std::str::from_utf8(bytes).ok())
+        .filter(|path| {
+            matches!(
+                *path,
+                ".opensesame-key" | ".opensesame-recipients" | ".gpg-id" | ".age-recipients"
+            ) || path.ends_with(".osseal")
+                || path.ends_with(".gpg")
+                || path.ends_with(".age")
+        })
+        .collect();
+    if paths.is_empty() {
+        return Ok(());
+    }
     let add = Command::new("git")
-        .args(["add", "-A"])
+        .args(["add", "-A", "--"])
+        .args(paths)
         .current_dir(root)
         .status()
         .map_err(|e| StoreError::Git(e.to_string()))?;
@@ -82,9 +107,7 @@ pub fn auto_commit(root: &Path, message: &str) -> Result<(), StoreError> {
         Some(_) if auto_push_enabled(root) => {
             // Best-effort: a backup that lags is recoverable, a blocked insert is not.
             if let Err(e) = push_backup(root, None) {
-                eprintln!(
-                    "warning: auto-push failed ({e}); run `opensesame pass backup` to retry"
-                );
+                eprintln!("warning: auto-push failed ({e}); run `opensesame pass backup` to retry");
             }
         }
         Some(_) => {
@@ -150,7 +173,11 @@ pub fn auto_push_enabled(root: &Path) -> bool {
 
 pub fn set_auto_push(root: &Path, enabled: bool) -> Result<(), StoreError> {
     let status = Command::new("git")
-        .args(["config", AUTOPUSH_KEY, if enabled { "true" } else { "false" }])
+        .args([
+            "config",
+            AUTOPUSH_KEY,
+            if enabled { "true" } else { "false" },
+        ])
         .current_dir(root)
         .status()
         .map_err(|e| StoreError::Git(e.to_string()))?;
@@ -222,6 +249,7 @@ mod tests {
         git_init(dir.path());
 
         let root = init_store(dir.path(), &[]).unwrap();
+        std::fs::write(dir.path().join("manifest.json"), r#"[{"secret":"leak"}]"#).unwrap();
         let key = ItemDataKey([1u8; 32]);
         root.insert(
             "a",
@@ -235,10 +263,28 @@ mod tests {
         .unwrap();
         auto_commit(dir.path(), "Add a").unwrap();
         let log = Command::new("git")
-            .args(["-C", dir.path().to_str().unwrap(), "log", "-1", "--pretty=%s"])
+            .args([
+                "-C",
+                dir.path().to_str().unwrap(),
+                "log",
+                "-1",
+                "--pretty=%s",
+            ])
             .output()
             .unwrap();
         assert!(String::from_utf8_lossy(&log.stdout).contains("Add a"));
+        let tree = Command::new("git")
+            .args([
+                "-C",
+                dir.path().to_str().unwrap(),
+                "ls-tree",
+                "-r",
+                "--name-only",
+                "HEAD",
+            ])
+            .output()
+            .unwrap();
+        assert!(!String::from_utf8_lossy(&tree.stdout).contains("manifest.json"));
     }
 
     #[test]

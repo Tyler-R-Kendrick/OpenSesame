@@ -373,9 +373,39 @@ async fn proxy_identity(State(st): State<App>, req: Request) -> Response {
 
 const MAX_PROXY_BODY: usize = 2 * 1024 * 1024;
 
+fn decoded_path_segment(segment: &str) -> Option<String> {
+    let bytes = segment.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] != b'%' {
+            out.push(bytes[index]);
+            index += 1;
+            continue;
+        }
+        let hex = bytes.get(index + 1..index + 3)?;
+        let encoded = std::str::from_utf8(hex).ok()?;
+        out.push(u8::from_str_radix(encoded, 16).ok()?);
+        index += 3;
+    }
+    String::from_utf8(out).ok()
+}
+
+fn is_local_session_path(path: &str) -> bool {
+    path.split('/')
+        .filter(|segment| !segment.is_empty())
+        .map(decoded_path_segment)
+        .collect::<Option<Vec<_>>>()
+        .as_deref()
+        == Some(&["api".into(), "v1".into(), "session".into(), "local".into()])
+}
+
 async fn proxy_loopback(st: &App, base: &str, prefix: &str, req: Request) -> Response {
     let path = req.uri().path();
     let rest = path.strip_prefix(prefix).unwrap_or(path);
+    if prefix == "/host" && is_local_session_path(rest) {
+        return StatusCode::FORBIDDEN.into_response();
+    }
     if rest.contains("..") {
         return StatusCode::BAD_REQUEST.into_response();
     }
@@ -554,10 +584,7 @@ async fn approve_claim(
     };
     let claim_id = &req.claim_id;
     if let Some(claim_token) = req.claim_token {
-        let url = format!(
-            "{}/api/v1/agent-claims/{}/complete",
-            st.host_api, claim_id
-        );
+        let url = format!("{}/api/v1/agent-claims/{}/complete", st.host_api, claim_id);
         let forward = match operator_forward(&st, &url) {
             Ok(f) => f,
             Err(resp) => return resp,
@@ -880,13 +907,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn proxy_never_forwards_local_session_mint() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        for path in [
+            "/host/api/v1/session/local",
+            "/host//api/v1/session/local/",
+            "/host/api/v1/%73ession/local",
+        ] {
+            let (app, _) = test_app("http://127.0.0.1:1");
+            let res = app
+                .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::FORBIDDEN, "{path}");
+        }
+    }
+
+    #[tokio::test]
     async fn health_is_opaque() {
         use axum::body::{to_bytes, Body};
         use axum::http::Request;
         use tower::ServiceExt;
 
         let (app, _) = test_app("http://127.0.0.1:8787");
-        let req = Request::builder().uri("/health").body(Body::empty()).unwrap();
+        let req = Request::builder()
+            .uri("/health")
+            .body(Body::empty())
+            .unwrap();
         let res = app.oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
         let body = to_bytes(res.into_body(), 1024).await.unwrap();

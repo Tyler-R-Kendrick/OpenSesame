@@ -53,11 +53,12 @@ describe("taskbus OpenAPI contract suite", () => {
       status: "applied",
       last_error: null,
     };
-    expect(GetTaskBusResponseSchema.parse({ taskbus: config }).taskbus.status).toBe(
-      "applied",
-    );
     expect(
-      PutTaskBusResponseSchema.parse({ taskbus: config, applied: true }).applied,
+      GetTaskBusResponseSchema.parse({ taskbus: config }).taskbus.status,
+    ).toBe("applied");
+    expect(
+      PutTaskBusResponseSchema.parse({ taskbus: config, applied: true })
+        .applied,
     ).toBe(true);
     expect(
       PingTaskBusResponseSchema.parse({

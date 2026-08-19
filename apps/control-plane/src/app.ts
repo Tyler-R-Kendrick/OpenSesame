@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
+import { bodyLimit } from "hono/body-limit";
 import type { AppContext } from "./context.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { type Variables, withContext } from "./middleware/context.js";
@@ -26,6 +27,13 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
       c.header("Access-Control-Allow-Private-Network", "true");
     }
   });
+  app.use(
+    "*",
+    bodyLimit({
+      maxSize: 256 * 1024,
+      onError: (c) => c.json({ error: "request_too_large" }, 413),
+    }),
+  );
   app.use(
     "*",
     cors({

@@ -74,7 +74,9 @@ describe("DeviceFlowClient", () => {
     );
     expect(client.formatInstructions(start)).toContain("ABCD-EFGH");
     expect(client.formatInstructions(start)).toContain("shortcode");
-    expect(client.formatInstructions(start, { qr: false })).not.toMatch(/█|▀|▄/u);
+    expect(client.formatInstructions(start, { qr: false })).not.toMatch(
+      /█|▀|▄/u,
+    );
     const withQr = client.formatInstructions(start, { qr: true });
     expect(withQr.split("\n").length).toBeGreaterThan(
       client.formatInstructions(start).split("\n").length,

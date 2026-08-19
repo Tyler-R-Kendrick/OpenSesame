@@ -30,9 +30,9 @@ import {
   claimPageSecurityHeaders,
   escapeHtml,
 } from "../middleware/security-headers.js";
-import { authenticatedPrincipalId } from "./organizations.js";
 import { serializeKeyed } from "../serialize.js";
 import { getUsage } from "../state.js";
+import { authenticatedPrincipalId } from "./organizations.js";
 
 /** Wrong user codes tolerated per claim before approval is refused outright. */
 const MAX_CLAIM_APPROVAL_ATTEMPTS = 5;
@@ -157,73 +157,77 @@ claimRoutes.post(
       return c.json({ error: "unauthorized" }, 401);
     }
 
-    return serializeKeyed(ctx.stores.principalMutations, principalId, async () => {
-      const now = ctx.clock();
-      const liveClaims = ctx.claimStore.listSessions().filter((session) => {
-        if (session.creatorPrincipalId !== principalId) return false;
-        if (session.expiresAt <= now) return false;
-        return (
-          session.state !== "completed" &&
-          session.state !== "denied" &&
-          session.state !== "revoked" &&
-          session.state !== "expired"
-        );
-      }).length;
-      const decision = ctx.policy.evaluate(
-        principal,
-        {
-          subject: {
-            type: "principal",
-            id: principal.id,
-            assurance: principal.assurance,
-          },
-          action: "claim.create",
-          resource: { type: "claim", id: "*" },
-        },
-        { ...getUsage(ctx.stores, principalId, now), claims: liveClaims },
-      );
-      if (decision.effect === "deny") {
-        return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
-      }
-
-    const created = await ctx.claims.createClaim({
-      type: parsed.data.type,
-      targetManifest: parsed.data.targetManifest,
-      creatorPrincipalId: principalId,
-      ...(parsed.data.ttlSeconds !== undefined
-        ? { ttlMs: parsed.data.ttlSeconds * 1000 }
-        : {}),
-      ...(parsed.data.proofKeyJkt !== undefined
-        ? { proofKeyJkt: parsed.data.proofKeyJkt }
-        : {}),
-      ...(parsed.data.requestedDestination !== undefined
-        ? { requestedDestination: parsed.data.requestedDestination }
-        : {}),
-      ...(parsed.data.requestedGrant !== undefined
-        ? { requestedGrant: parsed.data.requestedGrant }
-        : {}),
-    });
-
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "claim.created",
-      outcome: "succeeded",
+    return serializeKeyed(
+      ctx.stores.principalMutations,
       principalId,
-      claimId: created.session.id,
-      correlationId: c.get("correlationId"),
-      metadata: { action: "claim.create", type: parsed.data.type },
-    });
+      async () => {
+        const now = ctx.clock();
+        const liveClaims = ctx.claimStore.listSessions().filter((session) => {
+          if (session.creatorPrincipalId !== principalId) return false;
+          if (session.expiresAt <= now) return false;
+          return (
+            session.state !== "completed" &&
+            session.state !== "denied" &&
+            session.state !== "revoked" &&
+            session.state !== "expired"
+          );
+        }).length;
+        const decision = ctx.policy.evaluate(
+          principal,
+          {
+            subject: {
+              type: "principal",
+              id: principal.id,
+              assurance: principal.assurance,
+            },
+            action: "claim.create",
+            resource: { type: "claim", id: "*" },
+          },
+          { ...getUsage(ctx.stores, principalId, now), claims: liveClaims },
+        );
+        if (decision.effect === "deny") {
+          return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
+        }
 
-    const body = CreateClaimResponseSchema.parse({
-      claimId: created.session.id,
-      claimToken: created.token,
-      userCode: created.userCode,
-      verificationUri: `${ctx.config.publicUrl}/v1/claims/${created.session.id}/verify`,
-      expiresAt: created.session.expiresAt.toISOString(),
-      targetManifestDigest: created.session.targetManifestDigest,
-      pollIntervalSeconds: 5,
-    });
-    return c.json(body, 201);
-    });
+        const created = await ctx.claims.createClaim({
+          type: parsed.data.type,
+          targetManifest: parsed.data.targetManifest,
+          creatorPrincipalId: principalId,
+          ...(parsed.data.ttlSeconds !== undefined
+            ? { ttlMs: parsed.data.ttlSeconds * 1000 }
+            : {}),
+          ...(parsed.data.proofKeyJkt !== undefined
+            ? { proofKeyJkt: parsed.data.proofKeyJkt }
+            : {}),
+          ...(parsed.data.requestedDestination !== undefined
+            ? { requestedDestination: parsed.data.requestedDestination }
+            : {}),
+          ...(parsed.data.requestedGrant !== undefined
+            ? { requestedGrant: parsed.data.requestedGrant }
+            : {}),
+        });
+
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "claim.created",
+          outcome: "succeeded",
+          principalId,
+          claimId: created.session.id,
+          correlationId: c.get("correlationId"),
+          metadata: { action: "claim.create", type: parsed.data.type },
+        });
+
+        const body = CreateClaimResponseSchema.parse({
+          claimId: created.session.id,
+          claimToken: created.token,
+          userCode: created.userCode,
+          verificationUri: `${ctx.config.publicUrl}/v1/claims/${created.session.id}/verify`,
+          expiresAt: created.session.expiresAt.toISOString(),
+          targetManifestDigest: created.session.targetManifestDigest,
+          pollIntervalSeconds: 5,
+        });
+        return c.json(body, 201);
+      },
+    );
   },
 );
 

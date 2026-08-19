@@ -65,10 +65,7 @@ export function loadQueue(): QueuedAction[] {
 export function enqueue(action: QueuedActionInput): QueuedAction {
   const item: QueuedAction = {
     ...action,
-    id:
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `q_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`,
+    id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
   };
   if (item.kind === "claim_complete") {

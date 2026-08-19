@@ -1,15 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
 import type {
   ClaimSession,
   ExternalIdentity,
   Principal,
 } from "@opensesame/os-domain";
-import {
-  ConflictError,
-  MemoryRepositories,
-  withOutbox,
-} from "../src/index.js";
+import { describe, expect, it } from "vitest";
+import { ConflictError, MemoryRepositories, withOutbox } from "../src/index.js";
 
 function makePrincipal(overrides: Partial<Principal> = {}): Principal {
   const now = new Date();

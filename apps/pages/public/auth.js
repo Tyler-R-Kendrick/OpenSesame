@@ -24,7 +24,7 @@
  *   data-opensesame-auto-links="false"  — disable authorize-link interception
  *   data-opensesame-verify="true"       — acceptSession before signed_in on auto-bind
  */
-(function () {
+(() => {
   if (typeof window === "undefined") return;
 
   var scriptEl = document.currentScript;
@@ -32,7 +32,9 @@
   var scriptSrc = scriptEl && scriptEl.src ? scriptEl.src : "";
 
   function parseBoolean(value) {
-    return value === true || value === "true" || value === "1" || value === "yes";
+    return (
+      value === true || value === "true" || value === "1" || value === "yes"
+    );
   }
 
   function brokerBaseFromScript() {
@@ -64,7 +66,10 @@
     for (var i = 0; i < bytes.length; i += 1) {
       binary += String.fromCharCode(bytes[i]);
     }
-    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    return btoa(binary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
   }
 
   function normalizeBase(base) {
@@ -110,7 +115,10 @@
 
   function persistSession(session, storageKey) {
     try {
-      sessionStorage.setItem(storageKey || defaults.storageKey, JSON.stringify(session));
+      sessionStorage.setItem(
+        storageKey || defaults.storageKey,
+        JSON.stringify(session),
+      );
     } catch (_e) {
       /* private mode */
     }
@@ -157,19 +165,25 @@
     var prepared = authorizeUrl(options);
     var brokerOrigin;
     try {
-      brokerOrigin = brokerOriginFromBase(options.brokerBase || defaults.brokerBase);
+      brokerOrigin = brokerOriginFromBase(
+        options.brokerBase || defaults.brokerBase,
+      );
     } catch (_e) {
       return Promise.reject(new Error("Invalid broker base URL."));
     }
 
-    return new Promise(function (resolve, reject) {
+    return new Promise((resolve, reject) => {
       var popup = window.open(
         prepared.url,
         "opensesame-broker",
-        "popup=yes,width=480,height=720"
+        "popup=yes,width=480,height=720",
       );
       if (!popup) {
-        reject(new Error("Popup blocked. Allow popups for this site, or open the authorize URL manually."));
+        reject(
+          new Error(
+            "Popup blocked. Allow popups for this site, or open the authorize URL manually.",
+          ),
+        );
         return;
       }
 
@@ -219,7 +233,7 @@
 
       window.addEventListener("message", onMessage);
 
-      var timer = setInterval(function () {
+      var timer = setInterval(() => {
         if (settled) return;
         if (popup.closed) {
           finish(false, new Error("consent_required"));
@@ -230,7 +244,8 @@
 
   function base64UrlToBytes(value) {
     var padded = value.replace(/-/g, "+").replace(/_/g, "/");
-    var pad = padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
+    var pad =
+      padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
     var binary = atob(padded + pad);
     var bytes = new Uint8Array(binary.length);
     for (var i = 0; i < binary.length; i += 1) {
@@ -244,7 +259,10 @@
     for (var i = 0; i < bytes.length; i += 1) {
       binary += String.fromCharCode(bytes[i]);
     }
-    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    return btoa(binary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
   }
 
   function decodeJwtPayload(token) {
@@ -308,7 +326,13 @@
 
   async function importJwk(jwk, alg) {
     var params = jwkToImportParams(jwk, alg);
-    return crypto.subtle.importKey("jwk", jwk, params.algorithm, false, params.keyUsages);
+    return crypto.subtle.importKey(
+      "jwk",
+      jwk,
+      params.algorithm,
+      false,
+      params.keyUsages,
+    );
   }
 
   async function fetchJwks(jwksUri) {
@@ -334,7 +358,8 @@
     for (var j = 0; j < keys.length; j += 1) {
       var key = keys[j];
       if (key.use && key.use !== "sig") continue;
-      if (alg === "ES256" && (key.kty === "EC" || key.crv === "P-256")) return key;
+      if (alg === "ES256" && (key.kty === "EC" || key.crv === "P-256"))
+        return key;
       if (alg === "RS256" && key.kty === "RSA") return key;
     }
     return keys[0] || null;
@@ -380,7 +405,12 @@
     var key = await importJwk(jwk, alg);
     var data = new TextEncoder().encode(parts[0] + "." + parts[1]);
     var signature = base64UrlToBytes(parts[2]);
-    var ok = await crypto.subtle.verify(verifyAlgorithm(alg), key, signature, data);
+    var ok = await crypto.subtle.verify(
+      verifyAlgorithm(alg),
+      key,
+      signature,
+      data,
+    );
     if (!ok) {
       throw new Error("id_token signature is invalid.");
     }
@@ -390,9 +420,12 @@
       throw new Error("iss mismatch.");
     }
 
-    var expectedAud = opts.audience || session.audience || expectedAudience(opts);
+    var expectedAud =
+      opts.audience || session.audience || expectedAudience(opts);
     var aud = claims.aud;
-    var audOk = Array.isArray(aud) ? aud.indexOf(expectedAud) !== -1 : aud === expectedAud;
+    var audOk = Array.isArray(aud)
+      ? aud.indexOf(expectedAud) !== -1
+      : aud === expectedAud;
     if (!audOk) {
       throw new Error("aud mismatch (expected " + expectedAud + ").");
     }
@@ -405,7 +438,10 @@
       throw new Error("id_token has no pairwise_sub.");
     }
 
-    var subject = await derivePairwiseSubject(token, opts.rpOrigin || window.location.origin);
+    var subject = await derivePairwiseSubject(
+      token,
+      opts.rpOrigin || window.location.origin,
+    );
     return { session: session, claims: claims, subject: subject };
   }
 
@@ -417,21 +453,20 @@
   function shouldHandleClick(event) {
     if (event.defaultPrevented) return false;
     if (event.button !== 0) return false;
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+      return false;
     return true;
   }
 
   function runSignInFlow(options, verify) {
     var pending = verify ? signInAndAccept(options) : signIn(options);
     return pending
-      .then(function (result) {
-        var detail = verify
-          ? result
-          : { session: result };
+      .then((result) => {
+        var detail = verify ? result : { session: result };
         dispatch("opensesame:signed_in", detail);
         return result;
       })
-      .catch(function (error) {
+      .catch((error) => {
         dispatch("opensesame:signin_error", {
           error: error && error.message ? error.message : String(error),
         });
@@ -482,7 +517,7 @@
     if (window.__opensesameAutoBindBootstrapped) return;
     window.__opensesameAutoBindBootstrapped = true;
 
-    document.addEventListener("click", function (event) {
+    document.addEventListener("click", (event) => {
       if (!shouldHandleClick(event)) return;
       var target = event.target;
       if (!target || typeof target.closest !== "function") return;
@@ -491,9 +526,10 @@
 
       event.preventDefault();
       var verify =
-        parseBoolean(el.getAttribute("data-opensesame-verify")) || defaults.verifyOnBind;
+        parseBoolean(el.getAttribute("data-opensesame-verify")) ||
+        defaults.verifyOnBind;
       var scope = el.getAttribute("data-opensesame-scope") || defaults.scope;
-      runSignInFlow({ scope: scope }, verify).catch(function (error) {
+      runSignInFlow({ scope: scope }, verify).catch((error) => {
         console.error("[OpenSesame auth.js] sign-in failed", error);
       });
     });
@@ -504,7 +540,7 @@
     if (window.__opensesameAuthorizeLinksBootstrapped) return;
     window.__opensesameAuthorizeLinksBootstrapped = true;
 
-    document.addEventListener("click", function (event) {
+    document.addEventListener("click", (event) => {
       if (!shouldHandleClick(event)) return;
       var target = event.target;
       if (!target || typeof target.closest !== "function") return;
@@ -518,9 +554,13 @@
 
       event.preventDefault();
       var verify =
-        parseBoolean(anchor.getAttribute("data-opensesame-verify")) || defaults.verifyOnBind;
-      runSignInFlow(config, verify).catch(function (error) {
-        console.error("[OpenSesame auth.js] authorize link sign-in failed", error);
+        parseBoolean(anchor.getAttribute("data-opensesame-verify")) ||
+        defaults.verifyOnBind;
+      runSignInFlow(config, verify).catch((error) => {
+        console.error(
+          "[OpenSesame auth.js] authorize link sign-in failed",
+          error,
+        );
       });
     });
   }
@@ -532,9 +572,7 @@
     acceptSession: acceptSession,
     getSession: getSession,
     clearSession: clearSession,
-    authorizeUrl: function (options) {
-      return authorizeUrl(options).url;
-    },
+    authorizeUrl: (options) => authorizeUrl(options).url,
     decodeJwtPayload: decodeJwtPayload,
     derivePairwiseSubject: derivePairwiseSubject,
     /** @internal exported for tests */

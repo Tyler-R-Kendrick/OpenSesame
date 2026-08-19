@@ -697,6 +697,9 @@ export const auditEvents = pgTable(
     seq: bigserial("seq", { mode: "number" }).notNull(),
   },
   (t) => [
+    uniqueIndex("audit_events_previous_digest_uidx")
+      .on(t.previousDigest)
+      .where(sql`${t.previousDigest} is not null and ${t.digest} is not null`),
     index("audit_events_seq_idx").on(t.seq),
     index("audit_events_occurred_at_idx").on(t.occurredAt),
     index("audit_events_correlation_id_idx").on(t.correlationId),

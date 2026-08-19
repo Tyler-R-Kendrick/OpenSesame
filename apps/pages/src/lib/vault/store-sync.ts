@@ -215,7 +215,6 @@ export function entriesToVaultItems(
   return { items, folders };
 }
 
-
 export type ManifestMergePlan = {
   /** Brand-new items to append. */
   adds: VaultItem[];

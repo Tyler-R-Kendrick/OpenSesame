@@ -9,22 +9,22 @@ import type {
   Principal,
 } from "@opensesame/os-domain";
 import {
-  ConflictError,
-  NotFoundError,
-  OUTBOX_CLAIM_HOLD_MS,
   type AuditEventRepository,
   type BetterAuthSubjectRepository,
   type ClaimItemRepository,
   type ClaimSessionRepository,
+  ConflictError,
   type ExternalIdentityRepository,
   type NewOutboxEvent,
+  NotFoundError,
+  OUTBOX_CLAIM_HOLD_MS,
   type OutboxRepository,
-  outboxClaimToken,
-  outboxHoldActive,
   type PrincipalRepository,
   type Repositories,
   type TransactionFn,
   type UnitOfWork,
+  outboxClaimToken,
+  outboxHoldActive,
 } from "./interfaces.js";
 
 function normalizeTenant(tenant?: string): string {
@@ -131,6 +131,25 @@ export class MemoryRepositories implements Repositories {
       const row = this.#store.principals.get(id);
       return row ? { ...row } : null;
     },
+    deleteUnlinkedProvisional: async (id, uow) => {
+      const row = this.#store.principals.get(id);
+      if (!row || row.state !== "provisional") return false;
+      if (
+        [...this.#store.identities.values()].some(
+          (item) => item.principalId === id,
+        )
+      ) {
+        return false;
+      }
+      const apply = () => {
+        this.#store.principals.delete(id);
+        for (const [key, subject] of this.#store.betterAuth) {
+          if (subject.principalId === id) this.#store.betterAuth.delete(key);
+        }
+      };
+      applyNowOrDefer(uow, apply);
+      return true;
+    },
 
     update: async (id, patch, expectedVersion, uow) => {
       const current = this.#store.principals.get(id);
@@ -163,7 +182,7 @@ export class MemoryRepositories implements Repositories {
       const key = identityKey(identity);
       if (this.#store.identityKeys.has(key)) {
         throw new ConflictError(
-          `external identity collision for kind+issuer+tenant+subject`,
+          "external identity collision for kind+issuer+tenant+subject",
         );
       }
       if (this.#store.identities.has(identity.id)) {
@@ -288,7 +307,7 @@ export class MemoryRepositories implements Repositories {
         if (patch.userCodeDigest) {
           merged.userCodeDigest = cloneBytes(patch.userCodeDigest);
         } else {
-          delete merged.userCodeDigest;
+          Reflect.deleteProperty(merged, "userCodeDigest");
         }
       }
       const next = cloneClaim(merged);
@@ -381,14 +400,19 @@ export class MemoryRepositories implements Repositories {
       return [...this.#store.outbox.values()]
         .filter(
           (row) =>
-            row.publishedAt === undefined && !outboxHoldActive(row.lastError, now),
+            row.publishedAt === undefined &&
+            !outboxHoldActive(row.lastError, now),
         )
         .sort((a, b) => a.availableAt.getTime() - b.availableAt.getTime())
         .slice(0, limit)
         .map((row) => ({ ...row, payload: { ...row.payload } }));
     },
 
-    claimUnpublished: async (limit = 100, now = new Date(), holdMs = OUTBOX_CLAIM_HOLD_MS) => {
+    claimUnpublished: async (
+      limit = 100,
+      now = new Date(),
+      holdMs = OUTBOX_CLAIM_HOLD_MS,
+    ) => {
       const claimed: OutboxEvent[] = [];
       const token = outboxClaimToken(now, holdMs);
       const rows = [...this.#store.outbox.values()]
@@ -423,7 +447,7 @@ export class MemoryRepositories implements Repositories {
       });
       if (!error) {
         const next = { ...row, payload: { ...row.payload } };
-        delete next.lastError;
+        Reflect.deleteProperty(next, "lastError");
         this.#store.outbox.set(id, next);
       }
     },

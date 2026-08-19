@@ -1671,12 +1671,11 @@ mod tests {
             }
         }
         assert_eq!(wins, 1);
-        assert_eq!(
+        assert!(
             db.get_host_kv("github.delivery.race")
                 .await
                 .unwrap()
-                .is_some(),
-            true
+                .is_some()
         );
     }
 
