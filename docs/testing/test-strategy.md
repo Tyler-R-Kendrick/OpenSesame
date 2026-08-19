@@ -17,10 +17,10 @@ does not run — why, so the absence is a decision rather than an oversight.
 | Integration | `test:integration` targets | `pnpm test:integration` |
 | End-to-end | Playwright specs; `scripts/battle-test.sh`; `scripts/task-security-battle-test.sh` | `pnpm test:e2e`, `pnpm verify` |
 | Fuzz | `cargo-fuzz` targets; Jazzer.js | `pnpm audit:fuzz`, `pnpm test:fuzz` |
-| Mutation | `scripts/mutation-gate.sh` (cargo-mutants) | `pnpm audit:mutation` |
+| Mutation | Stryker (TS), `cargo-mutants` (Rust) | `pnpm test:mutation` |
 | Model checking | Kani proofs, Miri, Shuttle | `pnpm audit:kani`, `audit:miri`, `audit:shuttle` |
 | Security scanning | Semgrep, ast-grep, gitleaks, OSV, cargo-audit, CVE-lite | `pnpm audit:*` |
-| Coverage measurement | `scripts/coverage-report.sh` | `pnpm test:coverage` |
+| Coverage measurement | `scripts/ts-coverage-gate.mjs`, `cargo llvm-cov` | `pnpm test:coverage` |
 
 The PACT naming convention (`property:`, `adversarial:`, `chaos:`,
 `contract:`) is load-bearing: it tells a reader which failure a case is about,
@@ -29,13 +29,18 @@ and it makes the adversarial cases — the ones asserting that something is
 
 ## What the numbers mean, and what they do not
 
-`pnpm test:coverage` reports statements and branches for the packages whose
-failure modes are security-relevant. It is not a gate and has no threshold.
+`pnpm test:coverage` runs a ratchet: a TypeScript gate
+(`scripts/ts-coverage-gate.mjs`) and a Rust one (`cargo llvm-cov` with
+`--fail-under-lines`). The thresholds exist to stop coverage sliding
+backwards, which is the one thing a number is genuinely good for.
 
-A threshold turns coverage into a target, and tests written to move a number
-are worse than no tests: they run code without asserting anything about it.
-This repo's suites are judged on what they refuse, which coverage cannot see.
-Read the report when a package looks thin, not to clear a bar.
+What they are *not* is a measure of whether something is tested. A threshold
+read as a target invites tests written to move it, and those are worse than no
+tests: they run code without asserting anything about it. This repo's suites
+are judged on what they refuse, which coverage cannot see — a fence that stops
+fencing executes exactly the same lines. Treat a passing ratchet as "nothing
+got worse", not as "this is covered", and read the section below for the
+question that actually matters.
 
 Two numbers are expected to look low and are not defects:
 
@@ -52,8 +57,9 @@ line were wrong, which is the property this repo actually depends on: nearly
 every security-relevant test exists to assert a refusal, and a refusal that
 stops refusing still executes the same lines.
 
-`pnpm audit:mutation` runs `cargo-mutants` over the pure decision crates —
-domain, relay, connection-detect, grants, authz, claims. It is scoped rather
+`pnpm test:mutation` runs Stryker over the TypeScript planes and
+`cargo-mutants` over the pure decision crates — redaction, task-bus, relay,
+connection-detect. It is scoped rather
 than workspace-wide on purpose: a surviving mutant in a decision function is a
 fence with no test behind it, while a surviving mutant in glue code is usually
 noise, and drowning the first in the second helps nobody.

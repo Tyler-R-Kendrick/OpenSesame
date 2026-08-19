@@ -107,6 +107,7 @@ describe("offline outbox edge cases", () => {
   it("dequeues staged claims and durable device approvals by id", () => {
     const claim = enqueue({
       kind: "claim_complete",
+      userCode: "WORD-WORD",
       claimToken: "osc_clm_x.secret",
     });
     const device = enqueue({ kind: "device_approve", userCode: "ABCD" });

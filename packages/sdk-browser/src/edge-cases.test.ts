@@ -790,6 +790,7 @@ describe("claim endpoints", () => {
     const { sesame, seen } = claimClient(true);
     await sesame.completeClaim("clm_1", {
       acceptedItemIds: ["a"],
+      userCode: "WORD-WORD",
       destination: { kind: "wallet" },
       idempotencyKey: "idem-1",
     });
@@ -808,7 +809,10 @@ describe("claim endpoints", () => {
   it("surfaces completeClaim failures", async () => {
     const { sesame } = claimClient(true);
     await expect(
-      sesame.completeClaim("conflict", { acceptedItemIds: [] }),
+      sesame.completeClaim("conflict", {
+        acceptedItemIds: [],
+        userCode: "WORD-WORD",
+      }),
     ).rejects.toThrow(/completeClaim failed: 409/);
   });
 });

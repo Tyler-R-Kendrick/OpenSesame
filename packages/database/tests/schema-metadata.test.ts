@@ -27,6 +27,7 @@ const EXPECTED_TABLES = [
   "provisional_sessions",
   "claim_sessions",
   "claim_items",
+  "authorization_requests",
   "device_authorization_sessions",
   "audit_events",
   "outbox_events",
