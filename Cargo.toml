@@ -23,6 +23,7 @@ members = [
   "crates/connector-host",
   "crates/connector-sdk",
   "crates/env-spec",
+  "crates/relay",
   "crates/rotation",
   "crates/provider-openbao",
   "crates/provider-openfga",

@@ -1,0 +1,14 @@
+[package]
+name = "opensesame-relay"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Fail-closed admission rules for relayed execution (ADR 0046)"
+
+[lib]
+name = "opensesame_relay"
+path = "src/lib.rs"
+
+[dependencies]
+opensesame-domain = { path = "../domain" }
+serde = { workspace = true }

@@ -2528,6 +2528,7 @@ dependencies = [
  "hmac",
  "jsonwebtoken",
  "oauth2",
+ "opensesame-connection-detect",
  "opensesame-domain",
  "opensesame-storage",
  "opensesame-task-bus",
@@ -2542,6 +2543,14 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "opensesame-connection-detect"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -2607,6 +2616,7 @@ dependencies = [
  "axum",
  "chrono",
  "clap",
+ "opensesame-connection-detect",
  "opensesame-host-core",
  "reqwest",
  "serde",
@@ -2830,6 +2840,14 @@ dependencies = [
  "once_cell",
  "regex",
  "serde_json",
+]
+
+[[package]]
+name = "opensesame-relay"
+version = "0.1.0"
+dependencies = [
+ "opensesame-domain",
+ "serde",
 ]
 
 [[package]]
