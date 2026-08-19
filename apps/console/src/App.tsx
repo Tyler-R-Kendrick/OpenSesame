@@ -1,7 +1,7 @@
 import { NavLink, Route, Routes } from "react-router";
-import { SignInPage } from "./pages/SignInPage.js";
-import { DevicePage } from "./pages/DevicePage.js";
 import { ClaimPage } from "./pages/ClaimPage.js";
+import { DevicePage } from "./pages/DevicePage.js";
+import { SignInPage } from "./pages/SignInPage.js";
 import { TaskAccessPage } from "./pages/TaskAccessPage.js";
 
 const issuer =

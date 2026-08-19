@@ -20,7 +20,8 @@ describe("PACT — example-headless", () => {
   it("adversarial: instructions refuse to print device_code", () => {
     assertSourceOrder(readFileSync(join(here, "main.ts"), "utf8"), [
       "client.formatInstructions(start)",
-      'if (instructions.includes("DO_NOT_PRINT") || /device_code/iu.test(instructions))',
+      'instructions.includes("DO_NOT_PRINT")',
+      "/device_code/iu.test(instructions)",
       'throw new Error("device_code leaked into user instructions")',
     ]);
   });

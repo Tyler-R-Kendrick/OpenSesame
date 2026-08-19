@@ -1,5 +1,5 @@
-import { createMockUpstreamIdp } from "./server.js";
 import { readMockIdpConfig } from "./config.js";
+import { createMockUpstreamIdp } from "./server.js";
 
 export { createMockUpstreamIdp } from "./server.js";
 export {

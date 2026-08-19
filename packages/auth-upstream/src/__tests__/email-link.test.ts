@@ -48,6 +48,8 @@ describe("email auto-link", () => {
     expect(principalB?.principalId).toBe(b.mapping.principalId);
     expect(principalA?.principalId).not.toBe(principalB?.principalId);
     // Email lookup alone is not an auto-link decision surface.
-    expect(noEmailAutoLinkPolicy.shouldAutoLinkOnEmail(byEmail?.email ?? "")).toBe(false);
+    expect(
+      noEmailAutoLinkPolicy.shouldAutoLinkOnEmail(byEmail?.email ?? ""),
+    ).toBe(false);
   });
 });

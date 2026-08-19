@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  DomainError,
   authenticateClaim,
   canTransitionClaim,
   completeClaim,
   denyClaim,
-  DomainError,
   expireClaim,
   presentClaim,
   reviewClaim,
@@ -47,9 +47,9 @@ describe("claim state machine", () => {
   it("allows revoke/expire from non-terminal states", () => {
     const pending = fixtures.pendingClaim().session;
     expect(revokeClaim(pending, fixtures.now).state).toBe("revoked");
-    expect(expireClaim(fixtures.pendingClaim().session, fixtures.now).state).toBe(
-      "expired",
-    );
+    expect(
+      expireClaim(fixtures.pendingClaim().session, fixtures.now).state,
+    ).toBe("expired");
 
     let s = presentClaim(fixtures.pendingClaim().session, fixtures.now);
     expect(revokeClaim(s, fixtures.now).state).toBe("revoked");

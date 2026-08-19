@@ -581,3 +581,320 @@ describe("locking", () => {
     ).toHaveLength(2);
   });
 });
+
+describe("connection endpoints", () => {
+  it("gets, creates, authorizes, and revokes connections", async () => {
+    const {
+      authorizeConnection,
+      createConnection,
+      getConnection,
+      revokeConnection,
+    } = await import("./connections.js");
+    const spy = stubHostFetch((url, init) => {
+      if (
+        url.endsWith("/connections/connection_1") &&
+        init?.method === "DELETE"
+      ) {
+        return jsonResponse({ revoked: true, provider_revocation: "ok" });
+      }
+      if (url.endsWith("/connections/connection_1/authorize")) {
+        return jsonResponse({
+          authorization_url: "https://github.com/login/oauth/authorize?x=1",
+          state: "state_1",
+          expires_at: "2026-08-09T00:00:00Z",
+        });
+      }
+      if (url.endsWith("/connections/connection_1")) {
+        return jsonResponse(connectionWire());
+      }
+      if (url.endsWith("/connections") && init?.method === "POST") {
+        return jsonResponse(connectionWire({ display_name: "CI GitHub" }));
+      }
+      return jsonResponse({ error: "unexpected" }, 500);
+    });
+
+    expect((await getConnection("connection_1")).connectionId).toBe(
+      "connection_1",
+    );
+
+    const created = await createConnection({
+      providerId: "github",
+      displayName: "CI GitHub",
+      scopes: ["repo"],
+      projectId: "project_1",
+      integrationId: "int_1",
+    });
+    expect(created.displayName).toBe("CI GitHub");
+    const create = spy.mock.calls.find(
+      ([url, init]) =>
+        String(url).endsWith("/connections") && init?.method === "POST",
+    );
+    expect(JSON.parse(String(create?.[1]?.body))).toEqual({
+      provider_id: "github",
+      display_name: "CI GitHub",
+      scopes: ["repo"],
+      project_id: "project_1",
+      integration_id: "int_1",
+    });
+
+    const auth = await authorizeConnection("connection_1", ["repo"]);
+    expect(auth.authorizationUrl).toContain("github.com");
+    const authorize = spy.mock.calls.find(([url]) =>
+      String(url).endsWith("/connections/connection_1/authorize"),
+    );
+    expect(JSON.parse(String(authorize?.[1]?.body))).toEqual({
+      scopes: ["repo"],
+    });
+
+    await expect(revokeConnection("connection_1")).resolves.toEqual({
+      revoked: true,
+      providerRevocation: "ok",
+    });
+  });
+
+  it("creates a connection with only a provider id", async () => {
+    const { createConnection } = await import("./connections.js");
+    const spy = stubHostFetch(() => jsonResponse(connectionWire()));
+    await createConnection({ providerId: "github" });
+    const create = spy.mock.calls.find(
+      ([url, init]) =>
+        String(url).endsWith("/connections") && init?.method === "POST",
+    );
+    expect(JSON.parse(String(create?.[1]?.body))).toEqual({
+      provider_id: "github",
+    });
+  });
+
+  it("sets a raw credential value", async () => {
+    const { setConnectionCredential } = await import("./connections.js");
+    const spy = stubHostFetch(() => jsonResponse(connectionWire()));
+    await setConnectionCredential("connection_1", "sk_live_redacted");
+    const request = spy.mock.calls.find(([url]) =>
+      String(url).endsWith("/credential"),
+    );
+    expect(JSON.parse(String(request?.[1]?.body))).toEqual({
+      value: "sk_live_redacted",
+    });
+  });
+
+  it("binds and unbinds agents", async () => {
+    const { bindConnection, unbindConnection } = await import(
+      "./connections.js"
+    );
+    const spy = stubHostFetch((url, init) => {
+      if (init?.method === "DELETE") {
+        return jsonResponse(connectionWire({ bindings: [] }));
+      }
+      return jsonResponse(
+        connectionWire({
+          bindings: [
+            {
+              id: "binding_9",
+              target_kind: "agent",
+              target_id: "agt_bot",
+              target_label: "Release bot",
+              created_at: "2026-08-08T00:00:00Z",
+            },
+          ],
+        }),
+      );
+    });
+
+    const bound = await bindConnection("connection_1", {
+      targetKind: "agent",
+      targetId: "agt_bot",
+      targetLabel: "Release bot",
+    });
+    expect(bound.bindings[0]?.targetId).toBe("agt_bot");
+    const bind = spy.mock.calls.find(
+      ([url, init]) =>
+        String(url).endsWith("/bindings") && init?.method === "POST",
+    );
+    expect(JSON.parse(String(bind?.[1]?.body))).toEqual({
+      target_kind: "agent",
+      target_id: "agt_bot",
+      target_label: "Release bot",
+    });
+
+    const unbound = await unbindConnection("connection_1", "binding_9");
+    expect(unbound.bindings).toEqual([]);
+    const unbind = spy.mock.calls.find(([url]) =>
+      String(url).endsWith("/bindings/binding_9"),
+    );
+    expect(unbind?.[1]?.method).toBe("DELETE");
+  });
+
+  it("discovers auto-configured connections and lists events", async () => {
+    const { connectionEvents, discoverConnections } = await import(
+      "./connections.js"
+    );
+    stubHostFetch((url) => {
+      if (url.endsWith("/connections/discover")) {
+        return jsonResponse({ configured: 3 });
+      }
+      if (url.endsWith("/connections/connection_1/events")) {
+        return jsonResponse({
+          events: [
+            {
+              id: "evt_1",
+              kind: "authorized",
+              at: "2026-08-08T00:00:00Z",
+              detail: null,
+            },
+          ],
+        });
+      }
+      return jsonResponse({ error: "unexpected" }, 500);
+    });
+
+    await expect(discoverConnections()).resolves.toBe(3);
+    await expect(connectionEvents("connection_1")).resolves.toEqual([
+      {
+        id: "evt_1",
+        kind: "authorized",
+        at: "2026-08-08T00:00:00Z",
+        detail: null,
+      },
+    ]);
+  });
+
+  it("surfaces a non-JSON error body as unknown_error", async () => {
+    stubHostFetch(() => new Response("bad gateway", { status: 502 }));
+    const error = await listConnections().catch((caught) => caught);
+    expect(error).toBeInstanceOf(ConnectionsError);
+    expect((error as ConnectionsError).code).toBe("unknown_error");
+    expect((error as ConnectionsError).status).toBe(502);
+  });
+});
+
+describe("integrations and GitHub App registration", () => {
+  it("lists integrations with only trusted App URLs", async () => {
+    const { listIntegrations } = await import("./connections.js");
+    stubHostFetch(() =>
+      jsonResponse({
+        integrations: [
+          {
+            id: "int_1",
+            key: "github-app",
+            provider_id: "github",
+            display_name: "Acme Backup",
+            source: "github_app",
+            enabled: true,
+            configured: true,
+            scopes: ["administration"],
+            github_app_html_url: "https://github.com/apps/acme-backup",
+          },
+          {
+            id: "int_2",
+            key: "custom",
+            provider_id: "gitlab",
+            display_name: "Custom",
+            source: "catalog",
+            enabled: false,
+            configured: false,
+            scopes: "not-an-array",
+            github_app_html_url: "https://evil.example/apps/x",
+          },
+        ],
+      }),
+    );
+
+    const rows = await listIntegrations();
+    expect(rows[0]?.githubAppHtmlUrl).toBe(
+      "https://github.com/apps/acme-backup",
+    );
+    expect(rows[1]?.githubAppHtmlUrl).toBeNull();
+    expect(rows[1]?.scopes).toEqual([]);
+  });
+
+  it("starts a GitHub App registration and validates the response", async () => {
+    const { startGithubAppRegistration } = await import("./connections.js");
+    const spy = stubHostFetch(() =>
+      jsonResponse({
+        action: "https://github.com/settings/apps/new",
+        state: "state_1",
+        manifest: { name: "acme-backup" },
+        redirect_url: "https://host.example/callback",
+      }),
+    );
+
+    const registration = await startGithubAppRegistration({
+      returnTo: "https://me.github.io/OpenSesame/settings",
+      displayName: "Acme Backup",
+    });
+    expect(registration.manifest).toEqual({ name: "acme-backup" });
+    expect(registration.redirectUrl).toBe("https://host.example/callback");
+    const request = spy.mock.calls.find(([url]) =>
+      String(url).endsWith("/providers/github/app"),
+    );
+    expect(JSON.parse(String(request?.[1]?.body))).toEqual({
+      return_to: "https://me.github.io/OpenSesame/settings",
+      display_name: "Acme Backup",
+    });
+
+    clearHostSession();
+    stubHostFetch(() => jsonResponse({ action: 1 }));
+    await expect(
+      startGithubAppRegistration({ returnTo: "https://x.example" }),
+    ).rejects.toThrow(/invalid GitHub App registration/);
+  });
+});
+
+describe("compileSecretToHost", () => {
+  it("binds only new, non-user grantees for a matching connection", async () => {
+    const { compileSecretToHost } = await import("./connections.js");
+    const spy = stubHostFetch((url, init) => {
+      if (String(url).endsWith("/bindings") && init?.method === "POST") {
+        return jsonResponse(connectionWire());
+      }
+      return jsonResponse({
+        connections: [
+          connectionWire({
+            bindings: [
+              {
+                id: "binding_1",
+                target_kind: "agent",
+                target_id: "agt_existing",
+                target_label: null,
+                created_at: "2026-08-08T00:00:00Z",
+              },
+            ],
+          }),
+        ],
+      });
+    });
+
+    await compileSecretToHost({
+      connectionRef: "conn://org/proj/github/main",
+      grantees: ["agt_existing", "user:demo", "user:alice", "  ", "agt_new"],
+    });
+
+    const binds = spy.mock.calls.filter(
+      ([url, init]) =>
+        String(url).endsWith("/bindings") && init?.method === "POST",
+    );
+    expect(binds).toHaveLength(1);
+    expect(JSON.parse(String(binds[0]?.[1]?.body))).toMatchObject({
+      target_kind: "agent",
+      target_id: "agt_new",
+    });
+  });
+
+  it("does nothing without a ref or without a matching connection", async () => {
+    const { compileSecretToHost } = await import("./connections.js");
+    const spy = stubHostFetch(() =>
+      jsonResponse({ connections: [connectionWire()] }),
+    );
+
+    await compileSecretToHost({ connectionRef: "", grantees: ["agt_x"] });
+    expect(spy).not.toHaveBeenCalled();
+
+    await compileSecretToHost({
+      connectionRef: "conn://org/proj/other/main",
+      grantees: ["agt_x"],
+    });
+    expect(
+      spy.mock.calls.some(([url]) => String(url).endsWith("/bindings")),
+    ).toBe(false);
+  });
+});

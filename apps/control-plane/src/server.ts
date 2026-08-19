@@ -52,7 +52,9 @@ export async function startServer(
 
   const address = server.address();
   const boundPort =
-    typeof address === "object" && address !== null ? address.port : config.port;
+    typeof address === "object" && address !== null
+      ? address.port
+      : config.port;
 
   ctx.log.info(
     { host: config.host, port: boundPort, issuer: config.issuer },

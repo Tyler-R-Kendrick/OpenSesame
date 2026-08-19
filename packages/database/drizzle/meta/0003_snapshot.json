@@ -101,12 +101,8 @@
           "name": "agent_instances_agent_id_agents_id_fk",
           "tableFrom": "agent_instances",
           "tableTo": "agents",
-          "columnsFrom": [
-            "agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agent_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -187,12 +183,8 @@
           "name": "agents_owner_principal_id_principals_id_fk",
           "tableFrom": "agents",
           "tableTo": "principals",
-          "columnsFrom": [
-            "owner_principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_principal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -424,12 +416,8 @@
           "name": "better_auth_subjects_principal_id_principals_id_fk",
           "tableFrom": "better_auth_subjects",
           "tableTo": "principals",
-          "columnsFrom": [
-            "principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["principal_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -529,12 +517,8 @@
           "name": "claim_items_claim_id_claim_sessions_id_fk",
           "tableFrom": "claim_items",
           "tableTo": "claim_sessions",
-          "columnsFrom": [
-            "claim_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["claim_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -758,12 +742,8 @@
           "name": "claim_sessions_creator_principal_id_principals_id_fk",
           "tableFrom": "claim_sessions",
           "tableTo": "principals",
-          "columnsFrom": [
-            "creator_principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["creator_principal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -771,12 +751,8 @@
           "name": "claim_sessions_creator_agent_id_agents_id_fk",
           "tableFrom": "claim_sessions",
           "tableTo": "agents",
-          "columnsFrom": [
-            "creator_agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["creator_agent_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -784,12 +760,8 @@
           "name": "claim_sessions_creator_instance_id_agent_instances_id_fk",
           "tableFrom": "claim_sessions",
           "tableTo": "agent_instances",
-          "columnsFrom": [
-            "creator_instance_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["creator_instance_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -797,12 +769,8 @@
           "name": "claim_sessions_completed_by_principal_id_principals_id_fk",
           "tableFrom": "claim_sessions",
           "tableTo": "principals",
-          "columnsFrom": [
-            "completed_by_principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["completed_by_principal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -938,12 +906,8 @@
           "name": "consents_principal_id_principals_id_fk",
           "tableFrom": "consents",
           "tableTo": "principals",
-          "columnsFrom": [
-            "principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["principal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -951,12 +915,8 @@
           "name": "consents_client_id_oauth_clients_id_fk",
           "tableFrom": "consents",
           "tableTo": "oauth_clients",
-          "columnsFrom": [
-            "client_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["client_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -964,12 +924,8 @@
           "name": "consents_organization_id_organizations_id_fk",
           "tableFrom": "consents",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -977,12 +933,8 @@
           "name": "consents_project_id_projects_id_fk",
           "tableFrom": "consents",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1090,12 +1042,8 @@
           "name": "delegations_principal_id_principals_id_fk",
           "tableFrom": "delegations",
           "tableTo": "principals",
-          "columnsFrom": [
-            "principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["principal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1103,12 +1051,8 @@
           "name": "delegations_agent_id_agents_id_fk",
           "tableFrom": "delegations",
           "tableTo": "agents",
-          "columnsFrom": [
-            "agent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["agent_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1116,12 +1060,8 @@
           "name": "delegations_project_id_projects_id_fk",
           "tableFrom": "delegations",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1303,12 +1243,8 @@
           "name": "device_authorization_sessions_client_id_oauth_clients_id_fk",
           "tableFrom": "device_authorization_sessions",
           "tableTo": "oauth_clients",
-          "columnsFrom": [
-            "client_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["client_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1316,12 +1252,8 @@
           "name": "device_authorization_sessions_approved_by_principal_id_principals_id_fk",
           "tableFrom": "device_authorization_sessions",
           "tableTo": "principals",
-          "columnsFrom": [
-            "approved_by_principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["approved_by_principal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1493,12 +1425,8 @@
           "name": "external_identities_principal_id_principals_id_fk",
           "tableFrom": "external_identities",
           "tableTo": "principals",
-          "columnsFrom": [
-            "principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["principal_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1639,12 +1567,8 @@
           "name": "oauth_clients_owner_principal_id_principals_id_fk",
           "tableFrom": "oauth_clients",
           "tableTo": "principals",
-          "columnsFrom": [
-            "owner_principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_principal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1735,12 +1659,8 @@
           "name": "organizations_created_by_principals_id_fk",
           "tableFrom": "organizations",
           "tableTo": "principals",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2065,12 +1985,8 @@
           "name": "pairwise_subjects_principal_id_principals_id_fk",
           "tableFrom": "pairwise_subjects",
           "tableTo": "principals",
-          "columnsFrom": [
-            "principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["principal_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2078,10 +1994,7 @@
       "compositePrimaryKeys": {
         "pairwise_subjects_principal_id_sector_identifier_pk": {
           "name": "pairwise_subjects_principal_id_sector_identifier_pk",
-          "columns": [
-            "principal_id",
-            "sector_identifier"
-          ]
+          "columns": ["principal_id", "sector_identifier"]
         }
       },
       "uniqueConstraints": {},
@@ -2266,12 +2179,8 @@
           "name": "projects_organization_id_organizations_id_fk",
           "tableFrom": "projects",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2279,12 +2188,8 @@
           "name": "projects_owner_principal_id_principals_id_fk",
           "tableFrom": "projects",
           "tableTo": "principals",
-          "columnsFrom": [
-            "owner_principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_principal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2405,12 +2310,8 @@
           "name": "provisional_sessions_principal_id_principals_id_fk",
           "tableFrom": "provisional_sessions",
           "tableTo": "principals",
-          "columnsFrom": [
-            "principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["principal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2533,12 +2434,8 @@
           "name": "resources_project_id_projects_id_fk",
           "tableFrom": "resources",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2546,12 +2443,8 @@
           "name": "resources_organization_id_organizations_id_fk",
           "tableFrom": "resources",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2559,12 +2452,8 @@
           "name": "resources_owner_principal_id_principals_id_fk",
           "tableFrom": "resources",
           "tableTo": "principals",
-          "columnsFrom": [
-            "owner_principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["owner_principal_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2659,12 +2548,8 @@
           "name": "teams_organization_id_organizations_id_fk",
           "tableFrom": "teams",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

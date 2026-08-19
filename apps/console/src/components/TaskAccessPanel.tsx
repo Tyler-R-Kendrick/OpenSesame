@@ -13,7 +13,9 @@ export interface TaskAccessViewModel {
 
 function normalizeCapabilities(raw: unknown): TaskCapability[] {
   if (typeof raw === "object" && raw !== null && "capabilities" in raw) {
-    return normalizeCapabilities((raw as { capabilities: unknown }).capabilities);
+    return normalizeCapabilities(
+      (raw as { capabilities: unknown }).capabilities,
+    );
   }
   if (!Array.isArray(raw)) {
     return [];
@@ -40,7 +42,9 @@ function normalizeCapabilities(raw: unknown): TaskCapability[] {
     .filter((x): x is TaskCapability => x !== null);
 }
 
-export function buildTaskAccessViewModel(body: Record<string, unknown>): TaskAccessViewModel {
+export function buildTaskAccessViewModel(
+  body: Record<string, unknown>,
+): TaskAccessViewModel {
   return {
     taskRunId: String(body.task_run_id ?? ""),
     stateVersion: Number(body.state_version ?? 0),
@@ -76,11 +80,15 @@ export function TaskAccessPanel({ model }: TaskAccessPanelProps) {
       </dl>
 
       <p className="warn-banner" role="note">
-        This active task cannot be widened. Create a new task with reviewed authority.
+        This active task cannot be widened. Create a new task with reviewed
+        authority.
       </p>
 
       <div className="cap-table-wrap">
-        <table className="cap-table" aria-label="Ceiling versus current capabilities">
+        <table
+          className="cap-table"
+          aria-label="Ceiling versus current capabilities"
+        >
           <thead>
             <tr>
               <th scope="col">Ceiling</th>
@@ -107,7 +115,10 @@ export function TaskAccessPanel({ model }: TaskAccessPanelProps) {
   );
 }
 
-function mergeCapabilityRows(ceiling: TaskCapability[], current: TaskCapability[]) {
+function mergeCapabilityRows(
+  ceiling: TaskCapability[],
+  current: TaskCapability[],
+) {
   const keys = new Set<string>();
   const ceilingMap = new Map<string, string>();
   const currentMap = new Map<string, string>();

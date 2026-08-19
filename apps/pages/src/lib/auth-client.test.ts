@@ -1,3 +1,4 @@
+import { runInNewContext } from "node:vm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Vitest/Vite loads the shipped IIFE as text so we exercise the real file.
 import source from "../../public/auth.js?raw";
@@ -38,7 +39,10 @@ function bytesToBase64Url(bytes: Uint8Array): string {
   for (let i = 0; i < bytes.length; i += 1) {
     binary += String.fromCharCode(bytes[i] ?? 0);
   }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 function b64urlJson(value: unknown): string {
@@ -55,7 +59,10 @@ function loadClient(): OpenSesameApi {
   };
 
   const windowStub: Record<string, unknown> = {
-    location: { origin: "http://localhost:5173", href: "http://localhost:5173/" },
+    location: {
+      origin: "http://localhost:5173",
+      href: "http://localhost:5173/",
+    },
     OpenSesame: undefined,
     __opensesameAutoBindBootstrapped: undefined,
     __opensesameAuthorizeLinksBootstrapped: undefined,
@@ -68,8 +75,19 @@ function loadClient(): OpenSesameApi {
   vi.stubGlobal("document", documentStub);
   vi.stubGlobal("window", windowStub);
 
-  // eslint-disable-next-line no-eval -- load the shipped IIFE in the test harness
-  (0, eval)(source);
+  runInNewContext(source, {
+    CustomEvent,
+    TextDecoder,
+    TextEncoder,
+    URL,
+    atob,
+    btoa,
+    crypto,
+    document: documentStub,
+    fetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args),
+    location: windowStub.location,
+    window: windowStub,
+  });
 
   const api = windowStub.OpenSesame as OpenSesameApi | undefined;
   if (!api) throw new Error("OpenSesame API was not installed");
@@ -141,7 +159,10 @@ describe("auth.js client helpers", () => {
       true,
       ["sign", "verify"],
     );
-    const jwk = (await subtle.exportKey("jwk", pair.publicKey)) as JsonWebKey & {
+    const jwk = (await subtle.exportKey(
+      "jwk",
+      pair.publicKey,
+    )) as JsonWebKey & {
       kid?: string;
       alg?: string;
       use?: string;

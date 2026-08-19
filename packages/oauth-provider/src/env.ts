@@ -22,6 +22,7 @@ export function readOAuthProviderEnv(
       .map((s) => s.trim())
       .filter(Boolean),
     isProduction:
-      (env.NODE_ENV ?? "") === "production" || env.OPENSESAME_ENV === "production",
+      (env.NODE_ENV ?? "") === "production" ||
+      env.OPENSESAME_ENV === "production",
   };
 }

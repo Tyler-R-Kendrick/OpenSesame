@@ -17,7 +17,9 @@ describe("contracts schemas", () => {
       redirectUris: ["https://rp.example/cb"],
       sectorIdentifier: "https://rp.example",
     };
-    expect(CreateOAuthClientRequestSchema.parse(base).responseTypes).toEqual(["code"]);
+    expect(CreateOAuthClientRequestSchema.parse(base).responseTypes).toEqual([
+      "code",
+    ]);
 
     // A record that can name `implicit` or `client_credentials` for itself is a
     // token in a URL fragment, or a client acting with no user behind it.
@@ -27,12 +29,15 @@ describe("contracts schemas", () => {
       ["urn:ietf:params:oauth:grant-type:token-exchange"],
     ]) {
       expect(
-        CreateOAuthClientRequestSchema.safeParse({ ...base, grantTypes }).success,
+        CreateOAuthClientRequestSchema.safeParse({ ...base, grantTypes })
+          .success,
       ).toBe(false);
     }
     expect(
-      CreateOAuthClientRequestSchema.safeParse({ ...base, responseTypes: ["token"] })
-        .success,
+      CreateOAuthClientRequestSchema.safeParse({
+        ...base,
+        responseTypes: ["token"],
+      }).success,
     ).toBe(false);
     expect(
       CreateOAuthClientRequestSchema.safeParse({

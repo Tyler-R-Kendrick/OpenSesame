@@ -9,7 +9,7 @@ if ! command -v cargo-fuzz >/dev/null 2>&1; then
   cargo install cargo-fuzz --locked
 fi
 
-cargo fuzz build --release --fuzz-dir fuzz
+cargo +nightly fuzz build --release --fuzz-dir fuzz
 
 OUT="${OUT:-$PROJECT/fuzz/artifacts}"
 mkdir -p "$OUT"

@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
   approveDeviceAuth,
   consumeDeviceAuth,
   fixtures,
 } from "@opensesame/os-domain";
+import { describe, expect, it } from "vitest";
 import {
   applySlowDown,
   evaluateDevicePoll,

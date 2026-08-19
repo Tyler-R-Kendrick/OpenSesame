@@ -29,7 +29,10 @@ export function canTransitionDeviceAuth(
   return ALLOWED.get(from)?.has(to) ?? false;
 }
 
-function assertNotExpired(session: DeviceAuthorizationSession, now: Date): void {
+function assertNotExpired(
+  session: DeviceAuthorizationSession,
+  now: Date,
+): void {
   if (session.state === "expired") {
     throw new DomainError("EXPIRED", "Device authorization already expired", {
       id: session.id,

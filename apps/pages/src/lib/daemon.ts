@@ -97,9 +97,10 @@ export async function applyDaemonPairing(
     // Prefer daemon-advertised loopback planes; fall back to shipped locals
     // (pages-dev Host :18787 / Identity :18788 — not the classic :8787 collision).
     if (!hostApi || !isLoopbackUrl(hostApi)) {
-      hostApi = current.hostApi && isLoopbackUrl(current.hostApi)
-        ? current.hostApi
-        : shippedHostApi;
+      hostApi =
+        current.hostApi && isLoopbackUrl(current.hostApi)
+          ? current.hostApi
+          : shippedHostApi;
     }
     if (!identityApi || !isLoopbackUrl(identityApi)) {
       identityApi =

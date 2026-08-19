@@ -1,8 +1,8 @@
 import {
+  type QrCodeGenerateSvgOptions,
   encode,
   renderSVG,
   renderUnicodeCompact,
-  type QrCodeGenerateSvgOptions,
 } from "uqr";
 
 export class QrEncodeError extends Error {
@@ -34,10 +34,7 @@ function assertPayload(value: string): string {
 }
 
 /** Encode a string as an SVG QR (error correction M). */
-export function encodeQrSvg(
-  value: string,
-  options: QrSvgOptions = {},
-): string {
+export function encodeQrSvg(value: string, options: QrSvgOptions = {}): string {
   const payload = assertPayload(value);
   const svgOpts: QrCodeGenerateSvgOptions = {
     ecc: "M",

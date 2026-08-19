@@ -5,7 +5,7 @@ export function b64urlToBytes(value: string): Uint8Array {
   const b64 = (value + pad).replace(/-/g, "+").replace(/_/g, "/");
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)!;
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
 
@@ -24,14 +24,22 @@ export type PublicKeyCredentialCreationOptionsJSON = {
   timeout?: number;
   attestation?: AttestationConveyancePreference;
   authenticatorSelection?: AuthenticatorSelectionCriteria;
-  excludeCredentials?: { id: string; type: "public-key"; transports?: AuthenticatorTransport[] }[];
+  excludeCredentials?: {
+    id: string;
+    type: "public-key";
+    transports?: AuthenticatorTransport[];
+  }[];
 };
 
 export type PublicKeyCredentialRequestOptionsJSON = {
   challenge: string;
   timeout?: number;
   rpId?: string;
-  allowCredentials?: { id: string; type: "public-key"; transports?: AuthenticatorTransport[] }[];
+  allowCredentials?: {
+    id: string;
+    type: "public-key";
+    transports?: AuthenticatorTransport[];
+  }[];
   userVerification?: UserVerificationRequirement;
 };
 

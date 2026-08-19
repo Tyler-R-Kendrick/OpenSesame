@@ -8,8 +8,8 @@ export function PasskeyCeremonyNote() {
   const [support, setSupport] = useState<"ok" | "partial" | "missing" | null>(
     null,
   );
-  const [mfaAppUrl, setMfaAppUrl] = useState(
-    () => loadSettings().mfaAppUrl.trim(),
+  const [mfaAppUrl, setMfaAppUrl] = useState(() =>
+    loadSettings().mfaAppUrl.trim(),
   );
 
   useEffect(() => {
@@ -37,8 +37,8 @@ export function PasskeyCeremonyNote() {
               size={128}
             />
             <p className="hint">
-              Scan with your phone to open the MFA app and finish with a
-              passkey there.{" "}
+              Scan with your phone to open the MFA app and finish with a passkey
+              there.{" "}
               <a href={mfaAppUrl} target="_blank" rel="noreferrer noopener">
                 Open link
               </a>

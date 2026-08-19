@@ -148,3 +148,71 @@ describe("runtime endpoint defaults", () => {
     ).toBe(false);
   });
 });
+
+describe("settings subscriptions and guards", () => {
+  it("notifies subscribers on save and stops after unsubscribe", async () => {
+    const { saveSettings, loadSettings, subscribeSettings } = await import(
+      "./settings.js"
+    );
+    let calls = 0;
+    const unsubscribe = subscribeSettings(() => {
+      calls += 1;
+    });
+    saveSettings(loadSettings());
+    expect(calls).toBe(1);
+    unsubscribe();
+    saveSettings(loadSettings());
+    expect(calls).toBe(1);
+  });
+
+  it("falls back to defaults when persisted JSON is corrupt", async () => {
+    const { kvSet } = await import("./kv.js");
+    kvSet("settings.v1", "{corrupt");
+    const { loadSettings, shippedHostApi } = await import("./settings.js");
+    expect(loadSettings().hostApi).toBe(shippedHostApi);
+  });
+
+  it("counts a tailnet daemon without a Host as a remote pairing", async () => {
+    const { hasRemoteHostPairing } = await import("./settings.js");
+    const base = {
+      hostApi: "",
+      identityApi: "",
+      tursoUrl: "",
+      mfaAppUrl: "",
+      capabilityConnectors: {
+        encryption: { providerId: "webcrypto" },
+        history: { providerId: "github" },
+      },
+    };
+    expect(
+      hasRemoteHostPairing({ ...base, daemonApi: "https://box.tail.ts.net" }),
+    ).toBe(true);
+    expect(
+      hasRemoteHostPairing({ ...base, daemonApi: "http://127.0.0.1:18790" }),
+    ).toBe(false);
+    expect(hasRemoteHostPairing({ ...base, daemonApi: "" })).toBe(false);
+    expect(
+      hasRemoteHostPairing({ ...base, daemonApi: "https://evil.example !" }),
+    ).toBe(false);
+  });
+
+  it("does not auto-connect without an Identity URL", async () => {
+    const { shouldAutoConnect } = await import("./settings.js");
+    expect(
+      shouldAutoConnect(
+        {
+          hostApi: "",
+          identityApi: "",
+          daemonApi: "",
+          tursoUrl: "",
+          mfaAppUrl: "",
+          capabilityConnectors: {
+            encryption: { providerId: "webcrypto" },
+            history: { providerId: "github" },
+          },
+        },
+        "127.0.0.1",
+      ),
+    ).toBe(false);
+  });
+});

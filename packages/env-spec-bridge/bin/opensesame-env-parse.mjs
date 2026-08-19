@@ -8,10 +8,16 @@ import { parseEnvSpecDotEnvFile } from "@env-spec/parser";
 
 function decValue(v) {
   if (v == null) return true;
-  if (typeof v === "object" && v.constructor?.name === "ParsedEnvSpecStaticValue") {
+  if (
+    typeof v === "object" &&
+    v.constructor?.name === "ParsedEnvSpecStaticValue"
+  ) {
     return v.value ?? v.data?.rawValue ?? null;
   }
-  if (typeof v === "object" && v.constructor?.name === "ParsedEnvSpecFunctionCall") {
+  if (
+    typeof v === "object" &&
+    v.constructor?.name === "ParsedEnvSpecFunctionCall"
+  ) {
     return {
       fn: v.data.name,
       args: funcArgs(v.data.args),
@@ -108,7 +114,7 @@ function main() {
     parser: "@env-spec/parser",
     items,
   };
-  process.stdout.write(JSON.stringify(out, null, 2) + "\n");
+  process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
 }
 
 main();

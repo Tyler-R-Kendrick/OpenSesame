@@ -5,10 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import {
-  completeSignIn,
-  FederationError,
-} from "../lib/federation.js";
+import { FederationError, completeSignIn } from "../lib/federation.js";
 import "./broker.css";
 
 export function FederationReturn() {

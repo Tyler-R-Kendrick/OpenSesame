@@ -34,8 +34,10 @@ export class UpstreamOidcProviderRegistry {
     string,
     { clientId: string; clientSecret: string; enabled?: boolean }
   > {
-    const out: Record<string, { clientId: string; clientSecret: string; enabled?: boolean }> =
-      {};
+    const out: Record<
+      string,
+      { clientId: string; clientSecret: string; enabled?: boolean }
+    > = {};
     for (const p of this.listEnabled()) {
       if (!p.clientSecret) continue;
       out[p.id] = {
@@ -49,7 +51,9 @@ export class UpstreamOidcProviderRegistry {
 }
 
 /** Seed helper for local mock upstream IdP. */
-export function mockUpstreamProvider(overrides?: Partial<UpstreamOidcProvider>): UpstreamOidcProvider {
+export function mockUpstreamProvider(
+  overrides?: Partial<UpstreamOidcProvider>,
+): UpstreamOidcProvider {
   return {
     id: "mock",
     displayName: "Mock Upstream IdP",

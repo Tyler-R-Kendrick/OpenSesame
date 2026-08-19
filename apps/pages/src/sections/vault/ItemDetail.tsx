@@ -20,8 +20,8 @@ import {
   IconStar,
   IconTrash,
 } from "../../components/Icons.js";
-import { TotpCode, currentTotp } from "../../components/TotpCode.js";
 import { QrCode } from "../../components/QrCode.js";
+import { TotpCode, currentTotp } from "../../components/TotpCode.js";
 import { connectionEvents, listConnections } from "../../lib/connections.js";
 import { usePlaneStatus } from "../../lib/planes.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
@@ -369,22 +369,26 @@ function UpdateSecretPanel({
 
   return (
     <div className="detail__update">
-      <div className="sites-effect-toggle" role="group" aria-label="Update mode">
+      <fieldset className="sites-effect-toggle" aria-label="Update mode">
         <button
           type="button"
-          className={mode === "generate" ? "sites-effect is-on is-allow" : "sites-effect"}
+          className={
+            mode === "generate" ? "sites-effect is-on is-allow" : "sites-effect"
+          }
           onClick={() => setMode("generate")}
         >
           Generate
         </button>
         <button
           type="button"
-          className={mode === "provide" ? "sites-effect is-on is-allow" : "sites-effect"}
+          className={
+            mode === "provide" ? "sites-effect is-on is-allow" : "sites-effect"
+          }
           onClick={() => setMode("provide")}
         >
           Enter
         </button>
-      </div>
+      </fieldset>
       {mode === "provide" ? (
         <input
           type="password"

@@ -1,8 +1,8 @@
 import type { AuditActorType, AuditOutcome } from "@opensesame/os-domain";
 import {
-  appendAuditEvent,
   type AppendAuditEventInput,
   type AuditSink,
+  appendAuditEvent,
 } from "./append.js";
 import { redactAuditMetadata } from "./redact.js";
 
@@ -136,10 +136,7 @@ export async function recordSecretChangelog(
 /** Filter a trail to changelog event types (and optional project). */
 export function filterSecretChangelogEvents<
   T extends { eventType: string; projectId?: string },
->(
-  events: readonly T[],
-  options?: { projectId?: string; limit?: number },
-): T[] {
+>(events: readonly T[], options?: { projectId?: string; limit?: number }): T[] {
   let out = events.filter((e) => isSecretChangelogEventType(e.eventType));
   if (options?.projectId) {
     out = out.filter((e) => e.projectId === options.projectId);

@@ -14,7 +14,9 @@ describe("renderAuthMd", () => {
   it("matches snapshot and omits secrets", () => {
     const md = renderAuthMd(authConfig);
     expect(md).toMatchSnapshot();
-    expect(md).not.toMatch(/\bsk_live\b|BEGIN PRIVATE KEY|Bearer [A-Za-z0-9\-_]{20,}/u);
+    expect(md).not.toMatch(
+      /\bsk_live\b|BEGIN PRIVATE KEY|Bearer [A-Za-z0-9\-_]{20,}/u,
+    );
     expect(md).toContain("/device");
     expect(md).toContain("/claim");
     expect(md.toLowerCase()).toContain("never embed");

@@ -87,7 +87,10 @@ export function capabilityDef(id: CapabilityId): CapabilityDef {
 }
 
 export function normalizeCapabilityConnectors(
-  raw: Partial<Record<CapabilityId, Partial<CapabilityConnectorBinding>>> | null | undefined,
+  raw:
+    | Partial<Record<CapabilityId, Partial<CapabilityConnectorBinding>>>
+    | null
+    | undefined,
 ): CapabilityConnectorMap {
   const defaults = defaultCapabilityConnectors();
   const out = { ...defaults };

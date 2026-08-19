@@ -497,8 +497,6 @@ export async function ensureHostSession(): Promise<HostSession> {
   const pending = pendingHostSession;
   try {
     return await pending;
-  } catch (error) {
-    throw error;
   } finally {
     if (pendingHostSession === pending) pendingHostSession = null;
   }

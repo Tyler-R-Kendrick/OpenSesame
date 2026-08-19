@@ -138,14 +138,14 @@ export function App() {
       <section className="identity" aria-label="Identity">
         <h2>Identity</h2>
         {session ? (
-          <p role="status">
+          <output>
             {session.anonymous
               ? `Guest session active (${session.sub ?? "provisional principal"}). `
               : `Signed in as ${session.sub ?? "unknown"}. `}
             {session.anonymous
               ? "This session is provisional — claim it later in the console to keep the same principal id."
               : null}
-          </p>
+          </output>
         ) : (
           <p>
             No session. Continue as a guest — no account needed. Claiming later
@@ -209,9 +209,9 @@ export function App() {
         </li>
       </ul>
       {hostOk === false ? (
-        <p className="hint" role="status">
+        <output className="hint">
           Host API is unreachable. Start the gateway on {hostApi}, then retry.
-        </p>
+        </output>
       ) : null}
       <div className="actions">
         <button

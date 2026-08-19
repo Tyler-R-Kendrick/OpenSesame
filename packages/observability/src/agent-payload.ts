@@ -25,9 +25,9 @@ function localSecrets(env: NodeJS.ProcessEnv = process.env): string[] {
     env.OPENSESAME_IDENTITY_TOKEN,
     env.OPENSESAME_CLAIM_PEPPER,
   ].map((value) => value?.trim() ?? "");
-  const bare = configured
-    .map((value) => value.replace(/^opaque-session:/, ""))
-    .filter((value) => !configured.includes(value));
+  const bare = configured.flatMap((value) =>
+    value.startsWith("opaque-session:") ? [value.slice(15)] : [],
+  );
   return [...configured, ...bare]
     .filter((value) => value.length >= 8)
     .sort((a, b) => b.length - a.length);

@@ -31,7 +31,10 @@ test.describe("opensesame extension surface", () => {
     });
     expect(res.ok()).toBeTruthy();
     const json = await res.json();
-    expect(json.connections[0].connection_ref).toMatch(/^conn:\/\//);
+    expect(Array.isArray(json.connections)).toBeTruthy();
+    for (const connection of json.connections) {
+      expect(connection.connection_ref).toMatch(/^conn:\/\//);
+    }
     expect(JSON.stringify(json)).not.toMatch(/secret:\/\//);
   });
 });

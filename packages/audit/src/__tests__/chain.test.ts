@@ -66,13 +66,15 @@ describe("audit chain", () => {
     const sink = createChainedAuditSink(store);
     await appendAuditEvent(sink, { eventType: "a.one", outcome: "denied" });
     await appendAuditEvent(sink, { eventType: "a.two", outcome: "succeeded" });
+    const first = store.rows[0];
+    if (!first) throw new Error("audit event was not appended");
     // The shape a cover-up takes: a refusal rewritten as a success.
-    store.rows[0]!.outcome = "succeeded";
+    first.outcome = "succeeded";
     const verdict = verifyAuditChain(store.rows);
     expect(verdict).toMatchObject({
       ok: false,
       reason: "altered",
-      eventId: store.rows[0]!.id,
+      eventId: first.id,
     });
   });
 
@@ -85,11 +87,14 @@ describe("audit chain", () => {
       eventType: "a.three",
       outcome: "succeeded",
     });
-    const withoutMiddle = [store.rows[0]!, store.rows[2]!];
+    const first = store.rows[0];
+    const third = store.rows[2];
+    if (!first || !third) throw new Error("audit events were not appended");
+    const withoutMiddle = [first, third];
     expect(verifyAuditChain(withoutMiddle)).toMatchObject({
       ok: false,
       reason: "broken",
-      eventId: store.rows[2]!.id,
+      eventId: third.id,
     });
   });
 

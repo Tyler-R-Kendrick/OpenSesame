@@ -1,7 +1,7 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
-import { bodyLimit } from "hono/body-limit";
 import type { AppContext } from "./context.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { type Variables, withContext } from "./middleware/context.js";

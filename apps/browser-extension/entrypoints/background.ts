@@ -2,7 +2,10 @@
  * Extension background: Host API + client-core sync cursor + optional daemon.
  * Never exposes getSecret to webpages.
  */
-import { createApiClient, normalizeLoopbackBaseUrl } from "@opensesame/api-client";
+import {
+  createApiClient,
+  normalizeLoopbackBaseUrl,
+} from "@opensesame/api-client";
 import { createCursor, persistSealedStore } from "@opensesame/client-core";
 
 const DEFAULT_HOST = "http://127.0.0.1:8787";

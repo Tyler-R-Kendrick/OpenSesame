@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CAPABILITIES,
+  capabilityDef,
   connectorLabel,
   defaultCapabilityConnectors,
   normalizeCapabilityConnectors,
@@ -49,5 +50,68 @@ describe("capability connectors", () => {
 
   it("labels the device encryption key vault clearly", () => {
     expect(connectorLabel("webcrypto")).toMatch(/WebCrypto/i);
+  });
+});
+
+describe("capability definitions", () => {
+  it("resolves known capabilities and rejects unknown ids", () => {
+    expect(capabilityDef("encryption").connectorIds).toContain("webcrypto");
+    expect(capabilityDef("history").connectorIds).toContain("github");
+    expect(() => capabilityDef("nope" as never)).toThrow(/unknown capability/);
+  });
+
+  it("requires auth for cloud key vaults but not device-local ones", () => {
+    const encryption = capabilityDef("encryption");
+    expect(encryption.requiresAuth("webcrypto")).toBe(false);
+    expect(encryption.requiresAuth("sealed-local")).toBe(false);
+    expect(encryption.requiresAuth("age")).toBe(true);
+    expect(encryption.requiresAuth("aws-kms")).toBe(true);
+    expect(encryption.authScopes?.("aws-kms")).toBeUndefined();
+  });
+
+  it("scopes GitLab history auth and leaves other connectors scopeless", () => {
+    const history = capabilityDef("history");
+    expect(history.requiresAuth("gitlab")).toBe(true);
+    expect(history.authScopes?.("gitlab")).toEqual(["read_user", "api"]);
+    expect(history.authScopes?.("password-store")).toBeUndefined();
+  });
+
+  it("labels every built-in connector and falls back to the raw id", () => {
+    const labels: Array<[string, string]> = [
+      ["webcrypto", "WebCrypto (this device)"],
+      ["sealed-local", "Sealed local (Host)"],
+      ["password-store", "Local git password-store"],
+      ["aws-kms", "AWS KMS"],
+      ["azure-key-vault-keys", "Azure Key Vault"],
+      ["gcp-kms", "Google Cloud KMS"],
+      ["github", "GitHub"],
+      ["gitlab", "GitLab"],
+    ];
+    for (const [id, label] of labels) {
+      expect(connectorLabel(id)).toBe(label);
+    }
+    expect(connectorLabel("acme-vault")).toBe("acme-vault");
+  });
+
+  it("drops blank connection ids and remotes during normalization", () => {
+    const next = normalizeCapabilityConnectors({
+      encryption: { providerId: "age", connectionId: "   ", remote: "" },
+      history: {},
+    });
+    expect(next.encryption).toEqual({ providerId: "age" });
+    expect(next.history.providerId).toBe("github");
+    expect(normalizeCapabilityConnectors(undefined)).toEqual(
+      defaultCapabilityConnectors(),
+    );
+    expect(normalizeCapabilityConnectors(null).encryption.providerId).toBe(
+      "webcrypto",
+    );
+  });
+
+  it("keeps a trimmed connection id when one is present", () => {
+    const next = normalizeCapabilityConnectors({
+      encryption: { providerId: "age", connectionId: "  conn_9  " },
+    });
+    expect(next.encryption.connectionId).toBe("conn_9");
   });
 });

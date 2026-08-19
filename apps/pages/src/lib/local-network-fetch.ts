@@ -10,7 +10,9 @@ export type TargetAddressSpace = "local" | "loopback" | "public";
 const DEFAULT_MS = 4000;
 
 /** Classify a URL for RequestInit.targetAddressSpace when the browser supports LNA. */
-export function targetAddressSpaceFor(url: string): TargetAddressSpace | undefined {
+export function targetAddressSpaceFor(
+  url: string,
+): TargetAddressSpace | undefined {
   let host: string;
   try {
     host = new URL(url, "https://example.invalid").hostname.toLowerCase();
@@ -75,8 +77,12 @@ export async function localNetworkFetch(
   input: string,
   init: LocalNetworkFetchInit = {},
 ): Promise<Response> {
-  const { timeoutMs = DEFAULT_MS, skipAddressSpace, signal: outer, ...rest } =
-    init;
+  const {
+    timeoutMs = DEFAULT_MS,
+    skipAddressSpace,
+    signal: outer,
+    ...rest
+  } = init;
   const space = skipAddressSpace ? undefined : targetAddressSpaceFor(input);
   const controller = new AbortController();
   const onOuterAbort = () => controller.abort(outer?.reason);
@@ -85,7 +91,9 @@ export async function localNetworkFetch(
     else outer.addEventListener("abort", onOuterAbort, { once: true });
   }
   const timer = setTimeout(() => {
-    controller.abort(new DOMException(`Timed out after ${timeoutMs}ms`, "TimeoutError"));
+    controller.abort(
+      new DOMException(`Timed out after ${timeoutMs}ms`, "TimeoutError"),
+    );
   }, timeoutMs);
   try {
     const requestInit: RequestInit = {
@@ -94,8 +102,9 @@ export async function localNetworkFetch(
     };
     if (space) {
       // Not in all TypeScript DOM libs yet; browsers that ignore it are fine.
-      (requestInit as RequestInit & { targetAddressSpace?: string }).targetAddressSpace =
-        space;
+      (
+        requestInit as RequestInit & { targetAddressSpace?: string }
+      ).targetAddressSpace = space;
     }
     return await fetch(input, requestInit);
   } finally {

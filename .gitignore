@@ -15,6 +15,9 @@ dist/
 *.key
 !**/fixtures/**/*.pem
 coverage/
+.stryker-tmp/
+# Keep curated seeds; ignore libFuzzer's local coverage discoveries.
+fuzz/corpus/*/[0-9a-f]*
 *.tsbuildinfo
 .turbo/
 .headroom-cache/
@@ -36,4 +39,3 @@ package-lock.json
 .deepsec/findings/
 .deepsec/data/*/debug/
 .serena/
-

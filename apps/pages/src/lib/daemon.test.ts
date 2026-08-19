@@ -82,3 +82,140 @@ describe("daemon pairing", () => {
     expect(settings.identityApi).toBe(shippedIdentityApi);
   });
 });
+
+describe("daemon probing", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("maps health and falls back to documented loopback defaults", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(Response.json({ service: "opensesame-daemon" })),
+      ),
+    );
+    await expect(probeDaemon("http://127.0.0.1:18790")).resolves.toEqual({
+      status: "ok",
+      service: "opensesame-daemon",
+      hostApi: "http://127.0.0.1:8787",
+      identityApi: "http://127.0.0.1:8788",
+      tailscaleUrl: null,
+    });
+  });
+
+  it("rejects a non-OK answer and a foreign service on the daemon port", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response("no", { status: 502 }))),
+    );
+    await expect(probeDaemon("http://127.0.0.1:18790")).rejects.toThrow(
+      /Daemon 502/,
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(Response.json({ service: "something-else" })),
+      ),
+    );
+    await expect(probeDaemon("http://127.0.0.1:18790")).rejects.toThrow(
+      /not an OpenSesame daemon/,
+    );
+  });
+});
+
+describe("daemon pairing fallbacks", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("keeps the loopback daemon address when no Serve URL is advertised", async () => {
+    vi.stubGlobal("location", {
+      hostname: "localhost",
+      href: "http://localhost:5180/OpenSesame/",
+    });
+    saveSettings({
+      hostApi: "http://127.0.0.1:23456",
+      identityApi: "http://127.0.0.1:29999",
+      daemonApi: "",
+      tursoUrl: "",
+      mfaAppUrl: "",
+      capabilityConnectors: {
+        encryption: { providerId: "webcrypto" },
+        history: { providerId: "github" },
+      },
+    });
+    await applyDaemonPairing("http://127.0.0.1:18790", {
+      status: "ok",
+      service: "opensesame-daemon",
+      hostApi: "https://unreachable.example",
+      identityApi: "https://unreachable.example",
+      tailscaleUrl: null,
+    });
+    const settings = loadSettings();
+    expect(settings.daemonApi).toBe("http://127.0.0.1:18790");
+    // Advertised non-loopback planes are useless here — keep the working ones.
+    expect(settings.hostApi).toBe("http://127.0.0.1:23456");
+    expect(settings.identityApi).toBe("http://127.0.0.1:29999");
+  });
+
+  it("falls back to the shipped loopback planes when nothing usable is known", async () => {
+    vi.stubGlobal("location", {
+      hostname: "127.0.0.1",
+      href: "http://127.0.0.1:5180/OpenSesame/",
+    });
+    saveSettings({
+      hostApi: "https://remote-only.example",
+      identityApi: "https://remote-only.example",
+      daemonApi: "",
+      tursoUrl: "",
+      mfaAppUrl: "",
+      capabilityConnectors: {
+        encryption: { providerId: "webcrypto" },
+        history: { providerId: "github" },
+      },
+    });
+    await applyDaemonPairing("http://127.0.0.1:18790", {
+      status: "ok",
+      service: "opensesame-daemon",
+      hostApi: "",
+      identityApi: "",
+      tailscaleUrl: null,
+    });
+    const settings = loadSettings();
+    expect(settings.hostApi).toBe(shippedHostApi);
+    expect(settings.identityApi).toBe(shippedIdentityApi);
+  });
+
+  it("never persists loopback Host endpoints on a remote page", async () => {
+    vi.stubGlobal("location", {
+      hostname: "me.github.io",
+      href: "https://me.github.io/OpenSesame/",
+    });
+    saveSettings({
+      hostApi: "https://kept.example/host",
+      identityApi: "https://kept.example/identity",
+      daemonApi: "",
+      tursoUrl: "",
+      mfaAppUrl: "",
+      capabilityConnectors: {
+        encryption: { providerId: "webcrypto" },
+        history: { providerId: "github" },
+      },
+    });
+    await applyDaemonPairing("http://127.0.0.1:18790", {
+      status: "ok",
+      service: "opensesame-daemon",
+      hostApi: "http://127.0.0.1:8787",
+      identityApi: "http://127.0.0.1:8788",
+      tailscaleUrl: null,
+    });
+    const settings = loadSettings();
+    expect(settings.hostApi).toBe("https://kept.example/host");
+    expect(settings.identityApi).toBe("https://kept.example/identity");
+    expect(settings.daemonApi).toBe("http://127.0.0.1:18790");
+    expect(hasRemoteHostPairing(settings)).toBe(true);
+  });
+});

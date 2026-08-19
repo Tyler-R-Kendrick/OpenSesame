@@ -3,18 +3,22 @@
  * Requires a previously issued challenge that matches clientDataJSON.challenge.
  */
 import {
+  type AuthenticatorTransportFuture,
+  type GenerateAuthenticationOptionsOpts,
   generateAuthenticationOptions,
   generateRegistrationOptions,
   verifyAuthenticationResponse,
   verifyRegistrationResponse,
-  type AuthenticatorTransportFuture,
-  type GenerateAuthenticationOptionsOpts,
 } from "@simplewebauthn/server";
 import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
 } from "@simplewebauthn/server";
-import type { PasskeyAssertion, PasskeyCredential, PasskeyVerifyFn } from "./passkey.js";
+import type {
+  PasskeyAssertion,
+  PasskeyCredential,
+  PasskeyVerifyFn,
+} from "./passkey.js";
 
 function toBase64Url(bytes: Uint8Array): string {
   return Buffer.from(bytes)
@@ -61,7 +65,9 @@ export function createMemoryChallengeStore(): PasskeyChallengeStore {
         // Evict the issuer's own oldest challenge first. Dropping whatever is
         // oldest globally would let one principal, by asking for challenges in
         // bulk, knock another principal's ceremony out of the store mid-login.
-        const own = [...map].find(([, row]) => row.principalId === meta.principalId);
+        const own = [...map].find(
+          ([, row]) => row.principalId === meta.principalId,
+        );
         const victim = own?.[0] ?? map.keys().next().value;
         if (victim !== undefined) map.delete(victim);
       }

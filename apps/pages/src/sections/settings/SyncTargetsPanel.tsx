@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  deleteSyncTarget,
-  formatSyncTargetSummary,
-  listSyncTargets,
-  syncTarget,
-  type SyncTarget,
-} from "../../lib/sync-targets.js";
+import { IconAlert, IconCheck } from "../../components/Icons.js";
 import {
   ensureHostSession,
   hostLocalSessionEligible,
   useIdentitySession,
 } from "../../lib/identity.js";
+import {
+  type SyncTarget,
+  deleteSyncTarget,
+  formatSyncTargetSummary,
+  listSyncTargets,
+  syncTarget,
+} from "../../lib/sync-targets.js";
 import { useOnline } from "../../lib/use-online.js";
-import { IconAlert, IconCheck } from "../../components/Icons.js";
 
 type Flash = { tone: "ok" | "err" | "warn"; text: string };
 
@@ -61,7 +61,9 @@ export function SyncTargetsPanel() {
     try {
       const outcome = await syncTarget(target.id);
       setTargets((prev) =>
-        prev.map((row) => (row.id === outcome.target.id ? outcome.target : row)),
+        prev.map((row) =>
+          row.id === outcome.target.id ? outcome.target : row,
+        ),
       );
       setFlash({
         tone: outcome.ok ? "ok" : "err",
@@ -117,9 +119,9 @@ export function SyncTargetsPanel() {
       </div>
 
       {!online ? (
-        <p className="note note--warn" role="status">
+        <output className="note note--warn">
           <IconAlert /> Offline — sync requires Host.
-        </p>
+        </output>
       ) : null}
 
       {flash ? (
@@ -134,9 +136,8 @@ export function SyncTargetsPanel() {
 
       {targets.length === 0 && !loading ? (
         <p className="hint">
-          No sync targets yet. Create them via Host API against an active
-          Vercel or Railway connection (
-          <code>POST /api/v1/sync-targets</code>).
+          No sync targets yet. Create them via Host API against an active Vercel
+          or Railway connection (<code>POST /api/v1/sync-targets</code>).
         </p>
       ) : (
         <ul className="list">

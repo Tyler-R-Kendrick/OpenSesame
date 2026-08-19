@@ -22,3 +22,22 @@ describe("detectWebAuthn", () => {
     ).resolves.toBe("partial");
   });
 });
+
+describe("detectWebAuthn failure modes", () => {
+  it("reports partial when the availability probe throws", async () => {
+    await expect(
+      detectWebAuthn({
+        isUserVerifyingPlatformAuthenticatorAvailable: async () => {
+          throw new Error("not implemented");
+        },
+      }),
+    ).resolves.toBe("partial");
+  });
+});
+
+describe("detectWebAuthn defaults", () => {
+  it("probes the ambient PublicKeyCredential when none is passed", async () => {
+    // Node has no WebAuthn API, so the default argument resolves to missing.
+    await expect(detectWebAuthn()).resolves.toBe("missing");
+  });
+});

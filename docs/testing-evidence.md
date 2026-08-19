@@ -1,6 +1,8 @@
 # Testing evidence
 
 See also `docs/validation/identity-testing-evidence.md`.
+The current cross-language coverage and test-type matrix is in
+`docs/validation/test-coverage.md`.
 
 ## Commands (2026-08-07)
 

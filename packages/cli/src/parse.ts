@@ -79,7 +79,8 @@ export function parseArgs(argv: string[]): ParsedCommand {
     const device = takeFlag(args, "--device");
     const loopback = takeFlag(args, "--loopback");
     const noBrowser = takeFlag(args, "--no-browser");
-    const anonymous = takeFlag(args, "--anonymous") || takeFlag(args, "--guest");
+    const anonymous =
+      takeFlag(args, "--anonymous") || takeFlag(args, "--guest");
     const qr = takeFlag(args, "--qr");
     const noQr = takeFlag(args, "--no-qr");
     let mode: "device" | "loopback" | "anonymous" | "auto" = "auto";

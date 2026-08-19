@@ -33,7 +33,8 @@ export type SyncTargetOutcome = {
   error?: string | null;
 };
 
-const FORBIDDEN_KEYS = /^(value|secret|password|token|access_token|refresh_token)$/i;
+const FORBIDDEN_KEYS =
+  /^(value|secret|password|token|access_token|refresh_token)$/i;
 
 function assertNoSecretLeak(value: unknown, path = "response"): void {
   if (value === null || value === undefined) return;
@@ -48,7 +49,9 @@ function assertNoSecretLeak(value: unknown, path = "response"): void {
     return;
   }
   if (typeof value === "object") {
-    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    for (const [key, nested] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
       if (FORBIDDEN_KEYS.test(key)) {
         throw new Error(`${path} contained forbidden key ${key}`);
       }
@@ -122,16 +125,16 @@ export async function listSyncTargets(options?: {
   if (options?.projectId) params.set("project_id", options.projectId);
   if (options?.configId) params.set("config_id", options.configId);
   const qs = params.toString();
-  const res = await hostFetch(
-    `/api/v1/sync-targets${qs ? `?${qs}` : ""}`,
-  );
+  const res = await hostFetch(`/api/v1/sync-targets${qs ? `?${qs}` : ""}`);
   if (!res.ok) {
     throw new Error(`List sync targets failed (${res.status}).`);
   }
   const body = (await res.json()) as { sync_targets?: unknown[] };
   assertNoSecretLeak(body);
   const targets = (body.sync_targets ?? [])
-    .filter((row): row is Record<string, unknown> => !!row && typeof row === "object")
+    .filter(
+      (row): row is Record<string, unknown> => !!row && typeof row === "object",
+    )
     .map(normalizeTarget);
   assertNoSecretLeak(targets);
   return targets;
@@ -153,7 +156,9 @@ export async function createSyncTarget(input: {
     }),
   });
   if (!res.ok) {
-    const err = (await res.json().catch(() => null)) as { hint?: string } | null;
+    const err = (await res.json().catch(() => null)) as {
+      hint?: string;
+    } | null;
     throw new Error(err?.hint ?? `Create sync target failed (${res.status}).`);
   }
   const body = (await res.json()) as Record<string, unknown>;
@@ -164,9 +169,12 @@ export async function createSyncTarget(input: {
 }
 
 export async function deleteSyncTarget(id: string): Promise<void> {
-  const res = await hostFetch(`/api/v1/sync-targets/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
+  const res = await hostFetch(
+    `/api/v1/sync-targets/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+    },
+  );
   if (!res.ok && res.status !== 204) {
     throw new Error(`Delete sync target failed (${res.status}).`);
   }
@@ -195,7 +203,9 @@ export async function syncTarget(
   return outcome;
 }
 
-export async function syncAllForConfig(configId: string): Promise<SyncTargetOutcome[]> {
+export async function syncAllForConfig(
+  configId: string,
+): Promise<SyncTargetOutcome[]> {
   const res = await hostFetch("/api/v1/sync-targets/sync-all", {
     method: "POST",
     body: JSON.stringify({ config_id: configId }),
@@ -206,18 +216,16 @@ export async function syncAllForConfig(configId: string): Promise<SyncTargetOutc
   const body = (await res.json()) as { outcomes?: unknown[] };
   assertNoSecretLeak(body);
   const outcomes = (body.outcomes ?? [])
-    .filter((row): row is Record<string, unknown> => !!row && typeof row === "object")
+    .filter(
+      (row): row is Record<string, unknown> => !!row && typeof row === "object",
+    )
     .map(normalizeOutcome);
   assertNoSecretLeak(outcomes);
   return outcomes;
 }
 
 export function formatSyncTargetSummary(target: SyncTarget): string {
-  const parts = [
-    target.providerId,
-    target.operation,
-    target.status,
-  ];
+  const parts = [target.providerId, target.operation, target.status];
   if (target.contentVersion) parts.push(`v ${target.contentVersion}`);
   if (target.statusDetail) parts.push(target.statusDetail);
   return parts.join(" · ");

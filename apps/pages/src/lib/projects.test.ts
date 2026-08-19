@@ -102,3 +102,74 @@ describe("project registry", () => {
     expect(projectScopedKeys(PERSONAL_PROJECT_ID)).toContain("vault.header.v1");
   });
 });
+
+describe("project registry sanitization", () => {
+  it("falls back to defaults for non-object and malformed entries", async () => {
+    const { subscribeProjects } = await import("./projects.js");
+
+    kvSet(PROJECTS_KEY, JSON.stringify("just a string"));
+    rehydrateProjects();
+    expect(listProjects().map((p) => p.id)).toEqual([PERSONAL_PROJECT_ID]);
+
+    kvSet(
+      PROJECTS_KEY,
+      JSON.stringify({
+        v: 1,
+        activeId: "prj_b",
+        projects: [
+          null,
+          "junk",
+          { id: 42, name: "no" },
+          { id: "prj_a", name: "Alpha" },
+          { id: PERSONAL_PROJECT_ID, name: "Forged Personal" },
+          { id: "prj_b", name: "Beta", createdAt: "2026-01-01T00:00:00Z" },
+        ],
+      }),
+    );
+    rehydrateProjects();
+    const state = projectsState();
+    // The personal project always exists exactly once, and first.
+    expect(state.projects.map((p) => p.id)).toEqual([
+      PERSONAL_PROJECT_ID,
+      "prj_a",
+      "prj_b",
+    ]);
+    // Malformed entries get repaired rather than trusted.
+    expect(state.projects[1]).toMatchObject({
+      kind: "standard",
+      createdAt: new Date(0).toISOString(),
+    });
+    expect(state.activeId).toBe("prj_b");
+  });
+
+  it("notifies subscribers on rehydration and unsubscribes cleanly", async () => {
+    const { subscribeProjects } = await import("./projects.js");
+    let calls = 0;
+    const unsubscribe = subscribeProjects(() => {
+      calls += 1;
+    });
+    rehydrateProjects();
+    expect(calls).toBe(1);
+    unsubscribe();
+    rehydrateProjects();
+    expect(calls).toBe(1);
+  });
+
+  it("refuses an empty rename and unknown or no-op swaps", async () => {
+    const project = await createProject("Work");
+    await expect(renameProject(project.id, "  ")).rejects.toThrow(/name/);
+    await expect(setActiveProject("prj_gone")).rejects.toThrow(
+      /no longer exists/,
+    );
+    // Swapping to the already-active project is a no-op, not an error.
+    await expect(
+      setActiveProject(PERSONAL_PROJECT_ID),
+    ).resolves.toBeUndefined();
+    expect(activeProject().id).toBe(PERSONAL_PROJECT_ID);
+  });
+
+  it("ignores deletion of a project that is not there", async () => {
+    await expect(deleteProject("prj_gone")).resolves.toBeUndefined();
+    expect(listProjects().map((p) => p.id)).toEqual([PERSONAL_PROJECT_ID]);
+  });
+});

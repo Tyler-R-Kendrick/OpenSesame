@@ -1,17 +1,10 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertNoSecretFields, assertSourceOrder } from "@opensesame/testing";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  assertNoSecretFields,
-  assertSourceOrder,
-} from "@opensesame/testing";
 import { AgentPayloadRefused, forAgent } from "./agent-payload.js";
-import {
-  hostFetch,
-  resetFetchForTests,
-  setFetchForTests,
-} from "./host-api.js";
+import { hostFetch, resetFetchForTests, setFetchForTests } from "./host-api.js";
 import { assertsNoSecretTools, hostTools } from "./tools.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -19,8 +12,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 describe("PACT — mcp-host", () => {
   afterEach(() => {
     resetFetchForTests();
-    delete process.env.OPENSESAME_SERVER;
-    delete process.env.OPENSESAME_OPERATOR_TOKEN;
+    Reflect.deleteProperty(process.env, "OPENSESAME_SERVER");
+    Reflect.deleteProperty(process.env, "OPENSESAME_OPERATOR_TOKEN");
   });
 
   it("property: catalog names stay free of secret verbs", () => {
@@ -39,9 +32,9 @@ describe("PACT — mcp-host", () => {
       "OPENSESAME_HOST_AUDIENCE",
       "does not match OPENSESAME_HOST_AUDIENCE",
     ]);
-    expect(() =>
-      forAgent(JSON.stringify({ refresh_token: "leak" })),
-    ).toThrow(AgentPayloadRefused);
+    expect(() => forAgent(JSON.stringify({ refresh_token: "leak" }))).toThrow(
+      AgentPayloadRefused,
+    );
   });
 
   it("chaos: Host partition maps to host_unavailable, not an open tool", async () => {

@@ -27,7 +27,9 @@ describe("mock-upstream-idp", () => {
       res.writeHead(200);
       res.end(req.url ?? "");
     });
-    await new Promise<void>((resolve) => cbServer.listen(addr.port + 1, "127.0.0.1", () => resolve()));
+    await new Promise<void>((resolve) =>
+      cbServer.listen(addr.port + 1, "127.0.0.1", () => resolve()),
+    );
     const cbAddr = cbServer.address();
     if (!cbAddr || typeof cbAddr === "string") throw new Error("no cb address");
     const redirectUri = `http://127.0.0.1:${cbAddr.port}/cb`;
@@ -61,7 +63,9 @@ describe("mock-upstream-idp", () => {
       expect(noPkceRes.status).toBe(400);
 
       const verifier = randomBytes(32).toString("base64url");
-      const challenge = createHash("sha256").update(verifier).digest("base64url");
+      const challenge = createHash("sha256")
+        .update(verifier)
+        .digest("base64url");
 
       const authUrl = new URL(`${base}/authorize`);
       authUrl.searchParams.set("client_id", idp.config.clientId);
@@ -76,16 +80,16 @@ describe("mock-upstream-idp", () => {
       const authRes = await fetch(authUrl, { redirect: "manual" });
       expect(authRes.status).toBe(302);
       const location = authRes.headers.get("location");
-      expect(location).toBeTruthy();
-      const code = new URL(location!).searchParams.get("code");
-      expect(code).toBeTruthy();
+      if (!location) throw new Error("authorize response omitted location");
+      const code = new URL(location).searchParams.get("code");
+      if (!code) throw new Error("authorize response omitted code");
 
       const badVerifier = await fetch(`${base}/token`, {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
           grant_type: "authorization_code",
-          code: code!,
+          code,
           redirect_uri: redirectUri,
           client_id: idp.config.clientId,
           client_secret: idp.config.clientSecret,
@@ -102,14 +106,17 @@ describe("mock-upstream-idp", () => {
       authUrl2.searchParams.set("code_challenge", challenge);
       authUrl2.searchParams.set("code_challenge_method", "S256");
       const authRes2 = await fetch(authUrl2, { redirect: "manual" });
-      const code2 = new URL(authRes2.headers.get("location")!).searchParams.get("code");
+      const location2 = authRes2.headers.get("location");
+      if (!location2) throw new Error("authorize response omitted location");
+      const code2 = new URL(location2).searchParams.get("code");
+      if (!code2) throw new Error("authorize response omitted code");
 
       const tokenRes = await fetch(`${base}/token`, {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
           grant_type: "authorization_code",
-          code: code2!,
+          code: code2,
           redirect_uri: redirectUri,
           client_id: idp.config.clientId,
           client_secret: idp.config.clientSecret,
@@ -117,7 +124,10 @@ describe("mock-upstream-idp", () => {
         }),
       });
       expect(tokenRes.status).toBe(200);
-      const tokens = (await tokenRes.json()) as { id_token: string; access_token: string };
+      const tokens = (await tokenRes.json()) as {
+        id_token: string;
+        access_token: string;
+      };
       expect(tokens.id_token.split(".")).toHaveLength(3);
       expect(tokens.access_token).toMatch(/^mock-access-/);
     } finally {

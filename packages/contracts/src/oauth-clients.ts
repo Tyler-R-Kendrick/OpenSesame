@@ -37,16 +37,15 @@ export function isAllowedRedirectUri(raw: string): boolean {
   if (scheme === "https") return true;
   if (scheme === "http") return LOOPBACK_HOSTS.has(url.hostname.toLowerCase());
   // Private-use scheme for native apps: must be a reverse-DNS style scheme.
-  return scheme.includes(".") && !scheme.startsWith(".") && !scheme.endsWith(".");
+  return (
+    scheme.includes(".") && !scheme.startsWith(".") && !scheme.endsWith(".")
+  );
 }
 
-export const RedirectUriSchema = z
-  .string()
-  .url()
-  .refine(isAllowedRedirectUri, {
-    message:
-      "redirect_uri must be https, http on loopback, or a private-use scheme; no fragment or credentials",
-  });
+export const RedirectUriSchema = z.string().url().refine(isAllowedRedirectUri, {
+  message:
+    "redirect_uri must be https, http on loopback, or a private-use scheme; no fragment or credentials",
+});
 
 /**
  * A sector identifier decides which pairwise subject a client sees, so it is not
@@ -67,10 +66,12 @@ export function isAllowedSectorIdentifier(raw: string): boolean {
   return url.hostname.length > 0;
 }
 
-export const SectorIdentifierSchema = z.string().refine(isAllowedSectorIdentifier, {
-  message:
-    "sectorIdentifier must be an https URL without query, fragment, or credentials",
-});
+export const SectorIdentifierSchema = z
+  .string()
+  .refine(isAllowedSectorIdentifier, {
+    message:
+      "sectorIdentifier must be an https URL without query, fragment, or credentials",
+  });
 
 /**
  * Grant and response types this issuer will honour.

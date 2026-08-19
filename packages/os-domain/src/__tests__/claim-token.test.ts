@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  CROCKFORD_ALPHABET,
   constantTimeEqual,
   digestClaimToken,
+  digestUserCode,
   generateClaimToken,
   generateUserCode,
   normalizeUserCode,
   parseClaimToken,
   verifyClaimToken,
   verifyUserCode,
-  digestUserCode,
-  CROCKFORD_ALPHABET,
 } from "../index.js";
 import { fixtures } from "./fixtures.js";
 
@@ -25,16 +25,19 @@ describe("claim token digest", () => {
   it("verifies with constant-time compare", () => {
     const t = generateClaimToken(fixtures.pepper);
     expect(verifyClaimToken(fixtures.pepper, t.token, t.digest)).toBe(true);
-    expect(verifyClaimToken(fixtures.pepper, t.token + "x", t.digest)).toBe(false);
+    expect(verifyClaimToken(fixtures.pepper, `${t.token}x`, t.digest)).toBe(
+      false,
+    );
     expect(verifyClaimToken("other-pepper", t.token, t.digest)).toBe(false);
   });
 
   it("purpose prefix changes digest", () => {
     const t = generateClaimToken(fixtures.pepper, "pid");
     const again = digestClaimToken(fixtures.pepper, t.token);
-    expect(again).not.toBeNull();
-    expect(constantTimeEqual(again!, t.digest)).toBe(true);
-    const parsed = parseClaimToken(t.token)!;
+    if (!again) throw new Error("generated claim token did not digest");
+    expect(constantTimeEqual(again, t.digest)).toBe(true);
+    const parsed = parseClaimToken(t.token);
+    if (!parsed) throw new Error("generated claim token did not parse");
     expect(parsed.publicId).toBe("pid");
   });
 
@@ -62,7 +65,9 @@ describe("user codes", () => {
         digest,
       ),
     ).toBe(true);
-    expect(verifyUserCode(fixtures.pepper, "clm_1", "XXXX-XXXX", digest)).toBe(false);
+    expect(verifyUserCode(fixtures.pepper, "clm_1", "XXXX-XXXX", digest)).toBe(
+      false,
+    );
   });
 
   it("binds the digest to one claim", () => {

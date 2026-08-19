@@ -19,7 +19,13 @@
         "scheme": "https"
       },
       "id": "github",
-      "operations": ["repository.read", "contents.write", "git.push", "pull_request.create", "issue.create"],
+      "operations": [
+        "repository.read",
+        "contents.write",
+        "git.push",
+        "pull_request.create",
+        "issue.create"
+      ],
       "provenance_url": "https://docs.github.com/apps/oauth-apps",
       "scopes": [
         {

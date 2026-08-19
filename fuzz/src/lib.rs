@@ -22,7 +22,6 @@ use opensesame_connection_broker::github_webhook_hmac::{
 use opensesame_authz::{
     callout_permissions, evaluate_callout, permissions_include_system, CalloutEval,
 };
-use opensesame_task_bus::validate_nats_url;
 use opensesame_domain::{
     canonicalize_json, digest_json, resource_pattern_matches, ActorId, ActorInstanceId,
     Capability, CapabilitySet, ClaimSession, ClaimSessionId, ClaimState, DowngradePolicy, Grant,
@@ -741,6 +740,7 @@ pub fn fuzz_caps(set: impl IntoIterator<Item = Capability>) -> CapabilitySet {
 mod oracle_smoke {
     use super::*;
     use crate::types::{GithubWebhookHmacInput, NatsCalloutEvalInput};
+    use opensesame_task_bus::validate_nats_url;
 
     #[test]
     fn taskbus_url_oracle_accepts_nats_rejects_http() {

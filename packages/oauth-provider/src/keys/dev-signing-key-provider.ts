@@ -13,7 +13,10 @@ export class EnvSigningKeyProvider implements SigningKeyProvider {
   private parse(): { keys: JsonWebKey[]; kid: string } {
     const raw = this.env.OPENSESAME_JWKS_JSON;
     if (!raw) {
-      if (this.allowEmptyDev && (this.env.NODE_ENV ?? "development") !== "production") {
+      if (
+        this.allowEmptyDev &&
+        (this.env.NODE_ENV ?? "development") !== "production"
+      ) {
         return { keys: [], kid: "dev-unset" };
       }
       throw new Error("OPENSESAME_JWKS_JSON required in production");
@@ -33,18 +36,18 @@ export class EnvSigningKeyProvider implements SigningKeyProvider {
     return {
       keys: keys.map((k) => {
         const pub = { ...k };
-        delete (pub as { d?: unknown }).d;
-        delete (pub as { p?: unknown }).p;
-        delete (pub as { q?: unknown }).q;
-        delete (pub as { dp?: unknown }).dp;
-        delete (pub as { dq?: unknown }).dq;
-        delete (pub as { qi?: unknown }).qi;
+        for (const field of ["d", "p", "q", "dp", "dq", "qi"] as const) {
+          Reflect.deleteProperty(pub, field);
+        }
         return pub;
       }),
     };
   }
 
-  async rotationStatus(): Promise<{ activeKid: string; retiringKids: string[] }> {
+  async rotationStatus(): Promise<{
+    activeKid: string;
+    retiringKids: string[];
+  }> {
     const { kid } = this.parse();
     return { activeKid: kid, retiringKids: [] };
   }

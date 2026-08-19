@@ -21,14 +21,20 @@ function defaultToken(c: Context): string | undefined {
 }
 
 /** RFC 6750 says a 401 from a bearer-protected resource carries the challenge. */
-function unauthorized(c: Context, error: string, description: string): Response {
+function unauthorized(
+  c: Context,
+  error: string,
+  description: string,
+): Response {
   return c.json({ error, error_description: description }, 401, {
     "WWW-Authenticate": `Bearer error="${error}", error_description="${description}"`,
   });
 }
 
 /** Hono middleware that verifies OpenSesame access tokens and sets `c.get('identity')`. */
-export function openSesameAuth(options: OpenSesameAuthOptions): MiddlewareHandler {
+export function openSesameAuth(
+  options: OpenSesameAuthOptions,
+): MiddlewareHandler {
   const getToken = options.getToken ?? defaultToken;
   return async (c: Context, next: Next) => {
     const token = getToken(c);

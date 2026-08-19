@@ -53,7 +53,9 @@ function assertNoSecretMetadata(events: ChangelogEvent[]): void {
   for (const event of events) {
     for (const key of Object.keys(event.metadata)) {
       if (/^(value|secret|password|token)$/i.test(key)) {
-        throw new Error("changelog response contained a forbidden metadata key");
+        throw new Error(
+          "changelog response contained a forbidden metadata key",
+        );
       }
     }
   }
@@ -61,13 +63,19 @@ function assertNoSecretMetadata(events: ChangelogEvent[]): void {
 
 function normalizeHostEvent(raw: Record<string, unknown>): ChangelogEvent {
   const metadata =
-    raw.metadata && typeof raw.metadata === "object" && !Array.isArray(raw.metadata)
+    raw.metadata &&
+    typeof raw.metadata === "object" &&
+    !Array.isArray(raw.metadata)
       ? (raw.metadata as Record<string, unknown>)
       : {};
   const keyNames = Array.isArray(raw.key_names)
-    ? (raw.key_names as unknown[]).filter((n): n is string => typeof n === "string")
+    ? (raw.key_names as unknown[]).filter(
+        (n): n is string => typeof n === "string",
+      )
     : Array.isArray(metadata.keyNames)
-      ? (metadata.keyNames as unknown[]).filter((n): n is string => typeof n === "string")
+      ? (metadata.keyNames as unknown[]).filter(
+          (n): n is string => typeof n === "string",
+        )
       : undefined;
   return {
     id: String(raw.id ?? ""),
@@ -129,7 +137,9 @@ export async function listHostChangelog(
   }
   const body = (await res.json()) as { events?: unknown[] };
   const events = (body.events ?? [])
-    .filter((row): row is Record<string, unknown> => !!row && typeof row === "object")
+    .filter(
+      (row): row is Record<string, unknown> => !!row && typeof row === "object",
+    )
     .map(normalizeHostEvent);
   assertNoSecretMetadata(events);
   return events;
@@ -161,7 +171,7 @@ export async function listIdentityChangelog(options?: {
       metadata?: Record<string, unknown>;
     }>;
   };
-  let events = (body.events ?? [])
+  const events = (body.events ?? [])
     .filter((e) => isSecretChangelogEventType(e.eventType))
     .filter((e) =>
       options?.projectId ? e.projectId === options.projectId : true,
@@ -187,7 +197,9 @@ export async function listChangelog(options: {
 }): Promise<ChangelogEvent[]> {
   if (options.projectId) {
     try {
-      return await listHostChangelog(options.projectId, { limit: options.limit });
+      return await listHostChangelog(options.projectId, {
+        limit: options.limit,
+      });
     } catch {
       // Host unreachable — Identity filter still useful for config events.
     }
@@ -203,7 +215,9 @@ export function formatChangelogSummary(event: ChangelogEvent): string {
       : "");
   const config =
     event.configId ||
-    (typeof event.metadata.configId === "string" ? event.metadata.configId : "");
+    (typeof event.metadata.configId === "string"
+      ? event.metadata.configId
+      : "");
   const env =
     event.environment ||
     (typeof event.metadata.environment === "string"

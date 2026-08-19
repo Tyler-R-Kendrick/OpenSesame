@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  consumeRotationEvents,
   EVENT_ROTATION_FAILED,
   EVENT_ROTATION_REQUESTED,
   EVENT_ROTATION_SUCCEEDED,
   InMemoryTaskBus,
+  consumeRotationEvents,
   toPublicJobView,
 } from "../rotation.js";
 

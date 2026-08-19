@@ -54,11 +54,7 @@ describe("embedded connector catalog", () => {
     expect(
       bundledProviders.find((provider) => provider.id === "github")?.operations,
     ).toEqual(
-      expect.arrayContaining([
-        "repository.read",
-        "contents.write",
-        "git.push",
-      ]),
+      expect.arrayContaining(["repository.read", "contents.write", "git.push"]),
     );
     expect(
       bundledProviders.find((provider) => provider.id === "webcrypto")

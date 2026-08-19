@@ -22,7 +22,11 @@ function idpFetch(overrides: Record<string, unknown> = {}) {
     if (url.includes("openid-configuration")) return discovery(overrides);
     if (url.endsWith("/token") && init?.method === "POST") {
       return new Response(
-        JSON.stringify({ access_token: "at", token_type: "Bearer", expires_in: 60 }),
+        JSON.stringify({
+          access_token: "at",
+          token_type: "Bearer",
+          expires_in: 60,
+        }),
         { status: 200 },
       );
     }
@@ -41,14 +45,19 @@ describe("loopbackLogin", () => {
       openBrowser: async (url) => {
         authUrl = url;
         const parsed = new URL(url);
-        const redirect = new URL(parsed.searchParams.get("redirect_uri")!);
+        const redirectUri = parsed.searchParams.get("redirect_uri");
+        const state = parsed.searchParams.get("state");
+        if (!redirectUri || !state) throw new Error("missing authorize params");
+        const redirect = new URL(redirectUri);
         redirect.searchParams.set("code", "abc");
-        redirect.searchParams.set("state", parsed.searchParams.get("state")!);
+        redirect.searchParams.set("state", state);
         await globalThis.fetch(redirect.toString());
       },
     });
     expect(tokens.access_token).toBe("at");
-    expect(new URL(authUrl).searchParams.get("code_challenge_method")).toBe("S256");
+    expect(new URL(authUrl).searchParams.get("code_challenge_method")).toBe(
+      "S256",
+    );
   });
 
   it("ignores a callback from something else on the box", async () => {
@@ -59,7 +68,10 @@ describe("loopbackLogin", () => {
       timeoutMs: 5_000,
       openBrowser: async (url) => {
         const parsed = new URL(url);
-        const redirect = new URL(parsed.searchParams.get("redirect_uri")!);
+        const redirectUri = parsed.searchParams.get("redirect_uri");
+        const state = parsed.searchParams.get("state");
+        if (!redirectUri || !state) throw new Error("missing authorize params");
+        const redirect = new URL(redirectUri);
 
         // A stray local process guesses at the port. It must not end the login.
         const stray = new URL(redirect.toString());
@@ -69,7 +81,7 @@ describe("loopbackLogin", () => {
         expect(strayRes.status).toBe(400);
 
         redirect.searchParams.set("code", "abc");
-        redirect.searchParams.set("state", parsed.searchParams.get("state")!);
+        redirect.searchParams.set("state", state);
         await globalThis.fetch(redirect.toString());
       },
     });

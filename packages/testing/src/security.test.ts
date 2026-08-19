@@ -11,6 +11,8 @@ describe("security sentinels", () => {
   });
 
   it("fails when claim secret leaks", () => {
-    expect(() => assertNoSentinels(`token=${sentinelValues[0]}`)).toThrow(/sentinel/);
+    expect(() => assertNoSentinels(`token=${sentinelValues[0]}`)).toThrow(
+      /sentinel/,
+    );
   });
 });

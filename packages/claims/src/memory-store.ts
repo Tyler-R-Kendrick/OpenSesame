@@ -39,7 +39,10 @@ export class MemoryClaimStore implements ClaimStore {
     this.items.set(claimId, structuredClone(items));
   }
 
-  async create(session: ClaimSession, items: ClaimItem[]): Promise<ClaimSession> {
+  async create(
+    session: ClaimSession,
+    items: ClaimItem[],
+  ): Promise<ClaimSession> {
     return this.withLock(session.id, async () => {
       if (this.sessions.has(session.id)) {
         throw new DomainError("CONFLICT", "Claim already exists", {

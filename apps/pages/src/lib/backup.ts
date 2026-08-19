@@ -77,7 +77,9 @@ export async function listGithubInstallations(
   if (!res.ok) await fail(res, "Could not list GitHub App installations");
   const body = (await res.json()) as { installations?: unknown[] };
   return (body.installations ?? [])
-    .filter((row): row is Record<string, unknown> => !!row && typeof row === "object")
+    .filter(
+      (row): row is Record<string, unknown> => !!row && typeof row === "object",
+    )
     .map((row) => ({
       id: String(row.id ?? ""),
       accountLogin: String(row.account_login ?? ""),
@@ -100,12 +102,8 @@ export async function putBackupTarget(input: {
     method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      ...(input.connectionId
-        ? { connection_id: input.connectionId }
-        : {}),
-      ...(input.integrationId
-        ? { integration_id: input.integrationId }
-        : {}),
+      ...(input.connectionId ? { connection_id: input.connectionId } : {}),
+      ...(input.integrationId ? { integration_id: input.integrationId } : {}),
       installation_id: input.installationId,
       owner: input.owner,
       repo: input.repo,
@@ -133,16 +131,17 @@ export function ownerRepoFromRemote(remote: string): {
   owner: string;
   repo: string;
 } | null {
-  const trimmed = remote.trim().replace(/\.git$/u, "").replace(/\/$/u, "");
-  const https = trimmed.match(
-    /^https:\/\/github\.com\/([^/]+)\/([^/]+)$/iu,
-  );
-  if (https) {
-    return { owner: https[1]!, repo: https[2]! };
+  const trimmed = remote
+    .trim()
+    .replace(/\.git$/u, "")
+    .replace(/\/$/u, "");
+  const https = trimmed.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)$/iu);
+  if (https?.[1] && https[2]) {
+    return { owner: https[1], repo: https[2] };
   }
   const slash = trimmed.match(/^([^/\s]+)\/([^/\s]+)$/u);
-  if (slash) {
-    return { owner: slash[1]!, repo: slash[2]! };
+  if (slash?.[1] && slash[2]) {
+    return { owner: slash[1], repo: slash[2] };
   }
   return null;
 }
@@ -221,7 +220,7 @@ export function githubAppFailureReason(raw: string | null): string {
     case "conversion_failed":
       return "GitHub created the app but Host could not exchange the one-time code. Retry Create GitHub App while Host stays reachable.";
     default:
-      return raw!.trim();
+      return (raw ?? "").trim();
   }
 }
 

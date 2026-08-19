@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  DomainError,
   activateProvisionalResource,
   beginResourceDeletion,
   completeResourceDeletion,
-  DomainError,
   expireProvisionalResource,
   maybeExpireProvisionalResource,
   quarantineResource,

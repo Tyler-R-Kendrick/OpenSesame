@@ -24,7 +24,7 @@ export async function runTarget(
   }
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const seconds = Number(process.env.FUZZ_SECONDS ?? 5);
   const only = process.argv[2];
   const dir = path.dirname(fileURLToPath(import.meta.url));

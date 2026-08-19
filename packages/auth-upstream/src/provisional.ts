@@ -79,7 +79,9 @@ export async function upgradeProvisionalToUpstream(
     input.upstreamSubject,
   );
   if (byUpstream && byUpstream.principalId !== input.principalId) {
-    throw new Error("Upstream identity already linked to a different principal");
+    throw new Error(
+      "Upstream identity already linked to a different principal",
+    );
   }
 
   // Explicitly do NOT merge with findByEmail — email auto-link is forbidden.

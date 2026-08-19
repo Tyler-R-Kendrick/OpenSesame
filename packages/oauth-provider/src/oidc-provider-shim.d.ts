@@ -31,7 +31,11 @@ declare module "oidc-provider" {
   };
 
   export interface Adapter {
-    upsert(id: string, payload: AdapterPayload, expiresIn?: number): Promise<void>;
+    upsert(
+      id: string,
+      payload: AdapterPayload,
+      expiresIn?: number,
+    ): Promise<void>;
     find(id: string): Promise<AdapterPayload | undefined>;
     findByUserCode?(userCode: string): Promise<AdapterPayload | undefined>;
     findByUid?(uid: string): Promise<AdapterPayload | undefined>;
@@ -55,15 +59,25 @@ declare module "oidc-provider" {
     pairwiseIdentifier?: (
       ctx: KoaContext,
       accountId: string,
-      client: { clientId?: string; sectorIdentifier?: string; [k: string]: unknown },
+      client: {
+        clientId?: string;
+        sectorIdentifier?: string;
+        [k: string]: unknown;
+      },
     ) => Promise<string> | string;
     findAccount?: (
       ctx: KoaContext,
       id: string,
-    ) => Promise<{
-      accountId: string;
-      claims: (use: string, scope: string) => Promise<Record<string, unknown>> | Record<string, unknown>;
-    } | undefined>;
+    ) => Promise<
+      | {
+          accountId: string;
+          claims: (
+            use: string,
+            scope: string,
+          ) => Promise<Record<string, unknown>> | Record<string, unknown>;
+        }
+      | undefined
+    >;
     ttl?: Record<string, unknown>;
     routes?: Record<string, string>;
     scopes?: string[];
@@ -76,7 +90,10 @@ declare module "oidc-provider" {
   export class Provider {
     constructor(issuer: string, configuration?: Configuration);
     callback(): (req: unknown, res: unknown) => void;
-    app: { callback(): (req: unknown, res: unknown) => void; listen: (...args: unknown[]) => unknown };
+    app: {
+      callback(): (req: unknown, res: unknown) => void;
+      listen: (...args: unknown[]) => unknown;
+    };
     Client: { find(id: string): Promise<unknown> };
     registerGrantType(...args: unknown[]): void;
     [key: string]: unknown;

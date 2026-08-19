@@ -1,5 +1,5 @@
+import { type Session, createOpenSesame } from "@opensesame/sdk-browser";
 import { useEffect, useMemo, useState } from "react";
-import { createOpenSesame, type Session } from "@opensesame/sdk-browser";
 import "./rp.css";
 
 const issuer =
@@ -77,14 +77,14 @@ export function RpApp(props: {
       </p>
       <div className="panel">
         {phase === "completing" ? (
-          <p className="lede" role="status" aria-busy="true">
+          <output className="lede" aria-busy="true">
             Completing sign-in…
-          </p>
+          </output>
         ) : null}
         {phase === "ready" && !session ? (
-          <p className="lede" role="status">
+          <output className="lede">
             Signed out. Sign in to receive a pairwise subject for this sector.
-          </p>
+          </output>
         ) : null}
         <div className="actions">
           <button
@@ -116,15 +116,15 @@ export function RpApp(props: {
           </button>
         </div>
         {session ? (
-          <p className="ok" role="status">
+          <output className="ok">
             Session pairwise sub:{" "}
             <strong>{session.sub ?? "present (opaque token)"}</strong>
-          </p>
+          </output>
         ) : null}
         {mockSub ? (
-          <p className="ok" role="status">
+          <output className="ok">
             Mock verified pairwise sub: <strong>{mockSub}</strong>
-          </p>
+          </output>
         ) : null}
         {error ? (
           <p className="err" role="alert">

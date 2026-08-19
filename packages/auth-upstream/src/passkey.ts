@@ -36,7 +36,9 @@ export interface PasskeySeam {
     principalId: string,
     credential: Omit<PasskeyCredential, "principalId">,
   ): Promise<PasskeyCredential>;
-  verify(assertion: PasskeyAssertion): Promise<{ ok: true; principalId: string } | { ok: false }>;
+  verify(
+    assertion: PasskeyAssertion,
+  ): Promise<{ ok: true; principalId: string } | { ok: false }>;
 }
 
 export function createPasskeySeam(options?: {
@@ -46,7 +48,9 @@ export function createPasskeySeam(options?: {
   const verifyAssertion: PasskeyVerifyFn =
     options?.verifyAssertion ??
     (async () => {
-      throw new Error("Passkey verify not configured — inject verifyAssertion for tests/prod");
+      throw new Error(
+        "Passkey verify not configured — inject verifyAssertion for tests/prod",
+      );
     });
 
   return {
@@ -68,7 +72,10 @@ export function createPasskeySeam(options?: {
         // A counter that fails to advance means the credential was cloned (or an
         // assertion is being replayed): refuse and keep the stored value.
         if (next <= credential.counter) return { ok: false };
-        credentials.set(credential.credentialId, { ...credential, counter: next });
+        credentials.set(credential.credentialId, {
+          ...credential,
+          counter: next,
+        });
       }
       return { ok: true, principalId: credential.principalId };
     },

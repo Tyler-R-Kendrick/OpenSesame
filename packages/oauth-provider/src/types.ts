@@ -32,8 +32,14 @@ export interface PairwiseSubject {
 }
 
 export interface PairwiseSubjectStore {
-  getOrCreate(principalId: string, sectorIdentifier: string): Promise<PairwiseSubject>;
-  find(principalId: string, sectorIdentifier: string): Promise<PairwiseSubject | undefined>;
+  getOrCreate(
+    principalId: string,
+    sectorIdentifier: string,
+  ): Promise<PairwiseSubject>;
+  find(
+    principalId: string,
+    sectorIdentifier: string,
+  ): Promise<PairwiseSubject | undefined>;
 }
 
 export interface OAuthProviderEnv {

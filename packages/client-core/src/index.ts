@@ -77,7 +77,7 @@ export function sealDevOnly(
   }
   const out = new Uint8Array(plaintext.length);
   for (let i = 0; i < plaintext.length; i++) {
-    out[i] = plaintext[i]! ^ key[i % key.length]!;
+    out[i] = (plaintext[i] ?? 0) ^ (key[i % key.length] ?? 0);
   }
   return out;
 }

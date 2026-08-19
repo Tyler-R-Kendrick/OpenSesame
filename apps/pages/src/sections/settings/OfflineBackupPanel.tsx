@@ -5,11 +5,11 @@ import { loadSettings } from "../../lib/settings.js";
 import type { SealedBlob } from "../../lib/vault/crypto.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
+  MAX_OFFLINE_BACKUP_BYTES,
   buildOfflineBackup,
   cacheCiphertextSnapshot,
   enqueueOfflineMutation,
   parseOfflineBackup,
-  MAX_OFFLINE_BACKUP_BYTES,
   serializeOfflineBackup,
 } from "../../lib/vault/offline-backup.js";
 import { BODY_KEY } from "../../lib/vault/store.js";

@@ -129,7 +129,7 @@ describe("client-core façade", () => {
 
       // A browser bundle has no NODE_ENV at all; that used to read as "not
       // production" and let the XOR run in the environment that matters most.
-      delete process.env.NODE_ENV;
+      Reflect.deleteProperty(process.env, "NODE_ENV");
       expect(() =>
         sealDevOnly(new Uint8Array([1]), new Uint8Array([2])),
       ).toThrow(/forbidden/);

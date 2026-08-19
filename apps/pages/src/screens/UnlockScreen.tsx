@@ -186,7 +186,8 @@ export function UnlockScreen() {
     } catch (caught) {
       setError(
         activeMethod === "passkey" ||
-          (caught instanceof Error && /invalid domain|SecurityError/i.test(caught.message))
+          (caught instanceof Error &&
+            /invalid domain|SecurityError/i.test(caught.message))
           ? describeWebauthnError(caught)
           : caught instanceof Error
             ? caught.message
@@ -289,9 +290,8 @@ export function UnlockScreen() {
                   {passkeyHost.fixUrl ? (
                     <>
                       {" "}
-                      — open{" "}
-                      <a href={passkeyHost.fixUrl}>localhost</a> (not a raw
-                      IP), unlock, then enroll under Settings.
+                      — open <a href={passkeyHost.fixUrl}>localhost</a> (not a
+                      raw IP), unlock, then enroll under Settings.
                     </>
                   ) : (
                     <> before it can be enrolled in Settings.</>
@@ -340,7 +340,7 @@ export function UnlockScreen() {
                 unwraps the vault key — no password typed.
               </p>
             ) : (
-              <output className="note note--warn" role="status">
+              <output className="note note--warn">
                 <span>
                   {passkeyHost.reason}
                   {passkeyHost.fixUrl ? (

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  type ChangelogEvent,
   formatChangelogSummary,
   listChangelog,
-  type ChangelogEvent,
 } from "../../lib/changelog.js";
 import { useIdentitySession } from "../../lib/identity.js";
 import { loadSettings } from "../../lib/settings.js";
