@@ -5,11 +5,11 @@ This document records the research behind the decision: what exists in the
 codebase today (with anchors), what the standards and competing products
 offer, the recommended architecture, and a phased implementation plan.
 
-The feature in one sentence: **an owner of an authorized connector (e.g.
-GitHub via MCP) mints a disposable, claimable offer; a guest human or an
-agent claims it and receives attenuated, revocable, invoke-only authority
-over that connection — brokered, receipted, and without the underlying
-token ever moving.**
+The feature in one sentence: **an owner of one or more authorized
+connectors (e.g. GitHub via MCP) mints a disposable, claimable offer over
+a connection or a group of connections; a guest human or an agent claims
+it and receives attenuated, revocable, invoke-only authority — brokered,
+receipted, and without any underlying token ever moving.**
 
 ---
 
@@ -101,20 +101,21 @@ one. This feature is differentiating, not catch-up.
 ### 3.1 Where delegation state lives
 
 On the **authority plane**, beside the thing it narrows (ADR 0032 §1: "a
-connection is authority-plane state, not vault state"). Two new SQLite
-tables in the gateway store:
+connection is authority-plane state, not vault state"). Three new SQLite
+tables in the gateway store. **Offers always carry items** — a
+single-connection share is a one-item offer — so group delegation (§3.4)
+is schema-native from day one rather than a retrofit migration:
 
 ```sql
 CREATE TABLE connection_delegation_offers (
-  id                 TEXT PRIMARY KEY,          -- dlgo_…
-  connection_id      TEXT NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
+  id                 TEXT PRIMARY KEY,          -- dlgo_…; also the delegation-set id
   organization_id    TEXT NOT NULL,
-  owner_subject      TEXT NOT NULL,             -- who minted; must equal connections.owner_subject
+  owner_subject      TEXT NOT NULL,             -- who minted; must own every item's connection
   claim_token_hash   TEXT NOT NULL UNIQUE,      -- hash_secret(osc_dlg_…); never the token
-  user_code_hash     TEXT,                      -- hash_low_entropy(pepper, offer_id, code)
-  proposed_grant     TEXT NOT NULL,             -- JSON: actions, resources, audiences,
-                                                --   expires_at, budgets, max_invoke_level,
-                                                --   allow_redelegation, claimant_constraints
+  user_code_hash     TEXT NOT NULL,             -- hash_low_entropy(pepper, offer_id, code)
+  manifest_digest    TEXT NOT NULL,             -- digest over the canonical item set;
+                                                --   immutable after create (claim_sessions
+                                                --   targetManifestDigest pattern)
   claimant_kind      TEXT NOT NULL,             -- 'human' | 'agent' | 'any'
   intended_claimant  TEXT,                      -- optional principal/actor pin (may_act analogue)
   state              TEXT NOT NULL,             -- pending|presented|claimed|revoked|expired|burned
@@ -123,27 +124,56 @@ CREATE TABLE connection_delegation_offers (
   created_at         TEXT NOT NULL
 );
 
+CREATE TABLE connection_delegation_offer_items (
+  id                 TEXT PRIMARY KEY,          -- dlgi_…
+  offer_id           TEXT NOT NULL REFERENCES connection_delegation_offers(id) ON DELETE CASCADE,
+  connection_id      TEXT NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
+  proposed_grant     TEXT NOT NULL,             -- JSON: actions, resources, audiences,
+                                                --   expires_at, budgets, max_invoke_level,
+                                                --   allow_redelegation — validated against
+                                                --   THIS connection's owner grant at mint
+  required           INTEGER NOT NULL DEFAULT 1,-- all items required unless owner opts out
+  dependencies       TEXT NOT NULL DEFAULT '[]',-- JSON string[] of sibling item ids;
+                                                --   accepted set must be dependency-closed
+  state              TEXT NOT NULL,             -- pending|accepted|rejected
+  UNIQUE(offer_id, connection_id)
+);
+
 CREATE TABLE connection_delegations (
   id                     TEXT PRIMARY KEY,      -- dlg_…
   offer_id               TEXT NOT NULL REFERENCES connection_delegation_offers(id),
+  offer_item_id          TEXT NOT NULL REFERENCES connection_delegation_offer_items(id),
   connection_id          TEXT NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
   organization_id        TEXT NOT NULL,
   owner_subject          TEXT NOT NULL,
   claimant_subject       TEXT NOT NULL,         -- principal id (human) or actor id (agent)
   claimant_instance_jkt  TEXT,                  -- proof-key binding, verified at claim
-  grant_id               TEXT NOT NULL,         -- the child Grant (parent = owner's grant)
+  grant_id               TEXT NOT NULL,         -- the child Grant (parent = owner's grant
+                                                --   for THIS connection)
   parent_grant_id        TEXT NOT NULL,
   delegation_depth       INTEGER NOT NULL,
+  budget_remaining       TEXT,                  -- JSON mirror of GrantConstraints.budgets,
+                                                --   decremented atomically per invocation
   expires_at             TEXT NOT NULL,
   revoked_at             TEXT,
   created_at             TEXT NOT NULL
 );
 ```
 
+`offer_id` doubles as the **delegation-set id**: an offer is spent at
+most once, so the delegations minted from it form exactly one set, which
+revokes as one (`revoked_at` on all members in a single transaction) or
+member-by-member.
+
 `state = 'burned'` records the malfeasance case: the token was presented
-twice (or presented after claim), so the offer self-revoked. That state is
-surfaced to the owner distinctly from `expired` — it means the link
-leaked.
+twice, or presented after claim. The offer self-revokes **and so does
+every delegation already minted from it** — a token seen again after
+spend means the link leaked, and the only safe assumption is that the
+race's winner may have been the attacker. This deliberately lets a
+token-holder deny service to a legitimate claimant: availability is
+sacrificed for integrity, exactly Vault's response-wrapping
+"malfeasance detection" trade. `burned` is surfaced to the owner
+distinctly from `expired` — it means *compromise*, not lapse.
 
 The identity-plane `delegations` table finally gets its writer, as a
 **projection**: claim completion enqueues an outbox event
@@ -159,28 +189,40 @@ soft reference across planes (it already has no FK).
 mint (owner)          claim (guest/agent)              exercise             end
 ────────────          ───────────────────              ─────────            ───
 POST /api/v1/         open link → obtain identity      MCP list_connections DELETE offer (owner)
-connections/{id}/     (provisional principal, or       → invoke_l1 /        DELETE delegation (owner
-delegations           existing session, or agent       task_invoke with       or claimant)
-→ {offer_id,          instance) →                      conn://… ref;        grant.revoked_at set;
-   claim_url,         POST /api/v1/delegations/claim   broker resolves      parent revocation or
-   claim_token,       {token, proof} → spend-once →    claimant grant →     connection revocation
-   user_code,         child Grant minted, binding      authorize_authority_ kills the chain;
-   expires_at}        written, delegation row,         use → egress-fenced  expiry lapses it
-                      receipt-able authority           invoke → receipt
+delegations           (provisional principal, or       → invoke_l1 /        DELETE delegation or
+{items:[{connection,  existing session, or agent       task_invoke with       set (owner; claimant
+  proposed_grant,     instance) →                      conn://… ref;          may drop their own)
+  required, deps}]}   POST /api/v1/delegations/claim   broker resolves      grant.revoked_at set;
+→ {offer_id,          {token, user_code, accepted,     claimant grant →     parent revocation or
+   claim_url,         proof} → spend-once →            authorize_authority_ connection revocation
+   claim_token,       one child Grant + delegation     use → egress-fenced  kills the chain;
+   user_code,         row PER accepted item, one       invoke → receipt     expiry lapses it;
+   expires_at}        transaction                                           burn revokes the set
 ```
 
-**Mint.** `POST /api/v1/connections/{id}/delegations`, owner-fenced
-exactly like every other connection mutation (`owner_subject` check,
-`crates/connection-broker/src/lib.rs:556`). Preconditions:
-connection `Active`; `shareability != Private` (this is where
-`Shareability` gains its first enforcement consumer); proposed grant
-passes `Grant::validate_attenuation` against the owner's grant *at mint
-time* (fail early, not at claim); depth respects
-`ConnectionPolicy.maximum_delegation_depth`; claimant kind ∈
-`permitted_actor_kinds` when set. The claim token uses a new purpose
+**Mint.** `POST /api/v1/delegations` takes one or more items;
+`POST /api/v1/connections/{id}/delegations` remains as sugar for the
+one-item case. Owner-fenced exactly like every other connection mutation
+(`owner_subject` check, `crates/connection-broker/src/lib.rs:556`) —
+**for every item's connection**. Preconditions, each enforced per item
+and any failure failing the whole mint (no silent dropping of ineligible
+members): connection `Active`; `shareability != Private` (this is where
+`Shareability` gains its first enforcement consumer; `OrganizationWide`
+behaves as `Delegable` until the OpenFGA tuple-writer work lands, §7);
+every proposed grant passes `Grant::validate_attenuation` against *that
+connection's* owner grant at mint time (fail early, not at claim); all
+connections share one organization (`validate_attenuation` refuses
+cross-org anyway — the mint check just makes the error legible); depth
+respects each `ConnectionPolicy.maximum_delegation_depth`; claimant kind
+∈ `permitted_actor_kinds` when set; item `dependencies` reference
+sibling items and are cycle-free. The canonical item set is digested
+into `manifest_digest`, immutable thereafter (the
+`targetManifestDigest` pattern). The claim token uses a new purpose
 separator (`opensesame:delegation-token:v1`) per the `docs/claims.md`
 rule that token purposes never mix; prefix `osc_dlg_` so log-scrubbers
-and `assertSafeText` can deny-list it alongside `osc_clm_`.
+and `assertSafeText` can deny-list it alongside `osc_clm_`. A user code
+is always minted — consent to authority, like claim completion in
+`routes/claims.ts`, is never proven by the link alone.
 
 **Claim.** The claim URL lands on a state-blind page (same rule as
 `GET /v1/claims/:id/verify`: "reached by URL alone, so it must not
@@ -198,7 +240,16 @@ becomes *somebody*:
   `publicKeyJkt`; the claim binds to that key.
 
 Then `POST /api/v1/delegations/claim` on the gateway with
-`{claim_token, user_code?, claimant_assertion, proof_jwk?}`:
+`{claim_token, user_code, accepted_item_ids, claimant_assertion,
+proof_jwk?}`. The claim page shows the full item manifest before
+accepting — the console's existing refusal to complete a claim whose
+items it has not seen ("accepting without naming it would accept
+something unseen", `ClaimPage.tsx`) carries over verbatim, and
+`accepted_item_ids` must name every accepted item; there is no wildcard.
+Every `required` item must be accepted and the accepted set must be
+dependency-closed (`assertDependencyClosure` semantics) — by default all
+items are required, so a bundle claims all-or-nothing unless the owner
+marked members optional at mint. Then:
 
 - `claimant_assertion` is how the gateway learns who is claiming without
   trusting a body field ("never read from a request body: the transport
@@ -211,19 +262,29 @@ Then `POST /api/v1/delegations/claim` on the gateway with
 - Spend is atomic: one `UPDATE … WHERE state='pending'` CAS, mirroring
   `activate_credential_unless_revoked`. Losing claimants get 410; a
   presented-then-presented-again token flips the offer to `burned`,
-  emits `connection.delegation_burned`, and (once notification plumbing
-  exists) tells the owner.
+  **revokes every delegation minted from it in the same transaction**,
+  and emits `connection.delegation_burned`. There is no notification
+  channel to invent for v1: burned offers are surfaced prominently in
+  the console offer list and are permanent in the audit trail — never
+  silent, never merely "expired".
 - If `proof_jkt` was set on the offer or a `proof_jwk` accompanies the
   claim, the gateway verifies possession (nonce signature) — this is the
   first verification of a `proof_key_jkt`-style binding in the system,
   closing the "written but never checked" gap.
 
-On success the gateway, in one transaction: mints the child `Grant` via
-`crates/grants::delegate(parent, child)` (which enforces attenuation +
-depth), writes `connection_delegations`, writes a `connection_bindings`
-row (`BindingTargetKind::Identity` or `::Agent`) for discoverability,
-appends a `connection_events` row (`EventKind` gains `Delegated`), and
-enqueues the outbox event for identity-plane projection.
+On success the gateway, in **one transaction covering every accepted
+item**: re-verifies the manifest digest, mints one child `Grant` per
+item via `crates/grants::delegate(parent, child)` (which enforces
+attenuation + depth against that connection's owner grant), writes the
+`connection_delegations` rows (all sharing `offer_id` as their set id),
+writes a `connection_bindings` row per connection
+(`BindingTargetKind::Identity` or `::Agent`) for discoverability,
+appends `connection_events` rows (`EventKind` gains `Delegated`), and
+enqueues the outbox events for identity-plane projection. Partial
+success does not exist: if any accepted item's grant cannot be minted,
+the claim fails whole and the offer stays spendable-once-more is **not**
+the behavior — the spend already happened, so the transaction rolls the
+spend back too (the CAS and the mint share the transaction).
 
 **Exercise.** No new invoke surface. The delegate's MCP client calls
 `list_connections` → sees the delegated ref (listing extends from
@@ -239,12 +300,16 @@ host. Receipts populate `delegation_chain: [parent_grant_id, child_grant_id]`
 — the field has existed since receipt schema 1 and has always been empty.
 
 **End.** Four paths, all already half-built:
-- Offer revocation: owner `DELETE /api/v1/connections/{id}/delegations/{offer_id}`
+- Offer revocation: owner `DELETE /api/v1/delegations/offers/{offer_id}`
   (first caller for the dormant revoke transition).
-- Delegation revocation: owner or claimant sets `revoked_at`; the child
-  grant's `assert_active` fails on the next authorize. Per ADR 0018,
-  in-flight task runs are handled by mediated restriction, not
-  retroactive cancellation — the doc must say this plainly to owners.
+- Delegation revocation: owner revokes a single member
+  (`DELETE /api/v1/delegations/{id}`) or the whole set
+  (`DELETE /api/v1/delegations/sets/{offer_id}` — every member's
+  `revoked_at` in one transaction); a claimant may drop what they hold
+  but never anyone else's. The child grant's `assert_active` fails on
+  the next authorize. Per ADR 0018, in-flight task runs are handled by
+  mediated restriction, not retroactive cancellation — the doc must say
+  this plainly to owners.
 - Ancestor revocation: revoking the owner's grant or the connection
   (`DELETE /api/v1/connections/{id}`) kills every descendant, because
   authorization walks `parent_grant_id` and `DelegationChain::validate`
@@ -281,7 +346,53 @@ attenuation and is the strongest blast-radius story available; classic
 OAuth-app tokens (coarse scopes, no down-scoping endpoint) get policy
 attenuation only, which is precisely why the invoke stays brokered.
 
-### 3.4 What the claimant holds (deliberately boring)
+### 3.4 Group delegation (bundles)
+
+Delegating a *set* of connections in one ceremony — "here is my GitHub +
+Linear + Slack context for this task" — is the same feature, not a
+second one, because offers are item-shaped from the start. What a bundle
+adds is aggregation risk, and each risk gets a structural answer:
+
+- **Blast radius.** A bundle is worth more than its parts. Mitigations:
+  every item is independently attenuated against its own connection's
+  owner grant (there is no bundle-level grant that could out-privilege
+  its members); resources must be enumerated per item; TTL is a single
+  offer-level ceiling and each item's grant expiry must fit under it —
+  the *set* never outlives its shortest-lived justification.
+- **Egress cross-contamination.** None possible by construction: egress
+  allowlists live on each connection row and are provider-derived
+  (ADR 0032 §3). A bundled Slack connection cannot widen the GitHub
+  item's `api.github.com` fence, because there is no shared egress
+  object to widen.
+- **Consent dilution ("I thought I was sharing one thing").** The claim
+  page renders the full item manifest; `accepted_item_ids` must name
+  every item; the manifest digest is immutable after mint, so what the
+  claimant reviewed is provably what the owner minted. The same
+  properties protect the *owner*: a console mint review shows exactly
+  the item set that will be digested.
+- **Coherence.** `dependencies` (the dormant `claim_items` closure
+  machinery, finally used) express "PR-create needs repo-read":
+  accepting a subset that breaks closure is a typed 422, mirroring
+  `assertDependencyClosure`. Default is all-required — all-or-nothing —
+  because partial bundles are a coherence decision the owner should make
+  at mint, not the claimant at 2 a.m.
+- **Revocation asymmetry.** The set revokes as one (one action, one
+  transaction), because "un-share everything I shared for that task" is
+  the operation owners actually need under incident pressure; per-member
+  revocation exists for the calmer case. Burn revokes the set.
+- **Audit legibility.** Every delegation row, receipt, and event names
+  its single connection; the `offer_id` set key is how consoles
+  aggregate. Nothing in the invoke path knows bundles exist — a
+  delegated invocation authorizes against exactly one child grant for
+  exactly one connection, which keeps `authorize_authority_use` and the
+  receipt model untouched by this extension.
+
+The identity-plane mirror is equally natural: a bundle claim projects as
+`claim_sessions.type = 'resource_bundle'` with one `claim_item` per
+connection (`target_type: 'connection'`, `requested_action:
+'delegate'`) — the exact rows the schema has been waiting to hold.
+
+### 3.5 What the claimant holds (deliberately boring)
 
 The claimant ends up with: (a) their own session credential (provisional
 `pst_` bearer or agent claim result — issued by us, audience us), and (b)
@@ -294,7 +405,7 @@ binding, ancestor revocation) but keep authority server-side, matching
 ADR 0005's rejection of authorization-by-possession and keeping
 revocation instant instead of denylist-based.
 
-### 3.5 Identity-plane touches
+### 3.6 Identity-plane touches
 
 - `packages/policy`: new actions `connection.delegate` (owner-side; deny
   for provisional principals) and `connection.claim_delegation` (allowed
@@ -328,7 +439,7 @@ the child grant (authority, server-side).
 | Threat | Mitigation | Anchor |
 |---|---|---|
 | Claim link intercepted in transit / logs | Fragment transport; hash-at-rest (`hash_secret`), never logged (`DENY_KEY` matches `token`); single-use spend; short offer TTL | `docs/claims.md`, `packages/observability/src/logger.ts` |
-| Link intercepted *and used* before the intended claimant | First-claimer-wins CAS + `burned` state + owner notification: interception becomes detectable, not silent (Vault malfeasance-detection property) | §3.2 |
+| Link intercepted *and used* before the intended claimant | First-claimer-wins CAS; any later present flips the offer to `burned` and revokes every delegation minted from it — interception becomes detectable and fail-closed, not silent (Vault malfeasance-detection property). The resulting DoS-by-token-holder is accepted: whoever holds the token proves the link leaked | §3.1–3.2 |
 | Wrong person claims (phishing the owner into minting, or the claimant into a look-alike page) | User code as second channel (5 attempts, per-offer fence, mirroring `MAX_CLAIM_APPROVAL_ATTEMPTS`); optional `intended_claimant` pin (`may_act` analogue); state-blind landing page | `routes/claims.ts:38,312` |
 | Claimant impersonation at the gateway | Claimant identity from a control-plane-signed assertion or agent instance key, never a body field; optional proof-of-possession on a fresh key, verified (first consumer of the `proof_key_jkt` slot) | `model.rs:64`, §3.2 |
 | Delegate extracts the provider token | Unchanged ADR 0005 fences: L3/`Resolve` denied without `raw_credential_export`, which `validate_attenuation` refuses to widen; receipts `assert_no_secret_leak`; egress responses only | `authority_use.rs:70`, `grant.rs:78` |
@@ -336,9 +447,12 @@ the child grant (authority, server-side).
 | Confused deputy via MCP | Delegate's inbound bearer is audience-checked and never forwarded (`TokenPassthroughForbidden`); delegated authority is server-side, so there is no delegation token to misdirect | `crates/protocol-mcp/src/passthrough.rs` |
 | Re-delegation laundering | Child `maximum_delegation_depth = 0` by default; `DelegationChain::validate` enforces depth, contiguity, cycle-freedom, issuer/beneficiary continuity | `delegation_chain.rs` |
 | Guest abuse (mint farm, invoke farm) | Existing provisional quotas + mint rate limits; `GrantConstraints.budgets` per delegation; provider rate-limit attribution via per-delegation receipts | `principals.ts:34`, `provisional.ts:57` |
+| Budget race (parallel invokes overspend a delegation) | Synchronous atomic decrement in the same transaction as intent insertion; deny on exhaustion **and** on inability to decrement (contention past retry, quorum unavailable) — same fail-closed posture as `authority_quorum_ok`; receipt-count reconciliation as audit backstop | §7, `broker/src/lib.rs` |
+| Bundle aggregation (a group offer grants more than the sum reviewed) | Per-item attenuation against each connection's own owner grant; no bundle-level grant object exists; immutable manifest digest over the item set; full-manifest review with named `accepted_item_ids`; per-connection egress untouched by bundling; one-action set revocation | §3.4 |
+| Partial-claim incoherence (subset grants a capability without its prerequisite) | Required-by-default items (all-or-nothing) + dependency-closure check on the accepted set (typed 422), reusing `assertDependencyClosure` semantics | §3.4 |
 | Revocation lag | New authorizations fail immediately (`assert_active` + chain walk); in-flight runs follow ADR 0018 mediated restriction — documented, not hidden | ADR 0018 |
 | Owner fence erosion | Delegates get `Describe` + invoke only; read/refresh/re-key/revoke/bind stay `owner_subject`-or-operator exactly as ADR 0032 §2 | `lib.rs:556` |
-| Audit blindness | New event types + allowlist keys; receipts populate `delegation_chain`; `burned`/`expired` distinguishable | §3.5 |
+| Audit blindness | New event types + allowlist keys; receipts populate `delegation_chain`; `burned`/`expired` distinguishable | §3.6 |
 
 Threat-model rows to add to `docs/security/threat-model.md` when
 implementing: "Delegation offer replay", "Delegate widens via
@@ -395,26 +509,37 @@ onto the existing Postgres repos; add the claim-completion outbox event
 the docs already promise. Gates: `pnpm verify`, `cargo +1.88.0 test
 --workspace`, `pnpm audit:ast-grep`, `pnpm audit:semgrep`.
 
-**Phase 1 — authority-plane delegation core.**
-Migrations for the two tables; broker methods
+**Phase 1 — authority-plane delegation core (item-shaped from day one).**
+Migrations for the three tables; broker methods
 `create_delegation_offer / claim_delegation / revoke_offer /
-revoke_delegation / list_delegations_for`; `Shareability` and
-`maximum_delegation_depth` enforcement; `EventKind::Delegated`; child
-grants via `crates/grants::delegate`; delegate-aware subject→grant
-resolution + binding-level `min(max_invoke_level)`; receipts populate
-`delegation_chain`. Tests: attenuation refusals, spend-once race (two
-concurrent claims, one 410), burned-state on double-present,
-ancestor-revocation kills invoke, egress unchanged under delegation,
-receipt chain populated, leak denylist over all new responses.
+revoke_delegation / revoke_delegation_set / list_delegations_for`;
+per-item mint validation (ownership, `Shareability`,
+`maximum_delegation_depth`, attenuation, dependency cycle check) with
+whole-mint failure on any ineligible item; `EventKind::Delegated`; child
+grants via `crates/grants::delegate`, one per accepted item in one
+transaction; the synchronous budget decrementer (fail-closed);
+delegate-aware subject→grant resolution + binding-level
+`min(max_invoke_level)`; receipts populate `delegation_chain`. Tests:
+attenuation refusals, spend-once race (two concurrent claims, one 410),
+burned-state on double-present *revoking the whole set*, all-or-nothing
+vs optional items + closure violations (typed 422), one bad item fails
+the whole mint, ancestor-revocation kills invoke, set-revocation kills
+every member, budget exhaustion and decrement-unavailable both deny,
+egress unchanged under delegation (bundled members stay fenced to their
+own providers), receipt chain populated, leak denylist over all new
+responses.
 
 **Phase 2 — claim ceremony + humans.**
 Gateway claim endpoint with control-plane claimant assertion; state-blind
-claim page (console or Pages); provisional-principal path with policy
-action + quota; user-code fence; proof-of-possession verification;
-`osc_dlg_` in `assertSafeText`; audit events + allowlist keys;
-identity-plane `delegations` projection via outbox; console
-mint/list/revoke UI. Tests: guest claims → upgrades identity → delegation
-survives; provisional quota exhaustion; assertion replay refused.
+claim page in the **console** (§7), rendering the full item manifest and
+requiring named `accepted_item_ids`; provisional-principal path with
+policy action + quota; mandatory user-code fence; proof-of-possession
+verification; `osc_dlg_` in `assertSafeText`; audit events + allowlist
+keys; identity-plane projection via outbox (`resource_bundle` claim
+session + per-connection `claim_items` + `delegations` rows); console
+mint/list/revoke UI with `burned` surfaced distinctly. Tests: guest
+claims → upgrades identity → delegation survives; provisional quota
+exhaustion; assertion replay refused; manifest-digest mismatch refused.
 
 **Phase 3 — agents + MCP.**
 Agent-instance claim binding (jkt-verified); `list_connections` includes
@@ -435,20 +560,53 @@ re-delegation depth > 1 by default; cross-organization delegation
 
 ---
 
-## 7. Open questions for the maintainer
+## 7. Resolved design decisions
 
-1. **Claim UX host**: console (`apps/console` has the only claim page
-   today) vs Pages (offline PWA, better for anonymous guests)? The design
-   assumes console first.
-2. **Owner notification on `burned`**: no notification channel exists
-   today; is surfacing it in the console's offer list (plus audit)
-   enough for v1?
-3. **`OrganizationWide` semantics**: ADR 0044 §6 proposes org-member
-   claim-without-offer; should that wait for the OpenFGA tuple-writer
-   work that ADR 0038 already lists as follow-up?
-4. **Budget enforcement point**: `GrantConstraints.budgets` exists but no
-   decrementer does; per-invocation decrement in the broker (simple,
-   racy under quorum) vs receipt-count reconciliation (lagged)?
-5. **Delegation of `credential-connections`** (OpenBao-style
-   `CredentialAuthority` providers): explicitly out of scope here, but
-   the offer schema was kept provider-agnostic in case it follows.
+Formerly open questions; each resolved for the most secure option, with
+the rationale recorded so a future loosening is a deliberate act.
+
+1. **Claim UX host: console.** The claim ceremony binds authority, so it
+   runs on the authenticated identity-plane surface that already proves
+   the needed properties: fragment transport with `history.replaceState`
+   stripping, principal pinning re-read immediately before completion,
+   single-spend in-flight guards, and `claimPageSecurityHeaders()`
+   (`apps/console/src/pages/ClaimPage.tsx`). The static Pages origin is
+   ruled out for the ceremony itself: ADR 0034's own analysis
+   ("possession of the token is equivalent to being the user at the
+   broker origin") is exactly the property a claim page must not have on
+   a GitHub-Pages origin. Pages/PWA may deep-link into the console claim
+   page; guests arrive via the existing provisional-principal flow.
+2. **`burned` handling: fail closed, no new channel.** A re-presented
+   token proves the link leaked, so the offer *and* every delegation
+   minted from it are revoked in the same transaction (§3.1–3.2). The
+   deliberate cost — a token-holder can deny service to the legitimate
+   claimant — buys the guarantee that a raced claim never leaves an
+   attacker holding live authority. Surfacing is console offer list
+   (distinct `burned` state) + immutable audit trail; inventing a
+   notification channel is not a v1 dependency, and silence is
+   impossible because the claimant's next invoke fails with a typed
+   denial that names the burn.
+3. **`OrganizationWide`: deferred until real membership tuples exist.**
+   Ambient claim-without-offer requires an org-membership authorization
+   check; the OpenFGA tuple writers are the follow-up work ADR 0038
+   already names, and approximating membership from identity-plane rows
+   the gateway cannot verify would be an authorization check that lies.
+   Until then `OrganizationWide` behaves as `Delegable` (offers work,
+   ambient claims are refused with a typed error naming the
+   prerequisite). Fail closed beats almost-right.
+4. **Budgets: synchronous atomic decrement, fail closed.**
+   `budget_remaining` on the delegation row is decremented in the same
+   transaction that inserts the intent; exhaustion denies, and so does
+   *inability to decrement* (CAS contention past the broker's standard
+   8 retries, or quorum unavailability) — the same posture as
+   `authority_quorum_ok`, which already refuses to authorize what it
+   cannot verify. Receipt-count reconciliation runs as an audit backstop
+   to detect drift, never as the enforcement point: a lagged budget is a
+   budget an agent can overdraw in a burst, which defeats its purpose as
+   a blast-radius bound.
+5. **`credential-connections` (OpenBao-style `CredentialAuthority`
+   providers): refused at mint, v1.** Only broker `connections` rows are
+   delegable. Dynamic-secret authorities have different lease semantics
+   and no per-connection egress fence to inherit; delegating them
+   deserves its own analysis rather than a ride-along. The offer schema
+   stays provider-agnostic so that analysis can land without migration.

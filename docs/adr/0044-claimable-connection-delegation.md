@@ -17,9 +17,12 @@ user codes (ADR 0009).
 
 The codebase has anticipated this feature without wiring it:
 
-- `claim_sessions.type` admits `'connection'` and `claim_items.requested_action`
-  admits `'delegate'` — no producer exists
-  (`packages/database/src/schema/index.ts:500`).
+- `claim_sessions.type` admits `'connection'` and `'resource_bundle'`,
+  and `claim_items.requested_action` admits `'delegate'` — with per-item
+  accept/reject, dependency closure, and manifest-digest immutability all
+  implemented — yet no production code path creates connection claims or
+  any `claim_items` at all
+  (`packages/database/src/schema/index.ts:500,575`).
 - `Shareability::Delegable`, `ConnectionPolicy.maximum_delegation_depth`,
   `consent_subject_id`, `permitted_actor_kinds` are modeled and parsed but
   have no enforcement consumer (`crates/domain/src/connection.rs:17-33`,
@@ -59,19 +62,33 @@ attenuation (repo + permission subset, ≤ 1 h) that
    refuses it).
 3. **Offers are claimable, disposable, and spend-once.** An offer carries
    a peppered claim token (`osc_dlg_` purpose-separated per
-   `docs/claims.md`), an optional user code, a TTL (default 10 min,
-   ceiling 24 h), and the proposed attenuation (actions ⊆, resources ⊆,
-   audiences ⊆, expiry ≤, budgets ≤ the owner's grant). Present is the
+   `docs/claims.md`), a mandatory user code, a TTL (default 10 min,
+   ceiling 24 h), and one or more **items**, each naming a connection and
+   its proposed attenuation (actions ⊆, resources ⊆, audiences ⊆,
+   expiry ≤, budgets ≤ that connection's owner grant). Present is the
    single-use spend point: first claimant wins atomically; a second
-   present is malfeasance evidence that revokes the offer and notifies the
-   owner (Vault response-wrapping semantics).
-4. **Claimants are principals, provisional or full, human or agent.** A
+   present is malfeasance evidence — the offer is burned **and every
+   delegation already minted from it is revoked** (fail closed: a token
+   seen twice means the link leaked; availability is sacrificed for
+   integrity, Vault response-wrapping semantics).
+4. **An offer may cover a group of connections.** Offers always carry
+   items (a single-connection offer is a one-item offer); the item model
+   reuses the dormant `claim_items` shape — per-item required/optional
+   flags, dependencies with closure enforcement, and an immutable
+   manifest digest. Every item must independently pass the mint fences
+   (ownership, shareability, attenuation, depth): one ineligible
+   connection fails the whole mint rather than being silently dropped.
+   Claiming mints one child grant + one delegation row per accepted item,
+   grouped by the offer id as the delegation set; the set revokes as one
+   and members revoke individually. Egress stays per-connection — a
+   bundle never widens any member's provider allowlist.
+5. **Claimants are principals, provisional or full, human or agent.** A
    guest claims with a provisional principal (existing `pst_` machinery);
    identity upgrade preserves the principal id, so the delegation
    survives claiming the guest session. An agent claims with its
    registered instance; the claim binds `proof_key_jkt`, which the claim
    ceremony now verifies instead of merely storing.
-5. **Delegates get invoke-only authority.** The ADR 0032 owner fence is
+6. **Delegates get invoke-only authority.** The ADR 0032 owner fence is
    unchanged: read/authorize/re-key/refresh/revoke/bind stay
    owner-or-operator. A delegate's binding admits `Describe` and
    L1 `Invoke` (L2 only if the offer says so and the parent binding
@@ -79,24 +96,43 @@ attenuation (repo + permission subset, ≤ 1 h) that
    Delegations default to `maximum_delegation_depth = 0` on the child: no
    re-delegation unless the owner opts in, and never deeper than
    `ConnectionPolicy.maximum_delegation_depth`.
-6. **`Shareability` becomes enforced.** `Private` connections refuse offer
-   creation; `Delegable` allows owner-minted offers; `OrganizationWide`
-   additionally admits org-member claimants without a per-claimant offer.
-   The broker's `update_policy` path gains this check; today the field is
-   decorative.
-7. **Revocation is immediate for new work, mediated for in-flight work.**
+7. **`Shareability` becomes enforced, fail-closed.** `Private`
+   connections refuse offer creation; `Delegable` allows owner-minted
+   offers. `OrganizationWide`'s ambient claim-without-offer semantics
+   **wait for the OpenFGA tuple-writer follow-up ADR 0038 already
+   lists** — until then an `OrganizationWide` connection behaves as
+   `Delegable` (offers work; ambient org claims are refused), because
+   approximating org membership without real tuples would be an
+   authorization check that lies. Today the field is decorative; this
+   gives it its first consumer.
+8. **Revocation is immediate for new work, mediated for in-flight work.**
    Revoking a delegation (or its parent grant, or the connection) fails
    the next authorize; in-flight task runs follow ADR 0018 (mediated
    restriction, not retroactive cancellation). Offer revocation is a new
    `DELETE` on the offer; the identity-plane claim engine's dormant
    `revoke` transition gets its first caller.
-8. **Every step is audited and receipted.** New audit events
-   `connection.delegation_offered | .claimed | .revoked | .expired` join
-   the reserved `connection.delegated`; `AUDIT_METADATA_ALLOWLIST` gains
-   the delegation keys (`delegationId`, `offerId`, `connectionId`,
-   `granteePrincipalId`, `shareability`, `expiresAt`) — today the redactor
-   would silently drop them. Invocation receipts already carry
-   `delegation_chain`; delegated invocations must populate it.
+9. **Every step is audited and receipted.** New audit events
+   `connection.delegation_offered | .claimed | .burned | .revoked |
+   .expired` join the reserved `connection.delegated`;
+   `AUDIT_METADATA_ALLOWLIST` gains the delegation keys (`delegationId`,
+   `offerId`, `connectionId`, `granteePrincipalId`, `shareability`,
+   `expiresAt`) — today the redactor would silently drop them. Invocation
+   receipts already carry `delegation_chain`; delegated invocations must
+   populate it.
+10. **Security-first resolutions of the open design choices.**
+    The claim ceremony is hosted by the **console** (the authenticated
+    surface with fragment transport, principal pinning, and claim-page
+    security headers already proven in `ClaimPage`), never the static
+    Pages origin. Burned offers surface in the console offer list plus
+    the audit trail — there is no silent path, and no notification
+    channel is invented for v1. **Budgets decrement atomically and
+    synchronously** in the broker, in the same transaction as intent
+    insertion, and **deny when the decrement cannot be performed**
+    (exhausted, contended past retry, or quorum-unavailable — the same
+    fail-closed posture as `authority_quorum_ok`); receipt-count
+    reconciliation is an audit backstop, not the enforcement point.
+    OpenBao-style `credential-connections` are **refused at mint time**
+    in v1 — only broker `connections` rows are delegable.
 
 ## Consequences
 
