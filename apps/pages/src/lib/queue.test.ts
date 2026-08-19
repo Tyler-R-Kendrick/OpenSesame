@@ -59,7 +59,11 @@ describe("offline outbox", () => {
   });
 
   it("never persists a claim bearer and clears it on lock", () => {
-    enqueue({ kind: "claim_complete", claimToken: "osc_clm_id.secret" });
+    enqueue({
+      kind: "claim_complete",
+      userCode: "WORD-WORD",
+      claimToken: "osc_clm_id.secret",
+    });
     expect(loadQueue()).toHaveLength(1);
     expect(kvGet(KEY)).not.toContain("secret");
 
@@ -103,6 +107,7 @@ describe("offline outbox edge cases", () => {
   it("dequeues staged claims and durable device approvals by id", () => {
     const claim = enqueue({
       kind: "claim_complete",
+      userCode: "WORD-WORD",
       claimToken: "osc_clm_x.secret",
     });
     const device = enqueue({ kind: "device_approve", userCode: "ABCD" });

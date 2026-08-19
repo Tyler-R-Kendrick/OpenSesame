@@ -30,7 +30,10 @@ describe("PACT — browser SDK claim complete", () => {
       }) as unknown as typeof fetch,
     });
     await expect(
-      sesame.completeClaim("clm_1", { acceptedItemIds: [] }),
+      sesame.completeClaim("clm_1", {
+        acceptedItemIds: [],
+        userCode: "WORD-WORD",
+      }),
     ).rejects.toThrow(/Authentication required/);
   });
 });

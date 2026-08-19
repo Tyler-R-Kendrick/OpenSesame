@@ -90,16 +90,19 @@ pub fn admit(request: &RelayAdmission<'_>) -> Result<(), RelayRefusal> {
         return Err(RelayRefusal::MaterializeDenied);
     }
 
-    // The holder's live runtime *is* the authority in relay mode. An absent
-    // holder is not a delay to be queued through: A2/A3 work fails closed
-    // without quorum, and relay refuses `PreAuthorized` too, since that
-    // exemption assumes a bounded capability issued in advance — which is
-    // precisely what a non-attenuable connector could not issue.
+    // The holder's live runtime *is* the authority in relay mode, so an absent
+    // holder is not a delay to queue through — it is the end of the request.
+    //
+    // Neither `class` nor `offline_use` can soften this, and the rule says so
+    // outright rather than deriving it: A2/A3 work already fails closed without
+    // quorum, and `PreAuthorized` — which does legitimize acting while an
+    // approver is away — assumes a bounded capability issued in advance, which
+    // is exactly what a non-attenuable connector could not issue. An earlier
+    // version computed the answer from those two fields and happened to agree
+    // for every case that occurs; a surviving mutant showed the derivation was
+    // doing no work, and that it would have let an `A0Local` request through.
     if request.liveness == HolderLiveness::Offline {
-        let offline_permitted = request.offline_use == OfflineUse::PreAuthorized;
-        if !request.class.allow_without_quorum(offline_permitted) || offline_permitted {
-            return Err(RelayRefusal::HolderOffline);
-        }
+        return Err(RelayRefusal::HolderOffline);
     }
 
     if request.approval_required && !request.approved {
@@ -174,6 +177,40 @@ mod tests {
                 ..admissible()
             };
             assert_eq!(admit(&request), Err(RelayRefusal::HolderOffline));
+        }
+    }
+
+    #[test]
+    fn property_no_class_or_offline_stance_lets_an_offline_holder_through() {
+        // The matrix, not a sample: the previous derivation agreed with this
+        // rule for every case a test happened to name, which is how it survived
+        // review and why a mutant found it instead.
+        for class in [
+            AvailabilityClass::A0Local,
+            AvailabilityClass::A1Preauthorized,
+            AvailabilityClass::A2AuthorityRequired,
+            AvailabilityClass::A3ExternalSideEffect,
+        ] {
+            for offline_use in [
+                OfflineUse::Forbidden,
+                OfflineUse::ReadOnly,
+                OfflineUse::PreAuthorized,
+            ] {
+                // OfflineUse is not Copy; name the case before it moves.
+                let label = format!("{class:?} + {offline_use:?}");
+                let request = RelayAdmission {
+                    liveness: HolderLiveness::Offline,
+                    class,
+                    offline_use,
+                    ..admissible()
+                };
+                let outcome = admit(&request);
+                assert_eq!(
+                    outcome,
+                    Err(RelayRefusal::HolderOffline),
+                    "{label} must not reach a runtime that is not there"
+                );
+            }
         }
     }
 

@@ -226,7 +226,10 @@ describe("createOpenSesame", () => {
     });
 
     await sesame.presentClaim("osc_clm_token");
-    await sesame.completeClaim("clm_1", { acceptedItemIds: [] });
+    await sesame.completeClaim("clm_1", {
+      acceptedItemIds: [],
+      userCode: "WORD-WORD",
+    });
 
     expect(seen).toEqual(["/v1/claims/present", "/v1/claims/clm_1/complete"]);
   });
@@ -366,6 +369,7 @@ describe("createOpenSesame", () => {
     expect(current.state).toBe("presented");
     const done = await sesame.completeClaim("clm_1", {
       acceptedItemIds: ["a"],
+      userCode: "WORD-WORD",
       claimToken: "osc_clm_x.secret",
     });
     expect(done.state).toBe("completed");

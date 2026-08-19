@@ -95,6 +95,14 @@ export const ClaimSessionResponseSchema = z.object({
   expiresAt: z.string().datetime(),
   version: z.number().int().positive(),
   completedByPrincipalId: z.string().optional(),
-  items: z.array(ClaimItemResponseSchema).optional(),
+  /**
+   * Always projected, empty when the claim covers nothing enumerable.
+   *
+   * It is required rather than optional so that "no items" cannot be confused
+   * with "this server did not say": a consumer that read an absent field as
+   * the empty set would silently accept an item-bearing claim without ever
+   * showing what it covers.
+   */
+  items: z.array(ClaimItemResponseSchema),
 });
 export type ClaimSessionResponse = z.infer<typeof ClaimSessionResponseSchema>;

@@ -11,7 +11,7 @@ import { kvGet, kvSet } from "./kv.js";
 
 export type QueuedActionInput =
   | { kind: "device_approve"; userCode: string }
-  | { kind: "claim_complete"; claimToken: string };
+  | { kind: "claim_complete"; claimToken: string; userCode: string };
 
 export type QueuedAction = QueuedActionInput & {
   id: string;

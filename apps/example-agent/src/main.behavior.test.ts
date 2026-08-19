@@ -51,6 +51,7 @@ function makeFetchImpl(options?: {
           type: "agent",
           state,
           targetManifestDigest: "sha256:demo",
+          items: [],
           expiresAt: new Date(Date.now() + 900_000).toISOString(),
           version: 1,
           ...(state === "completed"

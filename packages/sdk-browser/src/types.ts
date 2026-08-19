@@ -60,7 +60,12 @@ export interface ClaimPresentation {
   state: string;
   targetManifestDigest: string;
   expiresAt: string;
-  items?: ClaimItemView[];
+  /**
+   * Always projected by the server, empty when the claim covers nothing
+   * enumerable. Required here so a caller cannot read "the server did not say"
+   * as "there is nothing to accept".
+   */
+  items: ClaimItemView[];
 }
 
 export interface ClaimDecision {
@@ -70,8 +75,12 @@ export interface ClaimDecision {
    * The human consent code the claim's creation displayed. The server requires
    * it on completion (with a per-claim attempt fence): holding the link alone
    * must not be enough to accept, so the code travels out-of-band.
+   *
+   * Required, because the server requires it. Typed optional it compiled at
+   * every call site and failed at all of them — and a caller that discards its
+   * claim on the rejection has spent a single-use token on a 400.
    */
-  userCode?: string;
+  userCode: string;
   destination?: Record<string, unknown>;
   idempotencyKey?: string;
   /**

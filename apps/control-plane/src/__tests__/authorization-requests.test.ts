@@ -3,14 +3,32 @@ import { createControlPlane } from "../create-app.js";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
-function plane(): App {
+function plane(clock?: () => Date): App {
   return createControlPlane({
     config: {
       port: 0,
       publicUrl: "http://127.0.0.1:8788",
       issuer: "http://127.0.0.1:8788",
     },
+    ...(clock ? { clock } : {}),
   }).app;
+}
+
+/**
+ * The approver's inbox handle.
+ *
+ * Only its owner can obtain it, which is the point: a raw principal id is not
+ * an address, so a caller who merely knows who someone is cannot reach them.
+ */
+async function inboxRefOf(
+  app: App,
+  who: { accessToken: string },
+): Promise<string> {
+  const res = await app.request("/v1/authorization-requests/inbox-ref", {
+    headers: { authorization: `Bearer ${who.accessToken}` },
+  });
+  expect(res.status).toBe(200);
+  return ((await res.json()) as { approverRef: string }).approverRef;
 }
 
 async function principal(app: App) {
@@ -25,7 +43,7 @@ let seq = 0;
 async function ask(
   app: App,
   requesterToken: string,
-  approverId: string,
+  approverRef: string,
   overrides: Record<string, unknown> = {},
 ) {
   const res = await app.request("/v1/authorization-requests", {
@@ -36,7 +54,7 @@ async function ask(
       "idempotency-key": `ask-${++seq}`,
     },
     body: JSON.stringify({
-      principalId: approverId,
+      approverRef,
       bindingMessage: "Read acme/catalog issues",
       authorizationDetails: [
         {
@@ -73,7 +91,11 @@ describe("authorization request inbox", () => {
     const approver = await principal(app);
     const requester = await principal(app);
 
-    const created = await ask(app, requester.accessToken, approver.principalId);
+    const created = await ask(
+      app,
+      requester.accessToken,
+      await inboxRefOf(app, approver),
+    );
     expect(created.status).toBe(201);
     const body = (await created.json()) as {
       authReqId: string;
@@ -116,7 +138,7 @@ describe("authorization request inbox", () => {
     const approver = await principal(app);
     const requester = await principal(app);
     const body = (await (
-      await ask(app, requester.accessToken, approver.principalId)
+      await ask(app, requester.accessToken, await inboxRefOf(app, approver))
     ).json()) as { authReqId: string };
 
     const res = await decide(
@@ -135,7 +157,7 @@ describe("authorization request inbox", () => {
     const approver = await principal(app);
     const requester = await principal(app);
     const body = (await (
-      await ask(app, requester.accessToken, approver.principalId)
+      await ask(app, requester.accessToken, await inboxRefOf(app, approver))
     ).json()) as { authReqId: string; requestDigest: string };
 
     const res = await decide(
@@ -155,7 +177,7 @@ describe("authorization request inbox", () => {
     const requester = await principal(app);
     const stranger = await principal(app);
     const body = (await (
-      await ask(app, requester.accessToken, approver.principalId)
+      await ask(app, requester.accessToken, await inboxRefOf(app, approver))
     ).json()) as { authReqId: string };
 
     const read = await app.request(
@@ -177,7 +199,7 @@ describe("authorization request inbox", () => {
     const approver = await principal(app);
     const requester = await principal(app);
     const body = (await (
-      await ask(app, requester.accessToken, approver.principalId)
+      await ask(app, requester.accessToken, await inboxRefOf(app, approver))
     ).json()) as { authReqId: string };
 
     const poll = await app.request(
@@ -193,7 +215,7 @@ describe("authorization request inbox", () => {
     const approver = await principal(app);
     const requester = await principal(app);
     const body = (await (
-      await ask(app, requester.accessToken, approver.principalId)
+      await ask(app, requester.accessToken, await inboxRefOf(app, approver))
     ).json()) as { authReqId: string };
     const url = `/v1/authorization-requests/${body.authReqId}/poll`;
     const auth = { authorization: `Bearer ${requester.accessToken}` };
@@ -215,7 +237,7 @@ describe("authorization request inbox", () => {
     const approver = await principal(app);
     const requester = await principal(app);
     const body = (await (
-      await ask(app, requester.accessToken, approver.principalId)
+      await ask(app, requester.accessToken, await inboxRefOf(app, approver))
     ).json()) as { authReqId: string; requestDigest: string };
 
     expect(
@@ -242,8 +264,104 @@ describe("authorization request inbox", () => {
   it("contract: asking an unknown principal answers 404 rather than confirming it", async () => {
     const app = plane();
     const requester = await principal(app);
-    const res = await ask(app, requester.accessToken, "prn_does_not_exist");
+    const res = await ask(app, requester.accessToken, "inbox_bm9wZQ.deadbeef");
     expect(res.status).toBe(404);
+  });
+
+  it("adversarial: knowing a principal id is not an address for its inbox", async () => {
+    // The whole reason the address is a handle. If a raw id worked here, then
+    // anyone who learned an id could put text of their choosing in front of
+    // that person, and the difference between 201 and 404 would answer, for
+    // any id, whether it exists.
+    const app = plane();
+    const approver = await principal(app);
+    const requester = await principal(app);
+
+    const byId = await ask(app, requester.accessToken, approver.principalId);
+    expect(byId.status).toBe(404);
+
+    // A handle whose MAC does not check out is refused the same way, so a
+    // forged one and a nonexistent one are indistinguishable.
+    const real = await inboxRefOf(app, approver);
+    const [body] = real.slice("inbox_".length).split(".");
+    const forged = `inbox_${body}.${"a".repeat(32)}`;
+    expect((await ask(app, requester.accessToken, forged)).status).toBe(404);
+
+    // And the real handle still works, so the refusals above are the fence
+    // doing its job rather than the route being broken.
+    expect((await ask(app, requester.accessToken, real)).status).toBe(201);
+  });
+
+  it("contract: a principal only ever gets its own inbox handle", async () => {
+    const app = plane();
+    const a = await principal(app);
+    const b = await principal(app);
+    expect(await inboxRefOf(app, a)).not.toBe(await inboxRefOf(app, b));
+    // Stable, so it can be shared once rather than reissued per call.
+    expect(await inboxRefOf(app, a)).toBe(await inboxRefOf(app, a));
+    // And it does not simply carry the id in the clear.
+    expect(await inboxRefOf(app, a)).not.toContain(a.principalId);
+  });
+
+  it("property: a lapsed request is expired in the store, not only on screen", async () => {
+    // Display-only expiry leaves the row `pending` forever: it keeps its place
+    // in a bounded inbox ahead of live requests, and nothing ever sheds it.
+    let now = new Date("2026-08-19T12:00:00.000Z");
+    const app = plane(() => now);
+    const approver = await principal(app);
+    const requester = await principal(app);
+    const created = await ask(
+      app,
+      requester.accessToken,
+      await inboxRefOf(app, approver),
+      { ttlSeconds: 30 },
+    );
+    const { authReqId } = (await created.json()) as { authReqId: string };
+
+    now = new Date(now.getTime() + 60_000);
+    const read = await app.request(`/v1/authorization-requests/${authReqId}`, {
+      headers: { authorization: `Bearer ${approver.accessToken}` },
+    });
+    expect(((await read.json()) as { status: string }).status).toBe("expired");
+
+    // Asking for only the pending rows must not return it, which is the part
+    // a projection-on-read cannot deliver.
+    const pending = await app.request(
+      "/v1/authorization-requests?status=pending",
+      { headers: { authorization: `Bearer ${approver.accessToken}` } },
+    );
+    const { requests } = (await pending.json()) as {
+      requests: { authReqId: string }[];
+    };
+    expect(requests.map((r) => r.authReqId)).not.toContain(authReqId);
+  });
+
+  it("chaos: two approvers racing get a conflict, never a 500", async () => {
+    // Both handlers read the row before either writes, so the second write
+    // loses the version check. That is a conflict the caller can act on — a
+    // 500 would read as "the decision may or may not have landed".
+    const app = plane();
+    const approver = await principal(app);
+    const requester = await principal(app);
+    const created = await ask(
+      app,
+      requester.accessToken,
+      await inboxRefOf(app, approver),
+    );
+    const { authReqId, requestDigest } = (await created.json()) as {
+      authReqId: string;
+      requestDigest: string;
+    };
+
+    const [first, second] = await Promise.all([
+      decide(app, approver.accessToken, authReqId, "approve", requestDigest),
+      decide(app, approver.accessToken, authReqId, "approve", requestDigest),
+    ]);
+    const statuses = [first.status, second.status].sort();
+    expect(statuses[0]).toBe(200);
+    // 409 is the repository's version conflict reaching the caller as a
+    // conflict; before this it escaped the handler and became a 500.
+    expect(statuses[1]).toBe(409);
   });
 
   it("adversarial: the requester reference is opaque, never the caller's principal id", async () => {
@@ -251,7 +369,11 @@ describe("authorization request inbox", () => {
     const app = plane();
     const approver = await principal(app);
     const requester = await principal(app);
-    const created = await ask(app, requester.accessToken, approver.principalId);
+    const created = await ask(
+      app,
+      requester.accessToken,
+      await inboxRefOf(app, approver),
+    );
     const raw = await created.text();
     expect(raw).not.toContain(requester.principalId);
   });

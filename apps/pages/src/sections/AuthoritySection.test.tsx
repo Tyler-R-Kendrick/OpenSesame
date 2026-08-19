@@ -238,12 +238,21 @@ describe("AuthoritySection", () => {
     ],
   };
 
-  async function presentToken(token = "osc_clm_part.one") {
+  async function presentToken(token = "osc_clm_part.one", code = "WORD-WORD") {
     await openTab(/Claim ownership/i);
     await userEvent.type(
       document.getElementById("authority-claim-token") as HTMLElement,
       token,
     );
+    // The consent code is asked for before presenting, not after: presenting
+    // spends the token, and finding out the code is missing afterwards would
+    // spend it for nothing.
+    if (code) {
+      await userEvent.type(
+        document.getElementById("authority-claim-code") as HTMLElement,
+        code,
+      );
+    }
     await userEvent.click(
       screen.getByRole("button", { name: /Present claim/i }),
     );
@@ -686,12 +695,20 @@ describe("AuthoritySection", () => {
       document.getElementById("authority-claim-token") as HTMLElement,
       "osc_clm_part.one",
     );
+    await userEvent.type(
+      document.getElementById("authority-claim-code") as HTMLElement,
+      "WORD-WORD",
+    );
     await userEvent.click(
       screen.getByRole("button", { name: /Stage for later/i }),
     );
+    // The code is staged with the token because the flush completes without a
+    // chance to ask for it — and it stays in memory alongside the bearer, so
+    // neither reaches disk.
     expect(enqueue).toHaveBeenCalledWith({
       kind: "claim_complete",
       claimToken: "osc_clm_part.one",
+      userCode: "WORD-WORD",
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });

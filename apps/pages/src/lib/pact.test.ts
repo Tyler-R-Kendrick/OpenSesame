@@ -37,7 +37,11 @@ describe("PACT — Pages vault / queue / authz", () => {
       "saveDeviceActions",
     ]);
     clearStagedClaimTokens();
-    enqueue({ kind: "claim_complete", claimToken: "osc_clm_pact.secret" });
+    enqueue({
+      kind: "claim_complete",
+      userCode: "WORD-WORD",
+      claimToken: "osc_clm_pact.secret",
+    });
     expect(kvGet("outbox.v1") ?? "[]").not.toContain("secret");
     clearStagedClaimTokens();
   });

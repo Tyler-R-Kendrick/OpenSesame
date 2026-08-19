@@ -39,3 +39,7 @@ package-lock.json
 .deepsec/findings/
 .deepsec/data/*/debug/
 .serena/
+
+# cargo-mutants working directories
+mutants.out/
+mutants.out.old/

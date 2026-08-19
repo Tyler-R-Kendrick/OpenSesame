@@ -526,6 +526,9 @@ export class PostgresRepositories implements Repositories {
         .update(schema.authorizationRequests)
         .set({
           ...(patch.status !== undefined ? { status: patch.status } : {}),
+          ...(patch.expiresAt !== undefined
+            ? { expiresAt: patch.expiresAt }
+            : {}),
           ...(patch.decidedAt !== undefined
             ? { decidedAt: patch.decidedAt }
             : {}),

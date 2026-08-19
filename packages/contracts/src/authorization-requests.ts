@@ -37,10 +37,16 @@ export const AuthorizationDetailSchema = z
 
 export const CreateAuthorizationRequestSchema = z.object({
   /**
-   * The approver. A request names whose authority it wants; the server still
-   * checks the caller may ask this principal.
+   * The approver's inbox handle, obtained from
+   * `GET /v1/authorization-requests/inbox-ref` by its owner and shared
+   * deliberately.
+   *
+   * Not a principal id: knowing who someone is must not be enough to put text
+   * in front of them, and an address that could be guessed would turn this
+   * route into an oracle for which principal ids exist. The handle is
+   * server-minted and MAC-bound, so holding one is what authorizes the asking.
    */
-  principalId: z.string().min(1),
+  approverRef: z.string().min(8).max(256),
   authorizationDetails: z.array(AuthorizationDetailSchema).min(1).max(32),
   /**
    * Shown identically to the requester and the approver, so a person can tell

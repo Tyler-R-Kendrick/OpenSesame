@@ -50,20 +50,26 @@ const OPEN: ReadonlySet<string> = new Set([
 /**
  * Project a presentation into what the page needs to accept it.
  *
- * Exported for tests: an itemless claim must map to an empty accepted set
- * rather than `undefined`, which previously read as "unknown" and blocked
- * completion for every claim the server actually mints.
+ * Exported for tests. An itemless claim maps to an empty accepted set — the
+ * manifest digest on screen is what the reviewer vouches for — but an *absent*
+ * `items` is not that. The server projects the field on every claim, so its
+ * absence means this page is talking to something that does not report what a
+ * claim covers, and accepting by id would be guessing at what is in it.
+ * Presenting has already spent the token by the time we are here, so the only
+ * honest move is to say so rather than accept an unknown set.
  */
 export function toClaim(presented: ClaimPresentation): Claim {
+  if (!Array.isArray(presented.items)) {
+    throw new Error(
+      "This Identity API did not report what the claim covers, and accepting requires naming each item. Presenting already spent this token — update the Identity API, then create a fresh claim.",
+    );
+  }
   return {
     id: presented.id,
     type: presented.type,
     state: presented.state,
     targetManifestDigest: presented.targetManifestDigest,
-    // An absent `items` is the empty set, not an unknown one: a claim with
-    // nothing to enumerate has nothing to name, and the manifest digest on
-    // screen is what the reviewer is vouching for.
-    itemIds: presented.items?.map((item) => item.id) ?? [],
+    itemIds: presented.items.map((item) => item.id),
   };
 }
 

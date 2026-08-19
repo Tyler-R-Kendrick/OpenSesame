@@ -13,6 +13,7 @@ import {
   initialPollInterval,
 } from "@opensesame/device-auth";
 import {
+  type ClaimItem,
   type ClaimSession,
   DomainError,
   parseClaimToken,
@@ -37,7 +38,17 @@ import { authenticatedPrincipalId } from "./organizations.js";
 /** Wrong user codes tolerated per claim before approval is refused outright. */
 const MAX_CLAIM_APPROVAL_ATTEMPTS = 5;
 
-function toClaimResponse(session: ClaimSession) {
+/**
+ * Project a claim for the wire.
+ *
+ * `items` is always present. A client has to be able to tell "this claim
+ * covers nothing" from "this server never said what it covers", because the
+ * second one read as the first is how an item-bearing claim gets accepted
+ * without anyone seeing what was in it. Nothing mints item-bearing claims
+ * today, which is exactly why the empty array has to be explicit now rather
+ * than after something does.
+ */
+function toClaimResponse(session: ClaimSession, items: ClaimItem[] = []) {
   return ClaimSessionResponseSchema.parse({
     id: session.id,
     type: session.type,
@@ -45,6 +56,15 @@ function toClaimResponse(session: ClaimSession) {
     targetManifestDigest: session.targetManifestDigest,
     expiresAt: session.expiresAt.toISOString(),
     version: session.version,
+    items: items.map((item) => ({
+      id: item.id,
+      targetType: item.targetType,
+      targetId: item.targetId,
+      requestedAction: item.requestedAction,
+      required: item.required,
+      dependencies: item.dependencies,
+      state: item.state,
+    })),
     ...(session.completedByPrincipalId !== undefined
       ? { completedByPrincipalId: session.completedByPrincipalId }
       : {}),

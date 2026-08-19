@@ -77,6 +77,12 @@ function tokenField(): HTMLInputElement {
   return input;
 }
 
+function consentField(): HTMLInputElement {
+  const input = container.querySelector<HTMLInputElement>("#claim-user-code");
+  if (!input) throw new Error("consent code input not rendered");
+  return input;
+}
+
 function buttonNamed(text: string): HTMLButtonElement {
   const button = [...container.querySelectorAll("button")].find(
     (b) => b.textContent === text,
@@ -356,6 +362,11 @@ describe("ClaimPage completing", () => {
     client.presentClaim.mockResolvedValue(presentation);
     await render(<ClaimPage />);
     await submitToken("osc_clm_x.secret");
+    // Completion needs the code the claim's creator read out; the link on its
+    // own is not meant to be enough to accept.
+    if (container.querySelector("#claim-user-code")) {
+      await type(consentField(), "WORD-WORD");
+    }
   }
 
   it("completes an open claim as the same principal and clears the stash", async () => {
@@ -367,6 +378,7 @@ describe("ClaimPage completing", () => {
     await click(buttonNamed("Complete claim"));
     expect(client.completeClaim).toHaveBeenCalledWith("clm_1", {
       acceptedItemIds: ["item-1", "item-2"],
+      userCode: "WORD-WORD",
       claimToken: "osc_clm_x.secret",
     });
     expect(container.textContent).toContain(
@@ -376,12 +388,23 @@ describe("ClaimPage completing", () => {
   });
 
   it("refuses to complete when the API never named what the claim covers", async () => {
+    // An empty item list is a legitimate answer; no list at all is not. The
+    // page stops rather than accepting an unknown set, even though presenting
+    // has already spent the token by this point.
     const { items: _items, ...withoutItems } = OPEN_CLAIM;
     await renderOpen(withoutItems);
+    expect(container.textContent).toContain("did not report");
+    expect(client.completeClaim).not.toHaveBeenCalled();
+  });
+
+  it("refuses to complete without the consent code", async () => {
+    // Holding the link is not consent. The server refuses a completion with no
+    // code, and spending a single-use token to discover that is the wrong way
+    // to find out.
+    client.presentClaim.mockResolvedValue(OPEN_CLAIM);
+    await render(<ClaimPage />);
+    await submitToken("osc_clm_x.secret");
     await click(buttonNamed("Complete claim"));
-    expect(container.textContent).toContain(
-      "The API did not report what this claim covers",
-    );
     expect(client.completeClaim).not.toHaveBeenCalled();
   });
 
