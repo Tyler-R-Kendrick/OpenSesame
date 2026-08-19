@@ -1,3 +1,4 @@
+import { approveDevice } from "@opensesame/ceremony-kit";
 import { useEffect, useState } from "react";
 import { parseUserCode } from "../lib/deep-link.js";
 import { issuer } from "../lib/issuer.js";
@@ -23,30 +24,14 @@ export function DeviceApprove() {
   async function approve() {
     setError(null);
     setStatus(null);
-    if (!userCode.trim()) {
-      setError("Enter the user code shown on the device.");
-      return;
-    }
     setBusy(true);
     try {
-      const base = issuer.replace(/\/$/, "");
-      const res = await fetch(`${base}/v1/device/approve`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ user_code: userCode.trim() }),
-        credentials: "include",
+      // One implementation of this flow, shared with Pages and the console.
+      await approveDevice({
+        baseUrl: issuer,
+        userCode,
+        fetchImpl: fetch,
       });
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          throw new Error(
-            "Sign in first (same hostname as this page — mixed localhost/127.0.0.1 drops the session cookie), then approve this code.",
-          );
-        }
-        if (res.status === 404) {
-          throw new Error("That user code was not found or has expired.");
-        }
-        throw new Error(`Approval failed (${res.status}). Try again shortly.`);
-      }
       setStatus("Device authorized. You can return to it now.");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
