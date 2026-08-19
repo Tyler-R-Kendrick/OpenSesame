@@ -19,7 +19,7 @@ interface Claim {
   state: string;
   targetManifestDigest: string;
   /** Accepting names every item; the server refuses a wildcard. */
-  itemIds: string[] | undefined;
+  itemIds: string[];
 }
 
 /**
@@ -47,13 +47,42 @@ const OPEN: ReadonlySet<string> = new Set([
   "reviewed",
 ]);
 
-function toClaim(presented: ClaimPresentation): Claim {
+/**
+ * Project a presentation into what the page needs to accept it.
+ *
+ * Exported for tests: an itemless claim must map to an empty accepted set
+ * rather than `undefined`, which previously read as "unknown" and blocked
+ * completion for every claim the server actually mints.
+ */
+export function toClaim(presented: ClaimPresentation): Claim {
   return {
     id: presented.id,
     type: presented.type,
     state: presented.state,
     targetManifestDigest: presented.targetManifestDigest,
-    itemIds: presented.items?.map((item) => item.id),
+    // An absent `items` is the empty set, not an unknown one: a claim with
+    // nothing to enumerate has nothing to name, and the manifest digest on
+    // screen is what the reviewer is vouching for.
+    itemIds: presented.items?.map((item) => item.id) ?? [],
+  };
+}
+
+/**
+ * The decision sent to the server.
+ *
+ * Completion requires three things together — the accepted items, the claim
+ * bearer, and the user code that proves human consent. Building it in one
+ * place keeps a caller from omitting the code, which the server rejects.
+ */
+export function buildClaimCompletion(
+  claim: Pick<Claim, "itemIds">,
+  userCode: string,
+  claimToken: string,
+) {
+  return {
+    acceptedItemIds: claim.itemIds,
+    userCode: userCode.trim(),
+    claimToken,
   };
 }
 
@@ -78,6 +107,7 @@ export function ClaimPage() {
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
+  const [userCode, setUserCode] = useState("");
 
   /** The bearer being loaded, so the same one is never presented twice. */
   const inFlight = useRef<string | null>(null);
@@ -207,12 +237,6 @@ export function ClaimPage() {
   async function complete() {
     if (phase.kind !== "open") return;
     const { token, claim } = phase;
-    if (!claim.itemIds) {
-      setError(
-        "The API did not report what this claim covers, and accepting without naming it would accept something unseen. Presenting already spent that token — create a fresh claim.",
-      );
-      return;
-    }
     const sesame = createOpenSesame({ issuer });
     setCompleting(true);
     setError(null);
@@ -231,10 +255,12 @@ export function ClaimPage() {
       }
       // A new client was built for this step, so it never saw the presentation:
       // pass the claim bearer, which completing requires alongside the principal.
-      await sesame.completeClaim(claim.id, {
-        acceptedItemIds: claim.itemIds,
-        claimToken: token,
-      });
+      // The user code is the human consent step the server requires alongside
+      // the bearer: holding the link must not be enough to accept.
+      await sesame.completeClaim(
+        claim.id,
+        buildClaimCompletion(claim, userCode, token),
+      );
       // Spent for good; nothing left worth keeping in this tab.
       clearClaimStash();
       setPhase({ kind: "done" });
@@ -310,11 +336,22 @@ export function ClaimPage() {
             Manifest digest: <code>{phase.claim.targetManifestDigest}</code>
           </p>
           <p>State: {phase.claim.state}</p>
+          <div className="field">
+            <label htmlFor="claim-user-code">Consent code</label>
+            <input
+              id="claim-user-code"
+              autoComplete="one-time-code"
+              placeholder="ABCD-EFGH"
+              value={userCode}
+              disabled={completing}
+              onChange={(e) => setUserCode(e.target.value.toUpperCase())}
+            />
+          </div>
           <div className="actions">
             <button
               type="button"
               className="primary"
-              disabled={completing}
+              disabled={completing || !userCode.trim()}
               aria-busy={completing}
               onClick={() => void complete()}
             >
