@@ -1,5 +1,7 @@
 import type {
   AuditEvent,
+  AuthorizationRequest,
+  AuthorizationRequestStatus,
   BetterAuthSubject,
   ClaimItem,
   ClaimSession,
@@ -136,8 +138,32 @@ export interface OutboxRepository {
   markPublished(id: string, publishedAt?: Date): Promise<void>;
 }
 
+export interface AuthorizationRequestRepository {
+  create(
+    request: AuthorizationRequest,
+    uow?: UnitOfWork,
+  ): Promise<AuthorizationRequest>;
+  getById(id: string): Promise<AuthorizationRequest | null>;
+  /** The approver's inbox. Never lists another principal's requests. */
+  listForPrincipal(
+    principalId: string,
+    filter?: { status?: AuthorizationRequestStatus; limit?: number },
+  ): Promise<AuthorizationRequest[]>;
+  /**
+   * Optimistic concurrency, as for claims: two approvers racing must not both
+   * believe they settled the request.
+   */
+  updateWithVersion(
+    id: string,
+    expectedVersion: number,
+    patch: Partial<Omit<AuthorizationRequest, "id" | "createdAt" | "version">>,
+    uow?: UnitOfWork,
+  ): Promise<AuthorizationRequest>;
+}
+
 export interface Repositories {
   principals: PrincipalRepository;
+  authorizationRequests: AuthorizationRequestRepository;
   externalIdentities: ExternalIdentityRepository;
   betterAuthSubjects: BetterAuthSubjectRepository;
   claimSessions: ClaimSessionRepository;

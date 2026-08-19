@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type {
   AuditEvent,
+  AuthorizationRequest,
   BetterAuthSubject,
   ClaimItem,
   ClaimSession,
@@ -10,6 +11,7 @@ import type {
 } from "@opensesame/os-domain";
 import {
   type AuditEventRepository,
+  type AuthorizationRequestRepository,
   type BetterAuthSubjectRepository,
   type ClaimItemRepository,
   type ClaimSessionRepository,
@@ -101,6 +103,7 @@ class MemoryStore {
   claimItems = new Map<string, ClaimItem>();
   audit = new Map<string, AuditEvent>();
   outbox = new Map<string, OutboxEvent>();
+  authorizationRequests = new Map<string, AuthorizationRequest>();
 }
 
 function applyNowOrDefer(uow: UnitOfWork | undefined, apply: () => void) {
@@ -262,6 +265,59 @@ export class MemoryRepositories implements Repositories {
     getByBetterAuthUserId: async (userId) => {
       const row = this.#store.betterAuth.get(userId);
       return row ? { ...row } : null;
+    },
+  };
+
+  readonly authorizationRequests: AuthorizationRequestRepository = {
+    create: async (request, uow) => {
+      if (this.#store.authorizationRequests.has(request.id)) {
+        throw new ConflictError(
+          `authorization request already exists: ${request.id}`,
+        );
+      }
+      const row: AuthorizationRequest = { ...request };
+      const apply = () => {
+        this.#store.authorizationRequests.set(row.id, { ...row });
+      };
+      applyNowOrDefer(uow, apply);
+      return { ...row };
+    },
+
+    getById: async (id) => {
+      const row = this.#store.authorizationRequests.get(id);
+      return row ? { ...row } : null;
+    },
+
+    listForPrincipal: async (principalId, filter) => {
+      const rows = [...this.#store.authorizationRequests.values()]
+        .filter((row) => row.principalId === principalId)
+        .filter((row) => !filter?.status || row.status === filter.status)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      return rows.slice(0, filter?.limit ?? 50).map((row) => ({ ...row }));
+    },
+
+    updateWithVersion: async (id, expectedVersion, patch, uow) => {
+      const current = this.#store.authorizationRequests.get(id);
+      if (!current) {
+        throw new NotFoundError(`authorization request not found: ${id}`);
+      }
+      if (current.version !== expectedVersion) {
+        throw new ConflictError(
+          `authorization request version conflict: expected ${expectedVersion}, got ${current.version}`,
+        );
+      }
+      const merged: AuthorizationRequest = {
+        ...current,
+        ...patch,
+        id: current.id,
+        createdAt: current.createdAt,
+        version: current.version + 1,
+      };
+      const apply = () => {
+        this.#store.authorizationRequests.set(id, { ...merged });
+      };
+      applyNowOrDefer(uow, apply);
+      return { ...merged };
     },
   };
 

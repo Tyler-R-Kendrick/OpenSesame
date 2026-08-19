@@ -1,3 +1,4 @@
+export * from "./authorization-requests.js";
 export * from "./claims.js";
 export * from "./principals.js";
 export * from "./projects.js";

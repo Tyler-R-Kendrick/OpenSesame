@@ -355,6 +355,58 @@ export type ClaimState =
   | "revoked"
   | "expired";
 
+/** Where a pending authorization request stands (ADR 0046). */
+export type AuthorizationRequestStatus =
+  | "pending"
+  | "approved"
+  | "denied"
+  | "expired"
+  | "cancelled";
+
+/**
+ * Who settled a request. An agent-settled decision must never be
+ * indistinguishable from one a person made, so the kind is recorded
+ * alongside the identity rather than inferred from it.
+ */
+export type ApprovalDecidedByKind = "human" | "agent";
+
+/**
+ * A request waiting for a human (or an envelope-bounded agent) to allow or
+ * refuse it — the CIBA-shaped object behind the inbox (ADR 0046).
+ *
+ * `requestDigest` is what makes an approval mean something: the executor
+ * refuses when what it is about to run does not hash to what was approved,
+ * so a request cannot be swapped after consent (PSD2 dynamic linking).
+ */
+export interface AuthorizationRequest {
+  /** CIBA `auth_req_id`. Opaque; never derived from the requester. */
+  id: string;
+  /** The approver — whose authority is being asked for. */
+  principalId: PrincipalId;
+  /**
+   * Who is asking, as an opaque reference rather than a canonical principal
+   * id: this travels to inboxes and, later, over public bus subjects.
+   */
+  requesterRef: string;
+  /** RFC 9396 authorization_details: constraint, prompt, and receipt in one shape. */
+  authorizationDetails: Record<string, unknown>[];
+  /** Canonical digest of the exact request being consented to. */
+  requestDigest: string;
+  /** Short human-readable string shown identically to requester and approver. */
+  bindingMessage: string;
+  status: AuthorizationRequestStatus;
+  /** Poll pacing, in seconds (CIBA `interval`). */
+  intervalSeconds: number;
+  connectionId?: string;
+  delegationId?: string;
+  createdAt: Date;
+  expiresAt: Date;
+  decidedAt?: Date;
+  decidedByPrincipalId?: PrincipalId;
+  decidedByKind?: ApprovalDecidedByKind;
+  version: number;
+}
+
 export interface ClaimSession {
   id: string;
   type: ClaimTargetType;
@@ -534,7 +586,14 @@ export type SecretsPlaneDomainEventType =
 /** Future domain event types — contracts only; no secret resolver in this slice. */
 export type FutureDomainEventType =
   | "connection.claimed"
-  | "connection.delegated"
+  | "connection.delegated";
+
+/**
+ * Authorization-request lifecycle (ADR 0046). Reserved names promoted to
+ * producers by the inbox: a request is announced when it starts waiting and
+ * again when somebody settles it.
+ */
+export type AuthorizationRequestEventType =
   | "authority.invocation.requested"
   | "authority.invocation.completed";
 

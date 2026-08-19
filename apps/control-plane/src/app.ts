@@ -1,13 +1,14 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
-import { bodyLimit } from "hono/body-limit";
 import type { AppContext } from "./context.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { type Variables, withContext } from "./middleware/context.js";
 import { apiSecurityHeaders } from "./middleware/security-headers.js";
 import { agentRoutes } from "./routes/agents.js";
 import { auditRoutes } from "./routes/audit.js";
+import { authorizationRequestRoutes } from "./routes/authorization-requests.js";
 import { claimRoutes } from "./routes/claims.js";
 import { deviceRoutes } from "./routes/device.js";
 import { discoveryRoutes } from "./routes/discovery.js";
@@ -63,6 +64,7 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/v1/principals", principalRoutes);
   app.route("/v1/projects", projectRoutes);
   app.route("/v1/claims", claimRoutes);
+  app.route("/v1/authorization-requests", authorizationRequestRoutes);
   app.route("/v1/agents", agentRoutes);
   app.route("/v1/mfa", mfaRoutes);
   app.route("/v1/device", deviceRoutes);
