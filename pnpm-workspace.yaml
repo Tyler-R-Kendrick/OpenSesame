@@ -3,6 +3,7 @@ packages:
   - "apps/browser-extension"
   - "apps/control-plane"
   - "apps/console"
+  - "apps/ceremonies"
   - "apps/worker"
   - "apps/example-rp-alpha"
   - "apps/example-rp-beta"

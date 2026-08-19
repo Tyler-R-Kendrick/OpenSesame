@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type {
   AuditEvent,
+  AuthorizationRequest,
   BetterAuthSubject,
   ClaimItem,
   ClaimSession,
@@ -14,6 +15,7 @@ import type postgres from "postgres";
 import * as schema from "../schema/index.js";
 import {
   type AuditEventRepository,
+  type AuthorizationRequestRepository,
   type BetterAuthSubjectRepository,
   type ClaimItemRepository,
   type ClaimSessionRepository,
@@ -103,6 +105,33 @@ function mapIdentity(
     ...(row.lastAuthenticatedAt
       ? { lastAuthenticatedAt: row.lastAuthenticatedAt }
       : {}),
+  };
+}
+
+function mapAuthorizationRequest(
+  row: typeof schema.authorizationRequests.$inferSelect,
+): AuthorizationRequest {
+  return {
+    id: row.id,
+    principalId: row.principalId,
+    requesterRef: row.requesterRef,
+    authorizationDetails: row.authorizationDetails,
+    requestDigest: row.requestDigest,
+    bindingMessage: row.bindingMessage,
+    status: row.status as AuthorizationRequest["status"],
+    intervalSeconds: row.intervalSeconds,
+    ...(row.connectionId ? { connectionId: row.connectionId } : {}),
+    ...(row.delegationId ? { delegationId: row.delegationId } : {}),
+    createdAt: row.createdAt,
+    expiresAt: row.expiresAt,
+    ...(row.decidedAt ? { decidedAt: row.decidedAt } : {}),
+    ...(row.decidedByPrincipalId
+      ? { decidedByPrincipalId: row.decidedByPrincipalId }
+      : {}),
+    ...(row.decidedByKind
+      ? { decidedByKind: row.decidedByKind as "human" | "agent" }
+      : {}),
+    version: row.version,
   };
 }
 
@@ -428,6 +457,107 @@ export class PostgresRepositories implements Repositories {
             linkedAt: row.linkedAt,
           }
         : null;
+    },
+  };
+
+  readonly authorizationRequests: AuthorizationRequestRepository = {
+    create: async (request, uow) => {
+      try {
+        const [row] = await dbOf(uow, this.db)
+          .insert(schema.authorizationRequests)
+          .values({
+            id: request.id,
+            principalId: request.principalId,
+            requesterRef: request.requesterRef,
+            authorizationDetails: request.authorizationDetails,
+            requestDigest: request.requestDigest,
+            bindingMessage: request.bindingMessage,
+            status: request.status,
+            intervalSeconds: request.intervalSeconds,
+            connectionId: request.connectionId,
+            delegationId: request.delegationId,
+            createdAt: request.createdAt,
+            expiresAt: request.expiresAt,
+            decidedAt: request.decidedAt,
+            decidedByPrincipalId: request.decidedByPrincipalId,
+            decidedByKind: request.decidedByKind,
+            version: request.version,
+          })
+          .returning();
+        if (!row) throw new Error("insert authorization request failed");
+        return mapAuthorizationRequest(row);
+      } catch (err) {
+        if (isUniqueViolation(err)) {
+          throw new ConflictError(
+            `authorization request conflict: ${request.id}`,
+          );
+        }
+        throw err;
+      }
+    },
+
+    getById: async (id) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.authorizationRequests)
+        .where(eq(schema.authorizationRequests.id, id))
+        .limit(1);
+      return row ? mapAuthorizationRequest(row) : null;
+    },
+
+    listForPrincipal: async (principalId, filter) => {
+      const where = filter?.status
+        ? and(
+            eq(schema.authorizationRequests.principalId, principalId),
+            eq(schema.authorizationRequests.status, filter.status),
+          )
+        : eq(schema.authorizationRequests.principalId, principalId);
+      const rows = await this.db
+        .select()
+        .from(schema.authorizationRequests)
+        .where(where)
+        .orderBy(desc(schema.authorizationRequests.createdAt))
+        .limit(filter?.limit ?? 50);
+      return rows.map(mapAuthorizationRequest);
+    },
+
+    updateWithVersion: async (id, expectedVersion, patch, uow) => {
+      const [row] = await dbOf(uow, this.db)
+        .update(schema.authorizationRequests)
+        .set({
+          ...(patch.status !== undefined ? { status: patch.status } : {}),
+          ...(patch.decidedAt !== undefined
+            ? { decidedAt: patch.decidedAt }
+            : {}),
+          ...(patch.decidedByPrincipalId !== undefined
+            ? { decidedByPrincipalId: patch.decidedByPrincipalId }
+            : {}),
+          ...(patch.decidedByKind !== undefined
+            ? { decidedByKind: patch.decidedByKind }
+            : {}),
+          version: expectedVersion + 1,
+        })
+        .where(
+          and(
+            eq(schema.authorizationRequests.id, id),
+            eq(schema.authorizationRequests.version, expectedVersion),
+          ),
+        )
+        .returning();
+      if (!row) {
+        const [current] = await this.db
+          .select()
+          .from(schema.authorizationRequests)
+          .where(eq(schema.authorizationRequests.id, id))
+          .limit(1);
+        if (!current) {
+          throw new NotFoundError(`authorization request not found: ${id}`);
+        }
+        throw new ConflictError(
+          `authorization request version conflict: expected ${expectedVersion}, got ${current.version}`,
+        );
+      }
+      return mapAuthorizationRequest(row);
     },
   };
 

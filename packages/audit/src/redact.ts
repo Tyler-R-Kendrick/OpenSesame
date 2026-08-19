@@ -43,6 +43,19 @@ export const AUDIT_METADATA_ALLOWLIST = new Set([
   "targetId",
   "contentVersion",
   "actor",
+  // Authorization inbox + delegation (ADR 0044/0046). Every one of these is an
+  // id or a digest: DENY_KEY runs before this allowlist, so a key named for the
+  // thing it identifies (userCode, bindingToken) would be dropped silently and
+  // the one event a reviewer needs would arrive blank.
+  "authReqId",
+  "approvalId",
+  "requestDigest",
+  "bindingMessageDigest",
+  "decidedByKind",
+  "connectionId",
+  "delegationId",
+  "offerId",
+  "invocationId",
 ]);
 
 /**

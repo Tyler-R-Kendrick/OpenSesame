@@ -801,3 +801,73 @@ export const oidcPayloads = pgTable(
     index("oidc_payloads_expires_at_idx").on(t.expiresAt),
   ],
 );
+
+/**
+ * Pending authorization requests — the inbox (ADR 0046).
+ *
+ * A request is CIBA-shaped: it has an opaque id the requester polls, a TTL, a
+ * poll interval, and a binding message rendered identically to both sides. It
+ * outlives a process restart on purpose; an inbox that forgets what was asked
+ * is worse than none, because the requester keeps waiting for an answer that
+ * can no longer arrive.
+ */
+export const authorizationRequests = pgTable(
+  "authorization_requests",
+  {
+    /** CIBA `auth_req_id`. Opaque — never derived from the requester. */
+    id: text("id").primaryKey(),
+    /** The approver: whose authority is being asked for. */
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principals.id, { onDelete: "cascade" }),
+    /**
+     * Who is asking, as an opaque reference. Canonical principal ids do not go
+     * here: this value reaches inboxes and, later, public bus subjects.
+     */
+    requesterRef: text("requester_ref").notNull(),
+    /** RFC 9396 authorization_details — constraint, prompt, and echo in one shape. */
+    authorizationDetails: jsonb("authorization_details")
+      .$type<Record<string, unknown>[]>()
+      .notNull()
+      .default([]),
+    /**
+     * Canonical digest of the exact request consented to. An executor refuses
+     * when what it is about to run does not hash to this, so a request cannot
+     * be swapped after approval.
+     */
+    requestDigest: text("request_digest").notNull(),
+    bindingMessage: text("binding_message").notNull(),
+    status: text("status").notNull(),
+    intervalSeconds: integer("interval_seconds").notNull().default(5),
+    connectionId: text("connection_id"),
+    delegationId: text("delegation_id"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    decidedAt: timestamp("decided_at", { withTimezone: true, mode: "date" }),
+    decidedByPrincipalId: text("decided_by_principal_id").references(
+      () => principals.id,
+    ),
+    /** `human` or `agent`. Recorded, never inferred from the identity. */
+    decidedByKind: text("decided_by_kind"),
+    version: integer("version").notNull().default(1),
+  },
+  (t) => [
+    check(
+      "authorization_requests_status_check",
+      sql`${t.status} in ('pending','approved','denied','expired','cancelled')`,
+    ),
+    check(
+      "authorization_requests_decided_by_kind_check",
+      sql`${t.decidedByKind} is null or ${t.decidedByKind} in ('human','agent')`,
+    ),
+    index("authorization_requests_principal_idx").on(t.principalId, t.status),
+    index("authorization_requests_pending_idx")
+      .on(t.expiresAt)
+      .where(sql`${t.status} = 'pending'`),
+  ],
+);

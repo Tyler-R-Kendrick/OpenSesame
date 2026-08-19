@@ -1,0 +1,14 @@
+[package]
+name = "opensesame-connection-detect"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Value-blind detection of provider credentials already configured on a host (ADR 0047)"
+
+[lib]
+name = "opensesame_connection_detect"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

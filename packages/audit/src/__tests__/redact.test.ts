@@ -67,3 +67,39 @@ describe("redactAuditMetadata", () => {
     });
   });
 });
+
+describe("authorization inbox metadata (ADR 0046)", () => {
+  it("keeps the ids and digests an approval review needs", () => {
+    const kept = redactAuditMetadata({
+      authReqId: "areq_abc",
+      approvalId: "approval_abc",
+      requestDigest: "a".repeat(64),
+      bindingMessageDigest: "b".repeat(64),
+      decidedByKind: "human",
+      connectionId: "connection_1",
+      delegationId: "dlg_1",
+    });
+    expect(kept).toEqual({
+      authReqId: "areq_abc",
+      approvalId: "approval_abc",
+      requestDigest: "a".repeat(64),
+      bindingMessageDigest: "b".repeat(64),
+      decidedByKind: "human",
+      connectionId: "connection_1",
+      delegationId: "dlg_1",
+    });
+  });
+
+  it("drops inbox keys named for the secret they identify", () => {
+    // The deny pass runs before the allowlist, so these never survive however
+    // they are listed. Naming a field `userCode` rather than a digest is how a
+    // reviewer ends up with a blank event, and this is the guard against it.
+    const dropped = redactAuditMetadata({
+      userCode: "ABCD-EFGH",
+      bindingToken: "osc_dlg_secret",
+      approvalSecret: "s",
+      deviceCode: "d",
+    });
+    expect(dropped).toEqual({});
+  });
+});
