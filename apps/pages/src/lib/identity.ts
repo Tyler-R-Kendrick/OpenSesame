@@ -866,10 +866,13 @@ export async function ensureHostSession(): Promise<HostSession> {
   return identitySeams.ensureHostSession();
 }
 
-export function hostLocalSessionEligible(
-  hostApi: string = hostBase(),
-): boolean {
-  return identitySeams.hostLocalSessionEligible(hostApi);
+export function hostLocalSessionEligible(hostApi?: string): boolean {
+  // Resolve hostBase inside the seamed implementation, not here. Evaluating
+  // hostBase() as a default argument would still run it after tests replace
+  // identitySeams.hostLocalSessionEligible.
+  return hostApi === undefined
+    ? identitySeams.hostLocalSessionEligible()
+    : identitySeams.hostLocalSessionEligible(hostApi);
 }
 
 export function useIdentitySession(): IdentitySession | null {

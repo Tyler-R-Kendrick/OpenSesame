@@ -23,9 +23,15 @@ import { identitySeams } from "../../lib/identity.js";
 const originalIdentitySeams = { ...identitySeams };
 Object.assign(identitySeams, {useIdentitySession: () => session,
   ensureHostSession,
+  hostBase: () => "http://127.0.0.1:8787",
   hostLocalSessionEligible: () => true});
 const loadSettings = vi.hoisted(() =>
-  vi.fn(() => ({ capabilityConnectors: {} })),
+  vi.fn(() => ({
+    hostApi: "http://127.0.0.1:8787",
+    identityApi: "http://127.0.0.1:8788",
+    daemonApi: "http://127.0.0.1:18790",
+    capabilityConnectors: {},
+  })),
 );
 const saveSettings = vi.hoisted(() => vi.fn());
 

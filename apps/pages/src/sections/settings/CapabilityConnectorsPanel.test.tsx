@@ -37,6 +37,7 @@ Object.assign(identitySeams, {useIdentitySession: () => session.current,
     error: connectState.error,
   }),
   ensureHostSession,
+  hostBase: () => "http://127.0.0.1:8787",
   hostLocalSessionEligible});
 const loadSettings = vi.hoisted(() => vi.fn());
 const saveSettings = vi.hoisted(() => vi.fn());
@@ -110,6 +111,12 @@ function defaultBindings() {
   };
 }
 
+const SETTINGS_ENDPOINTS = {
+  hostApi: "http://127.0.0.1:8787",
+  identityApi: "http://127.0.0.1:8788",
+  daemonApi: "http://127.0.0.1:18790",
+};
+
 describe("CapabilityConnectorsPanel", () => {
   beforeEach(() => {
     online.value = true;
@@ -119,7 +126,10 @@ describe("CapabilityConnectorsPanel", () => {
     connectState.error = null;
     hostLocalSessionEligible.mockReturnValue(true);
     shouldAutoConnect.mockReturnValue(true);
-    loadSettings.mockReturnValue({ capabilityConnectors: defaultBindings() });
+    loadSettings.mockReturnValue({
+      ...SETTINGS_ENDPOINTS,
+      capabilityConnectors: defaultBindings(),
+    });
     listConnections.mockResolvedValue([]);
     listProviders.mockResolvedValue([]);
     listIntegrations.mockResolvedValue([]);
@@ -422,6 +432,7 @@ describe("CapabilityConnectorsPanel", () => {
 
   it("shows a GitLab remote field when history binds to GitLab", async () => {
     loadSettings.mockReturnValue({
+      ...SETTINGS_ENDPOINTS,
       capabilityConnectors: {
         encryption: { providerId: "webcrypto" },
         history: { providerId: "gitlab", remote: "" },
@@ -478,7 +489,10 @@ describe("CapabilityConnectorsPanel edge branches", () => {
     connectState.error = null;
     hostLocalSessionEligible.mockReturnValue(true);
     shouldAutoConnect.mockReturnValue(true);
-    loadSettings.mockReturnValue({ capabilityConnectors: defaultBindings() });
+    loadSettings.mockReturnValue({
+      ...SETTINGS_ENDPOINTS,
+      capabilityConnectors: defaultBindings(),
+    });
     listConnections.mockResolvedValue([]);
     listProviders.mockResolvedValue([]);
     listIntegrations.mockResolvedValue([]);
@@ -500,6 +514,7 @@ describe("CapabilityConnectorsPanel edge branches", () => {
 
     // A broken connection only surfaces when the binding points at it.
     loadSettings.mockReturnValue({
+      ...SETTINGS_ENDPOINTS,
       capabilityConnectors: {
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github", connectionId: "con_gh" },
@@ -572,6 +587,7 @@ describe("CapabilityConnectorsPanel edge branches", () => {
 
   it("connects GitLab with a token and uses the generic message", async () => {
     loadSettings.mockReturnValue({
+      ...SETTINGS_ENDPOINTS,
       capabilityConnectors: {
         encryption: { providerId: "webcrypto" },
         history: { providerId: "gitlab" },
@@ -601,6 +617,7 @@ describe("CapabilityConnectorsPanel edge branches", () => {
   it("authorizes a non-GitHub connector with the generic success text", async () => {
     // Switch history to GitLab and give it a working OAuth setup.
     loadSettings.mockReturnValue({
+      ...SETTINGS_ENDPOINTS,
       capabilityConnectors: {
         encryption: { providerId: "webcrypto" },
         history: { providerId: "gitlab" },
