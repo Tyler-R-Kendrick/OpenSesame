@@ -60,8 +60,18 @@ export type MonitorSnapshot = {
 export const HEALTHY_MS = 30_000;
 /** Something is not: check often enough to catch the recovery. */
 export const DEGRADED_MS = 5_000;
-/** …but not forever. A target that stays down backs off to this. */
-export const MAX_MS = 60_000;
+/**
+ * …but not forever. A target that stays down backs off to this.
+ *
+ * Deliberately equal to the healthy interval, never longer. Backing off past
+ * it would mean a broken plane is checked *less* often than a working one,
+ * which is backwards: the amber glyph is the one someone is actively trying
+ * to clear, and making them wait longer than a healthy check for the news
+ * that their gateway came back is the wrong way round. The ladder exists to
+ * stop a five-second hammer on something that is plainly dead, not to give up
+ * on it.
+ */
+export const MAX_MS = HEALTHY_MS;
 const BACKOFF = 1.6;
 /** Spread repeated sweeps so N tabs never form a thundering herd. */
 const JITTER = 0.15;
