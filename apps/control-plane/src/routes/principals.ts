@@ -31,13 +31,13 @@ import {
 
 export const principalRoutes = new Hono<{ Variables: Variables }>();
 
-const MAX_PROVISIONAL = 1024;
+export const MAX_PROVISIONAL = 1024;
 const PROVISIONAL_MINT_WINDOW_MS = 60_000;
 const PROVISIONAL_MINT_PER_CLIENT = 10;
 const PROVISIONAL_MINT_GLOBAL = 120;
 const PROVISIONAL_MINT_KEYS = 2048;
 
-function consumeProvisionalMintBudget(
+export function consumeProvisionalMintBudget(
   map: Map<string, number[]>,
   fingerprint: string,
   now: number,

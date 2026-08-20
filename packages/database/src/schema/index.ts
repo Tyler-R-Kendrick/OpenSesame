@@ -532,7 +532,14 @@ export const consents = pgTable(
     revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
     version: integer("version").notNull().default(1),
   },
-  (t) => [index("consents_principal_client_idx").on(t.principalId, t.clientId)],
+  (t) => [
+    index("consents_principal_client_idx").on(t.principalId, t.clientId),
+    // At most one live (unrevoked) consent per principal+client: concurrent
+    // confirmations race one insert, and the loser widens the winner's row.
+    uniqueIndex("consents_active_principal_client_uidx")
+      .on(t.principalId, t.clientId)
+      .where(sql`${t.revokedAt} is null`),
+  ],
 );
 
 export const provisionalSessions = pgTable(
