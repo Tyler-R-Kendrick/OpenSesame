@@ -580,6 +580,55 @@ describe("origin consent UI (ADR 0050 slice 3c, F6)", () => {
       await stop(started);
     }
   });
+
+  it("R13: round trip issues a token and a cookie reload skips the prompt", async () => {
+    const started = await startOriginServer();
+    try {
+      const jar = new Jar();
+      const { verifier, challenge } = pkce();
+      const { uid, html: loginHtml } = await beginAuth(started, jar, challenge);
+      const consent = await loginAndConsent(started, jar, uid, loginHtml);
+      const final = await confirmAndCode(
+        started,
+        jar,
+        consent.uid,
+        consent.html,
+      );
+      const code = new URL(final).searchParams.get("code");
+      expect(code).toBeTruthy();
+
+      const tokenRes = await fetch(`http://127.0.0.1:${started.port}/token`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          origin: ORIGIN,
+        },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          client_id: CLIENT_ID,
+          code: code ?? "",
+          redirect_uri: REDIRECT_URI,
+          code_verifier: verifier,
+        }),
+      });
+      expect(tokenRes.status).toBe(200);
+      const tokens = (await tokenRes.json()) as { id_token: string };
+      expect(typeof decodeJwtPayload(tokens.id_token).sub).toBe("string");
+
+      // Reload: same cookie jar, covered scopes skip the interaction.
+      const reloaded = await req(
+        started,
+        jar,
+        authUrl(started.port, pkce().challenge, { nonce: "n-reload" }),
+      );
+      expect(reloaded.status).toBe(303);
+      const reloadedLocation = reloaded.headers.get("location") ?? "";
+      expect(reloadedLocation).not.toContain("/interaction/");
+      expect(reloadedLocation.startsWith(REDIRECT_URI)).toBe(true);
+    } finally {
+      await stop(started);
+    }
+  });
 });
 
 describe("interaction pages", () => {

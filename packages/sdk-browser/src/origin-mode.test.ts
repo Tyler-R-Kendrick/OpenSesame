@@ -220,4 +220,50 @@ describe("zero-config origin mode", () => {
       ),
     ).rejects.toThrow(/id_token/);
   });
+
+  it("R13: a reloaded client restores the session and signOut clears it", async () => {
+    const storage = new MemStorage();
+    storage.setItem(
+      "opensesame:session",
+      JSON.stringify({
+        accessToken: "at",
+        idToken: "id",
+        sub: "pairwise-origin",
+        anonymous: false,
+        expiresAt: Date.now() + 60_000,
+        raw: { access_token: "at", token_type: "Bearer" },
+      }),
+    );
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("openid-configuration")) {
+        return new Response(
+          JSON.stringify({
+            issuer: ISSUER,
+            authorization_endpoint: `${ISSUER}/auth`,
+            token_endpoint: `${ISSUER}/token`,
+            jwks_uri: `${ISSUER}/jwks`,
+          }),
+          { status: 200 },
+        );
+      }
+      throw new Error(`unexpected ${url}`);
+    });
+    const makeClient = () =>
+      createOpenSesame({
+        issuer: ISSUER,
+        storage,
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        windowLocation: {
+          href: `${PAGE}/`,
+          assign: () => undefined,
+          replace: () => undefined,
+        },
+      });
+
+    expect((await makeClient().getSession())?.sub).toBe("pairwise-origin");
+    await makeClient().signOut();
+    expect(await makeClient().getSession()).toBeNull();
+    expect(storage.getItem("opensesame:session")).toBeNull();
+  });
 });
