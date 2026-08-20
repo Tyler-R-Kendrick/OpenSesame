@@ -403,6 +403,19 @@ export const oauthClients = pgTable(
     metadataUri: text("metadata_uri"),
     metadataDigest: text("metadata_digest"),
     state: text("state").notNull(),
+    /** Canonical web origin for origin_profile clients (`https://app.example.com`). */
+    origin: text("origin"),
+    /** Origin-profile clients begin unclaimed until the F5 claim flow runs. */
+    ownershipStatus: text("ownership_status").notNull().default("unclaimed"),
+    firstSeenAt: timestamp("first_seen_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    lastUsedAt: timestamp("last_used_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    claimedAt: timestamp("claimed_at", { withTimezone: true, mode: "date" }),
     ...timestamps,
   },
   (t) => [
@@ -414,7 +427,64 @@ export const oauthClients = pgTable(
       "oauth_clients_state_check",
       sql`${t.state} in ('active','suspended','revoked')`,
     ),
+    check(
+      "oauth_clients_ownership_status_check",
+      sql`${t.ownershipStatus} in ('unclaimed','claimed')`,
+    ),
     index("oauth_clients_owner_principal_id_idx").on(t.ownerPrincipalId),
+    uniqueIndex("oauth_clients_origin_uidx")
+      .on(t.origin)
+      .where(sql`${t.origin} is not null`),
+  ],
+);
+
+/** Verified origin aliases attached to a claimed application (stable sector). */
+export const clientOrigins = pgTable(
+  "client_origins",
+  {
+    id: text("id").primaryKey(),
+    applicationId: text("application_id")
+      .notNull()
+      .references(() => oauthClients.id, { onDelete: "cascade" }),
+    canonicalOrigin: text("canonical_origin").notNull(),
+    publicClientId: text("public_client_id").notNull(),
+    verificationMethod: text("verification_method"),
+    status: text("status").notNull().default("active"),
+    ...timestamps,
+  },
+  (t) => [
+    check(
+      "client_origins_status_check",
+      sql`${t.status} in ('active','revoked','pending')`,
+    ),
+    uniqueIndex("client_origins_canonical_uidx").on(t.canonicalOrigin),
+    uniqueIndex("client_origins_public_client_uidx").on(t.publicClientId),
+    index("client_origins_application_idx").on(t.applicationId),
+  ],
+);
+
+/** Short-lived proof-of-control challenges for application claim (F5). */
+export const clientClaimChallenges = pgTable(
+  "client_claim_challenges",
+  {
+    id: text("id").primaryKey(),
+    applicationId: text("application_id")
+      .notNull()
+      .references(() => oauthClients.id, { onDelete: "cascade" }),
+    ownerPrincipalId: text("owner_principal_id")
+      .notNull()
+      .references(() => principals.id),
+    challenge: text("challenge").notNull(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("client_claim_challenges_challenge_uidx").on(t.challenge),
+    index("client_claim_challenges_app_idx").on(t.applicationId),
   ],
 );
 
@@ -757,6 +827,8 @@ export const schema = {
   agentInstances,
   delegations,
   oauthClients,
+  clientOrigins,
+  clientClaimChallenges,
   pairwiseSubjects,
   consents,
   provisionalSessions,
