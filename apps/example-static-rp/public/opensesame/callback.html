@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Signing in…</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: system-ui, sans-serif;
+        background: #0b1020;
+        color: #e8ecf4;
+      }
+      .error {
+        color: #ff8a8a;
+        max-width: 32rem;
+        padding: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <p id="message" role="status">Completing sign-in…</p>
+    <script type="module">
+      import { createOpenSesame } from "@opensesame/sdk-browser";
+
+      const issuer = __OPENSESAME_ISSUER__;
+      const sesame = createOpenSesame({ issuer });
+      const message = document.getElementById("message");
+
+      try {
+        const session = await sesame.handleRedirectCallback();
+        const returnTo = sesame.getReturnTo() ?? "/";
+        message.textContent = session.sub
+          ? `Signed in as ${session.sub}. Redirecting…`
+          : "Signed in. Redirecting…";
+        window.location.replace(returnTo);
+      } catch (err) {
+        message.className = "error";
+        message.textContent =
+          err instanceof Error ? err.message : "Callback handling failed";
+      }
+    </script>
+  </body>
+</html>
