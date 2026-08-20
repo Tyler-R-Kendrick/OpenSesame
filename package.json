@@ -46,6 +46,7 @@
     "test:fuzz:batch": "FUZZ_SECONDS=${FUZZ_SECONDS:-300} bash ./scripts/jazzer-gate.sh",
     "test:task-access": "bash ./scripts/task-security-battle-test.sh",
     "test:nats-dogfood": "bash ./scripts/nats-dogfood-test.sh",
+    "test:live-stack": "bash ./scripts/live-stack-test.sh",
     "test:all": "pnpm typecheck && pnpm test && pnpm test:integration",
     "db:migrate": "pnpm --filter @opensesame/database db:migrate",
     "db:reset": "pnpm --filter @opensesame/database db:reset",
