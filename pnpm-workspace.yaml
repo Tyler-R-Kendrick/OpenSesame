@@ -7,6 +7,7 @@ packages:
   - "apps/worker"
   - "apps/example-rp-alpha"
   - "apps/example-rp-beta"
+  - "apps/example-static-rp"
   - "apps/example-headless"
   - "apps/example-agent"
   - "apps/mock-upstream-idp"

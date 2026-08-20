@@ -332,4 +332,232 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       await stop(started);
     }
   });
+
+  it("R4: authorization without a PKCE challenge does not issue a code", async () => {
+    const started = await startOriginServer(true);
+    try {
+      const params = new URLSearchParams({
+        client_id: CLIENT_ID,
+        redirect_uri: REDIRECT_URI,
+        response_type: "code",
+        scope: "openid",
+        state: "s-1",
+        nonce: "n-1",
+      });
+      const res = await fetch(
+        `http://127.0.0.1:${started.port}/auth?${params.toString()}`,
+        { redirect: "manual" },
+      );
+      const location = res.headers.get("location") ?? "";
+      expect(location.includes("code=")).toBe(false);
+      if (res.status >= 400) {
+        expect(res.status).toBeLessThan(500);
+      }
+    } finally {
+      await stop(started);
+    }
+  });
+
+  it("R5: token exchange without a code_verifier is refused", async () => {
+    const started = await startOriginServer(true);
+    try {
+      const { verifier, challenge } = pkce();
+      const admit = await fetch(authUrl(started.port, challenge), {
+        redirect: "manual",
+      });
+      expect(admit.status).toBe(303);
+      const provider = started.ctx.oauth.provider;
+      const client = await provider.Client.find(CLIENT_ID);
+      const accountId = "prn_static_site_user";
+      const grant = new provider.Grant({ accountId, clientId: CLIENT_ID });
+      grant.addOIDCScope("openid");
+      await grant.save();
+      const code = new provider.AuthorizationCode({
+        client,
+        accountId,
+        redirectUri: REDIRECT_URI,
+        scope: "openid",
+        authTime: Math.floor(Date.now() / 1000),
+        nonce: "n-1",
+        codeChallenge: challenge,
+        codeChallengeMethod: "S256",
+        grantId: grant.jti,
+      } as never);
+      const codeValue = await code.save();
+
+      const tokenRes = await fetch(`http://127.0.0.1:${started.port}/token`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          origin: ORIGIN,
+        },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          client_id: CLIENT_ID,
+          code: codeValue,
+          redirect_uri: REDIRECT_URI,
+        }),
+      });
+      expect(tokenRes.ok).toBe(false);
+      const body = (await tokenRes.json()) as { error?: string };
+      expect(body.error).toBeTruthy();
+      expect(verifier.length).toBeGreaterThan(0);
+    } finally {
+      await stop(started);
+    }
+  });
+
+  it("R6: authorization with PKCE method plain does not issue a code", async () => {
+    const started = await startOriginServer(true);
+    try {
+      const { verifier } = pkce();
+      const params = new URLSearchParams({
+        client_id: CLIENT_ID,
+        redirect_uri: REDIRECT_URI,
+        response_type: "code",
+        scope: "openid",
+        state: "s-1",
+        nonce: "n-1",
+        code_challenge: verifier,
+        code_challenge_method: "plain",
+      });
+      const res = await fetch(
+        `http://127.0.0.1:${started.port}/auth?${params.toString()}`,
+        { redirect: "manual" },
+      );
+      const location = res.headers.get("location") ?? "";
+      expect(location.includes("code=")).toBe(false);
+      if (res.status >= 400) {
+        expect(res.status).toBeLessThan(500);
+      }
+    } finally {
+      await stop(started);
+    }
+  });
+
+  it("R9: offline_access is not admitted on an origin-profile client", async () => {
+    const started = await startOriginServer(true);
+    try {
+      const { challenge } = pkce();
+      const params = new URLSearchParams({
+        client_id: CLIENT_ID,
+        redirect_uri: REDIRECT_URI,
+        response_type: "code",
+        scope: "openid offline_access",
+        state: "s-1",
+        nonce: "n-1",
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+      });
+      const res = await fetch(
+        `http://127.0.0.1:${started.port}/auth?${params.toString()}`,
+        { redirect: "manual" },
+      );
+      expect(res.status).toBe(303);
+      const record = await started.ctx.oauth.clientStore.findById(CLIENT_ID);
+      expect(record?.allowedScopes).toEqual(["openid"]);
+      expect(record?.grantTypes).toEqual(["authorization_code"]);
+      expect(record?.tokenEndpointAuthMethod).toBe("none");
+    } finally {
+      await stop(started);
+    }
+  });
+
+  it("R10: pairwise subs differ across port-distinct origins", async () => {
+    const started = await startOriginServer(true);
+    try {
+      const originB = "http://127.0.0.1:4102";
+      const clientB = `origin:${originB}`;
+      const redirectB = `${originB}/opensesame/callback`;
+      const accountId = "prn_static_site_user";
+
+      async function mintSub(
+        origin: string,
+        clientId: string,
+        redirectUri: string,
+      ): Promise<string> {
+        const { verifier, challenge } = pkce();
+        const params = new URLSearchParams({
+          client_id: clientId,
+          redirect_uri: redirectUri,
+          response_type: "code",
+          scope: "openid",
+          state: "s-1",
+          nonce: "n-1",
+          code_challenge: challenge,
+          code_challenge_method: "S256",
+        });
+        const admit = await fetch(
+          `http://127.0.0.1:${started.port}/auth?${params.toString()}`,
+          { redirect: "manual" },
+        );
+        expect(admit.status).toBe(303);
+        const provider = started.ctx.oauth.provider;
+        const client = await provider.Client.find(clientId);
+        const grant = new provider.Grant({ accountId, clientId });
+        grant.addOIDCScope("openid");
+        await grant.save();
+        const code = new provider.AuthorizationCode({
+          client,
+          accountId,
+          redirectUri,
+          scope: "openid",
+          authTime: Math.floor(Date.now() / 1000),
+          nonce: "n-1",
+          codeChallenge: challenge,
+          codeChallengeMethod: "S256",
+          grantId: grant.jti,
+        } as never);
+        const codeValue = await code.save();
+        const tokenRes = await fetch(`http://127.0.0.1:${started.port}/token`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/x-www-form-urlencoded",
+            origin,
+          },
+          body: new URLSearchParams({
+            grant_type: "authorization_code",
+            client_id: clientId,
+            code: codeValue,
+            redirect_uri: redirectUri,
+            code_verifier: verifier,
+          }),
+        });
+        expect(tokenRes.status).toBe(200);
+        const tokens = (await tokenRes.json()) as { id_token: string };
+        const payload = decodeJwtPayload(tokens.id_token);
+        expect(typeof payload.sub).toBe("string");
+        return payload.sub as string;
+      }
+
+      const subA = await mintSub(ORIGIN, CLIENT_ID, REDIRECT_URI);
+      const subB = await mintSub(originB, clientB, redirectB);
+      expect(subA).not.toBe(subB);
+      expect(subA).not.toBe(accountId);
+      expect(subB).not.toBe(accountId);
+    } finally {
+      await stop(started);
+    }
+  });
+
+  it("R12: discovery advertises authorization, token, and jwks", async () => {
+    const started = await startOriginServer(true);
+    try {
+      const res = await fetch(
+        `http://127.0.0.1:${started.port}/.well-known/openid-configuration`,
+      );
+      expect(res.status).toBe(200);
+      const doc = (await res.json()) as {
+        issuer: string;
+        authorization_endpoint: string;
+        token_endpoint: string;
+        jwks_uri: string;
+      };
+      expect(doc.authorization_endpoint).toContain("/auth");
+      expect(doc.token_endpoint).toContain("/token");
+      expect(doc.jwks_uri).toMatch(/jwks/i);
+    } finally {
+      await stop(started);
+    }
+  });
 });

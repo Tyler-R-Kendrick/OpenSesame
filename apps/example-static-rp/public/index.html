@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenSesame · Static relying party</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+        line-height: 1.5;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #0b1020;
+        color: #e8ecf4;
+      }
+      main {
+        width: min(42rem, calc(100vw - 2rem));
+        padding: 2rem;
+        border: 1px solid #2a3555;
+        border-radius: 12px;
+        background: #121a2e;
+      }
+      h1 {
+        margin: 0 0 0.5rem;
+        font-size: 1.5rem;
+      }
+      p {
+        margin: 0.5rem 0;
+        color: #b8c2da;
+      }
+      code {
+        font-size: 0.9em;
+        background: #1b2440;
+        padding: 0.1em 0.35em;
+        border-radius: 4px;
+      }
+      .actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.25rem;
+      }
+      button {
+        cursor: pointer;
+        border: 0;
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+        font: inherit;
+        font-weight: 600;
+      }
+      button.primary {
+        background: #4f7cff;
+        color: #fff;
+      }
+      button.secondary {
+        background: #243055;
+        color: #e8ecf4;
+      }
+      .status {
+        margin-top: 1rem;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        background: #1b2440;
+      }
+      .error {
+        color: #ff8a8a;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Static relying party</h1>
+      <p>
+        Pure static files — no RP backend. Origin-profile client id from
+        <code id="origin"></code>.
+      </p>
+      <p>Issuer: <code id="issuer"></code></p>
+      <div class="actions">
+        <button type="button" class="primary" id="sign-in">Sign in</button>
+        <button type="button" class="secondary" id="sign-out">Sign out</button>
+      </div>
+      <div class="status" id="status" role="status">Loading session…</div>
+    </main>
+    <script type="module">
+      import { createOpenSesame } from "@opensesame/sdk-browser";
+
+      const issuer = __OPENSESAME_ISSUER__;
+      const origin = window.location.origin;
+
+      document.getElementById("origin").textContent = origin;
+      document.getElementById("issuer").textContent = issuer;
+
+      const sesame = createOpenSesame({ issuer });
+      const statusEl = document.getElementById("status");
+
+      function showSession(session) {
+        if (!session) {
+          statusEl.textContent = "Signed out.";
+          return;
+        }
+        const label = session.anonymous ? "Anonymous session" : "Signed in";
+        statusEl.innerHTML = session.sub
+          ? `${label} · sub=<code>${session.sub}</code>`
+          : label;
+      }
+
+      function showError(message) {
+        statusEl.innerHTML = `<span class="error">${message}</span>`;
+      }
+
+      document.getElementById("sign-in").addEventListener("click", () => {
+        void sesame.signIn({ returnTo: "/" }).catch((err) => {
+          showError(err instanceof Error ? err.message : "Sign-in failed");
+        });
+      });
+
+      document.getElementById("sign-out").addEventListener("click", () => {
+        void sesame.signOut().then(() => showSession(null));
+      });
+
+      void sesame
+        .getSession()
+        .then(showSession)
+        .catch((err) => {
+          showError(err instanceof Error ? err.message : "Session load failed");
+        });
+    </script>
+  </body>
+</html>
