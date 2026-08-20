@@ -556,6 +556,9 @@ importers:
       '@opensesame/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../../packages/os-domain
       '@opensesame/qr':
         specifier: workspace:^
         version: link:../../packages/qr

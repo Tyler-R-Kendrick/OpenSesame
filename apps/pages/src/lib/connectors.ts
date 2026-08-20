@@ -13,6 +13,7 @@
  * something a glyph can say.
  */
 
+import { briefOrigin, repoHint } from "@opensesame/os-domain";
 import {
   type CapabilityConnectorBinding,
   type CapabilityId,
@@ -38,6 +39,8 @@ import {
   pageIsLoopback,
 } from "./settings.js";
 import { useSettingsEpoch } from "./use-settings.js";
+
+export { briefOrigin, repoHint };
 
 export type ConnectorId = "host" | "identity" | "machine" | "history" | "keys";
 
@@ -79,18 +82,6 @@ export const CONNECTOR_IDS: readonly ConnectorId[] = [
   "history",
   "keys",
 ] as const;
-
-/** Origins are long and the glyph row is not; show host:port where we can. */
-export function briefOrigin(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return "";
-  try {
-    const url = new URL(trimmed);
-    return `${url.host}${url.pathname.replace(/\/$/, "")}`;
-  } catch {
-    return trimmed;
-  }
-}
 
 /**
  * The label for a failing probe.
@@ -248,18 +239,6 @@ function classifyCapability(
     return { tone: "live", detail: remote ? `${label} · ${remote}` : label };
   }
   return { tone: "live", detail: label };
-}
-
-/** `https://github.com/org/store.git` reads as `org/store` in a status line. */
-export function repoHint(remote: string): string {
-  const trimmed = remote.trim().replace(/\.git$/, "");
-  if (!trimmed) return "";
-  try {
-    const path = new URL(trimmed).pathname.replace(/^\/+/, "");
-    return path || trimmed;
-  } catch {
-    return trimmed;
-  }
 }
 
 export function classifyHistoryConnector(
