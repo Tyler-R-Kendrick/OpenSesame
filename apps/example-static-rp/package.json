@@ -1,0 +1,24 @@
+{
+  "name": "@opensesame/example-static-rp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm run dev:4101",
+    "dev:4101": "vite --port 4101 --strictPort",
+    "dev:4102": "vite --port 4102 --strictPort",
+    "preview:4101": "vite preview --port 4101 --strictPort",
+    "preview:4102": "vite preview --port 4102 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opensesame/sdk-browser": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3",
+    "vite": "6.4.3",
+    "vitest": "4.1.10"
+  }
+}
