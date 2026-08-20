@@ -9,10 +9,11 @@ vi.mock("./settings.js", () => ({
   settingsEpoch: () => 0,
 }));
 
-import type { TargetState } from "./connectivity-monitor.js";
+import type { MonitorSnapshot, TargetState } from "./connectivity-monitor.js";
 import {
   type ConnectorStatus,
   briefOrigin,
+  buildConnectors,
   classifyHistoryConnector,
   classifyHostConnector,
   classifyIdentityConnector,
@@ -200,6 +201,16 @@ describe("classifyIdentityConnector", () => {
     expect(status.detail).toBe("Not configured");
   });
 
+  it("goes offline rather than blaming the identity endpoint", () => {
+    const status = classifyIdentityConnector(
+      plane({ identity: "down" }),
+      target(),
+      true,
+    );
+    expect(status.tone).toBe("offline");
+    expect(status.detail).toBe("Offline");
+  });
+
   it("distinguishes a plane that refused from one that did not answer", () => {
     expect(
       classifyIdentityConnector(
@@ -374,5 +385,65 @@ describe("needsAttention", () => {
       },
     ];
     expect(isOfflineSet(list)).toBe(true);
+  });
+});
+
+describe("buildConnectors", () => {
+  function snapshot(over: Partial<MonitorSnapshot> = {}): MonitorSnapshot {
+    return {
+      offline: false,
+      host: target(),
+      identity: target(),
+      machine: target(),
+      nextCheckAt: null,
+      ...over,
+    };
+  }
+
+  it("builds all five, in bar order", () => {
+    const built = buildConnectors(plane(), snapshot(), settings());
+    expect(built.map((c) => c.id)).toEqual([
+      "host",
+      "identity",
+      "machine",
+      "history",
+      "keys",
+    ]);
+  });
+
+  it("reads the daemon address from settings, not from the plane status", () => {
+    const built = buildConnectors(
+      plane(),
+      snapshot(),
+      settings({ daemonApi: "http://127.0.0.1:18790" }),
+    );
+    const machine = built.find((c) => c.id === "machine");
+    expect(machine?.detail).toBe("127.0.0.1:18790");
+  });
+
+  it("puts every network connector into offline together", () => {
+    const built = buildConnectors(
+      plane(),
+      snapshot({ offline: true }),
+      settings({ daemonApi: "http://127.0.0.1:18790" }),
+    );
+    const tones = Object.fromEntries(built.map((c) => [c.id, c.tone]));
+    expect(tones.host).toBe("offline");
+    expect(tones.identity).toBe("offline");
+    expect(tones.machine).toBe("offline");
+    // Bindings are not reachability, so they keep saying what they are bound to.
+    expect(tones.keys).toBe("live");
+    expect(isOfflineSet(built)).toBe(true);
+  });
+
+  it("counts only the required, non-live connectors as needing attention", () => {
+    const built = buildConnectors(
+      plane({ host: "down", identity: "none" }),
+      snapshot({ host: target({ health: "unreachable" }) }),
+      settings(),
+    );
+    // Host down, Identity sessionless, machine unpaired, history unauthorized
+    // — four required; the built-in key vault is not one of them.
+    expect(needsAttention(built)).toBe(4);
   });
 });

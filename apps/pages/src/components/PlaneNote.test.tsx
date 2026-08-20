@@ -379,6 +379,118 @@ describe("ConnectThisMachine", () => {
     ).toBe("https://box.tailnet.ts.net");
   });
 
+  it("offers the clipboard as a fill when it holds a URL", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { readText: async () => "https://pasted.tailnet.ts.net/" },
+    });
+    render(<ConnectThisMachine />);
+    goManual();
+    expect(
+      await screen.findByRole("button", {
+        name: "https://pasted.tailnet.ts.net",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("offers no clipboard chip for something that is not a URL", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { readText: async () => "not a url at all" },
+    });
+    render(<ConnectThisMachine />);
+    goManual();
+    await waitFor(() => {
+      expect(
+        screen.getByLabelText("Daemon (Tailscale Serve URL)"),
+      ).toBeTruthy();
+    });
+    // A chip that fills the field with junk is a dead end, not a shortcut.
+    expect(screen.queryByRole("button", { name: /not a url/ })).toBeNull();
+  });
+
+  it("offers no clipboard chip for a non-http scheme", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { readText: async () => "file:///etc/passwd" },
+    });
+    render(<ConnectThisMachine />);
+    goManual();
+    await waitFor(() => {
+      expect(
+        screen.getByLabelText("Daemon (Tailscale Serve URL)"),
+      ).toBeTruthy();
+    });
+    expect(screen.queryByRole("button", { name: /file:/ })).toBeNull();
+  });
+
+  it("survives the clipboard refusing permission", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        readText: async () => {
+          throw new DOMException("denied", "NotAllowedError");
+        },
+      },
+    });
+    render(<ConnectThisMachine />);
+    goManual();
+    await waitFor(() => {
+      expect(
+        screen.getByLabelText("Daemon (Tailscale Serve URL)"),
+      ).toBeTruthy();
+    });
+  });
+
+  it("reports a failure to pair what discovery found", async () => {
+    env.daemonApiSetting = "https://box.tailnet.ts.net";
+    env.probeDaemon.mockResolvedValue(HEALTH);
+    env.applyDaemonPairing.mockRejectedValue(new Error("could not write"));
+    render(<ConnectThisMachine autoDiscover />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Pair this daemon" }),
+    );
+    expect(await screen.findByText("could not write")).toBeTruthy();
+  });
+
+  it("surfaces a second discovery failure after joining the tailnet", async () => {
+    env.discoverTailscaleDaemon
+      .mockRejectedValueOnce(new Error("nothing found"))
+      .mockRejectedValueOnce(new Error("still nothing on the tailnet"));
+    env.detectTailnet.mockResolvedValue(false);
+    env.waitForTailnet.mockResolvedValue(true);
+    render(<ConnectThisMachine autoDiscover />);
+    expect(
+      await screen.findByText("still nothing on the tailnet"),
+    ).toBeTruthy();
+    expect(env.discoverTailscaleDaemon).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not touch state after being unmounted mid-discovery", async () => {
+    const errors: unknown[] = [];
+    const spy = vi
+      .spyOn(console, "error")
+      .mockImplementation((...args) => errors.push(args));
+    let release: (() => void) | undefined;
+    env.discoverTailscaleDaemon.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = () => resolve({ ...HEALTH });
+        }),
+    );
+
+    const { unmount } = render(<ConnectThisMachine autoDiscover />);
+    unmount();
+    release?.();
+    await waitFor(() => {
+      expect(env.discoverTailscaleDaemon).toHaveBeenCalled();
+    });
+    // A discovery that lands after the sheet closed must not drag the
+    // ceremony back to a step the operator already left.
+    expect(errors).toEqual([]);
+    spy.mockRestore();
+  });
+
   it("only offers the pairing QR for non-loopback URLs", () => {
     render(<ConnectThisMachine />);
     goManual();
