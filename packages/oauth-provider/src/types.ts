@@ -6,6 +6,9 @@ export type ClientAdmissionMode =
 
 export type ClientState = "active" | "suspended" | "revoked";
 
+/** Origin-profile clients begin unclaimed until the F5 claim flow runs. */
+export type OwnershipStatus = "unclaimed" | "claimed";
+
 export interface OAuthClientRecord {
   id: string;
   admissionMode: ClientAdmissionMode;
@@ -22,6 +25,9 @@ export interface OAuthClientRecord {
   state: ClientState;
   /** Origin-profile clients are constrained (no offline_access / admin scopes). */
   origin?: string;
+  ownershipStatus?: OwnershipStatus;
+  firstSeenAt?: Date;
+  lastUsedAt?: Date;
 }
 
 export interface PairwiseSubject {

@@ -3,6 +3,7 @@ export type {
   ClientState,
   OAuthClientRecord,
   OAuthProviderEnv,
+  OwnershipStatus,
   PairwiseSubject,
   PairwiseSubjectStore,
 } from "./types.js";
@@ -34,6 +35,29 @@ export {
   defaultAdmissionFromEnv,
   type ClientAdmissionPolicy,
 } from "./clients/admission.js";
+export {
+  type ClientRecordStore,
+  MemoryClientRecordStore,
+} from "./clients/store.js";
+export {
+  findOriginClient,
+  type ResolveOriginClientOptions,
+  resolveOriginClient,
+  toOidcClientMetadata,
+} from "./clients/origin-resolve.js";
+export {
+  type CanonicalizeOriginOptions,
+  canonicalizeOrigin,
+  defaultCallbackUri,
+  OriginError,
+  type OriginErrorCode,
+  originClientId,
+  parseOriginClientId,
+} from "./origin/canonical.js";
+export {
+  evaluateTokenCors,
+  type TokenCorsDecision,
+} from "./cors/token-cors.js";
 export {
   SafeMetadataFetcher,
   UnsafeMetadataUrlError,
