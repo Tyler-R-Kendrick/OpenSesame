@@ -1,0 +1,8 @@
+---
+source: apps/daemon/src/promote.rs
+expression: body_json(res).await
+---
+{
+  "error": "offer_not_found",
+  "hint": "this provider+source pair is not currently offered; re-run /v1/discover"
+}

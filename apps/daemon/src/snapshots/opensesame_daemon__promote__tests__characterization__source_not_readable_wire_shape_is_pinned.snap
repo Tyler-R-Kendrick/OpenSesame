@@ -1,0 +1,8 @@
+---
+source: apps/daemon/src/promote.rs
+expression: body_json(res).await
+---
+{
+  "error": "source_not_readable",
+  "hint": "keychain value reads need OS-specific ACL mediation; deferred in v1 (ADR 0048 §3c)"
+}

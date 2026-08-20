@@ -1,0 +1,8 @@
+---
+source: apps/daemon/src/mint.rs
+expression: body
+---
+{
+  "error": "host_api_unreachable",
+  "hint": "is Host API up on OPENSESAME_SERVER?"
+}

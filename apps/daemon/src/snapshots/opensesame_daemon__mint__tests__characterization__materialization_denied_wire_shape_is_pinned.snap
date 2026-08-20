@@ -1,0 +1,8 @@
+---
+source: apps/daemon/src/mint.rs
+expression: body
+---
+{
+  "error": "materialization_denied",
+  "hint": "connection policy denies materialization"
+}

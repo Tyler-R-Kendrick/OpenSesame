@@ -1555,4 +1555,71 @@ mod tests {
         // pin documents that a default build carries no tailnet surface.
         assert!(!cfg!(feature = "tailscale"));
     }
+
+    #[cfg(test)]
+    mod characterization {
+        use super::*;
+        use axum::body::{to_bytes, Body};
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        /// Snapshots of the daemon auth boundary's refusal bodies: the TCP
+        /// operator-token denial and the UDS peer-cred denials.
+        ///
+        /// These do not assert the shapes are *right* — the tests above do
+        /// that. They pin what the boundary actually serializes, so a new
+        /// field has to be looked at and accepted rather than shipped
+        /// unnoticed. A refusal body is an oracle for whoever is probing the
+        /// fence: it should name the failure class and the remediation,
+        /// nothing about the caller, the token, or the machine. If one of
+        /// these fails, read the diff — a new key here is a disclosure
+        /// decision.
+        #[tokio::test]
+        async fn operator_unauthorized_wire_shape_is_pinned() {
+            let (app, _) = test_app("http://127.0.0.1:1");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/v1/discover")
+                .body(Body::empty())
+                .unwrap();
+            let res = app.oneshot(req).await.unwrap();
+            assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
+            let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            insta::assert_json_snapshot!(body);
+        }
+
+        #[cfg(unix)]
+        #[tokio::test]
+        async fn uds_peer_unauthorized_wire_shape_is_pinned() {
+            let (app, st) = test_app("http://127.0.0.1:1");
+            let foreign = st.allowed_uids[0] + 1;
+            let res = app
+                .oneshot(uds_peer_request(Some(foreign), "/v1/list_sessions", false))
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
+            let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            // The detail names the peer's uid — machine-specific, so redact
+            // it; the class and hint are the stable contract.
+            insta::assert_json_snapshot!(body, {
+                ".detail" => "[uid detail]",
+            });
+        }
+
+        #[cfg(unix)]
+        #[tokio::test]
+        async fn uds_peer_unattested_wire_shape_is_pinned() {
+            let (app, _) = test_app("http://127.0.0.1:1");
+            let res = app
+                .oneshot(uds_peer_request(None, "/v1/list_sessions", false))
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::SERVICE_UNAVAILABLE);
+            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
+            let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            insta::assert_json_snapshot!(body);
+        }
+    }
 }

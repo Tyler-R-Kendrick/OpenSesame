@@ -1,0 +1,11 @@
+---
+source: apps/daemon/src/promote.rs
+expression: body_json(res).await
+---
+{
+  "capabilities": [
+    "invoke_through",
+    "mintable"
+  ],
+  "error": "mode_not_viable"
+}

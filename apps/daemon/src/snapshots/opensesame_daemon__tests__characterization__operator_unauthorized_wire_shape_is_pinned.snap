@@ -1,0 +1,8 @@
+---
+source: apps/daemon/src/main.rs
+expression: body
+---
+{
+  "error": "operator_unauthorized",
+  "hint": "X-OpenSesame-Operator or Bearer operator:<token> required"
+}

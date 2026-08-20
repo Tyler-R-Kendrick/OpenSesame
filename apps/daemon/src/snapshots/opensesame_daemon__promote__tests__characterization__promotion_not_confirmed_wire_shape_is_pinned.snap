@@ -1,0 +1,8 @@
+---
+source: apps/daemon/src/promote.rs
+expression: body_json(res).await
+---
+{
+  "error": "promotion_not_confirmed",
+  "hint": "promotion may read credential material; pass confirm: true"
+}
