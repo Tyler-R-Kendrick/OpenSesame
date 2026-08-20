@@ -63,6 +63,32 @@ describe("repoHint", () => {
     expect(repoHint("w:owner/store")).toBe("w:owner/store");
   });
 
+  it("trims surrounding whitespace before anything else", () => {
+    expect(repoHint("  https://github.com/owner/store.git  ")).toBe(
+      "owner/store",
+    );
+    expect(repoHint("\t git@github.com:owner/store \n")).toBe(
+      "git@github.com:owner/store",
+    );
+  });
+
+  it("strips .git only as a suffix, never mid-path", () => {
+    // Unanchored, this mangles any path merely containing the letters:
+    // `owner/.github` would come back as `owner/hub`.
+    expect(repoHint("https://github.com/owner/.github")).toBe("owner/.github");
+    expect(repoHint("https://git.example.com/a/b")).toBe("a/b");
+    expect(repoHint("https://github.com/owner/store.github")).toBe(
+      "owner/store.github",
+    );
+  });
+
+  it("strips every leading slash, not just the first", () => {
+    // `new URL("https://h//a/b").pathname` is "//a/b"; leaving one behind
+    // would render as a path in a status line rather than as owner/repo.
+    expect(repoHint("https://host//owner/store")).toBe("owner/store");
+    expect(repoHint("https://host///owner/store")).toBe("owner/store");
+  });
+
   it("never grows what it was given, and never leads with a slash", () => {
     for (const raw of [
       "",

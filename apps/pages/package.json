@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "GitHub Pages installable PWA \u2014 offline client shell for OpenSesame",
+  "description": "GitHub Pages installable PWA — offline client shell for OpenSesame",
   "scripts": {
     "dev": "bash ../../scripts/pages-dev.sh",
     "dev:web": "vite --port 5180 --strictPort --host localhost",
