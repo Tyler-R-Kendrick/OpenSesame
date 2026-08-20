@@ -1,6 +1,7 @@
 export * from "./json.js";
 export * from "./types.js";
 export * from "./errors.js";
+export * from "./endpoint-display.js";
 export * from "./invariants.js";
 export * from "./crypto/claim-token.js";
 export * from "./crypto/digest.js";

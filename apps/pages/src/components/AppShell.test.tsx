@@ -21,7 +21,11 @@ const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {useVault: () => ({ items: vault.items, folders: vault.folders }),
   useVaultStore: () => ({ lock: vault.lock })});
 
-
+import { connectivityBarSeams } from "./ConnectivityBar.js";
+const originalConnectivityBarSeams = { ...connectivityBarSeams };
+Object.assign(connectivityBarSeams, {
+  ConnectivityBar: () => <span data-testid="connectivity-bar" />,
+});
 import { planeNoteSeams } from "./PlaneNote.js";
 const originalPlaneNoteSeams = { ...planeNoteSeams };
 Object.assign(planeNoteSeams, {
@@ -101,6 +105,8 @@ describe("AppShell", () => {
     expect(screen.getAllByText("Vault").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getAllByTestId("project-switcher").length).toBe(2);
+    // One bar, in the top bar; the rail no longer carries a status line.
+    expect(screen.getAllByTestId("connectivity-bar").length).toBe(1);
     expect(screen.getByTestId("backup-banner")).toBeTruthy();
   });
 

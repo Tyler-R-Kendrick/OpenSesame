@@ -61,6 +61,8 @@ Object.assign(passwordSeams, {
     label: password.length >= 12 ? "Strong" : "Weak",
     bits: password.length * 4,
   }),
+  defaultPassphraseOptions: { mode: "passphrase", words: 4, separator: "-" },
+  generate: () => "harbor-cinder-lattice-quarry",
 });
 
 import { SAMPLE_FOLDER_NAME, sampleSeams } from "../lib/vault/sample.js";
@@ -134,7 +136,6 @@ describe("SettingsSection", () => {
       header: { wrap: {}, kdf: { iterations: 600_000 } },
     };
     loadSettings.mockReturnValue({ ...endpoints });
-    checkTurso.mockResolvedValue("embedded");
     store.exportSealed.mockReturnValue('{"sealed":true}');
     store.importSealed.mockResolvedValue(2);
     store.addFolder.mockResolvedValue({ id: "fld_new", name: SAMPLE_FOLDER_NAME });
@@ -250,16 +251,9 @@ describe("SettingsSection", () => {
 
   it("changes the master password and clears the form", async () => {
     renderSettings("#security");
+    await userEvent.type(screen.getByLabelText("Current"), "old-password-1");
     await userEvent.type(
-      screen.getByLabelText(/Current master password/i),
-      "old-password-1",
-    );
-    await userEvent.type(
-      screen.getByLabelText(/New master password/i),
-      "new-password-12",
-    );
-    await userEvent.type(
-      screen.getByLabelText(/^Confirm$/i),
+      screen.getByLabelText("New password"),
       "new-password-12",
     );
     await userEvent.click(
@@ -277,16 +271,9 @@ describe("SettingsSection", () => {
   it("surfaces master password change failures", async () => {
     store.changeMasterPassword.mockRejectedValue(new Error("wrong current"));
     renderSettings("#security");
+    await userEvent.type(screen.getByLabelText("Current"), "old-password-1");
     await userEvent.type(
-      screen.getByLabelText(/Current master password/i),
-      "old-password-1",
-    );
-    await userEvent.type(
-      screen.getByLabelText(/New master password/i),
-      "new-password-12",
-    );
-    await userEvent.type(
-      screen.getByLabelText(/^Confirm$/i),
+      screen.getByLabelText("New password"),
       "new-password-12",
     );
     await userEvent.click(
@@ -307,50 +294,34 @@ describe("SettingsSection", () => {
     expect(button.disabled).toBe(true);
   });
 
-  it("shows the live strength hint for the new password", async () => {
+  it("shows the live strength read-out for the new password", async () => {
     renderSettings("#security");
     await userEvent.type(
-      screen.getByLabelText(/New master password/i),
+      screen.getByLabelText("New password"),
       "new-password-12",
     );
-    expect(screen.getByText(/Strong · 60 bits/)).toBeTruthy();
+    expect(screen.getByText("Strong")).toBeTruthy();
+    expect(screen.getByText("60 bits")).toBeTruthy();
   });
 
-  it("saves trimmed endpoint URLs and reports the Turso mode", async () => {
-    checkTurso.mockResolvedValue("remote");
-    renderSettings("#connectivity");
-    const host = screen.getByLabelText(/^Host API$/i);
-    await userEvent.clear(host);
-    await userEvent.type(host, "https://host.example.com/");
+  it("suggests a password, revealing it rather than asking for a confirm", async () => {
+    renderSettings("#security");
+    const field = screen.getByLabelText("New password") as HTMLInputElement;
+    expect(field.type).toBe("password");
     await userEvent.click(
-      screen.getByRole("button", { name: /Save endpoints/i }),
+      screen.getByRole("button", { name: /Suggest a strong password/i }),
     );
-    expect(saveSettings).toHaveBeenCalledWith(
-      expect.objectContaining({
-        hostApi: "https://host.example.com",
-        identityApi: "http://127.0.0.1:8788",
-      }),
-    );
-    expect(setTursoSessionToken).toHaveBeenCalled();
-    expect(
-      await screen.findByText(/synchronized with the configured remote/),
-    ).toBeTruthy();
-    expect(screen.getByText("Saved")).toBeTruthy();
-  });
-
-  it("reports an in-memory fallback as an error", async () => {
-    checkTurso.mockResolvedValue("memory");
-    renderSettings("#connectivity");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Save endpoints/i }),
-    );
-    expect((await screen.findByRole("alert")).textContent).toMatch(
-      /bundled connector catalog in memory/,
-    );
+    const revealed = screen.getByLabelText("New password") as HTMLInputElement;
+    expect(revealed.type).toBe("text");
+    expect(revealed.value.length).toBeGreaterThan(11);
+    expect(screen.queryByLabelText("Confirm")).toBeNull();
   });
 
   it("renders the connectivity child panels", () => {
     renderSettings("#connectivity");
+    expect(screen.getByTestId("core-connections-panel")).toBeTruthy();
+    expect(screen.getByTestId("endpoints-panel")).toBeTruthy();
+    expect(screen.getByTestId("turso-panel")).toBeTruthy();
     expect(screen.getByTestId("active-project-panel")).toBeTruthy();
     expect(screen.getByTestId("capability-connectors-panel")).toBeTruthy();
     expect(screen.getByTestId("sync-targets-panel")).toBeTruthy();

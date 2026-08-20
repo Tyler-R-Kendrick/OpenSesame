@@ -3,6 +3,7 @@ import { NavLink, useLocation, useSearchParams } from "react-router";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
 import { BackupRecoverabilityBanner } from "./BackupRecoverabilityBanner.js";
+import { ConnectivityBar } from "./ConnectivityBar.js";
 import {
   IconAgent,
   IconAuthority,
@@ -20,7 +21,6 @@ import {
   IconTrash,
   IconVault,
 } from "./Icons.js";
-import { RailPlaneStatus } from "./PlaneNote.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
 import { overlapCast } from "@opensesame/os-domain";
 
@@ -200,7 +200,6 @@ export function AppShell({ children }: { children?: ReactNode }) {
         </div>
 
         <div className="rail__foot">
-          <RailPlaneStatus />
           <button type="button" className="rail__lock" onClick={store.lock}>
             Lock this device
           </button>
@@ -208,14 +207,18 @@ export function AppShell({ children }: { children?: ReactNode }) {
       </aside>
 
       <div className="main">
+        {/* Present at every width now: the connectivity bar is the reason the
+            top bar exists, and connection state has to be glanceable on a
+            desktop too. The rail keeps the wordmark, so this carries the mark
+            alone. */}
         <header className="topbar">
           <span className="mark" aria-hidden="true">
             <IconVault size={17} />
           </span>
-          <p className="topbar__title">OpenSesame</p>
           <ProjectSwitcher />
           <span className="topbar__spacer" />
-          <RailPlaneStatus />
+          <ConnectivityBar />
+          <span className="topbar__rule" aria-hidden="true" />
           <button type="button" className="rail__lock" onClick={store.lock}>
             Lock
           </button>

@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { type BoundaryValue } from "@opensesame/os-domain";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { applyDaemonPairing, probeDaemon } from "../lib/daemon.js";
+import {
+  type DaemonHealth,
+  applyDaemonPairing,
+  probeDaemon,
+} from "../lib/daemon.js";
 import { useConnect } from "../lib/identity.js";
 import {
   hostStatusLabel,
@@ -18,8 +23,27 @@ import {
   waitForTailnet,
 } from "../lib/tailscale.js";
 import { isLoopbackUrl } from "../lib/urls.js";
-import { IconAlert } from "./Icons.js";
+import { FieldShell } from "./FieldShell.js";
+import { IconAlert, IconCheck, IconTerminal } from "./Icons.js";
 import { QrCode } from "./QrCode.js";
+
+/**
+ * Pairing this machine, as a ceremony rather than a form.
+ *
+ * The old panel opened with an empty URL box and three same-weight buttons —
+ * Connect Tailscale, Use this URL, Show QR — and no way to tell which one was
+ * yours. Discovery already knows the three places a daemon can be, so it runs
+ * first and the ceremony offers exactly one action per step. Typing a tailnet
+ * FQDN by hand is the least likely path and the easiest to get wrong, so it
+ * lives on the failure screen with the values we do know offered as fills.
+ */
+type Phase = "idle" | "looking" | "found" | "paired" | "manual";
+
+type Written = {
+  daemonApi: string;
+  hostApi: string;
+  identityApi: string;
+};
 
 function RailPlaneStatusDefault() {
   const status = usePlaneStatus();
@@ -38,175 +62,373 @@ function RailPlaneStatusDefault() {
 
 function ConnectThisMachineDefault({
   onPaired,
+  autoDiscover = false,
 }: {
   onPaired?: () => void;
+  /** Start discovery on mount — for surfaces the operator opened deliberately. */
+  autoDiscover?: boolean;
 }) {
   const { connect } = useConnect();
-  const [daemonApi, setDaemonApi] = useState(
+  const [phase, setPhase] = useState<Phase>(autoDiscover ? "looking" : "idle");
+  const [found, setFound] = useState<{
+    health: DaemonHealth;
+    via: string;
+  } | null>(null);
+  const [written, setWritten] = useState<Written | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+  const [manualUrl, setManualUrl] = useState(
     () =>
       loadSettings().daemonApi ||
       (settingsSeams.pageIsLoopback() ? settingsSeams.shippedDaemonApi : ""),
   );
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [showQr, setShowQr] = useState(false);
-  const pairingUrl = daemonApi.trim();
-  const canShowPairingQr = pairingUrl.length > 0 && !isLoopbackUrl(pairingUrl);
+  const [clipboardUrl, setClipboardUrl] = useState<string | null>(null);
+  // A discovery that resolves after the operator has moved on must not drag
+  // the ceremony back to a step they left.
+  const live = useRef(true);
+  useEffect(() => {
+    live.current = true;
+    return () => {
+      live.current = false;
+    };
+  }, []);
 
-  async function finish(
-    health: Awaited<ReturnType<typeof probeDaemon>>,
-    via: string,
-  ) {
-    await applyDaemonPairing(via, health);
-    setDaemonApi(health.tailscaleUrl || via);
-    setMessage(
-      `Paired via ${health.tailscaleUrl || via}. Host ${loadSettings().hostApi}.`,
-    );
-    onPaired?.();
-    // Never block pairing on Identity — cross-origin /v1/principals/me used to
-    // hang after the local-network permission grant with no AbortSignal.
-    void connect().catch(() => {
-      // Identity may still be down; daemon pairing is enough for Host plane.
-    });
-  }
+  const finish = useCallback(
+    async (health: DaemonHealth, via: string) => {
+      await applyDaemonPairing(via, health);
+      const saved = loadSettings();
+      if (!live.current) return;
+      setWritten({
+        daemonApi: saved.daemonApi,
+        hostApi: saved.hostApi,
+        identityApi: saved.identityApi,
+      });
+      setPhase("paired");
+      setMessage(null);
+      onPaired?.();
+      // Never block pairing on Identity — cross-origin /v1/principals/me used
+      // to hang after the local-network permission grant with no AbortSignal.
+      void connect().catch(() => {
+        // Identity may still be down; daemon pairing is enough for Host plane.
+      });
+    },
+    [connect, onPaired],
+  );
 
-  async function pair() {
-    setBusy(true);
+  const discover = useCallback(async () => {
+    setPhase("looking");
     setMessage(null);
+    const saved = loadSettings().daemonApi.trim();
     try {
-      assertDaemonReachableFromPage(daemonApi);
-      const health = await probeDaemon(daemonApi);
-      await finish(health, daemonApi);
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Could not reach a daemon on this machine.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function pairTailscale() {
-    setBusy(true);
-    setMessage(null);
-    try {
-      // Prefer what the operator typed — settings may still be empty.
-      if (daemonApi.trim()) {
+      // Whatever we paired with last is the likeliest answer; try it before
+      // sweeping the tailnet.
+      if (saved) {
         try {
-          assertDaemonReachableFromPage(daemonApi);
-          const health = await probeDaemon(daemonApi);
-          await finish(health, daemonApi);
+          assertDaemonReachableFromPage(saved);
+          const health = await probeDaemon(saved);
+          if (!live.current) return;
+          setFound({ health, via: health.tailscaleUrl || saved });
+          setPhase("found");
           return;
         } catch {
-          // Fall through to discovery / tailnet wait.
+          // Fall through to discovery.
         }
       }
-      try {
-        const health = await discoverTailscaleDaemon(daemonApi);
-        await finish(health, health.tailscaleUrl || daemonApi);
-        return;
-      } catch (first) {
-        const onTailnet = await detectTailnet();
-        if (!onTailnet) {
-          openTailscaleLogin();
-          setMessage(
-            "Install or open the Tailscale app on this machine and sign in there. This page cannot receive a Tailscale login callback — it waits until you are on the tailnet, then pairs the daemon.",
-          );
-          const joined = await waitForTailnet();
-          if (!joined) {
-            setMessage(
-              "Still not on the tailnet. Open the Tailscale app, finish sign-in, then press Connect Tailscale again.",
-            );
+      const health = await discoverTailscaleDaemon(saved);
+      if (!live.current) return;
+      setFound({ health, via: health.tailscaleUrl || saved });
+      setPhase("found");
+    } catch (first) {
+      if (!live.current) return;
+      const onTailnet = await detectTailnet();
+      if (!live.current) return;
+      if (!onTailnet) {
+        openTailscaleLogin();
+        setMessage(
+          "Open the Tailscale app on this machine and sign in there. This page cannot receive a Tailscale login callback — it waits until you are on the tailnet, then looks again.",
+        );
+        const joined = await waitForTailnet();
+        if (!live.current) return;
+        if (joined) {
+          try {
+            const health = await discoverTailscaleDaemon(saved);
+            if (!live.current) return;
+            setFound({ health, via: health.tailscaleUrl || saved });
+            setPhase("found");
             return;
+          } catch (second) {
+            setMessage(errorText(second));
           }
-          const health = await discoverTailscaleDaemon(daemonApi);
-          await finish(health, health.tailscaleUrl || daemonApi);
-          return;
+        } else {
+          setMessage(
+            "Still not on the tailnet. Finish sign-in in the Tailscale app, then look again.",
+          );
         }
-        throw first;
+      } else {
+        setMessage(errorText(first));
       }
+      setPhase("manual");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (autoDiscover) void discover();
+  }, [autoDiscover, discover]);
+
+  // Offering the clipboard is only worth it when it holds something that
+  // parses as a URL — otherwise the chip is a dead end.
+  useEffect(() => {
+    if (phase !== "manual") return;
+    const read = navigator.clipboard?.readText;
+    if (typeof read !== "function") return;
+    let cancelled = false;
+    void navigator.clipboard.readText().then(
+      (text) => {
+        const candidate = text.trim();
+        if (cancelled || !candidate) return;
+        try {
+          const url = new URL(candidate);
+          if (url.protocol === "http:" || url.protocol === "https:") {
+            setClipboardUrl(url.origin);
+          }
+        } catch {
+          // Not a URL — no chip.
+        }
+      },
+      () => {
+        // Permission denied or unavailable — no chip.
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [phase]);
+
+  async function pairFound() {
+    if (!found) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await finish(found.health, found.via);
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Could not discover a daemon on the tailnet.",
-      );
+      setMessage(errorText(error));
     } finally {
-      setBusy(false);
+      if (live.current) setBusy(false);
     }
   }
 
+  async function pairManual() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      assertDaemonReachableFromPage(manualUrl);
+      const health = await probeDaemon(manualUrl);
+      await finish(health, manualUrl);
+    } catch (error) {
+      setMessage(errorText(error));
+    } finally {
+      if (live.current) setBusy(false);
+    }
+  }
+
+  const pairingUrl = manualUrl.trim();
+  const canShowPairingQr = pairingUrl.length > 0 && !isLoopbackUrl(pairingUrl);
+  const savedDaemon = loadSettings().daemonApi.trim();
+  const fills = [
+    savedDaemon && savedDaemon !== manualUrl ? savedDaemon : null,
+    pageIsLoopback() && manualUrl !== shippedDaemonApi
+      ? shippedDaemonApi
+      : null,
+    clipboardUrl && clipboardUrl !== manualUrl ? clipboardUrl : null,
+  ].filter((value): value is string => value !== null);
+
   return (
-    <div className="panel conn-pair">
-      <div className="panel__head">
-        <div>
-          <h2>Connect this machine</h2>
-          <p>
-            GitHub Pages cannot see 127.0.0.1. On the daemon machine run{" "}
-            <code>curl -s http://127.0.0.1:18790/health</code>. If Serve is off,
-            open <code>tailscale_serve_enable_url</code>, enable Serve, restart
-            the daemon, then paste <code>tailscale_url</code> (
-            <code>https://machine.tailnet.ts.net</code>) here.
-          </p>
-        </div>
+    <div className="ceremony">
+      <div className="ceremony__head">
+        <h3>Connect this machine</h3>
+        <p>
+          {phase === "paired"
+            ? "Paired. The Host and Identity endpoints came with it."
+            : "This page cannot see 127.0.0.1, so it pairs your daemon over Tailscale Serve instead."}
+        </p>
       </div>
-      <div className="panel__body">
-        <div className="field">
-          <label htmlFor="daemon-url">Daemon (Tailscale Serve URL)</label>
-          <input
-            id="daemon-url"
-            type="url"
-            placeholder="https://your-machine.tailnet.ts.net"
-            value={daemonApi}
-            onChange={(event) => setDaemonApi(event.target.value)}
-          />
-        </div>
+
+      {phase === "idle" ? (
         <div className="actions">
           <button
             type="button"
             className="btn btn--primary"
-            disabled={busy}
-            onClick={() => void pairTailscale()}
+            onClick={() => void discover()}
           >
-            {busy ? "Connecting…" : "Connect Tailscale"}
+            Find my daemon
           </button>
           <button
             type="button"
-            className="btn"
-            disabled={busy}
-            onClick={() => void pair()}
+            className="btn btn--ghost"
+            onClick={() => setPhase("manual")}
           >
-            Use this URL
+            Enter it myself
           </button>
-          {canShowPairingQr ? (
+        </div>
+      ) : null}
+
+      {phase === "looking" ? (
+        <output className="ceremony__looking">
+          <span className="spin" aria-hidden="true" />
+          <span>Looking for a daemon on your tailnet…</span>
+        </output>
+      ) : null}
+
+      {phase === "found" && found ? (
+        <>
+          <div className="found">
+            <p className="found__top">
+              <IconCheck size={15} />
+              Found on your tailnet
+            </p>
+            <p className="found__name">{found.via}</p>
+            {/* /health is deliberately opaque, so a daemon usually does not
+                state its upstreams. Showing a placeholder for them would be
+                asserting ports nobody mentioned — the pairing result below
+                reports what was actually written instead. */}
+            {found.health.hostApi || found.health.identityApi ? (
+              <dl>
+                {found.health.hostApi ? (
+                  <>
+                    <dt>Host it fronts</dt>
+                    <dd>{found.health.hostApi}</dd>
+                  </>
+                ) : null}
+                {found.health.identityApi ? (
+                  <>
+                    <dt>Identity it fronts</dt>
+                    <dd>{found.health.identityApi}</dd>
+                  </>
+                ) : null}
+              </dl>
+            ) : null}
+            <div className="actions">
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={busy}
+                aria-busy={busy}
+                onClick={() => void pairFound()}
+              >
+                {busy ? "Pairing…" : "Pair this daemon"}
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                disabled={busy}
+                onClick={() => setPhase("manual")}
+              >
+                Use a different address
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {phase === "paired" && written ? (
+        <div className="ceremony__done">
+          <span className="ceremony__done-mark" aria-hidden="true">
+            <IconCheck size={24} />
+          </span>
+          <dl className="wrote">
+            <div>
+              <dt>Daemon</dt>
+              <dd>{written.daemonApi || "—"}</dd>
+            </div>
+            <div>
+              <dt>Host</dt>
+              <dd>{written.hostApi || "—"}</dd>
+            </div>
+            <div>
+              <dt>Identity</dt>
+              <dd>{written.identityApi || "—"}</dd>
+            </div>
+          </dl>
+        </div>
+      ) : null}
+
+      {phase === "manual" ? (
+        <>
+          <FieldShell
+            id="daemon-url"
+            label="Daemon (Tailscale Serve URL)"
+            type="url"
+            mono
+            lead={<IconTerminal size={17} />}
+            placeholder="https://your-machine.tailnet.ts.net"
+            value={manualUrl}
+            onValueChange={setManualUrl}
+            fills={fills.map((value) => ({
+              label: value,
+              onPick: () => setManualUrl(value),
+            }))}
+          />
+          <div className="actions">
             <button
               type="button"
-              className="btn btn--ghost"
-              disabled={busy}
-              onClick={() => setShowQr((value) => !value)}
+              className="btn btn--primary"
+              disabled={busy || !manualUrl.trim()}
+              aria-busy={busy}
+              onClick={() => void pairManual()}
             >
-              {showQr ? "Hide QR" : "Show QR"}
+              {busy ? "Connecting…" : "Use this URL"}
             </button>
-          ) : null}
-        </div>
-        {showQr && canShowPairingQr ? (
-          <div className="conn-pair__qr">
-            <QrCode
-              value={pairingUrl}
-              label="Scan to open this daemon Tailscale URL on another device"
-              size={144}
-            />
-            <p className="hint">
-              Scan on another device to open <code>{pairingUrl}</code>.
-            </p>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => void discover()}
+            >
+              Look again
+            </button>
+            {canShowPairingQr ? (
+              <button
+                type="button"
+                className="btn btn--ghost"
+                disabled={busy}
+                onClick={() => setShowQr((value) => !value)}
+              >
+                {showQr ? "Hide QR" : "Show QR"}
+              </button>
+            ) : null}
           </div>
-        ) : null}
-        {message ? <p className="hint">{message}</p> : null}
-      </div>
+          {showQr && canShowPairingQr ? (
+            <div className="conn-pair__qr">
+              <QrCode
+                value={pairingUrl}
+                label="Scan to open this daemon Tailscale URL on another device"
+                size={144}
+              />
+              <p className="hint">
+                Scan on another device to open <code>{pairingUrl}</code>.
+              </p>
+            </div>
+          ) : null}
+          <p className="hint">
+            On the daemon machine,{" "}
+            <code>curl -s http://127.0.0.1:18790/health</code> prints{" "}
+            <code>tailscale_url</code>. If Serve is off it prints{" "}
+            <code>tailscale_serve_enable_url</code> — open that, enable Serve,
+            restart the daemon.
+          </p>
+        </>
+      ) : null}
+
+      {message ? <p className="hint">{message}</p> : null}
     </div>
   );
+}
+
+function errorText(error: BoundaryValue): string {
+  return error instanceof Error
+    ? error.message
+    : "Could not reach a daemon on this machine.";
 }
 
 export const planeNoteSeams = {
@@ -250,7 +472,13 @@ function PagesCannotHostNoteDefault({
     }
     return null;
   }
-  return <ConnectThisMachine />;
+  return (
+    <div className="panel">
+      <div className="panel__body">
+        <ConnectThisMachine />
+      </div>
+    </div>
+  );
 }
 
 export function PagesCannotHostNote(

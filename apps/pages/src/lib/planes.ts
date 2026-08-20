@@ -1,18 +1,13 @@
-import { useEffect, useState } from "react";
+import { useConnectivityMonitor } from "./connectivity-monitor.js";
 import {
   type HealthState,
   hostBase,
   identityBase,
-  probeHost,
-  probeIdentity,
   useIdentitySession,
 } from "./identity.js";
-import {
-  hasRemoteHostPairing,
-  pageIsLoopback,
-  subscribeSettings,
-} from "./settings.js";
+import { hasRemoteHostPairing, pageIsLoopback } from "./settings.js";
 import { isLoopbackUrl } from "./urls.js";
+import { useSettingsEpoch } from "./use-settings.js";
 
 export type HostPlane = "live" | "loopback" | "down" | "unset" | "pending";
 export type IdentityPlane = "connected" | "none" | "down";
@@ -82,36 +77,20 @@ function needsHostPairingDefault(status: PlaneStatus): boolean {
 
 function usePlaneStatusDefault(): PlaneStatus {
   const session = useIdentitySession();
-  const [hostHealth, setHostHealth] = useState<HealthState>("unknown");
-  const [identityHealth, setIdentityHealth] = useState<HealthState>("unknown");
-  const [settingsEpoch, setSettingsEpoch] = useState(0);
+  // Reachability comes from the one supervisor, not from a probe of our own.
+  // Six components call this hook; when each ran its own effect, a single
+  // Settings visit cost sixteen Host requests and none of them ever repeated.
+  const monitor = useConnectivityMonitor();
+  // The bases are a separate concern: they can change without the verdict
+  // about them changing, and this hook still has to re-render for that.
+  useSettingsEpoch();
   const host = hostBase();
   const identity = identityBase();
 
-  useEffect(() => subscribeSettings(() => setSettingsEpoch((n) => n + 1)), []);
-
-  // Re-probe when Settings change the bases or Identity connects.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: host/identity/session/settingsEpoch are the retry triggers
-  useEffect(() => {
-    let cancelled = false;
-    setHostHealth("unknown");
-    setIdentityHealth("unknown");
-    void Promise.all([probeHost(), probeIdentity()]).then(
-      ([nextHost, nextIdentity]) => {
-        if (cancelled) return;
-        setHostHealth(nextHost);
-        setIdentityHealth(nextIdentity);
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [host, identity, session, settingsEpoch]);
-
   return {
-    host: classifyHost(host, hostHealth),
+    host: classifyHost(host, monitor.host.health),
     hostBase: host,
-    identity: classifyIdentity(session !== null, identityHealth),
+    identity: classifyIdentity(session !== null, monitor.identity.health),
     identityBase: identity,
   };
 }

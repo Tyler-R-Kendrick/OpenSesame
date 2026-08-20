@@ -13,8 +13,17 @@ import { overlapCast, isString } from "@opensesame/os-domain";
 export type DaemonHealth = {
   status: string;
   service: string;
-  hostApi: string;
-  identityApi: string;
+  /**
+   * The upstream planes, *if the daemon said*.
+   *
+   * `/health` is deliberately opaque — it carries `status`, `service` and
+   * `tailscale_url` and nothing else, because node IPs, DNS and admin URLs
+   * belong on the operator-token-gated `/v1/toolbar/status`. So these are
+   * normally null, and null has to mean "not stated" rather than a guess:
+   * inventing `127.0.0.1:8787` here made pairing overwrite a working Host.
+   */
+  hostApi: string | null;
+  identityApi: string | null;
   tailscaleUrl: string | null;
 };
 
@@ -42,13 +51,11 @@ async function probeDaemonDefault(
     status: isString(body.status) ? body.status : "ok",
     service: "opensesame-daemon",
     hostApi:
-      isString(body.host_api) && body.host_api
-        ? body.host_api
-        : "http://127.0.0.1:8787",
+      isString(body.host_api) && body.host_api ? body.host_api : null,
     identityApi:
       isString(body.identity_api) && body.identity_api
         ? body.identity_api
-        : "http://127.0.0.1:8788",
+        : null,
     tailscaleUrl:
       isString(body.tailscale_url) && body.tailscale_url
         ? body.tailscale_url
@@ -79,8 +86,8 @@ async function applyDaemonPairingDefault(
     normalizeTailnetBase(health.tailscaleUrl || daemonApi) ||
     normalizeTailnetBase(daemonApi);
 
-  let hostApi = health.hostApi.trim();
-  let identityApi = health.identityApi.trim();
+  let hostApi = health.hostApi?.trim() ?? "";
+  let identityApi = health.identityApi?.trim() ?? "";
   let savedDaemon = publicBase || daemonApi.trim();
 
   if (pageIsLoopback()) {
