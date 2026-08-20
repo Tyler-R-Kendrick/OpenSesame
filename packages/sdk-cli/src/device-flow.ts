@@ -193,6 +193,9 @@ export class DeviceFlowClient {
     const res = await this.#fetch(meta.token_endpoint, init);
     const json = (await res.json()) as Record<string, unknown>;
     if (res.ok && typeof json.access_token === "string") {
+      // SAFETY: access_token was checked as string above; remaining token
+      // fields are optional JSON from the token endpoint. TokenSuccess is a
+      // named object type, so TypeScript requires the unknown step.
       return { status: "success", tokens: json as unknown as TokenSuccess };
     }
     const error = String(json.error ?? "unknown");

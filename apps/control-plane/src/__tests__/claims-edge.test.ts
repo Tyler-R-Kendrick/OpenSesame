@@ -152,13 +152,13 @@ describe("claims routes edge cases", () => {
     });
     expect(tooShort.status).toBe(400);
 
-    const wrongShape = await app.request("/v1/claims/present", {
+    const invalidClaim = await app.request("/v1/claims/present", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ token: "not-a-claim-token-at-all" }),
     });
-    expect(wrongShape.status).toBe(401);
-    expect(((await wrongShape.json()) as { error: string }).error).toBe(
+    expect(invalidClaim.status).toBe(401);
+    expect(((await invalidClaim.json()) as { error: string }).error).toBe(
       "invalid_token",
     );
 

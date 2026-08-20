@@ -210,7 +210,9 @@ export function wrapServerWithTelemetry(
   const active = telemetry ?? createHostTelemetry();
   if (!active) return;
 
-  const target = server as unknown as ToolRegistrar;
+  // SAFETY: ToolRegistrar is the structural subset of McpServer.tool used
+  // for the last-argument callback wrap; the SDK's overloads cannot be named.
+  const target = server as ToolRegistrar;
   const originalTool = target.tool.bind(target);
 
   target.tool = (...args: unknown[]) => {

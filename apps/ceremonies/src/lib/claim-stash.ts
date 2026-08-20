@@ -16,7 +16,8 @@ export type { ClaimStash };
 const stash = createClaimStash(() => {
   try {
     // ast-grep-ignore: ts-localstorage-set
-    return sessionStorage as unknown as StashStorage;
+    // SAFETY: sessionStorage implements getItem/setItem/removeItem.
+    return sessionStorage as StashStorage;
   } catch {
     // Storage is unavailable; the ceremony still works in a single sitting.
     return null;

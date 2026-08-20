@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 
+// SAFETY: this file is a service worker; globalThis is ServiceWorkerGlobalScope
+// at runtime, but the TS lib types do not overlap.
 const sw = globalThis as unknown as ServiceWorkerGlobalScope;
 
 const CACHE = "opensesame-pages-v3";

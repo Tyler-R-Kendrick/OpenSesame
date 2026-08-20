@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { main } from "./server.js";
 
 vi.mock("@modelcontextprotocol/sdk/server/stdio.js", () => ({
-  StdioServerTransport: vi.fn(function (this: object) {
+  StdioServerTransport: vi.fn(function (this: {
+    start(): void;
+    close(): void;
+  }) {
     return {
       start: vi.fn().mockResolvedValue(undefined),
       close: vi.fn().mockResolvedValue(undefined),
