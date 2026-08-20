@@ -3,6 +3,7 @@ import { fuzz as fuzzAuditRedact } from "./audit_redact.js";
 import { fuzz as fuzzClaimEngine } from "./claim_engine.js";
 import { fuzz as fuzzClientAdmission } from "./client_admission.js";
 import { fuzz as fuzzContractsParse } from "./contracts_parse.js";
+import { fuzz as fuzzEndpointDisplay } from "./endpoint_display.js";
 import { fuzz as fuzzEnvSpecBridge } from "./env_spec_bridge.js";
 import { fuzz as fuzzOriginNormalize } from "./origin_normalize.js";
 import { fuzz as fuzzOsDomain } from "./os_domain.js";
@@ -25,6 +26,26 @@ describe("audit_redact fuzz target", () => {
       fuzzAuditRedact(Buffer.from("random fuzz bytes")),
     ).not.toThrow();
     expect(() => fuzzAuditRedact(Buffer.alloc(0))).not.toThrow();
+  });
+});
+
+describe("endpoint_display fuzz target", () => {
+  it("shortens anything a person can type without throwing", () => {
+    for (const seed of [
+      "",
+      "http://127.0.0.1:18787/",
+      "https://box.tailnet.ts.net/host",
+      "https://github.com/owner/store.git",
+      "git@github.com:owner/store.git",
+      "not a url",
+      "://////",
+      "http://[::1]:1/../..",
+      "\u0000\u0000",
+      "a".repeat(512),
+    ]) {
+      expect(() => fuzzEndpointDisplay(Buffer.from(seed))).not.toThrow();
+    }
+    expect(() => fuzzEndpointDisplay(Buffer.alloc(0))).not.toThrow();
   });
 });
 
