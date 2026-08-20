@@ -20,7 +20,32 @@ type AuthCode = {
   nonce?: string;
   scope: string;
   codeChallenge: string;
+  origin?: string;
 };
+
+function isOriginClientId(clientId: string): boolean {
+  return clientId.startsWith("origin:");
+}
+
+function originFromClientId(clientId: string): string | undefined {
+  if (!isOriginClientId(clientId)) return undefined;
+  const origin = clientId.slice("origin:".length);
+  try {
+    const url = new URL(origin);
+    if (url.origin !== origin) return undefined;
+    if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;
+    return origin;
+  } catch {
+    return undefined;
+  }
+}
+
+function pairwiseSub(canonicalSub: string, audience: string): string {
+  return createHash("sha256")
+    .update(`os-mock:${canonicalSub}:${audience}`)
+    .digest("hex")
+    .slice(0, 32);
+}
 
 export interface MockUpstreamIdp {
   config: MockIdpConfig;
@@ -54,13 +79,23 @@ function sendJson(
   status: number,
   body: unknown,
   issuer = "",
+  extra: Record<string, string> = {},
 ): void {
   const payload = JSON.stringify(body);
   res.writeHead(
     status,
-    securityHeaders({ "content-type": "application/json" }, issuer),
+    securityHeaders({ "content-type": "application/json", ...extra }, issuer),
   );
   res.end(payload);
+}
+
+function tokenCorsHeaders(origin: string): Record<string, string> {
+  return {
+    "access-control-allow-origin": origin,
+    "access-control-allow-methods": "POST, OPTIONS",
+    "access-control-allow-headers": "content-type",
+    vary: "Origin",
+  };
 }
 
 function readBody(req: IncomingMessage): Promise<string> {
@@ -105,10 +140,11 @@ export async function createMockUpstreamIdp(
     jwks_uri: `${config.issuer}/jwks`,
     userinfo_endpoint: `${config.issuer}/userinfo`,
     response_types_supported: ["code"],
-    subject_types_supported: ["public"],
+    subject_types_supported: ["public", "pairwise"],
     id_token_signing_alg_values_supported: ["RS256"],
     scopes_supported: ["openid", "profile", "email"],
     token_endpoint_auth_methods_supported: [
+      "none",
       "client_secret_post",
       "client_secret_basic",
     ],
@@ -133,10 +169,15 @@ export async function createMockUpstreamIdp(
   }): Promise<Record<string, unknown>> {
     const now = Math.floor(Date.now() / 1000);
     const accessToken = `mock-access-${now}`;
+    const origin = originFromClientId(params.clientId);
+    const subject = origin
+      ? pairwiseSub(config.testUser.sub, params.clientId)
+      : config.testUser.sub;
     const idToken = await new SignJWT({
-      sub: config.testUser.sub,
+      sub: subject,
       email: config.testUser.email,
       name: config.testUser.name,
+      ...(origin ? { pairwise_sub: subject, origin } : {}),
       ...(params.nonce ? { nonce: params.nonce } : {}),
     })
       .setProtectedHeader({ alg: "RS256", kid: keys.kid })
@@ -184,10 +225,30 @@ export async function createMockUpstreamIdp(
         const codeChallengeMethod =
           url.searchParams.get("code_challenge_method") ?? undefined;
 
-        if (clientId !== config.clientId) {
+        const originClient = originFromClientId(clientId);
+        if (originClient) {
+          let redirectOrigin: string;
+          try {
+            redirectOrigin = new URL(redirectUri).origin;
+          } catch {
+            return sendJson(
+              res,
+              400,
+              { error: "invalid_redirect_uri" },
+              config.issuer,
+            );
+          }
+          if (redirectOrigin !== originClient) {
+            return sendJson(
+              res,
+              400,
+              { error: "invalid_redirect_uri" },
+              config.issuer,
+            );
+          }
+        } else if (clientId !== config.clientId) {
           return sendJson(res, 400, { error: "invalid_client" }, config.issuer);
-        }
-        if (!config.redirectUris.includes(redirectUri)) {
+        } else if (!config.redirectUris.includes(redirectUri)) {
           return sendJson(
             res,
             400,
@@ -222,6 +283,7 @@ export async function createMockUpstreamIdp(
           scope,
           codeChallenge,
           ...(nonce !== undefined ? { nonce } : {}),
+          ...(originClient !== undefined ? { origin: originClient } : {}),
         };
         codes.set(code, entry);
 
@@ -235,19 +297,49 @@ export async function createMockUpstreamIdp(
         return res.end();
       }
 
+      if (req.method === "OPTIONS" && path === "/token") {
+        const requestOrigin = req.headers.origin;
+        if (typeof requestOrigin === "string" && requestOrigin.length > 0) {
+          res.writeHead(
+            204,
+            securityHeaders(tokenCorsHeaders(requestOrigin), config.issuer),
+          );
+          return res.end();
+        }
+        res.writeHead(204, securityHeaders({}, config.issuer));
+        return res.end();
+      }
+
       if (req.method === "POST" && path === "/token") {
         const body = parseForm(await readBody(req));
         const grantType = body.get("grant_type");
         const clientId = body.get("client_id") ?? basicClientId(req) ?? "";
         const clientSecret =
           body.get("client_secret") ?? basicClientSecret(req) ?? "";
+        const originClient = originFromClientId(clientId);
+        const requestOrigin =
+          typeof req.headers.origin === "string" ? req.headers.origin : "";
 
-        if (
+        if (originClient) {
+          if (requestOrigin !== originClient) {
+            return sendJson(
+              res,
+              403,
+              {
+                error: "unauthorized_client",
+                error_description: "origin_cors_denied",
+              },
+              config.issuer,
+            );
+          }
+        } else if (
           clientId !== config.clientId ||
           clientSecret !== config.clientSecret
         ) {
           return sendJson(res, 401, { error: "invalid_client" }, config.issuer);
         }
+
+        const cors = originClient ? tokenCorsHeaders(originClient) : {};
 
         if (grantType === "authorization_code") {
           const code = body.get("code") ?? "";
@@ -260,6 +352,7 @@ export async function createMockUpstreamIdp(
               400,
               { error: "invalid_grant" },
               config.issuer,
+              cors,
             );
           }
           const verifier = body.get("code_verifier") ?? "";
@@ -275,6 +368,7 @@ export async function createMockUpstreamIdp(
                 error_description: "PKCE verification failed",
               },
               config.issuer,
+              cors,
             );
           }
           const tokens = await issueTokens({
@@ -282,10 +376,19 @@ export async function createMockUpstreamIdp(
             scope: stored.scope,
             ...(stored.nonce !== undefined ? { nonce: stored.nonce } : {}),
           });
-          return sendJson(res, 200, tokens, config.issuer);
+          return sendJson(res, 200, tokens, config.issuer, cors);
         }
 
         if (grantType === "refresh_token") {
+          if (originClient) {
+            return sendJson(
+              res,
+              400,
+              { error: "unauthorized_client" },
+              config.issuer,
+              cors,
+            );
+          }
           const tokens = await issueTokens({
             clientId,
             scope: "openid profile email",
@@ -298,6 +401,7 @@ export async function createMockUpstreamIdp(
           400,
           { error: "unsupported_grant_type" },
           config.issuer,
+          cors,
         );
       }
 
