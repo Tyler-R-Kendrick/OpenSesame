@@ -669,4 +669,114 @@ mod tests {
         .await
         .expect("chaos case exceeded its deadline");
     }
+
+    #[cfg(test)]
+    mod characterization {
+        use super::*;
+
+        /// Snapshots of the `/v1/invoke_through` wire shapes: the brokered
+        /// success and the failure classes the route itself authors.
+        ///
+        /// These do not assert the shapes are *right* — the tests above do
+        /// that. They pin what the route actually serializes, so a new field
+        /// has to be looked at and accepted rather than shipped unnoticed. On
+        /// this route that matters more than most: the caller must receive the
+        /// upstream status, allowlisted headers, and capped body — and nothing
+        /// else. A new response header here is a disclosure decision; read the
+        /// diff. The receipt (provider/host/status/latency/subject/actor) is a
+        /// local tracing event, never part of the HTTP response, so there is
+        /// no receipt metadata to pin on the wire.
+        #[tokio::test]
+        async fn invoke_success_wire_shape_is_pinned() {
+            let (base, _hits) = spawn_upstream().await;
+            let app = router(canary_state(
+                Invoker::with_rules(vec![loopback_rule()]).allow_http_for_tests(),
+            ));
+            let res = app
+                .oneshot(request(&invoke_body(&format!("{base}/zen"), true), true))
+                .await
+                .unwrap();
+            let status = res.status().as_u16();
+            let mut headers: Vec<(String, String)> = res
+                .headers()
+                .iter()
+                .map(|(name, value)| {
+                    (
+                        name.as_str().to_string(),
+                        value.to_str().unwrap_or("").to_string(),
+                    )
+                })
+                .collect();
+            headers.sort();
+            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
+            let text = String::from_utf8(bytes.to_vec()).unwrap();
+            let wire = json!({
+                "status": status,
+                "headers": headers,
+                "body": text,
+            });
+            // The body is upstream content passed through verbatim (the
+            // happy-path test above pins that equality); the snapshot keeps
+            // status + the header allowlist outcome, not payload bytes.
+            insta::assert_json_snapshot!(wire, {
+                ".body" => "[body]",
+            });
+        }
+
+        #[tokio::test]
+        async fn invoke_not_confirmed_wire_shape_is_pinned() {
+            let app = router(test_state("http://127.0.0.1:1"));
+            let res = app
+                .oneshot(request(
+                    &invoke_body("https://api.github.com/zen", false),
+                    true,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
+            let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            insta::assert_json_snapshot!(body);
+        }
+
+        #[tokio::test]
+        async fn token_source_failed_wire_shape_is_pinned() {
+            let st = state_with(Invoker::new(), Arc::new(|_| Some(Box::new(FailingSource))));
+            let app = router(st);
+            let res = app
+                .oneshot(request(
+                    &invoke_body("https://api.github.com/zen", true),
+                    true,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::BAD_GATEWAY);
+            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
+            let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            // The failure surface is a class, never tool output or a token.
+            insta::assert_json_snapshot!(body);
+        }
+
+        #[tokio::test]
+        async fn upstream_timeout_wire_shape_is_pinned() {
+            use crate::tests::fault::{Fault, FaultListener};
+            let upstream = FaultListener::spawn(Fault::Stall).await;
+            let app = router(canary_state(
+                Invoker::with_rules(vec![loopback_rule()])
+                    .allow_http_for_tests()
+                    .with_timeout(std::time::Duration::from_millis(300)),
+            ));
+            let res = app
+                .oneshot(request(
+                    &invoke_body(&format!("{}/zen", upstream.url()), true),
+                    true,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::GATEWAY_TIMEOUT);
+            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
+            let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            insta::assert_json_snapshot!(body);
+        }
+    }
 }

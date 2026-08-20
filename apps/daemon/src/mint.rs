@@ -313,4 +313,90 @@ mod tests {
         .await
         .expect("chaos case exceeded its deadline");
     }
+
+    #[cfg(test)]
+    mod characterization {
+        use super::*;
+
+        /// Snapshots of the `/v1/mint` wire shapes: the passthrough success
+        /// and the two failure classes the daemon itself authors.
+        ///
+        /// These do not assert the shapes are *right* — the tests above do
+        /// that. They pin what the route actually serializes, so a new field
+        /// has to be looked at and accepted rather than shipped unnoticed. On
+        /// this route that matters more than most: the success body is the one
+        /// daemon surface that carries credential material (`derived_token`,
+        /// ADR 0049 §6), so the pin redacts it — and the gateway-clock
+        /// timestamps — and keeps only the shape. A new key here is a
+        /// disclosure decision; read the diff.
+        #[tokio::test]
+        async fn mint_success_wire_shape_is_pinned() {
+            let derived = json!({
+                "connection_id": "conn_stub",
+                "provider_id": "github",
+                "kind": "github_app_installation",
+                "derived_token": "ghs_PLANTED-DERIVED-VALUE-MUST-BE-REDACTED",
+                "expires_at": "2026-08-20T03:00:00Z",
+                "subject": "user:alice",
+                "actor": "operator",
+                "issued_at": "2026-08-20T02:00:00Z",
+            });
+            let (gateway, _calls) = spawn_gateway(StatusCode::OK, derived).await;
+            let app = router(test_state(&gateway));
+            let res = app
+                .oneshot(request(
+                    r#"{"connection_id":"conn_stub","installation_id":"12345678"}"#,
+                    true,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::OK);
+            let bytes = to_bytes(res.into_body(), 8192).await.unwrap();
+            let body: Value = serde_json::from_slice(&bytes).unwrap();
+            // The derived token is credential material and the stamps are the
+            // gateway's clock: pin the shape, never the values (I1).
+            insta::assert_json_snapshot!(body, {
+                ".derived_token" => "[derived]",
+                ".expires_at" => "[expiry]",
+                ".issued_at" => "[issued]",
+            });
+        }
+
+        #[tokio::test]
+        async fn gateway_unreachable_wire_shape_is_pinned() {
+            let app = router(test_state("http://127.0.0.1:1"));
+            let res = app
+                .oneshot(request(r#"{"connection_id":"conn_stub"}"#, true))
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::BAD_GATEWAY);
+            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
+            let body: Value = serde_json::from_slice(&bytes).unwrap();
+            insta::assert_json_snapshot!(body);
+        }
+
+        /// The gateway's `materialization_denied` answer (403 from
+        /// `broker_error` on `BrokerError::MaterializationDenied`) passes
+        /// through untouched — the daemon authors nothing here.
+        #[tokio::test]
+        async fn materialization_denied_wire_shape_is_pinned() {
+            let (gateway, _calls) = spawn_gateway(
+                StatusCode::FORBIDDEN,
+                json!({
+                    "error": "materialization_denied",
+                    "hint": "connection policy denies materialization",
+                }),
+            )
+            .await;
+            let app = router(test_state(&gateway));
+            let res = app
+                .oneshot(request(r#"{"connection_id":"conn_stub"}"#, true))
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::FORBIDDEN);
+            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
+            let body: Value = serde_json::from_slice(&bytes).unwrap();
+            insta::assert_json_snapshot!(body);
+        }
+    }
 }

@@ -1,0 +1,8 @@
+---
+source: apps/daemon/src/invoke_through.rs
+expression: body
+---
+{
+  "error": "upstream_timeout",
+  "hint": "upstream call timed out"
+}

@@ -1,0 +1,8 @@
+---
+source: apps/daemon/src/invoke_through.rs
+expression: body
+---
+{
+  "error": "invoke_not_confirmed",
+  "hint": "invoke-through exercises a local credential; pass confirmed: true (v1 requires per-invoke confirmation)"
+}

@@ -1,0 +1,9 @@
+---
+source: apps/daemon/src/main.rs
+expression: body
+---
+{
+  "detail": "[uid detail]",
+  "error": "uds_peer_unauthorized",
+  "hint": "the Unix socket authenticates by peer uid (OPENSESAME_DAEMON_ALLOWED_UIDS); the operator token is TCP-only"
+}

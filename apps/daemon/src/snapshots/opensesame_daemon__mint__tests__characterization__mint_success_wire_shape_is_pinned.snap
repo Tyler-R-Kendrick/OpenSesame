@@ -1,0 +1,14 @@
+---
+source: apps/daemon/src/mint.rs
+expression: body
+---
+{
+  "actor": "operator",
+  "connection_id": "conn_stub",
+  "derived_token": "[derived]",
+  "expires_at": "[expiry]",
+  "issued_at": "[issued]",
+  "kind": "github_app_installation",
+  "provider_id": "github",
+  "subject": "user:alice"
+}

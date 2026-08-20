@@ -1,0 +1,11 @@
+---
+source: apps/daemon/src/promote.rs
+expression: body_json(res).await
+---
+{
+  "connection_id": "conn_stub",
+  "connection_ref": "opensesame://connection/conn_stub",
+  "mode": "import",
+  "provider_id": "github",
+  "wiped": false
+}

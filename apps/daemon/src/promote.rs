@@ -1214,4 +1214,122 @@ mod tests {
         assert_eq!(body["persisted"], false);
         assert!(stub.calls().is_empty(), "{:?}", stub.calls());
     }
+
+    #[cfg(test)]
+    mod characterization {
+        use super::*;
+
+        /// Snapshots of the `/v1/promote` wire shapes: one success and the
+        /// fail-closed validation classes a caller can reach before any
+        /// credential is read.
+        ///
+        /// These do not assert the shapes are *right* — the tests above do
+        /// that. They pin what the route actually serializes, so a new field
+        /// has to be looked at and accepted rather than shipped unnoticed. On
+        /// this route that matters more than most: the success body is the one
+        /// place a helpful-looking "echo of what was imported" would land, and
+        /// the refusal bodies are the caller's only evidence that nothing was
+        /// read. Every fixture value is a planted canary; the accepted shapes
+        /// were reviewed to contain only provider ids, source *kinds*, mode
+        /// names, connection handles, and refusal classes — no values,
+        /// prefixes, or lengths.
+        ///
+        /// If one of these fails, read the diff. A new key here is a
+        /// disclosure decision.
+        #[tokio::test]
+        async fn import_success_wire_shape_is_pinned() {
+            let stub = Stub::default();
+            let url = spawn_stub(stub).await;
+            let st = test_state(&url);
+            let fixture = Fixture::new();
+            let ctx = fixture.ctx(&[("GITHUB_TOKEN", CANARY)]);
+            let source = ProbeSource::EnvVar {
+                name: "GITHUB_TOKEN".into(),
+            };
+            let items = vec![offer(
+                "github",
+                source.clone(),
+                vec![CapabilityClass::Importable],
+            )];
+            let res = promote_with(&st, &ctx, &items, request(source, PromotionMode::Import)).await;
+            assert_eq!(res.status(), StatusCode::OK);
+            insta::assert_json_snapshot!(body_json(res).await);
+        }
+
+        #[tokio::test]
+        async fn promotion_not_confirmed_wire_shape_is_pinned() {
+            let st = test_state("http://127.0.0.1:1");
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                "x-opensesame-operator",
+                crate::DEV_OPERATOR_TOKEN.parse().unwrap(),
+            );
+            let req = PromoteRequest {
+                provider_id: "github".into(),
+                source: ProbeSource::EnvVar {
+                    name: "GITHUB_TOKEN".into(),
+                },
+                mode: PromotionMode::Import,
+                confirm: false,
+                wipe_after_import: false,
+            };
+            let res = promote(State(st), None, headers, Json(req)).await;
+            assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+            insta::assert_json_snapshot!(body_json(res).await);
+        }
+
+        #[tokio::test]
+        async fn offer_not_found_wire_shape_is_pinned() {
+            let st = test_state("http://127.0.0.1:1");
+            let fixture = Fixture::new();
+            let ctx = fixture.ctx(&[("GITHUB_TOKEN", CANARY)]);
+            let req = request(
+                ProbeSource::EnvVar {
+                    name: "GITHUB_TOKEN".into(),
+                },
+                PromotionMode::Import,
+            );
+            let res = promote_with(&st, &ctx, &[], req).await;
+            assert_eq!(res.status(), StatusCode::NOT_FOUND);
+            insta::assert_json_snapshot!(body_json(res).await);
+        }
+
+        #[tokio::test]
+        async fn mode_not_viable_wire_shape_is_pinned() {
+            let st = test_state("http://127.0.0.1:1");
+            let fixture = Fixture::new();
+            let ctx = fixture.ctx(&[]);
+            let source = ProbeSource::CliTool {
+                binary: "gh".into(),
+                version: None,
+            };
+            let items = vec![offer(
+                "github",
+                source.clone(),
+                vec![CapabilityClass::InvokeThrough, CapabilityClass::Mintable],
+            )];
+            let res = promote_with(&st, &ctx, &items, request(source, PromotionMode::Import)).await;
+            assert_eq!(res.status(), StatusCode::UNPROCESSABLE_ENTITY);
+            insta::assert_json_snapshot!(body_json(res).await);
+        }
+
+        #[tokio::test]
+        async fn source_not_readable_wire_shape_is_pinned() {
+            let st = test_state("http://127.0.0.1:1");
+            let fixture = Fixture::new();
+            let ctx = fixture.ctx(&[]);
+            let source = ProbeSource::Keychain {
+                store: KeychainStore::SecretService,
+                item_label: "gh:github.com".into(),
+            };
+            let items = vec![offer(
+                "github",
+                source.clone(),
+                vec![CapabilityClass::Importable],
+            )];
+            let res = promote_with(&st, &ctx, &items, request(source, PromotionMode::Import)).await;
+            assert_eq!(res.status(), StatusCode::UNPROCESSABLE_ENTITY);
+            insta::assert_json_snapshot!(body_json(res).await);
+        }
+    }
 }
