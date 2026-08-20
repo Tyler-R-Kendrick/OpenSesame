@@ -67,7 +67,7 @@ import {
   needsScopeSelection,
 } from "../lib/connector-guidance.js";
 import {
-  bundledProviders,
+  getBundledProviders,
   readEmbeddedProviders,
   writeEmbeddedProviders,
 } from "../lib/embedded-catalog.js";
@@ -310,7 +310,7 @@ export function ConnectionsSection() {
   const loadCatalog = useCallback(async () => {
     const id = ++catalogRun.current;
     // Never leave the gallery blocked on Turso/OPFS — paint the bundle first.
-    setProviders(bundledProviders);
+    setProviders(getBundledProviders());
     const embedded = await readEmbeddedProviders();
     if (catalogRun.current !== id) return;
     setProviders(embedded);

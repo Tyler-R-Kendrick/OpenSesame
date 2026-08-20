@@ -81,7 +81,11 @@ const openConsentPopup = vi.hoisted(() => vi.fn(() => null));
 const startGithubAppRegistration = vi.hoisted(() => vi.fn());
 const submitGithubAppManifest = vi.hoisted(() => vi.fn());
 
-import { connectionSeams } from "../lib/connections.js";
+import {
+  ConnectionsError,
+  connectionSeams,
+  type Connection,
+} from "../lib/connections.js";
 import { ConnectionsSection } from "./ConnectionsSection.js";
 const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, {
@@ -226,13 +230,54 @@ const catalog = vi.hoisted(() => {
 const bundledRef = vi.hoisted(() => ({ current: [] }));
 
 import { embeddedCatalogSeams } from "../lib/embedded-catalog.js";
-const originalEmbeddedCatalogSeams = { ...embeddedCatalogSeams };
-Object.assign(embeddedCatalogSeams, {get bundledProviders() {
-    return bundledRef.current;
-  },
-  readEmbeddedProviders: vi.fn(() => Promise.resolve(bundledRef.current)),
-  writeEmbeddedProviders: vi.fn().mockResolvedValue(undefined),});
+const originalEmbeddedCatalogSeams = {
+  ...embeddedCatalogSeams,
+  bundledProviders: embeddedCatalogSeams.bundledProviders,
+};
+embeddedCatalogSeams.readEmbeddedProviders = () =>
+  Promise.resolve(embeddedCatalogSeams.bundledProviders);
+embeddedCatalogSeams.writeEmbeddedProviders = vi
+  .fn()
+  .mockResolvedValue(undefined);
 
+import { passkeyCeremonyNoteSeams } from "../components/PasskeyCeremonyNote.js";
+const originalPasskeyCeremonyNoteSeams = { ...passkeyCeremonyNoteSeams };
+Object.assign(passkeyCeremonyNoteSeams, {
+  PasskeyCeremonyNote: () => null,
+});
+
+function makeConnection(overrides: Partial<Connection> = {}): Connection {
+  return {
+    connectionId: "con_1",
+    connectionRef: "conn/github/pat",
+    logicalName: "github",
+    displayName: "GitHub",
+    providerId: "github",
+    integrationId: null,
+    status: "active",
+    statusDetail: null,
+    organizationId: "org_1",
+    projectId: null,
+    ownerKind: "user",
+    shareability: "private",
+    requestedScopes: ["repo"],
+    grantedScopes: ["repo"],
+    accountLabel: "octocat",
+    expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+    refreshable: true,
+    lastRefreshedAt: null,
+    maxInvokeLevel: 2,
+    egress: {
+      scheme: "https",
+      authorities: ["api.github.com"],
+      pathPrefixes: [],
+    },
+    bindings: [],
+    createdAt: "2026-08-01T00:00:00Z",
+    updatedAt: "2026-08-01T00:00:00Z",
+    ...overrides,
+  };
+}
 
 function renderAt(path: string) {
   return render(
@@ -262,6 +307,7 @@ describe("ConnectionsSection gallery", () => {
     shouldAutoConnect.mockReturnValue(true);
     listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
+    embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
     connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
@@ -273,6 +319,8 @@ describe("ConnectionsSection gallery", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    embeddedCatalogSeams.bundledProviders =
+      originalEmbeddedCatalogSeams.bundledProviders;
   });
 
   it("renders the catalog grouped by category", async () => {
@@ -464,6 +512,7 @@ describe("ConnectionsSection connector page", () => {
     shouldAutoConnect.mockReturnValue(true);
     listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
+    embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
     connectionEvents.mockResolvedValue([]);
     vault.items = [];
@@ -474,6 +523,8 @@ describe("ConnectionsSection connector page", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    embeddedCatalogSeams.bundledProviders =
+      originalEmbeddedCatalogSeams.bundledProviders;
   });
 
   it("reports an unknown connector", async () => {
@@ -856,6 +907,7 @@ describe("ConnectionsSection deeper branches", () => {
     shouldAutoConnect.mockReturnValue(true);
     listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
+    embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
     connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
@@ -867,6 +919,8 @@ describe("ConnectionsSection deeper branches", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    embeddedCatalogSeams.bundledProviders =
+      originalEmbeddedCatalogSeams.bundledProviders;
   });
 
   it("announces auto-configured connectors after a reload", async () => {
@@ -1155,6 +1209,7 @@ describe("ConnectionsSection remaining branches", () => {
     shouldAutoConnect.mockReturnValue(true);
     listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
+    embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
     connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
@@ -1166,6 +1221,8 @@ describe("ConnectionsSection remaining branches", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    embeddedCatalogSeams.bundledProviders =
+      originalEmbeddedCatalogSeams.bundledProviders;
   });
 
   it("uses the singular flash for one auto-configured connector", async () => {
@@ -1282,6 +1339,7 @@ describe("ConnectionsSection remaining branches", () => {
     // The bundled catalog paints first, so it must carry the scopes or the
     // form initializes without them.
     bundledRef.current = [scopedLinear];
+    embeddedCatalogSeams.bundledProviders = [scopedLinear];
     renderAt("/connections/linear");
     // Tick the non-default broad scope on.
     await userEvent.click(await screen.findByLabelText(/write/));

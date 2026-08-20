@@ -86,6 +86,10 @@ describe("AgentsSection", () => {
     online.value = true;
     connectState.error = null;
     identityJson.mockResolvedValue({ events: [] });
+    currentSession.mockReturnValue({
+      accessToken: "tok_1",
+      principalId: "prn_op",
+    });
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
       configurable: true,

@@ -474,7 +474,7 @@ export function decodeEmbeddedProviders(value: string): Provider[] | null {
     : null;
 }
 
-export async function readEmbeddedProviders(): Promise<Provider[]> {
+async function readEmbeddedProvidersDefault(): Promise<Provider[]> {
   try {
     const connection = await db();
     const row = await withTimeout(
@@ -488,15 +488,15 @@ export async function readEmbeddedProviders(): Promise<Provider[]> {
       const providers = decodeEmbeddedProviders(row.value);
       if (providers) return providers;
     }
-    await writeEmbeddedProviders(bundledProviders);
+    await writeEmbeddedProviders(getBundledProviders());
   } catch {
     lastMode = "memory";
     database = null;
   }
-  return bundledProviders;
+  return getBundledProviders();
 }
 
-export async function writeEmbeddedProviders(
+async function writeEmbeddedProvidersDefault(
   providers: Provider[],
 ): Promise<void> {
   try {
@@ -519,7 +519,14 @@ export async function writeEmbeddedProviders(
 export const embeddedCatalogSeams = {
   setTursoSessionToken: setTursoSessionTokenDefault,
   checkTurso: checkTursoDefault,
+  bundledProviders,
+  readEmbeddedProviders: readEmbeddedProvidersDefault,
+  writeEmbeddedProviders: writeEmbeddedProvidersDefault,
 };
+
+export function getBundledProviders(): Provider[] {
+  return embeddedCatalogSeams.bundledProviders;
+}
 
 export function setTursoSessionToken(token: string): void {
   return embeddedCatalogSeams.setTursoSessionToken(token);
@@ -527,4 +534,14 @@ export function setTursoSessionToken(token: string): void {
 
 export async function checkTurso(): Promise<typeof lastMode> {
   return embeddedCatalogSeams.checkTurso();
+}
+
+export async function readEmbeddedProviders(): Promise<Provider[]> {
+  return embeddedCatalogSeams.readEmbeddedProviders();
+}
+
+export async function writeEmbeddedProviders(
+  providers: Provider[],
+): Promise<void> {
+  return embeddedCatalogSeams.writeEmbeddedProviders(providers);
 }
