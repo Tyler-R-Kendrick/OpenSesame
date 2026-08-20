@@ -42,6 +42,7 @@ vi.mock("../lib/settings.js", () => ({
   loadSettings: () => ({
     daemonApi: env.daemonApiSetting,
     hostApi: "https://host.example.com",
+    identityApi: "https://id.example.com",
   }),
   pageIsLoopback: () => env.loopbackPage,
   shippedDaemonApi: "http://127.0.0.1:18790",
@@ -69,11 +70,7 @@ vi.mock("../lib/urls.js", () => ({
     url.includes("127.0.0.1") || url.includes("localhost"),
 }));
 
-import {
-  ConnectThisMachine,
-  PagesCannotHostNote,
-  RailPlaneStatus,
-} from "./PlaneNote.js";
+import { ConnectThisMachine, PagesCannotHostNote } from "./PlaneNote.js";
 
 function withRouter(node: ReactNode) {
   return render(<MemoryRouter>{node}</MemoryRouter>);
@@ -93,30 +90,10 @@ function typeDaemonUrl(value: string) {
   });
 }
 
-describe("RailPlaneStatus", () => {
-  afterEach(cleanup);
-
-  it("shows a healthy dot when the Host is live", () => {
-    env.plane = { ...env.plane, host: "live", identity: "connected" };
-    const { container } = render(<RailPlaneStatus />);
-    expect(container.querySelector(".dot--ok")).toBeTruthy();
-    expect(screen.getByText("host:live")).toBeTruthy();
-    expect(screen.getByText("id:connected")).toBeTruthy();
-  });
-
-  it("warns when the Host is neither live nor pending", () => {
-    env.plane = { ...env.plane, host: "down", identity: "down" };
-    const { container } = render(<RailPlaneStatus />);
-    expect(container.querySelector(".dot--warn")).toBeTruthy();
-    expect(screen.getByText("host:down")).toBeTruthy();
-  });
-
-  it("treats a pending probe as healthy-ish", () => {
-    env.plane = { ...env.plane, host: "pending" };
-    const { container } = render(<RailPlaneStatus />);
-    expect(container.querySelector(".dot--ok")).toBeTruthy();
-  });
-});
+/** Reach the manual field from the ceremony's opening step. */
+function goManual() {
+  fireEvent.click(screen.getByRole("button", { name: "Enter it myself" }));
+}
 
 describe("PagesCannotHostNote", () => {
   beforeEach(() => {
@@ -160,13 +137,16 @@ describe("PagesCannotHostNote", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("offers the pairing panel when pairing is needed", () => {
+  it("offers the pairing ceremony when pairing is needed", () => {
     env.needsPairing = true;
     env.plane = { ...env.plane, host: "unset", hostBase: "" };
     withRouter(<PagesCannotHostNote ceremony="Backup" />);
     expect(
       screen.getByRole("heading", { name: "Connect this machine" }),
     ).toBeTruthy();
+    // Inline, the ceremony waits to be asked rather than sweeping the tailnet
+    // on every section render.
+    expect(env.discoverTailscaleDaemon).not.toHaveBeenCalled();
   });
 });
 
@@ -192,79 +172,148 @@ describe("ConnectThisMachine", () => {
 
   afterEach(cleanup);
 
-  it("prefills from settings, or the shipped daemon on loopback pages", () => {
-    env.daemonApiSetting = "https://box.tailnet.ts.net";
-    const { unmount } = render(<ConnectThisMachine />);
-    expect(
-      (
-        screen.getByLabelText(
-          "Daemon (Tailscale Serve URL)",
-        ) as HTMLInputElement
-      ).value,
-    ).toBe("https://box.tailnet.ts.net");
-    unmount();
-
-    env.daemonApiSetting = "";
-    env.loopbackPage = true;
+  it("opens on one primary action, with the field kept out of the way", () => {
     render(<ConnectThisMachine />);
-    expect(
-      (
-        screen.getByLabelText(
-          "Daemon (Tailscale Serve URL)",
-        ) as HTMLInputElement
-      ).value,
-    ).toBe("http://127.0.0.1:18790");
+    expect(screen.getByRole("button", { name: "Find my daemon" })).toBeTruthy();
+    expect(screen.queryByLabelText("Daemon (Tailscale Serve URL)")).toBeNull();
   });
 
-  it("pairs directly with a reachable daemon and reports the pairing", async () => {
+  it("discovers on mount when asked to, and offers what it found", async () => {
+    env.discoverTailscaleDaemon.mockResolvedValue({
+      ...HEALTH,
+      tailscaleUrl: "https://found.tailnet.ts.net",
+    });
+    render(<ConnectThisMachine autoDiscover />);
+    expect(
+      await screen.findByText("https://found.tailnet.ts.net"),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Pair this daemon" }),
+    ).toBeTruthy();
+    // Nothing is paired until the operator says so.
+    expect(env.applyDaemonPairing).not.toHaveBeenCalled();
+  });
+
+  it("tries the last pairing before sweeping the tailnet", async () => {
+    env.daemonApiSetting = "https://box.tailnet.ts.net";
+    env.probeDaemon.mockResolvedValue(HEALTH);
+    render(<ConnectThisMachine autoDiscover />);
+    expect(await screen.findByText("https://box.tailnet.ts.net")).toBeTruthy();
+    expect(env.discoverTailscaleDaemon).not.toHaveBeenCalled();
+  });
+
+  it("pairs what it found and reports the endpoints it wrote", async () => {
+    env.daemonApiSetting = "https://box.tailnet.ts.net";
     env.probeDaemon.mockResolvedValue(HEALTH);
     env.applyDaemonPairing.mockResolvedValue(undefined);
     const onPaired = vi.fn();
-    render(<ConnectThisMachine onPaired={onPaired} />);
-    typeDaemonUrl("https://box.tailnet.ts.net");
-    fireEvent.click(screen.getByRole("button", { name: "Use this URL" }));
+    render(<ConnectThisMachine autoDiscover onPaired={onPaired} />);
 
-    expect(
-      await screen.findByText(/Paired via https:\/\/box\.tailnet\.ts\.net/),
-    ).toBeTruthy();
-    expect(env.assertReachable).toHaveBeenCalledWith(
-      "https://box.tailnet.ts.net",
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Pair this daemon" }),
     );
-    expect(env.applyDaemonPairing).toHaveBeenCalledWith(
-      "https://box.tailnet.ts.net",
-      HEALTH,
-    );
+
+    await waitFor(() => {
+      expect(env.applyDaemonPairing).toHaveBeenCalledWith(
+        "https://box.tailnet.ts.net",
+        HEALTH,
+      );
+    });
+    // The three endpoints pairing writes are shown, which is what makes the
+    // Endpoints panel safe to keep collapsed.
+    expect(await screen.findByText("Daemon")).toBeTruthy();
+    expect(screen.getByText("Host")).toBeTruthy();
+    expect(screen.getByText("Identity")).toBeTruthy();
     expect(onPaired).toHaveBeenCalledTimes(1);
     expect(env.connect).toHaveBeenCalledTimes(1);
   });
 
   it("keeps pairing even when the Identity connect fails afterwards", async () => {
+    env.daemonApiSetting = "https://box.tailnet.ts.net";
     env.probeDaemon.mockResolvedValue(HEALTH);
     env.applyDaemonPairing.mockResolvedValue(undefined);
     env.connect.mockRejectedValue(new Error("identity down"));
-    render(<ConnectThisMachine />);
-    typeDaemonUrl("https://box.tailnet.ts.net");
-    fireEvent.click(screen.getByRole("button", { name: "Use this URL" }));
-    expect(await screen.findByText(/Paired via/)).toBeTruthy();
+    render(<ConnectThisMachine autoDiscover />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Pair this daemon" }),
+    );
+    expect(await screen.findByText("Daemon")).toBeTruthy();
   });
 
   it("prefers the daemon-reported tailscale URL when present", async () => {
+    env.daemonApiSetting = "https://box.tailnet.ts.net";
     env.probeDaemon.mockResolvedValue({
       ...HEALTH,
       tailscaleUrl: "https://real.tailnet.ts.net",
     });
     env.applyDaemonPairing.mockResolvedValue(undefined);
-    render(<ConnectThisMachine />);
-    typeDaemonUrl("https://box.tailnet.ts.net");
-    fireEvent.click(screen.getByRole("button", { name: "Use this URL" }));
-    expect(
-      await screen.findByText(/Paired via https:\/\/real\.tailnet\.ts\.net/),
-    ).toBeTruthy();
+    render(<ConnectThisMachine autoDiscover />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Pair this daemon" }),
+    );
+    await waitFor(() => {
+      expect(env.applyDaemonPairing).toHaveBeenCalledWith(
+        "https://real.tailnet.ts.net",
+        expect.anything(),
+      );
+    });
   });
 
-  it("shows the probe failure when the daemon cannot be reached", async () => {
+  it("falls back to the manual field when discovery finds nothing", async () => {
+    env.discoverTailscaleDaemon.mockRejectedValue(
+      new Error("no daemon on tailnet"),
+    );
+    env.detectTailnet.mockResolvedValue(true);
+    render(<ConnectThisMachine autoDiscover />);
+    expect(await screen.findByText("no daemon on tailnet")).toBeTruthy();
+    expect(screen.getByLabelText("Daemon (Tailscale Serve URL)")).toBeTruthy();
+    expect(env.openTailscaleLogin).not.toHaveBeenCalled();
+  });
+
+  it("asks for the Tailscale app when off the tailnet", async () => {
+    env.discoverTailscaleDaemon.mockRejectedValue(new Error("nothing found"));
+    env.detectTailnet.mockResolvedValue(false);
+    env.waitForTailnet.mockResolvedValue(false);
+    render(<ConnectThisMachine autoDiscover />);
+    expect(await screen.findByText(/Still not on the tailnet/)).toBeTruthy();
+    expect(env.openTailscaleLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries discovery once the machine joins the tailnet", async () => {
+    env.discoverTailscaleDaemon
+      .mockRejectedValueOnce(new Error("nothing found"))
+      .mockResolvedValueOnce({
+        ...HEALTH,
+        tailscaleUrl: "https://joined.tailnet.ts.net",
+      });
+    env.detectTailnet.mockResolvedValue(false);
+    env.waitForTailnet.mockResolvedValue(true);
+    render(<ConnectThisMachine autoDiscover />);
+    expect(
+      await screen.findByText("https://joined.tailnet.ts.net"),
+    ).toBeTruthy();
+    expect(env.discoverTailscaleDaemon).toHaveBeenCalledTimes(2);
+  });
+
+  it("pairs a manually entered URL", async () => {
+    env.probeDaemon.mockResolvedValue(HEALTH);
+    env.applyDaemonPairing.mockResolvedValue(undefined);
+    render(<ConnectThisMachine />);
+    goManual();
+    typeDaemonUrl("https://box.tailnet.ts.net");
+    fireEvent.click(screen.getByRole("button", { name: "Use this URL" }));
+    await waitFor(() => {
+      expect(env.applyDaemonPairing).toHaveBeenCalledWith(
+        "https://box.tailnet.ts.net",
+        HEALTH,
+      );
+    });
+  });
+
+  it("shows the probe failure when a typed daemon cannot be reached", async () => {
     env.probeDaemon.mockRejectedValue(new Error("connection refused"));
     render(<ConnectThisMachine />);
+    goManual();
     typeDaemonUrl("https://box.tailnet.ts.net");
     fireEvent.click(screen.getByRole("button", { name: "Use this URL" }));
     expect(await screen.findByText("connection refused")).toBeTruthy();
@@ -274,6 +323,7 @@ describe("ConnectThisMachine", () => {
   it("shows a generic failure for non-Error rejections", async () => {
     env.probeDaemon.mockRejectedValue("nope");
     render(<ConnectThisMachine />);
+    goManual();
     typeDaemonUrl("https://box.tailnet.ts.net");
     fireEvent.click(screen.getByRole("button", { name: "Use this URL" }));
     expect(
@@ -286,6 +336,7 @@ describe("ConnectThisMachine", () => {
       throw new Error("That daemon address is not one this page may call.");
     });
     render(<ConnectThisMachine />);
+    goManual();
     typeDaemonUrl("http://127.0.0.1:18790");
     fireEvent.click(screen.getByRole("button", { name: "Use this URL" }));
     expect(
@@ -296,74 +347,41 @@ describe("ConnectThisMachine", () => {
     expect(env.probeDaemon).not.toHaveBeenCalled();
   });
 
-  it("Tailscale connect: tries the typed URL first and stops on success", async () => {
-    env.probeDaemon.mockResolvedValue(HEALTH);
-    env.applyDaemonPairing.mockResolvedValue(undefined);
+  it("offers the shipped daemon as a fill on loopback pages", () => {
+    env.loopbackPage = true;
     render(<ConnectThisMachine />);
-    typeDaemonUrl("https://box.tailnet.ts.net");
-    fireEvent.click(screen.getByRole("button", { name: "Connect Tailscale" }));
-    expect(await screen.findByText(/Paired via/)).toBeTruthy();
-    expect(env.discoverTailscaleDaemon).not.toHaveBeenCalled();
+    goManual();
+    // Prefilled from the shipped default, so there is nothing left to offer.
+    expect(
+      (
+        screen.getByLabelText(
+          "Daemon (Tailscale Serve URL)",
+        ) as HTMLInputElement
+      ).value,
+    ).toBe("http://127.0.0.1:18790");
   });
 
-  it("Tailscale connect: falls back to discovery when the typed URL fails", async () => {
-    env.probeDaemon.mockRejectedValue(new Error("nope"));
-    env.discoverTailscaleDaemon.mockResolvedValue({
-      ...HEALTH,
-      tailscaleUrl: "https://found.tailnet.ts.net",
+  it("offers the saved pairing as a fill once the box diverges from it", () => {
+    env.daemonApiSetting = "https://box.tailnet.ts.net";
+    render(<ConnectThisMachine />);
+    goManual();
+    typeDaemonUrl("https://other.tailnet.ts.net");
+    const fill = screen.getByRole("button", {
+      name: "https://box.tailnet.ts.net",
     });
-    env.applyDaemonPairing.mockResolvedValue(undefined);
-    render(<ConnectThisMachine />);
-    typeDaemonUrl("https://box.tailnet.ts.net");
-    fireEvent.click(screen.getByRole("button", { name: "Connect Tailscale" }));
+    fireEvent.click(fill);
     expect(
-      await screen.findByText(/Paired via https:\/\/found\.tailnet\.ts\.net/),
-    ).toBeTruthy();
+      (
+        screen.getByLabelText(
+          "Daemon (Tailscale Serve URL)",
+        ) as HTMLInputElement
+      ).value,
+    ).toBe("https://box.tailnet.ts.net");
   });
 
-  it("Tailscale connect: asks for the Tailscale app when off the tailnet", async () => {
-    env.discoverTailscaleDaemon.mockRejectedValue(new Error("nothing found"));
-    env.detectTailnet.mockResolvedValue(false);
-    env.waitForTailnet.mockResolvedValue(false);
+  it("only offers the pairing QR for non-loopback URLs", () => {
     render(<ConnectThisMachine />);
-    fireEvent.click(screen.getByRole("button", { name: "Connect Tailscale" }));
-
-    // The install hint is immediately replaced by the outcome of the wait.
-    expect(await screen.findByText(/Still not on the tailnet/)).toBeTruthy();
-    expect(env.openTailscaleLogin).toHaveBeenCalledTimes(1);
-  });
-
-  it("Tailscale connect: retries discovery once the machine joins the tailnet", async () => {
-    env.discoverTailscaleDaemon
-      .mockRejectedValueOnce(new Error("nothing found"))
-      .mockResolvedValueOnce({
-        ...HEALTH,
-        tailscaleUrl: "https://joined.tailnet.ts.net",
-      });
-    env.detectTailnet.mockResolvedValue(false);
-    env.waitForTailnet.mockResolvedValue(true);
-    env.applyDaemonPairing.mockResolvedValue(undefined);
-    render(<ConnectThisMachine />);
-    fireEvent.click(screen.getByRole("button", { name: "Connect Tailscale" }));
-    expect(
-      await screen.findByText(/Paired via https:\/\/joined\.tailnet\.ts\.net/),
-    ).toBeTruthy();
-    expect(env.discoverTailscaleDaemon).toHaveBeenCalledTimes(2);
-  });
-
-  it("Tailscale connect: surfaces the discovery error when already on the tailnet", async () => {
-    env.discoverTailscaleDaemon.mockRejectedValue(
-      new Error("no daemon on tailnet"),
-    );
-    env.detectTailnet.mockResolvedValue(true);
-    render(<ConnectThisMachine />);
-    fireEvent.click(screen.getByRole("button", { name: "Connect Tailscale" }));
-    expect(await screen.findByText("no daemon on tailnet")).toBeTruthy();
-    expect(env.openTailscaleLogin).not.toHaveBeenCalled();
-  });
-
-  it("only offers the pairing QR for non-loopback URLs", async () => {
-    render(<ConnectThisMachine />);
+    goManual();
     expect(screen.queryByRole("button", { name: "Show QR" })).toBeNull();
 
     typeDaemonUrl("http://127.0.0.1:18790");

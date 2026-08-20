@@ -20,8 +20,8 @@ vi.mock("../lib/vault/hooks.js", () => ({
   useVaultStore: () => ({ lock: vault.lock }),
 }));
 
-vi.mock("./PlaneNote.js", () => ({
-  RailPlaneStatus: () => <span data-testid="plane-status" />,
+vi.mock("./ConnectivityBar.js", () => ({
+  ConnectivityBar: () => <span data-testid="connectivity-bar" />,
 }));
 
 vi.mock("./ProjectSwitcher.js", () => ({
@@ -94,6 +94,8 @@ describe("AppShell", () => {
     expect(screen.getAllByText("Vault").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getAllByTestId("project-switcher").length).toBe(2);
+    // One bar, in the top bar; the rail no longer carries a status line.
+    expect(screen.getAllByTestId("connectivity-bar").length).toBe(1);
     expect(screen.getByTestId("backup-banner")).toBeTruthy();
   });
 

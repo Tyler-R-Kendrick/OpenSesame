@@ -1,0 +1,427 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+  .os {
+    --canvas: #f2f5f9; --surface: #ffffff; --surface-2: #f7f9fc; --surface-3: #eef2f8;
+    --rail: #101a2b; --rail-2: #17253a; --rail-fg: #dbe6f4; --rail-muted: #8ba0bb; --rail-line: #24354e;
+    --ink: #0e1826; --ink-2: #566880; --ink-3: #7e8fa6; --line: #dce4ef; --line-strong: #c4d1e2;
+    --accent: #0d7268; --accent-hover: #0a5c54; --accent-ink: #ffffff; --accent-wash: #e4f6f3; --accent-line: #9fd8d0;
+    --ok: #0f7a51; --ok-wash: #e3f6ec; --warn: #a25a05; --warn-wash: #fdf1de; --err: #b32424; --err-wash: #fceaea;
+    --radius: 10px; --radius-lg: 14px; --radius-pill: 999px;
+    --shadow-sm: 0 1px 2px rgba(14, 24, 38, 0.06), 0 1px 1px rgba(14, 24, 38, 0.04);
+    --shadow: 0 6px 16px -4px rgba(14, 24, 38, 0.12), 0 2px 6px -2px rgba(14, 24, 38, 0.08);
+    --shadow-lg: 0 24px 48px -12px rgba(14, 24, 38, 0.22), 0 8px 20px -8px rgba(14, 24, 38, 0.12);
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    color-scheme: light;
+    background: var(--canvas); color: var(--ink);
+    font-family: var(--font); font-size: 15px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased; font-synthesis-weight: none;
+  }
+  .os[data-theme="dark"] {
+    --canvas: #0a121d; --surface: #111d2c; --surface-2: #162435; --surface-3: #1c2c40;
+    --rail: #070f19; --rail-2: #0f1c2b; --rail-fg: #dbe6f4; --rail-muted: #7d92ae; --rail-line: #1b2b3f;
+    --ink: #e7eefa; --ink-2: #9db0c8; --ink-3: #7488a2; --line: #223349; --line-strong: #2e4262;
+    --accent: #2fb3a3; --accent-hover: #43c8b7; --accent-ink: #04231f; --accent-wash: #0f2f2c; --accent-line: #1d5c55;
+    --ok: #35b57e; --ok-wash: #0f2c22; --warn: #d99320; --warn-wash: #33240c; --err: #ef6d6d; --err-wash: #351717;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.5), 0 2px 6px -2px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6), 0 8px 20px -8px rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+  .os *, .os *::before, .os *::after { box-sizing: border-box; }
+  .os h1, .os h2, .os h3, .os h4 { margin: 0; letter-spacing: -0.021em; text-wrap: balance; font-weight: 650; }
+  .os h1 { font-size: 1.5rem; } .os h2 { font-size: 1.125rem; } .os h3 { font-size: 0.9375rem; }
+  .os p { margin: 0; }
+  .os a { color: var(--accent); text-underline-offset: 2px; }
+  .os code { font-family: var(--mono); font-size: 0.875em; font-variant-ligatures: none; }
+  .os :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  .os { --s-0:#b32424; --s-1:#c2600b; --s-2:#a07a06; --s-3:#0f7a51; --s-4:#0d7268;
+        width: 1060px; padding: 34px 36px 40px; display: grid; gap: 24px; }
+  .os[data-theme="dark"] { --s-0:#ef6d6d; --s-1:#e08b3c; --s-2:#d3b13c; --s-3:#35b57e; --s-4:#2fb3a3; }
+  .lede { display: grid; gap: 6px; max-width: 66ch; }
+  .lede p { color: var(--ink-2); font-size: 0.9375rem; text-wrap: pretty; }
+  .eyebrow { font-size: 0.6875rem; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+  .col { display: grid; gap: 12px; align-content: start; }
+  .col__tag { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.6875rem; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; }
+  .col--before .col__tag { color: var(--ink-3); }
+  .col--after .col__tag { color: var(--accent); }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+  .col--before .panel { opacity: 0.92; }
+  .panel__head { padding: 1rem 1.15rem; border-bottom: 1px solid var(--line); }
+  .panel__head h2 { margin-bottom: 0.15rem; font-size: 1rem; }
+  .panel__head p { font-size: 0.8438rem; color: var(--ink-2); }
+  .panel__body { padding: 1.15rem; display: grid; gap: 0.9rem; }
+
+  /* ——— TODAY: verbatim from styles.css ——— */
+  .field { display: grid; gap: 0.3rem; }
+  .field > label { font-size: 0.75rem; font-weight: 650; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-2); }
+  .field input, .field select { width: 100%; min-height: 2.25rem; padding: 0.45rem 0.65rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink); font: inherit; font-size: 0.9375rem; }
+  .set__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; align-items: start; }
+  .check { display: flex; align-items: center; gap: 0.55rem; font-size: 0.9rem; color: var(--ink); }
+  .check input { flex: none; accent-color: var(--accent); width: auto; min-height: 0; }
+  .hint { font-size: 0.8125rem; color: var(--ink-2); line-height: 1.45; }
+  .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .btn { appearance: none; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 2.25rem; padding: 0 0.85rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink); font: inherit; font-weight: 550; font-size: 0.9rem; cursor: pointer; white-space: nowrap; }
+  .btn--primary { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+  .btn--sm { min-height: 1.875rem; padding: 0 0.6rem; font-size: 0.8125rem; }
+  .btn--ghost { background: transparent; border-color: transparent; color: var(--ink-2); }
+  .chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.5rem; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface-2); font-size: 0.75rem; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+  .chip--ok { color: var(--ok); background: var(--ok-wash); border-color: color-mix(in srgb, var(--ok) 30%, var(--line)); }
+
+  /* ——— PROPOSED: the field shell ——— */
+  .f { display: grid; gap: 0.3rem; }
+  .f__label { font-size: 0.75rem; font-weight: 650; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-2); display: flex; align-items: center; gap: 0.4rem; }
+  .f__shell { display: flex; align-items: center; min-height: 2.5rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface-2); overflow: hidden; transition: border-color 140ms var(--ease), background 140ms var(--ease), box-shadow 140ms var(--ease); }
+  .f__shell:focus-within { background: var(--surface); border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+  .f__lead { display: grid; place-items: center; width: 2.3rem; flex: none; color: var(--ink-3); }
+  .f__shell input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font-family: var(--mono); font-size: 0.875rem; padding: 0.5rem 0.6rem 0.5rem 0; outline: none; }
+  .f__shell input.is-prose { font-family: var(--font); font-size: 0.9375rem; }
+  .f__tail { display: flex; align-items: center; gap: 0.25rem; padding-right: 0.35rem; flex: none; }
+  .icon-btn { appearance: none; display: inline-grid; place-items: center; width: 2rem; height: 2rem; flex: none; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink-2); cursor: pointer; }
+  .icon-btn:hover { background: var(--surface-3); color: var(--ink); }
+  .f__fills { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+  .f__fills-label { font-size: 0.75rem; color: var(--ink-3); }
+  .fill { appearance: none; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.5rem; border: 1px dashed var(--line-strong); border-radius: var(--radius-pill); background: transparent; color: var(--ink-2); font-family: var(--mono); font-size: 0.75rem; cursor: pointer; }
+  .fill:hover { border-style: solid; border-color: var(--accent-line); background: var(--accent-wash); color: var(--accent); }
+
+  /* ——— Sentence settings ——— */
+  .sent { font-size: 0.9375rem; line-height: 2.1; color: var(--ink); }
+  .sent select {
+    appearance: none; border: 0; border-bottom: 1.5px dashed var(--line-strong); border-radius: 0;
+    background: transparent; color: var(--accent); font: inherit; font-weight: 600;
+    padding: 0.05rem 1.1rem 0.05rem 0.2rem; margin: 0 0.1rem; cursor: pointer; width: auto; min-height: 0;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: right 0.42rem center, right 0.2rem center;
+    background-size: 0.22rem 0.22rem, 0.22rem 0.22rem;
+    background-repeat: no-repeat;
+  }
+  .sent select:hover { border-bottom-color: var(--accent); background-color: var(--accent-wash); }
+  .sw { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0.75rem; padding: 0.55rem 0; border-top: 1px solid var(--line); }
+  .sw__name { font-size: 0.9rem; }
+  .sw__sub { font-size: 0.8125rem; color: var(--ink-2); }
+  .toggle { appearance: none; position: relative; width: 2.4rem; height: 1.4rem; flex: none; border-radius: var(--radius-pill); border: 1px solid var(--line-strong); background: var(--surface-3); cursor: pointer; transition: background 140ms var(--ease), border-color 140ms var(--ease); }
+  .toggle::after { content: ""; position: absolute; top: 1px; left: 1px; width: 1.15rem; height: 1.15rem; border-radius: 50%; background: var(--surface); box-shadow: var(--shadow-sm); transition: transform 160ms var(--ease); }
+  .toggle[aria-pressed="true"] { background: var(--accent); border-color: transparent; }
+  .toggle[aria-pressed="true"]::after { transform: translateX(1rem); }
+
+  /* ——— Strength meter ——— */
+  .str { display: grid; gap: 0.35rem; }
+  .str__bars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
+  .str__bar { height: 4px; border-radius: 2px; background: var(--surface-3); }
+  .str__read { display: flex; align-items: baseline; gap: 0.4rem; font-size: 0.8125rem; }
+  .str__label { font-weight: 650; }
+  .str__bits { color: var(--ink-2); font-family: var(--mono); font-size: 0.75rem; }
+
+  .why { display: grid; gap: 0.3rem; padding: 0.7rem 0.8rem; border: 1px solid var(--line); border-left: 0; border-right: 0; background: transparent; }
+  .why p { font-size: 0.8125rem; color: var(--ink-2); line-height: 1.5; }
+  .why b { color: var(--ink); font-weight: 650; }
+
+  .rules { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 18px; }
+  .rule { display: grid; grid-template-columns: 1.6rem 1fr; gap: 0.6rem; align-items: start; }
+  .rule__n { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--accent-wash); border: 1px solid var(--accent-line); color: var(--accent); font-size: 0.75rem; font-weight: 700; }
+  .rule p { font-size: 0.875rem; color: var(--ink-2); line-height: 1.5; text-wrap: pretty; }
+  .rule b { color: var(--ink); font-weight: 650; }
+  </style>
+</helmet>
+
+<div class="os" data-theme="{{theme}}">
+
+  <div class="lede">
+    <p class="eyebrow">Settings · form craft</p>
+    <h1>Fewer inputs, better inputs</h1>
+    <p>Left is what ships today. Right is the same three panels after the pass: every value that can be detected is offered instead of asked for, every control that can hold its own state saves itself, and the ones that survive get a control shell you can actually hit.</p>
+  </div>
+
+  <div class="cols">
+
+    <!-- ————————————————— TODAY ————————————————— -->
+    <div class="col col--before">
+      <p class="col__tag">Today</p>
+
+      <section class="panel">
+        <div class="panel__head">
+          <h2>Locking</h2>
+          <p>Locking discards the vault decryption key from memory. Closing this window already does that. Idle auto-lock is off unless you turn it on below.</p>
+        </div>
+        <div class="panel__body">
+          <div class="set__pair">
+            <div class="field">
+              <label for="b-autolock">Lock after inactivity</label>
+              <select id="b-autolock"><option>Never (recommended)</option></select>
+            </div>
+            <div class="field">
+              <label for="b-clip">Clear copied secrets after</label>
+              <select id="b-clip"><option>30 seconds</option></select>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox"><span>Lock when this tab goes to the background</span></label>
+          <label class="check"><input type="checkbox"><span>Also sign out of Identity when the vault locks (strict)</span></label>
+          <p class="hint">Leave both options off for normal use. Auto-lock only drops the vault key — you stay signed in to Host/Identity unless you enable the strict option. Clearing the clipboard only overwrites it if it still holds the value OpenSesame put there.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__head">
+          <h2>Master password</h2>
+          <p>Changing it re-wraps the vault key under a new derivation.</p>
+        </div>
+        <div class="panel__body">
+          <div class="field">
+            <label for="b-cur">Current master password</label>
+            <input id="b-cur" type="password">
+          </div>
+          <div class="set__pair">
+            <div class="field">
+              <label for="b-next">New master password</label>
+              <input id="b-next" type="password">
+              <span class="hint">At least 12 characters, Fair or better</span>
+            </div>
+            <div class="field">
+              <label for="b-conf">Confirm</label>
+              <input id="b-conf" type="password">
+            </div>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn btn--primary">Change master password</button>
+            <span class="hint">600,000 PBKDF2-SHA256 iterations</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__head">
+          <h2>Planes</h2>
+          <p>Where the Identity and Host APIs live.</p>
+        </div>
+        <div class="panel__body">
+          <div class="set__pair">
+            <div class="field"><label for="b-id">Identity API</label><input id="b-id" type="url" value="http://127.0.0.1:18788"></div>
+            <div class="field"><label for="b-host">Host API</label><input id="b-host" type="url" value="http://127.0.0.1:18787"></div>
+          </div>
+          <div class="field">
+            <label for="b-dae">Daemon on this machine</label>
+            <input id="b-dae" type="url" placeholder="http://127.0.0.1:18790">
+            <p class="hint">Local Pages keep Host/Identity on loopback after pairing. The Tailscale Serve URL is stored for github.io / other devices.</p>
+          </div>
+          <div class="actions"><button type="button" class="btn btn--primary">Save endpoints</button></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ————————————————— PROPOSED ————————————————— -->
+    <div class="col col--after">
+      <p class="col__tag">Proposed</p>
+
+      <section class="panel">
+        <div class="panel__head">
+          <h2>Locking</h2>
+          <p>Locking discards the vault key from memory. Closing this window already does that.</p>
+        </div>
+        <div class="panel__body">
+          <p class="sent">
+            Lock the vault after
+            <select value="{{lockValue}}" onChange="{{setLock}}">
+              <option value="0">never</option>
+              <option value="15">15 minutes</option>
+              <option value="30">30 minutes</option>
+              <option value="60">1 hour</option>
+              <option value="240">4 hours</option>
+              <option value="480">8 hours</option>
+              <option value="1440">24 hours</option>
+            </select>
+            of inactivity, and wipe copied secrets from the clipboard after
+            <select value="{{clipValue}}" onChange="{{setClip}}">
+              <option value="10">10 seconds</option>
+              <option value="30">30 seconds</option>
+              <option value="60">1 minute</option>
+              <option value="0">never</option>
+            </select>.
+          </p>
+          <div class="why">
+            <p>{{lockWhy}}</p>
+          </div>
+          <div class="sw">
+            <span>
+              <span class="sw__name">Lock when this tab goes to the background</span>
+            </span>
+            <button type="button" class="toggle" aria-pressed="{{hidePressed}}" aria-label="Lock when this tab goes to the background" onClick="{{toggleHide}}"></button>
+          </div>
+          <div class="sw">
+            <span>
+              <span class="sw__name">Sign out of Identity too</span>
+              <span class="sw__sub"> — strict. Most people leave this off.</span>
+            </span>
+            <button type="button" class="toggle" aria-pressed="{{strictPressed}}" aria-label="Sign out of Identity too" onClick="{{toggleStrict}}"></button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__head">
+          <h2>Master password</h2>
+          <p>Re-wraps the vault key. Your items are not re-encrypted and nothing is uploaded, because nothing was uploaded.</p>
+        </div>
+        <div class="panel__body">
+          <div class="f">
+            <span class="f__label">Current</span>
+            <span class="f__shell">
+              <span class="f__lead"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10.5" rx="2.2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path></svg></span>
+              <input type="password" class="is-prose" autocomplete="current-password" value="correct horse battery" readonly>
+            </span>
+          </div>
+          <div class="f">
+            <span class="f__label">New password</span>
+            <span class="f__shell">
+              <span class="f__lead"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="12" r="4"></circle><path d="M12.5 12H21M18 12v3M15 12v2.2"></path></svg></span>
+              <input type="text" autocomplete="new-password" value="{{pw}}" onChange="{{typePw}}">
+              <span class="f__tail">
+                <button type="button" class="icon-btn" aria-label="Suggest a strong password" title="Suggest a strong password" onClick="{{suggest}}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a8 8 0 1 0-.7 4.5"></path><path d="M20 5.5v5h-5"></path></svg></button>
+                <button type="button" class="icon-btn" aria-label="Hide password"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12s3.6-6 9-6 9 6 9 6-3.6 6-9 6-9-6-9-6z"></path><circle cx="12" cy="12" r="2.6"></circle></svg></button>
+              </span>
+            </span>
+            <span class="str">
+              <span class="str__bars">
+                <span class="str__bar" style="background: {{bar1}}"></span>
+                <span class="str__bar" style="background: {{bar2}}"></span>
+                <span class="str__bar" style="background: {{bar3}}"></span>
+                <span class="str__bar" style="background: {{bar4}}"></span>
+                <span class="str__bar" style="background: {{bar5}}"></span>
+              </span>
+              <span class="str__read">
+                <span class="str__label" style="color: {{strColor}}">{{strLabel}}</span>
+                <span class="str__bits">{{strBits}} bits</span>
+              </span>
+            </span>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn btn--primary">Change master password</button>
+            <span class="hint">600,000 PBKDF2-SHA256 iterations</span>
+          </div>
+          <p class="hint">No Confirm field. The new password is shown, not hidden, so re-typing it proves nothing — hide it with the eye if someone is behind you.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__head">
+          <h2>Endpoints</h2>
+          <p>Filled in by the connection ceremonies. Edit by hand only for a host someone else runs.</p>
+        </div>
+        <div class="panel__body">
+          <div class="f">
+            <span class="f__label">Daemon on this machine <span class="chip {{savedTone}}">{{savedText}}</span></span>
+            <span class="f__shell">
+              <span class="f__lead"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect><path d="M7 9.5l2.8 2.5L7 14.5M12.5 15h4.2"></path></svg></span>
+              <input type="url" placeholder="https://your-machine.tailnet.ts.net" value="{{url}}" onChange="{{typeUrl}}">
+            </span>
+            <span class="f__fills">
+              <span class="f__fills-label">Fill with</span>
+              <button type="button" class="fill" onClick="{{fillTail}}">macbook.tail9c2.ts.net</button>
+              <button type="button" class="fill" onClick="{{fillLocal}}">127.0.0.1:18790</button>
+              <button type="button" class="fill" onClick="{{fillClip}}">Clipboard</button>
+            </span>
+          </div>
+          <p class="hint">Identity and Host are not shown at all until something goes wrong with them — they were correct out of the box and asking twice never made them more correct.</p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="rules">
+    <div class="rule"><span class="rule__n">1</span><p><b>Detect before you ask.</b> Tailscale discovery, the shipped loopback defaults and the last successful pairing are all known values. Offer them as one-tap fills under the field instead of leaving an empty box and a placeholder.</p></div>
+    <div class="rule"><span class="rule__n">2</span><p><b>No Save button for settings.</b> Preferences already commit on change; endpoints commit on blur with a Saved chip beside the label. A Save button on a settings pane is a promise that something can be half-entered, and nothing here can.</p></div>
+    <div class="rule"><span class="rule__n">3</span><p><b>One control shell.</b> 40px tall, tinted until focus, with a leading icon that says which plane this is and a tail that holds the state chip or the reveal button. URLs and secrets set in the mono face; prose stays in the UI face.</p></div>
+    <div class="rule"><span class="rule__n">4</span><p><b>Sentences beat label grids.</b> Two selects with uppercase labels became one sentence you read once. The explanatory paragraph under it changes with the choice instead of covering every case at once.</p></div>
+    <div class="rule"><span class="rule__n">5</span><p><b>Cut the field that proves nothing.</b> Confirm-password exists because the value is masked. Show the value, offer to generate one, and the field has no job left.</p></div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"}}'>
+const LOCK_WHY = {
+  '0': 'Nothing locks on a timer. Closing this window already drops the key from memory, which is why Never is the recommended setting.',
+  '15': 'After 15 minutes idle the vault key is dropped. You stay signed in to Host and Identity — only the vault needs unlocking again.',
+  '30': 'After 30 minutes idle the vault key is dropped. You stay signed in to Host and Identity — only the vault needs unlocking again.',
+  '60': 'After an hour idle the vault key is dropped. You stay signed in to Host and Identity — only the vault needs unlocking again.',
+  '240': 'After four hours idle the vault key is dropped. Long enough for a working day with a lunch in it.',
+  '480': 'After eight hours idle the vault key is dropped. In practice this fires overnight, not during work.',
+  '1440': 'After a full day idle the vault key is dropped. This is close to Never on a machine you use daily.',
+};
+
+const WORDS = ['harbor', 'cinder', 'lattice', 'quarry', 'mistral', 'tundra', 'pivot', 'sable'];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      lock: '0', clip: '30', hide: false, strict: false,
+      pw: 'correct horse battery staple',
+      url: '', saved: false, seed: 0,
+    };
+  }
+
+  strength() {
+    const pw = this.state.pw;
+    const pool = (/[a-z]/.test(pw) ? 26 : 0) + (/[A-Z]/.test(pw) ? 26 : 0) + (/[0-9]/.test(pw) ? 10 : 0) + (/[^a-zA-Z0-9]/.test(pw) ? 33 : 0);
+    const bits = pw.length === 0 || pool === 0 ? 0 : Math.round(pw.length * (Math.log(pool) / Math.log(2)));
+    const tier = bits >= 110 ? 4 : bits >= 80 ? 3 : bits >= 56 ? 2 : bits >= 36 ? 1 : 0;
+    const labels = ['Very weak', 'Weak', 'Fair', 'Strong', 'Excellent'];
+    return { bits, tier, label: pw ? labels[tier] : 'Empty' };
+  }
+
+  renderVals() {
+    const s = this.strength();
+    const color = 'var(--s-' + s.tier + ')';
+    const filled = s.label === 'Empty' ? 0 : s.tier + 1;
+    const bar = (n) => (n <= filled ? color : 'var(--surface-3)');
+    return {
+      theme: this.props.theme ?? 'light',
+
+      lockValue: this.state.lock,
+      clipValue: this.state.clip,
+      setLock: (e) => this.setState({ lock: e.target.value }),
+      setClip: (e) => this.setState({ clip: e.target.value }),
+      lockWhy: LOCK_WHY[this.state.lock],
+
+      hidePressed: this.state.hide ? 'true' : 'false',
+      strictPressed: this.state.strict ? 'true' : 'false',
+      toggleHide: () => this.setState({ hide: !this.state.hide }),
+      toggleStrict: () => this.setState({ strict: !this.state.strict }),
+
+      pw: this.state.pw,
+      typePw: (e) => this.setState({ pw: e.target.value }),
+      suggest: () => {
+        const seed = this.state.seed + 1;
+        const pick = (i) => WORDS[(seed * 3 + i * 5) % WORDS.length];
+        this.setState({ seed, pw: pick(0) + '-' + pick(1) + '-' + pick(2) + '-' + ((seed * 37) % 90 + 10) });
+      },
+      strLabel: s.label,
+      strBits: s.bits,
+      strColor: color,
+      bar1: bar(1), bar2: bar(2), bar3: bar(3), bar4: bar(4), bar5: bar(5),
+
+      url: this.state.url,
+      typeUrl: (e) => this.setState({ url: e.target.value, saved: false }),
+      fillTail: () => this.setState({ url: 'https://macbook.tail9c2.ts.net', saved: true }),
+      fillLocal: () => this.setState({ url: 'http://127.0.0.1:18790', saved: true }),
+      fillClip: () => this.setState({ url: 'https://studio.tail9c2.ts.net', saved: true }),
+      savedTone: this.state.saved ? 'chip--ok' : '',
+      savedText: this.state.saved ? 'Saved' : 'Not set',
+    };
+  }
+}
+</script>
+</body>
+</html>

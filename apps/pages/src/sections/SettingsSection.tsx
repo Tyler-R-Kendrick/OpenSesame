@@ -1,22 +1,29 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { FieldShell } from "../components/FieldShell.js";
 import {
   IconDownload,
+  IconEye,
+  IconEyeOff,
   IconFolder,
+  IconLock,
+  IconLogin,
   IconMonitor,
   IconMoon,
   IconPlus,
+  IconRefresh,
   IconSun,
   IconTrash,
   IconUpload,
   IconX,
 } from "../components/Icons.js";
-import { ConnectThisMachine } from "../components/PlaneNote.js";
 import { StatusNote } from "../components/StatusNote.js";
-import { checkTurso, setTursoSessionToken } from "../lib/embedded-catalog.js";
-import { loadSettings, saveSettings } from "../lib/settings.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
-import { estimateStrength } from "../lib/vault/password.js";
+import {
+  defaultPassphraseOptions,
+  estimateStrength,
+  generate,
+} from "../lib/vault/password.js";
 import {
   SAMPLE_FOLDER_NAME,
   buildSample,
@@ -30,6 +37,8 @@ import {
 import { ActiveProjectPanel } from "./settings/ActiveProjectPanel.js";
 import { CapabilityConnectorsPanel } from "./settings/CapabilityConnectorsPanel.js";
 import { ChangelogPanel } from "./settings/ChangelogPanel.js";
+import { CoreConnectionsPanel } from "./settings/CoreConnectionsPanel.js";
+import { EndpointsPanel, TursoSyncPanel } from "./settings/EndpointsPanel.js";
 import { GithubBackupPanel } from "./settings/GithubBackupPanel.js";
 import { ImportPanel } from "./settings/ImportPanel.js";
 import { OfflineBackupPanel } from "./settings/OfflineBackupPanel.js";
@@ -44,24 +53,48 @@ const THEMES = [
   { id: "dark", label: "Dark", Icon: IconMoon },
 ] as const;
 
+/**
+ * These read inside a sentence, so each option carries its own preposition —
+ * "after 30 minutes idle", not "30 minutes". That is what keeps every
+ * combination grammatical, including the two that mean "never".
+ */
 const AUTO_LOCK = [
-  { value: 0, label: "Never (recommended)" },
-  { value: 60, label: "1 hour" },
-  { value: 240, label: "4 hours" },
-  { value: 480, label: "8 hours" },
-  { value: 1440, label: "24 hours" },
-  { value: 30, label: "30 minutes" },
-  { value: 15, label: "15 minutes" },
-  { value: 5, label: "5 minutes" },
-  { value: 1, label: "1 minute" },
+  { value: 0, label: "only when I ask" },
+  { value: 60, label: "after 1 hour idle" },
+  { value: 240, label: "after 4 hours idle" },
+  { value: 480, label: "after 8 hours idle" },
+  { value: 1440, label: "after 24 hours idle" },
+  { value: 30, label: "after 30 minutes idle" },
+  { value: 15, label: "after 15 minutes idle" },
+  { value: 5, label: "after 5 minutes idle" },
+  { value: 1, label: "after 1 minute idle" },
 ];
 
 const CLIPBOARD = [
-  { value: 10, label: "10 seconds" },
-  { value: 30, label: "30 seconds" },
-  { value: 60, label: "1 minute" },
-  { value: 0, label: "Never clear" },
+  { value: 10, label: "for 10 seconds" },
+  { value: 30, label: "for 30 seconds" },
+  { value: 60, label: "for 1 minute" },
+  { value: 0, label: "until something replaces them" },
 ];
+
+/**
+ * Say what the selected auto-lock actually does, rather than covering every
+ * case at once in a paragraph nobody finishes.
+ */
+function autoLockExplainer(minutes: number): string {
+  if (minutes === 0) {
+    return "Nothing locks on a timer. Closing this window already drops the key from memory, which is why leaving this alone is the recommended setting.";
+  }
+  const span =
+    minutes < 60
+      ? `${minutes} minutes`
+      : minutes === 60
+        ? "an hour"
+        : minutes === 1440
+          ? "a full day"
+          : `${minutes / 60} hours`;
+  return `After ${span} idle the vault key is dropped. You stay signed in to Host and Identity — only the vault needs unlocking again.`;
+}
 
 /**
  * Settings is a lot of unrelated panels; one wall of scroll buries them all.
@@ -117,17 +150,9 @@ export function SettingsSection() {
     navigate(`#${next}`, { replace: true });
   }
 
-  const [endpoints, setEndpoints] = useState(() => loadSettings());
-  const [endpointSaved, setEndpointSaved] = useState(false);
-  const [tursoToken, setTursoToken] = useState("");
-  const [databaseStatus, setDatabaseStatus] = useState<{
-    tone: "ok" | "err";
-    text: string;
-  } | null>(null);
-
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [showNext, setShowNext] = useState(false);
   const [rekey, setRekey] = useState<{
     tone: "ok" | "err";
     text: string;
@@ -204,39 +229,9 @@ export function SettingsSection() {
   const nextStrength = estimateStrength(next);
   const nextTooWeak = next.length < 12 || nextStrength.score < 2;
 
-  async function saveEndpoints(event: FormEvent) {
-    event.preventDefault();
-    saveSettings({
-      hostApi: endpoints.hostApi.trim().replace(/\/$/, ""),
-      identityApi: endpoints.identityApi.trim().replace(/\/$/, ""),
-      daemonApi: endpoints.daemonApi.trim().replace(/\/$/, ""),
-      tursoUrl: endpoints.tursoUrl.trim(),
-      mfaAppUrl: endpoints.mfaAppUrl.trim().replace(/\/$/, ""),
-      capabilityConnectors: loadSettings().capabilityConnectors,
-    });
-    setTursoSessionToken(tursoToken);
-    const mode = await checkTurso();
-    setEndpoints(loadSettings());
-    setDatabaseStatus({
-      tone: mode === "memory" ? "err" : "ok",
-      text:
-        mode === "remote"
-          ? "Turso is embedded in this PWA and synchronized with the configured remote."
-          : mode === "embedded"
-            ? "Turso is running inside this PWA and persisting the connector catalog in OPFS."
-            : "Turso could not open; this tab is using the bundled connector catalog in memory.",
-    });
-    setEndpointSaved(true);
-    window.setTimeout(() => setEndpointSaved(false), 3000);
-  }
-
   async function changeMaster(event: FormEvent) {
     event.preventDefault();
     setRekey(null);
-    if (next !== confirm) {
-      setRekey({ tone: "err", text: "The two new entries do not match." });
-      return;
-    }
     setRekeying(true);
     try {
       await store.changeMasterPassword(current, next);
@@ -246,7 +241,7 @@ export function SettingsSection() {
       });
       setCurrent("");
       setNext("");
-      setConfirm("");
+      setShowNext(false);
     } catch (caught) {
       setRekey({
         tone: "err",
@@ -389,78 +384,84 @@ export function SettingsSection() {
                 <h2>Locking</h2>
                 <p>
                   Locking discards the vault decryption key from memory. Closing
-                  this window already does that. Idle auto-lock is off unless
-                  you turn it on below.
+                  this window already does that.
                 </p>
               </div>
             </div>
             <div className="panel__body">
-              <div className="set__pair">
-                <div className="field">
-                  <label htmlFor="autolock">Lock after inactivity</label>
-                  <select
-                    id="autolock"
-                    value={prefs.autoLockMinutes}
-                    onChange={(event) =>
-                      store.setPrefs({
-                        autoLockMinutes: Number(event.target.value),
-                      })
-                    }
-                  >
-                    {AUTO_LOCK.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field">
-                  <label htmlFor="clipboard">Clear copied secrets after</label>
-                  <select
-                    id="clipboard"
-                    value={prefs.clipboardClearSeconds}
-                    onChange={(event) =>
-                      store.setPrefs({
-                        clipboardClearSeconds: Number(event.target.value),
-                      })
-                    }
-                  >
-                    {CLIPBOARD.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={prefs.lockOnHide}
+              <p className="sent">
+                Lock the vault{" "}
+                <select
+                  aria-label="Lock after inactivity"
+                  value={prefs.autoLockMinutes}
                   onChange={(event) =>
-                    store.setPrefs({ lockOnHide: event.target.checked })
+                    store.setPrefs({
+                      autoLockMinutes: Number(event.target.value),
+                    })
                   }
-                />
-                <span>Lock when this tab goes to the background</span>
-              </label>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={prefs.signOutOnLock}
+                >
+                  {AUTO_LOCK.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                . Copied secrets stay in the clipboard{" "}
+                <select
+                  aria-label="Clear copied secrets after"
+                  value={prefs.clipboardClearSeconds}
                   onChange={(event) =>
-                    store.setPrefs({ signOutOnLock: event.target.checked })
+                    store.setPrefs({
+                      clipboardClearSeconds: Number(event.target.value),
+                    })
                   }
-                />
-                <span>
-                  Also sign out of Identity when the vault locks (strict)
-                </span>
-              </label>
-              <p className="hint">
-                Leave both options off for normal use. Auto-lock only drops the
-                vault key — you stay signed in to Host/Identity unless you
-                enable the strict option. Clearing the clipboard only overwrites
-                it if it still holds the value OpenSesame put there.
+                >
+                  {CLIPBOARD.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                .
               </p>
+              <p className="why">{autoLockExplainer(prefs.autoLockMinutes)}</p>
+              <div className="sw">
+                <span className="sw__name">
+                  Lock when this tab goes to the background
+                </span>
+                <button
+                  type="button"
+                  className="toggle"
+                  role="switch"
+                  aria-checked={prefs.lockOnHide}
+                  aria-pressed={prefs.lockOnHide}
+                  aria-label="Lock when this tab goes to the background"
+                  onClick={() =>
+                    store.setPrefs({ lockOnHide: !prefs.lockOnHide })
+                  }
+                />
+              </div>
+              <div className="sw">
+                <span>
+                  <span className="sw__name">Sign out of Identity too</span>
+                  <span className="sw__sub">
+                    {" "}
+                    — strict. Auto-lock otherwise only drops the vault key and
+                    leaves you signed in to Host and Identity.
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="toggle"
+                  role="switch"
+                  aria-checked={prefs.signOutOnLock}
+                  aria-pressed={prefs.signOutOnLock}
+                  aria-label="Also sign out of Identity when the vault locks"
+                  onClick={() =>
+                    store.setPrefs({ signOutOnLock: !prefs.signOutOnLock })
+                  }
+                />
+              </div>
             </div>
           </section>
         </>
@@ -490,46 +491,90 @@ export function SettingsSection() {
                 Unlock methods, or change unlock methods there.
               </p>
             ) : null}
-            <div className="field">
-              <label htmlFor="current-master">Current master password</label>
-              <input
-                id="current-master"
-                type="password"
-                autoComplete="current-password"
-                value={current}
-                disabled={!header?.wrap}
-                onChange={(event) => setCurrent(event.target.value)}
-              />
-            </div>
-            <div className="set__pair">
-              <div className="field">
-                <label htmlFor="next-master">New master password</label>
-                <input
-                  id="next-master"
-                  type="password"
-                  autoComplete="new-password"
-                  value={next}
-                  disabled={!header?.wrap}
-                  onChange={(event) => setNext(event.target.value)}
-                  aria-describedby="next-master-strength"
-                />
-                <span className="hint" id="next-master-strength">
-                  {next
-                    ? `${nextStrength.label} · ${nextStrength.bits} bits`
-                    : "At least 12 characters, Fair or better"}
-                </span>
+            <FieldShell
+              id="current-master"
+              label="Current"
+              type="password"
+              autoComplete="current-password"
+              lead={<IconLock size={17} />}
+              value={current}
+              disabled={!header?.wrap}
+              onValueChange={setCurrent}
+            />
+            <FieldShell
+              id="next-master"
+              label="New password"
+              type={showNext ? "text" : "password"}
+              autoComplete="new-password"
+              lead={<IconLogin size={17} />}
+              mono={showNext}
+              value={next}
+              disabled={!header?.wrap}
+              onValueChange={setNext}
+              tail={
+                <>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label="Suggest a strong password"
+                    title="Suggest a strong password"
+                    disabled={!header?.wrap}
+                    onClick={() => {
+                      setNext(generate(defaultPassphraseOptions));
+                      setShowNext(true);
+                    }}
+                  >
+                    <IconRefresh size={17} />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label={showNext ? "Hide password" : "Show password"}
+                    aria-pressed={showNext}
+                    onClick={() => setShowNext((value) => !value)}
+                  >
+                    {showNext ? (
+                      <IconEyeOff size={17} />
+                    ) : (
+                      <IconEye size={17} />
+                    )}
+                  </button>
+                </>
+              }
+            />
+            {/* No Confirm field. Confirm exists because the value is masked;
+                the value is shown here, so re-typing it proves nothing. */}
+            <div className="str">
+              <div className="str__bars" aria-hidden="true">
+                {[0, 1, 2, 3, 4].map((slot) => (
+                  <span
+                    key={slot}
+                    className="str__bar"
+                    style={
+                      next && slot <= nextStrength.score
+                        ? { background: `var(--s-${nextStrength.score})` }
+                        : undefined
+                    }
+                  />
+                ))}
               </div>
-              <div className="field">
-                <label htmlFor="confirm-master">Confirm</label>
-                <input
-                  id="confirm-master"
-                  type="password"
-                  autoComplete="new-password"
-                  value={confirm}
-                  disabled={!header?.wrap}
-                  onChange={(event) => setConfirm(event.target.value)}
-                />
-              </div>
+              <p className="str__read" id="next-master-strength">
+                {next ? (
+                  <>
+                    <span
+                      className="str__label"
+                      style={{ color: `var(--s-${nextStrength.score})` }}
+                    >
+                      {nextStrength.label}
+                    </span>
+                    <span className="str__bits">{nextStrength.bits} bits</span>
+                  </>
+                ) : (
+                  <span className="hint">
+                    At least 12 characters, Fair or better
+                  </span>
+                )}
+              </p>
             </div>
             <StatusNote message={rekey} />
             <div className="actions">
@@ -625,135 +670,7 @@ export function SettingsSection() {
         </section>
       )}
 
-      {category !== "connectivity" ? null : (
-        <section className="panel">
-          <div className="panel__head">
-            <div>
-              <h2>Planes</h2>
-              <p>
-                Where the Identity and Host APIs live. GitHub Pages cannot run
-                either plane. Locally they auto-connect. Remotely, pair the
-                daemon on this machine or paste a Host you run.
-              </p>
-            </div>
-          </div>
-          <div className="panel__body">
-            <ConnectThisMachine />
-          </div>
-          <form
-            className="panel__body"
-            onSubmit={(event) => void saveEndpoints(event)}
-          >
-            <div className="set__pair">
-              <div className="field">
-                <label htmlFor="identity-api">Identity API</label>
-                <input
-                  id="identity-api"
-                  type="url"
-                  value={endpoints.identityApi}
-                  onChange={(event) =>
-                    setEndpoints({
-                      ...endpoints,
-                      identityApi: event.target.value,
-                    })
-                  }
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="host-api">Host API</label>
-                <input
-                  id="host-api"
-                  type="url"
-                  value={endpoints.hostApi}
-                  placeholder="http://127.0.0.1:8787"
-                  onChange={(event) =>
-                    setEndpoints({ ...endpoints, hostApi: event.target.value })
-                  }
-                />
-              </div>
-            </div>
-            <div className="field">
-              <label htmlFor="daemon-api">Daemon on this machine</label>
-              <input
-                id="daemon-api"
-                type="url"
-                value={endpoints.daemonApi}
-                placeholder="http://127.0.0.1:18790"
-                onChange={(event) =>
-                  setEndpoints({ ...endpoints, daemonApi: event.target.value })
-                }
-              />
-              <p className="hint">
-                Local Pages keep Host/Identity on loopback after pairing. The
-                Tailscale Serve URL is stored for github.io / other devices.
-                From github.io, paste{" "}
-                <code>https://machine.tailnet.ts.net</code> here (this page
-                cannot call 127.0.0.1).
-              </p>
-            </div>
-            <div className="field">
-              <label htmlFor="mfa-app-url">Mobile MFA app (optional)</label>
-              <input
-                id="mfa-app-url"
-                type="url"
-                value={endpoints.mfaAppUrl}
-                placeholder="http://127.0.0.1:5177"
-                onChange={(event) =>
-                  setEndpoints({ ...endpoints, mfaAppUrl: event.target.value })
-                }
-              />
-              <p className="hint">
-                When this browser cannot finish a passkey, Authority shows a QR
-                that opens this URL on your phone.
-              </p>
-            </div>
-            <div className="set__pair">
-              <div className="field">
-                <label htmlFor="turso-url">Turso sync URL (optional)</label>
-                <input
-                  id="turso-url"
-                  type="url"
-                  placeholder="libsql://database-name.turso.io"
-                  value={endpoints.tursoUrl}
-                  onChange={(event) =>
-                    setEndpoints({ ...endpoints, tursoUrl: event.target.value })
-                  }
-                />
-                <p className="hint">
-                  Blank keeps the database entirely inside this PWA. A URL plus
-                  a token enables explicit Turso push/pull sync.
-                </p>
-              </div>
-              <div className="field">
-                <label htmlFor="turso-token">
-                  Turso auth token (this tab only)
-                </label>
-                <input
-                  id="turso-token"
-                  type="password"
-                  autoComplete="off"
-                  placeholder="Only needed for remote sync"
-                  value={tursoToken}
-                  onChange={(event) => setTursoToken(event.target.value)}
-                />
-                <p className="hint">
-                  Never written to OPFS or the vault. Paste it again after a
-                  reload when remote sync is needed.
-                </p>
-              </div>
-            </div>
-            <StatusNote message={databaseStatus} />
-            <div className="actions">
-              <button type="submit" className="btn btn--primary">
-                Save endpoints
-              </button>
-              {endpointSaved ? (
-                <output className="chip chip--ok">Saved</output>
-              ) : null}
-            </div>
-          </form>
-        </section>
-      )}
+      {category !== "connectivity" ? null : <CoreConnectionsPanel />}
 
       {category !== "connectivity" ? null : <ActiveProjectPanel />}
 
@@ -762,6 +679,10 @@ export function SettingsSection() {
       {category !== "connectivity" ? null : <SyncTargetsPanel />}
 
       {category !== "connectivity" ? null : <TaskBusPanel />}
+
+      {category !== "connectivity" ? null : <TursoSyncPanel />}
+
+      {category !== "connectivity" ? null : <EndpointsPanel />}
 
       {category !== "data" ? null : <GithubBackupPanel />}
 

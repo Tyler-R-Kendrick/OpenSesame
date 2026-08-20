@@ -371,3 +371,39 @@ export function IconMonitor(props: IconProps) {
     </Svg>
   );
 }
+
+/* —— Connectivity bar ———————————————————————————————————————— */
+
+/** Git history: a branch, because the remote is what the capability binds. */
+export function IconGitBranch(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="7" cy="6" r="2.2" />
+      <circle cx="7" cy="18" r="2.2" />
+      <circle cx="17" cy="9" r="2.2" />
+      <path d="M7 8.2v7.6" />
+      <path d="M17 11.2c0 3.4-3 4.4-5.6 4.8" />
+    </Svg>
+  );
+}
+
+/** TaskBus / NATS: concentric broadcast arcs. */
+export function IconBroadcast(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="2" />
+      <path d="M8.3 8.3a5.2 5.2 0 0 0 0 7.4M15.7 15.7a5.2 5.2 0 0 0 0-7.4" />
+      <path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 18.4a9 9 0 0 0 0-12.8" />
+    </Svg>
+  );
+}
+
+/** A phone, for the Mobile MFA hand-off. */
+export function IconPhone(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="7" y="2.5" width="10" height="19" rx="2.5" />
+      <path d="M11 18.5h2" />
+    </Svg>
+  );
+}

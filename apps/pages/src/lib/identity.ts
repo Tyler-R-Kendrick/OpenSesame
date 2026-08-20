@@ -9,6 +9,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { probeDaemon } from "./daemon.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
+import {
+  type FailureClass,
+  classifyResponse,
+  classifyThrown,
+} from "./probe-failure.js";
 import { loadSettings } from "./settings.js";
 import { isLoopbackUrl } from "./urls.js";
 
@@ -733,26 +738,40 @@ export function hostRoutedViaDaemon(
   }
 }
 
-export async function probeIdentity(): Promise<HealthState> {
+/** A probe result that says *why*, for the connectivity monitor. */
+export type ProbeResult = {
+  health: HealthState;
+  failure: FailureClass | null;
+};
+
+export async function probeIdentityDetailed(): Promise<ProbeResult> {
   const base = identityBase();
-  if (!base) return "unreachable";
+  if (!base) return { health: "unreachable", failure: null };
   try {
     const res = await localNetworkFetch(`${base}/v1/health/live`, {
       credentials: "omit",
       timeoutMs: PROBE_MS,
     });
-    if (!res.ok) return "unreachable";
+    if (!res.ok) {
+      return { health: "unreachable", failure: classifyResponse(res.status) };
+    }
     // A foreign listener on :8788 can answer with 401 JSON and look "up".
     // OpenSesame control-plane always returns `{ "status": "ok" }`.
     try {
       const body = (await res.json()) as { status?: unknown };
-      return body.status === "ok" ? "reachable" : "unreachable";
+      return body.status === "ok"
+        ? { health: "reachable", failure: null }
+        : { health: "unreachable", failure: "not-opensesame" };
     } catch {
-      return "unreachable";
+      return { health: "unreachable", failure: "not-opensesame" };
     }
-  } catch {
-    return "unreachable";
+  } catch (error) {
+    return { health: "unreachable", failure: classifyThrown(error) };
   }
+}
+
+export async function probeIdentity(): Promise<HealthState> {
+  return (await probeIdentityDetailed()).health;
 }
 
 /**
@@ -762,27 +781,63 @@ export async function probeIdentity(): Promise<HealthState> {
  * daemon's `/host` proxy, a live daemon counts as Host reachable — connecting
  * the node must flip the indicator even if gateway isn't on the upstream port.
  */
-export async function probeHost(): Promise<HealthState> {
+const HOST_HEALTH_PATHS = ["/api/v1/health", "/health/live"] as const;
+
+/**
+ * Which health path this Host answered on last time.
+ *
+ * A gateway serves one of the two and 404s the other, so trying them in a
+ * fixed order doubles every probe against half of them — and under a polling
+ * cadence that is a permanent tax. Remember the winner and lead with it.
+ */
+let hostHealthPath: string | null = null;
+
+export function resetHostHealthPathForTests(): void {
+  hostHealthPath = null;
+}
+
+export async function probeHostDetailed(): Promise<ProbeResult> {
   const base = hostBase();
-  if (!base) return "unreachable";
+  if (!base) return { health: "unreachable", failure: null };
   const daemon = loadSettings().daemonApi.trim();
   const viaDaemon = Boolean(daemon && hostRoutedViaDaemon(base, daemon));
 
-  const directOk = (async () => {
+  const direct = (async (): Promise<ProbeResult> => {
     // When Host is daemon-proxied, don't wait long on a dead upstream port.
     const timeoutMs = viaDaemon ? 2000 : PROBE_MS;
-    for (const path of ["/api/v1/health", "/health/live"]) {
+    const ordered = hostHealthPath
+      ? [
+          hostHealthPath,
+          ...HOST_HEALTH_PATHS.filter((p) => p !== hostHealthPath),
+        ]
+      : [...HOST_HEALTH_PATHS];
+    let failure: FailureClass | null = null;
+    for (const path of ordered) {
       try {
         const res = await localNetworkFetch(`${base}${path}`, {
           credentials: "omit",
           timeoutMs,
         });
-        if (res.ok) return true;
-      } catch {
-        // try next path
+        if (res.ok) {
+          hostHealthPath = path;
+          return { health: "reachable", failure: null };
+        }
+        // A 404 here just means the other path is the right one; keep the
+        // first *meaningful* refusal instead.
+        if (res.status !== 404) failure = classifyResponse(res.status);
+      } catch (error) {
+        // Deliberately *not* breaking out here. A thrown error looks like "the
+        // origin is down", but a CORS policy that covers one route and not the
+        // other throws exactly the same way — so the second path still has to
+        // be tried. Costs a doubled request while Host is genuinely down; the
+        // degraded cadence backs off, so it stays cheap.
+        failure = classifyThrown(error);
       }
     }
-    return false;
+    return {
+      health: "unreachable",
+      failure: failure ?? "not-opensesame",
+    };
   })();
 
   const daemonOk = (async () => {
@@ -795,8 +850,15 @@ export async function probeHost(): Promise<HealthState> {
     }
   })();
 
-  const [okDirect, okDaemon] = await Promise.all([directOk, daemonOk]);
-  return okDirect || okDaemon ? "reachable" : "unreachable";
+  const [directResult, okDaemon] = await Promise.all([direct, daemonOk]);
+  if (directResult.health === "reachable" || okDaemon) {
+    return { health: "reachable", failure: null };
+  }
+  return directResult;
+}
+
+export async function probeHost(): Promise<HealthState> {
+  return (await probeHostDetailed()).health;
 }
 
 /** Live orphan-cookie state, so a failed revoke puts the warning back. */
