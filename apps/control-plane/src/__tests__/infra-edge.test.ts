@@ -114,7 +114,7 @@ describe("config hardening", () => {
 });
 
 describe("usage accounting", () => {
-  it("counts only live, owned, unexpired resources", () => {
+  it("counts only live, owned, unexpired resources", async () => {
     const stores = createAppStores();
     const now = new Date("2026-08-08T10:00:00Z");
     const base = {
@@ -222,7 +222,7 @@ describe("usage accounting", () => {
       updatedAt: now,
     });
 
-    stores.oauthClients.set("cli_active", {
+    await stores.oauthClients.insertAtomic({
       id: "cli_active",
       ownerPrincipalId: "prn_1",
       admissionMode: "pre_registered",
@@ -238,7 +238,7 @@ describe("usage accounting", () => {
       createdAt: now,
       updatedAt: now,
     });
-    stores.oauthClients.set("cli_revoked", {
+    await stores.oauthClients.insertAtomic({
       id: "cli_revoked",
       ownerPrincipalId: "prn_1",
       admissionMode: "pre_registered",
@@ -255,7 +255,7 @@ describe("usage accounting", () => {
       updatedAt: now,
     });
 
-    const usage = getUsage(stores, "prn_1", now);
+    const usage = await getUsage(stores, "prn_1", now);
     expect(usage).toEqual({
       temporaryProjects: 1,
       temporaryResources: 0,
@@ -267,11 +267,11 @@ describe("usage accounting", () => {
     });
   });
 
-  it("bumpUsage accumulates temporary resource spend", () => {
+  it("bumpUsage accumulates temporary resource spend", async () => {
     const stores = createAppStores();
     bumpUsage(stores, "prn_1", { temporaryResources: 3 });
     bumpUsage(stores, "prn_1", { temporaryResources: 2 });
-    expect(getUsage(stores, "prn_1").temporaryResources).toBe(5);
+    expect((await getUsage(stores, "prn_1")).temporaryResources).toBe(5);
   });
 });
 

@@ -4,16 +4,31 @@ import Provider, {
   type ClientMetadata,
   type Configuration,
 } from "oidc-provider";
+import { withDynamicClientLoader } from "./adapter/dynamic-client-adapter.js";
 import { createMemoryAdapterConstructor } from "./adapter/memory-adapter.js";
 import type { OidcAdapterConstructor } from "./adapter/types.js";
 import { createClientAdmissionPolicy } from "./clients/admission.js";
+import {
+  findOriginClient,
+  resolveOriginClient,
+  toOidcClientMetadata,
+} from "./clients/origin-resolve.js";
+import {
+  type ClientRecordStore,
+  MemoryClientRecordStore,
+} from "./clients/store.js";
 import { readOAuthProviderEnv } from "./env.js";
 import { SafeMetadataFetcher } from "./metadata/safe-fetcher.js";
+import { parseOriginClientId } from "./origin/canonical.js";
 import {
   MemoryPairwiseSubjectStore,
   createPairwiseIdentifierCallback,
 } from "./pairwise/store.js";
-import type { OAuthProviderEnv, PairwiseSubjectStore } from "./types.js";
+import type {
+  OAuthClientRecord,
+  OAuthProviderEnv,
+  PairwiseSubjectStore,
+} from "./types.js";
 
 export interface CreateOpenSesameProviderOptions {
   issuer?: string;
@@ -21,6 +36,11 @@ export interface CreateOpenSesameProviderOptions {
   processEnv?: NodeJS.ProcessEnv;
   adapter?: OidcAdapterConstructor;
   pairwiseStore?: PairwiseSubjectStore;
+  /**
+   * Durable client records (ADR 0050 R-C). Defaults to an in-memory store
+   * seeded from `options.clients`, so existing callers behave unchanged.
+   */
+  clientStore?: ClientRecordStore;
   clients?: ClientMetadata[];
   /** When omitted, MemoryAdapter is used (tests / local). Production should pass Postgres adapter. */
   jwks?: Configuration["jwks"];
@@ -30,9 +50,25 @@ export interface OpenSesameProviderBundle {
   provider: Provider;
   env: OAuthProviderEnv;
   pairwiseStore: PairwiseSubjectStore;
+  clientStore: ClientRecordStore;
   admission: ReturnType<typeof createClientAdmissionPolicy>;
   metadataFetcher: SafeMetadataFetcher;
   configuration: Configuration;
+  /**
+   * Admit (or load) an origin_profile public client — authorization path
+   * only, never the token path (ADR 0050 F2). Throws when the origin
+   * admission flag is off or the origin is not canonicalizable.
+   */
+  ensureOriginClient: (
+    rawOriginOrClientId: string,
+  ) => Promise<ReturnType<typeof toOidcClientMetadata>>;
+  /**
+   * Lookup-only variant: never inserts, safe for unauthenticated token-path
+   * decisions such as exact-origin CORS (ADR 0050 F3).
+   */
+  lookupOriginClient: (
+    rawOriginOrClientId: string,
+  ) => Promise<ReturnType<typeof toOidcClientMetadata> | undefined>;
 }
 
 /**
@@ -113,6 +149,46 @@ function resolveJwks(
 }
 
 /**
+ * Map a static oidc-provider `ClientMetadata` entry into a client record for
+ * the store default, so existing static-only callers behave unchanged.
+ */
+function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
+  const sectorIdentifierUri =
+    typeof meta.sector_identifier_uri === "string"
+      ? meta.sector_identifier_uri
+      : undefined;
+  const scope = typeof meta.scope === "string" ? meta.scope : undefined;
+  const tokenEndpointAuthMethod =
+    typeof meta.token_endpoint_auth_method === "string"
+      ? meta.token_endpoint_auth_method
+      : "client_secret_basic";
+  let sector = meta.client_id;
+  if (sectorIdentifierUri) {
+    sector = sectorIdentifierUri;
+  } else if (meta.redirect_uris?.[0]) {
+    try {
+      sector = new URL(meta.redirect_uris[0]).host;
+    } catch {
+      /* keep client_id fallback */
+    }
+  }
+  return {
+    id: meta.client_id,
+    admissionMode: "pre_registered",
+    displayName:
+      typeof meta.client_name === "string" ? meta.client_name : meta.client_id,
+    redirectUris: meta.redirect_uris ?? [],
+    sectorIdentifier: sector,
+    grantTypes: meta.grant_types ?? ["authorization_code"],
+    responseTypes: meta.response_types ?? ["code"],
+    tokenEndpointAuthMethod,
+    allowedScopes: scope ? scope.split(" ") : ["openid"],
+    allowedResources: [],
+    state: "active",
+  };
+}
+
+/**
  * Configure panva `oidc-provider` for the OpenSesame downstream issuer.
  *
  * Features: authorization_code (+ PKCE S256 required), refresh, device_authorization,
@@ -152,12 +228,32 @@ export function createOpenSesameProvider(
     options.pairwiseStore ?? new MemoryPairwiseSubjectStore();
   const admission = createClientAdmissionPolicy(env);
   const metadataFetcher = new SafeMetadataFetcher(env);
-  const adapter: OidcAdapterConstructor =
+  const baseAdapter: OidcAdapterConstructor =
     options.adapter ?? createMemoryAdapterConstructor();
+
+  const staticClients = options.clients ?? [];
+  let clientStore: ClientRecordStore;
+  if (options.clientStore) {
+    clientStore = options.clientStore;
+  } else {
+    const memory = new MemoryClientRecordStore();
+    memory.seed(staticClients.map(recordFromClientMetadata));
+    clientStore = memory;
+  }
+
+  // Lookup-only dynamic resolution (ADR 0050 F2): registered/persisted clients
+  // become real OIDC clients through the adapter, but a `Client` find never
+  // inserts — origin auto-admission lives on the /auth prefetch path.
+  const adapter = withDynamicClientLoader(baseAdapter, async (clientId) => {
+    const record = await clientStore.findById(clientId);
+    if (!record) return undefined;
+    admission.assertAdmissible(record);
+    return toOidcClientMetadata(record);
+  });
 
   const configuration: Configuration = {
     adapter,
-    clients: options.clients ?? [],
+    clients: staticClients,
     jwks,
     subjectTypes: ["pairwise"],
     pairwiseIdentifier: createPairwiseIdentifierCallback(pairwiseStore),
@@ -221,13 +317,42 @@ export function createOpenSesameProvider(
 
   const provider = new Provider(env.issuer, configuration);
 
+  async function ensureOriginClient(rawOriginOrClientId: string) {
+    const asOrigin =
+      parseOriginClientId(rawOriginOrClientId) ?? rawOriginOrClientId;
+    const record = await resolveOriginClient({
+      store: clientStore,
+      admission,
+      origin: asOrigin,
+      allowLoopbackHttp: true,
+      production: env.isProduction,
+    });
+    return toOidcClientMetadata(record);
+  }
+
+  async function lookupOriginClient(rawOriginOrClientId: string) {
+    const asOrigin =
+      parseOriginClientId(rawOriginOrClientId) ?? rawOriginOrClientId;
+    const record = await findOriginClient({
+      store: clientStore,
+      admission,
+      origin: asOrigin,
+      allowLoopbackHttp: true,
+      production: env.isProduction,
+    });
+    return record ? toOidcClientMetadata(record) : undefined;
+  }
+
   return {
     provider,
     env,
     pairwiseStore,
+    clientStore,
     admission,
     metadataFetcher,
     configuration,
+    ensureOriginClient,
+    lookupOriginClient,
   };
 }
 

@@ -6,6 +6,14 @@ export interface ClientRecordStore {
   /** Insert if absent; return existing on unique conflict. */
   insertAtomic(client: OAuthClientRecord): Promise<OAuthClientRecord>;
   touchLastUsed?(id: string, at: Date): Promise<void>;
+  /** All clients owned by a principal (registration API listing + quota). */
+  listByOwner(ownerPrincipalId: string): Promise<OAuthClientRecord[]>;
+  /** All clients sharing a sector identifier (cross-owner claim fence). */
+  findBySectorIdentifier(
+    sectorIdentifier: string,
+  ): Promise<OAuthClientRecord[]>;
+  /** Full-record replace by `client.id`. */
+  update(client: OAuthClientRecord): Promise<OAuthClientRecord>;
 }
 
 /**
@@ -15,6 +23,23 @@ export interface ClientRecordStore {
 export class MemoryClientRecordStore implements ClientRecordStore {
   private readonly byId = new Map<string, OAuthClientRecord>();
   private readonly byOrigin = new Map<string, string>();
+
+  /**
+   * Synchronously load initial records (e.g. static `clients` configuration).
+   * Not part of the store interface — callers that only have the interface
+   * use `insertAtomic`.
+   */
+  seed(clients: OAuthClientRecord[]): void {
+    for (const client of clients) {
+      if (this.byId.has(client.id)) continue;
+      if (client.origin) {
+        if (!this.byOrigin.has(client.origin)) {
+          this.byOrigin.set(client.origin, client.id);
+        }
+      }
+      this.byId.set(client.id, client);
+    }
+  }
 
   async findById(id: string): Promise<OAuthClientRecord | undefined> {
     return this.byId.get(id);
@@ -49,5 +74,34 @@ export class MemoryClientRecordStore implements ClientRecordStore {
     const c = this.byId.get(id);
     if (!c) return;
     this.byId.set(id, { ...c, lastUsedAt: at });
+  }
+
+  async listByOwner(ownerPrincipalId: string): Promise<OAuthClientRecord[]> {
+    return [...this.byId.values()].filter(
+      (client) => client.ownerPrincipalId === ownerPrincipalId,
+    );
+  }
+
+  async findBySectorIdentifier(
+    sectorIdentifier: string,
+  ): Promise<OAuthClientRecord[]> {
+    return [...this.byId.values()].filter(
+      (client) => client.sectorIdentifier === sectorIdentifier,
+    );
+  }
+
+  async update(client: OAuthClientRecord): Promise<OAuthClientRecord> {
+    const existing = this.byId.get(client.id);
+    if (!existing) {
+      throw new Error(`Cannot update unknown OAuth client ${client.id}`);
+    }
+    if (existing.origin !== client.origin) {
+      if (existing.origin && this.byOrigin.get(existing.origin) === client.id) {
+        this.byOrigin.delete(existing.origin);
+      }
+      if (client.origin) this.byOrigin.set(client.origin, client.id);
+    }
+    this.byId.set(client.id, client);
+    return client;
   }
 }

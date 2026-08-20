@@ -329,7 +329,7 @@ projectRoutes.post(
             action: "project.create",
             resource: { type: "project", id: "*" },
           },
-          getUsage(ctx.stores, principalId, ctx.clock()),
+          await getUsage(ctx.stores, principalId, ctx.clock()),
         );
         if (decision.effect === "deny") {
           return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
@@ -545,7 +545,7 @@ projectRoutes.post(
         action: "project.create_temporary",
         resource: { type: "project", id: "*" },
       },
-      getUsage(ctx.stores, principalId, ctx.clock()),
+      await getUsage(ctx.stores, principalId, ctx.clock()),
     );
     if (decision.effect === "deny") {
       return c.json({ error: "forbidden", reasons: decision.reasons }, 403);

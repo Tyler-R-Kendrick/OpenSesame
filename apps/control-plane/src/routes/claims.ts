@@ -203,7 +203,10 @@ claimRoutes.post(
             action: "claim.create",
             resource: { type: "claim", id: "*" },
           },
-          { ...getUsage(ctx.stores, principalId, now), claims: liveClaims },
+          {
+            ...(await getUsage(ctx.stores, principalId, now)),
+            claims: liveClaims,
+          },
         );
         if (decision.effect === "deny") {
           return c.json({ error: "forbidden", reasons: decision.reasons }, 403);

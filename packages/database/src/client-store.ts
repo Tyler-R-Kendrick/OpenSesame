@@ -38,6 +38,8 @@ export interface OAuthClientRecord {
   firstSeenAt?: Date;
   lastUsedAt?: Date;
   claimedAt?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface ClientRecordStore {
@@ -46,6 +48,14 @@ export interface ClientRecordStore {
   /** Insert if absent; return existing on unique conflict. */
   insertAtomic(client: OAuthClientRecord): Promise<OAuthClientRecord>;
   touchLastUsed?(id: string, at: Date): Promise<void>;
+  /** All clients owned by a principal (registration API listing + quota). */
+  listByOwner(ownerPrincipalId: string): Promise<OAuthClientRecord[]>;
+  /** All clients sharing a sector identifier (cross-owner claim fence). */
+  findBySectorIdentifier(
+    sectorIdentifier: string,
+  ): Promise<OAuthClientRecord[]>;
+  /** Full-record replace by `client.id`. */
+  update(client: OAuthClientRecord): Promise<OAuthClientRecord>;
 }
 
 export interface ClientClaimChallengeRecord {
@@ -117,6 +127,8 @@ function mapRow(row: OAuthClientRow): OAuthClientRecord {
   if (row.firstSeenAt) record.firstSeenAt = row.firstSeenAt;
   if (row.lastUsedAt) record.lastUsedAt = row.lastUsedAt;
   if (row.claimedAt) record.claimedAt = row.claimedAt;
+  if (row.createdAt) record.createdAt = row.createdAt;
+  if (row.updatedAt) record.updatedAt = row.updatedAt;
   return record;
 }
 
@@ -141,7 +153,32 @@ function insertValues(client: OAuthClientRecord, now: Date) {
     firstSeenAt: client.firstSeenAt ?? now,
     lastUsedAt: client.lastUsedAt ?? now,
     claimedAt: client.claimedAt ?? null,
-    createdAt: now,
+    createdAt: client.createdAt ?? now,
+    updatedAt: client.updatedAt ?? now,
+  };
+}
+
+function updateValues(client: OAuthClientRecord, now: Date) {
+  // Full-record replace except identity (id) and first sight; createdAt is
+  // immutable, updatedAt is stamped by the write.
+  return {
+    admissionMode: client.admissionMode,
+    displayName: client.displayName,
+    redirectUris: client.redirectUris,
+    sectorIdentifier: client.sectorIdentifier,
+    grantTypes: client.grantTypes,
+    responseTypes: client.responseTypes,
+    tokenEndpointAuthMethod: client.tokenEndpointAuthMethod,
+    allowedScopes: client.allowedScopes,
+    allowedResources: client.allowedResources,
+    metadataUri: client.metadataUri ?? null,
+    metadataDigest: client.metadataDigest ?? null,
+    state: client.state,
+    origin: client.origin ?? null,
+    ownershipStatus: client.ownershipStatus ?? "unclaimed",
+    ownerPrincipalId: client.ownerPrincipalId ?? null,
+    lastUsedAt: client.lastUsedAt ?? now,
+    claimedAt: client.claimedAt ?? null,
     updatedAt: now,
   };
 }
@@ -210,6 +247,35 @@ export function createPostgresClientRecordStore(
         .update(schema.oauthClients)
         .set({ lastUsedAt: at, updatedAt: at })
         .where(eq(schema.oauthClients.id, id));
+    },
+
+    async listByOwner(ownerPrincipalId) {
+      const rows = await db
+        .select()
+        .from(schema.oauthClients)
+        .where(eq(schema.oauthClients.ownerPrincipalId, ownerPrincipalId));
+      return rows.map(mapRow);
+    },
+
+    async findBySectorIdentifier(sectorIdentifier) {
+      const rows = await db
+        .select()
+        .from(schema.oauthClients)
+        .where(eq(schema.oauthClients.sectorIdentifier, sectorIdentifier));
+      return rows.map(mapRow);
+    },
+
+    async update(client) {
+      const now = new Date();
+      const [row] = await db
+        .update(schema.oauthClients)
+        .set(updateValues(client, now))
+        .where(eq(schema.oauthClients.id, client.id))
+        .returning();
+      if (!row) {
+        throw new Error(`Cannot update unknown OAuth client ${client.id}`);
+      }
+      return mapRow(row);
     },
   };
 }

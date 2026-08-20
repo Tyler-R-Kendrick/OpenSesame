@@ -8,11 +8,13 @@ import {
 import { ClaimEngine } from "@opensesame/claims";
 import {
   createDrizzle,
+  createPostgresClientRecordStore,
   createPostgresOidcStore,
   createPostgresPairwiseStore,
   createRepositories,
 } from "@opensesame/database";
 import {
+  MemoryClientRecordStore,
   createOpenSesameProvider,
   createPostgresAdapterConstructor,
 } from "@opensesame/oauth-provider";
@@ -99,9 +101,17 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const pairwiseStore = drizzleBundle
     ? createPostgresPairwiseStore(drizzleBundle.db)
     : undefined;
+  // One durable client store shared by the registration API and the OIDC
+  // provider's dynamic client resolution (ADR 0050 R-C): a client registered
+  // through the API is immediately usable in flows, and origin clients
+  // auto-admitted on /auth survive restarts (pairwise sectors stay stable).
+  const clientStore = drizzleBundle
+    ? createPostgresClientRecordStore(drizzleBundle.db)
+    : new MemoryClientRecordStore();
   const oauth = createOpenSesameProvider({
     issuer: config.issuer,
     processEnv: options.processEnv ?? process.env,
+    clientStore,
     ...(oidcStore && pairwiseStore
       ? {
           adapter: createPostgresAdapterConstructor(oidcStore),
@@ -111,7 +121,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   });
   const mappings = new MemoryPrincipalMappingStore();
   const policy = new ProvisionalPolicy();
-  const stores = createAppStores();
+  const stores = createAppStores({ oauthClients: clientStore });
   const passkeyChallenges = createMemoryChallengeStore();
   const rp = {
     rpID: rpIdFromUrl(config.publicUrl),

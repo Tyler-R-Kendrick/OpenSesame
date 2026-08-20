@@ -5,6 +5,7 @@ import {
   OAuthClientResponseSchema,
   PatchOAuthClientRequestSchema,
 } from "@opensesame/contracts";
+import type { OAuthClientRecord as StoreClientRecord } from "@opensesame/oauth-provider";
 import type { OAuthClientRecord } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
@@ -16,6 +17,61 @@ import { getUsage } from "../state.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 export const oauthClientRoutes = new Hono<{ Variables: Variables }>();
+
+/**
+ * Mapping layer between the durable store record (oauth-provider shape) and
+ * the os-domain record the contracts validate against. Origin-profile records
+ * auto-admitted on the /auth path carry no owner and no registration
+ * timestamps — they are invisible to this API (owner-fenced reads answer 404)
+ * until the F5 claim flow transfers ownership.
+ */
+function toDomain(client: StoreClientRecord): OAuthClientRecord {
+  return {
+    id: client.id,
+    // Callers only map records whose ownership was already verified.
+    ownerPrincipalId: client.ownerPrincipalId ?? "",
+    admissionMode: client.admissionMode,
+    displayName: client.displayName,
+    redirectUris: client.redirectUris,
+    sectorIdentifier: client.sectorIdentifier,
+    grantTypes: client.grantTypes,
+    responseTypes: client.responseTypes,
+    tokenEndpointAuthMethod: client.tokenEndpointAuthMethod,
+    allowedScopes: client.allowedScopes,
+    allowedResources: client.allowedResources,
+    ...(client.metadataUri ? { metadataUri: client.metadataUri } : {}),
+    ...(client.metadataDigest ? { metadataDigest: client.metadataDigest } : {}),
+    state: client.state,
+    createdAt: client.createdAt ?? client.firstSeenAt ?? new Date(0),
+    updatedAt:
+      client.updatedAt ??
+      client.lastUsedAt ??
+      client.createdAt ??
+      client.firstSeenAt ??
+      new Date(0),
+  };
+}
+
+function toStoreRecord(client: OAuthClientRecord): StoreClientRecord {
+  return {
+    id: client.id,
+    ownerPrincipalId: client.ownerPrincipalId,
+    admissionMode: client.admissionMode,
+    displayName: client.displayName,
+    redirectUris: client.redirectUris,
+    sectorIdentifier: client.sectorIdentifier,
+    grantTypes: client.grantTypes,
+    responseTypes: client.responseTypes,
+    tokenEndpointAuthMethod: client.tokenEndpointAuthMethod,
+    allowedScopes: client.allowedScopes,
+    allowedResources: client.allowedResources,
+    ...(client.metadataUri ? { metadataUri: client.metadataUri } : {}),
+    ...(client.metadataDigest ? { metadataDigest: client.metadataDigest } : {}),
+    state: client.state,
+    createdAt: client.createdAt,
+    updatedAt: client.updatedAt,
+  };
+}
 
 function toResponse(client: OAuthClientRecord) {
   return OAuthClientResponseSchema.parse({
@@ -40,17 +96,17 @@ function toResponse(client: OAuthClientRecord) {
  * Loads a client the caller owns. Foreign or unknown ids both answer 404 so the
  * endpoint is not an existence oracle for other principals' client registrations.
  */
-function loadOwnedClient(
+async function loadOwnedClient(
   ctx: AppContext,
   principalId: string,
   id: string,
   { includeRevoked = false }: { includeRevoked?: boolean } = {},
-): OAuthClientRecord | null {
-  const client = ctx.stores.oauthClients.get(id);
+): Promise<OAuthClientRecord | null> {
+  const client = await ctx.stores.oauthClients.findById(id);
   if (!client) return null;
   if (client.ownerPrincipalId !== principalId) return null;
   if (!includeRevoked && client.state === "revoked") return null;
-  return client;
+  return toDomain(client);
 }
 
 /** Client registration and mutation require a verified (non-provisional) identity. */
@@ -99,7 +155,7 @@ async function assertRegistrationQuota(
       action: "oauth.client.register",
       resource: { type: "oauth_client", id: "*" },
     },
-    getUsage(ctx.stores, principalId, ctx.clock()),
+    await getUsage(ctx.stores, principalId, ctx.clock()),
   );
   if (decision.effect === "deny") {
     return Response.json(
@@ -118,26 +174,25 @@ async function assertRegistrationQuota(
  * Sharing one between a single owner's clients is a legitimate choice; taking
  * another owner's sector is a way to learn the `sub` they see.
  */
-function sectorClaimedByAnother(
+async function sectorClaimedByAnother(
   ctx: AppContext,
   principalId: string,
   sectorIdentifier: string,
-): boolean {
-  for (const client of ctx.stores.oauthClients.values()) {
-    if (client.state === "revoked") continue;
-    if (client.ownerPrincipalId === principalId) continue;
-    if (client.sectorIdentifier === sectorIdentifier) return true;
-  }
-  return false;
+): Promise<boolean> {
+  const claimants =
+    await ctx.stores.oauthClients.findBySectorIdentifier(sectorIdentifier);
+  return claimants.some(
+    (client) =>
+      client.state !== "revoked" && client.ownerPrincipalId !== principalId,
+  );
 }
 
 oauthClientRoutes.get("/", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = authenticatedPrincipalId(c.get("principalId"));
-  const clients = [...ctx.stores.oauthClients.values()].filter(
-    (client) =>
-      client.ownerPrincipalId === principalId && client.state !== "revoked",
-  );
+  const clients = (await ctx.stores.oauthClients.listByOwner(principalId))
+    .filter((client) => client.state !== "revoked")
+    .map(toDomain);
   return c.json({ clients: clients.map(toResponse) });
 });
 
@@ -179,7 +234,11 @@ oauthClientRoutes.post(
         }
 
         if (
-          sectorClaimedByAnother(ctx, principalId, parsed.data.sectorIdentifier)
+          await sectorClaimedByAnother(
+            ctx,
+            principalId,
+            parsed.data.sectorIdentifier,
+          )
         ) {
           return c.json(
             {
@@ -208,7 +267,7 @@ oauthClientRoutes.post(
           createdAt: now,
           updatedAt: now,
         };
-        ctx.stores.oauthClients.set(client.id, client);
+        await ctx.stores.oauthClients.insertAtomic(toStoreRecord(client));
 
         await appendAuditEvent(ctx.repos.auditEvents, {
           eventType: "oauth_client.created",
@@ -234,7 +293,7 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
   const principalId = authenticatedPrincipalId(c.get("principalId"));
   const denied = await assertVerified(ctx, principalId, "modify");
   if (denied) return denied;
-  const client = loadOwnedClient(ctx, principalId, c.req.param("id"));
+  const client = await loadOwnedClient(ctx, principalId, c.req.param("id"));
   if (!client) {
     return c.json({ error: "not_found" }, 404);
   }
@@ -267,7 +326,7 @@ oauthClientRoutes.patch("/:id", requirePrincipal(), async (c) => {
   if (parsed.data.state !== undefined) {
     next.state = parsed.data.state;
   }
-  ctx.stores.oauthClients.set(next.id, next);
+  await ctx.stores.oauthClients.update(toStoreRecord(next));
 
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "oauth_client.updated",
@@ -286,7 +345,7 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
   const principalId = authenticatedPrincipalId(c.get("principalId"));
   const denied = await assertVerified(ctx, principalId, "rotate");
   if (denied) return denied;
-  const client = loadOwnedClient(ctx, principalId, c.req.param("id"));
+  const client = await loadOwnedClient(ctx, principalId, c.req.param("id"));
   if (!client) {
     return c.json({ error: "not_found" }, 404);
   }
@@ -297,12 +356,14 @@ oauthClientRoutes.post("/:id/rotate", requirePrincipal(), async (c) => {
     createdAt: now,
     updatedAt: now,
   };
-  ctx.stores.oauthClients.set(client.id, {
-    ...client,
-    state: "revoked",
-    updatedAt: now,
-  });
-  ctx.stores.oauthClients.set(rotated.id, rotated);
+  await ctx.stores.oauthClients.update(
+    toStoreRecord({
+      ...client,
+      state: "revoked",
+      updatedAt: now,
+    }),
+  );
+  await ctx.stores.oauthClients.insertAtomic(toStoreRecord(rotated));
 
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "oauth_client.rotated",
@@ -324,7 +385,7 @@ oauthClientRoutes.post("/:id/revoke", requirePrincipal(), async (c) => {
   const principalId = authenticatedPrincipalId(c.get("principalId"));
   const denied = await assertVerified(ctx, principalId, "revoke");
   if (denied) return denied;
-  const client = loadOwnedClient(ctx, principalId, c.req.param("id"), {
+  const client = await loadOwnedClient(ctx, principalId, c.req.param("id"), {
     includeRevoked: true,
   });
   if (!client) {
@@ -336,7 +397,7 @@ oauthClientRoutes.post("/:id/revoke", requirePrincipal(), async (c) => {
     state: "revoked",
     updatedAt: now,
   };
-  ctx.stores.oauthClients.set(revoked.id, revoked);
+  await ctx.stores.oauthClients.update(toStoreRecord(revoked));
 
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "oauth_client.revoked",
