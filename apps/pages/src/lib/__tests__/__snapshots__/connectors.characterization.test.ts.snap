@@ -1,0 +1,208 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`connector copy characterization > explains every failure class in exactly these words 1`] = `
+"offline          This device is offline. Checks resume when the network is back.
+timeout          Host did not answer in time. It may be starting up, or the tailnet may be slow.
+unreachable      Nothing answered. Check Host is running, and that this page is allowed to reach it.
+rejected         Host answered but refused the request. Its credentials need renewing.
+server-error     Host answered with an error of its own. Its logs will say more than this page can.
+not-opensesame   Something is listening at Host, but it is not the OpenSesame service. Check the port."
+`;
+
+exports[`connector copy characterization > says exactly this for an Identity that was never configured 1`] = `"no base                                off      Not configured"`;
+
+exports[`connector copy characterization > says exactly this for every Host state 1`] = `
+"live / no-failure                      live     127.0.0.1:18787
+live / no-failure / offline            offline  Offline
+live / offline                         live     127.0.0.1:18787
+live / offline / offline               offline  Offline
+live / timeout                         live     127.0.0.1:18787
+live / timeout / offline               offline  Offline
+live / unreachable                     live     127.0.0.1:18787
+live / unreachable / offline           offline  Offline
+live / rejected                        live     127.0.0.1:18787
+live / rejected / offline              offline  Offline
+live / server-error                    live     127.0.0.1:18787
+live / server-error / offline          offline  Offline
+live / not-opensesame                  live     127.0.0.1:18787
+live / not-opensesame / offline        offline  Offline
+pending / no-failure                   live     Checking 127.0.0.1:18787
+pending / no-failure / offline         offline  Offline
+pending / offline                      live     Checking 127.0.0.1:18787
+pending / offline / offline            offline  Offline
+pending / timeout                      live     Checking 127.0.0.1:18787
+pending / timeout / offline            offline  Offline
+pending / unreachable                  live     Checking 127.0.0.1:18787
+pending / unreachable / offline        offline  Offline
+pending / rejected                     live     Checking 127.0.0.1:18787
+pending / rejected / offline           offline  Offline
+pending / server-error                 live     Checking 127.0.0.1:18787
+pending / server-error / offline       offline  Offline
+pending / not-opensesame               live     Checking 127.0.0.1:18787
+pending / not-opensesame / offline     offline  Offline
+loopback / no-failure                  attn     Unreachable · 127.0.0.1:18787
+loopback / no-failure / offline        offline  Offline
+loopback / offline                     attn     Unreachable · 127.0.0.1:18787
+loopback / offline / offline           offline  Offline
+loopback / timeout                     attn     No answer in time · 127.0.0.1:18787
+loopback / timeout / offline           offline  Offline
+loopback / unreachable                 attn     Unreachable · 127.0.0.1:18787
+loopback / unreachable / offline       offline  Offline
+loopback / rejected                    attn     Refused the request · 127.0.0.1:18787
+loopback / rejected / offline          offline  Offline
+loopback / server-error                attn     Erroring · 127.0.0.1:18787
+loopback / server-error / offline      offline  Offline
+loopback / not-opensesame              attn     Not OpenSesame · 127.0.0.1:18787
+loopback / not-opensesame / offline    offline  Offline
+down / no-failure                      attn     Unreachable · 127.0.0.1:18787
+down / no-failure / offline            offline  Offline
+down / offline                         attn     Unreachable · 127.0.0.1:18787
+down / offline / offline               offline  Offline
+down / timeout                         attn     No answer in time · 127.0.0.1:18787
+down / timeout / offline               offline  Offline
+down / unreachable                     attn     Unreachable · 127.0.0.1:18787
+down / unreachable / offline           offline  Offline
+down / rejected                        attn     Refused the request · 127.0.0.1:18787
+down / rejected / offline              offline  Offline
+down / server-error                    attn     Erroring · 127.0.0.1:18787
+down / server-error / offline          offline  Offline
+down / not-opensesame                  attn     Not OpenSesame · 127.0.0.1:18787
+down / not-opensesame / offline        offline  Offline
+unset / no-failure                     off      Not configured
+unset / no-failure / offline           off      Not configured
+unset / offline                        off      Not configured
+unset / offline / offline              off      Not configured
+unset / timeout                        off      Not configured
+unset / timeout / offline              off      Not configured
+unset / unreachable                    off      Not configured
+unset / unreachable / offline          off      Not configured
+unset / rejected                       off      Not configured
+unset / rejected / offline             off      Not configured
+unset / server-error                   off      Not configured
+unset / server-error / offline         off      Not configured
+unset / not-opensesame                 off      Not configured
+unset / not-opensesame / offline       off      Not configured"
+`;
+
+exports[`connector copy characterization > says exactly this for every Host state on a remote page 1`] = `
+"live                                   live     127.0.0.1:18787
+pending                                live     Checking 127.0.0.1:18787
+loopback                               attn     127.0.0.1:18787 is loopback — unreachable from this page
+down                                   attn     Unreachable · 127.0.0.1:18787
+unset                                  off      Not configured"
+`;
+
+exports[`connector copy characterization > says exactly this for every Identity state 1`] = `
+"connected / no-failure                 live     127.0.0.1:18788
+connected / no-failure / offline       offline  Offline
+connected / offline                    live     127.0.0.1:18788
+connected / offline / offline          offline  Offline
+connected / timeout                    live     127.0.0.1:18788
+connected / timeout / offline          offline  Offline
+connected / unreachable                live     127.0.0.1:18788
+connected / unreachable / offline      offline  Offline
+connected / rejected                   live     127.0.0.1:18788
+connected / rejected / offline         offline  Offline
+connected / server-error               live     127.0.0.1:18788
+connected / server-error / offline     offline  Offline
+connected / not-opensesame             live     127.0.0.1:18788
+connected / not-opensesame / offline   offline  Offline
+none / no-failure                      attn     No identity session
+none / no-failure / offline            offline  Offline
+none / offline                         attn     No identity session
+none / offline / offline               offline  Offline
+none / timeout                         attn     No identity session
+none / timeout / offline               offline  Offline
+none / unreachable                     attn     No identity session
+none / unreachable / offline           offline  Offline
+none / rejected                        attn     No identity session
+none / rejected / offline              offline  Offline
+none / server-error                    attn     No identity session
+none / server-error / offline          offline  Offline
+none / not-opensesame                  attn     No identity session
+none / not-opensesame / offline        offline  Offline
+down / no-failure                      attn     Unreachable · 127.0.0.1:18788
+down / no-failure / offline            offline  Offline
+down / offline                         attn     Unreachable · 127.0.0.1:18788
+down / offline / offline               offline  Offline
+down / timeout                         attn     No answer in time · 127.0.0.1:18788
+down / timeout / offline               offline  Offline
+down / unreachable                     attn     Unreachable · 127.0.0.1:18788
+down / unreachable / offline           offline  Offline
+down / rejected                        attn     Refused the request · 127.0.0.1:18788
+down / rejected / offline              offline  Offline
+down / server-error                    attn     Erroring · 127.0.0.1:18788
+down / server-error / offline          offline  Offline
+down / not-opensesame                  attn     Not OpenSesame · 127.0.0.1:18788
+down / not-opensesame / offline        offline  Offline"
+`;
+
+exports[`connector copy characterization > says exactly this for every capability binding 1`] = `
+"history github unauth no-remote        attn     GitHub not authorized
+history github unauth remote           attn     GitHub not authorized
+history github conn_1 no-remote        live     GitHub
+history github conn_1 remote           live     GitHub · owner/store
+history gitlab unauth no-remote        attn     GitLab not authorized
+history gitlab unauth remote           attn     GitLab not authorized
+history gitlab conn_1 no-remote        live     GitLab
+history gitlab conn_1 remote           live     GitLab · owner/store
+history password-store unauth no-remote live     Local git password-store
+history password-store unauth remote   live     Local git password-store
+history password-store conn_1 no-remote live     Local git password-store
+history password-store conn_1 remote   live     Local git password-store
+keys webcrypto unauth                  live     WebCrypto (this device)
+keys webcrypto conn_1                  live     WebCrypto (this device)
+keys sealed-local unauth               live     Sealed local (Host)
+keys sealed-local conn_1               live     Sealed local (Host)
+keys aws-kms unauth                    attn     AWS KMS not authorized
+keys aws-kms conn_1                    live     AWS KMS
+keys yubikey unauth                    attn     yubikey not authorized
+keys yubikey conn_1                    live     yubikey"
+`;
+
+exports[`connector copy characterization > says exactly this for every machine state 1`] = `
+"unknown / no-failure                   live     Checking box.tailnet.ts.net
+unknown / no-failure / offline         offline  Offline
+unknown / offline                      live     Checking box.tailnet.ts.net
+unknown / offline / offline            offline  Offline
+unknown / timeout                      live     Checking box.tailnet.ts.net
+unknown / timeout / offline            offline  Offline
+unknown / unreachable                  live     Checking box.tailnet.ts.net
+unknown / unreachable / offline        offline  Offline
+unknown / rejected                     live     Checking box.tailnet.ts.net
+unknown / rejected / offline           offline  Offline
+unknown / server-error                 live     Checking box.tailnet.ts.net
+unknown / server-error / offline       offline  Offline
+unknown / not-opensesame               live     Checking box.tailnet.ts.net
+unknown / not-opensesame / offline     offline  Offline
+reachable / no-failure                 live     box.tailnet.ts.net
+reachable / no-failure / offline       offline  Offline
+reachable / offline                    live     box.tailnet.ts.net
+reachable / offline / offline          offline  Offline
+reachable / timeout                    live     box.tailnet.ts.net
+reachable / timeout / offline          offline  Offline
+reachable / unreachable                live     box.tailnet.ts.net
+reachable / unreachable / offline      offline  Offline
+reachable / rejected                   live     box.tailnet.ts.net
+reachable / rejected / offline         offline  Offline
+reachable / server-error               live     box.tailnet.ts.net
+reachable / server-error / offline     offline  Offline
+reachable / not-opensesame             live     box.tailnet.ts.net
+reachable / not-opensesame / offline   offline  Offline
+unreachable / no-failure               attn     Unreachable · box.tailnet.ts.net
+unreachable / no-failure / offline     offline  Offline
+unreachable / offline                  attn     Unreachable · box.tailnet.ts.net
+unreachable / offline / offline        offline  Offline
+unreachable / timeout                  attn     No answer in time · box.tailnet.ts.net
+unreachable / timeout / offline        offline  Offline
+unreachable / unreachable              attn     Unreachable · box.tailnet.ts.net
+unreachable / unreachable / offline    offline  Offline
+unreachable / rejected                 attn     Refused the request · box.tailnet.ts.net
+unreachable / rejected / offline       offline  Offline
+unreachable / server-error             attn     Erroring · box.tailnet.ts.net
+unreachable / server-error / offline   offline  Offline
+unreachable / not-opensesame           attn     Not OpenSesame · box.tailnet.ts.net
+unreachable / not-opensesame / offline offline  Offline
+unpaired                               off      Not paired
+loopback address, remote page          off      Not paired"
+`;

@@ -92,6 +92,23 @@ export function briefOrigin(raw: string): string {
   }
 }
 
+/**
+ * The label for a failing probe.
+ *
+ * An `offline` failure class only makes sense while the browser is actually
+ * offline. A probe that failed during a momentary blip can resolve after the
+ * radio is back, and rendering its stamp would pair an amber glyph with the
+ * word "Offline" — a warning to go fix an endpoint beside copy saying there is
+ * nothing to fix. Once we are online, that stamp is stale, not informative.
+ */
+function labelFor(target: TargetState, base: string, offline: boolean): string {
+  const failure =
+    !offline && target.failure === "offline"
+      ? "unreachable"
+      : (target.failure ?? "unreachable");
+  return failureLabel(failure, base);
+}
+
 /** Fields every probed connector carries, whatever its tone works out to be. */
 function probed(
   target: TargetState,
@@ -137,14 +154,12 @@ export function classifyHostConnector(
       // is an ordinary "nothing is listening"; anywhere else it also means the
       // address is one this page could never have called.
       detail: pageIsLoopback()
-        ? failureLabel(target.failure ?? "unreachable", base)
+        ? labelFor(target, base, offline)
         : `${base} is loopback — unreachable from this page`,
     },
     down: {
       tone: "attn",
-      detail: base
-        ? failureLabel(target.failure ?? "unreachable", base)
-        : "Down",
+      detail: base ? labelFor(target, base, offline) : "Down",
     },
     unset: { tone: "off", detail: "Not configured" },
   };
@@ -175,10 +190,7 @@ export function classifyIdentityConnector(
   > = {
     connected: { tone: "live", detail: base },
     none: { tone: "attn", detail: "No identity session" },
-    down: {
-      tone: "attn",
-      detail: failureLabel(target.failure ?? "unreachable", base),
-    },
+    down: { tone: "attn", detail: labelFor(target, base, offline) },
   };
   return { ...shell, ...byPlane[status.identity], ...probed(target) };
 }
@@ -214,7 +226,7 @@ export function classifyMachineConnector(
   return {
     ...shell,
     tone: "attn",
-    detail: failureLabel(target.failure ?? "unreachable", base),
+    detail: labelFor(target, base, offline),
     ...probed(target),
   };
 }

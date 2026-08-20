@@ -260,6 +260,23 @@ describe("offline", () => {
     off();
   });
 
+  it("drops the offline stamp when the radio comes back", async () => {
+    env.host = "unreachable";
+    const off = watch();
+    await settle();
+    window.dispatchEvent(new Event("offline"));
+    await settle();
+    expect(connectivitySnapshot().host.failure).toBe("offline");
+
+    // Back online, before the triggered sweep has answered: we no longer know
+    // why Host is failing, and claiming "offline" would contradict the amber
+    // tone the glyph still carries.
+    window.dispatchEvent(new Event("online"));
+    expect(connectivitySnapshot().offline).toBe(false);
+    expect(connectivitySnapshot().host.failure).not.toBe("offline");
+    off();
+  });
+
   it("checks immediately when the network comes back", async () => {
     const off = watch();
     await settle();
