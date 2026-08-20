@@ -15,10 +15,33 @@ vi.mock("../lib/connectors.js", async (importOriginal) => {
 });
 
 vi.mock("../lib/identity.js", () => ({
-  probeHost: vi.fn(async () => "reachable"),
-  probeIdentity: vi.fn(async () => "unreachable"),
   useConnect: () => ({ connect: vi.fn(), connecting: false, error: null }),
 }));
+
+const checkNow = vi.hoisted(() => vi.fn());
+
+vi.mock("../lib/connectivity-monitor.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../lib/connectivity-monitor.js")>();
+  return {
+    ...actual,
+    checkNow,
+    useConnectivityMonitor: () => ({
+      offline: false,
+      host: monitorTarget,
+      identity: monitorTarget,
+      machine: monitorTarget,
+      nextCheckAt: Date.now() + 30_000,
+    }),
+  };
+});
+
+const monitorTarget = {
+  health: "reachable" as const,
+  failure: null,
+  lastCheckedAt: Date.now() - 4_000,
+  checking: false,
+};
 
 vi.mock("./PlaneNote.js", () => ({
   ConnectThisMachine: () => <div data-testid="pairing-ceremony" />,
@@ -33,6 +56,11 @@ function status(over: Partial<ConnectorStatus> = {}): ConnectorStatus {
     tone: "live",
     detail: "127.0.0.1:18787",
     required: true,
+    failure: null,
+    // A probed connector has been checked; the freshness row only shows for
+    // connectors that have a verdict to be stale.
+    lastCheckedAt: Date.now() - 4_000,
+    checking: false,
     ...over,
   };
 }
@@ -129,19 +157,64 @@ describe("ConnectivityBar", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("re-probes a plane rather than offering to reconfigure it", async () => {
+  it("re-checks through the monitor rather than probing on its own", () => {
     renderBar();
+    checkNow.mockClear();
     fireEvent.click(
       screen.getByRole("button", { name: "Host — 127.0.0.1:18787" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Check again" }));
-    expect(await screen.findByText("Answered just now.")).toBeTruthy();
+    // Opening a ceremony is a person asking, so it refreshes on the way in.
+    expect(checkNow).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Check now" }));
+    expect(checkNow).toHaveBeenCalledTimes(2);
+
     // Endpoints are edited in one place, and it is not here.
     expect(
       screen
         .getByRole("link", { name: /Settings → Connectivity → Endpoints/ })
         .getAttribute("href"),
     ).toBe("/settings#connectivity");
+  });
+
+  it("says how old the verdict is and when the next one is due", () => {
+    renderBar();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Host — 127.0.0.1:18787" }),
+    );
+    const read = screen.getByRole("status");
+    expect(read.textContent).toMatch(/Checked \d+s ago/);
+    expect(read.textContent).toMatch(/next in \d+s/);
+  });
+
+  it("explains a classified failure in a sentence", () => {
+    renderBar([
+      status({
+        tone: "attn",
+        detail: "Not OpenSesame · 127.0.0.1:18787",
+        failure: "not-opensesame",
+        lastCheckedAt: Date.now(),
+      }),
+    ]);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Host — Not OpenSesame · 127.0.0.1:18787",
+      }),
+    );
+    expect(screen.getByText(/it is not the OpenSesame service/)).toBeTruthy();
+  });
+
+  it("shows offline as its own thing, not as four broken endpoints", () => {
+    renderBar([
+      status({ tone: "offline", detail: "Offline" }),
+      status({
+        id: "identity",
+        name: "Identity",
+        tone: "offline",
+        detail: "Offline",
+      }),
+    ]);
+    expect(screen.getByRole("group", { name: /offline/i })).toBeTruthy();
   });
 
   it("hands capability connectors to the panel that owns them", () => {

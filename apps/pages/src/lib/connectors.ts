@@ -7,42 +7,52 @@
  * all five as endpoint forms; they are states, so they read as glyphs and are
  * repaired by a ceremony instead.
  *
- * Everything here is derived. Host and Identity come from `usePlaneStatus`,
- * history and keys from the persisted capability bindings, and only the daemon
- * needs a probe of its own — the plane status never had one.
+ * Nothing here probes. Reachability arrives from the connectivity monitor,
+ * which owns the schedule for the whole tab; history and keys are derived from
+ * the persisted capability bindings. This file's only job is turning both into
+ * something a glyph can say.
  */
 
-import { useEffect, useState } from "react";
 import {
   type CapabilityConnectorBinding,
   type CapabilityId,
   capabilityDef,
   connectorLabel,
 } from "./capabilities.js";
-import { probeDaemon } from "./daemon.js";
+import {
+  type MonitorSnapshot,
+  type TargetState,
+  daemonIsProbable,
+  useConnectivityMonitor,
+} from "./connectivity-monitor.js";
 import {
   type HostPlane,
   type IdentityPlane,
   type PlaneStatus,
   usePlaneStatus,
 } from "./planes.js";
+import { type FailureClass, failureLabel } from "./probe-failure.js";
 import {
   type PagesSettings,
   loadSettings,
   pageIsLoopback,
-  subscribeSettings,
 } from "./settings.js";
-import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
+import { useSettingsEpoch } from "./use-settings.js";
 
 export type ConnectorId = "host" | "identity" | "machine" | "history" | "keys";
 
 /**
- * Three states, because a status glyph can only carry three:
  * `live` is green with a pip, `attn` is amber with a pip, `off` is a ghosted
- * glyph with no pip at all. A probe still in flight reads `live` rather than
- * flashing amber on every route remount — same call `RailPlaneStatus` made.
+ * glyph with no pip, and `offline` is the browser having no network at all.
+ *
+ * `offline` earns its own tone because the alternative is a lie: with the
+ * radio off, every remote connector would go amber and blame an endpoint that
+ * is probably fine. One cause, said once, beats four wrong diagnoses.
+ *
+ * A probe in flight never changes the tone — it shows as a pulse instead, so
+ * the bar does not flicker every cadence.
  */
-export type ConnectorTone = "live" | "attn" | "off";
+export type ConnectorTone = "live" | "attn" | "off" | "offline";
 
 export type ConnectorStatus = {
   id: ConnectorId;
@@ -53,6 +63,12 @@ export type ConnectorStatus = {
   detail: string;
   /** Required connectors are the ones a ceremony can be blocked on. */
   required: boolean;
+  /** Why it is failing, when we can tell. Null for anything not probed. */
+  failure: FailureClass | null;
+  /** Epoch ms of the last completed probe; null for settings-derived state. */
+  lastCheckedAt: number | null;
+  /** A probe is in flight — shown as a pulse, never as a tone change. */
+  checking: boolean;
 };
 
 /** Bar order, left to right. Also the tile order in Settings. */
@@ -76,8 +92,42 @@ export function briefOrigin(raw: string): string {
   }
 }
 
-export function classifyHostConnector(status: PlaneStatus): ConnectorStatus {
+/** Fields every probed connector carries, whatever its tone works out to be. */
+function probed(
+  target: TargetState,
+): Pick<ConnectorStatus, "failure" | "lastCheckedAt" | "checking"> {
+  return {
+    failure: target.failure,
+    lastCheckedAt: target.lastCheckedAt,
+    checking: target.checking,
+  };
+}
+
+/** Settings-derived connectors are never probed, so they have no freshness. */
+const UNPROBED = {
+  failure: null,
+  lastCheckedAt: null,
+  checking: false,
+} as const;
+
+export function classifyHostConnector(
+  status: PlaneStatus,
+  target: TargetState,
+  offline: boolean,
+): ConnectorStatus {
   const base = briefOrigin(status.hostBase);
+  const shell = { id: "host", name: "Host", required: true } as const;
+  if (status.host === "unset") {
+    return {
+      ...shell,
+      tone: "off",
+      detail: "Not configured",
+      ...probed(target),
+    };
+  }
+  if (offline) {
+    return { ...shell, tone: "offline", detail: "Offline", ...probed(target) };
+  }
   const byPlane: Record<HostPlane, { tone: ConnectorTone; detail: string }> = {
     live: { tone: "live", detail: base },
     pending: { tone: "live", detail: base ? `Checking ${base}` : "Checking" },
@@ -87,27 +137,37 @@ export function classifyHostConnector(status: PlaneStatus): ConnectorStatus {
       // is an ordinary "nothing is listening"; anywhere else it also means the
       // address is one this page could never have called.
       detail: pageIsLoopback()
-        ? `Unreachable · ${base}`
+        ? failureLabel(target.failure ?? "unreachable", base)
         : `${base} is loopback — unreachable from this page`,
     },
-    down: { tone: "attn", detail: base ? `Unreachable · ${base}` : "Down" },
+    down: {
+      tone: "attn",
+      detail: base
+        ? failureLabel(target.failure ?? "unreachable", base)
+        : "Down",
+    },
     unset: { tone: "off", detail: "Not configured" },
   };
-  return { id: "host", name: "Host", required: true, ...byPlane[status.host] };
+  return { ...shell, ...byPlane[status.host], ...probed(target) };
 }
 
 export function classifyIdentityConnector(
   status: PlaneStatus,
+  target: TargetState,
+  offline: boolean,
 ): ConnectorStatus {
   const base = briefOrigin(status.identityBase);
+  const shell = { id: "identity", name: "Identity", required: true } as const;
   if (!base) {
     return {
-      id: "identity",
-      name: "Identity",
-      required: true,
+      ...shell,
       tone: "off",
       detail: "Not configured",
+      ...probed(target),
     };
+  }
+  if (offline) {
+    return { ...shell, tone: "offline", detail: "Offline", ...probed(target) };
   }
   const byPlane: Record<
     IdentityPlane,
@@ -115,38 +175,47 @@ export function classifyIdentityConnector(
   > = {
     connected: { tone: "live", detail: base },
     none: { tone: "attn", detail: "No identity session" },
-    down: { tone: "attn", detail: `Unreachable · ${base}` },
+    down: {
+      tone: "attn",
+      detail: failureLabel(target.failure ?? "unreachable", base),
+    },
   };
-  return {
-    id: "identity",
-    name: "Identity",
-    required: true,
-    ...byPlane[status.identity],
-  };
+  return { ...shell, ...byPlane[status.identity], ...probed(target) };
 }
 
-export type DaemonReach = "unset" | "checking" | "paired" | "unreachable";
-
 export function classifyMachineConnector(
-  reach: DaemonReach,
+  target: TargetState,
   daemonApi: string,
+  offline: boolean,
 ): ConnectorStatus {
   const base = briefOrigin(daemonApi);
-  const byReach: Record<DaemonReach, { tone: ConnectorTone; detail: string }> =
-    {
-      unset: { tone: "off", detail: "Not paired" },
-      checking: {
-        tone: "live",
-        detail: base ? `Checking ${base}` : "Checking",
-      },
-      paired: { tone: "live", detail: base },
-      unreachable: { tone: "attn", detail: `No answer from ${base}` },
-    };
-  return {
+  const shell = {
     id: "machine",
     name: "This machine",
     required: true,
-    ...byReach[reach],
+  } as const;
+  if (!daemonApi.trim() || !daemonIsProbable(daemonApi, pageIsLoopback())) {
+    return { ...shell, tone: "off", detail: "Not paired", ...probed(target) };
+  }
+  if (offline) {
+    return { ...shell, tone: "offline", detail: "Offline", ...probed(target) };
+  }
+  if (target.health === "unknown") {
+    return {
+      ...shell,
+      tone: "live",
+      detail: `Checking ${base}`,
+      ...probed(target),
+    };
+  }
+  if (target.health === "reachable") {
+    return { ...shell, tone: "live", detail: base, ...probed(target) };
+  }
+  return {
+    ...shell,
+    tone: "attn",
+    detail: failureLabel(target.failure ?? "unreachable", base),
+    ...probed(target),
   };
 }
 
@@ -189,6 +258,7 @@ export function classifyHistoryConnector(
     name: "Git history",
     required: true,
     ...classifyCapability("history", settings.capabilityConnectors.history),
+    ...UNPROBED,
   };
 }
 
@@ -205,72 +275,44 @@ export function classifyKeysConnector(
       "encryption",
       settings.capabilityConnectors.encryption,
     ),
+    ...UNPROBED,
   };
 }
 
-/**
- * Whether this page may even try `${daemonApi}/health`.
- *
- * github.io cannot call 127.0.0.1, and probing it anyway costs a console error
- * and a mixed-content warning on every mount. `assertDaemonReachableFromPage`
- * makes the same judgement for the pairing path; this is the read-only half.
- */
-export function daemonIsProbable(daemonApi: string): boolean {
-  const base = normalizeTailnetBase(daemonApi);
-  if (!base) return false;
-  return pageIsLoopback() || !isLoopbackUrl(base);
-}
-
-/** Probe the paired daemon, re-probing whenever Settings change the address. */
-export function useDaemonReach(): { reach: DaemonReach; daemonApi: string } {
-  const [daemonApi, setDaemonApi] = useState(() => loadSettings().daemonApi);
-  const [reach, setReach] = useState<DaemonReach>("checking");
-
-  useEffect(
-    () => subscribeSettings(() => setDaemonApi(loadSettings().daemonApi)),
-    [],
-  );
-
-  useEffect(() => {
-    if (!daemonApi.trim() || !daemonIsProbable(daemonApi)) {
-      setReach("unset");
-      return;
-    }
-    let cancelled = false;
-    setReach("checking");
-    void probeDaemon(daemonApi).then(
-      () => {
-        if (!cancelled) setReach("paired");
-      },
-      () => {
-        if (!cancelled) setReach("unreachable");
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [daemonApi]);
-
-  return { reach, daemonApi };
-}
-
-export function useConnectors(): ConnectorStatus[] {
-  const plane = usePlaneStatus();
-  const { reach, daemonApi } = useDaemonReach();
-  const [settings, setSettings] = useState<PagesSettings>(() => loadSettings());
-
-  useEffect(() => subscribeSettings(() => setSettings(loadSettings())), []);
-
+/** Build all five from one monitor reading. Pure, so it is easy to test. */
+export function buildConnectors(
+  plane: PlaneStatus,
+  monitor: MonitorSnapshot,
+  settings: PagesSettings,
+): ConnectorStatus[] {
   return [
-    classifyHostConnector(plane),
-    classifyIdentityConnector(plane),
-    classifyMachineConnector(reach, daemonApi),
+    classifyHostConnector(plane, monitor.host, monitor.offline),
+    classifyIdentityConnector(plane, monitor.identity, monitor.offline),
+    classifyMachineConnector(
+      monitor.machine,
+      settings.daemonApi,
+      monitor.offline,
+    ),
     classifyHistoryConnector(settings),
     classifyKeysConnector(settings),
   ];
 }
 
+export function useConnectors(): ConnectorStatus[] {
+  const plane = usePlaneStatus();
+  const monitor = useConnectivityMonitor();
+  // Capability bindings and the daemon address live in settings, and change
+  // without any probe result changing.
+  useSettingsEpoch();
+  return buildConnectors(plane, monitor, loadSettings());
+}
+
 /** How many required connectors are asking for something. */
 export function needsAttention(connectors: ConnectorStatus[]): number {
   return connectors.filter((c) => c.required && c.tone !== "live").length;
+}
+
+/** True when the browser itself has no network, so no endpoint is to blame. */
+export function isOfflineSet(connectors: ConnectorStatus[]): boolean {
+  return connectors.some((c) => c.tone === "offline");
 }

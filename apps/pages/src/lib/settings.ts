@@ -156,7 +156,19 @@ export function loadSettings(): PagesSettings {
   return loadPersisted();
 }
 
+/**
+ * Bumped on every write, so a component can re-render for a changed base URL
+ * without owning a probe of its own. Reachability is the monitor's job; this
+ * is only "the configured value moved".
+ */
+let epoch = 0;
+
+export function settingsEpoch(): number {
+  return epoch;
+}
+
 function emitSettings(): void {
+  epoch += 1;
   for (const listener of listeners) listener();
 }
 

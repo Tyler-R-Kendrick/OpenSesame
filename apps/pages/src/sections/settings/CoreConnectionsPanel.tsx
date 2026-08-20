@@ -4,7 +4,11 @@ import {
   connectorGlyph,
 } from "../../components/ConnectivityBar.js";
 import type { ConnectorId } from "../../lib/connectors.js";
-import { needsAttention, useConnectors } from "../../lib/connectors.js";
+import {
+  isOfflineSet,
+  needsAttention,
+  useConnectors,
+} from "../../lib/connectors.js";
 
 /**
  * The five connections OpenSesame needs, as states rather than as a form.
@@ -19,12 +23,16 @@ const ACTION: Record<string, string> = {
   live: "Connected",
   attn: "Fix",
   off: "Set up",
+  offline: "Paused",
 };
 
 export function CoreConnectionsPanel() {
   const connectors = useConnectors();
   const [open, setOpen] = useState<ConnectorId | null>(null);
   const attention = needsAttention(connectors);
+  // Offline is one cause, not four broken connectors. Counting it as "3 need
+  // setup" would send someone to fix endpoints that are perfectly fine.
+  const offline = isOfflineSet(connectors);
 
   return (
     <section className="panel" id="core-connections">
@@ -37,10 +45,14 @@ export function CoreConnectionsPanel() {
             open it and it tells you what it found.
           </p>
         </div>
-        <output className={`chip chip--${attention ? "warn" : "ok"}`}>
-          {attention === 0
-            ? "All connected"
-            : `${attention} ${attention === 1 ? "needs" : "need"} setup`}
+        <output
+          className={`chip chip--${offline || attention ? "warn" : "ok"}`}
+        >
+          {offline
+            ? "Offline"
+            : attention === 0
+              ? "All connected"
+              : `${attention} ${attention === 1 ? "needs" : "need"} setup`}
         </output>
       </div>
       <div className="panel__body">

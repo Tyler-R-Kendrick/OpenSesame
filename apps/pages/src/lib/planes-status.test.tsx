@@ -1,7 +1,12 @@
 /** @vitest-environment jsdom */
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clearHostSession, clearSession } from "./identity.js";
+import { resetConnectivityMonitorForTests } from "./connectivity-monitor.js";
+import {
+  clearHostSession,
+  clearSession,
+  resetHostHealthPathForTests,
+} from "./identity.js";
 import { usePlaneStatus } from "./planes.js";
 import { saveSettings } from "./settings.js";
 
@@ -27,6 +32,10 @@ function Probe() {
 beforeEach(() => {
   clearSession();
   clearHostSession();
+  // The monitor is a module singleton by design — one schedule per tab — so a
+  // test that does not reset it inherits the previous test's verdicts.
+  resetConnectivityMonitorForTests();
+  resetHostHealthPathForTests();
   saveSettings({
     hostApi: HOST,
     identityApi: IDENTITY,
@@ -41,6 +50,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetConnectivityMonitorForTests();
   clearSession();
   clearHostSession();
   vi.unstubAllGlobals();
