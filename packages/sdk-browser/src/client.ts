@@ -1,3 +1,9 @@
+import { createLocalJWKSet, jwtVerify } from "jose";
+import {
+  assertSafeReturnTo,
+  defaultOriginCallback,
+  originProfileClientId,
+} from "./origin.js";
 import { createPkcePair } from "./pkce.js";
 import type {
   ClaimDecision,
@@ -13,6 +19,9 @@ import type {
 
 const PKCE_KEY = "opensesame:pkce";
 const SESSION_KEY = "opensesame:session";
+const RETURN_TO_KEY = "opensesame:returnTo";
+
+const ID_TOKEN_ALGORITHMS = ["RS256", "ES256"] as const;
 
 class MemoryStorage implements StorageLike {
   readonly #map = new Map<string, string>();
@@ -60,6 +69,53 @@ function sessionForStorage(session: Session): Session {
 
 function trimSlash(url: string): string {
   return url.replace(/\/+$/u, "");
+}
+
+function resolvePageOrigin(
+  config: OpenSesameBrowserConfig,
+): string | undefined {
+  const href = config.windowLocation?.href;
+  if (href) {
+    try {
+      return new URL(href).origin;
+    } catch {
+      /* ignore */
+    }
+  }
+  if (typeof globalThis !== "undefined" && "location" in globalThis) {
+    try {
+      return globalThis.location.origin;
+    } catch {
+      /* ignore */
+    }
+  }
+  return undefined;
+}
+
+function scrubCallbackUrl(href: string): void {
+  try {
+    const url = new URL(href);
+    for (const key of [
+      "code",
+      "state",
+      "iss",
+      "error",
+      "error_description",
+      "session_state",
+    ]) {
+      url.searchParams.delete(key);
+    }
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    if (
+      typeof globalThis !== "undefined" &&
+      "history" in globalThis &&
+      globalThis.history?.replaceState
+    ) {
+      globalThis.history.replaceState(globalThis.history.state, "", next);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 function isLoopbackHost(hostname: string): boolean {
@@ -213,13 +269,17 @@ export function createOpenSesame(
 ): OpenSesameBrowserClient {
   const issuer = trimSlash(config.issuer);
   assertSecureUrl(issuer, "issuer");
-  const clientId = config.clientId ?? "opensesame-browser";
+  const pageOrigin = resolvePageOrigin(config) ?? "http://127.0.0.1";
+  const configuredClientId = config.clientId;
+  const originProfile = configuredClientId === undefined;
+  const clientId = configuredClientId ?? originProfileClientId(pageOrigin);
   const redirectUri =
     config.redirectUri ??
-    (typeof globalThis !== "undefined" && "location" in globalThis
-      ? `${globalThis.location.origin}/callback`
-      : "http://127.0.0.1/callback");
-  const scopes = (config.scopes ?? ["openid", "profile"]).join(" ");
+    (originProfile
+      ? defaultOriginCallback(pageOrigin)
+      : `${pageOrigin}/callback`);
+  const defaultScopes = originProfile ? ["openid"] : ["openid", "profile"];
+  const scopes = (config.scopes ?? defaultScopes).join(" ");
   const storage = resolveStorage(config.storage);
   const fetchImpl = config.fetchImpl ?? fetch;
   const apiBase = assertSecureUrl(
@@ -285,6 +345,35 @@ export function createOpenSesame(
     }
   }
 
+  async function validateIdToken(
+    idToken: string,
+    expectedNonce: string,
+    jwksUri: string,
+  ): Promise<string> {
+    assertDiscoveredUrl(jwksUri, "jwks_uri", issuer);
+    const jwksRes = await fetchImpl(jwksUri);
+    if (!jwksRes.ok) {
+      throw new Error(`JWKS fetch failed: ${jwksRes.status}`);
+    }
+    const jwks = (await jwksRes.json()) as { keys: unknown[] };
+    const getKey = createLocalJWKSet(
+      jwks as Parameters<typeof createLocalJWKSet>[0],
+    );
+    const { payload } = await jwtVerify(idToken, getKey, {
+      issuer,
+      audience: clientId,
+      algorithms: [...ID_TOKEN_ALGORITHMS],
+      clockTolerance: 5,
+    });
+    if (payload.nonce !== expectedNonce) {
+      throw new Error("id_token nonce mismatch");
+    }
+    if (typeof payload.sub !== "string" || payload.sub === "") {
+      throw new Error("id_token missing sub");
+    }
+    return payload.sub;
+  }
+
   async function exchangeCode(
     code: string,
     codeVerifier: string,
@@ -307,6 +396,23 @@ export function createOpenSesame(
       throw new Error(`Token exchange failed: ${res.status}`);
     }
     const tokens = (await res.json()) as TokenResponse;
+    if (originProfile) {
+      if (!tokens.id_token) {
+        throw new Error("Token response missing id_token");
+      }
+      if (!nonce) {
+        throw new Error("PKCE state is missing nonce");
+      }
+      const sub = await validateIdToken(tokens.id_token, nonce, meta.jwks_uri);
+      const session = toSession(tokens, false, {
+        issuer,
+        clientId,
+        nonce,
+      });
+      session.sub = sub;
+      saveSession(session);
+      return session;
+    }
     const session = toSession(tokens, false, {
       issuer,
       clientId,
@@ -321,6 +427,11 @@ export function createOpenSesame(
       const meta = await discovery();
       const pkce = await createPkcePair();
       storage.setItem(PKCE_KEY, JSON.stringify(pkce));
+      if (options?.returnTo) {
+        storage.setItem(RETURN_TO_KEY, assertSafeReturnTo(options.returnTo));
+      } else {
+        storage.removeItem(RETURN_TO_KEY);
+      }
       const url = new URL(meta.authorization_endpoint);
       url.searchParams.set("response_type", "code");
       url.searchParams.set("client_id", clientId);
@@ -356,6 +467,7 @@ export function createOpenSesame(
       const error = url.searchParams.get("error");
       if (error) {
         storage.removeItem(PKCE_KEY);
+        scrubCallbackUrl(href);
         throw new Error(`Authorization error: ${error}`);
       }
       const code = url.searchParams.get("code");
@@ -381,7 +493,13 @@ export function createOpenSesame(
       if (pkce.state !== state) {
         throw new Error("OAuth state mismatch");
       }
-      return exchangeCode(code, pkce.codeVerifier, pkce.nonce);
+      const session = await exchangeCode(code, pkce.codeVerifier, pkce.nonce);
+      scrubCallbackUrl(href);
+      return session;
+    },
+
+    getReturnTo() {
+      return storage.getItem(RETURN_TO_KEY);
     },
 
     async continueAnonymously() {

@@ -120,9 +120,11 @@ export interface LocationLike {
 }
 
 export interface OpenSesameBrowserClient {
-  signIn(options?: { provider?: string }): Promise<void>;
+  signIn(options?: { provider?: string; returnTo?: string }): Promise<void>;
   /** Complete PKCE after redirect; call from redirect_uri page. */
   handleRedirectCallback(url?: string): Promise<Session>;
+  /** Same-origin relative path stored at sign-in, if any. */
+  getReturnTo(): string | null;
   continueAnonymously(): Promise<Session>;
   getSession(): Promise<Session | null>;
   presentClaim(token: string): Promise<ClaimPresentation>;

@@ -87,8 +87,11 @@ export function canonicalizeOrigin(
     throw new OriginError("host_forbidden", "Origin host is empty");
   }
 
+  // `process` does not exist in browsers; sdk-browser consumes this module
+  // through the ./origin/canonical subpath and always passes explicit options.
   const production =
-    options.production ?? process.env.NODE_ENV === "production";
+    options.production ??
+    (typeof process !== "undefined" && process.env?.NODE_ENV === "production");
   const loopback = isLoopbackHost(hostname);
 
   if (scheme === "http") {

@@ -394,4 +394,34 @@ describe("openSesameAuth hono middleware", () => {
     expect(res.status).toBe(500);
     expect(await res.text()).not.toContain("connection string leaked here");
   });
+
+  it("maps AuthorizationError to 403 with the coded JSON body", async () => {
+    const { privateKey, jwks } = await mintKeys();
+    const verifier = createOpenSesameVerifier({
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      jwks,
+      requiredScopes: ["admin"],
+    });
+    const app = new Hono<{ Variables: OpenSesameAuthVariables }>();
+    app.use("/me", openSesameAuth({ verifier }));
+    app.get("/me", (c) => c.json({ sub: c.get("identity").sub }));
+
+    const token = await new SignJWT({ scope: "openid" })
+      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject("pairwise-alpha-sub")
+      .setExpirationTime("5m")
+      .sign(privateKey);
+
+    const res = await app.request("http://localhost/me", {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: "insufficient_scope",
+      error_description: "Token missing required scopes",
+    });
+  });
 });
