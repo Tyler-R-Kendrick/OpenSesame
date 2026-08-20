@@ -13,13 +13,25 @@ export type JsonObject = {
   readonly [key: string]: JsonValue | undefined;
 };
 
+export type MutableJsonObject = {
+  [key: string]: JsonValue | undefined;
+};
+
 export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
 
 export type BoundaryObject = {
   readonly [key: string]: BoundaryValue | undefined;
 };
 
+export type MutableBoundaryObject = {
+  [key: string]: BoundaryValue | undefined;
+};
+
 export type BoundaryFn = (...args: never[]) => BoundaryValue;
+
+export type Jsonable = {
+  toJSON: () => BoundaryValue;
+};
 
 export type BoundaryValue =
   | JsonValue
@@ -29,12 +41,14 @@ export type BoundaryValue =
   | Date
   | Uint8Array
   | ArrayBuffer
-  | Map<string, BoundaryValue>
+  | Map<PropertyKey, BoundaryValue>
   | Set<BoundaryValue>
   | Error
   | BoundaryValue[]
   | BoundaryObject
-  | BoundaryFn;
+  | MutableBoundaryObject
+  | BoundaryFn
+  | Jsonable;
 
 /**
  * Assert a runtime overlap TypeScript cannot prove.
@@ -42,10 +56,12 @@ export type BoundaryValue =
  * Replaces `value as unknown as To` (a chained assertion) with a single
  * documented assertion inside this helper.
  */
-export function overlapCast(value: From): To {
-  // SAFETY: the caller established that `value` matches `To` at runtime;
-  // TypeScript cannot prove the two types overlap.
-  return value as To;
+export function overlapCast<From, To>(value: From): To {
+  // Call sites must omit type arguments — Vite/esbuild 0.28 cannot parse
+  // overlapCast<T>(value).
+  // SAFETY: the caller established the runtime overlap; From & To is the
+  // typed witness TypeScript will accept without a chained unknown assertion.
+  return value as From & To;
 }
 
 export function isString(value: BoundaryValue): value is string {
