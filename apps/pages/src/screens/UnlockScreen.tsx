@@ -1,4 +1,11 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   IconEye,
   IconEyeOff,
@@ -116,6 +123,17 @@ export function UnlockScreen() {
 
   const lockedFor = useCountdown(lockedOutUntil);
   const passkeyAttempted = useRef(false);
+  const passkeyAbort = useRef<AbortController | null>(null);
+
+  // Switching methods (or leaving the passkey tab) must cancel any pending
+  // platform prompt — a blocking WebAuthn request must never hold the other
+  // unlock modes hostage.
+  const cancelPasskeyCeremony = useCallback(() => {
+    if (!passkeyAbort.current) return;
+    passkeyAbort.current.abort();
+    passkeyAbort.current = null;
+    setBusy(false);
+  }, []);
 
   useEffect(() => {
     if (awaitingTotp) {
@@ -143,20 +161,28 @@ export function UnlockScreen() {
       return;
     }
     passkeyAttempted.current = true;
-    let cancelled = false;
+    const controller = new AbortController();
+    passkeyAbort.current = controller;
     setBusy(true);
     setError(null);
     void store
-      .unlockWithPasskey()
+      .unlockWithPasskey(controller.signal)
       .catch((caught) => {
-        if (cancelled) return;
+        if (caught instanceof DOMException && caught.name === "AbortError") {
+          return;
+        }
         setError(describeWebauthnError(caught));
       })
       .finally(() => {
-        if (!cancelled) setBusy(false);
+        // Only the still-current ceremony clears busy — a newer one may
+        // already have taken over.
+        if (passkeyAbort.current === controller) {
+          passkeyAbort.current = null;
+          setBusy(false);
+        }
       });
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [firstRun, awaitingTotp, activeMethod, lockedFor, store]);
 
@@ -174,7 +200,13 @@ export function UnlockScreen() {
         await store.confirmTotp(totp);
         setTotp("");
       } else if (activeMethod === "passkey") {
-        await store.unlockWithPasskey();
+        const controller = new AbortController();
+        passkeyAbort.current = controller;
+        try {
+          await store.unlockWithPasskey(controller.signal);
+        } finally {
+          if (passkeyAbort.current === controller) passkeyAbort.current = null;
+        }
       } else if (activeMethod === "pin") {
         await store.unlockWithPin(pin);
         setPin("");
@@ -184,6 +216,10 @@ export function UnlockScreen() {
       }
       setConfirm("");
     } catch (caught) {
+      // A passkey abort comes from the user switching methods — not an error.
+      if (caught instanceof DOMException && caught.name === "AbortError") {
+        return;
+      }
       setError(
         activeMethod === "passkey" ||
           (caught instanceof Error &&
@@ -257,8 +293,12 @@ export function UnlockScreen() {
                       ? "unlock__method unlock__method--active"
                       : "unlock__method"
                   }
-                  disabled={busy || lockedFor > 0}
+                  // Not gated on `busy`: switching methods is exactly how you
+                  // escape a blocking passkey prompt, so the tabs must stay
+                  // live while a ceremony is pending.
+                  disabled={lockedFor > 0}
                   onClick={() => {
+                    cancelPasskeyCeremony();
                     setMethod(id);
                     setError(null);
                   }}

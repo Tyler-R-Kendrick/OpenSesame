@@ -283,6 +283,19 @@ describe("App health and sealed store", () => {
     );
   });
 
+  it("treats a health-check network failure as down, not stuck on Checking", async () => {
+    mocks.health.mockRejectedValue(new TypeError("Failed to fetch"));
+    await renderApp();
+    expect(statusItem("Host API").className).toBe("is-down");
+    expect(statusItem("Host API").textContent).toContain("down");
+    expect(statusItem("Daemon").textContent).toContain(
+      "unavailable (optional)",
+    );
+    expect(container.querySelector("output.hint")?.textContent).toContain(
+      "Host API is unreachable",
+    );
+  });
+
   it("surfaces host client misconfiguration errors", async () => {
     mocks.createApiClient.mockImplementation(() => {
       throw new Error("invalid baseUrl");

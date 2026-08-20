@@ -409,6 +409,32 @@ describe("passkey ceremonies", () => {
     expect(seenRpId).toBe("localhost");
   });
 
+  it("forwards an abort signal and rethrows AbortError unwrapped", async () => {
+    let seenSignal: AbortSignal | undefined;
+    stubCredentials({
+      get: async (options) => {
+        seenSignal = (options as { signal?: AbortSignal }).signal;
+        throw new DOMException("The operation was aborted.", "AbortError");
+      },
+    });
+    const record = {
+      credentialIdB64: "YQ==",
+      userIdB64: "YQ==",
+      prfSaltB64: "YQ==",
+      wrap: { ivB64: "YQ==", ctB64: "YQ==" },
+    };
+    const controller = new AbortController();
+    const failure = await getPasskeyUnlockCeremony(
+      record,
+      "localhost",
+      controller.signal,
+    ).catch((error: unknown) => error);
+    expect(seenSignal).toBe(controller.signal);
+    // Deliberate cancels must stay distinguishable from ceremony failures.
+    expect(failure).toBeInstanceOf(DOMException);
+    expect((failure as DOMException).name).toBe("AbortError");
+  });
+
   it("maps unlock ceremony failures the same way", async () => {
     const record = {
       credentialIdB64: "YQ==",

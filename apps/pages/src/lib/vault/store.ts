@@ -456,7 +456,7 @@ export class VaultStore {
     await this.#afterPrimaryUnwrap(vaultKey);
   }
 
-  async unlockWithPasskey(): Promise<void> {
+  async unlockWithPasskey(signal?: AbortSignal): Promise<void> {
     this.#assertNotLockedOut();
     if (!this.#header) throw new Error("There is no vault on this device yet.");
     const record = this.#header.unlocks?.passkey;
@@ -464,8 +464,15 @@ export class VaultStore {
 
     let prfOutput: ArrayBuffer;
     try {
-      prfOutput = await getPasskeyUnlockCeremony(record, webauthnRpId());
+      prfOutput = await getPasskeyUnlockCeremony(
+        record,
+        webauthnRpId(),
+        signal,
+      );
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw error;
+      }
       throw error instanceof Error
         ? error
         : new Error("Passkey unlock failed.");

@@ -411,6 +411,55 @@ describe("UnlockScreen — passkey unlock", () => {
       expect(v.store.unlockWithPasskey).toHaveBeenCalledTimes(2),
     );
   });
+
+  it("switching methods cancels a blocking passkey prompt and frees the form", async () => {
+    v.store.unlockWithPasskey.mockImplementation(
+      (signal?: AbortSignal) =>
+        new Promise((_, reject) => {
+          signal?.addEventListener("abort", () =>
+            reject(
+              new DOMException("The operation was aborted.", "AbortError"),
+            ),
+          );
+        }),
+    );
+    render(<UnlockScreen />);
+    await waitFor(() =>
+      expect(v.store.unlockWithPasskey).toHaveBeenCalledTimes(1),
+    );
+    // The prompt is pending ("blocking") — the Password tab must still be live.
+    const passwordTab = screen.getByRole("tab", {
+      name: /Password/,
+    }) as HTMLButtonElement;
+    expect(passwordTab.disabled).toBe(false);
+    fireEvent.click(passwordTab);
+    // The ceremony was aborted, no error surfaced, and the password form works.
+    await waitFor(() => expect(masterInput().disabled).toBe(false));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(submitButton().textContent).toContain("Unlock");
+    fireEvent.change(masterInput(), { target: { value: "hunter2" } });
+    expect(submitButton().disabled).toBe(false);
+  });
+
+  it("a cancelled passkey prompt never surfaces as an error", async () => {
+    v.store.unlockWithPasskey.mockImplementation(
+      (signal?: AbortSignal) =>
+        new Promise((_, reject) => {
+          signal?.addEventListener("abort", () =>
+            reject(
+              new DOMException("The operation was aborted.", "AbortError"),
+            ),
+          );
+        }),
+    );
+    render(<UnlockScreen />);
+    await waitFor(() =>
+      expect(v.store.unlockWithPasskey).toHaveBeenCalledTimes(1),
+    );
+    fireEvent.click(screen.getByRole("tab", { name: /Password/ }));
+    await waitFor(() => expect(masterInput().disabled).toBe(false));
+    expect(screen.queryByText(/^webauthn:/)).toBeNull();
+  });
 });
 
 describe("UnlockScreen — TOTP step-up", () => {

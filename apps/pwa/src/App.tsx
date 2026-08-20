@@ -88,39 +88,44 @@ export function App() {
       setHostOk(h.ok);
       const d = await client.probeDaemon();
       setDaemonOk(d.available);
-
-      const existing = await loadSealedStore(cursor.deviceId);
-      const sealed =
-        existing ??
-        JSON.stringify({
-          cursor: { device_id: cursor.deviceId, epoch: cursor.epoch },
-          blobs: [],
-        });
-      try {
-        assertNoPlaintextInSealedJson(sealed);
-        await persistSealedStore(cursor.deviceId, sealed);
-        setPersistOk("Sealed local store ready");
-        setPersistErr(false);
-        if (existing) {
-          // Validated by the sealed-store schema, not by hand: this device id ends
-          // up as a file name and as the identity this client syncs under.
-          const parsed = parseSealedStore(existing);
-          if (parsed) {
-            setCursor({
-              deviceId: parsed.cursor.device_id,
-              epoch: parsed.cursor.epoch,
-            });
-          }
-        }
-      } catch (e) {
-        setPersistErr(true);
-        setPersistOk(
-          e instanceof Error ? e.message : "Could not prepare local store",
-        );
-      }
-    } finally {
+    } catch {
+      // A network/CORS failure means unreachable, not "up": surface it instead
+      // of leaking an unhandled rejection and sticking on "Checking…".
+      setHostOk(false);
+      setDaemonOk(false);
       setBusy(false);
+      return;
     }
+    const existing = await loadSealedStore(cursor.deviceId);
+    const sealed =
+      existing ??
+      JSON.stringify({
+        cursor: { device_id: cursor.deviceId, epoch: cursor.epoch },
+        blobs: [],
+      });
+    try {
+      assertNoPlaintextInSealedJson(sealed);
+      await persistSealedStore(cursor.deviceId, sealed);
+      setPersistOk("Sealed local store ready");
+      setPersistErr(false);
+      if (existing) {
+        // Validated by the sealed-store schema, not by hand: this device id ends
+        // up as a file name and as the identity this client syncs under.
+        const parsed = parseSealedStore(existing);
+        if (parsed) {
+          setCursor({
+            deviceId: parsed.cursor.device_id,
+            epoch: parsed.cursor.epoch,
+          });
+        }
+      }
+    } catch (e) {
+      setPersistErr(true);
+      setPersistOk(
+        e instanceof Error ? e.message : "Could not prepare local store",
+      );
+    }
+    setBusy(false);
   }, [cursor.deviceId, cursor.epoch]);
 
   useEffect(() => {

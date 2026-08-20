@@ -134,4 +134,24 @@ describe("VaultStore passkey unlock", () => {
       /Passkey unlock failed/,
     );
   });
+
+  it("rethrows a deliberate abort unwrapped and counts no failed attempt", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.enrollPasskey();
+    store.lock();
+
+    ceremony.failGet = new DOMException(
+      "The operation was aborted.",
+      "AbortError",
+    );
+    const reopened = new VaultStore();
+    const failure = await reopened
+      .unlockWithPasskey(new AbortController().signal)
+      .catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(DOMException);
+    expect((failure as DOMException).name).toBe("AbortError");
+    // Switching methods mid-ceremony is not a wrong credential.
+    expect(reopened.getSnapshot().failedAttempts).toBe(0);
+  });
 });
