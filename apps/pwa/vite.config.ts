@@ -7,6 +7,10 @@ export default defineConfig({
     // legacy browser set (see apps/pages); this PWA targets modern browsers.
     target: ["es2022", "chrome100", "firefox100", "safari15"],
   },
+  // Dependency pre-bundling in dev has its own target and hits the same
+  // esbuild limitation (zod destructuring) as the build target above.
+  esbuild: { target: "es2022" },
+  optimizeDeps: { esbuildOptions: { target: "es2022" } },
   plugins: [react()],
   server: { port: 5176 },
 });

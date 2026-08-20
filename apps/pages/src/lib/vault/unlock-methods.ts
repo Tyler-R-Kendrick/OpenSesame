@@ -483,6 +483,7 @@ export async function createPasskeyUnlockCeremony(
 export async function getPasskeyUnlockCeremony(
   record: PasskeyUnlockRecord,
   rpId: string = webauthnRpId(),
+  signal?: AbortSignal,
 ): Promise<ArrayBuffer> {
   if (typeof PublicKeyCredential === "undefined") {
     throw new Error("This browser cannot use a passkey.");
@@ -507,8 +508,16 @@ export async function getPasskeyUnlockCeremony(
           prf: { eval: { first: prfSalt } },
         } as AuthenticationExtensionsClientInputs,
       },
+      // Lets the UI cancel a pending platform prompt (e.g. switching to the
+      // password/PIN tab) instead of being held hostage by it.
+      signal,
     })) as PublicKeyCredential | null;
   } catch (error) {
+    // A deliberate abort must stay distinguishable from a real ceremony
+    // failure, so callers can swallow it without showing an error.
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw error;
+    }
     throw new Error(describeWebauthnError(error));
   }
   if (!credential) throw new Error("Passkey unlock was cancelled.");
