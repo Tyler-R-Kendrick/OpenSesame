@@ -274,12 +274,26 @@ export function ConnectThisMachine({
               Found on your tailnet
             </p>
             <p className="found__name">{found.via}</p>
-            <dl>
-              <dt>Host it fronts</dt>
-              <dd>{found.health.hostApi}</dd>
-              <dt>Identity it fronts</dt>
-              <dd>{found.health.identityApi}</dd>
-            </dl>
+            {/* /health is deliberately opaque, so a daemon usually does not
+                state its upstreams. Showing a placeholder for them would be
+                asserting ports nobody mentioned — the pairing result below
+                reports what was actually written instead. */}
+            {found.health.hostApi || found.health.identityApi ? (
+              <dl>
+                {found.health.hostApi ? (
+                  <>
+                    <dt>Host it fronts</dt>
+                    <dd>{found.health.hostApi}</dd>
+                  </>
+                ) : null}
+                {found.health.identityApi ? (
+                  <>
+                    <dt>Identity it fronts</dt>
+                    <dd>{found.health.identityApi}</dd>
+                  </>
+                ) : null}
+              </dl>
+            ) : null}
             <div className="actions">
               <button
                 type="button"
