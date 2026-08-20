@@ -1,12 +1,25 @@
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
+const osDomainBrowser = fileURLToPath(
+  new URL("../../packages/os-domain/src/browser.ts", import.meta.url),
+);
 
 export default defineConfig({
   base,
   define: { "process.env.NODE_DEBUG_NATIVE": "false" },
+  resolve: {
+    alias: {
+      "@opensesame/os-domain": osDomainBrowser,
+    },
+  },
+  optimizeDeps: {
+    exclude: ["@opensesame/os-domain"],
+    esbuildOptions: { target: "es2022" },
+  },
   server: {
     headers: {
       "Cross-Origin-Embedder-Policy": "require-corp",
@@ -20,7 +33,6 @@ export default defineConfig({
   },
   // Dependency pre-bundling in dev has its own target and hits the same limitation.
   esbuild: { target: "es2022" },
-  optimizeDeps: { esbuildOptions: { target: "es2022" } },
   plugins: [
     react(),
     VitePWA({

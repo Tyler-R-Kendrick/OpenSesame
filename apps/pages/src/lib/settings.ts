@@ -63,6 +63,13 @@ const runtimeMfaAppUrl = import.meta.env.VITE_MFA_APP_URL?.trim();
 
 const listeners = new Set<() => void>();
 
+/** Bumped on every write so a component can re-render for a changed base URL. */
+let epoch = 0;
+
+export function settingsEpoch(): number {
+  return epoch;
+}
+
 /** True when this tab is served from the same machine it can reach on loopback. */
 function pageIsLoopbackDefault(hostname?: string): boolean {
   const host =
@@ -155,6 +162,7 @@ function loadSettingsDefault(): PagesSettings {
 }
 
 function emitSettings(): void {
+  epoch += 1;
   for (const listener of listeners) listener();
 }
 

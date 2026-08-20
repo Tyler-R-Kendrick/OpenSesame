@@ -2,7 +2,13 @@ import { randomBytes } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
 import { parseOriginClientId } from "@opensesame/oauth-provider";
-import { Principal, ProvisionalSession, overlapCast, type BoundaryValue, isString } from "@opensesame/os-domain";
+import {
+  overlapCast,
+  isString,
+  type BoundaryValue,
+  type Principal,
+  type ProvisionalSession,
+} from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import { ensurePersonalOrganization } from "../routes/organizations.js";
 import {
