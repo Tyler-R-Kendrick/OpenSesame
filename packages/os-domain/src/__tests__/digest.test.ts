@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { canonicalize, digestManifest, sha256Hex } from "../index.js";
+import {
+  canonicalize,
+  digestManifest,
+  sha256Hex,
+  type BoundaryValue,
+} from "../index.js";
 
 describe("canonicalize", () => {
   it("sorts object keys recursively", () => {
@@ -21,7 +26,7 @@ describe("canonicalize", () => {
   });
 
   it("serializes Maps with keys sorted by string form", () => {
-    const map = new Map<unknown, unknown>([
+    const map = new Map<PropertyKey, BoundaryValue>([
       [10, "ten"],
       ["b", { z: 1, y: 2 }],
       ["a", null],

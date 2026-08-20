@@ -29,7 +29,7 @@ describe("json boundary helpers", () => {
     expect(isFunction(() => 1)).toBe(true);
     expect(isUndefined(undefined)).toBe(true);
     const raw = { id: "1" };
-    const named = overlapCast(raw);
+    const named: JsonObject = overlapCast(raw);
     expect(named.id).toBe("1");
   });
 });

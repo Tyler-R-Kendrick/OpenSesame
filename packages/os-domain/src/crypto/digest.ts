@@ -4,16 +4,16 @@ import {
   isString,
   isTypeofObject,
   overlapCast,
-  type BoundaryObject,
   type BoundaryValue,
+  type Jsonable,
   type JsonObject,
+  type MutableBoundaryObject,
 } from "../json.js";
-
-type Jsonable = { toJSON: () => BoundaryValue };
 
 function isJsonable(value: BoundaryValue): value is Jsonable {
   if (!isTypeofObject(value) || value === null) return false;
-  return isFunction(overlapCast(value).toJSON);
+  const candidate: Jsonable = overlapCast(value);
+  return isFunction(candidate.toJSON);
 }
 
 /**
@@ -32,7 +32,7 @@ function sortKeys(value: BoundaryValue): BoundaryValue {
     return value.toISOString();
   }
   if (value instanceof Map) {
-    const out = {};
+    const out: MutableBoundaryObject = {};
     const entries = [...value.entries()].sort(([a], [b]) =>
       String(a).localeCompare(String(b)),
     );
@@ -48,8 +48,8 @@ function sortKeys(value: BoundaryValue): BoundaryValue {
   if (proto !== Object.prototype && proto !== null && isJsonable(value)) {
     return sortKeys(value.toJSON());
   }
-  const obj = overlapCast(value);
-  const out = {};
+  const obj: MutableBoundaryObject = overlapCast(value);
+  const out: MutableBoundaryObject = {};
   for (const key of Object.keys(obj).sort()) {
     out[key] = sortKeys(obj[key]);
   }
