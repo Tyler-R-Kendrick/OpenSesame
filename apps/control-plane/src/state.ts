@@ -1,4 +1,10 @@
 import {
+  type ClientClaimChallengeStore,
+  type ClientOriginStore,
+  createMemoryClientClaimChallengeStore,
+  createMemoryClientOriginStore,
+} from "@opensesame/database";
+import {
   type ClientRecordStore,
   MemoryClientRecordStore,
 } from "@opensesame/oauth-provider";
@@ -42,6 +48,10 @@ export interface AppStores {
    * clients from (ADR 0050 R-C), never a process-local copy.
    */
   oauthClients: ClientRecordStore;
+  /** F5 well-known claim challenges (single-use, short TTL). */
+  clientClaimChallenges: ClientClaimChallengeStore;
+  /** Verified origin aliases attached to claimed applications. */
+  clientOrigins: ClientOriginStore;
   agents: Map<string, Agent>;
   agentInstances: Map<string, AgentInstance>;
   /** principalId → usage counters */
@@ -69,6 +79,8 @@ export interface AppStores {
 
 export function createAppStores(options?: {
   oauthClients?: ClientRecordStore;
+  clientClaimChallenges?: ClientClaimChallengeStore;
+  clientOrigins?: ClientOriginStore;
 }): AppStores {
   return {
     provisionalSessions: new Map(),
@@ -82,6 +94,9 @@ export function createAppStores(options?: {
     organizationMembershipMutations: new Map(),
     organizationSlugs: new Map(),
     oauthClients: options?.oauthClients ?? new MemoryClientRecordStore(),
+    clientClaimChallenges:
+      options?.clientClaimChallenges ?? createMemoryClientClaimChallengeStore(),
+    clientOrigins: options?.clientOrigins ?? createMemoryClientOriginStore(),
     agents: new Map(),
     agentInstances: new Map(),
     usage: new Map(),

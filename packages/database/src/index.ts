@@ -25,11 +25,18 @@ export {
   type PairwiseSubjectStore,
 } from "./pairwise-store.js";
 export {
+  ClientOriginConflictError,
+  createMemoryClientClaimChallengeStore,
+  createMemoryClientOriginStore,
   createPostgresClientClaimChallengeStore,
+  createPostgresClientOriginStore,
   createPostgresClientRecordStore,
   type ClientAdmissionMode,
   type ClientClaimChallengeRecord,
   type ClientClaimChallengeStore,
+  type ClientOriginRecord,
+  type ClientOriginStatus,
+  type ClientOriginStore,
   type ClientRecordStore,
   type ClientState,
   type OAuthClientRecord,

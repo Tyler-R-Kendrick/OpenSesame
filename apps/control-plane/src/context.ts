@@ -27,4 +27,15 @@ export interface AppContext {
   ready: boolean;
   passkeys: PasskeySeam;
   passkeyChallenges: PasskeyChallengeStore;
+  /**
+   * Deployment/system principal that owns auto-admitted origin clients until
+   * an F5 claim transfers ownership (ADR 0050 R-A).
+   */
+  systemOwnerPrincipalId: string;
+  /**
+   * Resolves once the system owner principal row exists. Awaited before the
+   * server accepts traffic so the `owner_principal_id` FK never dangles on
+   * the first auto-admission.
+   */
+  systemPrincipalReady: Promise<void>;
 }

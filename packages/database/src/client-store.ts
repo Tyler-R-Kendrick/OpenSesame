@@ -86,6 +86,44 @@ export interface ClientClaimChallengeStore {
   ): Promise<ClientClaimChallengeRecord | undefined>;
 }
 
+export type ClientOriginStatus = "active" | "revoked" | "pending";
+
+export interface ClientOriginRecord {
+  id: string;
+  applicationId: string;
+  canonicalOrigin: string;
+  publicClientId: string;
+  verificationMethod?: string;
+  status: ClientOriginStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** The alias origin is already attached to a different application. */
+export class ClientOriginConflictError extends Error {
+  override readonly name = "ClientOriginConflictError";
+  // biome-ignore lint/complexity/noUselessConstructor: Error needs the message passed to super.
+  constructor(message: string) {
+    super(message);
+  }
+}
+
+export interface ClientOriginStore {
+  /**
+   * Attach a verified alias origin to an application. Re-attaching the same
+   * origin to the same application is idempotent (returns the existing row);
+   * an origin already attached to a *different* application is a conflict —
+   * one origin must never fan out to two pairwise sectors.
+   */
+  insert(
+    origin: Omit<ClientOriginRecord, "createdAt" | "updatedAt">,
+  ): Promise<ClientOriginRecord>;
+  findByOrigin(
+    canonicalOrigin: string,
+  ): Promise<ClientOriginRecord | undefined>;
+  listByApplication(applicationId: string): Promise<ClientOriginRecord[]>;
+}
+
 type OAuthClientRow = typeof schema.oauthClients.$inferSelect;
 type ClientClaimChallengeRow = typeof schema.clientClaimChallenges.$inferSelect;
 
@@ -338,6 +376,153 @@ export function createPostgresClientClaimChallengeStore(
         )
         .returning();
       return row ? mapChallengeRow(row) : undefined;
+    },
+  };
+}
+
+type ClientOriginRow = typeof schema.clientOrigins.$inferSelect;
+
+function mapOriginRow(row: ClientOriginRow): ClientOriginRecord {
+  const record: ClientOriginRecord = {
+    id: row.id,
+    applicationId: row.applicationId,
+    canonicalOrigin: row.canonicalOrigin,
+    publicClientId: row.publicClientId,
+    status: row.status as ClientOriginStatus,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+  if (row.verificationMethod) {
+    record.verificationMethod = row.verificationMethod;
+  }
+  return record;
+}
+
+/**
+ * Postgres verified-origin-alias store (F5 `client_origins`). Alias attach is
+ * idempotent per application and conflicting across applications; the unique
+ * index on `canonical_origin` decides races, and the loser is judged by who
+ * the persisted row points to.
+ */
+export function createPostgresClientOriginStore(
+  db: Database,
+): ClientOriginStore {
+  const findByOrigin = async (canonicalOrigin: string) => {
+    const [row] = await db
+      .select()
+      .from(schema.clientOrigins)
+      .where(eq(schema.clientOrigins.canonicalOrigin, canonicalOrigin))
+      .limit(1);
+    return row ? mapOriginRow(row) : undefined;
+  };
+
+  return {
+    findByOrigin,
+
+    async insert(origin) {
+      const now = new Date();
+      try {
+        const [row] = await db
+          .insert(schema.clientOrigins)
+          .values({
+            id: origin.id,
+            applicationId: origin.applicationId,
+            canonicalOrigin: origin.canonicalOrigin,
+            publicClientId: origin.publicClientId,
+            verificationMethod: origin.verificationMethod ?? null,
+            status: origin.status,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .returning();
+        if (!row) {
+          throw new Error("insert client origin returned no row");
+        }
+        return mapOriginRow(row);
+      } catch (err) {
+        if (!isUniqueViolation(err)) {
+          throw err;
+        }
+        const existing = await findByOrigin(origin.canonicalOrigin);
+        if (existing && existing.applicationId === origin.applicationId) {
+          return existing;
+        }
+        throw new ClientOriginConflictError(
+          `Origin ${origin.canonicalOrigin} is already attached to another application`,
+        );
+      }
+    },
+
+    async listByApplication(applicationId) {
+      const rows = await db
+        .select()
+        .from(schema.clientOrigins)
+        .where(eq(schema.clientOrigins.applicationId, applicationId));
+      return rows.map(mapOriginRow);
+    },
+  };
+}
+
+/**
+ * In-memory claim-challenge store — tests/dev counterpart of the Postgres
+ * store above. `consume` keeps the same single-use contract: no awaits
+ * between the check and the stamp, so run-to-completion makes it atomic.
+ */
+export function createMemoryClientClaimChallengeStore(): ClientClaimChallengeStore {
+  const byChallenge = new Map<string, ClientClaimChallengeRecord>();
+  return {
+    async insert(challenge) {
+      const record: ClientClaimChallengeRecord = {
+        ...challenge,
+        createdAt: new Date(),
+      };
+      byChallenge.set(record.challenge, record);
+      return record;
+    },
+    async findByChallenge(challenge) {
+      return byChallenge.get(challenge);
+    },
+    async consume(challenge, at) {
+      const record = byChallenge.get(challenge);
+      if (!record || record.consumedAt || record.expiresAt <= at) {
+        return undefined;
+      }
+      record.consumedAt = at;
+      return record;
+    },
+  };
+}
+
+/** In-memory verified-origin-alias store (tests/dev). */
+export function createMemoryClientOriginStore(): ClientOriginStore {
+  const byOrigin = new Map<string, ClientOriginRecord>();
+  return {
+    async insert(origin) {
+      const existing = byOrigin.get(origin.canonicalOrigin);
+      if (existing) {
+        if (existing.applicationId === origin.applicationId) {
+          return existing;
+        }
+        throw new ClientOriginConflictError(
+          `Origin ${origin.canonicalOrigin} is already attached to another application`,
+        );
+      }
+      const now = new Date();
+      const record: ClientOriginRecord = {
+        ...origin,
+        createdAt: now,
+        updatedAt: now,
+      };
+      byOrigin.set(record.canonicalOrigin, record);
+      return record;
+    },
+    async findByOrigin(canonicalOrigin) {
+      return byOrigin.get(canonicalOrigin);
+    },
+    async listByApplication(applicationId) {
+      return [...byOrigin.values()].filter(
+        (record) => record.applicationId === applicationId,
+      );
     },
   };
 }

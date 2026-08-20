@@ -7,6 +7,7 @@ import { authMiddleware } from "./middleware/auth.js";
 import { type Variables, withContext } from "./middleware/context.js";
 import { apiSecurityHeaders } from "./middleware/security-headers.js";
 import { agentRoutes } from "./routes/agents.js";
+import { appClaimRoutes } from "./routes/app-claims.js";
 import { auditRoutes } from "./routes/audit.js";
 import { authorizationRequestRoutes } from "./routes/authorization-requests.js";
 import { claimRoutes } from "./routes/claims.js";
@@ -16,6 +17,7 @@ import { healthRoutes } from "./routes/health.js";
 import { mfaRoutes } from "./routes/mfa.js";
 import { oauthClientRoutes } from "./routes/oauth-clients.js";
 import { organizationRoutes } from "./routes/organizations.js";
+import { originClientAdminRoutes } from "./routes/origin-clients-admin.js";
 import { principalRoutes } from "./routes/principals.js";
 import { projectRoutes } from "./routes/projects.js";
 
@@ -70,6 +72,8 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/v1/device", deviceRoutes);
   app.route("/v1/organizations", organizationRoutes);
   app.route("/v1/oauth/clients", oauthClientRoutes);
+  app.route("/v1/oauth/applications", appClaimRoutes);
+  app.route("/v1/oauth/admin/clients", originClientAdminRoutes);
   app.route("/v1/audit", auditRoutes);
   app.route("/", discoveryRoutes);
 

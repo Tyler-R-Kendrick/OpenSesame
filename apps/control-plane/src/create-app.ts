@@ -7,7 +7,11 @@ import {
 } from "@opensesame/auth-upstream";
 import { ClaimEngine } from "@opensesame/claims";
 import {
+  ConflictError,
+  type Repositories,
   createDrizzle,
+  createPostgresClientClaimChallengeStore,
+  createPostgresClientOriginStore,
   createPostgresClientRecordStore,
   createPostgresOidcStore,
   createPostgresPairwiseStore,
@@ -36,6 +40,43 @@ export interface CreateControlPlaneOptions {
   clock?: Clock;
   ready?: boolean;
   processEnv?: NodeJS.ProcessEnv;
+}
+
+/**
+ * The deployment/system principal (ADR 0050 R-A). Auto-admitted origin
+ * clients are born owned by this principal, so every client has an owner and
+ * owner-fenced reads keep answering 404 to everyone else (no oracle); the F5
+ * claim flow transfers ownership to the claiming verified principal. The id
+ * is fixed so the row is ensured idempotently across restarts and replicas.
+ */
+export const SYSTEM_OWNER_PRINCIPAL_ID = "prn_opensesame_system";
+
+/**
+ * Ensure the deployment/system principal row exists (idempotent). The
+ * `oauth_clients.owner_principal_id` FK makes this a precondition for
+ * auto-admitting an owned origin client against Postgres.
+ */
+export async function ensureSystemOwnerPrincipal(
+  repos: Repositories,
+  clock: Clock,
+): Promise<void> {
+  const existing = await repos.principals.getById(SYSTEM_OWNER_PRINCIPAL_ID);
+  if (existing) return;
+  const now = clock();
+  try {
+    await repos.principals.create({
+      id: SYSTEM_OWNER_PRINCIPAL_ID,
+      state: "active",
+      assurance: "verified",
+      createdAt: now,
+      updatedAt: now,
+      verifiedAt: now,
+      version: 1,
+    });
+  } catch (error) {
+    // A concurrent replica created it first — that is the desired end state.
+    if (!(error instanceof ConflictError)) throw error;
+  }
 }
 
 function rpIdFromUrl(url: string): string {
@@ -108,10 +149,25 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const clientStore = drizzleBundle
     ? createPostgresClientRecordStore(drizzleBundle.db)
     : new MemoryClientRecordStore();
+  const clientClaimChallengeStore = drizzleBundle
+    ? createPostgresClientClaimChallengeStore(drizzleBundle.db)
+    : undefined;
+  const clientOriginStore = drizzleBundle
+    ? createPostgresClientOriginStore(drizzleBundle.db)
+    : undefined;
+  // The system owner principal must exist before the first auto-admission
+  // writes owner_principal_id (a FK against Postgres). createControlPlane is
+  // synchronous, so the promise travels on the context and the server awaits
+  // it before accepting traffic.
+  const systemPrincipalReady = ensureSystemOwnerPrincipal(repos, clock);
+  systemPrincipalReady.catch((error) => {
+    log.error({ err: error }, "failed to ensure system owner principal");
+  });
   const oauth = createOpenSesameProvider({
     issuer: config.issuer,
     processEnv: options.processEnv ?? process.env,
     clientStore,
+    systemOwnerPrincipalId: SYSTEM_OWNER_PRINCIPAL_ID,
     ...(oidcStore && pairwiseStore
       ? {
           adapter: createPostgresAdapterConstructor(oidcStore),
@@ -121,7 +177,13 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   });
   const mappings = new MemoryPrincipalMappingStore();
   const policy = new ProvisionalPolicy();
-  const stores = createAppStores({ oauthClients: clientStore });
+  const stores = createAppStores({
+    oauthClients: clientStore,
+    ...(clientClaimChallengeStore
+      ? { clientClaimChallenges: clientClaimChallengeStore }
+      : {}),
+    ...(clientOriginStore ? { clientOrigins: clientOriginStore } : {}),
+  });
   const passkeyChallenges = createMemoryChallengeStore();
   const rp = {
     rpID: rpIdFromUrl(config.publicUrl),
@@ -149,6 +211,8 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     ready: options.ready ?? true,
     passkeys,
     passkeyChallenges,
+    systemOwnerPrincipalId: SYSTEM_OWNER_PRINCIPAL_ID,
+    systemPrincipalReady,
   };
 
   const app = createHonoApp(ctx);
