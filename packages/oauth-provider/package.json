@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./origin/canonical": {
+      "types": "./src/origin/canonical.ts",
+      "default": "./src/origin/canonical.ts"
     }
   },
   "files": ["dist", "src"],

@@ -73,6 +73,9 @@ describe("package exports", () => {
     expect(typeof sdk.sha256Base64Url).toBe("function");
     expect(typeof sdk.base64UrlEncode).toBe("function");
     expect(typeof sdk.ClaimRequestError).toBe("function");
+    expect(typeof sdk.canonicalizeBrowserOrigin).toBe("function");
+    expect(typeof sdk.originProfileClientId).toBe("function");
+    expect(typeof sdk.assertSafeReturnTo).toBe("function");
   });
 });
 
@@ -334,10 +337,12 @@ describe("signIn", () => {
     });
     await sesame.signIn();
     const url = new URL(assigned[0] as string);
-    expect(url.searchParams.get("client_id")).toBe("opensesame-browser");
-    expect(url.searchParams.get("scope")).toBe("openid profile");
+    expect(url.searchParams.get("client_id")).toBe(
+      "origin:http://127.0.0.1:5174",
+    );
+    expect(url.searchParams.get("scope")).toBe("openid");
     expect(url.searchParams.get("redirect_uri")).toBe(
-      "http://127.0.0.1/callback",
+      "http://127.0.0.1:5174/opensesame/callback",
     );
     expect(url.searchParams.has("kc_idp_hint")).toBe(false);
   });
@@ -399,6 +404,7 @@ describe("handleRedirectCallback", () => {
     );
     const sesame = createOpenSesame({
       issuer: ISSUER,
+      clientId: "opensesame-browser",
       storage,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       windowLocation: loc,
@@ -470,6 +476,7 @@ describe("handleRedirectCallback", () => {
     });
     const sesame = createOpenSesame({
       issuer: ISSUER,
+      clientId: "opensesame-browser",
       storage,
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
@@ -504,6 +511,7 @@ describe("id_token handling", () => {
     );
     const sesame = createOpenSesame({
       issuer: ISSUER,
+      clientId: "opensesame-browser",
       storage,
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
@@ -608,6 +616,7 @@ describe("session persistence", () => {
     );
     const sesame = createOpenSesame({
       issuer: ISSUER,
+      clientId: "opensesame-browser",
       storage,
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });

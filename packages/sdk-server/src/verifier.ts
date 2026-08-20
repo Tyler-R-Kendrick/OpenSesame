@@ -5,6 +5,8 @@ import {
   createRemoteJWKSet,
   jwtVerify,
 } from "jose";
+import { AuthorizationError } from "./errors.js";
+import { hasRequiredScopes, trimSlash } from "./jwt-utils.js";
 
 export interface VerifiedIdentity {
   sub: string;
@@ -173,47 +175,29 @@ export interface OpenSesameVerifier {
   verifyAccessToken(token: string): Promise<VerifiedIdentity>;
 }
 
-function trimSlash(url: string): string {
-  return url.replace(/\/+$/u, "");
+export interface JwksKeySourceConfig {
+  issuer: string;
+  jwksUri?: string;
+  jwks?: { keys: unknown[] };
+  fetchImpl?: typeof fetch;
 }
 
-function asAudienceList(aud: string | string[]): string[] {
-  return Array.isArray(aud) ? aud : [aud];
-}
-
-function hasRequiredScopes(
-  scope: string | undefined,
-  required: string[],
-): boolean {
-  if (required.length === 0) return true;
-  const have = new Set((scope ?? "").split(/\s+/u).filter(Boolean));
-  return required.every((s) => have.has(s));
-}
-
-export function createOpenSesameVerifier(
-  config: OpenSesameVerifierConfig,
-): OpenSesameVerifier {
+/**
+ * Shared JWKS resolution for access-token and ID-token verification.
+ * Operator-configured URIs are fenced at construction; discovered URIs use
+ * `assertDiscoveredJwksUri` so a remote issuer cannot aim the key fetch at
+ * private space.
+ */
+export function createJwksKeySource(
+  config: JwksKeySourceConfig,
+): () => Promise<JWTVerifyGetKey> {
   const issuer = trimSlash(config.issuer);
-  const audiences = asAudienceList(config.audience);
-  const defaultAudience = audiences[0];
-  if (!defaultAudience) throw new Error("audience must not be empty");
   assertSecureUrl(issuer, "issuer");
-  const algorithms = config.algorithms ?? [...DEFAULT_ALLOWED_ALGORITHMS];
-  // An explicit JWKS URI is checked while the verifier is being built, not on the
-  // first request: a misconfigured resource server should fail to start.
   const configuredJwksUri =
     config.jwksUri === undefined
       ? undefined
       : assertSecureUrl(config.jwksUri, "jwksUri");
 
-  /**
-   * Where this issuer says its keys are.
-   *
-   * Guessing `{issuer}/jwks` is right for this deployment and wrong in general:
-   * an issuer names its own key set in its discovery document. The document is
-   * only believed if it names the issuer we were configured with, and the URI it
-   * gives must still arrive over a channel nobody can rewrite.
-   */
   async function discoverJwksUri(): Promise<URL> {
     const issuerUrl = new URL(issuer);
     const fetchImpl = config.fetchImpl ?? globalThis.fetch;
@@ -239,7 +223,7 @@ export function createOpenSesameVerifier(
 
   let remoteKeys: JWTVerifyGetKey | undefined;
   let pending: Promise<JWTVerifyGetKey> | undefined;
-  async function keySource(): Promise<JWTVerifyGetKey> {
+  return async function keySource(): Promise<JWTVerifyGetKey> {
     if (config.jwks) {
       return createLocalJWKSet(
         config.jwks as Parameters<typeof createLocalJWKSet>[0],
@@ -259,7 +243,27 @@ export function createOpenSesameVerifier(
         pending = undefined;
       });
     return pending;
-  }
+  };
+}
+
+function asAudienceList(aud: string | string[]): string[] {
+  return Array.isArray(aud) ? aud : [aud];
+}
+
+export function createOpenSesameVerifier(
+  config: OpenSesameVerifierConfig,
+): OpenSesameVerifier {
+  const issuer = trimSlash(config.issuer);
+  const audiences = asAudienceList(config.audience);
+  const defaultAudience = audiences[0];
+  if (!defaultAudience) throw new Error("audience must not be empty");
+  const algorithms = config.algorithms ?? [...DEFAULT_ALLOWED_ALGORITHMS];
+  const keySource = createJwksKeySource({
+    issuer,
+    ...(config.jwksUri !== undefined ? { jwksUri: config.jwksUri } : {}),
+    ...(config.jwks !== undefined ? { jwks: config.jwks } : {}),
+    ...(config.fetchImpl !== undefined ? { fetchImpl: config.fetchImpl } : {}),
+  });
 
   return {
     async verifyAccessToken(token: string): Promise<VerifiedIdentity> {
@@ -314,7 +318,10 @@ export function createOpenSesameVerifier(
               : undefined;
 
       if (!hasRequiredScopes(scope, config.requiredScopes ?? [])) {
-        throw new Error("Token missing required scopes");
+        throw new AuthorizationError(
+          "insufficient_scope",
+          "Token missing required scopes",
+        );
       }
 
       const assurance =

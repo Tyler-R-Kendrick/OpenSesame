@@ -283,6 +283,7 @@ describe("createOpenSesame", () => {
 
     const sesame = createOpenSesame({
       issuer: "http://127.0.0.1:8788",
+      clientId: "opensesame-browser",
       storage,
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
@@ -459,6 +460,7 @@ describe("createOpenSesame", () => {
       );
       const sesame = createOpenSesame({
         issuer: ISSUER,
+        clientId: "opensesame-browser",
         storage,
         fetchImpl: mint(claims) as unknown as typeof fetch,
       });
@@ -523,6 +525,7 @@ describe("createOpenSesame", () => {
     const fetchImpl = vi.fn(async () => discoveryResponse());
     const sesame = createOpenSesame({
       issuer: ISSUER,
+      clientId: "opensesame-browser",
       storage,
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });

@@ -16,7 +16,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@opensesame/contracts": "workspace:*"
+    "@opensesame/contracts": "workspace:*",
+    "@opensesame/oauth-provider": "workspace:*",
+    "jose": "6.2.8"
   },
   "devDependencies": {
     "@opensesame/testing": "workspace:*",

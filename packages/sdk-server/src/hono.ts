@@ -1,4 +1,5 @@
 import type { Context, MiddlewareHandler, Next } from "hono";
+import { AuthError, AuthorizationError } from "./errors.js";
 import type { OpenSesameVerifier, VerifiedIdentity } from "./verifier.js";
 
 export type OpenSesameAuthVariables = {
@@ -50,6 +51,15 @@ export function openSesameAuth(
     } catch (error) {
       if (options.onError) {
         return options.onError(c, error);
+      }
+      if (error instanceof AuthorizationError) {
+        return c.json(
+          { error: error.code, error_description: error.message },
+          403,
+        );
+      }
+      if (error instanceof AuthError) {
+        return unauthorized(c, error.code, error.message);
       }
       // The reason a token failed is for the resource server's own logs. Handing
       // it back describes the verifier's internals to whoever is probing it.
