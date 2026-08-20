@@ -3,6 +3,8 @@
  * No framework imports (hono/drizzle/better-auth/oidc-provider).
  */
 
+import type { JsonObject } from "./json.js";
+
 export type PrincipalId = string;
 
 /** Lifecycle of a principal. Provisional is a state on Principal — not a separate type. */
@@ -51,7 +53,7 @@ export interface ExternalIdentity {
   assurance: AssuranceLevel;
   linkedAt: Date;
   lastAuthenticatedAt?: Date;
-  metadata: Record<string, unknown>;
+  metadata: JsonObject;
 }
 
 export interface BetterAuthSubject {
@@ -201,7 +203,7 @@ export interface Resource {
   kind: string;
   state: ResourceState;
   ownerPrincipalId?: PrincipalId;
-  manifest: Record<string, unknown>;
+  manifest: JsonObject;
   expiresAt?: Date;
   version: number;
   createdAt: Date;
@@ -389,7 +391,7 @@ export interface AuthorizationRequest {
    */
   requesterRef: string;
   /** RFC 9396 authorization_details: constraint, prompt, and receipt in one shape. */
-  authorizationDetails: Record<string, unknown>[];
+  authorizationDetails: JsonObject[];
   /** Canonical digest of the exact request being consented to. */
   requestDigest: string;
   /** Short human-readable string shown identically to requester and approver. */
@@ -417,11 +419,11 @@ export interface ClaimSession {
   tokenDigest: Uint8Array;
   userCodeDigest?: Uint8Array;
   proofKeyJkt?: string;
-  targetManifest: Record<string, unknown>;
+  targetManifest: JsonObject;
   /** Immutable after create — never mutate in place. */
   targetManifestDigest: string;
-  requestedDestination?: Record<string, unknown>;
-  requestedGrant?: Record<string, unknown>;
+  requestedDestination?: JsonObject;
+  requestedGrant?: JsonObject;
   createdAt: Date;
   presentedAt?: Date;
   authenticatedAt?: Date;
@@ -430,7 +432,7 @@ export interface ClaimSession {
   expiresAt: Date;
   revokedAt?: Date;
   completedByPrincipalId?: PrincipalId;
-  reviewDecision?: Record<string, unknown>;
+  reviewDecision?: JsonObject;
   version: number;
 }
 
@@ -508,7 +510,7 @@ export interface AuditEvent {
   outcome: AuditOutcome;
   correlationId: string;
   causationId?: string;
-  metadata: Record<string, unknown>;
+  metadata: JsonObject;
   /** Digest of the preceding event in the trail — tamper evidence, not a signature. */
   previousDigest?: string;
   /** Digest of this event over its own fields and `previousDigest`. */
@@ -520,7 +522,7 @@ export interface OutboxEvent {
   aggregateType: string;
   aggregateId: string;
   eventType: string;
-  payload: Record<string, unknown>;
+  payload: JsonObject;
   createdAt: Date;
   availableAt: Date;
   publishedAt?: Date;

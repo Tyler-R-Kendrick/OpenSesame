@@ -19,15 +19,14 @@ import type {
   PrincipalId,
 } from "../types.js";
 
-const TRANSITIONS: Record<
-  AuthorizationRequestStatus,
-  AuthorizationRequestStatus[]
-> = {
+const TRANSITIONS = {
   pending: ["approved", "denied", "cancelled", "expired"],
   approved: [],
   denied: [],
   cancelled: [],
   expired: [],
+} as const satisfies {
+  readonly [status in AuthorizationRequestStatus]: readonly AuthorizationRequestStatus[];
 };
 
 export function canTransition(

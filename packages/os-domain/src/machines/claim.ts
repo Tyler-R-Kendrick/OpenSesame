@@ -1,4 +1,5 @@
 import { DomainError, invalidTransition } from "../errors.js";
+import type { JsonObject } from "../json.js";
 import type {
   AssuranceLevel,
   ClaimSession,
@@ -81,7 +82,7 @@ export function authenticateClaim(
 
 export function reviewClaim(
   session: ClaimSession,
-  decision: Record<string, unknown>,
+  decision: JsonObject,
   now: Date = new Date(),
 ): ClaimSession {
   assertNotExpired(session, now);

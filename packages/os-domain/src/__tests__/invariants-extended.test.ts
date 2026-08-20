@@ -18,10 +18,11 @@ describe("assertDependencyClosure", () => {
         new Set(["ci_project", "ci_resource", "ci_ghost"]),
       );
       expect.unreachable("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(DomainError);
-      expect((err as DomainError).code).toBe("NOT_FOUND");
-      expect((err as DomainError).details).toMatchObject({ id: "ci_ghost" });
+    } catch (cause) {
+      expect(cause).toBeInstanceOf(DomainError);
+      if (!(cause instanceof DomainError)) throw cause;
+      expect(cause.code).toBe("NOT_FOUND");
+      expect(cause.details).toMatchObject({ id: "ci_ghost" });
     }
   });
 
@@ -30,10 +31,11 @@ describe("assertDependencyClosure", () => {
     try {
       assertDependencyClosure(items, new Set(["ci_resource"]));
       expect.unreachable("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(DomainError);
-      expect((err as DomainError).code).toBe("DEPENDENCY_CLOSURE");
-      expect((err as DomainError).details).toMatchObject({
+    } catch (cause) {
+      expect(cause).toBeInstanceOf(DomainError);
+      if (!(cause instanceof DomainError)) throw cause;
+      expect(cause.code).toBe("DEPENDENCY_CLOSURE");
+      expect(cause.details).toMatchObject({
         itemId: "ci_resource",
         missingDependency: "ci_project",
       });
@@ -64,10 +66,11 @@ describe("assertManifestImmutable", () => {
         targetManifestDigest: "sha256:tampered",
       });
       expect.unreachable("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(DomainError);
-      expect((err as DomainError).code).toBe("IMMUTABLE_FIELD");
-      expect((err as DomainError).details).toMatchObject({
+    } catch (cause) {
+      expect(cause).toBeInstanceOf(DomainError);
+      if (!(cause instanceof DomainError)) throw cause;
+      expect(cause.code).toBe("IMMUTABLE_FIELD");
+      expect(cause.details).toMatchObject({
         original: session.targetManifestDigest,
         candidate: "sha256:tampered",
       });
