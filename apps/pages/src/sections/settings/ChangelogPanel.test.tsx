@@ -1,29 +1,30 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const session = vi.hoisted(() => ({
-  current: null as { principalId: string } | null,
+  current: null,
 }));
 
-vi.mock("../../lib/identity.js", () => ({
-  useIdentitySession: () => session.current,
-}));
-
+import { identitySeams } from "../../lib/identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {useIdentitySession: () => session.current});
 const loadSettings = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/settings.js", () => ({
-  loadSettings,
-}));
-
+import { settingsSeams } from "../../lib/settings.js";
+const originalSettingsSeams = { ...settingsSeams };
+Object.assign(settingsSeams, {loadSettings});
 const listChangelog = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/changelog.js", () => ({
+import { changelogSeams } from "../../lib/changelog.js";
+const originalChangelogSeams = { ...changelogSeams };
+Object.assign(changelogSeams, {
   listChangelog,
   formatChangelogSummary: (event: { eventType: string; keyNames?: string[] }) =>
     `${event.eventType}${event.keyNames ? ` keys: ${event.keyNames.join(", ")}` : ""}`,
-}));
+});
 
 import { ChangelogPanel } from "./ChangelogPanel.js";
 

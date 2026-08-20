@@ -3,6 +3,7 @@ import type { Folder, LoginItem, VaultItem } from "../model.js";
 import { createItem } from "../model.js";
 import { defaultMergeOptions, planMerge } from "./merge.js";
 import { type DraftItem, draftCard, draftLogin, draftNote } from "./types.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 function login(
   name: string,
@@ -17,7 +18,7 @@ function login(
 }
 
 function existingLogin(name: string, username: string): LoginItem {
-  const item = createItem("login", name) as LoginItem;
+  const item = overlapCast(createItem("login", name));
   item.username = username;
   return item;
 }
@@ -156,7 +157,7 @@ describe("planMerge", () => {
     draft.username = "ada";
     draft.passwordChangedAt = "2019-01-01T00:00:00.000Z";
     const plan = planMerge([draft], [], [], defaultMergeOptions);
-    expect((plan.items[0] as LoginItem).passwordChangedAt).toBe(
+    expect((overlapCast(plan.items[0])).passwordChangedAt).toBe(
       "2019-01-01T00:00:00.000Z",
     );
   });

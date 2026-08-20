@@ -5,6 +5,7 @@ import {
 } from "./capabilities.js";
 import { kvGet, kvSet, kvSetDurable } from "./kv.js";
 import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
+import { overlapCast, isString } from "@opensesame/os-domain";
 
 export type PagesSettings = {
   hostApi: string;
@@ -63,14 +64,13 @@ const runtimeMfaAppUrl = import.meta.env.VITE_MFA_APP_URL?.trim();
 const listeners = new Set<() => void>();
 
 /** True when this tab is served from the same machine it can reach on loopback. */
-export function pageIsLoopback(
-  hostname: string | undefined = typeof location === "undefined"
-    ? "127.0.0.1"
-    : location.hostname,
-): boolean {
-  return (
-    hostname === "127.0.0.1" || hostname === "localhost" || hostname === "[::1]"
-  );
+function pageIsLoopbackDefault(hostname?: string): boolean {
+  const host =
+    hostname ??
+    (globalThis.location === undefined
+      ? "127.0.0.1"
+      : globalThis.location.hostname);
+  return host === "127.0.0.1" || host === "localhost" || host === "[::1]";
 }
 
 function localDefaults(): PersistedSettings {
@@ -109,15 +109,13 @@ function loadPersisted(): PersistedSettings {
   try {
     const raw = kvGet(PERSIST_KEY);
     if (!raw) return { ...defaults };
-    const parsed = JSON.parse(raw) as Partial<PersistedSettings> & {
-      capabilityConnectors?: Partial<CapabilityConnectorMap>;
-    };
+    const parsed = overlapCast(JSON.parse(raw));
     return {
       hostApi:
         parsed.hostApi?.trim() &&
         !(
           runtimeHostApi &&
-          (LEGACY_HOST_APIS as readonly string[]).includes(
+          (overlapCast(LEGACY_HOST_APIS)).includes(
             parsed.hostApi.trim(),
           )
         )
@@ -127,7 +125,7 @@ function loadPersisted(): PersistedSettings {
         parsed.identityApi?.trim() &&
         !(
           runtimeIdentityApi &&
-          (LEGACY_IDENTITY_APIS as readonly string[]).includes(
+          (overlapCast(LEGACY_IDENTITY_APIS)).includes(
             parsed.identityApi.trim(),
           )
         )
@@ -143,7 +141,7 @@ function loadPersisted(): PersistedSettings {
         parsed.capabilityConnectors,
       ),
       activeProjectId:
-        typeof parsed.activeProjectId === "string"
+        isString(parsed.activeProjectId)
           ? parsed.activeProjectId.trim()
           : defaults.activeProjectId,
     };
@@ -152,7 +150,7 @@ function loadPersisted(): PersistedSettings {
   }
 }
 
-export function loadSettings(): PagesSettings {
+function loadSettingsDefault(): PagesSettings {
   return loadPersisted();
 }
 
@@ -160,7 +158,7 @@ function emitSettings(): void {
   for (const listener of listeners) listener();
 }
 
-export function subscribeSettings(listener: () => void): () => void {
+function subscribeSettingsDefault(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
@@ -182,7 +180,7 @@ function persistRecord(next: PagesSettings): PersistedSettings {
   };
 }
 
-export function saveSettings(next: PagesSettings): void {
+function saveSettingsDefault(next: PagesSettings): void {
   kvSet(PERSIST_KEY, JSON.stringify(persistRecord(next)));
   emitSettings();
 }
@@ -208,7 +206,7 @@ export function hasRemoteHostPairing(
 }
 
 /** Auto-connect Identity only when this page can actually reach it. */
-export function shouldAutoConnect(
+function shouldAutoConnectDefault(
   settings: PagesSettings = loadSettings(),
   hostname?: string,
 ): boolean {
@@ -216,4 +214,39 @@ export function shouldAutoConnect(
   if (!identity) return false;
   if (pageIsLoopback(hostname)) return true;
   return !isLoopbackUrl(identity);
+}
+
+export const settingsSeams = {
+  loadSettings: loadSettingsDefault,
+  saveSettings: saveSettingsDefault,
+  subscribeSettings: subscribeSettingsDefault,
+  pageIsLoopback: pageIsLoopbackDefault,
+  shouldAutoConnect: shouldAutoConnectDefault,
+  shippedDaemonApi,
+};
+
+export function loadSettings(): PagesSettings {
+  return settingsSeams.loadSettings();
+}
+
+export function saveSettings(next: PagesSettings): void {
+  return settingsSeams.saveSettings(next);
+}
+
+export function subscribeSettings(listener: () => void): () => void {
+  return settingsSeams.subscribeSettings(listener);
+}
+
+export function pageIsLoopback(hostname?: string): boolean {
+  return hostname === undefined
+    ? settingsSeams.pageIsLoopback()
+    : settingsSeams.pageIsLoopback(hostname);
+}
+
+export function shouldAutoConnect(
+  settings?: PagesSettings,
+  hostname?: string,
+): boolean {
+  if (settings === undefined) return settingsSeams.shouldAutoConnect();
+  return settingsSeams.shouldAutoConnect(settings, hostname);
 }

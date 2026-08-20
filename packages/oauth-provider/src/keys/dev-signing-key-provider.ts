@@ -1,4 +1,4 @@
-import type { SigningKeyProvider } from "@opensesame/os-domain";
+import { SigningKeyProvider, overlapCast } from "@opensesame/os-domain";
 
 /**
  * Loads signing keys from process env `OPENSESAME_JWKS_JSON` (public+private JWKS).
@@ -10,7 +10,7 @@ export class EnvSigningKeyProvider implements SigningKeyProvider {
     private readonly allowEmptyDev = true,
   ) {}
 
-  private parse(): { keys: JsonWebKey[]; kid: string } {
+  private parse() {
     const raw = this.env.OPENSESAME_JWKS_JSON;
     if (!raw) {
       if (
@@ -21,8 +21,8 @@ export class EnvSigningKeyProvider implements SigningKeyProvider {
       }
       throw new Error("OPENSESAME_JWKS_JSON required in production");
     }
-    const parsed = JSON.parse(raw) as { keys: JsonWebKey[] };
-    const first = parsed.keys[0] as (JsonWebKey & { kid?: string }) | undefined;
+    const parsed = overlapCast(JSON.parse(raw));
+    const first = overlapCast(parsed.keys[0]);
     const kid = first?.kid != null ? String(first.kid) : "k1";
     return { keys: parsed.keys, kid };
   }

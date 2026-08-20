@@ -20,6 +20,7 @@ import {
   comparePngBuffers,
   rebaseline,
 } from "./compare.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 function solidPng(width: number, height: number, fill: number): Buffer {
   const img = new PNG({ width, height });
@@ -80,20 +81,21 @@ interface FakeHarness {
 /** Minimal Page/TestInfo doubles: screenshot writes a real PNG to disk. */
 function fakeHarness(png: Buffer): FakeHarness {
   const attachments: Array<{ name: string; path: string }> = [];
-  const page = {
+  const page = overlapCast({
     screenshot: async ({ path }: { path: string }) => {
       writeFileSync(path, png);
       createdOutputs.push(path);
       return png;
     },
-  } as unknown as Page;
+  });
   const testInfo = {
-    annotations: [] as Array<{ type: string; description?: string }>,
+    annotations: overlapCast([]),
     attach: async (name: string, options: { path: string }) => {
       attachments.push({ name, path: options.path });
     },
-  } as unknown as TestInfo;
-  return { page, testInfo, attachments };
+  };
+  const typedInfo = overlapCast(testInfo);
+  return { page, testInfo: typedInfo, attachments };
 }
 
 describe("visual-contract compare unit", () => {
@@ -215,7 +217,7 @@ describe("visual-contract compare unit", () => {
         { name, path: join(OUTPUT_DIR, `${name}-captured.png`) },
       ]);
       expect(
-        (testInfo.annotations as Array<{ type: string }>).some(
+        (overlapCast(testInfo.annotations)).some(
           (a) => a.type === "visual-rebaseline",
         ),
       ).toBe(false);
@@ -239,10 +241,7 @@ describe("visual-contract compare unit", () => {
       }
 
       expect(readFileSync(baselinePath(name))).toEqual(png);
-      const annotations = testInfo.annotations as Array<{
-        type: string;
-        description?: string;
-      }>;
+      const annotations = overlapCast(testInfo.annotations);
       expect(annotations).toHaveLength(1);
       const annotation = annotations[0];
       expect(annotation?.type).toBe("visual-rebaseline");
@@ -297,7 +296,7 @@ describe("visual-contract compare unit", () => {
       const b = solidPng(6, 3, 200);
       const result = comparePngBuffers(a, b);
       expect(result.diffPng).toBeDefined();
-      const diff = PNG.sync.read(result.diffPng as Buffer);
+      const diff = PNG.sync.read(overlapCast(result.diffPng));
       expect(diff.width).toBe(6);
       expect(diff.height).toBe(3);
       expect(result.totalPixels).toBe(18);

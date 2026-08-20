@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString, isNumber } from "@opensesame/os-domain";
 /**
  * 1Password, both export shapes.
  *
@@ -32,7 +33,7 @@ const CATEGORY = {
   password: "005",
 } as const;
 
-type PuxValue = Record<string, unknown>;
+type PuxValue = JsonObject;
 type PuxField = {
   title?: unknown;
   designation?: unknown;
@@ -53,11 +54,11 @@ type PuxItem = {
 
 type PuxExport = { accounts?: unknown };
 
-function isPuxExport(json: unknown): json is PuxExport {
-  if (!json || typeof json !== "object") return false;
-  const accounts = (json as PuxExport).accounts;
+function isPuxExport(json: BoundaryValue): json is PuxExport {
+  if (!json || !isTypeofObject(json)) return false;
+  const accounts = (overlapCast(json)).accounts;
   if (!Array.isArray(accounts) || accounts.length === 0) return false;
-  const first = accounts[0] as { vaults?: unknown };
+  const first = overlapCast(accounts[0]);
   return Array.isArray(first?.vaults);
 }
 
@@ -65,33 +66,29 @@ function isPuxExport(json: unknown): json is PuxExport {
  * A 1PUX field value is a single-key object naming its type:
  * `{string}`, `{concealed}`, `{totp}`, `{date}`, `{monthYear}`, `{email}`, …
  */
-function readValue(value: unknown): {
-  text: string;
-  concealed: boolean;
-  totp: boolean;
-} {
-  if (typeof value === "string")
+function readValue(value: BoundaryValue) {
+  if (isString(value))
     return { text: value, concealed: false, totp: false };
-  if (!value || typeof value !== "object") {
+  if (!value || !isTypeofObject(value)) {
     return { text: "", concealed: false, totp: false };
   }
-  const record = value as PuxValue;
+  const record = overlapCast(value);
 
-  if (typeof record.concealed === "string") {
+  if (isString(record.concealed)) {
     return { text: record.concealed, concealed: true, totp: false };
   }
-  if (typeof record.totp === "string") {
+  if (isString(record.totp)) {
     return { text: record.totp, concealed: true, totp: true };
   }
-  if (typeof record.monthYear === "number") {
+  if (isNumber(record.monthYear)) {
     // Serialised as YYYYMM.
     return { text: String(record.monthYear), concealed: false, totp: false };
   }
-  if (typeof record.date === "number") {
+  if (isNumber(record.date)) {
     return { text: toIso(record.date) ?? "", concealed: false, totp: false };
   }
-  if (typeof record.email === "object" && record.email !== null) {
-    const email = (record.email as { email_address?: unknown }).email_address;
+  if (isTypeofObject(record.email) && record.email !== null) {
+    const email = (overlapCast(record.email)).email_address;
     return { text: asString(email), concealed: false, totp: false };
   }
   for (const key of [
@@ -105,7 +102,7 @@ function readValue(value: unknown): {
     "reference",
   ]) {
     const candidate = record[key];
-    if (typeof candidate === "string") {
+    if (isString(candidate)) {
       return {
         text: candidate,
         concealed: key === "creditCardNumber",
@@ -113,9 +110,9 @@ function readValue(value: unknown): {
       };
     }
   }
-  if (typeof record.address === "object" && record.address !== null) {
-    const parts = Object.values(record.address as Record<string, unknown>)
-      .filter((part): part is string => typeof part === "string" && part !== "")
+  if (isTypeofObject(record.address) && record.address !== null) {
+    const parts = Object.values(overlapCast(record.address))
+      .filter((part): part is string => isString(part) && part !== "")
       .join(", ");
     return { text: parts, concealed: false, totp: false };
   }
@@ -141,35 +138,25 @@ export const onepasswordPux: ImportAdapter = {
     const warnings: string[] = [];
     let trashed = 0;
 
-    for (const rawAccount of json.accounts as unknown[]) {
-      const account = rawAccount as { vaults?: unknown };
+    for (const rawAccount of overlapCast(json.accounts)) {
+      const account = overlapCast(rawAccount);
       for (const rawVault of Array.isArray(account.vaults)
         ? account.vaults
         : []) {
-        const vault = rawVault as { attrs?: unknown; items?: unknown };
-        const vaultName = asString((vault.attrs as { name?: unknown })?.name);
+        const vault = overlapCast(rawVault);
+        const vaultName = asString((overlapCast(vault.attrs))?.name);
 
         for (const rawEntry of Array.isArray(vault.items) ? vault.items : []) {
-          const entry = (rawEntry as { item?: unknown }).item ?? rawEntry;
-          const pux = entry as PuxItem;
+          const entry = (overlapCast(rawEntry)).item ?? rawEntry;
+          const pux = overlapCast(entry);
 
           if (pux.trashed === true) {
             trashed += 1;
             continue;
           }
 
-          const overview = (pux.overview ?? {}) as {
-            title?: unknown;
-            url?: unknown;
-            urls?: unknown;
-            tags?: unknown;
-          };
-          const details = (pux.details ?? {}) as {
-            loginFields?: unknown;
-            notesPlain?: unknown;
-            sections?: unknown;
-            password?: unknown;
-          };
+          const overview = overlapCast(pux.overview ?? {});
+          const details = overlapCast(pux.details ?? {});
           const name = asString(overview.title) || "Untitled";
           const category = asString(pux.categoryUuid);
 
@@ -189,7 +176,7 @@ export const onepasswordPux: ImportAdapter = {
             for (const rawField of Array.isArray(details.loginFields)
               ? details.loginFields
               : []) {
-              const field = rawField as PuxField;
+              const field = overlapCast(rawField);
               const designation = asString(field.designation);
               const value = asString(field.value);
               if (designation === "username") item.username = value;
@@ -202,12 +189,12 @@ export const onepasswordPux: ImportAdapter = {
             for (const rawUrl of Array.isArray(overview.urls)
               ? overview.urls
               : []) {
-              addUri(item, asString((rawUrl as { url?: unknown }).url));
+              addUri(item, asString((overlapCast(rawUrl)).url));
             }
           }
 
           item.folder = vaultName || null;
-          item.favorite = typeof pux.favIndex === "number" && pux.favIndex > 0;
+          item.favorite = isNumber(pux.favIndex) && pux.favIndex > 0;
           item.notes = asString(details.notesPlain);
           item.createdAt = toIso(pux.createdAt);
           item.updatedAt = toIso(pux.updatedAt);
@@ -233,15 +220,15 @@ export const onepasswordPux: ImportAdapter = {
 };
 
 /** Section fields become card details where they fit, custom fields otherwise. */
-function applySections(item: DraftItem, sections: unknown): void {
+function applySections(item: DraftItem, sections: BoundaryValue): void {
   for (const rawSection of Array.isArray(sections) ? sections : []) {
-    const section = rawSection as PuxSection;
+    const section = overlapCast(rawSection);
     const sectionTitle = asString(section.title);
 
     for (const rawField of Array.isArray(section.fields)
       ? section.fields
       : []) {
-      const field = rawField as PuxField;
+      const field = overlapCast(rawField);
       const title = asString(field.title) || asString(field.name);
       const { text, concealed, totp } = readValue(field.value);
       if (text === "") continue;
@@ -275,8 +262,8 @@ function applySections(item: DraftItem, sections: unknown): void {
           // 1Password serialises expiry as YYYYMM.
           const match = /^(\d{4})(\d{2})$/u.exec(text);
           if (match) {
-            item.expYear = match[1] as string;
-            item.expMonth = match[2] as string;
+            item.expYear = overlapCast(match[1]);
+            item.expMonth = overlapCast(match[2]);
             continue;
           }
         }

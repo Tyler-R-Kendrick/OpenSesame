@@ -1,8 +1,9 @@
 import type { ConfigurationField, Provider } from "./connections.js";
+import { isString } from "@opensesame/os-domain";
 
 type FieldGuidance = { help: string; placeholder: string };
 
-const CATEGORY_SUMMARY: Record<Provider["category"], string> = {
+const CATEGORY_SUMMARY = {
   encryption: "Encrypt secrets before they are stored or committed.",
   cloud_secret_storage: "Read secrets from a centralized cloud service.",
   password_managers: "Use secrets already managed by this password service.",
@@ -18,7 +19,7 @@ const CATEGORY_SUMMARY: Record<Provider["category"], string> = {
   testing: "Exercise the connection flow without a production provider.",
 };
 
-const FIELD_GUIDANCE: Record<string, FieldGuidance> = {
+const FIELD_GUIDANCE = {
   recipients: {
     help: "One or more age recipients, such as age1… or an SSH public key. Secrets are encrypted so only these recipients can decrypt them.",
     placeholder: "age1… or ssh-ed25519 …",
@@ -250,7 +251,7 @@ export function fieldGuidance(field: ConfigurationField): FieldGuidance {
     };
   }
   if (!field.required) {
-    const delegated: Record<string, FieldGuidance> = {
+    const delegated = {
       region: {
         help: "Leave blank to use the region from the Host's AWS profile, environment, container, or instance identity.",
         placeholder: "Auto-detect from Host",
@@ -306,7 +307,7 @@ export function fieldGuidance(field: ConfigurationField): FieldGuidance {
 
 export function configurationDefaults(
   provider: Pick<Provider, "id">,
-): Record<string, string> {
+) {
   if (provider.id === "keychain") return { service: "opensesame" };
   if (provider.id === "plain") return { namespace: "opensesame" };
   if (provider.id === "better-auth") {
@@ -324,13 +325,13 @@ export function canConfigureAutomatically(
 export function configurationPayload(
   provider: Pick<Provider, "id">,
   values: Record<string, string>,
-): Record<string, string> {
+) {
   const payload = Object.fromEntries(
     Object.entries(values)
       .map(([key, value]) => [key, value.trim()])
       .filter(([, value]) => value !== ""),
   );
-  if (provider.id !== "auth0" || typeof payload.domain !== "string") {
+  if (provider.id !== "auth0" || !isString(payload.domain)) {
     return payload;
   }
   const domain = payload.domain

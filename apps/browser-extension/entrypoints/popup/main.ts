@@ -1,4 +1,5 @@
 import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
+import { overlapCast, isString } from "@opensesame/os-domain";
 
 type HealthResponse = {
   health?: { ok?: boolean };
@@ -11,12 +12,12 @@ type HealthResponse = {
 const DEFAULT_HOST = "http://127.0.0.1:8787";
 
 async function loadHostInput() {
-  const input = document.getElementById("host") as HTMLInputElement | null;
+  const input = overlapCast(document.getElementById("host"));
   if (!input) return;
   try {
     const stored = await chrome.storage.local.get("hostApiBase");
     input.value =
-      typeof stored.hostApiBase === "string" && stored.hostApiBase.trim()
+      isString(stored.hostApiBase) && stored.hostApiBase.trim()
         ? stored.hostApiBase
         : DEFAULT_HOST;
   } catch {
@@ -25,7 +26,7 @@ async function loadHostInput() {
 }
 
 async function saveHost() {
-  const input = document.getElementById("host") as HTMLInputElement | null;
+  const input = overlapCast(document.getElementById("host"));
   const hint = document.getElementById("hint");
   if (!input) return;
   const raw = input.value.trim() || DEFAULT_HOST;
@@ -67,9 +68,9 @@ async function loadStatus() {
     hint.textContent = "";
   }
   try {
-    const res = (await chrome.runtime.sendMessage({
+    const res = overlapCast(await chrome.runtime.sendMessage({
       type: "opensesame.health",
-    })) as HealthResponse;
+    }));
     if (res?.error) {
       throw new Error(res.error);
     }

@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { loopbackLogin } from "./loopback.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const ISSUER = "http://127.0.0.1:8788";
 
-function discovery(overrides: Record<string, unknown> = {}): Response {
+function discovery(overrides: JsonObject = {}): Response {
   return new Response(
     JSON.stringify({
       issuer: ISSUER,
@@ -22,14 +23,14 @@ function idpFetch(
       status: 200,
     }),
 ) {
-  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  return overlapCast(vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.includes("openid-configuration")) return discovery();
     if (url.endsWith("/token") && init?.method === "POST") {
       return tokenResponder();
     }
     throw new Error(`unexpected ${url}`);
-  }) as unknown as typeof fetch;
+  }));
 }
 
 type OpenBrowser = (url: string) => Promise<void> | void;
@@ -183,9 +184,9 @@ describe("loopbackLogin callback handling", () => {
   });
 
   it("surfaces a discovery failure with the status", async () => {
-    const fetchImpl = vi.fn(
+    const fetchImpl = overlapCast(vi.fn(
       async () => new Response(JSON.stringify({}), { status: 503 }),
-    ) as unknown as typeof fetch;
+    ));
     await expect(
       loopbackLogin({
         issuer: ISSUER,

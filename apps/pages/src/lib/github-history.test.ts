@@ -8,10 +8,11 @@ import {
 } from "./github-history.js";
 import { clearHostSession, clearSession } from "./identity.js";
 import { saveSettings, shippedHostApi } from "./settings.js";
+import { type BoundaryValue } from "@opensesame/os-domain";
 
 const HOST = shippedHostApi;
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: BoundaryValue, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },

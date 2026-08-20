@@ -1,3 +1,4 @@
+import { isString } from "@opensesame/os-domain";
 /**
  * Platform capability → connector bindings.
  *
@@ -17,10 +18,9 @@ export type CapabilityConnectorBinding = {
   remote?: string;
 };
 
-export type CapabilityConnectorMap = Record<
-  CapabilityId,
-  CapabilityConnectorBinding
->;
+export type CapabilityConnectorMap = {
+  [K in CapabilityId]: CapabilityConnectorBinding;
+};
 
 export type CapabilityDef = {
   id: CapabilityId;
@@ -98,18 +98,18 @@ export function normalizeCapabilityConnectors(
     const incoming = raw?.[def.id];
     if (!incoming) continue;
     const providerId =
-      typeof incoming.providerId === "string" &&
+      isString(incoming.providerId) &&
       def.connectorIds.includes(incoming.providerId)
         ? incoming.providerId
         : defaults[def.id].providerId;
     const next: CapabilityConnectorBinding = { providerId };
     if (
-      typeof incoming.connectionId === "string" &&
+      isString(incoming.connectionId) &&
       incoming.connectionId.trim()
     ) {
       next.connectionId = incoming.connectionId.trim();
     }
-    if (typeof incoming.remote === "string" && incoming.remote.trim()) {
+    if (isString(incoming.remote) && incoming.remote.trim()) {
       next.remote = incoming.remote.trim();
     }
     out[def.id] = next;

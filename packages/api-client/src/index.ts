@@ -34,6 +34,7 @@ import {
   SyncTargetSchema,
   type UpdateIntegrationRequest,
 } from "@opensesame/contracts";
+import { type JsonObject, overlapCast, type BoundaryValue, isString } from "@opensesame/os-domain";
 
 export interface ApiClientOptions {
   /** Host API base URL, e.g. http://127.0.0.1:8787 */
@@ -68,14 +69,14 @@ export interface HostDiscovery {
 }
 
 interface ResponseSchema<T> {
-  parse(value: unknown): T;
+  parse(value: BoundaryValue): T;
 }
 
 async function requestFailure(op: string, res: Response): Promise<Error> {
   let code = "";
   try {
-    const body = (await res.json()) as { error?: unknown };
-    if (typeof body?.error === "string") code = body.error;
+    const body = overlapCast(await res.json());
+    if (isString(body?.error)) code = body.error;
   } catch {
     /* non-JSON error body */
   }
@@ -136,7 +137,7 @@ export async function createDpopKeyPair() {
     true,
     ["sign", "verify"],
   );
-  const jwk = (await subtle.exportKey("jwk", keyPair.publicKey)) as JsonWebKey;
+  const jwk = overlapCast(await subtle.exportKey("jwk", keyPair.publicKey));
   // Explicit reads (not destructuring): the extension bundler targets firefox78,
   // where esbuild refuses to transform this destructuring pattern.
   const kty = jwk.kty;
@@ -155,7 +156,7 @@ export async function createDpopKeyPair() {
       typ: "dpop+jwt",
       jwk: { kty, crv, x, y },
     };
-    const payload: Record<string, unknown> = {
+    const payload: JsonObject = {
       iat: Math.floor(Date.now() / 1000),
       jti: randomJti(),
       // A query string is not part of the bound URI (RFC 9449 §4.2).
@@ -357,14 +358,14 @@ export function createApiClient(options: ApiClientOptions) {
       try {
         const prm = await request("/.well-known/oauth-protected-resource");
         if (prm.ok) {
-          const body = (await prm.json()) as Record<string, unknown>;
+          const body = overlapCast(await prm.json());
           const discovery: HostDiscovery = {
             dpopBound: Boolean(
               body.dpop_bound ?? body.dpop_bound_access_tokens_required,
             ),
             source: "prm",
           };
-          if (typeof body.resource === "string") {
+          if (isString(body.resource)) {
             discovery.resource = body.resource;
           }
           if (Array.isArray(body.authorization_servers)) {
@@ -373,7 +374,7 @@ export function createApiClient(options: ApiClientOptions) {
             // is naming somewhere this client will not send a credential.
             discovery.authorizationServers = body.authorization_servers
               .map((value) =>
-                typeof value === "string" ? normalizeHttpBaseUrl(value) : null,
+                isString(value) ? normalizeHttpBaseUrl(value) : null,
               )
               .filter((value): value is string => value !== null);
           }
@@ -393,7 +394,7 @@ export function createApiClient(options: ApiClientOptions) {
       return { source: "none" };
     },
 
-    async whoami(): Promise<unknown> {
+    async whoami(): Promise<BoundaryValue> {
       const res = await request("/api/v1/whoami");
       if (!res.ok) throw new Error(`whoami_failed:${res.status}`);
       return res.json();
@@ -617,7 +618,7 @@ export function createApiClient(options: ApiClientOptions) {
     },
 
     /** L1 invoke via Host API. Never sends SecretRef. */
-    async invoke(input: InvokeInput): Promise<unknown> {
+    async invoke(input: InvokeInput): Promise<BoundaryValue> {
       const res = await request("/api/v1/intents", {
         method: "POST",
         body: JSON.stringify({
@@ -635,7 +636,7 @@ export function createApiClient(options: ApiClientOptions) {
       return res.json();
     },
 
-    async syncPush(blobs: SyncBlob[]): Promise<unknown> {
+    async syncPush(blobs: SyncBlob[]): Promise<BoundaryValue> {
       const res = await request("/api/v1/sync/push", {
         method: "POST",
         body: JSON.stringify({
@@ -652,7 +653,7 @@ export function createApiClient(options: ApiClientOptions) {
       return res.json();
     },
 
-    async syncPull(since: SyncCursor): Promise<unknown> {
+    async syncPull(since: SyncCursor): Promise<BoundaryValue> {
       const res = await request("/api/v1/sync/pull", {
         method: "POST",
         body: JSON.stringify({

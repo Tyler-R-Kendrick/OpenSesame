@@ -4,6 +4,7 @@ import type { AddressInfo } from "node:net";
 import { describe, expect, it } from "vitest";
 import { SYSTEM_OWNER_PRINCIPAL_ID } from "../create-app.js";
 import type { startServer } from "../server.js";
+import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 type App = Started["app"];
@@ -24,11 +25,11 @@ interface DocServer {
   server: http.Server;
   origin: string;
   clientId: string;
-  host(document: Record<string, unknown> | null): void;
+  host(document: JsonObject | null): void;
 }
 
 async function startDocServer(): Promise<DocServer> {
-  let document: Record<string, unknown> | null = null;
+  let document: JsonObject | null = null;
   const server = http.createServer((req, res) => {
     if (req.url === "/.well-known/opensesame-client.json" && document) {
       res.writeHead(200, { "content-type": "application/json" });
@@ -42,7 +43,7 @@ async function startDocServer(): Promise<DocServer> {
     server.listen(0, "127.0.0.1", () => resolve());
     server.on("error", reject);
   });
-  const port = (server.address() as AddressInfo).port;
+  const port = (overlapCast(server.address())).port;
   const origin = `http://127.0.0.1:${port}`;
   return {
     server,
@@ -74,7 +75,7 @@ async function startControlPlane(clock?: () => Date): Promise<Started> {
       ...process.env,
       OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
     },
-    ...(clock ? { clock } : {}),
+    ...(clock ? { clock } : undefined),
   });
 }
 
@@ -107,10 +108,7 @@ async function verifiedUser(app: App, subject: string) {
     method: "POST",
   });
   expect(provisional.status).toBe(201);
-  const created = (await provisional.json()) as {
-    principalId: string;
-    accessToken: string;
-  };
+  const created = overlapCast(await provisional.json());
   const linked = await app.request("/v1/principals/link-identities", {
     method: "POST",
     headers: {
@@ -142,7 +140,7 @@ function claimStart(app: App, clientId: string, token: string, body = {}) {
   );
 }
 
-function claimVerify(app: App, clientId: string, token: string, body: unknown) {
+function claimVerify(app: App, clientId: string, token: string, body: BoundaryValue) {
   return app.request(
     `/v1/oauth/applications/${encodeURIComponent(clientId)}/claim/verify`,
     {
@@ -179,7 +177,7 @@ async function startAndHostClaim(
 ): Promise<StartedClaimBody> {
   const res = await claimStart(started.app, doc.clientId, token);
   expect(res.status).toBe(201);
-  const startedClaim = (await res.json()) as StartedClaimBody;
+  const startedClaim = overlapCast(await res.json());
   expect(startedClaim.wellKnownUrl).toBe(
     `${doc.origin}/.well-known/opensesame-client.json`,
   );
@@ -190,7 +188,7 @@ async function startAndHostClaim(
     issuer: "http://127.0.0.1:0",
     owner_principal_id: principalId,
   });
-  doc.host(startedClaim.document as unknown as Record<string, unknown>);
+  doc.host(overlapCast(startedClaim.document));
   return startedClaim;
 }
 
@@ -248,9 +246,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
       const listed = await started.app.request("/v1/oauth/clients", {
         headers: { authorization: `Bearer ${user.accessToken}` },
       });
-      const { clients } = (await listed.json()) as {
-        clients: Array<{ id: string }>;
-      };
+      const { clients } = overlapCast(await listed.json());
       expect(clients.some((client) => client.id === doc.clientId)).toBe(false);
     } finally {
       await stop(started);
@@ -281,11 +277,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         },
       );
       expect(verify.status).toBe(200);
-      const result = (await verify.json()) as {
-        applicationId: string;
-        sectorIdentifier: string;
-        ownershipStatus: string;
-      };
+      const result = overlapCast(await verify.json());
       expect(result).toMatchObject({
         applicationId: doc.clientId,
         ownershipStatus: "claimed",
@@ -303,9 +295,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
       const listed = await started.app.request("/v1/oauth/clients", {
         headers: { authorization: `Bearer ${user.accessToken}` },
       });
-      const { clients } = (await listed.json()) as {
-        clients: Array<{ id: string }>;
-      };
+      const { clients } = overlapCast(await listed.json());
       expect(clients.some((client) => client.id === doc.clientId)).toBe(true);
 
       const audit = await started.ctx.repos.auditEvents.list({ limit: 100 });
@@ -332,16 +322,14 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         "/v1/principals/provisional",
         { method: "POST" },
       );
-      const { accessToken } = (await provisional.json()) as {
-        accessToken: string;
-      };
+      const { accessToken } = overlapCast(await provisional.json());
 
       const unauthenticated = await claimStart(started.app, doc.clientId, "");
       expect(unauthenticated.status).toBe(401);
 
       const res = await claimStart(started.app, doc.clientId, accessToken);
       expect(res.status).toBe(403);
-      expect(((await res.json()) as { error: string }).error).toBe(
+      expect((overlapCast(await res.json())).error).toBe(
         "assurance_too_low",
       );
     } finally {
@@ -403,7 +391,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         }),
       });
       expect(registered.status).toBe(201);
-      const client = (await registered.json()) as { id: string };
+      const client = overlapCast(await registered.json());
       const preRegistered = await claimStart(
         started.app,
         client.id,
@@ -431,7 +419,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
 
       // The hosted document carries a challenge the server never minted.
       doc.host({
-        ...(startedClaim.document as unknown as Record<string, unknown>),
+        ...(overlapCast(startedClaim.document)),
         challenge: randomBytes(32).toString("base64url"),
       });
       const verify = await claimVerify(
@@ -443,7 +431,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         },
       );
       expect(verify.status).toBe(400);
-      expect(((await verify.json()) as { error: string }).error).toBe(
+      expect((overlapCast(await verify.json())).error).toBe(
         "proof_mismatch",
       );
 
@@ -473,7 +461,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
       );
 
       doc.host({
-        ...(startedClaim.document as unknown as Record<string, unknown>),
+        ...(overlapCast(startedClaim.document)),
         origin: "https://someone-else.example",
       });
       const verify = await claimVerify(
@@ -485,7 +473,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         },
       );
       expect(verify.status).toBe(400);
-      expect(((await verify.json()) as { error: string }).error).toBe(
+      expect((overlapCast(await verify.json())).error).toBe(
         "proof_mismatch",
       );
       expect(
@@ -522,7 +510,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         },
       );
       expect(verify.status).toBe(410);
-      expect(((await verify.json()) as { error: string }).error).toBe(
+      expect((overlapCast(await verify.json())).error).toBe(
         "challenge_expired",
       );
       expect(
@@ -567,7 +555,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         },
       );
       expect(replay.status).toBe(409);
-      expect(((await replay.json()) as { error: string }).error).toBe(
+      expect((overlapCast(await replay.json())).error).toBe(
         "challenge_consumed",
       );
 
@@ -627,9 +615,9 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         },
       );
       expect(aliasStart.status).toBe(201);
-      const aliasClaim = (await aliasStart.json()) as StartedClaimBody;
+      const aliasClaim = overlapCast(await aliasStart.json());
       expect(aliasClaim.document.origin).toBe(aliasDoc.origin);
-      aliasDoc.host(aliasClaim.document as unknown as Record<string, unknown>);
+      aliasDoc.host(overlapCast(aliasClaim.document));
 
       const aliasVerify = await claimVerify(
         started.app,
@@ -643,7 +631,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
       );
       expect(aliasVerify.status).toBe(200);
       expect(
-        ((await aliasVerify.json()) as { aliasAttached: boolean })
+        (overlapCast(await aliasVerify.json()))
           .aliasAttached,
       ).toBe(true);
 
@@ -667,8 +655,8 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
           origin: aliasDoc.origin,
         },
       );
-      const reClaim = (await reStart.json()) as StartedClaimBody;
-      aliasDoc.host(reClaim.document as unknown as Record<string, unknown>);
+      const reClaim = overlapCast(await reStart.json());
+      aliasDoc.host(overlapCast(reClaim.document));
       const reVerify = await claimVerify(
         started.app,
         doc.clientId,
@@ -695,9 +683,9 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
           { origin: aliasDoc.origin },
         );
         expect(stealStart.status).toBe(201);
-        const stealClaim = (await stealStart.json()) as StartedClaimBody;
+        const stealClaim = overlapCast(await stealStart.json());
         aliasDoc.host(
-          stealClaim.document as unknown as Record<string, unknown>,
+          overlapCast(stealClaim.document),
         );
         const stealVerify = await claimVerify(
           started.app,
@@ -710,7 +698,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
           },
         );
         expect(stealVerify.status).toBe(409);
-        expect(((await stealVerify.json()) as { error: string }).error).toBe(
+        expect((overlapCast(await stealVerify.json())).error).toBe(
           "alias_conflict",
         );
         // Ownership of the second application is untouched.
@@ -785,7 +773,7 @@ describe("origin client admin suspend/revoke (ADR 0050 R-B, slice 3b)", () => {
         OPERATOR_TOKEN,
       );
       expect(suspended.status).toBe(200);
-      expect(((await suspended.json()) as { state: string }).state).toBe(
+      expect((overlapCast(await suspended.json())).state).toBe(
         "suspended",
       );
 
@@ -837,7 +825,7 @@ describe("origin client admin suspend/revoke (ADR 0050 R-B, slice 3b)", () => {
         OPERATOR_TOKEN,
       );
       expect(revoked.status).toBe(200);
-      expect(((await revoked.json()) as { state: string }).state).toBe(
+      expect((overlapCast(await revoked.json())).state).toBe(
         "revoked",
       );
       expect(
@@ -891,7 +879,7 @@ describe("origin client admin suspend/revoke (ADR 0050 R-B, slice 3b)", () => {
         }),
       });
       expect(registered.status).toBe(201);
-      const client = (await registered.json()) as { id: string };
+      const client = overlapCast(await registered.json());
 
       const preRegistered = await adminCall(
         started,

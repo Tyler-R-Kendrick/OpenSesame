@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createMemoryAdapterConstructor } from "../adapter/memory-adapter.js";
+import { isNumber } from "@opensesame/os-domain";
 
 describe("memory oidc adapter", () => {
   it("round-trips a payload through upsert and find", async () => {
@@ -89,7 +90,7 @@ describe("memory oidc adapter", () => {
     await codes.upsert("c1", {});
     await codes.consume("c1");
     const found = await codes.find("c1");
-    expect(typeof found?.consumed).toBe("number");
+    expect(isNumber(found?.consumed)).toBe(true);
 
     // Consuming an unknown id must not throw.
     await codes.consume("missing");

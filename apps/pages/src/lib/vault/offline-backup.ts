@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, isTypeofObject, isString, isNumber } from "@opensesame/os-domain";
 /**
  * Offline encrypted vault / sync-blob backup.
  *
@@ -97,7 +98,7 @@ export function refuseDeploymentSealWrap(label: string): void {
   }
 }
 
-export function buildOfflineBackup(input: {
+function buildOfflineBackupDefault(input: {
   projectId?: string | null;
   header: VaultHeader;
   body: SealedBlob;
@@ -128,7 +129,7 @@ export function buildOfflineBackup(input: {
   return envelope;
 }
 
-export function serializeOfflineBackup(
+function serializeOfflineBackupDefault(
   envelope: OfflineBackupEnvelope,
 ): string {
   if (envelope.deploymentSealUsed !== false) {
@@ -139,7 +140,7 @@ export function serializeOfflineBackup(
   return json;
 }
 
-export function parseOfflineBackup(fileText: string): OfflineBackupEnvelope {
+function parseOfflineBackupDefault(fileText: string): OfflineBackupEnvelope {
   if (fileText.length > MAX_OFFLINE_BACKUP_BYTES) {
     throw new Error("That offline backup is larger than 64 MB.");
   }
@@ -150,10 +151,10 @@ export function parseOfflineBackup(fileText: string): OfflineBackupEnvelope {
   } catch {
     throw new Error("That file is not valid JSON.");
   }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+  if (!isTypeofObject(parsed) || parsed === null || Array.isArray(parsed)) {
     throw new Error("That file is not an OpenSesame offline backup.");
   }
-  const row = parsed as Record<string, unknown>;
+  const row = overlapCast(parsed);
   if (
     row.format !== OFFLINE_BACKUP_FORMAT ||
     row.v !== OFFLINE_BACKUP_VERSION
@@ -163,14 +164,12 @@ export function parseOfflineBackup(fileText: string): OfflineBackupEnvelope {
   if (row.deploymentSealUsed !== false) {
     throw new Error("That backup claims a deployment seal wrap — refused.");
   }
-  const vault = row.vault as
-    | { header?: VaultHeader; body?: SealedBlob }
-    | undefined;
+  const vault = overlapCast(row.vault);
   if (!vault?.header || !vault.body?.ivB64 || !vault.body?.ctB64) {
     throw new Error("That backup is missing sealed vault ciphertext.");
   }
   const syncBlobs = Array.isArray(row.syncBlobs)
-    ? (row.syncBlobs as SyncBlobCiphertext[])
+    ? (overlapCast(row.syncBlobs))
     : [];
   if (syncBlobs.length > MAX_SYNC_BLOBS) {
     throw new Error("That backup has too many sync blobs.");
@@ -179,9 +178,9 @@ export function parseOfflineBackup(fileText: string): OfflineBackupEnvelope {
   for (const blob of syncBlobs) {
     if (
       !blob ||
-      typeof blob.id !== "string" ||
-      typeof blob.epoch !== "number" ||
-      typeof blob.ciphertextB64 !== "string" ||
+      !isString(blob.id) ||
+      !isNumber(blob.epoch) ||
+      !isString(blob.ciphertextB64) ||
       !blob.ciphertextB64
     ) {
       throw new Error("That backup has a malformed sync blob.");
@@ -194,9 +193,9 @@ export function parseOfflineBackup(fileText: string): OfflineBackupEnvelope {
   return {
     format: OFFLINE_BACKUP_FORMAT,
     v: OFFLINE_BACKUP_VERSION,
-    projectId: typeof row.projectId === "string" ? row.projectId : null,
+    projectId: isString(row.projectId) ? row.projectId : null,
     exportedAt:
-      typeof row.exportedAt === "string"
+      isString(row.exportedAt)
         ? row.exportedAt
         : new Date().toISOString(),
     vault: { header: vault.header, body: vault.body },
@@ -210,7 +209,7 @@ function cacheKey(projectId: string | null): string {
 }
 
 /** Persist last known ciphertext envelope for offline reads. */
-export function cacheCiphertextSnapshot(envelope: OfflineBackupEnvelope): void {
+function cacheCiphertextSnapshotDefault(envelope: OfflineBackupEnvelope): void {
   const json = serializeOfflineBackup(envelope);
   kvSet(cacheKey(envelope.projectId), json);
 }
@@ -232,7 +231,7 @@ function loadMutationQueue(): OfflineVaultMutation[] {
   try {
     const raw = kvGet(MUTATION_QUEUE_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as OfflineVaultMutation[];
+    const parsed = overlapCast(JSON.parse(raw));
     return Array.isArray(parsed) ? parsed.slice(-MAX_OFFLINE_MUTATIONS) : [];
   } catch {
     return [];
@@ -247,7 +246,7 @@ function saveMutationQueue(items: OfflineVaultMutation[]): void {
 }
 
 /** Queue a ciphertext mutation while offline (never plaintext). */
-export function enqueueOfflineMutation(
+function enqueueOfflineMutationDefault(
   input:
     | {
         kind: "replace_ciphertext_cache";
@@ -262,7 +261,7 @@ export function enqueueOfflineMutation(
 ): OfflineVaultMutation {
   const createdAt = new Date().toISOString();
   const id =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
+    crypto !== undefined && "randomUUID" in crypto
       ? crypto.randomUUID()
       : `mut-${createdAt}`;
   let item: OfflineVaultMutation;
@@ -290,6 +289,40 @@ export function enqueueOfflineMutation(
   }
   saveMutationQueue([...loadMutationQueue(), item]);
   return item;
+}
+
+export const offlineBackupSeams = {
+  buildOfflineBackup: buildOfflineBackupDefault,
+  serializeOfflineBackup: serializeOfflineBackupDefault,
+  parseOfflineBackup: parseOfflineBackupDefault,
+  cacheCiphertextSnapshot: cacheCiphertextSnapshotDefault,
+  enqueueOfflineMutation: enqueueOfflineMutationDefault,
+};
+
+export function buildOfflineBackup(
+  input: Parameters<typeof buildOfflineBackupDefault>[0],
+): OfflineBackupEnvelope {
+  return offlineBackupSeams.buildOfflineBackup(input);
+}
+
+export function serializeOfflineBackup(
+  envelope: OfflineBackupEnvelope,
+): string {
+  return offlineBackupSeams.serializeOfflineBackup(envelope);
+}
+
+export function parseOfflineBackup(fileText: string): OfflineBackupEnvelope {
+  return offlineBackupSeams.parseOfflineBackup(fileText);
+}
+
+export function cacheCiphertextSnapshot(envelope: OfflineBackupEnvelope): void {
+  return offlineBackupSeams.cacheCiphertextSnapshot(envelope);
+}
+
+export function enqueueOfflineMutation(
+  input: Parameters<typeof enqueueOfflineMutationDefault>[0],
+): OfflineVaultMutation {
+  return offlineBackupSeams.enqueueOfflineMutation(input);
 }
 
 export function listOfflineMutations(): OfflineVaultMutation[] {

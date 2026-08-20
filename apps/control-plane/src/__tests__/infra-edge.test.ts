@@ -10,6 +10,7 @@ import { createControlPlane } from "../create-app.js";
 import { sanitizeCorrelationId } from "../middleware/context.js";
 import { startServer } from "../server.js";
 import { bumpUsage, createAppStores, getUsage } from "../state.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 function testConfig() {
   return {
@@ -280,7 +281,7 @@ describe("http surface", () => {
     const { app } = createControlPlane({ config: testConfig(), ready: false });
     const res = await app.request("/v1/health/ready");
     expect(res.status).toBe(503);
-    expect(((await res.json()) as { status: string }).status).toBe("not_ready");
+    expect((overlapCast(await res.json())).status).toBe("not_ready");
   });
 
   it("allows private-network requests when asked in preflight", async () => {
@@ -298,7 +299,7 @@ describe("http surface", () => {
     const created = await app.request("/v1/principals/provisional", {
       method: "POST",
     });
-    const { accessToken } = (await created.json()) as { accessToken: string };
+    const { accessToken } = overlapCast(await created.json());
 
     // Malformed JSON makes c.req.json() throw inside the handler.
     const res = await app.request("/v1/claims", {
@@ -311,10 +312,7 @@ describe("http surface", () => {
       body: "{not json",
     });
     expect(res.status).toBe(500);
-    const body = (await res.json()) as {
-      error: string;
-      correlationId: string;
-    };
+    const body = overlapCast(await res.json());
     expect(body.error).toBe("internal_error");
     expect(body.correlationId).toBe("corr-500");
   });
@@ -336,7 +334,7 @@ describe("http surface", () => {
     const created = await app.request("/v1/principals/provisional", {
       method: "POST",
     });
-    const { accessToken } = (await created.json()) as { accessToken: string };
+    const { accessToken } = overlapCast(await created.json());
     const ensure = (key: string) =>
       app.request("/v1/projects/personal/ensure", {
         method: "POST",
@@ -391,7 +389,7 @@ describe("startServer", () => {
         `http://127.0.0.1:${port}/.well-known/openid-configuration`,
       );
       expect(discovery.status).toBe(200);
-      const doc = (await discovery.json()) as { issuer: string };
+      const doc = overlapCast(await discovery.json());
       expect(doc.issuer).toContain("127.0.0.1");
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));

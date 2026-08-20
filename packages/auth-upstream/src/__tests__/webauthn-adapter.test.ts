@@ -1,8 +1,5 @@
-import {
-  verifyAuthenticationResponse,
-  verifyRegistrationResponse,
-} from "@simplewebauthn/server";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
+import { simpleWebAuthnSeams } from "../simplewebauthn.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PasskeyAssertion, PasskeyCredential } from "../passkey.js";
 import {
@@ -13,27 +10,15 @@ import {
   issueRegistrationChallenge,
   verifyRegistrationAttestation,
 } from "../webauthn.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
-// The SimpleWebAuthn cryptography is library-tested upstream; these tests pin
-// OpenSesame's adapter behaviour around it (challenge binding, principal
-// binding, result unwrapping), so only the two verify entry points are mocked.
-vi.mock("@simplewebauthn/server", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@simplewebauthn/server")>();
-  return {
-    ...actual,
-    verifyRegistrationResponse: vi.fn(),
-    verifyAuthenticationResponse: vi.fn(),
-  };
-});
-
-const mockVerifyRegistration = vi.mocked(verifyRegistrationResponse);
-const mockVerifyAuthentication = vi.mocked(verifyAuthenticationResponse);
+const mockVerifyRegistration = vi.fn();
+const mockVerifyAuthentication = vi.fn();
 
 const rp = { rpID: "localhost", origin: "http://127.0.0.1:8788" };
 
 function registrationResponse(
-  clientData: Record<string, unknown>,
+  clientData: JsonObject,
 ): RegistrationResponseJSON {
   return {
     id: "cred",
@@ -74,6 +59,12 @@ const credential: PasskeyCredential = {
 beforeEach(() => {
   mockVerifyRegistration.mockReset();
   mockVerifyAuthentication.mockReset();
+  simpleWebAuthnSeams.verifyRegistrationResponse = overlapCast(
+    mockVerifyRegistration,
+  );
+  simpleWebAuthnSeams.verifyAuthenticationResponse = overlapCast(
+    mockVerifyAuthentication,
+  );
 });
 
 describe("verifyRegistrationAttestation", () => {
@@ -145,7 +136,7 @@ describe("verifyRegistrationAttestation", () => {
     const { challenge } = await issueRegistrationChallenge(store, rp, {
       principalId: "prn_reg",
     });
-    mockVerifyRegistration.mockResolvedValue({
+    mockVerifyRegistration.mockResolvedValue(overlapCast({
       verified: true,
       registrationInfo: {
         credential: {
@@ -154,7 +145,7 @@ describe("verifyRegistrationAttestation", () => {
           counter: 3,
         },
       },
-    } as never);
+    }));
 
     const result = await verifyRegistrationAttestation(
       store,
@@ -179,7 +170,7 @@ describe("verifyRegistrationAttestation", () => {
     const first = await issueRegistrationChallenge(store, rp, {
       principalId: "prn_reg",
     });
-    mockVerifyRegistration.mockResolvedValueOnce({ verified: false } as never);
+    mockVerifyRegistration.mockResolvedValueOnce(overlapCast({ verified: false }));
     expect(
       await verifyRegistrationAttestation(
         store,
@@ -192,10 +183,10 @@ describe("verifyRegistrationAttestation", () => {
     const second = await issueRegistrationChallenge(store, rp, {
       principalId: "prn_reg",
     });
-    mockVerifyRegistration.mockResolvedValueOnce({
+    mockVerifyRegistration.mockResolvedValueOnce(overlapCast({
       verified: true,
       registrationInfo: undefined,
-    } as never);
+    }));
     expect(
       await verifyRegistrationAttestation(
         store,
@@ -272,10 +263,10 @@ describe("createSimpleWebAuthnVerifyFn", () => {
     const { challenge } = await issueAuthenticationChallenge(store, rp, {
       principalId: "prn_x",
     });
-    mockVerifyAuthentication.mockResolvedValue({
+    mockVerifyAuthentication.mockResolvedValue(overlapCast({
       verified: true,
       authenticationInfo: { newCounter: 9 },
-    } as never);
+    }));
 
     const verify = createSimpleWebAuthnVerifyFn(rp, store);
     await expect(verify(assertionFor(challenge), credential)).resolves.toEqual({
@@ -296,10 +287,10 @@ describe("createSimpleWebAuthnVerifyFn", () => {
     const store = createMemoryChallengeStore();
     // No principalId: the challenge is not session-bound.
     const { challenge } = await issueAuthenticationChallenge(store, rp);
-    mockVerifyAuthentication.mockResolvedValue({
+    mockVerifyAuthentication.mockResolvedValue(overlapCast({
       verified: true,
       authenticationInfo: { newCounter: 1 },
-    } as never);
+    }));
 
     const verify = createSimpleWebAuthnVerifyFn(rp, store);
     await expect(verify(assertionFor(challenge), credential)).resolves.toEqual({
@@ -313,10 +304,10 @@ describe("createSimpleWebAuthnVerifyFn", () => {
     const { challenge } = await issueAuthenticationChallenge(store, rp, {
       principalId: "prn_x",
     });
-    mockVerifyAuthentication.mockResolvedValue({
+    mockVerifyAuthentication.mockResolvedValue(overlapCast({
       verified: true,
       authenticationInfo: undefined,
-    } as never);
+    }));
 
     const verify = createSimpleWebAuthnVerifyFn(rp, store);
     await expect(verify(assertionFor(challenge), credential)).resolves.toEqual({
@@ -330,7 +321,7 @@ describe("createSimpleWebAuthnVerifyFn", () => {
     const { challenge } = await issueAuthenticationChallenge(store, rp, {
       principalId: "prn_x",
     });
-    mockVerifyAuthentication.mockResolvedValue({ verified: false } as never);
+    mockVerifyAuthentication.mockResolvedValue(overlapCast({ verified: false }));
 
     const verify = createSimpleWebAuthnVerifyFn(rp, store);
     expect(await verify(assertionFor(challenge), credential)).toBe(false);

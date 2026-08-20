@@ -3,16 +3,33 @@ import { endSession } from "../identity.js";
 import { clearStagedClaimTokens } from "../queue.js";
 import { type VaultState, vaultStore } from "./store.js";
 
-export function useVault(): VaultState {
+function useVaultDefault(): VaultState {
   return useSyncExternalStore(vaultStore.subscribe, vaultStore.getSnapshot);
 }
 
-export function useVaultStore() {
+function useVaultStoreDefault() {
   return vaultStore;
 }
 
+export const vaultHooksSeams = {
+  useVault: useVaultDefault,
+  useVaultStore: useVaultStoreDefault,
+  useSessionGuards: useSessionGuardsDefault,
+  useTheme: useThemeDefault,
+  useCopySecret: useCopySecretDefault,
+  clearCopiedSecret: clearCopiedSecretDefault,
+};
+
+export function useVault(): VaultState {
+  return vaultHooksSeams.useVault();
+}
+
+export function useVaultStore() {
+  return vaultHooksSeams.useVaultStore();
+}
+
 /** Keep the idle clock honest and lock on tab hide when the user asked for it. */
-export function useSessionGuards(): void {
+function useSessionGuardsDefault(): void {
   const { prefs, status } = useVault();
 
   // Locking drops in-memory vault keys and clears secrets that left the vault
@@ -109,7 +126,7 @@ async function clearIfOurs(value: string): Promise<void> {
 }
 
 /** Wipe anything this app copied. Called on vault lock. */
-export function clearCopiedSecret(): void {
+function clearCopiedSecretDefault(): void {
   if (pendingClear !== null) {
     window.clearTimeout(pendingClear);
     pendingClear = null;
@@ -123,7 +140,7 @@ export function clearCopiedSecret(): void {
  * Copy a secret and schedule a clipboard clear. Also cleared when the vault
  * locks, so a copied password does not outlive the unlocked session.
  */
-export function useCopySecret(): (value: string) => Promise<CopyResult> {
+function useCopySecretDefault(): (value: string) => Promise<CopyResult> {
   const { prefs } = useVault();
   return useCallback(
     async (value: string) => {
@@ -148,11 +165,27 @@ export function useCopySecret(): (value: string) => Promise<CopyResult> {
   );
 }
 
-export function useTheme(): void {
+function useThemeDefault(): void {
   const { prefs } = useVault();
   useEffect(() => {
     const root = document.documentElement;
     if (prefs.theme === "system") root.removeAttribute("data-theme");
     else root.setAttribute("data-theme", prefs.theme);
   }, [prefs.theme]);
+}
+
+export function useSessionGuards(): void {
+  return vaultHooksSeams.useSessionGuards();
+}
+
+export function useTheme(): void {
+  return vaultHooksSeams.useTheme();
+}
+
+export function useCopySecret(): (value: string) => Promise<CopyResult> {
+  return vaultHooksSeams.useCopySecret();
+}
+
+export function clearCopiedSecret(): void {
+  return vaultHooksSeams.clearCopiedSecret();
 }

@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@opensesame/os-domain": "workspace:*",
     "@opensesame/qr": "workspace:^",
     "react": "19.1.0",
     "react-dom": "19.1.0"

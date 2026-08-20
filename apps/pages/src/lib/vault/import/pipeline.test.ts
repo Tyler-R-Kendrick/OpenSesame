@@ -1,11 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+import { overlapCast } from "@opensesame/os-domain";
 
-vi.mock("./zip.js", async () => {
-  const actual = await vi.importActual<typeof import("./zip.js")>("./zip.js");
-  return {
-    ...actual,
-    readZipText: vi.fn(async () => '{"encrypted":false,"items":[]}'),
-  };
+import { zipSeams } from "./zip.js";
+const originalZipSeams = { ...zipSeams };
+Object.assign(zipSeams, {
+  readZipText: vi.fn(async () => '{"encrypted":false,"items":[]}'),
 });
 
 import {
@@ -85,7 +84,7 @@ describe("detectFormat / parseImport", () => {
     expect(() =>
       parseImport(
         { fileName: "x", text: "a,b", headers: ["a", "b"], json: null },
-        "nope" as never,
+        overlapCast("nope"),
       ),
     ).toThrow(ImportError);
   });

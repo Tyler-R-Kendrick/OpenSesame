@@ -1,3 +1,4 @@
+import { overlapCast, isString } from "@opensesame/os-domain";
 /**
  * Production WebAuthn registration + assertion via @simplewebauthn/server.
  * Requires a previously issued challenge that matches clientDataJSON.challenge.
@@ -7,9 +8,8 @@ import {
   type GenerateAuthenticationOptionsOpts,
   generateAuthenticationOptions,
   generateRegistrationOptions,
-  verifyAuthenticationResponse,
-  verifyRegistrationResponse,
 } from "@simplewebauthn/server";
+import { simpleWebAuthnSeams } from "./simplewebauthn.js";
 import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
@@ -177,18 +177,18 @@ export async function verifyRegistrationAttestation(
       response.response.clientDataJSON.replace(/-/g, "+").replace(/_/g, "/"),
       "base64",
     ).toString("utf8");
-    clientData = JSON.parse(raw) as typeof clientData;
+    clientData = overlapCast(JSON.parse(raw));
   } catch {
     return null;
   }
   const challenge = clientData.challenge;
-  if (!challenge || typeof challenge !== "string") return null;
+  if (!challenge || !isString(challenge)) return null;
   const issued = store.consume(challenge);
   if (!issued || issued.purpose !== "registration") return null;
   if (issued.principalId !== expectedPrincipalId) return null;
 
   try {
-    const result = await verifyRegistrationResponse({
+    const result = await simpleWebAuthnSeams.verifyRegistrationResponse({
       response,
       expectedChallenge: challenge,
       expectedOrigin: rp.origin,
@@ -214,14 +214,14 @@ export function createSimpleWebAuthnVerifyFn(
   return async (assertion: PasskeyAssertion, credential: PasskeyCredential) => {
     let clientData: { challenge?: string; type?: string; origin?: string };
     try {
-      clientData = JSON.parse(
+      clientData = overlapCast(JSON.parse(
         Buffer.from(assertion.clientDataJSON).toString("utf8"),
-      ) as typeof clientData;
+      ));
     } catch {
       return false;
     }
     const challenge = clientData.challenge;
-    if (!challenge || typeof challenge !== "string") return false;
+    if (!challenge || !isString(challenge)) return false;
     const issued = store.consume(challenge);
     if (!issued || issued.purpose !== "authentication") return false;
     if (issued.principalId && issued.principalId !== credential.principalId) {
@@ -241,7 +241,7 @@ export function createSimpleWebAuthnVerifyFn(
     };
 
     try {
-      const result = await verifyAuthenticationResponse({
+      const result = await simpleWebAuthnSeams.verifyAuthenticationResponse({
         response,
         expectedChallenge: challenge,
         expectedOrigin: rp.origin,

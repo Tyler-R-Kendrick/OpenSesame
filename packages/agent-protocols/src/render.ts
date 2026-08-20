@@ -1,3 +1,4 @@
+import { type JsonObject, type BoundaryValue, isString, isTypeofObject } from "@opensesame/os-domain";
 export interface AuthMdConfig {
   serviceName: string;
   protectedResource: string;
@@ -31,8 +32,8 @@ function assertSafeText(label: string, value: string): void {
   }
 }
 
-function assertSafeConfig(label: string, value: unknown): void {
-  if (typeof value === "string") {
+function assertSafeConfig(label: string, value: BoundaryValue): void {
+  if (isString(value)) {
     assertSafeText(label, value);
     return;
   }
@@ -42,7 +43,7 @@ function assertSafeConfig(label: string, value: unknown): void {
     }
     return;
   }
-  if (value && typeof value === "object") {
+  if (value && isTypeofObject(value)) {
     for (const [key, child] of Object.entries(value)) {
       assertSafeConfig(key, child);
     }
@@ -165,7 +166,7 @@ export interface AgentCardConfig {
 
 export function renderAgentCard(
   config: AgentCardConfig,
-): Record<string, unknown> {
+): JsonObject {
   assertSafeConfig("agentCard", config);
   const card = {
     name: config.name,

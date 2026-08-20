@@ -1,8 +1,9 @@
 import parity from "../../../../connectors/fnox-parity.json";
 import type { Provider, ProviderCategory } from "./connections.js";
 import { loadSettings } from "./settings.js";
+import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString, isBoolean } from "@opensesame/os-domain";
 
-const CATEGORY: Record<ProviderCategory, readonly string[]> = {
+const CATEGORY = {
   encryption: [
     "webcrypto",
     "age",
@@ -45,7 +46,7 @@ const CATEGORY: Record<ProviderCategory, readonly string[]> = {
   testing: [],
 };
 
-const NAMES: Record<string, string> = {
+const NAMES = {
   "1password": "1Password",
   "aws-bedrock": "AWS Bedrock",
   "aws-kms": "AWS KMS",
@@ -78,7 +79,7 @@ const NAMES: Record<string, string> = {
   yubikey: "YubiKey",
 };
 
-const FIELDS: Record<string, Provider["configurationFields"]> = {
+const FIELDS = {
   age: [
     { name: "recipients", label: "Recipients", secret: false, required: true },
     { name: "identity", label: "Identity", secret: true, required: true },
@@ -257,7 +258,7 @@ function title(id: string): string {
 
 function categoryOf(id: string): ProviderCategory {
   for (const [category, ids] of Object.entries(CATEGORY)) {
-    if (ids.includes(id)) return category as ProviderCategory;
+    if (ids.includes(id)) return overlapCast(category);
   }
   return "developer";
 }
@@ -338,8 +339,8 @@ export const bundledProviders: Provider[] = [
 type TursoDb = {
   exec(sql: string): Promise<void>;
   prepare(sql: string): Promise<{
-    get(...values: unknown[]): Promise<Record<string, unknown> | undefined>;
-    run(...values: unknown[]): Promise<unknown>;
+    get(...values: unknown[]): Promise<JsonObject | undefined>;
+    run(...values: unknown[]): Promise<BoundaryValue>;
   }>;
   pull(): Promise<boolean>;
   push(): Promise<void>;
@@ -357,14 +358,14 @@ export function tursoMode(): typeof lastMode {
   return lastMode;
 }
 
-export function setTursoSessionToken(token: string): void {
+function setTursoSessionTokenDefault(token: string): void {
   sessionToken = token.trim();
   const current = database;
   database = null;
   if (current) void current.then((db) => db.close()).catch(() => undefined);
 }
 
-export async function checkTurso(): Promise<typeof lastMode> {
+async function checkTursoDefault(): Promise<typeof lastMode> {
   try {
     await db();
   } catch {
@@ -398,14 +399,14 @@ function withTimeout<T>(
 async function open(): Promise<TursoDb> {
   const settings = loadSettings();
   const remote = settings.tursoUrl.trim();
-  const module = await import("@tursodatabase/sync-wasm/vite");
-  const database = (await module.connect({
+  const { connectTurso } = await import("./turso-connect.js");
+  const database = overlapCast(await connectTurso({
     path: "opensesame-connectors.db",
     ...(remote && sessionToken
       ? { url: remote, authToken: () => Promise.resolve(sessionToken) }
-      : {}),
+      : undefined),
     clientName: "opensesame-pages",
-  })) as TursoDb;
+  }));
   if (remote && sessionToken) {
     try {
       await database.pull();
@@ -435,17 +436,17 @@ async function db(): Promise<TursoDb> {
   return database;
 }
 
-function validProvider(value: unknown): value is Provider {
-  if (!value || typeof value !== "object") return false;
-  const item = value as Partial<Provider>;
+function validProvider(value: BoundaryValue): value is Provider {
+  if (!value || !isTypeofObject(value)) return false;
+  const item = overlapCast(value);
   return (
-    typeof item.id === "string" &&
-    typeof item.displayName === "string" &&
-    typeof item.category === "string" &&
-    typeof item.docsUrl === "string" &&
-    typeof item.authKind === "string" &&
-    typeof item.configured === "boolean" &&
-    typeof item.autoConfigurable === "boolean" &&
+    isString(item.id) &&
+    isString(item.displayName) &&
+    isString(item.category) &&
+    isString(item.docsUrl) &&
+    isString(item.authKind) &&
+    isBoolean(item.configured) &&
+    isBoolean(item.autoConfigurable) &&
     Array.isArray(item.missingConfig) &&
     Array.isArray(item.scopes) &&
     Array.isArray(item.operations)
@@ -461,13 +462,13 @@ export function decodeEmbeddedProviders(value: string): Provider[] | null {
   }
   if (
     parsed === null ||
-    typeof parsed !== "object" ||
-    (parsed as { revision?: unknown }).revision !== BUNDLED_REVISION ||
-    !Array.isArray((parsed as { providers?: unknown }).providers)
+    !isTypeofObject(parsed) ||
+    (overlapCast(parsed)).revision !== BUNDLED_REVISION ||
+    !Array.isArray((overlapCast(parsed)).providers)
   ) {
     return null;
   }
-  const providers = (parsed as { providers: unknown[] }).providers;
+  const providers = (overlapCast(parsed)).providers;
   return providers.length > 0 && providers.every(validProvider)
     ? providers
     : null;
@@ -483,7 +484,7 @@ export async function readEmbeddedProviders(): Promise<Provider[]> {
       TURSO_OPEN_MS,
       "turso_read",
     );
-    if (typeof row?.value === "string") {
+    if (isString(row?.value)) {
       const providers = decodeEmbeddedProviders(row.value);
       if (providers) return providers;
     }
@@ -513,4 +514,17 @@ export async function writeEmbeddedProviders(
   } catch {
     lastMode = "memory";
   }
+}
+
+export const embeddedCatalogSeams = {
+  setTursoSessionToken: setTursoSessionTokenDefault,
+  checkTurso: checkTursoDefault,
+};
+
+export function setTursoSessionToken(token: string): void {
+  return embeddedCatalogSeams.setTursoSessionToken(token);
+}
+
+export async function checkTurso(): Promise<typeof lastMode> {
+  return embeddedCatalogSeams.checkTurso();
 }

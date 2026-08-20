@@ -1,18 +1,19 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { overlapCast } from "@opensesame/os-domain";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { natsSeams } from "../nats.js";
+import { NatsJetStreamTaskBus } from "../taskBus.js";
 
-const connect = vi.hoisted(() => vi.fn());
-const jetstreamManager = vi.hoisted(() => vi.fn());
-const jetstream = vi.hoisted(() => vi.fn());
+const connect = vi.fn();
+const jetstreamManager = vi.fn();
+const jetstream = vi.fn();
 
-vi.mock("nats", () => ({
-  connect,
-  StringCodec: () => ({
+beforeEach(() => {
+  natsSeams.connect = overlapCast(connect);
+  natsSeams.StringCodec = overlapCast(() => ({
     encode: (value: string) => new TextEncoder().encode(value),
     decode: (value: Uint8Array) => new TextDecoder().decode(value),
-  }),
-}));
-
-import { NatsJetStreamTaskBus } from "../taskBus.js";
+  }));
+});
 
 describe("NatsJetStreamTaskBus", () => {
   afterEach(() => {

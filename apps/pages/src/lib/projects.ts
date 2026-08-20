@@ -1,3 +1,4 @@
+import { overlapCast, type BoundaryValue, isTypeofObject, isString } from "@opensesame/os-domain";
 /**
  * Local project registry — the top level of the client hierarchy.
  *
@@ -55,25 +56,25 @@ function defaultState(): ProjectsState {
   return { v: 1, projects: [personalProject()], activeId: PERSONAL_PROJECT_ID };
 }
 
-function sanitize(raw: unknown): ProjectsState {
-  if (typeof raw !== "object" || raw === null) return defaultState();
-  const candidate = raw as Partial<ProjectsState>;
+function sanitize(raw: BoundaryValue): ProjectsState {
+  if (!isTypeofObject(raw) || raw === null) return defaultState();
+  const candidate = overlapCast(raw);
   const projects: PagesProject[] = [];
   if (Array.isArray(candidate.projects)) {
     for (const entry of candidate.projects) {
       if (
-        typeof entry === "object" &&
+        isTypeofObject(entry) &&
         entry !== null &&
-        typeof (entry as PagesProject).id === "string" &&
-        typeof (entry as PagesProject).name === "string"
+        isString((overlapCast(entry)).id) &&
+        isString((overlapCast(entry)).name)
       ) {
-        const project = entry as PagesProject;
+        const project = overlapCast(entry);
         projects.push({
           id: project.id,
           name: project.name,
           kind: project.id === PERSONAL_PROJECT_ID ? "personal" : "standard",
           createdAt:
-            typeof project.createdAt === "string"
+            isString(project.createdAt)
               ? project.createdAt
               : new Date(0).toISOString(),
         });
@@ -88,7 +89,7 @@ function sanitize(raw: unknown): ProjectsState {
     v: 1,
     projects: [personalProject(), ...withoutPersonal],
     activeId:
-      typeof candidate.activeId === "string"
+      isString(candidate.activeId)
         ? candidate.activeId
         : PERSONAL_PROJECT_ID,
   };
@@ -112,7 +113,7 @@ function readState(): ProjectsState {
   }
 }
 
-export function projectsState(): ProjectsState {
+function projectsStateDefault(): ProjectsState {
   if (!cached) cached = readState();
   return cached;
 }
@@ -127,7 +128,7 @@ function emit(): void {
   for (const listener of listeners) listener();
 }
 
-export function subscribeProjects(listener: Listener): () => void {
+function subscribeProjectsDefault(listener: Listener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
@@ -142,7 +143,7 @@ export function listProjects(): PagesProject[] {
   return projectsState().projects;
 }
 
-export function activeProject(): PagesProject {
+function activeProjectDefault(): PagesProject {
   const state = projectsState();
   return (
     state.projects.find((project) => project.id === state.activeId) ??
@@ -170,7 +171,7 @@ export function projectScopedKeys(
   return PROJECT_SCOPED_KEYS.map((base) => scopedKey(base, projectId));
 }
 
-export async function createProject(name: string): Promise<PagesProject> {
+async function createProjectDefault(name: string): Promise<PagesProject> {
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Give the project a name.");
   const state = projectsState();
@@ -215,7 +216,7 @@ export async function renameProject(id: string, name: string): Promise<void> {
  * reads, and a reload is the one way to guarantee no unlocked key or cached
  * plaintext from the previous project survives the transition.
  */
-export async function setActiveProject(id: string): Promise<void> {
+async function setActiveProjectDefault(id: string): Promise<void> {
   const state = projectsState();
   if (!state.projects.some((project) => project.id === id)) {
     throw new Error("That project no longer exists on this device.");
@@ -228,7 +229,7 @@ export async function setActiveProject(id: string): Promise<void> {
  * Remove a project and every sealed blob stored under it. The personal
  * project is the always-present default and can never be deleted.
  */
-export async function deleteProject(id: string): Promise<void> {
+async function deleteProjectDefault(id: string): Promise<void> {
   if (id === PERSONAL_PROJECT_ID) {
     throw new Error("The personal project cannot be deleted.");
   }
@@ -240,4 +241,37 @@ export async function deleteProject(id: string): Promise<void> {
     projects: state.projects.filter((project) => project.id !== id),
     activeId: state.activeId === id ? PERSONAL_PROJECT_ID : state.activeId,
   });
+}
+
+export const projectSeams = {
+  projectsState: projectsStateDefault,
+  subscribeProjects: subscribeProjectsDefault,
+  activeProject: activeProjectDefault,
+  createProject: createProjectDefault,
+  setActiveProject: setActiveProjectDefault,
+  deleteProject: deleteProjectDefault,
+};
+
+export function projectsState(): ProjectsState {
+  return projectSeams.projectsState();
+}
+
+export function subscribeProjects(listener: Listener): () => void {
+  return projectSeams.subscribeProjects(listener);
+}
+
+export function activeProject(): PagesProject {
+  return projectSeams.activeProject();
+}
+
+export async function createProject(name: string): Promise<PagesProject> {
+  return projectSeams.createProject(name);
+}
+
+export async function setActiveProject(id: string): Promise<void> {
+  return projectSeams.setActiveProject(id);
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  return projectSeams.deleteProject(id);
 }

@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString } from "@opensesame/os-domain";
 export interface TaskCapability {
   action: string;
   resource: string;
@@ -11,10 +12,10 @@ export interface TaskAccessViewModel {
   current: TaskCapability[];
 }
 
-function normalizeCapabilities(raw: unknown): TaskCapability[] {
-  if (typeof raw === "object" && raw !== null && "capabilities" in raw) {
+function normalizeCapabilities(raw: BoundaryValue): TaskCapability[] {
+  if (isTypeofObject(raw) && raw !== null && "capabilities" in raw) {
     return normalizeCapabilities(
-      (raw as { capabilities: unknown }).capabilities,
+      (overlapCast(raw)).capabilities,
     );
   }
   if (!Array.isArray(raw)) {
@@ -22,16 +23,16 @@ function normalizeCapabilities(raw: unknown): TaskCapability[] {
   }
   return raw
     .map((item) => {
-      if (typeof item !== "object" || item === null) {
+      if (!isTypeofObject(item) || item === null) {
         return null;
       }
-      const rec = item as Record<string, unknown>;
+      const rec = overlapCast(item);
       const action = String(rec.action ?? "");
       let resource = "";
-      if (typeof rec.resource === "string") {
+      if (isString(rec.resource)) {
         resource = rec.resource;
-      } else if (typeof rec.resource === "object" && rec.resource !== null) {
-        const sel = rec.resource as Record<string, unknown>;
+      } else if (isTypeofObject(rec.resource) && rec.resource !== null) {
+        const sel = overlapCast(rec.resource);
         resource = String(sel.value ?? sel.pattern ?? "");
       }
       if (!action || !resource) {
@@ -43,7 +44,7 @@ function normalizeCapabilities(raw: unknown): TaskCapability[] {
 }
 
 export function buildTaskAccessViewModel(
-  body: Record<string, unknown>,
+  body: JsonObject,
 ): TaskAccessViewModel {
   return {
     taskRunId: String(body.task_run_id ?? ""),

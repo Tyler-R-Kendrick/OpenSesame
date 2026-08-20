@@ -46,6 +46,7 @@ import {
 } from "../lib/site-broker.js";
 import { useOnline } from "../lib/use-online.js";
 import "./sites.css";
+import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString } from "@opensesame/os-domain";
 
 type OAuthClient = {
   id: string;
@@ -70,7 +71,7 @@ type AuditEvent = {
   outcome: string;
   correlationId?: string;
   clientId?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: JsonObject;
 };
 
 type Flash = { tone: "ok" | "warn" | "err"; text: string };
@@ -115,39 +116,39 @@ class SitesError extends Error {
   }
 }
 
-function messageFrom(body: unknown): string | null {
-  if (body && typeof body === "object" && "message" in body) {
-    const value = (body as { message?: unknown }).message;
-    if (typeof value === "string" && value.trim()) return value;
+function messageFrom(body: BoundaryValue): string | null {
+  if (body && isTypeofObject(body) && "message" in body) {
+    const value = (overlapCast(body)).message;
+    if (isString(value) && value.trim()) return value;
   }
   return null;
 }
 
-function codeFrom(body: unknown): string {
-  if (body && typeof body === "object" && "error" in body) {
-    const value = (body as { error?: unknown }).error;
-    if (typeof value === "string" && value.trim()) return value;
+function codeFrom(body: BoundaryValue): string {
+  if (body && isTypeofObject(body) && "error" in body) {
+    const value = (overlapCast(body)).error;
+    if (isString(value) && value.trim()) return value;
   }
   return "unknown_error";
 }
 
-function fieldErrorsFrom(body: unknown): string[] {
-  if (!body || typeof body !== "object" || !("details" in body)) return [];
-  const details = (body as { details?: unknown }).details;
-  if (!details || typeof details !== "object") return [];
+function fieldErrorsFrom(body: BoundaryValue): string[] {
+  if (!body || !isTypeofObject(body) || !("details" in body)) return [];
+  const details = (overlapCast(body)).details;
+  if (!details || !isTypeofObject(details)) return [];
   const out: string[] = [];
-  const form = (details as { formErrors?: unknown }).formErrors;
+  const form = (overlapCast(details)).formErrors;
   if (Array.isArray(form)) {
-    for (const item of form) if (typeof item === "string") out.push(item);
+    for (const item of form) if (isString(item)) out.push(item);
   }
-  const fields = (details as { fieldErrors?: unknown }).fieldErrors;
-  if (fields && typeof fields === "object") {
+  const fields = (overlapCast(details)).fieldErrors;
+  if (fields && isTypeofObject(fields)) {
     for (const [key, value] of Object.entries(
-      fields as Record<string, unknown>,
+      overlapCast(fields),
     )) {
       if (Array.isArray(value)) {
         for (const item of value) {
-          if (typeof item === "string") out.push(`${key}: ${item}`);
+          if (isString(item)) out.push(`${key}: ${item}`);
         }
       }
     }
@@ -166,7 +167,7 @@ async function callIdentity<T>(path: string, init?: RequestInit): Promise<T> {
       `Can't reach the Identity API at ${identityBase()}. Start it, or point Pages at a running instance under Settings.`,
     );
   }
-  const body: unknown = await res.json().catch(() => null);
+  const body = await res.json().catch(() => null);
   if (!res.ok) {
     const code = codeFrom(body);
     const detail = fieldErrorsFrom(body);
@@ -193,12 +194,12 @@ async function callIdentity<T>(path: string, init?: RequestInit): Promise<T> {
         : (explained ?? `${code} (HTTP ${res.status})`),
     );
   }
-  return body as T;
+  return overlapCast(body);
 }
 
-function errorText(value: unknown): string {
+function errorText(value: BoundaryValue): string {
   if (value instanceof Error) return value.message;
-  if (typeof value === "string") return value;
+  if (isString(value)) return value;
   return "Unknown error.";
 }
 
@@ -1007,7 +1008,7 @@ function StaticAuthPanel({
               <code>signInAndAccept</code> /{" "}
               <code>data-opensesame-verify=&quot;true&quot;</code>) so the RP
               verifies upstream JWKS with audience{" "}
-              <code>{`origin:${typeof location !== "undefined" ? location.origin : "…"}`}</code>{" "}
+              <code>{`origin:${location !== undefined ? location.origin : "…"}`}</code>{" "}
               and derives{" "}
               <code>sha256(pairwise_sub + &quot;:&quot; + siteOrigin)</code>.
             </p>

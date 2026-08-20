@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@opensesame/os-domain": "workspace:*",
     "@opensesame/sdk-cli": "workspace:*"
   },
   "devDependencies": {

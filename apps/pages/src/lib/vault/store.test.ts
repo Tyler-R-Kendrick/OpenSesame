@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { kvDelete, kvGet, kvSet } from "../kv.js";
+import { kvDelete, kvGet, kvSeams, kvSet } from "../kv.js";
 import { PBKDF2_ITERATIONS, createVault } from "./crypto.js";
 import { createItem } from "./model.js";
 import {
@@ -13,21 +13,19 @@ import {
   defaultPrefs,
   normalizeVaultPrefs,
 } from "./store.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const PASSWORD = "correct horse battery staple";
 
 /** Lets a test make the durable write fail the way a full disk would. */
 const refuseWrites = vi.hoisted(() => ({ on: false }));
 
-vi.mock("../kv.js", async () => {
-  const actual = await vi.importActual<typeof import("../kv.js")>("../kv.js");
-  return {
-    ...actual,
-    kvSetDurable: async (key: string, value: string) => {
-      if (refuseWrites.on) throw new Error("storage refused the write");
-      return actual.kvSetDurable(key, value);
-    },
-  };
+const originalKvSeams = { ...kvSeams };
+Object.assign(kvSeams, {
+  kvSetDurable: async (key: string, value: string) => {
+    if (refuseWrites.on) throw new Error("storage refused the write");
+    return originalKvSeams.kvSetDurable(key, value);
+  },
 });
 
 /** Seed a real vault header, then hand back a store that reads it. */
@@ -103,7 +101,7 @@ describe("VaultStore rollback detection", () => {
     store.lock();
 
     // Put the older file back, exactly as a restore would.
-    kvSet(BODY_KEY, snapshot as string);
+    kvSet(BODY_KEY, overlapCast(snapshot));
     const reopened = new VaultStore();
     await expect(reopened.unlock(PASSWORD)).rejects.toThrow(/older/u);
   }, 15_000);

@@ -16,7 +16,7 @@ export function taskBusControlsDisabled(
 export function taskBusSaveFlash(
   applied: boolean,
   config: TaskBusConfig,
-): { tone: TaskBusFlashTone; text: string } {
+) {
   if (applied) {
     return { tone: "ok", text: "TaskBus config applied on Host." };
   }
@@ -31,7 +31,7 @@ export function taskBusSaveFlash(
 export function taskBusPingFlash(
   ok: boolean,
   config: TaskBusConfig,
-): { tone: TaskBusFlashTone; text: string } {
+) {
   if (ok) {
     return { tone: "ok", text: "Host reached TaskBus / NATS." };
   }

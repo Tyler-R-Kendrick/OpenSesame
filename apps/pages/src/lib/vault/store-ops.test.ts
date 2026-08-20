@@ -13,6 +13,7 @@ import {
   assertMasterPasswordPolicy,
   normalizeVaultPrefs,
 } from "./store.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const PASSWORD = "correct horse battery staple";
 const NEXT_PASSWORD = "fourteen ungulate carriage nail";
@@ -59,7 +60,7 @@ describe("normalizeVaultPrefs edge cases", () => {
     ).toBe(0);
     expect(
       normalizeVaultPrefs({
-        autoLockMinutes: "soon" as unknown as number,
+        autoLockMinutes: overlapCast("soon"),
       }).autoLockMinutes,
     ).toBe(0);
   });
@@ -67,7 +68,7 @@ describe("normalizeVaultPrefs edge cases", () => {
   it("forces a non-boolean signOutOnLock back off", () => {
     expect(
       normalizeVaultPrefs({
-        signOutOnLock: "yes" as unknown as boolean,
+        signOutOnLock: overlapCast("yes"),
       }).signOutOnLock,
     ).toBe(false);
   });
@@ -372,9 +373,7 @@ describe("VaultStore session lifecycle", () => {
     kvSet(PREFS_KEY, JSON.stringify({ autoLockMinutes: 15, theme: "dark" }));
     const store = new VaultStore();
     expect(store.getSnapshot().prefs.autoLockMinutes).toBe(0);
-    const stored = JSON.parse(kvGet(PREFS_KEY) ?? "{}") as {
-      prefsRevision?: number;
-    };
+    const stored = overlapCast(JSON.parse(kvGet(PREFS_KEY) ?? "{}"));
     expect(stored.prefsRevision).toBeGreaterThanOrEqual(2);
   });
 });

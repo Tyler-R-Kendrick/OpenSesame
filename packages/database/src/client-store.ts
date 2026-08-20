@@ -1,6 +1,7 @@
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { Database } from "./repos/postgres.js";
 import * as schema from "./schema/index.js";
+import { overlapCast, type BoundaryValue, isTypeofObject } from "@opensesame/os-domain";
 
 /**
  * OAuth client persistence — structural types matching `ClientRecordStore`
@@ -127,39 +128,39 @@ export interface ClientOriginStore {
 type OAuthClientRow = typeof schema.oauthClients.$inferSelect;
 type ClientClaimChallengeRow = typeof schema.clientClaimChallenges.$inferSelect;
 
-function isUniqueViolation(err: unknown): boolean {
+function isUniqueViolation(err: BoundaryValue): boolean {
   // postgres.js puts `code` on the error itself; drizzle wraps driver
   // errors (notably PGlite's) in a DrizzleQueryError with a `cause`.
-  if (typeof err !== "object" || err === null) return false;
-  const code = (err as { code?: string }).code;
+  if (!isTypeofObject(err) || err === null) return false;
+  const code = (overlapCast(err)).code;
   if (code === "23505") return true;
-  const cause = (err as { cause?: unknown }).cause;
+  const cause = (overlapCast(err)).cause;
   return (
-    typeof cause === "object" &&
+    isTypeofObject(cause) &&
     cause !== null &&
-    (cause as { code?: string }).code === "23505"
+    (overlapCast(cause)).code === "23505"
   );
 }
 
 function mapRow(row: OAuthClientRow): OAuthClientRecord {
   const record: OAuthClientRecord = {
     id: row.id,
-    admissionMode: row.admissionMode as ClientAdmissionMode,
+    admissionMode: overlapCast(row.admissionMode),
     displayName: row.displayName,
-    redirectUris: (row.redirectUris ?? []) as string[],
+    redirectUris: overlapCast(row.redirectUris ?? []),
     sectorIdentifier: row.sectorIdentifier,
-    grantTypes: (row.grantTypes ?? []) as string[],
-    responseTypes: (row.responseTypes ?? []) as string[],
+    grantTypes: overlapCast(row.grantTypes ?? []),
+    responseTypes: overlapCast(row.responseTypes ?? []),
     tokenEndpointAuthMethod: row.tokenEndpointAuthMethod,
-    allowedScopes: (row.allowedScopes ?? []) as string[],
-    allowedResources: (row.allowedResources ?? []) as string[],
-    state: row.state as ClientState,
+    allowedScopes: overlapCast(row.allowedScopes ?? []),
+    allowedResources: overlapCast(row.allowedResources ?? []),
+    state: overlapCast(row.state),
   };
   if (row.metadataUri) record.metadataUri = row.metadataUri;
   if (row.metadataDigest) record.metadataDigest = row.metadataDigest;
   if (row.origin) record.origin = row.origin;
   if (row.ownershipStatus) {
-    record.ownershipStatus = row.ownershipStatus as OwnershipStatus;
+    record.ownershipStatus = overlapCast(row.ownershipStatus);
   }
   if (row.ownerPrincipalId) record.ownerPrincipalId = row.ownerPrincipalId;
   if (row.firstSeenAt) record.firstSeenAt = row.firstSeenAt;
@@ -388,7 +389,7 @@ function mapOriginRow(row: ClientOriginRow): ClientOriginRecord {
     applicationId: row.applicationId,
     canonicalOrigin: row.canonicalOrigin,
     publicClientId: row.publicClientId,
-    status: row.status as ClientOriginStatus,
+    status: overlapCast(row.status),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

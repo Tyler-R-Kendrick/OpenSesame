@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
 import { parseOriginClientId } from "@opensesame/oauth-provider";
-import type { Principal, ProvisionalSession } from "@opensesame/os-domain";
+import { Principal, ProvisionalSession, overlapCast, type BoundaryValue, isString } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import { ensurePersonalOrganization } from "../routes/organizations.js";
 import {
@@ -30,7 +30,7 @@ export function buildLoginPageModel(
     uid: details.uid,
     csrfToken,
     loginAction: `${interactionBase(details.uid)}/login`,
-    ...(principalId !== undefined ? { principalId } : {}),
+    ...(principalId !== undefined ? { principalId } : undefined),
     publicUrl: ctx.config.publicUrl,
   };
 }
@@ -45,7 +45,7 @@ export async function buildConsentPageModel(
   const parsedOrigin = parseOriginClientId(clientId);
   const origin = clientRecord?.origin ?? parsedOrigin ?? clientId;
   const scopes = collectConsentScopes(
-    typeof details.params.scope === "string" ? details.params.scope : undefined,
+    isString(details.params.scope) ? details.params.scope : undefined,
     details.prompt.details?.missingOIDCScope,
   );
 
@@ -61,7 +61,7 @@ export async function buildConsentPageModel(
     scopes,
     ...(clientRecord?.displayName !== undefined
       ? { clientDisplayName: clientRecord.displayName }
-      : {}),
+      : undefined),
   };
 }
 
@@ -168,8 +168,8 @@ export async function mintProvisionalForInteraction(
 /** Finish the login prompt; returns the oidc-provider resume URL. */
 export async function finishLoginInteraction(
   provider: ProviderInteractions,
-  req: unknown,
-  res: unknown,
+  req: BoundaryValue,
+  res: BoundaryValue,
   accountId: string,
 ): Promise<string> {
   return provider.interactionResult(
@@ -184,8 +184,8 @@ export async function finishLoginInteraction(
 export async function finishConsentDeny(
   ctx: AppContext,
   provider: ProviderInteractions,
-  req: unknown,
-  res: unknown,
+  req: BoundaryValue,
+  res: BoundaryValue,
   details: InteractionDetails,
   correlationId: string,
 ): Promise<string> {
@@ -203,7 +203,7 @@ export async function finishConsentDeny(
     outcome: "succeeded",
     ...(details.session?.accountId
       ? { principalId: details.session.accountId }
-      : {}),
+      : undefined),
     correlationId,
     actorType: "human",
     metadata: { clientId: String(details.params.client_id ?? "") },
@@ -219,8 +219,8 @@ export async function finishConsentDeny(
 export async function finishConsentAllow(
   ctx: AppContext,
   provider: ProviderInteractions,
-  req: unknown,
-  res: unknown,
+  req: BoundaryValue,
+  res: BoundaryValue,
   details: InteractionDetails,
   correlationId: string,
 ): Promise<string> {
@@ -232,15 +232,16 @@ export async function finishConsentAllow(
   const accountId = session?.accountId;
   if (!accountId) throw new Error("missing session accountId for consent");
 
-  let grant: {
+  type GrantHandle = {
     addOIDCScope(scope: string): void;
     addOIDCClaims(claims: string[]): void;
     addResourceScope(indicator: string, scope: string): void;
     save(): Promise<string>;
   };
+  let grant: GrantHandle;
 
   if (grantId) {
-    grant = (await provider.Grant.find(grantId)) as typeof grant;
+    grant = overlapCast(await provider.Grant.find(grantId));
     if (!grant) throw new Error("grant not found");
   } else {
     grant = new provider.Grant({ accountId, clientId });
@@ -268,7 +269,7 @@ export async function finishConsentAllow(
   // what revocation and audit can see. A widened request widens this row.
   const clientRecord = await ctx.oauth.clientStore.findById(clientId);
   const scopes = collectConsentScopes(
-    typeof params.scope === "string" ? params.scope : undefined,
+    isString(params.scope) ? params.scope : undefined,
     missingScope,
   );
   await ctx.stores.consents.save({

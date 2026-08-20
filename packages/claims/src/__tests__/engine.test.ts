@@ -6,7 +6,7 @@ function engine(clock?: () => Date) {
   return new ClaimEngine({
     pepper: fixtures.pepper,
     store: new MemoryClaimStore(),
-    ...(clock ? { clock } : {}),
+    ...(clock ? { clock } : undefined),
   });
 }
 

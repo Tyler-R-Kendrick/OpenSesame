@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString } from "@opensesame/os-domain";
 /**
  * Connection broker client (Host plane).
  *
@@ -174,7 +175,7 @@ function base(): string {
 async function call<T>(
   path: string,
   init: RequestInit = {},
-  map: (body: unknown) => T = (body) => body as T,
+  map: (body: BoundaryValue) => T = (body) => overlapCast(body),
 ): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("content-type")) {
@@ -211,9 +212,9 @@ async function call<T>(
 
 /* ----------------------------------------------------------- wire mapping */
 
-function obj(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object"
-    ? (value as Record<string, unknown>)
+function obj(value: BoundaryValue): JsonObject {
+  return value && isTypeofObject(value)
+    ? (overlapCast(value))
     : {};
 }
 
@@ -229,7 +230,7 @@ function toEgress(raw: {
   };
 }
 
-function toProvider(value: unknown): Provider {
+function toProvider(value: BoundaryValue): Provider {
   const raw = ProviderSchema.parse(value);
   return {
     id: raw.id,
@@ -254,7 +255,7 @@ function toProvider(value: unknown): Provider {
   };
 }
 
-function toBinding(value: unknown): Binding {
+function toBinding(value: BoundaryValue): Binding {
   const raw = BindingSchema.parse(value);
   return {
     id: raw.id,
@@ -265,7 +266,7 @@ function toBinding(value: unknown): Binding {
   };
 }
 
-function toConnection(value: unknown): Connection {
+function toConnection(value: BoundaryValue): Connection {
   const raw = ConnectionSchema.parse(value);
   return {
     connectionId: raw.connection_id,
@@ -294,7 +295,7 @@ function toConnection(value: unknown): Connection {
   };
 }
 
-function toEvent(value: unknown): ConnectionEvent {
+function toEvent(value: BoundaryValue): ConnectionEvent {
   const raw = ConnectionEventSchema.parse(value);
   return {
     id: raw.id,
@@ -322,14 +323,14 @@ export type Integration = {
 export type GithubAppRegistration = {
   action: string;
   state: string;
-  manifest: Record<string, unknown>;
+  manifest: JsonObject;
   redirectUrl: string;
 };
 
-function toIntegration(value: unknown): Integration {
-  const raw = value as Record<string, unknown>;
+function toIntegration(value: BoundaryValue): Integration {
+  const raw = overlapCast(value);
   const html =
-    typeof raw.github_app_html_url === "string"
+    isString(raw.github_app_html_url)
       ? raw.github_app_html_url.trim()
       : "";
   return {
@@ -345,15 +346,15 @@ function toIntegration(value: unknown): Integration {
   };
 }
 
-export function listIntegrations(): Promise<Integration[]> {
+function listIntegrationsDefault(): Promise<Integration[]> {
   return call("/integrations", {}, (body) => {
-    const raw = body as { integrations?: unknown[] };
+    const raw = overlapCast(body);
     return (raw.integrations ?? []).map(toIntegration);
   });
 }
 
 /** Begin tenant GitHub App Manifest registration (Host seals client credentials). */
-export function startGithubAppRegistration(body: {
+function startGithubAppRegistrationDefault(body: {
   returnTo: string;
   displayName?: string;
 }): Promise<GithubAppRegistration> {
@@ -363,16 +364,16 @@ export function startGithubAppRegistration(body: {
       method: "POST",
       body: JSON.stringify({
         return_to: body.returnTo,
-        ...(body.displayName ? { display_name: body.displayName } : {}),
+        ...(body.displayName ? { display_name: body.displayName } : undefined),
       }),
     },
     (payload) => {
-      const raw = payload as Record<string, unknown>;
+      const raw = overlapCast(payload);
       if (
-        typeof raw.action !== "string" ||
-        typeof raw.state !== "string" ||
+        !isString(raw.action) ||
+        !isString(raw.state) ||
         !raw.manifest ||
-        typeof raw.manifest !== "object"
+        !isTypeofObject(raw.manifest)
       ) {
         throw new ConnectionsError(
           0,
@@ -383,7 +384,7 @@ export function startGithubAppRegistration(body: {
       return {
         action: raw.action,
         state: raw.state,
-        manifest: raw.manifest as Record<string, unknown>,
+        manifest: overlapCast(raw.manifest),
         redirectUrl: String(raw.redirect_url ?? ""),
       };
     },
@@ -393,7 +394,7 @@ export function startGithubAppRegistration(body: {
 /** Browser POST to github.com/settings/apps/new — required by the Manifest flow.
  *  Navigates this tab (not a popup). CSP must allow form-action https://github.com.
  */
-export function submitGithubAppManifest(
+function submitGithubAppManifestDefault(
   registration: GithubAppRegistration,
 ): void {
   if (!registration.action.startsWith("https://github.com/")) {
@@ -418,19 +419,19 @@ export function submitGithubAppManifest(
   // If CSP or a browser policy blocks the navigation, the caller must recover the UI.
 }
 
-export function listProviders(): Promise<Provider[]> {
+function listProvidersDefault(): Promise<Provider[]> {
   return call("/providers", {}, (body) =>
     ListProvidersResponseSchema.parse(body).providers.map(toProvider),
   );
 }
 
-export function listConnections(): Promise<Connection[]> {
+function listConnectionsDefault(): Promise<Connection[]> {
   return call("/connections", {}, (body) =>
     ListConnectionsResponseSchema.parse(body).connections.map(toConnection),
   );
 }
 
-export function discoverConnections(): Promise<number> {
+function discoverConnectionsDefault(): Promise<number> {
   return call(
     "/connections/discover",
     { method: "POST" },
@@ -442,7 +443,7 @@ export function getConnection(id: string): Promise<Connection> {
   return call(`/connections/${encodeURIComponent(id)}`, {}, toConnection);
 }
 
-export function createConnection(body: {
+function createConnectionDefault(body: {
   providerId: string;
   displayName?: string;
   scopes?: string[];
@@ -455,17 +456,17 @@ export function createConnection(body: {
       method: "POST",
       body: JSON.stringify({
         provider_id: body.providerId,
-        ...(body.displayName ? { display_name: body.displayName } : {}),
-        ...(body.scopes ? { scopes: body.scopes } : {}),
-        ...(body.projectId ? { project_id: body.projectId } : {}),
-        ...(body.integrationId ? { integration_id: body.integrationId } : {}),
+        ...(body.displayName ? { display_name: body.displayName } : undefined),
+        ...(body.scopes ? { scopes: body.scopes } : undefined),
+        ...(body.projectId ? { project_id: body.projectId } : undefined),
+        ...(body.integrationId ? { integration_id: body.integrationId } : undefined),
       }),
     },
     toConnection,
   );
 }
 
-export function authorizeConnection(
+function authorizeConnectionDefault(
   id: string,
   scopes?: string[],
 ): Promise<{ authorizationUrl: string; expiresAt: string }> {
@@ -485,7 +486,7 @@ export function authorizeConnection(
   );
 }
 
-export function refreshConnection(id: string): Promise<Connection> {
+function refreshConnectionDefault(id: string): Promise<Connection> {
   return call(
     `/connections/${encodeURIComponent(id)}/refresh`,
     { method: "POST" },
@@ -493,7 +494,7 @@ export function refreshConnection(id: string): Promise<Connection> {
   );
 }
 
-export function setConnectionCredential(
+function setConnectionCredentialDefault(
   id: string,
   value: string,
 ): Promise<Connection> {
@@ -504,7 +505,7 @@ export function setConnectionCredential(
   );
 }
 
-export function setConnectionConfiguration(
+function setConnectionConfigurationDefault(
   id: string,
   configurationSet: Record<string, string>,
   configurationClear: string[] = [],
@@ -522,7 +523,7 @@ export function setConnectionConfiguration(
   );
 }
 
-export function revokeConnection(id: string): Promise<{
+function revokeConnectionDefault(id: string): Promise<{
   revoked: boolean;
   providerRevocation: "ok" | "unsupported" | "failed";
 }> {
@@ -539,7 +540,7 @@ export function revokeConnection(id: string): Promise<{
   );
 }
 
-export function updateConnectionPolicy(
+function updateConnectionPolicyDefault(
   id: string,
   body: { shareability: Connection["shareability"]; maxInvokeLevel: 1 | 2 },
 ): Promise<Connection> {
@@ -556,7 +557,7 @@ export function updateConnectionPolicy(
   );
 }
 
-export function bindConnection(
+function bindConnectionDefault(
   id: string,
   body: {
     targetKind: BindingTargetKind;
@@ -571,14 +572,14 @@ export function bindConnection(
       body: JSON.stringify({
         target_kind: body.targetKind,
         target_id: body.targetId,
-        ...(body.targetLabel ? { target_label: body.targetLabel } : {}),
+        ...(body.targetLabel ? { target_label: body.targetLabel } : undefined),
       }),
     },
     toConnection,
   );
 }
 
-export function unbindConnection(
+function unbindConnectionDefault(
   id: string,
   bindingId: string,
 ): Promise<Connection> {
@@ -590,7 +591,7 @@ export function unbindConnection(
 }
 
 /** Push a vault secret's grantees onto the Host connection. Never binds user:demo. */
-export async function compileSecretToHost(item: {
+async function compileSecretToHostDefault(item: {
   connectionRef: string;
   grantees: string[];
 }): Promise<void> {
@@ -612,7 +613,7 @@ export async function compileSecretToHost(item: {
   }
 }
 
-export function connectionEvents(id: string): Promise<ConnectionEvent[]> {
+function connectionEventsDefault(id: string): Promise<ConnectionEvent[]> {
   return call(`/connections/${encodeURIComponent(id)}/events`, {}, (body) =>
     ListEventsResponseSchema.parse(body).events.map(toEvent),
   );
@@ -635,7 +636,7 @@ const CONSENT_TIMEOUT_MS = 5 * 60_000;
  * its own page instead of ours would all strand the flow — so the connection
  * is polled as well, and whichever settles first wins.
  */
-export async function awaitConsent(
+async function awaitConsentDefault(
   connectionId: string,
   popup: Window | null,
   signal?: AbortSignal,
@@ -701,10 +702,116 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function openConsentPopup(url: string): Window | null {
+function openConsentPopupDefault(url: string): Window | null {
   return window.open(
     url,
     "opensesame-connect",
     "width=680,height=820,noopener=no,noreferrer=no",
   );
+}
+
+export const connectionSeams = {
+  discoverConnections: discoverConnectionsDefault,
+  refreshConnection: refreshConnectionDefault,
+  setConnectionConfiguration: setConnectionConfigurationDefault,
+  revokeConnection: revokeConnectionDefault,
+  updateConnectionPolicy: updateConnectionPolicyDefault,
+  bindConnection: bindConnectionDefault,
+  unbindConnection: unbindConnectionDefault,
+
+  listIntegrations: listIntegrationsDefault,
+  startGithubAppRegistration: startGithubAppRegistrationDefault,
+  submitGithubAppManifest: submitGithubAppManifestDefault,
+  listProviders: listProvidersDefault,
+  listConnections: listConnectionsDefault,
+  createConnection: createConnectionDefault,
+  authorizeConnection: authorizeConnectionDefault,
+  setConnectionCredential: setConnectionCredentialDefault,
+  compileSecretToHost: compileSecretToHostDefault,
+  connectionEvents: connectionEventsDefault,
+  awaitConsent: awaitConsentDefault,
+  openConsentPopup: openConsentPopupDefault,
+};
+
+export function listIntegrations(): Promise<Integration[]> {
+  return connectionSeams.listIntegrations();
+}
+export function startGithubAppRegistration(
+  body: Parameters<typeof startGithubAppRegistrationDefault>[0],
+): Promise<GithubAppRegistration> {
+  return connectionSeams.startGithubAppRegistration(body);
+}
+export function submitGithubAppManifest(
+  ...args: Parameters<typeof submitGithubAppManifestDefault>
+): ReturnType<typeof submitGithubAppManifestDefault> {
+  return connectionSeams.submitGithubAppManifest(...args);
+}
+export function listProviders(): Promise<Provider[]> {
+  return connectionSeams.listProviders();
+}
+export function listConnections(): Promise<Connection[]> {
+  return connectionSeams.listConnections();
+}
+export function createConnection(
+  body: Parameters<typeof createConnectionDefault>[0],
+): Promise<Connection> {
+  return connectionSeams.createConnection(body);
+}
+export function authorizeConnection(
+  ...args: Parameters<typeof authorizeConnectionDefault>
+): ReturnType<typeof authorizeConnectionDefault> {
+  return connectionSeams.authorizeConnection(...args);
+}
+export function setConnectionCredential(
+  ...args: Parameters<typeof setConnectionCredentialDefault>
+): ReturnType<typeof setConnectionCredentialDefault> {
+  return connectionSeams.setConnectionCredential(...args);
+}
+export async function compileSecretToHost(
+  item: Parameters<typeof compileSecretToHostDefault>[0],
+): Promise<void> {
+  return connectionSeams.compileSecretToHost(item);
+}
+export function connectionEvents(id: string): Promise<ConnectionEvent[]> {
+  return connectionSeams.connectionEvents(id);
+}
+export async function awaitConsent(
+  ...args: Parameters<typeof awaitConsentDefault>
+): ReturnType<typeof awaitConsentDefault> {
+  return connectionSeams.awaitConsent(...args);
+}
+export function openConsentPopup(url: string): Window | null {
+  return connectionSeams.openConsentPopup(url);
+}
+
+export function discoverConnections(): Promise<number> {
+  return connectionSeams.discoverConnections();
+}
+export function refreshConnection(id: string): Promise<Connection> {
+  return connectionSeams.refreshConnection(id);
+}
+export function setConnectionConfiguration(
+  ...args: Parameters<typeof setConnectionConfigurationDefault>
+): ReturnType<typeof setConnectionConfigurationDefault> {
+  return connectionSeams.setConnectionConfiguration(...args);
+}
+export function revokeConnection(
+  id: string,
+): ReturnType<typeof revokeConnectionDefault> {
+  return connectionSeams.revokeConnection(id);
+}
+export function updateConnectionPolicy(
+  ...args: Parameters<typeof updateConnectionPolicyDefault>
+): ReturnType<typeof updateConnectionPolicyDefault> {
+  return connectionSeams.updateConnectionPolicy(...args);
+}
+export function bindConnection(
+  ...args: Parameters<typeof bindConnectionDefault>
+): ReturnType<typeof bindConnectionDefault> {
+  return connectionSeams.bindConnection(...args);
+}
+export function unbindConnection(
+  ...args: Parameters<typeof unbindConnectionDefault>
+): ReturnType<typeof unbindConnectionDefault> {
+  return connectionSeams.unbindConnection(...args);
 }

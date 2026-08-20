@@ -31,6 +31,7 @@ import {
   updateTaskFromResponse,
 } from "./task-context.js";
 import { assertsNoSecretTools, hostTools, registerHostTools } from "./tools.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -70,10 +71,10 @@ describe("mcp-host tools", () => {
   });
 
   it("does not hand the model the operator token it holds", () => {
-    const env = {
+    const env = overlapCast({
       OPENSESAME_OPERATOR_TOKEN: "opensesame-dev-operator",
       OPENSESAME_ACCESS_TOKEN: "opaque-session:abcdef123456",
-    } as NodeJS.ProcessEnv;
+    });
     // The shape an echo takes: an upstream error quoting what it received.
     const echoed = JSON.stringify({
       error: "unauthorized",
@@ -88,12 +89,12 @@ describe("mcp-host tools", () => {
 
     // A short value is not treated as a secret: scrubbing it would mangle output
     // for no gain.
-    const short = { OPENSESAME_OPERATOR_TOKEN: "dev" } as NodeJS.ProcessEnv;
+    const short = overlapCast({ OPENSESAME_OPERATOR_TOKEN: "dev" });
     expect(scrubLocalSecrets("a dev payload", short)).toBe("a dev payload");
   });
 
   it("refuses a payload that still looks like a credential", () => {
-    const env = {} as NodeJS.ProcessEnv;
+    const env = overlapCast({});
     for (const body of [
       '{"uri":"secret://org/proj/github"}',
       '{"refresh_token":"x"}',
@@ -117,9 +118,9 @@ describe("mcp-host tools", () => {
   });
 
   it("prefers scrubbing an echo over refusing the whole result", () => {
-    const env = {
+    const env = overlapCast({
       OPENSESAME_OPERATOR_TOKEN: "opensesame-dev-operator",
-    } as NodeJS.ProcessEnv;
+    });
     // A body whose only offence was quoting our token is usable once it is gone;
     // refusing it would turn a leak into an outage.
     const body = JSON.stringify({

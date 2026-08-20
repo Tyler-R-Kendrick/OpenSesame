@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@opensesame/os-domain": "workspace:*",
     "@opensesame/sdk-browser": "workspace:*",
     "@opensesame/sdk-server": "workspace:*",
     "react": "19.1.0",

@@ -8,9 +8,10 @@ import {
   summarise,
 } from "../index.js";
 import { parseDotenv } from "./env.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 function input(fileName: string, text: string): DetectInput {
-  let json: unknown = null;
+  let json = null;
   const trimmed = text.trimStart();
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {
@@ -56,7 +57,7 @@ MULTILINE="line1\\nline2"
     const result = parseImport(file);
     expect(result.source).toBe("env-file");
     expect(result.items).toHaveLength(2);
-    const secret = result.items[0] as DraftSecret;
+    const secret = overlapCast(result.items[0]);
     expect(secret.kind).toBe("secret");
     expect(secret.name).toBe("OPENAI_API_KEY");
     expect(secret.value).toBe("sk-test");

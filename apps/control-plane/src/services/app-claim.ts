@@ -10,7 +10,7 @@ import {
   canonicalizeOrigin,
   originClientId,
 } from "@opensesame/oauth-provider";
-import type { Clock } from "@opensesame/os-domain";
+import { Clock, JsonObject, overlapCast } from "@opensesame/os-domain";
 
 /** F5: claim challenges live at most ten minutes. */
 export const CLAIM_CHALLENGE_TTL_MS = 600_000;
@@ -185,7 +185,7 @@ export class AppClaimService {
     };
   }
 
-  async #fetchProof(wellKnown: string): Promise<Record<string, unknown>> {
+  async #fetchProof(wellKnown: string): Promise<JsonObject> {
     let text: string;
     if (this.options.allowDirectFetch) {
       let res: Response;
@@ -231,7 +231,7 @@ export class AppClaimService {
       );
     }
     try {
-      return JSON.parse(text) as Record<string, unknown>;
+      return overlapCast(JSON.parse(text));
     } catch {
       throw new ClaimError(
         "proof_fetch_failed",

@@ -1,3 +1,4 @@
+import { overlapCast, isBoolean, isNumber } from "@opensesame/os-domain";
 /**
  * Vault session store. Holds the unlocked collection in memory, seals every
  * mutation straight back to OPFS, and drops the key on lock.
@@ -137,11 +138,11 @@ export function normalizeVaultPrefs(
   if (priorRevision < 2 && incoming.autoLockMinutes === 15) {
     merged.autoLockMinutes = 0;
   }
-  if (typeof merged.signOutOnLock !== "boolean") {
+  if (!isBoolean(merged.signOutOnLock)) {
     merged.signOutOnLock = false;
   }
   if (
-    typeof merged.autoLockMinutes !== "number" ||
+    !isNumber(merged.autoLockMinutes) ||
     !Number.isFinite(merged.autoLockMinutes) ||
     merged.autoLockMinutes < 0
   ) {
@@ -182,7 +183,7 @@ function readJson<T>(key: string, fallback: T): T {
   const raw = kvGet(key);
   if (!raw) return fallback;
   try {
-    return JSON.parse(raw) as T;
+    return overlapCast(JSON.parse(raw));
   } catch {
     return fallback;
   }
@@ -464,11 +465,7 @@ export class VaultStore {
 
     let prfOutput: ArrayBuffer;
     try {
-      prfOutput = await getPasskeyUnlockCeremony(
-        record,
-        webauthnRpId(),
-        signal,
-      );
+      prfOutput = await getPasskeyUnlockCeremony(record, undefined, signal);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         throw error;
@@ -525,7 +522,7 @@ export class VaultStore {
     this.#emit();
   }
 
-  #requireUnlocked(): { vaultKey: CryptoKey; header: VaultHeader } {
+  #requireUnlocked() {
     if (!this.#vaultKey || !this.#header) {
       throw new Error("Unlock the vault before changing unlock methods.");
     }
@@ -535,7 +532,7 @@ export class VaultStore {
   async enrollPasskey(): Promise<void> {
     const { header } = this.#requireUnlocked();
     const raw = this.#requireRaw();
-    const ceremony = await createPasskeyUnlockCeremony(webauthnRpId());
+    const ceremony = await createPasskeyUnlockCeremony();
     const record = await wrapVaultKeyWithPrf(
       raw,
       ceremony.prfOutput,
@@ -726,7 +723,7 @@ export class VaultStore {
         v: this.#body.v,
         items: this.#body.items,
         folders: this.#body.folders,
-        ...(this.#body.rev !== undefined ? { rev: this.#body.rev } : {}),
+        ...(this.#body.rev !== undefined ? { rev: this.#body.rev } : undefined),
       };
       change(this.#body);
       try {
@@ -897,7 +894,7 @@ export class VaultStore {
         v: 1,
         exportedAt: new Date().toISOString(),
         header: this.#header,
-        body: JSON.parse(body) as SealedBlob,
+        body: overlapCast(JSON.parse(body)),
       },
       null,
       2,
@@ -912,7 +909,7 @@ export class VaultStore {
       body?: SealedBlob;
     };
     try {
-      parsed = JSON.parse(fileText) as typeof parsed;
+      parsed = overlapCast(JSON.parse(fileText));
     } catch {
       throw new Error("That file is not valid JSON.");
     }

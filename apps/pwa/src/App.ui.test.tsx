@@ -1,11 +1,15 @@
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 // @vitest-environment jsdom
 import type { Session } from "@opensesame/sdk-browser";
 import { act } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
+import { apiClientSeams } from "./api-client";
+import { clientCoreSeams } from "./client-core";
+import { sdkBrowserSeams } from "./sdk-browser";
 
-const mocks = vi.hoisted(() => ({
+const mocks = {
   getSession: vi.fn(),
   continueAnonymously: vi.fn(),
   signOut: vi.fn(),
@@ -14,32 +18,10 @@ const mocks = vi.hoisted(() => ({
   probeDaemon: vi.fn(),
   loadSealedStore: vi.fn(),
   persistSealedStore: vi.fn(),
-}));
-
-vi.mock("@opensesame/sdk-browser", () => ({
-  createOpenSesame: () => ({
-    getSession: mocks.getSession,
-    continueAnonymously: mocks.continueAnonymously,
-    signOut: mocks.signOut,
-  }),
-}));
-
-vi.mock("@opensesame/api-client", () => ({
-  createApiClient: mocks.createApiClient,
-}));
-
-vi.mock("@opensesame/client-core", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@opensesame/client-core")>();
-  return {
-    ...actual,
-    loadSealedStore: mocks.loadSealedStore,
-    persistSealedStore: mocks.persistSealedStore,
-  };
-});
+};
 
 (
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  overlapCast(globalThis)
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 function makeSession(overrides: Partial<Session> = {}): Session {
@@ -54,7 +36,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  let reject!: (reason: unknown) => void;
+  let reject!: (reason: BoundaryValue) => void;
   const promise = new Promise<T>((res, rej) => {
     resolve = res;
     reject = rej;
@@ -99,6 +81,14 @@ function alertText(): string | null {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  sdkBrowserSeams.createOpenSesame = () => ({
+    getSession: mocks.getSession,
+    continueAnonymously: mocks.continueAnonymously,
+    signOut: mocks.signOut,
+  });
+  apiClientSeams.createApiClient = mocks.createApiClient;
+  clientCoreSeams.loadSealedStore = mocks.loadSealedStore;
+  clientCoreSeams.persistSealedStore = mocks.persistSealedStore;
   mocks.getSession.mockResolvedValue(null);
   mocks.continueAnonymously.mockResolvedValue(makeSession());
   mocks.signOut.mockResolvedValue(undefined);
@@ -242,10 +232,7 @@ describe("App health and sealed store", () => {
     );
     expect(mocks.loadSealedStore).toHaveBeenCalledWith("pwa-device");
     expect(mocks.persistSealedStore).toHaveBeenCalledTimes(1);
-    const [, sealed] = mocks.persistSealedStore.mock.calls[0] as [
-      string,
-      string,
-    ];
+    const [, sealed] = overlapCast(mocks.persistSealedStore.mock.calls[0]);
     expect(JSON.parse(sealed)).toEqual({
       cursor: { device_id: "pwa-device", epoch: 0 },
       blobs: [],

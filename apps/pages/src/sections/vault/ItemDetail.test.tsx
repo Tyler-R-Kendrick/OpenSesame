@@ -1,13 +1,14 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const vault = vi.hoisted(() => ({
   current: {
-    items: [] as unknown[],
-    folders: [] as { id: string; name: string; createdAt: string }[],
+    items: [],
+    folders: [],
   },
 }));
 const store = vi.hoisted(() => ({
@@ -24,20 +25,19 @@ const planes = vi.hoisted(() => ({
 const listConnections = vi.hoisted(() => vi.fn());
 const connectionEvents = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/vault/hooks.js", () => ({
-  useVault: () => vault.current,
+import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+const originalVaultHooksSeams = { ...vaultHooksSeams };
+Object.assign(vaultHooksSeams, {useVault: () => vault.current,
   useVaultStore: () => store,
-  useCopySecret: () => copySecret,
-}));
+  useCopySecret: () => copySecret});
 
-vi.mock("../../lib/planes.js", () => ({
-  usePlaneStatus: () => planes.value,
-}));
 
-vi.mock("../../lib/connections.js", () => ({
-  listConnections,
-  connectionEvents,
-}));
+import { planeSeams } from "../../lib/planes.js";
+const originalPlaneSeams = { ...planeSeams };
+Object.assign(planeSeams, {usePlaneStatus: () => planes.value});
+import { connectionSeams } from "../../lib/connections.js";
+const originalConnectionSeams = { ...connectionSeams };
+Object.assign(connectionSeams, { listConnections, connectionEvents });
 
 import type {
   CardItem,
@@ -66,7 +66,7 @@ function base(kind: VaultItem["kind"], id: string, name: string) {
 
 function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
   return {
-    ...(base("login", "itm_login", "Webmail") as unknown as LoginItem),
+    ...(overlapCast(base("login", "itm_login", "Webmail"))),
     username: "me@example.com",
     password: "hunter2hunter2",
     totp: "",
@@ -220,7 +220,7 @@ describe("ItemDetail", () => {
       screen.getByRole("button", { name: /Save new value/i }),
     );
     await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
-    const saved = store.saveItem.mock.calls[0]?.[0] as LoginItem;
+    const saved = overlapCast(store.saveItem.mock.calls[0]?.[0]);
     expect(saved.password).not.toBe("hunter2hunter2");
     expect(saved.password).toHaveLength(32);
     expect(saved.passwordChangedAt).not.toBe("2026-08-01T00:00:00Z");
@@ -246,7 +246,7 @@ describe("ItemDetail", () => {
       screen.getByRole("button", { name: /Save new value/i }),
     );
     await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
-    expect((store.saveItem.mock.calls[0]?.[0] as LoginItem).password).toBe(
+    expect((overlapCast(store.saveItem.mock.calls[0]?.[0])).password).toBe(
       "typed-secret-value",
     );
   });
@@ -342,7 +342,7 @@ describe("ItemDetail", () => {
 
   it("renders a card with grouped number on reveal", async () => {
     const card: CardItem = {
-      ...(base("card", "itm_card", "Corporate card") as unknown as CardItem),
+      ...(overlapCast(base("card", "itm_card", "Corporate card"))),
       cardholder: "Ada Lovelace",
       brand: "Visa",
       number: "4111111111114242",
@@ -369,7 +369,7 @@ describe("ItemDetail", () => {
       { kind: "invoke", at: "2026-08-10T10:00:00Z", detail: "200 OK" },
     ]);
     const secret: SecretItem = {
-      ...(base("secret", "itm_secret", "Deploy hook") as unknown as SecretItem),
+      ...(overlapCast(base("secret", "itm_secret", "Deploy hook"))),
       value: "whsec_123",
       ceiling: [
         {
@@ -400,11 +400,11 @@ describe("ItemDetail", () => {
 
   it("shows empty ceiling and no-receipt states for secrets", async () => {
     const secret: SecretItem = {
-      ...(base(
+      ...(overlapCast(base(
         "secret",
         "itm_secret",
         "Loose secret",
-      ) as unknown as SecretItem),
+      ))),
       value: "whsec_123",
       ceiling: [],
       grantees: [],
@@ -425,7 +425,7 @@ describe("ItemDetail", () => {
   it("reports when the Host has no connection for the ref", async () => {
     listConnections.mockResolvedValue([]);
     const secret: SecretItem = {
-      ...(base("secret", "itm_secret", "Deploy hook") as unknown as SecretItem),
+      ...(overlapCast(base("secret", "itm_secret", "Deploy hook"))),
       value: "whsec_123",
       ceiling: [],
       grantees: [],
@@ -441,7 +441,7 @@ describe("ItemDetail", () => {
   it("reports when the Host is disconnected", async () => {
     planes.value = { host: "degraded", identity: "connected" };
     const secret: SecretItem = {
-      ...(base("secret", "itm_secret", "Deploy hook") as unknown as SecretItem),
+      ...(overlapCast(base("secret", "itm_secret", "Deploy hook"))),
       value: "whsec_123",
       ceiling: [],
       grantees: [],
@@ -457,7 +457,7 @@ describe("ItemDetail", () => {
 
   it("updates a secret value through the update panel", async () => {
     const secret: SecretItem = {
-      ...(base("secret", "itm_secret", "Deploy hook") as unknown as SecretItem),
+      ...(overlapCast(base("secret", "itm_secret", "Deploy hook"))),
       value: "whsec_123",
       ceiling: [],
       grantees: [],
@@ -472,18 +472,18 @@ describe("ItemDetail", () => {
       screen.getByRole("button", { name: /Save new value/i }),
     );
     await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
-    expect((store.saveItem.mock.calls[0]?.[0] as SecretItem).value).not.toBe(
+    expect((overlapCast(store.saveItem.mock.calls[0]?.[0])).value).not.toBe(
       "whsec_123",
     );
   });
 
   it("renders a passkey record", () => {
     const passkey: PasskeyItem = {
-      ...(base(
+      ...(overlapCast(base(
         "passkey",
         "itm_pk",
         "Example passkey",
-      ) as unknown as PasskeyItem),
+      ))),
       rpId: "example.com",
       username: "me@example.com",
       credentialIdB64: "Y3JlZA",
@@ -501,7 +501,7 @@ describe("ItemDetail", () => {
 
   it("renders a note and its empty fallback", () => {
     const note: NoteItem = {
-      ...(base("note", "itm_note", "Scratch") as unknown as NoteItem),
+      ...(overlapCast(base("note", "itm_note", "Scratch"))),
       notes: "",
     };
     vault.current = { items: [note], folders: [] };
@@ -566,7 +566,7 @@ describe("ItemDetail edge branches", () => {
 
   it("shows a passkey with missing optional fields", () => {
     const passkey: PasskeyItem = {
-      ...(base("passkey", "itm_pk", "Key") as unknown as PasskeyItem),
+      ...(overlapCast(base("passkey", "itm_pk", "Key"))),
       rpId: "",
       username: "",
       credentialIdB64: "",
@@ -583,7 +583,7 @@ describe("ItemDetail edge branches", () => {
 
   it("shows a card with only a number", () => {
     const card: CardItem = {
-      ...(base("card", "itm_card", "Card") as unknown as CardItem),
+      ...(overlapCast(base("card", "itm_card", "Card"))),
       cardholder: "",
       brand: "",
       number: "4111111111111111",
@@ -601,7 +601,7 @@ describe("ItemDetail edge branches", () => {
 
   it("shows a card expiry with only a month", () => {
     const card: CardItem = {
-      ...(base("card", "itm_card", "Card") as unknown as CardItem),
+      ...(overlapCast(base("card", "itm_card", "Card"))),
       cardholder: "",
       brand: "",
       number: "",
@@ -620,7 +620,7 @@ describe("ItemDetail edge branches", () => {
     ]);
     connectionEvents.mockResolvedValue([]);
     const secret: SecretItem = {
-      ...(base("secret", "itm_secret", "Hook") as unknown as SecretItem),
+      ...(overlapCast(base("secret", "itm_secret", "Hook"))),
       value: "v",
       ceiling: [],
       grantees: [],
@@ -634,7 +634,7 @@ describe("ItemDetail edge branches", () => {
   it("degrades gracefully when the receipt lookup fails", async () => {
     listConnections.mockRejectedValue(new Error("host exploded"));
     const secret: SecretItem = {
-      ...(base("secret", "itm_secret", "Hook") as unknown as SecretItem),
+      ...(overlapCast(base("secret", "itm_secret", "Hook"))),
       value: "v",
       ceiling: [],
       grantees: [],
@@ -649,7 +649,7 @@ describe("ItemDetail edge branches", () => {
 
   it("falls back to the generic provider for a bare connection ref", () => {
     const secret: SecretItem = {
-      ...(base("secret", "itm_secret", "Hook") as unknown as SecretItem),
+      ...(overlapCast(base("secret", "itm_secret", "Hook"))),
       value: "v",
       ceiling: [],
       grantees: [],

@@ -1,14 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type {
-  AuditEvent,
-  AuthorizationRequest,
-  BetterAuthSubject,
-  ClaimItem,
-  ClaimSession,
-  ExternalIdentity,
-  OutboxEvent,
-  Principal,
-} from "@opensesame/os-domain";
+import { AuditEvent, AuthorizationRequest, BetterAuthSubject, ClaimItem, ClaimSession, ExternalIdentity, OutboxEvent, Principal, JsonObject, overlapCast, type BoundaryValue, isTypeofObject } from "@opensesame/os-domain";
 import { and, desc, eq, isNull, notExists, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type postgres from "postgres";
@@ -48,13 +39,13 @@ function mapAuditEvent(
     id: row.id,
     occurredAt: row.occurredAt,
     eventType: row.eventType,
-    outcome: row.outcome as AuditEvent["outcome"],
+    outcome: overlapCast(row.outcome),
     correlationId: row.correlationId,
-    metadata: (row.metadata ?? {}) as Record<string, unknown>,
+    metadata: overlapCast(row.metadata ?? {}),
   };
   if (row.principalId) mapped.principalId = row.principalId;
   if (row.actorType) {
-    mapped.actorType = row.actorType as NonNullable<AuditEvent["actorType"]>;
+    mapped.actorType = overlapCast(row.actorType);
   }
   if (row.actorId) mapped.actorId = row.actorId;
   if (row.agentInstanceId) mapped.agentInstanceId = row.agentInstanceId;
@@ -74,13 +65,13 @@ function mapAuditEvent(
 function mapPrincipal(row: typeof schema.principals.$inferSelect): Principal {
   return {
     id: row.id,
-    state: row.state as Principal["state"],
-    assurance: row.assurance as Principal["assurance"],
+    state: overlapCast(row.state),
+    assurance: overlapCast(row.assurance),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     version: row.version,
-    ...(row.verifiedAt ? { verifiedAt: row.verifiedAt } : {}),
-    ...(row.suspendedAt ? { suspendedAt: row.suspendedAt } : {}),
+    ...(row.verifiedAt ? { verifiedAt: row.verifiedAt } : undefined),
+    ...(row.suspendedAt ? { suspendedAt: row.suspendedAt } : undefined),
   };
 }
 
@@ -90,21 +81,21 @@ function mapIdentity(
   return {
     id: row.id,
     principalId: row.principalId,
-    kind: row.kind as ExternalIdentity["kind"],
+    kind: overlapCast(row.kind),
     issuer: row.issuer,
     subject: row.subject,
-    assurance: row.assurance as ExternalIdentity["assurance"],
+    assurance: overlapCast(row.assurance),
     linkedAt: row.linkedAt,
-    metadata: (row.metadata ?? {}) as Record<string, unknown>,
-    ...(row.tenant ? { tenant: row.tenant } : {}),
-    ...(row.displayHint ? { displayHint: row.displayHint } : {}),
+    metadata: overlapCast(row.metadata ?? {}),
+    ...(row.tenant ? { tenant: row.tenant } : undefined),
+    ...(row.displayHint ? { displayHint: row.displayHint } : undefined),
     ...(row.emailNormalized != null
       ? { emailNormalized: row.emailNormalized }
-      : {}),
-    ...(row.emailVerified != null ? { emailVerified: row.emailVerified } : {}),
+      : undefined),
+    ...(row.emailVerified != null ? { emailVerified: row.emailVerified } : undefined),
     ...(row.lastAuthenticatedAt
       ? { lastAuthenticatedAt: row.lastAuthenticatedAt }
-      : {}),
+      : undefined),
   };
 }
 
@@ -118,19 +109,19 @@ function mapAuthorizationRequest(
     authorizationDetails: row.authorizationDetails,
     requestDigest: row.requestDigest,
     bindingMessage: row.bindingMessage,
-    status: row.status as AuthorizationRequest["status"],
+    status: overlapCast(row.status),
     intervalSeconds: row.intervalSeconds,
-    ...(row.connectionId ? { connectionId: row.connectionId } : {}),
-    ...(row.delegationId ? { delegationId: row.delegationId } : {}),
+    ...(row.connectionId ? { connectionId: row.connectionId } : undefined),
+    ...(row.delegationId ? { delegationId: row.delegationId } : undefined),
     createdAt: row.createdAt,
     expiresAt: row.expiresAt,
-    ...(row.decidedAt ? { decidedAt: row.decidedAt } : {}),
+    ...(row.decidedAt ? { decidedAt: row.decidedAt } : undefined),
     ...(row.decidedByPrincipalId
       ? { decidedByPrincipalId: row.decidedByPrincipalId }
-      : {}),
+      : undefined),
     ...(row.decidedByKind
-      ? { decidedByKind: row.decidedByKind as "human" | "agent" }
-      : {}),
+      ? { decidedByKind: overlapCast(row.decidedByKind) }
+      : undefined),
     version: row.version,
   };
 }
@@ -138,42 +129,39 @@ function mapAuthorizationRequest(
 function mapClaim(row: typeof schema.claimSessions.$inferSelect): ClaimSession {
   return {
     id: row.id,
-    type: row.type as ClaimSession["type"],
-    state: row.state as ClaimSession["state"],
+    type: overlapCast(row.type),
+    state: overlapCast(row.state),
     tokenDigest: row.tokenDigest,
-    targetManifest: (row.targetManifest ?? {}) as Record<string, unknown>,
+    targetManifest: overlapCast(row.targetManifest ?? {}),
     targetManifestDigest: row.targetManifestDigest,
     createdAt: row.createdAt,
     expiresAt: row.expiresAt,
     version: row.version,
     ...(row.creatorPrincipalId
       ? { creatorPrincipalId: row.creatorPrincipalId }
-      : {}),
-    ...(row.creatorAgentId ? { creatorAgentId: row.creatorAgentId } : {}),
+      : undefined),
+    ...(row.creatorAgentId ? { creatorAgentId: row.creatorAgentId } : undefined),
     ...(row.creatorInstanceId
       ? { creatorInstanceId: row.creatorInstanceId }
-      : {}),
-    ...(row.userCodeDigest ? { userCodeDigest: row.userCodeDigest } : {}),
-    ...(row.proofKeyJkt ? { proofKeyJkt: row.proofKeyJkt } : {}),
+      : undefined),
+    ...(row.userCodeDigest ? { userCodeDigest: row.userCodeDigest } : undefined),
+    ...(row.proofKeyJkt ? { proofKeyJkt: row.proofKeyJkt } : undefined),
     ...(row.requestedDestination
       ? {
-          requestedDestination: row.requestedDestination as Record<
-            string,
-            unknown
-          >,
+          requestedDestination: overlapCast(row.requestedDestination),
         }
-      : {}),
+      : undefined),
     ...(row.requestedGrant
-      ? { requestedGrant: row.requestedGrant as Record<string, unknown> }
-      : {}),
-    ...(row.presentedAt ? { presentedAt: row.presentedAt } : {}),
-    ...(row.authenticatedAt ? { authenticatedAt: row.authenticatedAt } : {}),
-    ...(row.reviewedAt ? { reviewedAt: row.reviewedAt } : {}),
-    ...(row.completedAt ? { completedAt: row.completedAt } : {}),
-    ...(row.revokedAt ? { revokedAt: row.revokedAt } : {}),
+      ? { requestedGrant: overlapCast(row.requestedGrant) }
+      : undefined),
+    ...(row.presentedAt ? { presentedAt: row.presentedAt } : undefined),
+    ...(row.authenticatedAt ? { authenticatedAt: row.authenticatedAt } : undefined),
+    ...(row.reviewedAt ? { reviewedAt: row.reviewedAt } : undefined),
+    ...(row.completedAt ? { completedAt: row.completedAt } : undefined),
+    ...(row.revokedAt ? { revokedAt: row.revokedAt } : undefined),
     ...(row.completedByPrincipalId
       ? { completedByPrincipalId: row.completedByPrincipalId }
-      : {}),
+      : undefined),
   };
 }
 
@@ -183,25 +171,25 @@ function mapOutbox(row: typeof schema.outboxEvents.$inferSelect): OutboxEvent {
     aggregateType: row.aggregateType,
     aggregateId: row.aggregateId,
     eventType: row.eventType,
-    payload: (row.payload ?? {}) as Record<string, unknown>,
+    payload: overlapCast(row.payload ?? {}),
     createdAt: row.createdAt,
     availableAt: row.availableAt,
     attempts: row.attempts,
-    ...(row.publishedAt ? { publishedAt: row.publishedAt } : {}),
-    ...(row.lastError ? { lastError: row.lastError } : {}),
+    ...(row.publishedAt ? { publishedAt: row.publishedAt } : undefined),
+    ...(row.lastError ? { lastError: row.lastError } : undefined),
   };
 }
 
-function isUniqueViolation(err: unknown): boolean {
+function isUniqueViolation(err: BoundaryValue): boolean {
   // postgres-js surfaces the PG error code on the error itself; the PGlite
   // driver wraps the original error in `cause`. Check both so the conflict
   // mapping behaves identically under either driver.
-  for (const candidate of [err, (err as { cause?: unknown } | null)?.cause]) {
+  for (const candidate of [err, (overlapCast(err))?.cause]) {
     if (
-      typeof candidate === "object" &&
+      isTypeofObject(candidate) &&
       candidate !== null &&
       "code" in candidate &&
-      (candidate as { code?: string }).code === "23505"
+      (overlapCast(candidate)).code === "23505"
     ) {
       return true;
     }
@@ -299,16 +287,16 @@ export class PostgresRepositories implements Repositories {
       const [row] = await dbOf(uow, this.db)
         .update(schema.principals)
         .set({
-          ...(patch.state !== undefined ? { state: patch.state } : {}),
+          ...(patch.state !== undefined ? { state: patch.state } : undefined),
           ...(patch.assurance !== undefined
             ? { assurance: patch.assurance }
-            : {}),
+            : undefined),
           ...(patch.verifiedAt !== undefined
             ? { verifiedAt: patch.verifiedAt }
-            : {}),
+            : undefined),
           ...(patch.suspendedAt !== undefined
             ? { suspendedAt: patch.suspendedAt }
-            : {}),
+            : undefined),
           updatedAt: patch.updatedAt ?? new Date(),
           version: sql`${schema.principals.version} + 1`,
         })
@@ -525,19 +513,19 @@ export class PostgresRepositories implements Repositories {
       const [row] = await dbOf(uow, this.db)
         .update(schema.authorizationRequests)
         .set({
-          ...(patch.status !== undefined ? { status: patch.status } : {}),
+          ...(patch.status !== undefined ? { status: patch.status } : undefined),
           ...(patch.expiresAt !== undefined
             ? { expiresAt: patch.expiresAt }
-            : {}),
+            : undefined),
           ...(patch.decidedAt !== undefined
             ? { decidedAt: patch.decidedAt }
-            : {}),
+            : undefined),
           ...(patch.decidedByPrincipalId !== undefined
             ? { decidedByPrincipalId: patch.decidedByPrincipalId }
-            : {}),
+            : undefined),
           ...(patch.decidedByKind !== undefined
             ? { decidedByKind: patch.decidedByKind }
-            : {}),
+            : undefined),
           version: expectedVersion + 1,
         })
         .where(
@@ -617,59 +605,59 @@ export class PostgresRepositories implements Repositories {
       const [row] = await dbOf(uow, this.db)
         .update(schema.claimSessions)
         .set({
-          ...(patch.type !== undefined ? { type: patch.type } : {}),
-          ...(patch.state !== undefined ? { state: patch.state } : {}),
+          ...(patch.type !== undefined ? { type: patch.type } : undefined),
+          ...(patch.state !== undefined ? { state: patch.state } : undefined),
           ...(patch.creatorPrincipalId !== undefined
             ? { creatorPrincipalId: patch.creatorPrincipalId }
-            : {}),
+            : undefined),
           ...(patch.creatorAgentId !== undefined
             ? { creatorAgentId: patch.creatorAgentId }
-            : {}),
+            : undefined),
           ...(patch.creatorInstanceId !== undefined
             ? { creatorInstanceId: patch.creatorInstanceId }
-            : {}),
+            : undefined),
           ...(patch.tokenDigest !== undefined
             ? { tokenDigest: patch.tokenDigest }
-            : {}),
+            : undefined),
           ...(patch.userCodeDigest !== undefined
             ? { userCodeDigest: patch.userCodeDigest }
-            : {}),
+            : undefined),
           ...(patch.proofKeyJkt !== undefined
             ? { proofKeyJkt: patch.proofKeyJkt }
-            : {}),
+            : undefined),
           ...(patch.targetManifest !== undefined
             ? { targetManifest: patch.targetManifest }
-            : {}),
+            : undefined),
           ...(patch.targetManifestDigest !== undefined
             ? { targetManifestDigest: patch.targetManifestDigest }
-            : {}),
+            : undefined),
           ...(patch.requestedDestination !== undefined
             ? { requestedDestination: patch.requestedDestination }
-            : {}),
+            : undefined),
           ...(patch.requestedGrant !== undefined
             ? { requestedGrant: patch.requestedGrant }
-            : {}),
+            : undefined),
           ...(patch.presentedAt !== undefined
             ? { presentedAt: patch.presentedAt }
-            : {}),
+            : undefined),
           ...(patch.authenticatedAt !== undefined
             ? { authenticatedAt: patch.authenticatedAt }
-            : {}),
+            : undefined),
           ...(patch.reviewedAt !== undefined
             ? { reviewedAt: patch.reviewedAt }
-            : {}),
+            : undefined),
           ...(patch.completedAt !== undefined
             ? { completedAt: patch.completedAt }
-            : {}),
+            : undefined),
           ...(patch.expiresAt !== undefined
             ? { expiresAt: patch.expiresAt }
-            : {}),
+            : undefined),
           ...(patch.revokedAt !== undefined
             ? { revokedAt: patch.revokedAt }
-            : {}),
+            : undefined),
           ...(patch.completedByPrincipalId !== undefined
             ? { completedByPrincipalId: patch.completedByPrincipalId }
-            : {}),
+            : undefined),
           version: sql`${schema.claimSessions.version} + 1`,
         })
         .where(
@@ -717,12 +705,12 @@ export class PostgresRepositories implements Repositories {
       return {
         id: row.id,
         claimId: row.claimId,
-        targetType: row.targetType as ClaimItem["targetType"],
+        targetType: overlapCast(row.targetType),
         targetId: row.targetId,
         required: row.required,
-        dependencies: (row.dependencies ?? []) as string[],
-        requestedAction: row.requestedAction as ClaimItem["requestedAction"],
-        state: row.state as ClaimItem["state"],
+        dependencies: overlapCast(row.dependencies ?? []),
+        requestedAction: overlapCast(row.requestedAction),
+        state: overlapCast(row.state),
         snapshotVersion: row.snapshotVersion,
         snapshotDigest: row.snapshotDigest,
       };
@@ -736,12 +724,12 @@ export class PostgresRepositories implements Repositories {
       return rows.map((row) => ({
         id: row.id,
         claimId: row.claimId,
-        targetType: row.targetType as ClaimItem["targetType"],
+        targetType: overlapCast(row.targetType),
         targetId: row.targetId,
         required: row.required,
-        dependencies: (row.dependencies ?? []) as string[],
-        requestedAction: row.requestedAction as ClaimItem["requestedAction"],
-        state: row.state as ClaimItem["state"],
+        dependencies: overlapCast(row.dependencies ?? []),
+        requestedAction: overlapCast(row.requestedAction),
+        state: overlapCast(row.state),
         snapshotVersion: row.snapshotVersion,
         snapshotDigest: row.snapshotDigest,
       }));
@@ -894,7 +882,7 @@ export class PostgresRepositories implements Repositories {
     return this.db.transaction(async (tx) => {
       // SAFETY: drizzle's transaction callback receives the same schema-typed
       // Database as the outer client.
-      const uow = new PostgresUnitOfWork(tx as Database);
+      const uow = new PostgresUnitOfWork(overlapCast(tx));
       return fn(uow);
     });
   }

@@ -1,4 +1,5 @@
 import { SENSITIVE_KEY_PATTERN } from "@opensesame/observability";
+import { type JsonObject, overlapCast, type BoundaryValue, isNumber, isBoolean } from "@opensesame/os-domain";
 
 /**
  * Events `track()` will ever forward to `capture`. Anything else — typos,
@@ -116,8 +117,8 @@ function isForbiddenKeyName(key: string): boolean {
  * truncated to `MAX_STRING_LENGTH` (never rejected for length — long values
  * are just clipped).
  */
-function coercePrimitive(value: unknown): string | number | boolean {
-  if (typeof value === "number" || typeof value === "boolean") return value;
+function coercePrimitive(value: BoundaryValue): string | number | boolean {
+  if (isNumber(value) || isBoolean(value)) return value;
   const str = String(value);
   return str.length > MAX_STRING_LENGTH ? str.slice(0, MAX_STRING_LENGTH) : str;
 }
@@ -132,13 +133,13 @@ function coercePrimitive(value: unknown): string | number | boolean {
  * what leaked.
  */
 function sanitizeProps(
-  props: Record<string, unknown> | undefined,
-): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
+  props: JsonObject | undefined,
+): JsonObject {
+  const out: JsonObject = {};
   if (!props) return out;
 
   for (const [key, rawValue] of Object.entries(props)) {
-    if (!(ALLOWED_PROP_KEYS as readonly string[]).includes(key)) continue;
+    if (!(overlapCast(ALLOWED_PROP_KEYS)).includes(key)) continue;
     if (isForbiddenKeyName(key)) continue;
 
     // Checked pre-truncation: a forbidden term sitting just past the 64-char
@@ -152,11 +153,11 @@ function sanitizeProps(
 }
 
 export interface Telemetry {
-  track(event: string, props?: Record<string, unknown>): void;
+  track(event: string, props?: JsonObject): void;
 }
 
 export interface CreateTelemetryOptions {
-  capture: (event: string, props: Record<string, unknown>) => void;
+  capture: (event: string, props: JsonObject) => void;
 }
 
 /**

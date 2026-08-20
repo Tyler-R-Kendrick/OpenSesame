@@ -1,20 +1,24 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { apiClientSeams } from "./api-client";
+import { clientCoreSeams } from "./client-core";
+import { sdkBrowserSeams } from "./sdk-browser";
 
-vi.mock("@opensesame/sdk-browser", () => ({
-  createOpenSesame: () => ({
-    getSession: vi.fn().mockResolvedValue(null),
-    continueAnonymously: vi.fn(),
-    signOut: vi.fn(),
-  }),
-}));
-
-vi.mock("@opensesame/api-client", () => ({
-  createApiClient: () => ({
-    health: vi.fn().mockResolvedValue({ ok: true, body: "ok" }),
-    probeDaemon: vi.fn().mockResolvedValue({ available: true }),
-  }),
-}));
+function stubAppSeams(): void {
+  sdkBrowserSeams.createOpenSesame = () =>
+    ({
+      getSession: vi.fn().mockResolvedValue(null),
+      continueAnonymously: vi.fn(),
+      signOut: vi.fn(),
+    });
+  apiClientSeams.createApiClient = () =>
+    ({
+      health: vi.fn().mockResolvedValue({ ok: true, body: "ok" }),
+      probeDaemon: vi.fn().mockResolvedValue({ available: true }),
+    });
+  clientCoreSeams.loadSealedStore = vi.fn().mockResolvedValue(null);
+  clientCoreSeams.persistSealedStore = vi.fn().mockResolvedValue(undefined);
+}
 
 describe("main entry", () => {
   beforeEach(() => {
@@ -27,6 +31,7 @@ describe("main entry", () => {
   });
 
   it("mounts the App into the #root element", async () => {
+    stubAppSeams();
     const el = document.createElement("div");
     el.id = "root";
     document.body.appendChild(el);

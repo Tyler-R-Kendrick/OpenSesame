@@ -91,7 +91,7 @@ export function canonicalizeOrigin(
   // through the ./origin/canonical subpath and always passes explicit options.
   const production =
     options.production ??
-    (typeof process !== "undefined" && process.env?.NODE_ENV === "production");
+    (process !== undefined && process.env?.NODE_ENV === "production");
   const loopback = isLoopbackHost(hostname);
 
   if (scheme === "http") {

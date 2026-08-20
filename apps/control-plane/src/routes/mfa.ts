@@ -15,6 +15,7 @@ import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { authenticatedPrincipalId } from "./organizations.js";
+import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
 /** Minimal WebAuthn registration response shape (SimpleWebAuthn JSON). */
 type RegistrationResponseBody = {
@@ -26,7 +27,7 @@ type RegistrationResponseBody = {
     attestationObject: string;
     transports?: string[];
   };
-  clientExtensionResults: Record<string, unknown>;
+  clientExtensionResults: JsonObject;
   authenticatorAttachment?: string;
 };
 
@@ -55,7 +56,7 @@ function totpCodesEqual(a: string, b: string): boolean {
   return timingSafeEqual(ba, bb);
 }
 
-function rpFromConfig(publicUrl: string): { rpID: string; origin: string } {
+function rpFromConfig(publicUrl: string) {
   let hostname = "localhost";
   try {
     hostname = new URL(publicUrl).hostname;
@@ -155,12 +156,12 @@ async function auditMfaDenial(
     outcome: "denied",
     ...(input.principalId !== undefined
       ? { principalId: input.principalId }
-      : {}),
+      : undefined),
     ...(input.correlationId !== undefined
       ? { correlationId: input.correlationId }
-      : {}),
-    ...(input.targetType !== undefined ? { targetType: input.targetType } : {}),
-    ...(input.targetId !== undefined ? { targetId: input.targetId } : {}),
+      : undefined),
+    ...(input.targetType !== undefined ? { targetType: input.targetType } : undefined),
+    ...(input.targetId !== undefined ? { targetId: input.targetId } : undefined),
     metadata: { action: input.eventType, reason: input.reason },
   });
 }
@@ -216,7 +217,7 @@ mfaRoutes.post("/passkey/register", requirePrincipal(), async (c) => {
     const verified = await verifyRegistrationAttestation(
       ctx.passkeyChallenges,
       rp,
-      body.response as Parameters<typeof verifyRegistrationAttestation>[2],
+      overlapCast(body.response),
       principalId,
     );
     if (!verified) {
@@ -289,7 +290,7 @@ mfaRoutes.post("/passkey/assert", async (c) => {
       body.signature,
     ].some(
       (value) =>
-        typeof value !== "string" || value.length > MAX_PASSKEY_FIELD_LENGTH,
+        !isString(value) || value.length > MAX_PASSKEY_FIELD_LENGTH,
     )
   ) {
     return c.json({ error: "invalid_request" }, 400);

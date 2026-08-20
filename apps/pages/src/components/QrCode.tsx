@@ -1,4 +1,4 @@
-import { encodeQrSvg } from "@opensesame/qr";
+import { encodeQrSvg as encodeQrSvgDefault } from "@opensesame/qr";
 import { useMemo } from "react";
 
 type QrCodeProps = {
@@ -12,8 +12,7 @@ type QrCodeProps = {
   className?: string;
 };
 
-/** Inline QR via data-URL SVG. Empty values render nothing. */
-export function QrCode({
+function QrCodeDefault({
   value,
   label,
   shortcode,
@@ -24,7 +23,7 @@ export function QrCode({
     const trimmed = value.trim();
     if (!trimmed) return null;
     try {
-      const svg = encodeQrSvg(trimmed, { pixelSize: 4, border: 2 });
+      const svg = qrSeams.encodeQrSvg(trimmed, { pixelSize: 4, border: 2 });
       return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     } catch {
       return null;
@@ -49,4 +48,15 @@ export function QrCode({
       ) : null}
     </figure>
   );
+}
+
+export const qrSeams = {
+  encodeQrSvg: encodeQrSvgDefault,
+  QrCode: QrCodeDefault,
+};
+
+/** Inline QR via data-URL SVG. Empty values render nothing. */
+export function QrCode(props: QrCodeProps) {
+  const Impl = qrSeams.QrCode;
+  return <Impl {...props} />;
 }

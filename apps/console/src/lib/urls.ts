@@ -15,7 +15,7 @@ export function isLoopbackUrl(raw: string): boolean {
 export function operatorHeadersFor(
   base: string,
   operatorToken: string,
-): Record<string, string> {
+) {
   if (!operatorToken || !isLoopbackUrl(base)) return {};
   return { authorization: `Bearer operator:${operatorToken}` };
 }

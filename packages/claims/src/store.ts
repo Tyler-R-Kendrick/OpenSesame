@@ -1,4 +1,4 @@
-import type { ClaimItem, ClaimSession, Clock } from "@opensesame/os-domain";
+import type { ClaimItem, ClaimSession, Clock, JsonObject } from "@opensesame/os-domain";
 
 /**
  * Persistence seam for claim sessions. Implementations must provide
@@ -31,6 +31,6 @@ export interface ClaimEngineOptions {
 
 export type CompleteDecision = {
   acceptedItemIds: string[];
-  destination?: Record<string, unknown>;
+  destination?: JsonObject;
   idempotencyKey?: string;
 };

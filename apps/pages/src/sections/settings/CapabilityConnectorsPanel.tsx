@@ -40,7 +40,11 @@ import {
   shouldAutoConnect,
 } from "../../lib/settings.js";
 import { useOnline } from "../../lib/use-online.js";
-import { GithubHistoryRemotePicker } from "./GithubHistoryRemotePicker.js";
+import { GithubHistoryRemotePicker as GithubHistoryRemotePickerDefault } from "./GithubHistoryRemotePicker.js";
+
+export const capabilityConnectorsSeams = {
+  GithubHistoryRemotePicker: GithubHistoryRemotePickerDefault,
+};
 
 type Flash = { tone: "ok" | "err" | "warn"; text: string };
 
@@ -87,7 +91,7 @@ function statusLabel(
   capabilityId: CapabilityId,
   binding: CapabilityConnectorBinding,
   connection: Connection | undefined,
-): { tone: "ok" | "warn" | "err" | "idle"; text: string } {
+) {
   const def = CAPABILITIES.find((c) => c.id === capabilityId);
   if (!def) return { tone: "idle", text: "Unknown" };
   if (!def.requiresAuth(binding.providerId)) {
@@ -557,18 +561,23 @@ export function CapabilityConnectorsPanel() {
                 </div>
 
                 {def.id === "history" && binding.providerId === "github" ? (
-                  <GithubHistoryRemotePicker
-                    binding={binding}
-                    connection={connection}
-                    disabled={busy === def.id}
-                    onSelectRemote={(remote) =>
-                      updateBinding(def.id, {
-                        providerId: binding.providerId,
-                        connectionId: binding.connectionId,
-                        remote,
-                      })
-                    }
-                  />
+                  (() => {
+                    const Picker = capabilityConnectorsSeams.GithubHistoryRemotePicker;
+                    return (
+                      <Picker
+                        binding={binding}
+                        connection={connection}
+                        disabled={busy === def.id}
+                        onSelectRemote={(remote) =>
+                          updateBinding(def.id, {
+                            providerId: binding.providerId,
+                            connectionId: binding.connectionId,
+                            remote,
+                          })
+                        }
+                      />
+                    );
+                  })()
                 ) : null}
 
                 {def.id === "history" && binding.providerId === "gitlab" ? (

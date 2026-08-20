@@ -253,7 +253,7 @@ principalRoutes.post("/provisional/revoke", async (c) => {
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "principal.provisional_revoked",
       outcome: "succeeded",
-      ...(owner !== undefined ? { principalId: owner } : {}),
+      ...(owner !== undefined ? { principalId: owner } : undefined),
       sessionId,
       correlationId: c.get("correlationId"),
       actorType: "human",
@@ -293,13 +293,13 @@ principalRoutes.get("/me", requirePrincipal(), async (c) => {
     updatedAt: principal.updatedAt.toISOString(),
     ...(principal.verifiedAt
       ? { verifiedAt: principal.verifiedAt.toISOString() }
-      : {}),
+      : undefined),
     version: principal.version,
     identities: identities.map((i) => ({
       id: i.id,
       kind: i.kind,
       issuer: i.issuer,
-      ...(i.displayHint !== undefined ? { displayHint: i.displayHint } : {}),
+      ...(i.displayHint !== undefined ? { displayHint: i.displayHint } : undefined),
       assurance: i.assurance,
     })),
   });
@@ -317,7 +317,7 @@ principalRoutes.get("/identities", requirePrincipal(), async (c) => {
       kind: i.kind,
       issuer: i.issuer,
       subject: i.subject,
-      ...(i.displayHint !== undefined ? { displayHint: i.displayHint } : {}),
+      ...(i.displayHint !== undefined ? { displayHint: i.displayHint } : undefined),
       assurance: i.assurance,
       linkedAt: i.linkedAt.toISOString(),
     })),
@@ -367,7 +367,7 @@ principalRoutes.post(
       issuer: parsed.data.issuer,
       ...(parsed.data.tenant !== undefined
         ? { tenant: parsed.data.tenant }
-        : {}),
+        : undefined),
       subject: parsed.data.subject,
     });
     if (existing) {
@@ -382,7 +382,7 @@ principalRoutes.post(
               subject: existing.subject,
               ...(existing.displayHint !== undefined
                 ? { displayHint: existing.displayHint }
-                : {}),
+                : undefined),
               assurance: existing.assurance,
               linkedAt: existing.linkedAt.toISOString(),
             },
@@ -434,16 +434,16 @@ principalRoutes.post(
       metadata: {},
       ...(parsed.data.tenant !== undefined
         ? { tenant: parsed.data.tenant }
-        : {}),
+        : undefined),
       ...(parsed.data.displayHint !== undefined
         ? { displayHint: parsed.data.displayHint }
-        : {}),
+        : undefined),
       ...(parsed.data.emailNormalized !== undefined
         ? { emailNormalized: parsed.data.emailNormalized }
-        : {}),
+        : undefined),
       ...(parsed.data.emailVerified !== undefined
         ? { emailVerified: parsed.data.emailVerified }
-        : {}),
+        : undefined),
     };
 
     try {
@@ -501,7 +501,7 @@ principalRoutes.post(
           subject: identity.subject,
           ...(identity.displayHint !== undefined
             ? { displayHint: identity.displayHint }
-            : {}),
+            : undefined),
           assurance: identity.assurance,
           linkedAt: identity.linkedAt.toISOString(),
         },

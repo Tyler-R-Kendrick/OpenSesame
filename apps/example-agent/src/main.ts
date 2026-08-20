@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * Anonymous agent registration + claim poll demo.
  *
@@ -25,7 +26,7 @@ function jkt(): string {
 export function createMockFetch(): typeof fetch {
   const claimId = "clm_demo";
   let polls = 0;
-  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+  return overlapCast(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/v1/principals/provisional") && init?.method === "POST") {
       return new Response(
@@ -67,12 +68,12 @@ export function createMockFetch(): typeof fetch {
           items: [],
           expiresAt: new Date(Date.now() + 900_000).toISOString(),
           version: 1,
-          ...(polls >= 2 ? { completedByPrincipalId: "prn_demo" } : {}),
+          ...(polls >= 2 ? { completedByPrincipalId: "prn_demo" } : undefined),
         }),
       );
     }
     throw new Error(`unexpected ${url}`);
-  }) as typeof fetch;
+  });
 }
 
 export async function runAnonymousAgentDemo(options?: {

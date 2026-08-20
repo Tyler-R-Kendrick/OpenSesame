@@ -7,14 +7,15 @@ import {
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const env = vi.hoisted(() => ({
   plane: {
-    host: "live" as string,
+    host: "live",
     hostBase: "https://host.example.com",
-    identity: "connected" as string,
+    identity: "connected",
     identityBase: "https://id.example.com",
   },
   needsPairing: false,
@@ -30,44 +31,45 @@ const env = vi.hoisted(() => ({
   waitForTailnet: vi.fn(),
 }));
 
-vi.mock("../lib/planes.js", () => ({
-  PAGES_CANNOT_HOST: "Pages cannot host the Host API.",
+import { planeSeams } from "../lib/planes.js";
+const originalPlaneSeams = { ...planeSeams };
+Object.assign(planeSeams, {PAGES_CANNOT_HOST: "Pages cannot host the Host API.",
   hostStatusLabel: (host: string) => `host:${host}`,
   identityStatusLabel: (identity: string) => `id:${identity}`,
   needsHostPairing: () => env.needsPairing,
-  usePlaneStatus: () => env.plane,
-}));
-
-vi.mock("../lib/settings.js", () => ({
-  loadSettings: () => ({
+  usePlaneStatus: () => env.plane});
+import { settingsSeams } from "../lib/settings.js";
+const originalSettingsSeams = { ...settingsSeams };
+Object.assign(settingsSeams, {loadSettings: () => ({
     daemonApi: env.daemonApiSetting,
     hostApi: "https://host.example.com",
   }),
   pageIsLoopback: () => env.loopbackPage,
-  shippedDaemonApi: "http://127.0.0.1:18790",
-}));
-
-vi.mock("../lib/identity.js", () => ({
-  useConnect: () => ({ connect: env.connect }),
-}));
-
-vi.mock("../lib/daemon.js", () => ({
+  shippedDaemonApi: "http://127.0.0.1:18790"});
+import { identitySeams } from "../lib/identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {useConnect: () => ({ connect: env.connect })});
+import { daemonSeams } from "../lib/daemon.js";
+const originalDaemonSeams = { ...daemonSeams };
+Object.assign(daemonSeams, {
   probeDaemon: env.probeDaemon,
   applyDaemonPairing: env.applyDaemonPairing,
-}));
-
-vi.mock("../lib/tailscale.js", () => ({
+});
+import { tailscaleSeams } from "../lib/tailscale.js";
+const originalTailscaleSeams = { ...tailscaleSeams };
+Object.assign(tailscaleSeams, {
   assertDaemonReachableFromPage: env.assertReachable,
   detectTailnet: env.detectTailnet,
   discoverTailscaleDaemon: env.discoverTailscaleDaemon,
   openTailscaleLogin: env.openTailscaleLogin,
   waitForTailnet: env.waitForTailnet,
-}));
-
-vi.mock("../lib/urls.js", () => ({
+});
+import { urlSeams } from "../lib/urls.js";
+const originalUrlSeams = { ...urlSeams };
+Object.assign(urlSeams, {
   isLoopbackUrl: (url: string) =>
     url.includes("127.0.0.1") || url.includes("localhost"),
-}));
+});
 
 import {
   ConnectThisMachine,
@@ -84,7 +86,7 @@ const HEALTH = {
   service: "opensesame-daemon",
   hostApi: "https://host.example.com",
   identityApi: "https://id.example.com",
-  tailscaleUrl: null as string | null,
+  tailscaleUrl: null,
 };
 
 function typeDaemonUrl(value: string) {
@@ -197,9 +199,9 @@ describe("ConnectThisMachine", () => {
     const { unmount } = render(<ConnectThisMachine />);
     expect(
       (
-        screen.getByLabelText(
+        overlapCast(screen.getByLabelText(
           "Daemon (Tailscale Serve URL)",
-        ) as HTMLInputElement
+        ))
       ).value,
     ).toBe("https://box.tailnet.ts.net");
     unmount();
@@ -209,9 +211,9 @@ describe("ConnectThisMachine", () => {
     render(<ConnectThisMachine />);
     expect(
       (
-        screen.getByLabelText(
+        overlapCast(screen.getByLabelText(
           "Daemon (Tailscale Serve URL)",
-        ) as HTMLInputElement
+        ))
       ).value,
     ).toBe("http://127.0.0.1:18790");
   });

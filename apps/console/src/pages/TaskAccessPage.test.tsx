@@ -1,3 +1,4 @@
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 // @vitest-environment jsdom
 import { type ReactElement, act } from "react";
 import { type Root, createRoot } from "react-dom/client";
@@ -6,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskAccessPage } from "./TaskAccessPage.js";
 
 (
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  overlapCast(globalThis)
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 let container: HTMLDivElement;
@@ -78,12 +79,12 @@ function taskBody() {
   };
 }
 
-function jsonResponse(status: number, body: unknown = {}): Response {
-  return {
+function jsonResponse(status: number, body: BoundaryValue = {}): Response {
+  return overlapCast({
     ok: status >= 200 && status < 300,
     status,
     json: () => Promise.resolve(body),
-  } as unknown as Response;
+  });
 }
 
 beforeEach(() => {

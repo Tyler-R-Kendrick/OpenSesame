@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * The claim bearer between steps of the ceremony, bound to this app's storage
  * choice: session storage keeps it to this tab and clears when the tab closes,
@@ -17,7 +18,7 @@ const stash = createClaimStash(() => {
   try {
     // ast-grep-ignore: ts-localstorage-set
     // SAFETY: sessionStorage implements getItem/setItem/removeItem.
-    return sessionStorage as StashStorage;
+    return overlapCast(sessionStorage);
   } catch {
     // Storage is unavailable; the ceremony still works in a single sitting.
     return null;

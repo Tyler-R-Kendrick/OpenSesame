@@ -234,7 +234,7 @@ export async function runCleanupTick(
       reapedProjects,
       outboxPublished,
       expiryEnforced,
-      ...(prunedOidcRows === undefined ? {} : { prunedOidcRows }),
+      ...(prunedOidcRows === undefined ? undefined : { prunedOidcRows }),
     },
     "cleanup tick",
   );
@@ -246,7 +246,7 @@ export async function runCleanupTick(
     reapedProjects,
     outboxPublished,
     expiryEnforced,
-    ...(prunedOidcRows === undefined ? {} : { prunedOidcRows }),
+    ...(prunedOidcRows === undefined ? undefined : { prunedOidcRows }),
   };
 }
 

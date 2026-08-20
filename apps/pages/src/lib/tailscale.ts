@@ -61,7 +61,7 @@ export function tailscaleCandidates(
   return [...new Set(urls.filter(Boolean))];
 }
 
-export async function detectTailnet(): Promise<boolean> {
+async function detectTailnetDefault(): Promise<boolean> {
   try {
     // no-cors: opaque success means the OS resolved hello.ts.net on the tailnet.
     // Hard timeout so Chrome's local-network permission dialog cannot strand us.
@@ -83,7 +83,7 @@ export type WaitForTailnetOptions = {
 };
 
 /** Poll until this browser/OS is on the tailnet, or time out. */
-export async function waitForTailnet(
+async function waitForTailnetDefault(
   options: WaitForTailnetOptions = {},
 ): Promise<boolean> {
   const probe = options.probe ?? detectTailnet;
@@ -130,7 +130,7 @@ export function discoverErrorMessage(input: {
   return parts.join(" ");
 }
 
-export async function discoverTailscaleDaemon(
+async function discoverTailscaleDaemonDefault(
   preferred?: string,
 ): Promise<DaemonHealth> {
   const saved = preferred?.trim() || loadSettings().daemonApi;
@@ -158,12 +158,12 @@ export async function discoverTailscaleDaemon(
   );
 }
 
-export function openTailscaleLogin(): void {
+function openTailscaleLoginDefault(): void {
   globalThis.open(TAILSCALE_CLIENT_URL, "_blank", "noopener,noreferrer");
 }
 
 /** Reject loopback daemon URLs when this tab is not on loopback. */
-export function assertDaemonReachableFromPage(raw: string): void {
+function assertDaemonReachableFromPageDefault(raw: string): void {
   if (pageIsLoopback()) return;
   const base = normalizeTailnetBase(raw);
   if (base && isLoopbackUrl(base)) {
@@ -191,4 +191,36 @@ export function assertDaemonReachableFromPage(raw: string): void {
       throw error;
     }
   }
+}
+
+export const tailscaleSeams = {
+  detectTailnet: detectTailnetDefault,
+  waitForTailnet: waitForTailnetDefault,
+  discoverTailscaleDaemon: discoverTailscaleDaemonDefault,
+  openTailscaleLogin: openTailscaleLoginDefault,
+  assertDaemonReachableFromPage: assertDaemonReachableFromPageDefault,
+};
+
+export async function detectTailnet(): Promise<boolean> {
+  return tailscaleSeams.detectTailnet();
+}
+
+export async function waitForTailnet(
+  options: WaitForTailnetOptions = {},
+): Promise<boolean> {
+  return tailscaleSeams.waitForTailnet(options);
+}
+
+export async function discoverTailscaleDaemon(
+  preferred?: string,
+): Promise<DaemonHealth> {
+  return tailscaleSeams.discoverTailscaleDaemon(preferred);
+}
+
+export function openTailscaleLogin(): void {
+  return tailscaleSeams.openTailscaleLogin();
+}
+
+export function assertDaemonReachableFromPage(raw: string): void {
+  return tailscaleSeams.assertDaemonReachableFromPage(raw);
 }

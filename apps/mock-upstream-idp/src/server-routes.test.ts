@@ -2,11 +2,12 @@ import { createHash, randomBytes } from "node:crypto";
 import { decodeJwt, importJWK, jwtVerify } from "jose";
 import { describe, expect, it } from "vitest";
 import { createMockUpstreamIdp } from "./server.js";
+import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
-async function listenIdp(overrides: Record<string, unknown> = {}) {
+async function listenIdp(overrides: JsonObject = {}) {
   const idp = await createMockUpstreamIdp({
     host: "127.0.0.1",
-    port: 0 as unknown as number,
+    port: overlapCast(0),
     issuer: "http://127.0.0.1:0",
     ...overrides,
   });
@@ -15,7 +16,7 @@ async function listenIdp(overrides: Record<string, unknown> = {}) {
     idp.server.once("error", reject);
   });
   const addr = idp.server.address();
-  if (!addr || typeof addr === "string") throw new Error("no address");
+  if (!addr || isString(addr)) throw new Error("no address");
   const base = `http://127.0.0.1:${addr.port}`;
   idp.config.issuer = base;
   const redirectUri = `${base}/cb`;
@@ -80,7 +81,7 @@ describe("mock-upstream-idp route branches", () => {
       badClient.searchParams.set("client_id", "someone-else");
       const r1 = await fetch(badClient, { redirect: "manual" });
       expect(r1.status).toBe(400);
-      expect(((await r1.json()) as { error: string }).error).toBe(
+      expect((overlapCast(await r1.json())).error).toBe(
         "invalid_client",
       );
 
@@ -88,7 +89,7 @@ describe("mock-upstream-idp route branches", () => {
       badRedirect.searchParams.set("redirect_uri", "http://evil.example/cb");
       const r2 = await fetch(badRedirect, { redirect: "manual" });
       expect(r2.status).toBe(400);
-      expect(((await r2.json()) as { error: string }).error).toBe(
+      expect((overlapCast(await r2.json())).error).toBe(
         "invalid_redirect_uri",
       );
 
@@ -96,7 +97,7 @@ describe("mock-upstream-idp route branches", () => {
       badType.searchParams.set("response_type", "token");
       const r3 = await fetch(badType, { redirect: "manual" });
       expect(r3.status).toBe(400);
-      expect(((await r3.json()) as { error: string }).error).toBe(
+      expect((overlapCast(await r3.json())).error).toBe(
         "unsupported_response_type",
       );
 
@@ -104,7 +105,7 @@ describe("mock-upstream-idp route branches", () => {
       plainPkce.searchParams.set("code_challenge_method", "plain");
       const r4 = await fetch(plainPkce, { redirect: "manual" });
       expect(r4.status).toBe(400);
-      expect(((await r4.json()) as { error: string }).error).toBe(
+      expect((overlapCast(await r4.json())).error).toBe(
         "invalid_request",
       );
     } finally {
@@ -135,12 +136,7 @@ describe("mock-upstream-idp route branches", () => {
         code_verifier: verifier,
       });
       expect(tokenRes.status).toBe(200);
-      const tokens = (await tokenRes.json()) as {
-        id_token: string;
-        refresh_token: string;
-        scope: string;
-        token_type: string;
-      };
+      const tokens = overlapCast(await tokenRes.json());
       expect(tokens.token_type).toBe("Bearer");
       expect(tokens.refresh_token).toBe(
         `mock-refresh-${idp.config.testUser.sub}`,
@@ -183,7 +179,7 @@ describe("mock-upstream-idp route branches", () => {
         code_verifier: verifier,
       });
       expect(tokenRes.status).toBe(200);
-      const tokens = (await tokenRes.json()) as { id_token: string };
+      const tokens = overlapCast(await tokenRes.json());
       const payload = decodeJwt(tokens.id_token);
       expect(payload.nonce).toBeUndefined();
       // default scope when none is requested
@@ -207,7 +203,7 @@ describe("mock-upstream-idp route branches", () => {
         code_verifier: "whatever",
       });
       expect(unknown.status).toBe(400);
-      expect(((await unknown.json()) as { error: string }).error).toBe(
+      expect((overlapCast(await unknown.json())).error).toBe(
         "invalid_grant",
       );
 
@@ -260,7 +256,7 @@ describe("mock-upstream-idp route branches", () => {
         code_verifier: randomBytes(32).toString("base64url"),
       });
       expect(res.status).toBe(400);
-      const body = (await res.json()) as { error_description?: string };
+      const body = overlapCast(await res.json());
       expect(body.error_description).toBe("PKCE verification failed");
     } finally {
       await idp.close();
@@ -277,10 +273,7 @@ describe("mock-upstream-idp route branches", () => {
         client_secret: idp.config.clientSecret,
       });
       expect(refresh.status).toBe(200);
-      const tokens = (await refresh.json()) as {
-        id_token: string;
-        scope: string;
-      };
+      const tokens = overlapCast(await refresh.json());
       expect(tokens.scope).toBe("openid profile email");
       expect(decodeJwt(tokens.id_token).nonce).toBeUndefined();
 
@@ -290,7 +283,7 @@ describe("mock-upstream-idp route branches", () => {
         client_secret: idp.config.clientSecret,
       });
       expect(unsupported.status).toBe(400);
-      expect(((await unsupported.json()) as { error: string }).error).toBe(
+      expect((overlapCast(await unsupported.json())).error).toBe(
         "unsupported_grant_type",
       );
     } finally {
@@ -363,28 +356,21 @@ describe("mock-upstream-idp route branches", () => {
         headers: { authorization: "Bearer mock-access-1" },
       });
       expect(withAuth.status).toBe(200);
-      const info = (await withAuth.json()) as {
-        sub: string;
-        email: string;
-        name: string;
-      };
+      const info = overlapCast(await withAuth.json());
       expect(info.sub).toBe(idp.config.testUser.sub);
       expect(info.email).toBe(idp.config.testUser.email);
       expect(info.name).toBe(idp.config.testUser.name);
 
       const health = await fetch(`${base}/health`);
       expect(health.status).toBe(200);
-      const healthBody = (await health.json()) as {
-        ok: boolean;
-        issuer: string;
-      };
+      const healthBody = overlapCast(await health.json());
       expect(healthBody.ok).toBe(true);
       expect(healthBody.issuer).toBe(base);
       expect(health.headers.get("strict-transport-security")).toBeNull();
 
       const missing = await fetch(`${base}/nope`);
       expect(missing.status).toBe(404);
-      expect(((await missing.json()) as { error: string }).error).toBe(
+      expect((overlapCast(await missing.json())).error).toBe(
         "not_found",
       );
     } finally {
@@ -408,24 +394,24 @@ describe("mock-upstream-idp route branches", () => {
   it("listen() resolves the issuer and rejects non-loopback hosts", async () => {
     const idp = await createMockUpstreamIdp({
       host: "127.0.0.1",
-      port: 0 as unknown as number,
+      port: overlapCast(0),
       issuer: "http://127.0.0.1:0",
     });
     const issuer = await idp.listen();
     expect(issuer).toBe("http://127.0.0.1:0");
     await idp.close();
 
-    const publicIdp = await createMockUpstreamIdp({
+    const publicIdp = await createMockUpstreamIdp(overlapCast({
       host: "0.0.0.0",
       env: undefined,
-    } as Record<string, unknown>);
+    }));
     await expect(publicIdp.listen()).rejects.toThrow(/not loopback/);
   });
 
   it("close() rejects when the server was never started", async () => {
     const idp = await createMockUpstreamIdp({
       host: "127.0.0.1",
-      port: 0 as unknown as number,
+      port: overlapCast(0),
       issuer: "http://127.0.0.1:0",
     });
     await expect(idp.close()).rejects.toThrow();
@@ -489,12 +475,8 @@ describe("mock-upstream-idp route branches", () => {
       );
       expect(tokenRes.status).toBe(200);
       expect(tokenRes.headers.get("access-control-allow-origin")).toBe(origin);
-      const tokens = (await tokenRes.json()) as { id_token: string };
-      const payload = decodeJwt(tokens.id_token) as {
-        sub: string;
-        pairwise_sub?: string;
-        origin?: string;
-      };
+      const tokens = overlapCast(await tokenRes.json());
+      const payload = overlapCast(decodeJwt(tokens.id_token));
       expect(payload.sub).not.toBe(idp.config.testUser.sub);
       expect(payload.pairwise_sub).toBe(payload.sub);
       expect(payload.origin).toBe(origin);
@@ -523,9 +505,11 @@ describe("mock-upstream-idp route branches", () => {
         },
         { origin: otherOrigin },
       );
-      const payloadB = decodeJwt(
-        ((await tokenB.json()) as { id_token: string }).id_token,
-      ) as { sub: string };
+      const payloadB = overlapCast(
+        decodeJwt(
+          (overlapCast(await tokenB.json())).id_token,
+        ),
+      );
       expect(payloadB.sub).not.toBe(payload.sub);
     } finally {
       await idp.close();

@@ -5,6 +5,7 @@ import {
   collectConsentScopes,
   renderConsentPage,
 } from "../ui/interaction-pages.js";
+import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 
@@ -57,7 +58,7 @@ class Jar {
     return this.cookies.get(name);
   }
 
-  header(): Record<string, string> {
+  header() {
     if (this.cookies.size === 0) return {};
     return {
       cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join("; "),
@@ -87,13 +88,10 @@ async function stop(started: Started): Promise<void> {
   });
 }
 
-function decodeJwtPayload(jwt: string): Record<string, unknown> {
+function decodeJwtPayload(jwt: string): JsonObject {
   const part = jwt.split(".")[1];
   if (!part) throw new Error("not a jwt");
-  return JSON.parse(Buffer.from(part, "base64url").toString("utf8")) as Record<
-    string,
-    unknown
-  >;
+  return overlapCast(JSON.parse(Buffer.from(part, "base64url").toString("utf8")));
 }
 
 function extractCsrf(html: string): string {
@@ -114,7 +112,7 @@ async function req(
   const res = await fetch(url, {
     redirect: "manual",
     ...init,
-    headers: { ...jar.header(), ...(init.headers as Record<string, string>) },
+    headers: { ...jar.header(), ...(overlapCast(init.headers)) },
   });
   jar.absorb(res);
   return res;
@@ -267,7 +265,7 @@ describe("origin consent UI (ADR 0050 slice 3c, F6)", () => {
         }),
       });
       expect(tokenRes.status).toBe(200);
-      const tokens = (await tokenRes.json()) as { id_token: string };
+      const tokens = overlapCast(await tokenRes.json());
       const payload = decodeJwtPayload(tokens.id_token);
       expect(payload.aud).toBe(CLIENT_ID);
       expect(payload.sub).not.toBe(principalId);
@@ -287,10 +285,7 @@ describe("origin consent UI (ADR 0050 slice 3c, F6)", () => {
         },
       );
       expect(provisional.status).toBe(201);
-      const { accessToken, principalId } = (await provisional.json()) as {
-        accessToken: string;
-        principalId: string;
-      };
+      const { accessToken, principalId } = overlapCast(await provisional.json());
 
       const jar = new Jar();
       jar.absorb(
@@ -309,7 +304,7 @@ describe("origin consent UI (ADR 0050 slice 3c, F6)", () => {
       const login = await req(started, jar, `/interaction/${uid}/login`, {
         ...loginInit,
         headers: {
-          ...(loginInit.headers as Record<string, string>),
+          ...(overlapCast(loginInit.headers)),
           origin: "http://127.0.0.1:0",
         },
       });
@@ -612,8 +607,8 @@ describe("origin consent UI (ADR 0050 slice 3c, F6)", () => {
         }),
       });
       expect(tokenRes.status).toBe(200);
-      const tokens = (await tokenRes.json()) as { id_token: string };
-      expect(typeof decodeJwtPayload(tokens.id_token).sub).toBe("string");
+      const tokens = overlapCast(await tokenRes.json());
+      expect(isString(decodeJwtPayload(tokens.id_token).sub)).toBe(true);
 
       // Reload: same cookie jar, covered scopes skip the interaction.
       const reloaded = await req(

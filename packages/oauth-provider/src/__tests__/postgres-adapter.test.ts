@@ -3,6 +3,7 @@ import {
   type PostgresOidcStore,
   createPostgresAdapterConstructor,
 } from "../adapter/types.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 function createStore() {
   return {
@@ -57,7 +58,7 @@ describe("createPostgresAdapterConstructor", () => {
     expect(id).toBe("t1");
     expect(payload).toEqual({ grantId: "g1" });
     expect(expiresAt).toBeInstanceOf(Date);
-    const ms = (expiresAt as Date).getTime();
+    const ms = (overlapCast(expiresAt)).getTime();
     expect(ms).toBeGreaterThanOrEqual(before + 60_000);
     expect(ms).toBeLessThanOrEqual(after + 60_000);
   });

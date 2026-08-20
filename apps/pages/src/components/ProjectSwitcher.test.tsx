@@ -5,6 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -32,14 +33,15 @@ const proj = vi.hoisted(() => ({
   setActiveProject: vi.fn(),
 }));
 
-vi.mock("../lib/projects.js", () => ({
-  PERSONAL_PROJECT_ID: "personal",
+import { projectSeams } from "../lib/projects.js";
+const originalProjectSeams = { ...projectSeams };
+Object.assign(projectSeams, {
   projectsState: () => proj.state,
   subscribeProjects: () => () => {},
   createProject: proj.createProject,
   deleteProject: proj.deleteProject,
   setActiveProject: proj.setActiveProject,
-}));
+});
 
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
 
@@ -55,7 +57,7 @@ function menuItem(name: string): HTMLElement {
     .getAllByRole("button", { name })
     .filter((el) => el.className.includes("project-switcher__item"));
   if (matches.length !== 1) throw new Error(`menu item ${name} not found`);
-  return matches[0] as HTMLElement;
+  return overlapCast(matches[0]);
 }
 
 describe("ProjectSwitcher", () => {
@@ -114,7 +116,7 @@ describe("ProjectSwitcher", () => {
     const second = render(<ProjectSwitcher />);
     openMenu();
     fireEvent.click(
-      second.container.querySelector(".project-switcher__backdrop") as Element,
+      overlapCast(second.container.querySelector(".project-switcher__backdrop")),
     );
     expect(screen.queryByText("Projects")).toBeNull();
     expect(container).toBeTruthy();
@@ -132,11 +134,11 @@ describe("ProjectSwitcher", () => {
     openMenu();
 
     const submit = screen.getByRole("button", { name: "Create project" });
-    expect((submit as HTMLButtonElement).disabled).toBe(true);
+    expect((overlapCast(submit)).disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("New project name"), {
       target: { value: "Side quest" },
     });
-    expect((submit as HTMLButtonElement).disabled).toBe(false);
+    expect((overlapCast(submit)).disabled).toBe(false);
     fireEvent.click(submit);
     await waitFor(() =>
       expect(proj.createProject).toHaveBeenCalledWith("Side quest"),

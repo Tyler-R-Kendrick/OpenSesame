@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, isTypeofObject } from "@opensesame/os-domain";
 /**
  * GitHub history helpers for the sealed-store capability.
  *
@@ -18,7 +19,7 @@ export type GithubRepoSummary = {
   defaultBranch: string;
 };
 
-function toRepo(raw: Record<string, unknown>): GithubRepoSummary {
+function toRepo(raw: JsonObject): GithubRepoSummary {
   return {
     fullName: String(raw.full_name ?? ""),
     name: String(raw.name ?? ""),
@@ -29,32 +30,29 @@ function toRepo(raw: Record<string, unknown>): GithubRepoSummary {
   };
 }
 
-export async function listGithubRepos(
+async function listGithubReposDefault(
   connectionId: string,
 ): Promise<GithubRepoSummary[]> {
   const res = await hostFetch(
     `/api/v1/connections/${encodeURIComponent(connectionId)}/github/repos`,
   );
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as {
-      hint?: string;
-      error?: string;
-    };
+    const body = overlapCast(await res.json().catch(() => ({})));
     throw new Error(
       body.hint || body.error || `Could not list GitHub repos (${res.status})`,
     );
   }
-  const body = (await res.json()) as { repositories?: unknown };
+  const body = overlapCast(await res.json());
   const rows = Array.isArray(body.repositories) ? body.repositories : [];
   return rows
     .filter(
-      (row): row is Record<string, unknown> => !!row && typeof row === "object",
+      (row): row is JsonObject => !!row && isTypeofObject(row),
     )
     .map(toRepo)
     .filter((repo) => repo.cloneUrl.startsWith("https://"));
 }
 
-export async function createGithubPasswordRepo(
+async function createGithubPasswordRepoDefault(
   connectionId: string,
   options: {
     name?: string;
@@ -78,15 +76,12 @@ export async function createGithubPasswordRepo(
     },
   );
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as {
-      hint?: string;
-      error?: string;
-    };
+    const body = overlapCast(await res.json().catch(() => ({})));
     throw new Error(
       body.hint || body.error || `Could not create GitHub repo (${res.status})`,
     );
   }
-  const raw = (await res.json()) as Record<string, unknown>;
+  const raw = overlapCast(await res.json());
   const repo = toRepo(raw);
   if (!repo.cloneUrl.startsWith("https://")) {
     throw new Error("Host returned a repo without an https clone URL");
@@ -107,6 +102,28 @@ export function defaultCreateRepoRequest(name = DEFAULT_PASSWORD_REPO_NAME) {
   };
 }
 
-export function remoteFromRepo(repo: GithubRepoSummary): string {
+function remoteFromRepoDefault(repo: GithubRepoSummary): string {
   return repo.cloneUrl.replace(/\/$/, "");
+}
+
+export const githubHistorySeams = {
+  listGithubRepos: listGithubReposDefault,
+  createGithubPasswordRepo: createGithubPasswordRepoDefault,
+  remoteFromRepo: remoteFromRepoDefault,
+};
+
+export async function listGithubRepos(
+  connectionId: string,
+): Promise<GithubRepoSummary[]> {
+  return githubHistorySeams.listGithubRepos(connectionId);
+}
+
+export async function createGithubPasswordRepo(
+  ...args: Parameters<typeof createGithubPasswordRepoDefault>
+): Promise<GithubRepoSummary> {
+  return githubHistorySeams.createGithubPasswordRepo(...args);
+}
+
+export function remoteFromRepo(repo: GithubRepoSummary): string {
+  return githubHistorySeams.remoteFromRepo(repo);
 }

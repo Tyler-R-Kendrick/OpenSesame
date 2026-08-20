@@ -58,7 +58,7 @@ async function opfsWrite(key: string, value: string): Promise<void> {
 }
 
 /** Sync read from hydrated memory. */
-export function kvGet(key: string): string | null {
+function kvGetDefault(key: string): string | null {
   return memory.get(key) ?? null;
 }
 
@@ -83,7 +83,7 @@ export function kvSet(key: string, value: string): void {
  * unusable in that browser. `kvDurability()` reports which case you are in, and
  * the vault says so on screen.
  */
-export async function kvSetDurable(key: string, value: string): Promise<void> {
+async function kvSetDurableDefault(key: string, value: string): Promise<void> {
   const previous = memory.get(key);
   memory.set(key, value);
   try {
@@ -93,6 +93,19 @@ export async function kvSetDurable(key: string, value: string): Promise<void> {
     else memory.set(key, previous);
     throw error;
   }
+}
+
+export const kvSeams = {
+  kvGet: kvGetDefault,
+  kvSetDurable: kvSetDurableDefault,
+};
+
+export function kvGet(key: string): string | null {
+  return kvSeams.kvGet(key);
+}
+
+export async function kvSetDurable(key: string, value: string): Promise<void> {
+  return kvSeams.kvSetDurable(key, value);
 }
 
 export function kvDelete(key: string): void {

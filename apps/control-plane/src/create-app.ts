@@ -24,7 +24,7 @@ import {
   createPostgresAdapterConstructor,
 } from "@opensesame/oauth-provider";
 import { createLogger } from "@opensesame/observability";
-import type { Clock } from "@opensesame/os-domain";
+import { Clock, overlapCast } from "@opensesame/os-domain";
 import { ProvisionalPolicy } from "@opensesame/policy";
 import { createHonoApp } from "./app.js";
 import {
@@ -110,7 +110,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       return newest?.digest;
     },
     retryOnConflict: (error) => {
-      const pg = error as { code?: string; constraint_name?: string };
+      const pg = overlapCast(error);
       return (
         pg.code === "23505" &&
         pg.constraint_name === "audit_events_previous_digest_uidx"
@@ -179,7 +179,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
           adapter: createPostgresAdapterConstructor(oidcStore),
           pairwiseStore,
         }
-      : {}),
+      : undefined),
   });
   const mappings = new MemoryPrincipalMappingStore();
   const policy = new ProvisionalPolicy();
@@ -187,9 +187,9 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     oauthClients: clientStore,
     ...(clientClaimChallengeStore
       ? { clientClaimChallenges: clientClaimChallengeStore }
-      : {}),
-    ...(clientOriginStore ? { clientOrigins: clientOriginStore } : {}),
-    ...(consentStore ? { consents: consentStore } : {}),
+      : undefined),
+    ...(clientOriginStore ? { clientOrigins: clientOriginStore } : undefined),
+    ...(consentStore ? { consents: consentStore } : undefined),
   });
   const passkeyChallenges = createMemoryChallengeStore();
   const rp = {

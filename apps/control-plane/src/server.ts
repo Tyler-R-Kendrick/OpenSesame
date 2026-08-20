@@ -7,6 +7,7 @@ import {
   parseOriginClientId,
 } from "@opensesame/oauth-provider";
 import { createControlPlane } from "./create-app.js";
+import { overlapCast, isTypeofObject, isString } from "@opensesame/os-domain";
 
 function applyHeaders(
   res: http.ServerResponse,
@@ -24,21 +25,21 @@ function attachTokenCors(
 ): void {
   applyHeaders(res, headers);
   const originalWriteHead = res.writeHead.bind(res);
-  res.writeHead = ((statusCode: number, ...rest: unknown[]) => {
+  res.writeHead = overlapCast((statusCode: number, ...rest: unknown[]) => {
     applyHeaders(res, headers);
-    return originalWriteHead(statusCode, ...(rest as []));
-  }) as typeof res.writeHead;
+    return originalWriteHead(statusCode, ...(overlapCast(rest)));
+  });
   const originalEnd = res.end.bind(res);
-  res.end = ((...args: unknown[]) => {
+  res.end = overlapCast((...args: unknown[]) => {
     applyHeaders(res, headers);
-    return originalEnd(...(args as Parameters<typeof res.end>));
-  }) as typeof res.end;
+    return originalEnd(...(overlapCast(args)));
+  });
 }
 
 async function readBody(req: http.IncomingMessage): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
-    chunks.push(chunk as Buffer);
+    chunks.push(overlapCast(chunk));
   }
   return Buffer.concat(chunks);
 }
@@ -53,7 +54,7 @@ function replayRequest(
 ): http.IncomingMessage {
   // SAFETY: oidc-provider only reads this as a stream plus IncomingMessage
   // header/method fields, which we copy onto the replayed Readable below.
-  const forwarded = Readable.from([body]) as http.IncomingMessage;
+  const forwarded = overlapCast(Readable.from([body]));
   forwarded.headers = req.headers;
   forwarded.rawHeaders = req.rawHeaders;
   forwarded.method = req.method;
@@ -237,7 +238,7 @@ export async function startServer(
 
   const address = server.address();
   const boundPort =
-    typeof address === "object" && address !== null
+    isTypeofObject(address) && address !== null
       ? address.port
       : config.port;
 
@@ -250,7 +251,7 @@ export async function startServer(
 }
 
 const isDirectRun =
-  typeof process.argv[1] === "string" &&
+  isString(process.argv[1]) &&
   import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isDirectRun) {

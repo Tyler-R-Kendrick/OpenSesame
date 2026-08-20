@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createApiClient } from "./index.js";
+import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const syncTarget = {
   id: "synctarget_01J",
@@ -41,7 +42,7 @@ function jsonClient(handler: (url: string, init?: RequestInit) => Response) {
   return { calls, client };
 }
 
-function ok(body: unknown): Response {
+function ok(body: BoundaryValue): Response {
   return new Response(JSON.stringify(body), { status: 200 });
 }
 
@@ -158,16 +159,13 @@ describe("api-client invoke and E2EE sync", () => {
       input: { name: "demo" },
     });
 
-    const first = JSON.parse(calls[0]?.body ?? "{}") as Record<string, unknown>;
+    const first = overlapCast(JSON.parse(calls[0]?.body ?? "{}"));
     expect(first).toMatchObject({
       connection_ref: "conn://acme/web/github/main",
       invoke_level: 1,
       input: {},
     });
-    const second = JSON.parse(calls[1]?.body ?? "{}") as Record<
-      string,
-      unknown
-    >;
+    const second = overlapCast(JSON.parse(calls[1]?.body ?? "{}"));
     expect(second.invoke_level).toBe(2);
     expect(second.input).toEqual({ name: "demo" });
     // Never a SecretRef on the wire.
@@ -192,9 +190,7 @@ describe("api-client invoke and E2EE sync", () => {
     // base64 for bytes [1, 2, 3, 255]
     const ciphertextB64 = btoa(String.fromCharCode(1, 2, 3, 255));
     await client.syncPush([{ id: "blob_01J", epoch: 4, ciphertextB64 }]);
-    const body = JSON.parse(calls[0]?.body ?? "{}") as {
-      blobs: { ciphertext: number[] }[];
-    };
+    const body = overlapCast(JSON.parse(calls[0]?.body ?? "{}"));
     expect(body.blobs[0]?.ciphertext).toEqual([1, 2, 3, 255]);
     expect(calls[0]?.url).toBe("https://host.test:8787/api/v1/sync/push");
   });

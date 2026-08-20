@@ -1,6 +1,7 @@
-import { createOpenSesame } from "@opensesame/sdk-browser";
+import { createOpenSesame } from "../sdk-browser.js";
 import { useState } from "react";
 import { clearClaimStash } from "../lib/claim-stash.js";
+import { type BoundaryValue } from "@opensesame/os-domain";
 
 const issuer =
   import.meta.env.VITE_OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
@@ -35,7 +36,7 @@ export function SignInPage() {
             setBusy("signIn");
             void sesame
               .signIn()
-              .catch((e: unknown) => {
+              .catch((e: BoundaryValue) => {
                 setError(
                   e instanceof Error
                     ? e.message
@@ -66,7 +67,7 @@ export function SignInPage() {
                     : `Signed in as ${s.sub ?? "unknown"}`,
                 );
               })
-              .catch((e: unknown) => {
+              .catch((e: BoundaryValue) => {
                 setError(
                   e instanceof Error
                     ? e.message

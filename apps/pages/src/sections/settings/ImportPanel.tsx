@@ -1,5 +1,9 @@
 import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router";
+import { useLocation as useLocationDefault } from "react-router";
+
+export const importPanelSeams = {
+  useLocation: useLocationDefault,
+};
 import {
   IconAlert,
   IconCard,
@@ -29,6 +33,7 @@ import {
 import type { DetectInput } from "../../lib/vault/import/types.js";
 import type { VaultItem } from "../../lib/vault/model.js";
 import "./import.css";
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 /** Rows rendered in the preview before it collapses to a count. */
 const PREVIEW_LIMIT = 60;
@@ -73,7 +78,7 @@ const KIND_ICON = {
   secret: IconSecret,
 } as const;
 
-function messageFrom(caught: unknown): string {
+function messageFrom(caught: BoundaryValue): string {
   return caught instanceof Error
     ? caught.message
     : "That file could not be read.";
@@ -94,7 +99,7 @@ export function ImportPanel() {
   const [singleFolder, setSingleFolder] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLElement>(null);
-  const { hash } = useLocation();
+  const { hash } = importPanelSeams.useLocation();
 
   // The vault's empty state links here with #import. React Router does not act
   // on a hash, so the panel brings itself into view.
@@ -318,7 +323,7 @@ export function ImportPanel() {
                 <select
                   id="imp-format-force"
                   defaultValue=""
-                  onChange={(event) => reparse(event.target.value as SourceId)}
+                  onChange={(event) => reparse(overlapCast(event.target.value))}
                 >
                   <option value="" disabled>
                     Choose a format…
@@ -355,7 +360,7 @@ export function ImportPanel() {
                 <select
                   id="imp-format"
                   value={result.source}
-                  onChange={(event) => reparse(event.target.value as SourceId)}
+                  onChange={(event) => reparse(overlapCast(event.target.value))}
                 >
                   {LISTED.map((adapter) => (
                     <option key={adapter.id} value={adapter.id}>

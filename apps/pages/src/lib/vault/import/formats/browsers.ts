@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * Browser password exports.
  *
@@ -227,7 +228,7 @@ type ColumnRole =
   | "totp";
 
 /** Exact spellings first, then looser ones, per role. */
-const COLUMN_PATTERNS: Record<ColumnRole, [RegExp, RegExp | null]> = {
+const COLUMN_PATTERNS = {
   name: [/^(name|title|account|item|entry)$/u, /name|title/u],
   password: [/^(password|passwd|pass)$/u, /pass(word)?|secret/u],
   user: [
@@ -253,15 +254,9 @@ const COLUMN_PATTERNS: Record<ColumnRole, [RegExp, RegExp | null]> = {
  * url pattern, and without claiming it would end up as both the item's title
  * and its web address.
  */
-function resolveColumns(headers: string[]): {
-  keys: Record<ColumnRole, string | null>;
-  claimed: Set<string>;
-} {
-  const roles = Object.keys(COLUMN_PATTERNS) as ColumnRole[];
-  const keys = Object.fromEntries(roles.map((role) => [role, null])) as Record<
-    ColumnRole,
-    string | null
-  >;
+function resolveColumns(headers: string[]) {
+  const roles = overlapCast(Object.keys(COLUMN_PATTERNS));
+  const keys = overlapCast(Object.fromEntries(roles.map((role) => [role, null])));
   const claimed = new Set<string>();
 
   for (const pass of [0, 1] as const) {

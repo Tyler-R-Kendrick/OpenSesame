@@ -113,7 +113,7 @@ export type VaultBody = {
   rev?: number;
 };
 
-export const KIND_LABEL: Record<ItemKind, string> = {
+export const KIND_LABEL = {
   login: "Login",
   passkey: "Passkey",
   card: "Card",
@@ -121,7 +121,7 @@ export const KIND_LABEL: Record<ItemKind, string> = {
   note: "Secure note",
 };
 
-export const KIND_PLURAL: Record<ItemKind, string> = {
+export const KIND_PLURAL = {
   login: "Logins",
   passkey: "Passkeys",
   card: "Cards",

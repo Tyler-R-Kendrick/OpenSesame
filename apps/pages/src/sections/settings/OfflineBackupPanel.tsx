@@ -13,6 +13,7 @@ import {
   serializeOfflineBackup,
 } from "../../lib/vault/offline-backup.js";
 import { BODY_KEY } from "../../lib/vault/store.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 function Status({
   message,
@@ -31,7 +32,7 @@ function Status({
 function readSealedBody(): SealedBlob {
   const raw = kvGet(BODY_KEY);
   if (!raw) throw new Error("There is nothing stored to export yet.");
-  return JSON.parse(raw) as SealedBlob;
+  return overlapCast(JSON.parse(raw));
 }
 
 export function OfflineBackupPanel() {

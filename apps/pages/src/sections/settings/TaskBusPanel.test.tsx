@@ -6,38 +6,34 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../lib/use-online.js", () => ({
-  useOnline: () => true,
-}));
-
-vi.mock("../../lib/planes.js", () => ({
-  usePlaneStatus: () => ({ host: "live", identity: "live" }),
-}));
-
+import { useOnlineSeams } from "../../lib/use-online.js";
+const originalUseOnlineSeams = { ...useOnlineSeams };
+Object.assign(useOnlineSeams, {useOnline: () => true});
+import { planeSeams } from "../../lib/planes.js";
+const originalPlaneSeams = { ...planeSeams };
+Object.assign(planeSeams, {usePlaneStatus: () => ({ host: "live", identity: "live" })});
 const ensureHostSession = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 );
 
 const session = vi.hoisted(() => ({ principalId: "prn_op" }));
 
-vi.mock("../../lib/identity.js", () => ({
-  useIdentitySession: () => session,
+import { identitySeams } from "../../lib/identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {useIdentitySession: () => session,
   hostLocalSessionEligible: () => true,
-  ensureHostSession,
-}));
-
+  ensureHostSession});
 const getTaskBusConfig = vi.hoisted(() => vi.fn());
 const putTaskBusConfig = vi.hoisted(() => vi.fn());
 const pingTaskBus = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/taskbus.js", () => ({
-  getTaskBusConfig,
-  putTaskBusConfig,
-  pingTaskBus,
-}));
+import { taskBusSeams } from "../../lib/taskbus.js";
+const originalTaskBusSeams = { ...taskBusSeams };
+Object.assign(taskBusSeams, { getTaskBusConfig, putTaskBusConfig, pingTaskBus });
 
 import { TaskBusPanel } from "./TaskBusPanel.js";
 
@@ -142,7 +138,7 @@ describe("TaskBusPanel render", () => {
       expect(screen.getByText(/OPENSESAME_TASKBUS/i)).toBeTruthy();
     });
     expect(
-      (screen.getByRole("button", { name: /^Save$/i }) as HTMLButtonElement)
+      (overlapCast(screen.getByRole("button", { name: /^Save$/i })))
         .disabled,
     ).toBe(true);
   });

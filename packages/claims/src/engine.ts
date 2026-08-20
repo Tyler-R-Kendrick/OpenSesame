@@ -1,25 +1,4 @@
-import {
-  type ClaimItem,
-  type ClaimSession,
-  type ClaimTargetType,
-  type Clock,
-  DomainError,
-  assertDependencyClosure,
-  canonicalize,
-  digestManifest,
-  digestUserCode,
-  generateClaimToken,
-  generateUserCode,
-  maybeExpireClaim,
-  authenticateClaim as transitionAuthenticate,
-  completeClaim as transitionComplete,
-  denyClaim as transitionDeny,
-  expireClaim as transitionExpire,
-  presentClaim as transitionPresent,
-  reviewClaim as transitionReview,
-  revokeClaim as transitionRevoke,
-  verifyClaimToken,
-} from "@opensesame/os-domain";
+import { type ClaimItem, type ClaimSession, type ClaimTargetType, type Clock, DomainError, assertDependencyClosure, canonicalize, digestManifest, digestUserCode, generateClaimToken, generateUserCode, maybeExpireClaim, authenticateClaim as transitionAuthenticate, completeClaim as transitionComplete, denyClaim as transitionDeny, expireClaim as transitionExpire, presentClaim as transitionPresent, reviewClaim as transitionReview, revokeClaim as transitionRevoke, verifyClaimToken, type JsonObject, overlapCast } from "@opensesame/os-domain";
 import type {
   ClaimEngineOptions,
   ClaimStore,
@@ -28,7 +7,7 @@ import type {
 
 export interface CreateClaimInput {
   type: ClaimTargetType;
-  targetManifest: Record<string, unknown>;
+  targetManifest: JsonObject;
   items?: ClaimItem[];
   creatorPrincipalId?: string;
   creatorAgentId?: string;
@@ -36,8 +15,8 @@ export interface CreateClaimInput {
   proofKeyJkt?: string;
   ttlMs?: number;
   publicId?: string;
-  requestedDestination?: Record<string, unknown>;
-  requestedGrant?: Record<string, unknown>;
+  requestedDestination?: JsonObject;
+  requestedGrant?: JsonObject;
 }
 
 export interface CreateClaimResult {
@@ -161,7 +140,7 @@ export class ClaimEngine {
 
   async reviewClaim(
     id: string,
-    decision: Record<string, unknown>,
+    decision: JsonObject,
   ): Promise<ClaimSession> {
     return this.applyTransition(id, (s) =>
       transitionReview(s, decision, this.clock()),
@@ -215,7 +194,7 @@ export class ClaimEngine {
               current,
               // SAFETY: ClaimDecision is a JSON object; transitionReview only
               // reads acceptedItemIds/destination keys from this record.
-              decision as Record<string, unknown>,
+              overlapCast(decision),
               this.clock(),
             )
           : (() => {
@@ -255,10 +234,10 @@ export class ClaimEngine {
       acceptedItemIds: decision.acceptedItemIds,
       ...(decision.destination !== undefined
         ? { destination: decision.destination }
-        : {}),
+        : undefined),
       ...(decision.idempotencyKey !== undefined
         ? { idempotencyKey: decision.idempotencyKey }
-        : {}),
+        : undefined),
     };
 
     const result = await this.store.compareAndSwap(id, base.version, completed);
@@ -300,9 +279,9 @@ export class ClaimEngine {
     const items = await this.store.getItems(id);
     const settled = items.map((item) => ({
       ...item,
-      state: (accepted.has(item.id)
+      state: overlapCast(accepted.has(item.id)
         ? "accepted"
-        : "rejected") as ClaimItem["state"],
+        : "rejected"),
     }));
     if (settled.every((item, i) => item.state === items[i]?.state)) return;
     await this.store.putItems(id, settled);
@@ -340,7 +319,7 @@ export class ClaimEngine {
  * would say ownership went somewhere it did not.
  */
 function decisionsMatch(
-  recorded: Record<string, unknown> | undefined,
+  recorded: JsonObject | undefined,
   decision: CompleteDecision,
 ): boolean {
   if (!recorded) return false;

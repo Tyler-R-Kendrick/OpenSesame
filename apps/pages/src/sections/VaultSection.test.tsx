@@ -1,20 +1,22 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const vault = vi.hoisted(() => ({
+const vault = {
   current: {
-    items: [] as unknown[],
-    folders: [] as { id: string; name: string; createdAt: string }[],
-    header: null as Record<string, unknown> | null,
+    items: [],
+    folders: [],
+    header: null,
   },
-}));
+};
 
-vi.mock("../lib/vault/hooks.js", () => ({
-  useVault: () => vault.current,
-}));
+import { vaultHooksSeams } from "../lib/vault/hooks.js";
+const originalVaultHooksSeams = { ...vaultHooksSeams };
+Object.assign(vaultHooksSeams, {useVault: () => vault.current});
+
 
 import type { LoginItem, NoteItem } from "../lib/vault/model.js";
 import { VaultSection, VaultWelcome } from "./VaultSection.js";
@@ -137,9 +139,9 @@ describe("VaultSection", () => {
   it("focuses search when / is pressed outside a field", () => {
     vault.current = { items: [makeLogin()], folders: [], header: null };
     renderSection();
-    const search = screen.getByLabelText(
+    const search = overlapCast(screen.getByLabelText(
       "Search vault items",
-    ) as HTMLInputElement;
+    ));
     fireEvent.keyDown(window, { key: "/" });
     expect(document.activeElement).toBe(search);
   });
@@ -147,9 +149,9 @@ describe("VaultSection", () => {
   it("ignores / pressed while typing in a field", async () => {
     vault.current = { items: [makeLogin()], folders: [], header: null };
     renderSection();
-    const search = screen.getByLabelText(
+    const search = overlapCast(screen.getByLabelText(
       "Search vault items",
-    ) as HTMLInputElement;
+    ));
     search.focus();
     fireEvent.keyDown(search, { key: "/" });
     // Already-focused input keeps focus; the key is not hijacked again.

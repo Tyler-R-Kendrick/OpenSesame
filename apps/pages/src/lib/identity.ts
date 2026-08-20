@@ -1,3 +1,4 @@
+import { overlapCast, isString, isNumber } from "@opensesame/os-domain";
 /**
  * Identity plane session.
  *
@@ -98,7 +99,7 @@ function emit(): void {
   for (const listener of listeners) listener();
 }
 
-export function currentSession(): IdentitySession | null {
+function currentSessionDefault(): IdentitySession | null {
   if (session && session.issuerOrigin !== identityOrigin()) {
     clearSession();
     return null;
@@ -128,7 +129,7 @@ export function clearSession(): void {
  * memory only, so after a reload the cookie can still act while this tab reads
  * as disconnected — the user has to be told, and given a way to end it.
  */
-export async function probeOrphanSession(): Promise<boolean> {
+async function probeOrphanSessionDefault(): Promise<boolean> {
   if (session) return false;
   // Unreachable means unknown, and warning about a session we cannot see would
   // be noise on every offline load.
@@ -160,7 +161,7 @@ async function cookieAuthenticates(whenUnreachable: boolean): Promise<boolean> {
  * control plane also set an HttpOnly cookie that authenticates on its own, so
  * the server has to revoke it.
  */
-export function endSession(): void {
+function endSessionDefault(): void {
   // Send the bearer we are about to forget: an adopted CLI token has no cookie,
   // so it is the only thing that identifies the session to revoke.
   const bearer =
@@ -195,7 +196,7 @@ function revokeRequest(bearer?: string): Promise<Response> {
       method: "POST",
       credentials: "include",
       timeoutMs: IDENTITY_FETCH_MS,
-      ...(bearer ? { headers: { authorization: `Bearer ${bearer}` } } : {}),
+      ...(bearer ? { headers: { authorization: `Bearer ${bearer}` } } : undefined),
     },
   );
 }
@@ -214,7 +215,7 @@ async function settleRevokes(): Promise<void> {
   }
 }
 
-export function identityBase(): string {
+function identityBaseDefault(): string {
   return loadSettings().identityApi.replace(/\/$/, "");
 }
 
@@ -226,7 +227,7 @@ function identityOrigin(): string {
   }
 }
 
-export function hostBase(): string {
+function hostBaseDefault(): string {
   return loadSettings().hostApi.replace(/\/$/, "");
 }
 
@@ -264,17 +265,13 @@ async function hostSessionFailure(
     ? "setup_required"
     : "invalid_host";
   try {
-    const payload = (await response.json()) as {
-      error?: unknown;
-      hint?: unknown;
-      body?: { error?: unknown; hint?: unknown };
-    };
+    const payload = overlapCast(await response.json());
     const detail =
       payload.body?.hint ??
       payload.body?.error ??
       payload.hint ??
       payload.error;
-    if (typeof detail === "string") {
+    if (isString(detail)) {
       return new HostSessionError(code, `${fallback}: ${detail}`);
     }
   } catch {
@@ -287,7 +284,7 @@ async function hostSessionFailure(
  * True when Pages may use Host as the local authority IdP (no Identity URL).
  * Host still enforces non-production + OPENSESAME_DEV_BOOTSTRAP server-side.
  */
-export function hostLocalSessionEligible(
+function hostLocalSessionEligibleDefault(
   hostApi: string = hostBase(),
 ): boolean {
   return Boolean(hostApi) && isLoopbackUrl(hostApi);
@@ -317,15 +314,11 @@ async function mintHostLocalSession(): Promise<HostSession | null> {
   if (!response.ok) {
     throw await hostSessionFailure(response, "Host-local session failed");
   }
-  const issued = (await response.json()) as {
-    access_token?: unknown;
-    expires_in?: unknown;
-    local_session?: unknown;
-  };
+  const issued = overlapCast(await response.json());
   if (
-    typeof issued.access_token !== "string" ||
+    !isString(issued.access_token) ||
     !issued.access_token.startsWith("opaque-session:") ||
-    typeof issued.expires_in !== "number" ||
+    !isNumber(issued.expires_in) ||
     issued.expires_in <= 0
   ) {
     throw new HostSessionError(
@@ -363,13 +356,10 @@ async function mintHostSession(
   if (!authorize.ok) {
     throw await hostSessionFailure(authorize, "Host session request failed");
   }
-  const grant = (await authorize.json()) as {
-    device_code?: unknown;
-    user_code?: unknown;
-  };
+  const grant = overlapCast(await authorize.json());
   if (
-    typeof grant.device_code !== "string" ||
-    typeof grant.user_code !== "string"
+    !isString(grant.device_code) ||
+    !isString(grant.user_code)
   ) {
     throw new HostSessionError(
       "invalid_host",
@@ -412,14 +402,11 @@ async function mintHostSession(
   if (!token.ok) {
     throw await hostSessionFailure(token, "Host session exchange failed");
   }
-  const issued = (await token.json()) as {
-    access_token?: unknown;
-    expires_in?: unknown;
-  };
+  const issued = overlapCast(await token.json());
   if (
-    typeof issued.access_token !== "string" ||
+    !isString(issued.access_token) ||
     !issued.access_token.startsWith("opaque-session:") ||
-    typeof issued.expires_in !== "number" ||
+    !isNumber(issued.expires_in) ||
     issued.expires_in <= 0
   ) {
     throw new HostSessionError(
@@ -475,7 +462,7 @@ export async function ensureIdentitySession(): Promise<IdentitySession> {
  * Prefers Host-local authority on loopback (no Identity plane). Falls back to
  * Identity device approval when local mint is unavailable.
  */
-export async function ensureHostSession(): Promise<HostSession> {
+async function ensureHostSessionDefault(): Promise<HostSession> {
   const existing = currentHostSession();
   if (existing) {
     return existing;
@@ -503,7 +490,7 @@ export async function ensureHostSession(): Promise<HostSession> {
 }
 
 /** Fetch against the Host as the connected principal, never as deployment operator. */
-export async function hostFetch(
+async function hostFetchDefault(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
@@ -536,7 +523,7 @@ export async function hostFetch(
 
 async function readError(res: Response): Promise<string> {
   try {
-    const body = (await res.json()) as { message?: string; error?: string };
+    const body = overlapCast(await res.json());
     return body.message ?? body.error ?? `Request failed (${res.status}).`;
   } catch {
     return `Request failed (${res.status}).`;
@@ -544,7 +531,7 @@ async function readError(res: Response): Promise<string> {
 }
 
 /** Fetch against the Identity API, attaching the session when we have one. */
-export async function identityFetch(
+async function identityFetchDefault(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
@@ -575,23 +562,23 @@ export async function identityFetch(
  * is surfaced as an orphan instead. Also for callers fetching outside
  * `identityFetch`, such as the SDK-driven claim ceremony.
  */
-export function noteUnauthorized(): void {
+function noteUnauthorizedDefault(): void {
   if (!session) return;
   clearSession();
   void recheckOrphan();
 }
 
-export async function identityJson<T>(
+async function identityJsonDefault<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
   const res = await identityFetch(path, init);
   if (!res.ok) throw new IdentityError(await readError(res), res.status);
-  return (await res.json()) as T;
+  return overlapCast(await res.json());
 }
 
 /** Start a provisional session. This is the anonymous on-ramp the API exposes. */
-export async function connectProvisional(): Promise<IdentitySession> {
+async function connectProvisionalDefault(): Promise<IdentitySession> {
   const resumed = await resumeCookieSession();
   if (resumed) return resumed;
   // A cookie left by an earlier tab is only flagged once the Authority panel has
@@ -617,11 +604,7 @@ export async function connectProvisional(): Promise<IdentitySession> {
     timeoutMs: IDENTITY_FETCH_MS,
   });
   if (!res.ok) throw new IdentityError(await readError(res), res.status);
-  const body = (await res.json()) as {
-    principalId: string;
-    accessToken: string;
-    expiresAt: string;
-  };
+  const body = overlapCast(await res.json());
   if (sessionEpoch !== epoch) {
     // A lock or Disconnect landed while this was in flight. Adopting it now
     // would resurrect a credential the user just ended, so throw it away.
@@ -652,8 +635,8 @@ async function resumeCookieSession(): Promise<IdentitySession | null> {
       timeoutMs: PROBE_MS,
     });
     if (!res.ok) return null;
-    const body = (await res.json()) as { id?: unknown };
-    if (typeof body.id !== "string" || !body.id) return null;
+    const body = overlapCast(await res.json());
+    if (!isString(body.id) || !body.id) return null;
     session = {
       principalId: body.id,
       // An opaque local identity for Host-session deduplication only. It is
@@ -671,7 +654,7 @@ async function resumeCookieSession(): Promise<IdentitySession | null> {
 }
 
 /** Adopt a token the operator already holds (CLI `opensesame-id`, tests). */
-export async function adoptToken(accessToken: string): Promise<void> {
+async function adoptTokenDefault(accessToken: string): Promise<void> {
   // Always end what came before, detected orphan or not: a cookie this tab
   // never saw would otherwise keep acting alongside the pasted token.
   endSession();
@@ -688,7 +671,7 @@ export async function adoptToken(accessToken: string): Promise<void> {
     timeoutMs: IDENTITY_FETCH_MS,
   });
   if (!res.ok) throw new IdentityError(await readError(res), res.status);
-  const me = (await res.json()) as { id?: string };
+  const me = overlapCast(await res.json());
   if (sessionEpoch !== epoch) {
     throw new IdentityError(
       "The session was ended while adopting that token. Try again.",
@@ -706,7 +689,7 @@ export async function adoptToken(accessToken: string): Promise<void> {
   emit();
 }
 
-export async function fetchPrincipal(): Promise<Principal> {
+async function fetchPrincipalDefault(): Promise<Principal> {
   return identityJson<Principal>("/v1/principals/me");
 }
 
@@ -733,7 +716,7 @@ export function hostRoutedViaDaemon(
   }
 }
 
-export async function probeIdentity(): Promise<HealthState> {
+async function probeIdentityDefault(): Promise<HealthState> {
   const base = identityBase();
   if (!base) return "unreachable";
   try {
@@ -745,7 +728,7 @@ export async function probeIdentity(): Promise<HealthState> {
     // A foreign listener on :8788 can answer with 401 JSON and look "up".
     // OpenSesame control-plane always returns `{ "status": "ok" }`.
     try {
-      const body = (await res.json()) as { status?: unknown };
+      const body = overlapCast(await res.json());
       return body.status === "ok" ? "reachable" : "unreachable";
     } catch {
       return "unreachable";
@@ -762,7 +745,7 @@ export async function probeIdentity(): Promise<HealthState> {
  * daemon's `/host` proxy, a live daemon counts as Host reachable — connecting
  * the node must flip the indicator even if gateway isn't on the upstream port.
  */
-export async function probeHost(): Promise<HealthState> {
+async function probeHostDefault(): Promise<HealthState> {
   const base = hostBase();
   if (!base) return "unreachable";
   const daemon = loadSettings().daemonApi.trim();
@@ -800,7 +783,7 @@ export async function probeHost(): Promise<HealthState> {
 }
 
 /** Live orphan-cookie state, so a failed revoke puts the warning back. */
-export function useOrphanSession(): boolean {
+function useOrphanSessionDefault(): boolean {
   const [value, setValue] = useState(orphanCookie);
   useEffect(() => {
     const listener = () => setValue(orphanCookie);
@@ -812,7 +795,7 @@ export function useOrphanSession(): boolean {
   return value;
 }
 
-export function useIdentitySession(): IdentitySession | null {
+function useIdentitySessionDefault(): IdentitySession | null {
   const [value, setValue] = useState(currentSession);
   useEffect(() => {
     const listener = () => setValue(currentSession());
@@ -825,11 +808,7 @@ export function useIdentitySession(): IdentitySession | null {
 }
 
 /** Connect-on-demand helper shared by every section that needs a principal. */
-export function useConnect(): {
-  connecting: boolean;
-  error: string | null;
-  connect: () => Promise<void>;
-} {
+function useConnectDefault() {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const connect = useCallback(async () => {
@@ -848,4 +827,100 @@ export function useConnect(): {
     }
   }, []);
   return { connecting, error, connect };
+}
+
+export const identitySeams = {
+  hostFetch: hostFetchDefault,
+  endSession: endSessionDefault,
+  ensureHostSession: ensureHostSessionDefault,
+  hostLocalSessionEligible: hostLocalSessionEligibleDefault,
+  useIdentitySession: useIdentitySessionDefault,
+  useConnect: useConnectDefault,
+  currentSession: currentSessionDefault,
+  probeOrphanSession: probeOrphanSessionDefault,
+  identityBase: identityBaseDefault,
+  hostBase: hostBaseDefault,
+  identityFetch: identityFetchDefault,
+  noteUnauthorized: noteUnauthorizedDefault,
+  identityJson: identityJsonDefault,
+  connectProvisional: connectProvisionalDefault,
+  adoptToken: adoptTokenDefault,
+  probeIdentity: probeIdentityDefault,
+  probeHost: probeHostDefault,
+  useOrphanSession: useOrphanSessionDefault,
+  fetchPrincipal: fetchPrincipalDefault,
+};
+
+export async function hostFetch(
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  return identitySeams.hostFetch(path, init);
+}
+
+export function endSession(): void {
+  return identitySeams.endSession();
+}
+
+export async function ensureHostSession(): Promise<HostSession> {
+  return identitySeams.ensureHostSession();
+}
+
+export function hostLocalSessionEligible(
+  hostApi: string = hostBase(),
+): boolean {
+  return identitySeams.hostLocalSessionEligible(hostApi);
+}
+
+export function useIdentitySession(): IdentitySession | null {
+  return identitySeams.useIdentitySession();
+}
+
+export function useConnect() {
+  return identitySeams.useConnect();
+}
+
+export function currentSession(): IdentitySession | null {
+  return identitySeams.currentSession();
+}
+export async function probeOrphanSession(): Promise<boolean> {
+  return identitySeams.probeOrphanSession();
+}
+export function identityBase(): string {
+  return identitySeams.identityBase();
+}
+export function hostBase(): string {
+  return identitySeams.hostBase();
+}
+export async function identityFetch(
+  ...args: Parameters<typeof identityFetchDefault>
+): ReturnType<typeof identityFetchDefault> {
+  return identitySeams.identityFetch(...args);
+}
+export function noteUnauthorized(): void {
+  return identitySeams.noteUnauthorized();
+}
+export async function identityJson<T>(
+  ...args: Parameters<typeof identityJsonDefault>
+): Promise<T> {
+  // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
+  return identitySeams.identityJson(...args) as Promise<T>;
+}
+export async function connectProvisional(): Promise<IdentitySession> {
+  return identitySeams.connectProvisional();
+}
+export async function adoptToken(accessToken: string): Promise<void> {
+  return identitySeams.adoptToken(accessToken);
+}
+export async function probeIdentity(): Promise<HealthState> {
+  return identitySeams.probeIdentity();
+}
+export async function probeHost(): Promise<HealthState> {
+  return identitySeams.probeHost();
+}
+export function useOrphanSession(): boolean {
+  return identitySeams.useOrphanSession();
+}
+export async function fetchPrincipal(): Promise<Principal> {
+  return identitySeams.fetchPrincipal();
 }

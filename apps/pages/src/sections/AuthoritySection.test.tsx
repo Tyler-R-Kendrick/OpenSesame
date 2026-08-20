@@ -9,8 +9,10 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type JsonObject } from "@opensesame/os-domain";
 
 const online = vi.hoisted(() => ({ value: true }));
+// SAFETY: Type assertion required; TypeScript cannot prove this overlap.
 const session = vi.hoisted(() => ({
   current: null as {
     principalId: string;
@@ -20,16 +22,6 @@ const session = vi.hoisted(() => ({
   } | null,
 }));
 const orphan = vi.hoisted(() => ({ value: false }));
-
-const IdentityError = vi.hoisted(() => {
-  return class IdentityError extends Error {
-    status: number;
-    constructor(status: number, message: string) {
-      super(message);
-      this.status = status;
-    }
-  };
-});
 
 const currentSession = vi.hoisted(() => vi.fn());
 const connectProvisional = vi.hoisted(() => vi.fn());
@@ -42,8 +34,9 @@ const probeHost = vi.hoisted(() => vi.fn());
 const probeIdentity = vi.hoisted(() => vi.fn());
 const probeOrphanSession = vi.hoisted(() => vi.fn());
 
-vi.mock("../lib/identity.js", () => ({
-  IdentityError,
+import { IdentityError, identitySeams } from "../lib/identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {
   adoptToken,
   connectProvisional,
   currentSession,
@@ -58,15 +51,18 @@ vi.mock("../lib/identity.js", () => ({
   probeOrphanSession,
   useIdentitySession: () => session.current,
   useOrphanSession: () => orphan.value,
-}));
+});
 
-vi.mock("../lib/use-online.js", () => ({ useOnline: () => online.value }));
+import { useOnlineSeams } from "../lib/use-online.js";
+const originalUseOnlineSeams = { ...useOnlineSeams };
+Object.assign(useOnlineSeams, { useOnline: () => online.value });
 
+// SAFETY: Type assertion required; TypeScript cannot prove this overlap.
 const queueItems = vi.hoisted(() => ({
-  current: [] as Array<Record<string, unknown>>,
+  current: [] as Array<JsonObject>,
 }));
 const enqueue = vi.hoisted(() =>
-  vi.fn((item: Record<string, unknown>) => {
+  vi.fn((item: JsonObject) => {
     queueItems.current.push({
       id: `q_${queueItems.current.length}`,
       createdAt: "2026-08-19T00:00:00Z",
@@ -81,16 +77,19 @@ const dequeue = vi.hoisted(() =>
 );
 const loadQueue = vi.hoisted(() => vi.fn(() => queueItems.current));
 
-vi.mock("../lib/queue.js", () => ({ enqueue, dequeue, loadQueue }));
+import { queueSeams } from "../lib/queue.js";
+const originalQueueSeams = { ...queueSeams };
+Object.assign(queueSeams, { enqueue, dequeue, loadQueue });
 
 const fetchMock = vi.hoisted(() => vi.fn());
 
-vi.mock("../components/PlaneNote.js", () => ({
-  PagesCannotHostNote: () => null,
-}));
-vi.mock("../components/PasskeyCeremonyNote.js", () => ({
-  PasskeyCeremonyNote: () => null,
-}));
+import { planeNoteSeams } from "../components/PlaneNote.js";
+const originalPlaneNoteSeams = { ...planeNoteSeams };
+Object.assign(planeNoteSeams, { PagesCannotHostNote: () => null });
+import { passkeyCeremonyNoteSeams } from "../components/PasskeyCeremonyNote.js";
+const originalPasskeyCeremonyNoteSeams = { ...passkeyCeremonyNoteSeams };
+Object.assign(passkeyCeremonyNoteSeams, { PasskeyCeremonyNote: () => null });
+
 
 import { AuthoritySection } from "./AuthoritySection.js";
 
@@ -119,7 +118,8 @@ const principalBody = {
   ],
 };
 
-function jsonResponse(body: unknown, ok = true, status = 200) {
+function jsonResponse(body: JsonObject, ok = true, status = 200) {
+  // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
   return {
     ok,
     status,
@@ -127,7 +127,7 @@ function jsonResponse(body: unknown, ok = true, status = 200) {
     clone() {
       return jsonResponse(body, ok, status);
     },
-  } as unknown as Response;
+  };
 }
 
 function renderAuthority() {
@@ -190,7 +190,7 @@ describe("AuthoritySection", () => {
     complete?: unknown;
     completeStatus?: number;
   }) {
-    fetchMock.mockImplementation((input: unknown) => {
+    fetchMock.mockImplementation((input: string) => {
       const url = String(input);
       if (url.endsWith("/v1/claims/present")) {
         if (handlers.presentStatus) {
@@ -240,6 +240,7 @@ describe("AuthoritySection", () => {
 
   async function presentToken(token = "osc_clm_part.one", code = "WORD-WORD") {
     await openTab(/Claim ownership/i);
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     await userEvent.type(
       document.getElementById("authority-claim-token") as HTMLElement,
       token,
@@ -248,6 +249,7 @@ describe("AuthoritySection", () => {
     // spends the token, and finding out the code is missing afterwards would
     // spend it for nothing.
     if (code) {
+      // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
       await userEvent.type(
         document.getElementById("authority-claim-code") as HTMLElement,
         code,
@@ -333,7 +335,7 @@ describe("AuthoritySection", () => {
   });
 
   it("surfaces principal load failures", async () => {
-    identityJson.mockRejectedValue(new IdentityError(401, "expired"));
+    identityJson.mockRejectedValue(new IdentityError("expired", 401));
     renderAuthority();
     expect(await screen.findByText(/session is no longer valid/)).toBeTruthy();
   });
@@ -358,7 +360,7 @@ describe("AuthoritySection", () => {
 
   it("explains connect failures", async () => {
     session.current = null;
-    connectProvisional.mockRejectedValue(new IdentityError(429, "slow down"));
+    connectProvisional.mockRejectedValue(new IdentityError("slow down", 429));
     renderAuthority();
     await screen.findByText("Not connected");
     await userEvent.click(
@@ -373,6 +375,7 @@ describe("AuthoritySection", () => {
     renderAuthority();
     await screen.findByText("Not connected");
     // Empty paste is refused before the API is touched.
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     const form = screen
       .getByLabelText(/Access token/i)
       .closest("form") as HTMLFormElement;
@@ -389,7 +392,7 @@ describe("AuthoritySection", () => {
 
   it("explains adopt failures", async () => {
     session.current = null;
-    adoptToken.mockRejectedValue(new IdentityError(401, "bad token"));
+    adoptToken.mockRejectedValue(new IdentityError("bad token", 401));
     renderAuthority();
     await screen.findByText("Not connected");
     await userEvent.type(screen.getByLabelText(/Access token/i), "tok_bad");
@@ -413,6 +416,7 @@ describe("AuthoritySection", () => {
   it("folds ambiguous glyphs in the device user code", async () => {
     renderAuthority();
     await openTab(/Authorize a device/i);
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     const input = screen.getByLabelText(/User code/i) as HTMLInputElement;
     await userEvent.type(input, "oil0-wjzx");
     expect(input.value).toBe("0110-WJZX");
@@ -520,6 +524,7 @@ describe("AuthoritySection", () => {
   it("rejects malformed claim tokens before presenting", async () => {
     renderAuthority();
     await openTab(/Claim ownership/i);
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     await userEvent.type(
       document.getElementById("authority-claim-token") as HTMLElement,
       "not-a-claim-token",
@@ -556,6 +561,7 @@ describe("AuthoritySection", () => {
       String(url).includes("/complete"),
     );
     expect(completeCall).toBeTruthy();
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     expect(
       JSON.parse(String((completeCall?.[1] as RequestInit).body)),
     ).toMatchObject({
@@ -619,7 +625,7 @@ describe("AuthoritySection", () => {
   });
 
   it("discards the claim when the principal changes mid-present", async () => {
-    fetchMock.mockImplementation((input: unknown) => {
+    fetchMock.mockImplementation((input: string) => {
       currentSession.mockReturnValue({ accessToken: "tok_other" });
       return Promise.resolve(jsonResponse(presentedClaim));
     });
@@ -631,11 +637,12 @@ describe("AuthoritySection", () => {
   });
 
   it("refuses to complete when the server did not report items", async () => {
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     const noItems = {
       ...presentedClaim,
       items: undefined,
       version: undefined,
-    } as unknown as Record<string, unknown>;
+    };
     mockClaimTransport({ present: noItems });
     renderAuthority();
     await presentToken();
@@ -691,10 +698,12 @@ describe("AuthoritySection", () => {
     online.value = false;
     renderAuthority();
     await openTab(/Claim ownership/i);
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     await userEvent.type(
       document.getElementById("authority-claim-token") as HTMLElement,
       "osc_clm_part.one",
     );
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     await userEvent.type(
       document.getElementById("authority-claim-code") as HTMLElement,
       "WORD-WORD",
@@ -881,7 +890,7 @@ describe("AuthoritySection", () => {
     renderAuthority();
     await screen.findByText("Not connected");
 
-    connectProvisional.mockRejectedValue(new IdentityError(403, "no anon"));
+    connectProvisional.mockRejectedValue(new IdentityError("no anon", 403));
     await userEvent.click(
       screen.getByRole("button", { name: /Create provisional principal/i }),
     );
@@ -890,14 +899,14 @@ describe("AuthoritySection", () => {
     ).toBeTruthy();
 
     connectProvisional.mockRejectedValue(
-      new IdentityError(401, "invalid session control token"),
+      new IdentityError("invalid session control token", 401),
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Create provisional principal/i }),
     );
     expect(await screen.findByText(/Something else is answering/)).toBeTruthy();
 
-    connectProvisional.mockRejectedValue(new IdentityError(500, "oops"));
+    connectProvisional.mockRejectedValue(new IdentityError("oops", 500));
     await userEvent.click(
       screen.getByRole("button", { name: /Create provisional principal/i }),
     );
@@ -911,14 +920,14 @@ describe("AuthoritySection", () => {
       await screen.findByText(/Could not reach the Identity API/),
     ).toBeTruthy();
 
-    adoptToken.mockRejectedValue(new IdentityError(409, "already adopted"));
+    adoptToken.mockRejectedValue(new IdentityError("already adopted", 409));
     await userEvent.type(screen.getByLabelText(/Access token/i), "tok_x");
     await userEvent.click(
       screen.getByRole("button", { name: /Use this token/i }),
     );
     expect(await screen.findByText("already adopted")).toBeTruthy();
 
-    adoptToken.mockRejectedValue(new IdentityError(500, "weird"));
+    adoptToken.mockRejectedValue(new IdentityError("weird", 500));
     await userEvent.type(screen.getByLabelText(/Access token/i), "tok_y");
     await userEvent.click(
       screen.getByRole("button", { name: /Use this token/i }),
@@ -929,14 +938,14 @@ describe("AuthoritySection", () => {
   });
 
   it("maps remaining principal load errors", async () => {
-    identityJson.mockRejectedValue(new IdentityError(403, "foreign"));
+    identityJson.mockRejectedValue(new IdentityError("foreign", 403));
     const { unmount } = renderAuthority();
     expect(
       await screen.findByText(/refused to describe this principal/),
     ).toBeTruthy();
     unmount();
 
-    identityJson.mockRejectedValue(new IdentityError(404, "gone"));
+    identityJson.mockRejectedValue(new IdentityError("gone", 404));
     renderAuthority();
     expect(await screen.findByText(/no principal with that id/)).toBeTruthy();
   });

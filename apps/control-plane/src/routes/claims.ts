@@ -12,14 +12,7 @@ import {
   evaluateDevicePoll,
   initialPollInterval,
 } from "@opensesame/device-auth";
-import {
-  type ClaimItem,
-  type ClaimSession,
-  DomainError,
-  parseClaimToken,
-  verifyClaimToken,
-  verifyUserCode,
-} from "@opensesame/os-domain";
+import { type ClaimItem, type ClaimSession, DomainError, parseClaimToken, verifyClaimToken, verifyUserCode, isString } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
@@ -67,7 +60,7 @@ function toClaimResponse(session: ClaimSession, items: ClaimItem[] = []) {
     })),
     ...(session.completedByPrincipalId !== undefined
       ? { completedByPrincipalId: session.completedByPrincipalId }
-      : {}),
+      : undefined),
   });
 }
 
@@ -129,7 +122,7 @@ async function auditClaimDenial(
     claimId: input.claimId,
     ...(input.correlationId !== undefined
       ? { correlationId: input.correlationId }
-      : {}),
+      : undefined),
     metadata: { action: "claim.complete", reason: input.reason },
   });
 }
@@ -218,16 +211,16 @@ claimRoutes.post(
           creatorPrincipalId: principalId,
           ...(parsed.data.ttlSeconds !== undefined
             ? { ttlMs: parsed.data.ttlSeconds * 1000 }
-            : {}),
+            : undefined),
           ...(parsed.data.proofKeyJkt !== undefined
             ? { proofKeyJkt: parsed.data.proofKeyJkt }
-            : {}),
+            : undefined),
           ...(parsed.data.requestedDestination !== undefined
             ? { requestedDestination: parsed.data.requestedDestination }
-            : {}),
+            : undefined),
           ...(parsed.data.requestedGrant !== undefined
             ? { requestedGrant: parsed.data.requestedGrant }
-            : {}),
+            : undefined),
         });
 
         await appendAuditEvent(ctx.repos.auditEvents, {
@@ -284,7 +277,7 @@ claimRoutes.post("/present", async (c) => {
       claimId: session.id,
       ...(c.get("principalId") !== undefined
         ? { principalId: c.get("principalId") }
-        : {}),
+        : undefined),
       correlationId: c.get("correlationId"),
       metadata: { action: "claim.present", state: session.state },
     });
@@ -391,7 +384,7 @@ claimRoutes.post(
           acceptedItemIds: parsed.data.acceptedItemIds,
           ...(parsed.data.destination !== undefined
             ? { destination: parsed.data.destination }
-            : {}),
+            : undefined),
         });
       }
 
@@ -413,7 +406,7 @@ claimRoutes.post(
       // Preserve principal / project ids from target manifest on completion
       const manifest = result.session.targetManifest;
       const projectId =
-        typeof manifest.projectId === "string" ? manifest.projectId : undefined;
+        isString(manifest.projectId) ? manifest.projectId : undefined;
       if (projectId) {
         const project = ctx.stores.projects.get(projectId);
         if (
@@ -437,7 +430,7 @@ claimRoutes.post(
         }
       }
       const agentId =
-        typeof manifest.agentId === "string" ? manifest.agentId : undefined;
+        isString(manifest.agentId) ? manifest.agentId : undefined;
       if (agentId) {
         const agent = ctx.stores.agents.get(agentId);
         if (
@@ -454,7 +447,7 @@ claimRoutes.post(
         outcome: "succeeded",
         principalId,
         claimId: id,
-        ...(projectId !== undefined ? { projectId } : {}),
+        ...(projectId !== undefined ? { projectId } : undefined),
         correlationId: c.get("correlationId"),
         metadata: {
           action: "claim.complete",
@@ -468,11 +461,11 @@ claimRoutes.post(
         won: result.won,
         preserved: {
           principalId:
-            typeof manifest.ownerPrincipalId === "string"
+            isString(manifest.ownerPrincipalId)
               ? manifest.ownerPrincipalId
               : principalId,
-          ...(projectId !== undefined ? { projectId } : {}),
-          ...(agentId !== undefined ? { agentId } : {}),
+          ...(projectId !== undefined ? { projectId } : undefined),
+          ...(agentId !== undefined ? { agentId } : undefined),
         },
       });
     } catch (err) {

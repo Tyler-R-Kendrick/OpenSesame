@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMockFetch, runAnonymousAgentDemo } from "./main.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const CLAIM_ID = "clm_demo";
 const CLAIM_TOKEN = "osc_clm_demo.secretvalue000000000000000000000000";
@@ -10,7 +11,7 @@ function makeFetchImpl(options?: {
 }): typeof fetch {
   const claimStates = options?.claimStates ?? ["pending", "completed"];
   let polls = 0;
-  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+  return overlapCast(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/v1/principals/provisional") && init?.method === "POST") {
       return new Response(
@@ -56,12 +57,12 @@ function makeFetchImpl(options?: {
           version: 1,
           ...(state === "completed"
             ? { completedByPrincipalId: "prn_demo" }
-            : {}),
+            : undefined),
         }),
       );
     }
     throw new Error(`unexpected ${url}`);
-  }) as typeof fetch;
+  });
 }
 
 describe("example-agent behavior", () => {

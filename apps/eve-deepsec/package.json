@@ -18,6 +18,7 @@
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@opensesame/os-domain": "workspace:*",
     "@vercel/connect": "0.4.3",
     "ai": "^7.0.58",
     "eve": "^0.39.0",

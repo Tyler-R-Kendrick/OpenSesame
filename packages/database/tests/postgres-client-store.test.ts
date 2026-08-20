@@ -10,6 +10,7 @@ import {
 import { oauthClients } from "../src/schema/index.js";
 import { makePrincipal } from "./factories.js";
 import { type PgTestContext, createPgTestContext } from "./pg-harness-full.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 let ctx: PgTestContext;
 let clients: ClientRecordStore;
@@ -29,7 +30,7 @@ function makeClient(
   overrides: Partial<OAuthClientRecord> = {},
 ): OAuthClientRecord & { origin: string } {
   const origin = `https://app-${randomUUID()}.example.com`;
-  return {
+  return overlapCast({
     id: `origin:${origin}`,
     admissionMode: "origin_profile",
     displayName: "Example app",
@@ -43,7 +44,7 @@ function makeClient(
     state: "active",
     origin,
     ...overrides,
-  } as OAuthClientRecord & { origin: string };
+  });
 }
 
 describe("createPostgresClientRecordStore", () => {

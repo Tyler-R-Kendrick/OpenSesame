@@ -64,9 +64,9 @@ export function parseArgs(argv: string[]): ParsedCommand {
   const clientId = takeOption(args, "--client-id");
   const flags = GlobalFlagsSchema.parse({
     json,
-    ...(issuer !== undefined ? { issuer } : {}),
-    ...(api !== undefined ? { api } : {}),
-    ...(clientId !== undefined ? { clientId } : {}),
+    ...(issuer !== undefined ? { issuer } : undefined),
+    ...(api !== undefined ? { api } : undefined),
+    ...(clientId !== undefined ? { clientId } : undefined),
   });
 
   const cmd = args.shift() ?? "help";

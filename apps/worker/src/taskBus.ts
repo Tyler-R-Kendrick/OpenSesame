@@ -1,3 +1,4 @@
+import { type JsonObject } from "@opensesame/os-domain";
 /**
  * Identity-plane TaskBus sink for outbox drain.
  *
@@ -10,12 +11,8 @@
  * core-NATS PUB: JetStream publish must succeed or the drain fails loudly.
  */
 
-import {
-  type JetStreamClient,
-  type NatsConnection,
-  StringCodec,
-  connect,
-} from "nats";
+import type { JetStreamClient, NatsConnection } from "nats";
+import { natsSeams } from "./nats.js";
 
 export interface BusEvent {
   id: string;
@@ -23,7 +20,7 @@ export interface BusEvent {
   source: string;
   type: string;
   time: string;
-  data: Record<string, unknown>;
+  data: JsonObject;
 }
 
 export interface TaskBus {
@@ -91,7 +88,7 @@ export function outboxToBusEvent(event: {
   eventType: string;
   aggregateType: string;
   aggregateId: string;
-  payload: Record<string, unknown>;
+  payload: JsonObject;
   createdAt: Date;
 }): BusEvent {
   return {
@@ -119,7 +116,7 @@ export function eventSubject(eventType: string): string {
 export class NatsJetStreamTaskBus implements TaskBus {
   #nc: NatsConnection;
   #js: JetStreamClient;
-  #codec = StringCodec();
+  #codec = natsSeams.StringCodec();
 
   private constructor(nc: NatsConnection, js: JetStreamClient) {
     this.#nc = nc;
@@ -127,7 +124,10 @@ export class NatsJetStreamTaskBus implements TaskBus {
   }
 
   static async connect(natsUrl: string): Promise<NatsJetStreamTaskBus> {
-    const nc = await connect({ servers: natsUrl, name: "opensesame-worker" });
+    const nc = await natsSeams.connect({
+      servers: natsUrl,
+      name: "opensesame-worker",
+    });
     const jsm = await nc.jetstreamManager();
     try {
       await jsm.streams.info(STREAM_NAME);

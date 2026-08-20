@@ -13,6 +13,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { type JsonObject } from "@opensesame/os-domain";
 
 /** bytea column mapped to Uint8Array */
 const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
@@ -90,7 +91,7 @@ export const externalIdentities = pgTable(
       mode: "date",
     }),
     metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
+      .$type<JsonObject>()
       .notNull()
       .default({}),
   },
@@ -237,7 +238,7 @@ export const resources = pgTable(
       () => principals.id,
     ),
     manifest: jsonb("manifest")
-      .$type<Record<string, unknown>>()
+      .$type<JsonObject>()
       .notNull()
       .default({}),
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),
@@ -591,14 +592,14 @@ export const claimSessions = pgTable(
     userCodeDigest: bytea("user_code_digest"),
     proofKeyJkt: text("proof_key_jkt"),
     targetManifest: jsonb("target_manifest")
-      .$type<Record<string, unknown>>()
+      .$type<JsonObject>()
       .notNull()
       .default({}),
     targetManifestDigest: text("target_manifest_digest").notNull(),
     requestedDestination: jsonb("requested_destination").$type<
-      Record<string, unknown>
+      JsonObject
     >(),
-    requestedGrant: jsonb("requested_grant").$type<Record<string, unknown>>(),
+    requestedGrant: jsonb("requested_grant").$type<JsonObject>(),
     presentedAt: timestamp("presented_at", {
       withTimezone: true,
       mode: "date",
@@ -759,7 +760,7 @@ export const auditEvents = pgTable(
     correlationId: text("correlation_id").notNull(),
     causationId: text("causation_id"),
     metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
+      .$type<JsonObject>()
       .notNull()
       .default({}),
     /** Hash chain over the trail: each event names the digest of the one before it. */
@@ -796,7 +797,7 @@ export const outboxEvents = pgTable(
     aggregateId: text("aggregate_id").notNull(),
     eventType: text("event_type").notNull(),
     payload: jsonb("payload")
-      .$type<Record<string, unknown>>()
+      .$type<JsonObject>()
       .notNull()
       .default({}),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
@@ -859,7 +860,7 @@ export const oidcPayloads = pgTable(
   {
     model: text("model").notNull(),
     id: text("id").notNull(),
-    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    payload: jsonb("payload").$type<JsonObject>().notNull(),
     /** Null for models the provider stores without a TTL. */
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),
     /** Set once a single-use artifact (an authorization code) has been redeemed. */
@@ -906,7 +907,7 @@ export const authorizationRequests = pgTable(
     requesterRef: text("requester_ref").notNull(),
     /** RFC 9396 authorization_details — constraint, prompt, and echo in one shape. */
     authorizationDetails: jsonb("authorization_details")
-      .$type<Record<string, unknown>[]>()
+      .$type<JsonObject[]>()
       .notNull()
       .default([]),
     /**

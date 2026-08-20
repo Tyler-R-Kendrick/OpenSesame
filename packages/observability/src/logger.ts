@@ -4,6 +4,7 @@ import {
   type LoggerOptions,
   pino,
 } from "pino";
+import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject } from "@opensesame/os-domain";
 
 /** Paths redacted from structured logs (tokens, codes, secrets). */
 export const LOG_REDACT_PATHS = [
@@ -57,11 +58,11 @@ const MAX_REDACT_DEPTH = 12;
 export function redactDeep<T>(value: T): T {
   // SAFETY: walk preserves T's structure; it only replaces sensitive string
   // values and cycles, never the container type.
-  return walk(value, 0, new WeakSet<object>()) as T;
+  return overlapCast(walk(value, 0, new WeakSet<object>()));
 }
 
-function walk(value: unknown, depth: number, seen: WeakSet<object>): unknown {
-  if (value === null || typeof value !== "object") return value;
+function walk(value: BoundaryValue, depth: number, seen: WeakSet<object>): BoundaryValue {
+  if (value === null || !isTypeofObject(value)) return value;
   if (depth >= MAX_REDACT_DEPTH) return CENSOR;
   if (seen.has(value)) return "[Circular]";
   seen.add(value);
@@ -73,8 +74,8 @@ function walk(value: unknown, depth: number, seen: WeakSet<object>): unknown {
   const proto = Object.getPrototypeOf(value);
   if (proto !== Object.prototype && proto !== null) return value;
 
-  const out: Record<string, unknown> = {};
-  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+  const out: JsonObject = {};
+  for (const [key, item] of Object.entries(overlapCast(value))) {
     out[key] = SENSITIVE_KEY_PATTERN.test(key)
       ? CENSOR
       : walk(item, depth + 1, seen);
@@ -107,7 +108,7 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
     },
     formatters: {
       // Deep pass catches sensitive keys below the one level `redact.paths` sees.
-      log: (obj) => redactDeep(obj) as Record<string, unknown>,
+      log: (obj) => overlapCast(redactDeep(obj)),
     },
   };
 

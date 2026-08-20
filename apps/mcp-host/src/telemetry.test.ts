@@ -2,8 +2,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { type Telemetry, createTelemetry } from "@opensesame/telemetry";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { wrapServerWithTelemetry } from "./telemetry.js";
+import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
-type AnyFn = (...args: unknown[]) => unknown;
+type AnyFn = (...args: unknown[]) => BoundaryValue;
 
 /**
  * A minimal fake standing in for `McpServer`: just enough surface
@@ -17,8 +18,8 @@ function makeFakeServer(clientInfo?: { name: string; version: string }) {
   const registered = new Map<string, AnyFn>();
   const fake = {
     tool: (...args: unknown[]) => {
-      const name = args[0] as string;
-      const handler = args[args.length - 1] as AnyFn;
+      const name = overlapCast(args[0]);
+      const handler = overlapCast(args[args.length - 1]);
       registered.set(name, handler);
       return { name };
     },
@@ -26,7 +27,7 @@ function makeFakeServer(clientInfo?: { name: string; version: string }) {
       getClientVersion: () => clientInfo,
     },
   };
-  return { server: fake as unknown as McpServer, registered };
+  return { server: overlapCast(fake), registered };
 }
 
 /** Cast through the fake's own shape to call `.tool()` with arbitrary args
@@ -34,11 +35,11 @@ function makeFakeServer(clientInfo?: { name: string; version: string }) {
  * server ignores everything but "first arg is the name, last arg is the
  * callback" anyway. */
 function toolFnOf(server: McpServer): AnyFn {
-  return (server as unknown as { tool: AnyFn }).tool;
+  return (overlapCast(server)).tool;
 }
 
 function capturingTelemetry() {
-  const events: Array<{ event: string; props: Record<string, unknown> }> = [];
+  const events: Array<{ event: string; props: JsonObject }> = [];
   const telemetry: Telemetry = createTelemetry({
     capture: (event, props) => events.push({ event, props }),
   });
@@ -96,11 +97,9 @@ describe("wrapServerWithTelemetry", () => {
 
     const handler = registered.get("task_start");
     expect(handler).toBeDefined();
-    const result = (await handler?.({
+    const result = overlapCast(await handler?.({
       principal_id: "top-secret-principal",
-    })) as {
-      content: Array<{ text: string }>;
-    };
+    }));
 
     // The real tool response is unaffected by wrapping.
     expect(result.content[0]?.text).toContain("should-not-leak");
@@ -205,9 +204,7 @@ describe("wrapServerWithTelemetry", () => {
       content: [{ type: "text", text: "ok" }],
     }));
 
-    const result = (await registered.get("host_ready")?.()) as {
-      content: Array<{ text: string }>;
-    };
+    const result = overlapCast(await registered.get("host_ready")?.());
     expect(result.content[0]?.text).toBe("ok");
   });
 });

@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 /**
  * Credential rotation consumer (WP-E).
  *
@@ -23,7 +24,7 @@ export interface BusEventLike {
   type: string;
   source?: string;
   time?: string;
-  data: Record<string, unknown>;
+  data: JsonObject;
 }
 
 /** Minimal TaskBus-shaped surface for unit tests and outbox drains. */
@@ -55,7 +56,7 @@ const FORBIDDEN_KEYS = new Set([
   "client_secret",
 ]);
 
-export function assertNoSecrets(payload: Record<string, unknown>): void {
+export function assertNoSecrets(payload: JsonObject): void {
   for (const key of Object.keys(payload)) {
     if (FORBIDDEN_KEYS.has(key.toLowerCase())) {
       throw new Error(
@@ -66,10 +67,10 @@ export function assertNoSecrets(payload: Record<string, unknown>): void {
 }
 
 export function toPublicJobView(
-  data: Record<string, unknown>,
+  data: JsonObject,
 ): RotationJobView {
   assertNoSecrets(data);
-  const target = data.target as Record<string, unknown> | undefined;
+  const target = overlapCast(data.target);
   const statusRaw = String(data.status ?? "requested");
   const status =
     statusRaw === "succeeded" || statusRaw === "failed"
@@ -81,24 +82,24 @@ export function toPublicJobView(
     secretsReturned: false,
   };
   const connectionId =
-    typeof target?.connection_id === "string"
+    isString(target?.connection_id)
       ? target.connection_id
-      : typeof data.connection_id === "string"
+      : isString(data.connection_id)
         ? data.connection_id
         : undefined;
   if (connectionId) view.connectionId = connectionId;
   const storePath =
-    typeof target?.path === "string"
+    isString(target?.path)
       ? target.path
-      : typeof data.store_path === "string"
+      : isString(data.store_path)
         ? data.store_path
         : undefined;
   if (storePath) view.storePath = storePath;
-  if (typeof data.project_id === "string") view.projectId = data.project_id;
-  if (typeof data.organization_id === "string") {
+  if (isString(data.project_id)) view.projectId = data.project_id;
+  if (isString(data.organization_id)) {
     view.organizationId = data.organization_id;
   }
-  if (typeof data.error === "string") view.error = data.error;
+  if (isString(data.error)) view.error = data.error;
   return view;
 }
 
@@ -113,7 +114,7 @@ export interface RotationConsumerDeps {
     connectionId: string;
     organizationId?: string;
   }) => Promise<RotationJobView>;
-  log?: (msg: string, meta?: Record<string, unknown>) => void;
+  log?: (msg: string, meta?: JsonObject) => void;
 }
 
 export interface RotationConsumeResult {
@@ -155,12 +156,12 @@ export async function consumeRotationEvents(
             connectionId,
             ...(view.organizationId
               ? { organizationId: view.organizationId }
-              : {}),
+              : undefined),
           });
           // SAFETY: rotation results are JSON objects; assertNoSecrets walks
           // string keys looking for secret needles. RotationJobView has no
           // index signature, so TypeScript requires the unknown step.
-          assertNoSecrets(done as unknown as Record<string, unknown>);
+          assertNoSecrets(overlapCast(done));
           if (done.secretsReturned !== false) {
             throw new Error("rotation executor must set secretsReturned=false");
           }

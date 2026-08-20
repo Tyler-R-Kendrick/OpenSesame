@@ -5,14 +5,16 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const copySecret = vi.hoisted(() => vi.fn());
 
-vi.mock("../lib/vault/hooks.js", () => ({
-  useCopySecret: () => copySecret,
-}));
+import { vaultHooksSeams } from "../lib/vault/hooks.js";
+const originalVaultHooksSeams = { ...vaultHooksSeams };
+Object.assign(vaultHooksSeams, {useCopySecret: () => copySecret});
+
 
 import { PasswordGenerator } from "./PasswordGenerator.js";
 
@@ -94,9 +96,9 @@ describe("PasswordGenerator", () => {
     expect(generatedValue()).toBe("—");
     expect(
       (
-        screen.getByRole("button", {
+        overlapCast(screen.getByRole("button", {
           name: "Use this password",
-        }) as HTMLButtonElement
+        }))
       ).disabled,
     ).toBe(true);
   });

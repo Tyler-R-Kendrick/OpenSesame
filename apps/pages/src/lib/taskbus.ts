@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 /**
  * Host TaskBus / NATS configuration client.
  * Browser never dials nats:// — Host reaches NATS (loopback or Tailscale).
@@ -17,32 +18,29 @@ export type TaskBusConfig = {
 };
 
 async function fail(res: Response, fallback: string): Promise<never> {
-  const body = (await res.json().catch(() => ({}))) as {
-    hint?: string;
-    error?: string;
-  };
+  const body = overlapCast(await res.json().catch(() => ({})));
   throw new Error(body.hint || body.error || `${fallback} (${res.status})`);
 }
 
-function toConfig(raw: Record<string, unknown>): TaskBusConfig {
+function toConfig(raw: JsonObject): TaskBusConfig {
   const backend = String(raw.backend ?? "memory");
   return {
     backend: backend === "nats" ? "nats" : "memory",
-    natsUrl: (raw.nats_url as string | null) ?? null,
-    source: (String(raw.source ?? "default") as TaskBusSource) || "default",
+    natsUrl: (overlapCast(raw.nats_url)) ?? null,
+    source: (overlapCast(String(raw.source ?? "default"))) || "default",
     status: String(raw.status ?? "ok"),
-    lastError: (raw.last_error as string | null) ?? null,
+    lastError: (overlapCast(raw.last_error)) ?? null,
   };
 }
 
-export async function getTaskBusConfig(): Promise<TaskBusConfig> {
+async function getTaskBusConfigDefault(): Promise<TaskBusConfig> {
   const res = await hostFetch("/api/v1/operator/taskbus");
   if (!res.ok) await fail(res, "Could not read TaskBus config");
-  const body = (await res.json()) as { taskbus?: Record<string, unknown> };
+  const body = overlapCast(await res.json());
   return toConfig(body.taskbus ?? {});
 }
 
-export async function putTaskBusConfig(input: {
+async function putTaskBusConfigDefault(input: {
   backend: TaskBusBackend;
   natsUrl?: string;
 }): Promise<{ config: TaskBusConfig; applied: boolean }> {
@@ -51,32 +49,25 @@ export async function putTaskBusConfig(input: {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       backend: input.backend,
-      ...(input.natsUrl ? { nats_url: input.natsUrl } : {}),
+      ...(input.natsUrl ? { nats_url: input.natsUrl } : undefined),
     }),
   });
   if (!res.ok) await fail(res, "Could not save TaskBus config");
-  const body = (await res.json()) as {
-    taskbus?: Record<string, unknown>;
-    applied?: boolean;
-  };
+  const body = overlapCast(await res.json());
   return {
     config: toConfig(body.taskbus ?? {}),
     applied: Boolean(body.applied),
   };
 }
 
-export async function pingTaskBus(): Promise<{
+async function pingTaskBusDefault(): Promise<{
   ok: boolean;
   config: TaskBusConfig;
 }> {
   const res = await hostFetch("/api/v1/operator/taskbus/ping", {
     method: "POST",
   });
-  const body = (await res.json().catch(() => ({}))) as {
-    ok?: boolean;
-    taskbus?: Record<string, unknown>;
-    hint?: string;
-  };
+  const body = overlapCast(await res.json().catch(() => ({})));
   if (!res.ok && res.status !== 422) {
     throw new Error(body.hint || `TaskBus ping failed (${res.status})`);
   }
@@ -84,4 +75,27 @@ export async function pingTaskBus(): Promise<{
     ok: Boolean(body.ok),
     config: toConfig(body.taskbus ?? {}),
   };
+}
+
+export const taskBusSeams = {
+  getTaskBusConfig: getTaskBusConfigDefault,
+  putTaskBusConfig: putTaskBusConfigDefault,
+  pingTaskBus: pingTaskBusDefault,
+};
+
+export async function getTaskBusConfig(): Promise<TaskBusConfig> {
+  return taskBusSeams.getTaskBusConfig();
+}
+
+export async function putTaskBusConfig(
+  input: Parameters<typeof putTaskBusConfigDefault>[0],
+): Promise<{ config: TaskBusConfig; applied: boolean }> {
+  return taskBusSeams.putTaskBusConfig(input);
+}
+
+export async function pingTaskBus(): Promise<{
+  ok: boolean;
+  config: TaskBusConfig;
+}> {
+  return taskBusSeams.pingTaskBus();
 }

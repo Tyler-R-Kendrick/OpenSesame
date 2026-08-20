@@ -6,6 +6,7 @@ import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { AppClaimService, ClaimError } from "../services/app-claim.js";
 import { authenticatedPrincipalId } from "./organizations.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 export const appClaimRoutes = new Hono<{ Variables: Variables }>();
 
@@ -55,14 +56,12 @@ appClaimRoutes.post(
     const denied = await assertVerified(ctx, principalId);
     if (denied) return denied;
 
-    const body = (await c.req.json().catch(() => ({}))) as {
-      origin?: string;
-    };
+    const body = overlapCast(await c.req.json().catch(() => ({})));
     try {
       const started = await claimService(ctx).startClaim({
         applicationId: c.req.param("id"),
         ownerPrincipalId: principalId,
-        ...(body.origin !== undefined ? { origin: body.origin } : {}),
+        ...(body.origin !== undefined ? { origin: body.origin } : undefined),
       });
       await appendAuditEvent(ctx.repos.auditEvents, {
         eventType: "oauth_client.claim_challenge_started",
@@ -89,7 +88,7 @@ appClaimRoutes.post(
       if (err instanceof ClaimError) {
         return c.json(
           { error: err.code, message: err.message },
-          err.status as 400,
+          overlapCast(err.status),
         );
       }
       throw err;
@@ -107,11 +106,7 @@ appClaimRoutes.post(
     const denied = await assertVerified(ctx, principalId);
     if (denied) return denied;
 
-    const body = (await c.req.json().catch(() => ({}))) as {
-      challenge?: string;
-      origin?: string;
-      attachAlias?: boolean;
-    };
+    const body = overlapCast(await c.req.json().catch(() => ({})));
     if (!body.challenge) {
       return c.json(
         { error: "validation_error", message: "challenge is required" },
@@ -122,10 +117,10 @@ appClaimRoutes.post(
       const result = await claimService(ctx).verifyAndClaim({
         challenge: body.challenge,
         ownerPrincipalId: principalId,
-        ...(body.origin !== undefined ? { origin: body.origin } : {}),
+        ...(body.origin !== undefined ? { origin: body.origin } : undefined),
         ...(body.attachAlias !== undefined
           ? { attachAlias: body.attachAlias }
-          : {}),
+          : undefined),
       });
       await appendAuditEvent(ctx.repos.auditEvents, {
         eventType: "oauth_client.claimed",
@@ -144,7 +139,7 @@ appClaimRoutes.post(
       if (err instanceof ClaimError) {
         return c.json(
           { error: err.code, message: err.message },
-          err.status as 400,
+          overlapCast(err.status),
         );
       }
       throw err;

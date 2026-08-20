@@ -1,16 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
   const res = await app.request("/v1/principals/provisional", {
     method: "POST",
   });
   expect(res.status).toBe(201);
-  const body = (await res.json()) as {
-    principalId: string;
-    accessToken: string;
-    sessionId: string;
-  };
+  const body = overlapCast(await res.json());
   return body;
 }
 
@@ -59,14 +56,7 @@ describe("project personal ensure and CRUD", () => {
       body: "{}",
     });
     expect(first.status).toBe(201);
-    const firstBody = (await first.json()) as {
-      id: string;
-      slug: string;
-      state: string;
-      sealedStoreTombName: string;
-      pagesVaultFolderId: string;
-      created: boolean;
-    };
+    const firstBody = overlapCast(await first.json());
     expect(firstBody.slug).toBe("personal");
     expect(firstBody.state).toBe("active");
     expect(firstBody.sealedStoreTombName).toBe("personal");
@@ -79,10 +69,7 @@ describe("project personal ensure and CRUD", () => {
       body: "{}",
     });
     expect(second.status).toBe(200);
-    const secondBody = (await second.json()) as {
-      id: string;
-      created: boolean;
-    };
+    const secondBody = overlapCast(await second.json());
     expect(secondBody.id).toBe(firstBody.id);
     expect(secondBody.created).toBe(false);
 
@@ -90,9 +77,7 @@ describe("project personal ensure and CRUD", () => {
       headers: { authorization: `Bearer ${created.accessToken}` },
     });
     expect(listed.status).toBe(200);
-    const listBody = (await listed.json()) as {
-      projects: Array<{ id: string; slug: string }>;
-    };
+    const listBody = overlapCast(await listed.json());
     expect(listBody.projects).toHaveLength(1);
     expect(listBody.projects[0]?.id).toBe(firstBody.id);
 
@@ -150,11 +135,7 @@ describe("project personal ensure and CRUD", () => {
       }),
     });
     expect(created.status).toBe(201);
-    const project = (await created.json()) as {
-      id: string;
-      slug: string;
-      sealedStoreTombName: string;
-    };
+    const project = overlapCast(await created.json());
     expect(project.slug).toBe("demo-app");
     expect(project.sealedStoreTombName).toBe("demo-tomb");
 
@@ -199,7 +180,7 @@ describe("project personal ensure and CRUD", () => {
       },
       body: "{}",
     });
-    const personal = (await ensured.json()) as { id: string };
+    const personal = overlapCast(await ensured.json());
     const deleted = await app.request(`/v1/projects/${personal.id}`, {
       method: "DELETE",
       headers: auth,

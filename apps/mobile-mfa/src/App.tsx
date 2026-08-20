@@ -8,14 +8,15 @@ import {
   registrationResponseJson,
   requestOptionsFromJson,
 } from "./webauthn.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const identityApi =
   import.meta.env.VITE_IDENTITY_API ?? "http://127.0.0.1:8788";
 
 type StatusKind = "info" | "ok" | "err";
 
-function parseDeepLink(): { userCode?: string; claimId?: string } {
-  if (typeof window === "undefined") return {};
+function parseDeepLink() {
+  if (window === undefined) return {};
   const url = new URL(window.location.href);
   const userCode =
     url.searchParams.get("user_code") ??
@@ -131,11 +132,7 @@ export function App() {
           headers,
         },
       );
-      const optsBody = (await optsRes.json().catch(() => ({}))) as {
-        options?: PublicKeyCredentialCreationOptionsJSON;
-        error?: string;
-        hint?: string;
-      };
+      const optsBody = overlapCast(await optsRes.json().catch(() => ({})));
       if (!optsRes.ok || !optsBody.options) {
         report(
           "err",
@@ -145,9 +142,9 @@ export function App() {
         );
         return;
       }
-      const cred = (await navigator.credentials.create(
+      const cred = overlapCast(await navigator.credentials.create(
         creationOptionsFromJson(optsBody.options),
-      )) as PublicKeyCredential | null;
+      ));
       if (!cred) {
         report("err", "Passkey creation was cancelled.");
         return;
@@ -157,11 +154,7 @@ export function App() {
         headers,
         body: JSON.stringify({ response: registrationResponseJson(cred) }),
       });
-      const regBody = (await reg.json().catch(() => ({}))) as {
-        principalId?: string;
-        error?: string;
-        hint?: string;
-      };
+      const regBody = overlapCast(await reg.json().catch(() => ({})));
       if (!reg.ok) {
         report(
           "err",
@@ -179,10 +172,7 @@ export function App() {
           headers,
         },
       );
-      const authOptsBody = (await authOptsRes.json().catch(() => ({}))) as {
-        options?: PublicKeyCredentialRequestOptionsJSON;
-        error?: string;
-      };
+      const authOptsBody = overlapCast(await authOptsRes.json().catch(() => ({})));
       if (!authOptsRes.ok || !authOptsBody.options) {
         report(
           "ok",
@@ -190,9 +180,9 @@ export function App() {
         );
         return;
       }
-      const assertion = (await navigator.credentials.get(
+      const assertion = overlapCast(await navigator.credentials.get(
         requestOptionsFromJson(authOptsBody.options),
-      )) as PublicKeyCredential | null;
+      ));
       if (!assertion) {
         report(
           "ok",
@@ -205,9 +195,7 @@ export function App() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(assertionPayload(assertion)),
       });
-      const assertBody = (await assertRes.json().catch(() => ({}))) as {
-        principalId?: string;
-      };
+      const assertBody = overlapCast(await assertRes.json().catch(() => ({})));
       report(
         assertRes.ok ? "ok" : "err",
         assertRes.ok
@@ -234,12 +222,7 @@ export function App() {
         headers,
         body: "{}",
       });
-      const body = (await res.json().catch(() => ({}))) as {
-        secret?: string;
-        otpauthUrl?: string;
-        error?: string;
-        hint?: string;
-      };
+      const body = overlapCast(await res.json().catch(() => ({})));
       if (!res.ok) {
         report(
           "err",
@@ -268,7 +251,7 @@ export function App() {
         headers,
         body: JSON.stringify({ code: totpCode }),
       });
-      const body = (await res.json().catch(() => ({}))) as { ok?: boolean };
+      const body = overlapCast(await res.json().catch(() => ({})));
       report(
         res.ok && body.ok ? "ok" : "err",
         res.ok && body.ok ? "TOTP verified" : "TOTP verification failed",

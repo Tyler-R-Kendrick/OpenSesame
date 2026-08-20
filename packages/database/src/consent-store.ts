@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "./repos/postgres.js";
 import * as schema from "./schema/index.js";
+import { overlapCast, type BoundaryValue, isTypeofObject } from "@opensesame/os-domain";
 
 /**
  * Human consent persistence (ADR 0034 §3, ADR 0050 F6): per-principal,
@@ -59,17 +60,17 @@ export interface ConsentStore {
 
 type ConsentRow = typeof schema.consents.$inferSelect;
 
-function isUniqueViolation(err: unknown): boolean {
+function isUniqueViolation(err: BoundaryValue): boolean {
   // postgres.js puts `code` on the error itself; drizzle wraps driver
   // errors (notably PGlite's) in a DrizzleQueryError with a `cause`.
-  if (typeof err !== "object" || err === null) return false;
-  const code = (err as { code?: string }).code;
+  if (!isTypeofObject(err) || err === null) return false;
+  const code = (overlapCast(err)).code;
   if (code === "23505") return true;
-  const cause = (err as { cause?: unknown }).cause;
+  const cause = (overlapCast(err)).cause;
   return (
-    typeof cause === "object" &&
+    isTypeofObject(cause) &&
     cause !== null &&
-    (cause as { code?: string }).code === "23505"
+    (overlapCast(cause)).code === "23505"
   );
 }
 
@@ -83,9 +84,9 @@ function mapRow(row: ConsentRow): ConsentRecord {
     principalId: row.principalId,
     clientId: row.clientId,
     sectorIdentifier: row.sectorIdentifier,
-    scopes: (row.scopes ?? []) as string[],
-    resources: (row.resources ?? []) as string[],
-    claims: (row.claims ?? []) as string[],
+    scopes: overlapCast(row.scopes ?? []),
+    resources: overlapCast(row.resources ?? []),
+    claims: overlapCast(row.claims ?? []),
     grantedAt: row.grantedAt,
     version: row.version,
   };

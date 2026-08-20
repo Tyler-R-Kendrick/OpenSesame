@@ -6,6 +6,7 @@ import {
 } from "./client.js";
 import { ClaimRequestError } from "./errors.js";
 import * as sdk from "./index.js";
+import { type JsonObject, overlapCast, type BoundaryValue, isFunction } from "@opensesame/os-domain";
 
 class MemStorage {
   readonly #m = new Map<string, string>();
@@ -29,11 +30,11 @@ function b64url(value: string): string {
     .replace(/=+$/u, "");
 }
 
-function idToken(claims: Record<string, unknown>): string {
+function idToken(claims: JsonObject): string {
   return `${b64url(JSON.stringify({ alg: "none" }))}.${b64url(JSON.stringify(claims))}.`;
 }
 
-function discoveryResponse(overrides: Record<string, unknown> = {}): Response {
+function discoveryResponse(overrides: JsonObject = {}): Response {
   return new Response(
     JSON.stringify({
       issuer: ISSUER,
@@ -67,15 +68,15 @@ afterEach(() => {
 
 describe("package exports", () => {
   it("exposes the public surface from index", () => {
-    expect(typeof sdk.createOpenSesame).toBe("function");
-    expect(typeof sdk.createPkcePair).toBe("function");
-    expect(typeof sdk.randomString).toBe("function");
-    expect(typeof sdk.sha256Base64Url).toBe("function");
-    expect(typeof sdk.base64UrlEncode).toBe("function");
-    expect(typeof sdk.ClaimRequestError).toBe("function");
-    expect(typeof sdk.canonicalizeBrowserOrigin).toBe("function");
-    expect(typeof sdk.originProfileClientId).toBe("function");
-    expect(typeof sdk.assertSafeReturnTo).toBe("function");
+    expect(isFunction(sdk.createOpenSesame)).toBe(true);
+    expect(isFunction(sdk.createPkcePair)).toBe(true);
+    expect(isFunction(sdk.randomString)).toBe(true);
+    expect(isFunction(sdk.sha256Base64Url)).toBe(true);
+    expect(isFunction(sdk.base64UrlEncode)).toBe(true);
+    expect(isFunction(sdk.ClaimRequestError)).toBe(true);
+    expect(isFunction(sdk.canonicalizeBrowserOrigin)).toBe(true);
+    expect(isFunction(sdk.originProfileClientId)).toBe(true);
+    expect(isFunction(sdk.assertSafeReturnTo)).toBe(true);
   });
 });
 
@@ -197,14 +198,14 @@ describe("storage resolution", () => {
     );
     const sesame = createOpenSesame({
       issuer: ISSUER,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     await sesame.continueAnonymously();
     // Memory storage is per-client: the session is readable on this instance.
     expect((await sesame.getSession())?.accessToken).toBe("at");
     const other = createOpenSesame({
       issuer: ISSUER,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     expect(await other.getSession()).toBeNull();
   });
@@ -226,7 +227,7 @@ describe("storage resolution", () => {
     );
     const sesame = createOpenSesame({
       issuer: ISSUER,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     await sesame.continueAnonymously();
     expect((await sesame.getSession())?.accessToken).toBe("at");
@@ -234,11 +235,11 @@ describe("storage resolution", () => {
 });
 
 describe("discovery", () => {
-  function client(fetchImpl: unknown, storage = new MemStorage()) {
+  function client(fetchImpl: BoundaryValue, storage = new MemStorage()) {
     return createOpenSesame({
       issuer: ISSUER,
       storage,
-      fetchImpl: fetchImpl as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: windowLocation().loc,
     });
   }
@@ -282,7 +283,7 @@ describe("discovery", () => {
     );
     const sesame = createOpenSesame({
       issuer: remote,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: windowLocation().loc,
     });
     await expect(sesame.signIn()).rejects.toThrow(
@@ -314,11 +315,11 @@ describe("signIn", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage: new MemStorage(),
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: loc,
     });
     await sesame.signIn({ provider: "keycloak" });
-    const url = new URL(assigned[0] as string);
+    const url = new URL(overlapCast(assigned[0]));
     expect(url.searchParams.get("kc_idp_hint")).toBe("keycloak");
     expect(url.searchParams.get("login_hint_provider")).toBe("keycloak");
     expect(url.searchParams.get("state")).toBeTruthy();
@@ -332,11 +333,11 @@ describe("signIn", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage: new MemStorage(),
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: loc,
     });
     await sesame.signIn();
-    const url = new URL(assigned[0] as string);
+    const url = new URL(overlapCast(assigned[0]));
     expect(url.searchParams.get("client_id")).toBe(
       "origin:http://127.0.0.1:5174",
     );
@@ -354,11 +355,11 @@ describe("signIn", () => {
       issuer: ISSUER,
       scopes: ["openid", "email"],
       storage: new MemStorage(),
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: loc,
     });
     await sesame.signIn();
-    expect(new URL(assigned[0] as string).searchParams.get("scope")).toBe(
+    expect(new URL(overlapCast(assigned[0])).searchParams.get("scope")).toBe(
       "openid email",
     );
   });
@@ -368,7 +369,7 @@ describe("signIn", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage: new MemStorage(),
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     await expect(sesame.signIn()).rejects.toThrow(/No window.location/);
   });
@@ -406,7 +407,7 @@ describe("handleRedirectCallback", () => {
       issuer: ISSUER,
       clientId: "opensesame-browser",
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: loc,
     });
     const session = await sesame.handleRedirectCallback();
@@ -422,7 +423,7 @@ describe("handleRedirectCallback", () => {
       createOpenSesame({
         issuer: ISSUER,
         storage,
-        fetchImpl: fetchImpl as unknown as typeof fetch,
+        fetchImpl: overlapCast(fetchImpl),
       });
 
     const noCode = new MemStorage();
@@ -456,7 +457,7 @@ describe("handleRedirectCallback", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     await expect(
       sesame.handleRedirectCallback(
@@ -478,7 +479,7 @@ describe("handleRedirectCallback", () => {
       issuer: ISSUER,
       clientId: "opensesame-browser",
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     await expect(
       sesame.handleRedirectCallback(
@@ -491,8 +492,8 @@ describe("handleRedirectCallback", () => {
 describe("id_token handling", () => {
   function tokenClient(
     storage: MemStorage,
-    tokens: Record<string, unknown>,
-    pkce: Record<string, unknown> = {
+    tokens: JsonObject,
+    pkce: JsonObject = {
       state: "st",
       nonce: "nn",
       codeVerifier: "cv",
@@ -513,7 +514,7 @@ describe("id_token handling", () => {
       issuer: ISSUER,
       clientId: "opensesame-browser",
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     return sesame.handleRedirectCallback(
       "http://127.0.0.1/callback?code=abc&state=st",
@@ -618,16 +619,16 @@ describe("session persistence", () => {
       issuer: ISSUER,
       clientId: "opensesame-browser",
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     const session = await sesame.handleRedirectCallback(
       "http://127.0.0.1/callback?code=abc&state=st",
     );
     expect(session.refreshToken).toBe("rt-secret");
 
-    const stored = JSON.parse(
-      storage.getItem("opensesame:session") as string,
-    ) as { refreshToken?: string; raw: Record<string, unknown> };
+    const stored = overlapCast(
+      JSON.parse(overlapCast(storage.getItem("opensesame:session"))),
+    );
     expect(stored.refreshToken).toBeUndefined();
     expect(stored.raw.refresh_token).toBeUndefined();
 
@@ -638,7 +639,7 @@ describe("session persistence", () => {
     const fresh = createOpenSesame({
       issuer: ISSUER,
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     const restored = await fresh.getSession();
     expect(restored?.accessToken).toBe("at");
@@ -651,9 +652,9 @@ describe("session persistence", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage,
-      fetchImpl: (async () => {
+      fetchImpl: overlapCast(async () => {
         throw new Error("no network");
-      }) as unknown as typeof fetch,
+      }),
     });
     expect(await sesame.getSession()).toBeNull();
     expect(storage.getItem("opensesame:session")).toBeNull();
@@ -673,9 +674,9 @@ describe("session persistence", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage,
-      fetchImpl: (async () => {
+      fetchImpl: overlapCast(async () => {
         throw new Error("no network");
-      }) as unknown as typeof fetch,
+      }),
     });
     expect(await sesame.getSession()).toBeNull();
     expect(storage.getItem("opensesame:session")).toBeNull();
@@ -683,7 +684,7 @@ describe("session persistence", () => {
 });
 
 describe("continueAnonymously", () => {
-  function anonClient(body: Record<string, unknown>, status = 201) {
+  function anonClient(body: JsonObject, status = 201) {
     const storage = new MemStorage();
     const fetchImpl = vi.fn(
       async () => new Response(JSON.stringify(body), { status }),
@@ -691,7 +692,7 @@ describe("continueAnonymously", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     return { sesame, storage };
   }
@@ -747,7 +748,7 @@ describe("claim endpoints", () => {
     const fetchImpl = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = new URL(String(input));
-        seen.push({ path: url.pathname, ...(init ? { init } : {}) });
+        seen.push({ path: url.pathname, ...(init ? { init } : undefined) });
         if (
           url.pathname.includes("missing") ||
           String(init?.body ?? "").includes("missing")
@@ -766,7 +767,7 @@ describe("claim endpoints", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     return { sesame, seen };
   }
@@ -806,10 +807,7 @@ describe("claim endpoints", () => {
     const call = seen[0];
     const headers = new Headers(call?.init?.headers);
     expect(headers.get("x-claim-token")).toBeNull();
-    const body = JSON.parse(String(call?.init?.body)) as Record<
-      string,
-      unknown
-    >;
+    const body = overlapCast(JSON.parse(String(call?.init?.body)));
     expect(body.destination).toEqual({ kind: "wallet" });
     expect(body.idempotencyKey).toBe("idem-1");
     expect(body.claimToken).toBeUndefined();
@@ -833,12 +831,12 @@ describe("linkIdentity", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage: new MemStorage(),
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: loc,
     });
     await sesame.linkIdentity({ provider: "github" });
     expect(assigned).toHaveLength(1);
-    const url = new URL(assigned[0] as string);
+    const url = new URL(overlapCast(assigned[0]));
     expect(url.searchParams.get("kc_idp_hint")).toBe("github");
   });
 });
@@ -861,7 +859,7 @@ describe("signOut", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: loc,
     });
     await sesame.signOut();
@@ -885,7 +883,7 @@ describe("signOut", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     await expect(sesame.signOut()).resolves.toBeUndefined();
     expect(await sesame.getSession()).toBeNull();

@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * Just enough ZIP to read one named entry out of a 1Password .1pux archive.
  *
@@ -91,12 +92,12 @@ function readCentralDirectory(
 }
 
 async function inflateRaw(input: Uint8Array): Promise<Uint8Array> {
-  if (typeof DecompressionStream === "undefined") {
+  if (DecompressionStream === undefined) {
     throw new ZipError(
       "This browser cannot decompress ZIP archives. Unzip the export yourself and import export.data.",
     );
   }
-  const stream = new Blob([input as BlobPart])
+  const stream = new Blob([overlapCast(input)])
     .stream()
     .pipeThrough(new DecompressionStream("deflate-raw"));
   const reader = stream.getReader();
@@ -125,7 +126,7 @@ async function inflateRaw(input: Uint8Array): Promise<Uint8Array> {
  * Read one entry by name, or by a predicate when the archive nests it under a
  * directory. Returns the decoded text.
  */
-export async function readZipText(
+async function readZipTextDefault(
   buffer: ArrayBuffer,
   matches: (name: string) => boolean,
 ): Promise<string> {
@@ -181,4 +182,15 @@ export async function readZipText(
     throw new ZipError("That archive entry's expanded size is inconsistent.");
   }
   return new TextDecoder().decode(expanded);
+}
+
+export const zipSeams = {
+  readZipText: readZipTextDefault,
+};
+
+export async function readZipText(
+  buffer: ArrayBuffer,
+  matches: (name: string) => boolean,
+): Promise<string> {
+  return zipSeams.readZipText(buffer, matches);
 }

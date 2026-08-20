@@ -6,6 +6,7 @@ import {
   looksLikeCredential,
   scrubLocalSecrets,
 } from "./agent-payload.js";
+import { isFunction } from "@opensesame/os-domain";
 
 /**
  * agent-payload.ts is a barrel re-exporting the shared observability guards so
@@ -15,10 +16,10 @@ import {
 describe("agent-payload barrel", () => {
   it("re-exports the working payload guards", () => {
     expect(REDACTED).toBe("[REDACTED]");
-    expect(typeof forAgent).toBe("function");
-    expect(typeof looksLikeCredential).toBe("function");
-    expect(typeof scrubLocalSecrets).toBe("function");
-    expect(typeof AgentPayloadRefused).toBe("function");
+    expect(isFunction(forAgent)).toBe(true);
+    expect(isFunction(looksLikeCredential)).toBe(true);
+    expect(isFunction(scrubLocalSecrets)).toBe(true);
+    expect(isFunction(AgentPayloadRefused)).toBe(true);
 
     expect(looksLikeCredential('{"access_token":"x"}')).toBe(true);
     expect(() => forAgent('{"access_token":"x"}', {})).toThrow(

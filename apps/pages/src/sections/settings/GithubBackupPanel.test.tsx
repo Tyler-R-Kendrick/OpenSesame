@@ -1,5 +1,6 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,37 +13,39 @@ const ensureHostSession = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 );
 
-vi.mock("../../lib/use-online.js", () => ({ useOnline: () => online.value }));
-vi.mock("../../lib/planes.js", () => ({ usePlaneStatus: () => planes.value }));
-vi.mock("../../lib/identity.js", () => ({
-  useIdentitySession: () => session,
+import { useOnlineSeams } from "../../lib/use-online.js";
+const originalUseOnlineSeams = { ...useOnlineSeams };
+Object.assign(useOnlineSeams, {useOnline: () => online.value});
+import { planeSeams } from "../../lib/planes.js";
+const originalPlaneSeams = { ...planeSeams };
+Object.assign(planeSeams, {usePlaneStatus: () => planes.value});
+import { identitySeams } from "../../lib/identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {useIdentitySession: () => session,
   ensureHostSession,
-  hostLocalSessionEligible: () => true,
-}));
-
+  hostLocalSessionEligible: () => true});
 const loadSettings = vi.hoisted(() =>
   vi.fn(() => ({ capabilityConnectors: {} })),
 );
 const saveSettings = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/settings.js", () => ({ loadSettings, saveSettings }));
-
+import { settingsSeams } from "../../lib/settings.js";
+const originalSettingsSeams = { ...settingsSeams };
+Object.assign(settingsSeams, {loadSettings, saveSettings});
 const getBackupStatus = vi.hoisted(() => vi.fn());
 const putBackupTarget = vi.hoisted(() => vi.fn());
 const deleteBackupTarget = vi.hoisted(() => vi.fn());
 const resyncBackup = vi.hoisted(() => vi.fn());
 const listGithubInstallations = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/backup.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/backup.js")>();
-  return {
-    ...actual,
-    getBackupStatus,
-    putBackupTarget,
-    deleteBackupTarget,
-    resyncBackup,
-    listGithubInstallations,
-  };
+import { backupSeams } from "../../lib/backup.js";
+const originalBackupSeams = { ...backupSeams };
+Object.assign(backupSeams, {
+  getBackupStatus,
+  putBackupTarget,
+  deleteBackupTarget,
+  resyncBackup,
+  listGithubInstallations,
 });
 
 const listConnections = vi.hoisted(() => vi.fn());
@@ -54,7 +57,9 @@ const openConsentPopup = vi.hoisted(() => vi.fn(() => null));
 const startGithubAppRegistration = vi.hoisted(() => vi.fn());
 const submitGithubAppManifest = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/connections.js", () => ({
+import { connectionSeams } from "../../lib/connections.js";
+const originalConnectionSeams = { ...connectionSeams };
+Object.assign(connectionSeams, {
   listConnections,
   listIntegrations,
   createConnection,
@@ -63,21 +68,19 @@ vi.mock("../../lib/connections.js", () => ({
   openConsentPopup,
   startGithubAppRegistration,
   submitGithubAppManifest,
-}));
+});
 
 const listGithubRepos = vi.hoisted(() => vi.fn());
 const createGithubPasswordRepo = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/github-history.js", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("../../lib/github-history.js")>();
-  return { ...actual, listGithubRepos, createGithubPasswordRepo };
-});
+import { githubHistorySeams } from "../../lib/github-history.js";
+const originalGithubHistorySeams = { ...githubHistorySeams };
+Object.assign(githubHistorySeams, { listGithubRepos, createGithubPasswordRepo });
 
 import type { Connection } from "../../lib/connections.js";
 import { GithubBackupPanel } from "./GithubBackupPanel.js";
 
-const githubConnection = {
+const githubConnection = overlapCast({
   connectionId: "con_gh",
   connectionRef: "connref_gh",
   logicalName: "github",
@@ -95,7 +98,7 @@ const githubConnection = {
   accountLabel: "octocat",
   expiresAt: null,
   refreshable: false,
-} as unknown as Connection;
+});
 
 const orgIntegration = {
   id: "int_gh",
@@ -185,7 +188,7 @@ describe("GithubBackupPanel", () => {
     // The environment select adopts the target's branch.
     await waitFor(() =>
       expect(
-        (screen.getByRole("combobox", { name: "" }) as HTMLSelectElement).value,
+        (overlapCast(screen.getByRole("combobox", { name: "" }))).value,
       ).toBe("staging"),
     );
   });
@@ -351,7 +354,7 @@ describe("GithubBackupPanel", () => {
     // Remote select now points at the new repo.
     await waitFor(() =>
       expect(
-        (screen.getByLabelText(/^Repository$/i) as HTMLSelectElement).value,
+        (overlapCast(screen.getByLabelText(/^Repository$/i))).value,
       ).toBe("https://github.com/octocat/opensesame-passwords.git"),
     );
   });
@@ -530,9 +533,9 @@ describe("GithubBackupPanel", () => {
     ).toBeTruthy();
     expect(
       (
-        screen.getByRole("button", {
+        overlapCast(screen.getByRole("button", {
           name: /Save backup target/i,
-        }) as HTMLButtonElement
+        }))
       ).disabled,
     ).toBe(true);
   });
@@ -699,13 +702,13 @@ describe("GithubBackupPanel selectors", () => {
   it("switches between multiple GitHub connections", async () => {
     listConnections.mockResolvedValue([
       githubConnection,
-      {
+      overlapCast({
         ...githubConnection,
         connectionId: "con_gh2",
         displayName: "GitHub org account",
         accountLabel: "octo-org",
         status: "needs_reauth",
-      } as Connection,
+      }),
     ]);
     render(<GithubBackupPanel />);
     const select = await screen.findByLabelText(/GitHub connection/i);
@@ -735,7 +738,7 @@ describe("GithubBackupPanel selectors", () => {
     const select = await screen.findByLabelText(/^Installation$/i);
     await screen.findByText(/octo-org \(Organization\) · id 5555/);
     await userEvent.selectOptions(select, "5555");
-    expect((select as HTMLSelectElement).value).toBe("5555");
+    expect((overlapCast(select)).value).toBe("5555");
   });
 
   it("edits the new-repo name before creating", async () => {

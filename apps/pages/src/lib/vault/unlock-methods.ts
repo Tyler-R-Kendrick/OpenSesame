@@ -1,3 +1,4 @@
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 /**
  * Additional vault unlock methods beyond the master password.
  *
@@ -59,7 +60,7 @@ export type VaultUnlocks = {
 
 export type UnlockMethodId = "password" | "passkey" | "pin";
 
-export function listAvailableUnlockMethods(
+function listAvailableUnlockMethodsDefault(
   header: VaultHeader | null | undefined,
 ): UnlockMethodId[] {
   if (!header) return [];
@@ -70,7 +71,7 @@ export function listAvailableUnlockMethods(
   return methods;
 }
 
-export function preferredUnlockMethod(
+function preferredUnlockMethodDefault(
   header: VaultHeader | null | undefined,
 ): UnlockMethodId | null {
   const methods = listAvailableUnlockMethods(header);
@@ -110,9 +111,9 @@ async function encryptWithKey(
 ): Promise<SealedBlob> {
   const iv = randomBytes(IV_BYTES);
   const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv as BufferSource },
+    { name: "AES-GCM", iv: overlapCast(iv) },
     key,
-    plaintext as BufferSource,
+    overlapCast(plaintext),
   );
   return { ivB64: bytesToB64(iv), ctB64: bytesToB64(new Uint8Array(ct)) };
 }
@@ -122,9 +123,9 @@ async function decryptWithKey(
   blob: SealedBlob,
 ): Promise<Uint8Array> {
   const plain = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: b64ToBytes(blob.ivB64) as BufferSource },
+    { name: "AES-GCM", iv: overlapCast(b64ToBytes(blob.ivB64)) },
     key,
-    b64ToBytes(blob.ctB64) as BufferSource,
+    overlapCast(b64ToBytes(blob.ctB64)),
   );
   return new Uint8Array(plain);
 }
@@ -142,7 +143,7 @@ async function deriveAesKeyFromPassword(
     ["deriveKey"],
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: salt as BufferSource, iterations, hash: "SHA-256" },
+    { name: "PBKDF2", salt: overlapCast(salt), iterations, hash: "SHA-256" },
     material,
     { name: "AES-GCM", length: 256 },
     false,
@@ -162,7 +163,7 @@ export async function kekFromWebauthnPrf(
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt: publicSalt as BufferSource,
+      salt: overlapCast(publicSalt),
       info: PRF_INFO,
     },
     ikm,
@@ -256,16 +257,14 @@ export async function unwrapVaultKeyWithPrf(
 export function prfExtensionSupported(
   results: AuthenticationExtensionsClientOutputs | undefined,
 ): boolean {
-  const prf = results?.prf as
-    | { enabled?: boolean; results?: { first?: ArrayBuffer } }
-    | undefined;
+  const prf = overlapCast(results?.prf);
   return Boolean(prf?.results?.first || prf?.enabled);
 }
 
 export function readPrfFirst(
   results: AuthenticationExtensionsClientOutputs | undefined,
 ): ArrayBuffer | null {
-  const prf = results?.prf as { results?: { first?: ArrayBuffer } } | undefined;
+  const prf = overlapCast(results?.prf);
   return prf?.results?.first ?? null;
 }
 
@@ -298,18 +297,18 @@ export type WebauthnHostCheck = {
  * WebAuthn RP IDs must be DNS names. Chrome rejects `127.0.0.1` (and other IPs)
  * with `SecurityError: This is an invalid domain.` before any authenticator prompt.
  */
-export function checkWebauthnHost(
+function checkWebauthnHostDefault(
   hostname?: string,
   href?: string,
 ): WebauthnHostCheck {
   const resolvedHref =
     href ??
-    (typeof window === "undefined"
+    (globalThis.window === undefined
       ? "http://localhost/"
       : window.location.href);
   let host =
     hostname?.trim() ||
-    (typeof window !== "undefined" ? window.location.hostname : "");
+    (globalThis.window !== undefined ? window.location.hostname : "");
   if (!host) {
     try {
       host = new URL(resolvedHref).hostname;
@@ -348,7 +347,7 @@ export function checkWebauthnHost(
 
 /** Relying-party id for WebAuthn on this origin. */
 export function webauthnRpId(
-  hostname: string = typeof window === "undefined"
+  hostname: string = globalThis.window === undefined
     ? "localhost"
     : window.location.hostname,
 ): string {
@@ -375,7 +374,7 @@ export function formatWebauthnHostError(check: WebauthnHostCheck): string {
 }
 
 /** Map browser WebAuthn failures into actionable copy. */
-export function describeWebauthnError(error: unknown): string {
+function describeWebauthnErrorDefault(error: BoundaryValue): string {
   if (error instanceof WebauthnHostError) return error.message;
   if (!(error instanceof Error)) return "Passkey ceremony failed.";
   const name = error.name;
@@ -432,10 +431,10 @@ export function assertKeepsPrimaryUnlock(
   }
 }
 
-export async function createPasskeyUnlockCeremony(
+async function createPasskeyUnlockCeremonyDefault(
   rpId: string = webauthnRpId(),
 ): Promise<PasskeyCeremony> {
-  if (typeof PublicKeyCredential === "undefined") {
+  if (globalThis.PublicKeyCredential === undefined) {
     throw new Error("This browser cannot create a passkey.");
   }
   assertWebauthnHost();
@@ -445,10 +444,10 @@ export async function createPasskeyUnlockCeremony(
   try {
     credential = (await navigator.credentials.create({
       publicKey: {
-        challenge: randomBytes(32) as BufferSource,
+        challenge: overlapCast(randomBytes(32)),
         rp: { id: rpId, name: "OpenSesame" },
         user: {
-          id: userId as BufferSource,
+          id: overlapCast(userId),
           name: "vault-unlock",
           displayName: "OpenSesame vault unlock",
         },
@@ -462,11 +461,12 @@ export async function createPasskeyUnlockCeremony(
           userVerification: "required",
         },
         timeout: 120_000,
-        extensions: {
+        extensions: overlapCast({
           prf: { eval: { first: prfSalt } },
-        } as AuthenticationExtensionsClientInputs,
+        }),
       },
-    })) as PublicKeyCredential | null;
+    }));
+    credential = overlapCast(credential);
   } catch (error) {
     throw new Error(describeWebauthnError(error));
   }
@@ -480,12 +480,12 @@ export async function createPasskeyUnlockCeremony(
   return { credential, prfOutput, prfSalt, userId };
 }
 
-export async function getPasskeyUnlockCeremony(
+async function getPasskeyUnlockCeremonyDefault(
   record: PasskeyUnlockRecord,
   rpId: string = webauthnRpId(),
   signal?: AbortSignal,
 ): Promise<ArrayBuffer> {
-  if (typeof PublicKeyCredential === "undefined") {
+  if (globalThis.PublicKeyCredential === undefined) {
     throw new Error("This browser cannot use a passkey.");
   }
   assertWebauthnHost();
@@ -494,24 +494,25 @@ export async function getPasskeyUnlockCeremony(
   try {
     credential = (await navigator.credentials.get({
       publicKey: {
-        challenge: randomBytes(32) as BufferSource,
+        challenge: overlapCast(randomBytes(32)),
         rpId,
         allowCredentials: [
           {
             type: "public-key",
-            id: b64ToBytes(record.credentialIdB64) as BufferSource,
+            id: overlapCast(b64ToBytes(record.credentialIdB64)),
           },
         ],
         userVerification: "required",
         timeout: 120_000,
-        extensions: {
+        extensions: overlapCast({
           prf: { eval: { first: prfSalt } },
-        } as AuthenticationExtensionsClientInputs,
+        }),
       },
       // Lets the UI cancel a pending platform prompt (e.g. switching to the
       // password/PIN tab) instead of being held hostage by it.
       signal,
-    })) as PublicKeyCredential | null;
+    }));
+    credential = overlapCast(credential);
   } catch (error) {
     // A deliberate abort must stay distinguishable from a real ceremony
     // failure, so callers can swallow it without showing an error.
@@ -528,6 +529,56 @@ export async function getPasskeyUnlockCeremony(
     );
   }
   return prfOutput;
+}
+
+export const unlockMethodsSeams = {
+  listAvailableUnlockMethods: listAvailableUnlockMethodsDefault,
+  preferredUnlockMethod: preferredUnlockMethodDefault,
+  checkWebauthnHost: checkWebauthnHostDefault,
+  describeWebauthnError: describeWebauthnErrorDefault,
+  createPasskeyUnlockCeremony: createPasskeyUnlockCeremonyDefault,
+  getPasskeyUnlockCeremony: getPasskeyUnlockCeremonyDefault,
+};
+
+export function listAvailableUnlockMethods(
+  header: VaultHeader | null | undefined,
+): UnlockMethodId[] {
+  return unlockMethodsSeams.listAvailableUnlockMethods(header);
+}
+
+export function preferredUnlockMethod(
+  header: VaultHeader | null | undefined,
+): UnlockMethodId | null {
+  return unlockMethodsSeams.preferredUnlockMethod(header);
+}
+
+export function checkWebauthnHost(
+  hostname?: string,
+  href?: string,
+): WebauthnHostCheck {
+  return unlockMethodsSeams.checkWebauthnHost(hostname, href);
+}
+
+export function describeWebauthnError(error: BoundaryValue): string {
+  return unlockMethodsSeams.describeWebauthnError(error);
+}
+
+export async function createPasskeyUnlockCeremony(
+  rpId?: string,
+): Promise<PasskeyCeremony> {
+  return rpId === undefined
+    ? unlockMethodsSeams.createPasskeyUnlockCeremony()
+    : unlockMethodsSeams.createPasskeyUnlockCeremony(rpId);
+}
+
+export async function getPasskeyUnlockCeremony(
+  record: PasskeyUnlockRecord,
+  rpId?: string,
+  signal?: AbortSignal,
+): Promise<ArrayBuffer> {
+  return rpId === undefined
+    ? unlockMethodsSeams.getPasskeyUnlockCeremony(record)
+    : unlockMethodsSeams.getPasskeyUnlockCeremony(record, rpId, signal);
 }
 
 export async function sealTotpSecret(

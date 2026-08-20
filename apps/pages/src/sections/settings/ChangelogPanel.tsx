@@ -29,7 +29,7 @@ export function ChangelogPanel() {
     setFlash(null);
     try {
       const rows = await listChangelog({
-        ...(projectId.trim() ? { projectId: projectId.trim() } : {}),
+        ...(projectId.trim() ? { projectId: projectId.trim() } : undefined),
         limit: 50,
       });
       setEvents(rows);

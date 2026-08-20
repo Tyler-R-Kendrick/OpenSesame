@@ -1,3 +1,4 @@
+import { overlapCast, type BoundaryValue, isString, isTypeofObject } from "@opensesame/os-domain";
 /**
  * Origin-brokered sign-in for static relying parties (ADR 0034).
  *
@@ -182,7 +183,7 @@ export function loadConsents(): SiteConsent[] {
   const raw = kvGet(scopedKey(CONSENTS_KEY));
   if (!raw) return [];
   try {
-    const parsed = JSON.parse(raw) as { consents?: SiteConsent[] };
+    const parsed = overlapCast(JSON.parse(raw));
     return Array.isArray(parsed.consents) ? parsed.consents : [];
   } catch {
     return [];
@@ -248,11 +249,7 @@ export function loadBrokerPolicy(): BrokerPolicy {
   const raw = kvGet(scopedKey(POLICY_KEY));
   if (!raw) return { rules: [] };
   try {
-    const parsed = JSON.parse(raw) as {
-      rules?: unknown;
-      listMode?: string;
-      domains?: unknown;
-    };
+    const parsed = overlapCast(JSON.parse(raw));
 
     if (Array.isArray(parsed.rules)) {
       const rules = parsed.rules
@@ -266,7 +263,7 @@ export function loadBrokerPolicy(): BrokerPolicy {
       const effect: DomainEffect =
         parsed.listMode === "allowlist" ? "whitelist" : "blacklist";
       const rules = parsed.domains
-        .filter((d): d is string => typeof d === "string")
+        .filter((d): d is string => isString(d))
         .map((d) => normalizeDomainEntry(d))
         .filter((d): d is string => d !== null)
         .map((domain) => ({ domain, effect }));
@@ -279,11 +276,11 @@ export function loadBrokerPolicy(): BrokerPolicy {
   }
 }
 
-function normalizeRule(row: unknown): DomainRule | null {
-  if (!row || typeof row !== "object") return null;
-  const domainRaw = (row as { domain?: unknown }).domain;
-  const effectRaw = (row as { effect?: unknown }).effect;
-  if (typeof domainRaw !== "string") return null;
+function normalizeRule(row: BoundaryValue): DomainRule | null {
+  if (!row || !isTypeofObject(row)) return null;
+  const domainRaw = (overlapCast(row)).domain;
+  const effectRaw = (overlapCast(row)).effect;
+  if (!isString(domainRaw)) return null;
   const domain = normalizeDomainEntry(domainRaw);
   if (!domain) return null;
   const effect: DomainEffect =
@@ -492,7 +489,7 @@ export function buildErrorMessage(
     type: "opensesame:signin",
     state,
     error,
-    ...(detail ? { error_description: detail } : {}),
+    ...(detail ? { error_description: detail } : undefined),
   };
 }
 
@@ -500,7 +497,7 @@ export function buildErrorMessage(
  * Deliver to the RP origin only. Prefer postMessage to opener; fall back to
  * fragment redirect when the RP provided redirect_uri and opener is gone.
  */
-export function deliverToRp(
+function deliverToRpDefault(
   message: SignInMessage,
   targetOrigin: string,
   options: { redirectUri?: string | null; close?: boolean } = {},
@@ -535,7 +532,7 @@ export function deliverToRp(
       }
       const hash = new URLSearchParams();
       for (const [key, value] of Object.entries(message)) {
-        if (typeof value === "string") hash.set(key, value);
+        if (isString(value)) hash.set(key, value);
       }
       url.hash = hash.toString();
       location.assign(url.toString());
@@ -546,6 +543,18 @@ export function deliverToRp(
   }
 
   return "none";
+}
+
+export const siteBrokerSeams = {
+  deliverToRp: deliverToRpDefault,
+};
+
+export function deliverToRp(
+  message: SignInMessage,
+  targetOrigin: string,
+  options: { redirectUri?: string | null; close?: boolean } = {},
+): "postMessage" | "fragment" | "none" {
+  return siteBrokerSeams.deliverToRp(message, targetOrigin, options);
 }
 
 /** Primary snippet — declarative markup; auth.js wires the button. */

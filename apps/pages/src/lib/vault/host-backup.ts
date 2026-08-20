@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * Push sealed vault ciphertext to Host after every local persist (ADR 0039).
  *
@@ -46,7 +47,7 @@ function emit(next: Partial<VaultHostBackupState>): void {
   for (const listener of listeners) listener();
 }
 
-export function getVaultHostBackupState(): VaultHostBackupState {
+function getVaultHostBackupStateDefault(): VaultHostBackupState {
   return {
     ...state,
     pendingCount: listOfflineMutations().filter(
@@ -55,11 +56,24 @@ export function getVaultHostBackupState(): VaultHostBackupState {
   };
 }
 
-export function subscribeVaultHostBackup(listener: () => void): () => void {
+function subscribeVaultHostBackupDefault(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
+}
+
+export const hostBackupSeams = {
+  getVaultHostBackupState: getVaultHostBackupStateDefault,
+  subscribeVaultHostBackup: subscribeVaultHostBackupDefault,
+};
+
+export function getVaultHostBackupState(): VaultHostBackupState {
+  return hostBackupSeams.getVaultHostBackupState();
+}
+
+export function subscribeVaultHostBackup(listener: () => void): () => void {
+  return hostBackupSeams.subscribeVaultHostBackup(listener);
 }
 
 function utf8Bytes(text: string): number[] {
@@ -105,7 +119,7 @@ export async function pushSealedVaultToHost(input: {
   ];
 
   try {
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    if (globalThis.navigator !== undefined && navigator.onLine === false) {
       throw new Error("offline");
     }
     await ensureHostSession().catch(() => undefined);
@@ -118,18 +132,12 @@ export async function pushSealedVaultToHost(input: {
       body: JSON.stringify({ blobs }),
     });
     if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        hint?: string;
-      };
+      const body = overlapCast(await res.json().catch(() => ({})));
       throw new Error(
         body.hint || body.error || `Host sync refused (${res.status})`,
       );
     }
-    const outcome = (await res.json().catch(() => ({}))) as {
-      accepted?: number;
-      rejected_oversize?: number;
-    };
+    const outcome = overlapCast(await res.json().catch(() => ({})));
     if ((outcome.rejected_oversize ?? 0) > 0) {
       throw new Error(
         "Vault ciphertext exceeds Host sync size limit — backup did not accept this write",
@@ -183,7 +191,7 @@ export async function flushPendingVaultHostBackup(): Promise<number> {
     (m) => m.kind === "push_sync_blobs",
   );
   if (pending.length === 0) return 0;
-  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+  if (navigator !== undefined && navigator.onLine === false) {
     return 0;
   }
   let flushed = 0;
@@ -206,10 +214,7 @@ export async function flushPendingVaultHostBackup(): Promise<number> {
         }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          hint?: string;
-        };
+        const body = overlapCast(await res.json().catch(() => ({})));
         throw new Error(body.hint || body.error || `sync ${res.status}`);
       }
       dequeueOfflineMutation(item.id);
@@ -241,7 +246,7 @@ export async function flushPendingVaultHostBackup(): Promise<number> {
 /** Start online/visibility flush listeners once per page load. */
 let flushHooksInstalled = false;
 export function installVaultHostBackupFlushHooks(): void {
-  if (flushHooksInstalled || typeof window === "undefined") return;
+  if (flushHooksInstalled || globalThis.window === undefined) return;
   flushHooksInstalled = true;
   window.addEventListener("online", () => {
     void flushPendingVaultHostBackup();

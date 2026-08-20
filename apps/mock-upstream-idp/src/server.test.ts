@@ -2,12 +2,13 @@ import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { describe, expect, it } from "vitest";
 import { createMockUpstreamIdp } from "./server.js";
+import { overlapCast, isString } from "@opensesame/os-domain";
 
 describe("mock-upstream-idp", () => {
   it("serves discovery, authorize (auto-approve), token, and jwks", async () => {
     const idp = await createMockUpstreamIdp({
       host: "127.0.0.1",
-      port: 0 as unknown as number,
+      port: overlapCast(0),
       issuer: "http://127.0.0.1:0",
     });
 
@@ -17,7 +18,7 @@ describe("mock-upstream-idp", () => {
       idp.server.once("error", reject);
     });
     const addr = idp.server.address();
-    if (!addr || typeof addr === "string") throw new Error("no address");
+    if (!addr || isString(addr)) throw new Error("no address");
     const base = `http://127.0.0.1:${addr.port}`;
     idp.config.issuer = base;
     idp.config.redirectUris = [`${base}/cb`];
@@ -31,7 +32,7 @@ describe("mock-upstream-idp", () => {
       cbServer.listen(addr.port + 1, "127.0.0.1", () => resolve()),
     );
     const cbAddr = cbServer.address();
-    if (!cbAddr || typeof cbAddr === "string") throw new Error("no cb address");
+    if (!cbAddr || isString(cbAddr)) throw new Error("no cb address");
     const redirectUri = `http://127.0.0.1:${cbAddr.port}/cb`;
     idp.config.redirectUris = [redirectUri];
 
@@ -41,17 +42,13 @@ describe("mock-upstream-idp", () => {
       expect(discovery.headers.get("x-content-type-options")).toBe("nosniff");
       expect(discovery.headers.get("x-frame-options")).toBe("DENY");
       expect(discovery.headers.get("cache-control")).toBe("no-store");
-      const meta = (await discovery.json()) as {
-        issuer: string;
-        jwks_uri: string;
-        code_challenge_methods_supported: string[];
-      };
+      const meta = overlapCast(await discovery.json());
       expect(meta.jwks_uri).toContain("/jwks");
       expect(meta.code_challenge_methods_supported).toEqual(["S256"]);
 
       const jwks = await fetch(`${base}/jwks`);
       expect(jwks.status).toBe(200);
-      const jwksBody = (await jwks.json()) as { keys: unknown[] };
+      const jwksBody = overlapCast(await jwks.json());
       expect(jwksBody.keys.length).toBe(1);
 
       const noPkce = new URL(`${base}/authorize`);
@@ -124,10 +121,7 @@ describe("mock-upstream-idp", () => {
         }),
       });
       expect(tokenRes.status).toBe(200);
-      const tokens = (await tokenRes.json()) as {
-        id_token: string;
-        access_token: string;
-      };
+      const tokens = overlapCast(await tokenRes.json());
       expect(tokens.id_token.split(".")).toHaveLength(3);
       expect(tokens.access_token).toMatch(/^mock-access-/);
     } finally {

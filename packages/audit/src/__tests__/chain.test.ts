@@ -1,4 +1,4 @@
-import type { AuditEvent } from "@opensesame/os-domain";
+import { AuditEvent, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { appendAuditEvent } from "../append.js";
 import {
@@ -39,7 +39,7 @@ describe("audit chain", () => {
       {
         tip: async () => "winner-tip",
         retryOnConflict: (error) =>
-          (error as { code?: string }).code === "conflict",
+          (overlapCast(error)).code === "conflict",
       },
     );
 

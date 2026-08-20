@@ -4,6 +4,7 @@ import {
   createApiClient,
   createDpopKeyPair,
 } from "./index.js";
+import { type JsonObject, overlapCast, type BoundaryValue, isString } from "@opensesame/os-domain";
 
 function jsonClient(handler: (url: string, init?: RequestInit) => Response) {
   const calls: { url: string; method: string; body: string }[] = [];
@@ -21,14 +22,14 @@ function jsonClient(handler: (url: string, init?: RequestInit) => Response) {
   return { calls, client };
 }
 
-function ok(body: unknown): Response {
+function ok(body: BoundaryValue): Response {
   return new Response(JSON.stringify(body), { status: 200 });
 }
 
-function proofClaims(proof: string): Record<string, unknown> {
-  return JSON.parse(
+function proofClaims(proof: string): JsonObject {
+  return overlapCast(JSON.parse(
     Buffer.from(proof.split(".").at(1) ?? "", "base64url").toString("utf8"),
-  ) as Record<string, unknown>;
+  ));
 }
 
 afterEach(() => {
@@ -123,7 +124,7 @@ describe("api-client DPoP edge cases", () => {
     });
     const proof = await createDpopProof("https://host.test/api", "GET");
     const claims = proofClaims(proof);
-    expect(typeof claims.jti).toBe("string");
+    expect(isString(claims.jti)).toBe(true);
     expect(String(claims.jti).length).toBeGreaterThan(0);
   });
 

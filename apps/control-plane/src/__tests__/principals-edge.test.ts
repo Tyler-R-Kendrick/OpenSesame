@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -17,17 +18,13 @@ async function provisional(app: App, headers: Record<string, string> = {}) {
     headers,
   });
   expect(res.status).toBe(201);
-  return (await res.json()) as {
-    principalId: string;
-    accessToken: string;
-    sessionId: string;
-  };
+  return overlapCast(await res.json());
 }
 
 async function linkIdentity(
   app: App,
   accessToken: string,
-  body: Record<string, unknown>,
+  body: JsonObject,
   key = `link-${Math.random()}`,
 ) {
   return app.request("/v1/principals/link-identities", {
@@ -57,7 +54,7 @@ describe("principals routes edge cases", () => {
       headers,
     });
     expect(limited.status).toBe(429);
-    expect(((await limited.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await limited.json())).error).toBe(
       "rate_limited",
     );
 
@@ -238,7 +235,7 @@ describe("principals routes edge cases", () => {
       assurance: "verified",
     });
     expect(suspended.status).toBe(403);
-    expect(((await suspended.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await suspended.json())).error).toBe(
       "principal_inactive",
     );
 
@@ -279,7 +276,7 @@ describe("principals routes edge cases", () => {
       assurance: "verified",
     });
     expect(res.status).toBe(403);
-    expect(((await res.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await res.json())).error).toBe(
       "identity_link_requires_upstream",
     );
   });
@@ -309,9 +306,7 @@ describe("principals routes edge cases", () => {
       "relink-2",
     );
     expect(again.status).toBe(200);
-    const body = (await again.json()) as {
-      identity: { subject: string };
-    };
+    const body = overlapCast(await again.json());
     expect(body.identity.subject).toBe("relink-sub");
   });
 
@@ -332,7 +327,7 @@ describe("principals routes edge cases", () => {
       "unlink-1",
     );
     expect(linked.status).toBe(201);
-    const { identity } = (await linked.json()) as { identity: { id: string } };
+    const { identity } = overlapCast(await linked.json());
 
     // Unknown ids and other principals' ids both answer 404.
     const unknown = await app.request("/v1/principals/identities/xid_missing", {
@@ -402,7 +397,7 @@ describe("principals routes edge cases", () => {
       { headers: { "x-opensesame-mapping-token": "mapping-test-token" } },
     );
     expect(missing.status).toBe(400);
-    expect(((await missing.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await missing.json())).error).toBe(
       "validation_error",
     );
   });
@@ -471,9 +466,7 @@ describe("principals routes edge cases", () => {
     const audit = await app.request("/v1/audit/events?limit=10", {
       headers: { authorization: `Bearer ${created.accessToken}` },
     });
-    const events = (await audit.json()) as {
-      events: Array<{ correlationId: string; eventType: string }>;
-    };
+    const events = overlapCast(await audit.json());
     const minted = events.events.find(
       (e) => e.eventType === "principal.provisional_created",
     );

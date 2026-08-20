@@ -1,3 +1,4 @@
+import { type JsonObject, isString, isNumber, isBoolean } from "@opensesame/os-domain";
 /**
  * Allowlisted metadata keys that may appear in audit events.
  * Anything else is dropped; secrets matching deny patterns are stripped.
@@ -88,22 +89,22 @@ function truncateString(value: string): string {
 export const AUDIT_VALUE_MAX_LENGTH = 256;
 
 export function redactAuditMetadata(
-  metadata: Record<string, unknown> | undefined,
-): Record<string, unknown> {
+  metadata: JsonObject | undefined,
+): JsonObject {
   if (!metadata) return {};
-  const out: Record<string, unknown> = {};
+  const out: JsonObject = {};
   for (const [key, value] of Object.entries(metadata)) {
     if (DENY_KEY.test(key)) continue;
     if (!AUDIT_METADATA_ALLOWLIST.has(key)) continue;
-    if (typeof value === "string") {
+    if (isString(value)) {
       out[key] = truncateString(value);
-    } else if (typeof value === "number" || typeof value === "boolean") {
+    } else if (isNumber(value) || isBoolean(value)) {
       out[key] = value;
     } else if (value === null) {
       out[key] = null;
     } else if (
       Array.isArray(value) &&
-      value.every((entry) => typeof entry === "string")
+      value.every((entry) => isString(entry))
     ) {
       // keyNames (and similar) — names only, still length-bounded.
       out[key] = value.map((entry) => truncateString(entry));

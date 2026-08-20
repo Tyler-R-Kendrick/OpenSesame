@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { loadSettings, subscribeSettings } from "../lib/settings.js";
-import { WEBAUTHN_FALLBACK, detectWebAuthn } from "../lib/webauthn.js";
+import { webauthnSeams } from "../lib/webauthn.js";
 import { IconAlert } from "./Icons.js";
 import { QrCode } from "./QrCode.js";
 
-export function PasskeyCeremonyNote() {
+function PasskeyCeremonyNoteDefault() {
   const [support, setSupport] = useState<"ok" | "partial" | "missing" | null>(
     null,
   );
@@ -13,7 +13,7 @@ export function PasskeyCeremonyNote() {
   );
 
   useEffect(() => {
-    void detectWebAuthn().then(setSupport);
+    void webauthnSeams.detectWebAuthn().then(setSupport);
   }, []);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export function PasskeyCeremonyNote() {
     <div className="note note--warn passkey-note">
       <IconAlert />
       <div className="passkey-note__body">
-        <p>{WEBAUTHN_FALLBACK}</p>
+        <p>{webauthnSeams.WEBAUTHN_FALLBACK}</p>
         {mfaAppUrl ? (
           <div className="passkey-note__qr">
             <QrCode
@@ -52,4 +52,13 @@ export function PasskeyCeremonyNote() {
       </div>
     </div>
   );
+}
+
+export const passkeyCeremonyNoteSeams = {
+  PasskeyCeremonyNote: PasskeyCeremonyNoteDefault,
+};
+
+export function PasskeyCeremonyNote() {
+  const Impl = passkeyCeremonyNoteSeams.PasskeyCeremonyNote;
+  return <Impl />;
 }

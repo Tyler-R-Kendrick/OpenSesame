@@ -35,7 +35,7 @@ import {
 import { estimateStrength, generate } from "../../lib/vault/password.js";
 import { totpSetupUri } from "../../lib/vault/totp.js";
 
-const KIND_ICON: Record<ItemKind, typeof IconLogin> = {
+const KIND_ICON = {
   login: IconLogin,
   passkey: IconPasskey,
   card: IconCard,

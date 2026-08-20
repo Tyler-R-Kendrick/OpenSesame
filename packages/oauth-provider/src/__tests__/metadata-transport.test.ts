@@ -5,6 +5,7 @@ import {
   UnsafeMetadataUrlError,
   defaultPinnedTransport,
 } from "../metadata/safe-fetcher.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 /**
  * defaultPinnedTransport is the raw pinned GET; the SSRF policy lives in
@@ -46,7 +47,7 @@ beforeAll(async () => {
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", resolve);
   });
-  const { port } = server.address() as AddressInfo;
+  const { port } = overlapCast(server.address());
   base = `http://127.0.0.1:${port}`;
 });
 
@@ -102,7 +103,7 @@ describe("defaultPinnedTransport", () => {
     // Bind and immediately close a throwaway server to get a free port.
     const probe = http.createServer();
     await new Promise<void>((resolve) => probe.listen(0, "127.0.0.1", resolve));
-    const { port } = probe.address() as AddressInfo;
+    const { port } = overlapCast(probe.address());
     await new Promise<void>((resolve, reject) =>
       probe.close((err) => (err ? reject(err) : resolve())),
     );
@@ -138,7 +139,7 @@ describe("defaultPinnedTransport", () => {
       return;
     }
     try {
-      const { port } = v6.address() as AddressInfo;
+      const { port } = overlapCast(v6.address());
       const res = await defaultPinnedTransport({
         url: new URL(`http://[::1]:${port}/meta.json`),
         address: "::1",

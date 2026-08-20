@@ -20,13 +20,14 @@ import type {
 import type { Variables } from "../middleware/context.js";
 import { claimPageSecurityHeaders } from "../middleware/security-headers.js";
 import { renderConsentPage, renderLoginPage } from "../ui/interaction-pages.js";
+import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
 type NodeEnv = { Bindings: HttpBindings };
 
-function providerInteractions(provider: object): ProviderInteractions {
+function providerInteractions(provider: ProviderInteractions): ProviderInteractions {
   // SAFETY: panva's Provider implements Grant.find/new, interactionDetails,
   // and interactionResult; the Client generic is unused at this boundary.
-  return provider as ProviderInteractions;
+  return overlapCast(provider);
 }
 
 function nodeHttp(c: {
@@ -71,25 +72,27 @@ export function createInteractionRoutes(): Hono<
       };
     }
     try {
-      const details = (await provider.interactionDetails(
+      const details = overlapCast(await provider.interactionDetails(
         http.req,
         http.res,
-      )) as InteractionDetails;
+      ));
       return { http, details };
     } catch {
       return { error: "Interaction not found or expired", status: 404 };
     }
   }
 
-  function verifyCsrf(uid: string, fields: Record<string, unknown>): boolean {
+  function verifyCsrf(uid: string, fields: JsonObject): boolean {
     const submitted =
-      typeof fields._csrf === "string" ? fields._csrf : undefined;
+      isString(fields._csrf) ? fields._csrf : undefined;
     return csrf.verify(uid, submitted);
   }
 
   routes.get("/:uid", async (c) => {
     const ctx = c.get("ctx");
-    const provider = providerInteractions(ctx.oauth.provider);
+    const provider = providerInteractions(
+      overlapCast(ctx.oauth.provider),
+    );
     const loaded = await loadDetails(c, provider);
     if ("error" in loaded) {
       return c.text(loaded.error, loaded.status);
@@ -116,9 +119,11 @@ export function createInteractionRoutes(): Hono<
 
   routes.post("/:uid/login", async (c) => {
     const ctx = c.get("ctx");
-    const provider = providerInteractions(ctx.oauth.provider);
+    const provider = providerInteractions(
+      overlapCast(ctx.oauth.provider),
+    );
     const uid = c.req.param("uid");
-    const fields = (await c.req.parseBody()) as Record<string, unknown>;
+    const fields = overlapCast(await c.req.parseBody());
     if (!verifyCsrf(uid, fields)) {
       return c.text("Invalid or expired CSRF token", 403);
     }
@@ -131,7 +136,7 @@ export function createInteractionRoutes(): Hono<
       return c.text("Prompt mismatch", 400);
     }
 
-    const action = typeof fields.action === "string" ? fields.action : "";
+    const action = isString(fields.action) ? fields.action : "";
     let accountId: string;
     if (action === "continue") {
       // The account comes from the authenticated session cookie, never from
@@ -183,9 +188,11 @@ export function createInteractionRoutes(): Hono<
 
   routes.post("/:uid/confirm", async (c) => {
     const ctx = c.get("ctx");
-    const provider = providerInteractions(ctx.oauth.provider);
+    const provider = providerInteractions(
+      overlapCast(ctx.oauth.provider),
+    );
     const uid = c.req.param("uid");
-    const fields = (await c.req.parseBody()) as Record<string, unknown>;
+    const fields = overlapCast(await c.req.parseBody());
     if (!verifyCsrf(uid, fields)) {
       return c.text("Invalid or expired CSRF token", 403);
     }
@@ -214,9 +221,11 @@ export function createInteractionRoutes(): Hono<
 
   routes.post("/:uid/abort", async (c) => {
     const ctx = c.get("ctx");
-    const provider = providerInteractions(ctx.oauth.provider);
+    const provider = providerInteractions(
+      overlapCast(ctx.oauth.provider),
+    );
     const uid = c.req.param("uid");
-    const fields = (await c.req.parseBody()) as Record<string, unknown>;
+    const fields = overlapCast(await c.req.parseBody());
     if (!verifyCsrf(uid, fields)) {
       return c.text("Invalid or expired CSRF token", 403);
     }

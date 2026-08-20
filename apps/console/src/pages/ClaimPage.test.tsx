@@ -1,18 +1,20 @@
-import { ClaimRequestError, createOpenSesame } from "@opensesame/sdk-browser";
+import {
+  type JsonObject,
+  overlapCast,
+  type BoundaryValue,
+} from "@opensesame/os-domain";
 // @vitest-environment jsdom
 import { type ReactElement, act } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  ClaimRequestError,
+  sdkBrowserSeams,
+} from "../sdk-browser.js";
 import { ClaimPage } from "./ClaimPage.js";
 
-vi.mock("@opensesame/sdk-browser", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@opensesame/sdk-browser")>();
-  return { ...actual, createOpenSesame: vi.fn() };
-});
-
 (
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  overlapCast(globalThis)
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 interface MockClient {
@@ -91,13 +93,13 @@ function buttonNamed(text: string): HTMLButtonElement {
   return button;
 }
 
-function seedStash(stash: unknown): void {
+function seedStash(stash: BoundaryValue): void {
   sessionStorage.setItem("opensesame.claim", JSON.stringify(stash));
 }
 
-function stash(): Record<string, unknown> | null {
+function stash(): JsonObject | null {
   const raw = sessionStorage.getItem("opensesame.claim");
-  return raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
+  return raw ? (overlapCast(JSON.parse(raw))) : null;
 }
 
 beforeEach(() => {
@@ -107,9 +109,7 @@ beforeEach(() => {
     readClaim: vi.fn(),
     completeClaim: vi.fn(),
   };
-  vi.mocked(createOpenSesame).mockReturnValue(
-    client as unknown as ReturnType<typeof createOpenSesame>,
-  );
+  sdkBrowserSeams.createOpenSesame = vi.fn(() => overlapCast(client));
   sessionStorage.clear();
 });
 
@@ -276,7 +276,7 @@ describe("ClaimPage presenting", () => {
   });
 
   it("never presents the same bearer twice while a load is in flight", async () => {
-    let release: (value: unknown) => void = () => {};
+    let release: (value: BoundaryValue) => void = () => {};
     client.presentClaim.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -357,7 +357,7 @@ describe("ClaimPage resuming a presented claim", () => {
 
 describe("ClaimPage completing", () => {
   async function renderOpen(
-    presentation: Record<string, unknown> = OPEN_CLAIM,
+    presentation: JsonObject = OPEN_CLAIM,
   ): Promise<void> {
     client.presentClaim.mockResolvedValue(presentation);
     await render(<ClaimPage />);

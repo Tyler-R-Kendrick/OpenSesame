@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
+import { isFunction } from "@opensesame/os-domain";
 
 const PORT = 5180;
 const HOST = "127.0.0.1";
@@ -57,11 +58,11 @@ const chromiumPath = resolveChromium();
  * env var guess) so a normal, non-root developer machine keeps Chromium's
  * full process sandbox by default.
  */
-const isRoot = typeof process.getuid === "function" && process.getuid() === 0;
+const isRoot = isFunction(process.getuid) && process.getuid() === 0;
 
 const launchOptions = {
-  ...(chromiumPath ? { executablePath: chromiumPath } : {}),
-  ...(isRoot ? { args: ["--no-sandbox"] } : {}),
+  ...(chromiumPath ? { executablePath: chromiumPath } : undefined),
+  ...(isRoot ? { args: ["--no-sandbox"] } : undefined),
 };
 
 export default defineConfig({

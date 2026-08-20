@@ -6,6 +6,7 @@ import {
   defaultCapabilityConnectors,
   normalizeCapabilityConnectors,
 } from "./capabilities.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 describe("capability connectors", () => {
   it("defaults encryption to WebCrypto and history to GitHub", () => {
@@ -57,7 +58,7 @@ describe("capability definitions", () => {
   it("resolves known capabilities and rejects unknown ids", () => {
     expect(capabilityDef("encryption").connectorIds).toContain("webcrypto");
     expect(capabilityDef("history").connectorIds).toContain("github");
-    expect(() => capabilityDef("nope" as never)).toThrow(/unknown capability/);
+    expect(() => capabilityDef(overlapCast("nope"))).toThrow(/unknown capability/);
   });
 
   it("requires auth for cloud key vaults but not device-local ones", () => {

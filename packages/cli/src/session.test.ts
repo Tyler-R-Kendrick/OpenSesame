@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCli } from "./run.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const ISSUER = "http://127.0.0.1:8788";
 let dir = "";
@@ -25,7 +26,7 @@ function sessionFile(): string {
 }
 
 async function writeSession(
-  contents: Record<string, unknown>,
+  contents: JsonObject,
   mode = 0o600,
 ): Promise<void> {
   await writeFile(sessionFile(), JSON.stringify(contents), { mode });
@@ -34,7 +35,7 @@ async function writeSession(
 
 /** Answers discovery, the device endpoints, and `principals/me`. */
 function idpFetch(): typeof fetch {
-  return vi.fn(async (input: RequestInfo | URL) => {
+  return overlapCast(vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.includes("openid-configuration")) {
       return new Response(
@@ -85,7 +86,7 @@ function idpFetch(): typeof fetch {
       );
     }
     throw new Error(`unexpected ${url}`);
-  }) as unknown as typeof fetch;
+  }));
 }
 
 beforeEach(async () => {
@@ -148,7 +149,7 @@ describe("cli session file", () => {
       clientId: "opensesame-cli",
     });
     const seen: Array<string | null> = [];
-    const watchful = vi.fn(
+    const watchful = overlapCast(vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         seen.push(new Headers(init?.headers).get("authorization"));
         if (String(input).endsWith("/v1/principals/me")) {
@@ -156,7 +157,7 @@ describe("cli session file", () => {
         }
         throw new Error(`unexpected ${String(input)}`);
       },
-    ) as unknown as typeof fetch;
+    ));
 
     const elsewhere = await runCli(
       [
@@ -200,7 +201,7 @@ describe("cli session file", () => {
       principalId: "prn_guest",
     });
     const seen: Array<{ path: string; auth: string | null }> = [];
-    const watchful = vi.fn(
+    const watchful = overlapCast(vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         seen.push({
           path: new URL(String(input)).pathname,
@@ -208,7 +209,7 @@ describe("cli session file", () => {
         });
         return new Response(null, { status: 204 });
       },
-    ) as unknown as typeof fetch;
+    ));
 
     const code = await runCli(["logout", "--issuer", ISSUER], {
       fetchImpl: watchful,
@@ -242,9 +243,9 @@ describe("cli session file", () => {
       clientId: "opensesame-cli",
       expiresAt: Date.now() - 1000,
     });
-    const partitioned = vi.fn(async () => {
+    const partitioned = overlapCast(vi.fn(async () => {
       throw new Error("ECONNREFUSED");
-    }) as unknown as typeof fetch;
+    }));
     const code = await runCli(["whoami", "--issuer", ISSUER], {
       fetchImpl: partitioned,
     });

@@ -4,21 +4,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const fail = vi.hoisted(() => ({ current: false }));
 
-vi.mock("@opensesame/qr", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@opensesame/qr")>();
-  return {
-    ...actual,
-    encodeQrSvg: (
-      value: string,
-      options?: Parameters<typeof actual.encodeQrSvg>[1],
-    ) => {
-      if (fail.current) throw new Error("encoder exploded");
-      return actual.encodeQrSvg(value, options);
-    },
-  };
-});
+import { QrCode, qrSeams } from "./QrCode.js";
 
-import { QrCode } from "./QrCode.js";
+const originalQrSeams = { ...qrSeams };
+Object.assign(qrSeams, {
+  encodeQrSvg: (
+    value: string,
+    options?: Parameters<typeof originalQrSeams.encodeQrSvg>[1],
+  ) => {
+    if (fail.current) throw new Error("encoder exploded");
+    return originalQrSeams.encodeQrSvg(value, options);
+  },
+});
 
 describe("QrCode", () => {
   afterEach(() => {

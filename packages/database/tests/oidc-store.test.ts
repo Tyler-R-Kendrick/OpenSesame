@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { oidcPayloadFromRow, oidcRowValues } from "../src/index.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const now = new Date("2026-08-08T12:00:00.000Z");
 
@@ -21,7 +22,7 @@ describe("oidc payload storage rules", () => {
     const odd = oidcRowValues(
       "Session",
       "s-1",
-      { uid: 7 as unknown as string },
+      { uid: overlapCast(7) },
       null,
     );
     expect(odd.uid).toBeNull();

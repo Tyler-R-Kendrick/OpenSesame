@@ -8,16 +8,10 @@ import { parseEnvSpecDotEnvFile } from "@env-spec/parser";
 
 function decValue(v) {
   if (v == null) return true;
-  if (
-    typeof v === "object" &&
-    v.constructor?.name === "ParsedEnvSpecStaticValue"
-  ) {
+  if (v.constructor?.name === "ParsedEnvSpecStaticValue") {
     return v.value ?? v.data?.rawValue ?? null;
   }
-  if (
-    typeof v === "object" &&
-    v.constructor?.name === "ParsedEnvSpecFunctionCall"
-  ) {
+  if (v.constructor?.name === "ParsedEnvSpecFunctionCall") {
     return {
       fn: v.data.name,
       args: funcArgs(v.data.args),

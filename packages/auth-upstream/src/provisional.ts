@@ -90,7 +90,7 @@ export async function upgradeProvisionalToUpstream(
     betterAuthUserId: input.betterAuthUserId,
     upstreamProviderId: input.upstreamProviderId,
     upstreamSubject: input.upstreamSubject,
-    ...(input.email !== undefined ? { email: input.email } : {}),
+    ...(input.email !== undefined ? { email: input.email } : undefined),
     provisional: false,
     upgradedAt: new Date(),
   };

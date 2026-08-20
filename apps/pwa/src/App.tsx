@@ -1,12 +1,12 @@
-import { createApiClient } from "@opensesame/api-client";
+import { createApiClient } from "./api-client";
 import {
   assertNoPlaintextInSealedJson,
   createCursor,
   loadSealedStore,
   parseSealedStore,
   persistSealedStore,
-} from "@opensesame/client-core";
-import { type Session, createOpenSesame } from "@opensesame/sdk-browser";
+} from "./client-core";
+import { type Session, createOpenSesame } from "./sdk-browser";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const hostApi = import.meta.env.VITE_HOST_API ?? "http://127.0.0.1:8787";

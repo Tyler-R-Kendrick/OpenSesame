@@ -3,17 +3,13 @@ import { Link } from "react-router";
 import { applyDaemonPairing, probeDaemon } from "../lib/daemon.js";
 import { useConnect } from "../lib/identity.js";
 import {
-  PAGES_CANNOT_HOST,
   hostStatusLabel,
   identityStatusLabel,
   needsHostPairing,
+  planeSeams,
   usePlaneStatus,
 } from "../lib/planes.js";
-import {
-  loadSettings,
-  pageIsLoopback,
-  shippedDaemonApi,
-} from "../lib/settings.js";
+import { loadSettings, settingsSeams } from "../lib/settings.js";
 import {
   assertDaemonReachableFromPage,
   detectTailnet,
@@ -25,7 +21,7 @@ import { isLoopbackUrl } from "../lib/urls.js";
 import { IconAlert } from "./Icons.js";
 import { QrCode } from "./QrCode.js";
 
-export function RailPlaneStatus() {
+function RailPlaneStatusDefault() {
   const status = usePlaneStatus();
   return (
     <p className="rail__status">
@@ -40,7 +36,7 @@ export function RailPlaneStatus() {
   );
 }
 
-export function ConnectThisMachine({
+function ConnectThisMachineDefault({
   onPaired,
 }: {
   onPaired?: () => void;
@@ -48,7 +44,8 @@ export function ConnectThisMachine({
   const { connect } = useConnect();
   const [daemonApi, setDaemonApi] = useState(
     () =>
-      loadSettings().daemonApi || (pageIsLoopback() ? shippedDaemonApi : ""),
+      loadSettings().daemonApi ||
+      (settingsSeams.pageIsLoopback() ? settingsSeams.shippedDaemonApi : ""),
   );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -212,7 +209,20 @@ export function ConnectThisMachine({
   );
 }
 
-export function PagesCannotHostNote({
+export const planeNoteSeams = {
+  ConnectThisMachine: ConnectThisMachineDefault,
+  PagesCannotHostNote: PagesCannotHostNoteDefault,
+  RailPlaneStatus: RailPlaneStatusDefault,
+};
+
+export function ConnectThisMachine(
+  props: Parameters<typeof ConnectThisMachineDefault>[0],
+) {
+  const Impl = planeNoteSeams.ConnectThisMachine;
+  return <Impl {...props} />;
+}
+
+function PagesCannotHostNoteDefault({
   ceremony,
 }: {
   ceremony: string;
@@ -227,7 +237,7 @@ export function PagesCannotHostNote({
           <IconAlert />
           <div>
             <p>
-              {ceremony} needs the Host API. {PAGES_CANNOT_HOST}
+              {ceremony} needs the Host API. {planeSeams.PAGES_CANNOT_HOST}
             </p>
             <p>
               Configured Host: <code>{status.hostBase || "none"}</code> (
@@ -241,4 +251,16 @@ export function PagesCannotHostNote({
     return null;
   }
   return <ConnectThisMachine />;
+}
+
+export function PagesCannotHostNote(
+  props: Parameters<typeof PagesCannotHostNoteDefault>[0],
+) {
+  const Impl = planeNoteSeams.PagesCannotHostNote;
+  return <Impl {...props} />;
+}
+
+export function RailPlaneStatus() {
+  const Impl = planeNoteSeams.RailPlaneStatus;
+  return <Impl />;
 }

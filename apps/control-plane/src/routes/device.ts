@@ -8,6 +8,7 @@ import {
   membershipKey,
   serializeMembershipMutation,
 } from "./organizations.js";
+import { type JsonObject, overlapCast, isTypeofObject, isString } from "@opensesame/os-domain";
 
 /**
  * Device authorization approval — Identity plane proxy to Host API.
@@ -27,13 +28,13 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
       503,
     );
   }
-  const parsedBody: unknown = await c.req.json().catch(() => undefined);
+  const parsedBody = await c.req.json().catch(() => undefined);
   const body =
-    parsedBody && typeof parsedBody === "object" && !Array.isArray(parsedBody)
-      ? (parsedBody as Record<string, unknown>)
+    parsedBody && isTypeofObject(parsedBody) && !Array.isArray(parsedBody)
+      ? (overlapCast(parsedBody))
       : {};
   const userCode =
-    typeof body.user_code === "string" ? body.user_code.trim() : "";
+    isString(body.user_code) ? body.user_code.trim() : "";
   if (!userCode) {
     return c.json(
       { error: "invalid_request", hint: "user_code required" },
@@ -52,7 +53,7 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
     );
   }
   const organizationId =
-    (typeof body.organization_id === "string"
+    (isString(body.organization_id)
       ? body.organization_id.trim()
       : "") ||
     (memberships.length === 1 ? memberships[0]?.organizationId : undefined);
@@ -108,9 +109,9 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
         );
       }
       const text = await res.text();
-      let payload: unknown = text;
+      let payload = text;
       try {
-        payload = JSON.parse(text) as unknown;
+        payload = overlapCast(JSON.parse(text));
       } catch {
         /* keep text */
       }

@@ -1,3 +1,4 @@
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 /**
  * Vault cryptography — WebCrypto only, no dependencies, no dev-only stand-ins.
  *
@@ -95,7 +96,7 @@ async function deriveMasterKey(
     ["deriveKey"],
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: salt as BufferSource, iterations, hash: "SHA-256" },
+    { name: "PBKDF2", salt: overlapCast(salt), iterations, hash: "SHA-256" },
     material,
     { name: "AES-GCM", length: 256 },
     false,
@@ -109,18 +110,18 @@ async function encrypt(
 ): Promise<SealedBlob> {
   const iv = randomBytes(IV_BYTES);
   const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv as BufferSource },
+    { name: "AES-GCM", iv: overlapCast(iv) },
     key,
-    plaintext as BufferSource,
+    overlapCast(plaintext),
   );
   return { ivB64: bytesToB64(iv), ctB64: bytesToB64(new Uint8Array(ct)) };
 }
 
 async function decrypt(key: CryptoKey, blob: SealedBlob): Promise<Uint8Array> {
   const plain = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: b64ToBytes(blob.ivB64) as BufferSource },
+    { name: "AES-GCM", iv: overlapCast(b64ToBytes(blob.ivB64)) },
     key,
-    b64ToBytes(blob.ctB64) as BufferSource,
+    overlapCast(b64ToBytes(blob.ctB64)),
   );
   return new Uint8Array(plain);
 }
@@ -142,7 +143,7 @@ export function assertKdfParams(kdf: KdfParams): void {
 }
 
 export async function importVaultKey(raw: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", raw as BufferSource, "AES-GCM", false, [
+  return crypto.subtle.importKey("raw", overlapCast(raw), "AES-GCM", false, [
     "encrypt",
     "decrypt",
   ]);
@@ -179,7 +180,7 @@ export async function createVault(
     },
     wrap,
     createdAt: new Date().toISOString(),
-    ...(hint ? { hint } : {}),
+    ...(hint ? { hint } : undefined),
   };
   return { header, vaultKey, rawVaultKey };
 }
@@ -265,11 +266,11 @@ export async function rewrapVaultKey(
     },
     wrap,
     createdAt: header.createdAt,
-    ...(header.unlocks ? { unlocks: header.unlocks } : {}),
-    ...(nextHint ? { hint: nextHint } : {}),
+    ...(header.unlocks ? { unlocks: header.unlocks } : undefined),
+    ...(nextHint ? { hint: nextHint } : undefined),
     // The body is untouched by a re-key, so how far it has got carries over. A
     // fresh header would forget it and take the rollback check with it.
-    ...(header.bodyRev !== undefined ? { bodyRev: header.bodyRev } : {}),
+    ...(header.bodyRev !== undefined ? { bodyRev: header.bodyRev } : undefined),
   };
 }
 
@@ -293,7 +294,7 @@ export async function wrapVaultKeyWithPassword(
 
 export async function sealJson(
   vaultKey: CryptoKey,
-  value: unknown,
+  value: BoundaryValue,
 ): Promise<SealedBlob> {
   const bytes = new TextEncoder().encode(JSON.stringify(value));
   const blob = await encrypt(vaultKey, bytes);
@@ -312,7 +313,7 @@ export async function openJson<T>(
     throw new VaultCorruptError("authentication tag mismatch");
   }
   try {
-    return JSON.parse(new TextDecoder().decode(bytes)) as T;
+    return overlapCast(JSON.parse(new TextDecoder().decode(bytes)));
   } catch {
     throw new VaultCorruptError("decrypted payload is not valid JSON");
   }

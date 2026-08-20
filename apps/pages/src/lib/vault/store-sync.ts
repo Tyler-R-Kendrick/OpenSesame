@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * Map between sealed-store paths (`Folder/name`) and vault items.
  * Used when bridging the Pages OPFS vault with a git-native store.
@@ -58,10 +59,7 @@ export function mergeOtpauthIntoTrailer(
 }
 
 /** Split `Email/github.com` into folder + name. */
-export function splitStorePath(path: string): {
-  folder: string | null;
-  name: string;
-} {
+export function splitStorePath(path: string) {
   const trimmed = path.replace(/^\/+|\/+$/gu, "");
   const idx = trimmed.lastIndexOf("/");
   if (idx <= 0) {
@@ -86,7 +84,7 @@ export function parseTrailerMeta(trailer: string): OsMeta {
   const text = withoutOtp.trim();
   if (!text.startsWith("{")) return { notes: text || undefined };
   try {
-    return JSON.parse(text) as OsMeta;
+    return overlapCast(JSON.parse(text));
   } catch {
     return { notes: text || undefined };
   }
@@ -103,7 +101,7 @@ export function entryToVaultItem(
     meta.kind === "secret" ? "secret" : meta.kind === "note" ? "note" : "login";
 
   if (kind === "secret") {
-    const item = createItem("secret", name) as SecretItem;
+    const item = overlapCast(createItem("secret", name));
     item.folderId = folderId;
     item.value = entry.secret;
     item.notes = meta.notes ?? "";
@@ -132,7 +130,7 @@ export function entryToVaultItem(
   return item;
 }
 
-export function vaultItemToEntry(
+function vaultItemToEntryDefault(
   item: VaultItem,
   folders: Folder[],
 ): StorePlainEntry {
@@ -178,7 +176,7 @@ export function vaultItemToEntry(
 export function ensureFoldersForEntries(
   entries: StorePlainEntry[],
   existing: Folder[],
-): { folders: Folder[]; folderIdByName: Map<string, string> } {
+) {
   const folderIdByName = new Map<string, string>();
   for (const f of existing) {
     folderIdByName.set(f.name.trim().toLowerCase(), f.id);
@@ -200,7 +198,7 @@ export function ensureFoldersForEntries(
 export function entriesToVaultItems(
   entries: StorePlainEntry[],
   existingFolders: Folder[],
-): { items: VaultItem[]; folders: Folder[] } {
+) {
   const { folders, folderIdByName } = ensureFoldersForEntries(
     entries,
     existingFolders,
@@ -238,7 +236,7 @@ function normalizedPath(path: string): string {
  * append, so re-importing the same manifest is idempotent rather than a
  * duplicate of every item.
  */
-export function planManifestMerge(
+function planManifestMergeDefault(
   entries: StorePlainEntry[],
   existingItems: VaultItem[],
   existingFolders: Folder[],
@@ -348,4 +346,28 @@ export function sealedBytesToSyncBlobs(
       ciphertextB64: btoa(binary),
     };
   });
+}
+
+export const storeSyncSeams = {
+  vaultItemToEntry: vaultItemToEntryDefault,
+  planManifestMerge: planManifestMergeDefault,
+};
+
+export function vaultItemToEntry(
+  item: VaultItem,
+  folders: Folder[],
+): StorePlainEntry {
+  return storeSyncSeams.vaultItemToEntry(item, folders);
+}
+
+export function planManifestMerge(
+  entries: StorePlainEntry[],
+  existingItems: VaultItem[],
+  existingFolders: Folder[],
+): ManifestMergePlan {
+  return storeSyncSeams.planManifestMerge(
+    entries,
+    existingItems,
+    existingFolders,
+  );
 }

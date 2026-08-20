@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { PairwiseSubject, PairwiseSubjectStore } from "../types.js";
+import { type BoundaryValue, isString } from "@opensesame/os-domain";
 
 /**
  * In-memory pairwise subject mapping (tests / ephemeral).
@@ -45,14 +46,14 @@ export class MemoryPairwiseSubjectStore implements PairwiseSubjectStore {
  */
 export function createPairwiseIdentifierCallback(store: PairwiseSubjectStore) {
   return async (
-    _ctx: unknown,
+    _ctx: BoundaryValue,
     accountId: string,
     client: { clientId?: string; sectorIdentifier?: string },
   ): Promise<string> => {
     const sector =
-      (typeof client.sectorIdentifier === "string" &&
+      (isString(client.sectorIdentifier) &&
         client.sectorIdentifier.trim()) ||
-      (typeof client.clientId === "string" && client.clientId.trim()) ||
+      (isString(client.clientId) && client.clientId.trim()) ||
       "";
     if (!sector) {
       throw new Error(

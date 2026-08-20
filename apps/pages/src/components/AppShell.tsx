@@ -22,6 +22,7 @@ import {
 } from "./Icons.js";
 import { RailPlaneStatus } from "./PlaneNote.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const SECTIONS = [
   { to: "/vault", label: "Vault", Icon: IconVault },
@@ -77,7 +78,7 @@ function VaultFilters() {
       end
     >
       {/* react-router NavLink children typing vs React 19 ReactNode */}
-      {children as never}
+      {overlapCast(children)}
     </NavLink>
   );
 

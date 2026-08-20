@@ -9,7 +9,10 @@
       "default": "./src/index.ts"
     }
   },
-  "files": ["src", "dist"],
+  "files": [
+    "src",
+    "dist"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -18,6 +21,7 @@
   "dependencies": {
     "@opensesame/contracts": "workspace:*",
     "@opensesame/oauth-provider": "workspace:*",
+    "@opensesame/os-domain": "workspace:*",
     "jose": "6.2.8"
   },
   "devDependencies": {

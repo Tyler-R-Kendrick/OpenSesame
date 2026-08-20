@@ -12,7 +12,7 @@ export function evaluateTokenCors(
   requestOrigin: string | null | undefined,
   clientCanonicalOrigin: string | null | undefined,
 ): TokenCorsDecision {
-  const baseHeaders: Record<string, string> = {
+  const baseHeaders = {
     Vary: "Origin",
     "Cache-Control": "no-store",
     Pragma: "no-cache",

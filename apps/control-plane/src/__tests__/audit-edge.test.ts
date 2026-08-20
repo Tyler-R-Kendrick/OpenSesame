@@ -1,4 +1,4 @@
-import type { AuditEvent } from "@opensesame/os-domain";
+import { AuditEvent, JsonObject, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 
@@ -18,7 +18,7 @@ async function provisional(app: App) {
     method: "POST",
   });
   expect(res.status).toBe(201);
-  return (await res.json()) as { principalId: string; accessToken: string };
+  return overlapCast(await res.json());
 }
 
 function auth(token: string) {
@@ -30,7 +30,7 @@ async function listEvents(app: App, token: string, query = "") {
     headers: auth(token),
   });
   expect(res.status).toBe(200);
-  return ((await res.json()) as { events: Array<Record<string, unknown>> })
+  return (overlapCast(await res.json()))
     .events;
 }
 
@@ -47,7 +47,7 @@ describe("audit events filtering", () => {
       },
       body: JSON.stringify({ name: "Audit Me", ttlSeconds: 600 }),
     });
-    const project = (await created.json()) as { projectId: string };
+    const project = overlapCast(await created.json());
 
     const byProject = await listEvents(
       app,
@@ -104,7 +104,7 @@ describe("audit events filtering", () => {
       { headers: auth(owner.accessToken) },
     );
     expect(bad.status).toBe(400);
-    expect(((await bad.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await bad.json())).error).toBe(
       "event_type_not_changelog",
     );
 
@@ -155,7 +155,7 @@ describe("audit chain verification", () => {
       headers: auth(owner.accessToken),
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { ok: boolean; checked: number };
+    const body = overlapCast(await res.json());
     expect(body.ok).toBe(true);
     expect(body.checked).toBeGreaterThan(0);
   });
@@ -217,11 +217,7 @@ describe("audit chain verification", () => {
         headers: auth(caller.accessToken),
       });
       expect(res.status).toBe(409);
-      const body = (await res.json()) as {
-        ok: boolean;
-        reason: string;
-        eventId?: string;
-      };
+      const body = overlapCast(await res.json());
       expect(body.ok).toBe(false);
       expect(body.reason).toBe("broken");
       // The gap belongs to the victim, so the caller is not told which event.
@@ -250,11 +246,7 @@ describe("audit chain verification", () => {
         headers: auth(caller.accessToken),
       });
       expect(res.status).toBe(409);
-      const body = (await res.json()) as {
-        ok: boolean;
-        reason: string;
-        eventId?: string;
-      };
+      const body = overlapCast(await res.json());
       expect(body.reason).toBe("altered");
       expect(body.eventId).toBeUndefined();
     } finally {

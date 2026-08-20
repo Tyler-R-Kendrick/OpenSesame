@@ -1,10 +1,11 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { act } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { QrCode } from "./QrCode.js";
 
-(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+(overlapCast(globalThis)).IS_REACT_ACT_ENVIRONMENT = true;
 
 let container: HTMLDivElement;
 let root: Root;

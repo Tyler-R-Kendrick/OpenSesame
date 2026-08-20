@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * The remaining CSV-exporting managers: LastPass, KeePass and KeePassXC,
  * Dashlane, and NordPass.
@@ -257,8 +258,8 @@ export const nordpassCsv: ImportAdapter = {
         const expiry = pick(row, "expirydate");
         const match = /^(\d{1,2})\s*\/\s*(\d{2,4})$/u.exec(expiry);
         if (match) {
-          card.expMonth = match[1] as string;
-          card.expYear = match[2] as string;
+          card.expMonth = overlapCast(match[1]);
+          card.expYear = overlapCast(match[2]);
         }
         addField(card, "Postcode", pick(row, "zipcode"));
         item = card;

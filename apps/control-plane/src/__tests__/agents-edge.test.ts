@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -16,7 +17,7 @@ async function provisional(app: App) {
     method: "POST",
   });
   expect(res.status).toBe(201);
-  return (await res.json()) as { principalId: string; accessToken: string };
+  return overlapCast(await res.json());
 }
 
 async function verified(app: App, subject: string) {
@@ -45,7 +46,7 @@ function auth(token: string) {
 async function registerAgent(
   app: App,
   token: string,
-  body: Record<string, unknown>,
+  body: JsonObject,
 ) {
   return app.request("/v1/agents", {
     method: "POST",
@@ -62,7 +63,7 @@ describe("agents routes edge cases", () => {
       displayName: "no-key",
     });
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await res.json())).error).toBe(
       "validation_error",
     );
   });
@@ -79,18 +80,14 @@ describe("agents routes edge cases", () => {
       attestationDigest: "sha256:abc",
     });
     expect(res.status).toBe(201);
-    const body = (await res.json()) as {
-      agentId: string;
-      projectId: string;
-      state: string;
-    };
+    const body = overlapCast(await res.json());
     expect(body.state).toBe("provisional");
 
     // The default project is the caller's personal one.
     const active = await app.request("/v1/projects/active", {
       headers: auth(owner.accessToken),
     });
-    const personal = ((await active.json()) as { project: { id: string } })
+    const personal = (overlapCast(await active.json()))
       .project;
     expect(body.projectId).toBe(personal.id);
   });
@@ -108,7 +105,7 @@ describe("agents routes edge cases", () => {
       },
       body: JSON.stringify({ displayName: "Agent Home" }),
     });
-    const project = (await created.json()) as { id: string };
+    const project = overlapCast(await created.json());
 
     const intoProject = await registerAgent(app, owner.accessToken, {
       displayName: "scoped-agent",
@@ -117,7 +114,7 @@ describe("agents routes edge cases", () => {
     });
     expect(intoProject.status).toBe(201);
     expect(
-      ((await intoProject.json()) as { projectId: string }).projectId,
+      (overlapCast(await intoProject.json())).projectId,
     ).toBe(project.id);
 
     // Unknown and foreign projects are both 404.
@@ -157,7 +154,7 @@ describe("agents routes edge cases", () => {
       publicKeyJkt: "jkt-quota-three",
     });
     expect(third.status).toBe(403);
-    expect(((await third.json()) as { reasons: string[] }).reasons).toContain(
+    expect((overlapCast(await third.json())).reasons).toContain(
       "quota_agents",
     );
   });
@@ -171,7 +168,7 @@ describe("agents routes edge cases", () => {
       displayName: "claim-me",
       publicKeyJkt: "jkt-claim-me",
     });
-    const agent = (await registered.json()) as { agentId: string };
+    const agent = overlapCast(await registered.json());
 
     // Unknown and foreign agent ids are both 404 — no existence oracle.
     expect(
@@ -196,11 +193,7 @@ describe("agents routes edge cases", () => {
       headers: auth(owner.accessToken),
     });
     expect(claim.status).toBe(201);
-    const body = (await claim.json()) as {
-      agentId: string;
-      claimId: string;
-      claimToken: string;
-    };
+    const body = overlapCast(await claim.json());
     expect(body.agentId).toBe(agent.agentId);
     expect(body.claimToken.startsWith("osc_clm_")).toBe(true);
   });

@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 /** RFC 6238 TOTP over WebCrypto HMAC. Accepts a bare base32 seed or an otpauth:// URI. */
 
 export type TotpConfig = {
@@ -54,7 +55,7 @@ function normalizeAlgorithm(raw: string | null): TotpConfig["algorithm"] {
   }
 }
 
-export function parseTotp(raw: string): TotpConfig {
+function parseTotpDefault(raw: string): TotpConfig {
   const trimmed = raw.trim();
   if (!trimmed) throw new TotpParseError("the secret is empty");
 
@@ -87,7 +88,7 @@ export function parseTotp(raw: string): TotpConfig {
   };
 }
 
-export async function totpCode(
+async function totpCodeDefault(
   config: TotpConfig,
   atMs: number = Date.now(),
 ): Promise<string> {
@@ -99,7 +100,7 @@ export async function totpCode(
 
   const key = await crypto.subtle.importKey(
     "raw",
-    config.secret as BufferSource,
+    overlapCast(config.secret),
     { name: "HMAC", hash: config.algorithm },
     false,
     ["sign"],
@@ -112,11 +113,35 @@ export async function totpCode(
   return String(binary % 10 ** config.digits).padStart(config.digits, "0");
 }
 
-export function secondsRemaining(
+function secondsRemainingDefault(
   period: number,
   atMs: number = Date.now(),
 ): number {
   return period - (Math.floor(atMs / 1000) % period);
+}
+
+export const totpSeams = {
+  parseTotp: parseTotpDefault,
+  totpCode: totpCodeDefault,
+  secondsRemaining: secondsRemainingDefault,
+};
+
+export function parseTotp(raw: string): TotpConfig {
+  return totpSeams.parseTotp(raw);
+}
+
+export async function totpCode(
+  config: TotpConfig,
+  atMs: number = Date.now(),
+): Promise<string> {
+  return totpSeams.totpCode(config, atMs);
+}
+
+export function secondsRemaining(
+  period: number,
+  atMs: number = Date.now(),
+): number {
+  return totpSeams.secondsRemaining(period, atMs);
 }
 
 /**

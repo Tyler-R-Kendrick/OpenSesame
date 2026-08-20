@@ -15,6 +15,7 @@ import {
   refuseDeploymentSealWrap,
   serializeOfflineBackup,
 } from "./offline-backup.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const PASSWORD = "correct horse battery staple";
 
@@ -81,10 +82,10 @@ describe("buildOfflineBackup", () => {
 describe("serializeOfflineBackup", () => {
   it("refuses an envelope that claims a deployment seal", async () => {
     const envelope = await realEnvelope();
-    const tainted = {
+    const tainted = overlapCast({
       ...envelope,
       deploymentSealUsed: true,
-    } as unknown as OfflineBackupEnvelope;
+    });
     expect(() => serializeOfflineBackup(tainted)).toThrow(/deployment seal/);
   });
 });
@@ -145,10 +146,7 @@ describe("parseOfflineBackup", () => {
       envelope.vault.header.createdAt,
     );
 
-    const minimal = JSON.parse(serializeOfflineBackup(envelope)) as Record<
-      string,
-      unknown
-    >;
+    const minimal = overlapCast(JSON.parse(serializeOfflineBackup(envelope)));
     const { projectId: _p, exportedAt: _e, ...rest } = minimal;
     const parsed = parseOfflineBackup(JSON.stringify(rest));
     expect(parsed.projectId).toBeNull();

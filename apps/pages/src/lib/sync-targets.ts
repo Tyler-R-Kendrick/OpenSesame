@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, type BoundaryValue, isString, isTypeofObject } from "@opensesame/os-domain";
 /**
  * Host sync target client (WP-C / ADR 0041).
  *
@@ -36,9 +37,9 @@ export type SyncTargetOutcome = {
 const FORBIDDEN_KEYS =
   /^(value|secret|password|token|access_token|refresh_token)$/i;
 
-function assertNoSecretLeak(value: unknown, path = "response"): void {
+function assertNoSecretLeak(value: BoundaryValue, path = "response"): void {
   if (value === null || value === undefined) return;
-  if (typeof value === "string") {
+  if (isString(value)) {
     if (value.length > 64 && /(?:sk_|postgres:\/\/|Bearer\s)/i.test(value)) {
       throw new Error(`${path} may contain secret material`);
     }
@@ -48,9 +49,9 @@ function assertNoSecretLeak(value: unknown, path = "response"): void {
     for (const item of value) assertNoSecretLeak(item, path);
     return;
   }
-  if (typeof value === "object") {
+  if (isTypeofObject(value)) {
     for (const [key, nested] of Object.entries(
-      value as Record<string, unknown>,
+      overlapCast(value),
     )) {
       if (FORBIDDEN_KEYS.test(key)) {
         throw new Error(`${path} contained forbidden key ${key}`);
@@ -60,7 +61,7 @@ function assertNoSecretLeak(value: unknown, path = "response"): void {
   }
 }
 
-function normalizeTarget(raw: Record<string, unknown>): SyncTarget {
+function normalizeTarget(raw: JsonObject): SyncTarget {
   return {
     id: String(raw.id ?? ""),
     projectId: String(raw.project_id ?? raw.projectId ?? ""),
@@ -68,23 +69,23 @@ function normalizeTarget(raw: Record<string, unknown>): SyncTarget {
     connectionId: String(raw.connection_id ?? raw.connectionId ?? ""),
     providerId: String(raw.provider_id ?? raw.providerId ?? ""),
     operation: String(raw.operation ?? ""),
-    status: String(raw.status ?? "idle") as SyncTargetStatus,
+    status: overlapCast(String(raw.status ?? "idle")),
     statusDetail:
-      typeof raw.status_detail === "string"
+      isString(raw.status_detail)
         ? raw.status_detail
-        : typeof raw.statusDetail === "string"
+        : isString(raw.statusDetail)
           ? raw.statusDetail
           : null,
     contentVersion:
-      typeof raw.content_version === "string"
+      isString(raw.content_version)
         ? raw.content_version
-        : typeof raw.contentVersion === "string"
+        : isString(raw.contentVersion)
           ? raw.contentVersion
           : null,
     lastSyncedAt:
-      typeof raw.last_synced_at === "string"
+      isString(raw.last_synced_at)
         ? raw.last_synced_at
-        : typeof raw.lastSyncedAt === "string"
+        : isString(raw.lastSyncedAt)
           ? raw.lastSyncedAt
           : null,
     organizationId: String(raw.organization_id ?? raw.organizationId ?? ""),
@@ -93,23 +94,23 @@ function normalizeTarget(raw: Record<string, unknown>): SyncTarget {
   };
 }
 
-function normalizeOutcome(raw: Record<string, unknown>): SyncTargetOutcome {
+function normalizeOutcome(raw: JsonObject): SyncTargetOutcome {
   const targetRaw = raw.target;
-  if (!targetRaw || typeof targetRaw !== "object" || Array.isArray(targetRaw)) {
+  if (!targetRaw || !isTypeofObject(targetRaw) || Array.isArray(targetRaw)) {
     throw new Error("sync outcome missing target");
   }
   return {
-    target: normalizeTarget(targetRaw as Record<string, unknown>),
+    target: normalizeTarget(overlapCast(targetRaw)),
     ok: Boolean(raw.ok),
     keysSynced: Number(raw.keys_synced ?? raw.keysSynced ?? 0),
     contentVersion:
-      typeof raw.content_version === "string"
+      isString(raw.content_version)
         ? raw.content_version
-        : typeof raw.contentVersion === "string"
+        : isString(raw.contentVersion)
           ? raw.contentVersion
           : null,
     error:
-      typeof raw.error === "string"
+      isString(raw.error)
         ? raw.error
         : raw.error === null
           ? null
@@ -117,7 +118,7 @@ function normalizeOutcome(raw: Record<string, unknown>): SyncTargetOutcome {
   };
 }
 
-export async function listSyncTargets(options?: {
+async function listSyncTargetsDefault(options?: {
   projectId?: string;
   configId?: string;
 }): Promise<SyncTarget[]> {
@@ -129,11 +130,11 @@ export async function listSyncTargets(options?: {
   if (!res.ok) {
     throw new Error(`List sync targets failed (${res.status}).`);
   }
-  const body = (await res.json()) as { sync_targets?: unknown[] };
+  const body = overlapCast(await res.json());
   assertNoSecretLeak(body);
   const targets = (body.sync_targets ?? [])
     .filter(
-      (row): row is Record<string, unknown> => !!row && typeof row === "object",
+      (row): row is JsonObject => !!row && isTypeofObject(row),
     )
     .map(normalizeTarget);
   assertNoSecretLeak(targets);
@@ -152,23 +153,21 @@ export async function createSyncTarget(input: {
       project_id: input.projectId,
       config_id: input.configId,
       connection_id: input.connectionId,
-      ...(input.operation ? { operation: input.operation } : {}),
+      ...(input.operation ? { operation: input.operation } : undefined),
     }),
   });
   if (!res.ok) {
-    const err = (await res.json().catch(() => null)) as {
-      hint?: string;
-    } | null;
+    const err = overlapCast(await res.json().catch(() => null));
     throw new Error(err?.hint ?? `Create sync target failed (${res.status}).`);
   }
-  const body = (await res.json()) as Record<string, unknown>;
+  const body = overlapCast(await res.json());
   assertNoSecretLeak(body);
   const target = normalizeTarget(body);
   assertNoSecretLeak(target);
   return target;
 }
 
-export async function deleteSyncTarget(id: string): Promise<void> {
+async function deleteSyncTargetDefault(id: string): Promise<void> {
   const res = await hostFetch(
     `/api/v1/sync-targets/${encodeURIComponent(id)}`,
     {
@@ -180,7 +179,7 @@ export async function deleteSyncTarget(id: string): Promise<void> {
   }
 }
 
-export async function syncTarget(
+async function syncTargetDefault(
   id: string,
   options?: { keyNames?: string[] },
 ): Promise<SyncTargetOutcome> {
@@ -189,14 +188,14 @@ export async function syncTarget(
     {
       method: "POST",
       body: JSON.stringify({
-        ...(options?.keyNames?.length ? { key_names: options.keyNames } : {}),
+        ...(options?.keyNames?.length ? { key_names: options.keyNames } : undefined),
       }),
     },
   );
   if (!res.ok) {
     throw new Error(`Sync target failed (${res.status}).`);
   }
-  const body = (await res.json()) as Record<string, unknown>;
+  const body = overlapCast(await res.json());
   assertNoSecretLeak(body);
   const outcome = normalizeOutcome(body);
   assertNoSecretLeak(outcome);
@@ -213,20 +212,51 @@ export async function syncAllForConfig(
   if (!res.ok) {
     throw new Error(`Sync-all failed (${res.status}).`);
   }
-  const body = (await res.json()) as { outcomes?: unknown[] };
+  const body = overlapCast(await res.json());
   assertNoSecretLeak(body);
   const outcomes = (body.outcomes ?? [])
     .filter(
-      (row): row is Record<string, unknown> => !!row && typeof row === "object",
+      (row): row is JsonObject => !!row && isTypeofObject(row),
     )
     .map(normalizeOutcome);
   assertNoSecretLeak(outcomes);
   return outcomes;
 }
 
-export function formatSyncTargetSummary(target: SyncTarget): string {
+function formatSyncTargetSummaryDefault(target: SyncTarget): string {
   const parts = [target.providerId, target.operation, target.status];
   if (target.contentVersion) parts.push(`v ${target.contentVersion}`);
   if (target.statusDetail) parts.push(target.statusDetail);
   return parts.join(" · ");
+}
+
+export const syncTargetSeams = {
+  listSyncTargets: listSyncTargetsDefault,
+  deleteSyncTarget: deleteSyncTargetDefault,
+  syncTarget: syncTargetDefault,
+  formatSyncTargetSummary: formatSyncTargetSummaryDefault,
+};
+
+export async function listSyncTargets(options?: {
+  projectId?: string;
+  configId?: string;
+}): Promise<SyncTarget[]> {
+  return syncTargetSeams.listSyncTargets(options);
+}
+
+export async function deleteSyncTarget(id: string): Promise<void> {
+  return syncTargetSeams.deleteSyncTarget(id);
+}
+
+export async function syncTarget(
+  id: string,
+  options?: { keyNames?: string[] },
+): Promise<SyncTargetOutcome> {
+  return options === undefined
+    ? syncTargetSeams.syncTarget(id)
+    : syncTargetSeams.syncTarget(id, options);
+}
+
+export function formatSyncTargetSummary(target: SyncTarget): string {
+  return syncTargetSeams.formatSyncTargetSummary(target);
 }

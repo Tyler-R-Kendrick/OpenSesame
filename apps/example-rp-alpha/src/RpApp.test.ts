@@ -1,24 +1,21 @@
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
-import type { Session } from "@opensesame/sdk-browser";
 import { act, createElement } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RpApp } from "./RpApp.js";
+import { type Session, sdkBrowserSeams } from "./sdk-browser.js";
 
-const mocks = vi.hoisted(() => ({
+const mocks = {
   createOpenSesame: vi.fn(),
   handleRedirectCallback: vi.fn(),
   getSession: vi.fn(),
   signIn: vi.fn(),
   signOut: vi.fn(),
-}));
-
-vi.mock("@opensesame/sdk-browser", () => ({
-  createOpenSesame: mocks.createOpenSesame,
-}));
+};
 
 (
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  overlapCast(globalThis)
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 const props = {
@@ -52,7 +49,7 @@ async function renderApp() {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
+  let reject!: (reason?: BoundaryValue) => void;
   const promise = new Promise<T>((res, rej) => {
     resolve = res;
     reject = rej;
@@ -62,6 +59,7 @@ function deferred<T>() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  sdkBrowserSeams.createOpenSesame = mocks.createOpenSesame;
   mocks.createOpenSesame.mockReturnValue({
     handleRedirectCallback: mocks.handleRedirectCallback,
     getSession: mocks.getSession,

@@ -1,27 +1,29 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   mfaAppUrl: "",
-  support: null as "ok" | "partial" | "missing" | null,
-  listeners: [] as Array<() => void>,
+  support: null,
+  listeners: [],
 }));
 
-vi.mock("../lib/settings.js", () => ({
-  loadSettings: () => ({ mfaAppUrl: state.mfaAppUrl }),
+import { settingsSeams } from "../lib/settings.js";
+const originalSettingsSeams = { ...settingsSeams };
+Object.assign(settingsSeams, {loadSettings: () => ({ mfaAppUrl: state.mfaAppUrl }),
   subscribeSettings: (listener: () => void) => {
     state.listeners.push(listener);
     return () => {
       state.listeners = state.listeners.filter((l) => l !== listener);
     };
-  },
-}));
-
-vi.mock("../lib/webauthn.js", () => ({
+  }});
+import { webauthnSeams } from "../lib/webauthn.js";
+const originalWebauthnSeams = { ...webauthnSeams };
+Object.assign(webauthnSeams, {
   WEBAUTHN_FALLBACK: "This browser cannot do passkeys here.",
   detectWebAuthn: () => Promise.resolve(state.support),
-}));
+});
 
 import { PasskeyCeremonyNote } from "./PasskeyCeremonyNote.js";
 

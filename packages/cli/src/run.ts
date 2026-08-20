@@ -24,6 +24,7 @@ import {
   helpText,
   parseArgs,
 } from "./parse.js";
+import { overlapCast, type BoundaryValue, isNumber } from "@opensesame/os-domain";
 
 function defaultIssuer(): string {
   return process.env.OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
@@ -100,7 +101,7 @@ async function refreshSession(
       `${trimSlash(session.issuer)}/.well-known/openid-configuration`,
     );
     if (!discovery.ok) return null;
-    const meta = (await discovery.json()) as { token_endpoint?: string };
+    const meta = overlapCast(await discovery.json());
     const tokenEndpoint = meta.token_endpoint;
     if (!tokenEndpoint) return null;
     const issuerOrigin = new URL(session.issuer).origin;
@@ -116,19 +117,15 @@ async function refreshSession(
       body,
     });
     if (!res.ok) return null;
-    const tokens = (await res.json()) as {
-      access_token?: string;
-      refresh_token?: string;
-      expires_in?: number;
-    };
+    const tokens = overlapCast(await res.json());
     if (!tokens.access_token) return null;
     const next: SessionFile = {
       ...session,
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token ?? session.refreshToken,
-      ...(typeof tokens.expires_in === "number"
+      ...(isNumber(tokens.expires_in)
         ? { expiresAt: Date.now() + tokens.expires_in * 1000 }
-        : {}),
+        : undefined),
     };
     await saveSession(next);
     return next;
@@ -173,7 +170,7 @@ async function clearSession(): Promise<void> {
   }
 }
 
-function emit(flags: { json: boolean }, human: string, data: unknown): void {
+function emit(flags: { json: boolean }, human: string, data: BoundaryValue): void {
   const redacted = redactSecrets(data);
   if (flags.json) {
     process.stdout.write(`${JSON.stringify(redacted, null, 2)}\n`);
@@ -262,7 +259,7 @@ async function dispatch(
         const expiresAt = Date.parse(session.expiresAt);
         await saveSession({
           accessToken: session.accessToken,
-          ...(Number.isNaN(expiresAt) ? {} : { expiresAt }),
+          ...(Number.isNaN(expiresAt) ? undefined : { expiresAt }),
           issuer,
           clientId,
           anonymous: true,
@@ -288,19 +285,19 @@ async function dispatch(
           issuer,
           clientId,
           fetchImpl,
-          ...(deps?.openBrowser ? { openBrowser: deps.openBrowser } : {}),
+          ...(deps?.openBrowser ? { openBrowser: deps.openBrowser } : undefined),
         });
         await saveSession({
           accessToken: tokens.access_token,
           ...(tokens.refresh_token !== undefined
             ? { refreshToken: tokens.refresh_token }
-            : {}),
+            : undefined),
           ...(tokens.id_token !== undefined
             ? { idToken: tokens.id_token }
-            : {}),
+            : undefined),
           ...(tokens.expires_in !== undefined
             ? { expiresAt: Date.now() + tokens.expires_in * 1000 }
-            : {}),
+            : undefined),
           issuer,
           clientId,
         });
@@ -316,7 +313,7 @@ async function dispatch(
         issuer,
         clientId,
         fetchImpl,
-        ...(deps?.sleep ? { sleep: deps.sleep } : {}),
+        ...(deps?.sleep ? { sleep: deps.sleep } : undefined),
       });
       const start = await device.start();
       if (!command.flags.json) {
@@ -341,11 +338,11 @@ async function dispatch(
         accessToken: tokens.access_token,
         ...(tokens.refresh_token !== undefined
           ? { refreshToken: tokens.refresh_token }
-          : {}),
-        ...(tokens.id_token !== undefined ? { idToken: tokens.id_token } : {}),
+          : undefined),
+        ...(tokens.id_token !== undefined ? { idToken: tokens.id_token } : undefined),
         ...(tokens.expires_in !== undefined
           ? { expiresAt: Date.now() + tokens.expires_in * 1000 }
-          : {}),
+          : undefined),
         issuer,
         clientId,
       });
@@ -361,7 +358,7 @@ async function dispatch(
       const session = await sessionFor(await loadSession(), issuer, fetchImpl);
       const cp = createControlPlaneClient({
         baseUrl: api,
-        ...(session ? { accessToken: session.accessToken } : {}),
+        ...(session ? { accessToken: session.accessToken } : undefined),
         fetchImpl,
       });
       const status = await cp.authStatus();
@@ -437,7 +434,7 @@ async function dispatch(
       const session = await sessionFor(await loadSession(), issuer, fetchImpl);
       const cp = createControlPlaneClient({
         baseUrl: api,
-        ...(session ? { accessToken: session.accessToken } : {}),
+        ...(session ? { accessToken: session.accessToken } : undefined),
         fetchImpl,
       });
       const claim = await cp.pollClaim(command.claimId, command.claimToken);

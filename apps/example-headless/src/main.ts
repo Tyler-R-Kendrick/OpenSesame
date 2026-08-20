@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * Headless device-login demo against the identity control plane.
  *
@@ -14,7 +15,7 @@ const clientId = process.env.OPENSESAME_CLIENT_ID ?? "opensesame-cli";
 
 export function createMockFetch(): typeof fetch {
   let polls = 0;
-  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+  return overlapCast(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.includes("openid-configuration")) {
       return new Response(
@@ -57,7 +58,7 @@ export function createMockFetch(): typeof fetch {
       );
     }
     throw new Error(`unexpected ${url}`);
-  }) as typeof fetch;
+  });
 }
 
 export async function runHeadlessDeviceLogin(options?: {

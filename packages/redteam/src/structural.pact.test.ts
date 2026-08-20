@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import McpHostStructuralProvider, { type RedteamVars } from "./mcp-provider.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 type ToolResponse = {
   isError?: boolean;
@@ -9,12 +10,12 @@ type ToolResponse = {
 type Probe = {
   calls: Array<{
     tool: string;
-    params: Record<string, unknown>;
+    params: JsonObject;
     response: ToolResponse;
   }>;
   tools?: Array<{
     name: string;
-    inputSchema: { properties?: Record<string, unknown> };
+    inputSchema: { properties?: JsonObject };
   }>;
   upstreamRequests?: Array<{
     url: string;
@@ -26,11 +27,11 @@ type Probe = {
 async function probe(vars: RedteamVars): Promise<Probe> {
   const provider = new McpHostStructuralProvider();
   const result = await provider.callApi("", {
-    vars: vars as unknown as Record<string, unknown>,
+    vars: overlapCast(vars),
   });
   if (result.error) throw new Error(result.error);
   if (!result.output) throw new Error("empty structural probe output");
-  return JSON.parse(result.output) as Probe;
+  return overlapCast(JSON.parse(result.output));
 }
 
 function dump(data: Probe): string {
@@ -133,10 +134,7 @@ describe("PACT — redteam structural (live mcp-host)", () => {
         (req) => req.url === "/v1/operator/invoke_l1",
       );
       expect(invokeReq).toBeTruthy();
-      const body = JSON.parse(invokeReq?.body ?? "{}") as {
-        intent_digest?: string;
-        operation?: string;
-      };
+      const body = overlapCast(JSON.parse(invokeReq?.body ?? "{}"));
       expect(body.intent_digest).toBe("sha256:server-issued-digest");
       expect(invokeReq?.headers["x-opensesame-intent-digest"]).toBe(
         "sha256:server-issued-digest",

@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 /**
  * @vitest-environment jsdom
  * @vitest-environment-options {"url": "opensesame-mfa://approve"}
@@ -7,7 +8,7 @@ import { type Root, createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App.js";
 
-(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+(overlapCast(globalThis)).IS_REACT_ACT_ENVIRONMENT = true;
 
 let container: HTMLDivElement;
 let root: Root;
@@ -32,9 +33,9 @@ describe("App deep-link (opensesame-mfa:// without params)", () => {
     await act(async () => {
       root.render(<App />);
     });
-    const input = container.querySelector(
+    const input = overlapCast(container.querySelector(
       'input[placeholder="ABCD-EFGH"]',
-    ) as HTMLInputElement;
+    ));
     expect(input.value).toBe("");
     expect(container.textContent).toContain("Ready for step-up");
     expect(container.textContent).not.toContain("Deep-link claim id");

@@ -5,25 +5,22 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const v = vi.hoisted(() => ({
   state: {
-    status: "locked" as string,
-    header: null as { hint?: string } | null,
-    lockedOutUntil: null as number | null,
+    status: "locked",
+    header: null,
+    lockedOutUntil: null,
     failedAttempts: 0,
     durable: true,
     awaitingTotp: false,
   },
-  methods: ["password"] as string[],
-  preferred: "password" as string,
-  host: { ok: true } as {
-    ok: boolean;
-    reason?: string;
-    fixUrl?: string | null;
-  },
+  methods: ["password"],
+  preferred: "password",
+  host: { ok: true },
   store: {
     create: vi.fn(),
     unlock: vi.fn(),
@@ -35,18 +32,21 @@ const v = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../lib/vault/hooks.js", () => ({
-  useVault: () => v.state,
-  useVaultStore: () => v.store,
-}));
+import { vaultHooksSeams } from "../lib/vault/hooks.js";
+const originalVaultHooksSeams = { ...vaultHooksSeams };
+Object.assign(vaultHooksSeams, {useVault: () => v.state,
+  useVaultStore: () => v.store});
 
-vi.mock("../lib/vault/unlock-methods.js", () => ({
+
+import { unlockMethodsSeams } from "../lib/vault/unlock-methods.js";
+const originalUnlockMethodsSeams = { ...unlockMethodsSeams };
+Object.assign(unlockMethodsSeams, {
   listAvailableUnlockMethods: () => v.methods,
   preferredUnlockMethod: () => v.preferred,
   checkWebauthnHost: () => v.host,
-  describeWebauthnError: (error: unknown) =>
+  describeWebauthnError: (error: BoundaryValue) =>
     `webauthn: ${error instanceof Error ? error.message : String(error)}`,
-}));
+});
 
 import { UnlockScreen } from "./UnlockScreen.js";
 
@@ -57,13 +57,13 @@ function submitButton(): HTMLButtonElement {
     .getAllByRole("button")
     .filter((el) => el.getAttribute("type") === "submit");
   if (buttons.length !== 1) throw new Error("submit button not found");
-  return buttons[0] as HTMLButtonElement;
+  return overlapCast(buttons[0]);
 }
 
 function masterInput(): HTMLInputElement {
-  return screen.getByLabelText(
+  return overlapCast(screen.getByLabelText(
     /Master password|^Password$/,
-  ) as HTMLInputElement;
+  ));
 }
 
 describe("UnlockScreen — first run", () => {
@@ -148,7 +148,7 @@ describe("UnlockScreen — first run", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show password" }));
     expect(master.type).toBe("text");
     expect(
-      (screen.getByLabelText("Confirm master password") as HTMLInputElement)
+      (overlapCast(screen.getByLabelText("Confirm master password")))
         .type,
     ).toBe("text");
     fireEvent.click(screen.getByRole("button", { name: "Hide password" }));
@@ -308,7 +308,7 @@ describe("UnlockScreen — PIN unlock", () => {
     fireEvent.click(tab);
     expect(tab.getAttribute("aria-selected")).toBe("true");
 
-    const pin = screen.getByLabelText("PIN") as HTMLInputElement;
+    const pin = overlapCast(screen.getByLabelText("PIN"));
     fireEvent.change(pin, { target: { value: "123" } });
     expect(submitButton().disabled).toBe(true);
     fireEvent.change(pin, { target: { value: "12345678" } });
@@ -428,9 +428,9 @@ describe("UnlockScreen — passkey unlock", () => {
       expect(v.store.unlockWithPasskey).toHaveBeenCalledTimes(1),
     );
     // The prompt is pending ("blocking") — the Password tab must still be live.
-    const passwordTab = screen.getByRole("tab", {
+    const passwordTab = overlapCast(screen.getByRole("tab", {
       name: /Password/,
-    }) as HTMLButtonElement;
+    }));
     expect(passwordTab.disabled).toBe(false);
     fireEvent.click(passwordTab);
     // The ceremony was aborted, no error surfaced, and the password form works.

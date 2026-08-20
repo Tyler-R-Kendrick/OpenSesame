@@ -9,6 +9,7 @@ import {
   writeClaimStash,
 } from "./claim-stash.js";
 import { isLoopbackUrl, operatorHeadersFor } from "./urls.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -81,9 +82,9 @@ describe("PACT — console operator + claim stash", () => {
       configurable: true,
     });
     writeClaimStash({ token: "osc_clm_x.secret", presented: false });
-    const parsed = JSON.parse(
+    const parsed = overlapCast(JSON.parse(
       globalThis.sessionStorage.getItem("opensesame.claim") ?? "null",
-    ) as { token: string };
+    ));
     expect(parsed.token).toBe("osc_clm_x.secret");
     assertNoSecretFields({ claimId: "clm_1", principalId: "prn_1" });
     assertSourceOrder(readFileSync(join(here, "urls.ts"), "utf8"), [

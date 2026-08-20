@@ -1,4 +1,5 @@
 import { assertSecureUrl, trimSlash } from "./secure-url.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 export interface ControlPlaneClientConfig {
   baseUrl: string;
@@ -52,7 +53,7 @@ export function createControlPlaneClient(config: ControlPlaneClientConfig) {
       if (!res.ok) {
         throw new Error(`provisional session failed: ${res.status}`);
       }
-      const session = (await res.json()) as ProvisionalSession;
+      const session = overlapCast(await res.json());
       if (!session.accessToken) {
         throw new Error("provisional session response carried no access token");
       }
@@ -124,7 +125,7 @@ export function createControlPlaneClient(config: ControlPlaneClientConfig) {
         body: JSON.stringify(input),
       });
       if (!res.ok) throw new Error(`agent register failed: ${res.status}`);
-      const registration = (await res.json()) as Record<string, unknown>;
+      const registration = overlapCast(await res.json());
       return provisional ? { ...registration, provisional } : registration;
     },
 

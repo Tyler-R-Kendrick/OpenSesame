@@ -1,6 +1,7 @@
 import { AuthError, AuthorizationError } from "./errors.js";
 import { hasRequiredScopes } from "./jwt-utils.js";
 import { assertSecureUrl } from "./verifier.js";
+import { type JsonObject, overlapCast, isTypeofObject, isString } from "@opensesame/os-domain";
 
 export interface IntrospectedAccessToken {
   active: true;
@@ -11,7 +12,7 @@ export interface IntrospectedAccessToken {
   iat?: number;
   iss?: string;
   token_type?: string;
-  [claim: string]: unknown;
+  [claim: string]: import("@opensesame/os-domain").JsonValue | undefined;
 }
 
 export interface IntrospectOpaqueAccessTokenOptions {
@@ -25,7 +26,7 @@ export interface IntrospectOpaqueAccessTokenOptions {
 
 function encodeBasicAuth(clientId: string, clientSecret: string): string {
   const credentials = `${clientId}:${clientSecret}`;
-  if (typeof Buffer !== "undefined") {
+  if (Buffer !== undefined) {
     return Buffer.from(credentials, "utf8").toString("base64");
   }
   return btoa(credentials);
@@ -40,7 +41,7 @@ export async function introspectOpaqueAccessToken(
   const fetchFn = options.fetch ?? globalThis.fetch;
   const body = new URLSearchParams({ token });
 
-  const headers: Record<string, string> = {
+  const headers = {
     "Content-Type": "application/x-www-form-urlencoded",
     Accept: "application/json",
   };
@@ -88,19 +89,19 @@ export async function introspectOpaqueAccessToken(
     );
   }
 
-  if (typeof data !== "object" || data === null || !("active" in data)) {
+  if (!isTypeofObject(data) || data === null || !("active" in data)) {
     throw new AuthError(
       "introspection_failed",
       "Token introspection returned invalid response",
     );
   }
 
-  const record = data as Record<string, unknown>;
+  const record = overlapCast(data);
   if (record.active !== true) {
     throw new AuthError("token_inactive", "Token is not active");
   }
 
-  const scope = typeof record.scope === "string" ? record.scope : undefined;
+  const scope = isString(record.scope) ? record.scope : undefined;
   if (!hasRequiredScopes(scope, options.requiredScopes ?? [])) {
     throw new AuthorizationError(
       "insufficient_scope",

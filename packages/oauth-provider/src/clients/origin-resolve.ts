@@ -25,11 +25,8 @@ export type ResolveOriginClientOptions = {
   systemOwnerPrincipalId?: string;
 };
 
-function canonicalOptions(options: ResolveOriginClientOptions): {
-  allowLoopbackHttp: boolean;
-  production?: boolean;
-} {
-  const canonicalOpts: { allowLoopbackHttp: boolean; production?: boolean } = {
+function canonicalOptions(options: ResolveOriginClientOptions) {
+  const canonicalOpts = {
     allowLoopbackHttp: options.allowLoopbackHttp ?? true,
   };
   if (options.production !== undefined) {
@@ -82,7 +79,7 @@ export async function resolveOriginClient(
     ownershipStatus: "unclaimed",
     ...(options.systemOwnerPrincipalId
       ? { ownerPrincipalId: options.systemOwnerPrincipalId }
-      : {}),
+      : undefined),
     firstSeenAt: now,
     lastUsedAt: now,
   };
@@ -114,19 +111,7 @@ export async function findOriginClient(
 }
 
 /** Map OpenSesame client record → oidc-provider ClientMetadata shape. */
-export function toOidcClientMetadata(client: OAuthClientRecord): {
-  client_id: string;
-  client_name: string;
-  redirect_uris: string[];
-  grant_types: string[];
-  response_types: string[];
-  token_endpoint_auth_method: string;
-  /** Space-separated allowlist enforced by oidc-provider check_scope. */
-  scope: string;
-  subject_type: "pairwise";
-  sector_identifier_uri?: string;
-  application_type: "web";
-} {
+export function toOidcClientMetadata(client: OAuthClientRecord) {
   const scopes =
     client.allowedScopes.length > 0 ? client.allowedScopes : ["openid"];
   return {

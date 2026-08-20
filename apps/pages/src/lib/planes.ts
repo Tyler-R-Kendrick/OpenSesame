@@ -24,7 +24,7 @@ export type PlaneStatus = {
   identityBase: string;
 };
 
-export const PAGES_CANNOT_HOST =
+const PAGES_CANNOT_HOST_DEFAULT =
   "GitHub Pages cannot host the Host or Identity APIs. Point Settings at a Host you run, or use this page as the authority console only.";
 
 export function classifyHost(base: string, health: HealthState): HostPlane {
@@ -44,7 +44,7 @@ export function classifyIdentity(
   return health === "reachable" ? "none" : "down";
 }
 
-export function hostStatusLabel(host: HostPlane): string {
+function hostStatusLabelDefault(host: HostPlane): string {
   switch (host) {
     case "live":
       return "Host live";
@@ -59,7 +59,7 @@ export function hostStatusLabel(host: HostPlane): string {
   }
 }
 
-export function identityStatusLabel(identity: IdentityPlane): string {
+function identityStatusLabelDefault(identity: IdentityPlane): string {
   switch (identity) {
     case "connected":
       return "Identity connected";
@@ -71,7 +71,7 @@ export function identityStatusLabel(identity: IdentityPlane): string {
 }
 
 /** Whether the Connect-this-machine panel should be shown. */
-export function needsHostPairing(status: PlaneStatus): boolean {
+function needsHostPairingDefault(status: PlaneStatus): boolean {
   if (status.host === "live" || status.host === "pending") return false;
   if (hasRemoteHostPairing() && status.host === "down") return false;
   if (status.host === "unset") return true;
@@ -80,7 +80,7 @@ export function needsHostPairing(status: PlaneStatus): boolean {
   return false;
 }
 
-export function usePlaneStatus(): PlaneStatus {
+function usePlaneStatusDefault(): PlaneStatus {
   const session = useIdentitySession();
   const [hostHealth, setHostHealth] = useState<HealthState>("unknown");
   const [identityHealth, setIdentityHealth] = useState<HealthState>("unknown");
@@ -114,4 +114,30 @@ export function usePlaneStatus(): PlaneStatus {
     identity: classifyIdentity(session !== null, identityHealth),
     identityBase: identity,
   };
+}
+
+export const planeSeams = {
+  usePlaneStatus: usePlaneStatusDefault,
+  PAGES_CANNOT_HOST: PAGES_CANNOT_HOST_DEFAULT,
+  hostStatusLabel: hostStatusLabelDefault,
+  identityStatusLabel: identityStatusLabelDefault,
+  needsHostPairing: needsHostPairingDefault,
+};
+
+export function usePlaneStatus(): PlaneStatus {
+  return planeSeams.usePlaneStatus();
+}
+
+export const PAGES_CANNOT_HOST = PAGES_CANNOT_HOST_DEFAULT;
+
+export function hostStatusLabel(host: HostPlane): string {
+  return planeSeams.hostStatusLabel(host);
+}
+
+export function identityStatusLabel(identity: IdentityPlane): string {
+  return planeSeams.identityStatusLabel(identity);
+}
+
+export function needsHostPairing(status: PlaneStatus): boolean {
+  return planeSeams.needsHostPairing(status);
 }

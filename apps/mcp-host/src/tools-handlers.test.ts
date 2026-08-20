@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetFetchForTests, setFetchForTests } from "./host-api.js";
 import { getTaskContext, setTaskContext } from "./task-context.js";
 import { registerHostTools } from "./tools.js";
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
-type AnyFn = (...args: unknown[]) => unknown;
+type AnyFn = (...args: unknown[]) => BoundaryValue;
 
 interface ToolResult {
   content: Array<{ type: string; text: string }>;
@@ -21,24 +22,25 @@ function makeRegistrar() {
   const handlers = new Map<string, AnyFn>();
   const server = {
     tool: (...args: unknown[]) => {
-      handlers.set(args[0] as string, args[args.length - 1] as AnyFn);
+      handlers.set(overlapCast(args[0]), overlapCast(args[args.length - 1]));
     },
-  } as unknown as McpServer;
-  registerHostTools(server);
+  };
+  const typedServer = overlapCast(server);
+  registerHostTools(typedServer);
   return handlers;
 }
 
 async function callTool(
   handlers: Map<string, AnyFn>,
   name: string,
-  args?: unknown,
+  args?: BoundaryValue,
 ): Promise<ToolResult> {
   const handler = handlers.get(name);
   expect(handler, `tool ${name} registered`).toBeDefined();
-  return (await handler?.(args)) as ToolResult;
+  return overlapCast(await handler?.(args));
 }
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: BoundaryValue, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },

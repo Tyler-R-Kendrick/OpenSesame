@@ -16,6 +16,7 @@ import type {
   StorageLike,
   TokenResponse,
 } from "./types.js";
+import { type JsonObject, overlapCast, isTypeofObject, isString, isNumber } from "@opensesame/os-domain";
 
 const PKCE_KEY = "opensesame:pkce";
 const SESSION_KEY = "opensesame:session";
@@ -43,7 +44,7 @@ class MemoryStorage implements StorageLike {
  */
 function resolveStorage(storage?: StorageLike): StorageLike {
   if (storage) return storage;
-  if (typeof globalThis !== "undefined" && "sessionStorage" in globalThis) {
+  if (globalThis !== undefined && "sessionStorage" in globalThis) {
     try {
       const ss = globalThis.sessionStorage;
       // Touch to ensure the Storage is usable (private mode quirks).
@@ -59,10 +60,9 @@ function resolveStorage(storage?: StorageLike): StorageLike {
 /** Persist session without refresh tokens (keep those in-process only). */
 function sessionForStorage(session: Session): Session {
   const { refreshToken: _drop, ...rest } = session;
-  if (rest.raw && typeof rest.raw === "object") {
-    const { refresh_token: _omit, ...raw } = rest.raw as TokenResponse &
-      Record<string, unknown>;
-    return { ...rest, raw: raw as TokenResponse };
+  if (rest.raw && isTypeofObject(rest.raw)) {
+    const { refresh_token: _omit, ...raw } = overlapCast(rest.raw);
+    return { ...rest, raw: overlapCast(raw) };
   }
   return rest;
 }
@@ -82,7 +82,7 @@ function resolvePageOrigin(
       /* ignore */
     }
   }
-  if (typeof globalThis !== "undefined" && "location" in globalThis) {
+  if (globalThis !== undefined && "location" in globalThis) {
     try {
       return globalThis.location.origin;
     } catch {
@@ -107,7 +107,7 @@ function scrubCallbackUrl(href: string): void {
     }
     const next = `${url.pathname}${url.search}${url.hash}`;
     if (
-      typeof globalThis !== "undefined" &&
+      globalThis !== undefined &&
       "history" in globalThis &&
       globalThis.history?.replaceState
     ) {
@@ -191,13 +191,13 @@ export function assertDiscoveredUrl(
   return checked;
 }
 
-function decodeJwtPayload(token: string): Record<string, unknown> | undefined {
+function decodeJwtPayload(token: string): JsonObject | undefined {
   const part = token.split(".")[1];
   if (!part) return undefined;
   try {
-    return JSON.parse(
+    return overlapCast(JSON.parse(
       atob(part.replace(/-/g, "+").replace(/_/g, "/")),
-    ) as Record<string, unknown>;
+    ));
   } catch {
     return undefined;
   }
@@ -214,18 +214,18 @@ function decodeJwtPayload(token: string): Record<string, unknown> | undefined {
 function assertIdTokenAddressedToUs(
   idToken: string,
   expect: { issuer: string; clientId: string; nonce?: string },
-): Record<string, unknown> | undefined {
+): JsonObject | undefined {
   const payload = decodeJwtPayload(idToken);
   if (!payload) return undefined;
   const iss =
-    typeof payload.iss === "string" ? trimSlash(payload.iss) : undefined;
+    isString(payload.iss) ? trimSlash(payload.iss) : undefined;
   if (iss !== undefined && iss !== expect.issuer) {
     throw new Error("id_token issued by a different issuer");
   }
   const aud = payload.aud;
   const audiences = Array.isArray(aud)
     ? aud.map(String)
-    : typeof aud === "string"
+    : isString(aud)
       ? [aud]
       : [];
   if (audiences.length > 0 && !audiences.includes(expect.clientId)) {
@@ -243,13 +243,13 @@ function toSession(
   expect: { issuer: string; clientId: string; nonce?: string },
 ): Session {
   const expiresAt =
-    typeof tokens.expires_in === "number"
+    isNumber(tokens.expires_in)
       ? Date.now() + tokens.expires_in * 1000
       : undefined;
   let sub: string | undefined;
   if (tokens.id_token) {
     const payload = assertIdTokenAddressedToUs(tokens.id_token, expect);
-    sub = typeof payload?.sub === "string" ? payload.sub : undefined;
+    sub = isString(payload?.sub) ? payload.sub : undefined;
   }
   const session: Session = {
     accessToken: tokens.access_token,
@@ -294,7 +294,7 @@ export function createOpenSesame(
     if (!res.ok) {
       throw new Error(`OIDC discovery failed: ${res.status}`);
     }
-    const meta = (await res.json()) as OidcDiscoveryDocument;
+    const meta = overlapCast(await res.json());
     // The discovery document decides where the code and the verifier are sent.
     // An issuer that does not name itself, or an endpoint reachable over
     // cleartext, is a document that hands the ceremony to whoever answered.
@@ -334,7 +334,7 @@ export function createOpenSesame(
     const raw = storage.getItem(SESSION_KEY);
     if (!raw) return null;
     try {
-      const session = JSON.parse(raw) as Session;
+      const session = overlapCast(JSON.parse(raw));
       if (!session.refreshToken && refreshTokenMemory) {
         session.refreshToken = refreshTokenMemory;
       }
@@ -355,9 +355,9 @@ export function createOpenSesame(
     if (!jwksRes.ok) {
       throw new Error(`JWKS fetch failed: ${jwksRes.status}`);
     }
-    const jwks = (await jwksRes.json()) as { keys: unknown[] };
+    const jwks = overlapCast(await jwksRes.json());
     const getKey = createLocalJWKSet(
-      jwks as Parameters<typeof createLocalJWKSet>[0],
+      overlapCast(jwks),
     );
     const { payload } = await jwtVerify(idToken, getKey, {
       issuer,
@@ -368,7 +368,7 @@ export function createOpenSesame(
     if (payload.nonce !== expectedNonce) {
       throw new Error("id_token nonce mismatch");
     }
-    if (typeof payload.sub !== "string" || payload.sub === "") {
+    if (!isString(payload.sub) || payload.sub === "") {
       throw new Error("id_token missing sub");
     }
     return payload.sub;
@@ -395,7 +395,7 @@ export function createOpenSesame(
     if (!res.ok) {
       throw new Error(`Token exchange failed: ${res.status}`);
     }
-    const tokens = (await res.json()) as TokenResponse;
+    const tokens = overlapCast(await res.json());
     if (originProfile) {
       if (!tokens.id_token) {
         throw new Error("Token response missing id_token");
@@ -416,7 +416,7 @@ export function createOpenSesame(
     const session = toSession(tokens, false, {
       issuer,
       clientId,
-      ...(nonce ? { nonce } : {}),
+      ...(nonce ? { nonce } : undefined),
     });
     saveSession(session);
     return session;
@@ -447,7 +447,7 @@ export function createOpenSesame(
       }
       const loc =
         config.windowLocation ??
-        (typeof globalThis !== "undefined" && "location" in globalThis
+        (globalThis !== undefined && "location" in globalThis
           ? globalThis.location
           : undefined);
       if (!loc) {
@@ -460,7 +460,7 @@ export function createOpenSesame(
       const href =
         callbackUrl ??
         config.windowLocation?.href ??
-        (typeof globalThis !== "undefined" && "location" in globalThis
+        (globalThis !== undefined && "location" in globalThis
           ? globalThis.location.href
           : "");
       const url = new URL(href);
@@ -478,11 +478,7 @@ export function createOpenSesame(
       }
       let pkce: { state: string; codeVerifier: string; nonce?: string };
       try {
-        pkce = JSON.parse(rawPkce) as {
-          state: string;
-          codeVerifier: string;
-          nonce?: string;
-        };
+        pkce = overlapCast(JSON.parse(rawPkce));
       } catch {
         storage.removeItem(PKCE_KEY);
         throw new Error("Stored PKCE state is unreadable");
@@ -514,12 +510,12 @@ export function createOpenSesame(
       if (!res.ok) {
         throw new Error(`Anonymous session failed: ${res.status}`);
       }
-      const body = (await res.json()) as ProvisionalSessionResponse;
-      if (typeof body.accessToken !== "string" || body.accessToken === "") {
+      const body = overlapCast(await res.json());
+      if (!isString(body.accessToken) || body.accessToken === "") {
         throw new Error("Anonymous session response carried no access token");
       }
       const expiresAt =
-        typeof body.expiresAt === "string"
+        isString(body.expiresAt)
           ? Date.parse(body.expiresAt)
           : undefined;
       const session: Session = {
@@ -535,13 +531,13 @@ export function createOpenSesame(
                   Math.floor((expiresAt - Date.now()) / 1000),
                 ),
               }
-            : {}),
+            : undefined),
         },
       };
       if (expiresAt !== undefined && !Number.isNaN(expiresAt)) {
         session.expiresAt = expiresAt;
       }
-      if (typeof body.principalId === "string") {
+      if (isString(body.principalId)) {
         session.sub = body.principalId;
       }
       saveSession(session);
@@ -560,7 +556,7 @@ export function createOpenSesame(
 
     async presentClaim(token) {
       const session = readSession();
-      const headers: Record<string, string> = {
+      const headers = {
         "content-type": "application/json",
         accept: "application/json",
       };
@@ -575,7 +571,7 @@ export function createOpenSesame(
       if (!res.ok) {
         throw new Error(`presentClaim failed: ${res.status}`);
       }
-      return (await res.json()) as ClaimPresentation;
+      return overlapCast(await res.json());
     },
 
     async readClaim(claimId, claimToken) {
@@ -591,7 +587,7 @@ export function createOpenSesame(
       if (!res.ok) {
         throw new Error(`readClaim failed: ${res.status}`);
       }
-      return (await res.json()) as ClaimPresentation;
+      return overlapCast(await res.json());
     },
 
     async completeClaim(claimId, decision: ClaimDecision) {
@@ -600,7 +596,7 @@ export function createOpenSesame(
         throw new Error("Authentication required to complete claim");
       }
       const encodedId = encodeURIComponent(claimId);
-      const body: Record<string, unknown> = {
+      const body: JsonObject = {
         acceptedItemIds: decision.acceptedItemIds,
       };
       body.userCode = decision.userCode;
@@ -612,7 +608,7 @@ export function createOpenSesame(
       if (decision.claimToken !== undefined) {
         body.claimToken = decision.claimToken;
       }
-      const headers: Record<string, string> = {
+      const headers = {
         "content-type": "application/json",
         accept: "application/json",
         authorization: `Bearer ${session.accessToken}`,
@@ -631,7 +627,7 @@ export function createOpenSesame(
       if (!res.ok) {
         throw new Error(`completeClaim failed: ${res.status}`);
       }
-      return (await res.json()) as ClaimPresentation;
+      return overlapCast(await res.json());
     },
 
     async linkIdentity(options) {
@@ -660,7 +656,7 @@ export function createOpenSesame(
         if (meta.end_session_endpoint) {
           const loc =
             config.windowLocation ??
-            (typeof globalThis !== "undefined" && "location" in globalThis
+            (globalThis !== undefined && "location" in globalThis
               ? globalThis.location
               : undefined);
           loc?.assign(meta.end_session_endpoint);

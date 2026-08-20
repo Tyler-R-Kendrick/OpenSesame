@@ -2,11 +2,7 @@ import { type ReactNode, useCallback, useRef, useState } from "react";
 import { useCopySecret } from "../lib/vault/hooks.js";
 import { IconCheck, IconCopy, IconEye, IconEyeOff } from "./Icons.js";
 
-export function useCopyFeedback(): {
-  copied: string | null;
-  failed: string | null;
-  copy: (key: string, value: string) => Promise<void>;
-} {
+export function useCopyFeedback() {
   const copySecret = useCopySecret();
   const [copied, setCopied] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);

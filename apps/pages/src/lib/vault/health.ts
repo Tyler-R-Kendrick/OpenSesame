@@ -20,14 +20,14 @@ export type HealthReport = {
 
 const OLD_PASSWORD_DAYS = 365;
 
-export const ISSUE_LABEL: Record<HealthIssue, string> = {
+export const ISSUE_LABEL = {
   weak: "Weak",
   reused: "Reused",
   old: "Over a year old",
   "no-2fa": "No 2FA",
 };
 
-export const ISSUE_EXPLANATION: Record<HealthIssue, string> = {
+export const ISSUE_EXPLANATION = {
   weak: "Short or predictable enough to be guessed offline. Generate a replacement.",
   reused: "One breach elsewhere unlocks every account sharing this password.",
   old: "Rotate passwords you have held for more than a year.",
@@ -48,7 +48,7 @@ export function buildHealthReport(items: VaultItem[]): HealthReport {
   }
 
   const cutoff = Date.now() - OLD_PASSWORD_DAYS * 86_400_000;
-  const counts: Record<HealthIssue, number> = {
+  const counts = {
     weak: 0,
     reused: 0,
     old: 0,

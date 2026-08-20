@@ -1,23 +1,25 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const hb = vi.hoisted(() => ({
   state: {
-    lastPushedAt: null as string | null,
-    lastError: null as string | null,
+    lastPushedAt: null,
+    lastError: null,
     pendingCount: 0,
   },
-  listeners: [] as Array<() => void>,
+  listeners: [],
   getBackupStatus: vi.fn(),
 }));
 
-vi.mock("../lib/backup.js", () => ({
-  getBackupStatus: hb.getBackupStatus,
-}));
-
-vi.mock("../lib/vault/host-backup.js", () => ({
+import { backupSeams } from "../lib/backup.js";
+const originalBackupSeams = { ...backupSeams };
+Object.assign(backupSeams, { getBackupStatus: hb.getBackupStatus });
+import { hostBackupSeams } from "../lib/vault/host-backup.js";
+const originalHostBackupSeams = { ...hostBackupSeams };
+Object.assign(hostBackupSeams, {
   getVaultHostBackupState: () => hb.state,
   subscribeVaultHostBackup: (listener: () => void) => {
     hb.listeners.push(listener);
@@ -25,7 +27,7 @@ vi.mock("../lib/vault/host-backup.js", () => ({
       hb.listeners = hb.listeners.filter((l) => l !== listener);
     };
   },
-}));
+});
 
 import { BackupRecoverabilityBanner } from "./BackupRecoverabilityBanner.js";
 
@@ -41,7 +43,7 @@ function healthyTarget() {
       status: "ok",
       lastCommitSha: "abc123",
       lastSyncedAt: "2025-01-01T00:00:00Z",
-      lastError: null as string | null,
+      lastError: null,
     },
     pendingEvents: 0,
   };

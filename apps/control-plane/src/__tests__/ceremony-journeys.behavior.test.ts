@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 /**
  * Behaviour specifications for the ceremony journeys.
@@ -33,10 +34,7 @@ async function aGuestArrives(app: App) {
     method: "POST",
   });
   expect(res.status, "a guest can always start without an account").toBe(201);
-  return (await res.json()) as {
-    principalId: string;
-    accessToken: string;
-  };
+  return overlapCast(await res.json());
 }
 
 let nonce = 0;
@@ -54,11 +52,7 @@ async function someoneSharesAClaim(app: App, ownerToken: string) {
     }),
   });
   expect(res.status).toBe(201);
-  return (await res.json()) as {
-    claimId: string;
-    claimToken: string;
-    userCode: string;
-  };
+  return overlapCast(await res.json());
 }
 
 const present = (app: App, token: string, asToken?: string) =>
@@ -66,7 +60,7 @@ const present = (app: App, token: string, asToken?: string) =>
     method: "POST",
     headers: {
       "content-type": "application/json",
-      ...(asToken ? { authorization: `Bearer ${asToken}` } : {}),
+      ...(asToken ? { authorization: `Bearer ${asToken}` } : undefined),
     },
     body: JSON.stringify({ token }),
   });
@@ -75,7 +69,7 @@ const complete = (
   app: App,
   claimId: string,
   accessToken: string,
-  body: Record<string, unknown>,
+  body: JsonObject,
 ) =>
   app.request(`/v1/claims/${claimId}/complete`, {
     method: "POST",
@@ -163,7 +157,7 @@ async function theyShareTheirInboxHandle(
     headers: { authorization: `Bearer ${who.accessToken}` },
   });
   expect(res.status).toBe(200);
-  return ((await res.json()) as { approverRef: string }).approverRef;
+  return (overlapCast(await res.json())).approverRef;
 }
 
 describe("Journey: an agent asks a person to authorize something", () => {
@@ -195,21 +189,14 @@ describe("Journey: an agent asks a person to authorize something", () => {
       }),
     });
     expect(asked.status).toBe(201);
-    const request = (await asked.json()) as {
-      authReqId: string;
-      requestDigest: string;
-      bindingMessage: string;
-      authorizationDetails: { actions?: string[] }[];
-    };
+    const request = overlapCast(await asked.json());
 
     // Then it waits in that person's inbox, described in terms of what it does
     const inbox = await app.request(
       "/v1/authorization-requests?status=pending",
       { headers: { authorization: `Bearer ${person.accessToken}` } },
     );
-    const waiting = (await inbox.json()) as {
-      requests: { authReqId: string; bindingMessage: string }[];
-    };
+    const waiting = overlapCast(await inbox.json());
     expect(waiting.requests).toHaveLength(1);
     expect(waiting.requests[0]?.bindingMessage).toBe(
       "Read acme/catalog issues",
@@ -262,7 +249,7 @@ describe("Journey: an agent asks a person to authorize something", () => {
         ttlSeconds: 30,
       }),
     });
-    const request = (await asked.json()) as { expiresAt: string };
+    const request = overlapCast(await asked.json());
 
     // Then it carries a deadline, so a pending request cannot wait forever for
     // an answer that is never coming.

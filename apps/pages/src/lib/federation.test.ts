@@ -1,3 +1,4 @@
+import { type JsonObject, type BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -28,13 +29,13 @@ function b64url(value: string): string {
   return btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function jwt(claims: Record<string, unknown>): string {
+function jwt(claims: JsonObject): string {
   return `${b64url(JSON.stringify({ alg: "none", typ: "JWT" }))}.${b64url(
     JSON.stringify(claims),
   )}.signature`;
 }
 
-function seedPending(overrides: Record<string, unknown> = {}): void {
+function seedPending(overrides: JsonObject = {}): void {
   sessionStorage.setItem(
     PKCE_KEY,
     JSON.stringify({
@@ -134,7 +135,7 @@ describe("discover", () => {
     jwks_uri: "http://127.0.0.1:9090/jwks",
   };
 
-  function stubDiscovery(body: unknown, status = 200) {
+  function stubDiscovery(body: BoundaryValue, status = 200) {
     const spy = vi.fn((_input: RequestInfo | URL) =>
       Promise.resolve(
         new Response(JSON.stringify(body), {
@@ -236,7 +237,7 @@ describe("hasAuthResponse", () => {
 });
 
 describe("completeSignIn", () => {
-  function stubTokenResponse(body: unknown, status = 200) {
+  function stubTokenResponse(body: BoundaryValue, status = 200) {
     return vi.stubGlobal(
       "fetch",
       vi.fn(() =>

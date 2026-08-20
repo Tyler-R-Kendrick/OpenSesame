@@ -1,32 +1,34 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const listGithubRepos = vi.hoisted(() => vi.fn());
 const createGithubPasswordRepo = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/github-history.js", () => ({
-  DEFAULT_PASSWORD_REPO_NAME: "opensesame-passwords",
+import { githubHistorySeams } from "../../lib/github-history.js";
+const originalGithubHistorySeams = { ...githubHistorySeams };
+Object.assign(githubHistorySeams, {
   listGithubRepos,
   createGithubPasswordRepo,
   remoteFromRepo: (repo: { cloneUrl: string }) => repo.cloneUrl,
-}));
+});
 
 import type { CapabilityConnectorBinding } from "../../lib/capabilities.js";
 import type { Connection } from "../../lib/connections.js";
 import { GithubHistoryRemotePicker } from "./GithubHistoryRemotePicker.js";
 
 function makeBinding(remote: string | null = null): CapabilityConnectorBinding {
-  return { remote } as CapabilityConnectorBinding;
+  return overlapCast({ remote });
 }
 
 function makeConnection(overrides: Partial<Connection> = {}): Connection {
-  return {
+  return overlapCast({
     connectionId: "con_gh",
     status: "active",
     ...overrides,
-  } as Connection;
+  });
 }
 
 const activeConnection = makeConnection();
@@ -209,9 +211,9 @@ describe("GithubHistoryRemotePicker", () => {
     await userEvent.clear(input);
     expect(
       (
-        screen.getByRole("button", {
+        overlapCast(screen.getByRole("button", {
           name: /Create private repo/i,
-        }) as HTMLButtonElement
+        }))
       ).disabled,
     ).toBe(true);
   });

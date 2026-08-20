@@ -9,7 +9,10 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -17,6 +20,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@opensesame/os-domain": "workspace:*",
     "@simplewebauthn/server": "13.2.2",
     "better-auth": "1.6.26"
   },

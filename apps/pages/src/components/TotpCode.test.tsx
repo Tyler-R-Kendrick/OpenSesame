@@ -2,38 +2,30 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../lib/vault/totp.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../lib/vault/totp.js")>();
-  return {
-    ...actual,
-    parseTotp: vi.fn(actual.parseTotp),
-    secondsRemaining: vi.fn(actual.secondsRemaining),
-    totpCode: vi.fn(actual.totpCode),
-  };
-});
-
-import { parseTotp, secondsRemaining, totpCode } from "../lib/vault/totp.js";
+import { totpSeams } from "../lib/vault/totp.js";
 import { TotpCode, currentTotp } from "./TotpCode.js";
 
 /** RFC 6238 Appendix B seed ("12345678901234567890" in base32). */
 const SEED = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
 
-const mockedTotpCode = vi.mocked(totpCode);
-const mockedParseTotp = vi.mocked(parseTotp);
-const mockedSecondsRemaining = vi.mocked(secondsRemaining);
-
-const actualTotp = await vi.importActual<typeof import("../lib/vault/totp.js")>(
-  "../lib/vault/totp.js",
-);
+const originalTotpSeams = { ...totpSeams };
+const mockedTotpCode = vi.fn(originalTotpSeams.totpCode);
+const mockedParseTotp = vi.fn(originalTotpSeams.parseTotp);
+const mockedSecondsRemaining = vi.fn(originalTotpSeams.secondsRemaining);
+Object.assign(totpSeams, {
+  totpCode: mockedTotpCode,
+  parseTotp: mockedParseTotp,
+  secondsRemaining: mockedSecondsRemaining,
+});
 
 describe("TotpCode", () => {
   afterEach(() => {
     cleanup();
-    mockedTotpCode.mockReset().mockImplementation(actualTotp.totpCode);
-    mockedParseTotp.mockReset().mockImplementation(actualTotp.parseTotp);
+    mockedTotpCode.mockReset().mockImplementation(originalTotpSeams.totpCode);
+    mockedParseTotp.mockReset().mockImplementation(originalTotpSeams.parseTotp);
     mockedSecondsRemaining
       .mockReset()
-      .mockImplementation(actualTotp.secondsRemaining);
+      .mockImplementation(originalTotpSeams.secondsRemaining);
   });
 
   it("renders the current code grouped in threes with a countdown ring", async () => {
@@ -113,7 +105,7 @@ describe("TotpCode", () => {
 
 describe("currentTotp", () => {
   afterEach(() => {
-    mockedTotpCode.mockReset().mockImplementation(actualTotp.totpCode);
+    mockedTotpCode.mockReset().mockImplementation(originalTotpSeams.totpCode);
   });
 
   it("returns the raw current code", async () => {

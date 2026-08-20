@@ -1,28 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const hostFetch = vi.hoisted(() => vi.fn());
 const ensureHostSession = vi.hoisted(() => vi.fn());
 const project = vi.hoisted(() => ({
-  current: { id: "personal", name: "Personal", kind: "personal" } as {
-    id: string;
-    name: string;
-    kind: string;
-  },
+  current: { id: "personal", name: "Personal", kind: "personal" },
   explode: false,
 }));
 
-vi.mock("../identity.js", () => ({
-  hostFetch,
+import { identitySeams } from "../identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {hostFetch,
   ensureHostSession,
-  hostLocalSessionEligible: () => true,
-}));
-
-vi.mock("../projects.js", () => ({
+  hostLocalSessionEligible: () => true});
+import { projectSeams } from "../projects.js";
+const originalProjectSeams = { ...projectSeams };
+Object.assign(projectSeams, {
   activeProject: () => {
     if (project.explode) throw new Error("no project yet");
     return project.current;
   },
-}));
+});
 
 import {
   flushPendingVaultHostBackup,
@@ -37,14 +35,14 @@ import {
   listOfflineMutations,
 } from "./offline-backup.js";
 
-function ok(overrides: Record<string, unknown> = {}): Response {
+function ok(overrides: JsonObject = {}): Response {
   return new Response(JSON.stringify({ accepted: 2, ...overrides }), {
     status: 200,
     headers: { "content-type": "application/json" },
   });
 }
 
-function refused(status: number, body: Record<string, unknown> = {}): Response {
+function refused(status: number, body: JsonObject = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
@@ -90,10 +88,8 @@ describe("vault host backup state", () => {
     project.current = { id: "team-ops", name: "Ops", kind: "team" };
     hostFetch.mockResolvedValue(ok());
     await pushSealedVaultToHost(INPUT);
-    const [, init] = hostFetch.mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(String(init.body)) as {
-      blobs: Array<{ id: string }>;
-    };
+    const [, init] = overlapCast(hostFetch.mock.calls[0]);
+    const body = overlapCast(JSON.parse(String(init.body)));
     expect(body.blobs.map((b) => b.id)).toEqual([
       "project:team-ops:vault:header",
       "project:team-ops:vault:body",
@@ -104,10 +100,8 @@ describe("vault host backup state", () => {
     project.explode = true;
     hostFetch.mockResolvedValue(ok());
     await pushSealedVaultToHost(INPUT);
-    const [, init] = hostFetch.mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(String(init.body)) as {
-      blobs: Array<{ id: string }>;
-    };
+    const [, init] = overlapCast(hostFetch.mock.calls[0]);
+    const body = overlapCast(JSON.parse(String(init.body)));
     expect(body.blobs.map((b) => b.id)).toEqual(["vault:header", "vault:body"]);
   });
 });
@@ -196,10 +190,8 @@ describe("flushPendingVaultHostBackup", () => {
     queueOne();
     hostFetch.mockResolvedValue(ok());
     await expect(flushPendingVaultHostBackup()).resolves.toBe(1);
-    const [, init] = hostFetch.mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(String(init.body)) as {
-      blobs: Array<{ id: string; ciphertext: number[] }>;
-    };
+    const [, init] = overlapCast(hostFetch.mock.calls[0]);
+    const body = overlapCast(JSON.parse(String(init.body)));
     expect(body.blobs[0]?.ciphertext).toEqual(
       Array.from(new TextEncoder().encode("header")),
     );
@@ -277,7 +269,7 @@ describe("installVaultHostBackupFlushHooks", () => {
     documentListeners.get("visibilitychange")?.();
     expect(listOfflineMutations()).toHaveLength(1);
 
-    (document as unknown as { visibilityState: string }).visibilityState =
+    (overlapCast(document)).visibilityState =
       "visible";
     documentListeners.get("visibilitychange")?.();
     await vi.waitFor(() => {

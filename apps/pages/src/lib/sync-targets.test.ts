@@ -16,11 +16,12 @@ import {
   listSyncTargets,
   syncTarget,
 } from "./sync-targets.js";
+import { type BoundaryValue } from "@opensesame/os-domain";
 
 const HOST = shippedHostApi;
 const IDENTITY = shippedIdentityApi;
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: BoundaryValue, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },

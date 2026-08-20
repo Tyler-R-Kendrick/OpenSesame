@@ -14,6 +14,7 @@ import {
   makeIdentity,
   makePrincipal,
 } from "./factories.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 describe("MemoryRepositories.principals", () => {
   it("rejects duplicates and reports misses", async () => {
@@ -252,7 +253,7 @@ describe("MemoryRepositories.claimSessions", () => {
 
     // Patch with a falsy non-undefined value: cleared from the row.
     const cleared = await repos.claimSessions.updateWithVersion(created.id, 3, {
-      userCodeDigest: null as unknown as Uint8Array,
+      userCodeDigest: overlapCast(null),
     });
     expect("userCodeDigest" in cleared).toBe(false);
     const loaded = await repos.claimSessions.getById(created.id);

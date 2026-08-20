@@ -17,6 +17,7 @@ import {
   outboxClaimToken,
   outboxHoldActive,
 } from "../src/repos/interfaces.js";
+import { isFunction } from "@opensesame/os-domain";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -46,7 +47,7 @@ describe("createRepositories", () => {
 describe("createSqlClient / createDrizzle", () => {
   it("builds a lazy client and drizzle handle without connecting", async () => {
     const sql = createSqlClient("postgres://localhost:1/opensesame_test");
-    expect(typeof sql).toBe("function");
+    expect(isFunction(sql)).toBe(true);
     await sql.end({ timeout: 1 });
 
     const handle = createDrizzle("postgres://localhost:1/opensesame_test");

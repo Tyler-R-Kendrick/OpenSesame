@@ -15,25 +15,19 @@ const fed = vi.hoisted(() => ({
   loadSession: vi.fn(),
 }));
 
-vi.mock("../lib/federation.js", () => ({
-  FederationError: class FederationError extends Error {
-    readonly code: string;
-    constructor(code: string, message: string) {
-      super(message);
-      this.name = "FederationError";
-      this.code = code;
-    }
-  },
+import { federationSeams } from "../lib/federation.js";
+const originalFederationSeams = { ...federationSeams };
+Object.assign(federationSeams, {
   defaultUpstream: () => ({ displayName: "MockHub", accountKind: "GitHub" }),
   displayName: () => "Alice",
   beginSignIn: fed.beginSignIn,
   clearSession: fed.clearSession,
   loadSession: fed.loadSession,
-}));
-
-vi.mock("../lib/site-broker.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../lib/site-broker.js")>();
-  return { ...actual, deliverToRp: vi.fn(actual.deliverToRp) };
+});
+import { siteBrokerSeams } from "../lib/site-broker.js";
+const originalSiteBrokerSeams = { ...siteBrokerSeams };
+Object.assign(siteBrokerSeams, {
+  deliverToRp: vi.fn(originalSiteBrokerSeams.deliverToRp),
 });
 
 import { FederationError } from "../lib/federation.js";
@@ -49,7 +43,7 @@ import {
 } from "../lib/site-broker.js";
 import { BrokerAuthorize } from "./BrokerAuthorize.js";
 
-const mockedDeliver = vi.mocked(deliverToRp);
+const mockedDeliver = vi.mocked(siteBrokerSeams.deliverToRp);
 
 const ORIGIN = "https://rp.example.com";
 const STATE = "state-with-plenty-of-entropy-123456";

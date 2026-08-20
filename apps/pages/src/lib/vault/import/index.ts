@@ -108,7 +108,7 @@ export async function readImportFile(file: File): Promise<DetectInput> {
     text = await file.text();
   }
 
-  let json: unknown = null;
+  let json = null;
   const trimmed = text.trimStart();
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {

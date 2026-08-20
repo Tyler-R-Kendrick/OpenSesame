@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * Chrome Local Network Access (LNA): github.io → Tailscale CGNAT / .ts.net /
  * loopback needs an explicit address-space hint and hard timeouts. Without a
@@ -103,7 +104,7 @@ export async function localNetworkFetch(
     if (space) {
       // Not in all TypeScript DOM libs yet; browsers that ignore it are fine.
       (
-        requestInit as RequestInit & { targetAddressSpace?: string }
+        overlapCast(requestInit)
       ).targetAddressSpace = space;
     }
     return await fetch(input, requestInit);

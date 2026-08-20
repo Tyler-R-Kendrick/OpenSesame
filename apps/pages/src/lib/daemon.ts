@@ -8,6 +8,7 @@ import {
   shippedIdentityApi,
 } from "./settings.js";
 import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
+import { overlapCast, isString } from "@opensesame/os-domain";
 
 export type DaemonHealth = {
   status: string;
@@ -19,7 +20,7 @@ export type DaemonHealth = {
 
 const PROBE_MS = 4000;
 
-export async function probeDaemon(
+async function probeDaemonDefault(
   raw: string = loadSettings().daemonApi || shippedDaemonApi,
 ): Promise<DaemonHealth> {
   const base = normalizeTailnetBase(raw);
@@ -33,29 +34,23 @@ export async function probeDaemon(
   if (!res.ok) {
     throw new Error(`Daemon ${res.status} at ${base}`);
   }
-  const body = (await res.json()) as {
-    status?: unknown;
-    service?: unknown;
-    host_api?: unknown;
-    identity_api?: unknown;
-    tailscale_url?: unknown;
-  };
+  const body = overlapCast(await res.json());
   if (body.service !== "opensesame-daemon") {
     throw new Error("That URL answered, but it is not an OpenSesame daemon.");
   }
   return {
-    status: typeof body.status === "string" ? body.status : "ok",
+    status: isString(body.status) ? body.status : "ok",
     service: "opensesame-daemon",
     hostApi:
-      typeof body.host_api === "string" && body.host_api
+      isString(body.host_api) && body.host_api
         ? body.host_api
         : "http://127.0.0.1:8787",
     identityApi:
-      typeof body.identity_api === "string" && body.identity_api
+      isString(body.identity_api) && body.identity_api
         ? body.identity_api
         : "http://127.0.0.1:8788",
     tailscaleUrl:
-      typeof body.tailscale_url === "string" && body.tailscale_url
+      isString(body.tailscale_url) && body.tailscale_url
         ? body.tailscale_url
         : null,
   };
@@ -75,7 +70,7 @@ export async function probeDaemon(
  * connect failed." Still remember the Tailscale URL as `daemonApi` so QR /
  * later github.io pairing have the FQDN.
  */
-export async function applyDaemonPairing(
+async function applyDaemonPairingDefault(
   daemonApi: string,
   health: DaemonHealth,
 ): Promise<void> {
@@ -128,4 +123,24 @@ export async function applyDaemonPairing(
     hostApi,
     identityApi,
   });
+}
+
+export const daemonSeams = {
+  probeDaemon: probeDaemonDefault,
+  applyDaemonPairing: applyDaemonPairingDefault,
+};
+
+export async function probeDaemon(
+  raw?: string,
+): Promise<DaemonHealth> {
+  return raw === undefined
+    ? daemonSeams.probeDaemon()
+    : daemonSeams.probeDaemon(raw);
+}
+
+export async function applyDaemonPairing(
+  daemonApi: string,
+  health: DaemonHealth,
+): Promise<void> {
+  return daemonSeams.applyDaemonPairing(daemonApi, health);
 }

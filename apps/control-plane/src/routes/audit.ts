@@ -43,7 +43,7 @@ auditRoutes.get("/events", requirePrincipal(), async (c) => {
 
   if (changelogOnly) {
     events = filterSecretChangelogEvents(events, {
-      ...(projectId ? { projectId } : {}),
+      ...(projectId ? { projectId } : undefined),
     });
   } else if (projectId) {
     events = events.filter((e) => e.projectId === projectId);
@@ -67,22 +67,22 @@ auditRoutes.get("/events", requirePrincipal(), async (c) => {
       correlationId: e.correlationId,
       // Defense in depth: re-redact on read so legacy rows cannot leak values.
       metadata: redactAuditMetadata(e.metadata),
-      ...(e.principalId !== undefined ? { principalId: e.principalId } : {}),
-      ...(e.actorType !== undefined ? { actorType: e.actorType } : {}),
-      ...(e.actorId !== undefined ? { actorId: e.actorId } : {}),
-      ...(e.clientId !== undefined ? { clientId: e.clientId } : {}),
+      ...(e.principalId !== undefined ? { principalId: e.principalId } : undefined),
+      ...(e.actorType !== undefined ? { actorType: e.actorType } : undefined),
+      ...(e.actorId !== undefined ? { actorId: e.actorId } : undefined),
+      ...(e.clientId !== undefined ? { clientId: e.clientId } : undefined),
       ...(e.organizationId !== undefined
         ? { organizationId: e.organizationId }
-        : {}),
-      ...(e.projectId !== undefined ? { projectId: e.projectId } : {}),
-      ...(e.claimId !== undefined ? { claimId: e.claimId } : {}),
-      ...(e.sessionId !== undefined ? { sessionId: e.sessionId } : {}),
-      ...(e.targetType !== undefined ? { targetType: e.targetType } : {}),
-      ...(e.targetId !== undefined ? { targetId: e.targetId } : {}),
+        : undefined),
+      ...(e.projectId !== undefined ? { projectId: e.projectId } : undefined),
+      ...(e.claimId !== undefined ? { claimId: e.claimId } : undefined),
+      ...(e.sessionId !== undefined ? { sessionId: e.sessionId } : undefined),
+      ...(e.targetType !== undefined ? { targetType: e.targetType } : undefined),
+      ...(e.targetId !== undefined ? { targetId: e.targetId } : undefined),
       ...(e.previousDigest !== undefined
         ? { previousDigest: e.previousDigest }
-        : {}),
-      ...(e.digest !== undefined ? { digest: e.digest } : {}),
+        : undefined),
+      ...(e.digest !== undefined ? { digest: e.digest } : undefined),
     })),
   });
   return c.json(body);
@@ -128,7 +128,7 @@ auditRoutes.get("/events/verify", requirePrincipal(), async (c) => {
       reason: result.reason,
       ...(failed?.principalId === principalId
         ? { eventId: result.eventId }
-        : {}),
+        : undefined),
     }),
     409,
   );

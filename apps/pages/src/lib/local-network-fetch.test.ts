@@ -3,6 +3,7 @@ import {
   localNetworkFetch,
   targetAddressSpaceFor,
 } from "./local-network-fetch.js";
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 describe("local-network-fetch", () => {
   afterEach(() => {
@@ -37,13 +38,13 @@ describe("local-network-fetch", () => {
         timeoutMs: 30,
       }),
     ).rejects.toSatisfy(
-      (error: unknown) =>
+      (error: BoundaryValue) =>
         error instanceof DOMException ||
         (error instanceof Error && /timed out|abort/i.test(String(error))),
     );
-    const init = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as {
-      targetAddressSpace?: string;
-    };
+    const init = overlapCast(
+      (overlapCast(fetch)).mock.calls[0]?.[1],
+    );
     expect(init.targetAddressSpace).toBe("local");
   });
 });

@@ -3,6 +3,7 @@ import { createOpenSesame } from "./client.js";
 import { BrowserOriginError } from "./origin.js";
 import { createPkcePair } from "./pkce.js";
 import { createTestSigningKey, mintTestIdToken } from "./test/jwt-fixtures.js";
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 class MemStorage {
   readonly #m = new Map<string, string>();
@@ -43,7 +44,7 @@ describe("zero-config origin mode", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage: new MemStorage(),
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: {
         href: `${PAGE}/`,
         assign: (u) => {
@@ -53,7 +54,7 @@ describe("zero-config origin mode", () => {
       },
     });
     await sesame.signIn();
-    const url = new URL(assigned[0] as string);
+    const url = new URL(overlapCast(assigned[0]));
     expect(url.searchParams.get("client_id")).toBe(ORIGIN_CLIENT);
     expect(url.searchParams.get("scope")).toBe("openid");
     expect(url.searchParams.get("redirect_uri")).toBe(
@@ -76,7 +77,7 @@ describe("zero-config origin mode", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage: new MemStorage(),
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: {
         href: `${PAGE}/`,
         assign: () => undefined,
@@ -112,7 +113,7 @@ describe("zero-config origin mode", () => {
     const replaced: string[] = [];
     vi.stubGlobal("history", {
       state: null,
-      replaceState: (_s: unknown, _t: string, url: string) => {
+      replaceState: (_s: BoundaryValue, _t: string, url: string) => {
         replaced.push(url);
       },
     });
@@ -153,7 +154,7 @@ describe("zero-config origin mode", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: {
         href: `${PAGE}/opensesame/callback?code=abc&state=st`,
         assign: () => undefined,
@@ -163,12 +164,9 @@ describe("zero-config origin mode", () => {
     const session = await sesame.handleRedirectCallback();
     expect(session.sub).toBe("pairwise-origin");
     expect(session.refreshToken).toBe("rt-must-not-persist");
-    const stored = JSON.parse(
+    const stored = overlapCast(JSON.parse(
       storage.getItem("opensesame:session") ?? "{}",
-    ) as {
-      refreshToken?: string;
-      raw?: { refresh_token?: string };
-    };
+    ));
     expect(stored.refreshToken).toBeUndefined();
     expect(stored.raw?.refresh_token).toBeUndefined();
     expect(replaced.some((u) => u.includes("code="))).toBe(false);
@@ -207,7 +205,7 @@ describe("zero-config origin mode", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: {
         href: `${PAGE}/opensesame/callback`,
         assign: () => undefined,
@@ -253,7 +251,7 @@ describe("zero-config origin mode", () => {
       createOpenSesame({
         issuer: ISSUER,
         storage,
-        fetchImpl: fetchImpl as unknown as typeof fetch,
+        fetchImpl: overlapCast(fetchImpl),
         windowLocation: {
           href: `${PAGE}/`,
           assign: () => undefined,
