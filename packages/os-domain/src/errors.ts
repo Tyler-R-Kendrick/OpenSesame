@@ -1,3 +1,5 @@
+import type { JsonObject } from "./json.js";
+
 export type DomainErrorCode =
   | "INVALID_TRANSITION"
   | "EXPIRED"
@@ -11,12 +13,12 @@ export type DomainErrorCode =
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
-  readonly details: Record<string, unknown>;
+  readonly details: JsonObject;
 
   constructor(
     code: DomainErrorCode,
     message: string,
-    details: Record<string, unknown> = {},
+    details: JsonObject = {},
   ) {
     super(message);
     this.name = "DomainError";

@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { isString } from "../json.js";
 
 /** Purpose prefixes keep digests domain-separated. */
 export const CLAIM_TOKEN_PURPOSE = "opensesame:claim-token:v1";
@@ -33,10 +34,9 @@ export function hmacDigest(
   publicId: string,
   secret: string,
 ): Uint8Array {
-  const key =
-    typeof pepper === "string"
-      ? Buffer.from(pepper, "utf8")
-      : Buffer.from(pepper);
+  const key = isString(pepper)
+    ? Buffer.from(pepper, "utf8")
+    : Buffer.from(pepper);
   const h = createHmac("sha256", key);
   const writeLenPrefixed = (s: string) => {
     const b = Buffer.from(s, "utf8");
@@ -125,7 +125,7 @@ export const CROCKFORD_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 export function normalizeUserCode(code: string): string {
   return code
     .toUpperCase()
-    .replace(/[\s\-]/g, "")
+    .replace(/[\s-]/g, "")
     .replace(/O/g, "0")
     .replace(/[IL]/g, "1");
 }

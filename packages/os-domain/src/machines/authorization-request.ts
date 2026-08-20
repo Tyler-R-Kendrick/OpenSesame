@@ -19,10 +19,11 @@ import type {
   PrincipalId,
 } from "../types.js";
 
-const TRANSITIONS: Record<
-  AuthorizationRequestStatus,
-  AuthorizationRequestStatus[]
-> = {
+type AuthorizationRequestTransitions = {
+  readonly [status in AuthorizationRequestStatus]: readonly AuthorizationRequestStatus[];
+};
+
+const TRANSITIONS: AuthorizationRequestTransitions = {
   pending: ["approved", "denied", "cancelled", "expired"],
   approved: [],
   denied: [],
