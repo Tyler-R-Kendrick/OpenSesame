@@ -1,0 +1,21 @@
+---
+description: Use the vendored anti-slop Oxlint plugin; do not introduce low-evidence TS/JS patterns
+alwaysApply: true
+---
+
+# Anti-slop
+
+This repo vendors [anti-slop](https://github.com/dmmulroy/anti-slop) at
+`tools/oxlint/anti-slop/` and runs it via `pnpm lint:anti-slop`.
+
+- Do not add `as` assertions without a preceding `SAFETY:` comment that states
+  the checked invariant.
+- Do not use `unknown`/`any`/`object`/`{}` dictionary values, `unknown`
+  parameters (except `cause`), or `unknown` return types.
+- Do not `vi.mock` / `jest.mock` modules; inject seams instead.
+- Do not spread `{}` to omit optional fields; use explicit assignment after a
+  narrowed check (this repo enables `exactOptionalPropertyTypes`).
+- Do not chain type assertions or widen a known value and assert it back.
+- Prefer `satisfies` and inference over explicit broad target types.
+- Run `pnpm lint:anti-slop` on TypeScript you touch. Do not disable these
+  rules or launder types to silence them.

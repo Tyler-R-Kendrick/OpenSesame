@@ -22,6 +22,8 @@
       "**/node_modules/**",
       "**/target/**",
       "**/.tools/**",
+      "**/tools/oxlint/anti-slop/**",
+      "**/skills/install-anti-slop/**",
       "**/sbom/**",
       "apps/pages/public/auth.js"
     ]

@@ -157,6 +157,9 @@ export async function consumeRotationEvents(
               ? { organizationId: view.organizationId }
               : {}),
           });
+          // SAFETY: rotation results are JSON objects; assertNoSecrets walks
+          // string keys looking for secret needles. RotationJobView has no
+          // index signature, so TypeScript requires the unknown step.
           assertNoSecrets(done as unknown as Record<string, unknown>);
           if (done.secretsReturned !== false) {
             throw new Error("rotation executor must set secretsReturned=false");

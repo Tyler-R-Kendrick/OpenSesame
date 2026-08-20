@@ -1159,11 +1159,7 @@ function ConnectionCard({
   const chip = STATUS_CHIP[connection.status];
   const revoked = connection.status === "revoked";
 
-  async function act(
-    label: string,
-    work: () => Promise<unknown>,
-    done: string,
-  ) {
+  async function act(label: string, work: () => Promise<void>, done: string) {
     setBusy(label);
     try {
       await work();
@@ -1316,7 +1312,10 @@ function ConnectionCard({
                   onClick={() =>
                     void act(
                       "refresh",
-                      () => refreshConnection(connection.connectionId),
+                      () =>
+                        refreshConnection(connection.connectionId).then(
+                          () => undefined,
+                        ),
                       `${connection.displayName} was renewed.`,
                     )
                   }

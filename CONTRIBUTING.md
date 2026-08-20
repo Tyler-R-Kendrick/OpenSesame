@@ -45,6 +45,11 @@ fresh clone that runs `pnpm bootstrap` does not need a separate step.
   `gitleaks` binary is available on `PATH`; otherwise it prints a one-line notice and
   continues. On failure it prints remediation hints (e.g. run `pnpm lint:fix` and
   re-stage).
+- **`pnpm lint:anti-slop`** — Oxlint with the vendored anti-slop plugin
+  (`tools/oxlint/anti-slop/`, config `oxlint.config.ts`). Not yet part of
+  `pnpm lint:all` while the existing corpus is being cleaned. New TypeScript
+  must pass it; do not add low-evidence patterns (unjustified `as`,
+  `unknown` dictionaries, `vi.mock`, chained assertions).
 - **`pre-push`** — runs a verification pass sized by the `OPENSESAME_PREPUSH`
   environment variable:
   - `off` — skip entirely.

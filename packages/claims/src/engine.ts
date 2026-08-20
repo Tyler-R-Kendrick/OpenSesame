@@ -213,7 +213,9 @@ export class ClaimEngine {
         : current.state === "authenticated"
           ? transitionReview(
               current,
-              decision as unknown as Record<string, unknown>,
+              // SAFETY: ClaimDecision is a JSON object; transitionReview only
+              // reads acceptedItemIds/destination keys from this record.
+              decision as Record<string, unknown>,
               this.clock(),
             )
           : (() => {

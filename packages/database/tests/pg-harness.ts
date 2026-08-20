@@ -44,6 +44,8 @@ export async function withPostgresRepos<T>(
   await client.exec(OUTBOX_DDL);
   const db = drizzlePglite(client, { schema });
   try {
+    // SAFETY: drizzle(PGlite) is the same schema-typed Database as postgres-js;
+    // the query-result HKT differs, so TypeScript requires the unknown step.
     return await fn(new PostgresRepositories(db as unknown as Database));
   } finally {
     await client.close();

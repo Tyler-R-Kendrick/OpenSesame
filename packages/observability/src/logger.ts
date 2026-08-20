@@ -55,6 +55,8 @@ const MAX_REDACT_DEPTH = 12;
 
 /** Recursively censor sensitive keys at any depth; cycle- and array-safe. */
 export function redactDeep<T>(value: T): T {
+  // SAFETY: walk preserves T's structure; it only replaces sensitive string
+  // values and cycles, never the container type.
   return walk(value, 0, new WeakSet<object>()) as T;
 }
 

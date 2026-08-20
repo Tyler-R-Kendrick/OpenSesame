@@ -892,7 +892,9 @@ export class PostgresRepositories implements Repositories {
 
   async transaction<T>(fn: TransactionFn<T>): Promise<T> {
     return this.db.transaction(async (tx) => {
-      const uow = new PostgresUnitOfWork(tx as unknown as Database);
+      // SAFETY: drizzle's transaction callback receives the same schema-typed
+      // Database as the outer client.
+      const uow = new PostgresUnitOfWork(tx as Database);
       return fn(uow);
     });
   }

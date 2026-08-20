@@ -23,6 +23,12 @@ import { renderConsentPage, renderLoginPage } from "../ui/interaction-pages.js";
 
 type NodeEnv = { Bindings: HttpBindings };
 
+function providerInteractions(provider: object): ProviderInteractions {
+  // SAFETY: panva's Provider implements Grant.find/new, interactionDetails,
+  // and interactionResult; the Client generic is unused at this boundary.
+  return provider as ProviderInteractions;
+}
+
 function nodeHttp(c: {
   env: HttpBindings;
 }): { req: IncomingMessage; res: ServerResponse } | undefined {
@@ -83,7 +89,7 @@ export function createInteractionRoutes(): Hono<
 
   routes.get("/:uid", async (c) => {
     const ctx = c.get("ctx");
-    const provider = ctx.oauth.provider as unknown as ProviderInteractions;
+    const provider = providerInteractions(ctx.oauth.provider);
     const loaded = await loadDetails(c, provider);
     if ("error" in loaded) {
       return c.text(loaded.error, loaded.status);
@@ -110,7 +116,7 @@ export function createInteractionRoutes(): Hono<
 
   routes.post("/:uid/login", async (c) => {
     const ctx = c.get("ctx");
-    const provider = ctx.oauth.provider as unknown as ProviderInteractions;
+    const provider = providerInteractions(ctx.oauth.provider);
     const uid = c.req.param("uid");
     const fields = (await c.req.parseBody()) as Record<string, unknown>;
     if (!verifyCsrf(uid, fields)) {
@@ -177,7 +183,7 @@ export function createInteractionRoutes(): Hono<
 
   routes.post("/:uid/confirm", async (c) => {
     const ctx = c.get("ctx");
-    const provider = ctx.oauth.provider as unknown as ProviderInteractions;
+    const provider = providerInteractions(ctx.oauth.provider);
     const uid = c.req.param("uid");
     const fields = (await c.req.parseBody()) as Record<string, unknown>;
     if (!verifyCsrf(uid, fields)) {
@@ -208,7 +214,7 @@ export function createInteractionRoutes(): Hono<
 
   routes.post("/:uid/abort", async (c) => {
     const ctx = c.get("ctx");
-    const provider = ctx.oauth.provider as unknown as ProviderInteractions;
+    const provider = providerInteractions(ctx.oauth.provider);
     const uid = c.req.param("uid");
     const fields = (await c.req.parseBody()) as Record<string, unknown>;
     if (!verifyCsrf(uid, fields)) {

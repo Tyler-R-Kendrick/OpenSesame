@@ -32,6 +32,7 @@ Canonical principals live in OpenSesame domain models
 - Rust `1.88` pinned for the host/authority plane (`cargo +1.88.0 ...`)
 - Turbo `2.9.14` (task orchestration across the workspace)
 - Biome `1.9.4` (lint + format, 2-space indent)
+- Oxlint `1.79.0` with vendored anti-slop (`pnpm lint:anti-slop`)
 - Vitest `4.1.10` (TS unit/integration tests), Playwright `1.55.1` (e2e)
 
 ## 3. Command crib sheet
@@ -46,6 +47,7 @@ pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
 pnpm lint                # Biome gate for files changed from origin/main
 pnpm lint:all            # full-repository Biome audit
+pnpm lint:anti-slop      # Oxlint anti-slop (not yet in lint:all; drive to green)
 pnpm lint:fix            # fix changed and staged files
 pnpm test                # turbo test across every workspace test script
 pnpm test:integration    # turbo run test:integration
@@ -232,6 +234,7 @@ holds symlinks to the same directories for tools that look there instead.
 | `opensesame-chrome-extension` | `skills/opensesame-chrome-extension/SKILL.md` | Install, configure, initialize, and use the OpenSesame browser extension |
 | `opensesame-clis` | `skills/opensesame-clis/SKILL.md` | Install, configure, initialize, and use OpenSesame host and client CLIs |
 | `opensesame-mcps` | `skills/opensesame-mcps/SKILL.md` | Install, configure, initialize, and use OpenSesame MCP servers |
+| `install-anti-slop` | `skills/install-anti-slop/SKILL.md` | Install and configure the vendored Oxlint anti-slop plugin |
 
 ## 8. Verification expectations
 

@@ -25,6 +25,8 @@ export async function createPgTestContext(): Promise<PgTestContext> {
   await client.waitReady;
   const db = drizzle(client, { schema });
   await migrate(db, { migrationsFolder: join(here, "..", "drizzle") });
+  // SAFETY: drizzle(PGlite) is the same schema-typed Database as postgres-js;
+  // the query-result HKT differs, so TypeScript requires the unknown step.
   const database = db as unknown as Database;
   return { repos: new PostgresRepositories(database), db: database, client };
 }

@@ -51,7 +51,9 @@ function replayRequest(
   req: http.IncomingMessage,
   body: Buffer,
 ): http.IncomingMessage {
-  const forwarded = Readable.from([body]) as unknown as http.IncomingMessage;
+  // SAFETY: oidc-provider only reads this as a stream plus IncomingMessage
+  // header/method fields, which we copy onto the replayed Readable below.
+  const forwarded = Readable.from([body]) as http.IncomingMessage;
   forwarded.headers = req.headers;
   forwarded.rawHeaders = req.rawHeaders;
   forwarded.method = req.method;

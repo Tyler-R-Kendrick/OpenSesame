@@ -167,7 +167,7 @@ export function subscribeSettings(listener: () => void): () => void {
   };
 }
 
-function persistShape(next: PagesSettings): PersistedSettings {
+function persistRecord(next: PagesSettings): PersistedSettings {
   const defaults = defaultsForPage();
   return {
     hostApi: next.hostApi.trim() || defaults.hostApi,
@@ -183,13 +183,13 @@ function persistShape(next: PagesSettings): PersistedSettings {
 }
 
 export function saveSettings(next: PagesSettings): void {
-  kvSet(PERSIST_KEY, JSON.stringify(persistShape(next)));
+  kvSet(PERSIST_KEY, JSON.stringify(persistRecord(next)));
   emitSettings();
 }
 
 /** Persist pairing and wait for OPFS so a reload in this browser keeps Host. */
 export async function saveSettingsDurable(next: PagesSettings): Promise<void> {
-  await kvSetDurable(PERSIST_KEY, JSON.stringify(persistShape(next)));
+  await kvSetDurable(PERSIST_KEY, JSON.stringify(persistRecord(next)));
   emitSettings();
 }
 
