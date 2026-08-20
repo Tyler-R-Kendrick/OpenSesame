@@ -542,6 +542,35 @@ paths:
               schema: { $ref: "#/components/schemas/Connection" }
         "400": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/mint:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Mint a short-lived provider-derived credential (ADR 0049)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      description: >-
+        The one route that returns token bytes, and only provider-minted derived
+        ones: short-lived, attenuated, and revocable at the provider. The sealed
+        stored credential never moves. Only the connection owner or an operator
+        may mint, and the connection's materialization policy must be
+        derived_short_lived (default deny).
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MintRequest" }
+      responses:
+        "200":
+          description: Derived provider-minted credential; returned once, never stored
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DerivedMaterialization" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+        "502": { $ref: "#/components/responses/ContractError" }
   /connections/{id}/bindings:
     parameters:
       - $ref: "#/components/parameters/ConnectionId"
@@ -1030,6 +1059,8 @@ components:
             - binding_exists
             - binding_not_found
             - unsupported_credential
+            - materialization_denied
+            - unmintable
             - invalid_request
             - internal_error
             - unauthorized
@@ -1266,3 +1297,31 @@ components:
       properties:
         revoked: { type: boolean }
         provider_revocation: { type: string, enum: [ok, unsupported, failed] }
+    MintRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        installation_id:
+          type: string
+          description: Numeric GitHub App installation id; required for github connections.
+    DerivedMaterialization:
+      type: object
+      additionalProperties: false
+      required: [connection_id, provider_id, kind, derived_token, expires_at, subject, actor, issued_at]
+      properties:
+        connection_id: { type: string }
+        provider_id: { type: string }
+        kind:
+          type: string
+          description: Provider-native token kind, e.g. github_app_installation.
+        derived_token:
+          type: string
+          description: Provider-minted derived token; short-lived, attenuated, revocable.
+        expires_at: { type: string, format: date-time }
+        subject:
+          type: string
+          description: RFC 8693 subject — the connection's owning principal acted upon.
+        actor:
+          type: string
+          description: RFC 8693 actor — the caller that requested the mint.
+        issued_at: { type: string, format: date-time }

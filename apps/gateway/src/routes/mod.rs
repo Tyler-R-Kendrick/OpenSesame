@@ -4,6 +4,8 @@ mod agents;
 mod backup;
 mod changelog;
 mod connections;
+#[cfg(test)]
+mod contract;
 mod credential_connections;
 mod device;
 pub(crate) mod github_app;
