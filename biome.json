@@ -23,7 +23,8 @@
       "**/target/**",
       "**/.tools/**",
       "**/sbom/**",
-      "apps/pages/public/auth.js"
+      "apps/pages/public/auth.js",
+      "docs/design/**"
     ]
   }
 }

@@ -43,6 +43,10 @@ node "<design skill dir>/seed-canvas.mjs" \
 The seeded output is gitignored — it is ~2.3 MB of editor code and is fully
 regenerated from the artboards above.
 
+`docs/design/**` is excluded from Biome in `biome.json`: these are design-canvas
+sources, not application code, and the `.dc.html` format has formatting
+constraints of its own.
+
 ## Open questions
 
 - Which status-bar treatment (`StatusBar.dc.html` is the decision artboard).
