@@ -52,7 +52,20 @@ pnpm test:integration    # turbo run test:integration
 pnpm test:e2e            # turbo run test:e2e; live suites require their URLs
 pnpm test:security       # @opensesame/testing test:security
 pnpm test:task-access    # scripts/task-security-battle-test.sh
+pnpm test:redteam        # @opensesame/redteam structural pact suite
+pnpm test:visual         # Playwright pixel baselines (@opensesame/visual-contract)
+pnpm test:nats-dogfood   # scripts/nats-dogfood-test.sh (spins up real nats-server)
+pnpm test:live-stack     # scripts/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
 pnpm test:all            # typecheck + test + test:integration
+
+# Test-depth suites (none of these are in `pnpm verify`)
+pnpm test:coverage       # TS (v8, 80% floors) + Rust (llvm-cov) — docs/validation/test-coverage.md
+pnpm test:coverage:ts    # scripts/ts-coverage-gate.mjs; floors ratchet, never lower
+pnpm test:coverage:rust  # cargo llvm-cov --fail-under-lines/-functions
+pnpm test:mutation       # Stryker (TS) + cargo-mutants (Rust), scoped high-value files
+pnpm test:mutation:ts    # stryker run → artifacts/mutation/typescript.json
+pnpm test:mutation:rust  # cargo mutants → artifacts/mutation/rust
+pnpm test:fuzz:batch     # Jazzer.js long pass (FUZZ_SECONDS=300)
 pnpm db:migrate          # @opensesame/database db:migrate
 pnpm db:reset            # @opensesame/database db:reset
 pnpm generate:openapi    # writes apps/control-plane/openapi.json
@@ -71,6 +84,10 @@ pnpm audit:gitleaks
 pnpm audit:semgrep
 pnpm audit:daemon-deps      # daemon dependency budget (ADR 0048 §5)
 pnpm audit:fuzz             # cargo-fuzz short pass (not in verify)
+pnpm audit:fuzz:batch       # cargo-fuzz long batch over all targets (not in verify)
+pnpm audit:kani             # bounded proofs (scripts/kani-gate.sh)
+pnpm audit:miri             # UB checks (scripts/miri-gate.sh)
+pnpm audit:shuttle          # concurrency model checks (scripts/shuttle-gate.sh)
 pnpm test:fuzz              # Jazzer.js short pass (not in verify)
 ```
 
