@@ -26,11 +26,19 @@ Default listen address: `http://127.0.0.1:9090`
 | `GET /userinfo` | Test user claims |
 | `GET /health` | Liveness |
 
-### Seed client (OpenSesame upstream)
+### Seed confidential client (Better Auth / server RPs)
 
 - `client_id`: `opensesame-upstream`
 - `client_secret`: `opensesame-upstream-secret`
 - Default redirect: `http://127.0.0.1:3000/api/auth/callback/mock`
+
+### Origin-profile clients (federated-signin §1)
+
+When `client_id` is `origin:{canonical origin}`, the mock admits the client
+without a secret. `POST /token` requires an `Origin` header that byte-equals
+that origin (CORS), PKCE S256 is mandatory, and the ID token `sub` /
+`pairwise_sub` is a stable per-origin subject (not the seeded canonical
+user id). Redirect URIs must be on that origin.
 
 ## Environment variables
 
