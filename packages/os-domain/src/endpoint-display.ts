@@ -24,6 +24,7 @@
  */
 export function briefOrigin(raw: string): string {
   const trimmed = raw.trim();
+  // Stryker disable next-line ConditionalExpression: equivalent — see repoHint.
   if (!trimmed) return "";
   try {
     const url = new URL(trimmed);
@@ -49,18 +50,39 @@ export function briefOrigin(raw: string): string {
  * through with only the `.git` suffix removed.
  */
 export function repoHint(remote: string): string {
-  const trimmed = remote.trim().replace(/\.git$/, "");
-  if (!trimmed) return "";
+  const withoutSuffix = stripGitSuffix(remote.trim());
+  // Stryker disable next-line ConditionalExpression: equivalent — an empty
+  // string falls through to `new URL("")`, which throws, and the catch returns
+  // the same "". The guard is here to keep a common input off the throw path,
+  // not to change the answer.
+  if (!withoutSuffix) return "";
   try {
-    const url = new URL(trimmed);
+    const url = new URL(withoutSuffix);
     // A remote worth shortening has an authority — `https://host/owner/repo`.
     // A schemed string without one (`w:owner/repo`) is not a remote, and
     // taking its pathname would percent-encode whatever was typed into
     // something longer and stranger than the original.
-    if (!url.host) return trimmed;
-    const path = url.pathname.replace(/^\/+/, "");
-    return path || trimmed;
+    if (!url.host) return withoutSuffix;
+    return stripLeadingSlashes(url.pathname) || withoutSuffix;
   } catch {
-    return trimmed;
+    return withoutSuffix;
   }
+}
+
+/**
+ * Only a trailing `.git` is a suffix.
+ *
+ * Written as an explicit test rather than `/\.git$/` because the anchor is the
+ * whole point and an unanchored version quietly mangles any path that merely
+ * contains the letters — `owner/.github` would become `owner/hub`.
+ */
+function stripGitSuffix(remote: string): string {
+  return remote.endsWith(".git") ? remote.slice(0, -".git".length) : remote;
+}
+
+/** A URL pathname always begins with a slash, and sometimes with several. */
+function stripLeadingSlashes(path: string): string {
+  let rest = path;
+  while (rest.startsWith("/")) rest = rest.slice(1);
+  return rest;
 }

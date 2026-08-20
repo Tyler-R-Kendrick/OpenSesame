@@ -2,7 +2,9 @@
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "mutate": [
     "packages/observability/src/agent-payload.ts",
-    "packages/sdk-cli/src/secure-url.ts"
+    "packages/os-domain/src/endpoint-display.ts",
+    "packages/sdk-cli/src/secure-url.ts",
+    "apps/pages/src/lib/probe-failure.ts"
   ],
   "ignorePatterns": [
     ".agents/**",
