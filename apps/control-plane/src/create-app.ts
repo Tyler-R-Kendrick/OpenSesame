@@ -24,7 +24,7 @@ import {
   createPostgresAdapterConstructor,
 } from "@opensesame/oauth-provider";
 import { createLogger } from "@opensesame/observability";
-import { Clock, overlapCast } from "@opensesame/os-domain";
+import { overlapCast, type Clock } from "@opensesame/os-domain";
 import { ProvisionalPolicy } from "@opensesame/policy";
 import { createHonoApp } from "./app.js";
 import {

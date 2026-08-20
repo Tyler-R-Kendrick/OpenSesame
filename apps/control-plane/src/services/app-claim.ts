@@ -10,7 +10,7 @@ import {
   canonicalizeOrigin,
   originClientId,
 } from "@opensesame/oauth-provider";
-import { Clock, JsonObject, overlapCast } from "@opensesame/os-domain";
+import { overlapCast, type Clock, type JsonObject } from "@opensesame/os-domain";
 
 /** F5: claim challenges live at most ten minutes. */
 export const CLAIM_CHALLENGE_TTL_MS = 600_000;
