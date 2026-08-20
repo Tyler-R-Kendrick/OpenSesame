@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -14,8 +20,10 @@ vi.mock("../lib/connectors.js", async (importOriginal) => {
   return { ...actual, useConnectors: () => env.connectors };
 });
 
+const connectSpy = vi.hoisted(() => vi.fn());
+
 vi.mock("../lib/identity.js", () => ({
-  useConnect: () => ({ connect: vi.fn(), connecting: false, error: null }),
+  useConnect: () => ({ connect: connectSpy, connecting: false, error: null }),
 }));
 
 const checkNow = vi.hoisted(() => vi.fn());
@@ -202,6 +210,96 @@ describe("ConnectivityBar", () => {
       }),
     );
     expect(screen.getByText(/it is not the OpenSesame service/)).toBeTruthy();
+  });
+
+  it("settles once when a connector comes back, then stops", () => {
+    vi.useFakeTimers();
+    try {
+      const { container, rerender } = renderBar([
+        status({ tone: "attn", detail: "Unreachable · 127.0.0.1:18787" }),
+      ]);
+      expect(container.querySelector(".is-recovered")).toBeNull();
+
+      // Amber to green is the one transition worth animating: the bar's whole
+      // promise is that you do not have to keep watching it.
+      env.connectors = [status({ tone: "live" })];
+      rerender(
+        <MemoryRouter>
+          <ConnectivityBar />
+        </MemoryRouter>,
+      );
+      expect(container.querySelector(".is-recovered")).toBeTruthy();
+
+      act(() => {
+        vi.advanceTimersByTime(1_500);
+      });
+      expect(container.querySelector(".is-recovered")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not settle for a connector that was already green", () => {
+    const { container, rerender } = renderBar([status({ tone: "live" })]);
+    env.connectors = [status({ tone: "live", detail: "changed" })];
+    rerender(
+      <MemoryRouter>
+        <ConnectivityBar />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector(".is-recovered")).toBeNull();
+  });
+
+  it("does not settle on the way *to* amber", () => {
+    const { container, rerender } = renderBar([status({ tone: "live" })]);
+    env.connectors = [status({ tone: "attn" })];
+    rerender(
+      <MemoryRouter>
+        <ConnectivityBar />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector(".is-recovered")).toBeNull();
+  });
+
+  it("pulses while a probe is in flight without changing the tone", () => {
+    const { container } = renderBar([status({ tone: "live", checking: true })]);
+    const glyph = container.querySelector(".cx__btn");
+    expect(glyph?.className).toContain("is-checking");
+    // The tone is the last known truth; an in-flight check has not changed it.
+    expect(glyph?.className).toContain("cx__btn--live");
+  });
+
+  it("offers Sign in from the Identity ceremony, and nowhere else", () => {
+    renderBar();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Host — 127.0.0.1:18787" }),
+    );
+    expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: "Close" })[0]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Identity — 127.0.0.1:18788" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(connectSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the freshness row off a connector nothing ever probes", () => {
+    renderBar([
+      status({
+        id: "keys",
+        name: "Key vault",
+        detail: "WebCrypto (this device)",
+        required: false,
+        lastCheckedAt: null,
+      }),
+    ]);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Key vault — WebCrypto (this device)",
+      }),
+    );
+    expect(screen.queryByRole("button", { name: "Check now" })).toBeNull();
   });
 
   it("shows offline as its own thing, not as four broken endpoints", () => {
