@@ -1143,6 +1143,82 @@ mod tests {
         (router(state.clone()), state)
     }
 
+    /// Scripted-fault loopback listener shared by the daemon chaos tests —
+    /// the same idea as `invoke-through/tests/support/fault.rs`, duplicated
+    /// in miniature because a binary crate cannot import another crate's
+    /// test support. Deterministic: the test picks the fault, the listener
+    /// applies it to every connection, and the accept count is the
+    /// fail-closed witness.
+    pub(crate) mod fault {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+        use tokio::task::{JoinHandle, JoinSet};
+
+        /// What the listener does to every connection it accepts.
+        #[derive(Debug, Clone, Copy)]
+        pub(crate) enum Fault {
+            /// Accept, then close immediately — an abrupt reset.
+            Reset,
+            /// Accept, then never respond; held open until the listener is
+            /// dropped, so it outlives any client-side timeout.
+            Stall,
+        }
+
+        pub(crate) struct FaultListener {
+            url: String,
+            connections: Arc<AtomicUsize>,
+            accept_loop: JoinHandle<()>,
+        }
+
+        impl FaultListener {
+            pub(crate) async fn spawn(fault: Fault) -> Self {
+                let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+                let addr = listener.local_addr().unwrap();
+                let connections = Arc::new(AtomicUsize::new(0));
+                let counting = connections.clone();
+                let accept_loop = tokio::spawn(async move {
+                    // Dropping the JoinSet (when the accept loop is aborted)
+                    // aborts every parked Stall connection with it.
+                    let mut tasks = JoinSet::new();
+                    loop {
+                        let Ok((stream, _)) = listener.accept().await else {
+                            break;
+                        };
+                        counting.fetch_add(1, Ordering::SeqCst);
+                        tasks.spawn(async move {
+                            if matches!(fault, Fault::Stall) {
+                                // Hold the socket open and say nothing.
+                                let _held = stream;
+                                std::future::pending::<()>().await;
+                            }
+                            // Reset: drop on the spot — an abrupt close.
+                        });
+                    }
+                });
+                Self {
+                    url: format!("http://{addr}"),
+                    connections,
+                    accept_loop,
+                }
+            }
+
+            pub(crate) fn url(&self) -> &str {
+                &self.url
+            }
+
+            /// Connections accepted so far — the fail-closed witness.
+            pub(crate) fn connections(&self) -> usize {
+                self.connections.load(Ordering::SeqCst)
+            }
+        }
+
+        impl Drop for FaultListener {
+            fn drop(&mut self) {
+                self.accept_loop.abort();
+            }
+        }
+    }
+
     #[tokio::test]
     async fn proxy_returns_bad_gateway_when_host_is_partitioned() {
         use axum::body::{to_bytes, Body};

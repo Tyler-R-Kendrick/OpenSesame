@@ -553,4 +553,120 @@ mod tests {
         let res = app.oneshot(build(Some(own + 1))).await.unwrap();
         assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
     }
+
+    /// Hard per-case deadline: a regression that hangs fails fast instead of
+    /// wedging the suite.
+    const CHAOS_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
+
+    #[tokio::test]
+    async fn chaos_unconfirmed_invoke_makes_zero_upstream_connections() {
+        use crate::tests::fault::{Fault, FaultListener};
+        tokio::time::timeout(CHAOS_DEADLINE, async {
+            // A live-upstream-shaped setup: loopback rule and http test
+            // mode, so only the confirmation fence stands between the
+            // caller and the wire.
+            let upstream = FaultListener::spawn(Fault::Reset).await;
+            let app = router(canary_state(
+                Invoker::with_rules(vec![loopback_rule()]).allow_http_for_tests(),
+            ));
+            let res = app
+                .oneshot(request(
+                    &invoke_body(&format!("{}/zen", upstream.url()), false),
+                    true,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+            let body = to_bytes(res.into_body(), 4096).await.unwrap();
+            let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            assert_eq!(json["error"], "invoke_not_confirmed");
+            assert_eq!(
+                upstream.connections(),
+                0,
+                "an unconfirmed call reached the upstream"
+            );
+        })
+        .await
+        .expect("chaos case exceeded its deadline");
+    }
+
+    #[tokio::test]
+    async fn chaos_killed_source_tool_makes_zero_upstream_connections() {
+        use crate::tests::fault::{Fault, FaultListener};
+        use crate::token_source::CliTokenSource;
+        use opensesame_invoke_through::SourceToolSpec;
+        tokio::time::timeout(CHAOS_DEADLINE, async {
+            let upstream = FaultListener::spawn(Fault::Reset).await;
+            // The source tool is killed mid-exec (SIGKILL): acquisition
+            // fails, so the preflighted call must die before dialing.
+            let env = std::collections::BTreeMap::from([(
+                "PATH".to_string(),
+                "/usr/bin:/bin".to_string(),
+            )]);
+            let st = state_with(
+                Invoker::with_rules(vec![loopback_rule()]).allow_http_for_tests(),
+                Arc::new(move |_| {
+                    Some(Box::new(CliTokenSource::with_spec(
+                        SourceToolSpec {
+                            binary: "sh",
+                            args: &["-c", "kill -9 $$"],
+                        },
+                        &env,
+                    ))
+                        as Box<dyn opensesame_invoke_through::TokenSource>)
+                }),
+            );
+            let app = router(st);
+            let res = app
+                .oneshot(request(
+                    &invoke_body(&format!("{}/zen", upstream.url()), true),
+                    true,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::BAD_GATEWAY);
+            let body = to_bytes(res.into_body(), 4096).await.unwrap();
+            let text = String::from_utf8(body.to_vec()).unwrap();
+            let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+            assert_eq!(json["error"], "token_source_failed");
+            // The failure surface is a class, never tool output or a token.
+            assert!(!text.contains(CANARY), "{text}");
+            assert_eq!(
+                upstream.connections(),
+                0,
+                "a call that never acquired a credential reached the upstream"
+            );
+        })
+        .await
+        .expect("chaos case exceeded its deadline");
+    }
+
+    #[tokio::test]
+    async fn chaos_stalled_upstream_is_504_without_token_material() {
+        use crate::tests::fault::{Fault, FaultListener};
+        tokio::time::timeout(CHAOS_DEADLINE, async {
+            let upstream = FaultListener::spawn(Fault::Stall).await;
+            let app = router(canary_state(
+                Invoker::with_rules(vec![loopback_rule()])
+                    .allow_http_for_tests()
+                    .with_timeout(std::time::Duration::from_millis(300)),
+            ));
+            let res = app
+                .oneshot(request(
+                    &invoke_body(&format!("{}/zen", upstream.url()), true),
+                    true,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::GATEWAY_TIMEOUT);
+            let body = to_bytes(res.into_body(), 4096).await.unwrap();
+            let text = String::from_utf8(body.to_vec()).unwrap();
+            let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+            assert_eq!(json["error"], "upstream_timeout");
+            assert!(upstream.connections() >= 1, "the upstream was never dialed");
+            assert!(!text.contains(CANARY), "{text}");
+        })
+        .await
+        .expect("chaos case exceeded its deadline");
+    }
 }

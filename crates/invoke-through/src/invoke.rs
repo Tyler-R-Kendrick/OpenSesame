@@ -303,10 +303,19 @@ impl Invoker {
         .await
         {
             Ok(Ok(collected)) => collected.to_bytes(),
-            Ok(Err(_)) => {
-                return Err(InvokeError::ResponseTooLarge {
-                    cap: self.response_body_cap,
-                })
+            Ok(Err(error)) => {
+                // Limited boxes its errors: LengthLimitError means the cap was
+                // hit; anything else is the underlying body read failing (e.g.
+                // a truncated mid-body EOF), which is a transport fault.
+                if error
+                    .downcast_ref::<http_body_util::LengthLimitError>()
+                    .is_some()
+                {
+                    return Err(InvokeError::ResponseTooLarge {
+                        cap: self.response_body_cap,
+                    });
+                }
+                return Err(InvokeError::Transport(error.to_string()));
             }
             Err(_) => return Err(InvokeError::Timeout),
         };
