@@ -259,4 +259,58 @@ mod tests {
         let json: Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(json["error"], "host_api_unreachable");
     }
+
+    /// Hard per-case deadline: a regression that hangs fails fast instead of
+    /// wedging the suite.
+    const CHAOS_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
+
+    #[tokio::test]
+    async fn chaos_reset_gateway_is_502_without_credential_material() {
+        use crate::tests::fault::{Fault, FaultListener};
+        tokio::time::timeout(CHAOS_DEADLINE, async {
+            let gateway = FaultListener::spawn(Fault::Reset).await;
+            let app = router(test_state(gateway.url()));
+            let res = app
+                .oneshot(request(r#"{"connection_id":"conn_stub"}"#, true))
+                .await
+                .unwrap();
+            assert_eq!(res.status(), StatusCode::BAD_GATEWAY);
+            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
+            let text = String::from_utf8(bytes.to_vec()).unwrap();
+            let json: Value = serde_json::from_str(&text).unwrap();
+            assert_eq!(json["error"], "host_api_unreachable");
+            assert!(gateway.connections() >= 1, "the gateway was never dialed");
+            // The operator token forwarded toward the gateway never echoes
+            // back, and no mint-shaped material is invented on failure.
+            assert!(!text.contains(OPERATOR), "{text}");
+            assert!(!text.contains("derived_token"), "{text}");
+        })
+        .await
+        .expect("chaos case exceeded its deadline");
+    }
+
+    #[tokio::test]
+    async fn chaos_stalled_gateway_is_502_within_the_client_timeout() {
+        use crate::tests::fault::{Fault, FaultListener};
+        tokio::time::timeout(CHAOS_DEADLINE, async {
+            let gateway = FaultListener::spawn(Fault::Stall).await;
+            let app = router(test_state(gateway.url()));
+            let res = app
+                .oneshot(request(r#"{"connection_id":"conn_stub"}"#, true))
+                .await
+                .unwrap();
+            // The reqwest timeout (400 ms in test state) fires long before
+            // the deadline; the caller gets a failure, never a hang.
+            assert_eq!(res.status(), StatusCode::BAD_GATEWAY);
+            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
+            let text = String::from_utf8(bytes.to_vec()).unwrap();
+            let json: Value = serde_json::from_str(&text).unwrap();
+            assert_eq!(json["error"], "host_api_unreachable");
+            assert!(gateway.connections() >= 1, "the gateway was never dialed");
+            assert!(!text.contains(OPERATOR), "{text}");
+            assert!(!text.contains("derived_token"), "{text}");
+        })
+        .await
+        .expect("chaos case exceeded its deadline");
+    }
 }

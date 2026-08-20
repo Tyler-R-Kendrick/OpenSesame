@@ -10,7 +10,7 @@ does not run — why, so the absence is a decision rather than an oversight.
 | Atomic unit | beside the code: `#[cfg(test)] mod tests` in Rust, `*.test.ts` in TS | `cargo test`, `pnpm test` |
 | Property | `property: …` cases in the PACT suites | with the unit tests |
 | Adversarial | `adversarial: …` cases — the ones that assert a refusal | with the unit tests |
-| Chaos | `chaos: …` cases — retries, races, partial state, superseded work | with the unit tests |
+| Chaos | `chaos: …` cases — retries, races, partial state, superseded work; scripted-fault network chaos in `crates/invoke-through/tests/chaos.rs` (+ daemon route cases) | with the unit tests |
 | Contract | `contract: …` cases, plus `packages/contracts` schema tests | with the unit tests |
 | Characterization / snapshot | `insta` snapshots in Rust (`src/snapshots/`), Vitest snapshots in TS (`__snapshots__/`) | with the unit tests |
 | Behaviour (BDD) | `*.behavior.test.ts` — Given/When/Then journeys | with the unit tests |
