@@ -22,6 +22,8 @@ const EXPECTED_TABLES = [
   "agent_instances",
   "delegations",
   "oauth_clients",
+  "client_origins",
+  "client_claim_challenges",
   "pairwise_subjects",
   "consents",
   "provisional_sessions",
@@ -96,6 +98,13 @@ describe("schema metadata contract", () => {
     expect(fkTargets(schema.agentInstances)).toEqual([
       { target: schema.agents, onDelete: "cascade" },
     ]);
+    expect(fkTargets(schema.clientOrigins)).toEqual([
+      { target: schema.oauthClients, onDelete: "cascade" },
+    ]);
+    expect(fkTargets(schema.clientClaimChallenges)).toContainEqual({
+      target: schema.oauthClients,
+      onDelete: "cascade",
+    });
   });
 
   it("keeps optional parents as plain references (no cascade)", () => {
