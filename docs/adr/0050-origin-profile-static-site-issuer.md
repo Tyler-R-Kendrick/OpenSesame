@@ -185,9 +185,10 @@ any renumbering of this repo's ADRs 0001–0049.
   issuer as a configured trusted upstream (configuration only, since
   the origin-profile issuer satisfies every admissibility requirement
   in `docs/architecture/federated-signin.md` §1).
-- The mock upstream IdP does not yet satisfy that contract either
-  (fixed client_id/secret, no CORS, public subjects); completing it is
-  part of this program so the reference implementation is honest.
+- The mock upstream IdP now satisfies that contract for origin-profile
+  clients (`origin:{canonical}`, exact-origin CORS on `/token`,
+  per-origin `sub`/`pairwise_sub`) while keeping the seeded confidential
+  client for Better Auth.
 - Landing shape: stacked slices — (1) oauth-provider origin machinery,
   (2) migration + durable store wiring, (3) control-plane routes and
   consent UI, (4) SDK surfaces, (5) adversarial corpus + e2e +

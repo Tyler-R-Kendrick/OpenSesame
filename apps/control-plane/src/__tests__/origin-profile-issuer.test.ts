@@ -540,6 +540,68 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
     }
   });
 
+  it("R7: a non-loopback HTTP origin is refused and inserts nothing", async () => {
+    const started = await startOriginServer(true);
+    try {
+      const evil = "origin:http://evil.example";
+      const params = new URLSearchParams({
+        client_id: evil,
+        redirect_uri: "http://evil.example/opensesame/callback",
+        response_type: "code",
+        scope: "openid",
+        state: "s-1",
+        nonce: "n-1",
+        code_challenge: pkce().challenge,
+        code_challenge_method: "S256",
+      });
+      const res = await fetch(
+        `http://127.0.0.1:${started.port}/auth?${params.toString()}`,
+        { redirect: "manual" },
+      );
+      expect(res.status).toBeGreaterThanOrEqual(400);
+      expect(res.status).toBeLessThan(500);
+      expect(
+        await started.ctx.oauth.clientStore.findById(evil),
+      ).toBeUndefined();
+    } finally {
+      await stop(started);
+    }
+  });
+
+  it("R8: distinct ports are distinct clients and sectors", async () => {
+    const started = await startOriginServer(true);
+    try {
+      const originB = "http://127.0.0.1:4102";
+      for (const origin of [ORIGIN, originB]) {
+        const { challenge } = pkce();
+        const params = new URLSearchParams({
+          client_id: `origin:${origin}`,
+          redirect_uri: `${origin}/opensesame/callback`,
+          response_type: "code",
+          scope: "openid",
+          state: "s-1",
+          nonce: "n-1",
+          code_challenge: challenge,
+          code_challenge_method: "S256",
+        });
+        const res = await fetch(
+          `http://127.0.0.1:${started.port}/auth?${params.toString()}`,
+          { redirect: "manual" },
+        );
+        expect(res.status).toBe(303);
+      }
+      const a = await started.ctx.oauth.clientStore.findById(CLIENT_ID);
+      const b = await started.ctx.oauth.clientStore.findById(
+        `origin:${originB}`,
+      );
+      expect(a?.origin).toBe(ORIGIN);
+      expect(b?.origin).toBe(originB);
+      expect(a?.sectorIdentifier).not.toBe(b?.sectorIdentifier);
+    } finally {
+      await stop(started);
+    }
+  });
+
   it("R12: discovery advertises authorization, token, and jwks", async () => {
     const started = await startOriginServer(true);
     try {

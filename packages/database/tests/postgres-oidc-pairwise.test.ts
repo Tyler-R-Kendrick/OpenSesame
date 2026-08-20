@@ -170,6 +170,16 @@ describe("createPostgresPairwiseStore", () => {
     expect(await pairwise.find(principal.id, sector)).toEqual(first);
   });
 
+  it("R11: a new store instance on the same database returns the minted subject", async () => {
+    const principal = await ctx.repos.principals.create(makePrincipal());
+    const sector = `sector_${randomUUID()}`;
+    const first = await pairwise.getOrCreate(principal.id, sector);
+    const restarted = createPostgresPairwiseStore(ctx.db);
+    const found = await restarted.find(principal.id, sector);
+    expect(found?.subject).toBe(first.subject);
+    expect(found?.principalId).toBe(principal.id);
+  });
+
   it("fails closed when the principal was never persisted", async () => {
     const ghost = `prn_${randomUUID()}`;
     await expect(
