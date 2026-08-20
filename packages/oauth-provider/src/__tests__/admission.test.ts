@@ -90,7 +90,7 @@ describe("client admission policy", () => {
 
   it("rejects every forbidden origin scope", () => {
     const policy = createClientAdmissionPolicy(flags);
-    for (const scope of ["offline_access", "admin", "openidensesame.admin"]) {
+    for (const scope of ["offline_access", "admin", "opensesame.admin"]) {
       expect(() => policy.assertOriginScopes([scope]), scope).toThrow(
         ClientAdmissionError,
       );

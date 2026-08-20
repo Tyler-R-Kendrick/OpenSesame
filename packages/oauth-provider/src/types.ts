@@ -59,5 +59,5 @@ export interface OAuthProviderEnv {
 export const ORIGIN_PROFILE_FORBIDDEN_SCOPES = [
   "offline_access",
   "admin",
-  "openidensesame.admin",
+  "opensesame.admin",
 ] as const;
