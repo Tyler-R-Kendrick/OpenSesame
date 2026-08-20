@@ -430,4 +430,125 @@ describe("mock-upstream-idp route branches", () => {
     });
     await expect(idp.close()).rejects.toThrow();
   });
+
+  it("origin-profile clients: CORS token exchange, pairwise_sub, no secret", async () => {
+    const { idp, base } = await listenIdp();
+    try {
+      const origin = "http://127.0.0.1:4101";
+      const clientId = `origin:${origin}`;
+      const redirectUri = `${origin}/opensesame/callback`;
+      const verifier = randomBytes(32).toString("base64url");
+      const url = new URL(`${base}/authorize`);
+      url.searchParams.set("client_id", clientId);
+      url.searchParams.set("redirect_uri", redirectUri);
+      url.searchParams.set("response_type", "code");
+      url.searchParams.set("code_challenge", s256(verifier));
+      url.searchParams.set("code_challenge_method", "S256");
+      const auth = await fetch(url, { redirect: "manual" });
+      expect(auth.status).toBe(302);
+      const code = new URL(auth.headers.get("location") ?? "").searchParams.get(
+        "code",
+      );
+      expect(code).toBeTruthy();
+
+      const preflight = await fetch(`${base}/token`, {
+        method: "OPTIONS",
+        headers: { origin },
+      });
+      expect(preflight.status).toBe(204);
+      expect(preflight.headers.get("access-control-allow-origin")).toBe(origin);
+
+      const denied = await tokenRequest(
+        base,
+        {
+          grant_type: "authorization_code",
+          code: code ?? "",
+          redirect_uri: redirectUri,
+          client_id: clientId,
+          code_verifier: verifier,
+        },
+        { origin: "http://127.0.0.1:4102" },
+      );
+      expect(denied.status).toBe(403);
+      expect(denied.headers.get("access-control-allow-origin")).toBeNull();
+      expect(await denied.json()).toMatchObject({
+        error: "unauthorized_client",
+        error_description: "origin_cors_denied",
+      });
+
+      const tokenRes = await tokenRequest(
+        base,
+        {
+          grant_type: "authorization_code",
+          code: code ?? "",
+          redirect_uri: redirectUri,
+          client_id: clientId,
+          code_verifier: verifier,
+        },
+        { origin },
+      );
+      expect(tokenRes.status).toBe(200);
+      expect(tokenRes.headers.get("access-control-allow-origin")).toBe(origin);
+      const tokens = (await tokenRes.json()) as { id_token: string };
+      const payload = decodeJwt(tokens.id_token) as {
+        sub: string;
+        pairwise_sub?: string;
+        origin?: string;
+      };
+      expect(payload.sub).not.toBe(idp.config.testUser.sub);
+      expect(payload.pairwise_sub).toBe(payload.sub);
+      expect(payload.origin).toBe(origin);
+
+      const otherOrigin = "http://127.0.0.1:4102";
+      const otherClient = `origin:${otherOrigin}`;
+      const otherRedirect = `${otherOrigin}/opensesame/callback`;
+      const urlB = new URL(`${base}/authorize`);
+      urlB.searchParams.set("client_id", otherClient);
+      urlB.searchParams.set("redirect_uri", otherRedirect);
+      urlB.searchParams.set("response_type", "code");
+      urlB.searchParams.set("code_challenge", s256(verifier));
+      urlB.searchParams.set("code_challenge_method", "S256");
+      const authB = await fetch(urlB, { redirect: "manual" });
+      const codeB = new URL(
+        authB.headers.get("location") ?? "",
+      ).searchParams.get("code");
+      const tokenB = await tokenRequest(
+        base,
+        {
+          grant_type: "authorization_code",
+          code: codeB ?? "",
+          redirect_uri: otherRedirect,
+          client_id: otherClient,
+          code_verifier: verifier,
+        },
+        { origin: otherOrigin },
+      );
+      const payloadB = decodeJwt(
+        ((await tokenB.json()) as { id_token: string }).id_token,
+      ) as { sub: string };
+      expect(payloadB.sub).not.toBe(payload.sub);
+    } finally {
+      await idp.close();
+    }
+  });
+
+  it("rejects an origin client whose redirect is not on that origin", async () => {
+    const { idp, base } = await listenIdp();
+    try {
+      const url = new URL(`${base}/authorize`);
+      url.searchParams.set("client_id", "origin:http://127.0.0.1:4101");
+      url.searchParams.set(
+        "redirect_uri",
+        "http://127.0.0.1:4102/opensesame/callback",
+      );
+      url.searchParams.set("response_type", "code");
+      url.searchParams.set("code_challenge", s256("v"));
+      url.searchParams.set("code_challenge_method", "S256");
+      const res = await fetch(url, { redirect: "manual" });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ error: "invalid_redirect_uri" });
+    } finally {
+      await idp.close();
+    }
+  });
 });
