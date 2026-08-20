@@ -1,0 +1,15 @@
+{
+  "artboards": [
+    { "file": "StatusBar.dc.html", "x": 0, "y": 0, "w": 940, "h": 700, "title": "Pick a treatment" },
+    { "file": "Main.dc.html", "x": 1000, "y": 0, "w": 1240, "h": 900, "title": "Connectivity, redesigned" },
+    { "file": "Ceremony.dc.html", "x": 0, "y": 780, "w": 920, "h": 900, "title": "The connect ceremony" },
+    { "file": "Fields.dc.html", "x": 1000, "y": 980, "w": 1060, "h": 1560, "title": "Forms: before / after" },
+    { "file": "Mobile.dc.html", "x": 0, "y": 1760, "w": 390, "h": 844, "title": "Phone" }
+  ],
+  "annotations": [
+    { "id": "start-here", "x": 0, "y": -150, "w": 420, "text": "Start here.\n\nClick any glyph in the three bars to cycle it live / needs-attention / off. Pick the treatment that survives a glance, and the rest of the canvas follows it — the other artboards are drawn in Option A." },
+    { "id": "hero-note", "x": 1000, "y": -150, "w": 440, "text": "The Connectivity pane with the endpoint form gone.\n\nFive core connectors as tiles; click one to open its ceremony in the sheet. The Endpoints panel is collapsed by default and has no Save button." },
+    { "id": "forms-note", "x": 2300, "y": 980, "w": 380, "text": "Everything on the right is live — change the sentence selects, hit the refresh glyph to generate a password, tap a fill chip to populate the daemon URL." }
+  ],
+  "launch": { "view": "canvas" }
+}

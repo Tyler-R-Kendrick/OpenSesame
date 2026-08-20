@@ -1,0 +1,360 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+  .os {
+    --canvas: #f2f5f9; --surface: #ffffff; --surface-2: #f7f9fc; --surface-3: #eef2f8;
+    --rail: #101a2b; --rail-2: #17253a; --rail-fg: #dbe6f4; --rail-muted: #8ba0bb; --rail-line: #24354e;
+    --ink: #0e1826; --ink-2: #566880; --ink-3: #7e8fa6; --line: #dce4ef; --line-strong: #c4d1e2;
+    --accent: #0d7268; --accent-hover: #0a5c54; --accent-ink: #ffffff; --accent-wash: #e4f6f3; --accent-line: #9fd8d0;
+    --ok: #0f7a51; --ok-wash: #e3f6ec; --warn: #a25a05; --warn-wash: #fdf1de; --err: #b32424; --err-wash: #fceaea;
+    --radius: 10px; --radius-lg: 14px; --radius-pill: 999px;
+    --shadow-sm: 0 1px 2px rgba(14, 24, 38, 0.06), 0 1px 1px rgba(14, 24, 38, 0.04);
+    --shadow: 0 6px 16px -4px rgba(14, 24, 38, 0.12), 0 2px 6px -2px rgba(14, 24, 38, 0.08);
+    --shadow-lg: 0 24px 48px -12px rgba(14, 24, 38, 0.22), 0 8px 20px -8px rgba(14, 24, 38, 0.12);
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    color-scheme: light;
+    background: var(--canvas); color: var(--ink);
+    font-family: var(--font); font-size: 15px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased; font-synthesis-weight: none;
+  }
+  .os[data-theme="dark"] {
+    --canvas: #0a121d; --surface: #111d2c; --surface-2: #162435; --surface-3: #1c2c40;
+    --rail: #070f19; --rail-2: #0f1c2b; --rail-fg: #dbe6f4; --rail-muted: #7d92ae; --rail-line: #1b2b3f;
+    --ink: #e7eefa; --ink-2: #9db0c8; --ink-3: #7488a2; --line: #223349; --line-strong: #2e4262;
+    --accent: #2fb3a3; --accent-hover: #43c8b7; --accent-ink: #04231f; --accent-wash: #0f2f2c; --accent-line: #1d5c55;
+    --ok: #35b57e; --ok-wash: #0f2c22; --warn: #d99320; --warn-wash: #33240c; --err: #ef6d6d; --err-wash: #351717;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.5), 0 2px 6px -2px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6), 0 8px 20px -8px rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+  .os *, .os *::before, .os *::after { box-sizing: border-box; }
+  .os h1, .os h2, .os h3, .os h4 { margin: 0; letter-spacing: -0.021em; text-wrap: balance; font-weight: 650; }
+  .os h1 { font-size: 1.5rem; } .os h2 { font-size: 1.125rem; } .os h3 { font-size: 0.9375rem; }
+  .os p { margin: 0; }
+  .os a { color: var(--accent); text-underline-offset: 2px; }
+  .os code { font-family: var(--mono); font-size: 0.875em; font-variant-ligatures: none; }
+  .os :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  /* ——— Artboard frame ——— */
+  .os { padding: 34px 36px 40px; display: grid; gap: 26px; }
+  .lede { display: grid; gap: 6px; max-width: 62ch; }
+  .lede p { color: var(--ink-2); font-size: 0.9375rem; }
+  .eyebrow { font-size: 0.6875rem; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+
+  .opt { display: grid; gap: 10px; }
+  .opt__name { display: flex; align-items: baseline; gap: 8px; }
+  .opt__name h3 { font-size: 0.9375rem; }
+  .opt__tag { font-size: 0.6875rem; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+  .opt__tradeoff { font-size: 0.8125rem; color: var(--ink-2); line-height: 1.45; max-width: 74ch; text-wrap: pretty; }
+
+  /* ——— The real topbar, rail-coloured, exactly as .topbar renders ——— */
+  .topbar {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.6rem 0.85rem; background: var(--rail); color: var(--rail-fg);
+    border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  }
+  .mark { display: grid; place-items: center; width: 1.875rem; height: 1.875rem; flex: none;
+    border-radius: 8px; background: var(--accent); color: #fff; box-shadow: inset 0 -1px 0 rgba(0,0,0,0.22); }
+  .topbar__title { font-size: 0.9375rem; font-weight: 650; }
+  .topbar__spacer { margin-left: auto; }
+  .rail__lock { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+    min-height: 2.125rem; padding: 0 0.7rem; border: 1px solid var(--rail-line); border-radius: var(--radius);
+    background: var(--rail-2); color: var(--rail-fg); font: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer; }
+  .proj { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.4rem 0.55rem;
+    border: 1px solid var(--rail-line); border-radius: 8px; background: var(--rail-2);
+    color: var(--rail-fg); font: inherit; font-size: 0.8125rem; font-weight: 600; }
+
+  /* ——— A: glyph row ——— */
+  .cx { display: flex; align-items: center; gap: 2px; }
+  .cx__btn {
+    appearance: none; border: 1px solid transparent; background: transparent; cursor: pointer;
+    display: grid; justify-items: center; gap: 3px; padding: 5px 7px 4px; border-radius: 8px;
+    color: var(--rail-fg); font: inherit; transition: background 140ms var(--ease);
+  }
+  .cx__btn:hover { background: var(--rail-2); }
+  .cx__btn svg { display: block; }
+  .cx__pip { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
+  .is-live  .cx__pip { background: #35b57e; box-shadow: 0 0 0 2.5px rgba(53,181,126,0.22); }
+  .is-attn  .cx__pip { background: #d99320; box-shadow: 0 0 0 2.5px rgba(217,147,32,0.24); }
+  .cx__btn.is-attn { color: #f0b95c; }
+  .cx__btn.is-off svg { opacity: 0.32; }
+  .cx__rule { width: 1px; height: 20px; background: var(--rail-line); margin: 0 6px; flex: none; }
+
+  /* ——— B: glyph + micro-label ——— */
+  .cxl { display: flex; align-items: center; gap: 4px; }
+  .cxl__btn {
+    appearance: none; border: 1px solid transparent; background: transparent; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px 5px 7px; border-radius: var(--radius-pill);
+    color: var(--rail-fg); font: inherit; font-size: 0.6875rem; font-weight: 650;
+    letter-spacing: 0.05em; text-transform: uppercase; transition: background 140ms var(--ease);
+  }
+  .cxl__btn:hover { background: var(--rail-2); }
+  .cxl__btn.is-live { color: #8fdcc0; background: rgba(53,181,126,0.13); }
+  .cxl__btn.is-attn { color: #f0b95c; background: rgba(217,147,32,0.15); }
+  .cxl__btn.is-off  { color: var(--rail-muted); opacity: 0.7; }
+
+  /* ——— C: summary chip + popover ——— */
+  .cxs { position: relative; }
+  .cxs__chip {
+    appearance: none; display: inline-flex; align-items: center; gap: 8px;
+    padding: 0.4rem 0.7rem 0.4rem 0.6rem; border: 1px solid var(--rail-line); border-radius: var(--radius-pill);
+    background: var(--rail-2); color: var(--rail-fg); font: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer;
+  }
+  .cxs__stack { display: inline-flex; align-items: center; }
+  .cxs__stack svg { margin-right: -4px; opacity: 0.85; }
+  .cxs__count { color: #f0b95c; }
+  .cxs__pop {
+    position: absolute; top: calc(100% + 8px); right: 0; z-index: 5; width: 21rem;
+    padding: 0.5rem; border: 1px solid var(--line); border-radius: 12px;
+    background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg);
+    display: grid; gap: 2px;
+  }
+  .cxs__row { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.55rem; border-radius: 8px;
+    border: 0; background: transparent; color: inherit; font: inherit; text-align: left; width: 100%; cursor: pointer; }
+  .cxs__row:hover { background: var(--surface-3); }
+  .cxs__row b { font-size: 0.875rem; font-weight: 600; display: block; }
+  .cxs__row small { font-size: 0.75rem; color: var(--ink-2); }
+  .cxs__grow { flex: 1; min-width: 0; }
+  .dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; flex: none; background: var(--ink-3); }
+  .dot--ok { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+  .dot--warn { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent); }
+
+  .foot { font-size: 0.8125rem; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 14px; max-width: 78ch; line-height: 1.5; text-wrap: pretty; }
+  </style>
+</helmet>
+
+<div class="os" data-theme="{{theme}}">
+
+  <div class="lede">
+    <p class="eyebrow">Settings · connectivity</p>
+    <h1>Three ways to wear the connectors</h1>
+    <p>The same five core connectors, up top, always visible. Click any glyph to cycle it — live, needs attention, off — and see how each treatment holds up. Pick one and the rest of the design follows it.</p>
+  </div>
+
+  <section class="opt">
+    <div class="opt__name"><span class="opt__tag">Option A</span><h3>Glyph row — the phone status bar</h3></div>
+    <div class="topbar">
+      <span class="mark"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10.5" rx="2.2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path><circle cx="12" cy="15.5" r="1.15"></circle><path d="M12 16.65V18"></path></svg></span>
+      <p class="topbar__title">OpenSesame</p>
+      <span class="proj">Personal <span style="opacity:0.7;font-size:0.625rem">▾</span></span>
+      <span class="topbar__spacer"></span>
+      <div class="cx">
+        <button type="button" class="cx__btn {{hostCls}}" title="{{hostTip}}" aria-label="{{hostTip}}" onClick="{{cycleHost}}">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3.2v5.1c0 4.7-3.1 8.1-7.5 9.4-4.4-1.3-7.5-4.7-7.5-9.4V6.2z"></path><path d="M9.2 12.1l2 2 3.6-3.9"></path></svg>
+          <span class="cx__pip"></span>
+        </button>
+        <button type="button" class="cx__btn {{idCls}}" title="{{idTip}}" aria-label="{{idTip}}" onClick="{{cycleId}}">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="12" r="4"></circle><path d="M12.5 12H21M18 12v3M15 12v2.2"></path></svg>
+          <span class="cx__pip"></span>
+        </button>
+        <button type="button" class="cx__btn {{macCls}}" title="{{macTip}}" aria-label="{{macTip}}" onClick="{{cycleMac}}">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect><path d="M7 9.5l2.8 2.5L7 14.5M12.5 15h4.2"></path></svg>
+          <span class="cx__pip"></span>
+        </button>
+        <button type="button" class="cx__btn {{gitCls}}" title="{{gitTip}}" aria-label="{{gitTip}}" onClick="{{cycleGit}}">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2.2"></circle><circle cx="7" cy="18" r="2.2"></circle><circle cx="17" cy="9" r="2.2"></circle><path d="M7 8.2v7.6"></path><path d="M17 11.2c0 3.4-3 4.4-5.6 4.8"></path></svg>
+          <span class="cx__pip"></span>
+        </button>
+        <button type="button" class="cx__btn {{keyCls}}" title="{{keyTip}}" aria-label="{{keyTip}}" onClick="{{cycleKey}}">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10.5" rx="2.2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path><circle cx="12" cy="15.5" r="1.15"></circle></svg>
+          <span class="cx__pip"></span>
+        </button>
+      </div>
+      <span class="cx__rule"></span>
+      <button type="button" class="rail__lock">Lock</button>
+    </div>
+    <p class="opt__tradeoff">Quietest, and the most status-bar-true: five glyphs read as one object, and an amber pip is the only thing that ever pulls the eye. Costs discoverability — nothing says which glyph is the git server until you hover, so it leans on tooltips and on people learning the row.</p>
+  </section>
+
+  <section class="opt">
+    <div class="opt__name"><span class="opt__tag">Option B</span><h3>Glyph plus micro-label</h3></div>
+    <div class="topbar">
+      <span class="mark"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10.5" rx="2.2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path><circle cx="12" cy="15.5" r="1.15"></circle><path d="M12 16.65V18"></path></svg></span>
+      <p class="topbar__title">OpenSesame</p>
+      <span class="topbar__spacer"></span>
+      <div class="cxl">
+        <button type="button" class="cxl__btn {{hostCls}}" title="{{hostTip}}" onClick="{{cycleHost}}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3.2v5.1c0 4.7-3.1 8.1-7.5 9.4-4.4-1.3-7.5-4.7-7.5-9.4V6.2z"></path><path d="M9.2 12.1l2 2 3.6-3.9"></path></svg>
+          <span>Host</span>
+        </button>
+        <button type="button" class="cxl__btn {{idCls}}" title="{{idTip}}" onClick="{{cycleId}}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="12" r="4"></circle><path d="M12.5 12H21M18 12v3M15 12v2.2"></path></svg>
+          <span>Identity</span>
+        </button>
+        <button type="button" class="cxl__btn {{macCls}}" title="{{macTip}}" onClick="{{cycleMac}}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect><path d="M7 9.5l2.8 2.5L7 14.5M12.5 15h4.2"></path></svg>
+          <span>Machine</span>
+        </button>
+        <button type="button" class="cxl__btn {{gitCls}}" title="{{gitTip}}" onClick="{{cycleGit}}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2.2"></circle><circle cx="7" cy="18" r="2.2"></circle><circle cx="17" cy="9" r="2.2"></circle><path d="M7 8.2v7.6"></path><path d="M17 11.2c0 3.4-3 4.4-5.6 4.8"></path></svg>
+          <span>Git</span>
+        </button>
+        <button type="button" class="cxl__btn {{keyCls}}" title="{{keyTip}}" onClick="{{cycleKey}}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10.5" rx="2.2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path><circle cx="12" cy="15.5" r="1.15"></circle></svg>
+          <span>Keys</span>
+        </button>
+      </div>
+      <span class="cx__rule"></span>
+      <button type="button" class="rail__lock">Lock</button>
+    </div>
+    <p class="opt__tradeoff">Nothing to learn — the row names itself, and state is carried twice, in colour and in wash, so it survives a glance. Costs roughly 210px of bar and stops reading as a status bar; on a phone the labels have to drop anyway, so you end up maintaining A as well.</p>
+  </section>
+
+  <section class="opt">
+    <div class="opt__name"><span class="opt__tag">Option C</span><h3>One summary chip, popover on click</h3></div>
+    <div class="topbar">
+      <span class="mark"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10.5" rx="2.2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path><circle cx="12" cy="15.5" r="1.15"></circle><path d="M12 16.65V18"></path></svg></span>
+      <p class="topbar__title">OpenSesame</p>
+      <span class="topbar__spacer"></span>
+      <div class="cxs">
+        <button type="button" class="cxs__chip" onClick="{{togglePop}}">
+          <span class="cxs__stack">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3.2v5.1c0 4.7-3.1 8.1-7.5 9.4-4.4-1.3-7.5-4.7-7.5-9.4V6.2z"></path></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="12" r="4"></circle><path d="M12.5 12H21M18 12v3"></path></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect><path d="M7 9.5l2.8 2.5L7 14.5"></path></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2.2"></circle><circle cx="7" cy="18" r="2.2"></circle><circle cx="17" cy="9" r="2.2"></circle><path d="M7 8.2v7.6"></path><path d="M17 11.2c0 3.4-3 4.4-5.6 4.8"></path></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10.5" rx="2.2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path></svg>
+          </span>
+          <span>{{liveCount}}/5</span>
+          <span class="cxs__count">{{attnLabel}}</span>
+        </button>
+        <sc-if value="{{popOpen}}" hint-placeholder-val="{{true}}">
+          <div class="cxs__pop">
+            <button type="button" class="cxs__row" onClick="{{cycleHost}}">
+              <span class="dot {{hostDot}}"></span>
+              <span class="cxs__grow"><b>Host</b><small>{{hostDetail}}</small></span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3)"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"></path></svg>
+            </button>
+            <button type="button" class="cxs__row" onClick="{{cycleId}}">
+              <span class="dot {{idDot}}"></span>
+              <span class="cxs__grow"><b>Identity</b><small>{{idDetail}}</small></span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3)"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"></path></svg>
+            </button>
+            <button type="button" class="cxs__row" onClick="{{cycleMac}}">
+              <span class="dot {{macDot}}"></span>
+              <span class="cxs__grow"><b>This machine</b><small>{{macDetail}}</small></span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3)"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"></path></svg>
+            </button>
+            <button type="button" class="cxs__row" onClick="{{cycleGit}}">
+              <span class="dot {{gitDot}}"></span>
+              <span class="cxs__grow"><b>Git history</b><small>{{gitDetail}}</small></span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3)"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"></path></svg>
+            </button>
+            <button type="button" class="cxs__row" onClick="{{cycleKey}}">
+              <span class="dot {{keyDot}}"></span>
+              <span class="cxs__grow"><b>Key vault</b><small>{{keyDetail}}</small></span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3)"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"></path></svg>
+            </button>
+          </div>
+        </sc-if>
+      </div>
+      <span class="cx__rule"></span>
+      <button type="button" class="rail__lock">Lock</button>
+    </div>
+    <p class="opt__tradeoff">Cheapest on chrome and the only one that scales past five connectors — the popover has room for the detail line each connector actually wants to show. Costs a click before you can see anything, which is the wrong trade for the one job this bar exists to do: tell you at a glance that the host is down.</p>
+  </section>
+
+  <p class="foot">All three read what the rail status already reads: <code>usePlaneStatus()</code> for host and identity, the daemon probe for this machine, and the capability bindings for keys and git history. States map straight across — <code>live</code> and <code>pending</code> are green, <code>down</code> and <code>loopback</code> amber, <code>unset</code> ghosted with no pip.</p>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"}}'>
+const ORDER = ['live', 'attn', 'off'];
+
+const COPY = {
+  host: {
+    live: 'Live · 127.0.0.1:18787',
+    attn: 'Unreachable — last seen 4m ago',
+    off: 'Not configured',
+  },
+  id: {
+    live: 'Signed in · contact.tylerkendrick',
+    attn: 'Session expired — sign in again',
+    off: 'No identity session',
+  },
+  mac: {
+    live: 'Paired · macbook.tail9c2.ts.net',
+    attn: 'Daemon not paired on this device',
+    off: 'Not paired',
+  },
+  git: {
+    live: 'GitHub · Tyler-R-Kendrick/opensesame-store',
+    attn: 'Push rejected — token expired',
+    off: 'No git remote',
+  },
+  key: {
+    live: 'WebCrypto on this device',
+    attn: 'Connector needs authorizing',
+    off: 'Not bound',
+  },
+};
+
+const NAME = {
+  host: 'Host', id: 'Identity', mac: 'This machine', git: 'Git history', key: 'Key vault',
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      popOpen: true,
+      s: { host: 'live', id: 'live', mac: 'attn', git: 'live', key: 'live' },
+    };
+  }
+
+  cycle(id) {
+    const now = this.state.s[id];
+    const next = ORDER[(ORDER.indexOf(now) + 1) % ORDER.length];
+    this.setState({ s: Object.assign({}, this.state.s, { [id]: next }) });
+  }
+
+  pack(id) {
+    const v = this.state.s[id];
+    return {
+      cls: v === 'live' ? 'is-live' : v === 'attn' ? 'is-attn' : 'is-off',
+      dot: v === 'live' ? 'dot--ok' : v === 'attn' ? 'dot--warn' : '',
+      detail: COPY[id][v],
+      tip: NAME[id] + ' — ' + COPY[id][v],
+    };
+  }
+
+  renderVals() {
+    const host = this.pack('host');
+    const id = this.pack('id');
+    const mac = this.pack('mac');
+    const git = this.pack('git');
+    const key = this.pack('key');
+    const all = [host, id, mac, git, key];
+    const attn = all.filter((x) => x.cls === 'is-attn').length;
+    return {
+      theme: this.props.theme ?? 'light',
+      hostCls: host.cls, hostDot: host.dot, hostDetail: host.detail, hostTip: host.tip,
+      idCls: id.cls, idDot: id.dot, idDetail: id.detail, idTip: id.tip,
+      macCls: mac.cls, macDot: mac.dot, macDetail: mac.detail, macTip: mac.tip,
+      gitCls: git.cls, gitDot: git.dot, gitDetail: git.detail, gitTip: git.tip,
+      keyCls: key.cls, keyDot: key.dot, keyDetail: key.detail, keyTip: key.tip,
+      cycleHost: () => this.cycle('host'),
+      cycleId: () => this.cycle('id'),
+      cycleMac: () => this.cycle('mac'),
+      cycleGit: () => this.cycle('git'),
+      cycleKey: () => this.cycle('key'),
+      liveCount: all.filter((x) => x.cls === 'is-live').length,
+      attnLabel: attn ? '· ' + attn + ' needs setup' : '',
+      popOpen: this.state.popOpen,
+      togglePop: () => this.setState({ popOpen: !this.state.popOpen }),
+    };
+  }
+}
+</script>
+</body>
+</html>
