@@ -1,14 +1,13 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { Outlet } from "react-router";
 import { MemoryRouter } from "react-router";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { App, type AppSlots } from "./App.js";
 
 const env = {
   hasAuthResponse: false,
-  vaultStatus: overlapCast("locked"),
+  vaultStatus: "locked",
 };
 
 const testSlots: Partial<AppSlots> = {

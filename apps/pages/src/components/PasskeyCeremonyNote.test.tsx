@@ -3,11 +3,20 @@ import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({
-  mfaAppUrl: "",
-  support: null,
-  listeners: [],
-}));
+type PasskeyNoteState = {
+  mfaAppUrl: string;
+  support: "ok" | "missing" | "partial" | null;
+  listeners: Array<() => void>;
+};
+
+const state = vi.hoisted(() => {
+  const bag: PasskeyNoteState = {
+    mfaAppUrl: "",
+    support: null,
+    listeners: [],
+  };
+  return bag;
+});
 
 import { settingsSeams } from "../lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };

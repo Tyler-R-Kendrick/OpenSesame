@@ -7,6 +7,7 @@ import {
 import { ClaimRequestError } from "./errors.js";
 import * as sdk from "./index.js";
 import { type JsonObject, overlapCast, type BoundaryValue, isFunction } from "@opensesame/os-domain";
+import type { Session } from "./types.js";
 
 class MemStorage {
   readonly #m = new Map<string, string>();
@@ -626,7 +627,7 @@ describe("session persistence", () => {
     );
     expect(session.refreshToken).toBe("rt-secret");
 
-    const stored = overlapCast(
+    const stored: Session = overlapCast(
       JSON.parse(overlapCast(storage.getItem("opensesame:session"))),
     );
     expect(stored.refreshToken).toBeUndefined();

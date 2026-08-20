@@ -29,7 +29,7 @@ import { ItemDetail as DefaultItemDetail } from "./sections/vault/ItemDetail.js"
 import { ItemEditor as DefaultItemEditor } from "./sections/vault/ItemEditor.js";
 
 type VaultStatus = { status: string };
-type EditorProps = { mode: string };
+type EditorProps = { mode: "edit" | "new" };
 
 export type AppSlots = {
   hasAuthResponse: (search: string) => boolean;

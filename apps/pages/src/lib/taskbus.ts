@@ -1,4 +1,9 @@
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  overlapCast,
+  readJsonObject,
+  readString,
+} from "@opensesame/os-domain";
 /**
  * Host TaskBus / NATS configuration client.
  * Browser never dials nats:// — Host reaches NATS (loopback or Tailscale).
@@ -19,7 +24,11 @@ export type TaskBusConfig = {
 
 async function fail(res: Response, fallback: string): Promise<never> {
   const body = overlapCast(await res.json().catch(() => ({})));
-  throw new Error(body.hint || body.error || `${fallback} (${res.status})`);
+  throw new Error(
+    readString(body.hint) ||
+      readString(body.error) ||
+      `${fallback} (${res.status})`,
+  );
 }
 
 function toConfig(raw: JsonObject): TaskBusConfig {
@@ -37,7 +46,7 @@ async function getTaskBusConfigDefault(): Promise<TaskBusConfig> {
   const res = await hostFetch("/api/v1/operator/taskbus");
   if (!res.ok) await fail(res, "Could not read TaskBus config");
   const body = overlapCast(await res.json());
-  return toConfig(body.taskbus ?? {});
+  return toConfig(readJsonObject(body.taskbus) ?? {});
 }
 
 async function putTaskBusConfigDefault(input: {
@@ -55,7 +64,7 @@ async function putTaskBusConfigDefault(input: {
   if (!res.ok) await fail(res, "Could not save TaskBus config");
   const body = overlapCast(await res.json());
   return {
-    config: toConfig(body.taskbus ?? {}),
+    config: toConfig(readJsonObject(body.taskbus) ?? {}),
     applied: Boolean(body.applied),
   };
 }
@@ -69,11 +78,13 @@ async function pingTaskBusDefault(): Promise<{
   });
   const body = overlapCast(await res.json().catch(() => ({})));
   if (!res.ok && res.status !== 422) {
-    throw new Error(body.hint || `TaskBus ping failed (${res.status})`);
+    throw new Error(
+      readString(body.hint) || `TaskBus ping failed (${res.status})`,
+    );
   }
   return {
     ok: Boolean(body.ok),
-    config: toConfig(body.taskbus ?? {}),
+    config: toConfig(readJsonObject(body.taskbus) ?? {}),
   };
 }
 

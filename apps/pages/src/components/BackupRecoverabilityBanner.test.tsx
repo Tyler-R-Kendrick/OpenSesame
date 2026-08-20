@@ -4,15 +4,39 @@ import { overlapCast } from "@opensesame/os-domain";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const hb = vi.hoisted(() => ({
-  state: {
+type HostBackupUiState = {
+  lastPushedAt: string | null;
+  lastError: string | null;
+  pendingCount: number;
+};
+
+type GithubBackupTarget = {
+  integrationId: string;
+  installationId: string;
+  owner: string;
+  repo: string;
+  branch: string;
+  enabled: boolean;
+  status: string;
+  lastCommitSha: string;
+  lastSyncedAt: string;
+  lastError: string | null;
+};
+
+type GithubBackupStatus = {
+  target: GithubBackupTarget;
+  pendingEvents: number;
+};
+
+const hb = vi.hoisted(() => {
+  const listeners: Array<() => void> = [];
+  const state: HostBackupUiState = {
     lastPushedAt: null,
     lastError: null,
     pendingCount: 0,
-  },
-  listeners: [],
-  getBackupStatus: vi.fn(),
-}));
+  };
+  return { state, listeners, getBackupStatus: vi.fn() };
+});
 
 import { backupSeams } from "../lib/backup.js";
 const originalBackupSeams = { ...backupSeams };
@@ -31,7 +55,7 @@ Object.assign(hostBackupSeams, {
 
 import { BackupRecoverabilityBanner } from "./BackupRecoverabilityBanner.js";
 
-function healthyTarget() {
+function healthyTarget(): GithubBackupStatus {
   return {
     target: {
       integrationId: "int_1",

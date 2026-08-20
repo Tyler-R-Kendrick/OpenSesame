@@ -4,6 +4,7 @@ import { BrowserOriginError } from "./origin.js";
 import { createPkcePair } from "./pkce.js";
 import { createTestSigningKey, mintTestIdToken } from "./test/jwt-fixtures.js";
 import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
+import type { Session } from "./types.js";
 
 class MemStorage {
   readonly #m = new Map<string, string>();
@@ -164,7 +165,7 @@ describe("zero-config origin mode", () => {
     const session = await sesame.handleRedirectCallback();
     expect(session.sub).toBe("pairwise-origin");
     expect(session.refreshToken).toBe("rt-must-not-persist");
-    const stored = overlapCast(JSON.parse(
+    const stored: Session = overlapCast(JSON.parse(
       storage.getItem("opensesame:session") ?? "{}",
     ));
     expect(stored.refreshToken).toBeUndefined();

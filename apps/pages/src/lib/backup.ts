@@ -1,4 +1,10 @@
-import { type JsonObject, overlapCast, isTypeofObject } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  overlapCast,
+  isTypeofObject,
+  readJsonObject,
+  readString,
+} from "@opensesame/os-domain";
 /**
  * Server-side backup workflow client (ADR 0039).
  *
@@ -50,15 +56,20 @@ function toTarget(raw: JsonObject): BackupTargetView {
 
 async function fail(res: Response, fallback: string): Promise<never> {
   const body = overlapCast(await res.json().catch(() => ({})));
-  throw new Error(body.hint || body.error || `${fallback} (${res.status})`);
+  throw new Error(
+    readString(body.hint) ||
+      readString(body.error) ||
+      `${fallback} (${res.status})`,
+  );
 }
 
 async function getBackupStatusDefault(): Promise<BackupStatus> {
   const res = await hostFetch("/api/v1/backup/target");
   if (!res.ok) await fail(res, "Could not read backup status");
   const body = overlapCast(await res.json());
+  const target = readJsonObject(body.target);
   return {
-    target: body.target ? toTarget(body.target) : null,
+    target: target ? toTarget(target) : null,
     pendingEvents: Number(body.pending_events ?? 0),
   };
 }
@@ -71,7 +82,9 @@ async function listGithubInstallationsDefault(
   );
   if (!res.ok) await fail(res, "Could not list GitHub App installations");
   const body = overlapCast(await res.json());
-  return (body.installations ?? [])
+  const installations = body.installations;
+  const rows = Array.isArray(installations) ? installations : [];
+  return rows
     .filter(
       (row): row is JsonObject => !!row && isTypeofObject(row),
     )
@@ -108,7 +121,11 @@ async function putBackupTargetDefault(input: {
   });
   if (!res.ok) await fail(res, "Could not configure backup");
   const body = overlapCast(await res.json());
-  return toTarget(body.target);
+  const target = readJsonObject(body.target);
+  if (!target) {
+    throw new Error("Host returned no backup target");
+  }
+  return toTarget(target);
 }
 
 async function deleteBackupTargetDefault(): Promise<void> {

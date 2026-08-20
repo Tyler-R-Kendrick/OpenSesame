@@ -5,11 +5,16 @@ import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const vault = vi.hoisted(() => ({
-  items: [],
-  folders: [],
-  lock: vi.fn(),
-}));
+const vault = vi.hoisted(() => {
+  const items: Array<{
+    kind: string;
+    deletedAt: string | null;
+    favorite: boolean;
+    folderId: string | null;
+  }> = [];
+  const folders: Array<{ id: string; name: string }> = [];
+  return { items, folders, lock: vi.fn() };
+});
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };

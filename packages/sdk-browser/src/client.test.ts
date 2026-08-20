@@ -430,7 +430,7 @@ describe("createOpenSesame", () => {
         throw new Error(`unexpected ${url}`);
       });
 
-    for (const [claims, message] of overlapCast([
+    const cases: Array<[JsonObject, RegExp]> = [
       [
         {
           sub: "s",
@@ -453,7 +453,8 @@ describe("createOpenSesame", () => {
         },
         /issuer/i,
       ],
-    ])) {
+    ];
+    for (const [claims, message] of cases) {
       const storage = new MemStorage();
       storage.setItem(
         "opensesame:pkce",

@@ -60,9 +60,11 @@ function resolveStorage(storage?: StorageLike): StorageLike {
 /** Persist session without refresh tokens (keep those in-process only). */
 function sessionForStorage(session: Session): Session {
   const { refreshToken: _drop, ...rest } = session;
-  if (rest.raw && isTypeofObject(rest.raw)) {
-    const { refresh_token: _omit, ...raw } = overlapCast(rest.raw);
-    return { ...rest, raw: overlapCast(raw) };
+  if (rest.raw) {
+    const stored: TokenResponse = overlapCast(rest.raw);
+    const { refresh_token: _omit, ...raw } = stored;
+    const nextRaw: TokenResponse = overlapCast(raw);
+    return { ...rest, raw: nextRaw };
   }
   return rest;
 }
@@ -195,9 +197,10 @@ function decodeJwtPayload(token: string): JsonObject | undefined {
   const part = token.split(".")[1];
   if (!part) return undefined;
   try {
-    return overlapCast(JSON.parse(
+    const payload: JsonObject = overlapCast(JSON.parse(
       atob(part.replace(/-/g, "+").replace(/_/g, "/")),
     ));
+    return payload;
   } catch {
     return undefined;
   }
@@ -294,7 +297,7 @@ export function createOpenSesame(
     if (!res.ok) {
       throw new Error(`OIDC discovery failed: ${res.status}`);
     }
-    const meta = overlapCast(await res.json());
+    const meta: OidcDiscoveryDocument = overlapCast(await res.json());
     // The discovery document decides where the code and the verifier are sent.
     // An issuer that does not name itself, or an endpoint reachable over
     // cleartext, is a document that hands the ceremony to whoever answered.
@@ -334,7 +337,7 @@ export function createOpenSesame(
     const raw = storage.getItem(SESSION_KEY);
     if (!raw) return null;
     try {
-      const session = overlapCast(JSON.parse(raw));
+      const session: Session = overlapCast(JSON.parse(raw));
       if (!session.refreshToken && refreshTokenMemory) {
         session.refreshToken = refreshTokenMemory;
       }
@@ -355,10 +358,10 @@ export function createOpenSesame(
     if (!jwksRes.ok) {
       throw new Error(`JWKS fetch failed: ${jwksRes.status}`);
     }
-    const jwks = overlapCast(await jwksRes.json());
-    const getKey = createLocalJWKSet(
-      overlapCast(jwks),
+    const jwks: Parameters<typeof createLocalJWKSet>[0] = overlapCast(
+      await jwksRes.json(),
     );
+    const getKey = createLocalJWKSet(jwks);
     const { payload } = await jwtVerify(idToken, getKey, {
       issuer,
       audience: clientId,
@@ -395,7 +398,7 @@ export function createOpenSesame(
     if (!res.ok) {
       throw new Error(`Token exchange failed: ${res.status}`);
     }
-    const tokens = overlapCast(await res.json());
+    const tokens: TokenResponse = overlapCast(await res.json());
     if (originProfile) {
       if (!tokens.id_token) {
         throw new Error("Token response missing id_token");
@@ -510,7 +513,7 @@ export function createOpenSesame(
       if (!res.ok) {
         throw new Error(`Anonymous session failed: ${res.status}`);
       }
-      const body = overlapCast(await res.json());
+      const body: ProvisionalSessionResponse = overlapCast(await res.json());
       if (!isString(body.accessToken) || body.accessToken === "") {
         throw new Error("Anonymous session response carried no access token");
       }
@@ -559,10 +562,10 @@ export function createOpenSesame(
       const headers = {
         "content-type": "application/json",
         accept: "application/json",
+        ...(session?.accessToken
+          ? { authorization: `Bearer ${session.accessToken}` }
+          : undefined),
       };
-      if (session?.accessToken) {
-        headers.authorization = `Bearer ${session.accessToken}`;
-      }
       const res = await fetchImpl(`${apiBase}/v1/claims/present`, {
         method: "POST",
         headers,
@@ -571,7 +574,8 @@ export function createOpenSesame(
       if (!res.ok) {
         throw new Error(`presentClaim failed: ${res.status}`);
       }
-      return overlapCast(await res.json());
+      const presented: ClaimPresentation = overlapCast(await res.json());
+      return presented;
     },
 
     async readClaim(claimId, claimToken) {
@@ -587,7 +591,8 @@ export function createOpenSesame(
       if (!res.ok) {
         throw new Error(`readClaim failed: ${res.status}`);
       }
-      return overlapCast(await res.json());
+      const claim: ClaimPresentation = overlapCast(await res.json());
+      return claim;
     },
 
     async completeClaim(claimId, decision: ClaimDecision) {
@@ -608,7 +613,13 @@ export function createOpenSesame(
       if (decision.claimToken !== undefined) {
         body.claimToken = decision.claimToken;
       }
-      const headers = {
+      type ClaimCompleteHeaders = {
+        "content-type": string;
+        accept: string;
+        authorization: string;
+        "x-claim-token"?: string;
+      };
+      const headers: ClaimCompleteHeaders = {
         "content-type": "application/json",
         accept: "application/json",
         authorization: `Bearer ${session.accessToken}`,
@@ -627,7 +638,8 @@ export function createOpenSesame(
       if (!res.ok) {
         throw new Error(`completeClaim failed: ${res.status}`);
       }
-      return overlapCast(await res.json());
+      const completed: ClaimPresentation = overlapCast(await res.json());
+      return completed;
     },
 
     async linkIdentity(options) {
