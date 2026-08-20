@@ -84,3 +84,31 @@ pub async fn agent_card(State(st): State<AppState>) -> impl IntoResponse {
         }
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app_state;
+    use axum::body::to_bytes;
+
+    // The advertisement must stay silent even when the operator flips
+    // OPENSESAME_DPOP_ENABLED: until production DPoP middleware is wired into
+    // the request path, claiming dpop_signing_alg_values_supported would be a
+    // lie (ADR 0023; honesty invariant of the protected-resource metadata).
+    #[tokio::test]
+    async fn metadata_never_advertises_dpop_without_a_wired_validator() {
+        let state = app_state::test_demo_state().await;
+        let _guard = app_state::test_env::lock();
+        std::env::set_var("OPENSESAME_DPOP_ENABLED", "true");
+        let response = metadata(State(state)).await.into_response();
+        std::env::remove_var("OPENSESAME_DPOP_ENABLED");
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        let meta: serde_json::Value = serde_json::from_slice(&body).expect("json");
+        assert!(
+            meta.get("dpop_signing_alg_values_supported").is_none(),
+            "DPoP must not be advertised until validator middleware is wired: {meta}"
+        );
+    }
+}
