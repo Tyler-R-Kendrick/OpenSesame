@@ -171,9 +171,13 @@ mod tests {
         std::env::remove_var("NATS_URL");
 
         let db = opensesame_storage::Db::connect_memory().await.unwrap();
-        persist(&db, TaskBusBackend::Nats, Some("nats://stored.example:4222"))
-            .await
-            .unwrap();
+        persist(
+            &db,
+            TaskBusBackend::Nats,
+            Some("nats://stored.example:4222"),
+        )
+        .await
+        .unwrap();
 
         std::env::set_var("OPENSESAME_TASKBUS", "memory");
         let resolved = resolve(&db).await.unwrap();

@@ -18,9 +18,7 @@ use std::time::{Duration, Instant};
 use crate::app_state::{AppState, GithubAppPending};
 use crate::middleware::auth::{resolve_caller, Caller};
 
-fn pending_map(
-    st: &AppState,
-) -> std::sync::MutexGuard<'_, HashMap<String, GithubAppPending>> {
+fn pending_map(st: &AppState) -> std::sync::MutexGuard<'_, HashMap<String, GithubAppPending>> {
     st.github_app_pending.lock().expect("github_app_pending")
 }
 
@@ -78,7 +76,9 @@ pub async fn register_start(
             Err(_) => {
                 return (
                     StatusCode::BAD_REQUEST,
-                    Json(json!({"error":"invalid_request","hint":"request body is not valid JSON"})),
+                    Json(
+                        json!({"error":"invalid_request","hint":"request body is not valid JSON"}),
+                    ),
                 )
                     .into_response();
             }
@@ -136,7 +136,9 @@ pub async fn register_start(
         if map.len() >= 256 {
             return (
                 StatusCode::TOO_MANY_REQUESTS,
-                Json(json!({"error":"capacity","hint":"too many pending GitHub App registrations"})),
+                Json(
+                    json!({"error":"capacity","hint":"too many pending GitHub App registrations"}),
+                ),
             )
                 .into_response();
         }
@@ -208,8 +210,7 @@ pub async fn register_callback(
         return fail(Some(pending.return_to), "expired_state");
     }
 
-    let credentials = match convert_manifest_code(st.connection_broker.http_client(), &code).await
-    {
+    let credentials = match convert_manifest_code(st.connection_broker.http_client(), &code).await {
         Ok(credentials) => credentials,
         Err(error) => {
             tracing::warn!(%error, "github app manifest conversion failed");

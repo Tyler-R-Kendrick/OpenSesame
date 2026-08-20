@@ -1,0 +1,15 @@
+[package]
+name = "opensesame-tailscale-authn"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Tailnet caller identity via the tailscaled LocalAPI whois (ADR 0048 §8, D9)"
+
+[lib]
+name = "opensesame_tailscale_authn"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

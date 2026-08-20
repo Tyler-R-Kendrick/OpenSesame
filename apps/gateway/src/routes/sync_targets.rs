@@ -149,12 +149,7 @@ async fn publish_sync_bus(
         chrono::Utc::now().to_rfc3339(),
         data,
     );
-    st.task_bus
-        .read()
-        .await
-        .publish(event)
-        .await
-        .map_err(|e| {
+    st.task_bus.read().await.publish(event).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({"error": "bus_publish_failed", "hint": e.to_string()})),

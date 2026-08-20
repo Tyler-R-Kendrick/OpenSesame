@@ -191,7 +191,7 @@ async fn mint_capability(
             "error":"no_session",
             "hint":"pass session_id from /v1/list_sessions"
         }))
-            .into_response();
+        .into_response();
     };
     let cap = SessionCapability {
         id: format!("cap:{}", Uuid::new_v4()),
@@ -304,7 +304,12 @@ mod pact {
     async fn property_health_is_opaque() {
         let app = test_app();
         let res = app
-            .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(res.status(), StatusCode::OK);
@@ -323,7 +328,9 @@ mod pact {
             .method("POST")
             .uri("/v1/mint_capability")
             .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(json!({"audience":"https://api.example"}).to_string()))
+            .body(Body::from(
+                json!({"audience":"https://api.example"}).to_string(),
+            ))
             .unwrap();
         let res = app.oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
@@ -360,7 +367,10 @@ mod pact {
         assert_eq!(res.status(), StatusCode::OK);
         let body = to_bytes(res.into_body(), 4096).await.unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert!(json["capability"]["id"].as_str().unwrap().starts_with("cap:"));
+        assert!(json["capability"]["id"]
+            .as_str()
+            .unwrap()
+            .starts_with("cap:"));
         assert!(json["refresh_token"].is_null());
         assert!(json["webauthn_material"].is_null());
         assert!(json["secrets"].is_null());

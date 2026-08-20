@@ -49,6 +49,12 @@ pub enum BrokerError {
     UnsupportedCredential(String),
     #[error("credential sealing unavailable: {0}")]
     SealUnavailable(String),
+    /// ADR 0049: the connection's materialization policy is `deny`.
+    #[error("connection policy denies materialization")]
+    MaterializationDenied,
+    /// ADR 0049: the provider has no derived-token mint path (yet).
+    #[error("provider `{0}` cannot mint a derived credential")]
+    Unmintable(String),
     #[error("invalid request: {0}")]
     Invalid(String),
     #[error(transparent)]
@@ -79,6 +85,8 @@ impl BrokerError {
             Self::BindingNotFound => "binding_not_found",
             Self::SyncTargetNotFound => "sync_target_not_found",
             Self::UnsupportedCredential(_) => "unsupported_credential",
+            Self::MaterializationDenied => "materialization_denied",
+            Self::Unmintable(_) => "unmintable",
             Self::Invalid(_) => "invalid_request",
             Self::Storage(_) | Self::Serde(_) => "internal_error",
         }
@@ -106,6 +114,8 @@ impl BrokerError {
             Self::ProviderUnconfigured { .. } | Self::SealUnavailable(_) => 503,
             Self::BindingExists | Self::IntegrationConflict | Self::IntegrationInUse => 409,
             Self::IntegrationReadOnly => 403,
+            Self::MaterializationDenied => 403,
+            Self::Unmintable(_) => 422,
             Self::ExchangeFailed(_) | Self::NeedsReauth(_) => 502,
             Self::CatalogUnavailable(_) | Self::Storage(_) | Self::Serde(_) => 500,
             _ => 400,

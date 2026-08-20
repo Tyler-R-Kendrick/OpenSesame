@@ -179,7 +179,10 @@ pub fn personal_project_tomb_name() -> &'static str {
 /// When `sealed_store_tomb_name` is absent or blank, falls back to the personal
 /// project tomb so multi-tomb registries stay coherent (ADR 0038).
 pub fn resolve_project_tomb_name(sealed_store_tomb_name: Option<&str>) -> &str {
-    match sealed_store_tomb_name.map(str::trim).filter(|s| !s.is_empty()) {
+    match sealed_store_tomb_name
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
         Some(name) => name,
         None => PERSONAL_PROJECT_TOMB_NAME,
     }
@@ -259,25 +262,25 @@ mod tests {
         })
         .unwrap();
 
-        let first = ensure_personal_project_tomb(&mut reg, "~/tombs/personal", "~/keys/personal.key")
-            .unwrap();
+        let first =
+            ensure_personal_project_tomb(&mut reg, "~/tombs/personal", "~/keys/personal.key")
+                .unwrap();
         assert_eq!(first.name, PERSONAL_PROJECT_TOMB_NAME);
         assert_eq!(reg.tombs.len(), 2);
         assert_eq!(reg.active.as_deref(), Some("work"));
 
-        let second =
-            ensure_personal_project_tomb(&mut reg, "/other/store", "/other/key").unwrap();
+        let second = ensure_personal_project_tomb(&mut reg, "/other/store", "/other/key").unwrap();
         assert_eq!(second.store, "~/tombs/personal");
         assert_eq!(reg.tombs.len(), 2);
     }
 
     #[test]
     fn resolve_project_tomb_name_falls_back_to_personal() {
+        assert_eq!(resolve_project_tomb_name(None), PERSONAL_PROJECT_TOMB_NAME);
         assert_eq!(
-            resolve_project_tomb_name(None),
+            resolve_project_tomb_name(Some("  ")),
             PERSONAL_PROJECT_TOMB_NAME
         );
-        assert_eq!(resolve_project_tomb_name(Some("  ")), PERSONAL_PROJECT_TOMB_NAME);
         assert_eq!(resolve_project_tomb_name(Some("team-a")), "team-a");
     }
 }

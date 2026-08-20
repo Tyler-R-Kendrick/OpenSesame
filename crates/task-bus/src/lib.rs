@@ -161,14 +161,15 @@ pub async fn create_nats(nats_url: &str) -> anyhow::Result<Arc<dyn TaskBus>> {
     #[cfg(not(feature = "jetstream"))]
     {
         let _ = nats_url;
-        anyhow::bail!(
-            "opensesame-task-bus was built without the `jetstream` feature"
-        );
+        anyhow::bail!("opensesame-task-bus was built without the `jetstream` feature");
     }
 }
 
 /// Build memory or nats from explicit backend + optional URL.
-pub async fn create(backend: TaskBusBackend, nats_url: Option<&str>) -> anyhow::Result<Arc<dyn TaskBus>> {
+pub async fn create(
+    backend: TaskBusBackend,
+    nats_url: Option<&str>,
+) -> anyhow::Result<Arc<dyn TaskBus>> {
     match backend {
         TaskBusBackend::Memory => Ok(Arc::new(InMemoryTaskBus::default())),
         TaskBusBackend::Nats => {

@@ -56,7 +56,11 @@ impl Grant {
         if self.revoked_at.is_some() {
             return Err(DomainError::GrantRevoked);
         }
-        if !interval_contains(now, self.constraints.not_before, self.constraints.expires_at) {
+        if !interval_contains(
+            now,
+            self.constraints.not_before,
+            self.constraints.expires_at,
+        ) {
             return Err(DomainError::GrantTimeWindow);
         }
         Ok(())
@@ -235,7 +239,11 @@ mod tests {
     fn interval_contains_is_half_open() {
         let nbf = Utc.timestamp_opt(10, 0).unwrap();
         let exp = Utc.timestamp_opt(20, 0).unwrap();
-        assert!(!interval_contains(Utc.timestamp_opt(9, 0).unwrap(), Some(nbf), exp));
+        assert!(!interval_contains(
+            Utc.timestamp_opt(9, 0).unwrap(),
+            Some(nbf),
+            exp
+        ));
         assert!(interval_contains(nbf, Some(nbf), exp));
         assert!(!interval_contains(exp, Some(nbf), exp));
     }

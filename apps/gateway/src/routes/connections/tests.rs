@@ -766,6 +766,13 @@ async fn no_route_returns_credential_material() {
             format!("/api/v1/connections/{connection_id}/refresh"),
             None,
         ),
+        // Default policy is deny, so this answers 403 — the error body is what
+        // the denylist sweep checks.
+        (
+            "POST",
+            format!("/api/v1/connections/{connection_id}/mint"),
+            Some(json!({})),
+        ),
         (
             "POST",
             format!("/api/v1/connections/{connection_id}/authorize"),
@@ -1094,6 +1101,7 @@ async fn connection_routes_require_a_caller() {
         ("POST", "/api/v1/connections"),
         ("POST", "/api/v1/connections/discover"),
         ("PATCH", "/api/v1/connections/connection:1"),
+        ("POST", "/api/v1/connections/connection:1/mint"),
         ("GET", "/api/v1/connections/connection:1/events"),
     ] {
         let (status, _) = send(
@@ -1426,4 +1434,323 @@ async fn a_session_cannot_reach_another_sessions_connection() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(after["status"], "pending");
+}
+
+// ---- ADR 0049 derived short-lived materialization ---------------------------
+
+const GITHUB_APP_CLIENT_SECRET: &str = "github-app-client-secret-do-not-leak";
+const DERIVED_TOKEN: &str = "ghs_derived_do_not_leak";
+
+fn mint_test_rsa_pem() -> Option<String> {
+    let output = std::process::Command::new("openssl")
+        .args(["genrsa", "2048"])
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8(output.stdout).ok())?
+}
+
+/// A mock GitHub API answering only the installation-token endpoint.
+async fn github_api_server() -> String {
+    async fn access_tokens(
+        AxumState(()): AxumState<()>,
+        axum::extract::Path(installation_id): axum::extract::Path<String>,
+        headers: axum::http::HeaderMap,
+    ) -> AxumResponse {
+        let authorization = headers
+            .get("authorization")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or_default();
+        if !authorization.starts_with("Bearer ") || installation_id != "777" {
+            return (
+                StatusCode::NOT_FOUND,
+                AxumJson(json!({"message": "not found"})),
+            )
+                .into_response();
+        }
+        (
+            StatusCode::CREATED,
+            AxumJson(json!({
+                "token": DERIVED_TOKEN,
+                "expires_at": (chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339(),
+            })),
+        )
+            .into_response()
+    }
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind github api");
+    let address = listener.local_addr().expect("github api address");
+    tokio::spawn(async move {
+        let _ = axum::serve(
+            listener,
+            Router::new()
+                .route("/app/installations/{id}/access_tokens", post(access_tokens))
+                .with_state(()),
+        )
+        .await;
+    });
+    format!("http://{address}")
+}
+
+/// Harness whose broker points its GitHub API base at the in-test server.
+async fn github_harness(api_base: &str) -> AppState {
+    let state = app_state::build(Args {
+        listen: "127.0.0.1:0".parse().expect("listen"),
+        resource: "https://opensesame.local".into(),
+        issuer: "https://issuer.local".into(),
+        database_url: "sqlite::memory:".into(),
+        task_database_url: String::new(),
+    })
+    .await
+    .expect("app state");
+    let config = BrokerConfig::in_memory(Some([11u8; 32]), "http://127.0.0.1:8787")
+        .with_github_api_base(api_base);
+    let mut state = state;
+    state.connection_broker = Arc::new(
+        ConnectionBroker::new(state.db.pool().clone(), config).expect("connection broker"),
+    );
+    state.connection_ref = None;
+    state
+}
+
+async fn opt_in(state: &AppState, session_id: &str, connection_id: &str) -> Value {
+    let (status, body) = as_session(
+        state,
+        session_id,
+        "PATCH",
+        &format!("/api/v1/connections/{connection_id}"),
+        Some(json!({
+            "shareability": "private",
+            "max_invoke_level": 2,
+            "materialization": "derived_short_lived"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["materialization"], "derived_short_lived");
+    body
+}
+
+#[tokio::test]
+async fn mint_is_denied_until_the_owner_opts_in() {
+    let (state, _server) = harness().await;
+    let (_, created) = call(
+        &state,
+        "POST",
+        "/api/v1/connections",
+        Some(json!({"provider_id": "mock"})),
+    )
+    .await;
+    let id = created["connection_id"].as_str().unwrap();
+    assert_eq!(created["materialization"], "deny");
+
+    let (status, body) = call(
+        &state,
+        "POST",
+        &format!("/api/v1/connections/{id}/mint"),
+        Some(json!({})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    assert_eq!(body["error"], "materialization_denied");
+
+    // A policy value outside the closed vocabulary is a 400, never a permit.
+    let (status, body) = call(
+        &state,
+        "PATCH",
+        &format!("/api/v1/connections/{id}"),
+        Some(json!({
+            "shareability": "private",
+            "max_invoke_level": 2,
+            "materialization": "whenever"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+}
+
+#[tokio::test]
+async fn mint_is_fenced_to_the_connection_owner() {
+    let (state, _server) = harness().await;
+    let alice = session(&state, "user:alice");
+    let bob = session(&state, "user:bob");
+
+    let (status, created) = as_session(
+        &state,
+        &alice,
+        "POST",
+        "/api/v1/connections",
+        Some(json!({"provider_id": "mock"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let id = created["connection_id"].as_str().unwrap();
+    opt_in(&state, &alice, id).await;
+
+    // Bob cannot mint against Alice's connection — it reads as absent, exactly
+    // like the neighboring per-connection routes.
+    let (status, body) = as_session(
+        &state,
+        &bob,
+        "POST",
+        &format!("/api/v1/connections/{id}/mint"),
+        Some(json!({})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+    assert_eq!(body["error"], "connection_not_found");
+
+    // Alice passes the fence and reaches the provider gate (mock is unmintable).
+    let (status, body) = as_session(
+        &state,
+        &alice,
+        "POST",
+        &format!("/api/v1/connections/{id}/mint"),
+        Some(json!({})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(body["error"], "unmintable");
+}
+
+#[tokio::test]
+async fn mint_rejects_providers_without_a_derived_path() {
+    let (state, _server) = harness().await;
+    let alice = session(&state, "user:alice");
+    for provider_id in ["aws", "aws-kms", "aws-ps", "aws-bedrock"] {
+        let (status, created) = as_session(
+            &state,
+            &alice,
+            "POST",
+            "/api/v1/connections",
+            Some(json!({"provider_id": provider_id})),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "{provider_id}: {created}");
+        let id = created["connection_id"].as_str().unwrap();
+        opt_in(&state, &alice, id).await;
+        let (status, body) = as_session(
+            &state,
+            &alice,
+            "POST",
+            &format!("/api/v1/connections/{id}/mint"),
+            Some(json!({})),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{provider_id}: {body}"
+        );
+        assert_eq!(body["error"], "unmintable", "{provider_id}: {body}");
+    }
+}
+
+#[tokio::test]
+async fn github_mint_returns_a_derived_token_never_the_sealed_material() {
+    let Some(pem) = mint_test_rsa_pem() else {
+        eprintln!("skipping: openssl unavailable");
+        return;
+    };
+    let api_base = github_api_server().await;
+    let state = github_harness(&api_base).await;
+    let alice = session(&state, "user:alice");
+
+    // An integration carrying GitHub App signing material, as the manifest
+    // registration flow would have sealed it.
+    let (status, integration) = call(
+        &state,
+        "POST",
+        "/api/v1/integrations",
+        Some(json!({
+            "key": "github-app",
+            "provider_id": "github",
+            "display_name": "GitHub App",
+            "client_id": "Iv1.test",
+            "client_secret": GITHUB_APP_CLIENT_SECRET,
+            "configuration": {"app_id": "4242", "private_key_pem": pem}
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{integration}");
+    let integration_id = integration["id"].as_str().unwrap();
+
+    let (status, created) = as_session(
+        &state,
+        &alice,
+        "POST",
+        "/api/v1/connections",
+        Some(json!({"integration_id": integration_id})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let id = created["connection_id"].as_str().unwrap();
+
+    // Deny by default, even with everything else in place.
+    let (status, body) = as_session(
+        &state,
+        &alice,
+        "POST",
+        &format!("/api/v1/connections/{id}/mint"),
+        Some(json!({"installation_id": "777"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    assert_eq!(body["error"], "materialization_denied");
+
+    opt_in(&state, &alice, id).await;
+
+    let (status, minted) = as_session(
+        &state,
+        &alice,
+        "POST",
+        &format!("/api/v1/connections/{id}/mint"),
+        Some(json!({"installation_id": "777"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{minted}");
+    assert_eq!(minted["derived_token"], DERIVED_TOKEN);
+    assert_eq!(minted["kind"], "github_app_installation");
+    assert_eq!(minted["provider_id"], "github");
+    assert!(minted["expires_at"].is_string());
+    // RFC 8693 mapping: subject = owning principal, actor = requesting caller.
+    assert_eq!(minted["subject"], "user:alice");
+    assert_eq!(minted["actor"], "user:alice");
+
+    // The mint is on the connection's event trail.
+    let (status, events) = as_session(
+        &state,
+        &alice,
+        "GET",
+        &format!("/api/v1/connections/{id}/events"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{events}");
+    let rendered_events = events.to_string();
+    assert!(rendered_events.contains("\"materialized\""), "{events}");
+    assert!(rendered_events.contains("sub=user:alice"), "{events}");
+    assert!(rendered_events.contains("act=user:alice"), "{events}");
+
+    // Canary: nothing sealed (App private key, OAuth client secret) crosses in
+    // the mint response or the event trail — only the provider-minted token.
+    let pem_body = pem
+        .lines()
+        .find(|line| !line.starts_with("-----"))
+        .unwrap_or_default();
+    for banned in [pem_body, GITHUB_APP_CLIENT_SECRET, "private_key_pem"] {
+        assert!(!banned.is_empty(), "empty canary");
+        assert!(
+            !minted.to_string().contains(banned),
+            "mint response leaked {banned}"
+        );
+        assert!(
+            !rendered_events.contains(banned),
+            "event trail leaked {banned}"
+        );
+    }
 }

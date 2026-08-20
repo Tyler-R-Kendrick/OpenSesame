@@ -42,11 +42,7 @@ pub async fn list_for_project(
         Err(resp) => return resp,
     };
     if !caller.can_configure_integrations() {
-        return (
-            StatusCode::FORBIDDEN,
-            Json(json!({"error": "forbidden"})),
-        )
-            .into_response();
+        return (StatusCode::FORBIDDEN, Json(json!({"error": "forbidden"}))).into_response();
     }
     if project_id.trim().is_empty() || project_id.len() > 128 {
         return (
@@ -105,11 +101,7 @@ pub async fn record(
         Err(resp) => return resp,
     };
     if !caller.can_configure_integrations() {
-        return (
-            StatusCode::FORBIDDEN,
-            Json(json!({"error": "forbidden"})),
-        )
-            .into_response();
+        return (StatusCode::FORBIDDEN, Json(json!({"error": "forbidden"}))).into_response();
     }
     if body.project_id.trim().is_empty() || body.event_type.trim().is_empty() {
         return (
@@ -128,11 +120,7 @@ pub async fn record(
     let organization_id = caller.organization(st.connection_organization).to_string();
     if let Some(claimed) = body.organization_id.as_deref() {
         if claimed != organization_id {
-            return (
-                StatusCode::FORBIDDEN,
-                Json(json!({"error": "forbidden"})),
-            )
-                .into_response();
+            return (StatusCode::FORBIDDEN, Json(json!({"error": "forbidden"}))).into_response();
         }
     }
     let actor_id = match &caller {

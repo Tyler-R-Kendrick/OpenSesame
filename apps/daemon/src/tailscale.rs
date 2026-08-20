@@ -38,6 +38,22 @@ pub fn listen_port(listen: &str) -> Option<u16> {
     listen.rsplit(':').next()?.parse().ok()
 }
 
+/// This node's first tailnet IPv4 (`100.64.0.0/10`), from
+/// `tailscale status --json` `Self/TailscaleIPs`. Used by the feature-gated
+/// tailnet listener to choose its bind address.
+#[cfg(all(unix, feature = "tailscale"))]
+pub fn self_tailnet_ipv4() -> Option<String> {
+    let bin = resolve_tailscale_bin()?;
+    let output = run_tailscale(&bin, &["status", "--json"], Duration::from_secs(8)).ok()?;
+    let json: Value = serde_json::from_slice(&output.stdout).ok()?;
+    json.pointer("/Self/TailscaleIPs")?
+        .as_array()?
+        .iter()
+        .filter_map(Value::as_str)
+        .find(|ip| ip.starts_with("100."))
+        .map(str::to_string)
+}
+
 /// Pull `https://login.tailscale.com/f/serve?node=…` out of CLI output.
 pub fn parse_serve_enable_url(text: &str) -> Option<String> {
     for token in text.split_whitespace() {

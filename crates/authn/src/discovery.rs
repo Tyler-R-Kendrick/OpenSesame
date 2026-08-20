@@ -38,8 +38,8 @@ pub fn parse_oidc_discovery(bytes: &[u8]) -> Result<OidcDiscovery, TokenValidati
     if bytes.len() > MAX_DISCOVERY_BYTES {
         return Err(TokenValidationError::MalformedDiscovery);
     }
-    let doc: OidcDiscovery = serde_json::from_slice(bytes)
-        .map_err(|_| TokenValidationError::MalformedDiscovery)?;
+    let doc: OidcDiscovery =
+        serde_json::from_slice(bytes).map_err(|_| TokenValidationError::MalformedDiscovery)?;
     if doc.issuer.is_empty() || doc.jwks_uri.is_empty() {
         return Err(TokenValidationError::MalformedDiscovery);
     }

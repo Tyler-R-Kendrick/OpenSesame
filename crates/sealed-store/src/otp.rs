@@ -122,11 +122,7 @@ pub fn validate_otpauth(raw: &str) -> bool {
 
 /// RFC 6238 TOTP. `at_unix` is seconds since epoch.
 pub fn totp_code(otp: &OtpUri, at_unix: u64) -> Result<String, OtpError> {
-    if otp
-        .uri
-        .to_ascii_lowercase()
-        .contains("otpauth://hotp/")
-    {
+    if otp.uri.to_ascii_lowercase().contains("otpauth://hotp/") {
         return Err(OtpError::UnsupportedType);
     }
     let counter = at_unix / otp.period;

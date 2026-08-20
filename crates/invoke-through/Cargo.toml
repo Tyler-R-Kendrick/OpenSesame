@@ -1,0 +1,23 @@
+[package]
+name = "opensesame-invoke-through"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Invoke-through broker: daemon-mediated upstream calls over a credential that never leaves the machine (ADR 0048 D6/D7)"
+
+[dependencies]
+secrecy = { workspace = true }
+zeroize = { workspace = true }
+http = { workspace = true }
+bytes = { workspace = true }
+http-body-util = { workspace = true }
+hyper = { workspace = true }
+hyper-util = { workspace = true }
+hyper-rustls = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

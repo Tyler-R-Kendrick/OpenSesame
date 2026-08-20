@@ -69,7 +69,11 @@ pub struct CalloutEval {
 /// Provisional principals get only the opaque capability inbox under
 /// `opensesame.callout.>` — never project event streams and never Host
 /// `opensesame.events.system.>` subjects.
-pub fn callout_permissions(principal_id: &str, provisional: bool, project_ids: &[String]) -> CalloutPermissions {
+pub fn callout_permissions(
+    principal_id: &str,
+    provisional: bool,
+    project_ids: &[String],
+) -> CalloutPermissions {
     if provisional {
         let inbox = format!("opensesame.callout.principal.{principal_id}.>");
         return CalloutPermissions {
@@ -170,10 +174,7 @@ mod tests {
     fn deny_unknown_issuer() {
         let mut e = base_eval();
         e.issuer_allowed = false;
-        assert_eq!(
-            evaluate_callout(&e),
-            Err(CalloutDenyReason::UnknownIssuer)
-        );
+        assert_eq!(evaluate_callout(&e), Err(CalloutDenyReason::UnknownIssuer));
     }
 
     #[test]

@@ -543,10 +543,7 @@ mod tests {
         let token = body["access_token"].as_str().unwrap();
         assert!(token.starts_with("opaque-session:"));
         assert_eq!(body["local_session"], true);
-        assert_eq!(
-            body["session"]["organization_id"],
-            boot.org.to_string()
-        );
+        assert_eq!(body["session"]["organization_id"], boot.org.to_string());
 
         let mut headers = axum::http::HeaderMap::new();
         headers.insert(

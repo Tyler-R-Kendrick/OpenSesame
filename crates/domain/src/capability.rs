@@ -424,7 +424,10 @@ mod kani_proofs {
     fn different_action_is_disproven() {
         let parent = Capability::new("read", ResourceSelector::exact("r"));
         let child = Capability::new("write", ResourceSelector::exact("r"));
-        assert_eq!(child.is_attenuation_of(&parent), AttenuationResult::Disproven);
+        assert_eq!(
+            child.is_attenuation_of(&parent),
+            AttenuationResult::Disproven
+        );
     }
 
     #[kani::proof]

@@ -555,7 +555,9 @@ impl ConnectionBroker {
         organization_id: &OrganizationId,
         integration_id: &str,
     ) -> Result<Option<crate::installation::GithubAppSigningMaterial>> {
-        let row = self.integration_row(organization_id, integration_id).await?;
+        let row = self
+            .integration_row(organization_id, integration_id)
+            .await?;
         let configuration = self.integration_configuration(&row)?;
         let (Some(app_id), Some(pem)) = (
             configuration.get("app_id"),
@@ -575,7 +577,9 @@ impl ConnectionBroker {
         organization_id: &OrganizationId,
         integration_id: &str,
     ) -> Result<Option<String>> {
-        let row = self.integration_row(organization_id, integration_id).await?;
+        let row = self
+            .integration_row(organization_id, integration_id)
+            .await?;
         let configuration = self.integration_configuration(&row)?;
         Ok(configuration.get("webhook_secret").cloned())
     }

@@ -11,9 +11,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use opensesame_authz::{
-    evaluate_callout, issuer_on_allowlist, CalloutDenyReason, CalloutEval,
-};
+use opensesame_authz::{evaluate_callout, issuer_on_allowlist, CalloutDenyReason, CalloutEval};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -96,7 +94,10 @@ impl CalloutConfig {
 }
 
 fn extract_callout_token(headers: &HeaderMap) -> Option<String> {
-    if let Some(v) = headers.get(CALLOUT_TOKEN_HEADER).and_then(|v| v.to_str().ok()) {
+    if let Some(v) = headers
+        .get(CALLOUT_TOKEN_HEADER)
+        .and_then(|v| v.to_str().ok())
+    {
         let t = v.trim();
         if !t.is_empty() {
             return Some(t.to_string());
@@ -446,7 +447,9 @@ mod tests {
             .method("POST")
             .uri("/api/v1/nats/auth/callout")
             .header("content-type", "application/json")
-            .body(Body::from(r#"{"issuer":"https://identity.test","subject":"s1"}"#))
+            .body(Body::from(
+                r#"{"issuer":"https://identity.test","subject":"s1"}"#,
+            ))
             .unwrap();
         let response = crate::routes::router(state).oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
@@ -574,7 +577,9 @@ mod tests {
             .uri("/api/v1/nats/auth/callout")
             .header("content-type", "application/json")
             .header("x-opensesame-callout-token", "wrong-secret")
-            .body(Body::from(r#"{"issuer":"https://identity.test","subject":"s1"}"#))
+            .body(Body::from(
+                r#"{"issuer":"https://identity.test","subject":"s1"}"#,
+            ))
             .unwrap();
         let response = crate::routes::router(state).oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
@@ -608,7 +613,9 @@ mod tests {
             .method("POST")
             .uri("/api/v1/nats/auth/callout")
             .header("content-type", "application/json")
-            .body(Body::from(r#"{"issuer":"https://identity.test","subject":"s1"}"#))
+            .body(Body::from(
+                r#"{"issuer":"https://identity.test","subject":"s1"}"#,
+            ))
             .unwrap();
         let response = crate::routes::router(state).oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);

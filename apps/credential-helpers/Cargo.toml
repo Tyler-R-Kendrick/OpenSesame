@@ -1,0 +1,30 @@
+[package]
+name = "opensesame-credential-helpers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Helper binaries (git/docker/AWS/kubectl) — thin UDS clients of the daemon mint path (ADR 0049 §4)"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[[bin]]
+name = "git-credential-opensesame"
+path = "src/bin/git_credential_opensesame.rs"
+
+[[bin]]
+name = "docker-credential-opensesame"
+path = "src/bin/docker_credential_opensesame.rs"
+
+[[bin]]
+name = "opensesame-credential-process"
+path = "src/bin/opensesame_credential_process.rs"
+
+[[bin]]
+name = "opensesame-kube-exec"
+path = "src/bin/opensesame_kube_exec.rs"

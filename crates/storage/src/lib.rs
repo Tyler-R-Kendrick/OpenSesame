@@ -94,6 +94,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0009_host_kv",
         include_str!("../../../migrations/0009_host_kv.sql"),
     ),
+    (
+        "0010_connection_materialization",
+        include_str!("../../../migrations/0010_connection_materialization.sql"),
+    ),
 ];
 
 impl Db {
@@ -655,7 +659,11 @@ impl Db {
     /// Broadcast a change event in its own transaction. Mutations that already
     /// hold a transaction use [`append_outbox_tx`] instead, so the event and
     /// the change it describes commit or roll back together.
-    pub async fn append_outbox(&self, event_type: &str, payload_json: &str) -> anyhow::Result<String> {
+    pub async fn append_outbox(
+        &self,
+        event_type: &str,
+        payload_json: &str,
+    ) -> anyhow::Result<String> {
         let mut transaction = self.pool.begin().await?;
         let id = append_outbox_tx(&mut transaction, event_type, payload_json).await?;
         transaction.commit().await?;
@@ -709,11 +717,13 @@ impl Db {
         let now = Utc::now().to_rfc3339();
         let mut transaction = self.pool.begin().await?;
         for id in ids {
-            sqlx::query("UPDATE outbox_events SET published_at = ?, last_error = NULL WHERE id = ?")
-                .bind(&now)
-                .bind(id)
-                .execute(&mut *transaction)
-                .await?;
+            sqlx::query(
+                "UPDATE outbox_events SET published_at = ?, last_error = NULL WHERE id = ?",
+            )
+            .bind(&now)
+            .bind(id)
+            .execute(&mut *transaction)
+            .await?;
         }
         transaction.commit().await?;
         Ok(())
@@ -764,12 +774,12 @@ impl Db {
     }
 
     pub async fn count_unpublished_outbox(&self) -> anyhow::Result<i64> {
-        Ok(sqlx::query(
-            "SELECT COUNT(*) AS count FROM outbox_events WHERE published_at IS NULL",
+        Ok(
+            sqlx::query("SELECT COUNT(*) AS count FROM outbox_events WHERE published_at IS NULL")
+                .fetch_one(&self.pool)
+                .await?
+                .get("count"),
         )
-        .fetch_one(&self.pool)
-        .await?
-        .get("count"))
     }
 
     // —— host operator kv ————————————————————————————————
@@ -1631,7 +1641,9 @@ mod tests {
         );
         db.delete_host_kv("taskbus.nats_url").await.unwrap();
         assert!(db.get_host_kv("taskbus.nats_url").await.unwrap().is_none());
-        db.set_host_kv("github.delivery.abc", "outbox-1").await.unwrap();
+        db.set_host_kv("github.delivery.abc", "outbox-1")
+            .await
+            .unwrap();
         assert_eq!(
             db.get_host_kv("github.delivery.abc")
                 .await
@@ -1639,16 +1651,14 @@ mod tests {
                 .as_deref(),
             Some("outbox-1")
         );
-        assert!(
-            !db.try_claim_host_kv("github.delivery.abc", "outbox-2")
-                .await
-                .unwrap()
-        );
-        assert!(
-            db.try_claim_host_kv("github.delivery.new", "outbox-3")
-                .await
-                .unwrap()
-        );
+        assert!(!db
+            .try_claim_host_kv("github.delivery.abc", "outbox-2")
+            .await
+            .unwrap());
+        assert!(db
+            .try_claim_host_kv("github.delivery.new", "outbox-3")
+            .await
+            .unwrap());
     }
 
     #[tokio::test]
@@ -1671,12 +1681,11 @@ mod tests {
             }
         }
         assert_eq!(wins, 1);
-        assert!(
-            db.get_host_kv("github.delivery.race")
-                .await
-                .unwrap()
-                .is_some()
-        );
+        assert!(db
+            .get_host_kv("github.delivery.race")
+            .await
+            .unwrap()
+            .is_some());
     }
 
     #[tokio::test]
@@ -1698,7 +1707,8 @@ mod tests {
             .execute(&pool)
             .await
             .is_err());
-        for statement in split_statements(include_str!("../../../migrations/0008_backup_outbox.sql"))
+        for statement in
+            split_statements(include_str!("../../../migrations/0008_backup_outbox.sql"))
         {
             sqlx::query(&statement).execute(&pool).await.unwrap();
         }

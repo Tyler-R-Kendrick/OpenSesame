@@ -1,10 +1,13 @@
 //! Wire shapes for the connection broker HTTP contract.
 //!
-//! These are the only structures the gateway serializes. None of them has a field
-//! for credential material, which is how the "no token crosses the API boundary"
-//! invariant is kept by construction rather than by filtering.
+//! With one deliberate exception none of these structures has a field for
+//! credential material, which is how the "no token crosses the API boundary"
+//! invariant is kept by construction rather than by filtering. The exception is
+//! [`DerivedMaterialization`] (ADR 0049): a provider-natively minted, short-lived,
+//! revocable token, returned only when the connection's materialization policy is
+//! `derived_short_lived`. The sealed stored credential never moves.
 
-use opensesame_domain::{ConnectionOwnerKind, EgressBinding, Shareability};
+use opensesame_domain::{ConnectionOwnerKind, EgressBinding, MaterializationPolicy, Shareability};
 use serde::{Deserialize, Serialize};
 
 use crate::catalog::{Category, ConfigurationFieldDef, Provider, ScopeDef};
@@ -62,6 +65,10 @@ pub enum EventKind {
     Unbound,
     PolicyUpdated,
     Revoked,
+    /// ADR 0049: a derived short-lived token was minted. Detail records the
+    /// RFC 8693 mapping (subject = owning principal, actor = requesting
+    /// caller), never token bytes.
+    Materialized,
     Error,
 }
 
@@ -77,6 +84,7 @@ impl EventKind {
             Self::Unbound => "unbound",
             Self::PolicyUpdated => "policy_updated",
             Self::Revoked => "revoked",
+            Self::Materialized => "materialized",
             Self::Error => "error",
         }
     }
@@ -238,6 +246,8 @@ pub struct ConnectionView {
     pub project_id: Option<String>,
     pub owner_kind: ConnectionOwnerKind,
     pub shareability: Shareability,
+    /// ADR 0049 policy gate for `POST /connections/{id}/mint`.
+    pub materialization: MaterializationPolicy,
     pub requested_scopes: Vec<String>,
     pub granted_scopes: Vec<String>,
     pub account_label: Option<String>,
@@ -271,6 +281,24 @@ pub enum ProviderRevocation {
 pub struct RevokeOutcome {
     pub revoked: bool,
     pub provider_revocation: ProviderRevocation,
+}
+
+/// `POST /connections/{id}/mint` (ADR 0049). The one wire shape that carries
+/// token bytes, and only ever provider-minted derived ones: short-lived,
+/// installation/scope-attenuated, revocable at the provider. `subject` and
+/// `actor` record the RFC 8693 mapping (ADR 0044): the connection's owning
+/// principal acted upon, and the caller that asked.
+#[derive(Clone, Debug, Serialize)]
+pub struct DerivedMaterialization {
+    pub connection_id: String,
+    pub provider_id: String,
+    /// Provider-native token kind, e.g. `github_app_installation`.
+    pub kind: String,
+    pub derived_token: String,
+    pub expires_at: String,
+    pub subject: String,
+    pub actor: String,
+    pub issued_at: String,
 }
 
 /// `POST /connections`.
@@ -351,6 +379,7 @@ mod tests {
             EventKind::Unbound,
             EventKind::PolicyUpdated,
             EventKind::Revoked,
+            EventKind::Materialized,
             EventKind::Error,
         ]
         .iter()
@@ -368,6 +397,7 @@ mod tests {
                 "unbound",
                 "policy_updated",
                 "revoked",
+                "materialized",
                 "error"
             ]
         );

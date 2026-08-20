@@ -10,7 +10,8 @@ they explicitly require a live service.
 | Snapshot / characterization | Vitest snapshots in `packages/agent-protocols`; Playwright pixel baselines in `packages/visual-contract` | `pnpm --filter @opensesame/agent-protocols test`; `pnpm test:visual` |
 | Contract | OpenAPI/WIT schemas and PACT transport/adversarial suites documented in `pact.md` | `pnpm test:integration`; `pnpm test:task-access` |
 | Chaos | Concurrent append, replay, fail-closed, stale-state, partial-failure, and outbox retry scenarios in the PACT suites | `pnpm test`; `pnpm test:integration` |
-| Fuzz / property | Rust libFuzzer targets, Jazzer.js targets, proptest, and bounded proof gates | `pnpm audit:fuzz`; `pnpm test:fuzz`; `pnpm audit:kani`; `pnpm audit:shuttle` |
+| Fuzz / property | Rust libFuzzer targets (including the connector-discovery parsers: `mcp_config`, `ini_parse`, `whois_response`, `promote_request`), Jazzer.js targets, proptest, and bounded proof gates | `pnpm audit:fuzz`; `pnpm test:fuzz`; `pnpm audit:kani`; `pnpm audit:shuttle` |
+| Dependency budget | Daemon/discovery dependency closure pinned against the ADR 0048 §5 allowlist; credential-exchange surface (sqlx, oauth2, jsonwebtoken, chacha20poly1305, task bus) kept off the daemon and the invoke-through/authn crates | `pnpm audit:daemon-deps` |
 | Behavior / functional | Playwright browser/visual tests and live battle tests | `pnpm test:e2e`; `pnpm verify` |
 | Mutation | Stryker/Vitest over credential redaction and URL trust boundaries; cargo-mutants over Rust redaction and task validation | `pnpm test:mutation` |
 

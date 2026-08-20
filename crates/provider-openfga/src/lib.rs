@@ -332,7 +332,11 @@ mod pact {
 
     #[test]
     fn chaos_missing_allowed_never_becomes_allow() {
-        for body in [json!({}), json!({"allowed": false}), json!({"allowed": "yes"})] {
+        for body in [
+            json!({}),
+            json!({"allowed": false}),
+            json!({"allowed": "yes"}),
+        ] {
             let allowed = parse_check_response(&body).unwrap_or(false);
             assert!(!allowed, "{body}");
         }

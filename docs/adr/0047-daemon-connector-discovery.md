@@ -2,6 +2,8 @@
 
 Status: Proposed
 Date: 2026-08-19
+Supplemented by ADR 0048 (capability-moded discovery) and ADR 0049
+(derived short-lived materialization).
 
 ## Context
 

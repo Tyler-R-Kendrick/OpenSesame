@@ -47,7 +47,9 @@ mod tests {
     fn system_types_map_under_system_prefix() {
         assert!(is_system_event_type("system.backup.wake"));
         assert!(!is_system_event_type("principal.created"));
-        assert!(system_event_subject("system.github.webhook.wake").starts_with(SYSTEM_SUBJECT_PREFIX));
+        assert!(
+            system_event_subject("system.github.webhook.wake").starts_with(SYSTEM_SUBJECT_PREFIX)
+        );
     }
 }
 

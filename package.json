@@ -35,6 +35,7 @@
     "audit:gitleaks": "bash ./scripts/gitleaks-gate.sh",
     "audit:semgrep": "bash ./scripts/semgrep-gate.sh",
     "audit:deepsec": "bash ./scripts/deepsec-gate.sh",
+    "audit:daemon-deps": "bash ./scripts/daemon-deps-gate.sh",
     "eve:deepsec": "pnpm --dir apps/eve-deepsec exec eve dev",
     "audit:fuzz": "bash ./scripts/fuzz-pr-gate.sh",
     "audit:fuzz:batch": "bash ./scripts/fuzz-batch.sh",

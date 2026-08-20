@@ -162,7 +162,11 @@ pub fn parse_sys_health(body: &Value) -> Result<AuthorityHealth, AuthorityError>
     let initialized = match body.get("initialized") {
         None => true,
         Some(Value::Bool(v)) => *v,
-        Some(_) => return Err(AuthorityError::Provider("initialized is not a boolean".into())),
+        Some(_) => {
+            return Err(AuthorityError::Provider(
+                "initialized is not a boolean".into(),
+            ))
+        }
     };
     if !initialized {
         return Err(AuthorityError::Unavailable);
@@ -175,10 +179,7 @@ pub fn parse_sys_health(body: &Value) -> Result<AuthorityHealth, AuthorityError>
 
 /// Refuse to mint a credential handle from a health document that is sealed
 /// or missing required fields.
-pub fn handle_from_health(
-    body: &Value,
-    path: &str,
-) -> Result<CredentialHandle, AuthorityError> {
+pub fn handle_from_health(body: &Value, path: &str) -> Result<CredentialHandle, AuthorityError> {
     let health = parse_sys_health(body)?;
     if health.sealed || !health.quorum_ok {
         return Err(AuthorityError::Unavailable);
@@ -441,7 +442,10 @@ mod pact {
     fn contract_url_guard_is_in_source_before_send() {
         let src = include_str!("lib.rs");
         let production = src.split("#[cfg(test)]").next().unwrap();
-        let request = production.split("async fn request").nth(1).expect("request");
+        let request = production
+            .split("async fn request")
+            .nth(1)
+            .expect("request");
         let pin = request
             .find("assert_authority_base_url(&self.base)")
             .expect("assert_authority_base_url");

@@ -1432,6 +1432,7 @@ dependencies = [
  "hmac",
  "jsonwebtoken",
  "oauth2",
+ "opensesame-connection-detect",
  "opensesame-domain",
  "opensesame-task-bus",
  "rand 0.8.7",
@@ -1445,6 +1446,15 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "opensesame-connection-detect"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -1485,6 +1495,7 @@ dependencies = [
  "opensesame-authz",
  "opensesame-claims",
  "opensesame-connection-broker",
+ "opensesame-connection-detect",
  "opensesame-domain",
  "opensesame-env-spec",
  "opensesame-grants",
@@ -1496,6 +1507,7 @@ dependencies = [
  "opensesame-provider-openfga",
  "opensesame-redaction",
  "opensesame-rotation",
+ "opensesame-tailscale-authn",
  "opensesame-task-bus",
  "opensesame-xkeys",
  "serde",
@@ -1619,6 +1631,15 @@ dependencies = [
  "async-trait",
  "chrono",
  "opensesame-domain",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "opensesame-tailscale-authn"
+version = "0.1.0"
+dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.20",

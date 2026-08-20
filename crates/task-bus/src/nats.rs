@@ -53,9 +53,10 @@ impl NatsJetStreamTaskBus {
         let js = jetstream::new(client);
 
         let stream_subjects = format!("{}.>", config.subject_prefix.trim_end_matches('.'));
-        let subject_filter = config.filter_subject.clone().unwrap_or_else(|| {
-            format!("{}.>", config.subject_prefix.trim_end_matches('.'))
-        });
+        let subject_filter = config
+            .filter_subject
+            .clone()
+            .unwrap_or_else(|| format!("{}.>", config.subject_prefix.trim_end_matches('.')));
         let stream = js
             .get_or_create_stream(stream::Config {
                 name: config.stream_name.clone(),

@@ -382,7 +382,6 @@ fn connection_environment_value(
         })
 }
 
-
 fn decode_key(raw: &str) -> anyhow::Result<[u8; 32]> {
     use base64::Engine;
     let bytes = base64::engine::general_purpose::STANDARD

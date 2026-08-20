@@ -2,7 +2,10 @@
 //!
 //! Responses carry a `ConnectionRef`, status and bindings. No route here returns
 //! an access token, a refresh token, a code verifier or a client secret, and the
-//! shapes the broker hands back have nowhere to put one.
+//! shapes the broker hands back have nowhere to put one. The single, gated
+//! exception is `POST /connections/{id}/mint` (ADR 0049): it returns a
+//! provider-minted derived token — short-lived, attenuated, revocable — and only
+//! when the connection's materialization policy says `derived_short_lived`.
 
 use axum::{
     extract::{Path, Query, State},
@@ -487,6 +490,9 @@ pub async fn delete(
 pub struct UpdatePolicyBody {
     pub shareability: String,
     pub max_invoke_level: u8,
+    /// ADR 0049: `deny` (default) or `derived_short_lived`. Omitted leaves the
+    /// stored policy untouched.
+    pub materialization: Option<String>,
 }
 
 pub async fn update_policy(
@@ -515,6 +521,13 @@ pub async fn update_policy(
             "shareability must be private, delegable or organization_wide".into(),
         ));
     }
+    if let Some(materialization) = body.materialization.as_deref() {
+        if !matches!(materialization, "deny" | "derived_short_lived") {
+            return broker_error(BrokerError::Invalid(
+                "materialization must be deny or derived_short_lived".into(),
+            ));
+        }
+    }
     match st
         .connection_broker
         .update_policy(
@@ -522,6 +535,56 @@ pub async fn update_policy(
             &id,
             parse_shareability(&body.shareability),
             body.max_invoke_level,
+            body.materialization
+                .as_deref()
+                .map(opensesame_connection_broker::parse_materialization),
+        )
+        .await
+    {
+        Ok(view) => Json(view).into_response(),
+        Err(error) => broker_error(error),
+    }
+}
+
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MintBody {
+    /// GitHub App installation to mint against (numeric id, as on the App's
+    /// installations page). Required for github connections.
+    pub installation_id: Option<String>,
+}
+
+/// `POST /api/v1/connections/{id}/mint` (ADR 0049). The one route that returns
+/// token bytes, and only provider-minted derived ones: short-lived, attenuated,
+/// revocable. The ADR 0032 §2 ownership fence applies unchanged — only the
+/// creating caller or an operator may mint — and the connection's
+/// materialization policy must be `derived_short_lived` (default deny).
+pub async fn mint(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+    body: String,
+) -> Response {
+    let who = match authorize(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Err(resp) = owned(&st, &who, &organization_id, &id).await {
+        return resp;
+    }
+    let body: MintBody = match parse_body(&body) {
+        Ok(body) => body,
+        Err(resp) => return resp,
+    };
+    let actor = caller_subject(&who).unwrap_or_else(|| "operator".into());
+    match st
+        .connection_broker
+        .mint_derived_token(
+            &organization_id,
+            &id,
+            &actor,
+            body.installation_id.as_deref(),
         )
         .await
     {

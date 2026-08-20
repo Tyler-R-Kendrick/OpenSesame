@@ -93,10 +93,7 @@ impl InMemoryTaskStore {
         Self::default()
     }
 
-    fn prune_expired(
-        runs: &mut HashMap<TaskRunId, TaskRun>,
-        now: DateTime<Utc>,
-    ) {
+    fn prune_expired(runs: &mut HashMap<TaskRunId, TaskRun>, now: DateTime<Utc>) {
         runs.retain(|_, run| run.maximum_expires_at > now);
     }
 }

@@ -1424,8 +1424,7 @@ async fn authorize_refuses_a_provider_the_deployment_cannot_use() {
 
 #[tokio::test]
 async fn github_create_without_oauth_still_needs_a_sealing_key() {
-    let (_db, broker) =
-        broker_with(BrokerConfig::in_memory(None, "http://127.0.0.1:8787")).await;
+    let (_db, broker) = broker_with(BrokerConfig::in_memory(None, "http://127.0.0.1:8787")).await;
     let err = broker
         .create_connection(&OrganizationId::new(), create("github"))
         .await
@@ -1794,7 +1793,6 @@ async fn github_accepts_a_pasted_personal_access_token() {
         .contains("ghp_test_token"));
 }
 
-
 #[tokio::test]
 async fn register_github_app_credentials_seals_an_org_integration() {
     let (_db, broker) =
@@ -1825,7 +1823,9 @@ async fn register_github_app_credentials_seals_an_org_integration() {
             "workflow".to_string(),
         ]
     );
-    assert!(!serde_json::to_string(&view).unwrap().contains("ghs_test_secret"));
+    assert!(!serde_json::to_string(&view)
+        .unwrap()
+        .contains("ghs_test_secret"));
 
     let connection = broker
         .create_connection(
@@ -1869,10 +1869,7 @@ async fn authorize_rebinds_deployment_github_after_org_app_register() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        pending.integration_id.as_deref(),
-        Some("deployment:github")
-    );
+    assert_eq!(pending.integration_id.as_deref(), Some("deployment:github"));
     let before = broker
         .start_authorization(&org, &pending.connection_id, None, None)
         .await
@@ -2046,7 +2043,13 @@ async fn access_targets_and_policy_changes_round_trip() {
     }
 
     let updated = broker
-        .update_policy(&org, &view.connection_id, Shareability::OrganizationWide, 1)
+        .update_policy(
+            &org,
+            &view.connection_id,
+            Shareability::OrganizationWide,
+            1,
+            None,
+        )
         .await
         .unwrap();
     assert_eq!(updated.shareability, Shareability::OrganizationWide);
@@ -2063,7 +2066,7 @@ async fn access_targets_and_policy_changes_round_trip() {
     );
 
     let invalid = broker
-        .update_policy(&org, &view.connection_id, Shareability::Private, 3)
+        .update_policy(&org, &view.connection_id, Shareability::Private, 3, None)
         .await
         .unwrap_err();
     assert_eq!(invalid.code(), "invalid_request");
@@ -2236,7 +2239,6 @@ async fn a_refresh_that_lost_a_race_does_not_report_reauth() {
     assert!(broker.credential_moved_on(&KEY, &row, &stale).await);
 }
 
-
 // ---- sync targets (WP-C) ----------------------------------------------------
 
 mod sync_target_tests {
@@ -2305,10 +2307,7 @@ mod sync_target_tests {
             .unwrap();
         assert_eq!(listed.len(), 1);
 
-        broker
-            .delete_sync_target(&org, &target.id)
-            .await
-            .unwrap();
+        broker.delete_sync_target(&org, &target.id).await.unwrap();
         assert!(matches!(
             broker.get_sync_target(&org, &target.id).await,
             Err(BrokerError::SyncTargetNotFound)
@@ -2347,10 +2346,7 @@ mod sync_target_tests {
             ]),
         });
         // Empty upstream (no mock) → error path still must not leak secrets.
-        let outcome = broker
-            .sync_target(&org, &target.id, secrets)
-            .await
-            .unwrap();
+        let outcome = broker.sync_target(&org, &target.id, secrets).await.unwrap();
         let wire = serde_json::to_value(&outcome).unwrap();
         let text = wire.to_string();
         assert!(!text.contains("super-secret-value"));
@@ -2419,7 +2415,9 @@ mod sync_target_tests {
         assert_eq!(outcomes.len(), 2);
         // Empty secret set → authorize succeeds, keys_synced=0, ready.
         assert!(outcomes.iter().all(|o| o.ok));
-        assert!(outcomes.iter().all(|o| o.target.status == SyncTargetStatus::Ready));
+        assert!(outcomes
+            .iter()
+            .all(|o| o.target.status == SyncTargetStatus::Ready));
         assert!(outcomes.iter().all(|o| o.keys_synced == 0));
         assert_ne!(t1.id, t2.id);
         for outcome in &outcomes {
@@ -2468,9 +2466,7 @@ mod sync_target_tests {
             Json(serde_json::json!({ "created": true }))
         }
 
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
         tokio::spawn(async move {
             let _ = axum::serve(
@@ -2517,4 +2513,314 @@ mod sync_target_tests {
         let _ = addr;
         let _ = captured;
     }
+}
+
+// ---- ADR 0049 derived short-lived materialization ---------------------------
+
+const GITHUB_APP_CLIENT_SECRET: &str = "github-app-client-secret-do-not-leak";
+const DERIVED_TOKEN: &str = "ghs_derived_do_not_leak";
+
+fn mint_test_rsa_pem() -> Option<String> {
+    let output = std::process::Command::new("openssl")
+        .args(["genrsa", "2048"])
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8(output.stdout).ok())?
+}
+
+/// A mock GitHub API that answers only the installation-token endpoint, and
+/// only for a request bearing an App JWT.
+async fn github_api_server() -> String {
+    async fn access_tokens(
+        axum::extract::Path(installation_id): axum::extract::Path<String>,
+        headers: axum::http::HeaderMap,
+    ) -> axum::response::Response {
+        use axum::response::IntoResponse;
+        let authorization = headers
+            .get("authorization")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or_default();
+        if !authorization.starts_with("Bearer ") || installation_id != "777" {
+            return (
+                axum::http::StatusCode::NOT_FOUND,
+                Json(serde_json::json!({"message": "not found"})),
+            )
+                .into_response();
+        }
+        (
+            axum::http::StatusCode::CREATED,
+            Json(serde_json::json!({
+                "token": DERIVED_TOKEN,
+                "expires_at": (Utc::now() + Duration::hours(1)).to_rfc3339(),
+            })),
+        )
+            .into_response()
+    }
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind github api");
+    let address = listener.local_addr().expect("github api address");
+    tokio::spawn(async move {
+        let _ = axum::serve(
+            listener,
+            Router::new().route("/app/installations/{id}/access_tokens", post(access_tokens)),
+        )
+        .await;
+    });
+    format!("http://{address}")
+}
+
+/// A broker whose github integration carries sealed GitHub App signing material.
+async fn github_app_broker(
+    api_base: &str,
+    pem: &str,
+) -> (Db, ConnectionBroker, OrganizationId, String) {
+    let config = key_config().with_github_api_base(api_base);
+    let (db, broker) = broker_with(config).await;
+    let organization = OrganizationId::new();
+    let integration = broker
+        .create_integration(
+            &organization,
+            CreateIntegration {
+                key: "github-app".into(),
+                provider_id: "github".into(),
+                display_name: "GitHub App".into(),
+                scopes: vec![],
+                client_id: Some("Iv1.test".into()),
+                client_secret: Some(GITHUB_APP_CLIENT_SECRET.into()),
+                configuration: BTreeMap::from([
+                    ("app_id".into(), "4242".into()),
+                    ("private_key_pem".into(), pem.to_string()),
+                ]),
+                created_by: "principal:admin".into(),
+            },
+        )
+        .await
+        .expect("github app integration");
+    (db, broker, organization, integration.id)
+}
+
+#[tokio::test]
+async fn materialization_defaults_to_deny_and_fails_closed() {
+    let (_db, broker) = broker().await;
+    let organization = OrganizationId::new();
+    let connection = broker
+        .create_connection(&organization, create("stripe"))
+        .await
+        .unwrap();
+    assert_eq!(connection.materialization, MaterializationPolicy::Deny);
+
+    let denied = broker
+        .mint_derived_token(&organization, &connection.connection_id, "user:alice", None)
+        .await
+        .unwrap_err();
+    assert_eq!(denied.code(), "materialization_denied");
+    assert_eq!(denied.http_status(), 403);
+
+    // A stored value nobody recognizes is a deny, never a permit.
+    assert_eq!(
+        parse_materialization("garbage"),
+        MaterializationPolicy::Deny
+    );
+    assert_eq!(
+        parse_materialization("derived_short_lived"),
+        MaterializationPolicy::DerivedShortLived
+    );
+}
+
+#[tokio::test]
+async fn providers_without_a_mint_path_fail_closed() {
+    let (_db, broker) = broker().await;
+    let organization = OrganizationId::new();
+    for provider_id in ["stripe", "aws", "aws-kms", "aws-ps", "aws-bedrock"] {
+        let connection = broker
+            .create_connection(&organization, create(provider_id))
+            .await
+            .unwrap();
+        let opted_in = broker
+            .update_policy(
+                &organization,
+                &connection.connection_id,
+                Shareability::Private,
+                2,
+                Some(MaterializationPolicy::DerivedShortLived),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            opted_in.materialization,
+            MaterializationPolicy::DerivedShortLived
+        );
+        let error = broker
+            .mint_derived_token(&organization, &connection.connection_id, "user:alice", None)
+            .await
+            .unwrap_err();
+        assert_eq!(error.code(), "unmintable", "{provider_id}");
+        assert_eq!(error.http_status(), 422, "{provider_id}");
+    }
+}
+
+#[tokio::test]
+async fn github_mint_returns_a_derived_token_and_records_the_delegation() {
+    let Some(pem) = mint_test_rsa_pem() else {
+        eprintln!("skipping: openssl unavailable");
+        return;
+    };
+    let api_base = github_api_server().await;
+    let (_db, broker, organization, integration_id) = github_app_broker(&api_base, &pem).await;
+    let connection = broker
+        .create_connection(
+            &organization,
+            CreateConnection {
+                integration_id: Some(integration_id),
+                owner_subject: Some("user:alice".into()),
+                ..create("github")
+            },
+        )
+        .await
+        .unwrap();
+
+    // The policy gate runs before any provider call.
+    let denied = broker
+        .mint_derived_token(
+            &organization,
+            &connection.connection_id,
+            "user:alice",
+            Some("777"),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(denied.code(), "materialization_denied");
+
+    // installation_id is required, and numeric.
+    let opted_in = broker
+        .update_policy(
+            &organization,
+            &connection.connection_id,
+            Shareability::Private,
+            2,
+            Some(MaterializationPolicy::DerivedShortLived),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        opted_in.materialization,
+        MaterializationPolicy::DerivedShortLived
+    );
+    for missing in [None, Some(""), Some("abc")] {
+        let error = broker
+            .mint_derived_token(
+                &organization,
+                &connection.connection_id,
+                "user:alice",
+                missing,
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(error.code(), "invalid_request", "{missing:?}");
+    }
+
+    let minted = broker
+        .mint_derived_token(
+            &organization,
+            &connection.connection_id,
+            "user:alice",
+            Some("777"),
+        )
+        .await
+        .unwrap();
+    assert_eq!(minted.derived_token, DERIVED_TOKEN);
+    assert_eq!(minted.kind, "github_app_installation");
+    assert_eq!(minted.provider_id, "github");
+    // RFC 8693: the owner is the subject, the caller the actor.
+    assert_eq!(minted.subject, "user:alice");
+    assert_eq!(minted.actor, "user:alice");
+    assert!(minted.expires_at > minted.issued_at);
+
+    // The mint is in the connection's event trail, without token bytes.
+    let events = broker
+        .events(&organization, &connection.connection_id)
+        .await
+        .unwrap();
+    let materialized = events
+        .iter()
+        .find(|event| event.kind == "materialized")
+        .expect("materialized event");
+    let detail = materialized.detail.as_deref().unwrap_or_default();
+    assert!(detail.contains("sub=user:alice"), "{detail}");
+    assert!(detail.contains("act=user:alice"), "{detail}");
+
+    // Canary: the sealed material (App private key, OAuth client secret) never
+    // appears in what the mint hands back or in the event trail.
+    let pem_body = pem
+        .lines()
+        .find(|line| !line.starts_with("-----"))
+        .unwrap_or_default()
+        .to_string();
+    let rendered =
+        serde_json::to_string(&minted).unwrap() + &serde_json::to_string(&events).unwrap();
+    for banned in [
+        pem_body.as_str(),
+        GITHUB_APP_CLIENT_SECRET,
+        "private_key_pem",
+    ] {
+        assert!(
+            !banned.is_empty() && !rendered.contains(banned),
+            "leaked {banned}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn minting_against_a_revoked_connection_fails() {
+    let Some(pem) = mint_test_rsa_pem() else {
+        eprintln!("skipping: openssl unavailable");
+        return;
+    };
+    let api_base = github_api_server().await;
+    let (_db, broker, organization, integration_id) = github_app_broker(&api_base, &pem).await;
+    let connection = broker
+        .create_connection(
+            &organization,
+            CreateConnection {
+                integration_id: Some(integration_id),
+                owner_subject: Some("user:alice".into()),
+                ..create("github")
+            },
+        )
+        .await
+        .unwrap();
+    broker
+        .update_policy(
+            &organization,
+            &connection.connection_id,
+            Shareability::Private,
+            2,
+            Some(MaterializationPolicy::DerivedShortLived),
+        )
+        .await
+        .unwrap();
+    broker
+        .revoke(&organization, &connection.connection_id)
+        .await
+        .unwrap();
+    let error = broker
+        .mint_derived_token(
+            &organization,
+            &connection.connection_id,
+            "user:alice",
+            Some("777"),
+        )
+        .await
+        .unwrap_err();
+    // Policy is erased by revocation along with the credential; either way the
+    // mint must not happen.
+    assert!(matches!(
+        error.code(),
+        "materialization_denied" | "invalid_request"
+    ));
 }
