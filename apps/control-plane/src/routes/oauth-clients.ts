@@ -21,9 +21,9 @@ export const oauthClientRoutes = new Hono<{ Variables: Variables }>();
 /**
  * Mapping layer between the durable store record (oauth-provider shape) and
  * the os-domain record the contracts validate against. Origin-profile records
- * auto-admitted on the /auth path carry no owner and no registration
- * timestamps — they are invisible to this API (owner-fenced reads answer 404)
- * until the F5 claim flow transfers ownership.
+ * auto-admitted on the /auth path are owned by the deployment/system
+ * principal (ADR 0050 R-A) — they are invisible to this API (owner-fenced
+ * reads answer 404) until the F5 claim flow transfers ownership.
  */
 function toDomain(client: StoreClientRecord): OAuthClientRecord {
   return {

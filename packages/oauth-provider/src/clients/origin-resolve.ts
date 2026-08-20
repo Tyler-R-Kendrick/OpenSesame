@@ -16,6 +16,13 @@ export type ResolveOriginClientOptions = {
   allowLoopbackHttp?: boolean;
   production?: boolean;
   clock?: () => Date;
+  /**
+   * Deployment/system principal recorded as the owner of newly auto-admitted
+   * origin clients (ADR 0050 R-A): every client has an owner from birth, and
+   * the F5 claim flow transfers ownership to the claiming principal. The
+   * option is a plain string so this package stays free of principal concepts.
+   */
+  systemOwnerPrincipalId?: string;
 };
 
 function canonicalOptions(options: ResolveOriginClientOptions): {
@@ -73,6 +80,9 @@ export async function resolveOriginClient(
     state: "active",
     origin: canonical,
     ownershipStatus: "unclaimed",
+    ...(options.systemOwnerPrincipalId
+      ? { ownerPrincipalId: options.systemOwnerPrincipalId }
+      : {}),
     firstSeenAt: now,
     lastUsedAt: now,
   };

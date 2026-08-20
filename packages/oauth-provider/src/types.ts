@@ -27,9 +27,10 @@ export interface OAuthClientRecord {
   origin?: string;
   ownershipStatus?: OwnershipStatus;
   /**
-   * Registering/owning principal. Origin-profile clients start without one
-   * (deployment/system-owned per ADR 0050 R-A) until the F5 claim flow
-   * transfers ownership.
+   * Registering/owning principal. Origin-profile clients are born owned by
+   * the deployment/system principal (ADR 0050 R-A) and the F5 claim flow
+   * transfers ownership to the claiming principal. Optional only so
+   * store-fixtures and pre-R-A records remain representable.
    */
   ownerPrincipalId?: string;
   firstSeenAt?: Date;

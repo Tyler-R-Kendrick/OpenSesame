@@ -223,6 +223,11 @@ export async function startServer(
     oidcCallback(req, res);
   });
 
+  // The system owner principal row must exist before the first /auth prefetch
+  // auto-admits an origin client owned by it (ADR 0050 R-A; the FK is real on
+  // Postgres). Fail startup rather than fail the first admission.
+  await ctx.systemPrincipalReady;
+
   await new Promise<void>((resolve, reject) => {
     server.listen(config.port, config.host, () => resolve());
     server.on("error", reject);

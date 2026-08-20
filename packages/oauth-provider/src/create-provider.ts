@@ -42,6 +42,12 @@ export interface CreateOpenSesameProviderOptions {
    */
   clientStore?: ClientRecordStore;
   clients?: ClientMetadata[];
+  /**
+   * Deployment/system principal that owns newly auto-admitted origin clients
+   * (ADR 0050 R-A). Optional so existing callers behave unchanged; the
+   * control plane always passes it.
+   */
+  systemOwnerPrincipalId?: string;
   /** When omitted, MemoryAdapter is used (tests / local). Production should pass Postgres adapter. */
   jwks?: Configuration["jwks"];
 }
@@ -247,7 +253,14 @@ export function createOpenSesameProvider(
   const adapter = withDynamicClientLoader(baseAdapter, async (clientId) => {
     const record = await clientStore.findById(clientId);
     if (!record) return undefined;
-    admission.assertAdmissible(record);
+    try {
+      admission.assertAdmissible(record);
+    } catch {
+      // Inadmissible (suspended/revoked/flag-disabled) clients resolve as
+      // unknown: oidc-provider answers invalid_client instead of a 500, and
+      // the failure stays closed either way.
+      return undefined;
+    }
     return toOidcClientMetadata(record);
   });
 
@@ -326,6 +339,9 @@ export function createOpenSesameProvider(
       origin: asOrigin,
       allowLoopbackHttp: true,
       production: env.isProduction,
+      ...(options.systemOwnerPrincipalId
+        ? { systemOwnerPrincipalId: options.systemOwnerPrincipalId }
+        : {}),
     });
     return toOidcClientMetadata(record);
   }
