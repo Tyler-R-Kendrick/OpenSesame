@@ -133,11 +133,7 @@ export const fixtures = {
     };
   },
 
-  pendingClaim(overrides: Partial<ClaimSession> = {}): {
-    session: ClaimSession;
-    token: string;
-    userCode: string;
-  } {
+  pendingClaim(overrides: Partial<ClaimSession> = {}) {
     const manifest = {
       targets: [{ type: "project", id: "prj_temp_001" }],
       expiresAt: new Date(FIXED_NOW.getTime() + 3_600_000).toISOString(),

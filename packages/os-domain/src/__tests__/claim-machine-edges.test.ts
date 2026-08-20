@@ -14,13 +14,14 @@ import {
 } from "../index.js";
 import { fixtures } from "./fixtures.js";
 
-const expectDomainError = (fn: () => unknown, code: string) => {
+const expectDomainError = (fn: () => void, code: string) => {
   try {
     fn();
     expect.unreachable("should have thrown");
-  } catch (err) {
-    expect(err).toBeInstanceOf(DomainError);
-    expect((err as DomainError).code).toBe(code);
+  } catch (cause) {
+    expect(cause).toBeInstanceOf(DomainError);
+    if (!(cause instanceof DomainError)) throw cause;
+    expect(cause.code).toBe(code);
   }
 };
 
@@ -37,9 +38,11 @@ describe("claim machine expiry guards", () => {
     try {
       presentClaim(session, fixtures.now);
       expect.unreachable("should have thrown");
-    } catch (err) {
-      expect((err as DomainError).code).toBe("EXPIRED");
-      expect((err as DomainError).details).toMatchObject({ id: session.id });
+    } catch (cause) {
+      expect(cause).toBeInstanceOf(DomainError);
+      if (!(cause instanceof DomainError)) throw cause;
+      expect(cause.code).toBe("EXPIRED");
+      expect(cause.details).toMatchObject({ id: session.id });
     }
   });
 
