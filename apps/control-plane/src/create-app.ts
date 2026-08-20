@@ -13,6 +13,7 @@ import {
   createPostgresClientClaimChallengeStore,
   createPostgresClientOriginStore,
   createPostgresClientRecordStore,
+  createPostgresConsentStore,
   createPostgresOidcStore,
   createPostgresPairwiseStore,
   createRepositories,
@@ -155,6 +156,11 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const clientOriginStore = drizzleBundle
     ? createPostgresClientOriginStore(drizzleBundle.db)
     : undefined;
+  // Durable consent records (ADR 0050 F6): human-given consents survive a
+  // restart exactly like the clients they cover; memory only in tests/dev.
+  const consentStore = drizzleBundle
+    ? createPostgresConsentStore(drizzleBundle.db)
+    : undefined;
   // The system owner principal must exist before the first auto-admission
   // writes owner_principal_id (a FK against Postgres). createControlPlane is
   // synchronous, so the promise travels on the context and the server awaits
@@ -183,6 +189,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       ? { clientClaimChallenges: clientClaimChallengeStore }
       : {}),
     ...(clientOriginStore ? { clientOrigins: clientOriginStore } : {}),
+    ...(consentStore ? { consents: consentStore } : {}),
   });
   const passkeyChallenges = createMemoryChallengeStore();
   const rp = {

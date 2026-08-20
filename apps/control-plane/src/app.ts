@@ -14,6 +14,7 @@ import { claimRoutes } from "./routes/claims.js";
 import { deviceRoutes } from "./routes/device.js";
 import { discoveryRoutes } from "./routes/discovery.js";
 import { healthRoutes } from "./routes/health.js";
+import { createInteractionRoutes } from "./routes/interactions.js";
 import { mfaRoutes } from "./routes/mfa.js";
 import { oauthClientRoutes } from "./routes/oauth-clients.js";
 import { organizationRoutes } from "./routes/organizations.js";
@@ -75,6 +76,10 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/v1/oauth/applications", appClaimRoutes);
   app.route("/v1/oauth/admin/clients", originClientAdminRoutes);
   app.route("/v1/audit", auditRoutes);
+  // The oidc-provider interaction slot (ADR 0050 F6): /auth 303-redirects
+  // here for login/consent. server.ts only intercepts protocol paths, so
+  // /interaction/* falls through to Hono.
+  app.route("/interaction", createInteractionRoutes());
   app.route("/", discoveryRoutes);
 
   app.onError((err, c) => {

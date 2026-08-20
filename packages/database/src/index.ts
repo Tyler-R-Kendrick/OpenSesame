@@ -42,6 +42,13 @@ export {
   type OAuthClientRecord,
   type OwnershipStatus,
 } from "./client-store.js";
+export {
+  createMemoryConsentStore,
+  createPostgresConsentStore,
+  type ConsentGrant,
+  type ConsentRecord,
+  type ConsentStore,
+} from "./consent-store.js";
 export { withOutbox, appendOutboxInTransaction } from "./tx.js";
 export { runMigrations } from "./migrate.js";
 export { resetDatabase } from "./reset.js";

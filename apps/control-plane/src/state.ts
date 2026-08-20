@@ -1,8 +1,10 @@
 import {
   type ClientClaimChallengeStore,
   type ClientOriginStore,
+  type ConsentStore,
   createMemoryClientClaimChallengeStore,
   createMemoryClientOriginStore,
+  createMemoryConsentStore,
 } from "@opensesame/database";
 import {
   type ClientRecordStore,
@@ -52,6 +54,12 @@ export interface AppStores {
   clientClaimChallenges: ClientClaimChallengeStore;
   /** Verified origin aliases attached to claimed applications. */
   clientOrigins: ClientOriginStore;
+  /**
+   * Durable human consent records (ADR 0034 §3, ADR 0050 F6): remembered,
+   * widening, individually revocable. The oidc-provider Grant decides whether
+   * the consent prompt re-appears; this store is the revocable record.
+   */
+  consents: ConsentStore;
   agents: Map<string, Agent>;
   agentInstances: Map<string, AgentInstance>;
   /** principalId → usage counters */
@@ -81,6 +89,7 @@ export function createAppStores(options?: {
   oauthClients?: ClientRecordStore;
   clientClaimChallenges?: ClientClaimChallengeStore;
   clientOrigins?: ClientOriginStore;
+  consents?: ConsentStore;
 }): AppStores {
   return {
     provisionalSessions: new Map(),
@@ -97,6 +106,7 @@ export function createAppStores(options?: {
     clientClaimChallenges:
       options?.clientClaimChallenges ?? createMemoryClientClaimChallengeStore(),
     clientOrigins: options?.clientOrigins ?? createMemoryClientOriginStore(),
+    consents: options?.consents ?? createMemoryConsentStore(),
     agents: new Map(),
     agentInstances: new Map(),
     usage: new Map(),
