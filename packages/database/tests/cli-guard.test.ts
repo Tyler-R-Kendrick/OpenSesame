@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { overlapCast } from "@opensesame/os-domain";
 
 /**
  * The db:migrate / db:reset CLI guards run at module load when argv[1] names
@@ -14,7 +15,7 @@ async function runCliGuard(script: "migrate" | "reset", message: string) {
   const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   const exitSpy = vi
     .spyOn(process, "exit")
-    .mockImplementation((() => undefined) as never);
+    .mockImplementation(overlapCast(() => undefined));
   const originalArgv1 = process.argv[1];
   process.argv[1] = `/repo/packages/database/src/${script}.ts`;
   try {

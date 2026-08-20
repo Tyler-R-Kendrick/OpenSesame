@@ -12,7 +12,10 @@
   "bin": {
     "mock-upstream-idp": "./dist/cli.js"
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -21,6 +24,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@opensesame/os-domain": "workspace:*",
     "jose": "6.2.8"
   },
   "devDependencies": {

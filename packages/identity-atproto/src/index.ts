@@ -1,4 +1,4 @@
-import type { AssuranceLevel, ExternalIdentity } from "@opensesame/os-domain";
+import { AssuranceLevel, ExternalIdentity, overlapCast } from "@opensesame/os-domain";
 
 /**
  * Experimental AT Protocol adapter seam.
@@ -47,10 +47,7 @@ export function createDisabledAtprotoAdapter(): AtprotoIdentityAdapter {
  * feature flag is on, there is no live PDS verifier in this package.
  */
 export function createAtprotoAdapter(
-  env: Record<string, string | undefined> = process.env as Record<
-    string,
-    string | undefined
-  >,
+  env: Record<string, string | undefined> = overlapCast(process.env),
 ): AtprotoIdentityAdapter {
   if (env.OPENSESAME_ATPROTO_ENABLED !== "true") {
     return createDisabledAtprotoAdapter();

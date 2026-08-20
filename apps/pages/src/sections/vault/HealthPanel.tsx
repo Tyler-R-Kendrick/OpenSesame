@@ -9,7 +9,7 @@ import {
 } from "../../lib/vault/health.js";
 import { useVault } from "../../lib/vault/hooks.js";
 
-const ISSUE_TONE: Record<HealthIssue, string> = {
+const ISSUE_TONE = {
   weak: "chip--err",
   reused: "chip--err",
   old: "chip--warn",

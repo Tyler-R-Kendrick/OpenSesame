@@ -22,12 +22,13 @@ import {
   newId,
   newUri,
 } from "../../lib/vault/model.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const KINDS: ItemKind[] = ["login", "passkey", "card", "secret", "note"];
 const MATCHES: UriMatch[] = ["domain", "host", "exact", "never"];
 
 function isKind(value: string | undefined): value is ItemKind {
-  return value !== undefined && (KINDS as string[]).includes(value);
+  return value !== undefined && (overlapCast(KINDS)).includes(value);
 }
 
 export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
@@ -89,7 +90,7 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
 
   const patch = (changes: Partial<VaultItem>) =>
     setDraft((current) =>
-      current ? ({ ...current, ...changes } as VaultItem) : current,
+      current ? (overlapCast({ ...current, ...changes })) : current,
     );
 
   async function onSubmit(event: FormEvent) {
@@ -132,11 +133,11 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
 
   function setField(id: string, changes: Partial<CustomField>) {
     if (!draft) return;
-    patch({
+    patch(overlapCast({
       fields: draft.fields.map((field) =>
         field.id === id ? { ...field, ...changes } : field,
       ),
-    } as Partial<VaultItem>);
+    }));
   }
 
   return (
@@ -170,7 +171,7 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
               value={draft.kind}
               onChange={(event) => {
                 const next = createItem(
-                  event.target.value as ItemKind,
+                  overlapCast(event.target.value),
                   draft.name,
                 );
                 setDraft({
@@ -297,7 +298,7 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                           candidate.id === uri.id
                             ? {
                                 ...candidate,
-                                match: event.target.value as UriMatch,
+                                match: overlapCast(event.target.value),
                               }
                             : candidate,
                         ),
@@ -366,9 +367,7 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                 value={draft.authenticator}
                 onChange={(event) =>
                   patch({
-                    authenticator: event.target.value as
-                      | "platform"
-                      | "cross-platform",
+                    authenticator: overlapCast(event.target.value),
                   })
                 }
               >

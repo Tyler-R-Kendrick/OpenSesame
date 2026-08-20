@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { overlapCast, isString } from "@opensesame/os-domain";
 
 import { defineTool } from "eve/tools";
 import { z } from "zod";
@@ -51,12 +52,12 @@ export default defineTool({
         candidates?: Array<{ vulnSlug?: string; line?: number }>;
       };
       try {
-        data = JSON.parse(readFileSync(jsonPath, "utf8")) as typeof data;
+        data = overlapCast(JSON.parse(readFileSync(jsonPath, "utf8")));
       } catch {
         continue;
       }
       const rel =
-        typeof data.path === "string"
+        isString(data.path)
           ? data.path
           : relative(repoRoot, jsonPath);
       if (pathPrefix && !rel.startsWith(pathPrefix)) continue;

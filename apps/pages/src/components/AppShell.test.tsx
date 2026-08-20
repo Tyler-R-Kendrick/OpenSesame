@@ -1,36 +1,48 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const vault = vi.hoisted(() => ({
-  items: [] as Array<{
+const vault = vi.hoisted(() => {
+  const items: Array<{
     kind: string;
     deletedAt: string | null;
     favorite: boolean;
     folderId: string | null;
-  }>,
-  folders: [] as Array<{ id: string; name: string }>,
-  lock: vi.fn(),
-}));
+  }> = [];
+  const folders: Array<{ id: string; name: string }> = [];
+  return { items, folders, lock: vi.fn() };
+});
 
-vi.mock("../lib/vault/hooks.js", () => ({
-  useVault: () => ({ items: vault.items, folders: vault.folders }),
-  useVaultStore: () => ({ lock: vault.lock }),
-}));
+import { vaultHooksSeams } from "../lib/vault/hooks.js";
+const originalVaultHooksSeams = { ...vaultHooksSeams };
+Object.assign(vaultHooksSeams, {useVault: () => ({ items: vault.items, folders: vault.folders }),
+  useVaultStore: () => ({ lock: vault.lock })});
 
-vi.mock("./ConnectivityBar.js", () => ({
+import { connectivityBarSeams } from "./ConnectivityBar.js";
+const originalConnectivityBarSeams = { ...connectivityBarSeams };
+Object.assign(connectivityBarSeams, {
   ConnectivityBar: () => <span data-testid="connectivity-bar" />,
-}));
+});
+import { planeNoteSeams } from "./PlaneNote.js";
+const originalPlaneNoteSeams = { ...planeNoteSeams };
+Object.assign(planeNoteSeams, {
+  RailPlaneStatus: () => <span data-testid="plane-status" />,
+});
 
-vi.mock("./ProjectSwitcher.js", () => ({
+import { projectSwitcherSeams } from "./ProjectSwitcher.js";
+const originalProjectSwitcherSeams = { ...projectSwitcherSeams };
+Object.assign(projectSwitcherSeams, {
   ProjectSwitcher: () => <span data-testid="project-switcher" />,
-}));
+});
 
-vi.mock("./BackupRecoverabilityBanner.js", () => ({
+import { backupBannerSeams } from "./BackupRecoverabilityBanner.js";
+const originalBackupBannerSeams = { ...backupBannerSeams };
+Object.assign(backupBannerSeams, {
   BackupRecoverabilityBanner: () => <div data-testid="backup-banner" />,
-}));
+});
 
 import { AppShell } from "./AppShell.js";
 
@@ -53,7 +65,6 @@ const ITEMS = [
   },
 ];
 
-/** Filter links share hrefs with the section nav; pick by visible label. */
 function filterLink(
   container: HTMLElement,
   href: string,
@@ -65,7 +76,7 @@ function filterLink(
   if (matches.length !== 1) {
     throw new Error(`expected one filter link ${href} containing "${label}"`);
   }
-  return matches[0] as HTMLAnchorElement;
+  return matches[0];
 }
 
 describe("AppShell", () => {

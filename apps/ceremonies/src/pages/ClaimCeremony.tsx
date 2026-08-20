@@ -11,6 +11,7 @@ import {
 } from "../lib/claim-stash.js";
 import { readFragmentToken } from "../lib/deep-link.js";
 import { consoleOrigin, issuer } from "../lib/issuer.js";
+import { type BoundaryValue } from "@opensesame/os-domain";
 
 interface Claim {
   id: string;
@@ -68,7 +69,7 @@ function toClaim(presented: ClaimPresentation): Claim {
   };
 }
 
-function describe(e: unknown, fallback: string): string {
+function describe(e: BoundaryValue, fallback: string): string {
   if (e instanceof ClaimRequestError) {
     if (e.status === 401 || e.status === 404) {
       return "This claim link is no longer valid. Ask for a fresh one.";

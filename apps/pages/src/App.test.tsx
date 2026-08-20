@@ -2,62 +2,28 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { Outlet } from "react-router";
 import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { App, type AppSlots } from "./App.js";
 
-const env = vi.hoisted(() => ({
+const env = {
   hasAuthResponse: false,
-  vaultStatus: "locked" as string,
-}));
+  vaultStatus: "locked",
+};
 
-vi.mock("./lib/federation.js", () => ({
+const testSlots: Partial<AppSlots> = {
   hasAuthResponse: () => env.hasAuthResponse,
-}));
-
-vi.mock("./lib/vault/hooks.js", () => ({
   useVault: () => ({ status: env.vaultStatus }),
   useTheme: () => {},
   useSessionGuards: () => {},
-}));
-
-vi.mock("./components/AppShell.js", () => ({
-  AppShell: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="app-shell">{children}</div>
-  ),
-}));
-
-vi.mock("./screens/BrokerAuthorize.js", () => ({
+  AppShell: ({ children }) => <div data-testid="app-shell">{children}</div>,
   BrokerAuthorize: () => <p>broker authorize stub</p>,
-}));
-
-vi.mock("./screens/FederationReturn.js", () => ({
   FederationReturn: () => <p>federation return stub</p>,
-}));
-
-vi.mock("./screens/UnlockScreen.js", () => ({
   UnlockScreen: () => <p>unlock screen stub</p>,
-}));
-
-vi.mock("./sections/AgentsSection.js", () => ({
   AgentsSection: () => <p>agents section</p>,
-}));
-
-vi.mock("./sections/AuthoritySection.js", () => ({
   AuthoritySection: () => <p>authority section</p>,
-}));
-
-vi.mock("./sections/ConnectionsSection.js", () => ({
   ConnectionsSection: () => <p>connections section</p>,
-}));
-
-vi.mock("./sections/SettingsSection.js", () => ({
   SettingsSection: () => <p>settings section</p>,
-}));
-
-vi.mock("./sections/SitesSection.js", () => ({
   SitesSection: () => <p>sites section</p>,
-}));
-
-vi.mock("./sections/VaultSection.js", () => ({
   VaultSection: () => (
     <div>
       vault section
@@ -65,26 +31,15 @@ vi.mock("./sections/VaultSection.js", () => ({
     </div>
   ),
   VaultWelcome: () => <p>vault welcome</p>,
-}));
-
-vi.mock("./sections/vault/HealthPanel.js", () => ({
   HealthPanel: () => <p>health panel</p>,
-}));
-
-vi.mock("./sections/vault/ItemDetail.js", () => ({
   ItemDetail: () => <p>item detail</p>,
-}));
-
-vi.mock("./sections/vault/ItemEditor.js", () => ({
-  ItemEditor: ({ mode }: { mode: string }) => <p>item editor {mode}</p>,
-}));
-
-import { App } from "./App.js";
+  ItemEditor: ({ mode }) => <p>item editor {mode}</p>,
+};
 
 function renderApp(route: string) {
   return render(
     <MemoryRouter initialEntries={[route]}>
-      <App />
+      <App slots={testSlots} />
     </MemoryRouter>,
   );
 }

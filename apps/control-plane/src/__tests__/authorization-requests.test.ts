@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -10,7 +11,7 @@ function plane(clock?: () => Date): App {
       publicUrl: "http://127.0.0.1:8788",
       issuer: "http://127.0.0.1:8788",
     },
-    ...(clock ? { clock } : {}),
+    ...(clock ? { clock } : undefined),
   }).app;
 }
 
@@ -28,7 +29,7 @@ async function inboxRefOf(
     headers: { authorization: `Bearer ${who.accessToken}` },
   });
   expect(res.status).toBe(200);
-  return ((await res.json()) as { approverRef: string }).approverRef;
+  return (overlapCast(await res.json())).approverRef;
 }
 
 async function principal(app: App) {
@@ -36,7 +37,7 @@ async function principal(app: App) {
     method: "POST",
   });
   expect(res.status).toBe(201);
-  return (await res.json()) as { principalId: string; accessToken: string };
+  return overlapCast(await res.json());
 }
 
 let seq = 0;
@@ -44,7 +45,7 @@ async function ask(
   app: App,
   requesterToken: string,
   approverRef: string,
-  overrides: Record<string, unknown> = {},
+  overrides: JsonObject = {},
 ) {
   const res = await app.request("/v1/authorization-requests", {
     method: "POST",
@@ -97,12 +98,7 @@ describe("authorization request inbox", () => {
       await inboxRefOf(app, approver),
     );
     expect(created.status).toBe(201);
-    const body = (await created.json()) as {
-      authReqId: string;
-      status: string;
-      requestDigest: string;
-      bindingMessage: string;
-    };
+    const body = overlapCast(await created.json());
     expect(body.status).toBe("pending");
     expect(body.bindingMessage).toBe("Read acme/catalog issues");
 
@@ -110,9 +106,7 @@ describe("authorization request inbox", () => {
       "/v1/authorization-requests?status=pending",
       { headers: { authorization: `Bearer ${approver.accessToken}` } },
     );
-    const listed = (await inbox.json()) as {
-      requests: { authReqId: string }[];
-    };
+    const listed = overlapCast(await inbox.json());
     expect(listed.requests.map((r) => r.authReqId)).toContain(body.authReqId);
 
     const approved = await decide(
@@ -123,10 +117,7 @@ describe("authorization request inbox", () => {
       body.requestDigest,
     );
     expect(approved.status).toBe(200);
-    const settled = (await approved.json()) as {
-      status: string;
-      decidedByKind: string;
-    };
+    const settled = overlapCast(await approved.json());
     expect(settled.status).toBe("approved");
     expect(settled.decidedByKind).toBe("human");
   });
@@ -137,9 +128,9 @@ describe("authorization request inbox", () => {
     const app = plane();
     const approver = await principal(app);
     const requester = await principal(app);
-    const body = (await (
+    const body = overlapCast(await (
       await ask(app, requester.accessToken, await inboxRefOf(app, approver))
-    ).json()) as { authReqId: string };
+    ).json());
 
     const res = await decide(
       app,
@@ -156,9 +147,9 @@ describe("authorization request inbox", () => {
     const app = plane();
     const approver = await principal(app);
     const requester = await principal(app);
-    const body = (await (
+    const body = overlapCast(await (
       await ask(app, requester.accessToken, await inboxRefOf(app, approver))
-    ).json()) as { authReqId: string; requestDigest: string };
+    ).json());
 
     const res = await decide(
       app,
@@ -176,9 +167,9 @@ describe("authorization request inbox", () => {
     const approver = await principal(app);
     const requester = await principal(app);
     const stranger = await principal(app);
-    const body = (await (
+    const body = overlapCast(await (
       await ask(app, requester.accessToken, await inboxRefOf(app, approver))
-    ).json()) as { authReqId: string };
+    ).json());
 
     const read = await app.request(
       `/v1/authorization-requests/${body.authReqId}`,
@@ -189,7 +180,7 @@ describe("authorization request inbox", () => {
     const inbox = await app.request("/v1/authorization-requests", {
       headers: { authorization: `Bearer ${stranger.accessToken}` },
     });
-    expect((await inbox.json()) as { requests: unknown[] }).toEqual({
+    expect(overlapCast(await inbox.json())).toEqual({
       requests: [],
     });
   });
@@ -198,9 +189,9 @@ describe("authorization request inbox", () => {
     const app = plane();
     const approver = await principal(app);
     const requester = await principal(app);
-    const body = (await (
+    const body = overlapCast(await (
       await ask(app, requester.accessToken, await inboxRefOf(app, approver))
-    ).json()) as { authReqId: string };
+    ).json());
 
     const poll = await app.request(
       `/v1/authorization-requests/${body.authReqId}/poll`,
@@ -214,19 +205,16 @@ describe("authorization request inbox", () => {
     const app = plane();
     const approver = await principal(app);
     const requester = await principal(app);
-    const body = (await (
+    const body = overlapCast(await (
       await ask(app, requester.accessToken, await inboxRefOf(app, approver))
-    ).json()) as { authReqId: string };
+    ).json());
     const url = `/v1/authorization-requests/${body.authReqId}/poll`;
     const auth = { authorization: `Bearer ${requester.accessToken}` };
 
     expect((await app.request(url, { headers: auth })).status).toBe(200);
     const second = await app.request(url, { headers: auth });
     expect(second.status).toBe(400);
-    const slowed = (await second.json()) as {
-      error: string;
-      intervalSeconds: number;
-    };
+    const slowed = overlapCast(await second.json());
     expect(slowed.error).toBe("slow_down");
     // The pacing must actually back off, or "slow down" is only advice.
     expect(slowed.intervalSeconds).toBeGreaterThan(5);
@@ -236,9 +224,9 @@ describe("authorization request inbox", () => {
     const app = plane();
     const approver = await principal(app);
     const requester = await principal(app);
-    const body = (await (
+    const body = overlapCast(await (
       await ask(app, requester.accessToken, await inboxRefOf(app, approver))
-    ).json()) as { authReqId: string; requestDigest: string };
+    ).json());
 
     expect(
       (
@@ -316,13 +304,13 @@ describe("authorization request inbox", () => {
       await inboxRefOf(app, approver),
       { ttlSeconds: 30 },
     );
-    const { authReqId } = (await created.json()) as { authReqId: string };
+    const { authReqId } = overlapCast(await created.json());
 
     now = new Date(now.getTime() + 60_000);
     const read = await app.request(`/v1/authorization-requests/${authReqId}`, {
       headers: { authorization: `Bearer ${approver.accessToken}` },
     });
-    expect(((await read.json()) as { status: string }).status).toBe("expired");
+    expect((overlapCast(await read.json())).status).toBe("expired");
 
     // Asking for only the pending rows must not return it, which is the part
     // a projection-on-read cannot deliver.
@@ -330,9 +318,7 @@ describe("authorization request inbox", () => {
       "/v1/authorization-requests?status=pending",
       { headers: { authorization: `Bearer ${approver.accessToken}` } },
     );
-    const { requests } = (await pending.json()) as {
-      requests: { authReqId: string }[];
-    };
+    const { requests } = overlapCast(await pending.json());
     expect(requests.map((r) => r.authReqId)).not.toContain(authReqId);
   });
 
@@ -348,10 +334,7 @@ describe("authorization request inbox", () => {
       requester.accessToken,
       await inboxRefOf(app, approver),
     );
-    const { authReqId, requestDigest } = (await created.json()) as {
-      authReqId: string;
-      requestDigest: string;
-    };
+    const { authReqId, requestDigest } = overlapCast(await created.json());
 
     const [first, second] = await Promise.all([
       decide(app, approver.accessToken, authReqId, "approve", requestDigest),

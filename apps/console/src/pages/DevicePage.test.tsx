@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 // @vitest-environment jsdom
 import { type ReactElement, act } from "react";
 import { type Root, createRoot } from "react-dom/client";
@@ -5,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DevicePage } from "./DevicePage.js";
 
 (
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  overlapCast(globalThis)
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 let container: HTMLDivElement;
@@ -50,7 +51,7 @@ function approveButton(): HTMLButtonElement {
 }
 
 function jsonResponse(status: number): Response {
-  return { ok: status >= 200 && status < 300, status } as Response;
+  return overlapCast({ ok: status >= 200 && status < 300, status });
 }
 
 beforeEach(() => {

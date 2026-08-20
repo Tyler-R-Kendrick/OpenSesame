@@ -2,13 +2,14 @@ import {
   type ClaimPresentation,
   ClaimRequestError,
   createOpenSesame,
-} from "@opensesame/sdk-browser";
+} from "../sdk-browser.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   clearClaimStash,
   readClaimStash,
   writeClaimStash,
 } from "../lib/claim-stash.js";
+import { type BoundaryValue } from "@opensesame/os-domain";
 
 const issuer =
   import.meta.env.VITE_OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
@@ -92,7 +93,7 @@ export function buildClaimCompletion(
   };
 }
 
-function describe(e: unknown, fallback: string): string {
+function describe(e: BoundaryValue, fallback: string): string {
   if (e instanceof ClaimRequestError) {
     if (e.status === 401 || e.status === 404) {
       return "This claim link is no longer valid. Ask for a fresh one.";

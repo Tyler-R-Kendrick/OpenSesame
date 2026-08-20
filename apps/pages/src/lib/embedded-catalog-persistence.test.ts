@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type JsonObject, overlapCast, isFunction } from "@opensesame/os-domain";
 
 type FakeDb = {
   store: Map<string, string>;
@@ -13,15 +14,17 @@ type FakeDb = {
 };
 
 const state = vi.hoisted(() => ({
-  dbs: [] as FakeDb[],
-  connectError: null as Error | null,
-  pullError: null as Error | null,
+  dbs: [],
+  connectError: null,
+  pullError: null,
   hang: false,
-  lastConnectOptions: null as Record<string, unknown> | null,
+  lastConnectOptions: null,
 }));
 
-vi.mock("@tursodatabase/sync-wasm/vite", () => ({
-  connect: (options: Record<string, unknown>) => {
+import { tursoConnectSeams } from "./turso-connect.js";
+const originalTursoConnectSeams = { ...tursoConnectSeams };
+Object.assign(tursoConnectSeams, {
+  connect: (options: JsonObject) => {
     state.lastConnectOptions = options;
     if (state.connectError) return Promise.reject(state.connectError);
     if (state.hang) return new Promise(() => {});
@@ -50,7 +53,7 @@ vi.mock("@tursodatabase/sync-wasm/vite", () => ({
     state.dbs.push(db);
     return Promise.resolve(db);
   },
-}));
+});
 
 import {
   bundledProviders,
@@ -158,7 +161,7 @@ describe("embedded catalog persistence", () => {
 
     expect(tursoMode()).toBe("remote");
     expect(state.lastConnectOptions?.url).toBe("libsql://example.turso.io");
-    expect(typeof state.lastConnectOptions?.authToken).toBe("function");
+    expect(isFunction(state.lastConnectOptions?.authToken)).toBe(true);
 
     // A failed pull degrades to embedded rather than breaking the gallery.
     setTursoSessionToken("token-1");
@@ -184,7 +187,7 @@ describe("embedded catalog persistence", () => {
   it("closes the previous database when the session token changes", async () => {
     await readEmbeddedProviders();
     const db = state.dbs[0];
-    const close = vi.spyOn(db as FakeDb, "close");
+    const close = vi.spyOn(overlapCast(db), "close");
     setTursoSessionToken("new-token");
     await vi.waitFor(() => expect(close).toHaveBeenCalled());
   });

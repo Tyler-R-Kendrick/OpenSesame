@@ -12,9 +12,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@opensesame/agent-protocols": "workspace:*",
     "@opensesame/contracts": "workspace:*",
-    "@opensesame/sdk-cli": "workspace:*",
-    "@opensesame/agent-protocols": "workspace:*"
+    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/sdk-cli": "workspace:*"
   },
   "devDependencies": {
     "@opensesame/testing": "workspace:*",

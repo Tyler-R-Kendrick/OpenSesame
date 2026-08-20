@@ -4,6 +4,7 @@ import { createDrizzle } from "../src/client.js";
 import type { Repositories } from "../src/repos/interfaces.js";
 import { type Database, PostgresRepositories } from "../src/repos/postgres.js";
 import * as schema from "../src/schema/index.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 /** Subset of 0000_brave_sally_floyd.sql needed for outbox SKIP LOCKED. */
 const OUTBOX_DDL = `
@@ -46,7 +47,7 @@ export async function withPostgresRepos<T>(
   try {
     // SAFETY: drizzle(PGlite) is the same schema-typed Database as postgres-js;
     // the query-result HKT differs, so TypeScript requires the unknown step.
-    return await fn(new PostgresRepositories(db as unknown as Database));
+    return await fn(new PostgresRepositories(overlapCast(db)));
   } finally {
     await client.close();
   }

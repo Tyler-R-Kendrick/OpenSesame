@@ -20,6 +20,7 @@ import { loadConfig } from "../config.js";
 import { createControlPlane } from "../create-app.js";
 import { buildOpenApiDocument } from "../openapi.js";
 import { serializeKeyed } from "../serialize.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -32,10 +33,7 @@ async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
     method: "POST",
   });
   expect(res.status).toBe(201);
-  return (await res.json()) as {
-    principalId: string;
-    accessToken: string;
-  };
+  return overlapCast(await res.json());
 }
 
 function plane() {
@@ -289,20 +287,9 @@ describe("PACT — Identity plane property / chaos / authz", () => {
 
 describe("PACT — Identity plane contract / fail-closed", () => {
   it("documents fail-closed statuses on claims, me, MFA, and orgs", () => {
-    const document = buildOpenApiDocument(
+    const document = overlapCast(buildOpenApiDocument(
       loadConfig({ OPENSESAME_ENV: "test" }),
-    ) as {
-      paths: Record<
-        string,
-        Record<
-          string,
-          {
-            security?: unknown;
-            responses?: Record<string, unknown>;
-          }
-        >
-      >;
-    };
+    ));
     assertFailClosedStatuses(document.paths["/v1/claims"]?.post?.responses, [
       "401",
       "403",
@@ -342,7 +329,7 @@ describe("PACT — Identity plane contract / fail-closed", () => {
           assertFailClosedStatuses(op.responses, ["401"]);
         } catch (err) {
           throw new Error(
-            `${method.toUpperCase()} ${path}: ${(err as Error).message}`,
+            `${method.toUpperCase()} ${path}: ${(overlapCast(err)).message}`,
           );
         }
       }

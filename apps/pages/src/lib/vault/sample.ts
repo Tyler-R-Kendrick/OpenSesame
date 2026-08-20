@@ -18,7 +18,7 @@ function daysAgo(days: number): string {
 
 export const SAMPLE_FOLDER_NAME = "Sample data";
 
-export function buildSample(folderId: string): VaultItem[] {
+function buildSampleDefault(folderId: string): VaultItem[] {
   const items: VaultItem[] = [];
 
   const bank = createItem("login", "Northwind Bank");
@@ -84,10 +84,23 @@ export function buildSample(folderId: string): VaultItem[] {
   return items.map((item) => ({ ...item, folderId, sample: true }));
 }
 
-export function sampleFolder(): Folder {
+function sampleFolderDefault(): Folder {
   return {
     id: crypto.randomUUID(),
     name: SAMPLE_FOLDER_NAME,
     createdAt: new Date().toISOString(),
   };
+}
+
+export const sampleSeams = {
+  buildSample: buildSampleDefault,
+  sampleFolder: sampleFolderDefault,
+};
+
+export function buildSample(folderId: string): VaultItem[] {
+  return sampleSeams.buildSample(folderId);
+}
+
+export function sampleFolder(): Folder {
+  return sampleSeams.sampleFolder();
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { DeviceFlowClient, redactSecrets } from "./device-flow.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 describe("DeviceFlowClient", () => {
   it("starts and polls with authorization_pending then success", async () => {
@@ -60,7 +61,7 @@ describe("DeviceFlowClient", () => {
     const client = new DeviceFlowClient({
       issuer: "http://127.0.0.1:8788",
       clientId: "opensesame-cli",
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       sleep: async (ms) => {
         sleeps.push(ms);
       },
@@ -96,7 +97,7 @@ describe("DeviceFlowClient", () => {
     const client2 = new DeviceFlowClient({
       issuer: "http://127.0.0.1:8788",
       clientId: "opensesame-cli",
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       sleep: async (ms) => {
         sleeps.push(ms);
       },
@@ -112,10 +113,10 @@ describe("DeviceFlowClient", () => {
 
 describe("DeviceFlowClient refusals", () => {
   const base = (
-    over: Record<string, unknown>,
-    device: Record<string, unknown> = {},
+    over: JsonObject,
+    device: JsonObject = {},
   ) =>
-    vi.fn(async (input: RequestInfo | URL) => {
+    overlapCast(vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("openid-configuration")) {
         return new Response(
@@ -146,7 +147,7 @@ describe("DeviceFlowClient refusals", () => {
         );
       }
       throw new Error(url);
-    }) as unknown as typeof fetch;
+    }));
 
   const client = (fetchImpl: typeof fetch) =>
     new DeviceFlowClient({

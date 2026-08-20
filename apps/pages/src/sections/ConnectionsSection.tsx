@@ -67,7 +67,7 @@ import {
   needsScopeSelection,
 } from "../lib/connector-guidance.js";
 import {
-  bundledProviders,
+  getBundledProviders,
   readEmbeddedProviders,
   writeEmbeddedProviders,
 } from "../lib/embedded-catalog.js";
@@ -100,6 +100,7 @@ import { shouldAutoConnect } from "../lib/settings.js";
 import { useOnline } from "../lib/use-online.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import "./connections.css";
+import { overlapCast, type BoundaryValue, isTypeofObject } from "@opensesame/os-domain";
 
 type Flash = { tone: "ok" | "warn" | "err"; text: string };
 type LoadFailure = {
@@ -108,7 +109,7 @@ type LoadFailure = {
   setupRequired?: boolean;
 };
 
-const CATEGORY_LABELS: Record<ProviderCategory, string> = {
+const CATEGORY_LABELS = {
   encryption: "Encryption (secrets in git)",
   cloud_secret_storage: "Cloud secret storage",
   password_managers: "Password managers",
@@ -192,7 +193,7 @@ function relative(iso: string | null): string | null {
   return null;
 }
 
-function errorText(error: unknown): string {
+function errorText(error: BoundaryValue): string {
   if (error instanceof HostSessionError) {
     if (error.code === "setup_required") {
       return `${error.message} Connect on Authority first so this page can mint a Host session, then try again.`;
@@ -218,9 +219,9 @@ function errorText(error: unknown): string {
   // dozens of "error lines" in the banner. Never render that wall.
   if (
     error &&
-    typeof error === "object" &&
+    isTypeofObject(error) &&
     "issues" in error &&
-    Array.isArray((error as { issues: unknown }).issues)
+    Array.isArray((overlapCast(error)).issues)
   ) {
     return "Host returned data this page does not understand. Try Reload, or pair Host again from Settings.";
   }
@@ -234,7 +235,7 @@ function errorText(error: unknown): string {
   return "Something went wrong.";
 }
 
-const STATUS_CHIP: Record<ConnectionStatus, { tone: string; label: string }> = {
+const STATUS_CHIP = {
   pending: { tone: VERB_CHIP.needs_you, label: VERB_LABEL.needs_you },
   active: { tone: VERB_CHIP.connected, label: VERB_LABEL.connected },
   needs_reauth: { tone: VERB_CHIP.needs_you, label: VERB_LABEL.needs_you },
@@ -309,7 +310,7 @@ export function ConnectionsSection() {
   const loadCatalog = useCallback(async () => {
     const id = ++catalogRun.current;
     // Never leave the gallery blocked on Turso/OPFS — paint the bundle first.
-    setProviders(bundledProviders);
+    setProviders(getBundledProviders());
     const embedded = await readEmbeddedProviders();
     if (catalogRun.current !== id) return;
     setProviders(embedded);
@@ -1511,7 +1512,7 @@ function BindingEditor({
               id={kindId}
               value={kind}
               onChange={(event) =>
-                setKind(event.target.value as BindingTargetKind)
+                setKind(overlapCast(event.target.value))
               }
             >
               {BINDING_KINDS.map((option) => (
@@ -1613,7 +1614,7 @@ function PolicyEditor({
           id="connector-shareability"
           value={shareability}
           onChange={(event) =>
-            setShareability(event.target.value as Connection["shareability"])
+            setShareability(overlapCast(event.target.value))
           }
         >
           <option value="private">Private to its owner</option>
@@ -2691,7 +2692,7 @@ function ConnectForm({
   async function saveConfiguration(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
-    const form = event.currentTarget as HTMLFormElement;
+    const form = overlapCast(event.currentTarget);
     const payload = configurationPayload(provider, configuration);
     form.reset();
     setConfiguration(configurationDefaults(provider));

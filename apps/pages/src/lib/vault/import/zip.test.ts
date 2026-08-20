@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ZipError, readZipText } from "./zip.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 /** CRC-32, needed because a ZIP entry header carries one. */
 function crc32(bytes: Uint8Array): number {
@@ -14,7 +15,7 @@ function crc32(bytes: Uint8Array): number {
 }
 
 async function deflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
-  const stream = new Blob([bytes as BlobPart])
+  const stream = new Blob([overlapCast(bytes)])
     .stream()
     .pipeThrough(new CompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
@@ -115,7 +116,7 @@ describe("readZipText", () => {
       "this is plain text, not an archive",
     );
     await expect(
-      readZipText(notZip.buffer as ArrayBuffer, () => true),
+      readZipText(overlapCast(notZip.buffer), () => true),
     ).rejects.toThrow(ZipError);
   });
 });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject } from "@opensesame/os-domain";
 
 /**
  * Host sync-blob wire contract — opaque ciphertext only.
@@ -21,18 +22,18 @@ const FORBIDDEN_KEYS = new Set([
 ]);
 
 function rejectForbiddenKeys(
-  value: unknown,
+  value: BoundaryValue,
   ctx: z.RefinementCtx,
   path: (string | number)[] = [],
 ): void {
-  if (value === null || typeof value !== "object") return;
+  if (value === null || !isTypeofObject(value)) return;
   if (Array.isArray(value)) {
     value.forEach((item, index) =>
       rejectForbiddenKeys(item, ctx, [...path, index]),
     );
     return;
   }
-  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+  for (const [key, child] of Object.entries(overlapCast(value))) {
     const lower = key.toLowerCase();
     if (
       FORBIDDEN_KEYS.has(lower) ||
@@ -93,7 +94,7 @@ export type SyncBlobsSnapshotResponse = z.infer<
 >;
 
 /** True when a JSON document looks like a ciphertext-only sync blob list. */
-export function isCiphertextOnlySyncPayload(value: unknown): boolean {
+export function isCiphertextOnlySyncPayload(value: BoundaryValue): boolean {
   const parsed = SyncBlobsPushRequestSchema.safeParse(value);
   return parsed.success;
 }

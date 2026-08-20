@@ -5,6 +5,7 @@ import { assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
 import { createOpenSesameProvider } from "../create-provider.js";
 import { MemoryPairwiseSubjectStore } from "../pairwise/store.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const jwks = { keys: [{ kty: "RSA" }] };
@@ -33,9 +34,9 @@ describe("PACT — oauth pairwise / adapter fail-closed", () => {
         env: { isProduction: true },
         processEnv: {},
         jwks,
-        adapter: (() => {
+        adapter: overlapCast(() => {
           throw new Error("adapter unused");
-        }) as never,
+        }),
       }),
     ).toThrow(/pairwise subject store/);
   });

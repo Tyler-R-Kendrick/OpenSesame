@@ -1,6 +1,6 @@
 import { redactAuditMetadata } from "@opensesame/audit";
 import { canonicalResource } from "@opensesame/oauth-provider";
-import { canTransitionClaim } from "@opensesame/os-domain";
+import { canTransitionClaim, type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { assertNoSecretFields } from "./oracles.js";
 import { seedProvisional } from "./provisional_identity.js";
@@ -21,7 +21,7 @@ describe("fuzz oracles", () => {
   it("redacts audit secrets", () => {
     expect(() =>
       assertNoSecretFields({ action: "ok", access_token: "s" }, (v) =>
-        redactAuditMetadata(v as Record<string, unknown>),
+        redactAuditMetadata(overlapCast(v)),
       ),
     ).not.toThrow();
   });

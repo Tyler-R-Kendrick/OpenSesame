@@ -16,6 +16,7 @@ import {
   vaultItemsForProvider,
 } from "./identity-graph.js";
 import { createItem, newUri } from "./vault/model.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 function provider(overrides: Partial<Provider> = {}): Provider {
   return {
@@ -329,6 +330,6 @@ describe("identity graph branches", () => {
 
 describe("addPipe fallback", () => {
   it("treats an unrecognized auth kind as a login pipe", () => {
-    expect(addPipe(provider({ authKind: "oidc" as never }))).toBe("login");
+    expect(addPipe(provider({ authKind: overlapCast("oidc") }))).toBe("login");
   });
 });

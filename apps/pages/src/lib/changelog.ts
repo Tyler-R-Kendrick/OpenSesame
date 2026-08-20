@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, isTypeofObject, isString } from "@opensesame/os-domain";
 /**
  * Host + Identity secret/config changelog clients (read-only UI surface).
  *
@@ -40,7 +41,7 @@ export type ChangelogEvent = {
   projectId?: string;
   actorId?: string;
   outcome?: string;
-  metadata: Record<string, unknown>;
+  metadata: JsonObject;
   keyNames?: string[];
   configId?: string;
   environment?: string;
@@ -61,20 +62,20 @@ function assertNoSecretMetadata(events: ChangelogEvent[]): void {
   }
 }
 
-function normalizeHostEvent(raw: Record<string, unknown>): ChangelogEvent {
+function normalizeHostEvent(raw: JsonObject): ChangelogEvent {
   const metadata =
     raw.metadata &&
-    typeof raw.metadata === "object" &&
+    isTypeofObject(raw.metadata) &&
     !Array.isArray(raw.metadata)
-      ? (raw.metadata as Record<string, unknown>)
+      ? (overlapCast(raw.metadata))
       : {};
   const keyNames = Array.isArray(raw.key_names)
-    ? (raw.key_names as unknown[]).filter(
-        (n): n is string => typeof n === "string",
+    ? (overlapCast(raw.key_names)).filter(
+        (n): n is string => isString(n),
       )
     : Array.isArray(metadata.keyNames)
-      ? (metadata.keyNames as unknown[]).filter(
-          (n): n is string => typeof n === "string",
+      ? (overlapCast(metadata.keyNames)).filter(
+          (n): n is string => isString(n),
         )
       : undefined;
   return {
@@ -82,42 +83,42 @@ function normalizeHostEvent(raw: Record<string, unknown>): ChangelogEvent {
     eventType: String(raw.event_type ?? raw.eventType ?? ""),
     occurredAt: String(raw.occurred_at ?? raw.occurredAt ?? ""),
     projectId:
-      typeof raw.project_id === "string"
+      isString(raw.project_id)
         ? raw.project_id
-        : typeof raw.projectId === "string"
+        : isString(raw.projectId)
           ? raw.projectId
           : undefined,
     actorId:
-      typeof raw.actor_id === "string"
+      isString(raw.actor_id)
         ? raw.actor_id
-        : typeof raw.actorId === "string"
+        : isString(raw.actorId)
           ? raw.actorId
           : undefined,
     metadata,
-    ...(keyNames ? { keyNames } : {}),
-    ...(typeof raw.config_id === "string"
+    ...(keyNames ? { keyNames } : undefined),
+    ...(isString(raw.config_id)
       ? { configId: raw.config_id }
-      : typeof metadata.configId === "string"
+      : isString(metadata.configId)
         ? { configId: metadata.configId }
         : {}),
-    ...(typeof raw.environment === "string"
+    ...(isString(raw.environment)
       ? { environment: raw.environment }
-      : typeof metadata.environment === "string"
+      : isString(metadata.environment)
         ? { environment: metadata.environment }
         : {}),
-    ...(typeof raw.version_id === "string"
+    ...(isString(raw.version_id)
       ? { versionId: raw.version_id }
-      : typeof metadata.versionId === "string"
+      : isString(metadata.versionId)
         ? { versionId: metadata.versionId }
         : {}),
-    ...(typeof raw.target_id === "string"
+    ...(isString(raw.target_id)
       ? { targetId: raw.target_id }
-      : typeof metadata.targetId === "string"
+      : isString(metadata.targetId)
         ? { targetId: metadata.targetId }
         : {}),
-    ...(typeof raw.content_version === "string"
+    ...(isString(raw.content_version)
       ? { contentVersion: raw.content_version }
-      : typeof metadata.contentVersion === "string"
+      : isString(metadata.contentVersion)
         ? { contentVersion: metadata.contentVersion }
         : {}),
   };
@@ -135,10 +136,10 @@ export async function listHostChangelog(
   if (!res.ok) {
     throw new Error(`Host changelog failed (${res.status}).`);
   }
-  const body = (await res.json()) as { events?: unknown[] };
+  const body = overlapCast(await res.json());
   const events = (body.events ?? [])
     .filter(
-      (row): row is Record<string, unknown> => !!row && typeof row === "object",
+      (row): row is JsonObject => !!row && isTypeofObject(row),
     )
     .map(normalizeHostEvent);
   assertNoSecretMetadata(events);
@@ -160,17 +161,7 @@ export async function listIdentityChangelog(options?: {
   if (!res.ok) {
     throw new Error(`Identity changelog failed (${res.status}).`);
   }
-  const body = (await res.json()) as {
-    events?: Array<{
-      id: string;
-      eventType: string;
-      occurredAt: string;
-      projectId?: string;
-      actorId?: string;
-      outcome?: string;
-      metadata?: Record<string, unknown>;
-    }>;
-  };
+  const body = overlapCast(await res.json());
   const events = (body.events ?? [])
     .filter((e) => isSecretChangelogEventType(e.eventType))
     .filter((e) =>
@@ -181,9 +172,9 @@ export async function listIdentityChangelog(options?: {
       id: e.id,
       eventType: e.eventType,
       occurredAt: e.occurredAt,
-      ...(e.projectId !== undefined ? { projectId: e.projectId } : {}),
-      ...(e.actorId !== undefined ? { actorId: e.actorId } : {}),
-      ...(e.outcome !== undefined ? { outcome: e.outcome } : {}),
+      ...(e.projectId !== undefined ? { projectId: e.projectId } : undefined),
+      ...(e.actorId !== undefined ? { actorId: e.actorId } : undefined),
+      ...(e.outcome !== undefined ? { outcome: e.outcome } : undefined),
       metadata: e.metadata ?? {},
     }));
   assertNoSecretMetadata(events);
@@ -191,7 +182,7 @@ export async function listIdentityChangelog(options?: {
 }
 
 /** Prefer Host project changelog; fall back to Identity audit filter. */
-export async function listChangelog(options: {
+async function listChangelogDefault(options: {
   projectId?: string;
   limit?: number;
 }): Promise<ChangelogEvent[]> {
@@ -207,20 +198,20 @@ export async function listChangelog(options: {
   return listIdentityChangelog(options);
 }
 
-export function formatChangelogSummary(event: ChangelogEvent): string {
+function formatChangelogSummaryDefault(event: ChangelogEvent): string {
   const keys =
     event.keyNames?.join(", ") ||
     (Array.isArray(event.metadata.keyNames)
-      ? (event.metadata.keyNames as string[]).join(", ")
+      ? (overlapCast(event.metadata.keyNames)).join(", ")
       : "");
   const config =
     event.configId ||
-    (typeof event.metadata.configId === "string"
+    (isString(event.metadata.configId)
       ? event.metadata.configId
       : "");
   const env =
     event.environment ||
-    (typeof event.metadata.environment === "string"
+    (isString(event.metadata.environment)
       ? event.metadata.environment
       : "");
   const parts = [event.eventType];
@@ -234,4 +225,20 @@ export function formatChangelogSummary(event: ChangelogEvent): string {
     parts.push(`v ${event.contentVersion ?? event.metadata.contentVersion}`);
   }
   return parts.join(" · ");
+}
+
+export const changelogSeams = {
+  listChangelog: listChangelogDefault,
+  formatChangelogSummary: formatChangelogSummaryDefault,
+};
+
+export async function listChangelog(options: {
+  projectId?: string;
+  limit?: number;
+}): Promise<ChangelogEvent[]> {
+  return changelogSeams.listChangelog(options);
+}
+
+export function formatChangelogSummary(event: ChangelogEvent): string {
+  return changelogSeams.formatChangelogSummary(event);
 }

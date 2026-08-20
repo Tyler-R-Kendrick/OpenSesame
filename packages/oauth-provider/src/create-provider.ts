@@ -29,6 +29,7 @@ import type {
   OAuthProviderEnv,
   PairwiseSubjectStore,
 } from "./types.js";
+import { type JsonObject, overlapCast, type BoundaryValue, isString } from "@opensesame/os-domain";
 
 export interface CreateOpenSesameProviderOptions {
   issuer?: string;
@@ -114,7 +115,7 @@ export function isResourceAllowed(
 
 function buildJwks(): NonNullable<Configuration["jwks"]> {
   const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
-  const jwk = privateKey.export({ format: "jwk" }) as Record<string, unknown>;
+  const jwk = overlapCast(privateKey.export({ format: "jwk" }));
   jwk.alg = "RS256";
   jwk.use = "sig";
   jwk.kid = "opensesame-1";
@@ -133,9 +134,9 @@ function resolveJwks(
   if (options.jwks) return options.jwks;
   const raw = processEnv.OPENSESAME_JWKS_JSON;
   if (raw) {
-    let parsed: { keys?: Record<string, unknown>[] };
+    let parsed: { keys?: JsonObject[] };
     try {
-      parsed = JSON.parse(raw) as { keys?: Record<string, unknown>[] };
+      parsed = overlapCast(JSON.parse(raw));
     } catch {
       throw new Error("OPENSESAME_JWKS_JSON is not valid JSON");
     }
@@ -160,12 +161,12 @@ function resolveJwks(
  */
 function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
   const sectorIdentifierUri =
-    typeof meta.sector_identifier_uri === "string"
+    isString(meta.sector_identifier_uri)
       ? meta.sector_identifier_uri
       : undefined;
-  const scope = typeof meta.scope === "string" ? meta.scope : undefined;
+  const scope = isString(meta.scope) ? meta.scope : undefined;
   const tokenEndpointAuthMethod =
-    typeof meta.token_endpoint_auth_method === "string"
+    isString(meta.token_endpoint_auth_method)
       ? meta.token_endpoint_auth_method
       : "client_secret_basic";
   let sector = meta.client_id;
@@ -182,7 +183,7 @@ function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
     id: meta.client_id,
     admissionMode: "pre_registered",
     displayName:
-      typeof meta.client_name === "string" ? meta.client_name : meta.client_id,
+      isString(meta.client_name) ? meta.client_name : meta.client_id,
     redirectUris: meta.redirect_uris ?? [],
     sectorIdentifier: sector,
     grantTypes: meta.grant_types ?? ["authorization_code"],
@@ -287,7 +288,7 @@ export function createOpenSesameProvider(
         enabled: true,
         defaultResource: async () => undefined,
         getResourceServerInfo: async (
-          _ctx: unknown,
+          _ctx: BoundaryValue,
           resourceIndicator: string,
         ) => {
           // Without this check any client could obtain a signed JWT audienced to
@@ -341,7 +342,7 @@ export function createOpenSesameProvider(
       production: env.isProduction,
       ...(options.systemOwnerPrincipalId
         ? { systemOwnerPrincipalId: options.systemOwnerPrincipalId }
-        : {}),
+        : undefined),
     });
     return toOidcClientMetadata(record);
   }
@@ -375,10 +376,10 @@ export function createOpenSesameProvider(
 /** Whether PKCE is required under the current configuration. */
 export function isPkceRequired(
   bundle: OpenSesameProviderBundle,
-  ctx: unknown = {},
-  client: unknown = {},
+  ctx: BoundaryValue = {},
+  client: BoundaryValue = {},
 ): boolean {
   const required = bundle.configuration.pkce?.required;
   if (!required) return false;
-  return required(ctx as never, client);
+  return required(overlapCast(ctx), client);
 }

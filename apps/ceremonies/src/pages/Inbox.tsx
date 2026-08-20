@@ -1,6 +1,7 @@
 import { createOpenSesame } from "@opensesame/sdk-browser";
 import { useCallback, useEffect, useState } from "react";
 import { issuer } from "../lib/issuer.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 /**
  * The authorization-request inbox (ADR 0046).
@@ -75,7 +76,7 @@ export function Inbox() {
     try {
       const res = await authorized("/v1/authorization-requests?status=pending");
       if (!res.ok) throw new Error(`Could not load the inbox (${res.status}).`);
-      const body = (await res.json()) as { requests: InboxItem[] };
+      const body = overlapCast(await res.json());
       setItems(body.requests);
     } catch (e) {
       setItems([]);

@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 /** Minimal WebAuthn JSON ↔ ArrayBuffer helpers (no extra deps). */
 
 export function b64urlToBytes(value: string): Uint8Array {
@@ -49,14 +50,14 @@ export function creationOptionsFromJson(
   return {
     publicKey: {
       ...json,
-      challenge: b64urlToBytes(json.challenge) as BufferSource,
+      challenge: overlapCast(b64urlToBytes(json.challenge)),
       user: {
         ...json.user,
-        id: b64urlToBytes(json.user.id) as BufferSource,
+        id: overlapCast(b64urlToBytes(json.user.id)),
       },
       excludeCredentials: json.excludeCredentials?.map((c) => ({
         ...c,
-        id: b64urlToBytes(c.id) as BufferSource,
+        id: overlapCast(b64urlToBytes(c.id)),
       })),
     },
   };
@@ -68,17 +69,17 @@ export function requestOptionsFromJson(
   return {
     publicKey: {
       ...json,
-      challenge: b64urlToBytes(json.challenge) as BufferSource,
+      challenge: overlapCast(b64urlToBytes(json.challenge)),
       allowCredentials: json.allowCredentials?.map((c) => ({
         ...c,
-        id: b64urlToBytes(c.id) as BufferSource,
+        id: overlapCast(b64urlToBytes(c.id)),
       })),
     },
   };
 }
 
 export function registrationResponseJson(cred: PublicKeyCredential) {
-  const response = cred.response as AuthenticatorAttestationResponse;
+  const response = overlapCast(cred.response);
   return {
     id: cred.id,
     rawId: bytesToB64url(cred.rawId),
@@ -93,7 +94,7 @@ export function registrationResponseJson(cred: PublicKeyCredential) {
 }
 
 export function assertionPayload(cred: PublicKeyCredential) {
-  const response = cred.response as AuthenticatorAssertionResponse;
+  const response = overlapCast(cred.response);
   return {
     credentialId: cred.id,
     clientDataJSON: bytesToB64url(response.clientDataJSON),

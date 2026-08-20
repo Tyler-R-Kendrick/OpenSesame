@@ -8,6 +8,7 @@ import {
   consumeRotationEvents,
   toPublicJobView,
 } from "../rotation.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 describe("toPublicJobView", () => {
   it("maps top-level fallbacks when there is no target block", () => {
@@ -182,11 +183,11 @@ describe("consumeRotationEvents — edge cases", () => {
     const result = await consumeRotationEvents({
       bus,
       executeConnectionRotation: async ({ rotationId }) =>
-        ({
+        overlapCast({
           id: rotationId,
           status: "succeeded",
           secretsReturned: true,
-        }) as never,
+        }),
       log: (msg) => logs.push(msg),
     });
 
@@ -214,12 +215,12 @@ describe("consumeRotationEvents — edge cases", () => {
     const result = await consumeRotationEvents({
       bus,
       executeConnectionRotation: async ({ rotationId }) =>
-        ({
+        overlapCast({
           id: rotationId,
           status: "succeeded",
           secretsReturned: false,
           access_token: "leak",
-        }) as never,
+        }),
     });
 
     expect(result.failed).toBe(1);

@@ -1,6 +1,7 @@
 import { and, eq, lt } from "drizzle-orm";
 import type { Database } from "./repos/postgres.js";
 import * as schema from "./schema/index.js";
+import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
 /**
  * Payload shape the oidc-provider adapter stores.
@@ -48,7 +49,7 @@ export interface OidcStore {
  */
 /** A stored row, as far as the payload rules care. */
 export interface OidcRow {
-  payload: Record<string, unknown>;
+  payload: JsonObject;
   expiresAt: Date | null;
   consumedAt: Date | null;
 }
@@ -66,23 +67,15 @@ export function oidcRowValues(
   id: string,
   payload: OidcStorePayload,
   expiresAt: Date | null,
-): {
-  model: string;
-  id: string;
-  payload: OidcStorePayload;
-  expiresAt: Date | null;
-  uid: string | null;
-  userCode: string | null;
-  grantId: string | null;
-} {
+) {
   return {
     model,
     id,
     payload,
     expiresAt,
-    uid: typeof payload.uid === "string" ? payload.uid : null,
-    userCode: typeof payload.userCode === "string" ? payload.userCode : null,
-    grantId: typeof payload.grantId === "string" ? payload.grantId : null,
+    uid: isString(payload.uid) ? payload.uid : null,
+    userCode: isString(payload.userCode) ? payload.userCode : null,
+    grantId: isString(payload.grantId) ? payload.grantId : null,
   };
 }
 
@@ -99,7 +92,7 @@ export function oidcPayloadFromRow(
   now: Date = new Date(),
 ): OidcStorePayload | undefined {
   if (row.expiresAt && row.expiresAt <= now) return undefined;
-  const payload = { ...row.payload } as OidcStorePayload;
+  const payload = overlapCast({ ...row.payload });
   if (row.consumedAt) {
     payload.consumed = Math.floor(row.consumedAt.getTime() / 1000);
   }

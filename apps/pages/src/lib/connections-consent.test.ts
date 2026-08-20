@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -17,14 +18,14 @@ const HOST = shippedHostApi;
 const IDENTITY = shippedIdentityApi;
 const HOST_ORIGIN = new URL(HOST).origin;
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: BoundaryValue, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
   });
 }
 
-function connectionWire(overrides: Record<string, unknown> = {}) {
+function connectionWire(overrides: JsonObject = {}) {
   return {
     connection_id: "connection_1",
     integration_id: null,
@@ -157,7 +158,7 @@ describe("openConsentPopup", () => {
 });
 
 describe("awaitConsent message flow", () => {
-  function postMessage(data: unknown, origin = HOST_ORIGIN) {
+  function postMessage(data: BoundaryValue, origin = HOST_ORIGIN) {
     const event = new MessageEvent("message", { data, origin });
     window.dispatchEvent(event);
   }
@@ -233,7 +234,7 @@ describe("awaitConsent message flow", () => {
       );
     });
 
-    const pending = awaitConsent("connection_1", { closed: true } as Window);
+    const pending = awaitConsent("connection_1", overlapCast({ closed: true }));
     await vi.advanceTimersByTimeAsync(5000);
 
     await expect(pending).resolves.toMatchObject({ result: "active" });

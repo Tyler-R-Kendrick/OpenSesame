@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const ORIGINAL_ARGV1 = process.argv[1];
 const ORIGINAL_VITEST = process.env.VITEST;
@@ -36,10 +37,10 @@ describe("main.ts CLI entry", () => {
     process.env.MOCK_DEVICE_FLOW = "1";
     process.argv[1] = "/opt/tools/main.ts";
     const writes: string[] = [];
-    vi.spyOn(process.stdout, "write").mockImplementation(((chunk: unknown) => {
+    vi.spyOn(process.stdout, "write").mockImplementation(overlapCast((chunk: BoundaryValue) => {
       writes.push(String(chunk));
       return true;
-    }) as typeof process.stdout.write);
+    }));
 
     await import("./main.js");
     // The default sleep waits one clamped poll interval (5s floor).
@@ -62,7 +63,7 @@ describe("main.ts CLI entry", () => {
       .mockImplementation(() => true);
     const exitSpy = vi
       .spyOn(process, "exit")
-      .mockImplementation(() => undefined as never);
+      .mockImplementation(() => overlapCast(undefined));
     vi.stubGlobal(
       "fetch",
       vi.fn().mockRejectedValue(new Error("connection refused")),
@@ -82,7 +83,7 @@ describe("main.ts CLI entry", () => {
       .mockImplementation(() => true);
     const exitSpy = vi
       .spyOn(process, "exit")
-      .mockImplementation(() => undefined as never);
+      .mockImplementation(() => overlapCast(undefined));
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue("boom"));
 
     await import("./main.js");

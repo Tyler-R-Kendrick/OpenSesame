@@ -1,5 +1,6 @@
 import { runInNewContext } from "node:vm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 // Vitest/Vite loads the shipped IIFE as text so we exercise the real file.
 import source from "../../public/auth.js?raw";
 
@@ -10,7 +11,7 @@ type OpenSesameApi = {
     scope?: string;
     state?: string;
   }) => string;
-  decodeJwtPayload: (token: string) => Record<string, unknown> | null;
+  decodeJwtPayload: (token: string) => JsonObject | null;
   derivePairwiseSubject: (
     idToken: string,
     rpOrigin?: string,
@@ -23,7 +24,7 @@ type OpenSesameApi = {
       jwks_uri: string;
     },
     options?: { audience?: string; issuer?: string; rpOrigin?: string },
-  ) => Promise<{ subject: string; claims: Record<string, unknown> }>;
+  ) => Promise<{ subject: string; claims: JsonObject }>;
   _getAuthorizeLinkConfig: (anchor: {
     href: string;
   }) => {
@@ -45,7 +46,7 @@ function bytesToBase64Url(bytes: Uint8Array): string {
     .replace(/=+$/, "");
 }
 
-function b64urlJson(value: unknown): string {
+function b64urlJson(value: BoundaryValue): string {
   return bytesToBase64Url(new TextEncoder().encode(JSON.stringify(value)));
 }
 
@@ -58,7 +59,7 @@ function loadClient(): OpenSesameApi {
     addEventListener: vi.fn(),
   };
 
-  const windowStub: Record<string, unknown> = {
+  const windowStub: JsonObject = {
     location: {
       origin: "http://localhost:5173",
       href: "http://localhost:5173/",
@@ -89,7 +90,7 @@ function loadClient(): OpenSesameApi {
     window: windowStub,
   });
 
-  const api = windowStub.OpenSesame as OpenSesameApi | undefined;
+  const api = overlapCast(windowStub.OpenSesame);
   if (!api) throw new Error("OpenSesame API was not installed");
   return api;
 }
@@ -159,14 +160,10 @@ describe("auth.js client helpers", () => {
       true,
       ["sign", "verify"],
     );
-    const jwk = (await subtle.exportKey(
+    const jwk = overlapCast(await subtle.exportKey(
       "jwk",
       pair.publicKey,
-    )) as JsonWebKey & {
-      kid?: string;
-      alg?: string;
-      use?: string;
-    };
+    ));
     jwk.kid = "test-key";
     jwk.alg = "ES256";
     jwk.use = "sig";

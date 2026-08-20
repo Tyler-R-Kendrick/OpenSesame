@@ -12,12 +12,13 @@ import {
   createTelemetry,
   redactionTest,
 } from "../telemetry.js";
+import { type JsonObject } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 describe("PACT — telemetry", () => {
   it("property: every allowed event forwards and unknown events never capture", () => {
-    const events: Array<{ event: string; props: Record<string, unknown> }> = [];
+    const events: Array<{ event: string; props: JsonObject }> = [];
     const telemetry = createTelemetry({
       capture: (event, props) => events.push({ event, props }),
     });
@@ -29,7 +30,7 @@ describe("PACT — telemetry", () => {
   });
 
   it("adversarial: forbidden values are dropped not redacted", () => {
-    const events: Array<{ event: string; props: Record<string, unknown> }> = [];
+    const events: Array<{ event: string; props: JsonObject }> = [];
     const telemetry = createTelemetry({
       capture: (event, props) => events.push({ event, props }),
     });
@@ -45,7 +46,7 @@ describe("PACT — telemetry", () => {
   });
 
   it("chaos: concurrent secret-shaped tracks never leak into capture", async () => {
-    const captured: Record<string, unknown>[] = [];
+    const captured: JsonObject[] = [];
     const telemetry = createTelemetry({
       capture: (_event, props) => captured.push(props),
     });

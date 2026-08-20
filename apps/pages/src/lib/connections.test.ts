@@ -22,11 +22,12 @@ import {
   shippedHostApi,
   shippedIdentityApi,
 } from "./settings.js";
+import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const HOST = shippedHostApi;
 const IDENTITY = shippedIdentityApi;
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: BoundaryValue, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
@@ -63,7 +64,7 @@ function stubHostFetch(handler: (url: string, init?: RequestInit) => Response) {
   });
 }
 
-function connectionWire(overrides: Record<string, unknown> = {}) {
+function connectionWire(overrides: JsonObject = {}) {
   return {
     connection_id: "connection_1",
     integration_id: null,
@@ -456,7 +457,7 @@ describe("transport", () => {
     const error = await listConnections().catch((caught) => caught);
 
     expect(error).toBeInstanceOf(HostSessionError);
-    expect((error as HostSessionError).code).toBe("setup_required");
+    expect((overlapCast(error)).code).toBe("setup_required");
   });
 
   it("surfaces the API error code and hint", async () => {
@@ -475,8 +476,8 @@ describe("transport", () => {
     );
 
     expect(error).toBeInstanceOf(ConnectionsError);
-    expect((error as ConnectionsError).code).toBe("not_refreshable");
-    expect((error as ConnectionsError).message).toContain("no refresh token");
+    expect((overlapCast(error)).code).toBe("not_refreshable");
+    expect((overlapCast(error)).message).toContain("no refresh token");
   });
 
   it("reports an unreachable host rather than a bare network error", async () => {
@@ -487,8 +488,8 @@ describe("transport", () => {
 
     const error = await listConnections().catch((caught) => caught);
 
-    expect((error as ConnectionsError).code).toBe("unreachable");
-    expect((error as ConnectionsError).message).toContain(HOST);
+    expect((overlapCast(error)).code).toBe("unreachable");
+    expect((overlapCast(error)).message).toContain(HOST);
   });
 });
 
@@ -541,7 +542,7 @@ describe("awaiting consent", () => {
     vi.useFakeTimers();
     stubHostFetch(() => jsonResponse(connectionWire({ status: "pending" })));
 
-    const pending = awaitConsent("connection_1", { closed: true } as Window);
+    const pending = awaitConsent("connection_1", overlapCast({ closed: true }));
     await vi.advanceTimersByTimeAsync(5000);
 
     await expect(pending).resolves.toEqual({ result: "abandoned" });
@@ -762,8 +763,8 @@ describe("connection endpoints", () => {
     stubHostFetch(() => new Response("bad gateway", { status: 502 }));
     const error = await listConnections().catch((caught) => caught);
     expect(error).toBeInstanceOf(ConnectionsError);
-    expect((error as ConnectionsError).code).toBe("unknown_error");
-    expect((error as ConnectionsError).status).toBe(502);
+    expect((overlapCast(error)).code).toBe("unknown_error");
+    expect((overlapCast(error)).status).toBe(502);
   });
 });
 

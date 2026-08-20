@@ -1,3 +1,4 @@
+import { type BoundaryValue } from "@opensesame/os-domain";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
@@ -7,16 +8,13 @@ import {
 } from "../lib/daemon.js";
 import { useConnect } from "../lib/identity.js";
 import {
-  PAGES_CANNOT_HOST,
   hostStatusLabel,
+  identityStatusLabel,
   needsHostPairing,
+  planeSeams,
   usePlaneStatus,
 } from "../lib/planes.js";
-import {
-  loadSettings,
-  pageIsLoopback,
-  shippedDaemonApi,
-} from "../lib/settings.js";
+import { loadSettings, settingsSeams } from "../lib/settings.js";
 import {
   assertDaemonReachableFromPage,
   detectTailnet,
@@ -47,7 +45,22 @@ type Written = {
   identityApi: string;
 };
 
-export function ConnectThisMachine({
+function RailPlaneStatusDefault() {
+  const status = usePlaneStatus();
+  return (
+    <p className="rail__status">
+      <span
+        className={`dot ${status.host === "live" || status.host === "pending" ? "dot--ok" : "dot--warn"}`}
+        aria-hidden="true"
+      />
+      <span>{hostStatusLabel(status.host)}</span>
+      <span aria-hidden="true">·</span>
+      <span>{identityStatusLabel(status.identity)}</span>
+    </p>
+  );
+}
+
+function ConnectThisMachineDefault({
   onPaired,
   autoDiscover = false,
 }: {
@@ -67,7 +80,8 @@ export function ConnectThisMachine({
   const [showQr, setShowQr] = useState(false);
   const [manualUrl, setManualUrl] = useState(
     () =>
-      loadSettings().daemonApi || (pageIsLoopback() ? shippedDaemonApi : ""),
+      loadSettings().daemonApi ||
+      (settingsSeams.pageIsLoopback() ? settingsSeams.shippedDaemonApi : ""),
   );
   const [clipboardUrl, setClipboardUrl] = useState<string | null>(null);
   // A discovery that resolves after the operator has moved on must not drag
@@ -411,13 +425,26 @@ export function ConnectThisMachine({
   );
 }
 
-function errorText(error: unknown): string {
+function errorText(error: BoundaryValue): string {
   return error instanceof Error
     ? error.message
     : "Could not reach a daemon on this machine.";
 }
 
-export function PagesCannotHostNote({
+export const planeNoteSeams = {
+  ConnectThisMachine: ConnectThisMachineDefault,
+  PagesCannotHostNote: PagesCannotHostNoteDefault,
+  RailPlaneStatus: RailPlaneStatusDefault,
+};
+
+export function ConnectThisMachine(
+  props: Parameters<typeof ConnectThisMachineDefault>[0],
+) {
+  const Impl = planeNoteSeams.ConnectThisMachine;
+  return <Impl {...props} />;
+}
+
+function PagesCannotHostNoteDefault({
   ceremony,
 }: {
   ceremony: string;
@@ -432,7 +459,7 @@ export function PagesCannotHostNote({
           <IconAlert />
           <div>
             <p>
-              {ceremony} needs the Host API. {PAGES_CANNOT_HOST}
+              {ceremony} needs the Host API. {planeSeams.PAGES_CANNOT_HOST}
             </p>
             <p>
               Configured Host: <code>{status.hostBase || "none"}</code> (
@@ -452,4 +479,16 @@ export function PagesCannotHostNote({
       </div>
     </div>
   );
+}
+
+export function PagesCannotHostNote(
+  props: Parameters<typeof PagesCannotHostNoteDefault>[0],
+) {
+  const Impl = planeNoteSeams.PagesCannotHostNote;
+  return <Impl {...props} />;
+}
+
+export function RailPlaneStatus() {
+  const Impl = planeNoteSeams.RailPlaneStatus;
+  return <Impl />;
 }

@@ -1,3 +1,10 @@
+import {
+  type JsonObject,
+  overlapCast,
+  isTypeofObject,
+  readJsonObject,
+  readString,
+} from "@opensesame/os-domain";
 /**
  * Server-side backup workflow client (ADR 0039).
  *
@@ -32,7 +39,7 @@ export type GithubInstallation = {
   targetType: string;
 };
 
-function toTarget(raw: Record<string, unknown>): BackupTargetView {
+function toTarget(raw: JsonObject): BackupTargetView {
   return {
     integrationId: String(raw.integration_id ?? ""),
     installationId: String(raw.installation_id ?? ""),
@@ -41,44 +48,45 @@ function toTarget(raw: Record<string, unknown>): BackupTargetView {
     branch: String(raw.branch ?? "main"),
     enabled: Boolean(raw.enabled),
     status: String(raw.status ?? "pending"),
-    lastCommitSha: (raw.last_commit_sha as string | null) ?? null,
-    lastSyncedAt: (raw.last_synced_at as string | null) ?? null,
-    lastError: (raw.last_error as string | null) ?? null,
+    lastCommitSha: (overlapCast(raw.last_commit_sha)) ?? null,
+    lastSyncedAt: (overlapCast(raw.last_synced_at)) ?? null,
+    lastError: (overlapCast(raw.last_error)) ?? null,
   };
 }
 
 async function fail(res: Response, fallback: string): Promise<never> {
-  const body = (await res.json().catch(() => ({}))) as {
-    hint?: string;
-    error?: string;
-  };
-  throw new Error(body.hint || body.error || `${fallback} (${res.status})`);
+  const body = overlapCast(await res.json().catch(() => ({})));
+  throw new Error(
+    readString(body.hint) ||
+      readString(body.error) ||
+      `${fallback} (${res.status})`,
+  );
 }
 
-export async function getBackupStatus(): Promise<BackupStatus> {
+async function getBackupStatusDefault(): Promise<BackupStatus> {
   const res = await hostFetch("/api/v1/backup/target");
   if (!res.ok) await fail(res, "Could not read backup status");
-  const body = (await res.json()) as {
-    target?: Record<string, unknown> | null;
-    pending_events?: number;
-  };
+  const body = overlapCast(await res.json());
+  const target = readJsonObject(body.target);
   return {
-    target: body.target ? toTarget(body.target) : null,
+    target: target ? toTarget(target) : null,
     pendingEvents: Number(body.pending_events ?? 0),
   };
 }
 
-export async function listGithubInstallations(
+async function listGithubInstallationsDefault(
   integrationId: string,
 ): Promise<GithubInstallation[]> {
   const res = await hostFetch(
     `/api/v1/integrations/${encodeURIComponent(integrationId)}/github/installations`,
   );
   if (!res.ok) await fail(res, "Could not list GitHub App installations");
-  const body = (await res.json()) as { installations?: unknown[] };
-  return (body.installations ?? [])
+  const body = overlapCast(await res.json());
+  const installations = body.installations;
+  const rows = Array.isArray(installations) ? installations : [];
+  return rows
     .filter(
-      (row): row is Record<string, unknown> => !!row && typeof row === "object",
+      (row): row is JsonObject => !!row && isTypeofObject(row),
     )
     .map((row) => ({
       id: String(row.id ?? ""),
@@ -89,7 +97,7 @@ export async function listGithubInstallations(
     .filter((row) => /^\d+$/.test(row.id));
 }
 
-export async function putBackupTarget(input: {
+async function putBackupTargetDefault(input: {
   connectionId?: string;
   integrationId?: string;
   installationId: string;
@@ -102,28 +110,64 @@ export async function putBackupTarget(input: {
     method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      ...(input.connectionId ? { connection_id: input.connectionId } : {}),
-      ...(input.integrationId ? { integration_id: input.integrationId } : {}),
+      ...(input.connectionId ? { connection_id: input.connectionId } : undefined),
+      ...(input.integrationId ? { integration_id: input.integrationId } : undefined),
       installation_id: input.installationId,
       owner: input.owner,
       repo: input.repo,
-      ...(input.branch ? { branch: input.branch } : {}),
-      ...(input.enabled === undefined ? {} : { enabled: input.enabled }),
+      ...(input.branch ? { branch: input.branch } : undefined),
+      ...(input.enabled === undefined ? undefined : { enabled: input.enabled }),
     }),
   });
   if (!res.ok) await fail(res, "Could not configure backup");
-  const body = (await res.json()) as { target: Record<string, unknown> };
-  return toTarget(body.target);
+  const body = overlapCast(await res.json());
+  const target = readJsonObject(body.target);
+  if (!target) {
+    throw new Error("Host returned no backup target");
+  }
+  return toTarget(target);
 }
 
-export async function deleteBackupTarget(): Promise<void> {
+async function deleteBackupTargetDefault(): Promise<void> {
   const res = await hostFetch("/api/v1/backup/target", { method: "DELETE" });
   if (!res.ok) await fail(res, "Could not remove backup target");
 }
 
-export async function resyncBackup(): Promise<void> {
+async function resyncBackupDefault(): Promise<void> {
   const res = await hostFetch("/api/v1/backup/resync", { method: "POST" });
   if (!res.ok) await fail(res, "Could not queue a resync");
+}
+
+export const backupSeams = {
+  getBackupStatus: getBackupStatusDefault,
+  listGithubInstallations: listGithubInstallationsDefault,
+  putBackupTarget: putBackupTargetDefault,
+  deleteBackupTarget: deleteBackupTargetDefault,
+  resyncBackup: resyncBackupDefault,
+};
+
+export async function getBackupStatus(): Promise<BackupStatus> {
+  return backupSeams.getBackupStatus();
+}
+
+export async function listGithubInstallations(
+  integrationId: string,
+): Promise<GithubInstallation[]> {
+  return backupSeams.listGithubInstallations(integrationId);
+}
+
+export async function putBackupTarget(
+  input: Parameters<typeof putBackupTargetDefault>[0],
+): Promise<BackupTargetView> {
+  return backupSeams.putBackupTarget(input);
+}
+
+export async function deleteBackupTarget(): Promise<void> {
+  return backupSeams.deleteBackupTarget();
+}
+
+export async function resyncBackup(): Promise<void> {
+  return backupSeams.resyncBackup();
 }
 
 /** Parse `owner/repo` from a GitHub https clone URL or full_name. */

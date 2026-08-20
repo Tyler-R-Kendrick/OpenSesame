@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * Fixtures here are trimmed from the real thing. Column names, casing, and
  * sentinel values (LastPass's `http://sn`, 1Password's `{"concealed":…}`)
@@ -20,7 +21,7 @@ import { normaliseTotp } from "./types.js";
 
 /** Mirrors what `readImportFile` builds, without needing a File. */
 function input(fileName: string, text: string): DetectInput {
-  let json: unknown = null;
+  let json = null;
   const trimmed = text.trimStart();
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {
@@ -41,7 +42,7 @@ function expectDetected(file: DetectInput, id: SourceId): void {
 }
 
 function loginNamed(items: readonly unknown[], name: string): DraftLogin {
-  const found = (items as DraftLogin[]).find((item) => item.name === name);
+  const found = (overlapCast(items)).find((item) => item.name === name);
   if (!found) throw new Error(`No item named ${name}`);
   return found;
 }
@@ -410,7 +411,7 @@ describe("Firefox", () => {
   });
 
   it("reads the password-changed timestamp for the health report", () => {
-    const login = parseImport(file).items[0] as DraftLogin;
+    const login = overlapCast(parseImport(file).items[0]);
     expect(login.passwordChangedAt).toBe("2023-01-02T03:04:05.000Z");
   });
 });
@@ -481,7 +482,7 @@ describe("KeePass 2.x", () => {
   it("is detected", () => expectDetected(file, "keepass-csv"));
 
   it("maps its differently named columns", () => {
-    const login = parseImport(file).items[0] as DraftLogin;
+    const login = overlapCast(parseImport(file).items[0]);
     expect(login).toMatchObject({
       name: "GitHub",
       username: "ada",
@@ -500,7 +501,7 @@ ada,ada@work.test,,GitHub,hunter2,a note,https://github.com,Dev,JBSWY3DPEHPK3PXP
     );
     expectDetected(file, "dashlane-csv");
     const result = parseImport(file);
-    const login = result.items[0] as DraftLogin;
+    const login = overlapCast(result.items[0]);
     expect(login.folder).toBe("Dev");
     expect(login.totp).toBe("JBSWY3DPEHPK3PXP");
     expect(login.fields).toContainEqual({
@@ -636,7 +637,7 @@ GitHub,https://github.com,ada,hunter2,a note,E-42`,
     expectDetected(file, "generic-csv"));
 
   it("maps columns by meaning and keeps unclaimed ones as fields", () => {
-    const login = parseImport(file).items[0] as DraftLogin;
+    const login = overlapCast(parseImport(file).items[0]);
     expect(login).toMatchObject({
       name: "GitHub",
       username: "ada",
@@ -657,7 +658,7 @@ GitHub,https://github.com,ada,hunter2,a note,E-42`,
   it("recognises common synonyms for the username column", () => {
     for (const header of ["Sign-in", "E-mail", "User ID", "Login Name"]) {
       const csv = input("x.csv", `Entry,${header},Secret\nGitHub,ada,hunter2`);
-      const login = parseImport(csv).items[0] as DraftLogin;
+      const login = overlapCast(parseImport(csv).items[0]);
       expect(login.username, header).toBe("ada");
     }
   });
@@ -668,7 +669,7 @@ GitHub,https://github.com,ada,hunter2,a note,E-42`,
       "x.csv",
       "Site Name,Web Address,Login,Secret\nGitHub,https://github.com,ada,hunter2",
     );
-    const login = parseImport(csv).items[0] as DraftLogin;
+    const login = overlapCast(parseImport(csv).items[0]);
     expect(login.name).toBe("GitHub");
     expect(login.uris[0]?.uri).toBe("https://github.com");
   });

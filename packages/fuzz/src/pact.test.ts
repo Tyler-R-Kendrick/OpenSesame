@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { redactAuditMetadata } from "@opensesame/audit";
-import { canTransitionClaim } from "@opensesame/os-domain";
+import { canTransitionClaim, type JsonObject, overlapCast } from "@opensesame/os-domain";
 import {
   assertDurableSurvivesPartition,
   assertNoSecretFields,
@@ -23,7 +23,7 @@ describe("PACT — fuzz oracles", () => {
   it("adversarial: secret fields must not survive redaction", () => {
     expect(() =>
       fuzzOracle({ action: "ok", access_token: "s", refresh_token: "r" }, (v) =>
-        redactAuditMetadata(v as Record<string, unknown>),
+        redactAuditMetadata(overlapCast(v)),
       ),
     ).not.toThrow();
   });

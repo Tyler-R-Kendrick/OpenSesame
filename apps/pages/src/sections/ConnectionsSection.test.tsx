@@ -6,37 +6,31 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { overlapCast } from "@opensesame/os-domain";
+import { FIRST_RUN_KEY } from "../lib/identity-graph.js";
+import { kvDelete, kvSet } from "../lib/kv.js";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const online = vi.hoisted(() => ({ value: true }));
 const session = vi.hoisted(() => ({
-  current: { principalId: "prn_op" } as { principalId: string } | null,
+  current: { principalId: "prn_op" },
 }));
 const hostEligible = vi.hoisted(() => ({ value: true }));
 const connect = vi.hoisted(() => vi.fn());
 const connectState = vi.hoisted(() => ({
   connecting: false,
-  error: null as string | null,
+  error: null,
 }));
-
-const HostSessionError = vi.hoisted(() => {
-  return class HostSessionError extends Error {
-    code: string;
-    constructor(code: string, message: string) {
-      super(message);
-      this.code = code;
-    }
-  };
-});
 
 const ensureHostSession = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 );
 
-vi.mock("../lib/identity.js", () => ({
-  HostSessionError,
+import { HostSessionError, identitySeams } from "../lib/identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {
   ensureHostSession,
   hostBase: () => "http://127.0.0.1:8787",
   hostLocalSessionEligible: () => hostEligible.value,
@@ -45,41 +39,28 @@ vi.mock("../lib/identity.js", () => ({
     connecting: connectState.connecting,
     error: connectState.error,
   }),
-  useIdentitySession: () => session.current,
-}));
-
-vi.mock("../lib/use-online.js", () => ({ useOnline: () => online.value }));
-
+  useIdentitySession: () => session.current});
+import { useOnlineSeams } from "../lib/use-online.js";
+const originalUseOnlineSeams = { ...useOnlineSeams };
+Object.assign(useOnlineSeams, {useOnline: () => online.value});
 const shouldAutoConnect = vi.hoisted(() => vi.fn(() => true));
-vi.mock("../lib/settings.js", () => ({ shouldAutoConnect }));
-
-const vault = vi.hoisted(() => ({ items: [] as unknown[] }));
+import { settingsSeams } from "../lib/settings.js";
+const originalSettingsSeams = { ...settingsSeams };
+Object.assign(settingsSeams, {shouldAutoConnect});
+const vault = vi.hoisted(() => ({ items: [] }));
 const addItems = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const saveItem = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
-vi.mock("../lib/vault/hooks.js", () => ({
-  useVault: () => vault,
-  useVaultStore: () => ({ addItems, saveItem }),
-}));
+import { vaultHooksSeams } from "../lib/vault/hooks.js";
+const originalVaultHooksSeams = { ...vaultHooksSeams };
+Object.assign(vaultHooksSeams, {useVault: () => vault,
+  useVaultStore: () => ({ addItems, saveItem })});
 
-vi.mock("../components/PlaneNote.js", () => ({
-  PagesCannotHostNote: () => null,
-}));
-vi.mock("../components/PasskeyCeremonyNote.js", () => ({
-  PasskeyCeremonyNote: () => null,
-}));
 
-const ConnectionsError = vi.hoisted(() => {
-  return class ConnectionsError extends Error {
-    status: number;
-    code: string;
-    constructor(status: number, code: string, message: string) {
-      super(message);
-      this.status = status;
-      this.code = code;
-    }
-  };
-});
+import { planeNoteSeams } from "../components/PlaneNote.js";
+const originalPlaneNoteSeams = { ...planeNoteSeams };
+Object.assign(planeNoteSeams, {PagesCannotHostNote: () => null,});
+
 
 const listProviders = vi.hoisted(() => vi.fn());
 const listConnections = vi.hoisted(() => vi.fn());
@@ -100,8 +81,14 @@ const openConsentPopup = vi.hoisted(() => vi.fn(() => null));
 const startGithubAppRegistration = vi.hoisted(() => vi.fn());
 const submitGithubAppManifest = vi.hoisted(() => vi.fn());
 
-vi.mock("../lib/connections.js", () => ({
+import {
   ConnectionsError,
+  connectionSeams,
+  type Connection,
+} from "../lib/connections.js";
+import { ConnectionsSection } from "./ConnectionsSection.js";
+const originalConnectionSeams = { ...connectionSeams };
+Object.assign(connectionSeams, {
   listProviders,
   listConnections,
   discoverConnections,
@@ -120,7 +107,7 @@ vi.mock("../lib/connections.js", () => ({
   openConsentPopup,
   startGithubAppRegistration,
   submitGithubAppManifest,
-}));
+});
 
 const catalog = vi.hoisted(() => {
   const githubProvider = {
@@ -240,19 +227,24 @@ const catalog = vi.hoisted(() => {
   ];
 });
 
-const bundledRef = vi.hoisted(() => ({ current: [] as unknown[] }));
+const bundledRef = vi.hoisted(() => ({ current: [] }));
 
-vi.mock("../lib/embedded-catalog.js", () => ({
-  get bundledProviders() {
-    return bundledRef.current;
-  },
-  readEmbeddedProviders: vi.fn(() => Promise.resolve(bundledRef.current)),
-  writeEmbeddedProviders: vi.fn().mockResolvedValue(undefined),
-}));
+import { embeddedCatalogSeams } from "../lib/embedded-catalog.js";
+const originalEmbeddedCatalogSeams = {
+  ...embeddedCatalogSeams,
+  bundledProviders: embeddedCatalogSeams.bundledProviders,
+};
+embeddedCatalogSeams.readEmbeddedProviders = () =>
+  Promise.resolve(embeddedCatalogSeams.bundledProviders);
+embeddedCatalogSeams.writeEmbeddedProviders = vi
+  .fn()
+  .mockResolvedValue(undefined);
 
-import type { Connection } from "../lib/connections.js";
-import { kvDelete } from "../lib/kv.js";
-import { ConnectionsSection } from "./ConnectionsSection.js";
+import { passkeyCeremonyNoteSeams } from "../components/PasskeyCeremonyNote.js";
+const originalPasskeyCeremonyNoteSeams = { ...passkeyCeremonyNoteSeams };
+Object.assign(passkeyCeremonyNoteSeams, {
+  PasskeyCeremonyNote: () => null,
+});
 
 function makeConnection(overrides: Partial<Connection> = {}): Connection {
   return {
@@ -284,7 +276,7 @@ function makeConnection(overrides: Partial<Connection> = {}): Connection {
     createdAt: "2026-08-01T00:00:00Z",
     updatedAt: "2026-08-01T00:00:00Z",
     ...overrides,
-  } as Connection;
+  };
 }
 
 function renderAt(path: string) {
@@ -315,17 +307,20 @@ describe("ConnectionsSection gallery", () => {
     shouldAutoConnect.mockReturnValue(true);
     listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
+    embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
     connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
     vault.items = [];
-    kvDelete("connections.firstRun.v1");
+    kvDelete(FIRST_RUN_KEY);
     window.history.replaceState({}, "", "/connections");
   });
 
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    embeddedCatalogSeams.bundledProviders =
+      originalEmbeddedCatalogSeams.bundledProviders;
   });
 
   it("renders the catalog grouped by category", async () => {
@@ -349,7 +344,7 @@ describe("ConnectionsSection gallery", () => {
     await screen.findByText("Vaultwarden");
     // Dismiss the first-run panel so tile names are unambiguous.
     await userEvent.click(screen.getByRole("button", { name: /Dismiss/i }));
-    const grid = () => container.querySelector(".conn-grid") as HTMLElement;
+    const grid = () => overlapCast(container.querySelector(".conn-grid"));
     await userEvent.type(
       screen.getByPlaceholderText("Search connectors"),
       "linear",
@@ -517,16 +512,19 @@ describe("ConnectionsSection connector page", () => {
     shouldAutoConnect.mockReturnValue(true);
     listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
+    embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
     connectionEvents.mockResolvedValue([]);
     vault.items = [];
-    kvDelete("connections.firstRun.v1");
+    kvDelete(FIRST_RUN_KEY);
     window.history.replaceState({}, "", "/connections/github");
   });
 
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    embeddedCatalogSeams.bundledProviders =
+      originalEmbeddedCatalogSeams.bundledProviders;
   });
 
   it("reports an unknown connector", async () => {
@@ -712,7 +710,7 @@ describe("ConnectionsSection connector page", () => {
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
     await userEvent.click(
-      screen.getAllByRole("button", { name: /History/i })[0] as HTMLElement,
+      overlapCast(screen.getAllByRole("button", { name: /History/i })[0]),
     );
     expect((await screen.findAllByText("authorized")).length).toBeGreaterThan(
       0,
@@ -726,7 +724,7 @@ describe("ConnectionsSection connector page", () => {
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
     await userEvent.click(
-      screen.getAllByRole("button", { name: /^Revoke$/i })[0] as HTMLElement,
+      overlapCast(screen.getAllByRole("button", { name: /^Revoke$/i })[0]),
     );
     expect(
       screen.getByText(/Revoking cuts off every project and agent/),
@@ -734,7 +732,7 @@ describe("ConnectionsSection connector page", () => {
     await userEvent.click(screen.getByRole("button", { name: /Keep it/i }));
     expect(revokeConnection).not.toHaveBeenCalled();
     await userEvent.click(
-      screen.getAllByRole("button", { name: /^Revoke$/i })[0] as HTMLElement,
+      overlapCast(screen.getAllByRole("button", { name: /^Revoke$/i })[0]),
     );
     await userEvent.click(screen.getByRole("button", { name: /Revoke it/i }));
     await waitFor(() => expect(revokeConnection).toHaveBeenCalledWith("con_1"));
@@ -747,7 +745,7 @@ describe("ConnectionsSection connector page", () => {
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
     await userEvent.click(
-      screen.getAllByRole("button", { name: /^Revoke$/i })[0] as HTMLElement,
+      overlapCast(screen.getAllByRole("button", { name: /^Revoke$/i })[0]),
     );
     await userEvent.click(screen.getByRole("button", { name: /Revoke it/i }));
     expect(
@@ -775,9 +773,9 @@ describe("ConnectionsSection connector page", () => {
 
     // Existing binding renders with an unbind control.
     await userEvent.click(
-      screen.getAllByRole("button", {
+      overlapCast(screen.getAllByRole("button", {
         name: /Unbind proj_1/i,
-      })[0] as HTMLElement,
+      })[0]),
     );
     await waitFor(() =>
       expect(unbindConnection).toHaveBeenCalledWith("con_1", "bnd_1"),
@@ -785,9 +783,9 @@ describe("ConnectionsSection connector page", () => {
 
     // Add a new project binding.
     await userEvent.click(
-      screen.getAllByRole("button", {
+      overlapCast(screen.getAllByRole("button", {
         name: /Bind an identity/i,
-      })[0] as HTMLElement,
+      })[0]),
     );
     await userEvent.type(screen.getByLabelText(/Identifier/i), "proj_9");
     await userEvent.click(screen.getByRole("button", { name: /^Bind$/i }));
@@ -804,9 +802,9 @@ describe("ConnectionsSection connector page", () => {
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
     await userEvent.click(
-      screen.getAllByRole("button", {
+      overlapCast(screen.getAllByRole("button", {
         name: /Bind an identity/i,
-      })[0] as HTMLElement,
+      })[0]),
     );
     await userEvent.selectOptions(screen.getByLabelText(/^Kind$/i), "agent");
     await userEvent.type(screen.getByLabelText(/Identifier/i), "user:demo");
@@ -909,17 +907,20 @@ describe("ConnectionsSection deeper branches", () => {
     shouldAutoConnect.mockReturnValue(true);
     listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
+    embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
     connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
     vault.items = [];
-    kvDelete("connections.firstRun.v1");
+    kvDelete(FIRST_RUN_KEY);
     window.history.replaceState({}, "", "/connections");
   });
 
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    embeddedCatalogSeams.bundledProviders =
+      originalEmbeddedCatalogSeams.bundledProviders;
   });
 
   it("announces auto-configured connectors after a reload", async () => {
@@ -1022,9 +1023,9 @@ describe("ConnectionsSection deeper branches", () => {
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
     await userEvent.click(
-      screen.getAllByRole("button", {
+      overlapCast(screen.getAllByRole("button", {
         name: /Re-authorize/i,
-      })[0] as HTMLElement,
+      })[0]),
     );
     expect(await screen.findByText(/GitHub is authorized again/)).toBeTruthy();
   });
@@ -1041,9 +1042,9 @@ describe("ConnectionsSection deeper branches", () => {
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
     await userEvent.click(
-      screen.getAllByRole("button", {
+      overlapCast(screen.getAllByRole("button", {
         name: /Re-authorize/i,
-      })[0] as HTMLElement,
+      })[0]),
     );
     expect(await screen.findByText(/user said no/)).toBeTruthy();
   });
@@ -1054,7 +1055,7 @@ describe("ConnectionsSection deeper branches", () => {
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
     await userEvent.click(
-      screen.getAllByRole("button", { name: /History/i })[0] as HTMLElement,
+      overlapCast(screen.getAllByRole("button", { name: /History/i })[0]),
     );
     // The log renders in both the card and the identity graph panel.
     expect(
@@ -1080,9 +1081,9 @@ describe("ConnectionsSection deeper branches", () => {
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
     await userEvent.click(
-      screen.getAllByRole("button", {
+      overlapCast(screen.getAllByRole("button", {
         name: /Unbind proj_1/i,
-      })[0] as HTMLElement,
+      })[0]),
     );
     expect(await screen.findByText(/still in use/)).toBeTruthy();
   });
@@ -1156,9 +1157,9 @@ describe("ConnectionsSection deeper branches", () => {
     expect(await screen.findByText(/Pick at least one scope/)).toBeTruthy();
     expect(
       (
-        screen.getByRole("button", {
+        overlapCast(screen.getByRole("button", {
           name: /Authorize with GitHub/i,
-        }) as HTMLButtonElement
+        }))
       ).disabled,
     ).toBe(true);
   });
@@ -1208,17 +1209,20 @@ describe("ConnectionsSection remaining branches", () => {
     shouldAutoConnect.mockReturnValue(true);
     listProviders.mockResolvedValue(catalog);
     bundledRef.current = catalog;
+    embeddedCatalogSeams.bundledProviders = catalog;
     listConnections.mockResolvedValue([]);
     connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
     vault.items = [];
-    kvDelete("connections.firstRun.v1");
+    kvDelete(FIRST_RUN_KEY);
     window.history.replaceState({}, "", "/connections");
   });
 
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    embeddedCatalogSeams.bundledProviders =
+      originalEmbeddedCatalogSeams.bundledProviders;
   });
 
   it("uses the singular flash for one auto-configured connector", async () => {
@@ -1335,6 +1339,7 @@ describe("ConnectionsSection remaining branches", () => {
     // The bundled catalog paints first, so it must carry the scopes or the
     // form initializes without them.
     bundledRef.current = [scopedLinear];
+    embeddedCatalogSeams.bundledProviders = [scopedLinear];
     renderAt("/connections/linear");
     // Tick the non-default broad scope on.
     await userEvent.click(await screen.findByLabelText(/write/));

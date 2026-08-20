@@ -7,6 +7,7 @@ import {
 } from "jose";
 import { AuthorizationError } from "./errors.js";
 import { hasRequiredScopes, trimSlash } from "./jwt-utils.js";
+import { overlapCast, isString } from "@opensesame/os-domain";
 
 export interface VerifiedIdentity {
   sub: string;
@@ -210,14 +211,14 @@ export function createJwksKeySource(
         { headers: { accept: "application/json" } },
       );
       if (!res.ok) return fallback();
-      meta = (await res.json()) as { issuer?: unknown; jwks_uri?: unknown };
+      meta = overlapCast(await res.json());
     } catch {
       return fallback();
     }
-    if (typeof meta.issuer !== "string" || trimSlash(meta.issuer) !== issuer) {
+    if (!isString(meta.issuer) || trimSlash(meta.issuer) !== issuer) {
       throw new Error("Discovery document does not name the configured issuer");
     }
-    if (typeof meta.jwks_uri !== "string") return fallback();
+    if (!isString(meta.jwks_uri)) return fallback();
     return assertDiscoveredJwksUri(meta.jwks_uri, issuerUrl);
   }
 
@@ -226,7 +227,7 @@ export function createJwksKeySource(
   return async function keySource(): Promise<JWTVerifyGetKey> {
     if (config.jwks) {
       return createLocalJWKSet(
-        config.jwks as Parameters<typeof createLocalJWKSet>[0],
+        overlapCast(config.jwks),
       );
     }
     if (configuredJwksUri) {
@@ -260,9 +261,9 @@ export function createOpenSesameVerifier(
   const algorithms = config.algorithms ?? [...DEFAULT_ALLOWED_ALGORITHMS];
   const keySource = createJwksKeySource({
     issuer,
-    ...(config.jwksUri !== undefined ? { jwksUri: config.jwksUri } : {}),
-    ...(config.jwks !== undefined ? { jwks: config.jwks } : {}),
-    ...(config.fetchImpl !== undefined ? { fetchImpl: config.fetchImpl } : {}),
+    ...(config.jwksUri !== undefined ? { jwksUri: config.jwksUri } : undefined),
+    ...(config.jwks !== undefined ? { jwks: config.jwks } : undefined),
+    ...(config.fetchImpl !== undefined ? { fetchImpl: config.fetchImpl } : undefined),
   });
 
   return {
@@ -299,9 +300,9 @@ export function createOpenSesameVerifier(
       }
 
       const tokenUse =
-        typeof payload.token_use === "string"
+        isString(payload.token_use)
           ? payload.token_use
-          : typeof payload.typ === "string"
+          : isString(payload.typ)
             ? payload.typ
             : undefined;
       if (tokenUse === "id" || tokenUse === "refresh") {
@@ -309,9 +310,9 @@ export function createOpenSesameVerifier(
       }
 
       const scope =
-        typeof payload.scope === "string"
+        isString(payload.scope)
           ? payload.scope
-          : typeof payload.scp === "string"
+          : isString(payload.scp)
             ? payload.scp
             : Array.isArray(payload.scp)
               ? payload.scp.map(String).join(" ")
@@ -325,16 +326,16 @@ export function createOpenSesameVerifier(
       }
 
       const assurance =
-        typeof payload.assurance === "string"
+        isString(payload.assurance)
           ? payload.assurance
-          : typeof payload["os:assurance"] === "string"
-            ? (payload["os:assurance"] as string)
+          : isString(payload["os:assurance"])
+            ? (overlapCast(payload["os:assurance"]))
             : undefined;
 
       const identity: VerifiedIdentity = {
         sub: payload.sub,
         iss: payload.iss,
-        aud: (payload.aud as string | string[]) ?? defaultAudience,
+        aud: (overlapCast(payload.aud)) ?? defaultAudience,
         payload,
         accessToken: token,
       };

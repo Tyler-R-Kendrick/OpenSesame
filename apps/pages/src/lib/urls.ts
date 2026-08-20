@@ -14,8 +14,16 @@ import {
   normalizeLoopbackBaseUrl,
 } from "@opensesame/api-client";
 
-export function isLoopbackUrl(raw: string): boolean {
+function isLoopbackUrlDefault(raw: string): boolean {
   return normalizeLoopbackBaseUrl(raw) !== null;
+}
+
+export const urlSeams = {
+  isLoopbackUrl: isLoopbackUrlDefault,
+};
+
+export function isLoopbackUrl(raw: string): boolean {
+  return urlSeams.isLoopbackUrl(raw);
 }
 
 /**
@@ -59,9 +67,12 @@ export function normalizeTailnetBase(raw: string): string | null {
  * origin it does not control.
  */
 export function isSameOrigin(base: string): boolean {
-  if (typeof location === "undefined") return false;
+  if (globalThis.location === undefined) return false;
   try {
-    return new URL(base, location.href).origin === location.origin;
+    return (
+      new URL(base, globalThis.location.href).origin ===
+      globalThis.location.origin
+    );
   } catch {
     return false;
   }

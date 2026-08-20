@@ -8,6 +8,8 @@ import {
   isTypeofObject,
   isUndefined,
   overlapCast,
+  readJsonObject,
+  readString,
   type JsonObject,
 } from "../json.js";
 
@@ -29,7 +31,15 @@ describe("json boundary helpers", () => {
     expect(isFunction(() => 1)).toBe(true);
     expect(isUndefined(undefined)).toBe(true);
     const raw = { id: "1" };
+    expect(overlapCast(raw).id).toBe("1");
     const named: JsonObject = overlapCast(raw);
     expect(named.id).toBe("1");
+  });
+
+  it("reads JSON object and string fields", () => {
+    expect(readJsonObject({ a: 1 })).toEqual({ a: 1 });
+    expect(readJsonObject("nope")).toBeUndefined();
+    expect(readString("ok")).toBe("ok");
+    expect(readString(1)).toBeUndefined();
   });
 });

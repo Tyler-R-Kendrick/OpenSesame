@@ -7,6 +7,7 @@ import {
   parseUserCode,
   readFragmentToken,
 } from "./index.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 function memoryStorage(): StashStorage & { map: Map<string, string> } {
   const map = new Map<string, string>();
@@ -83,12 +84,9 @@ describe("device approval", () => {
     await approveDevice({
       baseUrl: "http://id.example/",
       userCode: " abcd-efgh ",
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
-    const [url, init] = fetchImpl.mock.calls[0] as unknown as [
-      string,
-      RequestInit,
-    ];
+    const [url, init] = overlapCast(fetchImpl.mock.calls[0]);
     // The trailing slash is normalized away rather than doubled.
     expect(url).toBe("http://id.example/v1/device/approve");
     expect(JSON.parse(String(init.body))).toEqual({ user_code: "abcd-efgh" });
@@ -102,7 +100,7 @@ describe("device approval", () => {
       approveDevice({
         baseUrl: "http://id.example",
         userCode: "ABCD",
-        fetchImpl: status(code) as unknown as typeof fetch,
+        fetchImpl: overlapCast(status(code)),
       });
     await expect(attempt(401)).rejects.toThrow(/Sign in first/);
     await expect(attempt(404)).rejects.toThrow(/not found or has expired/);
@@ -115,7 +113,7 @@ describe("device approval", () => {
       approveDevice({
         baseUrl: "http://id.example",
         userCode: "   ",
-        fetchImpl: fetchImpl as unknown as typeof fetch,
+        fetchImpl: overlapCast(fetchImpl),
       }),
     ).rejects.toThrow(/Enter the user code/);
     expect(fetchImpl).not.toHaveBeenCalled();

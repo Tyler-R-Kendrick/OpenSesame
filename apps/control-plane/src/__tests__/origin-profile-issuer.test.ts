@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { startServer } from "../server.js";
+import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 
@@ -50,13 +51,10 @@ async function stop(started: Started): Promise<void> {
   });
 }
 
-function decodeJwtPayload(jwt: string): Record<string, unknown> {
+function decodeJwtPayload(jwt: string): JsonObject {
   const part = jwt.split(".")[1];
   if (!part) throw new Error("not a jwt");
-  return JSON.parse(Buffer.from(part, "base64url").toString("utf8")) as Record<
-    string,
-    unknown
-  >;
+  return overlapCast(JSON.parse(Buffer.from(part, "base64url").toString("utf8")));
 }
 
 describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
@@ -201,9 +199,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
         },
       );
       expect(provisional.status).toBe(201);
-      const { accessToken } = (await provisional.json()) as {
-        accessToken: string;
-      };
+      const { accessToken } = overlapCast(await provisional.json());
       const linked = await started.app.request(
         "/v1/principals/link-identities",
         {
@@ -235,7 +231,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
         }),
       });
       expect(registered.status).toBe(201);
-      const client = (await registered.json()) as { id: string };
+      const client = overlapCast(await registered.json());
 
       // No Origin header: the CORS gate must not engage, and the registered
       // client must resolve through the store into oidc-provider (an unknown
@@ -252,7 +248,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
         }),
       });
       expect(tokenRes.status).toBe(400);
-      const body = (await tokenRes.json()) as { error: string };
+      const body = overlapCast(await tokenRes.json());
       expect(body.error).toBe("invalid_grant");
     } finally {
       await stop(started);
@@ -277,7 +273,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       const grant = new provider.Grant({ accountId, clientId: CLIENT_ID });
       grant.addOIDCScope("openid");
       await grant.save();
-      const code = new provider.AuthorizationCode({
+      const code = new provider.AuthorizationCode(overlapCast({
         client,
         accountId,
         redirectUri: REDIRECT_URI,
@@ -287,7 +283,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
         codeChallenge: challenge,
         codeChallengeMethod: "S256",
         grantId: grant.jti,
-      } as never);
+      }));
       const codeValue = await code.save();
 
       const tokenRes = await fetch(`http://127.0.0.1:${started.port}/token`, {
@@ -308,19 +304,15 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       expect(tokenRes.headers.get("access-control-allow-origin")).toBe(ORIGIN);
       expect(tokenRes.headers.get("vary")).toContain("Origin");
 
-      const tokens = (await tokenRes.json()) as {
-        id_token: string;
-        access_token: string;
-        token_type: string;
-      };
+      const tokens = overlapCast(await tokenRes.json());
       const payload = decodeJwtPayload(tokens.id_token);
       expect(payload.aud).toBe(CLIENT_ID);
       expect(payload.nonce).toBe("n-1");
-      expect(typeof payload.sub).toBe("string");
+      expect(isString(payload.sub)).toBe(true);
       // Pairwise: the sub is not the account id, and it is the truthful
       // persisted mapping for (account, sector).
       expect(payload.sub).not.toBe(accountId);
-      const sector = (client as unknown as { sectorIdentifier: string })
+      const sector = (overlapCast(client))
         .sectorIdentifier;
       const mapping = await started.ctx.oauth.pairwiseStore.find(
         accountId,
@@ -372,7 +364,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       const grant = new provider.Grant({ accountId, clientId: CLIENT_ID });
       grant.addOIDCScope("openid");
       await grant.save();
-      const code = new provider.AuthorizationCode({
+      const code = new provider.AuthorizationCode(overlapCast({
         client,
         accountId,
         redirectUri: REDIRECT_URI,
@@ -382,7 +374,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
         codeChallenge: challenge,
         codeChallengeMethod: "S256",
         grantId: grant.jti,
-      } as never);
+      }));
       const codeValue = await code.save();
 
       const tokenRes = await fetch(`http://127.0.0.1:${started.port}/token`, {
@@ -399,7 +391,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
         }),
       });
       expect(tokenRes.ok).toBe(false);
-      const body = (await tokenRes.json()) as { error?: string };
+      const body = overlapCast(await tokenRes.json());
       expect(body.error).toBeTruthy();
       expect(verifier.length).toBeGreaterThan(0);
     } finally {
@@ -497,7 +489,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
         const grant = new provider.Grant({ accountId, clientId });
         grant.addOIDCScope("openid");
         await grant.save();
-        const code = new provider.AuthorizationCode({
+        const code = new provider.AuthorizationCode(overlapCast({
           client,
           accountId,
           redirectUri,
@@ -507,7 +499,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
           codeChallenge: challenge,
           codeChallengeMethod: "S256",
           grantId: grant.jti,
-        } as never);
+        }));
         const codeValue = await code.save();
         const tokenRes = await fetch(`http://127.0.0.1:${started.port}/token`, {
           method: "POST",
@@ -524,10 +516,10 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
           }),
         });
         expect(tokenRes.status).toBe(200);
-        const tokens = (await tokenRes.json()) as { id_token: string };
+        const tokens = overlapCast(await tokenRes.json());
         const payload = decodeJwtPayload(tokens.id_token);
-        expect(typeof payload.sub).toBe("string");
-        return payload.sub as string;
+        expect(isString(payload.sub)).toBe(true);
+        return overlapCast(payload.sub);
       }
 
       const subA = await mintSub(ORIGIN, CLIENT_ID, REDIRECT_URI);
@@ -609,12 +601,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
         `http://127.0.0.1:${started.port}/.well-known/openid-configuration`,
       );
       expect(res.status).toBe(200);
-      const doc = (await res.json()) as {
-        issuer: string;
-        authorization_endpoint: string;
-        token_endpoint: string;
-        jwks_uri: string;
-      };
+      const doc = overlapCast(await res.json());
       expect(doc.authorization_endpoint).toContain("/auth");
       expect(doc.token_endpoint).toContain("/token");
       expect(doc.jwks_uri).toMatch(/jwks/i);

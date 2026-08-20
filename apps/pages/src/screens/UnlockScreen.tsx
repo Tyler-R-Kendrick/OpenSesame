@@ -27,7 +27,7 @@ import "./unlock.css";
 
 const STRENGTH_VARS = ["--s-0", "--s-1", "--s-2", "--s-3", "--s-4"] as const;
 
-const METHOD_LABEL: Record<UnlockMethodId, string> = {
+const METHOD_LABEL = {
   passkey: "Passkey",
   pin: "PIN",
   password: "Password",

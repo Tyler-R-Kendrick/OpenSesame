@@ -1,3 +1,4 @@
+import { overlapCast, isTypeofObject, isString, isBoolean } from "@opensesame/os-domain";
 /**
  * The claim bearer between steps of the ceremony. Presenting spends the token
  * but completing needs it again, so a reload or a detour through sign-in must
@@ -49,17 +50,17 @@ export function readClaimStash(): ClaimStash | null {
   try {
     const raw = sessionStorage.getItem(STASH_KEY);
     if (!raw) return null;
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null) return null;
+    const parsed = JSON.parse(raw);
+    if (!isTypeofObject(parsed) || parsed === null) return null;
     const { token, presented, claimId, principalId } =
-      parsed as Partial<ClaimStash>;
-    if (typeof token !== "string" || typeof presented !== "boolean")
+      overlapCast(parsed);
+    if (!isString(token) || !isBoolean(presented))
       return null;
     return {
       token,
       presented,
-      ...(typeof claimId === "string" ? { claimId } : {}),
-      ...(typeof principalId === "string" ? { principalId } : {}),
+      ...(isString(claimId) ? { claimId } : undefined),
+      ...(isString(principalId) ? { principalId } : undefined),
     };
   } catch {
     return null;

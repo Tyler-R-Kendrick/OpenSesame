@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createApiClient } from "./index.js";
+import { type BoundaryValue } from "@opensesame/os-domain";
 
 const egress = {
   scheme: "https",
@@ -71,7 +72,7 @@ function jsonClient(
   };
 }
 
-function ok(body: unknown): Response {
+function ok(body: BoundaryValue): Response {
   return new Response(JSON.stringify(body), { status: 200 });
 }
 

@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { DeviceFlowClient, redactSecrets } from "./device-flow.js";
+import { type JsonObject, overlapCast, type BoundaryValue, isFunction } from "@opensesame/os-domain";
 
 const ISSUER = "http://127.0.0.1:8788";
 
-function discoveryDoc(overrides: Record<string, unknown> = {}) {
+function discoveryDoc(overrides: JsonObject = {}) {
   return {
     issuer: ISSUER,
     authorization_endpoint: `${ISSUER}/auth`,
@@ -13,7 +14,7 @@ function discoveryDoc(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function deviceResponse(overrides: Record<string, unknown> = {}) {
+function deviceResponse(overrides: JsonObject = {}) {
   return {
     device_code: "dc",
     user_code: "ABCD-EFGH",
@@ -31,27 +32,27 @@ type Handlers = {
 };
 
 function fetchWith(handlers: Handlers, seen?: RequestInit[]) {
-  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  return overlapCast(vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     if (init) seen?.push(init);
     const url = String(input);
     const pick = (v: Response | (() => Response) | undefined): Response => {
       if (!v) throw new Error(`unexpected ${url}`);
-      return typeof v === "function" ? v() : v;
+      return isFunction(v) ? v() : v;
     };
     if (url.includes("openid-configuration")) return pick(handlers.discovery);
     if (url.endsWith("/device")) return pick(handlers.device);
     if (url.endsWith("/token")) return pick(handlers.token);
     throw new Error(`unexpected ${url}`);
-  }) as unknown as typeof fetch;
+  }));
 }
 
-function json(body: unknown, status = 200): Response {
+function json(body: BoundaryValue, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
 }
 
 function clientWith(
   fetchImpl: typeof fetch,
-  extra: Record<string, unknown> = {},
+  extra: JsonObject = {},
 ) {
   return new DeviceFlowClient({
     issuer: ISSUER,
@@ -79,7 +80,7 @@ describe("DeviceFlowClient discovery and start failures", () => {
   it("refuses an issuer that does not advertise a device endpoint", async () => {
     const doc = discoveryDoc();
     (
-      doc as { device_authorization_endpoint?: string | undefined }
+      overlapCast(doc)
     ).device_authorization_endpoint = undefined;
     const c = clientWith(fetchWith({ discovery: json(doc) }));
     await expect(c.start()).rejects.toThrow(/device_authorization_endpoint/u);

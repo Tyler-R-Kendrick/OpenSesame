@@ -7,6 +7,7 @@ import {
   mockUpstreamProvider,
 } from "../oidc-registry.js";
 import { createPasskeySeam } from "../passkey.js";
+import { isFunction } from "@opensesame/os-domain";
 
 const baseOptions = {
   baseURL: "http://127.0.0.1:8788",
@@ -21,7 +22,7 @@ describe("createUpstreamAuth", () => {
     });
 
     expect(bundle.auth).toBeDefined();
-    expect(typeof bundle.auth.handler).toBe("function");
+    expect(isFunction(bundle.auth.handler)).toBe(true);
     expect(bundle.auth.options.emailAndPassword?.enabled).toBe(false);
     // Account linking is disabled: principals are mapped, never auto-linked.
     expect(bundle.auth.options.account?.accountLinking?.enabled).toBe(false);

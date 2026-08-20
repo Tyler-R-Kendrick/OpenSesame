@@ -1,20 +1,19 @@
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
+const mocks = {
   createRoot: vi.fn(),
   render: vi.fn(),
-}));
+};
 
-vi.mock("react-dom/client", () => ({
-  createRoot: mocks.createRoot,
-}));
-
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   vi.resetModules();
   mocks.createRoot.mockReturnValue({ render: mocks.render });
+  const { reactDomSeams } = await import("./react-dom.js");
+  reactDomSeams.createRoot = mocks.createRoot;
   document.body.innerHTML = "";
 });
 
@@ -38,10 +37,7 @@ describe("main entrypoint", () => {
     expect(mocks.createRoot).toHaveBeenCalledWith(host);
     expect(mocks.render).toHaveBeenCalledOnce();
 
-    const tree = mocks.render.mock.calls[0]?.[0] as {
-      type: unknown;
-      props: { children: { type: unknown; props: Record<string, unknown> } };
-    };
+    const tree = overlapCast(mocks.render.mock.calls[0]?.[0]);
     expect(tree.type).toBe(StrictMode);
     expect(tree.props.children.props).toMatchObject({
       name: "RP Alpha",

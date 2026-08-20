@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 /**
  * promptfoo custom provider: the "provider under test" for the three
  * deterministic red-team classes (confused-deputy, credential-exfiltration,
@@ -49,7 +50,7 @@ const CALL_TIMEOUT_MS = 15_000;
 
 interface ToolCallSpec {
   tool: string;
-  params: Record<string, unknown>;
+  params: JsonObject;
 }
 
 /**
@@ -73,10 +74,10 @@ interface ProviderResponse {
   error?: string;
 }
 
-function processEnvStrings(): Record<string, string> {
-  const out: Record<string, string> = {};
+function processEnvStrings() {
+  const out = {};
   for (const [key, value] of Object.entries(process.env)) {
-    if (typeof value === "string") out[key] = value;
+    if (isString(value)) out[key] = value;
   }
   return out;
 }
@@ -111,9 +112,9 @@ export default class McpHostStructuralProvider {
 
   async callApi(
     _prompt: string,
-    context?: { vars?: Record<string, unknown> },
+    context?: { vars?: JsonObject },
   ): Promise<ProviderResponse> {
-    const vars = (context?.vars ?? {}) as Partial<RedteamVars>;
+    const vars = overlapCast(context?.vars ?? {});
 
     if (!Array.isArray(vars.calls) || vars.calls.length === 0) {
       return {
@@ -132,7 +133,7 @@ export default class McpHostStructuralProvider {
         mock = await startMockUpstream(vars.mockRoutes);
       }
 
-      const env: Record<string, string> = {
+      const env = {
         ...processEnvStrings(),
         ...(vars.env ?? {}),
       };
@@ -163,7 +164,7 @@ export default class McpHostStructuralProvider {
 
       const calls: Array<{
         tool: string;
-        params: Record<string, unknown>;
+        params: JsonObject;
         response: unknown;
       }> = [];
       for (const call of vars.calls) {

@@ -1,13 +1,9 @@
 import { randomUUID } from "node:crypto";
-import type {
-  AuditActorType,
-  AuditEvent,
-  AuditOutcome,
-} from "@opensesame/os-domain";
+import type { AuditActorType, AuditEvent, AuditOutcome, JsonObject, BoundaryValue } from "@opensesame/os-domain";
 import { redactAuditMetadata } from "./redact.js";
 
 export interface AuditSink {
-  append(event: AuditEvent, uow?: unknown): Promise<AuditEvent>;
+  append(event: AuditEvent, uow?: BoundaryValue): Promise<AuditEvent>;
 }
 
 export interface AppendAuditEventInput {
@@ -26,7 +22,7 @@ export interface AppendAuditEventInput {
   sessionId?: string;
   targetType?: string;
   targetId?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: JsonObject;
   occurredAt?: Date;
   id?: string;
 }

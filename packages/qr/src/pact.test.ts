@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
 import { QrEncodeError, encodeQrSize, encodeQrTerminal } from "./index.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -38,7 +39,7 @@ describe("PACT — QR payload fence", () => {
       encodeQrTerminal("");
     } catch (e) {
       expect(e).toBeInstanceOf(QrEncodeError);
-      expect((e as Error).name).toBe("QrEncodeError");
+      expect((overlapCast(e)).name).toBe("QrEncodeError");
     }
   });
 });

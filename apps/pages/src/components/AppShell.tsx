@@ -22,6 +22,7 @@ import {
   IconVault,
 } from "./Icons.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const SECTIONS = [
   { to: "/vault", label: "Vault", Icon: IconVault },
@@ -77,7 +78,7 @@ function VaultFilters() {
       end
     >
       {/* react-router NavLink children typing vs React 19 ReactNode */}
-      {children as never}
+      {overlapCast(children)}
     </NavLink>
   );
 
@@ -160,7 +161,7 @@ function VaultFilters() {
   );
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children }: { children?: ReactNode }) {
   const location = useLocation();
   const store = useVaultStore();
   const inVault = location.pathname.startsWith("/vault");

@@ -9,17 +9,14 @@ import {
 } from "@opensesame/policy";
 import { describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
   const res = await app.request("/v1/principals/provisional", {
     method: "POST",
   });
   expect(res.status).toBe(201);
-  const body = (await res.json()) as {
-    principalId: string;
-    accessToken: string;
-    sessionId: string;
-  };
+  const body = overlapCast(await res.json());
   return body;
 }
 
@@ -61,7 +58,7 @@ describe("control-plane API", () => {
       headers: { authorization: `Bearer ${created.accessToken}` },
     });
     expect(me.status).toBe(200);
-    const body = (await me.json()) as { id: string; state: string };
+    const body = overlapCast(await me.json());
     expect(body.id).toBe(created.principalId);
     expect(body.state).toBe("provisional");
   });
@@ -110,7 +107,7 @@ describe("control-plane API", () => {
         headers: { authorization: `Bearer ${created.accessToken}` },
       });
       expect(
-        ((await listed.json()) as { organizations: unknown[] }).organizations,
+        (overlapCast(await listed.json())).organizations,
       ).toEqual([]);
 
       ctx.config.bootstrapPersonalOrganization = true;
@@ -183,12 +180,7 @@ describe("control-plane API", () => {
       headers: { ...auth, "content-type": "application/json" },
       body: JSON.stringify({ name: "Short Lived", ttlSeconds: 600 }),
     });
-    const project = (await projectRes.json()) as {
-      projectId: string;
-      claimId: string;
-      claimToken: string;
-      userCode: string;
-    };
+    const project = overlapCast(await projectRes.json());
 
     await app.request("/v1/claims/present", {
       method: "POST",
@@ -248,7 +240,7 @@ describe("control-plane API", () => {
     const overQuota = await create("four");
     expect(overQuota.status).toBe(403);
     expect(
-      ((await overQuota.json()) as { reasons: string[] }).reasons,
+      (overlapCast(await overQuota.json())).reasons,
     ).toContain("provisional_quota_projects");
 
     // Once they lapse the slots come back: the cap is live, not lifetime.
@@ -278,13 +270,7 @@ describe("control-plane API", () => {
       body: JSON.stringify({ name: "Temp Demo", ttlSeconds: 3600 }),
     });
     expect(projectRes.status).toBe(201);
-    const project = (await projectRes.json()) as {
-      projectId: string;
-      claimId: string;
-      claimToken: string;
-      userCode: string;
-      targetManifestDigest: string;
-    };
+    const project = overlapCast(await projectRes.json());
     expect(project.projectId.startsWith("prj_")).toBe(true);
     expect(project.claimToken.startsWith("osc_clm_")).toBe(true);
 
@@ -296,7 +282,7 @@ describe("control-plane API", () => {
       headers: { "x-claim-token": project.claimToken },
     });
     expect(withToken.status).toBe(200);
-    expect(((await withToken.json()) as { state: string }).state).toBe(
+    expect((overlapCast(await withToken.json())).state).toBe(
       "pending",
     );
 
@@ -331,10 +317,7 @@ describe("control-plane API", () => {
       },
     );
     expect(complete.status).toBe(200);
-    const done = (await complete.json()) as {
-      state: string;
-      preserved: { principalId: string; projectId: string };
-    };
+    const done = overlapCast(await complete.json());
     expect(done.state).toBe("completed");
     expect(done.preserved.principalId).toBe(created.principalId);
     expect(done.preserved.projectId).toBe(project.projectId);
@@ -351,7 +334,7 @@ describe("control-plane API", () => {
     });
     expect(replay.status).toBe(201);
     expect(replay.headers.get("idempotency-replayed")).toBe("true");
-    const replayBody = (await replay.json()) as { projectId: string };
+    const replayBody = overlapCast(await replay.json());
     expect(replayBody.projectId).toBe(project.projectId);
   });
 
@@ -369,11 +352,11 @@ describe("control-plane API", () => {
 
     const card = await app.request("/.well-known/agent-card.json");
     expect(card.status).toBe(200);
-    expect(((await card.json()) as { name: string }).name).toBe("OpenSesame");
+    expect((overlapCast(await card.json())).name).toBe("OpenSesame");
 
     const prm = await app.request("/.well-known/oauth-protected-resource");
     expect(prm.status).toBe(200);
-    expect(((await prm.json()) as { resource: string }).resource).toContain(
+    expect((overlapCast(await prm.json())).resource).toContain(
       "8788",
     );
   });
@@ -482,7 +465,7 @@ describe("control-plane API", () => {
     });
     expect(assertRes.status).toBe(200);
     expect(
-      ((await assertRes.json()) as { principalId: string }).principalId,
+      (overlapCast(await assertRes.json())).principalId,
     ).toBe(created.principalId);
 
     const enroll = await app.request("/v1/mfa/totp/enroll", {
@@ -490,7 +473,7 @@ describe("control-plane API", () => {
       headers: auth,
     });
     expect(enroll.status).toBe(200);
-    const { secret } = (await enroll.json()) as { secret: string };
+    const { secret } = overlapCast(await enroll.json());
     expect(secret).toBeTruthy();
 
     const { totpCode } = await import("../routes/mfa.js");
@@ -501,7 +484,7 @@ describe("control-plane API", () => {
       body: JSON.stringify({ code }),
     });
     expect(verify.status).toBe(200);
-    expect(((await verify.json()) as { ok: boolean }).ok).toBe(true);
+    expect((overlapCast(await verify.json())).ok).toBe(true);
   });
 
   it("fences wrong TOTP codes after five tries", async () => {
@@ -518,7 +501,7 @@ describe("control-plane API", () => {
       method: "POST",
       headers: auth,
     });
-    const { secret } = (await enroll.json()) as { secret: string };
+    const { secret } = overlapCast(await enroll.json());
 
     const attempt = (code: string) =>
       app.request("/v1/mfa/totp/verify", {
@@ -542,13 +525,7 @@ describe("control-plane API", () => {
     const audit = await app.request("/v1/audit/events?limit=50", {
       headers: auth,
     });
-    const events = (await audit.json()) as {
-      events: Array<{
-        eventType: string;
-        outcome: string;
-        metadata: { reason?: string };
-      }>;
-    };
+    const events = overlapCast(await audit.json());
     const denials = events.events.filter(
       (e) => e.eventType === "mfa.totp.verify" && e.outcome === "denied",
     );
@@ -608,7 +585,7 @@ describe("control-plane API", () => {
       headers: auth,
     });
     expect(enroll.status).toBe(403);
-    expect(((await enroll.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await enroll.json())).error).toBe(
       "totp_dev_only",
     );
     const verify = await app.request("/v1/mfa/totp/verify", {
@@ -648,7 +625,7 @@ describe("control-plane API", () => {
       }),
     });
     expect(stubReg.status).toBe(400);
-    expect(((await stubReg.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await stubReg.json())).error).toBe(
       "registration_attestation_required",
     );
 
@@ -657,7 +634,7 @@ describe("control-plane API", () => {
       headers: auth,
     });
     expect(opts.status).toBe(200);
-    const { challenge } = (await opts.json()) as { challenge: string };
+    const { challenge } = overlapCast(await opts.json());
     expect(challenge.length).toBeGreaterThan(8);
 
     const badAttest = await app.request("/v1/mfa/passkey/register", {
@@ -810,10 +787,7 @@ describe("control-plane API", () => {
       { headers: { authorization: `Bearer ${token}` } },
     );
     expect(ok.status).toBe(200);
-    const body = (await ok.json()) as {
-      principalId: string;
-      provisional: boolean;
-    };
+    const body = overlapCast(await ok.json());
     expect(body.principalId).toBe(verified.principalId);
     expect(body.provisional).toBe(false);
 
@@ -822,7 +796,7 @@ describe("control-plane API", () => {
       { headers: { authorization: `Bearer ${token}` } },
     );
     expect(byEmail.status).toBe(400);
-    const denied = (await byEmail.json()) as { error: string };
+    const denied = overlapCast(await byEmail.json());
     expect(denied.error).toBe("email_join_forbidden");
 
     const missing = await app.request(
@@ -866,9 +840,7 @@ describe("control-plane API", () => {
       headers: authA,
     });
     expect(list.status).toBe(200);
-    const listed = (await list.json()) as {
-      identities: Array<{ subject: string }>;
-    };
+    const listed = overlapCast(await list.json());
     expect(listed.identities).toHaveLength(1);
     expect(listed.identities[0]?.subject).toBe("sub-shared-email-case");
 
@@ -906,13 +878,13 @@ describe("control-plane API", () => {
       }),
     });
     expect(collision.status).toBe(409);
-    expect(((await collision.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await collision.json())).error).toBe(
       "identity_collision",
     );
 
     const me = await app.request("/v1/principals/me", { headers: authA });
     expect(me.status).toBe(200);
-    const meBody = (await me.json()) as { id: string; assurance: string };
+    const meBody = overlapCast(await me.json());
     expect(meBody.id).toBe(a.principalId);
     expect(meBody.assurance).not.toBe("provisional");
   });
@@ -953,7 +925,7 @@ describe("control-plane API", () => {
       body: JSON.stringify({ slug: "acme-labs", displayName: "Acme Labs" }),
     });
     expect(orgRes.status).toBe(201);
-    const org = (await orgRes.json()) as { id: string; slug: string };
+    const org = overlapCast(await orgRes.json());
     expect(org.slug).toBe("acme-labs");
 
     const clientRes = await app.request("/v1/oauth/clients", {
@@ -970,19 +942,14 @@ describe("control-plane API", () => {
       }),
     });
     expect(clientRes.status).toBe(201);
-    const client = (await clientRes.json()) as {
-      id: string;
-      admissionMode: string;
-    };
+    const client = overlapCast(await clientRes.json());
     expect(client.admissionMode).toBe("pre_registered");
 
     const audit = await app.request("/v1/audit/events?limit=20", {
       headers: auth,
     });
     expect(audit.status).toBe(200);
-    const events = (await audit.json()) as {
-      events: Array<{ eventType: string; principalId?: string }>;
-    };
+    const events = overlapCast(await audit.json());
     expect(events.events.length).toBeGreaterThan(0);
     expect(
       events.events.every(
@@ -995,11 +962,9 @@ describe("control-plane API", () => {
     ).toBe(true);
 
     // Every event carries the digest of the one before it, and the trail says so.
-    const chained = (await (
+    const chained = overlapCast(await (
       await app.request("/v1/audit/events?limit=20", { headers: auth })
-    ).json()) as {
-      events: Array<{ digest?: string; previousDigest?: string }>;
-    };
+    ).json());
     expect(chained.events.every((e) => e.digest && e.previousDigest)).toBe(
       true,
     );
@@ -1030,9 +995,9 @@ describe("control-plane API", () => {
     });
     expect(everything.length).toBeGreaterThan(mine.length);
 
-    const verified = (await (
+    const verified = overlapCast(await (
       await app.request("/v1/audit/events/verify", { headers: auth })
-    ).json()) as { ok: boolean; checked: number; eventId?: string };
+    ).json());
     expect(verified.ok).toBe(true);
     expect(verified.checked).toBe(everything.length);
   });
@@ -1073,10 +1038,7 @@ describe("control-plane API", () => {
       }),
     });
     expect(created.status).toBe(201);
-    const organization = (await created.json()) as {
-      id: string;
-      role: string;
-    };
+    const organization = overlapCast(await created.json());
     expect(organization.role).toBe("owner");
 
     const add = (principalId: string, role: string, auth = owner.auth) =>
@@ -1090,7 +1052,7 @@ describe("control-plane API", () => {
     expect((await add("prn_missing", "member")).status).toBe(404);
     const inactiveAdd = await add(inactive.principalId, "member");
     expect(inactiveAdd.status).toBe(409);
-    expect((await inactiveAdd.json()) as { error: string }).toEqual({
+    expect(overlapCast(await inactiveAdd.json())).toEqual({
       error: "principal_inactive",
     });
 
@@ -1100,20 +1062,18 @@ describe("control-plane API", () => {
     expect(memberOrganizations.status).toBe(200);
     expect(
       (
-        (await memberOrganizations.json()) as {
-          organizations: Array<{ id: string; role: string }>;
-        }
+        overlapCast(await memberOrganizations.json())
       ).organizations,
     ).toContainEqual(
       expect.objectContaining({ id: organization.id, role: "member" }),
     );
     expect(
       (
-        (await (
+        overlapCast(await (
           await app.request(`/v1/organizations/${organization.id}`, {
             headers: member.auth,
           })
-        ).json()) as { role: string }
+        ).json())
       ).role,
     ).toBe("member");
     expect(
@@ -1163,7 +1123,7 @@ describe("control-plane API", () => {
       },
       body: JSON.stringify({ slug: "device-org", displayName: "Device Org" }),
     });
-    const organization = (await created.json()) as { id: string };
+    const organization = overlapCast(await created.json());
     expect(organization.id).toMatch(
       /^org:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     );
@@ -1182,7 +1142,7 @@ describe("control-plane API", () => {
         const url = String(input);
         requests.push({
           url,
-          body: JSON.parse(String(init?.body)) as Record<string, string>,
+          body: overlapCast(JSON.parse(String(init?.body))),
         });
         if (url.endsWith("/api/v1/sessions/revoke")) {
           rolesSeenByHost.push(
@@ -1226,11 +1186,11 @@ describe("control-plane API", () => {
       expect(failedChange.status).toBe(502);
       expect(
         (
-          (await (
+          overlapCast(await (
             await app.request(`/v1/organizations/${organization.id}`, {
               headers: member.auth,
             })
-          ).json()) as { role: string }
+          ).json())
         ).role,
       ).toBe("member");
 
@@ -1243,7 +1203,7 @@ describe("control-plane API", () => {
         },
       );
       expect(changed.status).toBe(200);
-      expect((await changed.json()) as { role: string }).toEqual(
+      expect(overlapCast(await changed.json())).toEqual(
         expect.objectContaining({ role: "admin" }),
       );
       const removed = await app.request(
@@ -1324,7 +1284,7 @@ describe("control-plane API", () => {
         displayName: "Serialized Org",
       }),
     });
-    const organization = (await created.json()) as { id: string };
+    const organization = overlapCast(await created.json());
     await app.request(`/v1/organizations/${organization.id}/members`, {
       method: "POST",
       headers: { ...owner.auth, "content-type": "application/json" },
@@ -1384,11 +1344,11 @@ describe("control-plane API", () => {
       expect((await removal).status).toBe(204);
       await secondStarted;
 
-      const members = (await (
+      const members = overlapCast(await (
         await app.request(`/v1/organizations/${organization.id}/members`, {
           headers: owner.auth,
         })
-      ).json()) as { members: Array<{ principalId: string }> };
+      ).json());
       expect(members.members).not.toContainEqual(
         expect.objectContaining({ principalId: target.principalId }),
       );
@@ -1427,7 +1387,7 @@ describe("control-plane API", () => {
           displayName: "Approval Race",
         }),
       });
-      const organization = (await created.json()) as { id: string };
+      const organization = overlapCast(await created.json());
       expect(
         (
           await app.request(`/v1/organizations/${organization.id}/members`, {
@@ -1487,7 +1447,7 @@ describe("control-plane API", () => {
             headers: { ...owner.auth, "content-type": "application/json" },
             ...(method === "PATCH"
               ? { body: JSON.stringify({ role: "admin" }) }
-              : {}),
+              : undefined),
           },
         );
         expect(
@@ -1567,7 +1527,7 @@ describe("control-plane API", () => {
     const secondOrg = await createOrg("quota-two", "q-org-2");
     expect(secondOrg.status).toBe(403);
     expect(
-      ((await secondOrg.json()) as { reasons: string[] }).reasons,
+      (overlapCast(await secondOrg.json())).reasons,
     ).toContain("quota_organizations");
 
     const createClient = (name: string, key: string) =>
@@ -1586,11 +1546,11 @@ describe("control-plane API", () => {
       });
     const firstClient = await createClient("RP One", "q-cli-1");
     expect(firstClient.status).toBe(201);
-    const clientId = ((await firstClient.json()) as { id: string }).id;
+    const clientId = (overlapCast(await firstClient.json())).id;
     const secondClient = await createClient("RP Two", "q-cli-2");
     expect(secondClient.status).toBe(403);
     expect(
-      ((await secondClient.json()) as { reasons: string[] }).reasons,
+      (overlapCast(await secondClient.json())).reasons,
     ).toContain("quota_oauth_clients");
 
     // Revoking frees the slot: a quota counted from the store is a live limit,
@@ -1666,7 +1626,7 @@ describe("control-plane API", () => {
     // clients see for the same person, which is the linkage pairwise prevents.
     const taken = await register(intruder, "sec-3", "https://rp.example");
     expect(taken.status).toBe(409);
-    expect(((await taken.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await taken.json())).error).toBe(
       "sector_identifier_taken",
     );
     expect(
@@ -1721,10 +1681,7 @@ describe("control-plane API", () => {
       }),
     });
     expect(createRes.status).toBe(201);
-    const client = (await createRes.json()) as {
-      id: string;
-      ownerPrincipalId: string;
-    };
+    const client = overlapCast(await createRes.json());
     expect(client.ownerPrincipalId).toBe(owner.principalId);
 
     // A different principal cannot see it…
@@ -1732,7 +1689,7 @@ describe("control-plane API", () => {
       headers: other.auth,
     });
     expect(
-      ((await otherList.json()) as { clients: unknown[] }).clients,
+      (overlapCast(await otherList.json())).clients,
     ).toEqual([]);
 
     // …nor repoint its redirect URIs, rotate it, or revoke it.
@@ -1801,14 +1758,14 @@ describe("control-plane API", () => {
       }),
     });
     expect(escalate.status).toBe(403);
-    expect(((await escalate.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await escalate.json())).error).toBe(
       "identity_link_requires_upstream",
     );
     // The principal must not have been promoted.
     const me = await prod.app.request("/v1/principals/me", {
       headers: { authorization: `Bearer ${created.accessToken}` },
     });
-    expect(((await me.json()) as { assurance: string }).assurance).toBe(
+    expect((overlapCast(await me.json())).assurance).toBe(
       "provisional",
     );
 
@@ -1877,7 +1834,7 @@ describe("control-plane API", () => {
       method: "POST",
     });
     expect(res.status).toBe(429);
-    const body = (await res.json()) as { error: string };
+    const body = overlapCast(await res.json());
     expect(body.error).toBe("provisional_capacity");
   });
 
@@ -1910,26 +1867,20 @@ describe("control-plane API", () => {
 
     const first = await register(victim.accessToken);
     expect(first.status).toBe(201);
-    const mine = (await first.json()) as {
-      agentId: string;
-      claimToken: string;
-    };
+    const mine = overlapCast(await first.json());
 
     // Same key, different caller: must not hand over the victim's claim token.
     const second = await register(attacker.accessToken);
     expect(second.status).toBe(201);
     expect(second.headers.get("idempotency-replayed")).toBeNull();
-    const theirs = (await second.json()) as {
-      agentId: string;
-      claimToken: string;
-    };
+    const theirs = overlapCast(await second.json());
     expect(theirs.agentId).not.toBe(mine.agentId);
     expect(theirs.claimToken).not.toBe(mine.claimToken);
 
     // The owner still gets a replay for their own key.
     const replay = await register(victim.accessToken);
     expect(replay.headers.get("idempotency-replayed")).toBe("true");
-    expect(((await replay.json()) as { agentId: string }).agentId).toBe(
+    expect((overlapCast(await replay.json())).agentId).toBe(
       mine.agentId,
     );
   });
@@ -1954,14 +1905,8 @@ describe("control-plane API", () => {
     expect(a.status).toBe(201);
     expect(b.status).toBe(201);
     expect(b.headers.get("idempotency-replayed")).toBeNull();
-    const first = (await a.json()) as {
-      accessToken: string;
-      principalId: string;
-    };
-    const second = (await b.json()) as {
-      accessToken: string;
-      principalId: string;
-    };
+    const first = overlapCast(await a.json());
+    const second = overlapCast(await b.json());
     expect(second.accessToken).not.toBe(first.accessToken);
     expect(second.principalId).not.toBe(first.principalId);
   });
@@ -1991,7 +1936,7 @@ describe("control-plane API", () => {
       }),
     });
     expect(registered.status).toBe(201);
-    const { agentId } = (await registered.json()) as { agentId: string };
+    const { agentId } = overlapCast(await registered.json());
 
     // A foreign caller may not start a claim that would name them owner.
     const stolen = await app.request(`/v1/agents/${agentId}/claim`, {
@@ -2053,14 +1998,7 @@ describe("projects hierarchy and sharing", () => {
 
     const list = await app.request("/v1/projects", { headers: auth });
     expect(list.status).toBe(200);
-    const { projects } = (await list.json()) as {
-      projects: Array<{
-        id: string;
-        kind: string;
-        role: string;
-        state: string;
-      }>;
-    };
+    const { projects } = overlapCast(await list.json());
     expect(projects).toHaveLength(1);
     expect(projects[0]).toMatchObject({
       kind: "personal",
@@ -2071,15 +2009,12 @@ describe("projects hierarchy and sharing", () => {
     // Listing again must not mint a second personal project.
     const again = await app.request("/v1/projects", { headers: auth });
     expect(
-      ((await again.json()) as { projects: unknown[] }).projects,
+      (overlapCast(await again.json())).projects,
     ).toHaveLength(1);
 
     const active = await app.request("/v1/projects/active", { headers: auth });
     expect(active.status).toBe(200);
-    const activeBody = (await active.json()) as {
-      project: { id: string };
-      isFallback: boolean;
-    };
+    const activeBody = overlapCast(await active.json());
     expect(activeBody.isFallback).toBe(true);
     expect(activeBody.project.id).toBe(projects[0]?.id);
   });
@@ -2096,7 +2031,7 @@ describe("projects hierarchy and sharing", () => {
       body: JSON.stringify({ displayName: "Nope" }),
     });
     expect(res.status).toBe(403);
-    const body = (await res.json()) as { reasons: string[] };
+    const body = overlapCast(await res.json());
     expect(body.reasons).toContain("provisional_action_not_permitted");
   });
 
@@ -2111,12 +2046,7 @@ describe("projects hierarchy and sharing", () => {
       body: JSON.stringify({ displayName: "Shared Research" }),
     });
     expect(created.status).toBe(201);
-    const project = (await created.json()) as {
-      id: string;
-      kind: string;
-      slug: string;
-      role: string;
-    };
+    const project = overlapCast(await created.json());
     expect(project.kind).toBe("standard");
     expect(project.slug).toBe("shared-research");
     expect(project.role).toBe("owner");
@@ -2129,10 +2059,7 @@ describe("projects hierarchy and sharing", () => {
     });
     expect(swapped.status).toBe(200);
     expect(
-      (await swapped.json()) as {
-        project: { id: string };
-        isFallback: boolean;
-      },
+      overlapCast(await swapped.json()),
     ).toMatchObject({ project: { id: project.id }, isFallback: false });
 
     // Before sharing, the other principal cannot see it.
@@ -2153,9 +2080,7 @@ describe("projects hierarchy and sharing", () => {
       headers: member.auth,
     });
     const memberProjects = (
-      (await memberList.json()) as {
-        projects: Array<{ id: string; role: string; kind: string }>;
-      }
+      overlapCast(await memberList.json())
     ).projects;
     expect(memberProjects).toHaveLength(2);
     expect(
@@ -2198,10 +2123,7 @@ describe("projects hierarchy and sharing", () => {
       headers: member.auth,
     });
     expect(
-      (await memberActive.json()) as {
-        isFallback: boolean;
-        project: { kind: string };
-      },
+      overlapCast(await memberActive.json()),
     ).toMatchObject({ isFallback: true, project: { kind: "personal" } });
   });
 
@@ -2212,7 +2134,7 @@ describe("projects hierarchy and sharing", () => {
 
     const list = await app.request("/v1/projects", { headers: owner.auth });
     const personal = (
-      (await list.json()) as { projects: Array<{ id: string; kind: string }> }
+      overlapCast(await list.json())
     ).projects.find((entry) => entry.kind === "personal");
     expect(personal).toBeDefined();
     if (!personal) throw new Error("personal project missing");
@@ -2223,7 +2145,7 @@ describe("projects hierarchy and sharing", () => {
       body: JSON.stringify({ principalId: other.principalId, role: "member" }),
     });
     expect(share.status).toBe(409);
-    expect((await share.json()) as { error: string }).toEqual({
+    expect(overlapCast(await share.json())).toEqual({
       error: "personal_project_not_shareable",
     });
 
@@ -2232,7 +2154,7 @@ describe("projects hierarchy and sharing", () => {
       headers: owner.auth,
     });
     expect(del.status).toBe(409);
-    expect((await del.json()) as { error: string }).toEqual({
+    expect(overlapCast(await del.json())).toEqual({
       error: "personal_project_immutable",
     });
   });
@@ -2247,7 +2169,7 @@ describe("projects hierarchy and sharing", () => {
       headers: { ...owner.auth, "content-type": "application/json" },
       body: JSON.stringify({ displayName: "Fenced" }),
     });
-    const project = (await created.json()) as { id: string };
+    const project = overlapCast(await created.json());
 
     await app.request(`/v1/projects/${project.id}/members`, {
       method: "POST",
@@ -2292,7 +2214,7 @@ describe("projects hierarchy and sharing", () => {
       headers: { ...owner.auth, "content-type": "application/json" },
       body: JSON.stringify({ displayName: "Doomed" }),
     });
-    const project = (await created.json()) as { id: string };
+    const project = overlapCast(await created.json());
 
     await app.request("/v1/projects/active", {
       method: "PUT",
@@ -2310,10 +2232,7 @@ describe("projects hierarchy and sharing", () => {
       headers: owner.auth,
     });
     expect(
-      (await active.json()) as {
-        isFallback: boolean;
-        project: { kind: string };
-      },
+      overlapCast(await active.json()),
     ).toMatchObject({ isFallback: true, project: { kind: "personal" } });
 
     const gone = await app.request(`/v1/projects/${project.id}`, {
@@ -2330,9 +2249,7 @@ describe("projects hierarchy and sharing", () => {
       headers: owner.auth,
     });
     const personal = (
-      (await personalList.json()) as {
-        projects: Array<{ id: string; kind: string }>;
-      }
+      overlapCast(await personalList.json())
     ).projects.find((entry) => entry.kind === "personal");
     if (!personal) throw new Error("personal project missing");
 
@@ -2345,7 +2262,7 @@ describe("projects hierarchy and sharing", () => {
       }),
     });
     expect(first.status).toBe(201);
-    expect(((await first.json()) as { projectId: string }).projectId).toBe(
+    expect((overlapCast(await first.json())).projectId).toBe(
       personal.id,
     );
 
@@ -2354,7 +2271,7 @@ describe("projects hierarchy and sharing", () => {
       headers: { ...owner.auth, "content-type": "application/json" },
       body: JSON.stringify({ displayName: "Agent Home" }),
     });
-    const project = (await created.json()) as { id: string };
+    const project = overlapCast(await created.json());
     await app.request("/v1/projects/active", {
       method: "PUT",
       headers: { ...owner.auth, "content-type": "application/json" },
@@ -2370,7 +2287,7 @@ describe("projects hierarchy and sharing", () => {
       }),
     });
     expect(second.status).toBe(201);
-    expect(((await second.json()) as { projectId: string }).projectId).toBe(
+    expect((overlapCast(await second.json())).projectId).toBe(
       project.id,
     );
   });

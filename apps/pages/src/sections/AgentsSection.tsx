@@ -38,6 +38,7 @@ import {
   browsableUrl,
 } from "../lib/vault/model.js";
 import "./agents.css";
+import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString } from "@opensesame/os-domain";
 
 export function AgentsSection() {
   const online = useOnline();
@@ -233,23 +234,23 @@ function SecretRow({ item }: { item: SecretItem }) {
 type Cap = { action: string; resource: string; values: string[] };
 
 /** Host serialises a Rust `CapabilitySet`; older shapes send a flat array. */
-function readCap(raw: unknown): Cap | null {
-  if (!raw || typeof raw !== "object") return null;
-  const obj = raw as Record<string, unknown>;
-  const action = typeof obj.action === "string" ? obj.action : "";
+function readCap(raw: BoundaryValue): Cap | null {
+  if (!raw || !isTypeofObject(raw)) return null;
+  const obj = overlapCast(raw);
+  const action = isString(obj.action) ? obj.action : "";
   if (!action) return null;
   const resource = obj.resource;
-  if (typeof resource === "string") {
+  if (isString(resource)) {
     return { action, resource, values: [resource] };
   }
-  if (resource && typeof resource === "object") {
-    const sel = resource as Record<string, unknown>;
-    if (typeof sel.value === "string") {
+  if (resource && isTypeofObject(resource)) {
+    const sel = overlapCast(resource);
+    if (isString(sel.value)) {
       return { action, resource: sel.value, values: [sel.value] };
     }
     if (Array.isArray(sel.values)) {
       const values = sel.values.filter(
-        (v): v is string => typeof v === "string",
+        (v): v is string => isString(v),
       );
       if (values.length > 0) {
         return { action, resource: values.join(", "), values };
@@ -259,12 +260,12 @@ function readCap(raw: unknown): Cap | null {
   return null;
 }
 
-function readCaps(raw: unknown): Cap[] {
+function readCaps(raw: BoundaryValue): Cap[] {
   let list: unknown[] = [];
   if (Array.isArray(raw)) {
     list = raw;
-  } else if (raw && typeof raw === "object") {
-    const inner = (raw as { capabilities?: unknown }).capabilities;
+  } else if (raw && isTypeofObject(raw)) {
+    const inner = (overlapCast(raw)).capabilities;
     if (Array.isArray(inner)) list = inner;
   }
   return list.map(readCap).filter((c): c is Cap => c !== null);
@@ -361,7 +362,7 @@ function TaskInspector({ online }: { online: boolean }) {
         setError(taskErrorFor(res.status, base));
         return;
       }
-      const body = (await res.json()) as Record<string, unknown>;
+      const body = overlapCast(await res.json());
       setTask({
         taskRunId: String(body.task_run_id ?? id),
         stateVersion: Number(body.state_version ?? 0),
@@ -545,7 +546,7 @@ function taskErrorFor(status: number, base: string): string {
   return `The Host answered ${status} and did not describe the task. Check the Host logs at ${base}.`;
 }
 
-const STATUS_CHIP: Record<string, string> = {
+const STATUS_CHIP = {
   active: "chip--ok",
   failed: "chip--err",
   cancelled: "chip--err",
@@ -553,7 +554,7 @@ const STATUS_CHIP: Record<string, string> = {
   pending: "chip--warn",
 };
 
-const ROW_CHIP: Record<RowState, string> = {
+const ROW_CHIP = {
   held: "chip--ok",
   narrowed: "chip--accent",
   outside: "chip--err",
@@ -847,7 +848,7 @@ function RegisterAgent({ online }: { online: boolean }) {
   );
 }
 
-function registerErrorFor(err: unknown): string {
+function registerErrorFor(err: BoundaryValue): string {
   if (err instanceof IdentityError) {
     if (err.status === 401) {
       return "Your principal session was rejected. Reconnect and try again.";
@@ -871,14 +872,14 @@ type AuditEvent = {
   eventType: string;
   outcome: string;
   actorType?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: JsonObject;
 };
 
 function isAgentEvent(event: AuditEvent): boolean {
   if (event.eventType.startsWith("agent.")) return true;
   if (event.actorType === "agent") return true;
   const instance = event.metadata?.agentInstanceId;
-  return typeof instance === "string" && instance.length > 0;
+  return isString(instance) && instance.length > 0;
 }
 
 function AgentActivity({
@@ -1000,7 +1001,7 @@ function AgentActivity({
   );
 }
 
-const OUTCOME_CHIP: Record<string, string> = {
+const OUTCOME_CHIP = {
   succeeded: "chip--ok",
   denied: "chip--warn",
   failed: "chip--err",
@@ -1070,8 +1071,8 @@ function ConnectPrincipal({ online }: { online: boolean }) {
 
 /* ----------------------------------------------------------------- helpers */
 
-function messageOf(value: unknown): string {
-  if (typeof value === "string" && value.trim()) return value;
+function messageOf(value: BoundaryValue): string {
+  if (isString(value) && value.trim()) return value;
   if (value instanceof Error && value.message) return value.message;
   return "Could not connect.";
 }

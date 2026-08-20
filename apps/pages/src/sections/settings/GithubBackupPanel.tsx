@@ -45,6 +45,7 @@ import {
 import { usePlaneStatus } from "../../lib/planes.js";
 import { loadSettings, saveSettings } from "../../lib/settings.js";
 import { useOnline } from "../../lib/use-online.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 type Flash = { tone: "ok" | "err" | "warn"; text: string };
 
@@ -114,8 +115,8 @@ export function GithubBackupPanel() {
       }
       const [nextStatus, nextConnections, integrations] = await Promise.all([
         getBackupStatus().catch(() => null),
-        listConnections().catch(() => [] as Connection[]),
-        listIntegrations().catch(() => [] as Integration[]),
+        listConnections().catch(() => overlapCast([])),
+        listIntegrations().catch(() => overlapCast([])),
       ]);
       if (nextStatus) setStatus(nextStatus);
       setConnections(nextConnections);
@@ -745,10 +746,7 @@ export function GithubBackupPanel() {
                   value={environment}
                   onChange={(event) =>
                     setEnvironment(
-                      event.target.value as
-                        | "development"
-                        | "staging"
-                        | "production",
+                      overlapCast(event.target.value),
                     )
                   }
                 >

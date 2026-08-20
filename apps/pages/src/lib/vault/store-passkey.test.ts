@@ -3,6 +3,8 @@ import { kvDelete } from "../kv.js";
 import { WrongPasswordError, randomBytes } from "./crypto.js";
 import { ATTEMPTS_KEY, BODY_KEY, HEADER_KEY, VaultStore } from "./store.js";
 import type { PasskeyCeremony } from "./unlock-methods.js";
+import { unlockMethodsSeams } from "./unlock-methods.js";
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const PASSWORD = "correct horse battery staple";
 
@@ -12,38 +14,33 @@ const PASSWORD = "correct horse battery staple";
  * return the PRF output a platform authenticator would have produced.
  */
 const ceremony = vi.hoisted(() => ({
-  prfOutput: null as ArrayBuffer | null,
-  failCreate: null as Error | null,
-  failGet: null as Error | null,
+  prfOutput: null,
+  failCreate: null,
+  failGet: null,
   noPrf: false,
 }));
 
-vi.mock("./unlock-methods.js", async () => {
-  const actual = await vi.importActual<typeof import("./unlock-methods.js")>(
-    "./unlock-methods.js",
-  );
-  return {
-    ...actual,
-    createPasskeyUnlockCeremony: async (): Promise<PasskeyCeremony> => {
-      if (ceremony.failCreate) throw ceremony.failCreate;
-      ceremony.prfOutput = randomBytes(32).buffer as ArrayBuffer;
-      return {
-        credential: { rawId: randomBytes(16).buffer } as PublicKeyCredential,
-        prfOutput: ceremony.prfOutput,
-        prfSalt: randomBytes(16),
-        userId: randomBytes(16),
-      };
-    },
-    getPasskeyUnlockCeremony: async (): Promise<ArrayBuffer> => {
-      if (ceremony.failGet) throw ceremony.failGet;
-      if (ceremony.noPrf || !ceremony.prfOutput) {
-        throw new Error(
-          "This authenticator did not return a WebAuthn PRF result for unlock.",
-        );
-      }
-      return ceremony.prfOutput;
-    },
-  };
+const originalUnlockMethodsSeams = { ...unlockMethodsSeams };
+Object.assign(unlockMethodsSeams, {
+  createPasskeyUnlockCeremony: async (): Promise<PasskeyCeremony> => {
+    if (ceremony.failCreate) throw ceremony.failCreate;
+    ceremony.prfOutput = overlapCast(randomBytes(32).buffer);
+    return {
+      credential: overlapCast({ rawId: randomBytes(16).buffer }),
+      prfOutput: ceremony.prfOutput,
+      prfSalt: randomBytes(16),
+      userId: randomBytes(16),
+    };
+  },
+  getPasskeyUnlockCeremony: async (): Promise<ArrayBuffer> => {
+    if (ceremony.failGet) throw ceremony.failGet;
+    if (ceremony.noPrf || !ceremony.prfOutput) {
+      throw new Error(
+        "This authenticator did not return a WebAuthn PRF result for unlock.",
+      );
+    }
+    return ceremony.prfOutput;
+  },
 });
 
 beforeEach(() => {
@@ -114,7 +111,7 @@ describe("VaultStore passkey unlock", () => {
     store.lock();
 
     // A different passkey: the ceremony succeeds but the wrap does not open.
-    ceremony.prfOutput = randomBytes(32).buffer as ArrayBuffer;
+    ceremony.prfOutput = overlapCast(randomBytes(32).buffer);
     const reopened = new VaultStore();
     await expect(reopened.unlockWithPasskey()).rejects.toBeInstanceOf(
       WrongPasswordError,
@@ -128,7 +125,7 @@ describe("VaultStore passkey unlock", () => {
     await store.enrollPasskey();
     store.lock();
 
-    ceremony.failGet = "string failure" as unknown as Error;
+    ceremony.failGet = overlapCast("string failure");
     const reopened = new VaultStore();
     await expect(reopened.unlockWithPasskey()).rejects.toThrow(
       /Passkey unlock failed/,
@@ -148,9 +145,9 @@ describe("VaultStore passkey unlock", () => {
     const reopened = new VaultStore();
     const failure = await reopened
       .unlockWithPasskey(new AbortController().signal)
-      .catch((error: unknown) => error);
+      .catch((error: BoundaryValue) => error);
     expect(failure).toBeInstanceOf(DOMException);
-    expect((failure as DOMException).name).toBe("AbortError");
+    expect((overlapCast(failure)).name).toBe("AbortError");
     // Switching methods mid-ceremony is not a wrong credential.
     expect(reopened.getSnapshot().failedAttempts).toBe(0);
   });

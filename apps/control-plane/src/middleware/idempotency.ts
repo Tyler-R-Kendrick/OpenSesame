@@ -1,6 +1,7 @@
 import { createMiddleware } from "hono/factory";
 import { serializeKeyed } from "../serialize.js";
 import type { Variables } from "./context.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 /** Cached responses are short-lived: they hold the original body verbatim. */
 export const IDEMPOTENCY_TTL_MS = 10 * 60_000;
@@ -41,7 +42,7 @@ export function idempotencyMiddleware(scope: string) {
       const cached = ctx.stores.idempotency.get(cacheKey);
       if (cached) {
         c.header("Idempotency-Replayed", "true");
-        return c.json(cached.body as never, cached.status as 200);
+        return c.json(overlapCast(cached.body), overlapCast(cached.status));
       }
 
       await next();

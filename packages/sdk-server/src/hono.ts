@@ -1,6 +1,7 @@
 import type { Context, MiddlewareHandler, Next } from "hono";
 import { AuthError, AuthorizationError } from "./errors.js";
 import type { OpenSesameVerifier, VerifiedIdentity } from "./verifier.js";
+import { type BoundaryValue } from "@opensesame/os-domain";
 
 export type OpenSesameAuthVariables = {
   identity: VerifiedIdentity;
@@ -10,7 +11,7 @@ export interface OpenSesameAuthOptions {
   verifier: OpenSesameVerifier;
   /** Custom extractor; default Bearer scheme. */
   getToken?: (c: Context) => string | undefined;
-  onError?: (c: Context, error: unknown) => Response | Promise<Response>;
+  onError?: (c: Context, error: BoundaryValue) => Response | Promise<Response>;
 }
 
 function defaultToken(c: Context): string | undefined {

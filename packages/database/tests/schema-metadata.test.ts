@@ -1,6 +1,7 @@
 import { getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import * as schema from "../src/schema/index.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 /**
  * Static contract for the drizzle schema: table names, foreign keys (with
@@ -38,14 +39,14 @@ const EXPECTED_TABLES = [
 
 type PgTable = Parameters<typeof getTableConfig>[0];
 
-function tables(): Record<string, PgTable> {
+function tables() {
   // Every export that getTableConfig accepts is a table; the rest (the
   // `schema` aggregate object) is skipped.
-  const out: Record<string, PgTable> = {};
+  const out = {};
   for (const [key, value] of Object.entries(schema)) {
     try {
-      getTableConfig(value as PgTable);
-      out[key] = value as PgTable;
+      getTableConfig(overlapCast(value));
+      out[key] = overlapCast(value);
     } catch {
       // not a table export
     }

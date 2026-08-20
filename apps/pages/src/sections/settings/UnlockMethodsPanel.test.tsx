@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const vault = vi.hoisted(() => ({
-  current: { header: null as Record<string, unknown> | null },
+  current: { header: null },
 }));
 const store = vi.hoisted(() => ({
   enrollPasskey: vi.fn(),
@@ -17,42 +17,46 @@ const store = vi.hoisted(() => ({
   removeTotp: vi.fn(),
 }));
 
-vi.mock("../../lib/vault/hooks.js", () => ({
-  useVault: () => vault.current,
-  useVaultStore: () => store,
-}));
+import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+const originalVaultHooksSeams = { ...vaultHooksSeams };
+Object.assign(vaultHooksSeams, {useVault: () => vault.current,
+  useVaultStore: () => store});
 
 const listAvailableUnlockMethods = vi.hoisted(() => vi.fn(() => ["password"]));
 const checkWebauthnHost = vi.hoisted(() =>
-  vi.fn((): { ok: boolean; reason: string; fixUrl: string | null } => ({
+  vi.fn(() => ({
     ok: true,
     reason: "",
     fixUrl: null,
   })),
 );
 const describeWebauthnError = vi.hoisted(() =>
-  vi.fn((error: unknown) =>
+  vi.fn((error: { message?: string }) =>
     error instanceof Error ? `webauthn: ${error.message}` : "webauthn failed",
   ),
 );
 
-vi.mock("../../lib/vault/unlock-methods.js", () => ({
-  MIN_PIN_LENGTH: 8,
-  MAX_PIN_LENGTH: 12,
+import { unlockMethodsSeams } from "../../lib/vault/unlock-methods.js";
+const originalUnlockMethodsSeams = { ...unlockMethodsSeams };
+Object.assign(unlockMethodsSeams, {
   listAvailableUnlockMethods,
   checkWebauthnHost,
   describeWebauthnError,
-}));
+});
 
-vi.mock("../../lib/vault/password.js", () => ({
-  estimateStrength: (password: string) => ({
+import { passwordSeams } from "../../lib/vault/password.js";
+const originalPasswordSeams = { ...passwordSeams };
+Object.assign(passwordSeams, {estimateStrength: (password: string) => ({
     score: password.length >= 12 ? 3 : 1,
-  }),
-}));
+  }),});
 
-vi.mock("../../components/QrCode.js", () => ({
+
+
+import { qrSeams } from "../../components/QrCode.js";
+const originalQrSeams = { ...qrSeams };
+Object.assign(qrSeams, {
   QrCode: ({ value }: { value: string }) => <div data-testid="qr">{value}</div>,
-}));
+});
 
 import { UnlockMethodsPanel } from "./UnlockMethodsPanel.js";
 
@@ -113,6 +117,7 @@ describe("UnlockMethodsPanel", () => {
     expect((await screen.findByRole("status")).textContent).toMatch(
       /PIN unlock enrolled/,
     );
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     expect((screen.getByLabelText("New PIN") as HTMLInputElement).value).toBe(
       "",
     );
@@ -126,6 +131,7 @@ describe("UnlockMethodsPanel", () => {
     // The submit button is disabled on mismatch; submit the form directly.
     const form = screen.getByLabelText("New PIN").closest("form");
     expect(form).toBeTruthy();
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     fireEvent.submit(form as HTMLFormElement);
     expect((await screen.findByRole("alert")).textContent).toMatch(
       /PINs do not match/,
@@ -138,6 +144,7 @@ describe("UnlockMethodsPanel", () => {
     render(<UnlockMethodsPanel />);
     await userEvent.type(screen.getByLabelText("New PIN"), "1234");
     await userEvent.type(screen.getByLabelText("Confirm PIN"), "1234");
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     expect(
       (screen.getByRole("button", { name: /Enroll PIN/i }) as HTMLButtonElement)
         .disabled,
@@ -187,6 +194,7 @@ describe("UnlockMethodsPanel", () => {
       screen.getByLabelText("Confirm master password"),
       "correct horse staples",
     );
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     const form = screen
       .getByLabelText("New master password")
       .closest("form") as HTMLFormElement;
@@ -205,6 +213,7 @@ describe("UnlockMethodsPanel", () => {
       screen.getByLabelText("Confirm master password"),
       "short",
     );
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     expect(
       (
         screen.getByRole("button", {
@@ -233,6 +242,7 @@ describe("UnlockMethodsPanel", () => {
     render(<UnlockMethodsPanel />);
     expect(screen.getByText(/^Enrolled\. Platform authenticator/)).toBeTruthy();
     const remove = screen.getAllByRole("button", { name: /^Remove$/i })[0];
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     await userEvent.click(remove as HTMLElement);
     expect(store.removePasskey).toHaveBeenCalled();
     expect((await screen.findByRole("status")).textContent).toMatch(
@@ -246,6 +256,7 @@ describe("UnlockMethodsPanel", () => {
     };
     listAvailableUnlockMethods.mockReturnValue(["passkey"]);
     render(<UnlockMethodsPanel />);
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     const remove = screen.getAllByRole("button", {
       name: /^Remove$/i,
     })[0] as HTMLButtonElement;
@@ -261,6 +272,7 @@ describe("UnlockMethodsPanel", () => {
     render(<UnlockMethodsPanel />);
     expect(screen.getByText(/WebAuthn is unavailable here/)).toBeTruthy();
     expect(screen.getByText(/Use a DNS hostname/)).toBeTruthy();
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     expect(
       (
         screen.getByRole("button", {
@@ -349,6 +361,7 @@ describe("UnlockMethodsPanel", () => {
     pinHeader();
     render(<UnlockMethodsPanel />);
     const remove = screen.getAllByRole("button", { name: /^Remove$/i })[0];
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     await userEvent.click(remove as HTMLElement);
     expect(store.removePin).toHaveBeenCalled();
     expect((await screen.findByRole("status")).textContent).toMatch(
@@ -360,6 +373,7 @@ describe("UnlockMethodsPanel", () => {
     pinHeader();
     render(<UnlockMethodsPanel />);
     const remove = screen.getAllByRole("button", { name: /^Remove$/i })[1];
+    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     await userEvent.click(remove as HTMLElement);
     expect(store.removePassword).toHaveBeenCalled();
     expect((await screen.findByRole("status")).textContent).toMatch(

@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { buildHealthReport } from "./health.js";
 import { type LoginItem, type VaultItem, createItem } from "./model.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 function login(
   name: string,
   password: string,
   overrides: Partial<LoginItem> = {},
 ): LoginItem {
-  const item = createItem("login", name) as LoginItem;
+  const item = overlapCast(createItem("login", name));
   return { ...item, password, ...overrides };
 }
 

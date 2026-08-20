@@ -16,12 +16,7 @@ import {
   applySlowDown,
   initialPollInterval,
 } from "@opensesame/device-auth";
-import {
-  type AuthorizationRequest,
-  DomainError,
-  maybeExpire,
-  settle,
-} from "@opensesame/os-domain";
+import { type AuthorizationRequest, DomainError, maybeExpire, settle, type JsonObject } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
@@ -101,7 +96,7 @@ function newRequestId(): string {
 function requestDigest(input: {
   principalId: string;
   requesterRef: string;
-  authorizationDetails: Record<string, unknown>[];
+  authorizationDetails: JsonObject[];
   bindingMessage: string;
   connectionId?: string;
   delegationId?: string;
@@ -225,12 +220,12 @@ function toResponse(request: AuthorizationRequest) {
     authorizationDetails: request.authorizationDetails,
     expiresAt: request.expiresAt.toISOString(),
     intervalSeconds: request.intervalSeconds,
-    ...(request.connectionId ? { connectionId: request.connectionId } : {}),
-    ...(request.delegationId ? { delegationId: request.delegationId } : {}),
+    ...(request.connectionId ? { connectionId: request.connectionId } : undefined),
+    ...(request.delegationId ? { delegationId: request.delegationId } : undefined),
     ...(request.decidedAt
       ? { decidedAt: request.decidedAt.toISOString() }
-      : {}),
-    ...(request.decidedByKind ? { decidedByKind: request.decidedByKind } : {}),
+      : undefined),
+    ...(request.decidedByKind ? { decidedByKind: request.decidedByKind } : undefined),
   });
 }
 
@@ -298,8 +293,8 @@ authorizationRequestRoutes.post(
       requesterRef: ref,
       authorizationDetails: body.authorizationDetails,
       bindingMessage: body.bindingMessage,
-      ...(body.connectionId ? { connectionId: body.connectionId } : {}),
-      ...(body.delegationId ? { delegationId: body.delegationId } : {}),
+      ...(body.connectionId ? { connectionId: body.connectionId } : undefined),
+      ...(body.delegationId ? { delegationId: body.delegationId } : undefined),
     });
     const request: AuthorizationRequest = {
       id: newRequestId(),
@@ -310,8 +305,8 @@ authorizationRequestRoutes.post(
       bindingMessage: body.bindingMessage,
       status: "pending",
       intervalSeconds: DEFAULT_INTERVAL_SECONDS,
-      ...(body.connectionId ? { connectionId: body.connectionId } : {}),
-      ...(body.delegationId ? { delegationId: body.delegationId } : {}),
+      ...(body.connectionId ? { connectionId: body.connectionId } : undefined),
+      ...(body.delegationId ? { delegationId: body.delegationId } : undefined),
       createdAt: now,
       expiresAt: new Date(
         now.getTime() + (body.ttlSeconds ?? DEFAULT_TTL_SECONDS) * 1000,
@@ -331,8 +326,8 @@ authorizationRequestRoutes.post(
       metadata: {
         authReqId: created.id,
         requestDigest: created.requestDigest,
-        ...(created.connectionId ? { connectionId: created.connectionId } : {}),
-        ...(created.delegationId ? { delegationId: created.delegationId } : {}),
+        ...(created.connectionId ? { connectionId: created.connectionId } : undefined),
+        ...(created.delegationId ? { delegationId: created.delegationId } : undefined),
       },
     });
 
@@ -489,13 +484,13 @@ function decideRoute(status: "approved" | "denied") {
         row.version,
         {
           status: settled.status,
-          ...(settled.decidedAt ? { decidedAt: settled.decidedAt } : {}),
+          ...(settled.decidedAt ? { decidedAt: settled.decidedAt } : undefined),
           ...(settled.decidedByPrincipalId
             ? { decidedByPrincipalId: settled.decidedByPrincipalId }
-            : {}),
+            : undefined),
           ...(settled.decidedByKind
             ? { decidedByKind: settled.decidedByKind }
-            : {}),
+            : undefined),
         },
       );
       await appendAuditEvent(ctx.repos.auditEvents, {
@@ -508,7 +503,7 @@ function decideRoute(status: "approved" | "denied") {
           authReqId: saved.id,
           requestDigest: saved.requestDigest,
           decidedByKind: saved.decidedByKind ?? "human",
-          ...(saved.connectionId ? { connectionId: saved.connectionId } : {}),
+          ...(saved.connectionId ? { connectionId: saved.connectionId } : undefined),
         },
       });
       POLL_STATE.delete(id);

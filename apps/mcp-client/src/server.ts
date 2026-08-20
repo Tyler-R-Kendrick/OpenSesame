@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { type BoundaryValue, isString } from "@opensesame/os-domain";
 /**
  * Client MCP server — tools over Host api-client + Identity claim present.
  * Does not expose materialize / getSecret (ADR 0005 / 0017).
@@ -6,8 +7,8 @@
  */
 import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createApiClient, normalizeHttpBaseUrl } from "@opensesame/api-client";
+import { createApiClient, normalizeHttpBaseUrl } from "./api-client.js";
+import { stdioTransportSeams } from "./stdio-transport.js";
 import { forAgent } from "@opensesame/observability";
 import { z } from "zod";
 import { toolsManifest } from "./tools.js";
@@ -43,11 +44,11 @@ export function requireIdentityToken(): string {
   return tok;
 }
 
-export function modelText(value: unknown) {
+export function modelText(value: BoundaryValue) {
   return [{ type: "text" as const, text: forAgent(JSON.stringify(value)) }];
 }
 
-export function modelError(label: string, error: unknown) {
+export function modelError(label: string, error: BoundaryValue) {
   try {
     const message = error instanceof Error ? error.message : String(error);
     return { content: modelText({ error: label, message }), isError: true };
@@ -146,7 +147,7 @@ export function buildServer({
     },
     async ({ claimId, claimToken }) => {
       const base = identityUrl.replace(/\/$/, "");
-      const headers: Record<string, string> = {
+      const headers = {
         accept: "application/json",
         "x-claim-token": claimToken,
       };
@@ -182,12 +183,12 @@ export async function main(): Promise<void> {
     "OPENSESAME_ISSUER",
   );
   const server = buildServer({ hostUrl, identityUrl });
-  const transport = new StdioServerTransport();
+  const transport = new stdioTransportSeams.StdioServerTransport();
   await server.connect(transport);
 }
 
 const isMain =
-  typeof process.argv[1] === "string" &&
+  isString(process.argv[1]) &&
   import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isMain) {

@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, isString, isNumber } from "@opensesame/os-domain";
 /**
  * Federated sign-in against a trusted upstream broker (ADR 0033).
  *
@@ -43,9 +44,9 @@ export const TRUSTED_UPSTREAMS: readonly TrustedUpstream[] = [
  * Loopback deployments are development, where reaching the public broker would
  * be both wrong and usually impossible; anything else is the real thing.
  */
-export function defaultUpstream(): TrustedUpstream {
+function defaultUpstreamDefault(): TrustedUpstream {
   const local =
-    typeof location !== "undefined" &&
+    location !== undefined &&
     /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   const wanted = local ? "mock" : "shoo";
   const found = TRUSTED_UPSTREAMS.find((u) => u.id === wanted);
@@ -117,7 +118,7 @@ function b64urlEncode(bytes: Uint8Array): string {
     .replace(/=+$/, "");
 }
 
-export function decodeJwtClaims(token: string): Record<string, unknown> {
+export function decodeJwtClaims(token: string): JsonObject {
   const payload = token.split(".")[1];
   if (!payload) throw new FederationError("invalid_token", "Not a JWT.");
   try {
@@ -169,7 +170,7 @@ export async function discover(issuer: string): Promise<OidcDiscovery> {
       `${issuer} returned ${response.status} for its discovery document.`,
     );
   }
-  const doc = (await response.json()) as Partial<OidcDiscovery>;
+  const doc = overlapCast(await response.json());
   if (!doc.authorization_endpoint || !doc.token_endpoint || !doc.jwks_uri) {
     throw new FederationError(
       "upstream_unavailable",
@@ -187,7 +188,7 @@ export async function discover(issuer: string): Promise<OidcDiscovery> {
       `${issuer} claims to be ${doc.issuer}.`,
     );
   }
-  return { ...(doc as OidcDiscovery), issuer };
+  return { ...(overlapCast(doc)), issuer };
 }
 
 type PendingAuth = {
@@ -213,7 +214,7 @@ function takePending(): PendingAuth | null {
   if (!raw) return null;
   sessionStorage.removeItem(PKCE_KEY);
   try {
-    return JSON.parse(raw) as PendingAuth;
+    return overlapCast(JSON.parse(raw));
   } catch {
     return null;
   }
@@ -223,7 +224,7 @@ function takePending(): PendingAuth | null {
  * Send the browser to the upstream. Returns nothing because it navigates: the
  * flow resumes in `completeSignIn` after the redirect back.
  */
-export async function beginSignIn(
+async function beginSignInDefault(
   upstream: TrustedUpstream,
   options: { scope?: string; returnTo?: string } = {},
 ): Promise<void> {
@@ -270,7 +271,7 @@ export type CompletedSignIn = {
  * Finish a redirect that `beginSignIn` started. Returns null when this load is
  * not an upstream response, so it is safe to call on every startup.
  */
-export async function completeSignIn(): Promise<CompletedSignIn | null> {
+async function completeSignInDefault(): Promise<CompletedSignIn | null> {
   const params = new URLSearchParams(location.search);
   const code = params.get("code");
   const error = params.get("error");
@@ -303,7 +304,7 @@ export async function completeSignIn(): Promise<CompletedSignIn | null> {
 
   const body = new URLSearchParams({
     grant_type: "authorization_code",
-    code: code as string,
+    code: overlapCast(code),
     redirect_uri: redirectUri(),
     client_id: originClientId(),
     code_verifier: pending.verifier,
@@ -332,7 +333,7 @@ export async function completeSignIn(): Promise<CompletedSignIn | null> {
     );
   }
 
-  const tokens = (await response.json()) as { id_token?: string };
+  const tokens = overlapCast(await response.json());
   if (!tokens.id_token) {
     throw new FederationError(
       "exchange_failed",
@@ -355,7 +356,7 @@ export async function completeSignIn(): Promise<CompletedSignIn | null> {
  */
 function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
   const claims = decodeJwtClaims(idToken);
-  const issuer = typeof claims.iss === "string" ? claims.iss : "";
+  const issuer = isString(claims.iss) ? claims.iss : "";
   if (issuer.replace(/\/+$/, "") !== pending.issuer.replace(/\/+$/, "")) {
     throw new FederationError(
       "issuer_mismatch",
@@ -371,7 +372,7 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
 
   const expected = originClientId();
   const audience = Array.isArray(claims.aud)
-    ? (claims.aud as string[])
+    ? (overlapCast(claims.aud))
     : [String(claims.aud ?? "")];
   if (!audience.includes(expected)) {
     throw new FederationError(
@@ -380,13 +381,13 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
     );
   }
 
-  const exp = typeof claims.exp === "number" ? claims.exp : 0;
+  const exp = isNumber(claims.exp) ? claims.exp : 0;
   if (exp * 1000 <= Date.now()) {
     throw new FederationError("expired", "Token was already expired.");
   }
 
   const pairwiseSub =
-    typeof claims.pairwise_sub === "string" ? claims.pairwise_sub : "";
+    isString(claims.pairwise_sub) ? claims.pairwise_sub : "";
   if (!pairwiseSub) {
     throw new FederationError(
       "invalid_token",
@@ -402,9 +403,9 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
     audience: expected,
     jwksUri: pending.jwksUri,
     expiresAt: exp * 1000,
-    email: typeof claims.email === "string" ? claims.email : undefined,
-    name: typeof claims.name === "string" ? claims.name : undefined,
-    picture: typeof claims.picture === "string" ? claims.picture : undefined,
+    email: isString(claims.email) ? claims.email : undefined,
+    name: isString(claims.name) ? claims.name : undefined,
+    picture: isString(claims.picture) ? claims.picture : undefined,
   };
 }
 
@@ -428,11 +429,11 @@ export function saveSession(identity: UpstreamIdentity): void {
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(identity));
 }
 
-export function loadSession(): UpstreamIdentity | null {
+function loadSessionDefault(): UpstreamIdentity | null {
   const raw = sessionStorage.getItem(SESSION_KEY);
   if (!raw) return null;
   try {
-    const identity = JSON.parse(raw) as UpstreamIdentity;
+    const identity = overlapCast(JSON.parse(raw));
     if (identity.expiresAt <= Date.now()) {
       sessionStorage.removeItem(SESSION_KEY);
       return null;
@@ -449,10 +450,46 @@ export function loadSession(): UpstreamIdentity | null {
   }
 }
 
-export function clearSession(): void {
+function clearSessionDefault(): void {
   sessionStorage.removeItem(SESSION_KEY);
 }
 
-export function displayName(identity: UpstreamIdentity): string {
+function displayNameDefault(identity: UpstreamIdentity): string {
   return identity.name ?? identity.email ?? identity.pairwiseSub;
+}
+
+export const federationSeams = {
+  defaultUpstream: defaultUpstreamDefault,
+  beginSignIn: beginSignInDefault,
+  completeSignIn: completeSignInDefault,
+  loadSession: loadSessionDefault,
+  clearSession: clearSessionDefault,
+  displayName: displayNameDefault,
+};
+
+export function defaultUpstream(): TrustedUpstream {
+  return federationSeams.defaultUpstream();
+}
+
+export async function beginSignIn(
+  upstream: TrustedUpstream,
+  options: { scope?: string; returnTo?: string } = {},
+): Promise<void> {
+  return federationSeams.beginSignIn(upstream, options);
+}
+
+export async function completeSignIn(): Promise<CompletedSignIn | null> {
+  return federationSeams.completeSignIn();
+}
+
+export function loadSession(): UpstreamIdentity | null {
+  return federationSeams.loadSession();
+}
+
+export function clearSession(): void {
+  return federationSeams.clearSession();
+}
+
+export function displayName(identity: UpstreamIdentity): string {
+  return federationSeams.displayName(identity);
 }

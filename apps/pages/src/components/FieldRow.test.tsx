@@ -11,9 +11,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const copySecret = vi.hoisted(() => vi.fn());
 
-vi.mock("../lib/vault/hooks.js", () => ({
-  useCopySecret: () => copySecret,
-}));
+import { vaultHooksSeams } from "../lib/vault/hooks.js";
+const originalVaultHooksSeams = { ...vaultHooksSeams };
+Object.assign(vaultHooksSeams, {useCopySecret: () => copySecret});
+
 
 import {
   ConcealedValue,

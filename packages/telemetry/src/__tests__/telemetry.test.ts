@@ -5,9 +5,10 @@ import {
   createTelemetry,
   redactionTest,
 } from "../telemetry.js";
+import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
 function capturing() {
-  const events: Array<{ event: string; props: Record<string, unknown> }> = [];
+  const events: Array<{ event: string; props: JsonObject }> = [];
   const telemetry = createTelemetry({
     capture: (event, props) => events.push({ event, props }),
   });
@@ -94,7 +95,7 @@ describe("createTelemetry — prop allowlist", () => {
     });
     // Sanity: every key we just asserted is actually documented as allowed.
     for (const key of Object.keys(events[0]?.props ?? {})) {
-      expect(ALLOWED_PROP_KEYS as readonly string[]).toContain(key);
+      expect(overlapCast(ALLOWED_PROP_KEYS)).toContain(key);
     }
   });
 });
@@ -109,9 +110,9 @@ describe("createTelemetry — primitive coercion", () => {
   it("stringifies everything else (objects, arrays, null)", () => {
     const { telemetry, events } = capturing();
     telemetry.track("item_opened", {
-      item_type: { nested: "object" } as unknown as string,
+      item_type: overlapCast({ nested: "object" }),
     });
-    expect(typeof events[0]?.props.item_type).toBe("string");
+    expect(isString(events[0]?.props.item_type)).toBe(true);
   });
 
   it("truncates strings to 64 characters", () => {
@@ -119,7 +120,7 @@ describe("createTelemetry — primitive coercion", () => {
     const long = "x".repeat(200);
     telemetry.track("item_opened", { item_type: long });
     expect(events[0]?.props.item_type).toBe("x".repeat(64));
-    expect((events[0]?.props.item_type as string).length).toBe(64);
+    expect((overlapCast(events[0]?.props.item_type)).length).toBe(64);
   });
 
   it("does not truncate short strings", () => {

@@ -1,29 +1,30 @@
+import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { act } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App.js";
 
-(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+(overlapCast(globalThis)).IS_REACT_ACT_ENVIRONMENT = true;
 
 let container: HTMLDivElement;
 let root: Root;
 let fetchMock: ReturnType<typeof vi.fn>;
 
-function jsonRes(status: number, body: unknown): Response {
-  return {
+function jsonRes(status: number, body: BoundaryValue): Response {
+  return overlapCast({
     ok: status >= 200 && status < 300,
     status,
     json: () => Promise.resolve(body),
-  } as unknown as Response;
+  });
 }
 
 function badJsonRes(status: number): Response {
-  return {
+  return overlapCast({
     ok: status >= 200 && status < 300,
     status,
     json: () => Promise.reject(new Error("invalid json")),
-  } as unknown as Response;
+  });
 }
 
 async function flush() {
@@ -44,7 +45,7 @@ function buttonByText(text: string): HTMLButtonElement {
     b.textContent?.includes(text),
   );
   if (!match) throw new Error(`button not found: ${text}`);
-  return match as HTMLButtonElement;
+  return overlapCast(match);
 }
 
 function setInput(input: HTMLInputElement, value: string) {
@@ -57,17 +58,17 @@ function setInput(input: HTMLInputElement, value: string) {
 }
 
 function userCodeInput(): HTMLInputElement {
-  const input = container.querySelector(
+  const input = overlapCast(container.querySelector(
     'input[placeholder="ABCD-EFGH"]',
-  ) as HTMLInputElement | null;
+  ));
   if (!input) throw new Error("user code input not found");
   return input;
 }
 
 function tokenInput(): HTMLInputElement {
-  const input = container.querySelector(
+  const input = overlapCast(container.querySelector(
     'input[type="password"]',
-  ) as HTMLInputElement | null;
+  ));
   if (!input) throw new Error("token input not found");
   return input;
 }
@@ -94,8 +95,8 @@ function installWebAuthn({
   create,
   get,
 }: {
-  create?: () => Promise<unknown>;
-  get?: () => Promise<unknown>;
+  create?: () => Promise<BoundaryValue>;
+  get?: () => Promise<BoundaryValue>;
 }) {
   Object.defineProperty(window, "PublicKeyCredential", {
     value: class PublicKeyCredential {},
@@ -249,11 +250,11 @@ describe("approveDevice", () => {
     await renderApp();
     await enterToken();
     await click(buttonByText("Approve device code"));
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = overlapCast(fetchMock.mock.calls[0]);
     expect(url).toBe("http://127.0.0.1:8788/v1/device/approve");
     expect(init.method).toBe("POST");
     expect(init.credentials).toBe("include");
-    expect(JSON.parse(init.body as string)).toEqual({
+    expect(JSON.parse(overlapCast(init.body))).toEqual({
       user_code: "ABCD-EFGH",
       principal: "",
     });
@@ -269,16 +270,16 @@ describe("approveDevice", () => {
     const principalLabel = [...container.querySelectorAll("label")].find((l) =>
       l.textContent?.includes("Principal id"),
     );
-    const principalInput = principalLabel?.querySelector(
+    const principalInput = overlapCast(principalLabel?.querySelector(
       "input",
-    ) as HTMLInputElement;
+    ));
     await act(async () => {
       setInput(principalInput, "prn_operator");
     });
     await enterToken();
     await click(buttonByText("Approve device code"));
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(JSON.parse(init.body as string)).toEqual({
+    const [, init] = overlapCast(fetchMock.mock.calls[0]);
+    expect(JSON.parse(overlapCast(init.body))).toEqual({
       user_code: "ABCD-EFGH",
       principal: "prn_operator",
     });
@@ -723,14 +724,14 @@ describe("TOTP enroll + verify", () => {
     const codeLabel = [...container.querySelectorAll("label")].find((l) =>
       l.textContent?.includes("TOTP code"),
     );
-    const codeInput = codeLabel?.querySelector("input") as HTMLInputElement;
+    const codeInput = overlapCast(codeLabel?.querySelector("input"));
     await act(async () => {
       setInput(codeInput, "123456");
     });
     await click(buttonByText("Verify TOTP"));
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = overlapCast(fetchMock.mock.calls[0]);
     expect(url).toBe("http://127.0.0.1:8788/v1/mfa/totp/verify");
-    expect(JSON.parse(init.body as string)).toEqual({ code: "123456" });
+    expect(JSON.parse(overlapCast(init.body))).toEqual({ code: "123456" });
     expect(statusText()).toBe("TOTP verified");
   });
 

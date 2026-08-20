@@ -6,11 +6,12 @@ import {
   subscribeVaultHostBackup,
 } from "../lib/vault/host-backup.js";
 import { IconAlert } from "./Icons.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 /**
  * Always-visible recoverability signal: vault must reach Host + GitHub.
  */
-export function BackupRecoverabilityBanner() {
+function BackupRecoverabilityBannerDefault() {
   const [hostPush, setHostPush] = useState(getVaultHostBackupState);
   const [backupHint, setBackupHint] = useState<string | null>(null);
 
@@ -58,13 +59,13 @@ export function BackupRecoverabilityBanner() {
     };
   }, []);
 
-  const messages = [
+  const messages = overlapCast([
     hostPush.lastError,
     hostPush.pendingCount > 0
       ? `${hostPush.pendingCount} vault change(s) not yet on Host.`
       : null,
     backupHint,
-  ].filter(Boolean) as string[];
+  ].filter(Boolean));
 
   if (messages.length === 0) return null;
 
@@ -82,4 +83,13 @@ export function BackupRecoverabilityBanner() {
       </div>
     </div>
   );
+}
+
+export const backupBannerSeams = {
+  BackupRecoverabilityBanner: BackupRecoverabilityBannerDefault,
+};
+
+export function BackupRecoverabilityBanner() {
+  const Impl = backupBannerSeams.BackupRecoverabilityBanner;
+  return <Impl />;
 }

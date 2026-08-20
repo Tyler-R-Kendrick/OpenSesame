@@ -1,18 +1,19 @@
 import { describe, expect, it } from "vitest";
 import * as worker from "../index.js";
+import { isFunction } from "@opensesame/os-domain";
 
 describe("worker public surface", () => {
   it("re-exports the cleanup, rotation and task bus APIs", () => {
-    expect(typeof worker.runCleanupTick).toBe("function");
-    expect(typeof worker.startCleanupLoop).toBe("function");
-    expect(typeof worker.createFakeClock).toBe("function");
-    expect(typeof worker.consumeRotationEvents).toBe("function");
-    expect(typeof worker.InMemoryRotationBus).toBe("function");
-    expect(typeof worker.MemoryTaskBus).toBe("function");
-    expect(typeof worker.createTaskBusFromEnv).toBe("function");
-    expect(typeof worker.outboxToBusEvent).toBe("function");
-    expect(typeof worker.resolveTaskBusBackend).toBe("function");
-    expect(typeof worker.eventSubject).toBe("function");
+    expect(isFunction(worker.runCleanupTick)).toBe(true);
+    expect(isFunction(worker.startCleanupLoop)).toBe(true);
+    expect(isFunction(worker.createFakeClock)).toBe(true);
+    expect(isFunction(worker.consumeRotationEvents)).toBe(true);
+    expect(isFunction(worker.InMemoryRotationBus)).toBe(true);
+    expect(isFunction(worker.MemoryTaskBus)).toBe(true);
+    expect(isFunction(worker.createTaskBusFromEnv)).toBe(true);
+    expect(isFunction(worker.outboxToBusEvent)).toBe(true);
+    expect(isFunction(worker.resolveTaskBusBackend)).toBe(true);
+    expect(isFunction(worker.eventSubject)).toBe(true);
     expect(worker.EVENT_ROTATION_REQUESTED).toBe(
       "credential.rotation.requested",
     );

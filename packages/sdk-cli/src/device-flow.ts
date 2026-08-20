@@ -5,6 +5,7 @@ import {
   assertSecureUrl,
   trimSlash,
 } from "./secure-url.js";
+import { type JsonObject, overlapCast, isString, isTypeofObject } from "@opensesame/os-domain";
 
 export interface DeviceAuthorizationResponse {
   device_code: string;
@@ -95,11 +96,7 @@ export class DeviceFlowClient {
       `${this.#issuer}/.well-known/openid-configuration`,
     );
     if (!res.ok) throw new Error(`discovery failed: ${res.status}`);
-    const doc = (await res.json()) as {
-      issuer?: string;
-      device_authorization_endpoint?: string;
-      token_endpoint: string;
-    };
+    const doc = overlapCast(await res.json());
     assertDiscoveryBelongsToIssuer(doc, this.#issuer);
     if (!doc.device_authorization_endpoint) {
       throw new Error(
@@ -135,7 +132,7 @@ export class DeviceFlowClient {
     if (!res.ok) {
       throw new Error(`device authorize failed: ${res.status}`);
     }
-    const data = (await res.json()) as DeviceAuthorizationResponse;
+    const data = overlapCast(await res.json());
     // These are the URIs the CLI prints for a person to open and type a code into.
     // Whatever answered here chooses them, so they are held to the same bar as the
     // endpoints: a device flow that sends the user to an attacker's page is a
@@ -191,12 +188,12 @@ export class DeviceFlowClient {
     };
     if (this.config.signal) init.signal = this.config.signal;
     const res = await this.#fetch(meta.token_endpoint, init);
-    const json = (await res.json()) as Record<string, unknown>;
-    if (res.ok && typeof json.access_token === "string") {
+    const json = overlapCast(await res.json());
+    if (res.ok && isString(json.access_token)) {
       // SAFETY: access_token was checked as string above; remaining token
       // fields are optional JSON from the token endpoint. TokenSuccess is a
       // named object type, so TypeScript requires the unknown step.
-      return { status: "success", tokens: json as unknown as TokenSuccess };
+      return { status: "success", tokens: overlapCast(json) };
     }
     const error = String(json.error ?? "unknown");
     if (error === "authorization_pending") {
@@ -215,7 +212,7 @@ export class DeviceFlowClient {
     if (error === "access_denied") return { status: "access_denied" };
     if (error === "expired_token") return { status: "expired_token" };
     const description =
-      typeof json.error_description === "string"
+      isString(json.error_description)
         ? json.error_description
         : undefined;
     return description !== undefined
@@ -278,12 +275,12 @@ export class DeviceFlowClient {
 
 /** Redact secrets from objects before JSON logging. */
 export function redactSecrets<T>(value: T): T {
-  if (value === null || typeof value !== "object") return value;
+  if (value === null || !isTypeofObject(value)) return value;
   if (Array.isArray(value)) {
-    return value.map((v) => redactSecrets(v)) as T;
+    return overlapCast(value.map((v) => redactSecrets(v)));
   }
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+  const out: JsonObject = {};
+  for (const [k, v] of Object.entries(overlapCast(value))) {
     if (
       /device_code|access_token|refresh_token|id_token|code_verifier|client_secret|client_assertion|claimToken|claim_token|operator|password|passphrase|secret|cookie|authorization|api[-_]?key|private_key|signing_key|bearer/iu.test(
         k,
@@ -294,5 +291,5 @@ export function redactSecrets<T>(value: T): T {
       out[k] = redactSecrets(v);
     }
   }
-  return out as T;
+  return overlapCast(out);
 }

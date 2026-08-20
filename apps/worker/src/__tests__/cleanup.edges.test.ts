@@ -1,6 +1,6 @@
 import { ClaimEngine, MemoryClaimStore } from "@opensesame/claims";
 import { createRepositories } from "@opensesame/database";
-import { fixtures } from "@opensesame/os-domain";
+import { fixtures, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 import type { Project, ProvisionalSession } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
@@ -134,7 +134,7 @@ describe("cleanup tick — claim edge cases", () => {
     };
 
     const result = await runCleanupTick({
-      claims: claims as never,
+      claims: overlapCast(claims),
       claimStore: { listIds: () => ["claim_x"] },
       repos: createRepositories(),
       provisionalSessions: new Map(),
@@ -239,10 +239,10 @@ describe("cleanup tick — issuer pruning and outbox edge cases", () => {
           throw failure;
         },
       },
-      log: {
+      log: overlapCast({
         info: () => {},
-        error: (obj: unknown) => errors.push(obj),
-      } as never,
+        error: (obj: BoundaryValue) => errors.push(obj),
+      }),
     });
 
     expect(result.prunedOidcRows).toBeUndefined();

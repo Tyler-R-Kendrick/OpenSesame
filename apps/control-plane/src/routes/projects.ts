@@ -11,12 +11,7 @@ import {
   ProjectResponseSchema,
   SetActiveProjectRequestSchema,
 } from "@opensesame/contracts";
-import {
-  PERSONAL_PROJECT_SLUG,
-  type Project,
-  type ProjectMembership,
-  type ProjectRole,
-} from "@opensesame/os-domain";
+import { PERSONAL_PROJECT_SLUG, type Project, type ProjectMembership, type ProjectRole, type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
@@ -199,7 +194,7 @@ export function ensurePersonalProject(
 function ensurePersonalProjectInner(
   ctx: AppContext,
   principalId: string,
-): { project: Project; created: boolean } {
+) {
   const existing = findPersonalProject(ctx, principalId);
   if (existing) {
     return { project: existing, created: false };
@@ -300,7 +295,7 @@ projectRoutes.post(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
-    const rawBody = (await c.req.json()) as Record<string, unknown>;
+    const rawBody = overlapCast(await c.req.json());
     const parsed = CreateProjectRequestSchema.safeParse(rawBody);
     if (!parsed.success) {
       return c.json(
@@ -386,15 +381,15 @@ projectRoutes.post(
           updatedAt: now,
           ...(parsed.data.organizationId !== undefined
             ? { organizationId: parsed.data.organizationId }
-            : {}),
+            : undefined),
         };
         const tomb =
-          typeof rawBody.sealedStoreTombName === "string"
+          isString(rawBody.sealedStoreTombName)
             ? rawBody.sealedStoreTombName.trim()
             : "";
         if (tomb) project.sealedStoreTombName = tomb;
         const folder =
-          typeof rawBody.pagesVaultFolderId === "string"
+          isString(rawBody.pagesVaultFolderId)
             ? rawBody.pagesVaultFolderId.trim()
             : "";
         if (folder) project.pagesVaultFolderId = folder;
@@ -634,11 +629,7 @@ projectRoutes.patch("/:id", requirePrincipal(), async (c) => {
     return c.json({ error: "admin_required" }, 403);
   }
 
-  const body = (await c.req.json()) as {
-    displayName?: string;
-    sealedStoreTombName?: string | null;
-    pagesVaultFolderId?: string | null;
-  };
+  const body = overlapCast(await c.req.json());
 
   const tombName = /^[A-Za-z0-9._-]{1,64}$/;
   const folderId = /^[A-Za-z0-9._:/-]{1,128}$/;
@@ -647,7 +638,7 @@ projectRoutes.patch("/:id", requirePrincipal(), async (c) => {
     ...project,
     updatedAt: ctx.clock(),
   };
-  if (typeof body.displayName === "string") {
+  if (isString(body.displayName)) {
     const displayName = body.displayName.trim();
     if (!displayName || displayName.length > 128) {
       return c.json(

@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, type BoundaryValue, isString, isTypeofObject } from "@opensesame/os-domain";
 const SECRET_NEEDLES = [
   "password",
   "secret",
@@ -10,14 +11,14 @@ const SECRET_NEEDLES = [
 ];
 
 export function assertNoSecretFields(
-  value: unknown,
-  redact: (v: unknown) => unknown,
+  value: BoundaryValue,
+  redact: (v: BoundaryValue) => BoundaryValue,
 ): void {
   const redacted = redact(value);
   walk(redacted, (key, child) => {
     if (SECRET_NEEDLES.some((n) => key.toLowerCase().includes(n))) {
       if (
-        typeof child === "string" &&
+        isString(child) &&
         child !== "[REDACTED]" &&
         child.length > 0
       ) {
@@ -34,11 +35,11 @@ export function assertMalformedDenied(ok: boolean, reason: string): void {
 }
 
 function walk(
-  value: unknown,
-  visit: (key: string, child: unknown) => void,
+  value: BoundaryValue,
+  visit: (key: string, child: BoundaryValue) => void,
 ): void {
-  if (value && typeof value === "object") {
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+  if (value && isTypeofObject(value)) {
+    for (const [k, v] of Object.entries(overlapCast(value))) {
       visit(k, v);
       walk(v, visit);
     }

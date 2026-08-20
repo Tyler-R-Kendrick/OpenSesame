@@ -13,17 +13,9 @@ const fed = vi.hoisted(() => ({
   completeSignIn: vi.fn(),
 }));
 
-vi.mock("../lib/federation.js", () => ({
-  FederationError: class FederationError extends Error {
-    readonly code: string;
-    constructor(code: string, message: string) {
-      super(message);
-      this.name = "FederationError";
-      this.code = code;
-    }
-  },
-  completeSignIn: fed.completeSignIn,
-}));
+import { federationSeams } from "../lib/federation.js";
+const originalFederationSeams = { ...federationSeams };
+Object.assign(federationSeams, { completeSignIn: fed.completeSignIn });
 
 import { FederationError } from "../lib/federation.js";
 import { FederationReturn } from "./FederationReturn.js";

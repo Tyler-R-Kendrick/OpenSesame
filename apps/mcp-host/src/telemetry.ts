@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString, isFunction } from "@opensesame/os-domain";
 /**
  * Privacy-bounded telemetry for the mcp-host tool surface. Off by default:
  * everything below is a no-op unless `OPENSESAME_TELEMETRY_KEY` is set.
@@ -13,7 +14,7 @@
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { type Telemetry, createTelemetry } from "@opensesame/telemetry";
-import { PostHog } from "posthog-node";
+import { posthogSeams } from "./posthog.js";
 
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 
@@ -27,14 +28,14 @@ const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
  */
 const ANONYMOUS_DISTINCT_ID = crypto.randomUUID();
 
-let posthogClient: PostHog | undefined;
+let posthogClient: InstanceType<typeof posthogSeams.PostHog> | undefined;
 let shutdownHooked = false;
 
-function getPosthogClient(): PostHog | undefined {
+function getPosthogClient(): InstanceType<typeof posthogSeams.PostHog> | undefined {
   const key = process.env.OPENSESAME_TELEMETRY_KEY;
   if (!key) return undefined;
   if (!posthogClient) {
-    posthogClient = new PostHog(key, {
+    posthogClient = new posthogSeams.PostHog(key, {
       host: process.env.OPENSESAME_TELEMETRY_HOST || DEFAULT_POSTHOG_HOST,
     });
     hookShutdown(posthogClient);
@@ -43,7 +44,7 @@ function getPosthogClient(): PostHog | undefined {
 }
 
 /** Flush pending events before the process exits, not after. */
-function hookShutdown(client: PostHog): void {
+function hookShutdown(client: InstanceType<typeof posthogSeams.PostHog>): void {
   if (shutdownHooked) return;
   shutdownHooked = true;
   const flush = () => {
@@ -74,7 +75,7 @@ function createHostTelemetry(): Telemetry | undefined {
   });
 }
 
-type AnyFn = (...args: unknown[]) => unknown;
+type AnyFn = (...args: unknown[]) => BoundaryValue;
 
 /**
  * Narrow structural view of `McpServer` used only for the monkey-patch. The
@@ -102,8 +103,8 @@ interface ToolResultLike {
   content?: unknown;
 }
 
-function isToolResultLike(value: unknown): value is ToolResultLike {
-  return typeof value === "object" && value !== null && "content" in value;
+function isToolResultLike(value: BoundaryValue): value is ToolResultLike {
+  return isTypeofObject(value) && value !== null && "content" in value;
 }
 
 function resultText(result: ToolResultLike): string {
@@ -111,8 +112,8 @@ function resultText(result: ToolResultLike): string {
   if (!Array.isArray(content)) return "";
   return content
     .map((block) =>
-      block && typeof block === "object" && "text" in block
-        ? String((block as { text: unknown }).text)
+      block && isTypeofObject(block) && "text" in block
+        ? String((overlapCast(block)).text)
         : "",
     )
     .join(" ");
@@ -131,7 +132,7 @@ function resultText(result: ToolResultLike): string {
  * satisfying "never include tool results" while still letting refusals be
  * told apart from failures.
  */
-function classifyOutcome(result: unknown): "ok" | "error" | "refused" {
+function classifyOutcome(result: BoundaryValue): "ok" | "error" | "refused" {
   if (!isToolResultLike(result) || !result.isError) return "ok";
   const text = resultText(result).toLowerCase();
   return /denied|forbidden|refused|unauthorized|required|not[_-]?permitted/.test(
@@ -144,7 +145,7 @@ function classifyOutcome(result: unknown): "ok" | "error" | "refused" {
 function safeTrack(
   telemetry: Telemetry,
   event: string,
-  props: Record<string, unknown>,
+  props: JsonObject,
 ): void {
   try {
     telemetry.track(event, props);
@@ -212,14 +213,14 @@ export function wrapServerWithTelemetry(
 
   // SAFETY: ToolRegistrar is the structural subset of McpServer.tool used
   // for the last-argument callback wrap; the SDK's overloads cannot be named.
-  const target = server as ToolRegistrar;
+  const target = overlapCast(server);
   const originalTool = target.tool.bind(target);
 
   target.tool = (...args: unknown[]) => {
     const name = args[0];
     const lastIndex = args.length - 1;
     const handler = args[lastIndex];
-    if (typeof name !== "string" || typeof handler !== "function") {
+    if (!isString(name) || !isFunction(handler)) {
       // Every `tool()` overload ends in a callback, so this should not
       // happen; fall through untouched rather than guess at a shape we
       // don't recognize.
@@ -229,7 +230,7 @@ export function wrapServerWithTelemetry(
     patchedArgs[lastIndex] = wrapToolHandler(
       server,
       name,
-      handler as AnyFn,
+      overlapCast(handler),
       active,
     );
     return originalTool(...patchedArgs);

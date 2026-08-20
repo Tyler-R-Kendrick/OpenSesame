@@ -1,3 +1,4 @@
+import { overlapCast, isTypeofObject, isString } from "@opensesame/os-domain";
 /**
  * Offline outbox.
  *
@@ -33,16 +34,16 @@ function loadDeviceActions(): DeviceAction[] {
   try {
     const raw = kvGet(KEY);
     if (!raw) return [];
-    parsed = JSON.parse(raw) as QueuedAction[];
+    parsed = overlapCast(JSON.parse(raw));
     if (!Array.isArray(parsed)) return [];
   } catch {
     return [];
   }
   const devices = parsed
     .filter((item): item is DeviceAction => {
-      if (!item || typeof item !== "object") return false;
+      if (!item || !isTypeofObject(item)) return false;
       if (item.kind !== "device_approve") return false;
-      if (!item.id || !item.userCode || typeof item.createdAt !== "string")
+      if (!item.id || !item.userCode || !isString(item.createdAt))
         return false;
       const createdAt = Date.parse(item.createdAt);
       return !Number.isNaN(createdAt) && Date.now() - createdAt <= QUEUE_TTL_MS;
@@ -58,11 +59,11 @@ function saveDeviceActions(items: DeviceAction[]): void {
   kvSet(KEY, JSON.stringify(items.slice(-MAX_QUEUE_LENGTH)));
 }
 
-export function loadQueue(): QueuedAction[] {
+function loadQueueDefault(): QueuedAction[] {
   return [...loadDeviceActions(), ...stagedClaims];
 }
 
-export function enqueue(action: QueuedActionInput): QueuedAction {
+function enqueueDefault(action: QueuedActionInput): QueuedAction {
   const item: QueuedAction = {
     ...action,
     id: crypto.randomUUID(),
@@ -76,14 +77,37 @@ export function enqueue(action: QueuedActionInput): QueuedAction {
   return item;
 }
 
-export function dequeue(id: string): void {
+function dequeueDefault(id: string): void {
   stagedClaims = stagedClaims.filter((item) => item.id !== id);
   saveDeviceActions(loadDeviceActions().filter((item) => item.id !== id));
 }
 
 /** Drop every staged claim token. Called on vault lock. */
-export function clearStagedClaimTokens(): void {
+function clearStagedClaimTokensDefault(): void {
   stagedClaims = [];
   // Also purges any claim row an older build left on disk.
   loadDeviceActions();
+}
+
+export const queueSeams = {
+  loadQueue: loadQueueDefault,
+  enqueue: enqueueDefault,
+  dequeue: dequeueDefault,
+  clearStagedClaimTokens: clearStagedClaimTokensDefault,
+};
+
+export function loadQueue(): QueuedAction[] {
+  return queueSeams.loadQueue();
+}
+
+export function enqueue(action: QueuedActionInput): QueuedAction {
+  return queueSeams.enqueue(action);
+}
+
+export function dequeue(id: string): void {
+  return queueSeams.dequeue(id);
+}
+
+export function clearStagedClaimTokens(): void {
+  return queueSeams.clearStagedClaimTokens();
 }

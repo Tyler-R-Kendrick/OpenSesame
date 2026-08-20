@@ -1,22 +1,28 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import {
+  overlapCast,
+  type BoundaryValue,
+  type JsonObject,
+} from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const online = vi.hoisted(() => ({ value: true }));
 const session = vi.hoisted(() => ({
-  current: null as { principalId: string; accessToken: string } | null,
+  current: null,
 }));
 const connect = vi.hoisted(() => vi.fn());
 const connectState = vi.hoisted(() => ({
   connecting: false,
-  error: null as unknown,
+  error: null,
 }));
 const identityFetch = vi.hoisted(() => vi.fn());
 const fetchPrincipal = vi.hoisted(() => vi.fn());
 
-vi.mock("../lib/identity.js", () => ({
-  identityFetch,
+import { identitySeams } from "../lib/identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {identityFetch,
   fetchPrincipal,
   identityBase: () => "http://127.0.0.1:8788",
   useConnect: () => ({
@@ -24,24 +30,23 @@ vi.mock("../lib/identity.js", () => ({
     connecting: connectState.connecting,
     error: connectState.error,
   }),
-  useIdentitySession: () => session.current,
-}));
-
-vi.mock("../lib/use-online.js", () => ({ useOnline: () => online.value }));
-
-vi.mock("../components/PlaneNote.js", () => ({
-  PagesCannotHostNote: () => null,
-}));
+  useIdentitySession: () => session.current});
+import { useOnlineSeams } from "../lib/use-online.js";
+const originalUseOnlineSeams = { ...useOnlineSeams };
+Object.assign(useOnlineSeams, {useOnline: () => online.value});
+import { planeNoteSeams } from "../components/PlaneNote.js";
+const originalPlaneNoteSeams = { ...planeNoteSeams };
+Object.assign(planeNoteSeams, { PagesCannotHostNote: () => null });
 
 import { kvDelete } from "../lib/kv.js";
 import { SitesSection } from "./SitesSection.js";
 
-function jsonResponse(body: unknown, ok = true, status = 200) {
-  return {
+function jsonResponse(body: JsonObject, ok = true, status = 200) {
+  return overlapCast({
     ok,
     status,
     json: () => Promise.resolve(body),
-  } as unknown as Response;
+  });
 }
 
 const clientAlpha = {
@@ -152,11 +157,11 @@ describe("SitesSection", () => {
     expect(screen.getByText("app.example.com")).toBeTruthy();
 
     // Removing the last allowed domain makes the broker public again.
-    const row = screen
+    const row = overlapCast(screen
       .getByText("app.example.com")
-      .closest("li") as HTMLElement;
+      .closest("li"));
     await userEvent.click(
-      row.querySelector("button[title], .btn--danger") as HTMLElement,
+      overlapCast(row.querySelector("button[title], .btn--danger")),
     );
     expect(screen.getByText(/The broker is public again/)).toBeTruthy();
     expect(screen.getByText("Public")).toBeTruthy();
@@ -171,10 +176,10 @@ describe("SitesSection", () => {
     expect(screen.getByText("Blocked")).toBeTruthy();
 
     // The blocked row's danger button removes the rule.
-    const row = screen
+    const row = overlapCast(screen
       .getByText("evil.example.com")
-      .closest("li") as HTMLElement;
-    await userEvent.click(row.querySelector(".btn--danger") as HTMLElement);
+      .closest("li"));
+    await userEvent.click(overlapCast(row.querySelector(".btn--danger")));
     expect(screen.getByText(/Unblocked evil\.example\.com/)).toBeTruthy();
     expect(screen.queryByText("Blocked")).toBeNull();
   });
@@ -184,7 +189,7 @@ describe("SitesSection", () => {
     const domain = screen.getByPlaceholderText(/example\.com, localhost:5173/);
     await userEvent.type(domain, "https://example.com/path");
     const { fireEvent } = await import("@testing-library/react");
-    fireEvent.submit(domain.closest("form") as HTMLFormElement);
+    fireEvent.submit(overlapCast(domain.closest("form")));
     expect(
       await screen.findByText(/Enter a hostname \(example\.com\)/),
     ).toBeTruthy();
@@ -640,9 +645,9 @@ describe("SitesSection origin validation and edge branches", () => {
       screen.getByLabelText(/^Site origin$/i),
       "https://beta.example.com",
     );
-    const name = document.querySelector(
+    const name = overlapCast(document.querySelector(
       'input[id$="-name"]',
-    ) as HTMLInputElement;
+    ));
     await userEvent.clear(name);
     await userEvent.click(
       screen.getByRole("button", { name: /Register client/i }),
@@ -660,9 +665,9 @@ describe("SitesSection origin validation and edge branches", () => {
       screen.getByLabelText(/^Site origin$/i),
       "https://beta.example.com",
     );
-    const sector = document.querySelector(
+    const sector = overlapCast(document.querySelector(
       'input[id$="-sector"]',
-    ) as HTMLInputElement;
+    ));
     await userEvent.clear(sector);
     await userEvent.click(
       screen.getByRole("button", { name: /Register client/i }),
@@ -698,7 +703,7 @@ describe("SitesSection origin validation and edge branches", () => {
       screen.getByRole("button", { name: /Move to allowed/i }),
     );
     // The domain moved lists.
-    const allowed = screen.getByText("Allowed").closest("div") as HTMLElement;
+    const allowed = overlapCast(screen.getByText("Allowed").closest("div"));
     expect(allowed.textContent).toContain("evil.example.com");
   });
 
@@ -713,7 +718,7 @@ describe("SitesSection origin validation and edge branches", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Move to blocked/i }),
     );
-    const blocked = screen.getByText("Blocked").closest("div") as HTMLElement;
+    const blocked = overlapCast(screen.getByText("Blocked").closest("div"));
     expect(blocked.textContent).toContain("app.example.com");
   });
 
@@ -760,13 +765,13 @@ describe("SitesSection origin validation and edge branches", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Use in snippet/i }),
     );
-    const toolbar = screen
+    const toolbar = overlapCast(screen
       .getByRole("tabpanel", { name: /Sign-in module/i })
-      .closest(".panel") as HTMLElement;
+      .closest(".panel"));
     await userEvent.click(
-      Array.from(toolbar.querySelectorAll("button")).find(
+      overlapCast(Array.from(toolbar.querySelectorAll("button")).find(
         (button) => button.textContent?.trim() === "Copy",
-      ) as HTMLElement,
+      )),
     );
     expect(
       await screen.findByText(/browser refused clipboard access/),

@@ -65,7 +65,7 @@ export function providerVerb(
   return "idle";
 }
 
-export const VERB_LABEL: Record<StatusVerb, string> = {
+export const VERB_LABEL = {
   connected: "Connected",
   needs_you: "Needs you",
   needs_install: "Needs install",
@@ -73,7 +73,7 @@ export const VERB_LABEL: Record<StatusVerb, string> = {
   idle: "Not enabled",
 };
 
-export const VERB_CHIP: Record<StatusVerb, string> = {
+export const VERB_CHIP = {
   connected: "chip--ok",
   needs_you: "chip--warn",
   needs_install: "chip--warn",

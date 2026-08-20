@@ -12,6 +12,7 @@ import {
   shouldAutoConnect,
 } from "../../lib/settings.js";
 import { useOnline } from "../../lib/use-online.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 export type ProjectSummary = {
   id: string;
@@ -62,20 +63,17 @@ export function ActiveProjectPanel() {
         body: "{}",
       });
       if (!ensureRes.ok) {
-        const err = (await ensureRes.json().catch(() => null)) as {
-          message?: string;
-          error?: string;
-        } | null;
+        const err = overlapCast(await ensureRes.json().catch(() => null));
         throw new Error(
           err?.message ?? err?.error ?? `Ensure failed (${ensureRes.status})`,
         );
       }
-      const personal = (await ensureRes.json()) as ProjectSummary;
+      const personal = overlapCast(await ensureRes.json());
       const listRes = await identityFetch("/v1/projects");
       if (!listRes.ok) {
         throw new Error(`List projects failed (${listRes.status})`);
       }
-      const body = (await listRes.json()) as { projects: ProjectSummary[] };
+      const body = overlapCast(await listRes.json());
       const nextProjects = body.projects ?? [];
       setProjects(nextProjects);
 

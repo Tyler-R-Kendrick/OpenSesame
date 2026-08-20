@@ -7,6 +7,7 @@ import {
   persistSealedStore,
   sealDevOnly,
 } from "./index.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 /**
  * A minimal OPFS stand-in: a directory of named files held in memory, shaped
@@ -69,7 +70,7 @@ describe("base64 helpers", () => {
 });
 
 describe("parseSealedStore guards", () => {
-  const store = (overrides: Record<string, unknown>) =>
+  const store = (overrides: JsonObject) =>
     JSON.stringify({
       cursor: { device_id: "d", epoch: 0 },
       blobs: [],
@@ -214,7 +215,7 @@ describe("sealed store IO against OPFS", () => {
 
 describe("sealDevOnly environment gate", () => {
   it("honors the explicit dev-seal opt-in even without a dev NODE_ENV", () => {
-    const g = globalThis as { __OPENSESAME_ALLOW_DEV_SEAL__?: boolean };
+    const g = overlapCast(globalThis);
     const prevEnv = process.env.NODE_ENV;
     g.__OPENSESAME_ALLOW_DEV_SEAL__ = true;
     process.env.NODE_ENV = "production";

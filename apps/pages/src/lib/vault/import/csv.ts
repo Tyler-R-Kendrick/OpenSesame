@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * RFC 4180 CSV reader.
  *
@@ -41,7 +42,7 @@ export function parseCsvCells(input: string): string[][] {
   };
 
   for (let i = 0; i < text.length; i += 1) {
-    const char = text[i] as string;
+    const char = overlapCast(text[i]);
 
     if (quoted) {
       if (char !== '"') {
@@ -93,7 +94,7 @@ export function parseCsvCells(input: string): string[][] {
  * Parse into objects keyed by header. Header names are lowercased and trimmed
  * so callers can match one spelling; exporters disagree on case.
  */
-export function parseCsv(input: string): { headers: string[]; rows: CsvRow[] } {
+export function parseCsv(input: string) {
   const cells = parseCsvCells(input);
   const headerCells = cells[0];
   if (!headerCells || headerCells.length === 0) {

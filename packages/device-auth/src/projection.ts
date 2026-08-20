@@ -91,11 +91,7 @@ export function shouldSlowDown(
 export function evaluateDevicePoll(
   session: DeviceAuthorizationSession,
   clock: Clock = () => new Date(),
-): {
-  session: DeviceAuthorizationSession;
-  error?: DevicePollError;
-  projection: DeviceAuthProjection;
-} {
+) {
   const now = clock();
   let current = maybeExpireDeviceAuth(session, clock);
 

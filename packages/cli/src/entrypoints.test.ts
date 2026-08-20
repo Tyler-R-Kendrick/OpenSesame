@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as index from "./index.js";
+import { overlapCast, isFunction } from "@opensesame/os-domain";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -7,9 +8,9 @@ afterEach(() => {
 
 describe("index barrel", () => {
   it("re-exports the public surface", () => {
-    expect(typeof index.parseArgs).toBe("function");
-    expect(typeof index.helpText).toBe("function");
-    expect(typeof index.runCli).toBe("function");
+    expect(isFunction(index.parseArgs)).toBe(true);
+    expect(isFunction(index.helpText)).toBe(true);
+    expect(isFunction(index.runCli)).toBe(true);
     expect(index.SessionFileSchema).toBeDefined();
     expect(index.GlobalFlagsSchema).toBeDefined();
   });
@@ -20,7 +21,7 @@ describe("bin entrypoint", () => {
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     const exit = vi
       .spyOn(process, "exit")
-      .mockImplementation((() => undefined) as never);
+      .mockImplementation(overlapCast(() => undefined));
     const argv = process.argv;
     process.argv = ["node", "opensesame-id", "--help"];
     try {

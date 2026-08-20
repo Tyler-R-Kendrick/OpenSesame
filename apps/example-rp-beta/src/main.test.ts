@@ -1,14 +1,9 @@
 import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { overlapCast } from "@opensesame/os-domain";
 
 const renderMock = vi.fn();
 const createRootMock = vi.fn(() => ({ render: renderMock }));
-
-vi.mock("react-dom/client", () => ({
-  createRoot: createRootMock,
-}));
-
-type TestElement = { type: unknown; props: Record<string, unknown> };
 
 describe("main entrypoint", () => {
   afterEach(() => {
@@ -19,6 +14,8 @@ describe("main entrypoint", () => {
   });
 
   it("mounts the beta relying party into the #root element", async () => {
+    const { reactDomSeams } = await import("./react-dom.js");
+    reactDomSeams.createRoot = createRootMock;
     const rootEl = { id: "root" };
     const getElementById = vi.fn(() => rootEl);
     vi.stubGlobal("document", { getElementById });
@@ -28,9 +25,9 @@ describe("main entrypoint", () => {
     expect(getElementById).toHaveBeenCalledWith("root");
     expect(createRootMock).toHaveBeenCalledWith(rootEl);
     expect(renderMock).toHaveBeenCalledTimes(1);
-    const tree = renderMock.mock.calls[0]?.[0] as TestElement;
+    const tree = overlapCast(renderMock.mock.calls[0]?.[0]);
     expect(tree.type).toBe(StrictMode);
-    const app = tree.props.children as TestElement;
+    const app = overlapCast(tree.props.children);
     expect(app.props).toMatchObject({
       name: "RP Beta",
       clientId: "rp-beta",

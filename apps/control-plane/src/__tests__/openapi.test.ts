@@ -2,12 +2,13 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../config.js";
 import { buildOpenApiDocument } from "../openapi.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 describe("organization OpenAPI authentication", () => {
   it("keeps the generated OpenAPI artifact in sync", () => {
-    const committed = JSON.parse(
+    const committed = overlapCast(JSON.parse(
       readFileSync(new URL("../../openapi.json", import.meta.url), "utf8"),
-    ) as unknown;
+    ));
     expect(committed).toEqual(
       buildOpenApiDocument(loadConfig({ OPENSESAME_ENV: "test" })),
     );
@@ -17,10 +18,7 @@ describe("organization OpenAPI authentication", () => {
     const document = buildOpenApiDocument(
       loadConfig({ OPENSESAME_ENV: "test" }),
     );
-    const paths = document.paths as Record<
-      string,
-      Record<string, { security?: Array<Record<string, unknown>> }>
-    >;
+    const paths = overlapCast(document.paths);
 
     for (const [path, method] of [
       ["/v1/organizations", "post"],

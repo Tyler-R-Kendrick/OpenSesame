@@ -1,6 +1,6 @@
 import { ClaimEngine, MemoryClaimStore } from "@opensesame/claims";
 import { createRepositories } from "@opensesame/database";
-import { fixtures } from "@opensesame/os-domain";
+import { fixtures, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 import type { Project } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
@@ -185,9 +185,9 @@ describe("cleanup worker", () => {
       clock: clock.asClock(),
       intervalMs: 0,
       signal: controller.signal,
-      log: {
-        error: (_obj: unknown, msg: string) => errors.push(msg),
-      } as never,
+      log: overlapCast({
+        error: (_obj: BoundaryValue, msg: string) => errors.push(msg),
+      }),
     });
 
     // The throwing first tick did not end the loop.
@@ -239,10 +239,10 @@ describe("cleanup worker", () => {
           throw new Error("nats down");
         },
       },
-      log: {
+      log: overlapCast({
         info: () => {},
-        error: (_obj: unknown, msg: string) => errors.push(msg),
-      } as never,
+        error: (_obj: BoundaryValue, msg: string) => errors.push(msg),
+      }),
     });
     expect(result.outboxPublished).toBe(0);
     expect(await repos.outbox.listUnpublished()).toHaveLength(1);

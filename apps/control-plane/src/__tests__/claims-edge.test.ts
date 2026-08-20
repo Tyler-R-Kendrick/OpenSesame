@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -16,10 +17,10 @@ async function provisional(app: App) {
     method: "POST",
   });
   expect(res.status).toBe(201);
-  return (await res.json()) as { principalId: string; accessToken: string };
+  return overlapCast(await res.json());
 }
 
-async function createClaim(app: App, accessToken: string, body: unknown) {
+async function createClaim(app: App, accessToken: string, body: BoundaryValue) {
   const res = await app.request("/v1/claims", {
     method: "POST",
     headers: {
@@ -37,11 +38,7 @@ async function createDeviceClaim(app: App, accessToken: string) {
     targetManifest: { deviceId: "dev_1" },
   });
   expect(res.status).toBe(201);
-  return (await res.json()) as {
-    claimId: string;
-    claimToken: string;
-    userCode: string;
-  };
+  return overlapCast(await res.json());
 }
 
 describe("claims routes edge cases", () => {
@@ -54,7 +51,7 @@ describe("claims routes edge cases", () => {
       headers: { authorization: `Bearer ${claim.claimToken}` },
     });
     expect(byBearer.status).toBe(200);
-    expect(((await byBearer.json()) as { id: string }).id).toBe(claim.claimId);
+    expect((overlapCast(await byBearer.json())).id).toBe(claim.claimId);
   });
 
   it("rejects claim reads with malformed or mismatched tokens", async () => {
@@ -95,7 +92,7 @@ describe("claims routes edge cases", () => {
       type: "not-a-type",
     });
     expect(invalid.status).toBe(400);
-    expect(((await invalid.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await invalid.json())).error).toBe(
       "validation_error",
     );
 
@@ -111,7 +108,7 @@ describe("claims routes edge cases", () => {
     });
     expect(overQuota.status).toBe(403);
     expect(
-      ((await overQuota.json()) as { reasons: string[] }).reasons,
+      (overlapCast(await overQuota.json())).reasons,
     ).toContain("quota_claims");
   });
 
@@ -158,7 +155,7 @@ describe("claims routes edge cases", () => {
       body: JSON.stringify({ token: "not-a-claim-token-at-all" }),
     });
     expect(invalidClaim.status).toBe(401);
-    expect(((await invalidClaim.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await invalidClaim.json())).error).toBe(
       "invalid_token",
     );
 
@@ -200,7 +197,7 @@ describe("claims routes edge cases", () => {
     });
     expect(unknown.status).toBe(404);
 
-    const attempt = (userCode: string, extra: Record<string, unknown> = {}) =>
+    const attempt = (userCode: string, extra: JsonObject = {}) =>
       app.request(`/v1/claims/${claim.claimId}/complete`, {
         method: "POST",
         headers: { ...auth, "content-type": "application/json" },
@@ -230,7 +227,7 @@ describe("claims routes edge cases", () => {
       }),
     });
     expect(badToken.status).toBe(401);
-    expect(((await badToken.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await badToken.json())).error).toBe(
       "invalid_claim_token",
     );
 
@@ -245,7 +242,7 @@ describe("claims routes edge cases", () => {
       }),
     });
     expect(pending.status).toBe(422);
-    expect(((await pending.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await pending.json())).error).toBe(
       "INVALID_TRANSITION",
     );
   });
@@ -274,7 +271,7 @@ describe("claims routes edge cases", () => {
       }),
     });
     expect(complete.status).toBe(200);
-    const done = (await complete.json()) as { state: string; won: boolean };
+    const done = overlapCast(await complete.json());
     expect(done.state).toBe("completed");
     expect(done.won).toBe(true);
 
@@ -291,7 +288,7 @@ describe("claims routes edge cases", () => {
       headers: { "x-claim-token": claim.claimToken },
     });
     expect(poll.status).toBe(200);
-    expect(((await poll.json()) as { status: string }).status).toBe(
+    expect((overlapCast(await poll.json())).status).toBe(
       "completed",
     );
   });
@@ -334,13 +331,13 @@ describe("claims routes edge cases", () => {
       headers: { authorization: `Bearer ${owner.accessToken}` },
     });
     expect(denied.status).toBe(200);
-    expect(((await denied.json()) as { state: string }).state).toBe("denied");
+    expect((overlapCast(await denied.json())).state).toBe("denied");
 
     const poll = await app.request(`/v1/claims/${claim.claimId}/poll`, {
       headers: { "x-claim-token": claim.claimToken },
     });
     expect(poll.status).toBe(400);
-    expect(((await poll.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await poll.json())).error).toBe(
       "access_denied",
     );
 
@@ -361,7 +358,7 @@ describe("claims routes edge cases", () => {
       headers: { "x-claim-token": claim.claimToken },
     });
     expect(poll.status).toBe(400);
-    const body = (await poll.json()) as { status: string; error: string };
+    const body = overlapCast(await poll.json());
     expect(body.status).toBe("pending");
     expect(body.error).toBe("authorization_pending");
   });
@@ -380,12 +377,7 @@ describe("claims routes edge cases", () => {
       }),
     });
     expect(registered.status).toBe(201);
-    const agent = (await registered.json()) as {
-      agentId: string;
-      claimId: string;
-      claimToken: string;
-      userCode: string;
-    };
+    const agent = overlapCast(await registered.json());
 
     await app.request("/v1/claims/present", {
       method: "POST",
@@ -401,9 +393,7 @@ describe("claims routes edge cases", () => {
       }),
     });
     expect(complete.status).toBe(200);
-    const body = (await complete.json()) as {
-      preserved: { agentId?: string };
-    };
+    const body = overlapCast(await complete.json());
     expect(body.preserved.agentId).toBe(agent.agentId);
     expect(ctx.stores.agents.get(agent.agentId)?.state).toBe("claimed");
   });

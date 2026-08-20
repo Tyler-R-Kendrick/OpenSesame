@@ -1,14 +1,15 @@
+import { overlapCast, isString } from "@opensesame/os-domain";
 /// <reference lib="webworker" />
 
 // SAFETY: this file is a service worker; globalThis is ServiceWorkerGlobalScope
 // at runtime, but the TS lib types do not overlap.
-const sw = globalThis as unknown as ServiceWorkerGlobalScope;
+const sw = overlapCast(globalThis);
 
 const CACHE = "opensesame-pages-v3";
 // @ts-expect-error replaced by vite-plugin-pwa during the service-worker build
 const shell = self.__WB_MANIFEST.find(
   (entry: { url: string } | string) =>
-    (typeof entry === "string" ? entry : entry.url) === "index.html",
+    (isString(entry) ? entry : entry.url) === "index.html",
 );
 const fallback = new URL("index.html", sw.registration.scope).href;
 
@@ -44,7 +45,7 @@ sw.addEventListener("install", (event) => {
       .open(CACHE)
       .then((cache) =>
         shell
-          ? cache.add(typeof shell === "string" ? shell : shell.url)
+          ? cache.add(isString(shell) ? shell : shell.url)
           : undefined,
       )
       .then(() => sw.skipWaiting()),

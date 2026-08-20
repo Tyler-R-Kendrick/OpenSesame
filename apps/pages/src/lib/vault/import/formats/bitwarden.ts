@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString, isNumber } from "@opensesame/os-domain";
 /**
  * Bitwarden, both export shapes.
  *
@@ -24,7 +25,7 @@ import {
 } from "../types.js";
 
 /** Bitwarden's numeric match rules. Ours has no startsWith or regex. */
-const URI_MATCH: Record<number, UriMatch> = {
+const URI_MATCH = {
   0: "domain",
   1: "host",
   2: "exact", // startsWith — closest honest neighbour
@@ -54,9 +55,9 @@ type BwExport = {
   items?: unknown;
 };
 
-function isBitwardenJson(json: unknown): json is BwExport {
-  if (!json || typeof json !== "object") return false;
-  const candidate = json as BwExport;
+function isBitwardenJson(json: BoundaryValue): json is BwExport {
+  if (!json || !isTypeofObject(json)) return false;
+  const candidate = overlapCast(json);
   return Array.isArray(candidate.items) && "encrypted" in candidate;
 }
 
@@ -81,8 +82,8 @@ export const bitwardenJson: ImportAdapter = {
 
     const folderNames = new Map<string, string>();
     for (const raw of Array.isArray(json.folders) ? json.folders : []) {
-      const folder = raw as { id?: unknown; name?: unknown };
-      if (typeof folder.id === "string" && typeof folder.name === "string") {
+      const folder = overlapCast(raw);
+      if (isString(folder.id) && isString(folder.name)) {
         folderNames.set(folder.id, folder.name);
       }
     }
@@ -92,11 +93,11 @@ export const bitwardenJson: ImportAdapter = {
     const warnings: string[] = [];
     let identityCount = 0;
 
-    for (const raw of json.items as unknown[]) {
-      const bw = raw as BwItem;
+    for (const raw of overlapCast(json.items)) {
+      const bw = overlapCast(raw);
       const name = asString(bw.name) || "Untitled";
       const folder =
-        typeof bw.folderId === "string"
+        isString(bw.folderId)
           ? (folderNames.get(bw.folderId) ?? null)
           : null;
 
@@ -104,20 +105,15 @@ export const bitwardenJson: ImportAdapter = {
 
       switch (bw.type) {
         case 1: {
-          const login = (bw.login ?? {}) as {
-            username?: unknown;
-            password?: unknown;
-            totp?: unknown;
-            uris?: unknown;
-          };
+          const login = overlapCast(bw.login ?? {});
           const draft = draftLogin(name);
           draft.username = asString(login.username);
           draft.password = asString(login.password);
           draft.totp = normaliseTotp(asString(login.totp));
           for (const rawUri of Array.isArray(login.uris) ? login.uris : []) {
-            const entry = rawUri as BwUri;
+            const entry = overlapCast(rawUri);
             const match =
-              typeof entry.match === "number"
+              isNumber(entry.match)
                 ? (URI_MATCH[entry.match] ?? "domain")
                 : "domain";
             addUri(draft, asString(entry.uri), match);
@@ -129,7 +125,7 @@ export const bitwardenJson: ImportAdapter = {
           item = draftNote(name);
           break;
         case 3: {
-          const card = (bw.card ?? {}) as Record<string, unknown>;
+          const card = overlapCast(bw.card ?? {});
           const draft = draftCard(name);
           draft.cardholder = asString(card.cardholderName);
           draft.brand = asString(card.brand);
@@ -144,7 +140,7 @@ export const bitwardenJson: ImportAdapter = {
           // We have no identity type. Rather than drop the record, keep it as a
           // note whose fields hold every populated value.
           identityCount += 1;
-          const identity = (bw.identity ?? {}) as Record<string, unknown>;
+          const identity = overlapCast(bw.identity ?? {});
           const draft = draftNote(name);
           for (const [key, value] of Object.entries(identity)) {
             addField(draft, humanise(key), asString(value), isSensitive(key));
@@ -167,7 +163,7 @@ export const bitwardenJson: ImportAdapter = {
       item.updatedAt = toIso(bw.revisionDate);
 
       for (const rawField of Array.isArray(bw.fields) ? bw.fields : []) {
-        const field = rawField as BwField;
+        const field = overlapCast(rawField);
         addField(
           item,
           asString(field.name),

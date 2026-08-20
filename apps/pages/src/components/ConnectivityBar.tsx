@@ -43,7 +43,7 @@ export function connectorGlyph(id: ConnectorId, size = 19): ReactNode {
   return GLYPHS[id](size);
 }
 
-export function ConnectivityBar() {
+function ConnectivityBarDefault() {
   const connectors = useConnectors();
   const [open, setOpen] = useState<ConnectorId | null>(null);
   const attention = needsAttention(connectors);
@@ -87,6 +87,15 @@ export function ConnectivityBar() {
       ) : null}
     </>
   );
+}
+
+export const connectivityBarSeams = {
+  ConnectivityBar: ConnectivityBarDefault,
+};
+
+export function ConnectivityBar() {
+  const Impl = connectivityBarSeams.ConnectivityBar;
+  return <Impl />;
 }
 
 /**

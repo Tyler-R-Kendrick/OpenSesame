@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { assertMalformedDenied, assertNoSecretFields } from "./oracles.js";
+import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
-const identity = (v: unknown): unknown => v;
+const identity = (v: BoundaryValue): BoundaryValue => v;
 
 describe("assertNoSecretFields", () => {
   it("passes when the redactor masks secret-looking keys", () => {
-    const redact = (v: unknown): unknown => {
-      const input = v as Record<string, unknown>;
-      const out: Record<string, unknown> = {};
+    const redact = (v: BoundaryValue): BoundaryValue => {
+      const input = overlapCast(v);
+      const out: JsonObject = {};
       for (const [k, val] of Object.entries(input)) {
         out[k] = k.includes("token") ? "[REDACTED]" : val;
       }

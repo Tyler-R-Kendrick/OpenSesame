@@ -1,4 +1,4 @@
-import type { AuditActorType, AuditOutcome } from "@opensesame/os-domain";
+import type { AuditActorType, AuditOutcome, JsonObject } from "@opensesame/os-domain";
 import {
   type AppendAuditEventInput,
   type AuditSink,
@@ -61,7 +61,7 @@ export type RecordSecretChangelogInput = {
   causationId?: string;
   targetType?: string;
   targetId?: string;
-  metadata?: SecretChangelogMetadata & Record<string, unknown>;
+  metadata?: SecretChangelogMetadata & JsonObject;
   occurredAt?: Date;
   id?: string;
 };
@@ -84,25 +84,25 @@ export async function recordSecretChangelog(
     ...input.metadata,
     ...(input.metadata?.configId !== undefined
       ? { configId: input.metadata.configId }
-      : {}),
+      : undefined),
     ...(input.metadata?.environment !== undefined
       ? { environment: input.metadata.environment }
-      : {}),
+      : undefined),
     ...(input.metadata?.keyNames !== undefined
       ? { keyNames: input.metadata.keyNames }
-      : {}),
+      : undefined),
     ...(input.metadata?.versionId !== undefined
       ? { versionId: input.metadata.versionId }
-      : {}),
+      : undefined),
     ...(input.metadata?.targetId !== undefined
       ? { targetId: input.metadata.targetId }
-      : {}),
+      : undefined),
     ...(input.metadata?.contentVersion !== undefined
       ? { contentVersion: input.metadata.contentVersion }
-      : {}),
+      : undefined),
     ...(input.metadata?.actor !== undefined
       ? { actor: input.metadata.actor }
-      : {}),
+      : undefined),
   });
 
   const appendInput: AppendAuditEventInput = {

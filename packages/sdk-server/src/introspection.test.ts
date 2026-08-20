@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AuthError, AuthorizationError } from "./errors.js";
 import { introspectOpaqueAccessToken } from "./introspection.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const ENDPOINT = "https://issuer.example/introspect";
 const TOKEN = "opaque-access-token-value";
@@ -11,16 +12,17 @@ function mockFetch(response: {
   json?: unknown;
   reject?: Error;
 }): typeof fetch {
-  return (async () => {
+  const impl = async () => {
     if (response.reject) {
       throw response.reject;
     }
-    return {
+    return overlapCast({
       ok: response.ok ?? true,
       status: response.status ?? 200,
       json: async () => response.json,
-    } as Response;
-  }) as typeof fetch;
+    });
+  };
+  return overlapCast(impl);
 }
 
 describe("introspectOpaqueAccessToken", () => {
@@ -65,7 +67,7 @@ describe("introspectOpaqueAccessToken", () => {
       });
     } catch (error) {
       expect(error).toBeInstanceOf(AuthError);
-      expect((error as Error).message).not.toContain(TOKEN);
+      expect((overlapCast(error)).message).not.toContain(TOKEN);
     }
   });
 
@@ -99,13 +101,13 @@ describe("introspectOpaqueAccessToken", () => {
 
   it("fails closed on malformed JSON", async () => {
     const fetchImpl: typeof fetch = async () =>
-      ({
+      overlapCast({
         ok: true,
         status: 200,
         json: async () => {
           throw new SyntaxError("Unexpected token");
         },
-      }) as unknown as Response;
+      });
 
     await expect(
       introspectOpaqueAccessToken(TOKEN, {
@@ -152,20 +154,20 @@ describe("introspectOpaqueAccessToken", () => {
         requiredScopes: ["admin"],
       });
     } catch (error) {
-      expect((error as AuthorizationError).code).toBe("insufficient_scope");
-      expect((error as Error).message).not.toContain(TOKEN);
+      expect((overlapCast(error)).code).toBe("insufficient_scope");
+      expect((overlapCast(error)).message).not.toContain(TOKEN);
     }
   });
 
   it("sends Basic auth when client credentials are provided", async () => {
     let capturedAuth: string | undefined;
     const fetchImpl: typeof fetch = async (_url, init) => {
-      capturedAuth = (init?.headers as Record<string, string>).Authorization;
-      return {
+      capturedAuth = (overlapCast(init?.headers)).Authorization;
+      return overlapCast({
         ok: true,
         status: 200,
         json: async () => ({ active: true, sub: "user-1" }),
-      } as unknown as Response;
+      });
     };
 
     await introspectOpaqueAccessToken(TOKEN, {

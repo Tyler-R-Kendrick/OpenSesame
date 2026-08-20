@@ -1,38 +1,39 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const online = vi.hoisted(() => ({ value: true }));
 const session = vi.hoisted(() => ({
-  current: { principalId: "prn_op" } as { principalId: string } | null,
+  current: { principalId: "prn_op" },
 }));
 const ensureHostSession = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 );
 const hostLocalSessionEligible = vi.hoisted(() => vi.fn(() => true));
 
-vi.mock("../../lib/use-online.js", () => ({
-  useOnline: () => online.value,
-}));
-
-vi.mock("../../lib/identity.js", () => ({
-  useIdentitySession: () => session.current,
+import { useOnlineSeams } from "../../lib/use-online.js";
+const originalUseOnlineSeams = { ...useOnlineSeams };
+Object.assign(useOnlineSeams, {useOnline: () => online.value});
+import { identitySeams } from "../../lib/identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {useIdentitySession: () => session.current,
   ensureHostSession,
-  hostLocalSessionEligible,
-}));
-
+  hostLocalSessionEligible});
 const listSyncTargets = vi.hoisted(() => vi.fn());
 const syncTarget = vi.hoisted(() => vi.fn());
 const deleteSyncTarget = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/sync-targets.js", () => ({
+import { syncTargetSeams } from "../../lib/sync-targets.js";
+const originalSyncTargetSeams = { ...syncTargetSeams };
+Object.assign(syncTargetSeams, {
   listSyncTargets,
   syncTarget,
   deleteSyncTarget,
   formatSyncTargetSummary: (target: { providerId: string; status: string }) =>
     `${target.providerId} (${target.status})`,
-}));
+});
 
 import type { SyncTarget } from "../../lib/sync-targets.js";
 import { SyncTargetsPanel } from "./SyncTargetsPanel.js";
@@ -72,7 +73,7 @@ describe("SyncTargetsPanel", () => {
     expect(screen.getByText(/Offline — sync requires Host/i)).toBeTruthy();
     expect(listSyncTargets).not.toHaveBeenCalled();
     expect(
-      (screen.getByRole("button", { name: /Refresh/i }) as HTMLButtonElement)
+      (overlapCast(screen.getByRole("button", { name: /Refresh/i })))
         .disabled,
     ).toBe(true);
   });

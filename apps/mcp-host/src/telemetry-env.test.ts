@@ -1,65 +1,51 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { type Telemetry, createTelemetry } from "@opensesame/telemetry";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
+import { posthogSeams } from "./posthog.js";
+import { wrapServerWithTelemetry } from "./telemetry.js";
 
-type AnyFn = (...args: unknown[]) => unknown;
+type AnyFn = (...args: unknown[]) => BoundaryValue;
 
-/**
- * The env-driven path of telemetry.ts (OPENSESAME_TELEMETRY_KEY set) builds a
- * real PostHog client, caches it process-wide, and hooks SIGINT/SIGTERM to
- * flush. PostHog is mocked so no network happens; everything else — client
- * caching, capture plumbing, the shutdown hook — is the real code.
- */
-const mocks = vi.hoisted(() => {
-  class FakePostHog {
-    static failShutdown = false;
-    captures: Array<Record<string, unknown>> = [];
-    shutdowns = 0;
-    constructor(
-      public key: string,
-      public options: { host: string },
-    ) {}
-    capture(event: Record<string, unknown>) {
-      this.captures.push(event);
-    }
-    async shutdown() {
-      this.shutdowns += 1;
-      if (FakePostHog.failShutdown) {
-        throw new Error("flush failed");
-      }
+class FakePostHog {
+  static failShutdown = false;
+  captures: Array<JsonObject> = [];
+  shutdowns = 0;
+  constructor(
+    public key: string,
+    public options: { host: string },
+  ) {
+    instances.push(this);
+  }
+  capture(event: JsonObject) {
+    this.captures.push(event);
+  }
+  async shutdown() {
+    this.shutdowns += 1;
+    if (FakePostHog.failShutdown) {
+      throw new Error("flush failed");
     }
   }
-  const instances: FakePostHog[] = [];
-  return { FakePostHog, instances };
-});
+}
 
-vi.mock("posthog-node", () => ({
-  PostHog: class extends mocks.FakePostHog {
-    constructor(...args: [string, { host: string }]) {
-      super(...args);
-      mocks.instances.push(this);
-    }
-  },
-}));
-
-import { wrapServerWithTelemetry } from "./telemetry.js";
+const instances: FakePostHog[] = [];
 
 function makeFakeServer(clientInfo?: { name: string; version: string }) {
   const registered = new Map<string, AnyFn>();
   const fake = {
     tool: (...args: unknown[]) => {
-      registered.set(args[0] as string, args[args.length - 1] as AnyFn);
+      registered.set(overlapCast(args[0]), overlapCast(args[args.length - 1]));
       return { name: args[0] };
     },
     server: {
       getClientVersion: () => clientInfo,
     },
   };
-  return { server: fake as unknown as McpServer, registered };
+  return { server: overlapCast(fake), registered };
 }
 
 function toolFnOf(server: McpServer): AnyFn {
-  return (server as unknown as { tool: AnyFn }).tool;
+  return (overlapCast(server)).tool;
 }
 
 const ENV_KEYS = [
@@ -72,7 +58,8 @@ describe("wrapServerWithTelemetry env-driven path", () => {
 
   beforeEach(() => {
     for (const key of ENV_KEYS) saved.set(key, process.env[key]);
-    mocks.FakePostHog.failShutdown = false;
+    FakePostHog.failShutdown = false;
+    posthogSeams.PostHog = overlapCast(FakePostHog);
   });
 
   afterEach(() => {
@@ -84,14 +71,14 @@ describe("wrapServerWithTelemetry env-driven path", () => {
       }
     }
     saved.clear();
-    mocks.FakePostHog.failShutdown = false;
+    FakePostHog.failShutdown = false;
   });
 
   it("builds one cached PostHog client from the env key and captures through it", async () => {
     process.env.OPENSESAME_TELEMETRY_KEY = "phc_test";
     // biome-ignore lint/performance/noDelete: default host branch needs the var unset
     delete process.env.OPENSESAME_TELEMETRY_HOST;
-    const before = mocks.instances.length;
+    const before = instances.length;
 
     const { server, registered } = makeFakeServer({
       name: "claude-code",
@@ -103,12 +90,11 @@ describe("wrapServerWithTelemetry env-driven path", () => {
     }));
     await registered.get("host_ready")?.();
 
-    // A second server reuses the same process-wide client.
     const second = makeFakeServer();
     wrapServerWithTelemetry(second.server);
 
-    expect(mocks.instances.length).toBe(before + 1);
-    const client = mocks.instances[before];
+    expect(instances.length).toBe(before + 1);
+    const client = instances[before];
     expect(client?.key).toBe("phc_test");
     expect(client?.options.host).toBe("https://us.i.posthog.com");
 
@@ -127,41 +113,42 @@ describe("wrapServerWithTelemetry env-driven path", () => {
 
   it("honors OPENSESAME_TELEMETRY_HOST for a fresh process", async () => {
     vi.resetModules();
+    const { posthogSeams: seams } = await import("./posthog.js");
+    seams.PostHog = overlapCast(FakePostHog);
     const { wrapServerWithTelemetry: freshWrap } = await import(
       "./telemetry.js"
     );
     process.env.OPENSESAME_TELEMETRY_KEY = "phc_test";
     process.env.OPENSESAME_TELEMETRY_HOST = "https://eu.i.posthog.com";
-    const before = mocks.instances.length;
+    const before = instances.length;
 
     const { server } = makeFakeServer();
     freshWrap(server);
 
-    expect(mocks.instances.length).toBe(before + 1);
-    expect(mocks.instances[before]?.options.host).toBe(
-      "https://eu.i.posthog.com",
-    );
+    expect(instances.length).toBe(before + 1);
+    expect(instances[before]?.options.host).toBe("https://eu.i.posthog.com");
   });
 
   it("flushes on SIGINT/SIGTERM and swallows a failed flush", async () => {
     vi.resetModules();
+    const { posthogSeams: seams } = await import("./posthog.js");
+    seams.PostHog = overlapCast(FakePostHog);
     const { wrapServerWithTelemetry: freshWrap } = await import(
       "./telemetry.js"
     );
     process.env.OPENSESAME_TELEMETRY_KEY = "phc_test";
-    const before = mocks.instances.length;
+    const before = instances.length;
 
     const { server } = makeFakeServer();
     freshWrap(server);
-    const client = mocks.instances[before];
+    const client = instances[before];
 
     const shutdowns = client?.shutdowns ?? 0;
     process.emit("SIGINT");
     process.emit("SIGTERM");
     expect(client?.shutdowns).toBe(shutdowns + 2);
 
-    // A rejected shutdown must not escape the signal handler.
-    mocks.FakePostHog.failShutdown = true;
+    FakePostHog.failShutdown = true;
     process.emit("SIGINT");
     await new Promise((resolve) => setImmediate(resolve));
     expect(client?.shutdowns).toBe(shutdowns + 3);
@@ -170,15 +157,13 @@ describe("wrapServerWithTelemetry env-driven path", () => {
   it("falls through untouched when the last tool() argument is not a callback", () => {
     // biome-ignore lint/performance/noDelete: explicit telemetry, no env key needed
     delete process.env.OPENSESAME_TELEMETRY_KEY;
-    const events: Array<{ event: string; props: Record<string, unknown> }> = [];
+    const events: Array<{ event: string; props: JsonObject }> = [];
     const telemetry: Telemetry = createTelemetry({
       capture: (event, props) => events.push({ event, props }),
     });
     const { server, registered } = makeFakeServer();
     wrapServerWithTelemetry(server, telemetry);
 
-    // A shape the wrapper does not recognize passes through to the original
-    // registrar unmodified and emits nothing.
     toolFnOf(server)("weird", "desc-only");
     expect(registered.get("weird")).toBe("desc-only");
     expect(events).toHaveLength(0);

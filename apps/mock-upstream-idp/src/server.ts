@@ -13,6 +13,7 @@ import {
   createMockIdpKeys,
   readMockIdpConfig,
 } from "./config.js";
+import { type JsonObject, type BoundaryValue, isString } from "@opensesame/os-domain";
 
 type AuthCode = {
   clientId: string;
@@ -58,8 +59,8 @@ export interface MockUpstreamIdp {
 function securityHeaders(
   extra: Record<string, string> = {},
   issuer = "",
-): Record<string, string> {
-  const headers: Record<string, string> = {
+) {
+  const headers = {
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
     "referrer-policy": "no-referrer",
@@ -77,7 +78,7 @@ function securityHeaders(
 function sendJson(
   res: ServerResponse,
   status: number,
-  body: unknown,
+  body: BoundaryValue,
   issuer = "",
   extra: Record<string, string> = {},
 ): void {
@@ -89,7 +90,7 @@ function sendJson(
   res.end(payload);
 }
 
-function tokenCorsHeaders(origin: string): Record<string, string> {
+function tokenCorsHeaders(origin: string) {
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-methods": "POST, OPTIONS",
@@ -166,7 +167,7 @@ export async function createMockUpstreamIdp(
     clientId: string;
     nonce?: string;
     scope: string;
-  }): Promise<Record<string, unknown>> {
+  }): Promise<JsonObject> {
     const now = Math.floor(Date.now() / 1000);
     const accessToken = `mock-access-${now}`;
     const origin = originFromClientId(params.clientId);
@@ -177,8 +178,8 @@ export async function createMockUpstreamIdp(
       sub: subject,
       email: config.testUser.email,
       name: config.testUser.name,
-      ...(origin ? { pairwise_sub: subject, origin } : {}),
-      ...(params.nonce ? { nonce: params.nonce } : {}),
+      ...(origin ? { pairwise_sub: subject, origin } : undefined),
+      ...(params.nonce ? { nonce: params.nonce } : undefined),
     })
       .setProtectedHeader({ alg: "RS256", kid: keys.kid })
       .setIssuer(config.issuer)
@@ -282,8 +283,8 @@ export async function createMockUpstreamIdp(
           redirectUri,
           scope,
           codeChallenge,
-          ...(nonce !== undefined ? { nonce } : {}),
-          ...(originClient !== undefined ? { origin: originClient } : {}),
+          ...(nonce !== undefined ? { nonce } : undefined),
+          ...(originClient !== undefined ? { origin: originClient } : undefined),
         };
         codes.set(code, entry);
 
@@ -299,7 +300,7 @@ export async function createMockUpstreamIdp(
 
       if (req.method === "OPTIONS" && path === "/token") {
         const requestOrigin = req.headers.origin;
-        if (typeof requestOrigin === "string" && requestOrigin.length > 0) {
+        if (isString(requestOrigin) && requestOrigin.length > 0) {
           res.writeHead(
             204,
             securityHeaders(tokenCorsHeaders(requestOrigin), config.issuer),
@@ -318,7 +319,7 @@ export async function createMockUpstreamIdp(
           body.get("client_secret") ?? basicClientSecret(req) ?? "";
         const originClient = originFromClientId(clientId);
         const requestOrigin =
-          typeof req.headers.origin === "string" ? req.headers.origin : "";
+          isString(req.headers.origin) ? req.headers.origin : "";
 
         if (originClient) {
           if (requestOrigin !== originClient) {
@@ -374,7 +375,7 @@ export async function createMockUpstreamIdp(
           const tokens = await issueTokens({
             clientId,
             scope: stored.scope,
-            ...(stored.nonce !== undefined ? { nonce: stored.nonce } : {}),
+            ...(stored.nonce !== undefined ? { nonce: stored.nonce } : undefined),
           });
           return sendJson(res, 200, tokens, config.issuer, cors);
         }

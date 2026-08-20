@@ -7,6 +7,7 @@ import {
   registrationResponseJson,
   requestOptionsFromJson,
 } from "./webauthn.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 describe("webauthn b64url", () => {
   it("round-trips bytes", () => {
@@ -42,9 +43,9 @@ describe("creationOptionsFromJson", () => {
       challenge: "aGk",
       pubKeyCredParams: [{ type: "public-key", alg: -7 }],
     });
-    const pk = opts.publicKey as PublicKeyCredentialCreationOptions;
-    expect([...(pk.challenge as Uint8Array)]).toEqual([104, 105]);
-    expect([...(pk.user.id as Uint8Array)]).toEqual([104]);
+    const pk = overlapCast(opts.publicKey);
+    expect([...(overlapCast(pk.challenge))]).toEqual([104, 105]);
+    expect([...(overlapCast(pk.user.id))]).toEqual([104]);
     expect(pk.user.name).toBe("dev@example");
     expect(pk.excludeCredentials).toBeUndefined();
   });
@@ -59,10 +60,10 @@ describe("creationOptionsFromJson", () => {
         { id: "aGVsbG8", type: "public-key", transports: ["internal"] },
       ],
     });
-    const pk = opts.publicKey as PublicKeyCredentialCreationOptions;
+    const pk = overlapCast(opts.publicKey);
     expect(pk.excludeCredentials).toHaveLength(1);
     const first = pk.excludeCredentials?.[0];
-    expect([...(first?.id as Uint8Array)]).toEqual([104, 101, 108, 108, 111]);
+    expect([...(overlapCast(first?.id))]).toEqual([104, 101, 108, 108, 111]);
     expect(first?.type).toBe("public-key");
     expect(first?.transports).toEqual(["internal"]);
   });
@@ -71,8 +72,8 @@ describe("creationOptionsFromJson", () => {
 describe("requestOptionsFromJson", () => {
   it("converts challenge to bytes and omits allowCredentials", () => {
     const opts = requestOptionsFromJson({ challenge: "aGk" });
-    const pk = opts.publicKey as PublicKeyCredentialRequestOptions;
-    expect([...(pk.challenge as Uint8Array)]).toEqual([104, 105]);
+    const pk = overlapCast(opts.publicKey);
+    expect([...(overlapCast(pk.challenge))]).toEqual([104, 105]);
     expect(pk.allowCredentials).toBeUndefined();
   });
 
@@ -83,16 +84,16 @@ describe("requestOptionsFromJson", () => {
       userVerification: "required",
       allowCredentials: [{ id: "aA", type: "public-key" }],
     });
-    const pk = opts.publicKey as PublicKeyCredentialRequestOptions;
+    const pk = overlapCast(opts.publicKey);
     expect(pk.rpId).toBe("id.opensesame.test");
     const first = pk.allowCredentials?.[0];
-    expect([...(first?.id as Uint8Array)]).toEqual([104]);
+    expect([...(overlapCast(first?.id))]).toEqual([104]);
   });
 });
 
 describe("registrationResponseJson", () => {
   it("serializes the attestation response with transports", () => {
-    const cred = {
+    const cred = overlapCast({
       id: "cred-1",
       rawId: new Uint8Array([1, 2, 3]).buffer,
       type: "public-key",
@@ -102,7 +103,7 @@ describe("registrationResponseJson", () => {
         getTransports: () => ["internal", "hybrid"],
       },
       getClientExtensionResults: () => ({ credProps: { rk: true } }),
-    } as unknown as PublicKeyCredential;
+    });
     const json = registrationResponseJson(cred);
     expect(json).toEqual({
       id: "cred-1",
@@ -118,7 +119,7 @@ describe("registrationResponseJson", () => {
   });
 
   it("defaults transports to [] when getTransports is missing", () => {
-    const cred = {
+    const cred = overlapCast({
       id: "cred-2",
       rawId: new Uint8Array([1]).buffer,
       type: "public-key",
@@ -127,21 +128,21 @@ describe("registrationResponseJson", () => {
         attestationObject: new Uint8Array([0]).buffer,
       },
       getClientExtensionResults: () => ({}),
-    } as unknown as PublicKeyCredential;
+    });
     expect(registrationResponseJson(cred).response.transports).toEqual([]);
   });
 });
 
 describe("assertionPayload", () => {
   it("serializes the assertion response", () => {
-    const cred = {
+    const cred = overlapCast({
       id: "cred-1",
       response: {
         clientDataJSON: new Uint8Array([1]).buffer,
         authenticatorData: new Uint8Array([2, 3]).buffer,
         signature: new Uint8Array([250, 255]).buffer,
       },
-    } as unknown as PublicKeyCredential;
+    });
     expect(assertionPayload(cred)).toEqual({
       credentialId: "cred-1",
       clientDataJSON: "AQ",

@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import type { AuditEvent } from "@opensesame/os-domain";
+import { AuditEvent, JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString, isFunction } from "@opensesame/os-domain";
 import type { AuditSink } from "./append.js";
 
 /**
@@ -51,11 +51,11 @@ export function canonicalAuditPayload(
 }
 
 /** Object key order is not evidence, so it is not allowed to change the digest. */
-function stableJson(value: unknown): string {
-  if (value === null || typeof value !== "object")
+function stableJson(value: BoundaryValue): string {
+  if (value === null || !isTypeofObject(value))
     return JSON.stringify(value) ?? "null";
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
-  const row = value as Record<string, unknown>;
+  const row = overlapCast(value);
   const keys = Object.keys(row).sort();
   return `{${keys.map((k) => `${JSON.stringify(k)}:${stableJson(row[k])}`).join(",")}}`;
 }
@@ -88,7 +88,7 @@ export interface ChainedAuditSinkOptions {
    */
   tip?: string | (() => Promise<string | undefined>);
   /** Retry once after another process wins the durable predecessor slot. */
-  retryOnConflict?: (error: unknown) => boolean;
+  retryOnConflict?: (error: BoundaryValue) => boolean;
 }
 
 /**
@@ -102,13 +102,13 @@ export function createChainedAuditSink(
   inner: AuditSink,
   options: ChainedAuditSinkOptions = {},
 ): AuditSink & { tip(): string } {
-  let tip = typeof options.tip === "string" ? options.tip : AUDIT_CHAIN_GENESIS;
+  let tip = isString(options.tip) ? options.tip : AUDIT_CHAIN_GENESIS;
   const resolveTip =
-    typeof options.tip === "function" ? options.tip : undefined;
+    isFunction(options.tip) ? options.tip : undefined;
   let resolved = resolveTip === undefined;
   let queue: Promise<unknown> = Promise.resolve();
 
-  async function link(event: AuditEvent, uow?: unknown): Promise<AuditEvent> {
+  async function link(event: AuditEvent, uow?: BoundaryValue): Promise<AuditEvent> {
     if (!resolved && resolveTip) {
       // A store that cannot be read leaves the tip at genesis: refusing to write
       // the event would lose the trail entirely, which is worse than a chain with
@@ -143,7 +143,7 @@ export function createChainedAuditSink(
   }
 
   return {
-    append(event: AuditEvent, uow?: unknown): Promise<AuditEvent> {
+    append(event: AuditEvent, uow?: BoundaryValue): Promise<AuditEvent> {
       const next = queue.then(
         () => link(event, uow),
         () => link(event, uow),

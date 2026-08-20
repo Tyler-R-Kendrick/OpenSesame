@@ -1,6 +1,17 @@
 import { defineConfig } from "oxlint";
 
 export default defineConfig({
+  // `pnpm lint:anti-slop` is the anti-slop gate. Built-in Oxlint categories
+  // stay off here; Biome remains the repo's general lint.
+  categories: {
+    correctness: "off",
+    suspicious: "off",
+    pedantic: "off",
+    perf: "off",
+    style: "off",
+    restriction: "off",
+    nursery: "off",
+  },
   ignorePatterns: [
     ".agent/**",
     ".agents/**",

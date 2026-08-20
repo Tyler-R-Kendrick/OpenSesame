@@ -1,16 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { overlapCast } from "@opensesame/os-domain";
 
 const hostFetch = vi.hoisted(() => vi.fn());
 const ensureHostSession = vi.hoisted(() => vi.fn());
-vi.mock("../identity.js", () => ({
-  hostFetch,
+import { identitySeams } from "../identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {hostFetch,
   ensureHostSession,
-  hostLocalSessionEligible: () => true,
-}));
-
-vi.mock("../projects.js", () => ({
+  hostLocalSessionEligible: () => true});
+import { projectSeams } from "../projects.js";
+const originalProjectSeams = { ...projectSeams };
+Object.assign(projectSeams, {
   activeProject: () => ({ id: "personal", name: "Personal", kind: "personal" }),
-}));
+});
 
 import {
   flushPendingVaultHostBackup,
@@ -49,10 +51,8 @@ describe("vault host backup", () => {
       "/api/v1/sync/blobs/push",
       expect.objectContaining({ method: "POST" }),
     );
-    const [, init] = hostFetch.mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(String(init.body)) as {
-      blobs: Array<{ id: string; epoch: number; ciphertext: number[] }>;
-    };
+    const [, init] = overlapCast(hostFetch.mock.calls[0]);
+    const body = overlapCast(JSON.parse(String(init.body)));
     expect(body.blobs.map((b) => b.id)).toEqual(["vault:header", "vault:body"]);
     expect(body.blobs.every((b) => b.ciphertext.length > 0)).toBe(true);
     expect(body.blobs.every((b) => b.epoch === 3)).toBe(true);

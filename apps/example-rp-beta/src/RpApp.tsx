@@ -1,6 +1,7 @@
-import { type Session, createOpenSesame } from "@opensesame/sdk-browser";
+import { type Session, createOpenSesame } from "./sdk-browser.js";
 import { useEffect, useMemo, useState } from "react";
 import "./rp.css";
+import { type BoundaryValue } from "@opensesame/os-domain";
 
 const issuer =
   import.meta.env.VITE_OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
@@ -37,7 +38,7 @@ export function RpApp(props: {
           setPhase("ready");
           history.replaceState(null, "", "/");
         })
-        .catch((e: unknown) => {
+        .catch((e: BoundaryValue) => {
           setError(
             e instanceof Error
               ? e.message

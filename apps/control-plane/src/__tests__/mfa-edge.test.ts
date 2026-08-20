@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -16,7 +17,7 @@ async function provisional(app: App) {
     method: "POST",
   });
   expect(res.status).toBe(201);
-  return (await res.json()) as { principalId: string; accessToken: string };
+  return overlapCast(await res.json());
 }
 
 function auth(token: string) {
@@ -41,7 +42,7 @@ describe("mfa routes edge cases", () => {
       headers: auth(owner.accessToken),
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { ok: boolean; challenge: string };
+    const body = overlapCast(await res.json());
     expect(body.ok).toBe(true);
     expect(body.challenge.length).toBeGreaterThan(8);
   });
@@ -59,7 +60,7 @@ describe("mfa routes edge cases", () => {
       body: JSON.stringify({ credentialId: "cred_no_key" }),
     });
     expect(missingKey.status).toBe(400);
-    expect(((await missingKey.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await missingKey.json())).error).toBe(
       "invalid_request",
     );
 
@@ -76,7 +77,7 @@ describe("mfa routes edge cases", () => {
       }),
     });
     expect(ok.status).toBe(200);
-    expect(((await ok.json()) as { credentialId: string }).credentialId).toBe(
+    expect((overlapCast(await ok.json())).credentialId).toBe(
       "cred_ok",
     );
   });
@@ -100,7 +101,7 @@ describe("mfa routes edge cases", () => {
       }),
     });
     expect(oversized.status).toBe(400);
-    expect(((await oversized.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await oversized.json())).error).toBe(
       "invalid_request",
     );
   });
@@ -122,7 +123,7 @@ describe("mfa routes edge cases", () => {
     }
     const limited = await attempt(20);
     expect(limited.status).toBe(429);
-    expect(((await limited.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await limited.json())).error).toBe(
       "rate_limited",
     );
   });
@@ -156,7 +157,7 @@ describe("mfa routes edge cases", () => {
       body: JSON.stringify({ code: "000000", principalId: "prn_someone_else" }),
     });
     expect(mismatch.status).toBe(403);
-    expect(((await mismatch.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await mismatch.json())).error).toBe(
       "principal_mismatch",
     );
 
@@ -169,7 +170,7 @@ describe("mfa routes edge cases", () => {
       body: JSON.stringify({ code: "000000" }),
     });
     expect(notEnrolled.status).toBe(404);
-    expect(((await notEnrolled.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await notEnrolled.json())).error).toBe(
       "not_enrolled",
     );
   });
@@ -192,6 +193,6 @@ describe("mfa routes edge cases", () => {
       body: JSON.stringify({ code: "12345" }),
     });
     expect(short.status).toBe(401);
-    expect(((await short.json()) as { ok: boolean }).ok).toBe(false);
+    expect((overlapCast(await short.json())).ok).toBe(false);
   });
 });

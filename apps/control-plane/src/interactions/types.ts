@@ -1,3 +1,8 @@
+import {
+  type JsonObject,
+  type JsonValue,
+  type BoundaryValue,
+} from "@opensesame/os-domain";
 /** Subset of the oidc-provider interaction details the interaction UI reads. */
 export interface InteractionPrompt {
   name: "login" | "consent" | string;
@@ -15,12 +20,12 @@ export interface InteractionDetails {
     client_id?: string;
     scope?: string;
     redirect_uri?: string;
-    [key: string]: unknown;
+    [key: string]: JsonValue | undefined;
   };
   grantId?: string;
   session?: {
     accountId?: string;
-    [key: string]: unknown;
+    [key: string]: JsonValue | undefined;
   };
 }
 
@@ -33,7 +38,7 @@ export interface InteractionDetails {
  */
 export type ProviderInteractions = {
   Grant: {
-    find(id: string): Promise<unknown>;
+    find(id: string): Promise<BoundaryValue>;
     new (args: { accountId: string; clientId: string }): {
       addOIDCScope(scope: string): void;
       addOIDCClaims(claims: string[]): void;
@@ -41,11 +46,11 @@ export type ProviderInteractions = {
       save(): Promise<string>;
     };
   };
-  interactionDetails(req: unknown, res: unknown): Promise<unknown>;
+  interactionDetails(req: BoundaryValue, res: BoundaryValue): Promise<BoundaryValue>;
   interactionResult(
-    req: unknown,
-    res: unknown,
-    result: Record<string, unknown>,
+    req: BoundaryValue,
+    res: BoundaryValue,
+    result: JsonObject,
     opts?: { mergeWithLastSubmission?: boolean },
   ): Promise<string>;
 };

@@ -21,6 +21,7 @@ import {
   putTaskBusConfig,
 } from "../../lib/taskbus.js";
 import { useOnline } from "../../lib/use-online.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 type Flash = { tone: "ok" | "err" | "warn"; text: string };
 
@@ -140,7 +141,7 @@ export function TaskBusPanel() {
               <select
                 value={backend}
                 onChange={(event) =>
-                  setBackend(event.target.value as "memory" | "nats")
+                  setBackend(overlapCast(event.target.value))
                 }
                 disabled={taskBusControlsDisabled(config, busy)}
               >

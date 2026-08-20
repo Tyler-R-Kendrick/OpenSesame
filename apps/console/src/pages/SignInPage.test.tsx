@@ -1,16 +1,13 @@
-import { createOpenSesame } from "@opensesame/sdk-browser";
+import { overlapCast } from "@opensesame/os-domain";
 // @vitest-environment jsdom
 import { type ReactElement, act } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sdkBrowserSeams } from "../sdk-browser.js";
 import { SignInPage } from "./SignInPage.js";
 
-vi.mock("@opensesame/sdk-browser", () => ({
-  createOpenSesame: vi.fn(),
-}));
-
 (
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  overlapCast(globalThis)
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 interface MockClient {
@@ -52,9 +49,7 @@ beforeEach(() => {
     continueAnonymously: vi.fn(),
     signOut: vi.fn(),
   };
-  vi.mocked(createOpenSesame).mockReturnValue(
-    client as unknown as ReturnType<typeof createOpenSesame>,
-  );
+  sdkBrowserSeams.createOpenSesame = vi.fn(() => overlapCast(client));
   sessionStorage.clear();
 });
 
@@ -72,7 +67,7 @@ describe("SignInPage", () => {
     expect(buttonNamed("Sign in with OpenSesame")).toBeDefined();
     expect(buttonNamed("Continue anonymously")).toBeDefined();
     expect(buttonNamed("Sign out")).toBeDefined();
-    expect(createOpenSesame).toHaveBeenCalledWith(
+    expect(sdkBrowserSeams.createOpenSesame).toHaveBeenCalledWith(
       expect.objectContaining({ clientId: "opensesame-console" }),
     );
   });

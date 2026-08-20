@@ -1,15 +1,16 @@
 import type { ClaimPresentation } from "@opensesame/sdk-browser";
 import { describe, expect, it } from "vitest";
 import { buildClaimCompletion, toClaim } from "./ClaimPage.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const presentation = (items?: ClaimPresentation["items"]): ClaimPresentation =>
-  ({
+  overlapCast({
     id: "clm_1",
     type: "project",
     state: "presented",
     targetManifestDigest: "d".repeat(64),
-    ...(items ? { items } : {}),
-  }) as ClaimPresentation;
+    ...(items ? { items } : undefined),
+  });
 
 describe("claim projection", () => {
   it("property: an itemless claim accepts an empty set, not an unknown one", () => {
@@ -29,10 +30,10 @@ describe("claim projection", () => {
 
   it("contract: a claim with items names every one of them", () => {
     const claim = toClaim(
-      presentation([
+      presentation(overlapCast([
         { id: "itm_a" },
         { id: "itm_b" },
-      ] as ClaimPresentation["items"]),
+      ])),
     );
     expect(claim.itemIds).toEqual(["itm_a", "itm_b"]);
   });

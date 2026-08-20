@@ -1,3 +1,4 @@
+import { type JsonObject, type BoundaryValue } from "@opensesame/os-domain";
 /**
  * Property / Adversarial / Chaos / conTract helpers (see docs/validation/pact.md).
  */
@@ -82,7 +83,7 @@ const DEFAULT_SECRET_FIELDS = [
 
 /** Contract: a JSON body must not carry secret-shaped keys (except `allow`). */
 export function assertNoSecretFields(
-  value: unknown,
+  value: BoundaryValue,
   allow: readonly string[] = [],
 ): void {
   const allowed = new Set(allow);
@@ -97,7 +98,7 @@ export function assertNoSecretFields(
 
 /** Contract: documented HTTP statuses must include fail-closed codes. */
 export function assertFailClosedStatuses(
-  responses: Record<string, unknown> | undefined,
+  responses: JsonObject | undefined,
   required: string[] = ["401"],
 ): void {
   if (!responses) {

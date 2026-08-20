@@ -16,7 +16,8 @@
   },
   "dependencies": {
     "@opensesame/client-core": "workspace:*",
-    "@opensesame/contracts": "workspace:*"
+    "@opensesame/contracts": "workspace:*",
+    "@opensesame/os-domain": "workspace:*"
   },
   "devDependencies": {
     "@opensesame/testing": "workspace:*",

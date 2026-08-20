@@ -47,6 +47,7 @@ import {
 } from "../lib/queue.js";
 import { useOnline } from "../lib/use-online.js";
 import "./authority.css";
+import { type JsonObject, overlapCast, type BoundaryValue, isString, isNumber } from "@opensesame/os-domain";
 
 /* ------------------------------------------------------------------ */
 /* Types the shared modules do not model                              */
@@ -196,7 +197,7 @@ function createClaimClient(session: IdentitySession | null) {
 
   const fetchImpl: typeof fetch = async (input, init) => {
     const href =
-      typeof input === "string"
+      isString(input)
         ? input
         : input instanceof URL
           ? input.href
@@ -234,14 +235,10 @@ function createClaimClient(session: IdentitySession | null) {
 
 async function readErrorCode(res: Response): Promise<string | null> {
   try {
-    const body = (await res.json()) as {
-      error?: unknown;
-      message?: unknown;
-      hint?: unknown;
-    };
-    if (typeof body.error === "string") return body.error;
-    if (typeof body.message === "string") return body.message;
-    if (typeof body.hint === "string") return body.hint;
+    const body = overlapCast(await res.json());
+    if (isString(body.error)) return body.error;
+    if (isString(body.message)) return body.message;
+    if (isString(body.hint)) return body.hint;
     return null;
   } catch {
     return null;
@@ -1211,7 +1208,7 @@ function ClaimArea({
     setBusy("present");
     const { client, failure } = createClaimClient(active);
     try {
-      const read = (await client.presentClaim(trimmed)) as ClaimView;
+      const read = overlapCast(await client.presentClaim(trimmed));
       if (currentSession()?.accessToken !== active.accessToken) {
         // The session changed while this was in flight. The claim was read for
         // the principal that is gone, and offering it to the new one would hand
@@ -1295,11 +1292,11 @@ function ClaimArea({
       // This client never saw the presentation — a fresh one is built per step —
       // so the claim bearer is passed explicitly. The claim id alone is public,
       // and the API will not attach ownership on the strength of it.
-      const done = (await client.completeClaim(presented.id, {
+      const done = overlapCast(await client.completeClaim(presented.id, {
         acceptedItemIds,
         userCode: consentCode,
         claimToken,
-      })) as ClaimView;
+      }));
       if (currentSession()?.accessToken !== active.accessToken) {
         // It landed, but under the principal that was connected when Accept was
         // pressed. Reporting it as this one's would name the wrong owner.
@@ -1515,7 +1512,7 @@ function ClaimArea({
                       <dt>Expires</dt>
                       <dd>{formatWhen(presented.expiresAt)}</dd>
                     </div>
-                    {typeof presented.version === "number" ? (
+                    {isNumber(presented.version) ? (
                       <div>
                         <dt>Version</dt>
                         <dd>{presented.version}</dd>
@@ -1756,7 +1753,7 @@ const ASSERTIONS: Assertion[] = [
   },
 ];
 
-type Discovery = Record<string, unknown>;
+type Discovery = JsonObject;
 
 const DISCOVERY_URLS: Array<{ key: string; label: string }> = [
   { key: "issuer", label: "Issuer" },
@@ -1808,7 +1805,7 @@ function ProtocolArea({ active }: { active: boolean }) {
         );
         return;
       }
-      setDoc((await res.json()) as Discovery);
+      setDoc(overlapCast(await res.json()));
     } catch {
       setDoc(null);
       setError(
@@ -1894,12 +1891,12 @@ function ProtocolArea({ active }: { active: boolean }) {
             <>
               <dl className="kv">
                 {DISCOVERY_URLS.filter(
-                  (entry) => typeof doc[entry.key] === "string",
+                  (entry) => isString(doc[entry.key]),
                 ).map((entry) => (
                   <div key={entry.key}>
                     <dt>{entry.label}</dt>
                     <dd className="authority-wrap">
-                      <code>{doc[entry.key] as string}</code>
+                      <code>{overlapCast(doc[entry.key])}</code>
                     </dd>
                   </div>
                 ))}
@@ -1910,7 +1907,7 @@ function ProtocolArea({ active }: { active: boolean }) {
                   const value = doc[entry.key];
                   const values = Array.isArray(value)
                     ? value.filter(
-                        (item): item is string => typeof item === "string",
+                        (item): item is string => isString(item),
                       )
                     : null;
                   return (
@@ -2290,7 +2287,7 @@ function unreachableMessage(): string {
   return `Could not reach the Identity API at ${identityBase()}. Start it, or point this page somewhere else in Settings.`;
 }
 
-function describePrincipalError(err: unknown): string {
+function describePrincipalError(err: BoundaryValue): string {
   if (err instanceof IdentityError) {
     if (err.status === 401) {
       return "Your session is no longer valid — it expired or was revoked. Disconnect and connect again.";
@@ -2309,7 +2306,7 @@ function describePrincipalError(err: unknown): string {
 }
 
 /** The token is checked against the API before this tab acts on it. */
-function describeAdoptError(err: unknown): string {
+function describeAdoptError(err: BoundaryValue): string {
   if (err instanceof IdentityError) {
     if (err.status === 401) {
       return "The Identity API rejected that token. Check you copied the whole line, and that it has not expired — run the CLI again for a fresh one.";
@@ -2324,7 +2321,7 @@ function describeAdoptError(err: unknown): string {
   return unreachableMessage();
 }
 
-function describeConnectError(err: unknown): string {
+function describeConnectError(err: BoundaryValue): string {
   if (err instanceof IdentityError) {
     if (err.status === 409) {
       // Raised locally when a lock or Disconnect landed mid-connect.
@@ -2398,7 +2395,7 @@ function describePresentFailure(failure: TransportFailure): string {
 
 function describeCompleteFailure(
   failure: TransportFailure,
-  err: unknown,
+  err: BoundaryValue,
 ): string {
   if (err instanceof Error && err.message.includes("Authentication required")) {
     return "The session was lost between presenting and completing. Connect on the Session tab and come back — the presented claim is held here, so accepting it again costs no new token.";

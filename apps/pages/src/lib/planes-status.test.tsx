@@ -1,3 +1,4 @@
+import { type BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,7 +14,7 @@ import { saveSettings } from "./settings.js";
 const HOST = "http://127.0.0.1:18787";
 const IDENTITY = "http://127.0.0.1:18788";
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: BoundaryValue, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },

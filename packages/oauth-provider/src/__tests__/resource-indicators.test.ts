@@ -4,6 +4,7 @@ import {
   createOpenSesameProvider,
   isResourceAllowed,
 } from "../create-provider.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const ISSUER = "https://id.example.test";
 
@@ -86,7 +87,7 @@ describe("createOpenSesameProvider fail-closed config", () => {
         env: { isProduction: true },
         processEnv: {},
         jwks: { keys: [{ kty: "RSA" }] },
-        adapter: adapter as never,
+        adapter: overlapCast(adapter),
       }),
     ).toThrow(/persistent pairwise subject store is required in production/);
   });

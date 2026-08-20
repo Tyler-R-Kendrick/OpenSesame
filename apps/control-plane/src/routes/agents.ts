@@ -76,10 +76,10 @@ agentRoutes.post(
       createdAt: now,
       ...(parsed.data.provider !== undefined
         ? { provider: parsed.data.provider }
-        : {}),
+        : undefined),
       ...(parsed.data.softwareIdentity !== undefined
         ? { softwareIdentity: parsed.data.softwareIdentity }
-        : {}),
+        : undefined),
     };
     const instance: AgentInstance = {
       id: instanceId,
@@ -88,10 +88,10 @@ agentRoutes.post(
       createdAt: now,
       ...(parsed.data.runtimeProvider !== undefined
         ? { runtimeProvider: parsed.data.runtimeProvider }
-        : {}),
+        : undefined),
       ...(parsed.data.attestationDigest !== undefined
         ? { attestationDigest: parsed.data.attestationDigest }
-        : {}),
+        : undefined),
     };
     ctx.stores.agents.set(agentId, agent);
     ctx.stores.agentInstances.set(instanceId, instance);

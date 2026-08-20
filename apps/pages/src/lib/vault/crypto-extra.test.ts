@@ -16,6 +16,7 @@ import {
   unwrapRawVaultKeyFromPassword,
   wrapVaultKeyWithPassword,
 } from "./crypto.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const PASSWORD = "correct horse battery staple";
 
@@ -42,7 +43,7 @@ describe("assertKdfParams", () => {
 
   it("rejects a foreign algorithm", async () => {
     const base = await kdf();
-    expect(() => assertKdfParams({ ...base, alg: "argon2" as never })).toThrow(
+    expect(() => assertKdfParams({ ...base, alg: overlapCast("argon2") })).toThrow(
       /unsupported key derivation/,
     );
   });
@@ -81,7 +82,7 @@ describe("unwrapRawVaultKeyFromPassword", () => {
   it("rejects unknown vault format versions", async () => {
     const { header } = await createVault(PASSWORD);
     await expect(
-      unwrapRawVaultKeyFromPassword({ ...header, v: 2 as never }, PASSWORD),
+      unwrapRawVaultKeyFromPassword({ ...header, v: overlapCast(2) }, PASSWORD),
     ).rejects.toBeInstanceOf(VaultCorruptError);
   });
 
@@ -157,7 +158,7 @@ describe("openJson", () => {
     const { vaultKey } = await createVault(PASSWORD);
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const ct = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv: iv as BufferSource },
+      { name: "AES-GCM", iv: overlapCast(iv) },
       vaultKey,
       new TextEncoder().encode("this is not json"),
     );

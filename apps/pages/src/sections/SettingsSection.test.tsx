@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,9 +14,9 @@ const vault = vi.hoisted(() => ({
       lockOnHide: false,
       signOutOnLock: false,
     },
-    items: [] as unknown[],
-    folders: [] as { id: string; name: string; createdAt: string }[],
-    header: null as Record<string, unknown> | null,
+    items: [],
+    folders: [],
+    header: null,
   },
 }));
 const store = vi.hoisted(() => ({
@@ -32,17 +33,29 @@ const store = vi.hoisted(() => ({
   destroy: vi.fn(),
 }));
 
-vi.mock("../lib/vault/hooks.js", () => ({
-  useVault: () => vault.current,
-  useVaultStore: () => store,
-}));
+import { vaultHooksSeams } from "../lib/vault/hooks.js";
+const originalVaultHooksSeams = { ...vaultHooksSeams };
+Object.assign(vaultHooksSeams, {useVault: () => vault.current,
+  useVaultStore: () => store});
+
 
 const loadSettings = vi.hoisted(() => vi.fn());
 const saveSettings = vi.hoisted(() => vi.fn());
 
-vi.mock("../lib/settings.js", () => ({ loadSettings, saveSettings }));
+import { settingsSeams } from "../lib/settings.js";
+const originalSettingsSeams = { ...settingsSeams };
+Object.assign(settingsSeams, {loadSettings, saveSettings});
+const checkTurso = vi.hoisted(() => vi.fn());
+const setTursoSessionToken = vi.hoisted(() => vi.fn());
 
-vi.mock("../lib/vault/password.js", () => ({
+import { embeddedCatalogSeams } from "../lib/embedded-catalog.js";
+const originalEmbeddedCatalogSeams = { ...embeddedCatalogSeams };
+Object.assign(embeddedCatalogSeams, {checkTurso,
+  setTursoSessionToken,});
+
+import { passwordSeams } from "../lib/vault/password.js";
+const originalPasswordSeams = { ...passwordSeams };
+Object.assign(passwordSeams, {
   estimateStrength: (password: string) => ({
     score: password.length >= 12 ? 3 : 1,
     label: password.length >= 12 ? "Strong" : "Weak",
@@ -50,62 +63,38 @@ vi.mock("../lib/vault/password.js", () => ({
   }),
   defaultPassphraseOptions: { mode: "passphrase", words: 4, separator: "-" },
   generate: () => "harbor-cinder-lattice-quarry",
-}));
+});
 
-vi.mock("../lib/vault/sample.js", () => ({
-  SAMPLE_FOLDER_NAME: "Samples",
+import { SAMPLE_FOLDER_NAME, sampleSeams } from "../lib/vault/sample.js";
+const originalSampleSeams = { ...sampleSeams };
+Object.assign(sampleSeams, {
   buildSample: (folderId: string) => [
     { id: "itm_sample", kind: "login", name: "Sample", folderId },
   ],
-  sampleFolder: () => ({ id: "fld_samples", name: "Samples" }),
-}));
+  sampleFolder: () => ({ id: "fld_samples", name: SAMPLE_FOLDER_NAME }),
+});
 
 const planManifestMerge = vi.hoisted(() => vi.fn());
 const vaultItemToEntry = vi.hoisted(() => vi.fn());
+import { storeSyncSeams } from "../lib/vault/store-sync.js";
+const originalStoreSyncSeams = { ...storeSyncSeams };
+Object.assign(storeSyncSeams, { planManifestMerge, vaultItemToEntry });
 
-vi.mock("../lib/vault/store-sync.js", () => ({
-  planManifestMerge,
-  vaultItemToEntry,
-}));
+import { SettingsSection, type SettingsPanels } from "./SettingsSection.js";
 
-vi.mock("./settings/ActiveProjectPanel.js", () => ({
+const stubPanels: SettingsPanels = {
+  UnlockMethodsPanel: () => <div data-testid="unlock-methods-panel" />,
   ActiveProjectPanel: () => <div data-testid="active-project-panel" />,
-}));
-vi.mock("./settings/CapabilityConnectorsPanel.js", () => ({
   CapabilityConnectorsPanel: () => (
     <div data-testid="capability-connectors-panel" />
   ),
-}));
-vi.mock("./settings/ChangelogPanel.js", () => ({
   ChangelogPanel: () => <div data-testid="changelog-panel" />,
-}));
-vi.mock("./settings/CoreConnectionsPanel.js", () => ({
-  CoreConnectionsPanel: () => <div data-testid="core-connections-panel" />,
-}));
-vi.mock("./settings/EndpointsPanel.js", () => ({
-  EndpointsPanel: () => <div data-testid="endpoints-panel" />,
-  TursoSyncPanel: () => <div data-testid="turso-panel" />,
-}));
-vi.mock("./settings/GithubBackupPanel.js", () => ({
   GithubBackupPanel: () => <div data-testid="github-backup-panel" />,
-}));
-vi.mock("./settings/ImportPanel.js", () => ({
   ImportPanel: () => <div data-testid="import-panel" />,
-}));
-vi.mock("./settings/OfflineBackupPanel.js", () => ({
   OfflineBackupPanel: () => <div data-testid="offline-backup-panel" />,
-}));
-vi.mock("./settings/SyncTargetsPanel.js", () => ({
   SyncTargetsPanel: () => <div data-testid="sync-targets-panel" />,
-}));
-vi.mock("./settings/TaskBusPanel.js", () => ({
   TaskBusPanel: () => <div data-testid="taskbus-panel" />,
-}));
-vi.mock("./settings/UnlockMethodsPanel.js", () => ({
-  UnlockMethodsPanel: () => <div data-testid="unlock-methods-panel" />,
-}));
-
-import { SettingsSection } from "./SettingsSection.js";
+};
 
 const endpoints = {
   hostApi: "http://127.0.0.1:8787",
@@ -119,7 +108,7 @@ const endpoints = {
 function renderSettings(hash = "") {
   return render(
     <MemoryRouter initialEntries={[`/settings${hash}`]}>
-      <SettingsSection />
+      <SettingsSection panels={stubPanels} />
     </MemoryRouter>,
   );
 }
@@ -149,7 +138,7 @@ describe("SettingsSection", () => {
     loadSettings.mockReturnValue({ ...endpoints });
     store.exportSealed.mockReturnValue('{"sealed":true}');
     store.importSealed.mockResolvedValue(2);
-    store.addFolder.mockResolvedValue({ id: "fld_new", name: "Samples" });
+    store.addFolder.mockResolvedValue({ id: "fld_new", name: SAMPLE_FOLDER_NAME });
     store.addItems.mockResolvedValue(undefined);
     store.replaceAll.mockResolvedValue(undefined);
     store.changeMasterPassword.mockResolvedValue(undefined);
@@ -239,6 +228,27 @@ describe("SettingsSection", () => {
     expect(screen.getByText(/600,000 PBKDF2-SHA256 iterations/)).toBeTruthy();
   });
 
+  it("rejects mismatched master password entries", async () => {
+    renderSettings("#security");
+    await userEvent.type(
+      screen.getByLabelText(/Current master password/i),
+      "old-password-1",
+    );
+    await userEvent.type(
+      screen.getByLabelText(/New master password/i),
+      "new-password-12",
+    );
+    await userEvent.type(screen.getByLabelText(/^Confirm$/i), "different-123");
+    fireEvent.submit(
+      overlapCast(screen
+        .getByRole("button", { name: /Change master password/i })
+        .closest("form")),
+    );
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.getByText(/do not match/)).toBeTruthy();
+    expect(store.changeMasterPassword).not.toHaveBeenCalled();
+  });
+
   it("changes the master password and clears the form", async () => {
     renderSettings("#security");
     await userEvent.type(screen.getByLabelText("Current"), "old-password-1");
@@ -278,9 +288,9 @@ describe("SettingsSection", () => {
     vault.current.header = null;
     renderSettings("#security");
     expect(screen.getByText(/no master-password unlock/)).toBeTruthy();
-    const button = screen.getByRole("button", {
+    const button = overlapCast(screen.getByRole("button", {
       name: /Change master password/i,
-    }) as HTMLButtonElement;
+    }));
     expect(button.disabled).toBe(true);
   });
 
@@ -386,9 +396,9 @@ describe("SettingsSection", () => {
       unchanged: 3,
     });
     renderSettings("#data");
-    const input = document.getElementById(
+    const input = overlapCast(document.getElementById(
       "store-manifest-file",
-    ) as HTMLInputElement;
+    ));
     fireEvent.change(input, {
       target: { files: [makeFile("manifest.json", '[{"path":"a"}]')] },
     });
@@ -400,9 +410,9 @@ describe("SettingsSection", () => {
 
   it("rejects manifests that are not JSON arrays", async () => {
     renderSettings("#data");
-    const input = document.getElementById(
+    const input = overlapCast(document.getElementById(
       "store-manifest-file",
-    ) as HTMLInputElement;
+    ));
     fireEvent.change(input, {
       target: { files: [makeFile("manifest.json", '{"nope":true}')] },
     });
@@ -429,7 +439,7 @@ describe("SettingsSection", () => {
 
   it("requires the export password before importing a vault", async () => {
     renderSettings("#data");
-    const input = document.getElementById("import-file") as HTMLInputElement;
+    const input = overlapCast(document.getElementById("import-file"));
     fireEvent.change(input, {
       target: { files: [makeFile("vault.json", "{}")] },
     });
@@ -445,7 +455,7 @@ describe("SettingsSection", () => {
       screen.getByLabelText(/Master password that export was sealed under/i),
       "hunter2",
     );
-    const input = document.getElementById("import-file") as HTMLInputElement;
+    const input = overlapCast(document.getElementById("import-file"));
     fireEvent.change(input, {
       target: { files: [makeFile("vault.json", "{}")] },
     });
@@ -462,7 +472,7 @@ describe("SettingsSection", () => {
       screen.getByLabelText(/Master password that export was sealed under/i),
       "hunter2",
     );
-    const input = document.getElementById("import-file") as HTMLInputElement;
+    const input = overlapCast(document.getElementById("import-file"));
     fireEvent.change(input, {
       target: { files: [makeFile("vault.json", "{}")] },
     });
@@ -476,7 +486,7 @@ describe("SettingsSection", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Load SYNTHETIC sample items/i }),
     );
-    expect(store.addFolder).toHaveBeenCalledWith("Samples");
+    expect(store.addFolder).toHaveBeenCalledWith(SAMPLE_FOLDER_NAME);
     expect(store.addItems).toHaveBeenCalled();
     expect((await screen.findByRole("status")).textContent).toMatch(
       /Sample items added/,
@@ -485,7 +495,7 @@ describe("SettingsSection", () => {
 
   it("reuses the existing sample folder when present", async () => {
     vault.current.folders = [
-      { id: "fld_s", name: "Samples", createdAt: "2026-08-01" },
+      { id: "fld_s", name: SAMPLE_FOLDER_NAME, createdAt: "2026-08-01" },
     ];
     renderSettings("#data");
     await userEvent.click(
@@ -501,7 +511,7 @@ describe("SettingsSection", () => {
       { id: "itm_2", sample: false, deletedAt: null },
     ];
     vault.current.folders = [
-      { id: "fld_s", name: "Samples", createdAt: "2026-08-01" },
+      { id: "fld_s", name: SAMPLE_FOLDER_NAME, createdAt: "2026-08-01" },
       { id: "fld_w", name: "Work", createdAt: "2026-08-01" },
     ];
     renderSettings("#data");

@@ -7,12 +7,36 @@ import { createLogger } from "@opensesame/observability";
 import { startCleanupLoop } from "./cleanup.js";
 import { createTaskBusFromEnv } from "./taskBus.js";
 
+export type WorkerRuntime = {
+  createLogger: typeof createLogger;
+  createRepositories: typeof createRepositories;
+  createDrizzle: typeof createDrizzle;
+  createPostgresOidcStore: typeof createPostgresOidcStore;
+  startCleanupLoop: typeof startCleanupLoop;
+  createTaskBusFromEnv: typeof createTaskBusFromEnv;
+  exit: (code: number) => void;
+};
+
+const defaultRuntime: WorkerRuntime = {
+  createLogger,
+  createRepositories,
+  createDrizzle,
+  createPostgresOidcStore,
+  startCleanupLoop,
+  createTaskBusFromEnv,
+  exit: (code) => {
+    process.exit(code);
+  },
+};
+
 /**
  * Identity-plane cleanup worker (TS). Coexists with the Rust authority worker
  * binary in this directory (`opensesame-worker`).
  */
-async function main(): Promise<void> {
-  const log = createLogger({ name: "worker" });
+export async function runWorker(
+  runtime: WorkerRuntime = defaultRuntime,
+): Promise<void> {
+  const log = runtime.createLogger({ name: "worker" });
   const databaseUrl = process.env.DATABASE_URL?.trim();
   // Without a database `createRepositories` returns in-memory repositories. In the
   // control plane that is a usable dev mode, because the process that writes the
@@ -23,12 +47,13 @@ async function main(): Promise<void> {
     log.error(
       "DATABASE_URL is required: a standalone cleanup worker without a database would publish an outbox nobody writes to",
     );
-    process.exit(1);
+    runtime.exit(1);
+    return;
   }
-  const repos = createRepositories({ databaseUrl });
-  const { db } = createDrizzle(databaseUrl);
-  const oidcStore = createPostgresOidcStore(db);
-  const taskBus = await createTaskBusFromEnv();
+  const repos = runtime.createRepositories({ databaseUrl });
+  const { db } = runtime.createDrizzle(databaseUrl);
+  const oidcStore = runtime.createPostgresOidcStore(db);
+  const taskBus = await runtime.createTaskBusFromEnv();
   const intervalMs = Number(
     process.env.OPENSESAME_WORKER_INTERVAL_MS ?? "5000",
   );
@@ -50,7 +75,7 @@ async function main(): Promise<void> {
     },
     "standalone cleanup worker: outbox→TaskBus and issuer row pruning — claim, session and project expiry run in-process in the control plane",
   );
-  await startCleanupLoop({
+  await runtime.startCleanupLoop({
     repos,
     oidcStore,
     taskBus,
@@ -62,7 +87,13 @@ async function main(): Promise<void> {
   log.info("worker stopped");
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+export async function main(): Promise<void> {
+  await runWorker();
+}
+
+if (process.env.VITEST === undefined) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

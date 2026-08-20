@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -16,7 +17,7 @@ async function provisional(app: App) {
     method: "POST",
   });
   expect(res.status).toBe(201);
-  return (await res.json()) as { principalId: string; accessToken: string };
+  return overlapCast(await res.json());
 }
 
 async function verified(app: App, subject: string) {
@@ -45,7 +46,7 @@ function auth(token: string) {
 async function createProject(
   app: App,
   token: string,
-  body: Record<string, unknown>,
+  body: JsonObject,
 ) {
   return app.request("/v1/projects", {
     method: "POST",
@@ -85,11 +86,7 @@ describe("projects routes edge cases", () => {
       pagesVaultFolderId: "vault_folder_beta",
     });
     expect(beta.status).toBe(201);
-    const betaBody = (await beta.json()) as {
-      slug: string;
-      sealedStoreTombName: string;
-      pagesVaultFolderId: string;
-    };
+    const betaBody = overlapCast(await beta.json());
     expect(betaBody.sealedStoreTombName).toBe("tomb-beta");
     expect(betaBody.pagesVaultFolderId).toBe("vault_folder_beta");
 
@@ -98,7 +95,7 @@ describe("projects routes edge cases", () => {
       headers: auth(owner.accessToken),
     });
     const projects = (
-      (await list.json()) as { projects: Array<{ slug: string }> }
+      overlapCast(await list.json())
     ).projects;
     expect(projects.map((p) => p.slug)).toEqual(["personal", "beta", "alpha"]);
 
@@ -114,14 +111,14 @@ describe("projects routes edge cases", () => {
       slug: "alpha",
     });
     expect(dupe.status).toBe(409);
-    expect(((await dupe.json()) as { error: string }).error).toBe("slug_taken");
+    expect((overlapCast(await dupe.json())).error).toBe("slug_taken");
 
     // A name with no sluggable characters gets a generated slug.
     const symbols = await createProject(app, owner.accessToken, {
       displayName: "!!!",
     });
     expect(symbols.status).toBe(201);
-    expect(((await symbols.json()) as { slug: string }).slug).toMatch(
+    expect((overlapCast(await symbols.json())).slug).toMatch(
       /^project-[0-9a-f]{8}$/,
     );
   });
@@ -135,7 +132,7 @@ describe("projects routes edge cases", () => {
       organizationId: "org:missing",
     });
     expect(unknownOrg.status).toBe(404);
-    expect(((await unknownOrg.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await unknownOrg.json())).error).toBe(
       "organization_not_found",
     );
 
@@ -148,7 +145,7 @@ describe("projects routes edge cases", () => {
       body: JSON.stringify({ slug: "proj-org", displayName: "Proj Org" }),
     });
     expect(orgRes.status).toBe(201);
-    const org = (await orgRes.json()) as { id: string };
+    const org = overlapCast(await orgRes.json());
 
     const inOrg = await createProject(app, owner.accessToken, {
       displayName: "Grouped",
@@ -156,7 +153,7 @@ describe("projects routes edge cases", () => {
     });
     expect(inOrg.status).toBe(201);
     expect(
-      ((await inOrg.json()) as { organizationId: string }).organizationId,
+      (overlapCast(await inOrg.json())).organizationId,
     ).toBe(org.id);
   });
 
@@ -177,10 +174,7 @@ describe("projects routes edge cases", () => {
       headers: auth(owner.accessToken),
     });
     expect(initial.status).toBe(200);
-    const initialBody = (await initial.json()) as {
-      project: { kind: string };
-      isFallback: boolean;
-    };
+    const initialBody = overlapCast(await initial.json());
     expect(initialBody.project.kind).toBe("personal");
     expect(initialBody.isFallback).toBe(true);
 
@@ -213,7 +207,7 @@ describe("projects routes edge cases", () => {
     const created = await createProject(app, owner.accessToken, {
       displayName: "Swap Target",
     });
-    const project = (await created.json()) as { id: string };
+    const project = overlapCast(await created.json());
     const swapped = await app.request("/v1/projects/active", {
       method: "PUT",
       headers: {
@@ -223,7 +217,7 @@ describe("projects routes edge cases", () => {
       body: JSON.stringify({ projectId: project.id }),
     });
     expect(swapped.status).toBe(200);
-    expect(((await swapped.json()) as { isFallback: boolean }).isFallback).toBe(
+    expect((overlapCast(await swapped.json())).isFallback).toBe(
       false,
     );
 
@@ -232,10 +226,7 @@ describe("projects routes edge cases", () => {
     const fallback = await app.request("/v1/projects/active", {
       headers: auth(owner.accessToken),
     });
-    const fallbackBody = (await fallback.json()) as {
-      project: { kind: string };
-      isFallback: boolean;
-    };
+    const fallbackBody = overlapCast(await fallback.json());
     expect(fallbackBody.project.kind).toBe("personal");
     expect(fallbackBody.isFallback).toBe(true);
     expect(ctx.stores.activeProjects.has(owner.principalId)).toBe(false);
@@ -258,14 +249,14 @@ describe("projects routes edge cases", () => {
       body: JSON.stringify({ name: "Short", ttlSeconds: 60 }),
     });
     expect(created.status).toBe(201);
-    const project = (await created.json()) as { projectId: string };
+    const project = overlapCast(await created.json());
 
     // The owner sees their membership-less temporary project.
     const visible = await app.request(`/v1/projects/${project.projectId}`, {
       headers: auth(owner.accessToken),
     });
     expect(visible.status).toBe(200);
-    expect(((await visible.json()) as { role: string }).role).toBe("owner");
+    expect((overlapCast(await visible.json())).role).toBe("owner");
 
     now = new Date(now.getTime() + 61_000);
     expect(
@@ -279,7 +270,7 @@ describe("projects routes edge cases", () => {
       headers: auth(owner.accessToken),
     });
     const slugs = (
-      (await list.json()) as { projects: Array<{ id: string }> }
+      overlapCast(await list.json())
     ).projects.map((p) => p.id);
     expect(slugs).not.toContain(project.projectId);
   });
@@ -292,7 +283,7 @@ describe("projects routes edge cases", () => {
     const created = await createProject(app, owner.accessToken, {
       displayName: "Private",
     });
-    const project = (await created.json()) as { id: string };
+    const project = overlapCast(await created.json());
 
     expect(
       (
@@ -318,8 +309,8 @@ describe("projects routes edge cases", () => {
       sealedStoreTombName: "tomb-1",
       pagesVaultFolderId: "folder-1",
     });
-    const project = (await created.json()) as { id: string };
-    const patch = (body: Record<string, unknown>) =>
+    const project = overlapCast(await created.json());
+    const patch = (body: JsonObject) =>
       app.request(`/v1/projects/${project.id}`, {
         method: "PATCH",
         headers: {
@@ -344,7 +335,7 @@ describe("projects routes edge cases", () => {
     const renamed = await patch({ displayName: "Renamed" });
     expect(renamed.status).toBe(200);
     expect(
-      ((await renamed.json()) as { displayName: string }).displayName,
+      (overlapCast(await renamed.json())).displayName,
     ).toBe("Renamed");
 
     const updated = await patch({
@@ -391,7 +382,7 @@ describe("projects routes edge cases", () => {
     const created = await createProject(app, owner.accessToken, {
       displayName: "Guarded",
     });
-    const project = (await created.json()) as { id: string };
+    const project = overlapCast(await created.json());
     expect(
       (
         await addMember(
@@ -413,7 +404,7 @@ describe("projects routes edge cases", () => {
       body: JSON.stringify({ displayName: "Hijack" }),
     });
     expect(memberPatch.status).toBe(403);
-    expect(((await memberPatch.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await memberPatch.json())).error).toBe(
       "admin_required",
     );
 
@@ -422,7 +413,7 @@ describe("projects routes edge cases", () => {
       headers: auth(member.accessToken),
     });
     expect(memberDelete.status).toBe(403);
-    expect(((await memberDelete.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await memberDelete.json())).error).toBe(
       "owner_required",
     );
 
@@ -430,14 +421,14 @@ describe("projects routes edge cases", () => {
     const active = await app.request("/v1/projects/active", {
       headers: auth(owner.accessToken),
     });
-    const personal = ((await active.json()) as { project: { id: string } })
+    const personal = (overlapCast(await active.json()))
       .project;
     const personalDelete = await app.request(`/v1/projects/${personal.id}`, {
       method: "DELETE",
       headers: auth(owner.accessToken),
     });
     expect(personalDelete.status).toBe(409);
-    expect(((await personalDelete.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await personalDelete.json())).error).toBe(
       "personal_project_immutable",
     );
 
@@ -473,7 +464,7 @@ describe("projects routes edge cases", () => {
     const created = await createProject(app, owner.accessToken, {
       displayName: "Team",
     });
-    const project = (await created.json()) as { id: string };
+    const project = overlapCast(await created.json());
 
     // Unknown project.
     expect(
@@ -492,7 +483,7 @@ describe("projects routes edge cases", () => {
     const active = await app.request("/v1/projects/active", {
       headers: auth(owner.accessToken),
     });
-    const personal = ((await active.json()) as { project: { id: string } })
+    const personal = (overlapCast(await active.json()))
       .project;
     const sharePersonal = await addMember(
       app,
@@ -502,7 +493,7 @@ describe("projects routes edge cases", () => {
       "member",
     );
     expect(sharePersonal.status).toBe(409);
-    expect(((await sharePersonal.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await sharePersonal.json())).error).toBe(
       "personal_project_not_shareable",
     );
 
@@ -548,7 +539,7 @@ describe("projects routes edge cases", () => {
       "member",
     );
     expect(inactive.status).toBe(409);
-    expect(((await inactive.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await inactive.json())).error).toBe(
       "principal_inactive",
     );
 
@@ -583,7 +574,7 @@ describe("projects routes edge cases", () => {
       "member",
     );
     expect(dupe.status).toBe(409);
-    expect(((await dupe.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await dupe.json())).error).toBe(
       "membership_exists",
     );
 
@@ -596,7 +587,7 @@ describe("projects routes edge cases", () => {
       "owner",
     );
     expect(ownerByAdmin.status).toBe(403);
-    expect(((await ownerByAdmin.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await ownerByAdmin.json())).error).toBe(
       "owner_required",
     );
 
@@ -623,7 +614,7 @@ describe("projects routes edge cases", () => {
     });
     expect(list.status).toBe(200);
     expect(
-      ((await list.json()) as { members: unknown[] }).members,
+      (overlapCast(await list.json())).members,
     ).toHaveLength(3);
   });
 
@@ -636,7 +627,7 @@ describe("projects routes edge cases", () => {
     const created = await createProject(app, owner.accessToken, {
       displayName: "Roles",
     });
-    const project = (await created.json()) as { id: string };
+    const project = overlapCast(await created.json());
     await addMember(
       app,
       owner.accessToken,
@@ -652,7 +643,7 @@ describe("projects routes edge cases", () => {
       "member",
     );
 
-    const changeRole = (token: string, target: string, body: unknown) =>
+    const changeRole = (token: string, target: string, body: BoundaryValue) =>
       app.request(`/v1/projects/${project.id}/members/${target}`, {
         method: "PATCH",
         headers: { ...auth(token), "content-type": "application/json" },
@@ -715,21 +706,21 @@ describe("projects routes edge cases", () => {
       role: "member",
     });
     expect(noop.status).toBe(200);
-    expect(((await noop.json()) as { role: string }).role).toBe("member");
+    expect((overlapCast(await noop.json())).role).toBe("member");
 
     // Admins may move members between non-owner roles.
     const promoted = await changeRole(admin.accessToken, member.principalId, {
       role: "admin",
     });
     expect(promoted.status).toBe(200);
-    expect(((await promoted.json()) as { role: string }).role).toBe("admin");
+    expect((overlapCast(await promoted.json())).role).toBe("admin");
 
     // The last owner cannot be demoted.
     const demote = await changeRole(owner.accessToken, owner.principalId, {
       role: "member",
     });
     expect(demote.status).toBe(409);
-    expect(((await demote.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await demote.json())).error).toBe(
       "last_owner",
     );
   });
@@ -744,7 +735,7 @@ describe("projects routes edge cases", () => {
     const created = await createProject(app, owner.accessToken, {
       displayName: "Remove",
     });
-    const project = (await created.json()) as { id: string };
+    const project = overlapCast(await created.json());
     await addMember(
       app,
       owner.accessToken,
@@ -806,7 +797,7 @@ describe("projects routes edge cases", () => {
     // The last owner cannot leave.
     const lastOwner = await remove(owner.accessToken, owner.principalId);
     expect(lastOwner.status).toBe(409);
-    expect(((await lastOwner.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await lastOwner.json())).error).toBe(
       "last_owner",
     );
 
@@ -825,9 +816,7 @@ describe("projects routes edge cases", () => {
       headers: auth(owner.accessToken),
     });
     const personal = (
-      (await active.json()) as {
-        project: { id: string };
-      }
+      overlapCast(await active.json())
     ).project;
 
     // Personal projects refuse sharing through the API, so seed a second owner
@@ -846,7 +835,7 @@ describe("projects routes edge cases", () => {
       { method: "DELETE", headers: auth(owner.accessToken) },
     );
     expect(res.status).toBe(409);
-    expect(((await res.json()) as { error: string }).error).toBe(
+    expect((overlapCast(await res.json())).error).toBe(
       "personal_project_immutable",
     );
   });

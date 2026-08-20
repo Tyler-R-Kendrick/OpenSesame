@@ -1,5 +1,6 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,36 +9,32 @@ const plane = vi.hoisted(() => ({
   value: { host: "live", identity: "connected" },
 }));
 const session = vi.hoisted(() => ({
-  current: { principalId: "prn_op" } as { principalId: string } | null,
+  current: { principalId: "prn_op" },
 }));
 const connect = vi.hoisted(() => vi.fn());
 const connecting = vi.hoisted(() => ({ value: false }));
 const identityFetch = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/use-online.js", () => ({
-  useOnline: () => online.value,
-}));
-
-vi.mock("../../lib/planes.js", () => ({
-  usePlaneStatus: () => plane.value,
-}));
-
-vi.mock("../../lib/identity.js", () => ({
-  useIdentitySession: () => session.current,
+import { useOnlineSeams } from "../../lib/use-online.js";
+const originalUseOnlineSeams = { ...useOnlineSeams };
+Object.assign(useOnlineSeams, {useOnline: () => online.value});
+import { planeSeams } from "../../lib/planes.js";
+const originalPlaneSeams = { ...planeSeams };
+Object.assign(planeSeams, {usePlaneStatus: () => plane.value});
+import { identitySeams } from "../../lib/identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {useIdentitySession: () => session.current,
   useConnect: () => ({ connect, connecting: connecting.value }),
-  identityFetch,
-}));
-
+  identityFetch});
 const loadSettings = vi.hoisted(() => vi.fn());
 const saveSettings = vi.hoisted(() => vi.fn());
 const shouldAutoConnect = vi.hoisted(() => vi.fn(() => true));
 
-vi.mock("../../lib/settings.js", () => ({
-  loadSettings,
+import { settingsSeams } from "../../lib/settings.js";
+const originalSettingsSeams = { ...settingsSeams };
+Object.assign(settingsSeams, {loadSettings,
   saveSettings,
-  shouldAutoConnect,
-}));
-
+  shouldAutoConnect});
 import { ActiveProjectPanel } from "./ActiveProjectPanel.js";
 
 const personalProject = {
@@ -50,12 +47,12 @@ const personalProject = {
   created: false,
 };
 
-function jsonResponse(body: unknown, ok = true, status = 200) {
-  return {
+function jsonResponse(body: BoundaryValue, ok = true, status = 200) {
+  return overlapCast({
     ok,
     status,
     json: () => Promise.resolve(body),
-  } as unknown as Response;
+  });
 }
 
 function mockSuccessfulRefresh(personal = personalProject) {
@@ -101,9 +98,9 @@ describe("ActiveProjectPanel", () => {
   it("offers identity connect when signed out", () => {
     session.current = null;
     render(<ActiveProjectPanel />);
-    const button = screen.getByRole("button", {
+    const button = overlapCast(screen.getByRole("button", {
       name: /Connect Identity/i,
-    }) as HTMLButtonElement;
+    }));
     expect(button.disabled).toBe(false);
     expect(identityFetch).not.toHaveBeenCalled();
   });
@@ -112,9 +109,9 @@ describe("ActiveProjectPanel", () => {
     session.current = null;
     connecting.value = true;
     render(<ActiveProjectPanel />);
-    const button = screen.getByRole("button", {
+    const button = overlapCast(screen.getByRole("button", {
       name: /Connecting…/i,
-    }) as HTMLButtonElement;
+    }));
     expect(button.disabled).toBe(true);
   });
 
@@ -122,9 +119,9 @@ describe("ActiveProjectPanel", () => {
     session.current = null;
     shouldAutoConnect.mockReturnValue(false);
     render(<ActiveProjectPanel />);
-    const button = screen.getByRole("button", {
+    const button = overlapCast(screen.getByRole("button", {
       name: /Connect Identity/i,
-    }) as HTMLButtonElement;
+    }));
     expect(button.disabled).toBe(true);
   });
 
@@ -165,7 +162,7 @@ describe("ActiveProjectPanel", () => {
     loadSettings.mockReturnValue({ activeProjectId: "proj_team" });
     render(<ActiveProjectPanel />);
     await screen.findByText(/Using your personal project/);
-    const select = screen.getByLabelText(/Project/i) as HTMLSelectElement;
+    const select = overlapCast(screen.getByLabelText(/Project/i));
     await waitFor(() => expect(select.value).toBe("proj_team"));
   });
 

@@ -9,10 +9,7 @@ export function createSqlClient(databaseUrl: string) {
   return postgres(databaseUrl, { max: 10, prepare: false });
 }
 
-export function createDrizzle(databaseUrl: string): {
-  sql: ReturnType<typeof postgres>;
-  db: Database;
-} {
+export function createDrizzle(databaseUrl: string) {
   const sql = createSqlClient(databaseUrl);
   const db = drizzle(sql, { schema });
   return { sql, db };

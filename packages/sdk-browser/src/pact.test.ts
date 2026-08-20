@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
 import { createOpenSesame } from "./client.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -25,9 +26,9 @@ describe("PACT — browser SDK claim complete", () => {
         setItem: () => {},
         removeItem: () => {},
       },
-      fetchImpl: (async () => {
+      fetchImpl: overlapCast(async () => {
         throw new Error("network must not be reached");
-      }) as unknown as typeof fetch,
+      }),
     });
     await expect(
       sesame.completeClaim("clm_1", {

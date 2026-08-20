@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@opensesame/api-client": "workspace:*",
-    "@opensesame/client-core": "workspace:*"
+    "@opensesame/client-core": "workspace:*",
+    "@opensesame/os-domain": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "1.55.1",

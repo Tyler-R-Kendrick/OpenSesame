@@ -1,4 +1,4 @@
-import type { AssuranceLevel, ExternalIdentity } from "@opensesame/os-domain";
+import { AssuranceLevel, ExternalIdentity, overlapCast } from "@opensesame/os-domain";
 
 /**
  * Experimental Nostr challenge adapter.
@@ -55,10 +55,7 @@ export function createDisabledNostrAdapter(): NostrIdentityAdapter {
  * feature flag is on, there is no live signature verifier in this package.
  */
 export function createNostrAdapter(
-  env: Record<string, string | undefined> = process.env as Record<
-    string,
-    string | undefined
-  >,
+  env: Record<string, string | undefined> = overlapCast(process.env),
 ): NostrIdentityAdapter {
   if (env.OPENSESAME_NOSTR_ENABLED !== "true") {
     return createDisabledNostrAdapter();

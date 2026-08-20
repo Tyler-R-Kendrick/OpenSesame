@@ -94,7 +94,7 @@ export function resetFetchForTests(): void {
  * The operator token is a local shared secret, so it is only offered to a
  * loopback target: a remote Host API must be reached with a session token.
  */
-export function hostAuthHeaders(base = hostApiBase()): Record<string, string> {
+export function hostAuthHeaders(base = hostApiBase()) {
   const operator = process.env.OPENSESAME_OPERATOR_TOKEN?.trim();
   if (operator && isLoopbackBase(base)) {
     return { authorization: `Bearer operator:${operator}` };

@@ -1,3 +1,4 @@
+import { type BoundaryValue, isNumber, isString } from "@opensesame/os-domain";
 /**
  * The shape every importer produces, and the report the user reviews before
  * anything is written.
@@ -192,19 +193,19 @@ export function normaliseTotp(raw: string): string {
 }
 
 /** Seconds or milliseconds since the epoch, or an ISO string, to ISO. */
-export function toIso(value: unknown): string | null {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+export function toIso(value: BoundaryValue): string | null {
+  if (isNumber(value) && Number.isFinite(value) && value > 0) {
     const ms = value > 1e11 ? value : value * 1000;
     const date = new Date(ms);
     return Number.isNaN(date.getTime()) ? null : date.toISOString();
   }
-  if (typeof value === "string" && value.trim() !== "") {
+  if (isString(value) && value.trim() !== "") {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? null : date.toISOString();
   }
   return null;
 }
 
-export function asString(value: unknown): string {
-  return typeof value === "string" ? value : "";
+export function asString(value: BoundaryValue): string {
+  return isString(value) ? value : "";
 }

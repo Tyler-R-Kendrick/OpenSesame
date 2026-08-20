@@ -206,7 +206,7 @@ export class MemoryRepositories implements Repositories {
       const row: ExternalIdentity = {
         ...identity,
         metadata: { ...identity.metadata },
-        ...(tenant ? { tenant } : {}),
+        ...(tenant ? { tenant } : undefined),
       };
       const apply = () => {
         this.#store.identities.set(row.id, {
@@ -516,7 +516,7 @@ export class MemoryRepositories implements Repositories {
       this.#store.outbox.set(id, {
         ...row,
         payload: { ...row.payload },
-        ...(error ? { lastError: error } : {}),
+        ...(error ? { lastError: error } : undefined),
       });
       if (!error) {
         const next = { ...row, payload: { ...row.payload } };

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { redactSecrets } from "@opensesame/sdk-cli";
 import { assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -28,12 +29,12 @@ describe("PACT — client CLI emit / session", () => {
   });
 
   it("redactSecrets strips claim and access tokens from CLI envelopes", () => {
-    const redacted = redactSecrets({
+    const redacted = overlapCast(redactSecrets({
       ok: true,
       access_token: "secret",
       claimToken: "osc_clm_nope",
       token_type: "Bearer",
-    }) as Record<string, unknown>;
+    }));
     expect(redacted.access_token).toBe("[redacted]");
     expect(redacted.claimToken).toBe("[redacted]");
     expect(redacted.token_type).toBe("Bearer");

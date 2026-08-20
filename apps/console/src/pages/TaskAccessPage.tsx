@@ -6,6 +6,7 @@ import {
   buildTaskAccessViewModel,
 } from "../components/TaskAccessPanel.js";
 import { operatorHeadersFor } from "../lib/urls.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const gateway =
   import.meta.env.VITE_OPENSESAME_GATEWAY ?? "http://127.0.0.1:8787";
@@ -57,7 +58,7 @@ export function TaskAccessPage() {
           }
           throw new Error(`Host API could not load this task (${res.status}).`);
         }
-        const body = (await res.json()) as Record<string, unknown>;
+        const body = overlapCast(await res.json());
         if (!cancelled) {
           setModel(buildTaskAccessViewModel(body));
           setError(null);

@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,17 +7,16 @@ const endSession = vi.hoisted(() => vi.fn());
 const clearStagedClaimTokens = vi.hoisted(() => vi.fn());
 const hostFetch = vi.hoisted(() => vi.fn());
 
-vi.mock("../identity.js", () => ({
-  endSession,
+import { identitySeams } from "../identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {endSession,
   clearStagedClaimTokens,
   hostFetch,
   ensureHostSession: vi.fn().mockResolvedValue(undefined),
-  hostLocalSessionEligible: () => false,
-}));
-
-vi.mock("../queue.js", () => ({
-  clearStagedClaimTokens,
-}));
+  hostLocalSessionEligible: () => false});
+import { queueSeams } from "../queue.js";
+const originalQueueSeams = { ...queueSeams };
+Object.assign(queueSeams, { clearStagedClaimTokens });
 
 import {
   clearCopiedSecret,
@@ -376,7 +376,7 @@ describe("useTheme", () => {
         });
         useTheme();
       },
-      { initialProps: { theme: "dark" as "system" | "light" | "dark" } },
+      { initialProps: { theme: overlapCast("dark") } },
     );
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
 

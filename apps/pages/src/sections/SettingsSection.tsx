@@ -1,4 +1,10 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import {
+  type ComponentType,
+  type FormEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useLocation, useNavigate } from "react-router";
 import { FieldShell } from "../components/FieldShell.js";
 import {
@@ -34,18 +40,19 @@ import {
   planManifestMerge,
   vaultItemToEntry,
 } from "../lib/vault/store-sync.js";
-import { ActiveProjectPanel } from "./settings/ActiveProjectPanel.js";
-import { CapabilityConnectorsPanel } from "./settings/CapabilityConnectorsPanel.js";
-import { ChangelogPanel } from "./settings/ChangelogPanel.js";
+import { ActiveProjectPanel as DefaultActiveProjectPanel } from "./settings/ActiveProjectPanel.js";
+import { CapabilityConnectorsPanel as DefaultCapabilityConnectorsPanel } from "./settings/CapabilityConnectorsPanel.js";
+import { ChangelogPanel as DefaultChangelogPanel } from "./settings/ChangelogPanel.js";
 import { CoreConnectionsPanel } from "./settings/CoreConnectionsPanel.js";
 import { EndpointsPanel, TursoSyncPanel } from "./settings/EndpointsPanel.js";
-import { GithubBackupPanel } from "./settings/GithubBackupPanel.js";
-import { ImportPanel } from "./settings/ImportPanel.js";
-import { OfflineBackupPanel } from "./settings/OfflineBackupPanel.js";
-import { SyncTargetsPanel } from "./settings/SyncTargetsPanel.js";
-import { TaskBusPanel } from "./settings/TaskBusPanel.js";
-import { UnlockMethodsPanel } from "./settings/UnlockMethodsPanel.js";
+import { GithubBackupPanel as DefaultGithubBackupPanel } from "./settings/GithubBackupPanel.js";
+import { ImportPanel as DefaultImportPanel } from "./settings/ImportPanel.js";
+import { OfflineBackupPanel as DefaultOfflineBackupPanel } from "./settings/OfflineBackupPanel.js";
+import { SyncTargetsPanel as DefaultSyncTargetsPanel } from "./settings/SyncTargetsPanel.js";
+import { TaskBusPanel as DefaultTaskBusPanel } from "./settings/TaskBusPanel.js";
+import { UnlockMethodsPanel as DefaultUnlockMethodsPanel } from "./settings/UnlockMethodsPanel.js";
 import "./settings.css";
+import { overlapCast } from "@opensesame/os-domain";
 
 const THEMES = [
   { id: "system", label: "System", Icon: IconMonitor },
@@ -111,6 +118,30 @@ const CATEGORIES = [
 
 type CategoryId = (typeof CATEGORIES)[number]["id"];
 
+export type SettingsPanels = {
+  UnlockMethodsPanel: ComponentType;
+  ActiveProjectPanel: ComponentType;
+  CapabilityConnectorsPanel: ComponentType;
+  SyncTargetsPanel: ComponentType;
+  TaskBusPanel: ComponentType;
+  GithubBackupPanel: ComponentType;
+  ChangelogPanel: ComponentType;
+  OfflineBackupPanel: ComponentType;
+  ImportPanel: ComponentType;
+};
+
+const defaultPanels: SettingsPanels = {
+  UnlockMethodsPanel: DefaultUnlockMethodsPanel,
+  ActiveProjectPanel: DefaultActiveProjectPanel,
+  CapabilityConnectorsPanel: DefaultCapabilityConnectorsPanel,
+  SyncTargetsPanel: DefaultSyncTargetsPanel,
+  TaskBusPanel: DefaultTaskBusPanel,
+  GithubBackupPanel: DefaultGithubBackupPanel,
+  ChangelogPanel: DefaultChangelogPanel,
+  OfflineBackupPanel: DefaultOfflineBackupPanel,
+  ImportPanel: DefaultImportPanel,
+};
+
 /** `#import` predates the categories and deep-links into Vault data. */
 function categoryFromHash(hash: string): CategoryId | null {
   const raw = hash.replace(/^#/, "");
@@ -120,7 +151,12 @@ function categoryFromHash(hash: string): CategoryId | null {
   return match ? match.id : null;
 }
 
-export function SettingsSection() {
+export function SettingsSection({
+  panels = defaultPanels,
+}: {
+  panels?: Partial<SettingsPanels>;
+} = {}) {
+  const resolvedPanels = { ...defaultPanels, ...panels };
   const { prefs, items, folders, header } = useVault();
   const store = useVaultStore();
   const { hash } = useLocation();
@@ -195,7 +231,7 @@ export function SettingsSection() {
   async function importStoreManifest(file: File) {
     setDataMessage(null);
     try {
-      const parsed = JSON.parse(await file.text()) as StorePlainEntry[];
+      const parsed = overlapCast(JSON.parse(await file.text()));
       if (!Array.isArray(parsed)) {
         throw new Error("Expected a JSON array of store entries.");
       }
@@ -467,7 +503,7 @@ export function SettingsSection() {
         </>
       )}
 
-      {category !== "security" ? null : <UnlockMethodsPanel />}
+      {category !== "security" ? null : <resolvedPanels.UnlockMethodsPanel />}
 
       {category !== "security" ? null : (
         <section className="panel">
@@ -672,25 +708,25 @@ export function SettingsSection() {
 
       {category !== "connectivity" ? null : <CoreConnectionsPanel />}
 
-      {category !== "connectivity" ? null : <ActiveProjectPanel />}
+      {category !== "connectivity" ? null : <resolvedPanels.ActiveProjectPanel />}
 
-      {category !== "connectivity" ? null : <CapabilityConnectorsPanel />}
+      {category !== "connectivity" ? null : <resolvedPanels.CapabilityConnectorsPanel />}
 
-      {category !== "connectivity" ? null : <SyncTargetsPanel />}
+      {category !== "connectivity" ? null : <resolvedPanels.SyncTargetsPanel />}
 
-      {category !== "connectivity" ? null : <TaskBusPanel />}
+      {category !== "connectivity" ? null : <resolvedPanels.TaskBusPanel />}
 
       {category !== "connectivity" ? null : <TursoSyncPanel />}
 
       {category !== "connectivity" ? null : <EndpointsPanel />}
 
-      {category !== "data" ? null : <GithubBackupPanel />}
+      {category !== "data" ? null : <resolvedPanels.GithubBackupPanel />}
 
-      {category !== "data" ? null : <ChangelogPanel />}
+      {category !== "data" ? null : <resolvedPanels.ChangelogPanel />}
 
-      {category !== "data" ? null : <OfflineBackupPanel />}
+      {category !== "data" ? null : <resolvedPanels.OfflineBackupPanel />}
 
-      {category !== "data" ? null : <ImportPanel />}
+      {category !== "data" ? null : <resolvedPanels.ImportPanel />}
 
       {category !== "data" ? null : (
         <section className="panel">

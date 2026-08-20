@@ -1,3 +1,4 @@
+import { type JsonObject } from "@opensesame/os-domain";
 export interface OidcDiscoveryDocument {
   issuer: string;
   authorization_endpoint: string;
@@ -81,7 +82,7 @@ export interface ClaimDecision {
    * claim on the rejection has spent a single-use token on a 400.
    */
   userCode: string;
-  destination?: Record<string, unknown>;
+  destination?: JsonObject;
   idempotencyKey?: string;
   /**
    * The claim bearer. Only needed when the claim was presented elsewhere: this

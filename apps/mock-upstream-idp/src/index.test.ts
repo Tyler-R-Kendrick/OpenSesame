@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { main } from "./index.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 type Signal = "SIGINT" | "SIGTERM";
 
 function addedListeners(signal: Signal, before: NodeJS.ExitListener[]) {
   return process
     .listeners(signal)
-    .filter((l) => !before.includes(l as NodeJS.ExitListener));
+    .filter((l) => !before.includes(overlapCast(l)));
 }
 
 describe("mock-upstream-idp main()", () => {
@@ -27,11 +28,11 @@ describe("mock-upstream-idp main()", () => {
       );
       const exitSpy = vi
         .spyOn(process, "exit")
-        .mockImplementation((() => undefined) as never);
+        .mockImplementation(overlapCast(() => undefined));
 
-      const before: Record<Signal, NodeJS.ExitListener[]> = {
-        SIGINT: process.listeners("SIGINT") as NodeJS.ExitListener[],
-        SIGTERM: process.listeners("SIGTERM") as NodeJS.ExitListener[],
+      const before = {
+        SIGINT: overlapCast(process.listeners("SIGINT")),
+        SIGTERM: overlapCast(process.listeners("SIGTERM")),
       };
       await main();
       const added = (["SIGINT", "SIGTERM"] as const).flatMap((s) =>

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { assertNoSecretFields, assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
 import { runAnonymousAgentDemo } from "./main.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -29,7 +30,7 @@ describe("PACT — example-agent", () => {
   it("chaos: a poll partition fails closed rather than inventing a completed claim", async () => {
     process.env.MOCK_AGENT_FLOW = "1";
     let polls = 0;
-    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchImpl = overlapCast(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (
         url.endsWith("/v1/principals/provisional") &&
@@ -76,7 +77,7 @@ describe("PACT — example-agent", () => {
           version: 1,
         }),
       );
-    }) as typeof fetch;
+    });
     await expect(
       runAnonymousAgentDemo({
         fetchImpl,

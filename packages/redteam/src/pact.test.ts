@@ -8,6 +8,7 @@ import {
 } from "@opensesame/testing";
 import { describe, it } from "vitest";
 import { startMockUpstream } from "./mock-upstream.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -30,7 +31,7 @@ describe("PACT — redteam harness", () => {
     try {
       const res = await fetch(`${mock.url}/v1/secret`);
       assert.equal(res.status, 404);
-      const body = (await res.json()) as { error?: string };
+      const body = overlapCast(await res.json());
       assert.equal(body.error, "mock_upstream_no_route");
       assert.equal(JSON.stringify(body).includes("access_token"), false);
     } finally {

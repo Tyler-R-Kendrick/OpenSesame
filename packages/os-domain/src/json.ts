@@ -10,7 +10,7 @@
 export type JsonPrimitive = string | number | boolean | null;
 
 export type JsonObject = {
-  readonly [key: string]: JsonValue | undefined;
+  [key: string]: JsonValue | undefined;
 };
 
 export type MutableJsonObject = {
@@ -20,14 +20,16 @@ export type MutableJsonObject = {
 export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
 
 export type BoundaryObject = {
-  readonly [key: string]: BoundaryValue | undefined;
+  [key: string]: BoundaryValue | undefined;
 };
 
 export type MutableBoundaryObject = {
   [key: string]: BoundaryValue | undefined;
 };
 
-export type BoundaryFn = (...args: never[]) => BoundaryValue;
+export type BoundaryFn = (...args: never[]) => void;
+
+export type Constructable = new (...args: never[]) => BoundaryValue;
 
 export type Jsonable = {
   toJSON: () => BoundaryValue;
@@ -56,9 +58,10 @@ export type BoundaryValue =
  * Replaces `value as unknown as To` (a chained assertion) with a single
  * documented assertion inside this helper.
  */
-export function overlapCast<From, To>(value: From): To {
+export function overlapCast<From, To = JsonObject>(value: From): To {
   // Call sites must omit type arguments — Vite/esbuild 0.28 cannot parse
-  // overlapCast<T>(value).
+  // overlapCast<T>(value). Unannotated calls become JsonObject (the usual
+  // JSON-boundary result); a contextual annotation supplies a tighter To.
   // SAFETY: the caller established the runtime overlap; From & To is the
   // typed witness TypeScript will accept without a chained unknown assertion.
   return value as From & To;
@@ -88,7 +91,9 @@ export function isUndefined(value: BoundaryValue): value is undefined {
   return typeof value === "undefined";
 }
 
-export function isFunction(value: BoundaryValue): value is BoundaryFn {
+export function isFunction(
+  value: BoundaryValue | BoundaryFn | Constructable,
+): value is BoundaryFn {
   return typeof value === "function";
 }
 
@@ -101,4 +106,16 @@ export function isTypeofObject(
 
 export function isJsonObject(value: BoundaryValue): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Narrow a JSON field to an object, or `undefined` when it is not one. */
+export function readJsonObject(
+  value: JsonValue | undefined,
+): JsonObject | undefined {
+  return isJsonObject(value) ? value : undefined;
+}
+
+/** Narrow a JSON field to a string, or `undefined` when it is not one. */
+export function readString(value: JsonValue | undefined): string | undefined {
+  return isString(value) ? value : undefined;
 }

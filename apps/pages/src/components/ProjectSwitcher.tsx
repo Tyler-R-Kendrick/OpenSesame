@@ -18,7 +18,7 @@ import {
 } from "../lib/projects.js";
 import { IconCheck, IconFolder, IconPlus, IconTrash } from "./Icons.js";
 
-export function ProjectSwitcher() {
+function ProjectSwitcherDefault() {
   const state = useSyncExternalStore(subscribeProjects, projectsState);
   const [open, setOpen] = useState(false);
   const [draftName, setDraftName] = useState("");
@@ -178,4 +178,13 @@ export function ProjectSwitcher() {
       ) : null}
     </div>
   );
+}
+
+export const projectSwitcherSeams = {
+  ProjectSwitcher: ProjectSwitcherDefault,
+};
+
+export function ProjectSwitcher() {
+  const Impl = projectSwitcherSeams.ProjectSwitcher;
+  return <Impl />;
 }

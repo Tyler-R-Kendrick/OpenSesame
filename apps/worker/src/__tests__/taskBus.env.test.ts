@@ -1,15 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-const connect = vi.hoisted(() => vi.fn());
-
-vi.mock("nats", () => ({
-  connect,
-  StringCodec: () => ({
-    encode: (value: string) => new TextEncoder().encode(value),
-    decode: (value: Uint8Array) => new TextDecoder().decode(value),
-  }),
-}));
-
+import { overlapCast } from "@opensesame/os-domain";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { natsSeams } from "../nats.js";
 import {
   MemoryTaskBus,
   NatsJetStreamTaskBus,
@@ -17,6 +8,16 @@ import {
   eventSubject,
   resolveTaskBusBackend,
 } from "../taskBus.js";
+
+const connect = vi.fn();
+
+beforeEach(() => {
+  natsSeams.connect = overlapCast(connect);
+  natsSeams.StringCodec = overlapCast(() => ({
+    encode: (value: string) => new TextEncoder().encode(value),
+    decode: (value: Uint8Array) => new TextDecoder().decode(value),
+  }));
+});
 
 describe("resolveTaskBusBackend variants", () => {
   it("accepts the documented memory spellings", () => {

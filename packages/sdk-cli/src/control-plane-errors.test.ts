@@ -1,18 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import { createControlPlaneClient } from "./control-plane.js";
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const BASE = "http://127.0.0.1:8788";
 
 function fetchReturning(...responses: Response[]) {
   let i = 0;
-  return vi.fn(async () => {
+  return overlapCast(vi.fn(async () => {
     const res = responses[Math.min(i, responses.length - 1)];
     i += 1;
     return res;
-  }) as unknown as typeof fetch;
+  }));
 }
 
-function json(body: unknown, status = 200): Response {
+function json(body: BoundaryValue, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
 }
 
@@ -20,7 +21,7 @@ function clientWith(fetchImpl: typeof fetch, accessToken?: string) {
   return createControlPlaneClient({
     baseUrl: BASE,
     fetchImpl,
-    ...(accessToken === undefined ? {} : { accessToken }),
+    ...(accessToken === undefined ? undefined : { accessToken }),
   });
 }
 
@@ -55,7 +56,7 @@ describe("createControlPlaneClient error paths", () => {
 
   it("requires the osc_clm_ claim token shape before polling", async () => {
     const fetchImpl = vi.fn();
-    const cp = clientWith(fetchImpl as unknown as typeof fetch);
+    const cp = clientWith(overlapCast(fetchImpl));
     await expect(cp.pollClaim("clm_1", "not-a-claim-token")).rejects.toThrow(
       /osc_clm_/u,
     );
@@ -78,12 +79,12 @@ describe("createControlPlaneClient error paths", () => {
 
   it("surfaces a logout rejection and keeps the bearer", async () => {
     const seen: Array<string | null> = [];
-    const fetchImpl = vi.fn(
+    const fetchImpl = overlapCast(vi.fn(
       async (_input: RequestInfo | URL, init?: RequestInit) => {
         seen.push(new Headers(init?.headers).get("authorization"));
         return json({}, 500);
       },
-    ) as unknown as typeof fetch;
+    ));
     const cp = clientWith(fetchImpl, "pst_x");
     await expect(cp.logout()).rejects.toThrow(/logout failed: 500/u);
     // The session may still be live server-side; the client must keep the token
@@ -102,7 +103,7 @@ describe("createControlPlaneClient error paths", () => {
 describe("createControlPlaneClient authStatus", () => {
   it("reports unauthenticated without calling the server", async () => {
     const fetchImpl = vi.fn();
-    const cp = clientWith(fetchImpl as unknown as typeof fetch);
+    const cp = clientWith(overlapCast(fetchImpl));
     await expect(cp.authStatus()).resolves.toEqual({ authenticated: false });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
@@ -128,7 +129,7 @@ describe("createControlPlaneClient authStatus", () => {
 describe("createControlPlaneClient request headers", () => {
   it("marks JSON bodies and does not clobber a caller's content-type", async () => {
     const seen: Array<{ contentType: string | null; auth: string | null }> = [];
-    const fetchImpl = vi.fn(
+    const fetchImpl = overlapCast(vi.fn(
       async (_input: RequestInfo | URL, init?: RequestInit) => {
         const headers = new Headers(init?.headers);
         seen.push({
@@ -137,7 +138,7 @@ describe("createControlPlaneClient request headers", () => {
         });
         return json({ ok: true });
       },
-    ) as unknown as typeof fetch;
+    ));
     const cp = clientWith(fetchImpl, "pst_x");
 
     await cp.createTemporaryProject({ name: "t" });

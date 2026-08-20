@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const hostFetch = vi.hoisted(() => vi.fn());
-vi.mock("./identity.js", () => ({ hostFetch }));
-
+import { identitySeams } from "./identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {hostFetch});
 import { getTaskBusConfig, pingTaskBus, putTaskBusConfig } from "./taskbus.js";
 
-function jsonResponse(status: number, body: unknown): Response {
+function jsonResponse(status: number, body: BoundaryValue): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
@@ -48,7 +50,7 @@ describe("taskbus client", () => {
       backend: "nats",
       natsUrl: "nats://box.tail.ts.net:4222",
     });
-    const [, init] = hostFetch.mock.calls[0] as [string, RequestInit];
+    const [, init] = overlapCast(hostFetch.mock.calls[0]);
     expect(JSON.parse(String(init.body)).nats_url).toContain("tail");
   });
 

@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { loopbackLogin } from "./loopback.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const ISSUER = "http://127.0.0.1:8788";
 
-function discovery(overrides: Record<string, unknown> = {}): Response {
+function discovery(overrides: JsonObject = {}): Response {
   return new Response(
     JSON.stringify({
       issuer: ISSUER,
@@ -16,8 +17,8 @@ function discovery(overrides: Record<string, unknown> = {}): Response {
   );
 }
 
-function idpFetch(overrides: Record<string, unknown> = {}) {
-  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+function idpFetch(overrides: JsonObject = {}) {
+  return overlapCast(vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.includes("openid-configuration")) return discovery(overrides);
     if (url.endsWith("/token") && init?.method === "POST") {
@@ -31,7 +32,7 @@ function idpFetch(overrides: Record<string, unknown> = {}) {
       );
     }
     throw new Error(`unexpected ${url}`);
-  }) as unknown as typeof fetch;
+  }));
 }
 
 describe("loopbackLogin", () => {

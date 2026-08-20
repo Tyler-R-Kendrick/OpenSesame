@@ -5,6 +5,7 @@ import {
   defaultAdmissionFromEnv,
 } from "../clients/admission.js";
 import type { ClientAdmissionMode, OAuthClientRecord } from "../types.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const flags = {
   originClientsEnabled: true,
@@ -35,9 +36,9 @@ describe("client admission policy", () => {
         expect.unreachable("must throw");
       } catch (err) {
         expect(err).toBeInstanceOf(ClientAdmissionError);
-        expect((err as ClientAdmissionError).code).toBe("client_inactive");
-        expect((err as ClientAdmissionError).name).toBe("ClientAdmissionError");
-        expect((err as Error).message).toContain(state);
+        expect((overlapCast(err)).code).toBe("client_inactive");
+        expect((overlapCast(err)).name).toBe("ClientAdmissionError");
+        expect((overlapCast(err)).message).toContain(state);
       }
     }
   });
@@ -55,7 +56,7 @@ describe("client admission policy", () => {
       });
       expect.unreachable("must throw");
     } catch (err) {
-      expect((err as ClientAdmissionError).code).toBe(
+      expect((overlapCast(err)).code).toBe(
         "admission_mode_disabled",
       );
     }
@@ -71,7 +72,7 @@ describe("client admission policy", () => {
 
   it("returns the input for unknown modes at runtime", () => {
     const policy = createClientAdmissionPolicy(flags);
-    const bogus = "not_a_mode" as unknown as ClientAdmissionMode;
+    const bogus = overlapCast("not_a_mode");
     expect(policy.isModeEnabled(bogus)).toBe("not_a_mode");
   });
 
@@ -84,7 +85,7 @@ describe("client admission policy", () => {
       });
       expect.unreachable("must throw");
     } catch (err) {
-      expect((err as ClientAdmissionError).code).toBe("origin_required");
+      expect((overlapCast(err)).code).toBe("origin_required");
     }
   });
 

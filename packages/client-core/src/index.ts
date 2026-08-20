@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast, type BoundaryValue, isString, isNumber, isTypeofObject } from "@opensesame/os-domain";
 /**
  * TypeScript façade mirroring `crates/client-core` sync shapes.
  * Full AEAD: prefer Rust wasm (`wasm-bindgen` feature) when loaded; OPFS stores ciphertext only.
@@ -51,10 +52,7 @@ export function b64ToBytes(b64: string): Uint8Array {
  * treated as production.
  */
 function isDevOrTestEnv(): boolean {
-  const g = globalThis as {
-    process?: { env?: { NODE_ENV?: string } };
-    __OPENSESAME_ALLOW_DEV_SEAL__?: boolean;
-  };
+  const g = overlapCast(globalThis);
   if (g.__OPENSESAME_ALLOW_DEV_SEAL__ === true) return true;
   const nodeEnv = g.process?.env?.NODE_ENV;
   return nodeEnv === "development" || nodeEnv === "test";
@@ -105,14 +103,14 @@ const MAX_BLOB_ID_LENGTH = 128;
 const SAFE_ID = /^[A-Za-z0-9._:-]+$/;
 const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
 
-function safeId(value: unknown, max: number): string | null {
-  if (typeof value !== "string") return null;
+function safeId(value: BoundaryValue, max: number): string | null {
+  if (!isString(value)) return null;
   if (value.length === 0 || value.length > max) return null;
   return SAFE_ID.test(value) ? value : null;
 }
 
-function epoch(value: unknown): number | null {
-  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)
+function epoch(value: BoundaryValue): number | null {
+  if (!isNumber(value) || !Number.isSafeInteger(value) || value < 0)
     return null;
   return value;
 }
@@ -125,16 +123,16 @@ export function parseSealedStore(json: string): SealedStore | null {
   } catch {
     return null;
   }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+  if (!isTypeofObject(parsed) || parsed === null || Array.isArray(parsed))
     return null;
-  const row = parsed as Record<string, unknown>;
+  const row = overlapCast(parsed);
   // Unknown keys are where a plaintext document would hide, so there are none.
   for (const key of Object.keys(row)) {
     if (key !== "cursor" && key !== "blobs") return null;
   }
   const cursorRow = row.cursor;
-  if (typeof cursorRow !== "object" || cursorRow === null) return null;
-  const cursorFields = cursorRow as Record<string, unknown>;
+  if (!isTypeofObject(cursorRow) || cursorRow === null) return null;
+  const cursorFields = overlapCast(cursorRow);
   for (const key of Object.keys(cursorFields)) {
     if (key !== "device_id" && key !== "epoch") return null;
   }
@@ -146,8 +144,8 @@ export function parseSealedStore(json: string): SealedStore | null {
 
   const blobs: SealedStore["blobs"] = [];
   for (const entry of row.blobs) {
-    if (typeof entry !== "object" || entry === null) return null;
-    const blob = entry as Record<string, unknown>;
+    if (!isTypeofObject(entry) || entry === null) return null;
+    const blob = overlapCast(entry);
     for (const key of Object.keys(blob)) {
       if (key !== "id" && key !== "epoch" && key !== "ciphertextB64")
         return null;
@@ -156,7 +154,7 @@ export function parseSealedStore(json: string): SealedStore | null {
     const blobEpoch = epoch(blob.epoch);
     if (id === null || blobEpoch === null) return null;
     if (
-      typeof blob.ciphertextB64 !== "string" ||
+      !isString(blob.ciphertextB64) ||
       !BASE64.test(blob.ciphertextB64)
     ) {
       return null;

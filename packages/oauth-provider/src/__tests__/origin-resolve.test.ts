@@ -10,6 +10,7 @@ import {
 } from "../clients/origin-resolve.js";
 import { MemoryClientRecordStore } from "../clients/store.js";
 import type { OAuthClientRecord } from "../types.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const DEV = { allowLoopbackHttp: true, production: false } as const;
 
@@ -57,7 +58,7 @@ describe("resolveOriginClient", () => {
 
     // Persisted: findable by id and by origin.
     expect(await store.findById(client.id)).toEqual(client);
-    expect(await store.findByOrigin(client.origin as string)).toEqual(client);
+    expect(await store.findByOrigin(overlapCast(client.origin))).toEqual(client);
   });
 
   it("returns the same client (stable sector) on repeat admission", async () => {

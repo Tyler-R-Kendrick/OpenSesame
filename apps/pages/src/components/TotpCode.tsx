@@ -6,6 +6,7 @@ import {
   secondsRemaining,
   totpCode,
 } from "../lib/vault/totp.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const RADIUS = 8;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -84,7 +85,7 @@ export function TotpCode({ secret }: { secret: string }) {
       <svg
         className="totp__ring"
         viewBox="0 0 20 20"
-        style={{ ["--dash" as string]: `${CIRCUMFERENCE}` }}
+        style={{ [overlapCast("--dash")]: `${CIRCUMFERENCE}` }}
         role="img"
         aria-label={`${state.remaining} seconds remaining`}
       >

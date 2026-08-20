@@ -1,5 +1,6 @@
 import type { Adapter, AdapterPayload } from "oidc-provider";
 import type { OidcAdapterConstructor } from "./types.js";
+import { isNumber, isString } from "@opensesame/os-domain";
 
 type Stored = {
   payload: AdapterPayload;
@@ -40,12 +41,12 @@ export function createMemoryAdapterConstructor(): OidcAdapterConstructor {
       set?.delete(composite);
       if (set && set.size === 0) byGrant.delete(payload.grantId);
     }
-    if (typeof payload.userCode === "string") {
+    if (isString(payload.userCode)) {
       if (byUserCode.get(payload.userCode) === composite) {
         byUserCode.delete(payload.userCode);
       }
     }
-    if (typeof payload.uid === "string") {
+    if (isString(payload.uid)) {
       if (byUid.get(payload.uid) === composite) {
         byUid.delete(payload.uid);
       }
@@ -72,7 +73,7 @@ export function createMemoryAdapterConstructor(): OidcAdapterConstructor {
       expiresIn?: number,
     ): Promise<void> {
       const expiresAt =
-        typeof expiresIn === "number" ? Date.now() + expiresIn * 1000 : null;
+        isNumber(expiresIn) ? Date.now() + expiresIn * 1000 : null;
       bag(this.name).set(id, { payload: { ...payload }, expiresAt });
 
       const composite = key(this.name, id);
@@ -84,10 +85,10 @@ export function createMemoryAdapterConstructor(): OidcAdapterConstructor {
         }
         set.add(composite);
       }
-      if (typeof payload.userCode === "string") {
+      if (isString(payload.userCode)) {
         byUserCode.set(payload.userCode, composite);
       }
-      if (typeof payload.uid === "string") {
+      if (isString(payload.uid)) {
         byUid.set(payload.uid, composite);
       }
     }

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOpenSesame } from "./client.js";
 import { createPkcePair, sha256Base64Url } from "./pkce.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 class MemStorage {
   readonly #m = new Map<string, string>();
@@ -24,11 +25,11 @@ function b64url(value: string): string {
     .replace(/=+$/u, "");
 }
 
-function idToken(claims: Record<string, unknown>): string {
+function idToken(claims: JsonObject): string {
   return `${b64url(JSON.stringify({ alg: "none" }))}.${b64url(JSON.stringify(claims))}.`;
 }
 
-function discoveryResponse(overrides: Record<string, unknown> = {}): Response {
+function discoveryResponse(overrides: JsonObject = {}): Response {
   return new Response(
     JSON.stringify({
       issuer: ISSUER,
@@ -79,7 +80,7 @@ describe("createOpenSesame", () => {
       clientId: "rp-alpha",
       redirectUri: "http://127.0.0.1:5174/callback",
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: {
         href: "http://127.0.0.1:5174/",
         assign: (u) => {
@@ -91,7 +92,7 @@ describe("createOpenSesame", () => {
 
     await sesame.signIn();
     expect(assigned).toHaveLength(1);
-    const authUrl = new URL(assigned[0] as string);
+    const authUrl = new URL(overlapCast(assigned[0]));
     expect(authUrl.searchParams.get("code_challenge_method")).toBe("S256");
     expect(authUrl.searchParams.get("client_id")).toBe("rp-alpha");
     expect(storage.getItem("opensesame:pkce")).toBeTruthy();
@@ -125,7 +126,7 @@ describe("createOpenSesame", () => {
     const sesame = createOpenSesame({
       issuer: "http://127.0.0.1:8788",
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
 
     const session = await sesame.continueAnonymously();
@@ -147,7 +148,7 @@ describe("createOpenSesame", () => {
     const sesame = createOpenSesame({
       issuer: "http://127.0.0.1:8788",
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     await expect(sesame.continueAnonymously()).rejects.toThrow(
       /no access token/,
@@ -172,8 +173,8 @@ describe("createOpenSesame", () => {
         seen.push({
           path,
           ...(headers.get("authorization")
-            ? { auth: headers.get("authorization") as string }
-            : {}),
+            ? { auth: overlapCast(headers.get("authorization")) }
+            : undefined),
         });
         if (path === "/.well-known/openid-configuration") {
           return new Response(JSON.stringify({}), { status: 404 });
@@ -184,7 +185,7 @@ describe("createOpenSesame", () => {
     const sesame = createOpenSesame({
       issuer: "http://127.0.0.1:8788",
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
 
     await sesame.signOut();
@@ -222,7 +223,7 @@ describe("createOpenSesame", () => {
     const sesame = createOpenSesame({
       issuer: "http://127.0.0.1:8788",
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
 
     await sesame.presentClaim("osc_clm_token");
@@ -285,7 +286,7 @@ describe("createOpenSesame", () => {
       issuer: "http://127.0.0.1:8788",
       clientId: "opensesame-browser",
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
 
     const session = await sesame.handleRedirectCallback(
@@ -361,7 +362,7 @@ describe("createOpenSesame", () => {
     const sesame = createOpenSesame({
       issuer: "http://127.0.0.1:8788",
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
 
     const presented = await sesame.presentClaim("osc_clm_x.secret");
@@ -402,7 +403,7 @@ describe("createOpenSesame", () => {
     const sesame = createOpenSesame({
       issuer: "http://127.0.0.1:8788",
       apiBase: "http://127.0.0.1:8788",
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     await sesame.continueAnonymously();
     expect(local.getItem("opensesame:session")).toBeNull();
@@ -411,7 +412,7 @@ describe("createOpenSesame", () => {
   });
 
   it("refuses an id_token that answers a different ceremony", async () => {
-    const mint = (claims: Record<string, unknown>) =>
+    const mint = (claims: JsonObject) =>
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
         if (url.includes("openid-configuration")) return discoveryResponse();
@@ -429,7 +430,7 @@ describe("createOpenSesame", () => {
         throw new Error(`unexpected ${url}`);
       });
 
-    for (const [claims, message] of [
+    const cases: Array<[JsonObject, RegExp]> = [
       [
         {
           sub: "s",
@@ -452,7 +453,8 @@ describe("createOpenSesame", () => {
         },
         /issuer/i,
       ],
-    ] as Array<[Record<string, unknown>, RegExp]>) {
+    ];
+    for (const [claims, message] of cases) {
       const storage = new MemStorage();
       storage.setItem(
         "opensesame:pkce",
@@ -462,7 +464,7 @@ describe("createOpenSesame", () => {
         issuer: ISSUER,
         clientId: "opensesame-browser",
         storage,
-        fetchImpl: mint(claims) as unknown as typeof fetch,
+        fetchImpl: overlapCast(mint(claims)),
       });
       await expect(
         sesame.handleRedirectCallback(
@@ -481,7 +483,7 @@ describe("createOpenSesame", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: {
         href: "http://127.0.0.1:5174/",
         assign: () => undefined,
@@ -506,7 +508,7 @@ describe("createOpenSesame", () => {
     const sesame = createOpenSesame({
       issuer: ISSUER,
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
       windowLocation: {
         href: "http://127.0.0.1:5174/",
         assign: () => undefined,
@@ -527,7 +529,7 @@ describe("createOpenSesame", () => {
       issuer: ISSUER,
       clientId: "opensesame-browser",
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     await expect(
       sesame.handleRedirectCallback(
@@ -572,7 +574,7 @@ describe("createOpenSesame", () => {
     const sesame = createOpenSesame({
       issuer: "http://127.0.0.1:8788",
       storage,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     await sesame.signOut();
     expect(await sesame.getSession()).toBeNull();

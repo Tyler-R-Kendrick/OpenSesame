@@ -1,6 +1,7 @@
 import { Writable } from "node:stream";
 import { describe, expect, it } from "vitest";
 import { createLogger, redactDeep } from "../logger.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 function capture() {
   const chunks: string[] = [];
@@ -15,25 +16,22 @@ function capture() {
 
 describe("redactDeep", () => {
   it("redacts api_key and leaves diagnostic `code` fields", () => {
-    const out = redactDeep({
+    const out = overlapCast(redactDeep({
       api_key: "sk_live",
       apikey: "sk_live2",
       code: 404,
       authorization_code: "leak",
-    }) as Record<string, unknown>;
+    }));
     expect(out.api_key).toBe("[Redacted]");
     expect(out.apikey).toBe("[Redacted]");
     expect(out.code).toBe(404);
     expect(out.authorization_code).toBe("[Redacted]");
   });
   it("censors sensitive keys below the first level", () => {
-    const out = redactDeep({
+    const out = overlapCast(redactDeep({
       ctx: { session: { access_token: "LEAK", safe: "ok" } },
       items: [{ claim_token: "LEAK2" }, { keep: 1 }],
-    }) as {
-      ctx: { session: Record<string, unknown> };
-      items: Array<Record<string, unknown>>;
-    };
+    }));
     expect(out.ctx.session.access_token).toBe("[Redacted]");
     expect(out.ctx.session.safe).toBe("ok");
     expect(out.items[0]?.claim_token).toBe("[Redacted]");
@@ -41,9 +39,9 @@ describe("redactDeep", () => {
   });
 
   it("survives cycles without stalling", () => {
-    const node: Record<string, unknown> = { password: "x" };
+    const node: JsonObject = { password: "x" };
     node.self = node;
-    const out = redactDeep(node) as Record<string, unknown>;
+    const out = overlapCast(redactDeep(node));
     expect(out.password).toBe("[Redacted]");
     expect(out.self).toBe("[Circular]");
   });

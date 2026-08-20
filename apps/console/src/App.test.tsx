@@ -1,24 +1,30 @@
+import { overlapCast } from "@opensesame/os-domain";
 // @vitest-environment jsdom
 import { act } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { MemoryRouter } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App.js";
-
-vi.mock("@opensesame/sdk-browser", () => ({
-  createOpenSesame: vi.fn(() => ({
-    signIn: vi.fn(),
-    continueAnonymously: vi.fn(),
-    signOut: vi.fn(),
-  })),
-}));
+import { sdkBrowserSeams } from "./sdk-browser.js";
 
 (
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  overlapCast(globalThis)
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 let container: HTMLDivElement;
 let root: Root;
+
+beforeEach(() => {
+  sdkBrowserSeams.createOpenSesame = vi.fn(() => ({
+    signIn: vi.fn(),
+    continueAnonymously: vi.fn(),
+    signOut: vi.fn(),
+    getSession: vi.fn().mockResolvedValue(null),
+    presentClaim: vi.fn(),
+    readClaim: vi.fn(),
+    completeClaim: vi.fn(),
+  }));
+});
 
 async function renderAt(entry: string): Promise<void> {
   container = document.createElement("div");

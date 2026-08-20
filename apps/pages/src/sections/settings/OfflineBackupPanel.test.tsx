@@ -1,45 +1,49 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const vaultState = vi.hoisted(() => ({
   current: {
-    header: null as Record<string, unknown> | null,
-    status: "empty" as string,
+    header: null,
+    status: "empty",
   },
 }));
 const importSealed = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/vault/hooks.js", () => ({
-  useVault: () => vaultState.current,
-  useVaultStore: () => ({ importSealed }),
-}));
+import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+const originalVaultHooksSeams = { ...vaultHooksSeams };
+Object.assign(vaultHooksSeams, {useVault: () => vaultState.current,
+  useVaultStore: () => ({ importSealed })});
+
 
 const kvGet = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/kv.js", () => ({ kvGet }));
+import { kvSeams } from "../../lib/kv.js";
+const originalKvSeams = { ...kvSeams };
+Object.assign(kvSeams, { kvGet });
 
 const loadSettings = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/settings.js", () => ({ loadSettings }));
-
+import { settingsSeams } from "../../lib/settings.js";
+const originalSettingsSeams = { ...settingsSeams };
+Object.assign(settingsSeams, {loadSettings});
 const buildOfflineBackup = vi.hoisted(() => vi.fn());
 const serializeOfflineBackup = vi.hoisted(() => vi.fn());
 const parseOfflineBackup = vi.hoisted(() => vi.fn());
 const cacheCiphertextSnapshot = vi.hoisted(() => vi.fn());
 const enqueueOfflineMutation = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/vault/offline-backup.js", () => ({
-  MAX_OFFLINE_BACKUP_BYTES: 64 * 1024 * 1024,
+import { offlineBackupSeams } from "../../lib/vault/offline-backup.js";
+const originalOfflineBackupSeams = { ...offlineBackupSeams };
+Object.assign(offlineBackupSeams, {
   buildOfflineBackup,
   serializeOfflineBackup,
   parseOfflineBackup,
   cacheCiphertextSnapshot,
   enqueueOfflineMutation,
-}));
-
-vi.mock("../../lib/vault/store.js", () => ({ BODY_KEY: "vault.body.v1" }));
+});
 
 import { OfflineBackupPanel } from "./OfflineBackupPanel.js";
 
@@ -77,9 +81,9 @@ describe("OfflineBackupPanel", () => {
   it("disables export while the vault is empty", () => {
     vaultState.current = { header: null, status: "empty" };
     render(<OfflineBackupPanel />);
-    const button = screen.getByRole("button", {
+    const button = overlapCast(screen.getByRole("button", {
       name: /Download offline backup/i,
-    }) as HTMLButtonElement;
+    }));
     expect(button.disabled).toBe(true);
   });
 
@@ -146,9 +150,9 @@ describe("OfflineBackupPanel", () => {
   }
 
   function pickFile(file: File) {
-    const input = document.getElementById(
+    const input = overlapCast(document.getElementById(
       "offline-backup-file",
-    ) as HTMLInputElement;
+    ));
     fireEvent.change(input, { target: { files: [file] } });
   }
 
@@ -199,9 +203,9 @@ describe("OfflineBackupPanel", () => {
     // Password field is cleared after a successful restore.
     expect(
       (
-        screen.getByLabelText(
+        overlapCast(screen.getByLabelText(
           /Master password for restore/i,
-        ) as HTMLInputElement
+        ))
       ).value,
     ).toBe("");
   });
@@ -289,9 +293,9 @@ describe("OfflineBackupPanel", () => {
     render(<OfflineBackupPanel />);
     expect(
       (
-        screen.getByLabelText(
+        overlapCast(screen.getByLabelText(
           /Master password for restore/i,
-        ) as HTMLInputElement
+        ))
       ).disabled,
     ).toBe(true);
   });

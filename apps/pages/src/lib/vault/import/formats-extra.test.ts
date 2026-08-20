@@ -12,6 +12,7 @@ import {
 import { onepasswordCsv, onepasswordPux } from "./formats/onepassword.js";
 import { protonpassJson } from "./formats/protonpass.js";
 import type { DetectInput } from "./types.js";
+import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 function csvInput(text: string, headers: string[] | null): DetectInput {
   return { fileName: "export.csv", text, headers, json: null };
@@ -357,7 +358,7 @@ describe("Bitwarden JSON extras", () => {
 });
 
 describe("1Password 1PUX extras", () => {
-  function pux(items: unknown[]): unknown {
+  function pux(items: unknown[]): BoundaryValue {
     return {
       accounts: [
         {
@@ -367,7 +368,7 @@ describe("1Password 1PUX extras", () => {
     };
   }
 
-  function parsePux(json: unknown) {
+  function parsePux(json: BoundaryValue) {
     return onepasswordPux.parse({
       fileName: "export.1pux",
       text: "",
@@ -518,11 +519,11 @@ describe("1Password CSV extras", () => {
 });
 
 describe("Proton Pass extras", () => {
-  function proton(items: unknown[]): unknown {
+  function proton(items: unknown[]): BoundaryValue {
     return { vaults: { v1: { name: "Personal", items } } };
   }
 
-  function parseProton(json: unknown) {
+  function parseProton(json: BoundaryValue) {
     return protonpassJson.parse({
       fileName: "proton.json",
       text: "",
@@ -534,7 +535,7 @@ describe("Proton Pass extras", () => {
   it("throws when forced onto a non-Proton or encrypted file", () => {
     expect(() => parseProton({ nope: true })).toThrow(/not a Proton Pass/);
     expect(() =>
-      parseProton({ ...(proton([]) as object), encrypted: true }),
+      parseProton({ ...(overlapCast(proton([]))), encrypted: true }),
     ).toThrow(/encrypted/);
   });
 

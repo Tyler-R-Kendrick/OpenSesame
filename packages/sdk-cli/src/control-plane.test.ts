@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createControlPlaneClient } from "./control-plane.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 describe("createControlPlaneClient", () => {
   it("keeps a claim id inside its path segment", async () => {
@@ -10,7 +11,7 @@ describe("createControlPlaneClient", () => {
     });
     const cp = createControlPlaneClient({
       baseUrl: "http://127.0.0.1:8788",
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
 
     // An id that tries to aim the request — and the claim token with it — elsewhere.
@@ -65,7 +66,7 @@ describe("createControlPlaneClient", () => {
     const cp = createControlPlaneClient({
       baseUrl: "http://127.0.0.1:8788",
       accessToken: "pst_existing",
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
 
     await cp.whoami();
@@ -117,20 +118,20 @@ describe("createControlPlaneClient", () => {
     );
     const cp = createControlPlaneClient({
       baseUrl: "http://127.0.0.1:8788",
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
 
-    const result = (await cp.registerAnonymousAgent({
+    const result = overlapCast(await cp.registerAnonymousAgent({
       displayName: "a",
       publicKeyJkt: "jkt",
-    })) as Record<string, unknown>;
+    }));
 
     expect(calls).toEqual([
       { path: "/v1/principals/provisional", auth: null },
       { path: "/v1/agents", auth: "Bearer pst_guest" },
     ]);
     expect(result.claimToken).toBe("osc_clm_x.y");
-    expect((result.provisional as { principalId: string }).principalId).toBe(
+    expect((overlapCast(result.provisional)).principalId).toBe(
       "prn_guest",
     );
   });
@@ -139,7 +140,7 @@ describe("createControlPlaneClient", () => {
     const fetchImpl = vi.fn();
     const cp = createControlPlaneClient({
       baseUrl: "http://127.0.0.1:8788",
-      fetchImpl: fetchImpl as unknown as typeof fetch,
+      fetchImpl: overlapCast(fetchImpl),
     });
     await cp.logout();
     expect(fetchImpl).not.toHaveBeenCalled();

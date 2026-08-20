@@ -10,6 +10,7 @@ import {
   assertSecureUrl,
   trimSlash,
 } from "./secure-url.js";
+import { overlapCast, isString } from "@opensesame/os-domain";
 
 export interface LoopbackLoginConfig {
   issuer: string;
@@ -42,7 +43,7 @@ function b64url(buf: Buffer): string {
     .replace(/=+$/u, "");
 }
 
-function pkce(): { verifier: string; challenge: string; state: string } {
+function pkce() {
   const verifier = b64url(randomBytes(32));
   const challenge = b64url(createHash("sha256").update(verifier).digest());
   const state = b64url(randomBytes(16));
@@ -63,11 +64,7 @@ export async function loopbackLogin(
   );
   if (!discoveryRes.ok)
     throw new Error(`discovery failed: ${discoveryRes.status}`);
-  const meta = (await discoveryRes.json()) as {
-    issuer?: string;
-    authorization_endpoint: string;
-    token_endpoint: string;
-  };
+  const meta = overlapCast(await discoveryRes.json());
   // This document says where the code and the verifier go. Take it only from the
   // issuer that names itself, and only over a channel nobody can rewrite.
   assertDiscoveryBelongsToIssuer(meta, issuer);
@@ -142,7 +139,7 @@ export async function loopbackLogin(
             reject(new Error(`token exchange failed: ${tokenRes.status}`));
             return;
           }
-          const tokens = (await tokenRes.json()) as LoopbackTokens;
+          const tokens = overlapCast(await tokenRes.json());
           res.writeHead(200, { "content-type": "text/html" });
           res.end(
             "<html><body><h1>Signed in</h1><p>You can close this window.</p></body></html>",
@@ -159,7 +156,7 @@ export async function loopbackLogin(
     let redirectUri = "";
     server.listen(0, "127.0.0.1", () => {
       const addr = server.address();
-      if (!addr || typeof addr === "string") {
+      if (!addr || isString(addr)) {
         reject(new Error("failed to bind loopback"));
         return;
       }

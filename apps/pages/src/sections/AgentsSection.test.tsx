@@ -1,34 +1,26 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const online = vi.hoisted(() => ({ value: true }));
 const session = vi.hoisted(() => ({
-  current: { principalId: "prn_op" } as { principalId: string } | null,
+  current: { principalId: "prn_op" },
 }));
 const connect = vi.hoisted(() => vi.fn());
 const connectState = vi.hoisted(() => ({
   connecting: false,
-  error: null as unknown,
+  error: null,
 }));
 const currentSession = vi.hoisted(() => vi.fn());
 const hostFetch = vi.hoisted(() => vi.fn());
 const identityJson = vi.hoisted(() => vi.fn());
 
-const IdentityError = vi.hoisted(() => {
-  return class IdentityError extends Error {
-    status: number;
-    constructor(status: number, message: string) {
-      super(message);
-      this.status = status;
-    }
-  };
-});
-
-vi.mock("../lib/identity.js", () => ({
-  IdentityError,
+import { IdentityError, identitySeams } from "../lib/identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {
   currentSession,
   hostBase: () => "http://127.0.0.1:8787",
   hostFetch,
@@ -39,22 +31,22 @@ vi.mock("../lib/identity.js", () => ({
     connecting: connectState.connecting,
     error: connectState.error,
   }),
-  useIdentitySession: () => session.current,
-}));
-
-vi.mock("../lib/use-online.js", () => ({ useOnline: () => online.value }));
-
+  useIdentitySession: () => session.current});
+import { useOnlineSeams } from "../lib/use-online.js";
+const originalUseOnlineSeams = { ...useOnlineSeams };
+Object.assign(useOnlineSeams, {useOnline: () => online.value});
 const vault = vi.hoisted(() => ({
-  current: { items: [] as unknown[], status: "unlocked" as string },
+  current: { items: [], status: "unlocked" },
 }));
 
-vi.mock("../lib/vault/hooks.js", () => ({
-  useVault: () => vault.current,
-}));
+import { vaultHooksSeams } from "../lib/vault/hooks.js";
+const originalVaultHooksSeams = { ...vaultHooksSeams };
+Object.assign(vaultHooksSeams, {useVault: () => vault.current});
 
-vi.mock("../components/PlaneNote.js", () => ({
-  PagesCannotHostNote: () => null,
-}));
+
+import { planeNoteSeams } from "../components/PlaneNote.js";
+const originalPlaneNoteSeams = { ...planeNoteSeams };
+Object.assign(planeNoteSeams, { PagesCannotHostNote: () => null });
 
 import type { SecretItem } from "../lib/vault/model.js";
 import { AgentsSection } from "./AgentsSection.js";
@@ -89,13 +81,15 @@ function renderAgents() {
 
 describe("AgentsSection", () => {
   beforeEach(() => {
-    online.value = true;
-    session.current = { principalId: "prn_op" };
-    connectState.connecting = false;
-    connectState.error = null;
     vault.current = { items: [], status: "unlocked" };
-    currentSession.mockReturnValue({ accessToken: "tok_1" });
+    session.current = { principalId: "prn_op" };
+    online.value = true;
+    connectState.error = null;
     identityJson.mockResolvedValue({ events: [] });
+    currentSession.mockReturnValue({
+      accessToken: "tok_1",
+      principalId: "prn_op",
+    });
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
       configurable: true,
@@ -306,7 +300,7 @@ describe("AgentsSection", () => {
     online.value = false;
     renderAgents();
     expect(
-      (screen.getByRole("button", { name: /^Inspect$/i }) as HTMLButtonElement)
+      (overlapCast(screen.getByRole("button", { name: /^Inspect$/i })))
         .disabled,
     ).toBe(true);
     expect(screen.getByText(/You are offline/)).toBeTruthy();
@@ -334,9 +328,9 @@ describe("AgentsSection", () => {
       screen.getByRole("button", { name: /Generate keypair/i }),
     );
     await screen.findByRole("button", { name: /Regenerate/i });
-    const form = screen
+    const form = overlapCast(screen
       .getByRole("button", { name: /Register agent/i })
-      .closest("form") as HTMLFormElement;
+      .closest("form"));
     const { fireEvent } = await import("@testing-library/react");
     fireEvent.submit(form);
     expect(screen.getByRole("alert").textContent).toMatch(
@@ -465,13 +459,13 @@ describe("AgentsSection", () => {
     await screen.findByRole("button", { name: /Regenerate/i });
     await userEvent.type(screen.getByLabelText(/Display name/i), "Bot");
 
-    identityJson.mockRejectedValue(new IdentityError(403, "denied"));
+    identityJson.mockRejectedValue(new IdentityError("denied", 403));
     await userEvent.click(
       screen.getByRole("button", { name: /Register agent/i }),
     );
     expect(await screen.findByText(/Policy denied/)).toBeTruthy();
 
-    identityJson.mockRejectedValue(new IdentityError(401, "expired"));
+    identityJson.mockRejectedValue(new IdentityError("expired", 401));
     await userEvent.click(
       screen.getByRole("button", { name: /Register agent/i }),
     );
@@ -479,13 +473,13 @@ describe("AgentsSection", () => {
       await screen.findByText(/principal session was rejected/),
     ).toBeTruthy();
 
-    identityJson.mockRejectedValue(new IdentityError(400, "bad"));
+    identityJson.mockRejectedValue(new IdentityError("bad", 400));
     await userEvent.click(
       screen.getByRole("button", { name: /Register agent/i }),
     );
     expect(await screen.findByText(/1–128 characters/)).toBeTruthy();
 
-    identityJson.mockRejectedValue(new IdentityError(500, "oops"));
+    identityJson.mockRejectedValue(new IdentityError("oops", 500));
     await userEvent.click(
       screen.getByRole("button", { name: /Register agent/i }),
     );
@@ -537,7 +531,7 @@ describe("AgentsSection", () => {
   });
 
   it("surfaces audit trail failures", async () => {
-    identityJson.mockRejectedValue(new IdentityError(401, "expired"));
+    identityJson.mockRejectedValue(new IdentityError("expired", 401));
     renderAgents();
     expect(
       await screen.findByText(/session was rejected, so the trail/),

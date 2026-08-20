@@ -6,16 +6,17 @@ import {
   isPkceRequired,
   isResourceAllowed,
 } from "../create-provider.js";
+import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const ISSUER = "https://id.example.test";
 const API = "https://api.example.test";
 
 type ResourceIndicatorsConfig = {
-  defaultResource: () => Promise<unknown>;
+  defaultResource: () => Promise<BoundaryValue>;
   getResourceServerInfo: (
-    ctx: unknown,
+    ctx: BoundaryValue,
     resourceIndicator: string,
-    client: unknown,
+    client: BoundaryValue,
   ) => Promise<{ scope: string; audience: string; accessTokenFormat: string }>;
   useGrantedResource: () => Promise<boolean>;
 };
@@ -23,8 +24,8 @@ type ResourceIndicatorsConfig = {
 function resourceIndicators(
   bundle: OpenSesameProviderBundle,
 ): ResourceIndicatorsConfig {
-  return bundle.configuration.features
-    ?.resourceIndicators as unknown as ResourceIndicatorsConfig;
+  return overlapCast(bundle.configuration.features
+    ?.resourceIndicators);
 }
 
 describe("provider resource indicator callbacks", () => {
@@ -77,10 +78,7 @@ describe("provider account and pkce callbacks", () => {
     const bundle = createOpenSesameProvider({ issuer: ISSUER, processEnv: {} });
     const findAccount = bundle.configuration.findAccount;
     expect(findAccount).toBeDefined();
-    const account = (await findAccount?.({}, "user-1")) as {
-      accountId: string;
-      claims: () => Promise<Record<string, unknown>>;
-    };
+    const account = overlapCast(await findAccount?.({}, "user-1"));
     expect(account.accountId).toBe("user-1");
     await expect(account.claims()).resolves.toEqual({ sub: "user-1" });
   });
@@ -91,9 +89,9 @@ describe("provider account and pkce callbacks", () => {
   });
 
   it("reports PKCE as not required when the configuration lacks the hook", () => {
-    const fake = {
+    const fake = overlapCast({
       configuration: {},
-    } as unknown as OpenSesameProviderBundle;
+    });
     expect(isPkceRequired(fake)).toBe(false);
   });
 });
@@ -110,7 +108,7 @@ describe("signing key resolution from env", () => {
 
   it("uses keys from OPENSESAME_JWKS_JSON when present", () => {
     const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
-    const jwk = privateKey.export({ format: "jwk" }) as Record<string, unknown>;
+    const jwk = overlapCast(privateKey.export({ format: "jwk" }));
     jwk.kid = "env-key";
     const bundle = createOpenSesameProvider({
       issuer: ISSUER,

@@ -10,13 +10,14 @@ import {
 import { describe, expect, it } from "vitest";
 import { assertMockIdpListenAllowed } from "./config.js";
 import { createMockUpstreamIdp } from "./server.js";
+import { overlapCast, isString } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 async function listenIdp() {
   const idp = await createMockUpstreamIdp({
     host: "127.0.0.1",
-    port: 0 as unknown as number,
+    port: overlapCast(0),
     issuer: "http://127.0.0.1:0",
   });
   await new Promise<void>((resolve, reject) => {
@@ -24,7 +25,7 @@ async function listenIdp() {
     idp.server.once("error", reject);
   });
   const addr = idp.server.address();
-  if (!addr || typeof addr === "string") throw new Error("no address");
+  if (!addr || isString(addr)) throw new Error("no address");
   const base = `http://127.0.0.1:${addr.port}`;
   idp.config.issuer = base;
   return { idp, base };
@@ -50,7 +51,7 @@ describe("PACT — mock-upstream-idp", () => {
       noPkce.searchParams.set("response_type", "code");
       const res = await fetch(noPkce, { redirect: "manual" });
       expect(res.status).toBe(400);
-      const body = (await res.json()) as { error?: string };
+      const body = overlapCast(await res.json());
       expect(body.error).toBe("invalid_request");
       assertNoSecretFields(body);
     } finally {

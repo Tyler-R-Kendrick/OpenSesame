@@ -10,6 +10,7 @@ import {
   setTaskContext,
   updateTaskFromResponse,
 } from "./task-context.js";
+import { type BoundaryValue } from "@opensesame/os-domain";
 
 export const hostTools = [
   "task_start",
@@ -275,7 +276,7 @@ function textContent(text: string) {
   return [{ type: "text" as const, text }];
 }
 
-function toolError(label: string, e: unknown) {
+function toolError(label: string, e: BoundaryValue) {
   const message = e instanceof Error ? e.message : String(e);
   try {
     return {

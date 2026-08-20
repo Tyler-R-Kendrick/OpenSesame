@@ -1,4 +1,4 @@
-import type { AssuranceLevel, Principal } from "@opensesame/os-domain";
+import type { AssuranceLevel, Principal, JsonObject } from "@opensesame/os-domain";
 import { isProvisionalPrincipal } from "@opensesame/os-domain";
 
 /**
@@ -24,7 +24,7 @@ export interface AuthorizationRequest {
     organizationId?: string;
     projectId?: string;
   };
-  context?: Record<string, unknown>;
+  context?: JsonObject;
 }
 
 export type DecisionEffect = "allow" | "deny";

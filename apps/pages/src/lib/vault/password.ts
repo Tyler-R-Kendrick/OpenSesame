@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 /** Password generation and strength estimation. All randomness from crypto.getRandomValues. */
 
 const LOWER = "abcdefghijklmnopqrstuvwxyz";
@@ -66,8 +67,8 @@ function shuffle<T>(input: T[]): T[] {
   const out = [...input];
   for (let i = out.length - 1; i > 0; i -= 1) {
     const j = randomIndex(i + 1);
-    const a = out[i] as T;
-    const b = out[j] as T;
+    const a = overlapCast(out[i]);
+    const b = overlapCast(out[j]);
     out[i] = b;
     out[j] = a;
   }
@@ -370,7 +371,7 @@ export const WORDS: readonly string[] = [
 export function generatePassphrase(options: PassphraseOptions): string {
   const count = Math.max(3, Math.min(options.words, 12));
   const parts = Array.from({ length: count }, () => {
-    const word = WORDS[randomIndex(WORDS.length)] as string;
+    const word = overlapCast(WORDS[randomIndex(WORDS.length)]);
     return options.capitalize
       ? word.charAt(0).toUpperCase() + word.slice(1)
       : word;
@@ -449,7 +450,7 @@ const SEQUENCES = [
  * it penalises dictionary hits, repetition, and keyboard runs rather than
  * rewarding a password for merely containing a symbol.
  */
-export function estimateStrength(password: string): Strength {
+function estimateStrengthDefault(password: string): Strength {
   if (!password) return { bits: 0, score: 0, label: "Very weak" };
 
   const lower = password.toLowerCase();
@@ -484,4 +485,12 @@ export function estimateStrength(password: string): Strength {
     score
   ];
   return { bits, score, label };
+}
+
+export const passwordSeams = {
+  estimateStrength: estimateStrengthDefault,
+};
+
+export function estimateStrength(password: string): Strength {
+  return passwordSeams.estimateStrength(password);
 }

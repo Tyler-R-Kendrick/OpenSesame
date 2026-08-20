@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
 import { sealDevOnly } from "./index.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -20,7 +21,7 @@ describe("PACT — client-core sealed store", () => {
   });
 
   it("chaos: production-like env never XORs", () => {
-    const g = globalThis as { process?: { env?: { NODE_ENV?: string } } };
+    const g = overlapCast(globalThis);
     const prev = g.process?.env?.NODE_ENV;
     if (g.process?.env) g.process.env.NODE_ENV = "production";
     try {

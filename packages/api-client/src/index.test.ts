@@ -10,6 +10,7 @@ import {
   normalizeHttpBaseUrl,
   normalizeLoopbackBaseUrl,
 } from "./index.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 describe("normalizeLoopbackBaseUrl", () => {
   it("accepts loopback origins and strips trailing slash", () => {
@@ -130,9 +131,9 @@ describe("api-client", () => {
       },
     });
     await client.whoami();
-    const claims = JSON.parse(
+    const claims = overlapCast(JSON.parse(
       Buffer.from(dpop.split(".").at(1) ?? "", "base64url").toString("utf8"),
-    ) as { ath?: string; htu?: string; htm?: string };
+    ));
     // The verifier in crates/proof requires ath whenever a token is present.
     expect(claims.ath).toBe(await accessTokenHash("opaque-session-token"));
     expect(claims.htu).toBe("https://host.test:8787/api/v1/whoami");
@@ -145,9 +146,9 @@ describe("api-client", () => {
       "https://host.test/api?next=elsewhere",
       "POST",
     );
-    const claims = JSON.parse(
+    const claims = overlapCast(JSON.parse(
       Buffer.from(proof.split(".").at(1) ?? "", "base64url").toString("utf8"),
-    ) as { htu?: string; ath?: string };
+    ));
     expect(claims.htu).toBe("https://host.test/api");
     // No token, no ath: the verifier rejects an unexpected one.
     expect(claims.ath).toBeUndefined();
@@ -215,11 +216,11 @@ describe("api-client", () => {
     expect(calls).toBe(2);
     const nonceOf = (proof: string) =>
       (
-        JSON.parse(
+        overlapCast(JSON.parse(
           Buffer.from(proof.split(".").at(1) ?? "", "base64url").toString(
             "utf8",
           ),
-        ) as { nonce?: string }
+        ))
       ).nonce;
     expect(nonceOf(proofs.at(0) ?? "")).toBeUndefined();
     expect(nonceOf(proofs.at(1) ?? "")).toBe("n-from-server");
@@ -258,11 +259,11 @@ describe("api-client", () => {
     });
     await client.health();
     await client.health();
-    const second = JSON.parse(
+    const second = overlapCast(JSON.parse(
       Buffer.from(proofs.at(1)?.split(".").at(1) ?? "", "base64url").toString(
         "utf8",
       ),
-    ) as { nonce?: string };
+    ));
     expect(second.nonce).toBe("n-1");
   });
 

@@ -1,3 +1,4 @@
+import { isString } from "@opensesame/os-domain";
 /**
  * Extension background: Host API + client-core sync cursor + optional daemon.
  * Never exposes getSecret to webpages.
@@ -18,7 +19,7 @@ async function resolveHostBase(): Promise<string> {
   try {
     const stored = await chrome.storage.local.get("hostApiBase");
     const value = stored.hostApiBase;
-    if (typeof value === "string" && value.trim()) {
+    if (isString(value) && value.trim()) {
       const normalized = normalizeLoopbackBaseUrl(value);
       if (normalized) return normalized;
     }

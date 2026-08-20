@@ -1,6 +1,8 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const online = vi.hoisted(() => ({ value: true }));
@@ -8,41 +10,44 @@ const planes = vi.hoisted(() => ({
   value: { host: "live", identity: "connected" },
 }));
 const session = vi.hoisted(() => ({
-  current: { principalId: "prn_op" } as { principalId: string } | null,
+  current: { principalId: "prn_op" },
 }));
 const connect = vi.hoisted(() => vi.fn());
 const connectState = vi.hoisted(() => ({
   connecting: false,
-  error: null as string | null,
+  error: null,
 }));
 const hostLocalSessionEligible = vi.hoisted(() => vi.fn(() => true));
 const ensureHostSession = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 );
 
-vi.mock("../../lib/use-online.js", () => ({ useOnline: () => online.value }));
-vi.mock("../../lib/planes.js", () => ({ usePlaneStatus: () => planes.value }));
-vi.mock("../../lib/identity.js", () => ({
-  useIdentitySession: () => session.current,
+import { useOnlineSeams } from "../../lib/use-online.js";
+const originalUseOnlineSeams = { ...useOnlineSeams };
+Object.assign(useOnlineSeams, {useOnline: () => online.value});
+import { planeSeams } from "../../lib/planes.js";
+const originalPlaneSeams = { ...planeSeams };
+Object.assign(planeSeams, {usePlaneStatus: () => planes.value});
+import { identitySeams } from "../../lib/identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, {useIdentitySession: () => session.current,
   useConnect: () => ({
     connect,
     connecting: connectState.connecting,
     error: connectState.error,
   }),
   ensureHostSession,
-  hostLocalSessionEligible,
-}));
-
+  hostBase: () => "http://127.0.0.1:8787",
+  hostLocalSessionEligible});
 const loadSettings = vi.hoisted(() => vi.fn());
 const saveSettings = vi.hoisted(() => vi.fn());
 const shouldAutoConnect = vi.hoisted(() => vi.fn(() => true));
 
-vi.mock("../../lib/settings.js", () => ({
-  loadSettings,
+import { settingsSeams } from "../../lib/settings.js";
+const originalSettingsSeams = { ...settingsSeams };
+Object.assign(settingsSeams, {loadSettings,
   saveSettings,
-  shouldAutoConnect,
-}));
-
+  shouldAutoConnect});
 const listConnections = vi.hoisted(() => vi.fn());
 const listProviders = vi.hoisted(() => vi.fn());
 const listIntegrations = vi.hoisted(() => vi.fn());
@@ -54,7 +59,9 @@ const openConsentPopup = vi.hoisted(() => vi.fn(() => null));
 const startGithubAppRegistration = vi.hoisted(() => vi.fn());
 const submitGithubAppManifest = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/connections.js", () => ({
+import { connectionSeams } from "../../lib/connections.js";
+const originalConnectionSeams = { ...connectionSeams };
+Object.assign(connectionSeams, {
   listConnections,
   listProviders,
   listIntegrations,
@@ -65,10 +72,11 @@ vi.mock("../../lib/connections.js", () => ({
   openConsentPopup,
   startGithubAppRegistration,
   submitGithubAppManifest,
-}));
+});
 
-// The remote picker has its own test file; stub it with a hook to select a remote.
-vi.mock("./GithubHistoryRemotePicker.js", () => ({
+import { capabilityConnectorsSeams } from "./CapabilityConnectorsPanel.js";
+const originalCapabilityConnectorsSeams = { ...capabilityConnectorsSeams };
+Object.assign(capabilityConnectorsSeams, {
   GithubHistoryRemotePicker: ({
     onSelectRemote,
   }: { onSelectRemote: (remote: string) => void }) => (
@@ -80,24 +88,12 @@ vi.mock("./GithubHistoryRemotePicker.js", () => ({
       pick remote
     </button>
   ),
-}));
-
-vi.mock("react-router", () => ({
-  Link: ({
-    to,
-    children,
-    className,
-  }: { to: string; children: unknown; className?: string }) => (
-    <a href={to} className={className}>
-      {children as never}
-    </a>
-  ),
-}));
+});
 
 import type { Connection } from "../../lib/connections.js";
 import { CapabilityConnectorsPanel } from "./CapabilityConnectorsPanel.js";
 
-const githubConnection = {
+const githubConnection = overlapCast({
   connectionId: "con_gh",
   providerId: "github",
   status: "active",
@@ -106,7 +102,7 @@ const githubConnection = {
   integrationId: "int_gh",
   displayName: "GitHub sealed-store history",
   logicalName: "github",
-} as unknown as Connection;
+});
 
 function defaultBindings() {
   return {
@@ -114,6 +110,12 @@ function defaultBindings() {
     history: { providerId: "github" },
   };
 }
+
+const SETTINGS_ENDPOINTS = {
+  hostApi: "http://127.0.0.1:8787",
+  identityApi: "http://127.0.0.1:8788",
+  daemonApi: "http://127.0.0.1:18790",
+};
 
 describe("CapabilityConnectorsPanel", () => {
   beforeEach(() => {
@@ -124,7 +126,10 @@ describe("CapabilityConnectorsPanel", () => {
     connectState.error = null;
     hostLocalSessionEligible.mockReturnValue(true);
     shouldAutoConnect.mockReturnValue(true);
-    loadSettings.mockReturnValue({ capabilityConnectors: defaultBindings() });
+    loadSettings.mockReturnValue({
+      ...SETTINGS_ENDPOINTS,
+      capabilityConnectors: defaultBindings(),
+    });
     listConnections.mockResolvedValue([]);
     listProviders.mockResolvedValue([]);
     listIntegrations.mockResolvedValue([]);
@@ -137,7 +142,7 @@ describe("CapabilityConnectorsPanel", () => {
   });
 
   it("lists both capabilities with their default connectors", async () => {
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     expect(screen.getByText("Encryption key vault")).toBeTruthy();
     expect(screen.getByText("History & persistence")).toBeTruthy();
     // WebCrypto needs no Host auth.
@@ -148,7 +153,7 @@ describe("CapabilityConnectorsPanel", () => {
 
   it("shows the connected account when GitHub is authorized", async () => {
     listConnections.mockResolvedValue([githubConnection]);
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     expect(await screen.findByText("Connected as octocat")).toBeTruthy();
     expect(
       screen.getByRole("button", { name: /Re-authorize with OAuth/i }),
@@ -159,7 +164,7 @@ describe("CapabilityConnectorsPanel", () => {
     hostLocalSessionEligible.mockReturnValue(false);
     session.current = null;
     connect.mockResolvedValue(undefined);
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     await waitFor(() => expect(connect).toHaveBeenCalled());
   });
 
@@ -167,14 +172,14 @@ describe("CapabilityConnectorsPanel", () => {
     hostLocalSessionEligible.mockReturnValue(false);
     session.current = null;
     shouldAutoConnect.mockReturnValue(false);
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     expect(connect).not.toHaveBeenCalled();
   });
 
   it("surfaces identity connect errors", () => {
     hostLocalSessionEligible.mockReturnValue(false);
     connectState.error = "identity plane down";
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     const alert = screen.getByRole("alert");
     expect(alert.textContent).toMatch(/identity plane down/);
   });
@@ -183,12 +188,12 @@ describe("CapabilityConnectorsPanel", () => {
     hostLocalSessionEligible.mockReturnValue(false);
     session.current = null;
     connectState.connecting = true;
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     expect(screen.getByText(/Starting your OpenSesame session/)).toBeTruthy();
   });
 
   it("warns that OAuth needs the GitHub App when none is configured", async () => {
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     await screen.findByText("Authorize this connector to sync");
     await userEvent.click(
       screen.getByRole("button", { name: /Authorize GitHub \(OAuth\)/i }),
@@ -206,7 +211,7 @@ describe("CapabilityConnectorsPanel", () => {
       manifest: {},
       redirectUrl: "https://host.example/cb",
     });
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     const deploy = await screen.findByRole("button", {
       name: /Create GitHub App for this organization/i,
     });
@@ -222,7 +227,7 @@ describe("CapabilityConnectorsPanel", () => {
 
   it("reports GitHub App deployment failures", async () => {
     startGithubAppRegistration.mockRejectedValue(new Error("host offline"));
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     const deploy = await screen.findByRole("button", {
       name: /Create GitHub App for this organization/i,
     });
@@ -251,7 +256,7 @@ describe("CapabilityConnectorsPanel", () => {
       result: "active",
       connection: githubConnection,
     });
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Authorize GitHub \(OAuth\)/i,
@@ -287,7 +292,7 @@ describe("CapabilityConnectorsPanel", () => {
       result: "failed",
       connection: { ...githubConnection, statusDetail: "access denied" },
     });
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Authorize GitHub \(OAuth\)/i,
@@ -308,7 +313,7 @@ describe("CapabilityConnectorsPanel", () => {
       result: "cancelled",
       connection: githubConnection,
     });
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Authorize GitHub \(OAuth\)/i,
@@ -318,7 +323,7 @@ describe("CapabilityConnectorsPanel", () => {
   });
 
   it("requires a token before connecting with a PAT", async () => {
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Connect GitHub with token/i,
@@ -332,9 +337,9 @@ describe("CapabilityConnectorsPanel", () => {
     await userEvent.type(input, "   ");
     expect(
       (
-        screen.getByRole("button", {
+        overlapCast(screen.getByRole("button", {
           name: /Connect GitHub with token/i,
-        }) as HTMLButtonElement
+        }))
       ).disabled,
     ).toBe(true);
   });
@@ -342,7 +347,7 @@ describe("CapabilityConnectorsPanel", () => {
   it("connects GitHub with a personal access token", async () => {
     createConnection.mockResolvedValue(githubConnection);
     setConnectionCredential.mockResolvedValue(githubConnection);
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     const input = await screen.findByLabelText(
       /connect with a personal access token/i,
     );
@@ -358,7 +363,7 @@ describe("CapabilityConnectorsPanel", () => {
     );
     expect(await screen.findByText(/GitHub connected as octocat/)).toBeTruthy();
     // The token field is cleared once sealed on the Host.
-    expect((input as HTMLInputElement).value).toBe("");
+    expect((overlapCast(input)).value).toBe("");
   });
 
   it("reports a stored token that never became active", async () => {
@@ -368,7 +373,7 @@ describe("CapabilityConnectorsPanel", () => {
       status: "pending",
       statusDetail: "bad credentials",
     });
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     const input = await screen.findByLabelText(
       /connect with a personal access token/i,
     );
@@ -381,7 +386,7 @@ describe("CapabilityConnectorsPanel", () => {
 
   it("persists the remote chosen through the history picker", async () => {
     listConnections.mockResolvedValue([githubConnection]);
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     await screen.findByText("Connected as octocat");
     await userEvent.click(screen.getByTestId("pick-remote"));
     expect(saveSettings).toHaveBeenCalledWith(
@@ -404,7 +409,7 @@ describe("CapabilityConnectorsPanel", () => {
         callbackUrl: "https://host.example/cb/aws",
       },
     ]);
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     await userEvent.selectOptions(
       screen.getByLabelText(/^Connector$/i, {
         selector: "#cap-connector-encryption",
@@ -427,12 +432,13 @@ describe("CapabilityConnectorsPanel", () => {
 
   it("shows a GitLab remote field when history binds to GitLab", async () => {
     loadSettings.mockReturnValue({
+      ...SETTINGS_ENDPOINTS,
       capabilityConnectors: {
         encryption: { providerId: "webcrypto" },
         history: { providerId: "gitlab", remote: "" },
       },
     });
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     const input = await screen.findByLabelText(
       /Git remote for encrypted store/i,
     );
@@ -446,7 +452,7 @@ describe("CapabilityConnectorsPanel", () => {
       "",
       "/settings?github_app=error&reason=expired_state",
     );
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     expect(
       await screen.findByText(/registration session expired/i),
     ).toBeTruthy();
@@ -455,7 +461,7 @@ describe("CapabilityConnectorsPanel", () => {
 
   it("confirms GitHub App registration from the redirect", async () => {
     window.history.replaceState({}, "", "/settings?github_app=registered");
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     expect(
       await screen.findByText(/GitHub App registered\. Authorize History/),
     ).toBeTruthy();
@@ -463,10 +469,10 @@ describe("CapabilityConnectorsPanel", () => {
 
   it("disables authorize while the Host plane is down", async () => {
     planes.value = { host: "degraded", identity: "connected" };
-    render(<CapabilityConnectorsPanel />);
-    const button = (await screen.findByRole("button", {
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    const button = overlapCast(await screen.findByRole("button", {
       name: /Authorize GitHub \(OAuth\)/i,
-    })) as HTMLButtonElement;
+    }));
     expect(button.disabled).toBe(true);
     expect(
       screen.getAllByText(/Host API is not reachable from this tab yet/).length,
@@ -483,7 +489,10 @@ describe("CapabilityConnectorsPanel edge branches", () => {
     connectState.error = null;
     hostLocalSessionEligible.mockReturnValue(true);
     shouldAutoConnect.mockReturnValue(true);
-    loadSettings.mockReturnValue({ capabilityConnectors: defaultBindings() });
+    loadSettings.mockReturnValue({
+      ...SETTINGS_ENDPOINTS,
+      capabilityConnectors: defaultBindings(),
+    });
     listConnections.mockResolvedValue([]);
     listProviders.mockResolvedValue([]);
     listIntegrations.mockResolvedValue([]);
@@ -499,12 +508,13 @@ describe("CapabilityConnectorsPanel edge branches", () => {
     listConnections.mockResolvedValue([
       { ...githubConnection, status: "pending", accountLabel: null },
     ]);
-    const { unmount } = render(<CapabilityConnectorsPanel />);
+    const { unmount } = render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     expect(await screen.findByText("Authorization incomplete")).toBeTruthy();
     unmount();
 
     // A broken connection only surfaces when the binding points at it.
     loadSettings.mockReturnValue({
+      ...SETTINGS_ENDPOINTS,
       capabilityConnectors: {
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github", connectionId: "con_gh" },
@@ -517,7 +527,7 @@ describe("CapabilityConnectorsPanel edge branches", () => {
         statusDetail: "token exchange blew up",
       },
     ]);
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     expect(await screen.findByText("token exchange blew up")).toBeTruthy();
   });
 
@@ -525,7 +535,7 @@ describe("CapabilityConnectorsPanel edge branches", () => {
     listConnections.mockRejectedValue(new Error("down"));
     listProviders.mockRejectedValue(new Error("down"));
     listIntegrations.mockRejectedValue(new Error("down"));
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     expect(
       await screen.findByText("Authorize this connector to sync"),
     ).toBeTruthy();
@@ -537,7 +547,7 @@ describe("CapabilityConnectorsPanel edge branches", () => {
       "",
       "/settings?github_app=error&reason=missing_code",
     );
-    const { unmount } = render(<CapabilityConnectorsPanel />);
+    const { unmount } = render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     expect(await screen.findByText(/incomplete redirect/)).toBeTruthy();
     unmount();
 
@@ -546,13 +556,13 @@ describe("CapabilityConnectorsPanel edge branches", () => {
       "",
       "/settings?github_app=error&reason=something_custom",
     );
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     expect(await screen.findByText(/something_custom/)).toBeTruthy();
   });
 
   it("confirms installation from the redirect", async () => {
     window.history.replaceState({}, "", "/settings?github_app=installed");
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     expect(
       await screen.findByText(/GitHub App installed\. Authorize/),
     ).toBeTruthy();
@@ -564,7 +574,7 @@ describe("CapabilityConnectorsPanel edge branches", () => {
     ]);
     createConnection.mockResolvedValue(githubConnection);
     authorizeConnection.mockRejectedValue(new Error("popup blocked"));
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Authorize GitHub \(OAuth\)/i,
@@ -577,20 +587,21 @@ describe("CapabilityConnectorsPanel edge branches", () => {
 
   it("connects GitLab with a token and uses the generic message", async () => {
     loadSettings.mockReturnValue({
+      ...SETTINGS_ENDPOINTS,
       capabilityConnectors: {
         encryption: { providerId: "webcrypto" },
         history: { providerId: "gitlab" },
       },
     });
-    const gitlabConnection = {
+    const gitlabConnection = overlapCast({
       ...githubConnection,
       connectionId: "con_gl",
       providerId: "gitlab",
       accountLabel: null,
-    } as unknown as Connection;
+    });
     createConnection.mockResolvedValue(gitlabConnection);
     setConnectionCredential.mockResolvedValue(gitlabConnection);
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     const input = await screen.findByLabelText(
       /connect with a personal access token/i,
     );
@@ -606,6 +617,7 @@ describe("CapabilityConnectorsPanel edge branches", () => {
   it("authorizes a non-GitHub connector with the generic success text", async () => {
     // Switch history to GitLab and give it a working OAuth setup.
     loadSettings.mockReturnValue({
+      ...SETTINGS_ENDPOINTS,
       capabilityConnectors: {
         encryption: { providerId: "webcrypto" },
         history: { providerId: "gitlab" },
@@ -614,11 +626,11 @@ describe("CapabilityConnectorsPanel edge branches", () => {
     listProviders.mockResolvedValue([
       { id: "gitlab", configured: true, missingConfig: [] },
     ]);
-    const gitlabConnection = {
+    const gitlabConnection = overlapCast({
       ...githubConnection,
       connectionId: "con_gl",
       providerId: "gitlab",
-    } as unknown as Connection;
+    });
     createConnection.mockResolvedValue(gitlabConnection);
     authorizeConnection.mockResolvedValue({
       authorizationUrl: "https://gitlab.com/oauth/authorize",
@@ -627,7 +639,7 @@ describe("CapabilityConnectorsPanel edge branches", () => {
       result: "active",
       connection: gitlabConnection,
     });
-    render(<CapabilityConnectorsPanel />);
+    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Authorize GitLab \(OAuth\)/i,

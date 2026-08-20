@@ -14,7 +14,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/observability": "workspace:*"
+    "@opensesame/observability": "workspace:*",
+    "@opensesame/os-domain": "workspace:*"
   },
   "devDependencies": {
     "@opensesame/testing": "workspace:*",

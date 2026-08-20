@@ -11,6 +11,7 @@ import {
   sealJson,
   unlockVaultKey,
 } from "./crypto.js";
+import { overlapCast } from "@opensesame/os-domain";
 
 // A low iteration count keeps the suite fast; the production floor is asserted separately.
 const PASSWORD = "correct horse battery staple";
@@ -89,7 +90,7 @@ describe("vault key lifecycle", () => {
   it("rejects a header from an unsupported format", async () => {
     const { header } = await createVault(PASSWORD);
     await expect(
-      unlockVaultKey({ ...header, v: 2 as unknown as 1 }, PASSWORD),
+      unlockVaultKey({ ...header, v: overlapCast(2) }, PASSWORD),
     ).rejects.toBeInstanceOf(VaultCorruptError);
   });
 });
@@ -144,7 +145,7 @@ describe("password-optional headers", () => {
     const { header } = await createVault(PASSWORD);
     const { wrap: _w, kdf: _k, ...rest } = header;
     await expect(
-      unlockVaultKey(rest as typeof header, PASSWORD),
+      unlockVaultKey(overlapCast(rest), PASSWORD),
     ).rejects.toBeInstanceOf(VaultCorruptError);
   });
 
