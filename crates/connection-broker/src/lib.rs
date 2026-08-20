@@ -36,8 +36,8 @@ use std::sync::{Arc, Mutex};
 use base64::Engine as _;
 use chrono::Utc;
 use opensesame_domain::{
-    ConnectionId, ConnectionOwnerKind, ConnectionRef, EgressBinding, OrganizationId, ProjectId,
-    Shareability,
+    ConnectionId, ConnectionOwnerKind, ConnectionRef, EgressBinding, MaterializationPolicy,
+    OrganizationId, ProjectId, Shareability,
 };
 use rand::RngCore;
 use sqlx::SqlitePool;
@@ -49,6 +49,8 @@ pub use crate::changelog_hook::{
     CHANGELOG_EVENT_TYPES,
 };
 pub use crate::config::{BrokerConfig, ProviderConfig};
+pub use crate::egress::GithubRepo;
+pub use crate::error::{BrokerError, Result};
 pub use crate::github_app::{
     build_manifest, convert_manifest_code, history_app_permissions, history_integration_scopes,
     is_github_app_client_id, GithubAppCredentials, GITHUB_APP_REGISTER_URL,
@@ -57,8 +59,6 @@ pub use crate::installation::{
     list_app_installations, mint_installation_token, GithubAppSigningMaterial,
     GithubInstallationSummary, InstallationToken, MintError, DEFAULT_GITHUB_API_BASE,
 };
-pub use crate::egress::GithubRepo;
-pub use crate::error::{BrokerError, Result};
 pub use crate::integration::{
     CreateIntegration, IntegrationSource, IntegrationView, UpdateIntegration,
 };
@@ -470,6 +470,8 @@ impl ConnectionBroker {
             shareability: shareability_str(request.shareability.unwrap_or(Shareability::Private))
                 .to_string(),
             max_invoke_level: DEFAULT_MAX_INVOKE_LEVEL,
+            // ADR 0049: every connection starts deny; the owner opts in via PATCH.
+            materialization: materialization_str(MaterializationPolicy::Deny).to_string(),
             egress: provider.egress.binding(),
             created_at: now,
             updated_at: now,
@@ -1259,7 +1261,10 @@ impl ConnectionBroker {
                     .await
                     .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
                 let status = res.status();
-                let text = res.text().await.map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
+                let text = res
+                    .text()
+                    .await
+                    .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
                 if !(200..300).contains(&status.as_u16()) {
                     let snippet: String = text.chars().take(160).collect();
                     return Err(BrokerError::ExchangeFailed(format!(
@@ -1283,7 +1288,10 @@ impl ConnectionBroker {
                     .await
                     .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
                 let status = res.status();
-                let text = res.text().await.map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
+                let text = res
+                    .text()
+                    .await
+                    .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
                 if !(200..300).contains(&status.as_u16()) {
                     return Err(BrokerError::ExchangeFailed(format!(
                         "GitLab rejected the token ({status})"
@@ -1540,6 +1548,7 @@ impl ConnectionBroker {
         id: &str,
         shareability: Shareability,
         max_invoke_level: u8,
+        materialization: Option<MaterializationPolicy>,
     ) -> Result<ConnectionView> {
         if !(1..=2).contains(&max_invoke_level) {
             return Err(BrokerError::Invalid(
@@ -1547,16 +1556,122 @@ impl ConnectionBroker {
             ));
         }
         let row = self.row_in_org(organization_id, id).await?;
+        let materialization =
+            materialization.unwrap_or_else(|| parse_materialization(&row.materialization));
         store::update_policy(
             &self.pool,
             &row.id,
             &row.organization_id,
             shareability_str(shareability),
             max_invoke_level,
+            materialization_str(materialization),
         )
         .await?;
         store::append_event(&self.pool, &row.id, EventKind::PolicyUpdated, None).await?;
         self.get_connection_unscoped(&row.id).await
+    }
+
+    /// Mint a provider-native, short-lived, revocable derived token (ADR 0049).
+    ///
+    /// The sealed stored credential never moves and never leaves the broker: for
+    /// GitHub the mint runs off the integration's sealed App signing material and
+    /// GitHub issues the installation token itself. Fails closed in both
+    /// directions — the policy defaults to deny, and a provider without a mint
+    /// path is `unmintable` rather than approximate.
+    pub async fn mint_derived_token(
+        &self,
+        organization_id: &OrganizationId,
+        id: &str,
+        actor: &str,
+        installation_id: Option<&str>,
+    ) -> Result<DerivedMaterialization> {
+        let mut row = self.row_in_org(organization_id, id).await?;
+        if parse_materialization(&row.materialization) != MaterializationPolicy::DerivedShortLived {
+            return Err(BrokerError::MaterializationDenied);
+        }
+        if row.status == ConnectionStatus::Revoked {
+            return Err(BrokerError::Invalid("connection is revoked".into()));
+        }
+        let subject = row
+            .owner_subject
+            .clone()
+            .unwrap_or_else(|| "operator".into());
+        match row.provider_id.as_str() {
+            "github" => {
+                let provider = self.provider(&row.provider_id)?;
+                let (integration_id, _, _, _, _) = self
+                    .resolve_integration(
+                        organization_id,
+                        Some(&provider.id),
+                        (!row.integration_id.is_empty()).then_some(row.integration_id.as_str()),
+                    )
+                    .await?;
+                if row.integration_id.is_empty() {
+                    store::set_integration_id(&self.pool, &row.id, &integration_id).await?;
+                    row.integration_id = integration_id;
+                }
+                let material = self
+                    .github_app_signing_material(organization_id, &row.integration_id)
+                    .await?
+                    .ok_or_else(|| {
+                        BrokerError::Invalid(
+                            "integration holds no GitHub App signing material".into(),
+                        )
+                    })?;
+                let installation_id = installation_id
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .ok_or_else(|| {
+                        BrokerError::Invalid(
+                            "installation_id is required to mint a GitHub App installation token"
+                                .into(),
+                        )
+                    })?;
+                if !installation_id.chars().all(|c| c.is_ascii_digit()) {
+                    return Err(BrokerError::Invalid(
+                        "installation_id must be the numeric id from the GitHub App installation"
+                            .into(),
+                    ));
+                }
+                let minted = crate::installation::mint_installation_token(
+                    &self.http,
+                    self.config.github_api_base(),
+                    &material,
+                    installation_id,
+                )
+                .await
+                .map_err(|error| BrokerError::ExchangeFailed(error.to_string()))?;
+                store::append_event(
+                    &self.pool,
+                    &row.id,
+                    EventKind::Materialized,
+                    Some(&format!(
+                        "github_app_installation sub={subject} act={actor}"
+                    )),
+                )
+                .await?;
+                tracing::info!(connection_id = %row.id, provider_id = "github", "derived installation token minted");
+                Ok(DerivedMaterialization {
+                    connection_id: row.id.clone(),
+                    provider_id: "github".into(),
+                    kind: "github_app_installation".into(),
+                    derived_token: minted.token,
+                    expires_at: minted.expires_at.to_rfc3339(),
+                    subject,
+                    actor: actor.to_string(),
+                    issued_at: Utc::now().to_rfc3339(),
+                })
+            }
+            // ADR 0049 follow-up: STS GetSessionToken (or AssumeRole when the
+            // connection carries a role ARN) over the sealed long-term keys,
+            // sigv4-signed through the broker's HTTP client. Until that lands the
+            // aws family fails closed with the same answer as any other provider
+            // without a mint path.
+            "aws" | "aws-kms" | "aws-ps" | "aws-bedrock" => {
+                Err(BrokerError::Unmintable(row.provider_id.clone()))
+            }
+            other => Err(BrokerError::Unmintable(other.to_string())),
+        }
     }
 
     // ---- internals -----------------------------------------------------------
@@ -1652,6 +1767,7 @@ impl ConnectionBroker {
             project_id: row.project_id.clone(),
             owner_kind: parse_owner_kind(&row.owner_kind),
             shareability: parse_shareability(&row.shareability),
+            materialization: parse_materialization(&row.materialization),
             requested_scopes: row.requested_scopes.clone(),
             granted_scopes: row.granted_scopes.clone(),
             account_label: row.account_label.clone(),
@@ -1780,6 +1896,22 @@ pub fn parse_shareability(raw: &str) -> Shareability {
         "delegable" => Shareability::Delegable,
         "organization_wide" => Shareability::OrganizationWide,
         _ => Shareability::Private,
+    }
+}
+
+pub fn materialization_str(policy: MaterializationPolicy) -> &'static str {
+    match policy {
+        MaterializationPolicy::Deny => "deny",
+        MaterializationPolicy::DerivedShortLived => "derived_short_lived",
+    }
+}
+
+/// Unknown stored values parse as deny: a policy we cannot read is a policy we
+/// do not honor.
+pub fn parse_materialization(raw: &str) -> MaterializationPolicy {
+    match raw {
+        "derived_short_lived" => MaterializationPolicy::DerivedShortLived,
+        _ => MaterializationPolicy::Deny,
     }
 }
 

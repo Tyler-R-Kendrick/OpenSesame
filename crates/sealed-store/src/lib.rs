@@ -27,11 +27,11 @@ pub use git::{
     auto_commit, auto_push_enabled, ensure_git_repo, git_passthrough, push_backup, remote_url,
     set_auto_push, set_remote, GIT_TOKEN_ENV,
 };
-pub use manifest::{parse_manifest, seal_manifest, ManifestEntry, SealOutcome};
 pub use gpg::{decrypt_gpg_file, encrypt_gpg_file, read_gpg_id};
+pub use manifest::{parse_manifest, seal_manifest, ManifestEntry, SealOutcome};
 pub use otp::{
-    find_otpauth_in_trailer, parse_otpauth, sync_trailer_otp, totp_code, validate_otpauth, OtpError,
-    OtpUri,
+    find_otpauth_in_trailer, parse_otpauth, sync_trailer_otp, totp_code, validate_otpauth,
+    OtpError, OtpUri,
 };
 pub use path::{logical_to_relative, relative_to_logical};
 pub use recipients::Recipients;

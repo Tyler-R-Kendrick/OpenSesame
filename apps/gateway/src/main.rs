@@ -161,17 +161,11 @@ mod pact_coverage {
     fn taskbus_ping_is_configurator_gated() {
         opensesame_host_core::pact::assert_source_order(
             include_str!("routes/taskbus_config.rs"),
-            &[
-                "pub async fn ping",
-                "view(&resolved, \"reachable\"",
-            ],
+            &["pub async fn ping", "view(&resolved, \"reachable\""],
         );
         opensesame_host_core::pact::assert_source_order(
             include_str!("routes/taskbus_config.rs"),
-            &[
-                "fn require_configurator",
-                "pub async fn ping",
-            ],
+            &["fn require_configurator", "pub async fn ping"],
         );
     }
 }

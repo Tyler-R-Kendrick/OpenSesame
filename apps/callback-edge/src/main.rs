@@ -180,12 +180,7 @@ mod tests {
             "x-hub-signature-256",
             sign("whsec_test", &body).parse().unwrap(),
         );
-        let response = webhook(
-            Path(("conn_1".into(), "github".into())),
-            headers,
-            body,
-        )
-        .await;
+        let response = webhook(Path(("conn_1".into(), "github".into())), headers, body).await;
         assert_eq!(response.status(), StatusCode::OK);
     }
 

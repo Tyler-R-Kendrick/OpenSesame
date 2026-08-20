@@ -16,5 +16,8 @@ fn same_jti_is_never_accepted_twice() {
     let ra = a.join().unwrap();
     let rb = b.join().unwrap();
     let ok = usize::from(ra.is_ok()) + usize::from(rb.is_ok());
-    assert_eq!(ok, 1, "exactly one concurrent insert of the same jti may succeed");
+    assert_eq!(
+        ok, 1,
+        "exactly one concurrent insert of the same jti may succeed"
+    );
 }

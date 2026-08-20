@@ -35,6 +35,8 @@ opensesame-task-bus = { path = "../crates/task-bus" }
 opensesame-xkeys = { path = "../crates/xkeys" }
 opensesame-provider-openbao = { path = "../crates/provider-openbao" }
 opensesame-provider-openfga = { path = "../crates/provider-openfga" }
+opensesame-connection-detect = { path = "../crates/connection-detect" }
+opensesame-tailscale-authn = { path = "../crates/tailscale-authn" }
 
 [workspace]
 members = ["."]
@@ -231,6 +233,34 @@ bench = false
 [[bin]]
 name = "xkeys_envelope"
 path = "fuzz_targets/xkeys_envelope.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mcp_config"
+path = "fuzz_targets/mcp_config.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ini_parse"
+path = "fuzz_targets/ini_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "whois_response"
+path = "fuzz_targets/whois_response.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "promote_request"
+path = "fuzz_targets/promote_request.rs"
 test = false
 doc = false
 bench = false

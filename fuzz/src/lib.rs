@@ -19,6 +19,9 @@ use opensesame_connection_broker::crypto::{open, seal, SealedBlob};
 use opensesame_connection_broker::github_webhook_hmac::{
     sign_hub_signature_256, verify_hub_signature_256,
 };
+use opensesame_connection_detect::{
+    ini_value, mcp_server_env_keys, mcp_server_names, PromoteRequest,
+};
 use opensesame_authz::{
     callout_permissions, evaluate_callout, permissions_include_system, CalloutEval,
 };
@@ -699,6 +702,106 @@ fn truncate(data: &[u8]) -> &[u8] {
         &data[..MAX_PARSER_BYTES]
     } else {
         data
+    }
+}
+
+// ——— Connector discovery (ADR 0047/0048) ————————————————————————————
+
+/// MCP client config parser: names-only extraction must never panic and must
+/// never return an env *value* these files routinely hold.
+pub fn fuzz_mcp_config(data: &[u8]) {
+    let bytes = truncate(data);
+    // Raw pass: arbitrary bytes straight into both readers.
+    if let Ok(text) = std::str::from_utf8(bytes) {
+        let _ = mcp_server_names(text);
+        let _ = mcp_server_env_keys(text);
+    }
+    // Canary pass: the input rides in an env VALUE position. The parsers
+    // return server names and env key *names* only, so the canary may not
+    // come back unless it happens to collide with the fixed scaffolding.
+    let canary = String::from_utf8_lossy(bytes).into_owned();
+    if canary.is_empty() || "fuzz".contains(&canary) || "CANARY_KEY".contains(&canary) {
+        return;
+    }
+    let doc = serde_json::json!({
+        "mcpServers": { "fuzz": { "command": "srv", "env": { "CANARY_KEY": canary } } }
+    });
+    let text = doc.to_string();
+    for (server, env_keys) in mcp_server_env_keys(&text) {
+        assert!(!server.contains(&canary), "server name leaked a value");
+        for key in env_keys {
+            assert!(!key.contains(&canary), "env key name leaked a value");
+        }
+    }
+    for name in mcp_server_names(&text) {
+        assert!(!name.contains(&canary), "server name leaked a value");
+    }
+}
+
+/// AWS-style INI extraction: any returned value must be a literal slice of
+/// the input (trimmed), and nothing may panic.
+pub fn fuzz_ini_parse(data: &[u8]) {
+    let text = String::from_utf8_lossy(truncate(data));
+    for (section, key) in [
+        ("default", "aws_access_key_id"),
+        // Input-derived section and key exercise the matching paths too.
+        (text.as_ref(), text.as_ref()),
+        ("", ""),
+    ] {
+        if let Some(value) = ini_value(&text, section, key) {
+            assert!(
+                text.contains(&value),
+                "ini_value returned bytes that were never in the input"
+            );
+        }
+    }
+}
+
+/// tailscaled LocalAPI whois response parser (pure; the transport feeds it).
+/// Raw pass plus a wrapped pass that gets past the status line so the JSON
+/// body parser sees arbitrary bytes.
+pub fn fuzz_whois_response(data: &[u8]) {
+    let bytes = truncate(data);
+    let _ = opensesame_tailscale_authn::parse_response(bytes);
+    let mut wrapped = b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n".to_vec();
+    wrapped.extend_from_slice(bytes);
+    if let Ok(identity) = opensesame_tailscale_authn::parse_response(&wrapped) {
+        // JSON unescaping only shrinks, so every parsed field is bounded by
+        // the body it came from.
+        for field in identity
+            .node_name
+            .iter()
+            .chain(identity.login_name.iter())
+            .chain(identity.tags.iter())
+        {
+            assert!(
+                field.len() <= bytes.len(),
+                "whois parser produced a field larger than its input"
+            );
+        }
+    }
+}
+
+/// Promote handshake serde boundary (ADR 0048 D4): arbitrary JSON must never
+/// panic the parser, and `deny_unknown_fields` must hold for every shape —
+/// accepted ones and attacker-rolled objects alike.
+pub fn fuzz_promote_request(data: &[u8]) {
+    let bytes = truncate(data);
+    if let Ok(req) = serde_json::from_slice::<PromoteRequest>(bytes) {
+        let encoded = serde_json::to_vec(&req).expect("re-encode promote request");
+        let mut value: Value = serde_json::from_slice(&encoded).expect("round-trip to value");
+        value["__fuzz_unknown_field__"] = Value::Bool(true);
+        assert!(
+            serde_json::from_value::<PromoteRequest>(value).is_err(),
+            "deny_unknown_fields must reject an accepted shape plus one key"
+        );
+    }
+    if let Ok(Value::Object(mut obj)) = serde_json::from_slice::<Value>(bytes) {
+        obj.insert("__fuzz_unknown_field__".to_string(), Value::Bool(true));
+        assert!(
+            serde_json::from_value::<PromoteRequest>(Value::Object(obj)).is_err(),
+            "deny_unknown_fields must reject arbitrary input plus one key"
+        );
     }
 }
 

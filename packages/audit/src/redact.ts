@@ -56,6 +56,12 @@ export const AUDIT_METADATA_ALLOWLIST = new Set([
   "delegationId",
   "offerId",
   "invocationId",
+  // Derived materialization (ADR 0049): the RFC 8693 mapping and the policy
+  // that permitted the mint. Ids and policy names only — DENY_KEY still drops
+  // anything named like the token itself.
+  "subject",
+  "providerId",
+  "materialization",
 ]);
 
 /**

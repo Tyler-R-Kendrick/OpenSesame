@@ -33,11 +33,7 @@ fn body_claim_key(body: &[u8]) -> String {
 }
 
 /// `POST /api/v1/webhooks/github` — verify, enqueue, wake. Fast 2xx after durable write.
-pub async fn webhook(
-    State(st): State<AppState>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Response {
+pub async fn webhook(State(st): State<AppState>, headers: HeaderMap, body: Bytes) -> Response {
     let signature = headers
         .get("x-hub-signature-256")
         .and_then(|v| v.to_str().ok())
@@ -99,7 +95,10 @@ pub async fn webhook(
                 .into_response();
         }
         Err(_) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error":"internal"})))
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error":"internal"})),
+            )
                 .into_response();
         }
     };
@@ -128,7 +127,10 @@ pub async fn webhook(
         Ok(false) => return StatusCode::NO_CONTENT.into_response(),
         Err(error) => {
             tracing::error!(%error, "webhook delivery claim failed");
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error":"internal"})))
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error":"internal"})),
+            )
                 .into_response();
         }
     }
@@ -162,7 +164,10 @@ pub async fn webhook(
             if let Err(release) = st.db.delete_host_kv(&claim_key).await {
                 tracing::error!(%release, "webhook claim rollback failed");
             }
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error":"internal"})))
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error":"internal"})),
+            )
                 .into_response();
         }
     };
@@ -389,7 +394,10 @@ mod tests {
             .uri("/api/v1/webhooks/github")
             .header("content-type", "application/json")
             .header("x-github-delivery", "x")
-            .header("x-hub-signature-256", "sha256=0000000000000000000000000000000000000000000000000000000000000000")
+            .header(
+                "x-hub-signature-256",
+                "sha256=0000000000000000000000000000000000000000000000000000000000000000",
+            )
             .body(Body::from(body.to_vec()))
             .unwrap();
         let response = crate::routes::router(state).oneshot(request).await.unwrap();
@@ -534,10 +542,7 @@ mod tests {
 
         let target = state.db.get_backup_target(&org).await.unwrap().unwrap();
         assert_eq!(target.status, "suspended");
-        assert_eq!(
-            target.last_error.as_deref(),
-            Some("github_app_uninstalled")
-        );
+        assert_eq!(target.last_error.as_deref(), Some("github_app_uninstalled"));
     }
 
     /// Chaos: TaskBus publish failures must not discard a verified durable enqueue.

@@ -452,9 +452,7 @@ mod tests {
         assert_tcp_listen_allowed, listen_host_is_loopback, ENV_ALLOW_NONLOCAL,
         ENV_ALLOW_NONLOCAL_DAEMON,
     };
-    use super::http_security::{
-        assert_cors_origins_allowed, parse_cors_origins, ENV_CORS_ORIGINS,
-    };
+    use super::http_security::{assert_cors_origins_allowed, parse_cors_origins, ENV_CORS_ORIGINS};
 
     #[test]
     fn wit_package_pinned() {
@@ -682,7 +680,11 @@ mod http_security_layer_tests {
             )
             .await
             .unwrap();
-        assert!(res.status().is_success() || res.status() == StatusCode::NO_CONTENT || res.status() == StatusCode::OK);
+        assert!(
+            res.status().is_success()
+                || res.status() == StatusCode::NO_CONTENT
+                || res.status() == StatusCode::OK
+        );
         assert_eq!(
             res.headers()
                 .get("access-control-allow-private-network")

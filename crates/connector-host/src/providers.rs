@@ -496,8 +496,8 @@ pub struct ProviderProbe {
 pub fn probe_local(provider: &ProviderDefinition) -> ProviderProbe {
     if provider.adapter == "http:github-app" {
         let has = |name: &str| std::env::var(name).map(|v| !v.is_empty()).unwrap_or(false);
-        let configured =
-            has("GITHUB_APP_ID") && (has("GITHUB_APP_PRIVATE_KEY") || has("GITHUB_APP_PRIVATE_KEY_PATH"));
+        let configured = has("GITHUB_APP_ID")
+            && (has("GITHUB_APP_PRIVATE_KEY") || has("GITHUB_APP_PRIVATE_KEY_PATH"));
         return ProviderProbe {
             available: configured,
             adapter: provider.adapter.clone(),
@@ -1277,9 +1277,8 @@ pub fn human_plan(
         // app resolve it. Connection config may pin app_id / key path.
         ("github-app", HumanProviderOperation::Lease) => HumanProviderPlan::GitHubApp {
             app_id: config_opt(public_config, "app_id"),
-            installation_id: config_opt(public_config, "installation_id").or_else(|| {
-                (resource != "auto").then(|| resource.to_string())
-            }),
+            installation_id: config_opt(public_config, "installation_id")
+                .or_else(|| (resource != "auto").then(|| resource.to_string())),
             private_key_path: config_opt(public_config, "private_key_path"),
         },
         ("custom-command", HumanProviderOperation::Lease) => {

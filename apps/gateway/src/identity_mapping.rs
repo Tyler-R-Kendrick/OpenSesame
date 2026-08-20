@@ -90,8 +90,7 @@ impl IdentityMappingClient {
             404 => Ok(None),
             400 => {
                 let err_body: serde_json::Value = resp.json().await.unwrap_or_default();
-                if err_body.get("error").and_then(|v| v.as_str()) == Some("email_join_forbidden")
-                {
+                if err_body.get("error").and_then(|v| v.as_str()) == Some("email_join_forbidden") {
                     Err(MappingClientError::EmailJoinForbidden)
                 } else {
                     Err(MappingClientError::Http(err_body.to_string()))

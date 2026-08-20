@@ -23,10 +23,7 @@ pub fn seal_event_data(
     let pk = x25519_dalek::PublicKey::from(*recipient_public);
     let sealed = opensesame_xkeys::seal(plaintext, &pk).map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(SealedEventData {
-        sealed_b64: base64::Engine::encode(
-            &base64::engine::general_purpose::STANDARD,
-            &sealed,
-        ),
+        sealed_b64: base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &sealed),
     })
 }
 

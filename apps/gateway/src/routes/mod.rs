@@ -61,10 +61,7 @@ pub fn router(state: AppState) -> Router {
                 .put(taskbus_config::put_config)
                 .layer(DefaultBodyLimit::max(4 * 1024)),
         )
-        .route(
-            "/api/v1/operator/taskbus/ping",
-            post(taskbus_config::ping),
-        )
+        .route("/api/v1/operator/taskbus/ping", post(taskbus_config::ping))
         .route("/api/v1/providers", get(connections::list_providers))
         .route(
             "/api/v1/providers/github/app",
@@ -149,6 +146,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/connections/{id}/credential",
             post(connections::set_credential).layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/connections/{id}/mint",
+            post(connections::mint).layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route(
             "/api/v1/connections/{id}/bindings",

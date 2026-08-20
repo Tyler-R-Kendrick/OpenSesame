@@ -12,8 +12,7 @@ use crate::error::BrokerError;
 use crate::Result;
 
 pub const GITHUB_APP_REGISTER_URL: &str = "https://github.com/settings/apps/new";
-pub const GITHUB_APP_MANIFEST_CONVERSIONS: &str =
-    "https://api.github.com/app-manifests";
+pub const GITHUB_APP_MANIFEST_CONVERSIONS: &str = "https://api.github.com/app-manifests";
 
 /// GitHub App client ids are `Iv1.` / `Iv23`… Classic OAuth apps use other forms.
 pub fn is_github_app_client_id(client_id: &str) -> bool {

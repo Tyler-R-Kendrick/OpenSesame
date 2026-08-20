@@ -305,17 +305,11 @@ pub async fn execute_connection_rotation(
             let _ = crate::changelog_hook::record_secret_changelog(
                 crate::changelog_hook::RecordSecretChangelog {
                     event_type: EVENT_ROTATION_SUCCEEDED.into(),
-                    project_id: job
-                        .project_id
-                        .clone()
-                        .unwrap_or_else(|| "unknown".into()),
+                    project_id: job.project_id.clone().unwrap_or_else(|| "unknown".into()),
                     organization_id: job.organization_id.clone(),
                     target_id: Some(connection_id.clone()),
                     version_id: job.new_credential_version.clone(),
-                    metadata: serde_json::Map::from_iter([(
-                        "rotation_id".into(),
-                        json!(job.id),
-                    )]),
+                    metadata: serde_json::Map::from_iter([("rotation_id".into(), json!(job.id))]),
                     ..Default::default()
                 },
             );
@@ -332,10 +326,7 @@ pub async fn execute_connection_rotation(
             let _ = crate::changelog_hook::record_secret_changelog(
                 crate::changelog_hook::RecordSecretChangelog {
                     event_type: EVENT_ROTATION_FAILED.into(),
-                    project_id: job
-                        .project_id
-                        .clone()
-                        .unwrap_or_else(|| "unknown".into()),
+                    project_id: job.project_id.clone().unwrap_or_else(|| "unknown".into()),
                     organization_id: job.organization_id.clone(),
                     target_id: Some(connection_id.clone()),
                     version_id: job.previous_credential_version.clone(),
@@ -424,7 +415,11 @@ fn credential_version_hint(view: &ConnectionView) -> Option<String> {
 }
 
 /// Whether a wall-clock instant is due for a policy (used by schedulers).
-pub fn policy_due_at(policy: &RotationPolicy, last_run: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
+pub fn policy_due_at(
+    policy: &RotationPolicy,
+    last_run: Option<DateTime<Utc>>,
+    now: DateTime<Utc>,
+) -> bool {
     if !policy.enabled {
         return false;
     }
@@ -456,14 +451,8 @@ mod tests {
 
     #[test]
     fn interval_parsing() {
-        assert_eq!(
-            parse_interval("30s"),
-            Some(Duration::from_secs(30))
-        );
-        assert_eq!(
-            parse_interval("2h"),
-            Some(Duration::from_secs(7200))
-        );
+        assert_eq!(parse_interval("30s"), Some(Duration::from_secs(30)));
+        assert_eq!(parse_interval("2h"), Some(Duration::from_secs(7200)));
         assert_eq!(parse_interval("90"), Some(Duration::from_secs(90)));
     }
 

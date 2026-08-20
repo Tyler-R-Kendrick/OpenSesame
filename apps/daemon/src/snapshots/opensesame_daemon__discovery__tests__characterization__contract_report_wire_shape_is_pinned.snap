@@ -1,0 +1,65 @@
+---
+source: apps/daemon/src/discovery.rs
+expression: report
+---
+{
+  "schema_version": 1,
+  "host_label": "test-host",
+  "probed_at_unix": 1700000000,
+  "items": [
+    {
+      "provider_id": "github",
+      "source": {
+        "kind": "keychain",
+        "store": "secret_service",
+        "item_label": "gh:github.com"
+      },
+      "capabilities": [
+        "importable"
+      ],
+      "confidence": "high",
+      "registry_hint": null
+    },
+    {
+      "provider_id": "github",
+      "source": {
+        "kind": "mcp_config",
+        "path": "[path]",
+        "server_name": "github",
+        "env_keys": [
+          "GITHUB_TOKEN"
+        ]
+      },
+      "capabilities": [
+        "importable"
+      ],
+      "confidence": "medium",
+      "registry_hint": null
+    },
+    {
+      "provider_id": "stripe",
+      "source": {
+        "kind": "env_var",
+        "name": "STRIPE_SECRET_KEY"
+      },
+      "capabilities": [
+        "importable"
+      ],
+      "confidence": "medium",
+      "registry_hint": null
+    },
+    {
+      "provider_id": "vault",
+      "source": {
+        "kind": "env_var",
+        "name": "VAULT_TOKEN"
+      },
+      "capabilities": [
+        "importable"
+      ],
+      "confidence": "medium",
+      "registry_hint": null
+    }
+  ],
+  "note": "these look configured on this machine; promoting one is a separate, explicit step"
+}

@@ -32,6 +32,8 @@ pub struct ConnectionRow {
     pub owner_subject: Option<String>,
     pub shareability: String,
     pub max_invoke_level: u8,
+    /// ADR 0049: `deny` (default) or `derived_short_lived`.
+    pub materialization: String,
     pub egress: EgressBinding,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -99,6 +101,7 @@ fn connection_from_row(row: &sqlx::sqlite::SqliteRow) -> ConnectionRow {
         owner_subject: row.get("owner_subject"),
         shareability: row.get("shareability"),
         max_invoke_level: row.get::<i64, _>("max_invoke_level").clamp(1, 3) as u8,
+        materialization: row.get("materialization"),
         egress: serde_json::from_str(&row.get::<String, _>("egress_json"))
             .unwrap_or_else(|_| EgressBinding::default()),
         created_at: parse_time(&row.get::<String, _>("created_at")),
@@ -109,16 +112,16 @@ fn connection_from_row(row: &sqlx::sqlite::SqliteRow) -> ConnectionRow {
 const CONNECTION_COLUMNS: &str =
     "id, organization_id, project_id, provider_id, integration_id, logical_name, \
      display_name, status, status_detail, requested_scopes, granted_scopes, account_label, \
-     owner_kind, owner_subject, shareability, max_invoke_level, egress_json, created_at, \
-     updated_at";
+     owner_kind, owner_subject, shareability, max_invoke_level, materialization, egress_json, \
+     created_at, updated_at";
 
 pub async fn insert_connection(pool: &SqlitePool, c: &ConnectionRow) -> Result<()> {
     sqlx::query(
         "INSERT INTO connections (id, organization_id, project_id, provider_id, integration_id, logical_name, \
          display_name, status, status_detail, requested_scopes, granted_scopes, account_label, \
-         owner_kind, owner_subject, shareability, max_invoke_level, egress_json, created_at, \
-         updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+         owner_kind, owner_subject, shareability, max_invoke_level, materialization, egress_json, \
+         created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&c.id)
     .bind(&c.organization_id)
@@ -136,6 +139,7 @@ pub async fn insert_connection(pool: &SqlitePool, c: &ConnectionRow) -> Result<(
     .bind(&c.owner_subject)
     .bind(&c.shareability)
     .bind(c.max_invoke_level as i64)
+    .bind(&c.materialization)
     .bind(serde_json::to_string(&c.egress)?)
     .bind(c.created_at.to_rfc3339())
     .bind(c.updated_at.to_rfc3339())
@@ -346,13 +350,16 @@ pub async fn update_policy(
     organization_id: &str,
     shareability: &str,
     max_invoke_level: u8,
+    materialization: &str,
 ) -> Result<()> {
     let changed = sqlx::query(
-        "UPDATE connections SET shareability = ?, max_invoke_level = ?, updated_at = ? \
+        "UPDATE connections SET shareability = ?, max_invoke_level = ?, materialization = ?, \
+         updated_at = ? \
          WHERE id = ? AND organization_id = ? AND status != 'revoked'",
     )
     .bind(shareability)
     .bind(max_invoke_level as i64)
+    .bind(materialization)
     .bind(Utc::now().to_rfc3339())
     .bind(connection_id)
     .bind(organization_id)

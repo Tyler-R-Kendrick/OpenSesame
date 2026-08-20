@@ -86,7 +86,11 @@ pub fn seal(plaintext: &[u8], recipient: &PublicKey) -> Result<Vec<u8>, XkeysErr
     let eph_secret = StaticSecret::random_from_rng(rand::rngs::OsRng);
     let eph_public = PublicKey::from(&eph_secret);
     let shared = eph_secret.diffie_hellman(recipient);
-    let key = derive_aead_key(shared.as_bytes(), eph_public.as_bytes(), recipient.as_bytes())?;
+    let key = derive_aead_key(
+        shared.as_bytes(),
+        eph_public.as_bytes(),
+        recipient.as_bytes(),
+    )?;
 
     let mut nonce = [0u8; NONCE_LEN];
     rand::rngs::OsRng.fill_bytes(&mut nonce);

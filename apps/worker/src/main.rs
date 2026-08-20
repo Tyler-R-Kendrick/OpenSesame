@@ -36,7 +36,8 @@ struct Args {
 struct WorkerState {
     providers: Arc<Vec<ProviderDefinition>>,
     operator_token: String,
-    #[allow(clippy::type_complexity)] // A single timestamped cache does not warrant a wrapper type.
+    #[allow(clippy::type_complexity)]
+    // A single timestamped cache does not warrant a wrapper type.
     last_probe: Arc<Mutex<Option<(Instant, Vec<ProviderProbe>)>>>,
 }
 
@@ -131,7 +132,10 @@ async fn ready(
     } else {
         let configured = state.providers.clone();
         match tokio::task::spawn_blocking(move || {
-            configured.iter().map(providers::probe_live).collect::<Vec<_>>()
+            configured
+                .iter()
+                .map(providers::probe_live)
+                .collect::<Vec<_>>()
         })
         .await
         {
@@ -141,10 +145,7 @@ async fn ready(
                 probes
             }
             Err(_) => {
-                return (
-                    StatusCode::SERVICE_UNAVAILABLE,
-                    Json(json!({"ok": false})),
-                );
+                return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"ok": false})));
             }
         }
     };
@@ -168,7 +169,9 @@ async fn list_providers(
     }
     (
         StatusCode::OK,
-        Json(json!({"providers": state.providers.iter().map(|p| p.id.as_str()).collect::<Vec<_>>()})),
+        Json(
+            json!({"providers": state.providers.iter().map(|p| p.id.as_str()).collect::<Vec<_>>()}),
+        ),
     )
 }
 

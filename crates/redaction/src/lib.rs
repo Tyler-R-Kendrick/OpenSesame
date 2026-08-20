@@ -197,9 +197,7 @@ mod pact {
     #[test]
     fn chaos_concurrent_redaction_never_leaks() {
         let input = json!({"refresh_token": "r", "token_type": "Bearer"});
-        let results: Vec<_> = (0..32)
-            .map(|_| redact_json(&input))
-            .collect();
+        let results: Vec<_> = (0..32).map(|_| redact_json(&input)).collect();
         for v in results {
             assert_eq!(v["refresh_token"], "[REDACTED]");
             assert_eq!(v["token_type"], "Bearer");

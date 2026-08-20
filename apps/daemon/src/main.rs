@@ -1,15 +1,18 @@
 //! OpenSesame host daemon — local session capabilities for WSL/devcontainers/toolbar/PWA.
 //! Evolved from credential-agent. Never dumps refresh tokens or WebAuthn material.
 //! Listens on TCP (`OPENSESAME_DAEMON_LISTEN`) and optionally Unix socket (`OPENSESAME_AGENT_SOCK`).
-//! Mutating routes require `OPENSESAME_OPERATOR_TOKEN` (`X-OpenSesame-Operator`).
+//! Mutating routes require `OPENSESAME_OPERATOR_TOKEN` (`X-OpenSesame-Operator`) on TCP;
+//! over the Unix socket the kernel-attested peer UID authenticates instead
+//! (`OPENSESAME_DAEMON_ALLOWED_UIDS`, default same-user). With `--features
+//! tailscale` a read-only tailnet listener authorizes callers by whois identity.
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 use axum::{
     body::Bytes,
-    extract::{Request, State},
-    http::{HeaderMap, HeaderName, StatusCode},
+    extract::{connect_info::ConnectInfo, DefaultBodyLimit, Request, State},
+    http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     routing::{any, get, post},
-    Json, Router,
+    Extension, Json, Router,
 };
 use chrono::{Duration, Utc};
 use clap::Parser;
@@ -22,8 +25,30 @@ use std::{
 };
 use uuid::Uuid;
 
+mod cli_probe;
 mod discovery;
+mod invoke_through;
+mod keychain;
+mod mint;
+mod peer_auth;
+mod promote;
+mod ratelimit;
+mod runner;
+#[cfg(all(unix, feature = "tailscale"))]
+mod tailnet;
 mod tailscale;
+mod token_source;
+
+use peer_auth::UdsConnectInfo;
+use ratelimit::RateKey;
+
+/// Hard cap on a serialized discovery report; oversized reports shed items
+/// rather than stream unboundedly (see [`discover_response`]).
+const MAX_DISCOVER_RESPONSE_BYTES: usize = 256 * 1024;
+
+/// How a request reached an operator route: over the Unix socket axum inserts
+/// `ConnectInfo<UdsConnectInfo>`; over TCP the extension is absent.
+type UdsPeer = Option<Extension<ConnectInfo<UdsConnectInfo>>>;
 
 const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
 
@@ -53,6 +78,10 @@ struct Args {
         default_value = "http://127.0.0.1:8788"
     )]
     identity_api: String,
+    /// Comma-separated UIDs allowed to call operator routes over the Unix
+    /// socket. Default: the daemon's own UID (same-user rule).
+    #[arg(long, env = "OPENSESAME_DAEMON_ALLOWED_UIDS")]
+    allowed_uids: Option<String>,
 }
 
 #[derive(Clone)]
@@ -63,6 +92,38 @@ struct App {
     identity_api: String,
     http: reqwest::Client,
     operator_token: String,
+    /// UIDs whose processes may call operator routes over the Unix socket.
+    allowed_uids: Vec<u32>,
+    discover_limiter: Arc<ratelimit::TokenBucket>,
+    /// Promotion is mutating, so it spends from its own bucket rather than the
+    /// discovery one (ADR 0048 D4).
+    promote_limiter: Arc<ratelimit::TokenBucket>,
+    /// Invoke-through brokers live upstream calls; its own strict bucket.
+    invoke_limiter: Arc<ratelimit::TokenBucket>,
+    /// Helper-driven mints (git/docker per-operation) get a little more
+    /// headroom than the one-shot routes, still bounded.
+    mint_limiter: Arc<ratelimit::TokenBucket>,
+    /// The invoke-through broker (ADR 0048 D6): static egress allowlist,
+    /// https only. Tests substitute a loopback-permitting instance.
+    invoker: Arc<opensesame_invoke_through::Invoker>,
+    /// Builds the per-call credential source for a provider; `None` means no
+    /// adapter in v1. A factory (not a stored source) so each call acquires
+    /// fresh, off a fresh environment snapshot.
+    token_source_factory: TokenSourceFactory,
+}
+
+/// How the daemon turns a provider id into its credential source.
+type TokenSourceFactory =
+    Arc<dyn Fn(&str) -> Option<Box<dyn opensesame_invoke_through::TokenSource>> + Send + Sync>;
+
+/// Production factory: the provider's CLI credential command under the
+/// scrubbed runner, over a fresh environment snapshot per call.
+fn cli_token_source_factory() -> TokenSourceFactory {
+    Arc::new(|provider_id: &str| {
+        let env: std::collections::BTreeMap<String, String> = std::env::vars().collect();
+        token_source::CliTokenSource::for_provider(provider_id, &env)
+            .map(|source| Box::new(source) as Box<dyn opensesame_invoke_through::TokenSource>)
+    })
 }
 
 #[derive(Clone, Debug)]
@@ -131,9 +192,41 @@ fn resolve_operator_token() -> String {
     }
 }
 
+/// Authorize an operator-route call.
+///
+/// Over the Unix socket (`uds_peer` present — axum inserted the connect info)
+/// the kernel-attested peer UID is the credential and the bearer token is
+/// neither required nor accepted: identity from the platform, not from a
+/// presented secret (ADR 0048 §8). An unattested peer fails closed. Over TCP
+/// (`uds_peer` absent) the operator bearer token remains the break-glass path.
 #[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
-fn require_operator(st: &App, headers: &HeaderMap) -> Result<(), Response> {
+fn require_operator(st: &App, headers: &HeaderMap, uds_peer: &UdsPeer) -> Result<(), Response> {
     use opensesame_host_core::operator::{check, OperatorDenial};
+    if let Some(Extension(ConnectInfo(info))) = uds_peer {
+        return match info.0 {
+            Some(cred) => match opensesame_uds_authn::authorize(&cred, &st.allowed_uids) {
+                Ok(()) => Ok(()),
+                Err(error) => Err((
+                    StatusCode::UNAUTHORIZED,
+                    Json(json!({
+                        "error": "uds_peer_unauthorized",
+                        "detail": error.to_string(),
+                        "hint": "the Unix socket authenticates by peer uid \
+                                 (OPENSESAME_DAEMON_ALLOWED_UIDS); \
+                                 the operator token is TCP-only"
+                    })),
+                )
+                    .into_response()),
+            },
+            // The kernel could not attest this caller; deny rather than fall
+            // back to a token path that was never meant for the socket.
+            None => Err((
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error": "uds_peer_unattested"})),
+            )
+                .into_response()),
+        };
+    }
     match check(&st.operator_token, headers) {
         Ok(()) => Ok(()),
         Err(OperatorDenial::Unconfigured) => Err((
@@ -161,6 +254,17 @@ fn require_operator(st: &App, headers: &HeaderMap) -> Result<(), Response> {
 /// to reach a remote Host API justifies giving away the local secret.
 #[allow(clippy::result_large_err)]
 fn operator_forward(st: &App, url: &str) -> Result<reqwest::RequestBuilder, Response> {
+    operator_forward_method(st, reqwest::Method::POST, url)
+}
+
+/// [`operator_forward`] for non-POST methods (the promotion handshake lists,
+/// creates, and PATCHes connections on the Host API).
+#[allow(clippy::result_large_err)]
+fn operator_forward_method(
+    st: &App,
+    method: reqwest::Method,
+    url: &str,
+) -> Result<reqwest::RequestBuilder, Response> {
     if !opensesame_host_core::daemon::base_url_is_local(&st.host_api) {
         return Err((
             StatusCode::SERVICE_UNAVAILABLE,
@@ -174,8 +278,63 @@ fn operator_forward(st: &App, url: &str) -> Result<reqwest::RequestBuilder, Resp
     }
     Ok(st
         .http
-        .post(url)
+        .request(method, url)
         .header("x-opensesame-operator", &st.operator_token))
+}
+
+/// 429 with a `Retry-After` the caller can actually wait on.
+fn rate_limited(retry_after: u64) -> Response {
+    let mut response = (
+        StatusCode::TOO_MANY_REQUESTS,
+        Json(json!({"error": "rate_limited", "retry_after": retry_after})),
+    )
+        .into_response();
+    if let Ok(value) = HeaderValue::from_str(&retry_after.to_string()) {
+        response.headers_mut().insert(header::RETRY_AFTER, value);
+    }
+    response
+}
+
+/// Serialize a discovery report under [`MAX_DISCOVER_RESPONSE_BYTES`]. A
+/// pathological environment (thousands of offers) sheds items rather than
+/// streaming unboundedly, and says so with a top-level `truncated` flag — a
+/// shortened list must not present itself as complete. An empty report that
+/// still exceeds the cap is a server error, not a silent lie.
+fn discover_response(mut report: discovery::DiscoveryReport) -> Response {
+    let mut truncated = false;
+    loop {
+        let mut value = match serde_json::to_value(&report) {
+            Ok(value) => value,
+            Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        };
+        if truncated {
+            if let Some(obj) = value.as_object_mut() {
+                obj.insert("truncated".into(), json!(true));
+            }
+        }
+        let body = match serde_json::to_vec(&value) {
+            Ok(body) => body,
+            Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        };
+        if body.len() <= MAX_DISCOVER_RESPONSE_BYTES {
+            return (
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, "application/json")],
+                body,
+            )
+                .into_response();
+        }
+        let items = report.report.items.len();
+        if items == 0 {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "report_too_large"})),
+            )
+                .into_response();
+        }
+        report.report.items.truncate(items / 2);
+        truncated = true;
+    }
 }
 
 #[tokio::main]
@@ -209,8 +368,15 @@ async fn main() -> anyhow::Result<()> {
         identity_api: args.identity_api.trim_end_matches('/').to_string(),
         http,
         operator_token: resolve_operator_token(),
+        allowed_uids: peer_auth::allowed_uids(args.allowed_uids.as_deref()),
+        discover_limiter: Arc::new(ratelimit::TokenBucket::default()),
+        promote_limiter: Arc::new(ratelimit::TokenBucket::default()),
+        invoke_limiter: Arc::new(ratelimit::TokenBucket::default()),
+        mint_limiter: Arc::new(ratelimit::TokenBucket::new(4.0, 1.0)),
+        invoker: Arc::new(opensesame_invoke_through::Invoker::new()),
+        token_source_factory: cli_token_source_factory(),
     };
-    let app = router(state);
+    let app = router(state.clone());
 
     let cors_origins = opensesame_host_core::http_security::cors_origins_from_env();
     let is_production = std::env::var("OPENSESAME_ENV").ok().as_deref() == Some("production")
@@ -243,7 +409,11 @@ async fn main() -> anyhow::Result<()> {
         }
         let uds = tokio::net::UnixListener::bind(&sock_path)?;
         tracing::info!(%sock_path, "daemon UDS-only listening (TCP disabled)");
-        axum::serve(uds, app).await?;
+        axum::serve(
+            uds,
+            app.into_make_service_with_connect_info::<UdsConnectInfo>(),
+        )
+        .await?;
         return Ok(());
     }
 
@@ -267,9 +437,14 @@ async fn main() -> anyhow::Result<()> {
             let _ = std::fs::create_dir_all(parent);
         }
         let uds = tokio::net::UnixListener::bind(&sock_path)?;
-        tracing::info!(%sock_path, "daemon UDS listening");
+        tracing::info!(%sock_path, "daemon UDS listening (peer-credential auth)");
         tokio::spawn(async move {
-            if let Err(e) = axum::serve(uds, app_clone).await {
+            if let Err(e) = axum::serve(
+                uds,
+                app_clone.into_make_service_with_connect_info::<UdsConnectInfo>(),
+            )
+            .await
+            {
                 tracing::error!(error = %e, "uds serve failed");
             }
         });
@@ -329,6 +504,40 @@ async fn main() -> anyhow::Result<()> {
         ),
         Err(error) => tracing::warn!(%error, "tailscale serve not enabled"),
     });
+
+    // Read-only tailnet listener (ADR 0048 §8, D9): whois identity, no bearer.
+    #[cfg(all(unix, feature = "tailscale"))]
+    {
+        let policy = tailnet::TailnetPolicy::from_env();
+        if !policy.allows_anyone() {
+            tracing::warn!(
+                "tailscale feature on but {}/{} are empty — tailnet listener disabled (fail closed)",
+                tailnet::ENV_ALLOW_USERS,
+                tailnet::ENV_ALLOW_TAGS
+            );
+        } else {
+            match tailnet::bind_listener(&listen, &policy).await {
+                Some(listener) => {
+                    let addr = listener.local_addr().ok();
+                    tracing::info!(?addr, "daemon tailnet listening (whois auth)");
+                    let tailnet_app = tailnet::router(state.clone(), policy);
+                    tokio::spawn(async move {
+                        if let Err(e) = axum::serve(
+                            listener,
+                            tailnet_app
+                                .into_make_service_with_connect_info::<std::net::SocketAddr>(),
+                        )
+                        .await
+                        {
+                            tracing::error!(error = %e, "tailnet serve failed");
+                        }
+                    });
+                }
+                None => tracing::warn!("tailnet listener not bound"),
+            }
+        }
+    }
+
     tcp_handle.await?;
     Ok(())
 }
@@ -483,6 +692,19 @@ fn router(state: App) -> Router {
         .route("/v1/introspect_capability", post(introspect_capability))
         .route("/v1/revoke", post(revoke))
         .route("/v1/discover", post(discover))
+        .route(
+            "/v1/promote",
+            post(promote::promote).layer(DefaultBodyLimit::max(promote::MAX_BODY_BYTES)),
+        )
+        .route(
+            "/v1/invoke_through",
+            post(invoke_through::invoke_through)
+                .layer(DefaultBodyLimit::max(invoke_through::MAX_BODY_BYTES)),
+        )
+        .route(
+            "/v1/mint",
+            post(mint::mint_via_daemon).layer(DefaultBodyLimit::max(mint::MAX_BODY_BYTES)),
+        )
         .route("/v1/toolbar/status", get(toolbar_status))
         .route("/v1/toolbar/approve_device", post(approve_device))
         .route("/v1/toolbar/approve_claim", post(approve_claim))
@@ -503,15 +725,30 @@ fn skip_hop_header(name: &HeaderName) -> bool {
 /// Operator-gated even though it mutates nothing: the threat here is
 /// disclosure, not modification, and a list of which credentials a machine
 /// holds is a more valuable target than the capability minting beside it.
-async fn discover(State(st): State<App>, headers: HeaderMap) -> Response {
-    if let Err(resp) = require_operator(&st, &headers) {
+/// Rate-limited per caller for the same reason: a budget, not a firehose.
+async fn discover(State(st): State<App>, uds: UdsPeer, headers: HeaderMap) -> Response {
+    if let Err(resp) = require_operator(&st, &headers, &uds) {
         return resp;
     }
-    Json(discovery::report()).into_response()
+    // require_operator passed, so a UDS caller is attested; key by uid there,
+    // and share one constant bucket across operator-token callers on TCP.
+    let key = match uds.and_then(|Extension(ConnectInfo(info))| info.0) {
+        Some(cred) => RateKey::Uid(cred.uid),
+        None => RateKey::TcpOperator,
+    };
+    if let Err(retry_after) = st.discover_limiter.check(key) {
+        return rate_limited(retry_after);
+    }
+    // The probe walk spawns processes and talks to the platform keychain —
+    // blocking work, off the async driver threads.
+    match tokio::task::spawn_blocking(discovery::report).await {
+        Ok(report) => discover_response(report),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }
 
-async fn toolbar_status(State(st): State<App>, headers: HeaderMap) -> Response {
-    if let Err(resp) = require_operator(&st, &headers) {
+async fn toolbar_status(State(st): State<App>, uds: UdsPeer, headers: HeaderMap) -> Response {
+    if let Err(resp) = require_operator(&st, &headers, &uds) {
         return resp;
     }
     let sessions = match st.sessions.lock() {
@@ -542,10 +779,11 @@ async fn toolbar_status(State(st): State<App>, headers: HeaderMap) -> Response {
 
 async fn approve_device(
     State(st): State<App>,
+    uds: UdsPeer,
     headers: HeaderMap,
     Json(req): Json<ApproveDeviceReq>,
 ) -> Response {
-    if let Err(resp) = require_operator(&st, &headers) {
+    if let Err(resp) = require_operator(&st, &headers, &uds) {
         return resp;
     }
     let url = format!("{}/api/v1/device/approve", st.host_api);
@@ -576,10 +814,11 @@ async fn approve_device(
 
 async fn approve_claim(
     State(st): State<App>,
+    uds: UdsPeer,
     headers: HeaderMap,
     Json(req): Json<ApproveClaimReq>,
 ) -> Response {
-    if let Err(resp) = require_operator(&st, &headers) {
+    if let Err(resp) = require_operator(&st, &headers, &uds) {
         return resp;
     }
     if !opensesame_host_core::http_security::is_safe_path_id(&req.claim_id) {
@@ -649,10 +888,11 @@ async fn approve_claim(
 /// Policy-gated operator L1 invoke via Host API (never materialize).
 async fn operator_invoke_l1(
     State(st): State<App>,
+    uds: UdsPeer,
     headers: HeaderMap,
     Json(body): Json<Value>,
 ) -> Response {
-    if let Err(resp) = require_operator(&st, &headers) {
+    if let Err(resp) = require_operator(&st, &headers, &uds) {
         return resp;
     }
     let level = body
@@ -706,8 +946,8 @@ async fn operator_invoke_l1(
     }
 }
 
-async fn list_sessions(State(st): State<App>, headers: HeaderMap) -> Response {
-    if let Err(resp) = require_operator(&st, &headers) {
+async fn list_sessions(State(st): State<App>, uds: UdsPeer, headers: HeaderMap) -> Response {
+    if let Err(resp) = require_operator(&st, &headers, &uds) {
         return resp;
     }
     let sessions: Vec<_> = st
@@ -729,10 +969,11 @@ async fn get_access_token(Json(_v): Json<Value>) -> Json<Value> {
 
 async fn mint_capability(
     State(st): State<App>,
+    uds: UdsPeer,
     headers: HeaderMap,
     Json(req): Json<MintCapReq>,
 ) -> Response {
-    if let Err(resp) = require_operator(&st, &headers) {
+    if let Err(resp) = require_operator(&st, &headers, &uds) {
         return resp;
     }
     let sessions = match st.sessions.lock() {
@@ -789,10 +1030,11 @@ async fn mint_capability(
 
 async fn introspect_capability(
     State(st): State<App>,
+    uds: UdsPeer,
     headers: HeaderMap,
     Json(body): Json<Value>,
 ) -> Response {
-    if let Err(resp) = require_operator(&st, &headers) {
+    if let Err(resp) = require_operator(&st, &headers, &uds) {
         return resp;
     }
     let id = body.get("id").and_then(|v| v.as_str()).unwrap_or("");
@@ -809,8 +1051,13 @@ async fn introspect_capability(
     }
 }
 
-async fn revoke(State(st): State<App>, headers: HeaderMap, Json(body): Json<Value>) -> Response {
-    if let Err(resp) = require_operator(&st, &headers) {
+async fn revoke(
+    State(st): State<App>,
+    uds: UdsPeer,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers, &uds) {
         return resp;
     }
     if let Some(id) = body.get("id").and_then(|v| v.as_str()) {
@@ -868,20 +1115,31 @@ mod tests {
         );
     }
 
-    fn test_app(host_api: &str) -> (Router, App) {
+    pub(crate) fn test_state(host_api: &str) -> App {
         let http = reqwest::Client::builder()
             .timeout(std::time::Duration::from_millis(400))
             .connect_timeout(std::time::Duration::from_millis(200))
             .build()
             .unwrap();
-        let state = App {
+        App {
             sessions: Arc::new(Mutex::new(HashMap::new())),
             capabilities: Arc::new(Mutex::new(HashMap::new())),
             host_api: host_api.to_string(),
             identity_api: "http://127.0.0.1:1".into(),
             http,
             operator_token: DEV_OPERATOR_TOKEN.into(),
-        };
+            allowed_uids: opensesame_uds_authn::default_allowed_uids(),
+            discover_limiter: Arc::new(ratelimit::TokenBucket::default()),
+            promote_limiter: Arc::new(ratelimit::TokenBucket::default()),
+            invoke_limiter: Arc::new(ratelimit::TokenBucket::default()),
+            mint_limiter: Arc::new(ratelimit::TokenBucket::default()),
+            invoker: Arc::new(opensesame_invoke_through::Invoker::new()),
+            token_source_factory: Arc::new(|_| None),
+        }
+    }
+
+    fn test_app(host_api: &str) -> (Router, App) {
+        let state = test_state(host_api);
         (router(state.clone()), state)
     }
 
@@ -977,5 +1235,248 @@ mod tests {
             .unwrap();
         let res = app.oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    /// A request carrying the UDS connect info axum inserts per connection.
+    #[cfg(unix)]
+    fn uds_peer_request(
+        uid: Option<u32>,
+        uri: &str,
+        with_token: bool,
+    ) -> axum::http::Request<axum::body::Body> {
+        use axum::body::Body;
+        use axum::http::Request;
+        let mut builder = Request::builder().method("POST").uri(uri);
+        if with_token {
+            builder = builder.header("x-opensesame-operator", DEV_OPERATOR_TOKEN);
+        }
+        let mut req = builder.body(Body::empty()).unwrap();
+        let cred = uid.map(|uid| opensesame_uds_authn::PeerCred {
+            pid: 4242,
+            uid,
+            gid: uid,
+        });
+        req.extensions_mut()
+            .insert(ConnectInfo(UdsConnectInfo(cred)));
+        req
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn uds_same_uid_authorizes_without_a_token() {
+        use tower::ServiceExt;
+
+        let (app, st) = test_app("http://127.0.0.1:8787");
+        let own = st.allowed_uids[0];
+        let res = app
+            .oneshot(uds_peer_request(Some(own), "/v1/list_sessions", false))
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn uds_foreign_uid_denied_even_with_a_valid_token() {
+        use tower::ServiceExt;
+
+        // The bearer token is the TCP path; on the socket the kernel-attested
+        // uid governs, so a stolen token must not rescue a foreign process.
+        let (app, st) = test_app("http://127.0.0.1:8787");
+        let foreign = st.allowed_uids[0] + 1;
+        let res = app
+            .oneshot(uds_peer_request(Some(foreign), "/v1/list_sessions", true))
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn uds_unattested_peer_fails_closed() {
+        use tower::ServiceExt;
+
+        let (app, _) = test_app("http://127.0.0.1:8787");
+        let res = app
+            .oneshot(uds_peer_request(None, "/v1/list_sessions", true))
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn tcp_operator_token_path_is_unchanged() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        // No connect info extension — this is what a TCP request looks like.
+        let (app, _) = test_app("http://127.0.0.1:8787");
+        let req = Request::builder()
+            .method("POST")
+            .uri("/v1/list_sessions")
+            .header("x-opensesame-operator", DEV_OPERATOR_TOKEN)
+            .body(Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn discover_is_rate_limited_per_caller() {
+        use axum::body::{to_bytes, Body};
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let (app, _) = test_app("http://127.0.0.1:8787");
+        let discover = || {
+            Request::builder()
+                .method("POST")
+                .uri("/v1/discover")
+                .header("x-opensesame-operator", DEV_OPERATOR_TOKEN)
+                .body(Body::empty())
+                .unwrap()
+        };
+        let first = app.clone().oneshot(discover()).await.unwrap();
+        assert_eq!(first.status(), StatusCode::OK);
+        let second = app.oneshot(discover()).await.unwrap();
+        assert_eq!(second.status(), StatusCode::TOO_MANY_REQUESTS);
+        let retry: u64 = second
+            .headers()
+            .get(header::RETRY_AFTER)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse().ok())
+            .expect("Retry-After header");
+        assert!((1..=5).contains(&retry), "retry_after {retry}");
+        let body = to_bytes(second.into_body(), 1024).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error"], "rate_limited");
+    }
+
+    /// Minimal promote body: confirm is false, so an authenticated caller
+    /// stops at 400 without probing — these tests exercise the fences, not
+    /// the handshake (that lives in promote.rs against a stub gateway).
+    fn promote_request() -> axum::http::Request<axum::body::Body> {
+        use axum::body::Body;
+        use axum::http::Request;
+        Request::builder()
+            .method("POST")
+            .uri("/v1/promote")
+            .header("content-type", "application/json")
+            .header("x-opensesame-operator", DEV_OPERATOR_TOKEN)
+            .body(Body::from(
+                r#"{"provider_id":"github","source":{"kind":"env_var","name":"GITHUB_TOKEN"},"mode":"import","confirm":false}"#,
+            ))
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn adversarial_promotion_is_refused_without_the_operator_token() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        // Mutating *and* value-reading: the token fence is the whole game on TCP.
+        let (app, _) = test_app("http://127.0.0.1:8787");
+        let req = Request::builder()
+            .method("POST")
+            .uri("/v1/promote")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{"provider_id":"github","source":{"kind":"env_var","name":"GITHUB_TOKEN"},"mode":"import","confirm":true}"#,
+            ))
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn promote_is_rate_limited_on_its_own_bucket() {
+        use axum::body::to_bytes;
+        use tower::ServiceExt;
+
+        let (app, _) = test_app("http://127.0.0.1:8787");
+        let first = app.clone().oneshot(promote_request()).await.unwrap();
+        // Auth and budget pass; the unconfirmed request is refused.
+        assert_eq!(first.status(), StatusCode::BAD_REQUEST);
+        let second = app.oneshot(promote_request()).await.unwrap();
+        assert_eq!(second.status(), StatusCode::TOO_MANY_REQUESTS);
+        let body = to_bytes(second.into_body(), 1024).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["error"], "rate_limited");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn promote_honors_uds_peer_attestation() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let body = r#"{"provider_id":"github","source":{"kind":"env_var","name":"GITHUB_TOKEN"},"mode":"import","confirm":false}"#;
+        let build = |uid: Option<u32>| {
+            let mut req = Request::builder()
+                .method("POST")
+                .uri("/v1/promote")
+                .header("content-type", "application/json")
+                .body(Body::from(body))
+                .unwrap();
+            let cred = uid.map(|uid| opensesame_uds_authn::PeerCred {
+                pid: 4242,
+                uid,
+                gid: uid,
+            });
+            req.extensions_mut()
+                .insert(ConnectInfo(UdsConnectInfo(cred)));
+            req
+        };
+        let (app, st) = test_app("http://127.0.0.1:8787");
+        let own = st.allowed_uids[0];
+        // Attested same-uid caller passes auth and reaches the confirm gate.
+        let res = app.clone().oneshot(build(Some(own))).await.unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+        // A foreign uid is denied even though it would pass the confirm gate.
+        let res = app.oneshot(build(Some(own + 1))).await.unwrap();
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn discover_response_is_size_capped_and_says_so() {
+        use axum::body::to_bytes;
+        use opensesame_connection_detect::{
+            build_report, CapabilityClass, Confidence, OfferItem, ProbeSource,
+        };
+
+        let items = (0..20_000)
+            .map(|i| OfferItem {
+                provider_id: format!("provider-{i}"),
+                source: ProbeSource::EnvVar {
+                    name: format!("PLANTED_VAR_{i}"),
+                },
+                capabilities: vec![CapabilityClass::Importable],
+                confidence: Confidence::Low,
+                registry_hint: None,
+            })
+            .collect();
+        let report = discovery::DiscoveryReport {
+            report: build_report("test-host".into(), 0, items),
+            note: "test",
+        };
+        let res = discover_response(report);
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = to_bytes(res.into_body(), MAX_DISCOVER_RESPONSE_BYTES + 1024)
+            .await
+            .unwrap();
+        assert!(body.len() <= MAX_DISCOVER_RESPONSE_BYTES, "{}", body.len());
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["truncated"], true);
+    }
+
+    #[cfg(not(feature = "tailscale"))]
+    #[test]
+    fn tailnet_listener_is_compiled_out_by_default() {
+        // The tailnet listener exists only under `--features tailscale`; this
+        // pin documents that a default build carries no tailnet surface.
+        assert!(!cfg!(feature = "tailscale"));
     }
 }

@@ -106,8 +106,14 @@ pub async fn request(
     };
 
     let target = match (
-        body.connection_id.as_deref().map(str::trim).filter(|s| !s.is_empty()),
-        body.store_path.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+        body.connection_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty()),
+        body.store_path
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty()),
     ) {
         (Some(connection_id), None) => RotationTarget::Connection {
             connection_id: connection_id.to_string(),
@@ -269,10 +275,7 @@ pub async fn get_job(
 }
 
 /// `GET /api/v1/rotations` — list jobs (metadata only).
-pub async fn list_jobs(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Response {
+pub async fn list_jobs(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
     let who = match authorize(&st, &headers) {
         Ok(who) => who,
         Err(resp) => return resp,
@@ -323,6 +326,9 @@ mod tests {
         let view = job.public_view().to_string();
         assert!(!view.contains("access_token"));
         assert!(!view.contains("\"password\""));
-        assert_eq!(job.public_view()["secrets_returned"], serde_json::Value::Null);
+        assert_eq!(
+            job.public_view()["secrets_returned"],
+            serde_json::Value::Null
+        );
     }
 }

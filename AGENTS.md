@@ -69,6 +69,7 @@ pnpm audit:osv
 pnpm audit:cargo-audit
 pnpm audit:gitleaks
 pnpm audit:semgrep
+pnpm audit:daemon-deps      # daemon dependency budget (ADR 0048 §5)
 pnpm audit:fuzz             # cargo-fuzz short pass (not in verify)
 pnpm test:fuzz              # Jazzer.js short pass (not in verify)
 ```
@@ -131,6 +132,11 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/cli` | Host CLI, binary `opensesame` (`opensesame-cli`) — includes `pass` sealed-store verbs |
 | `crates/sealed-store` | Git-native hierarchical sealed secret store (`pass` parity) |
 | `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store |
+| `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
+| `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
+| `crates/tailscale-authn` | Tailnet caller identity via tailscaled LocalAPI whois (ADR 0048 §8) |
+| `crates/invoke-through` | Memory-resident invoke-through broker — egress allowlist, no redirects (ADR 0048 D6/D7) |
+| `apps/credential-helpers` | git/docker/AWS/kubectl helper bins — thin mint-path clients of the daemon (ADR 0049) |
 | `apps/toolbar` | Daemon control stub (`opensesame-toolbar`) |
 | `apps/credential-agent` | Legacy credential agent (`opensesame-credential-agent`) |
 | `apps/callback-edge` | Edge callback service (`opensesame-callback-edge`) |
@@ -173,7 +179,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0039).
+  0001–0049).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
@@ -196,7 +202,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   `scripts/cve-lite-gate.sh`, `scripts/ast-grep-security-gate.sh`,
   `scripts/clippy-gate.sh`, `scripts/osv-scanner-gate.sh`,
   `scripts/cargo-audit-gate.sh`, `scripts/gitleaks-gate.sh`,
-  `scripts/semgrep-gate.sh`.
+  `scripts/semgrep-gate.sh`, `scripts/daemon-deps-gate.sh`.
 
 ## 7. Skills
 

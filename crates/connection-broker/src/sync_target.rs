@@ -307,9 +307,7 @@ impl ConnectionBroker {
         )
         .await?;
 
-        let result = self
-            .run_sync(organization_id, &row, secrets.as_ref())
-            .await;
+        let result = self.run_sync(organization_id, &row, secrets.as_ref()).await;
 
         match result {
             Ok((keys_synced, content_version, key_names)) => {
@@ -497,7 +495,10 @@ impl ConnectionBroker {
             )));
         }
         match provider_id {
-            "vercel" => self.sync_vercel(tokens, entries, project_id, config_id).await,
+            "vercel" => {
+                self.sync_vercel(tokens, entries, project_id, config_id)
+                    .await
+            }
             "railway" => {
                 self.sync_railway(tokens, entries, project_id, config_id)
                     .await
@@ -672,7 +673,9 @@ mod pact {
     fn contract_https_egress_guard_is_in_source_before_send() {
         let src = include_str!("sync_target.rs");
         let production = src.split("#[cfg(test)]").next().unwrap();
-        let https = production.find("sync egress requires https").expect("https fence");
+        let https = production
+            .find("sync egress requires https")
+            .expect("https fence");
         let send = production.find(".send().await").expect("send");
         assert!(https < send);
     }

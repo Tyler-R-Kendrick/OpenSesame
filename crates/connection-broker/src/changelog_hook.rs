@@ -261,10 +261,7 @@ mod tests {
         assert!(!serialized.contains("hunter2"));
         assert!(!serialized.contains("\"tok\""));
         assert_eq!(entry.key_names, vec!["DATABASE_URL"]);
-        assert_eq!(
-            entry.metadata.get("note"),
-            Some(&json!("rotated"))
-        );
+        assert_eq!(entry.metadata.get("note"), Some(&json!("rotated")));
     }
 
     #[test]

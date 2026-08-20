@@ -164,8 +164,8 @@ mod tests {
             trailer: "login: a\n".into(),
             otp: Some(otp.clone()),
         };
-        let next = apply_secret_update(&entry, Some("newpass".into()), &UpdateOptions::default())
-            .unwrap();
+        let next =
+            apply_secret_update(&entry, Some("newpass".into()), &UpdateOptions::default()).unwrap();
         assert_eq!(next.secret, "newpass");
         assert!(next.trailer.contains("login: a") || next.render().contains("login: a"));
         assert!(next.otp.is_some());

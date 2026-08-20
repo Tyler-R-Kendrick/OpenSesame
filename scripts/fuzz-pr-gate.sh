@@ -51,6 +51,9 @@ map_targets() {
     crates/provider-openbao/*) echo openbao_response ;;
     crates/provider-openfga/*) echo openfga_response ;;
     crates/rotation/*) echo rotation_fsm ;;
+    crates/connection-detect/*) echo mcp_config ini_parse promote_request ;;
+    crates/tailscale-authn/*) echo whois_response ;;
+    apps/daemon/*) echo promote_request mcp_config ;;
     fuzz/*) echo ALL ;;
     *) ;;
   esac

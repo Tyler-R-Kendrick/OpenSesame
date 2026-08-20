@@ -111,9 +111,7 @@ pub fn admit(request: &RelayAdmission<'_>) -> Result<(), RelayRefusal> {
 
     // The whole point of approving something. Compared in full: a prefix match
     // would let a request be extended after consent.
-    if request.approved_digest.is_empty()
-        || request.approved_digest != request.executing_digest
-    {
+    if request.approved_digest.is_empty() || request.approved_digest != request.executing_digest {
         return Err(RelayRefusal::DigestMismatch);
     }
 

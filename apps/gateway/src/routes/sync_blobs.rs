@@ -125,22 +125,22 @@ pub async fn snapshot(
         Ok((_, meta)) => session_subject(&meta),
         Err(resp) => return resp,
     };
-    let blobs: Vec<OpaqueSyncBlobDto> = match st.db.list_sync_blobs(&owner_id, body.since_epoch).await
-    {
-        Ok(rows) => rows
-            .into_iter()
-            .map(OpaqueSyncBlobDto::from)
-            .filter(|blob| project_scoped(&blob.id, body.project_id.as_deref()))
-            .collect(),
-        Err(error) => {
-            tracing::error!(error = %error, "encrypted sync snapshot failed");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": "sync_storage_failed"})),
-            )
-                .into_response();
-        }
-    };
+    let blobs: Vec<OpaqueSyncBlobDto> =
+        match st.db.list_sync_blobs(&owner_id, body.since_epoch).await {
+            Ok(rows) => rows
+                .into_iter()
+                .map(OpaqueSyncBlobDto::from)
+                .filter(|blob| project_scoped(&blob.id, body.project_id.as_deref()))
+                .collect(),
+            Err(error) => {
+                tracing::error!(error = %error, "encrypted sync snapshot failed");
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "sync_storage_failed"})),
+                )
+                    .into_response();
+            }
+        };
     Json(json!({
         "format": "opensesame-sync-blobs-snapshot",
         "version": 1,
@@ -216,7 +216,10 @@ mod tests {
 
     #[test]
     fn rejects_plaintext_fields() {
-        assert!(assert_opaque_sync_json(&json!({"blobs":[{"id":"a","epoch":1,"ciphertext":[1]}]})).is_ok());
+        assert!(
+            assert_opaque_sync_json(&json!({"blobs":[{"id":"a","epoch":1,"ciphertext":[1]}]}))
+                .is_ok()
+        );
         assert_eq!(
             assert_opaque_sync_json(&json!({"plaintext":"nope"})),
             Err("plaintext_or_seal_field_forbidden")
@@ -226,7 +229,9 @@ mod tests {
             Err("plaintext_or_seal_field_forbidden")
         );
         assert_eq!(
-            assert_opaque_sync_json(&json!({"blobs":[{"id":"a","epoch":1,"ciphertext":[1],"password":"x"}]})),
+            assert_opaque_sync_json(
+                &json!({"blobs":[{"id":"a","epoch":1,"ciphertext":[1],"password":"x"}]})
+            ),
             Err("plaintext_or_seal_field_forbidden")
         );
     }

@@ -37,7 +37,10 @@ pub fn verify_hub_signature_256(secret: &str, body: &[u8], signature_header: &st
 pub fn sign_hub_signature_256(secret: &str, body: &[u8]) -> Option<String> {
     let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).ok()?;
     mac.update(body);
-    Some(format!("sha256={}", hex::encode(mac.finalize().into_bytes())))
+    Some(format!(
+        "sha256={}",
+        hex::encode(mac.finalize().into_bytes())
+    ))
 }
 
 #[cfg(test)]

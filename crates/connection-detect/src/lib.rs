@@ -353,7 +353,11 @@ pub fn scan(
         ("vault", "token", "~/.vault-token"),
         ("openbao", "token", "~/.bao-token"),
         ("aws", "access_key_id", "~/.aws/credentials"),
-        ("gcp", "project_id", "gcloud application default credentials"),
+        (
+            "gcp",
+            "project_id",
+            "gcloud application default credentials",
+        ),
     ] {
         if detected_file_value(provider, field, read_env, read_file).is_some() {
             note(provider, SourceKind::File, label.to_string());
@@ -383,6 +387,14 @@ pub fn mcp_server_names(contents: &str) -> Vec<String> {
     };
     servers.keys().cloned().collect()
 }
+
+// ——— Capability-moded offers (ADR 0047, offer schema v1) ———————————
+
+mod offers;
+pub use offers::*;
+
+mod promote;
+pub use promote::{PromoteRequest, PromotionMode};
 
 #[cfg(test)]
 mod tests {
@@ -423,7 +435,10 @@ mod tests {
     #[test]
     fn property_aws_alternations_all_resolve() {
         for provider in AWS_IDS {
-            assert_eq!(env_aliases(provider, "access_key_id"), &["AWS_ACCESS_KEY_ID"]);
+            assert_eq!(
+                env_aliases(provider, "access_key_id"),
+                &["AWS_ACCESS_KEY_ID"]
+            );
             assert_eq!(
                 env_aliases(provider, "region"),
                 &["AWS_REGION", "AWS_DEFAULT_REGION"]
@@ -470,7 +485,9 @@ mod tests {
         }"#;
         let names = mcp_server_names(contents);
         assert_eq!(names, vec!["github".to_string(), "local".to_string()]);
-        assert!(!names.iter().any(|n| n.contains("PLANTED-MCP-ENV-VALUE-MUST-NOT-ESCAPE")));
+        assert!(!names
+            .iter()
+            .any(|n| n.contains("PLANTED-MCP-ENV-VALUE-MUST-NOT-ESCAPE")));
         assert!(mcp_server_names("not json").is_empty());
         assert!(mcp_server_names(r#"{"other": 1}"#).is_empty());
     }
@@ -555,7 +572,10 @@ mod tests {
             ("/elsewhere/config", AWS_CONFIG),
             // The home-relative paths hold something else entirely; reading them
             // would be reading the wrong machine's credentials.
-            ("/home/t/.aws/credentials", "[default]\naws_access_key_id = WRONG\n"),
+            (
+                "/home/t/.aws/credentials",
+                "[default]\naws_access_key_id = WRONG\n",
+            ),
         ]);
         assert_eq!(
             detected_aws_file_value("access_key_id", &env, &read).as_deref(),
@@ -720,5 +740,534 @@ mod tests {
         // commented-out line becomes a credential.
         assert_eq!(ini_value(ini, "default", "# hash comment"), None);
         assert_eq!(ini_value(ini, "default", "; semicolon comment"), None);
+    }
+
+    // ——— Capability-moded offers (ADR 0047, offer schema v1) ——————————
+
+    use std::sync::Arc;
+
+    /// A real temporary home directory: the probes read through `std::fs`,
+    /// so fixtures have to live on disk. Removed on drop.
+    struct TempHome(PathBuf);
+
+    impl TempHome {
+        fn new(tag: &str) -> Self {
+            let dir = std::env::temp_dir().join(format!(
+                "opensesame-connection-detect-test-{}-{tag}",
+                std::process::id()
+            ));
+            std::fs::create_dir_all(&dir).expect("create temp home");
+            Self(dir)
+        }
+
+        fn write(&self, relative: &str, contents: &str) {
+            let path = self.0.join(relative);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).expect("create parent");
+            }
+            std::fs::write(path, contents).expect("write fixture");
+        }
+    }
+
+    impl Drop for TempHome {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn probe_ctx(home: &TempHome, env: &[(&str, &str)]) -> ProbeContext {
+        ProbeContext {
+            home_dir: home.0.clone(),
+            env: env
+                .iter()
+                .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+                .collect(),
+            keychain: Arc::new(MockKeychain::new()),
+            commands: Arc::new(MockCommandRunner::new()),
+            max_read_bytes: 8 * 1024,
+        }
+    }
+
+    /// One report touching every ProbeSource variant, shared by the round-trip
+    /// and wire-shape pins so they cannot drift apart.
+    fn sample_report() -> ProbeReport {
+        ProbeReport {
+            schema_version: OFFER_SCHEMA_VERSION,
+            host_label: "node-1".to_string(),
+            probed_at_unix: 1_750_000_000,
+            items: vec![
+                OfferItem {
+                    provider_id: "github".to_string(),
+                    source: ProbeSource::EnvVar {
+                        name: "GITHUB_TOKEN".to_string(),
+                    },
+                    capabilities: vec![CapabilityClass::Importable, CapabilityClass::Mintable],
+                    confidence: Confidence::High,
+                    registry_hint: None,
+                },
+                OfferItem {
+                    provider_id: "vault".to_string(),
+                    source: ProbeSource::DotFile {
+                        path: PathBuf::from("/home/t/.vault-token"),
+                    },
+                    capabilities: vec![CapabilityClass::Importable],
+                    confidence: Confidence::Medium,
+                    registry_hint: None,
+                },
+                OfferItem {
+                    provider_id: "github".to_string(),
+                    source: ProbeSource::Keychain {
+                        store: KeychainStore::SecretService,
+                        item_label: "GitHub CLI".to_string(),
+                    },
+                    capabilities: vec![CapabilityClass::Importable],
+                    confidence: Confidence::Low,
+                    registry_hint: Some("github".to_string()),
+                },
+                OfferItem {
+                    provider_id: "github".to_string(),
+                    source: ProbeSource::McpConfig {
+                        path: PathBuf::from("/home/t/.mcp.json"),
+                        server_name: "github".to_string(),
+                        env_keys: vec!["GITHUB_TOKEN".to_string()],
+                    },
+                    capabilities: vec![CapabilityClass::Importable],
+                    confidence: Confidence::Medium,
+                    registry_hint: None,
+                },
+                OfferItem {
+                    provider_id: "stripe".to_string(),
+                    source: ProbeSource::CliTool {
+                        binary: "stripe".to_string(),
+                        version: Some("1.19.4".to_string()),
+                    },
+                    capabilities: vec![CapabilityClass::InvokeThrough],
+                    confidence: Confidence::Medium,
+                    registry_hint: None,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn contract_offer_report_serde_round_trips() {
+        let report = sample_report();
+        let json = serde_json::to_string(&report).expect("serializable");
+        let back: ProbeReport = serde_json::from_str(&json).expect("deserializable");
+        assert_eq!(report, back);
+    }
+
+    #[test]
+    fn contract_offer_report_wire_shape_is_pinned() {
+        // No insta in this crate, so the pin is an explicit comparison. A new
+        // key here is a disclosure decision — read the diff if this fails.
+        let value = serde_json::to_value(sample_report()).expect("serializable");
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "schema_version": 1,
+                "host_label": "node-1",
+                "probed_at_unix": 1_750_000_000_u64,
+                "items": [
+                    {
+                        "provider_id": "github",
+                        "source": { "kind": "env_var", "name": "GITHUB_TOKEN" },
+                        "capabilities": ["importable", "mintable"],
+                        "confidence": "high",
+                        "registry_hint": null,
+                    },
+                    {
+                        "provider_id": "vault",
+                        "source": { "kind": "dot_file", "path": "/home/t/.vault-token" },
+                        "capabilities": ["importable"],
+                        "confidence": "medium",
+                        "registry_hint": null,
+                    },
+                    {
+                        "provider_id": "github",
+                        "source": {
+                            "kind": "keychain",
+                            "store": "secret_service",
+                            "item_label": "GitHub CLI",
+                        },
+                        "capabilities": ["importable"],
+                        "confidence": "low",
+                        "registry_hint": "github",
+                    },
+                    {
+                        "provider_id": "github",
+                        "source": {
+                            "kind": "mcp_config",
+                            "path": "/home/t/.mcp.json",
+                            "server_name": "github",
+                            "env_keys": ["GITHUB_TOKEN"],
+                        },
+                        "capabilities": ["importable"],
+                        "confidence": "medium",
+                        "registry_hint": null,
+                    },
+                    {
+                        "provider_id": "stripe",
+                        "source": { "kind": "cli_tool", "binary": "stripe", "version": "1.19.4" },
+                        "capabilities": ["invoke_through"],
+                        "confidence": "medium",
+                        "registry_hint": null,
+                    },
+                ],
+            })
+        );
+        for (store, wire) in [
+            (KeychainStore::SecretService, "secret_service"),
+            (KeychainStore::MacOsKeychain, "mac_os_keychain"),
+            (
+                KeychainStore::WindowsCredentialManager,
+                "windows_credential_manager",
+            ),
+        ] {
+            assert_eq!(
+                serde_json::to_value(store).unwrap(),
+                serde_json::json!(wire)
+            );
+        }
+    }
+
+    #[test]
+    fn property_capability_class_orders_importable_through_mintable() {
+        assert!(CapabilityClass::Importable < CapabilityClass::InvokeThrough);
+        assert!(CapabilityClass::InvokeThrough < CapabilityClass::Mintable);
+        let caps = [
+            CapabilityClass::Importable,
+            CapabilityClass::Mintable,
+            CapabilityClass::InvokeThrough,
+        ];
+        assert_eq!(caps.iter().max(), Some(&CapabilityClass::Mintable));
+
+        let item = OfferItem {
+            provider_id: "github".to_string(),
+            source: ProbeSource::EnvVar {
+                name: "GITHUB_TOKEN".to_string(),
+            },
+            capabilities: vec![CapabilityClass::Importable, CapabilityClass::Mintable],
+            confidence: Confidence::High,
+            registry_hint: None,
+        };
+        assert_eq!(preferred_capability(&item), Some(CapabilityClass::Mintable));
+        let empty = OfferItem {
+            capabilities: Vec::new(),
+            ..item.clone()
+        };
+        assert_eq!(preferred_capability(&empty), None);
+    }
+
+    #[test]
+    fn property_mint_capable_names_exactly_the_native_mint_providers() {
+        assert_eq!(MINT_CAPABLE_PROVIDERS.len(), 7);
+        for id in [
+            "github",
+            "aws",
+            "aws-kms",
+            "aws-ps",
+            "aws-bedrock",
+            "gcp",
+            "gcp-kms",
+        ] {
+            assert!(mint_capable(id), "{id}");
+        }
+        for id in ["stripe", "azure-sm", "openai", "gitlab", ""] {
+            assert!(!mint_capable(id), "{id}");
+        }
+    }
+
+    #[test]
+    fn property_env_dotfile_probe_confidence_and_mint_capability() {
+        let home = TempHome::new("env-dotfile");
+        let ctx = probe_ctx(
+            &home,
+            &[
+                ("STRIPE_SECRET_KEY", "x"),
+                ("OPENSESAME_PROVIDER_STRIPE_API_KEY", "y"),
+                ("GITHUB_TOKEN", "z"),
+            ],
+        );
+        let items = EnvDotfileProbe.probe(&ctx).expect("env probe");
+
+        let explicit = items
+            .iter()
+            .find(|i| {
+                matches!(&i.source, ProbeSource::EnvVar { name } if name == "OPENSESAME_PROVIDER_STRIPE_API_KEY")
+            })
+            .expect("explicit variable reported");
+        assert_eq!(explicit.confidence, Confidence::High);
+        assert_eq!(explicit.capabilities, vec![CapabilityClass::Importable]);
+        assert_eq!(explicit.registry_hint, None);
+
+        let conventional = items
+            .iter()
+            .find(|i| {
+                matches!(&i.source, ProbeSource::EnvVar { name } if name == "STRIPE_SECRET_KEY")
+            })
+            .expect("conventional variable reported");
+        assert_eq!(conventional.confidence, Confidence::Medium);
+
+        // A mint-capable provider offers Mintable alongside Importable, and
+        // the preferred capability is the mint path.
+        let github = items
+            .iter()
+            .find(|i| i.provider_id == "github")
+            .expect("github reported");
+        assert_eq!(
+            github.capabilities,
+            vec![CapabilityClass::Importable, CapabilityClass::Mintable]
+        );
+        assert_eq!(
+            preferred_capability(github),
+            Some(CapabilityClass::Mintable)
+        );
+    }
+
+    #[test]
+    fn property_env_dotfile_probe_resolves_dotfile_paths() {
+        let home = TempHome::new("dotfile");
+        home.write(".vault-token", "vault-token-value");
+        let ctx = probe_ctx(&home, &[]);
+        let items = EnvDotfileProbe.probe(&ctx).expect("env probe");
+        let vault = items
+            .iter()
+            .find(|i| i.provider_id == "vault")
+            .expect("vault dotfile reported");
+        assert_eq!(
+            vault.source,
+            ProbeSource::DotFile {
+                path: home.0.join(".vault-token")
+            }
+        );
+        assert_eq!(vault.confidence, Confidence::Medium);
+    }
+
+    #[test]
+    fn adversarial_mcp_probe_collects_env_key_names_never_values() {
+        let home = TempHome::new("mcp-keys");
+        home.write(
+            ".mcp.json",
+            r#"{"mcpServers": {
+              "github": { "command": "npx", "env": { "GITHUB_TOKEN": "PLANTED-MCP-VALUE-MUST-NOT-ESCAPE", "GITHUB_HOST": "PLANTED-HOST-VALUE-MUST-NOT-ESCAPE" } },
+              "local": { "command": "./server" }
+            }}"#,
+        );
+        let ctx = probe_ctx(&home, &[]);
+        let items = McpConfigProbe.probe(&ctx).expect("mcp probe");
+        assert_eq!(items.len(), 2, "{items:?}");
+
+        let github = items
+            .iter()
+            .find(|i| i.provider_id == "github")
+            .expect("github server reported");
+        assert_eq!(
+            github.source,
+            ProbeSource::McpConfig {
+                path: home.0.join(".mcp.json"),
+                server_name: "github".to_string(),
+                env_keys: vec!["GITHUB_HOST".to_string(), "GITHUB_TOKEN".to_string()],
+            }
+        );
+        assert_eq!(github.capabilities, vec![CapabilityClass::Importable]);
+        assert_eq!(github.confidence, Confidence::Medium);
+
+        let local = items
+            .iter()
+            .find(|i| i.provider_id == "local")
+            .expect("local server reported");
+        assert!(
+            matches!(&local.source, ProbeSource::McpConfig { env_keys, .. } if env_keys.is_empty())
+        );
+
+        let rendered = serde_json::to_string(&items).expect("serializable");
+        assert!(rendered.contains("GITHUB_TOKEN"), "key names pass through");
+        assert!(!rendered.contains("PLANTED-MCP-VALUE-MUST-NOT-ESCAPE"));
+        assert!(!rendered.contains("PLANTED-HOST-VALUE-MUST-NOT-ESCAPE"));
+    }
+
+    #[test]
+    fn adversarial_mcp_probe_treats_malformed_json_as_empty_not_error() {
+        assert!(mcp_server_env_keys("not json").is_empty());
+        assert!(mcp_server_env_keys(r#"{"other": 1}"#).is_empty());
+        assert!(mcp_server_env_keys(r#"{"mcpServers": [1, 2]}"#).is_empty());
+
+        let home = TempHome::new("mcp-malformed");
+        home.write(".mcp.json", "not json {");
+        let ctx = probe_ctx(&home, &[]);
+        let items = McpConfigProbe
+            .probe(&ctx)
+            .expect("malformed is not an error");
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn adversarial_mcp_probe_skips_files_larger_than_the_read_cap() {
+        let home = TempHome::new("mcp-oversized");
+        let mut padded = r#"{"mcpServers": {"github": { "command": "npx" }}}"#.to_string();
+        padded.push_str(&" ".repeat(1024));
+        home.write(".mcp.json", &padded);
+        let mut ctx = probe_ctx(&home, &[]);
+        ctx.max_read_bytes = 64;
+        let items = McpConfigProbe
+            .probe(&ctx)
+            .expect("oversized is not an error");
+        assert!(items.is_empty(), "oversized file skipped, not truncated");
+    }
+
+    #[test]
+    fn property_merge_offers_unions_capabilities_and_dedups() {
+        let env_source = || ProbeSource::EnvVar {
+            name: "GITHUB_TOKEN".to_string(),
+        };
+        let merged = merge_offers(vec![
+            OfferItem {
+                provider_id: "github".to_string(),
+                source: env_source(),
+                capabilities: vec![CapabilityClass::Importable],
+                confidence: Confidence::Medium,
+                registry_hint: None,
+            },
+            OfferItem {
+                provider_id: "github".to_string(),
+                source: env_source(),
+                capabilities: vec![CapabilityClass::Mintable, CapabilityClass::Importable],
+                confidence: Confidence::High,
+                registry_hint: Some("gh".to_string()),
+            },
+            // Same provider, different source: a separate offer.
+            OfferItem {
+                provider_id: "github".to_string(),
+                source: ProbeSource::DotFile {
+                    path: PathBuf::from("/home/t/.config/gh/hosts.yml"),
+                },
+                capabilities: vec![CapabilityClass::Importable],
+                confidence: Confidence::Low,
+                registry_hint: None,
+            },
+            // Same MCP server seen twice with different env keys: unioned.
+            OfferItem {
+                provider_id: "github".to_string(),
+                source: ProbeSource::McpConfig {
+                    path: PathBuf::from("/home/t/.mcp.json"),
+                    server_name: "github".to_string(),
+                    env_keys: vec!["GITHUB_TOKEN".to_string()],
+                },
+                capabilities: vec![CapabilityClass::Importable],
+                confidence: Confidence::Medium,
+                registry_hint: None,
+            },
+            OfferItem {
+                provider_id: "github".to_string(),
+                source: ProbeSource::McpConfig {
+                    path: PathBuf::from("/home/t/.mcp.json"),
+                    server_name: "github".to_string(),
+                    env_keys: vec!["GITHUB_HOST".to_string(), "GITHUB_TOKEN".to_string()],
+                },
+                capabilities: vec![CapabilityClass::Importable],
+                confidence: Confidence::Medium,
+                registry_hint: None,
+            },
+        ]);
+
+        assert_eq!(merged.len(), 3, "{merged:?}");
+        // Deterministic order: provider id, then source identity.
+        assert!(matches!(&merged[0].source, ProbeSource::DotFile { .. }));
+        let env = &merged[1];
+        assert!(matches!(&env.source, ProbeSource::EnvVar { .. }));
+        assert_eq!(
+            env.capabilities,
+            vec![CapabilityClass::Importable, CapabilityClass::Mintable],
+            "capabilities unioned"
+        );
+        assert_eq!(env.confidence, Confidence::High, "max confidence wins");
+        assert_eq!(env.registry_hint.as_deref(), Some("gh"));
+        let mcp = &merged[2];
+        assert!(
+            matches!(&mcp.source, ProbeSource::McpConfig { env_keys, .. }
+                if env_keys == &["GITHUB_HOST".to_string(), "GITHUB_TOKEN".to_string()]),
+            "env key names unioned: {:?}",
+            mcp.source
+        );
+    }
+
+    #[test]
+    fn adversarial_full_probe_report_never_carries_a_planted_secret() {
+        const ENV_CANARY: &str = "PLANTED-ENV-VALUE-MUST-NOT-ESCAPE";
+        const FILE_CANARY: &str = "PLANTED-FILE-VALUE-MUST-NOT-ESCAPE";
+        const MCP_CANARY: &str = "PLANTED-MCP-VALUE-MUST-NOT-ESCAPE";
+
+        let home = TempHome::new("canary");
+        home.write(".vault-token", FILE_CANARY);
+        home.write(
+            ".mcp.json",
+            &format!(
+                r#"{{"mcpServers": {{"github": {{ "command": "npx", "env": {{ "GITHUB_TOKEN": "{MCP_CANARY}" }}}} }}}}"#
+            ),
+        );
+
+        let ctx = ProbeContext {
+            keychain: Arc::new(
+                MockKeychain::new()
+                    .with_label(KeychainStore::SecretService, "GitHub (work laptop)"),
+            ),
+            ..probe_ctx(&home, &[("STRIPE_SECRET_KEY", ENV_CANARY)])
+        };
+
+        let mut items = EnvDotfileProbe.probe(&ctx).expect("env probe");
+        items.extend(McpConfigProbe.probe(&ctx).expect("mcp probe"));
+        // Keychain labels are display names and pass through BY DESIGN — the
+        // canary here is the env/file/MCP values, which must not.
+        for (store, label) in ctx.keychain.enumerate_labels().expect("labels") {
+            items.push(OfferItem {
+                provider_id: "github".to_string(),
+                source: ProbeSource::Keychain {
+                    store,
+                    item_label: label,
+                },
+                capabilities: vec![CapabilityClass::Importable],
+                confidence: Confidence::Low,
+                registry_hint: None,
+            });
+        }
+
+        let report = build_report("test-host".to_string(), 1_750_000_000, merge_offers(items));
+        assert_eq!(report.schema_version, OFFER_SCHEMA_VERSION);
+        let rendered = serde_json::to_string(&report).expect("serializable");
+
+        assert!(rendered.contains("stripe"), "{rendered}");
+        assert!(rendered.contains("STRIPE_SECRET_KEY"));
+        assert!(rendered.contains(".vault-token"), "dotfile path reported");
+        assert!(
+            rendered.contains("GITHUB_TOKEN"),
+            "MCP env key name reported"
+        );
+        assert!(
+            rendered.contains("GitHub (work laptop)"),
+            "keychain labels are display names and pass through"
+        );
+        // The contract the offer model lives or dies by.
+        assert!(!rendered.contains(ENV_CANARY));
+        assert!(!rendered.contains(FILE_CANARY));
+        assert!(!rendered.contains(MCP_CANARY));
+    }
+
+    #[test]
+    fn contract_probes_have_no_network_capability_by_construction() {
+        // This is asserted structurally, not behaviorally: ProbeContext
+        // carries an env snapshot, a keychain label enumerator, a scrubbed
+        // CommandRunner, and a byte cap. There is no socket, HTTP client, or
+        // URL field it *could* grow a network call from — a probe that wanted
+        // to dial out would have to change this type, which is a contract
+        // break visible in the wire-shape pin and this construction.
+        let home = TempHome::new("no-network");
+        let ctx = probe_ctx(&home, &[]);
+        let _ = &ctx.keychain;
+        let _ = &ctx.commands;
+        let items = EnvDotfileProbe
+            .probe(&ctx)
+            .expect("probe runs on mocks alone");
+        assert!(items.is_empty());
     }
 }

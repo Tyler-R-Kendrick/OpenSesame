@@ -11,19 +11,43 @@ path = "src/main.rs"
 
 [dependencies]
 opensesame-connection-detect = { path = "../../crates/connection-detect" }
+opensesame-invoke-through = { path = "../../crates/invoke-through" }
 opensesame-host-core = { path = "../../crates/host-core" }
+opensesame-uds-authn = { path = "../../crates/uds-authn" }
+opensesame-tailscale-authn = { path = "../../crates/tailscale-authn", optional = true }
 anyhow = { workspace = true }
 axum = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
 reqwest = { workspace = true }
+secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
+zeroize = { workspace = true }
+
+# D9 tailnet listener: whois-authorized, read-only, default OFF (ADR 0048 §8).
+[features]
+default = []
+tailscale = ["dep:opensesame-tailscale-authn"]
+
+# Platform keychain backends for connector discovery (ADR 0048 §3c, §5).
+# Budgeted additions only: labels are enumerated, values are never read.
+[target.'cfg(target_os = "linux")'.dependencies]
+secret-service = { version = "5.1.0", default-features = false, features = [
+    "rt-tokio-crypto-rust",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "3.2.0"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { version = "0.59.0", features = ["Win32_Security_Credentials"] }
 
 [dev-dependencies]
-insta = { workspace = true }
+insta = { workspace = true, features = ["redactions"] }
+tempfile = { workspace = true }
 tower = { workspace = true }

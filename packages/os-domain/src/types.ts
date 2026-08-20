@@ -544,7 +544,7 @@ export type AuthorityHandle =
 
 export type ConnectionRef = { kind: "connection"; ref: string };
 
-/** Connection lifecycle events the broker emits today (ADR 0032). */
+/** Connection lifecycle events the broker emits today (ADR 0032, ADR 0049). */
 export type ConnectionDomainEventType =
   | "connection.created"
   | "connection.authorized"
@@ -552,6 +552,7 @@ export type ConnectionDomainEventType =
   | "connection.refresh_failed"
   | "connection.bound"
   | "connection.unbound"
+  | "connection.materialized"
   | "connection.revoked";
 
 /** Personal project provisioning (WP-B). */

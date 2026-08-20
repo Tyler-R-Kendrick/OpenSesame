@@ -72,7 +72,11 @@ pub fn seal_manifest(
             &format!(
                 "Seal {} manifest {}",
                 outcome.sealed,
-                if outcome.sealed == 1 { "entry" } else { "entries" }
+                if outcome.sealed == 1 {
+                    "entry"
+                } else {
+                    "entries"
+                }
             ),
         )?;
     }
