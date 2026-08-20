@@ -335,10 +335,17 @@ export function checkNow(): void {
 function setOffline(next: boolean): void {
   if (offline === next) return;
   offline = next;
-  if (next) {
-    // Do not relabel what we last knew — just stop claiming it is current.
-    for (const target of ["host", "identity", "machine"] as const) {
+  for (const target of ["host", "identity", "machine"] as const) {
+    if (next) {
+      // Do not relabel what we last knew — just stop claiming it is current.
       state[target].failure = "offline";
+    } else if (state[target].failure === "offline") {
+      // The radio is back, so "offline" is no longer why anything is failing.
+      // Leaving the stamp on renders an amber glyph whose label reads
+      // "Offline" — a warning to go and fix an endpoint, next to copy saying
+      // there is nothing to fix. We do not know the reason again until the
+      // sweep this triggers comes back.
+      state[target].failure = null;
     }
   }
   touch();

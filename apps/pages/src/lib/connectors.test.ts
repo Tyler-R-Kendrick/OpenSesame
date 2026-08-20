@@ -201,6 +201,21 @@ describe("classifyIdentityConnector", () => {
     expect(status.detail).toBe("Not configured");
   });
 
+  it("never pairs an amber glyph with the word Offline", () => {
+    // Going offline stamps failure="offline" on every target. Coming back
+    // clears the flag before the next probe lands, so for that window a
+    // failing target still carries the stamp — and rendering it would put a
+    // warning to go fix an endpoint next to copy saying nothing is wrong.
+    const stale = classifyIdentityConnector(
+      plane({ identity: "down" }),
+      target({ health: "unreachable", failure: "offline" }),
+      false,
+    );
+    expect(stale.tone).toBe("attn");
+    expect(stale.detail).not.toBe("Offline");
+    expect(stale.detail).toBe("Unreachable · 127.0.0.1:18788");
+  });
+
   it("goes offline rather than blaming the identity endpoint", () => {
     const status = classifyIdentityConnector(
       plane({ identity: "down" }),
