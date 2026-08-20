@@ -1293,6 +1293,20 @@ mod tests {
         let text = json.to_string();
         assert!(!text.contains(DEV_OPERATOR_TOKEN));
         assert!(!text.contains("access_token"));
+
+        // Contract with apps/pages: `probeDaemon` parses exactly these keys,
+        // and pairing writes settings from what it finds. Widening /health
+        // here without widening that parser is how the browser ended up
+        // asserting upstream ports the daemon never stated — see
+        // apps/pages/src/lib/__tests__/daemon-health.contract.test.ts.
+        let obj = json.as_object().expect("health is an object");
+        let mut keys: Vec<&str> = obj.keys().map(String::as_str).collect();
+        keys.sort_unstable();
+        assert_eq!(keys, ["service", "status", "tailscale_url"]);
+        assert_eq!(json["service"], "opensesame-daemon");
+        // Upstream planes stay on the operator-token-gated toolbar status.
+        assert!(obj.get("host_api").is_none());
+        assert!(obj.get("identity_api").is_none());
     }
 
     #[tokio::test]

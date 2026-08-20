@@ -89,7 +89,13 @@ describe("daemon probing", () => {
     vi.restoreAllMocks();
   });
 
-  it("maps health and falls back to documented loopback defaults", async () => {
+  it("does not invent upstreams the daemon did not state", async () => {
+    // `/health` is deliberately opaque: status, service, tailscale_url. It has
+    // never carried host_api or identity_api — those are on the
+    // operator-token-gated /v1/toolbar/status. Filling them in with
+    // 127.0.0.1:8787/:8788 made pairing look authoritative about ports the
+    // daemon never mentioned, and on a loopback page that overwrote a working
+    // :18787 Host with the legacy :8787.
     vi.stubGlobal(
       "fetch",
       vi.fn(() =>
@@ -99,10 +105,29 @@ describe("daemon probing", () => {
     await expect(probeDaemon("http://127.0.0.1:18790")).resolves.toEqual({
       status: "ok",
       service: "opensesame-daemon",
-      hostApi: "http://127.0.0.1:8787",
-      identityApi: "http://127.0.0.1:8788",
+      hostApi: null,
+      identityApi: null,
       tailscaleUrl: null,
     });
+  });
+
+  it("still takes upstreams from a daemon that does state them", async () => {
+    // The shape is optional, not forbidden — a future /health may carry it.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({
+            service: "opensesame-daemon",
+            host_api: "https://box.tailnet.ts.net/host",
+            identity_api: "https://box.tailnet.ts.net/identity",
+          }),
+        ),
+      ),
+    );
+    const health = await probeDaemon("http://127.0.0.1:18790");
+    expect(health.hostApi).toBe("https://box.tailnet.ts.net/host");
+    expect(health.identityApi).toBe("https://box.tailnet.ts.net/identity");
   });
 
   it("rejects a non-OK answer and a foreign service on the daemon port", async () => {
