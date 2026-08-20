@@ -26,8 +26,18 @@ export interface OAuthClientRecord {
   /** Origin-profile clients are constrained (no offline_access / admin scopes). */
   origin?: string;
   ownershipStatus?: OwnershipStatus;
+  /**
+   * Registering/owning principal. Origin-profile clients start without one
+   * (deployment/system-owned per ADR 0050 R-A) until the F5 claim flow
+   * transfers ownership.
+   */
+  ownerPrincipalId?: string;
   firstSeenAt?: Date;
   lastUsedAt?: Date;
+  claimedAt?: Date;
+  /** Registration-API bookkeeping (durable rows always carry these). */
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface PairwiseSubject {

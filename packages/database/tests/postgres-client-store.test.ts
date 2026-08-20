@@ -135,6 +135,74 @@ describe("createPostgresClientRecordStore", () => {
     expect(touched?.firstSeenAt).toEqual(inserted.firstSeenAt);
     expect(touched?.ownershipStatus).toBe("unclaimed");
   });
+
+  it("lists clients by owner and by sector identifier", async () => {
+    const owner = await ctx.repos.principals.create(makePrincipal());
+    const other = await ctx.repos.principals.create(makePrincipal());
+    const sector = `https://sector-${randomUUID()}.example.com`;
+
+    const mine = await clients.insertAtomic(
+      makeClient({
+        ownerPrincipalId: owner.id,
+        sectorIdentifier: sector,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    );
+    const foreign = await clients.insertAtomic(
+      makeClient({
+        ownerPrincipalId: other.id,
+        sectorIdentifier: sector,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    );
+    const third = await clients.insertAtomic(
+      makeClient({
+        ownerPrincipalId: owner.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    );
+
+    const owned = await clients.listByOwner(owner.id);
+    expect(owned.map((c) => c.id).sort()).toEqual([mine.id, third.id].sort());
+    expect(owned).toHaveLength(2);
+    expect(owned.every((c) => c.ownerPrincipalId === owner.id)).toBe(true);
+    expect(owned[0]?.createdAt).toBeInstanceOf(Date);
+
+    const bySector = await clients.findBySectorIdentifier(sector);
+    expect(bySector.map((c) => c.id).sort()).toEqual(
+      [mine.id, foreign.id].sort(),
+    );
+    expect(
+      await clients.findBySectorIdentifier(
+        `https://none-${randomUUID()}.example.com`,
+      ),
+    ).toEqual([]);
+  });
+
+  it("update replaces a record and stamps updatedAt", async () => {
+    const client = makeClient({ createdAt: new Date(), updatedAt: new Date() });
+    const inserted = await clients.insertAtomic(client);
+
+    const renamed = await clients.update({
+      ...inserted,
+      displayName: "Renamed",
+      state: "revoked",
+    });
+    expect(renamed.displayName).toBe("Renamed");
+    expect(renamed.state).toBe("revoked");
+    expect(renamed.createdAt).toEqual(inserted.createdAt);
+    expect(renamed.updatedAt?.getTime()).toBeGreaterThanOrEqual(
+      inserted.updatedAt?.getTime() ?? 0,
+    );
+
+    expect((await clients.findById(inserted.id))?.displayName).toBe("Renamed");
+    await expect(
+      clients.update({ ...inserted, id: `cli_${randomUUID()}` }),
+    ).rejects.toThrow(/unknown OAuth client/);
+  });
 });
 
 describe("createPostgresClientClaimChallengeStore", () => {

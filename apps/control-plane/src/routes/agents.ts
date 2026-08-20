@@ -44,7 +44,7 @@ agentRoutes.post(
         action: "agent.register_ephemeral",
         resource: { type: "agent", id: "*" },
       },
-      getUsage(ctx.stores, principalId, ctx.clock()),
+      await getUsage(ctx.stores, principalId, ctx.clock()),
     );
     if (decision.effect === "deny") {
       return c.json({ error: "forbidden", reasons: decision.reasons }, 403);

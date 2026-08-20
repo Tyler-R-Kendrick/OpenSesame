@@ -250,7 +250,7 @@ organizationRoutes.post(
             action: "organization.create",
             resource: { type: "organization", id: "*" },
           },
-          getUsage(ctx.stores, principalId, ctx.clock()),
+          await getUsage(ctx.stores, principalId, ctx.clock()),
         );
         if (decision.effect === "deny") {
           return c.json({ error: "forbidden", reasons: decision.reasons }, 403);

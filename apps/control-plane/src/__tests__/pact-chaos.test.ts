@@ -106,7 +106,7 @@ describe("PACT — Identity plane mutation oracles", () => {
       "ctx.stores.principalMutations",
       '"oauth-clients"',
       "assertRegistrationQuota",
-      "ctx.stores.oauthClients.set",
+      "ctx.stores.oauthClients.insertAtomic",
     ]);
   });
 

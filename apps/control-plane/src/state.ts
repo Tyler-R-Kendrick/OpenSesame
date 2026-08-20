@@ -1,7 +1,10 @@
+import {
+  type ClientRecordStore,
+  MemoryClientRecordStore,
+} from "@opensesame/oauth-provider";
 import type {
   Agent,
   AgentInstance,
-  OAuthClientRecord,
   Organization,
   OrganizationMembership,
   Project,
@@ -34,7 +37,11 @@ export interface AppStores {
   organizationMembershipMutations: Map<string, Promise<void>>;
   /** slug → organization id */
   organizationSlugs: Map<string, string>;
-  oauthClients: Map<string, OAuthClientRecord>;
+  /**
+   * OAuth client records — the same durable store the OIDC provider resolves
+   * clients from (ADR 0050 R-C), never a process-local copy.
+   */
+  oauthClients: ClientRecordStore;
   agents: Map<string, Agent>;
   agentInstances: Map<string, AgentInstance>;
   /** principalId → usage counters */
@@ -60,7 +67,9 @@ export interface AppStores {
   mfaAnon: Map<string, number[]>;
 }
 
-export function createAppStores(): AppStores {
+export function createAppStores(options?: {
+  oauthClients?: ClientRecordStore;
+}): AppStores {
   return {
     provisionalSessions: new Map(),
     provisionalTokens: new Map(),
@@ -72,7 +81,7 @@ export function createAppStores(): AppStores {
     organizationMemberships: new Map(),
     organizationMembershipMutations: new Map(),
     organizationSlugs: new Map(),
-    oauthClients: new Map(),
+    oauthClients: options?.oauthClients ?? new MemoryClientRecordStore(),
     agents: new Map(),
     agentInstances: new Map(),
     usage: new Map(),
@@ -109,11 +118,11 @@ const LIVE_OAUTH_CLIENT_STATES = new Set(["active", "suspended"]);
  * projects even once they had all expired. Resources have no store yet and keep
  * the counter.
  */
-export function getUsage(
+export async function getUsage(
   stores: AppStores,
   principalId: string,
   now: Date = new Date(),
-): {
+): Promise<{
   temporaryProjects: number;
   temporaryResources: number;
   agents: number;
@@ -121,7 +130,7 @@ export function getUsage(
   oauthClients: number;
   projects: number;
   claims: number;
-} {
+}> {
   let temporaryProjects = 0;
   let projects = 0;
   for (const project of stores.projects.values()) {
@@ -149,8 +158,7 @@ export function getUsage(
   }
 
   let oauthClients = 0;
-  for (const client of stores.oauthClients.values()) {
-    if (client.ownerPrincipalId !== principalId) continue;
+  for (const client of await stores.oauthClients.listByOwner(principalId)) {
     if (!LIVE_OAUTH_CLIENT_STATES.has(client.state)) continue;
     oauthClients += 1;
   }
