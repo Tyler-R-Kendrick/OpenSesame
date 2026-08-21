@@ -180,8 +180,7 @@ function ConnectThisMachineDefault({
   // parses as a URL — otherwise the chip is a dead end.
   useEffect(() => {
     if (phase !== "manual") return;
-    const read = navigator.clipboard?.readText;
-    if (typeof read !== "function") return;
+    if (!navigator.clipboard?.readText) return;
     let cancelled = false;
     void navigator.clipboard.readText().then(
       (text) => {

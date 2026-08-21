@@ -20,6 +20,7 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { overlapCast } from "@opensesame/os-domain";
 import { isOnline, subscribeConnectivity } from "./connectivity.js";
 import { probeDaemon } from "./daemon.js";
 import {
@@ -31,6 +32,19 @@ import {
 import { type FailureClass, classifyThrown } from "./probe-failure.js";
 import { loadSettings, pageIsLoopback, subscribeSettings } from "./settings.js";
 import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
+
+export const connectivityMonitorDependencies = {
+  isOnline,
+  subscribeConnectivity,
+  probeDaemon,
+  hostBase,
+  identityBase,
+  probeHostDetailed,
+  probeIdentityDetailed,
+  loadSettings,
+  pageIsLoopback,
+  subscribeSettings,
+};
 
 export type { FailureClass } from "./probe-failure.js";
 
@@ -98,13 +112,13 @@ function blank(): Internal {
   };
 }
 
-const state: Record<ProbeTarget, Internal> = {
+const state = {
   host: blank(),
   identity: blank(),
   machine: blank(),
-};
+} satisfies Record<ProbeTarget, Internal>;
 
-let offline = !isOnline();
+let offline = !connectivityMonitorDependencies.isOnline();
 let nextCheckAt: number | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let consecutiveDegradedSweeps = 0;
@@ -181,9 +195,7 @@ function nextDelay(): number {
 }
 
 function hidden(): boolean {
-  return (
-    typeof document !== "undefined" && document.visibilityState === "hidden"
-  );
+  return globalThis.document?.visibilityState === "hidden";
 }
 
 /** Probing a hidden tab spends battery on an answer nobody can see. */
@@ -228,13 +240,21 @@ async function probeMachine(): Promise<{
   ok: boolean;
   failure: FailureClass | null;
 }> {
-  const daemonApi = loadSettings().daemonApi.trim();
-  if (!daemonApi || !daemonIsProbable(daemonApi, pageIsLoopback())) {
+  const daemonApi = connectivityMonitorDependencies
+    .loadSettings()
+    .daemonApi.trim();
+  if (
+    !daemonApi ||
+    !daemonIsProbable(
+      daemonApi,
+      connectivityMonitorDependencies.pageIsLoopback(),
+    )
+  ) {
     // Not a failure — there is nothing to reach. `unset` is the tone for this.
     return { ok: false, failure: null };
   }
   try {
-    const health = await probeDaemon(daemonApi);
+    const health = await connectivityMonitorDependencies.probeDaemon(daemonApi);
     return health.service === "opensesame-daemon"
       ? { ok: true, failure: null }
       : { ok: false, failure: "not-opensesame" };
@@ -247,7 +267,7 @@ async function probeMachine(): Promise<{
     ) {
       return { ok: false, failure: "not-opensesame" };
     }
-    return { ok: false, failure: classifyThrown(error) };
+    return { ok: false, failure: classifyThrown(overlapCast(error)) };
   }
 }
 
@@ -268,7 +288,10 @@ async function probeOne(target: ProbeTarget): Promise<void> {
       ok = result.ok;
       failure = result.failure;
     } else {
-      const base = target === "host" ? hostBase() : identityBase();
+      const base =
+        target === "host"
+          ? connectivityMonitorDependencies.hostBase()
+          : connectivityMonitorDependencies.identityBase();
       if (!base.trim()) {
         // Nothing configured is not a failure — `unset` is the tone for it.
         ok = false;
@@ -276,15 +299,15 @@ async function probeOne(target: ProbeTarget): Promise<void> {
       } else {
         const result =
           target === "host"
-            ? await probeHostDetailed()
-            : await probeIdentityDetailed();
+            ? await connectivityMonitorDependencies.probeHostDetailed()
+            : await connectivityMonitorDependencies.probeIdentityDetailed();
         ok = result.health === "reachable";
         failure = ok ? null : (result.failure ?? "unreachable");
       }
     }
   } catch (error) {
     ok = false;
-    failure = classifyThrown(error);
+    failure = classifyThrown(overlapCast(error));
   }
 
   entry.checking = false;
@@ -369,11 +392,13 @@ function start(): void {
   running = true;
   teardown = [
     // subscribeConnectivity reports *online*; this flag is its opposite.
-    subscribeConnectivity((online) => setOffline(!online)),
+    connectivityMonitorDependencies.subscribeConnectivity((online) =>
+      setOffline(!online),
+    ),
     // A base URL changing makes every cached verdict about it meaningless.
-    subscribeSettings(() => checkNow()),
+    connectivityMonitorDependencies.subscribeSettings(() => checkNow()),
   ];
-  if (typeof document !== "undefined") {
+  if (globalThis.document) {
     const onVisibility = () => {
       if (document.visibilityState === "visible") checkNow();
       else schedule();
@@ -417,7 +442,7 @@ export function resetConnectivityMonitorForTests(): void {
   state.host = blank();
   state.identity = blank();
   state.machine = blank();
-  offline = !isOnline();
+  offline = !connectivityMonitorDependencies.isOnline();
   consecutiveDegradedSweeps = 0;
   dirty = true;
   snapshot = buildSnapshot();

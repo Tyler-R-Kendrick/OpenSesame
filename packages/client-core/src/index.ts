@@ -2,6 +2,7 @@ import {
   type JsonObject,
   overlapCast,
   type BoundaryValue,
+  isJsonObject,
   isString,
   isNumber,
   isTypeofObject,
@@ -59,6 +60,7 @@ export function b64ToBytes(b64: string): Uint8Array {
  * treated as production.
  */
 function isDevOrTestEnv(): boolean {
+  // SAFETY: the browser global is structurally extended only with the optional test seam.
   const g = globalThis as typeof globalThis & {
     __OPENSESAME_ALLOW_DEV_SEAL__?: boolean;
     process?: { env?: Record<string, string | undefined> };
@@ -133,9 +135,9 @@ export function parseSealedStore(json: string): SealedStore | null {
   } catch {
     return null;
   }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
-    return null;
-  const row = overlapCast(parsed);
+  const boundary = overlapCast(parsed);
+  if (!isJsonObject(boundary)) return null;
+  const row = boundary;
   // Unknown keys are where a plaintext document would hide, so there are none.
   for (const key of Object.keys(row)) {
     if (key !== "cursor" && key !== "blobs") return null;

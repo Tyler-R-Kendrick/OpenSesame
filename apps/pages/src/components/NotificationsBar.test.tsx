@@ -3,24 +3,24 @@ import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const beginSignIn = vi.hoisted(() => vi.fn());
-const stashCurrentSession = vi.hoisted(() => vi.fn());
-
-vi.mock("../lib/federation.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../lib/federation.js")>();
-  return { ...actual, beginSignIn };
-});
-
-vi.mock("../lib/guest-auth.js", () => ({
-  stashCurrentSession,
-}));
-
 import { clearNotices, pushNotice } from "../lib/notices.js";
-import { NotificationsBar } from "./NotificationsBar.js";
+import {
+  NotificationsBar,
+  notificationsBarDependencies,
+} from "./NotificationsBar.js";
+
+const beginSignIn = vi.fn();
+const stashCurrentSession = vi.fn();
+Object.assign(notificationsBarDependencies, {
+  beginSignIn,
+  stashCurrentSession,
+});
 
 afterEach(() => {
   cleanup();
   clearNotices();
+  beginSignIn.mockReset();
+  stashCurrentSession.mockReset();
 });
 
 describe("NotificationsBar", () => {

@@ -58,6 +58,8 @@ export interface CreateOpenSesameProviderOptions {
   jwks?: Configuration["jwks"];
 }
 
+type OidcAccountContext = Record<string, never>;
+
 export interface OpenSesameProviderBundle {
   provider: typeof Provider;
   env: OAuthProviderEnv;
@@ -323,7 +325,7 @@ export function createOpenSesameProvider(
       profile: ["name"],
       email: ["email"],
     },
-    findAccount: async (_ctx: unknown, id: string) => ({
+    findAccount: async (_ctx: OidcAccountContext, id: string) => ({
       accountId: id,
       async claims() {
         return { sub: id };

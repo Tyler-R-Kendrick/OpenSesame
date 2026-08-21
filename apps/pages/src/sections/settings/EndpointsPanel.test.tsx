@@ -2,50 +2,64 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PagesSettings } from "../../lib/settings.js";
+import {
+  EndpointsPanel,
+  TursoSyncPanel,
+  endpointsPanelDependencies,
+} from "./EndpointsPanel.js";
 
-const env = vi.hoisted(() => ({
-  settings: {} as Record<string, unknown>,
+type EndpointTestEnvironment = {
+  settings: PagesSettings;
+  loopbackPage: boolean;
+};
+const env: EndpointTestEnvironment = {
+  settings: {
+    hostApi: "",
+    identityApi: "",
+    daemonApi: "",
+    tursoUrl: "",
+    mfaAppUrl: "",
+    capabilityConnectors: {
+      encryption: { providerId: "webcrypto" },
+      history: { providerId: "github" },
+    },
+  },
   loopbackPage: true,
-}));
+};
 
-const loadSettings = vi.hoisted(() => vi.fn());
-const saveSettings = vi.hoisted(() => vi.fn());
+const loadSettings = vi.fn(() => ({ ...env.settings }));
+const saveSettings = vi.fn((next: PagesSettings) => {
+  env.settings = { ...next };
+});
+const checkTurso = vi.fn();
+const setTursoSessionToken = vi.fn();
 
-vi.mock("../../lib/settings.js", () => ({
+Object.assign(endpointsPanelDependencies, {
   loadSettings,
   saveSettings,
   pageIsLoopback: () => env.loopbackPage,
-  shippedHostApi: "http://127.0.0.1:18787",
-  shippedIdentityApi: "http://127.0.0.1:18788",
-  shippedDaemonApi: "http://127.0.0.1:18790",
-}));
-
-const checkTurso = vi.hoisted(() => vi.fn());
-const setTursoSessionToken = vi.hoisted(() => vi.fn());
-
-vi.mock("../../lib/embedded-catalog.js", () => ({
   checkTurso,
   setTursoSessionToken,
-}));
+});
 
-import { EndpointsPanel, TursoSyncPanel } from "./EndpointsPanel.js";
-
-const BASE = {
+const BASE: PagesSettings = {
   hostApi: "http://127.0.0.1:18787",
   identityApi: "http://127.0.0.1:18788",
   daemonApi: "",
   tursoUrl: "",
   mfaAppUrl: "",
-  capabilityConnectors: {},
+  capabilityConnectors: {
+    encryption: { providerId: "webcrypto" },
+    history: { providerId: "github" },
+  },
 };
 
 beforeEach(() => {
   env.loopbackPage = true;
   env.settings = { ...BASE };
-  loadSettings.mockImplementation(() => ({ ...env.settings }));
-  saveSettings.mockImplementation((next: Record<string, unknown>) => {
-    env.settings = { ...next };
-  });
+  loadSettings.mockClear();
+  saveSettings.mockClear();
   checkTurso.mockResolvedValue("embedded");
 });
 
@@ -116,6 +130,7 @@ describe("EndpointsPanel", () => {
     const fill = screen.getByRole("button", { name: "http://127.0.0.1:18790" });
     await userEvent.click(fill);
     expect(
+      // SAFETY: the label names the text input rendered by EndpointsPanel.
       (screen.getByLabelText("Daemon on this machine") as HTMLInputElement)
         .value,
     ).toBe("http://127.0.0.1:18790");
@@ -165,10 +180,7 @@ describe("TursoSyncPanel", () => {
     expect(saveSettings).toHaveBeenCalledWith(
       expect.objectContaining({ tursoUrl: "libsql://db.turso.io" }),
     );
-    const persisted = saveSettings.mock.calls[0]?.[0] as Record<
-      string,
-      unknown
-    >;
+    const persisted = saveSettings.mock.calls[0]?.[0] ?? BASE;
     expect(JSON.stringify(persisted)).not.toContain("secret-token");
     expect(setTursoSessionToken).toHaveBeenCalledWith("secret-token");
   });

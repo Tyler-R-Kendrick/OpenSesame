@@ -33,23 +33,27 @@ const env = vi.hoisted(() => ({
 
 import { planeSeams } from "../lib/planes.js";
 const originalPlaneSeams = { ...planeSeams };
-Object.assign(planeSeams, {PAGES_CANNOT_HOST: "Pages cannot host the Host API.",
+Object.assign(planeSeams, {
+  PAGES_CANNOT_HOST: "Pages cannot host the Host API.",
   hostStatusLabel: (host: string) => `host:${host}`,
   identityStatusLabel: (identity: string) => `id:${identity}`,
   needsHostPairing: () => env.needsPairing,
-  usePlaneStatus: () => env.plane});
+  usePlaneStatus: () => env.plane,
+});
 import { settingsSeams } from "../lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
-Object.assign(settingsSeams, {loadSettings: () => ({
+Object.assign(settingsSeams, {
+  loadSettings: () => ({
     daemonApi: env.daemonApiSetting,
     hostApi: "https://host.example.com",
     identityApi: "https://id.example.com",
   }),
   pageIsLoopback: () => env.loopbackPage,
-  shippedDaemonApi: "http://127.0.0.1:18790"});
+  shippedDaemonApi: "http://127.0.0.1:18790",
+});
 import { identitySeams } from "../lib/identity.js";
 const originalIdentitySeams = { ...identitySeams };
-Object.assign(identitySeams, {useConnect: () => ({ connect: env.connect })});
+Object.assign(identitySeams, { useConnect: () => ({ connect: env.connect }) });
 import { daemonSeams } from "../lib/daemon.js";
 const originalDaemonSeams = { ...daemonSeams };
 Object.assign(daemonSeams, {
@@ -355,6 +359,7 @@ describe("ConnectThisMachine", () => {
     goManual();
     // Prefilled from the shipped default, so there is nothing left to offer.
     expect(
+      // SAFETY: the label names the text input rendered by the manual pairing form.
       (
         screen.getByLabelText(
           "Daemon (Tailscale Serve URL)",
@@ -373,6 +378,7 @@ describe("ConnectThisMachine", () => {
     });
     fireEvent.click(fill);
     expect(
+      // SAFETY: the label names the text input rendered by the manual pairing form.
       (
         screen.getByLabelText(
           "Daemon (Tailscale Serve URL)",

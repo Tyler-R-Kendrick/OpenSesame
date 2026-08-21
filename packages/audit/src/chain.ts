@@ -96,7 +96,7 @@ export interface ChainedAuditSinkOptions {
    */
   tip?: string | (() => Promise<string | undefined>);
   /** Retry once after another process wins the durable predecessor slot. */
-  retryOnConflict?: (error: unknown) => boolean;
+  retryOnConflict?: (error: Error) => boolean;
 }
 
 /**
@@ -144,7 +144,12 @@ export function createChainedAuditSink(
         tip = linked.digest ?? previousDigest;
         return stored;
       } catch (error) {
-        if (attempt > 0 || !resolveTip || !options.retryOnConflict?.(error)) {
+        if (
+          attempt > 0 ||
+          !resolveTip ||
+          !(error instanceof Error) ||
+          !options.retryOnConflict?.(error)
+        ) {
           throw error;
         }
         tip = (await resolveTip()) ?? AUDIT_CHAIN_GENESIS;

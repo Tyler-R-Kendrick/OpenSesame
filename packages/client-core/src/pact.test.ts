@@ -20,6 +20,7 @@ describe("PACT — client-core sealed store", () => {
   });
 
   it("chaos: production-like env never XORs", () => {
+    // SAFETY: tests only access the optional process env seam on the Node global.
     const g = globalThis as typeof globalThis & {
       process?: { env?: Record<string, string | undefined> };
     };

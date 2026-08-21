@@ -10,9 +10,7 @@ const terminal = new Set<PresentationState>([
   "revoked",
   "failed",
 ]);
-const transitions: Readonly<
-  Record<PresentationState, readonly PresentationState[]>
-> = {
+const transitions = {
   created: ["request_validated", "denied", "expired", "failed"],
   request_validated: ["credentials_matched", "denied", "expired", "failed"],
   credentials_matched: ["consent_required", "denied", "expired", "failed"],
@@ -27,7 +25,7 @@ const transitions: Readonly<
   expired: [],
   revoked: [],
   failed: [],
-};
+} satisfies Record<PresentationState, readonly PresentationState[]>;
 
 export class PresentationTransitionError extends Error {
   constructor(
@@ -44,18 +42,21 @@ export function transitionPresentation(
   to: PresentationState,
   now: Date,
 ): PresentationSession {
-  if (terminal.has(session.state) || !transitions[session.state].includes(to)) {
+  const allowedTransitions: readonly PresentationState[] =
+    transitions[session.state];
+  if (terminal.has(session.state) || !allowedTransitions.includes(to)) {
     throw new PresentationTransitionError(session.state, to);
   }
   if (to !== "expired" && session.expiresAt <= now) {
     throw new PresentationTransitionError(session.state, "expired");
   }
-  return {
+  const next: PresentationSession = {
     ...session,
     state: to,
-    ...(to === "consented" ? { consentedAt: now } : {}),
-    ...(to === "activated" ? { activatedAt: now } : {}),
-    ...(to === "completed" ? { completedAt: now } : {}),
     version: session.version + 1,
   };
+  if (to === "consented") next.consentedAt = now;
+  if (to === "activated") next.activatedAt = now;
+  if (to === "completed") next.completedAt = now;
+  return next;
 }

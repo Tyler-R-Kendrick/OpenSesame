@@ -20,15 +20,15 @@ export const SETTINGS_CATEGORIES = [
 ] as const;
 export type SettingsCategory = (typeof SETTINGS_CATEGORIES)[number];
 
-export const SETTINGS_CATEGORY_LABEL: Record<SettingsCategory, string> = {
+export const SETTINGS_CATEGORY_LABEL = {
   general: "General",
   security: "Security",
   connectivity: "Connectivity",
   data: "Vault data",
   danger: "Danger",
-};
+} satisfies Record<SettingsCategory, string>;
 
-const HASH_TO_SETTINGS: Record<string, SettingsCategory> = {
+const HASH_TO_SETTINGS = {
   general: "general",
   security: "security",
   connectivity: "connectivity",
@@ -38,9 +38,9 @@ const HASH_TO_SETTINGS: Record<string, SettingsCategory> = {
   "github-backup": "data",
   taskbus: "connectivity",
   unlock: "security",
-};
+} satisfies Record<string, SettingsCategory>;
 
-const VAULT_FILTER_LABEL: Record<string, string> = {
+const VAULT_FILTER_LABEL = {
   favorites: "Favorites",
   trash: "Trash",
   login: KIND_PLURAL.login,
@@ -49,12 +49,17 @@ const VAULT_FILTER_LABEL: Record<string, string> = {
   secret: KIND_PLURAL.secret,
   note: KIND_PLURAL.note,
   certificate: "Certificates",
-};
+} satisfies Record<string, string>;
 
 const ITEM_KINDS = new Set<string>(Object.keys(KIND_LABEL));
+const SETTINGS_CATEGORY_SET = new Set<string>(SETTINGS_CATEGORIES);
+
+function isItemKind(value: string): value is ItemKind {
+  return ITEM_KINDS.has(value);
+}
 
 export function isSettingsCategory(value: string): value is SettingsCategory {
-  return (SETTINGS_CATEGORIES as readonly string[]).includes(value);
+  return SETTINGS_CATEGORY_SET.has(value);
 }
 
 export function settingsCategoryFromHash(
@@ -133,8 +138,8 @@ function vaultCrumbs(
     crumbs.push({ label: "Password health" });
     return crumbs;
   }
-  if (rest[0] === "new" && rest[1] && ITEM_KINDS.has(rest[1])) {
-    const kind = rest[1] as ItemKind;
+  if (rest[0] === "new" && rest[1] && isItemKind(rest[1])) {
+    const kind = rest[1];
     crumbs.push({ label: `New ${KIND_LABEL[kind].toLowerCase()}` });
     return crumbs;
   }

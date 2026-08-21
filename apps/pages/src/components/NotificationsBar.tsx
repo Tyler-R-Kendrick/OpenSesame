@@ -14,6 +14,12 @@ import {
 import { loadQueue } from "../lib/queue.js";
 import { IconBell, IconX } from "./Icons.js";
 
+export const notificationsBarDependencies = {
+  beginSignIn,
+  defaultUpstream,
+  stashCurrentSession,
+};
+
 function NotificationsBarDefault() {
   const notices = useSyncExternalStore(subscribeNotices, listNotices);
   const queued = loadQueue().length;
@@ -101,10 +107,13 @@ function NotificationsBarDefault() {
                       type="button"
                       className="btn btn--primary"
                       onClick={() => {
-                        stashCurrentSession();
-                        void beginSignIn(defaultUpstream(), {
-                          returnTo: "/",
-                        });
+                        notificationsBarDependencies.stashCurrentSession();
+                        void notificationsBarDependencies.beginSignIn(
+                          notificationsBarDependencies.defaultUpstream(),
+                          {
+                            returnTo: "/",
+                          },
+                        );
                       }}
                     >
                       Sign in to claim

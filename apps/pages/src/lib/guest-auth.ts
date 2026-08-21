@@ -29,15 +29,23 @@ type StashedSession = {
   expiresAt?: string;
 };
 
+export const guestAuthDependencies = {
+  connectProvisional,
+  currentSession,
+  identityJson,
+  restoreSession,
+  createGuest: () => vaultStore.createGuest(),
+};
+
 function stashCurrentSessionDefault(): void {
-  const active = currentSession();
+  const active = guestAuthDependencies.currentSession();
   if (!active || active.cookieOnly) return;
   const payload: StashedSession = {
     principalId: active.principalId,
     accessToken: active.accessToken,
     issuerOrigin: active.issuerOrigin,
-    ...(active.expiresAt ? { expiresAt: active.expiresAt } : {}),
   };
+  if (active.expiresAt) payload.expiresAt = active.expiresAt;
   try {
     sessionStorage.setItem(STASH_KEY, JSON.stringify(payload));
   } catch {
@@ -50,6 +58,7 @@ function takeStashedSessionDefault(): StashedSession | null {
     const raw = sessionStorage.getItem(STASH_KEY);
     if (!raw) return null;
     sessionStorage.removeItem(STASH_KEY);
+    // SAFETY: the serialized record is immediately checked for all required session fields below.
     const parsed = JSON.parse(raw) as StashedSession;
     if (!parsed.principalId || !parsed.accessToken || !parsed.issuerOrigin) {
       return null;
@@ -67,9 +76,9 @@ function restoreStashedGuestSessionDefault(): boolean {
     principalId: stashed.principalId,
     accessToken: stashed.accessToken,
     issuerOrigin: stashed.issuerOrigin,
-    ...(stashed.expiresAt ? { expiresAt: stashed.expiresAt } : {}),
   };
-  restoreSession(next);
+  if (stashed.expiresAt) next.expiresAt = stashed.expiresAt;
+  guestAuthDependencies.restoreSession(next);
   return true;
 }
 
@@ -83,7 +92,7 @@ async function claimGuestAuthDefault(): Promise<void> {
   if (inFlightClaim) return inFlightClaim;
   inFlightClaim = (async () => {
     try {
-      await connectProvisional();
+      await guestAuthDependencies.connectProvisional();
       stashCurrentSession();
       pushNotice({
         kind: "guest_claim",
@@ -107,16 +116,16 @@ async function claimGuestAuthDefault(): Promise<void> {
 }
 
 async function continueAsGuestDefault(): Promise<void> {
-  await vaultStore.createGuest();
+  await guestAuthDependencies.createGuest();
   await claimGuestAuthDefault();
 }
 
 async function linkGuestAccountDefault(idToken: string): Promise<void> {
   restoreStashedGuestSessionDefault();
-  if (!currentSession()) {
-    await connectProvisional();
+  if (!guestAuthDependencies.currentSession()) {
+    await guestAuthDependencies.connectProvisional();
   }
-  await identityJson("/v1/principals/link-identities", {
+  await guestAuthDependencies.identityJson("/v1/principals/link-identities", {
     method: "POST",
     body: JSON.stringify({ idToken }),
   });

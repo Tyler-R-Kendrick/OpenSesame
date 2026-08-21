@@ -1,17 +1,15 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type JsonValue } from "@opensesame/os-domain";
 
-const env = vi.hoisted(() => ({ loopbackPage: true }));
-
-vi.mock("../settings.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../settings.js")>();
-  // Only the page's own location is faked; persistence stays real, because
-  // what pairing *writes* is the half of this contract that broke.
-  return { ...actual, pageIsLoopback: () => env.loopbackPage };
-});
+const env = { loopbackPage: true };
 
 import { applyDaemonPairing, probeDaemon } from "../daemon.js";
-import { loadSettings, saveSettings } from "../settings.js";
+import { loadSettings, saveSettings, settingsSeams } from "../settings.js";
+
+// Only the page's own location is faked; persistence stays real, because what
+// pairing writes is the half of this contract that broke.
+settingsSeams.pageIsLoopback = () => env.loopbackPage;
 
 /**
  * Contract: the daemon's `/health`, as the Rust handler actually emits it.
@@ -40,7 +38,7 @@ function rustHealthPayload(tailscaleUrl: string | null = null) {
   };
 }
 
-function stubHealth(body: unknown) {
+function stubHealth(body: JsonValue) {
   vi.stubGlobal(
     "fetch",
     vi.fn(() => Promise.resolve(Response.json(body))),

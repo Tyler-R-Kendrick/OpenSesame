@@ -1,19 +1,44 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const env = vi.hoisted(() => ({
-  host: "reachable" as "reachable" | "unreachable",
-  identity: "reachable" as "reachable" | "unreachable",
-  hostFailure: null as string | null,
+type Reachability = "reachable" | "unreachable";
+type MonitorTestEnvironment = {
+  host: Reachability;
+  identity: Reachability;
+  hostFailure: string | null;
+  daemonApi: string;
+  daemonOk: boolean;
+  daemonError: Error | null;
+  loopbackPage: boolean;
+  settingsListeners: Set<() => void>;
+  counts: { host: number; identity: number; daemon: number };
+};
+
+const env: MonitorTestEnvironment = {
+  host: "reachable",
+  identity: "reachable",
+  hostFailure: null,
   daemonApi: "http://127.0.0.1:18790",
   daemonOk: true,
-  daemonError: null as Error | null,
+  daemonError: null,
   loopbackPage: true,
   settingsListeners: new Set<() => void>(),
   counts: { host: 0, identity: 0, daemon: 0 },
-}));
+};
 
-vi.mock("./identity.js", () => ({
+import {
+  connectivityMonitorDependencies,
+  DEGRADED_MS,
+  HEALTHY_MS,
+  STRIKES_TO_FAIL,
+  checkNow,
+  connectivitySnapshot,
+  daemonIsProbable,
+  resetConnectivityMonitorForTests,
+  subscribeConnectivityMonitor,
+} from "./connectivity-monitor.js";
+
+Object.assign(connectivityMonitorDependencies, {
   hostBase: () => "http://127.0.0.1:18787",
   identityBase: () => "http://127.0.0.1:18788",
   probeHostDetailed: async () => {
@@ -31,9 +56,6 @@ vi.mock("./identity.js", () => ({
       failure: env.identity === "reachable" ? null : "unreachable",
     };
   },
-}));
-
-vi.mock("./daemon.js", () => ({
   probeDaemon: async () => {
     env.counts.daemon += 1;
     if (env.daemonError) throw env.daemonError;
@@ -45,27 +67,13 @@ vi.mock("./daemon.js", () => ({
       tailscaleUrl: null,
     };
   },
-}));
-
-vi.mock("./settings.js", () => ({
   loadSettings: () => ({ daemonApi: env.daemonApi }),
   pageIsLoopback: () => env.loopbackPage,
   subscribeSettings: (cb: () => void) => {
     env.settingsListeners.add(cb);
     return () => env.settingsListeners.delete(cb);
   },
-}));
-
-import {
-  DEGRADED_MS,
-  HEALTHY_MS,
-  STRIKES_TO_FAIL,
-  checkNow,
-  connectivitySnapshot,
-  daemonIsProbable,
-  resetConnectivityMonitorForTests,
-  subscribeConnectivityMonitor,
-} from "./connectivity-monitor.js";
+});
 
 /** Let the in-flight probe promises settle without advancing fake timers. */
 async function settle() {

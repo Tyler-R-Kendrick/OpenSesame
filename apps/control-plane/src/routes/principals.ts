@@ -18,6 +18,7 @@ import type {
   Principal,
   ProvisionalSession,
 } from "@opensesame/os-domain";
+import { isString } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -540,7 +541,7 @@ async function linkFromVerifiedIdToken(
   let issuer = "";
   try {
     const claims = decodeJwt(idToken);
-    issuer = typeof claims.iss === "string" ? issuerKey(claims.iss) : "";
+    issuer = isString(claims.iss) ? issuerKey(claims.iss) : "";
   } catch {
     return c.json({ error: "invalid_token", message: "Not a JWT." }, 400);
   }

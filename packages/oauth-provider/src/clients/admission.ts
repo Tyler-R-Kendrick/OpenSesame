@@ -82,6 +82,7 @@ export function createClientAdmissionPolicy(
     assertOriginScopes(scopes: string[]): void {
       for (const scope of scopes) {
         if (
+          // SAFETY: this module owns the readonly literal scope list and only reads it as strings.
           (ORIGIN_PROFILE_FORBIDDEN_SCOPES as readonly string[]).includes(scope)
         ) {
           throw new ClientAdmissionError(

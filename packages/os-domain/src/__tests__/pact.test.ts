@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { BoundaryValue } from "../json.js";
 import {
   authenticateClaim,
   canTransitionClaim,
@@ -39,7 +40,7 @@ function checkThenSetAdmitsDoubleClaim(): void {
   keys.add("d1");
 }
 
-function assertNoSecretFields(value: unknown): void {
+function assertNoSecretFields(value: BoundaryValue): void {
   const blob = JSON.stringify(value);
   for (const key of [
     "access_token",

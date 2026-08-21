@@ -8,7 +8,11 @@
  * the ones we can actually tell apart — and each one has a different remedy,
  * which is the whole point of separating them.
  */
-import { isOnline } from "./connectivity.js";
+import { type BoundaryValue, isOnline } from "@opensesame/os-domain";
+import { isOnline as readOnline } from "./connectivity.js";
+
+export type ProbeThrownValue = BoundaryValue | DOMException;
+export const probeFailureSeams = { isOnline: readOnline };
 
 export type FailureClass =
   /** The browser says there is no network at all. */
@@ -24,8 +28,8 @@ export type FailureClass =
   /** Something is listening, but it is not the service we asked for. */
   | "not-opensesame";
 
-export function classifyThrown(error: unknown): FailureClass {
-  if (!isOnline()) return "offline";
+export function classifyThrown(error: ProbeThrownValue): FailureClass {
+  if (!probeFailureSeams.isOnline()) return "offline";
   if (error instanceof DOMException) {
     if (error.name === "TimeoutError" || error.name === "AbortError") {
       return "timeout";
