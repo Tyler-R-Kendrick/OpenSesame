@@ -1,4 +1,8 @@
-import { AssuranceLevel, ExternalIdentity, overlapCast } from "@opensesame/os-domain";
+import {
+  overlapCast,
+  type AssuranceLevel,
+  type ExternalIdentity,
+} from "@opensesame/os-domain";
 
 /**
  * Experimental Nostr challenge adapter.
