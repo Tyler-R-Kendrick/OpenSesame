@@ -29,3 +29,15 @@ Mandatory local suite does **not** require cloud IdP credentials.
 | ATProto / Nostr adapters | disabled | Interfaces only until mandatory green |
 
 Do **not** claim OAuth 2.1 RFC compliance; follow RFC 9700 BCP.
+
+## Trust-broker implementation status
+
+The repository also ships the trust-broker domain contracts and assurance
+evaluator. OIDC4VP, OIDC4VCI, FedCM, Digital Credentials API, OpenID
+Federation, SD-JWT VC, and Token Status List adapters are not implemented in
+this slice and their flags default to `false`. No conformance or hardware
+assurance claim is made for those protocols.
+
+The implemented invariant surface is covered by
+`packages/trust-broker/src/index.test.ts`: evidence expiry, subject-kind
+separation, and the non-equivalence of MFA and phishing resistance.

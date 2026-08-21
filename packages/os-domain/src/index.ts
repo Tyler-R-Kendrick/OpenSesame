@@ -9,4 +9,7 @@ export * from "./machines/authorization-request.js";
 export * from "./machines/claim.js";
 export * from "./machines/device-auth.js";
 export * from "./machines/provisional-resource.js";
+export * from "./machines/presentation.js";
 export { fixtures } from "./__tests__/fixtures.js";
+export * from "./trust.js";
+export * from "./presentation.js";
