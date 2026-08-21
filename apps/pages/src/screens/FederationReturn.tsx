@@ -29,7 +29,8 @@ export function FederationReturn() {
             result.identity.idToken,
           );
         } else if (result?.identity?.idToken) {
-          await ensureIdentitySession();
+          // Restore the guest bearer first. Minting here would create a second
+          // principal, then the stash would have to fight the new cookie.
           await linkGuestAccount(result.identity.idToken);
         }
         if (cancelled) return;

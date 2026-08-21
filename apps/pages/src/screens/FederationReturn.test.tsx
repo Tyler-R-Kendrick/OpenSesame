@@ -140,7 +140,7 @@ describe("FederationReturn", () => {
     });
     renderReturn();
     expect(await screen.findByText("settings landed")).toBeTruthy();
-    expect(fed.ensureIdentitySession).toHaveBeenCalled();
+    expect(fed.ensureIdentitySession).not.toHaveBeenCalled();
     expect(fed.linkGuestAccount).toHaveBeenCalledWith("id-token");
   });
 });

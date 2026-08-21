@@ -348,20 +348,6 @@ principalRoutes.post(
       return c.json({ error: "principal_inactive" }, 403);
     }
 
-    // Nothing in this request proves the caller controls `issuer`/`subject`, and a
-    // successful link promotes a provisional principal to `verified` — the very
-    // assurance that gates organizations and OAuth client registration.
-    // Caller-asserted links are therefore a dev seam only, like stub TOTP.
-    if (!ctx.config.allowDevDefaults) {
-      return c.json(
-        {
-          error: "identity_link_requires_upstream",
-          hint: "Complete an upstream authentication ceremony; self-asserted identity links are dev-only",
-        },
-        403,
-      );
-    }
-
     const parsed = LinkIdentityRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) {
       return c.json(
@@ -370,12 +356,24 @@ principalRoutes.post(
       );
     }
 
+    // A verified upstream `id_token` is the production claim path (ADR 0033).
+    // Self-asserted issuer/subject tuples prove nothing and stay a dev seam.
     if ("idToken" in parsed.data) {
       return linkFromVerifiedIdToken(
         c,
         principal,
         principalId,
         parsed.data.idToken,
+      );
+    }
+
+    if (!ctx.config.allowDevDefaults) {
+      return c.json(
+        {
+          error: "identity_link_requires_upstream",
+          hint: "Complete an upstream authentication ceremony; self-asserted identity links are dev-only",
+        },
+        403,
       );
     }
 

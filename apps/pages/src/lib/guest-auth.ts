@@ -113,6 +113,9 @@ async function continueAsGuestDefault(): Promise<void> {
 
 async function linkGuestAccountDefault(idToken: string): Promise<void> {
   restoreStashedGuestSessionDefault();
+  if (!currentSession()) {
+    await connectProvisional();
+  }
   await identityJson("/v1/principals/link-identities", {
     method: "POST",
     body: JSON.stringify({ idToken }),

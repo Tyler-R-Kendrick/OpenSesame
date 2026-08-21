@@ -80,6 +80,7 @@ describe("continueAsGuest", () => {
 describe("linkGuestAccount", () => {
   it("restores the stashed guest session and posts the id_token", async () => {
     await continueAsGuest();
+    connectProvisional.mockClear();
     await linkGuestAccount("id.token.here");
     expect(restoreSession).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -87,6 +88,7 @@ describe("linkGuestAccount", () => {
         accessToken: "guest-tok",
       }),
     );
+    expect(connectProvisional).not.toHaveBeenCalled();
     expect(identityJson).toHaveBeenCalledWith(
       "/v1/principals/link-identities",
       expect.objectContaining({
@@ -95,5 +97,17 @@ describe("linkGuestAccount", () => {
       }),
     );
     expect(listNotices()).toHaveLength(0);
+  });
+
+  it("mints a principal when there is no stashed guest, then posts the id_token", async () => {
+    currentSession.mockReturnValue(null);
+    await linkGuestAccount("id.token.here");
+    expect(connectProvisional).toHaveBeenCalledTimes(1);
+    expect(identityJson).toHaveBeenCalledWith(
+      "/v1/principals/link-identities",
+      expect.objectContaining({
+        body: JSON.stringify({ idToken: "id.token.here" }),
+      }),
+    );
   });
 });
