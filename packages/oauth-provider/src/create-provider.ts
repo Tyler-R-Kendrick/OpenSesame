@@ -29,7 +29,12 @@ import type {
   OAuthProviderEnv,
   PairwiseSubjectStore,
 } from "./types.js";
-import { type JsonObject, overlapCast, type BoundaryValue, isString } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  overlapCast,
+  type BoundaryValue,
+  isString,
+} from "@opensesame/os-domain";
 
 export interface CreateOpenSesameProviderOptions {
   issuer?: string;
@@ -54,7 +59,7 @@ export interface CreateOpenSesameProviderOptions {
 }
 
 export interface OpenSesameProviderBundle {
-  provider: Provider;
+  provider: typeof Provider;
   env: OAuthProviderEnv;
   pairwiseStore: PairwiseSubjectStore;
   clientStore: ClientRecordStore;
@@ -160,15 +165,13 @@ function resolveJwks(
  * the store default, so existing static-only callers behave unchanged.
  */
 function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
-  const sectorIdentifierUri =
-    isString(meta.sector_identifier_uri)
-      ? meta.sector_identifier_uri
-      : undefined;
+  const sectorIdentifierUri = isString(meta.sector_identifier_uri)
+    ? meta.sector_identifier_uri
+    : undefined;
   const scope = isString(meta.scope) ? meta.scope : undefined;
-  const tokenEndpointAuthMethod =
-    isString(meta.token_endpoint_auth_method)
-      ? meta.token_endpoint_auth_method
-      : "client_secret_basic";
+  const tokenEndpointAuthMethod = isString(meta.token_endpoint_auth_method)
+    ? meta.token_endpoint_auth_method
+    : "client_secret_basic";
   let sector = meta.client_id;
   if (sectorIdentifierUri) {
     sector = sectorIdentifierUri;
@@ -182,8 +185,7 @@ function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
   return {
     id: meta.client_id,
     admissionMode: "pre_registered",
-    displayName:
-      isString(meta.client_name) ? meta.client_name : meta.client_id,
+    displayName: isString(meta.client_name) ? meta.client_name : meta.client_id,
     redirectUris: meta.redirect_uris ?? [],
     sectorIdentifier: sector,
     grantTypes: meta.grant_types ?? ["authorization_code"],
@@ -321,7 +323,7 @@ export function createOpenSesameProvider(
       profile: ["name"],
       email: ["email"],
     },
-    findAccount: async (_ctx, id) => ({
+    findAccount: async (_ctx: unknown, id: string) => ({
       accountId: id,
       async claims() {
         return { sub: id };

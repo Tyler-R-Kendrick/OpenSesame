@@ -21,8 +21,11 @@ export class EnvSigningKeyProvider implements SigningKeyProvider {
       }
       throw new Error("OPENSESAME_JWKS_JSON required in production");
     }
-    const parsed = overlapCast(JSON.parse(raw));
-    const first = overlapCast(parsed.keys[0]);
+    const parsed = overlapCast<
+      unknown,
+      { keys: readonly (JsonWebKey & { kid?: string })[] }
+    >(JSON.parse(raw));
+    const first = parsed.keys[0];
     const kid = first?.kid != null ? String(first.kid) : "k1";
     return { keys: parsed.keys, kid };
   }

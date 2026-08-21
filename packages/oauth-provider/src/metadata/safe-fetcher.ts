@@ -155,7 +155,8 @@ function isPrivateOrSpecialIpv4(ip: string): boolean {
   const parts = ip.split(".").map((p) => Number(p));
   if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n)))
     return true;
-  const [a, b] = overlapCast(parts);
+  const a = parts[0] ?? -1;
+  const b = parts[1] ?? -1;
   if (a === 0) return true;
   if (a === 10) return true;
   if (a === 127) return true;

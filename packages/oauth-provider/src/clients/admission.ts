@@ -82,7 +82,7 @@ export function createClientAdmissionPolicy(
     assertOriginScopes(scopes: string[]): void {
       for (const scope of scopes) {
         if (
-          (overlapCast(ORIGIN_PROFILE_FORBIDDEN_SCOPES)).includes(scope)
+          (ORIGIN_PROFILE_FORBIDDEN_SCOPES as readonly string[]).includes(scope)
         ) {
           throw new ClientAdmissionError(
             "origin_forbidden_scope",
