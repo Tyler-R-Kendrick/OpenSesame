@@ -6,6 +6,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FederationError, completeSignIn } from "../lib/federation.js";
+import { ensureIdentitySession } from "../lib/identity.js";
+import { joinOrgTenant } from "../lib/orgs.js";
 import "./broker.css";
 
 export function FederationReturn() {
@@ -17,6 +19,15 @@ export function FederationReturn() {
     void (async () => {
       try {
         const result = await completeSignIn();
+        if (cancelled) return;
+        if (result?.orgSlug && result.orgMethod) {
+          await ensureIdentitySession();
+          await joinOrgTenant(
+            result.orgSlug,
+            result.orgMethod,
+            result.identity.idToken,
+          );
+        }
         if (cancelled) return;
         if (result?.returnTo) {
           navigate(result.returnTo, { replace: true });

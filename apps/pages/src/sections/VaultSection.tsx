@@ -36,7 +36,14 @@ import {
 import "./vault.css";
 import { overlapCast } from "@opensesame/os-domain";
 
-const KIND_ORDER: ItemKind[] = ["login", "passkey", "card", "secret", "note"];
+const KIND_ORDER: ItemKind[] = [
+  "login",
+  "passkey",
+  "card",
+  "secret",
+  "note",
+  "certificate",
+];
 
 const KIND_ICON = {
   login: IconLogin,
@@ -249,7 +256,7 @@ export function VaultSection() {
                 ? "Search covers names, usernames, URLs, and visible custom fields — not concealed values."
                 : filter === "trash"
                   ? "Deleted items wait here until you purge them."
-                  : "Human items on this device: logins, passkeys, notes, and agent secrets. Import a .env or password export, or authorize a Host connector instead."}
+                  : "Human items on this device: logins, passkeys, notes, certificates, and agent secrets. Import a .env or password export, or authorize a Host connector instead."}
             </p>
             {!query && filter !== "trash" ? (
               // On narrow screens the detail pane is not rendered, so this is
@@ -263,7 +270,7 @@ export function VaultSection() {
                   <IconPlus size={16} />
                   New item
                 </Link>
-                <Link className="btn btn--sm" to="/settings#import">
+                <Link className="btn btn--sm" to="/settings/data#import">
                   <IconUpload size={16} />
                   Import
                 </Link>
@@ -320,7 +327,7 @@ export function VaultWelcome() {
             </Link>
             {/* An empty vault is exactly when someone is arriving from another
                 manager, so the import is offered here and not only in Settings. */}
-            <Link className="btn btn--sm" to="/settings#import">
+            <Link className="btn btn--sm" to="/settings/data#import">
               <IconUpload size={16} />
               Import
             </Link>

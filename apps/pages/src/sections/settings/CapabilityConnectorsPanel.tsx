@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import {
-  IconAlert,
-  IconCheck,
-  IconExternal,
-  IconLock,
-} from "../../components/Icons.js";
+import { IconAlert, IconExternal, IconLock } from "../../components/Icons.js";
+import { StatusNote } from "../../components/StatusNote.js";
 import {
   CAPABILITIES,
   type CapabilityConnectorBinding,
@@ -456,11 +452,11 @@ export function CapabilityConnectorsPanel() {
           <h2>Capability connectors</h2>
           <p>
             Each platform capability binds to a Host connector. Encryption
-            defaults to WebCrypto on this device (the built-in key vault).
-            History defaults to GitHub: authorize with OAuth or paste a personal
-            access token, then select a repo or create a private{" "}
-            <code>opensesame-passwords</code> store — Host never returns
-            provider tokens to this page.
+            defaults to WebCrypto on this device (the built-in key vault). Git
+            history is optional — the vault already lives on this device.
+            Connect GitHub with OAuth or a personal access token, then select a
+            repo or create a private <code>opensesame-passwords</code> store.
+            Host never returns provider tokens to this page.
           </p>
         </div>
       </div>
@@ -485,19 +481,7 @@ export function CapabilityConnectorsPanel() {
             required for connector OAuth.
           </p>
         ) : null}
-        {flash ? (
-          <p
-            className={`note note--${flash.tone === "warn" ? "warn" : flash.tone}`}
-            role={flash.tone === "err" ? "alert" : "status"}
-          >
-            {flash.tone === "ok" ? (
-              <IconCheck size={18} />
-            ) : (
-              <IconAlert size={18} />
-            )}
-            <span>{flash.text}</span>
-          </p>
-        ) : null}
+        <StatusNote message={flash} onDismiss={() => setFlash(null)} />
 
         <ul className="cap-list">
           {CAPABILITIES.map((def) => {
@@ -560,25 +544,26 @@ export function CapabilityConnectorsPanel() {
                   </select>
                 </div>
 
-                {def.id === "history" && binding.providerId === "github" ? (
-                  (() => {
-                    const Picker = capabilityConnectorsSeams.GithubHistoryRemotePicker;
-                    return (
-                      <Picker
-                        binding={binding}
-                        connection={connection}
-                        disabled={busy === def.id}
-                        onSelectRemote={(remote) =>
-                          updateBinding(def.id, {
-                            providerId: binding.providerId,
-                            connectionId: binding.connectionId,
-                            remote,
-                          })
-                        }
-                      />
-                    );
-                  })()
-                ) : null}
+                {def.id === "history" && binding.providerId === "github"
+                  ? (() => {
+                      const Picker =
+                        capabilityConnectorsSeams.GithubHistoryRemotePicker;
+                      return (
+                        <Picker
+                          binding={binding}
+                          connection={connection}
+                          disabled={busy === def.id}
+                          onSelectRemote={(remote) =>
+                            updateBinding(def.id, {
+                              providerId: binding.providerId,
+                              connectionId: binding.connectionId,
+                              remote,
+                            })
+                          }
+                        />
+                      );
+                    })()
+                  : null}
 
                 {def.id === "history" && binding.providerId === "gitlab" ? (
                   <div className="field">
@@ -656,8 +641,8 @@ export function CapabilityConnectorsPanel() {
                     </p>
                     <p className="hint">
                       Prefer{" "}
-                      <Link to="/settings#github-backup">
-                        Settings → Data → GitHub recoverability
+                      <Link to="/settings/data#github-backup">
+                        Settings → Data → GitHub persistence
                       </Link>{" "}
                       for Create App → Authorize → Install → private repo in one
                       place. You can still create the App here if you only need

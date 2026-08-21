@@ -43,6 +43,10 @@ const UNDOCUMENTED_ROUTES: &[(&str, &str)] = &[
     ("/api/v1/operator/taskbus", "GET"),
     ("/api/v1/operator/taskbus", "PUT"),
     ("/api/v1/operator/taskbus/ping", "POST"),
+    // Infisical-style private CA / dev-certificate issuance (session or operator).
+    ("/api/v1/certs", "GET"),
+    ("/api/v1/certs/ca", "GET"),
+    ("/api/v1/certs/issue", "POST"),
     // GitHub App manifest registration flow, its callback, and the provider webhook.
     ("/api/v1/providers/github/app", "POST"),
     ("/api/v1/oauth/github-app/callback", "GET"),

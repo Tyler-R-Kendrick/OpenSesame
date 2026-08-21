@@ -4,8 +4,11 @@ import {
   AddOrganizationMemberRequestSchema,
   ChangeOrganizationMemberRoleRequestSchema,
   CreateOrganizationRequestSchema,
+  JoinOrganizationTenantRequestSchema,
   OrganizationMembershipResponseSchema,
   OrganizationResponseSchema,
+  OrganizationTenantResponseSchema,
+  UpdateOrganizationRequestSchema,
 } from "@opensesame/contracts";
 import type {
   Organization,
@@ -19,6 +22,7 @@ import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { serializeKeyed } from "../serialize.js";
 import { getUsage } from "../state.js";
+import { OrgAssertionError, verifyOrgIdToken } from "./org-assertion.js";
 
 export const organizationRoutes = new Hono<{ Variables: Variables }>();
 
@@ -99,7 +103,45 @@ function toResponse(org: Organization, role: OrganizationRole) {
     createdBy: org.createdBy,
     createdAt: org.createdAt.toISOString(),
     updatedAt: org.updatedAt.toISOString(),
+    ...(org.ssoIssuer ? { ssoIssuer: org.ssoIssuer } : {}),
+    ...(org.samlIssuer ? { samlIssuer: org.samlIssuer } : {}),
   });
+}
+
+function tenantAuthMethods(org: Organization) {
+  const methods = [];
+  if (org.ssoIssuer) {
+    methods.push({
+      kind: "sso" as const,
+      label: "SSO",
+      issuer: org.ssoIssuer,
+    });
+  }
+  if (org.samlIssuer) {
+    methods.push({
+      kind: "saml" as const,
+      label: "SAML",
+      issuer: org.samlIssuer,
+    });
+  }
+  return methods;
+}
+
+function orgBySlug(ctx: AppContext, slug: string): Organization | undefined {
+  const id = ctx.stores.organizationSlugs.get(slug);
+  if (!id) return undefined;
+  const org = ctx.stores.organizations.get(id);
+  if (!org || org.state === "deleted" || org.state === "suspended") {
+    return undefined;
+  }
+  return org;
+}
+
+function issuerForMethod(
+  org: Organization,
+  method: "sso" | "saml",
+): string | undefined {
+  return method === "sso" ? org.ssoIssuer : org.samlIssuer;
 }
 
 function membershipResponse(membership: OrganizationMembership) {
@@ -270,6 +312,12 @@ organizationRoutes.post(
           createdBy: principalId,
           createdAt: now,
           updatedAt: now,
+          ...(parsed.data.ssoIssuer
+            ? { ssoIssuer: parsed.data.ssoIssuer }
+            : {}),
+          ...(parsed.data.samlIssuer
+            ? { samlIssuer: parsed.data.samlIssuer }
+            : {}),
         };
         ctx.stores.organizations.set(org.id, org);
         ctx.stores.organizationSlugs.set(org.slug, org.id);
@@ -298,6 +346,136 @@ organizationRoutes.post(
     );
   },
 );
+
+organizationRoutes.get("/tenants/:slug", async (c) => {
+  const ctx = c.get("ctx");
+  const org = orgBySlug(ctx, c.req.param("slug"));
+  if (!org) return c.json({ error: "not_found" }, 404);
+  return c.json(
+    OrganizationTenantResponseSchema.parse({
+      slug: org.slug,
+      displayName: org.displayName,
+      state: org.state,
+      authMethods: tenantAuthMethods(org),
+    }),
+  );
+});
+
+organizationRoutes.post(
+  "/tenants/:slug/join",
+  requirePrincipal(),
+  async (c) => {
+    const ctx = c.get("ctx");
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
+    const org = orgBySlug(ctx, c.req.param("slug"));
+    if (!org) return c.json({ error: "not_found" }, 404);
+
+    const parsed = JoinOrganizationTenantRequestSchema.safeParse(
+      await c.req.json(),
+    );
+    if (!parsed.success) {
+      return c.json(
+        { error: "validation_error", details: parsed.error.flatten() },
+        400,
+      );
+    }
+
+    const issuer = issuerForMethod(org, parsed.data.method);
+    if (!issuer) {
+      return c.json({ error: "auth_method_unavailable" }, 409);
+    }
+
+    try {
+      await verifyOrgIdToken(parsed.data.idToken, issuer);
+    } catch (error) {
+      if (error instanceof OrgAssertionError) {
+        const status = error.code === "upstream_unavailable" ? 502 : 401;
+        return c.json({ error: error.code, message: error.message }, status);
+      }
+      throw error;
+    }
+
+    return serializeMembershipMutation(ctx, org.id, async () => {
+      const existing = getMembership(ctx, org.id, principalId);
+      if (existing) return c.json(toResponse(org, existing.role));
+
+      const now = ctx.clock();
+      const membership: OrganizationMembership = {
+        organizationId: org.id,
+        principalId,
+        role: "member",
+        createdAt: now,
+        updatedAt: now,
+      };
+      ctx.stores.organizationMemberships.set(
+        membershipKey(org.id, principalId),
+        membership,
+      );
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "organization.member_joined",
+        outcome: "succeeded",
+        principalId,
+        organizationId: org.id,
+        correlationId: c.get("correlationId"),
+        metadata: {
+          action: "organization.tenant.join",
+          method: parsed.data.method,
+        },
+      });
+      return c.json(toResponse(org, "member"), 201);
+    });
+  },
+);
+
+organizationRoutes.patch("/:id", requirePrincipal(), async (c) => {
+  const ctx = c.get("ctx");
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
+  const org = ctx.stores.organizations.get(c.req.param("id"));
+  const membership = org && getMembership(ctx, org.id, principalId);
+  if (!org || org.state === "deleted" || !membership) {
+    return c.json({ error: "not_found" }, 404);
+  }
+  if (membership.role !== "owner") {
+    return c.json({ error: "owner_required" }, 403);
+  }
+  const parsed = UpdateOrganizationRequestSchema.safeParse(await c.req.json());
+  if (!parsed.success) {
+    return c.json(
+      { error: "validation_error", details: parsed.error.flatten() },
+      400,
+    );
+  }
+
+  const ssoIssuer =
+    parsed.data.ssoIssuer === undefined
+      ? org.ssoIssuer
+      : (parsed.data.ssoIssuer ?? undefined);
+  const samlIssuer =
+    parsed.data.samlIssuer === undefined
+      ? org.samlIssuer
+      : (parsed.data.samlIssuer ?? undefined);
+  const updated: Organization = {
+    id: org.id,
+    slug: org.slug,
+    displayName: parsed.data.displayName ?? org.displayName,
+    state: org.state,
+    createdBy: org.createdBy,
+    createdAt: org.createdAt,
+    updatedAt: ctx.clock(),
+    ...(ssoIssuer ? { ssoIssuer } : {}),
+    ...(samlIssuer ? { samlIssuer } : {}),
+  };
+  ctx.stores.organizations.set(org.id, updated);
+  await appendAuditEvent(ctx.repos.auditEvents, {
+    eventType: "organization.updated",
+    outcome: "succeeded",
+    principalId,
+    organizationId: org.id,
+    correlationId: c.get("correlationId"),
+    metadata: { action: "organization.update" },
+  });
+  return c.json(toResponse(updated, membership.role));
+});
 
 organizationRoutes.get("/:id/members", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");

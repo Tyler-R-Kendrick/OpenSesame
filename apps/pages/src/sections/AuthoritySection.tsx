@@ -417,7 +417,7 @@ function PlaneStatus() {
         <p className="hint">
           GitHub Pages cannot host these planes. Both addresses come from
           Settings. Loopback defaults will not answer from github.io.{" "}
-          <Link to="/settings#connectivity">Change them in Settings</Link> if
+          <Link to="/settings/connectivity">Change them in Settings</Link> if
           you run Host and Identity yourself.
         </p>
       </div>

@@ -163,6 +163,12 @@ function vaultItemToEntryDefault(
     secret = item.number;
     meta.notes =
       [item.cardholder, item.notes].filter(Boolean).join("\n") || undefined;
+  } else if (item.kind === "certificate") {
+    secret = item.privateKeyPem;
+    meta.notes =
+      [item.commonName, item.certificatePem, item.caPem, item.notes]
+        .filter(Boolean)
+        .join("\n") || undefined;
   } else {
     secret = item.credentialIdB64;
   }

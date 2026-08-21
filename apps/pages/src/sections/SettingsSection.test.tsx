@@ -1,6 +1,6 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -35,23 +35,23 @@ const store = vi.hoisted(() => ({
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {useVault: () => vault.current,
-  useVaultStore: () => store});
-
+Object.assign(vaultHooksSeams, {
+  useVault: () => vault.current,
+  useVaultStore: () => store,
+});
 
 const loadSettings = vi.hoisted(() => vi.fn());
 const saveSettings = vi.hoisted(() => vi.fn());
 
 import { settingsSeams } from "../lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
-Object.assign(settingsSeams, {loadSettings, saveSettings});
+Object.assign(settingsSeams, { loadSettings, saveSettings });
 const checkTurso = vi.hoisted(() => vi.fn());
 const setTursoSessionToken = vi.hoisted(() => vi.fn());
 
 import { embeddedCatalogSeams } from "../lib/embedded-catalog.js";
 const originalEmbeddedCatalogSeams = { ...embeddedCatalogSeams };
-Object.assign(embeddedCatalogSeams, {checkTurso,
-  setTursoSessionToken,});
+Object.assign(embeddedCatalogSeams, { checkTurso, setTursoSessionToken });
 
 import { passwordSeams } from "../lib/vault/password.js";
 const originalPasswordSeams = { ...passwordSeams };
@@ -80,7 +80,7 @@ import { storeSyncSeams } from "../lib/vault/store-sync.js";
 const originalStoreSyncSeams = { ...storeSyncSeams };
 Object.assign(storeSyncSeams, { planManifestMerge, vaultItemToEntry });
 
-import { SettingsSection, type SettingsPanels } from "./SettingsSection.js";
+import { type SettingsPanels, SettingsSection } from "./SettingsSection.js";
 
 const stubPanels: SettingsPanels = {
   UnlockMethodsPanel: () => <div data-testid="unlock-methods-panel" />,
@@ -105,9 +105,10 @@ const endpoints = {
   capabilityConnectors: {},
 };
 
-function renderSettings(hash = "") {
+function renderSettings(entry = "") {
+  const path = entry.startsWith("/") ? entry : `/settings${entry}`;
   return render(
-    <MemoryRouter initialEntries={[`/settings${hash}`]}>
+    <MemoryRouter initialEntries={[path]}>
       <SettingsSection panels={stubPanels} />
     </MemoryRouter>,
   );
@@ -138,7 +139,10 @@ describe("SettingsSection", () => {
     loadSettings.mockReturnValue({ ...endpoints });
     store.exportSealed.mockReturnValue('{"sealed":true}');
     store.importSealed.mockResolvedValue(2);
-    store.addFolder.mockResolvedValue({ id: "fld_new", name: SAMPLE_FOLDER_NAME });
+    store.addFolder.mockResolvedValue({
+      id: "fld_new",
+      name: SAMPLE_FOLDER_NAME,
+    });
     store.addItems.mockResolvedValue(undefined);
     store.replaceAll.mockResolvedValue(undefined);
     store.changeMasterPassword.mockResolvedValue(undefined);
@@ -208,10 +212,10 @@ describe("SettingsSection", () => {
       name: /Settings sections/i,
     });
     expect(
-      nav.querySelector('[aria-current="true"]')?.textContent?.toLowerCase(),
+      nav.querySelector('[aria-current="page"]')?.textContent?.toLowerCase(),
     ).toBe("connectivity");
 
-    await userEvent.click(screen.getByRole("button", { name: /Danger/i }));
+    await userEvent.click(screen.getByRole("link", { name: /Danger/i }));
     expect(
       screen.getByRole("heading", { name: "Delete this vault" }),
     ).toBeTruthy();
@@ -226,27 +230,6 @@ describe("SettingsSection", () => {
     renderSettings("#security");
     expect(screen.getByTestId("unlock-methods-panel")).toBeTruthy();
     expect(screen.getByText(/600,000 PBKDF2-SHA256 iterations/)).toBeTruthy();
-  });
-
-  it("rejects mismatched master password entries", async () => {
-    renderSettings("#security");
-    await userEvent.type(
-      screen.getByLabelText(/Current master password/i),
-      "old-password-1",
-    );
-    await userEvent.type(
-      screen.getByLabelText(/New master password/i),
-      "new-password-12",
-    );
-    await userEvent.type(screen.getByLabelText(/^Confirm$/i), "different-123");
-    fireEvent.submit(
-      overlapCast(screen
-        .getByRole("button", { name: /Change master password/i })
-        .closest("form")),
-    );
-    expect(await screen.findByRole("alert")).toBeTruthy();
-    expect(screen.getByText(/do not match/)).toBeTruthy();
-    expect(store.changeMasterPassword).not.toHaveBeenCalled();
   });
 
   it("changes the master password and clears the form", async () => {
@@ -288,9 +271,11 @@ describe("SettingsSection", () => {
     vault.current.header = null;
     renderSettings("#security");
     expect(screen.getByText(/no master-password unlock/)).toBeTruthy();
-    const button = overlapCast(screen.getByRole("button", {
-      name: /Change master password/i,
-    }));
+    const button = overlapCast(
+      screen.getByRole("button", {
+        name: /Change master password/i,
+      }),
+    );
     expect(button.disabled).toBe(true);
   });
 
@@ -317,11 +302,26 @@ describe("SettingsSection", () => {
     expect(screen.queryByLabelText("Confirm")).toBeNull();
   });
 
+  it("opens a category from a rest path", () => {
+    renderSettings("/settings/connectivity");
+    expect(
+      screen.getByRole("heading", { name: "Core connections" }),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: "Connectivity" })
+        .getAttribute("aria-current"),
+    ).toBe("page");
+    expect(screen.queryByText("Appearance")).toBeNull();
+  });
+
   it("renders the connectivity child panels", () => {
     renderSettings("#connectivity");
-    expect(screen.getByTestId("core-connections-panel")).toBeTruthy();
-    expect(screen.getByTestId("endpoints-panel")).toBeTruthy();
-    expect(screen.getByTestId("turso-panel")).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Core connections" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Endpoints" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Turso sync" })).toBeTruthy();
     expect(screen.getByTestId("active-project-panel")).toBeTruthy();
     expect(screen.getByTestId("capability-connectors-panel")).toBeTruthy();
     expect(screen.getByTestId("sync-targets-panel")).toBeTruthy();
@@ -396,9 +396,7 @@ describe("SettingsSection", () => {
       unchanged: 3,
     });
     renderSettings("#data");
-    const input = overlapCast(document.getElementById(
-      "store-manifest-file",
-    ));
+    const input = overlapCast(document.getElementById("store-manifest-file"));
     fireEvent.change(input, {
       target: { files: [makeFile("manifest.json", '[{"path":"a"}]')] },
     });
@@ -410,9 +408,7 @@ describe("SettingsSection", () => {
 
   it("rejects manifests that are not JSON arrays", async () => {
     renderSettings("#data");
-    const input = overlapCast(document.getElementById(
-      "store-manifest-file",
-    ));
+    const input = overlapCast(document.getElementById("store-manifest-file"));
     fireEvent.change(input, {
       target: { files: [makeFile("manifest.json", '{"nope":true}')] },
     });

@@ -100,7 +100,11 @@ import { shouldAutoConnect } from "../lib/settings.js";
 import { useOnline } from "../lib/use-online.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import "./connections.css";
-import { overlapCast, type BoundaryValue, isTypeofObject } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 
 type Flash = { tone: "ok" | "warn" | "err"; text: string };
 type LoadFailure = {
@@ -221,7 +225,7 @@ function errorText(error: BoundaryValue): string {
     error &&
     isTypeofObject(error) &&
     "issues" in error &&
-    Array.isArray((overlapCast(error)).issues)
+    Array.isArray(overlapCast(error).issues)
   ) {
     return "Host returned data this page does not understand. Try Reload, or pair Host again from Settings.";
   }
@@ -470,7 +474,7 @@ export function ConnectionsSection() {
               {loadError.unreachable ? (
                 <>
                   Start the configured Host service or{" "}
-                  <Link to="/settings#connectivity">
+                  <Link to="/settings/connectivity">
                     review connection settings
                   </Link>
                   .
@@ -647,10 +651,10 @@ function ConnectorSettingsPage({
 
       {connection ? (
         <nav className="conn-settings__nav" aria-label="Connector settings">
-          <a href="#identity">This identity</a>
-          <a href="#authorization">Authorization</a>
-          <a href="#access">Who can use it</a>
-          <a href="#rules">Rules</a>
+          <Link to="#identity">This identity</Link>
+          <Link to="#authorization">Authorization</Link>
+          <Link to="#access">Who can use it</Link>
+          <Link to="#rules">Rules</Link>
         </nav>
       ) : null}
 
@@ -1511,9 +1515,7 @@ function BindingEditor({
             <select
               id={kindId}
               value={kind}
-              onChange={(event) =>
-                setKind(overlapCast(event.target.value))
-              }
+              onChange={(event) => setKind(overlapCast(event.target.value))}
             >
               {BINDING_KINDS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -1613,9 +1615,7 @@ function PolicyEditor({
         <select
           id="connector-shareability"
           value={shareability}
-          onChange={(event) =>
-            setShareability(overlapCast(event.target.value))
-          }
+          onChange={(event) => setShareability(overlapCast(event.target.value))}
         >
           <option value="private">Private to its owner</option>
           <option value="delegable">May be delegated through bindings</option>
@@ -1975,7 +1975,7 @@ function AddSecretChooser({
             <IconSecret size={16} /> Point a vault secret at this ConnectionRef
           </Link>
         ) : null}
-        <Link className="btn" to="/settings#import">
+        <Link className="btn" to="/settings/data#import">
           Import
         </Link>
       </div>

@@ -99,6 +99,15 @@ export function IconLogin(props: IconProps) {
   );
 }
 
+export function IconUser(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="8" r="3.2" />
+      <path d="M5.2 19.2c1.1-3.2 3.5-4.8 6.8-4.8s5.7 1.6 6.8 4.8" />
+    </Svg>
+  );
+}
+
 export function IconPasskey(props: IconProps) {
   return (
     <Svg {...props}>
@@ -124,6 +133,15 @@ export function IconSecret(props: IconProps) {
     <Svg {...props}>
       <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
       <path d="M7.5 9.5l2.6 2.5-2.6 2.5M12.8 15h4" />
+    </Svg>
+  );
+}
+
+export function IconCert(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="5" y="3.5" width="14" height="17" rx="2" />
+      <path d="M8.5 8h7M8.5 11.5h7M8.5 15h4.5" />
     </Svg>
   );
 }

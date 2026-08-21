@@ -13,6 +13,7 @@ import {
 } from "../lib/connectors.js";
 import { useConnect } from "../lib/identity.js";
 import { failureSentence } from "../lib/probe-failure.js";
+import { ConnectGitHistory } from "./ConnectGitHistory.js";
 import {
   IconAuthority,
   IconGitBranch,
@@ -22,6 +23,7 @@ import {
   IconX,
 } from "./Icons.js";
 import { ConnectThisMachine } from "./PlaneNote.js";
+import { StatusNote } from "./StatusNote.js";
 
 /**
  * The connectivity bar — a phone status bar for the authorization fabric.
@@ -48,6 +50,11 @@ function ConnectivityBarDefault() {
   const [open, setOpen] = useState<ConnectorId | null>(null);
   const attention = needsAttention(connectors);
   const offline = isOfflineSet(connectors);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("github_app")) setOpen("history");
+  }, []);
 
   return (
     <>
@@ -184,11 +191,10 @@ export function ConnectionCeremony({
         aria-label="Close"
         onClick={onClose}
       />
-      {/* A real <dialog>, kept in normal flow rather than the top layer so it
-          sits inside the app frame the way the design draws it. */}
-      <dialog
-        open
+      <div
         className="sheet"
+        // biome-ignore lint/a11y/useSemanticElements: native <dialog open> inerts the page and paints a blank top-layer surface
+        role="dialog"
         aria-label={`${connector.name} connection`}
         aria-modal="true"
       >
@@ -221,7 +227,7 @@ export function ConnectionCeremony({
           <CeremonyBody connector={connector} onClose={onClose} />
           <Freshness connector={connector} />
         </div>
-      </dialog>
+      </div>
     </div>
   );
 }
@@ -237,7 +243,7 @@ const CEREMONY_LEAD: Record<ConnectorId, string> = {
   machine:
     "Your local daemon. Ceremonies that touch this machine go through it.",
   history:
-    "Encrypted history is pushed to a git remote as ciphertext. Agents never see these values.",
+    "The vault lives on this device. Connect git to persist encrypted history as ciphertext. Agents never see these values.",
   keys: "Where vault and sealed-store keys are wrapped. WebCrypto on this device is the built-in default.",
 };
 
@@ -255,6 +261,8 @@ function CeremonyBody({
       return <PlaneCeremony kind="host" onClose={onClose} />;
     case "identity":
       return <PlaneCeremony kind="identity" onClose={onClose} />;
+    case "history":
+      return <ConnectGitHistory />;
     default:
       return <CapabilityCeremony connector={connector} onClose={onClose} />;
   }
@@ -293,11 +301,11 @@ function PlaneCeremony({
           </button>
         ) : null}
       </div>
-      {error ? <output className="note note--warn">{error}</output> : null}
+      {error ? <StatusNote message={{ tone: "warn", text: error }} /> : null}
       <p className="hint">
         Endpoints come from pairing this machine. To point at a plane someone
         else runs, open{" "}
-        <Link to="/settings#connectivity" onClick={onClose}>
+        <Link to="/settings/connectivity" onClick={onClose}>
           Settings → Connectivity → Endpoints
         </Link>
         .
@@ -357,9 +365,9 @@ function Freshness({ connector }: { connector: ConnectorStatus }) {
 }
 
 /**
- * History and keys are bound in the capability connectors panel — the one
- * place that knows the catalog, the OAuth scopes and the remote. The ceremony
- * says what is bound and takes you there rather than growing a second copy.
+ * Keys are bound in the capability connectors panel — the one place that
+ * knows the catalog. Git has its own ceremony, matching Host / Identity /
+ * this machine. This sheet says what is bound and takes you there.
  */
 function CapabilityCeremony({
   connector,
@@ -371,14 +379,13 @@ function CapabilityCeremony({
   return (
     <>
       <p className="hint">
-        {connector.id === "history"
-          ? "Authorize a git connector to push and pull ciphertext. The remote holds ciphertext only — seal a manifest with `opensesame pass seal` before it ever reaches git."
-          : "Cloud KMS and hardware connectors are optional. Changing this re-wraps keys; it does not re-encrypt or re-upload your items."}
+        Cloud KMS and hardware connectors are optional. Changing this re-wraps
+        keys; it does not re-encrypt or re-upload your items.
       </p>
       <div className="actions">
         <Link
           className="btn btn--primary"
-          to="/settings#connectivity"
+          to="/settings/connectivity"
           onClick={onClose}
         >
           {connector.tone === "live" ? "Change connector" : "Set up"}

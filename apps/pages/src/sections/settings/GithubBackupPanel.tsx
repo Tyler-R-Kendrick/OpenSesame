@@ -1,5 +1,7 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IconAlert, IconCheck } from "../../components/Icons.js";
+import { StatusNote } from "../../components/StatusNote.js";
 import {
   type BackupStatus,
   type GithubInstallation,
@@ -45,7 +47,6 @@ import {
 import { usePlaneStatus } from "../../lib/planes.js";
 import { loadSettings, saveSettings } from "../../lib/settings.js";
 import { useOnline } from "../../lib/use-online.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 type Flash = { tone: "ok" | "err" | "warn"; text: string };
 
@@ -69,8 +70,9 @@ function bindHistoryConnection(connectionId: string) {
 }
 
 /**
- * One Settings panel for GitHub recoverability: Create App → Authorize →
- * Install → private repo → environment branch → save. No Connectivity detour.
+ * One Settings panel for optional GitHub persistence: Create App → Authorize →
+ * Install → private repo → environment branch → save. The vault already lives
+ * on this device; missing git is not an error.
  */
 export function GithubBackupPanel() {
   const online = useOnline();
@@ -505,13 +507,13 @@ export function GithubBackupPanel() {
     <section className="panel" id="github-backup">
       <div className="panel__head">
         <div>
-          <h2>GitHub recoverability</h2>
+          <h2>GitHub persistence</h2>
           <p>
-            Set up recoverability here end-to-end: create the GitHub App,
-            authorize, install it, pick a private repo, and map each environment
-            to a branch (<code>env/development</code>, <code>env/staging</code>,{" "}
-            <code>env/production</code>). Ciphertext only — Host never sees
-            unlock keys.
+            Optional. The vault already lives on this device — connect GitHub
+            here to push sealed ciphertext to a private repo. Create the App,
+            authorize, install it, pick a repo, and map each environment to a
+            branch (<code>env/development</code>, <code>env/staging</code>,{" "}
+            <code>env/production</code>). Host never sees unlock keys.
           </p>
         </div>
       </div>
@@ -534,10 +536,9 @@ export function GithubBackupPanel() {
                 {target.lastError ? ` · ${target.lastError}` : ""}
               </p>
             ) : (
-              <p className="note note--err" role="alert">
-                <IconAlert /> No GitHub backup target — regenerating passwords
-                will not create recoverable commits until you finish the steps
-                below and save.
+              <p className="hint">
+                No GitHub backup yet. The vault already lives on this device —
+                finish the steps below when you want a remote copy.
               </p>
             )}
 
@@ -745,9 +746,7 @@ export function GithubBackupPanel() {
                 <select
                   value={environment}
                   onChange={(event) =>
-                    setEnvironment(
-                      overlapCast(event.target.value),
-                    )
+                    setEnvironment(overlapCast(event.target.value))
                   }
                 >
                   <option value="development">
@@ -795,14 +794,7 @@ export function GithubBackupPanel() {
               </button>
             </div>
 
-            {flash ? (
-              <p
-                className={`note note--${flash.tone}`}
-                role={flash.tone === "err" ? "alert" : "status"}
-              >
-                {flash.text}
-              </p>
-            ) : null}
+            <StatusNote message={flash} onDismiss={() => setFlash(null)} />
           </>
         )}
       </div>

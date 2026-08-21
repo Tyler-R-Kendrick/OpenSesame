@@ -2,6 +2,7 @@ mod aauth;
 mod admin;
 mod agents;
 mod backup;
+mod certs;
 mod changelog;
 mod connections;
 #[cfg(test)]
@@ -64,6 +65,12 @@ pub fn router(state: AppState) -> Router {
                 .layer(DefaultBodyLimit::max(4 * 1024)),
         )
         .route("/api/v1/operator/taskbus/ping", post(taskbus_config::ping))
+        .route("/api/v1/certs", get(certs::list_issued))
+        .route("/api/v1/certs/ca", get(certs::get_ca))
+        .route(
+            "/api/v1/certs/issue",
+            post(certs::issue).layer(DefaultBodyLimit::max(8 * 1024)),
+        )
         .route("/api/v1/providers", get(connections::list_providers))
         .route(
             "/api/v1/providers/github/app",

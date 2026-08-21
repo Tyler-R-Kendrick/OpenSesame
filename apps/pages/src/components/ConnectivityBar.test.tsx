@@ -55,6 +55,11 @@ vi.mock("./PlaneNote.js", () => ({
   ConnectThisMachine: () => <div data-testid="pairing-ceremony" />,
 }));
 
+import { connectGitHistorySeams } from "./ConnectGitHistory.js";
+Object.assign(connectGitHistorySeams, {
+  ConnectGitHistory: () => <div data-testid="git-ceremony" />,
+});
+
 import { ConnectivityBar } from "./ConnectivityBar.js";
 
 function status(over: Partial<ConnectorStatus> = {}): ConnectorStatus {
@@ -143,10 +148,34 @@ describe("ConnectivityBar", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "This machine — Not paired" }),
     );
+    const sheet = screen.getByRole("dialog", {
+      name: "This machine connection",
+    });
+    expect(sheet).toBeTruthy();
+    expect(sheet.tagName).toBe("DIV");
+    expect(document.querySelector("dialog")).toBeNull();
+    expect(screen.getByTestId("pairing-ceremony")).toBeTruthy();
+  });
+
+  it("keeps the rest of the app interactive while the machine sheet is open", () => {
+    env.connectors = ALL;
+    render(
+      <MemoryRouter>
+        <nav>
+          <a href="/vault">Vault</a>
+        </nav>
+        <ConnectivityBar />
+      </MemoryRouter>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "This machine — Not paired" }),
+    );
+    const vault = screen.getByRole("link", { name: "Vault" });
+    expect(vault.closest("[inert]")).toBeNull();
+    expect(vault.getAttribute("aria-hidden")).not.toBe("true");
     expect(
       screen.getByRole("dialog", { name: "This machine connection" }),
     ).toBeTruthy();
-    expect(screen.getByTestId("pairing-ceremony")).toBeTruthy();
   });
 
   it("closes the ceremony on Escape and on the scrim", () => {
@@ -182,7 +211,7 @@ describe("ConnectivityBar", () => {
       screen
         .getByRole("link", { name: /Settings → Connectivity → Endpoints/ })
         .getAttribute("href"),
-    ).toBe("/settings#connectivity");
+    ).toBe("/settings/connectivity");
   });
 
   it("says how old the verdict is and when the next one is due", () => {
@@ -315,7 +344,7 @@ describe("ConnectivityBar", () => {
     expect(screen.getByRole("group", { name: /offline/i })).toBeTruthy();
   });
 
-  it("hands capability connectors to the panel that owns them", () => {
+  it("opens the git ceremony from the history glyph", () => {
     renderBar();
     fireEvent.click(
       screen.getByRole("button", {
@@ -323,9 +352,9 @@ describe("ConnectivityBar", () => {
       }),
     );
     expect(
-      screen
-        .getByRole("link", { name: "Change connector" })
-        .getAttribute("href"),
-    ).toBe("/settings#connectivity");
+      screen.getByRole("dialog", { name: "Git history connection" }),
+    ).toBeTruthy();
+    expect(screen.getByTestId("git-ceremony")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Change connector" })).toBeNull();
   });
 });

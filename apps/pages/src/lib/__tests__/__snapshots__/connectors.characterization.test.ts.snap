@@ -138,13 +138,13 @@ down / not-opensesame / offline        offline  Offline"
 `;
 
 exports[`connector copy characterization > says exactly this for every capability binding 1`] = `
-"history github unauth no-remote        attn     GitHub not authorized
-history github unauth remote           attn     GitHub not authorized
-history github conn_1 no-remote        live     GitHub
+"history github unauth no-remote        off      Not connected
+history github unauth remote           off      Not connected
+history github conn_1 no-remote        off      No repository selected
 history github conn_1 remote           live     GitHub · owner/store
-history gitlab unauth no-remote        attn     GitLab not authorized
-history gitlab unauth remote           attn     GitLab not authorized
-history gitlab conn_1 no-remote        live     GitLab
+history gitlab unauth no-remote        off      Not connected
+history gitlab unauth remote           off      Not connected
+history gitlab conn_1 no-remote        off      No repository selected
 history gitlab conn_1 remote           live     GitLab · owner/store
 history password-store unauth no-remote live     Local git password-store
 history password-store unauth remote   live     Local git password-store

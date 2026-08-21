@@ -1,0 +1,203 @@
+//! Dev-certificate issuance (Infisical-style private CA, localhost TLS).
+//!
+//! The Host holds a long-lived ECDSA P-256 root CA. Operators and owner/admin
+//! sessions issue short-lived leaf certificates for local development. Leaf
+//! private keys are returned once and never stored on the Host.
+
+use std::net::IpAddr;
+use std::time::Duration as StdDuration;
+
+use rcgen::{
+    BasicConstraints, CertificateParams, DistinguishedName, DnType, ExtendedKeyUsagePurpose, IsCa,
+    KeyPair, KeyUsagePurpose, SanType, SerialNumber, PKCS_ECDSA_P256_SHA256,
+};
+use serde::{Deserialize, Serialize};
+use time::{Duration, OffsetDateTime};
+
+pub const DEV_CA_CN: &str = "OpenSesame Dev CA";
+pub const MAX_TTL: StdDuration = StdDuration::from_secs(90 * 24 * 3600);
+pub const DEFAULT_TTL: StdDuration = StdDuration::from_secs(24 * 3600);
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DevCa {
+    pub cert_pem: String,
+    pub key_pem: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct IssueRequest {
+    pub common_name: String,
+    pub dns_names: Vec<String>,
+    pub ip_addrs: Vec<IpAddr>,
+    pub ttl: StdDuration,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct IssuedCert {
+    pub certificate: String,
+    pub private_key: String,
+    pub ca_certificate: String,
+    pub serial: String,
+    pub common_name: String,
+    pub dns_names: Vec<String>,
+    pub not_before: String,
+    pub not_after: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct IssuedRecord {
+    pub serial: String,
+    pub common_name: String,
+    pub dns_names: Vec<String>,
+    pub not_before: String,
+    pub not_after: String,
+    pub issued_at: String,
+}
+
+pub fn generate_dev_ca() -> Result<DevCa, String> {
+    let mut params = CertificateParams::new(Vec::<String>::new())
+        .map_err(|error| error.to_string())?;
+    params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+    params.distinguished_name = DistinguishedName::new();
+    params.distinguished_name.push(DnType::CommonName, DEV_CA_CN);
+    params.distinguished_name.push(DnType::OrganizationName, "OpenSesame");
+    params.key_usages = vec![
+        KeyUsagePurpose::DigitalSignature,
+        KeyUsagePurpose::KeyCertSign,
+        KeyUsagePurpose::CrlSign,
+    ];
+    params.not_before = OffsetDateTime::now_utc() - Duration::minutes(1);
+    params.not_after = OffsetDateTime::now_utc() + Duration::days(3650);
+    let key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).map_err(|e| e.to_string())?;
+    let cert = params.self_signed(&key).map_err(|e| e.to_string())?;
+    Ok(DevCa {
+        cert_pem: cert.pem(),
+        key_pem: key.serialize_pem(),
+    })
+}
+
+pub fn issue_leaf(ca: &DevCa, request: &IssueRequest) -> Result<IssuedCert, String> {
+    let cn = request.common_name.trim();
+    if cn.is_empty() {
+        return Err("common_name is required".into());
+    }
+    if cn.contains('\0') || cn.contains('\n') {
+        return Err("common_name is not a valid DNS name".into());
+    }
+    let ttl = if request.ttl.is_zero() {
+        DEFAULT_TTL
+    } else {
+        request.ttl.min(MAX_TTL)
+    };
+
+    let mut dns: Vec<String> = request
+        .dns_names
+        .iter()
+        .map(|name| name.trim().to_string())
+        .filter(|name| !name.is_empty())
+        .collect();
+    if !dns.iter().any(|name| name == cn) {
+        dns.insert(0, cn.to_string());
+    }
+
+    let ca_key = KeyPair::from_pem(&ca.key_pem).map_err(|e| e.to_string())?;
+    let ca_params =
+        CertificateParams::from_ca_cert_pem(&ca.cert_pem).map_err(|e| e.to_string())?;
+    let issuer_cert = ca_params.self_signed(&ca_key).map_err(|e| e.to_string())?;
+
+    let mut params = CertificateParams::new(dns.clone()).map_err(|e| e.to_string())?;
+    params.distinguished_name = DistinguishedName::new();
+    params.distinguished_name.push(DnType::CommonName, cn);
+    params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
+    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
+    params.serial_number = Some(SerialNumber::from_slice(&uuid::Uuid::new_v4().as_bytes()[..]));
+    let not_before = OffsetDateTime::now_utc() - Duration::minutes(1);
+    let not_after = OffsetDateTime::now_utc()
+        + Duration::seconds(i64::try_from(ttl.as_secs()).unwrap_or(i64::MAX));
+    params.not_before = not_before;
+    params.not_after = not_after;
+    for ip in &request.ip_addrs {
+        params.subject_alt_names.push(SanType::IpAddress(*ip));
+    }
+    let serial = params
+        .serial_number
+        .as_ref()
+        .map(|n| {
+            n.to_bytes()
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect::<String>()
+        })
+        .unwrap_or_default();
+    let leaf_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).map_err(|e| e.to_string())?;
+    let cert = params
+        .signed_by(&leaf_key, &issuer_cert, &ca_key)
+        .map_err(|e| e.to_string())?;
+
+    Ok(IssuedCert {
+        certificate: cert.pem(),
+        private_key: leaf_key.serialize_pem(),
+        ca_certificate: ca.cert_pem.clone(),
+        serial,
+        common_name: cn.to_string(),
+        dns_names: dns,
+        not_before: not_before.to_string(),
+        not_after: not_after.to_string(),
+    })
+}
+
+pub fn to_record(issued: &IssuedCert) -> IssuedRecord {
+    IssuedRecord {
+        serial: issued.serial.clone(),
+        common_name: issued.common_name.clone(),
+        dns_names: issued.dns_names.clone(),
+        not_before: issued.not_before.clone(),
+        not_after: issued.not_after.clone(),
+        issued_at: OffsetDateTime::now_utc().to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr};
+
+    #[test]
+    fn issues_a_localhost_leaf_signed_by_the_dev_ca() {
+        let ca = generate_dev_ca().expect("ca");
+        assert!(ca.cert_pem.contains("BEGIN CERTIFICATE"));
+        assert!(ca.key_pem.contains("BEGIN PRIVATE KEY") || ca.key_pem.contains("BEGIN EC PRIVATE KEY"));
+        let issued = issue_leaf(
+            &ca,
+            &IssueRequest {
+                common_name: "localhost".into(),
+                dns_names: vec!["localhost".into(), "*.local".into()],
+                ip_addrs: vec![IpAddr::V4(Ipv4Addr::LOCALHOST)],
+                ttl: StdDuration::from_secs(3600),
+            },
+        )
+        .expect("leaf");
+        assert!(issued.certificate.contains("BEGIN CERTIFICATE"));
+        assert!(issued.private_key.contains("BEGIN"));
+        assert_eq!(issued.ca_certificate, ca.cert_pem);
+        assert_eq!(issued.common_name, "localhost");
+        assert!(issued.dns_names.contains(&"localhost".to_string()));
+        assert!(!issued.serial.is_empty());
+    }
+
+    #[test]
+    fn rejects_a_blank_common_name() {
+        let ca = generate_dev_ca().unwrap();
+        let error = issue_leaf(
+            &ca,
+            &IssueRequest {
+                common_name: "  ".into(),
+                dns_names: vec![],
+                ip_addrs: vec![],
+                ttl: StdDuration::from_secs(1),
+            },
+        )
+        .unwrap_err();
+        assert!(error.contains("common_name"));
+    }
+}

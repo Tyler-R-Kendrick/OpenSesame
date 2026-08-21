@@ -1265,7 +1265,7 @@ fn authorization_headers() -> Vec<String> {
     headers
 }
 
-async fn api(
+pub(crate) async fn api(
     server: &str,
     method: reqwest::Method,
     path: &str,

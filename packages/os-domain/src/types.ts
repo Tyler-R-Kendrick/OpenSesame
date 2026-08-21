@@ -76,6 +76,15 @@ export interface Organization {
   createdBy: PrincipalId;
   createdAt: Date;
   updatedAt: Date;
+  /**
+   * OIDC issuer for this tenant's SSO. Absent means SSO is not offered.
+   */
+  ssoIssuer?: string;
+  /**
+   * OIDC issuer that brokers this tenant's SAML directory (ADR 0016).
+   * OpenSesame does not speak SAML on the wire.
+   */
+  samlIssuer?: string;
 }
 
 export type OrganizationRole = "owner" | "admin" | "member";

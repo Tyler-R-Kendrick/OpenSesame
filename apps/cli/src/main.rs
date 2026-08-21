@@ -1,3 +1,4 @@
+mod certs;
 mod connect;
 mod github;
 mod store;
@@ -183,6 +184,38 @@ enum Commands {
         #[command(subcommand)]
         cmd: IntentCmd,
     },
+    /// Issue TLS certificates from the Host private CA (Infisical-style dev certs).
+    Cert {
+        #[command(subcommand)]
+        cmd: CertCmd,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum CertCmd {
+    /// Print the Host dev CA certificate (trust this for local TLS).
+    Ca {
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+    /// Issue a short-lived leaf certificate (default: localhost / 24h).
+    Issue {
+        #[arg(long = "cn", default_value = "localhost")]
+        common_name: String,
+        #[arg(long = "dns")]
+        dns: Vec<String>,
+        #[arg(long = "ip")]
+        ips: Vec<String>,
+        #[arg(long = "ttl-hours", default_value = "24")]
+        ttl_hours: u64,
+        #[arg(long = "out-dir")]
+        out_dir: Option<PathBuf>,
+        /// Print the private key on stderr / JSON. Human operator only.
+        #[arg(long, default_value = "false")]
+        reveal: bool,
+    },
+    /// List issued certificates (metadata only — no private keys).
+    Ls,
 }
 
 #[derive(Subcommand, Debug)]
@@ -936,6 +969,30 @@ async fn main() -> anyhow::Result<()> {
         Commands::Daemon { url, cmd } => daemon_cmd(&url, cmd).await?,
         Commands::Task { cmd } => task_cmd(&cli.server, &cli.output, cmd).await?,
         Commands::Intent { cmd } => intent_cmd(&cli.server, &cli.output, cmd).await?,
+        Commands::Cert { cmd } => match cmd {
+            CertCmd::Ca { out } => certs::cmd_ca(&cli.server, &cli.output, out).await?,
+            CertCmd::Issue {
+                common_name,
+                dns,
+                ips,
+                ttl_hours,
+                out_dir,
+                reveal,
+            } => {
+                certs::cmd_issue(
+                    &cli.server,
+                    &cli.output,
+                    common_name,
+                    dns,
+                    ips,
+                    ttl_hours,
+                    out_dir,
+                    reveal,
+                )
+                .await?
+            }
+            CertCmd::Ls => certs::cmd_ls(&cli.server, &cli.output).await?,
+        },
     }
     Ok(())
 }
@@ -1848,17 +1905,17 @@ fn init_schema(path: &std::path::Path) -> anyhow::Result<()> {
 fn completion_script(shell: CompletionShell) -> &'static str {
     match shell {
         CompletionShell::Bash => {
-            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init pass tui dev daemon task intent' -- "${COMP_WORDS[COMP_CWORD]}") ); }
+            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init pass tui dev daemon task intent cert' -- "${COMP_WORDS[COMP_CWORD]}") ); }
 complete -F _opensesame opensesame
 "#
         }
         CompletionShell::Zsh => {
             r#"#compdef opensesame
-_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init pass tui dev daemon task intent)'
+_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init pass tui dev daemon task intent cert)'
 "#
         }
         CompletionShell::Fish => {
-            r#"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init pass tui dev daemon task intent'
+            r#"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init pass tui dev daemon task intent cert'
 "#
         }
     }

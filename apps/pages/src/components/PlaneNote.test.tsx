@@ -124,7 +124,7 @@ describe("PagesCannotHostNote", () => {
       screen
         .getByRole("link", { name: "Change it in Settings" })
         .getAttribute("href"),
-    ).toBe("/settings#connectivity");
+    ).toBe("/settings/connectivity");
   });
 
   it("shows 'none' when no Host is configured and it is down", () => {

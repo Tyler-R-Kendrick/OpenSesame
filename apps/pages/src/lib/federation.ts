@@ -1,4 +1,9 @@
-import { type JsonObject, overlapCast, isString, isNumber } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  isNumber,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 /**
  * Federated sign-in against a trusted upstream broker (ADR 0033).
  *
@@ -188,7 +193,7 @@ export async function discover(issuer: string): Promise<OidcDiscovery> {
       `${issuer} claims to be ${doc.issuer}.`,
     );
   }
-  return { ...(overlapCast(doc)), issuer };
+  return { ...overlapCast(doc), issuer };
 }
 
 type PendingAuth = {
@@ -201,6 +206,9 @@ type PendingAuth = {
   scope: string;
   /** Where to send the human once they are back, if they were mid-task. */
   returnTo?: string;
+  /** Tenant slug when this round-trip is org SSO/SAML, not a global broker. */
+  orgSlug?: string;
+  orgMethod?: "sso" | "saml";
 };
 
 function storePending(pending: PendingAuth): void {
@@ -224,9 +232,16 @@ function takePending(): PendingAuth | null {
  * Send the browser to the upstream. Returns nothing because it navigates: the
  * flow resumes in `completeSignIn` after the redirect back.
  */
+export type BeginSignInOptions = {
+  scope?: string;
+  returnTo?: string;
+  orgSlug?: string;
+  orgMethod?: "sso" | "saml";
+};
+
 async function beginSignInDefault(
   upstream: TrustedUpstream,
-  options: { scope?: string; returnTo?: string } = {},
+  options: BeginSignInOptions = {},
 ): Promise<void> {
   const discovery = await discover(upstream.issuer);
   const { verifier, challenge } = await createPkce();
@@ -242,6 +257,8 @@ async function beginSignInDefault(
     jwksUri: discovery.jwks_uri,
     scope,
     returnTo: options.returnTo,
+    orgSlug: options.orgSlug,
+    orgMethod: options.orgMethod,
   });
 
   const url = new URL(discovery.authorization_endpoint);
@@ -265,6 +282,8 @@ export type CompletedSignIn = {
   identity: UpstreamIdentity;
   /** In-app path to resume (e.g. broker/authorize query) after upstream return. */
   returnTo?: string;
+  orgSlug?: string;
+  orgMethod?: "sso" | "saml";
 };
 
 /**
@@ -342,8 +361,15 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
   }
 
   const identity = readIdentity(tokens.id_token, pending);
-  saveSession(identity);
-  return { identity, returnTo: pending.returnTo };
+  // Org SSO/SAML is a one-shot assertion for Identity join, not a durable
+  // Pages federation session. Saving it would collide with Shoo/mock sign-in.
+  if (!pending.orgSlug) saveSession(identity);
+  return {
+    identity,
+    returnTo: pending.returnTo,
+    orgSlug: pending.orgSlug,
+    orgMethod: pending.orgMethod,
+  };
 }
 
 /**
@@ -363,7 +389,7 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
       `Token was issued by ${issuer || "nobody"}, not ${pending.issuer}.`,
     );
   }
-  if (!upstreamByIssuer(issuer)) {
+  if (!pending.orgSlug && !upstreamByIssuer(issuer)) {
     throw new FederationError(
       "untrusted_issuer",
       `${issuer} is not a trusted broker.`,
@@ -372,7 +398,7 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
 
   const expected = originClientId();
   const audience = Array.isArray(claims.aud)
-    ? (overlapCast(claims.aud))
+    ? overlapCast(claims.aud)
     : [String(claims.aud ?? "")];
   if (!audience.includes(expected)) {
     throw new FederationError(
@@ -386,12 +412,17 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
     throw new FederationError("expired", "Token was already expired.");
   }
 
-  const pairwiseSub =
-    isString(claims.pairwise_sub) ? claims.pairwise_sub : "";
+  const pairwiseSub = isString(claims.pairwise_sub)
+    ? claims.pairwise_sub
+    : pending.orgSlug && isString(claims.sub)
+      ? claims.sub
+      : "";
   if (!pairwiseSub) {
     throw new FederationError(
       "invalid_token",
-      "Token carries no pairwise_sub, so it identifies nobody.",
+      pending.orgSlug
+        ? "Token carries no subject, so it identifies nobody."
+        : "Token carries no pairwise_sub, so it identifies nobody.",
     );
   }
 
@@ -473,7 +504,7 @@ export function defaultUpstream(): TrustedUpstream {
 
 export async function beginSignIn(
   upstream: TrustedUpstream,
-  options: { scope?: string; returnTo?: string } = {},
+  options: BeginSignInOptions = {},
 ): Promise<void> {
   return federationSeams.beginSignIn(upstream, options);
 }
@@ -487,7 +518,7 @@ export function loadSession(): UpstreamIdentity | null {
 }
 
 export function clearSession(): void {
-  return federationSeams.clearSession();
+  federationSeams.clearSession();
 }
 
 export function displayName(identity: UpstreamIdentity): string {

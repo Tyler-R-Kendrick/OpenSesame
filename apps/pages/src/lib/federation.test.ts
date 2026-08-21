@@ -1,4 +1,4 @@
-import { type JsonObject, type BoundaryValue } from "@opensesame/os-domain";
+import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -225,6 +225,38 @@ describe("beginSignIn", () => {
     expect(pending.verifier).toBeTruthy();
     expect(pending.state).toBeTruthy();
   });
+
+  it("stores org tenant metadata for an SSO/SAML round trip", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({
+            issuer: "https://idp.acme.example",
+            authorization_endpoint: "https://idp.acme.example/authorize",
+            token_endpoint: "https://idp.acme.example/token",
+            jwks_uri: "https://idp.acme.example/jwks",
+          }),
+        ),
+      ),
+    );
+    await beginSignIn(
+      {
+        id: "org:acme:sso",
+        displayName: "Acme",
+        issuer: "https://idp.acme.example",
+        accountKind: "SSO",
+      },
+      { orgSlug: "acme", orgMethod: "sso", returnTo: "/vault" },
+    );
+    const pending = JSON.parse(sessionStorage.getItem(PKCE_KEY) ?? "null");
+    expect(pending).toMatchObject({
+      orgSlug: "acme",
+      orgMethod: "sso",
+      issuer: "https://idp.acme.example",
+      returnTo: "/vault",
+    });
+  });
 });
 
 describe("hasAuthResponse", () => {
@@ -444,6 +476,32 @@ describe("completeSignIn", () => {
     expect(loadSession()?.pairwiseSub).toBe("sub-1");
     // The address bar no longer carries a replayable code.
     expect(location.search).toBe("");
+  });
+
+  it("accepts an org-tenant issuer that is not a global trusted broker", async () => {
+    seedPending({
+      issuer: "https://idp.acme.example",
+      orgSlug: "acme",
+      orgMethod: "saml",
+      returnTo: "/settings",
+    });
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    stubTokenResponse({
+      id_token: jwt({
+        iss: "https://idp.acme.example",
+        aud: originClientId(),
+        exp: Date.now() / 1000 + 3600,
+        sub: "dir-user-1",
+      }),
+    });
+    const result = await completeSignIn();
+    expect(result).toMatchObject({
+      orgSlug: "acme",
+      orgMethod: "saml",
+      returnTo: "/settings",
+      identity: { pairwiseSub: "dir-user-1" },
+    });
+    expect(loadSession()).toBeNull();
   });
 });
 

@@ -82,6 +82,21 @@ describe("CoreConnectionsPanel", () => {
     expect(screen.queryByText("Required")).toBeNull();
   });
 
+  it("marks git history as optional, not as a missing required connector", () => {
+    renderPanel([
+      status({
+        id: "history",
+        name: "Git history",
+        required: false,
+        tone: "off",
+        detail: "Not connected",
+      }),
+    ]);
+    expect(screen.getByText("Optional")).toBeTruthy();
+    expect(screen.queryByText("Required")).toBeNull();
+    expect(screen.getByText("All connected")).toBeTruthy();
+  });
+
   it("summarises attention in the panel head", () => {
     renderPanel([
       status(),

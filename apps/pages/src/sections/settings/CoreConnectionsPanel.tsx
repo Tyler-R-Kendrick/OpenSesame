@@ -11,13 +11,12 @@ import {
 } from "../../lib/connectors.js";
 
 /**
- * The five connections OpenSesame needs, as states rather than as a form.
+ * The five connections the bar shows, as states rather than as a form.
  *
- * This replaces the Planes panel, which asked for three URLs and a Save button
- * to state facts the app already knew — the host it is talking to, whether the
- * daemon answers, which git remote holds encrypted history. Each tile opens the
- * same ceremony the connectivity bar opens, so there is one way to repair a
- * connection, not two.
+ * Host, Identity, and this machine are required. Git history is optional
+ * persistence; the key vault is built in. Each tile opens the same ceremony
+ * the connectivity bar opens, so there is one way to repair a connection,
+ * not two.
  */
 const ACTION: Record<string, string> = {
   live: "Connected",
@@ -71,7 +70,11 @@ export function CoreConnectionsPanel() {
                 <span className="conn__name">
                   {connector.name}
                   <span className="conn__req">
-                    {connector.required ? "Required" : "Built in"}
+                    {connector.required
+                      ? "Required"
+                      : connector.id === "keys"
+                        ? "Built in"
+                        : "Optional"}
                   </span>
                 </span>
                 <span className="conn__state">{connector.detail}</span>

@@ -7,6 +7,7 @@ mod backup;
 mod backup_bus;
 mod bootstrap;
 mod config;
+mod dev_pki;
 mod github_webhook;
 mod identity_mapping;
 mod middleware;

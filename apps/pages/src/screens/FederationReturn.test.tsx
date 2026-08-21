@@ -11,11 +11,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fed = vi.hoisted(() => ({
   completeSignIn: vi.fn(),
+  joinOrgTenant: vi.fn(),
+  ensureIdentitySession: vi.fn(),
 }));
 
 import { federationSeams } from "../lib/federation.js";
 const originalFederationSeams = { ...federationSeams };
 Object.assign(federationSeams, { completeSignIn: fed.completeSignIn });
+
+import { orgSeams } from "../lib/orgs.js";
+Object.assign(orgSeams, { joinOrgTenant: fed.joinOrgTenant });
+
+import { identitySeams } from "../lib/identity.js";
+identitySeams.connectProvisional = fed.ensureIdentitySession;
+identitySeams.currentSession = () => null;
+identitySeams.identityBase = () => "http://127.0.0.1:18788";
 
 import { FederationError } from "../lib/federation.js";
 import { FederationReturn } from "./FederationReturn.js";
@@ -34,6 +44,8 @@ function renderReturn() {
 describe("FederationReturn", () => {
   beforeEach(() => {
     fed.completeSignIn.mockReset();
+    fed.joinOrgTenant.mockReset();
+    fed.ensureIdentitySession.mockReset();
   });
 
   afterEach(cleanup);
@@ -83,5 +95,29 @@ describe("FederationReturn", () => {
     renderReturn();
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("Sign-in failed.");
+  });
+
+  it("joins the org tenant after an SSO/SAML return", async () => {
+    fed.ensureIdentitySession.mockResolvedValue({
+      principalId: "prn_guest",
+      accessToken: "tok",
+      issuerOrigin: "http://127.0.0.1:18788",
+    });
+    fed.joinOrgTenant.mockResolvedValue({
+      id: "org:acme",
+      slug: "acme",
+      displayName: "Acme",
+      role: "member",
+      state: "active",
+    });
+    fed.completeSignIn.mockResolvedValue({
+      orgSlug: "acme",
+      orgMethod: "sso",
+      returnTo: "/settings",
+      identity: { idToken: "id-token" },
+    });
+    renderReturn();
+    expect(await screen.findByText("settings landed")).toBeTruthy();
+    expect(fed.joinOrgTenant).toHaveBeenCalledWith("acme", "sso", "id-token");
   });
 });
