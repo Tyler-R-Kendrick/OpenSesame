@@ -1,19 +1,13 @@
-import { type JsonObject, type BoundaryValue } from "@opensesame/os-domain";
 /**
  * Minimal ambient types for panva/oidc-provider (ESM, no bundled .d.ts).
  * Only the surface OpenSesame configures is declared.
  */
 declare module "oidc-provider" {
-  export type KoaContext = {
-    oidc?: unknown;
-    method?: string;
-    path?: string;
-    status?: number;
-    body?: unknown;
-  };
+  export type KoaContext = import("@opensesame/os-domain").BoundaryValue;
 
   export type ClientMetadata = {
     client_id: string;
+    client_name?: string;
     client_secret?: string;
     redirect_uris?: string[];
     grant_types?: string[];
@@ -21,10 +15,11 @@ declare module "oidc-provider" {
     token_endpoint_auth_method?: string;
     subject_type?: "public" | "pairwise";
     sector_identifier_uri?: string;
-    [key: string]: import("@opensesame/os-domain").JsonValue | import("@opensesame/os-domain").BoundaryValue | undefined;
+    scope?: string;
+    application_type?: "web" | "native";
   };
 
-  export type AdapterPayload = JsonObject & {
+  export type AdapterPayload = import("@opensesame/os-domain").JsonObject & {
     grantId?: string;
     userCode?: string;
     uid?: string;
@@ -50,11 +45,14 @@ declare module "oidc-provider" {
   export type Configuration = {
     adapter?: AdapterConstructor;
     clients?: ClientMetadata[];
-    cookies?: JsonObject;
-    features?: JsonObject;
-    jwks?: { keys: JsonObject[] };
+    cookies?: import("@opensesame/os-domain").JsonObject;
+    features?: import("@opensesame/os-domain").BoundaryValue;
+    jwks?: { keys: import("@opensesame/os-domain").JsonObject[] };
     pkce?: {
-      required?: (ctx: KoaContext, client: BoundaryValue) => boolean;
+      required?: (
+        ctx: KoaContext,
+        client: import("@opensesame/os-domain").BoundaryValue,
+      ) => boolean;
     };
     subjectTypes?: Array<"public" | "pairwise">;
     pairwiseIdentifier?: (
@@ -75,29 +73,43 @@ declare module "oidc-provider" {
           claims: (
             use: string,
             scope: string,
-          ) => Promise<JsonObject> | JsonObject;
+          ) =>
+            | Promise<import("@opensesame/os-domain").JsonObject>
+            | import("@opensesame/os-domain").JsonObject;
         }
       | undefined
     >;
-    ttl?: JsonObject;
+    ttl?: import("@opensesame/os-domain").JsonObject;
     routes?: Record<string, string>;
     scopes?: string[];
-    claims?: JsonObject;
-    interactions?: JsonObject;
-    renderError?: (...args: unknown[]) => BoundaryValue;
-    [key: string]: import("@opensesame/os-domain").JsonValue | import("@opensesame/os-domain").BoundaryValue | undefined;
+    claims?: import("@opensesame/os-domain").JsonObject;
+    interactions?: import("@opensesame/os-domain").JsonObject;
+    renderError?: (
+      ...args: unknown[]
+    ) => import("@opensesame/os-domain").BoundaryValue;
   };
 
   export class Provider {
     constructor(issuer: string, configuration?: Configuration);
-    callback(): (req: BoundaryValue, res: BoundaryValue) => void;
+    callback(): (
+      req: import("@opensesame/os-domain").BoundaryValue,
+      res: import("@opensesame/os-domain").BoundaryValue,
+    ) => void;
     app: {
-      callback(): (req: BoundaryValue, res: BoundaryValue) => void;
-      listen: (...args: unknown[]) => BoundaryValue;
+      callback(): (
+        req: import("@opensesame/os-domain").BoundaryValue,
+        res: import("@opensesame/os-domain").BoundaryValue,
+      ) => void;
+      listen: (
+        ...args: unknown[]
+      ) => import("@opensesame/os-domain").BoundaryValue;
     };
-    Client: { find(id: string): Promise<BoundaryValue> };
+    Client: {
+      find(
+        id: string,
+      ): Promise<import("@opensesame/os-domain").BoundaryValue>;
+    };
     registerGrantType(...args: unknown[]): void;
-    [key: string]: import("@opensesame/os-domain").JsonValue | import("@opensesame/os-domain").BoundaryValue | undefined;
   }
 
   type OidcErrorConstructor = new (...args: unknown[]) => Error;

@@ -1,5 +1,5 @@
-import type { OidcAdapterConstructor, OidcAdapterPayload } from "./types.js";
 import { overlapCast } from "@opensesame/os-domain";
+import type { OidcAdapterConstructor, OidcAdapterPayload } from "./types.js";
 
 /**
  * Wrap an oidc-provider adapter constructor so `Client` finds can resolve

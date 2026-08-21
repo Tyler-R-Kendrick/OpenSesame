@@ -1,11 +1,11 @@
 import {
-  type JsonObject,
-  overlapCast,
   type BoundaryValue,
+  type JsonObject,
   isJsonObject,
-  isString,
   isNumber,
+  isString,
   isTypeofObject,
+  overlapCast,
 } from "@opensesame/os-domain";
 /**
  * TypeScript façade mirroring `crates/client-core` sync shapes.

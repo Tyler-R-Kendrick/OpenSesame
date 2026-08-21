@@ -1,4 +1,4 @@
-import { type BoundaryValue } from "@opensesame/os-domain";
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import {

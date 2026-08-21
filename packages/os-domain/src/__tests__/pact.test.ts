@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { BoundaryValue } from "../json.js";
 import {
   authenticateClaim,
   canTransitionClaim,
@@ -10,6 +9,7 @@ import {
   presentClaim,
   reviewClaim,
 } from "../index.js";
+import type { BoundaryValue } from "../json.js";
 
 async function assertAtMostWins(
   worker: () => Promise<boolean> | boolean,

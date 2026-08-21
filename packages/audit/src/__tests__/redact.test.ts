@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { AUDIT_VALUE_MAX_LENGTH, redactAuditMetadata } from "../redact.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 describe("redactAuditMetadata", () => {
   it("keeps allowlisted keys and drops secrets", () => {

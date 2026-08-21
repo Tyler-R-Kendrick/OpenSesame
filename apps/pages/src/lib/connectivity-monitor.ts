@@ -19,8 +19,8 @@
  * offline — with an immediate check the instant either of those changes.
  */
 
-import { useSyncExternalStore } from "react";
 import { overlapCast } from "@opensesame/os-domain";
+import { useSyncExternalStore } from "react";
 import { isOnline, subscribeConnectivity } from "./connectivity.js";
 import { probeDaemon } from "./daemon.js";
 import {

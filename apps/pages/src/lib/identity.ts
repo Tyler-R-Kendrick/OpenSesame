@@ -928,7 +928,7 @@ export async function hostFetch(
 }
 
 export function endSession(): void {
-  return identitySeams.endSession();
+  identitySeams.endSession();
 }
 
 export async function ensureHostSession(): Promise<HostSession> {
@@ -970,7 +970,7 @@ export async function identityFetch(
   return identitySeams.identityFetch(...args);
 }
 export function noteUnauthorized(): void {
-  return identitySeams.noteUnauthorized();
+  identitySeams.noteUnauthorized();
 }
 export async function identityJson<T>(
   ...args: Parameters<typeof identityJsonDefault>

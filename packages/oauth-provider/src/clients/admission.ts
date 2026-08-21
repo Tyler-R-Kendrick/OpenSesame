@@ -1,10 +1,10 @@
+import { overlapCast } from "@opensesame/os-domain";
 import {
   type ClientAdmissionMode,
   type OAuthClientRecord,
   type OAuthProviderEnv,
   ORIGIN_PROFILE_FORBIDDEN_SCOPES,
 } from "../types.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 export class ClientAdmissionError extends Error {
   readonly code: string;

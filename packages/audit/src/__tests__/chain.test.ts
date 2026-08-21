@@ -1,4 +1,4 @@
-import { overlapCast, type AuditEvent } from "@opensesame/os-domain";
+import { type AuditEvent, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { appendAuditEvent } from "../append.js";
 import {

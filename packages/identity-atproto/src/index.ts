@@ -1,7 +1,7 @@
 import {
-  overlapCast,
   type AssuranceLevel,
   type ExternalIdentity,
+  overlapCast,
 } from "@opensesame/os-domain";
 
 /**
