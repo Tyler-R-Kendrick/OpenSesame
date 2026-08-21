@@ -157,13 +157,17 @@ describe("projects routes edge cases", () => {
     ).toBe(org.id);
   });
 
-  it("denies standard project creation to provisional principals", async () => {
+  it("lets provisional principals create a standard project", async () => {
     const { app } = createControlPlane({ config: testConfig() });
     const anon = await provisional(app);
     const res = await createProject(app, anon.accessToken, {
-      displayName: "Nope",
+      displayName: "Guest Work",
     });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(201);
+    expect(overlapCast(await res.json())).toMatchObject({
+      displayName: "Guest Work",
+      kind: "standard",
+    });
   });
 
   it("tracks the active project and drops stale selections", async () => {

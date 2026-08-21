@@ -125,6 +125,7 @@ principalRoutes.post(
             ttlMs: ctx.config.provisionalTtlMs,
             quotaProfile: "anonymous",
             allowedActions: [
+              "project.create",
               "project.create_temporary",
               "resource.create_temporary",
               "claim.create",
@@ -299,7 +300,9 @@ principalRoutes.get("/me", requirePrincipal(), async (c) => {
       id: i.id,
       kind: i.kind,
       issuer: i.issuer,
-      ...(i.displayHint !== undefined ? { displayHint: i.displayHint } : undefined),
+      ...(i.displayHint !== undefined
+        ? { displayHint: i.displayHint }
+        : undefined),
       assurance: i.assurance,
     })),
   });
@@ -317,7 +320,9 @@ principalRoutes.get("/identities", requirePrincipal(), async (c) => {
       kind: i.kind,
       issuer: i.issuer,
       subject: i.subject,
-      ...(i.displayHint !== undefined ? { displayHint: i.displayHint } : undefined),
+      ...(i.displayHint !== undefined
+        ? { displayHint: i.displayHint }
+        : undefined),
       assurance: i.assurance,
       linkedAt: i.linkedAt.toISOString(),
     })),
@@ -342,7 +347,7 @@ principalRoutes.post(
 
     // Nothing in this request proves the caller controls `issuer`/`subject`, and a
     // successful link promotes a provisional principal to `verified` — the very
-    // assurance that gates organizations, projects and OAuth client registration.
+    // assurance that gates organizations and OAuth client registration.
     // Caller-asserted links are therefore a dev seam only, like stub TOTP.
     if (!ctx.config.allowDevDefaults) {
       return c.json(

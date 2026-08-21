@@ -2019,7 +2019,7 @@ describe("projects hierarchy and sharing", () => {
     expect(activeBody.project.id).toBe(projects[0]?.id);
   });
 
-  it("denies standard project creation to provisional principals", async () => {
+  it("lets provisional principals create a standard project", async () => {
     const { app } = createControlPlane({ config });
     const created = await provisional(app);
     const res = await app.request("/v1/projects", {
@@ -2028,11 +2028,13 @@ describe("projects hierarchy and sharing", () => {
         authorization: `Bearer ${created.accessToken}`,
         "content-type": "application/json",
       },
-      body: JSON.stringify({ displayName: "Nope" }),
+      body: JSON.stringify({ displayName: "Guest Work" }),
     });
-    expect(res.status).toBe(403);
-    const body = overlapCast(await res.json());
-    expect(body.reasons).toContain("provisional_action_not_permitted");
+    expect(res.status).toBe(201);
+    expect(overlapCast(await res.json())).toMatchObject({
+      displayName: "Guest Work",
+      kind: "standard",
+    });
   });
 
   it("creates, swaps to, shares, and unshares a project", async () => {

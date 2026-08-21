@@ -3,11 +3,11 @@ import { appendAuditEvent } from "@opensesame/audit";
 import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
 import { parseOriginClientId } from "@opensesame/oauth-provider";
 import {
-  overlapCast,
-  isString,
   type BoundaryValue,
   type Principal,
   type ProvisionalSession,
+  isString,
+  overlapCast,
 } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import { ensurePersonalOrganization } from "../routes/organizations.js";
@@ -112,6 +112,7 @@ export async function mintProvisionalForInteraction(
     ttlMs: ctx.config.provisionalTtlMs,
     quotaProfile: "anonymous",
     allowedActions: [
+      "project.create",
       "project.create_temporary",
       "resource.create_temporary",
       "claim.create",
