@@ -13,6 +13,7 @@ const fed = vi.hoisted(() => ({
   completeSignIn: vi.fn(),
   joinOrgTenant: vi.fn(),
   ensureIdentitySession: vi.fn(),
+  linkGuestAccount: vi.fn(),
 }));
 
 import { federationSeams } from "../lib/federation.js";
@@ -26,6 +27,9 @@ import { identitySeams } from "../lib/identity.js";
 identitySeams.connectProvisional = fed.ensureIdentitySession;
 identitySeams.currentSession = () => null;
 identitySeams.identityBase = () => "http://127.0.0.1:18788";
+
+import { guestAuthSeams } from "../lib/guest-auth.js";
+guestAuthSeams.linkGuestAccount = fed.linkGuestAccount;
 
 import { FederationError } from "../lib/federation.js";
 import { FederationReturn } from "./FederationReturn.js";
@@ -46,6 +50,8 @@ describe("FederationReturn", () => {
     fed.completeSignIn.mockReset();
     fed.joinOrgTenant.mockReset();
     fed.ensureIdentitySession.mockReset();
+    fed.linkGuestAccount.mockReset();
+    fed.linkGuestAccount.mockResolvedValue(undefined);
   });
 
   afterEach(cleanup);
@@ -119,5 +125,22 @@ describe("FederationReturn", () => {
     renderReturn();
     expect(await screen.findByText("settings landed")).toBeTruthy();
     expect(fed.joinOrgTenant).toHaveBeenCalledWith("acme", "sso", "id-token");
+    expect(fed.linkGuestAccount).not.toHaveBeenCalled();
+  });
+
+  it("claims the guest principal with the upstream id_token", async () => {
+    fed.ensureIdentitySession.mockResolvedValue({
+      principalId: "prn_guest",
+      accessToken: "tok",
+      issuerOrigin: "http://127.0.0.1:18788",
+    });
+    fed.completeSignIn.mockResolvedValue({
+      returnTo: "/settings",
+      identity: { idToken: "id-token" },
+    });
+    renderReturn();
+    expect(await screen.findByText("settings landed")).toBeTruthy();
+    expect(fed.ensureIdentitySession).toHaveBeenCalled();
+    expect(fed.linkGuestAccount).toHaveBeenCalledWith("id-token");
   });
 });

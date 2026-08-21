@@ -29,6 +29,11 @@ export interface ControlPlaneConfig {
    * Empty rejects mapping resolve in production; allowDevDefaults may omit in tests.
    */
   mappingResolveToken: string;
+  /**
+   * Issuers allowed to promote a provisional principal via a verified
+   * `id_token` on POST /v1/principals/link-identities (ADR 0033).
+   */
+  trustedUpstreamIssuers: string[];
 }
 
 const DEV_CLAIM_PEPPER = "dev-claim-pepper-change-me";
@@ -143,6 +148,15 @@ export function loadConfig(
       // Local/dev default aligned with gateway callout shared secret.
       return allowDevDefaults ? "opensesame-dev-mapping-resolve" : "";
     })(),
+    trustedUpstreamIssuers: (
+      env.OPENSESAME_TRUSTED_UPSTREAMS ??
+      (allowDevDefaults
+        ? "https://shoo.dev,http://127.0.0.1:9090,http://localhost:9090"
+        : "https://shoo.dev")
+    )
+      .split(",")
+      .map((s) => s.trim().replace(/\/+$/, ""))
+      .filter(Boolean),
   };
   if (env.DATABASE_URL) {
     config.databaseUrl = env.DATABASE_URL;

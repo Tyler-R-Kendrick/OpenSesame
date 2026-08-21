@@ -1,4 +1,4 @@
-import { overlapCast, isString, isNumber } from "@opensesame/os-domain";
+import { isNumber, isString, overlapCast } from "@opensesame/os-domain";
 /**
  * Identity plane session.
  *
@@ -201,7 +201,9 @@ function revokeRequest(bearer?: string): Promise<Response> {
       method: "POST",
       credentials: "include",
       timeoutMs: IDENTITY_FETCH_MS,
-      ...(bearer ? { headers: { authorization: `Bearer ${bearer}` } } : undefined),
+      ...(bearer
+        ? { headers: { authorization: `Bearer ${bearer}` } }
+        : undefined),
     },
   );
 }
@@ -362,10 +364,7 @@ async function mintHostSession(
     throw await hostSessionFailure(authorize, "Host session request failed");
   }
   const grant = overlapCast(await authorize.json());
-  if (
-    !isString(grant.device_code) ||
-    !isString(grant.user_code)
-  ) {
+  if (!isString(grant.device_code) || !isString(grant.user_code)) {
     throw new HostSessionError(
       "invalid_host",
       "Host returned an invalid device grant.",
@@ -698,6 +697,13 @@ async function fetchPrincipalDefault(): Promise<Principal> {
   return identityJson<Principal>("/v1/principals/me");
 }
 
+/** Put a stashed bearer back in this tab after an OIDC round-trip. */
+function restoreSessionDefault(next: IdentitySession): void {
+  session = next;
+  setOrphan(false);
+  emit();
+}
+
 export type HealthState = "unknown" | "reachable" | "unreachable";
 
 /** True when Host API is the daemon's `/host` Serve proxy (paired node). */
@@ -911,6 +917,7 @@ export const identitySeams = {
   probeHost: probeHostDefault,
   useOrphanSession: useOrphanSessionDefault,
   fetchPrincipal: fetchPrincipalDefault,
+  restoreSession: restoreSessionDefault,
 };
 
 export async function hostFetch(
@@ -988,4 +995,8 @@ export function useOrphanSession(): boolean {
 }
 export async function fetchPrincipal(): Promise<Principal> {
   return identitySeams.fetchPrincipal();
+}
+
+export function restoreSession(next: IdentitySession): void {
+  identitySeams.restoreSession(next);
 }

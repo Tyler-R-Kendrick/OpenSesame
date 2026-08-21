@@ -4,11 +4,16 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const beginSignIn = vi.hoisted(() => vi.fn());
+const stashCurrentSession = vi.hoisted(() => vi.fn());
 
 vi.mock("../lib/federation.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/federation.js")>();
   return { ...actual, beginSignIn };
 });
+
+vi.mock("../lib/guest-auth.js", () => ({
+  stashCurrentSession,
+}));
 
 import { clearNotices, pushNotice } from "../lib/notices.js";
 import { NotificationsBar } from "./NotificationsBar.js";
@@ -48,6 +53,7 @@ describe("NotificationsBar", () => {
     expect(screen.getByRole("dialog", { name: "Notifications" })).toBeTruthy();
     expect(screen.getByText("WORD-WORD")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Sign in to claim" }));
+    expect(stashCurrentSession).toHaveBeenCalledTimes(1);
     expect(beginSignIn).toHaveBeenCalledTimes(1);
   });
 });

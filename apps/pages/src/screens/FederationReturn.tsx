@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FederationError, completeSignIn } from "../lib/federation.js";
+import { linkGuestAccount } from "../lib/guest-auth.js";
 import { ensureIdentitySession } from "../lib/identity.js";
 import { joinOrgTenant } from "../lib/orgs.js";
 import "./broker.css";
@@ -27,6 +28,9 @@ export function FederationReturn() {
             result.orgMethod,
             result.identity.idToken,
           );
+        } else if (result?.identity?.idToken) {
+          await ensureIdentitySession();
+          await linkGuestAccount(result.identity.idToken);
         }
         if (cancelled) return;
         if (result?.returnTo) {

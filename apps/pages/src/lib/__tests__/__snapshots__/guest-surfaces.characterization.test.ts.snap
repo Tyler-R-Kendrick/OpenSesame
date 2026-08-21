@@ -10,7 +10,7 @@ exports[`guest surface copy > says exactly this on the Identity glyph ceremony 1
 
 exports[`guest surface copy > says exactly this on the claim-ceremony notice 1`] = `
 {
-  "body": "You skipped registered sign-in. Complete the claim ceremony to attach a passkey, password, or SSO account. The principal id stays the same.",
+  "body": "You skipped registered sign-in. Sign in with a trusted account to attach it to this principal — the id stays the same.",
   "title": "Claim this guest session",
 }
 `;

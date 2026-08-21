@@ -16,7 +16,7 @@ const GUEST_UNLOCK_AFFORDANCE = "Continue as guest — no passkey or password";
 
 const GUEST_NOTICE = {
   title: "Claim this guest session",
-  body: "You skipped registered sign-in. Complete the claim ceremony to attach a passkey, password, or SSO account. The principal id stays the same.",
+  body: "You skipped registered sign-in. Sign in with a trusted account to attach it to this principal — the id stays the same.",
 };
 
 const IDENTITY_CEREMONY = {

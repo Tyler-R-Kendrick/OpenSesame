@@ -14,6 +14,8 @@ const createGuest = vi.hoisted(() => vi.fn());
 vi.mock("./identity.js", () => ({
   connectProvisional,
   identityJson,
+  currentSession: () => null,
+  restoreSession: () => {},
 }));
 
 vi.mock("./vault/store.js", () => ({
@@ -43,25 +45,15 @@ describe("chaos — guest login under a broken Identity plane", () => {
     expect(listNotices()[0]?.body).toMatch(/429 slow down/);
   });
 
-  it("chaos: concurrent claim mints do not stack notices", async () => {
-    connectProvisional.mockResolvedValue({ principalId: "prn_guest" });
-    identityJson.mockImplementation(
+  it("chaos: concurrent guest claims do not stack notices", async () => {
+    connectProvisional.mockImplementation(
       () =>
         new Promise((resolve) => {
-          setTimeout(
-            () =>
-              resolve({
-                claimId: "clm_1",
-                claimToken: "osc_clm_guest.secret",
-                userCode: "WORD-WORD",
-                verificationUri: "http://127.0.0.1:18788/verify",
-              }),
-            20,
-          );
+          setTimeout(() => resolve({ principalId: "prn_guest" }), 20);
         }),
     );
     await Promise.all([claimGuestAuth(), claimGuestAuth(), claimGuestAuth()]);
-    expect(identityJson).toHaveBeenCalledTimes(1);
+    expect(connectProvisional).toHaveBeenCalledTimes(1);
     expect(listNotices()).toHaveLength(1);
   });
 

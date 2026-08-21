@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { beginSignIn, defaultUpstream } from "../lib/federation.js";
+import { stashCurrentSession } from "../lib/guest-auth.js";
 import {
   dismissNotice,
   listNotices,
@@ -100,6 +101,7 @@ function NotificationsBarDefault() {
                       type="button"
                       className="btn btn--primary"
                       onClick={() => {
+                        stashCurrentSession();
                         void beginSignIn(defaultUpstream(), {
                           returnTo: "/",
                         });

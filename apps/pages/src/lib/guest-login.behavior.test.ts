@@ -15,13 +15,19 @@ const createGuest = vi.hoisted(() => vi.fn());
 vi.mock("./identity.js", () => ({
   connectProvisional,
   identityJson,
+  currentSession: () => ({
+    principalId: "prn_guest",
+    accessToken: "guest-tok",
+    issuerOrigin: "http://127.0.0.1:18788",
+  }),
+  restoreSession: () => {},
 }));
 
 vi.mock("./vault/store.js", () => ({
   vaultStore: { createGuest },
 }));
 
-import { continueAsGuest } from "./guest-auth.js";
+import { continueAsGuest, linkGuestAccount } from "./guest-auth.js";
 import { clearNotices, listNotices } from "./notices.js";
 
 describe("guest login journey", () => {
@@ -33,10 +39,8 @@ describe("guest login journey", () => {
     createGuest.mockResolvedValue(undefined);
     connectProvisional.mockResolvedValue({ principalId: "prn_guest" });
     identityJson.mockResolvedValue({
-      claimId: "clm_1",
-      claimToken: "osc_clm_guest.secret",
-      userCode: "WORD-WORD",
-      verificationUri: "http://127.0.0.1:18788/v1/claims/clm_1/verify",
+      principalId: "prn_guest",
+      identity: { assurance: "verified" },
     });
   });
 
@@ -55,19 +59,36 @@ describe("guest login journey", () => {
     expect(createGuest).toHaveBeenCalledTimes(1);
     const notice = listNotices()[0];
     expect(notice?.kind).toBe("guest_claim");
-    expect(notice?.userCode).toBe("WORD-WORD");
     expect(notice?.title).toMatch(/Claim this guest session/);
   });
 
-  it("Given a guest claim already waiting, When they continue as guest again, Then Identity is not asked for a second claim", async () => {
+  it("Given a guest claim already waiting, When they continue as guest again, Then Identity is not asked again", async () => {
     await continueAsGuest();
-    identityJson.mockClear();
     connectProvisional.mockClear();
 
     await continueAsGuest();
 
     expect(createGuest).toHaveBeenCalledTimes(2);
-    expect(identityJson).not.toHaveBeenCalled();
+    expect(connectProvisional).not.toHaveBeenCalled();
     expect(listNotices()).toHaveLength(1);
+  });
+
+  it("Given a guest notice, When they return from registered sign-in, Then the id_token claims this principal", async () => {
+    await continueAsGuest();
+    identityJson.mockClear();
+    identityJson.mockResolvedValue({
+      principalId: "prn_guest",
+      identity: { assurance: "verified" },
+    });
+
+    await linkGuestAccount("id.token.from.upstream");
+
+    expect(identityJson).toHaveBeenCalledWith(
+      "/v1/principals/link-identities",
+      expect.objectContaining({
+        body: JSON.stringify({ idToken: "id.token.from.upstream" }),
+      }),
+    );
+    expect(listNotices()).toEqual([]);
   });
 });
