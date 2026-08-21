@@ -4,6 +4,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
@@ -21,9 +22,29 @@ vi.mock("../lib/connectors.js", async (importOriginal) => {
 });
 
 const connectSpy = vi.hoisted(() => vi.fn());
+const beginSignIn = vi.hoisted(() => vi.fn());
+const claimGuestAuth = vi.hoisted(() => vi.fn());
 
 vi.mock("../lib/identity.js", () => ({
   useConnect: () => ({ connect: connectSpy, connecting: false, error: null }),
+}));
+
+vi.mock("../lib/federation.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/federation.js")>();
+  return {
+    ...actual,
+    beginSignIn,
+    defaultUpstream: () => ({
+      id: "mock",
+      displayName: "Local mock IdP",
+      issuer: "http://127.0.0.1:9090",
+      accountKind: "a seeded test account",
+    }),
+  };
+});
+
+vi.mock("../lib/guest-auth.js", () => ({
+  claimGuestAuth,
 }));
 
 const checkNow = vi.hoisted(() => vi.fn());
@@ -298,19 +319,29 @@ describe("ConnectivityBar", () => {
     expect(glyph?.className).toContain("cx__btn--live");
   });
 
-  it("offers Sign in from the Identity ceremony, and nowhere else", () => {
+  it("offers registered sign-in and continue as guest from the Identity ceremony", async () => {
+    connectSpy.mockResolvedValue(undefined);
+    claimGuestAuth.mockResolvedValue(undefined);
     renderBar();
     fireEvent.click(
       screen.getByRole("button", { name: "Host — 127.0.0.1:18787" }),
     );
-    expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Continue as guest" }),
+    ).toBeNull();
     fireEvent.click(screen.getAllByRole("button", { name: "Close" })[0]);
 
     fireEvent.click(
       screen.getByRole("button", { name: "Identity — 127.0.0.1:18788" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(connectSpy).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", {
+        name: "Sign in with a seeded test account",
+      }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Continue as guest" }));
+    await waitFor(() => expect(connectSpy).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(claimGuestAuth).toHaveBeenCalledTimes(1));
   });
 
   it("keeps the freshness row off a connector nothing ever probes", () => {

@@ -1,10 +1,10 @@
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { kvDelete } from "../kv.js";
+import { kvDelete, kvGet } from "../kv.js";
 import { WrongPasswordError, randomBytes } from "./crypto.js";
 import { ATTEMPTS_KEY, BODY_KEY, HEADER_KEY, VaultStore } from "./store.js";
 import type { PasskeyCeremony } from "./unlock-methods.js";
 import { unlockMethodsSeams } from "./unlock-methods.js";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const PASSWORD = "correct horse battery staple";
 
@@ -22,7 +22,13 @@ const ceremony = vi.hoisted(() => ({
 
 const originalUnlockMethodsSeams = { ...unlockMethodsSeams };
 Object.assign(unlockMethodsSeams, {
-  createPasskeyUnlockCeremony: async (): Promise<PasskeyCeremony> => {
+  createPasskeyUnlockCeremony: async (
+    _rpId?: string,
+    signal?: AbortSignal,
+  ): Promise<PasskeyCeremony> => {
+    if (signal?.aborted) {
+      throw new DOMException("The operation was aborted.", "AbortError");
+    }
     if (ceremony.failCreate) throw ceremony.failCreate;
     ceremony.prfOutput = overlapCast(randomBytes(32).buffer);
     return {
@@ -54,6 +60,42 @@ beforeEach(() => {
 });
 
 describe("VaultStore passkey unlock", () => {
+  it("seals a new vault with a passkey and no master password", async () => {
+    const store = new VaultStore();
+    await store.createWithPasskey();
+    const header = store.getSnapshot().header;
+    expect(header?.unlocks?.passkey).toBeDefined();
+    expect(header?.wrap).toBeUndefined();
+    expect(header?.kdf).toBeUndefined();
+    expect(store.getSnapshot().status).toBe("unlocked");
+    store.lock();
+
+    const reopened = new VaultStore();
+    await reopened.unlockWithPasskey();
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+  });
+
+  it("does not persist a vault if passkey creation fails", async () => {
+    ceremony.failCreate = new Error("no authenticator");
+    const store = new VaultStore();
+    await expect(store.createWithPasskey()).rejects.toThrow(/no authenticator/);
+    expect(store.getSnapshot().status).toBe("empty");
+    expect(kvGet(HEADER_KEY)).toBeNull();
+  });
+
+  it("does not persist a vault if the first-run ceremony is aborted", async () => {
+    const store = new VaultStore();
+    const controller = new AbortController();
+    controller.abort();
+    const failure = await store
+      .createWithPasskey(controller.signal)
+      .catch((error: BoundaryValue) => error);
+    expect(failure).toBeInstanceOf(DOMException);
+    expect(overlapCast(failure).name).toBe("AbortError");
+    expect(store.getSnapshot().status).toBe("empty");
+    expect(kvGet(HEADER_KEY)).toBeNull();
+  });
+
   it("enrolls a passkey and unlocks with it after locking", async () => {
     const store = new VaultStore();
     await store.create(PASSWORD);
@@ -147,7 +189,7 @@ describe("VaultStore passkey unlock", () => {
       .unlockWithPasskey(new AbortController().signal)
       .catch((error: BoundaryValue) => error);
     expect(failure).toBeInstanceOf(DOMException);
-    expect((overlapCast(failure)).name).toBe("AbortError");
+    expect(overlapCast(failure).name).toBe("AbortError");
     // Switching methods mid-ceremony is not a wrong credential.
     expect(reopened.getSnapshot().failedAttempts).toBe(0);
   });

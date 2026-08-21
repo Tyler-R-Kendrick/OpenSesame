@@ -14,9 +14,11 @@ import {
   IconShield,
   IconVault,
 } from "../components/Icons.js";
+import { continueAsGuest } from "../lib/guest-auth.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { estimateStrength } from "../lib/vault/password.js";
 import {
+  MIN_PIN_LENGTH,
   type UnlockMethodId,
   checkWebauthnHost,
   describeWebauthnError,
@@ -88,17 +90,29 @@ export function UnlockScreen() {
   } = useVault();
   const store = useVaultStore();
   const firstRun = status === "empty";
+  const passkeyHost = checkWebauthnHost();
 
-  const methods = useMemo(() => listAvailableUnlockMethods(header), [header]);
+  const methods = useMemo(() => {
+    if (!firstRun) return listAvailableUnlockMethods(header);
+    const available: UnlockMethodId[] = [];
+    if (passkeyHost.ok) available.push("passkey");
+    available.push("pin", "password");
+    return available;
+  }, [firstRun, header, passkeyHost.ok]);
   const [method, setMethod] = useState<UnlockMethodId | null>(null);
+  const fallbackMethod: UnlockMethodId | null = firstRun
+    ? passkeyHost.ok
+      ? "passkey"
+      : "password"
+    : preferredUnlockMethod(header);
   const activeMethod =
-    method && methods.includes(method) ? method : preferredUnlockMethod(header);
+    method && methods.includes(method) ? method : fallbackMethod;
   // Show the method switcher whenever a non-password unlock exists (even alone),
   // or whenever there is more than one method. Password-only vaults stay simple.
   const showMethodTabs =
-    !firstRun &&
     !awaitingTotp &&
-    (methods.length > 1 ||
+    (firstRun ||
+      methods.length > 1 ||
       methods.includes("passkey") ||
       methods.includes("pin"));
   const passwordOnlyUnlock =
@@ -141,9 +155,8 @@ export function UnlockScreen() {
       return;
     }
     if (activeMethod === "pin") pinRef.current?.focus();
-    else if (activeMethod === "password" || firstRun)
-      passwordRef.current?.focus();
-  }, [firstRun, activeMethod, awaitingTotp]);
+    else if (activeMethod === "password") passwordRef.current?.focus();
+  }, [activeMethod, awaitingTotp]);
 
   // Prefer passkey silently: offer the platform prompt once when it is the
   // default method, so unlock is not password-shaped by default.
@@ -192,10 +205,27 @@ export function UnlockScreen() {
     setBusy(true);
     try {
       if (firstRun) {
-        if (password !== confirm) {
-          throw new Error("The two entries do not match.");
+        if (activeMethod === "passkey") {
+          const controller = new AbortController();
+          passkeyAbort.current = controller;
+          try {
+            await store.createWithPasskey(controller.signal);
+          } finally {
+            if (passkeyAbort.current === controller)
+              passkeyAbort.current = null;
+          }
+        } else if (activeMethod === "pin") {
+          if (pin !== confirm) {
+            throw new Error("The two entries do not match.");
+          }
+          await store.createWithPin(pin);
+          setPin("");
+        } else {
+          if (password !== confirm) {
+            throw new Error("The two entries do not match.");
+          }
+          await store.create(password, hint.trim() || undefined);
         }
-        await store.create(password, hint.trim() || undefined);
       } else if (awaitingTotp) {
         await store.confirmTotp(totp);
         setTotp("");
@@ -240,14 +270,14 @@ export function UnlockScreen() {
     }
   }
 
-  const passkeyHost = checkWebauthnHost();
-
   const strength = estimateStrength(password);
   const createBlocked =
-    password.length < 12 ||
-    password !== confirm ||
     !accepted ||
-    strength.score < 2;
+    (activeMethod === "passkey"
+      ? !passkeyHost.ok
+      : activeMethod === "pin"
+        ? pin.length < MIN_PIN_LENGTH || pin !== confirm
+        : password.length < 12 || password !== confirm || strength.score < 2);
 
   let unlockBlocked = true;
   if (awaitingTotp) unlockBlocked = totp.replace(/\s/g, "").length < 6;
@@ -259,7 +289,11 @@ export function UnlockScreen() {
     busy || lockedFor > 0 || (firstRun ? createBlocked : unlockBlocked);
 
   const brandCopy = firstRun
-    ? "Choose a master password to seal this device. You can add a passkey, PIN, or authenticator later in Settings."
+    ? activeMethod === "passkey"
+      ? "Seal this device with a passkey. A password is optional — add one later in Settings if you want a typed backup."
+      : activeMethod === "pin"
+        ? "Seal this device with a PIN. A password is optional — add one later in Settings if you want a typed backup."
+        : "Choose a master password to seal this device. You can add a passkey or PIN later in Settings."
     : awaitingTotp
       ? "Enter the code from your authenticator app to finish unlocking."
       : "Unlock with a passkey, PIN, or password — whichever you enrolled. The vault key is not stored; a reload asks again.";
@@ -301,6 +335,7 @@ export function UnlockScreen() {
                     cancelPasskeyCeremony();
                     setMethod(id);
                     setError(null);
+                    setConfirm("");
                   }}
                 >
                   {id === "passkey" ? (
@@ -373,7 +408,7 @@ export function UnlockScreen() {
             </div>
           ) : null}
 
-          {!firstRun && !awaitingTotp && activeMethod === "passkey" ? (
+          {(firstRun || !awaitingTotp) && activeMethod === "passkey" ? (
             passkeyHost.ok ? (
               <p className="hint">
                 Use your platform authenticator. The WebAuthn PRF extension
@@ -397,15 +432,17 @@ export function UnlockScreen() {
             )
           ) : null}
 
-          {!firstRun && !awaitingTotp && activeMethod === "pin" ? (
+          {!awaitingTotp && activeMethod === "pin" ? (
             <div className="field">
-              <label htmlFor="unlock-pin">PIN</label>
+              <label htmlFor="unlock-pin">
+                {firstRun ? "Device PIN" : "PIN"}
+              </label>
               <input
                 id="unlock-pin"
                 ref={pinRef}
                 type={reveal ? "text" : "password"}
                 inputMode="numeric"
-                autoComplete="one-time-code"
+                autoComplete={firstRun ? "new-password" : "one-time-code"}
                 value={pin}
                 disabled={busy || lockedFor > 0}
                 onChange={(e) => setPin(e.target.value)}
@@ -413,7 +450,7 @@ export function UnlockScreen() {
             </div>
           ) : null}
 
-          {(firstRun || (!awaitingTotp && activeMethod === "password")) && (
+          {!awaitingTotp && activeMethod === "password" && (
             <div className="field">
               <label htmlFor="master">
                 {firstRun ? "Master password" : "Password"}
@@ -441,7 +478,7 @@ export function UnlockScreen() {
             </div>
           )}
 
-          {firstRun ? (
+          {firstRun && activeMethod === "password" ? (
             <>
               <StrengthMeter password={password} />
               <div className="field">
@@ -470,23 +507,42 @@ export function UnlockScreen() {
                   you unlock. Never put the password itself here.
                 </p>
               </div>
-              <div className="unlock__terms">
-                <p id="master-help">
-                  There is no recovery. The key exists only while this password
-                  is in your head — forget it and the encrypted items on this
-                  device are unreadable, by you and by us. Add a passkey or PIN
-                  in Settings so you are not limited to typing a password.
-                </p>
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={accepted}
-                    onChange={(e) => setAccepted(e.target.checked)}
-                  />
-                  <span>I understand this vault cannot be recovered.</span>
-                </label>
-              </div>
             </>
+          ) : null}
+
+          {firstRun && activeMethod === "pin" ? (
+            <div className="field">
+              <label htmlFor="confirm">Confirm PIN</label>
+              <input
+                id="confirm"
+                type={reveal ? "text" : "password"}
+                inputMode="numeric"
+                autoComplete="new-password"
+                value={confirm}
+                disabled={busy}
+                onChange={(e) => setConfirm(e.target.value)}
+              />
+            </div>
+          ) : null}
+
+          {firstRun ? (
+            <div className="unlock__terms">
+              <p id="master-help">
+                {activeMethod === "passkey"
+                  ? "There is no recovery. The vault key is wrapped by this device's passkey. Lose the authenticator and the encrypted items on this device are unreadable, by you and by us. A password is optional later in Settings."
+                  : activeMethod === "pin"
+                    ? "There is no recovery. The vault key is wrapped by this PIN. Forget it and the encrypted items on this device are unreadable, by you and by us. A password is optional later in Settings."
+                    : "There is no recovery. The key exists only while this password is in your head — forget it and the encrypted items on this device are unreadable, by you and by us. Add a passkey or PIN in Settings so you are not limited to typing a password."}
+              </p>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={accepted}
+                  onChange={(e) => setAccepted(e.target.checked)}
+                />
+                <span>I understand this vault cannot be recovered.</span>
+              </label>
+            </div>
           ) : header?.hint && activeMethod === "password" && !awaitingTotp ? (
             <p className="unlock__hint">
               <strong>Reminder:</strong> {header.hint}
@@ -524,21 +580,29 @@ export function UnlockScreen() {
             disabled={disabled}
             aria-busy={busy}
           >
-            {activeMethod === "passkey" && !awaitingTotp && !firstRun ? (
+            {activeMethod === "passkey" && !awaitingTotp ? (
               <IconPasskey size={18} />
             ) : (
               <IconLock size={18} />
             )}
             {busy
               ? firstRun
-                ? "Deriving key…"
+                ? activeMethod === "passkey"
+                  ? "Waiting for passkey…"
+                  : activeMethod === "pin"
+                    ? "Sealing…"
+                    : "Deriving key…"
                 : awaitingTotp
                   ? "Checking code…"
                   : activeMethod === "passkey"
                     ? "Waiting for passkey…"
                     : "Unlocking…"
               : firstRun
-                ? "Seal this device"
+                ? activeMethod === "passkey"
+                  ? "Seal with passkey"
+                  : activeMethod === "pin"
+                    ? "Seal with PIN"
+                    : "Seal this device"
                 : awaitingTotp
                   ? "Confirm MFA"
                   : activeMethod === "passkey"
@@ -546,18 +610,46 @@ export function UnlockScreen() {
                     : "Unlock"}
           </button>
 
-          {firstRun && password.length > 0 && strength.score < 2 ? (
+          {firstRun &&
+          activeMethod === "password" &&
+          password.length > 0 &&
+          strength.score < 2 ? (
             <p className="hint">
               Aim for a passphrase of four or more unrelated words. This one
               would not survive an offline attack on the encrypted file.
             </p>
+          ) : null}
+
+          {firstRun ? (
+            <button
+              type="button"
+              className="unlock__switch"
+              disabled={busy}
+              onClick={() => {
+                setError(null);
+                setBusy(true);
+                void continueAsGuest()
+                  .catch((caught) => {
+                    setError(
+                      caught instanceof Error
+                        ? caught.message
+                        : "Guest login failed.",
+                    );
+                  })
+                  .finally(() => setBusy(false));
+              }}
+            >
+              Continue as guest — no passkey or password
+            </button>
           ) : null}
         </div>
 
         <div className="unlock__foot">
           <p>
             {firstRun
-              ? "600,000 PBKDF2-SHA256 iterations, AES-256-GCM. Human items stay on this device. Host connectors stay on the Host."
+              ? activeMethod === "password"
+                ? "600,000 PBKDF2-SHA256 iterations, AES-256-GCM. Human items stay on this device. Host connectors stay on the Host."
+                : "AES-256-GCM. Human items stay on this device. Host connectors stay on the Host."
               : "The vault key lives in memory only. Locking or reloading discards it."}
           </p>
           {!firstRun ? (

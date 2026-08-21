@@ -90,6 +90,15 @@ export function IconSettings(props: IconProps) {
 
 /* —— Item kinds ————————————————————————————————————————————— */
 
+export function IconBell(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6.2 9.2a5.8 5.8 0 0 1 11.6 0c0 4.2 1.4 5.6 1.4 5.6H4.8s1.4-1.4 1.4-5.6Z" />
+      <path d="M10 18.4a2 2 0 0 0 4 0" />
+    </Svg>
+  );
+}
+
 export function IconLogin(props: IconProps) {
   return (
     <Svg {...props}>

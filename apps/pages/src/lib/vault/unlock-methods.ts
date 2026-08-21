@@ -1,4 +1,4 @@
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 /**
  * Additional vault unlock methods beyond the master password.
  *
@@ -433,7 +433,11 @@ export function assertKeepsPrimaryUnlock(
 
 async function createPasskeyUnlockCeremonyDefault(
   rpId: string = webauthnRpId(),
+  signal?: AbortSignal,
 ): Promise<PasskeyCeremony> {
+  if (signal?.aborted) {
+    throw new DOMException("The operation was aborted.", "AbortError");
+  }
   if (globalThis.PublicKeyCredential === undefined) {
     throw new Error("This browser cannot create a passkey.");
   }
@@ -442,7 +446,7 @@ async function createPasskeyUnlockCeremonyDefault(
   const userId = randomBytes(16);
   let credential: PublicKeyCredential | null;
   try {
-    credential = (await navigator.credentials.create({
+    credential = await navigator.credentials.create({
       publicKey: {
         challenge: overlapCast(randomBytes(32)),
         rp: { id: rpId, name: "OpenSesame" },
@@ -465,9 +469,15 @@ async function createPasskeyUnlockCeremonyDefault(
           prf: { eval: { first: prfSalt } },
         }),
       },
-    }));
+      // First-run seal uses the same cancel path as unlock: switching tabs
+      // must abort the platform prompt instead of leaving it hanging.
+      signal,
+    });
     credential = overlapCast(credential);
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw error;
+    }
     throw new Error(describeWebauthnError(error));
   }
   if (!credential) throw new Error("Passkey creation was cancelled.");
@@ -492,7 +502,7 @@ async function getPasskeyUnlockCeremonyDefault(
   const prfSalt = b64ToBytes(record.prfSaltB64);
   let credential: PublicKeyCredential | null;
   try {
-    credential = (await navigator.credentials.get({
+    credential = await navigator.credentials.get({
       publicKey: {
         challenge: overlapCast(randomBytes(32)),
         rpId,
@@ -511,7 +521,7 @@ async function getPasskeyUnlockCeremonyDefault(
       // Lets the UI cancel a pending platform prompt (e.g. switching to the
       // password/PIN tab) instead of being held hostage by it.
       signal,
-    }));
+    });
     credential = overlapCast(credential);
   } catch (error) {
     // A deliberate abort must stay distinguishable from a real ceremony
@@ -565,10 +575,11 @@ export function describeWebauthnError(error: BoundaryValue): string {
 
 export async function createPasskeyUnlockCeremony(
   rpId?: string,
+  signal?: AbortSignal,
 ): Promise<PasskeyCeremony> {
   return rpId === undefined
-    ? unlockMethodsSeams.createPasskeyUnlockCeremony()
-    : unlockMethodsSeams.createPasskeyUnlockCeremony(rpId);
+    ? unlockMethodsSeams.createPasskeyUnlockCeremony(undefined, signal)
+    : unlockMethodsSeams.createPasskeyUnlockCeremony(rpId, signal);
 }
 
 export async function getPasskeyUnlockCeremony(

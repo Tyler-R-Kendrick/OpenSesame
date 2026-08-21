@@ -1,21 +1,24 @@
 /**
  * Project switcher — swaps the top-level scope everything else lives in.
  *
- * Swapping reloads the app: the active project decides which sealed vault,
- * approved-site list and broker policy every module reads, and a reload is
- * the one way to guarantee nothing unlocked from the previous project
- * survives into the next one.
+ * Swapping locks the previous vault and rehydrates the next project's keys
+ * in this tab. A full reload would drop the in-memory Identity session
+ * (guest included) and force a reconnect; locking the vault is enough to
+ * keep the previous project's key from surviving into the next one.
  */
 
 import { useState, useSyncExternalStore } from "react";
+import { kvHydrate } from "../lib/kv.js";
 import {
   PERSONAL_PROJECT_ID,
   createProject,
   deleteProject,
+  projectScopedKeys,
   projectsState,
   setActiveProject,
   subscribeProjects,
 } from "../lib/projects.js";
+import { vaultStore } from "../lib/vault/store.js";
 import { IconCheck, IconFolder, IconPlus, IconTrash } from "./Icons.js";
 
 function ProjectSwitcherDefault() {
@@ -43,22 +46,25 @@ function ProjectSwitcherDefault() {
     }
     try {
       await setActiveProject(id);
+      await afterProjectChange(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
       return;
     }
-    window.location.reload();
+    close();
   }
 
   async function create(): Promise<void> {
     try {
+      const carryUnlock = vaultStore.isUnlocked();
       const project = await createProject(draftName);
       await setActiveProject(project.id);
+      await afterProjectChange(carryUnlock);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
       return;
     }
-    window.location.reload();
+    close();
   }
 
   async function remove(id: string): Promise<void> {
@@ -180,9 +186,23 @@ function ProjectSwitcherDefault() {
   );
 }
 
+async function afterProjectChangeDefault(carryUnlock: boolean): Promise<void> {
+  await kvHydrate(projectScopedKeys());
+  if (carryUnlock) {
+    await vaultStore.forkUnlockedIntoActiveScope();
+    return;
+  }
+  vaultStore.loadActiveProjectScope();
+}
+
 export const projectSwitcherSeams = {
   ProjectSwitcher: ProjectSwitcherDefault,
+  afterProjectChange: afterProjectChangeDefault,
 };
+
+export async function afterProjectChange(carryUnlock: boolean): Promise<void> {
+  return projectSwitcherSeams.afterProjectChange(carryUnlock);
+}
 
 export function ProjectSwitcher() {
   const Impl = projectSwitcherSeams.ProjectSwitcher;

@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,
   fireEvent,
@@ -5,7 +6,6 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -31,6 +31,8 @@ const proj = vi.hoisted(() => ({
   createProject: vi.fn(),
   deleteProject: vi.fn(),
   setActiveProject: vi.fn(),
+  afterProjectChange: vi.fn(),
+  unlocked: false,
 }));
 
 import { projectSeams } from "../lib/projects.js";
@@ -43,7 +45,13 @@ Object.assign(projectSeams, {
   setActiveProject: proj.setActiveProject,
 });
 
-import { ProjectSwitcher } from "./ProjectSwitcher.js";
+import { vaultStore } from "../lib/vault/store.js";
+vi.spyOn(vaultStore, "isUnlocked").mockImplementation(() => proj.unlocked);
+
+import { ProjectSwitcher, projectSwitcherSeams } from "./ProjectSwitcher.js";
+Object.assign(projectSwitcherSeams, {
+  afterProjectChange: proj.afterProjectChange,
+});
 
 function openMenu() {
   const toggle = document.querySelector(".project-switcher__button");
@@ -63,12 +71,18 @@ function menuItem(name: string): HTMLElement {
 describe("ProjectSwitcher", () => {
   beforeEach(() => {
     proj.state.activeId = "personal";
+    proj.unlocked = false;
     proj.createProject.mockReset();
     proj.deleteProject.mockReset();
     proj.setActiveProject.mockReset();
+    proj.afterProjectChange.mockReset();
+    proj.afterProjectChange.mockResolvedValue(undefined);
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   it("shows the active project and stays closed until asked", () => {
     render(<ProjectSwitcher />);
@@ -88,14 +102,19 @@ describe("ProjectSwitcher", () => {
     expect(screen.queryByText("Projects")).toBeNull();
   });
 
-  it("switching projects delegates to the store and reloads", async () => {
+  it("switching projects delegates to the store without reloading", async () => {
     proj.setActiveProject.mockResolvedValue(undefined);
+    const reload = vi.fn();
+    vi.stubGlobal("location", { ...window.location, reload });
     render(<ProjectSwitcher />);
     openMenu();
     fireEvent.click(screen.getByRole("button", { name: "Work" }));
     await waitFor(() =>
       expect(proj.setActiveProject).toHaveBeenCalledWith("work"),
     );
+    expect(proj.afterProjectChange).toHaveBeenCalledWith(false);
+    expect(reload).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 
   it("surfaces swap failures instead of reloading", async () => {
@@ -116,7 +135,9 @@ describe("ProjectSwitcher", () => {
     const second = render(<ProjectSwitcher />);
     openMenu();
     fireEvent.click(
-      overlapCast(second.container.querySelector(".project-switcher__backdrop")),
+      overlapCast(
+        second.container.querySelector(".project-switcher__backdrop"),
+      ),
     );
     expect(screen.queryByText("Projects")).toBeNull();
     expect(container).toBeTruthy();
@@ -134,16 +155,41 @@ describe("ProjectSwitcher", () => {
     openMenu();
 
     const submit = screen.getByRole("button", { name: "Create project" });
-    expect((overlapCast(submit)).disabled).toBe(true);
+    expect(overlapCast(submit).disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("New project name"), {
       target: { value: "Side quest" },
     });
-    expect((overlapCast(submit)).disabled).toBe(false);
+    expect(overlapCast(submit).disabled).toBe(false);
     fireEvent.click(submit);
     await waitFor(() =>
       expect(proj.createProject).toHaveBeenCalledWith("Side quest"),
     );
     expect(proj.setActiveProject).toHaveBeenCalledWith("side");
+    expect(proj.afterProjectChange).toHaveBeenCalledWith(false);
+  });
+
+  it("carries a guest unlock into a new project instead of reauthenticating", async () => {
+    proj.unlocked = true;
+    proj.createProject.mockResolvedValue({
+      id: "side",
+      name: "Side quest",
+      kind: "standard",
+      createdAt: "2025-01-03T00:00:00Z",
+    });
+    proj.setActiveProject.mockResolvedValue(undefined);
+    const reload = vi.fn();
+    vi.stubGlobal("location", { ...window.location, reload });
+    render(<ProjectSwitcher />);
+    openMenu();
+    fireEvent.change(screen.getByLabelText("New project name"), {
+      target: { value: "Side quest" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
+    await waitFor(() =>
+      expect(proj.afterProjectChange).toHaveBeenCalledWith(true),
+    );
+    expect(reload).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 
   it("reports create failures inline", async () => {

@@ -11,6 +11,8 @@ import {
   needsAttention,
   useConnectors,
 } from "../lib/connectors.js";
+import { beginSignIn, defaultUpstream } from "../lib/federation.js";
+import { claimGuestAuth } from "../lib/guest-auth.js";
 import { useConnect } from "../lib/identity.js";
 import { failureSentence } from "../lib/probe-failure.js";
 import { ConnectGitHistory } from "./ConnectGitHistory.js";
@@ -285,23 +287,64 @@ function PlaneCeremony({
   onClose: () => void;
 }) {
   const { connect, connecting, error } = useConnect();
+  const [guestBusy, setGuestBusy] = useState(false);
+  const [guestError, setGuestError] = useState<string | null>(null);
+  const upstream = defaultUpstream();
 
   return (
     <>
-      <div className="actions">
-        {kind === "identity" ? (
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={connecting}
-            aria-busy={connecting}
-            onClick={() => void connect()}
-          >
-            {connecting ? "Signing in…" : "Sign in"}
-          </button>
-        ) : null}
-      </div>
+      {kind === "identity" ? (
+        <>
+          <p className="hint">
+            Registered sign-in uses {upstream.accountKind}. Continuing as a
+            guest needs no passkey or password — you will be asked to claim this
+            session from the notifications bell.
+          </p>
+          <div className="actions">
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={connecting || guestBusy}
+              onClick={() => {
+                void beginSignIn(upstream, { returnTo: "/" });
+              }}
+            >
+              Sign in with {upstream.accountKind}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={connecting || guestBusy}
+              aria-busy={guestBusy}
+              onClick={() => {
+                setGuestBusy(true);
+                setGuestError(null);
+                void (async () => {
+                  try {
+                    await connect();
+                    await claimGuestAuth();
+                    onClose();
+                  } catch (caught) {
+                    setGuestError(
+                      caught instanceof Error
+                        ? caught.message
+                        : "Guest login failed.",
+                    );
+                  } finally {
+                    setGuestBusy(false);
+                  }
+                })();
+              }}
+            >
+              {guestBusy ? "Starting guest…" : "Continue as guest"}
+            </button>
+          </div>
+        </>
+      ) : null}
       {error ? <StatusNote message={{ tone: "warn", text: error }} /> : null}
+      {guestError ? (
+        <StatusNote message={{ tone: "warn", text: guestError }} />
+      ) : null}
       <p className="hint">
         Endpoints come from pairing this machine. To point at a plane someone
         else runs, open{" "}

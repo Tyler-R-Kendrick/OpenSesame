@@ -1,3 +1,4 @@
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   VaultCorruptError,
@@ -32,7 +33,6 @@ import {
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const PASSWORD = "correct horse battery staple";
 const PIN = "48291037";
@@ -174,23 +174,29 @@ describe("PRF extension results", () => {
     expect(prfExtensionSupported(undefined)).toBe(false);
     expect(prfExtensionSupported({})).toBe(false);
     expect(
-      prfExtensionSupported(overlapCast({
-        prf: { enabled: true },
-      })),
+      prfExtensionSupported(
+        overlapCast({
+          prf: { enabled: true },
+        }),
+      ),
     ).toBe(true);
     const first = overlapCast(randomBytes(32).buffer);
     expect(
-      prfExtensionSupported(overlapCast({
-        prf: { results: { first } },
-      })),
+      prfExtensionSupported(
+        overlapCast({
+          prf: { results: { first } },
+        }),
+      ),
     ).toBe(true);
 
     expect(readPrfFirst(undefined)).toBeNull();
     expect(readPrfFirst({})).toBeNull();
     expect(
-      readPrfFirst(overlapCast({
-        prf: { results: { first } },
-      })),
+      readPrfFirst(
+        overlapCast({
+          prf: { results: { first } },
+        }),
+      ),
     ).toBe(first);
   });
 });
@@ -346,8 +352,7 @@ describe("passkey ceremonies", () => {
     const prfOutput = overlapCast(randomBytes(32).buffer);
     stubCredentials({
       create: async (options) => {
-        const publicKey = (overlapCast(options))
-          .publicKey;
+        const publicKey = overlapCast(options).publicKey;
         expect(publicKey.rp.id).toBe("localhost");
         return {
           rawId: randomBytes(16).buffer,
@@ -361,6 +366,22 @@ describe("passkey ceremonies", () => {
     expect(result.prfOutput).toBe(prfOutput);
     expect(result.prfSalt).toHaveLength(16);
     expect(result.userId).toHaveLength(16);
+  });
+
+  it("forwards a deliberate create abort without wrapping it", async () => {
+    stubCredentials({
+      create: async (options) => {
+        expect(overlapCast(options).signal).toBeInstanceOf(AbortSignal);
+        throw new DOMException("The operation was aborted.", "AbortError");
+      },
+    });
+    const controller = new AbortController();
+    const failure = await createPasskeyUnlockCeremony(
+      undefined,
+      controller.signal,
+    ).catch((error: BoundaryValue) => error);
+    expect(failure).toBeInstanceOf(DOMException);
+    expect(overlapCast(failure).name).toBe("AbortError");
   });
 
   it("maps a rejected creation into actionable copy", async () => {
@@ -392,7 +413,7 @@ describe("passkey ceremonies", () => {
     let seenRpId: string | undefined;
     stubCredentials({
       get: async (options) => {
-        seenRpId = (overlapCast(options)).publicKey.rpId;
+        seenRpId = overlapCast(options).publicKey.rpId;
         return {
           getClientExtensionResults: () => ({
             prf: { results: { first: prfOutput } },
@@ -414,7 +435,7 @@ describe("passkey ceremonies", () => {
     let seenSignal: AbortSignal | undefined;
     stubCredentials({
       get: async (options) => {
-        seenSignal = (overlapCast(options)).signal;
+        seenSignal = overlapCast(options).signal;
         throw new DOMException("The operation was aborted.", "AbortError");
       },
     });
@@ -433,7 +454,7 @@ describe("passkey ceremonies", () => {
     expect(seenSignal).toBe(controller.signal);
     // Deliberate cancels must stay distinguishable from ceremony failures.
     expect(failure).toBeInstanceOf(DOMException);
-    expect((overlapCast(failure)).name).toBe("AbortError");
+    expect(overlapCast(failure).name).toBe("AbortError");
   });
 
   it("maps unlock ceremony failures the same way", async () => {

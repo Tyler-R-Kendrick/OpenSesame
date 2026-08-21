@@ -24,6 +24,7 @@ import {
   IconTrash,
   IconVault,
 } from "./Icons.js";
+import { NotificationsBar } from "./NotificationsBar.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
 
 const SECTIONS = [
@@ -222,6 +223,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
           <AccountSwitcher />
           <ProjectSwitcher />
           <span className="topbar__spacer" />
+          <NotificationsBar />
           <ConnectivityBar />
           <span className="topbar__rule" aria-hidden="true" />
           <button type="button" className="rail__lock" onClick={store.lock}>
