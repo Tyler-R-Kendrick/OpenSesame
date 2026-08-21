@@ -1,4 +1,11 @@
-import { type JsonObject, overlapCast, type BoundaryValue, isString, isNumber, isTypeofObject } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  overlapCast,
+  type BoundaryValue,
+  isString,
+  isNumber,
+  isTypeofObject,
+} from "@opensesame/os-domain";
 /**
  * TypeScript façade mirroring `crates/client-core` sync shapes.
  * Full AEAD: prefer Rust wasm (`wasm-bindgen` feature) when loaded; OPFS stores ciphertext only.
@@ -52,7 +59,10 @@ export function b64ToBytes(b64: string): Uint8Array {
  * treated as production.
  */
 function isDevOrTestEnv(): boolean {
-  const g = overlapCast(globalThis);
+  const g = globalThis as typeof globalThis & {
+    __OPENSESAME_ALLOW_DEV_SEAL__?: boolean;
+    process?: { env?: Record<string, string | undefined> };
+  };
   if (g.__OPENSESAME_ALLOW_DEV_SEAL__ === true) return true;
   const nodeEnv = g.process?.env?.NODE_ENV;
   return nodeEnv === "development" || nodeEnv === "test";
@@ -123,7 +133,7 @@ export function parseSealedStore(json: string): SealedStore | null {
   } catch {
     return null;
   }
-  if (!isTypeofObject(parsed) || parsed === null || Array.isArray(parsed))
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
     return null;
   const row = overlapCast(parsed);
   // Unknown keys are where a plaintext document would hide, so there are none.
@@ -153,10 +163,7 @@ export function parseSealedStore(json: string): SealedStore | null {
     const id = safeId(blob.id, MAX_BLOB_ID_LENGTH);
     const blobEpoch = epoch(blob.epoch);
     if (id === null || blobEpoch === null) return null;
-    if (
-      !isString(blob.ciphertextB64) ||
-      !BASE64.test(blob.ciphertextB64)
-    ) {
+    if (!isString(blob.ciphertextB64) || !BASE64.test(blob.ciphertextB64)) {
       return null;
     }
     blobs.push({ id, epoch: blobEpoch, ciphertextB64: blob.ciphertextB64 });
