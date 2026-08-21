@@ -5,26 +5,6 @@ import type {
   IdentityEvidence,
   TrustSession,
 } from "@opensesame/os-domain";
-const proofing = [
-  "none",
-  "self_attested",
-  "verified_account",
-  "remote_unattended",
-  "remote_attended",
-  "in_person",
-  "enterprise_asserted",
-] as const;
-const device = ["none", "software", "hardware"] as const;
-const protection = [
-  "unknown",
-  "software_exportable",
-  "software_non_exportable",
-  "tee_backed",
-  "strongbox_backed",
-  "external_hardware",
-] as const;
-const rank = <T>(values: readonly T[], value: T | undefined) =>
-  value === undefined ? -1 : values.indexOf(value);
 export interface AssuranceDecision {
   allowed: boolean;
   satisfied: string[];
@@ -41,7 +21,7 @@ export function evaluateAssurance(input: {
   now: Date;
 }): AssuranceDecision {
   const r = input.requirement;
-  const selected = input.evidence.filter(
+  const eligible = input.evidence.filter(
     (e) =>
       e.state === "active" &&
       (!e.expiresAt || e.expiresAt > input.now) &&
@@ -51,9 +31,17 @@ export function evaluateAssurance(input: {
         input.now.getTime() - e.verifiedAt.getTime() <=
           r.maximumEvidenceAgeSeconds * 1000),
   );
+  const selected = eligible.filter((e) =>
+    r.minimumIdentityProofing?.length
+      ? r.minimumIdentityProofing.includes(
+          e.assurance.identityProofing ?? "none",
+        )
+      : true,
+  );
+  const evidence = selected.length > 0 ? selected : eligible;
+  const vector = evidence[0]?.assurance;
   const auth =
     input.authentication ?? input.trustSession?.assurance.authentication;
-  const vector = selected[0]?.assurance;
   const missing: string[] = [];
   const satisfied: string[] = [];
   if (!vector) missing.push("identity_evidence");
@@ -61,9 +49,7 @@ export function evaluateAssurance(input: {
   if (
     r.minimumIdentityProofing?.length &&
     (!vector?.identityProofing ||
-      !r.minimumIdentityProofing.some(
-        (x) => rank(proofing, vector.identityProofing) >= rank(proofing, x),
-      ))
+      !r.minimumIdentityProofing.includes(vector.identityProofing))
   )
     missing.push("identity_proofing");
   else if (r.minimumIdentityProofing?.length)
@@ -80,19 +66,13 @@ export function evaluateAssurance(input: {
     satisfied.push("verifier_name_binding");
   if (
     r.minimumDeviceBinding?.length &&
-    (!auth ||
-      !r.minimumDeviceBinding.some(
-        (x) => rank(device, auth.deviceBinding) >= rank(device, x),
-      ))
+    (!auth || !r.minimumDeviceBinding.includes(auth.deviceBinding))
   )
     missing.push("device_binding");
   else if (r.minimumDeviceBinding?.length) satisfied.push("device_binding");
   if (
     r.minimumKeyProtection?.length &&
-    (!auth ||
-      !r.minimumKeyProtection.some(
-        (x) => rank(protection, auth.keyProtection) >= rank(protection, x),
-      ))
+    (!auth || !r.minimumKeyProtection.includes(auth.keyProtection))
   )
     missing.push("key_protection");
   else if (r.minimumKeyProtection?.length) satisfied.push("key_protection");
@@ -116,7 +96,7 @@ export function evaluateAssurance(input: {
     allowed,
     satisfied,
     missing,
-    evidence: selected.map((e) => e.id),
+    evidence: evidence.map((e) => e.id),
     reasonCodes: allowed
       ? ["assurance_satisfied"]
       : ["insufficient_user_authentication", ...missing],
