@@ -1,7 +1,9 @@
 //! Operator TaskBus / NATS configuration routes.
 //!
 //! Pages configures Host; Host reaches NATS (Tailscale or loopback). Browser
-//! never opens `nats://`.
+//! never opens `nats://`. The browser never holds a deployment operator
+//! token — a Host session (local mint or Identity-approved owner/admin)
+//! is the Pages credential, matching `taskBusOpenApi` sessionBearer.
 
 use axum::{
     extract::State,
@@ -14,11 +16,22 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::app_state::AppState;
-use crate::middleware::auth::require_operator;
+use crate::middleware::auth::{resolve_caller, Caller};
 use crate::taskbus_config::{self, TaskBusConfigView, TaskBusSource};
 
-fn require_configurator(st: &AppState, headers: &axum::http::HeaderMap) -> Result<(), Response> {
-    require_operator(st, headers)
+fn require_configurator(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, Response> {
+    let who = resolve_caller(st, headers)?;
+    if !who.can_configure_integrations() {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "forbidden",
+                "hint": "owner or admin role required to configure TaskBus"
+            })),
+        )
+            .into_response());
+    }
+    Ok(who)
 }
 
 fn view(
@@ -249,16 +262,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn tenant_sessions_cannot_read_or_write_host_taskbus() {
+    async fn member_sessions_cannot_read_or_write_host_taskbus() {
         let _guard = env_lock();
         let state = memory_state().await;
         let headers = test_session_headers(
             &state,
             "prn_member",
             state.connection_organization,
-            opensesame_domain::OrganizationRole::Owner,
+            opensesame_domain::OrganizationRole::Member,
         );
-        let (status, _) = call(
+        let (status, body) = call(
             &state,
             "GET",
             "/api/v1/operator/taskbus",
@@ -266,8 +279,8 @@ mod tests {
             None,
         )
         .await;
-        assert_eq!(status, StatusCode::UNAUTHORIZED);
-        let (status, _) = call(
+        assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+        let (status, body) = call(
             &state,
             "PUT",
             "/api/v1/operator/taskbus",
@@ -275,7 +288,39 @@ mod tests {
             Some(json!({"backend": "memory"})),
         )
         .await;
-        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    }
+
+    #[tokio::test]
+    async fn owner_session_can_read_and_write_host_taskbus() {
+        let _guard = env_lock();
+        let state = memory_state().await;
+        let headers = test_session_headers(
+            &state,
+            "prn_owner",
+            state.connection_organization,
+            opensesame_domain::OrganizationRole::Owner,
+        );
+        let (status, body) = call(
+            &state,
+            "GET",
+            "/api/v1/operator/taskbus",
+            Some(headers.clone()),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["taskbus"]["backend"], "memory");
+        let (status, body) = call(
+            &state,
+            "PUT",
+            "/api/v1/operator/taskbus",
+            Some(headers),
+            Some(json!({"backend": "memory"})),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["applied"], true);
     }
 
     #[tokio::test]

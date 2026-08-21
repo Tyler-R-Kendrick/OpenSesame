@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { StatusNote } from "../../components/StatusNote.js";
 import type { CapabilityConnectorBinding } from "../../lib/capabilities.js";
 import type { Connection } from "../../lib/connections.js";
 import {
@@ -163,11 +164,10 @@ export function GithubHistoryRemotePicker({
           Bound remote: <code>{binding.remote}</code>
         </p>
       ) : null}
-      {error ? (
-        <p className="note note--err" role="alert">
-          {error}
-        </p>
-      ) : null}
+      <StatusNote
+        message={error ? { tone: "err", text: error } : null}
+        onDismiss={() => setError(null)}
+      />
     </div>
   );
 }

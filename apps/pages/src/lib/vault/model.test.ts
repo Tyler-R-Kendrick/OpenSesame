@@ -41,7 +41,11 @@ describe("createItem", () => {
     const note = createItem("note");
     expect(note.kind).toBe("note");
 
-    for (const item of [login, passkey, card, secret, note]) {
+    const cert = createItem("certificate");
+    if (cert.kind !== "certificate") throw new Error("expected certificate");
+    expect(cert.commonName).toBe("localhost");
+
+    for (const item of [login, passkey, card, secret, note, cert]) {
       expect(item.id).toBeTruthy();
       expect(item.deletedAt).toBeNull();
       expect(item.favorite).toBe(false);
@@ -99,6 +103,14 @@ describe("itemSubtitle", () => {
     expect(itemSubtitle(card)).toBe("Visa");
     card.number = "4111111111111111";
     expect(itemSubtitle(card)).toBe("•••• 1111");
+  });
+
+  it("names a certificate by CN and expiry", () => {
+    const cert = createItem("certificate");
+    if (cert.kind !== "certificate") throw new Error("expected certificate");
+    expect(itemSubtitle(cert)).toBe("localhost");
+    cert.notAfter = "2026-12-01 00:00:00.0 +00:00:00";
+    expect(itemSubtitle(cert)).toContain("until 2026-12-01");
   });
 
   it("shows a secret's connection ref, else its capability count", () => {
@@ -245,6 +257,7 @@ describe("kind labels", () => {
       "card",
       "secret",
       "note",
+      "certificate",
     ] as const) {
       expect(KIND_LABEL[kind]).toBeTruthy();
       expect(KIND_PLURAL[kind]).toBeTruthy();

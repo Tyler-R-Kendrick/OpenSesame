@@ -289,10 +289,24 @@ describe("classifyMachineConnector", () => {
 });
 
 describe("capability connectors", () => {
-  it("flags a git connector that Host has not authorized yet", () => {
+  it("treats unauthorized git as optional and off, not as an error", () => {
     const status = classifyHistoryConnector(settings());
-    expect(status.tone).toBe("attn");
-    expect(status.detail).toBe("GitHub not authorized");
+    expect(status.tone).toBe("off");
+    expect(status.required).toBe(false);
+    expect(status.detail).toBe("Not connected");
+  });
+
+  it("stays off until a repository is bound, even after GitHub is authorized", () => {
+    const status = classifyHistoryConnector(
+      settings({
+        capabilityConnectors: {
+          encryption: { providerId: "webcrypto" },
+          history: { providerId: "github", connectionId: "conn_1" },
+        },
+      }),
+    );
+    expect(status.tone).toBe("off");
+    expect(status.detail).toBe("No repository selected");
   });
 
   it("names the remote once the connector is authorized", () => {
@@ -309,6 +323,7 @@ describe("capability connectors", () => {
       }),
     );
     expect(status.tone).toBe("live");
+    expect(status.required).toBe(false);
     expect(status.detail).toBe("GitHub · owner/store");
   });
 
@@ -457,8 +472,9 @@ describe("buildConnectors", () => {
       snapshot({ host: target({ health: "unreachable" }) }),
       settings(),
     );
-    // Host down, Identity sessionless, machine unpaired, history unauthorized
-    // — four required; the built-in key vault is not one of them.
-    expect(needsAttention(built)).toBe(4);
+    // Host down, Identity sessionless, machine unpaired — three required.
+    // Git history is optional persistence; the built-in key vault is not
+    // required either.
+    expect(needsAttention(built)).toBe(3);
   });
 });

@@ -1,13 +1,16 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { type ReactNode, useMemo } from "react";
 import { NavLink, useLocation, useSearchParams } from "react-router";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
-import { BackupRecoverabilityBanner } from "./BackupRecoverabilityBanner.js";
+import { AccountSwitcher } from "./AccountSwitcher.js";
 import { ConnectivityBar } from "./ConnectivityBar.js";
+import { Crumbs } from "./Crumbs.js";
 import {
   IconAgent,
   IconAuthority,
   IconCard,
+  IconCert,
   IconConnection,
   IconFolder,
   IconLogin,
@@ -22,7 +25,6 @@ import {
   IconVault,
 } from "./Icons.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const SECTIONS = [
   { to: "/vault", label: "Vault", Icon: IconVault },
@@ -43,6 +45,7 @@ const KIND_FILTERS: Array<{
   { id: "card", label: "Cards", Icon: IconCard },
   { id: "secret", label: "Agent secrets", Icon: IconSecret },
   { id: "note", label: "Secure notes", Icon: IconNote },
+  { id: "certificate", label: "Certificates", Icon: IconCert },
 ];
 
 function VaultFilters() {
@@ -179,6 +182,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
           </div>
         </div>
 
+        <AccountSwitcher />
         <ProjectSwitcher />
 
         <div className="rail__scroll">
@@ -215,6 +219,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
           <span className="mark" aria-hidden="true">
             <IconVault size={17} />
           </span>
+          <AccountSwitcher />
           <ProjectSwitcher />
           <span className="topbar__spacer" />
           <ConnectivityBar />
@@ -224,7 +229,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
           </button>
         </header>
 
-        <BackupRecoverabilityBanner />
+        <Crumbs />
 
         {children}
 

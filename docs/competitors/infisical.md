@@ -62,6 +62,8 @@ not env injection as the primary agent API.
 | Agent Proxy | Host authorize → invoke; receipts for audit |
 | Machine identity | Device / workload auth + connection grants |
 | Human password UI | Pages vault habits (Bitwarden craft bar), not Infisical |
+| Private CA / issue cert | Host `/api/v1/certs` · `opensesame cert issue` · Pages certificate vault item |
+| Certificate Manager / private CA | Host `/api/v1/certs` + `opensesame cert` + Pages certificate items (dev TLS) |
 
 Related: [PRODUCT.md](../../PRODUCT.md), [REUSE.md](../../REUSE.md) (study only),
 catalog provider `infisical` in Host connector catalog.

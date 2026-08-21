@@ -1,6 +1,12 @@
 /** Vault item model. Everything here lives inside the sealed body — never in plaintext storage. */
 
-export type ItemKind = "login" | "passkey" | "card" | "secret" | "note";
+export type ItemKind =
+  | "login"
+  | "passkey"
+  | "card"
+  | "secret"
+  | "note"
+  | "certificate";
 
 export type UriMatch = "domain" | "host" | "exact" | "never";
 
@@ -88,12 +94,26 @@ export type NoteItem = BaseItem & {
   kind: "note";
 };
 
+export type CertificateItem = BaseItem & {
+  kind: "certificate";
+  commonName: string;
+  dnsNames: string;
+  ipAddrs: string;
+  ttlHours: string;
+  certificatePem: string;
+  privateKeyPem: string;
+  caPem: string;
+  serial: string;
+  notAfter: string;
+};
+
 export type VaultItem =
   | LoginItem
   | PasskeyItem
   | CardItem
   | SecretItem
-  | NoteItem;
+  | NoteItem
+  | CertificateItem;
 
 export type Folder = {
   id: string;
@@ -119,6 +139,7 @@ export const KIND_LABEL = {
   card: "Card",
   secret: "Agent secret",
   note: "Secure note",
+  certificate: "Certificate",
 };
 
 export const KIND_PLURAL = {
@@ -127,6 +148,7 @@ export const KIND_PLURAL = {
   card: "Cards",
   secret: "Agent secrets",
   note: "Secure notes",
+  certificate: "Certificates",
 };
 
 export function newId(): string {
@@ -166,6 +188,7 @@ export function createItem(kind: "passkey", name?: string): PasskeyItem;
 export function createItem(kind: "card", name?: string): CardItem;
 export function createItem(kind: "secret", name?: string): SecretItem;
 export function createItem(kind: "note", name?: string): NoteItem;
+export function createItem(kind: "certificate", name?: string): CertificateItem;
 export function createItem(kind: ItemKind, name?: string): VaultItem;
 export function createItem(kind: ItemKind, name = ""): VaultItem {
   const b = base(kind, name);
@@ -213,6 +236,20 @@ export function createItem(kind: ItemKind, name = ""): VaultItem {
       };
     case "note":
       return { ...b, kind: "note" };
+    case "certificate":
+      return {
+        ...b,
+        kind: "certificate",
+        commonName: name || "localhost",
+        dnsNames: "localhost",
+        ipAddrs: "127.0.0.1",
+        ttlHours: "24",
+        certificatePem: "",
+        privateKeyPem: "",
+        caPem: "",
+        serial: "",
+        notAfter: "",
+      };
   }
 }
 
@@ -237,6 +274,10 @@ export function itemSubtitle(item: VaultItem): string {
       }
       return "Empty note";
     }
+    case "certificate":
+      return item.notAfter
+        ? `${item.commonName} · until ${item.notAfter.slice(0, 10)}`
+        : item.commonName || "Dev certificate";
   }
 }
 
@@ -282,6 +323,9 @@ export function searchMatches(item: VaultItem, query: string): boolean {
   if (item.kind === "card") haystack.push(item.brand, item.cardholder);
   if (item.kind === "secret") {
     haystack.push(item.connectionRef, ...item.grantees);
+  }
+  if (item.kind === "certificate") {
+    haystack.push(item.commonName, item.dnsNames, item.serial);
   }
   for (const field of item.fields) {
     if (!field.hidden) haystack.push(field.name, field.value);

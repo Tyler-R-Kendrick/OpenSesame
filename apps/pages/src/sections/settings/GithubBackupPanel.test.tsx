@@ -164,10 +164,10 @@ describe("GithubBackupPanel", () => {
     expect(getBackupStatus).not.toHaveBeenCalled();
   });
 
-  it("warns when no backup target is configured", async () => {
+  it("treats a missing backup target as optional, not as an error", async () => {
     render(<GithubBackupPanel />);
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toMatch(/No GitHub backup target/);
+    expect(await screen.findByText(/No GitHub backup yet/)).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("shows the healthy target summary with commit and environment branch", async () => {
@@ -602,7 +602,7 @@ describe("GithubBackupPanel edge branches", () => {
     // Both rejection paths settle; the panel stays usable.
     await waitFor(() => expect(listGithubInstallations).toHaveBeenCalled());
     expect(
-      screen.getByRole("heading", { name: /GitHub recoverability/ }),
+      screen.getByRole("heading", { name: /GitHub persistence/ }),
     ).toBeTruthy();
   });
 

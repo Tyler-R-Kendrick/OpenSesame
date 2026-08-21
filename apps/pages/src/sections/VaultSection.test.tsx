@@ -97,7 +97,7 @@ describe("VaultSection", () => {
     ).toBe("/vault/new/login");
     expect(
       screen.getByRole("link", { name: /Import/i }).getAttribute("href"),
-    ).toBe("/settings#import");
+    ).toBe("/settings/data#import");
   });
 
   it("lists items with names and count", () => {

@@ -57,7 +57,7 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
     id: "history",
     title: "History & persistence",
     summary:
-      "Git-backed history for encrypted secrets. GitHub is the default remote connector; authorize it to push and pull ciphertext without revealing plaintext.",
+      "Optional git persistence for encrypted secrets. The vault already lives on this device; connect GitHub to push and pull ciphertext without revealing plaintext.",
     connectorIds: ["github", "password-store", "gitlab"],
     requiresAuth: (providerId) =>
       providerId === "github" || providerId === "gitlab",
@@ -103,10 +103,7 @@ export function normalizeCapabilityConnectors(
         ? incoming.providerId
         : defaults[def.id].providerId;
     const next: CapabilityConnectorBinding = { providerId };
-    if (
-      isString(incoming.connectionId) &&
-      incoming.connectionId.trim()
-    ) {
+    if (isString(incoming.connectionId) && incoming.connectionId.trim()) {
       next.connectionId = incoming.connectionId.trim();
     }
     if (isString(incoming.remote) && incoming.remote.trim()) {

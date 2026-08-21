@@ -237,8 +237,9 @@ function ConnectThisMachineDefault({
   const savedDaemon = loadSettings().daemonApi.trim();
   const fills = [
     savedDaemon && savedDaemon !== manualUrl ? savedDaemon : null,
-    pageIsLoopback() && manualUrl !== shippedDaemonApi
-      ? shippedDaemonApi
+    settingsSeams.pageIsLoopback() &&
+    manualUrl !== settingsSeams.shippedDaemonApi
+      ? settingsSeams.shippedDaemonApi
       : null,
     clipboardUrl && clipboardUrl !== manualUrl ? clipboardUrl : null,
   ].filter((value): value is string => value !== null);
@@ -464,7 +465,7 @@ function PagesCannotHostNoteDefault({
             <p>
               Configured Host: <code>{status.hostBase || "none"}</code> (
               {hostStatusLabel(status.host).toLowerCase()}).{" "}
-              <Link to="/settings#connectivity">Change it in Settings</Link>.
+              <Link to="/settings/connectivity">Change it in Settings</Link>.
             </p>
           </div>
         </output>

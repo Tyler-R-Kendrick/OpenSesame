@@ -101,6 +101,81 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           },
         },
       },
+      "/v1/organizations/tenants/{slug}": {
+        get: {
+          summary:
+            "Public tenant discovery: display name and SSO/SAML login methods",
+          parameters: [
+            {
+              name: "slug",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Tenant auth methods",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/OrganizationTenant" },
+                },
+              },
+            },
+            "404": { description: "Tenant not found" },
+          },
+        },
+      },
+      "/v1/organizations/tenants/{slug}/join": {
+        post: {
+          summary:
+            "Join a tenant after SSO/SAML (OIDC-brokered) by presenting an id_token",
+          description:
+            "Provisional principals may join. SAML is an OIDC broker issuer (ADR 0016).",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          parameters: [
+            {
+              name: "slug",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/JoinOrganizationTenant",
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Already a member",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Organization" },
+                },
+              },
+            },
+            "201": {
+              description: "Joined as member",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Organization" },
+                },
+              },
+            },
+            "400": { description: "Invalid join body" },
+            "401": { description: "Authentication or assertion required" },
+            "404": { description: "Tenant not found" },
+            "409": { description: "Requested auth method is not configured" },
+            "502": { description: "Org issuer discovery failed" },
+          },
+        },
+      },
       "/v1/organizations/{id}": {
         get: {
           summary:
@@ -124,6 +199,40 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
               },
             },
             "401": { description: "Unauthorized" },
+            "404": { description: "Organization or membership not found" },
+          },
+        },
+        patch: {
+          summary: "Update organization display name or SSO/SAML issuers",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/UpdateOrganization" },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Organization updated",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Organization" },
+                },
+              },
+            },
+            "400": { description: "Invalid organization body" },
+            "401": { description: "Authentication required" },
+            "403": { description: "Owner required" },
             "404": { description: "Organization or membership not found" },
           },
         },
@@ -891,6 +1000,50 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
               pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$",
             },
             displayName: { type: "string", minLength: 1, maxLength: 128 },
+            ssoIssuer: { type: "string", format: "uri" },
+            samlIssuer: { type: "string", format: "uri" },
+          },
+        },
+        UpdateOrganization: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            displayName: { type: "string", minLength: 1, maxLength: 128 },
+            ssoIssuer: { type: ["string", "null"], format: "uri" },
+            samlIssuer: { type: ["string", "null"], format: "uri" },
+          },
+        },
+        OrganizationAuthMethod: {
+          type: "object",
+          additionalProperties: false,
+          required: ["kind", "label", "issuer"],
+          properties: {
+            kind: { type: "string", enum: ["sso", "saml"] },
+            label: { type: "string" },
+            issuer: { type: "string", format: "uri" },
+          },
+        },
+        OrganizationTenant: {
+          type: "object",
+          additionalProperties: false,
+          required: ["slug", "displayName", "state", "authMethods"],
+          properties: {
+            slug: { type: "string" },
+            displayName: { type: "string" },
+            state: { $ref: "#/components/schemas/OrganizationState" },
+            authMethods: {
+              type: "array",
+              items: { $ref: "#/components/schemas/OrganizationAuthMethod" },
+            },
+          },
+        },
+        JoinOrganizationTenant: {
+          type: "object",
+          additionalProperties: false,
+          required: ["method", "idToken"],
+          properties: {
+            method: { type: "string", enum: ["sso", "saml"] },
+            idToken: { type: "string" },
           },
         },
         Organization: {
@@ -915,6 +1068,8 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
             createdBy: { type: "string" },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
+            ssoIssuer: { type: "string", format: "uri" },
+            samlIssuer: { type: "string", format: "uri" },
           },
         },
         OrganizationMembership: {

@@ -1,11 +1,11 @@
 /**
  * Core connector status — what the connectivity bar shows.
  *
- * Five things have to be true before OpenSesame can authorize anything: the
- * Host and Identity planes answer, this machine's daemon is paired, encrypted
- * history has a git remote, and a key vault is bound. Settings used to state
- * all five as endpoint forms; they are states, so they read as glyphs and are
- * repaired by a ceremony instead.
+ * Host, Identity, and this machine have to answer before OpenSesame can
+ * authorize anything. Git history is optional persistence on top of the
+ * in-browser vault; the key vault defaults to WebCrypto on this device.
+ * Settings used to state all five as endpoint forms; they are states, so they
+ * read as glyphs and are repaired by a ceremony instead.
  *
  * Nothing here probes. Reachability arrives from the connectivity monitor,
  * which owns the schedule for the whole tab; history and keys are derived from
@@ -244,12 +244,27 @@ function classifyCapability(
 export function classifyHistoryConnector(
   settings: PagesSettings,
 ): ConnectorStatus {
-  return {
+  const binding = settings.capabilityConnectors?.history ?? {
+    providerId: "github",
+  };
+  const shell = {
     id: "history",
     name: "Git history",
-    required: true,
-    ...classifyCapability("history", settings.capabilityConnectors.history),
+    // The vault already lives on this device. Git is optional persistence,
+    // so a missing remote is a connectable off state, not an amber error.
+    required: false,
     ...UNPROBED,
+  } as const;
+  const def = capabilityDef("history");
+  if (def.requiresAuth(binding.providerId) && !binding.connectionId) {
+    return { ...shell, tone: "off", detail: "Not connected" };
+  }
+  if (def.requiresAuth(binding.providerId) && !binding.remote) {
+    return { ...shell, tone: "off", detail: "No repository selected" };
+  }
+  return {
+    ...shell,
+    ...classifyCapability("history", binding),
   };
 }
 
@@ -264,7 +279,7 @@ export function classifyKeysConnector(
     required: false,
     ...classifyCapability(
       "encryption",
-      settings.capabilityConnectors.encryption,
+      settings.capabilityConnectors?.encryption ?? { providerId: "webcrypto" },
     ),
     ...UNPROBED,
   };

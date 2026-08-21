@@ -1,7 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,8 +17,10 @@ const vault = vi.hoisted(() => {
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {useVault: () => ({ items: vault.items, folders: vault.folders }),
-  useVaultStore: () => ({ lock: vault.lock })});
+Object.assign(vaultHooksSeams, {
+  useVault: () => ({ items: vault.items, folders: vault.folders }),
+  useVaultStore: () => ({ lock: vault.lock }),
+});
 
 import { connectivityBarSeams } from "./ConnectivityBar.js";
 const originalConnectivityBarSeams = { ...connectivityBarSeams };
@@ -38,10 +39,14 @@ Object.assign(projectSwitcherSeams, {
   ProjectSwitcher: () => <span data-testid="project-switcher" />,
 });
 
-import { backupBannerSeams } from "./BackupRecoverabilityBanner.js";
-const originalBackupBannerSeams = { ...backupBannerSeams };
-Object.assign(backupBannerSeams, {
-  BackupRecoverabilityBanner: () => <div data-testid="backup-banner" />,
+import { accountSwitcherSeams } from "./AccountSwitcher.js";
+Object.assign(accountSwitcherSeams, {
+  AccountSwitcher: () => <span data-testid="account-switcher" />,
+});
+
+import { crumbsSeams } from "./Crumbs.js";
+Object.assign(crumbsSeams, {
+  Crumbs: () => <nav data-testid="crumbs" aria-label="Breadcrumb" />,
 });
 
 import { AppShell } from "./AppShell.js";
@@ -105,9 +110,10 @@ describe("AppShell", () => {
     expect(screen.getAllByText("Vault").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getAllByTestId("project-switcher").length).toBe(2);
+    expect(screen.getAllByTestId("account-switcher").length).toBe(2);
     // One bar, in the top bar; the rail no longer carries a status line.
     expect(screen.getAllByTestId("connectivity-bar").length).toBe(1);
-    expect(screen.getByTestId("backup-banner")).toBeTruthy();
+    expect(screen.queryByTestId("backup-banner")).toBeNull();
   });
 
   it("counts live items, favourites, trash, and kinds in the vault filters", () => {

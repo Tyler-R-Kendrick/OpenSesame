@@ -488,9 +488,18 @@ input[type="radio"] {
   border-color: color-mix(in srgb, var(--warn) 45%, var(--line));
 }
 
+.note > span {
+  flex: 1;
+  min-width: 0;
+}
+
 .note svg {
   flex: none;
   margin-top: 0.1rem;
+}
+
+.note__dismiss {
+  margin: -0.2rem -0.3rem -0.2rem auto;
 }
 
 .qr {
@@ -807,6 +816,50 @@ input[type="radio"] {
 
 .topbar__spacer {
   margin-left: auto;
+}
+
+.crumbs {
+  flex: none;
+  padding: 0.4rem 1rem 0;
+}
+
+.crumbs__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+}
+
+.crumbs__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.crumbs__sep {
+  flex: none;
+  opacity: 0.55;
+}
+
+.crumbs a {
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.crumbs a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.crumbs__here {
+  color: var(--ink);
+  font-weight: 600;
 }
 
 .topbar__rule {
@@ -1397,6 +1450,210 @@ input[type="radio"] {
   color: var(--err);
 }
 
+/* ——— Account switcher ————————————————————————————————————— */
+
+.account-switcher {
+  position: relative;
+  padding: 0 0.6rem 0.25rem;
+}
+
+.topbar .account-switcher {
+  padding: 0;
+}
+
+.account-switcher__button {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--rail-line);
+  border-radius: 8px;
+  background: var(--rail-2);
+  color: var(--rail-fg);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.topbar .account-switcher__button {
+  width: auto;
+  max-width: 12rem;
+}
+
+.account-switcher__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.account-switcher__caret {
+  font-size: 0.625rem;
+  opacity: 0.7;
+}
+
+.account-switcher__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.account-switcher__menu {
+  position: absolute;
+  z-index: 41;
+  top: calc(100% + 4px);
+  left: 0.6rem;
+  right: 0.6rem;
+  min-width: 13rem;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 12px 32px rgb(6 16 32 / 0.22);
+}
+
+.topbar .account-switcher__menu {
+  left: 0;
+  right: auto;
+  min-width: 16rem;
+}
+
+.account-switcher__label {
+  margin: 0 0 0.3rem;
+  padding: 0 0.3rem;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.account-switcher__item,
+.account-switcher__add {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.45rem;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-switcher__item:hover,
+.account-switcher__add:hover {
+  background: var(--accent-wash);
+}
+
+.account-switcher__item.is-active {
+  font-weight: 650;
+  color: var(--accent);
+}
+
+.account-switcher__item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-switcher__add {
+  margin-top: 0.35rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--line);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.account-switcher__new {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--line);
+}
+
+.account-switcher__new input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.account-switcher__new button,
+.account-switcher__methods button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.account-switcher__new button:disabled,
+.account-switcher__methods button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.account-switcher__tenant {
+  margin-top: 0.45rem;
+  padding: 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.account-switcher__tenant-name {
+  margin: 0 0 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.account-switcher__methods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.account-switcher__hint,
+.account-switcher__error {
+  margin: 0.35rem 0 0;
+  padding: 0 0.3rem;
+  font-size: 0.75rem;
+}
+
+.account-switcher__hint {
+  color: var(--ink-2);
+}
+
+.account-switcher__error {
+  color: var(--err);
+}
+
 /* ——— Field shell ————————————————————————————————————————
    One control row for every text input outside the vault editor: a leading
    glyph naming what the value is for, the input, and a tail holding the state
@@ -1683,15 +1940,11 @@ input[type="radio"] {
 }
 
 .sheet {
-  /* <dialog open> carries user-agent box styles that all have to go: `margin:
-     auto` and `inset-inline-start: 0` would centre it, and `height:
-     fit-content` would collapse it. Setting `inset` in one shorthand is what
-     actually beats the inline-start rule. */
   position: absolute;
   inset: 0 0 0 auto;
   z-index: 1;
   width: min(26.5rem, 100vw);
-  height: auto;
+  height: 100%;
   max-width: none;
   max-height: none;
   margin: 0;

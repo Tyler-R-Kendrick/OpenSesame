@@ -1,14 +1,16 @@
 import { readFileSync } from "node:fs";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../config.js";
 import { buildOpenApiDocument } from "../openapi.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 describe("organization OpenAPI authentication", () => {
   it("keeps the generated OpenAPI artifact in sync", () => {
-    const committed = overlapCast(JSON.parse(
-      readFileSync(new URL("../../openapi.json", import.meta.url), "utf8"),
-    ));
+    const committed = overlapCast(
+      JSON.parse(
+        readFileSync(new URL("../../openapi.json", import.meta.url), "utf8"),
+      ),
+    );
     expect(committed).toEqual(
       buildOpenApiDocument(loadConfig({ OPENSESAME_ENV: "test" })),
     );
@@ -22,6 +24,8 @@ describe("organization OpenAPI authentication", () => {
 
     for (const [path, method] of [
       ["/v1/organizations", "post"],
+      ["/v1/organizations/{id}", "patch"],
+      ["/v1/organizations/tenants/{slug}/join", "post"],
       ["/v1/organizations/{id}/members", "post"],
       ["/v1/organizations/{id}/members/{principalId}", "patch"],
       ["/v1/organizations/{id}/members/{principalId}", "delete"],
@@ -34,6 +38,19 @@ describe("organization OpenAPI authentication", () => {
         expect.arrayContaining([{ bearerAuth: [] }, { provisionalCookie: [] }]),
       );
     }
+  });
+
+  it("publishes public tenant discovery without cookie auth", () => {
+    const document = buildOpenApiDocument(
+      loadConfig({ OPENSESAME_ENV: "test" }),
+    );
+    const paths = overlapCast(document.paths);
+    expect(
+      paths["/v1/organizations/tenants/{slug}"]?.get?.security,
+    ).toBeUndefined();
+    expect(
+      paths["/v1/organizations/tenants/{slug}"]?.get?.responses?.["200"],
+    ).toBeTruthy();
   });
 
   it("publishes the organization and approval request/response schemas", () => {

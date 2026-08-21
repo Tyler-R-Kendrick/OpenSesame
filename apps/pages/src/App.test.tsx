@@ -105,6 +105,7 @@ describe("App", () => {
       ["/sites", "sites section"],
       ["/authority", "authority section"],
       ["/settings", "settings section"],
+      ["/settings/connectivity", "settings section"],
     ];
     for (const [route, marker] of cases) {
       const { unmount } = renderApp(route);

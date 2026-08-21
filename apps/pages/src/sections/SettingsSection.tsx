@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { FieldShell } from "../components/FieldShell.js";
 import {
   IconDownload,
@@ -24,6 +24,12 @@ import {
   IconX,
 } from "../components/Icons.js";
 import { StatusNote } from "../components/StatusNote.js";
+import {
+  type SettingsCategory,
+  settingsCategoryFromHash,
+  settingsCategoryFromLocation,
+  settingsPath,
+} from "../lib/crumbs.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import {
   defaultPassphraseOptions,
@@ -116,7 +122,7 @@ const CATEGORIES = [
   { id: "danger", label: "Danger" },
 ] as const;
 
-type CategoryId = (typeof CATEGORIES)[number]["id"];
+type CategoryId = SettingsCategory;
 
 export type SettingsPanels = {
   UnlockMethodsPanel: ComponentType;
@@ -144,11 +150,7 @@ const defaultPanels: SettingsPanels = {
 
 /** `#import` predates the categories and deep-links into Vault data. */
 function categoryFromHash(hash: string): CategoryId | null {
-  const raw = hash.replace(/^#/, "");
-  if (raw === "import" || raw === "github-backup") return "data";
-  if (raw === "taskbus") return "connectivity";
-  const match = CATEGORIES.find((category) => category.id === raw);
-  return match ? match.id : null;
+  return settingsCategoryFromHash(hash);
 }
 
 export function SettingsSection({
@@ -159,18 +161,18 @@ export function SettingsSection({
   const resolvedPanels = { ...defaultPanels, ...panels };
   const { prefs, items, folders, header } = useVault();
   const store = useVaultStore();
-  const { hash } = useLocation();
+  const { hash, pathname } = useLocation();
   const navigate = useNavigate();
+  const category = settingsCategoryFromLocation(pathname, hash);
 
-  const [category, setCategory] = useState<CategoryId>(
-    () => categoryFromHash(hash) ?? "general",
-  );
-
-  // Links elsewhere in the app land on a category via the hash (`#import`
-  // from the vault's empty state, `#connectivity` from plane notes, …).
+  // Hash deep-links (`#import`, `#connectivity`) rewrite onto rest paths so
+  // refresh and crumbs land on the same area. Panel ids (`#import`) stay as
+  // hashes on `/settings/data` and still scroll into view.
   useEffect(() => {
     const fromHash = categoryFromHash(hash);
-    if (fromHash) setCategory(fromHash);
+    if (fromHash && !pathname.match(/\/settings\/[^/]+/)) {
+      navigate(settingsPath(fromHash, hash), { replace: true });
+    }
     const id = hash.replace(/^#/, "");
     if (id === "github-backup" || id === "import") {
       window.requestAnimationFrame(() => {
@@ -179,12 +181,7 @@ export function SettingsSection({
           ?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
-  }, [hash]);
-
-  function selectCategory(next: CategoryId) {
-    setCategory(next);
-    navigate(`#${next}`, { replace: true });
-  }
+  }, [hash, navigate, pathname]);
 
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -375,15 +372,14 @@ export function SettingsSection({
 
       <nav className="set__nav" aria-label="Settings sections">
         {CATEGORIES.map((entry) => (
-          <button
+          <Link
             key={entry.id}
-            type="button"
+            to={settingsPath(entry.id)}
             className={`set__nav-link${entry.id === "danger" ? " set__nav-link--danger" : ""}`}
-            aria-current={category === entry.id ? "true" : undefined}
-            onClick={() => selectCategory(entry.id)}
+            aria-current={category === entry.id ? "page" : undefined}
           >
             {entry.label}
-          </button>
+          </Link>
         ))}
       </nav>
 
@@ -708,9 +704,13 @@ export function SettingsSection({
 
       {category !== "connectivity" ? null : <CoreConnectionsPanel />}
 
-      {category !== "connectivity" ? null : <resolvedPanels.ActiveProjectPanel />}
+      {category !== "connectivity" ? null : (
+        <resolvedPanels.ActiveProjectPanel />
+      )}
 
-      {category !== "connectivity" ? null : <resolvedPanels.CapabilityConnectorsPanel />}
+      {category !== "connectivity" ? null : (
+        <resolvedPanels.CapabilityConnectorsPanel />
+      )}
 
       {category !== "connectivity" ? null : <resolvedPanels.SyncTargetsPanel />}
 

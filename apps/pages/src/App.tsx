@@ -1,8 +1,8 @@
 import {
-  createContext,
-  useContext,
   type ComponentType,
   type ReactNode,
+  createContext,
+  useContext,
 } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 import { AppShell as DefaultAppShell } from "./components/AppShell.js";
@@ -98,7 +98,10 @@ function VaultApp() {
           <Route index element={<slots.VaultWelcome />} />
           <Route path="health" element={<slots.HealthPanel />} />
           <Route path="new/:kind" element={<slots.ItemEditor mode="new" />} />
-          <Route path=":itemId/edit" element={<slots.ItemEditor mode="edit" />} />
+          <Route
+            path=":itemId/edit"
+            element={<slots.ItemEditor mode="edit" />}
+          />
           <Route path=":itemId" element={<slots.ItemDetail />} />
         </Route>
         <Route
@@ -134,7 +137,7 @@ function VaultApp() {
           }
         />
         <Route
-          path="/settings"
+          path="/settings/:category?"
           element={
             <Framed>
               <slots.SettingsSection />

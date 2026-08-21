@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import {
@@ -9,6 +10,7 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { PasswordGenerator } from "../../components/PasswordGenerator.js";
+import { issueCertificate } from "../../lib/certs.js";
 import { compileSecretToHost } from "../../lib/connections.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
@@ -22,13 +24,19 @@ import {
   newId,
   newUri,
 } from "../../lib/vault/model.js";
-import { overlapCast } from "@opensesame/os-domain";
 
-const KINDS: ItemKind[] = ["login", "passkey", "card", "secret", "note"];
+const KINDS: ItemKind[] = [
+  "login",
+  "passkey",
+  "card",
+  "secret",
+  "note",
+  "certificate",
+];
 const MATCHES: UriMatch[] = ["domain", "host", "exact", "never"];
 
 function isKind(value: string | undefined): value is ItemKind {
-  return value !== undefined && (overlapCast(KINDS)).includes(value);
+  return value !== undefined && KINDS.some((kind) => kind === value);
 }
 
 export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
@@ -66,6 +74,7 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
   const [showGenerator, setShowGenerator] = useState(false);
   const [reveal, setReveal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [issuing, setIssuing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -90,8 +99,47 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
 
   const patch = (changes: Partial<VaultItem>) =>
     setDraft((current) =>
-      current ? (overlapCast({ ...current, ...changes })) : current,
+      current ? overlapCast({ ...current, ...changes }) : current,
     );
+
+  async function issueFromHost() {
+    if (!draft || draft.kind !== "certificate") return;
+    setIssuing(true);
+    setError(null);
+    try {
+      const issued = await issueCertificate({
+        commonName: draft.commonName.trim() || "localhost",
+        dnsNames: draft.dnsNames
+          .split(/[,\s]+/)
+          .map((name) => name.trim())
+          .filter(Boolean),
+        ipAddrs: draft.ipAddrs
+          .split(/[,\s]+/)
+          .map((name) => name.trim())
+          .filter(Boolean),
+        ttlHours: Number(draft.ttlHours) || 24,
+      });
+      setDraft({
+        ...draft,
+        name: draft.name.trim() || issued.commonName,
+        commonName: issued.commonName,
+        dnsNames: issued.dnsNames.join(", "),
+        certificatePem: issued.certificate,
+        privateKeyPem: issued.privateKey,
+        caPem: issued.caCertificate,
+        serial: issued.serial,
+        notAfter: issued.notAfter,
+      });
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not issue certificate",
+      );
+    } finally {
+      setIssuing(false);
+    }
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -133,11 +181,13 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
 
   function setField(id: string, changes: Partial<CustomField>) {
     if (!draft) return;
-    patch(overlapCast({
-      fields: draft.fields.map((field) =>
-        field.id === id ? { ...field, ...changes } : field,
-      ),
-    }));
+    patch(
+      overlapCast({
+        fields: draft.fields.map((field) =>
+          field.id === id ? { ...field, ...changes } : field,
+        ),
+      }),
+    );
   }
 
   return (
@@ -592,6 +642,98 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                 <IconPlus size={15} />
                 Add capability
               </button>
+            </div>
+          </div>
+        ) : null}
+
+        {draft.kind === "certificate" ? (
+          <div className="editor__grid">
+            <p className="hint">
+              Issue a short-lived TLS certificate from the Host private CA — the
+              Infisical-style dev-cert path. The private key stays in this
+              vault. Agents never receive it.
+            </p>
+            <div className="field">
+              <label htmlFor="cert-cn">Common name</label>
+              <input
+                id="cert-cn"
+                value={draft.commonName}
+                onChange={(event) => patch({ commonName: event.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="cert-dns">DNS names</label>
+              <input
+                id="cert-dns"
+                value={draft.dnsNames}
+                placeholder="localhost, *.local"
+                onChange={(event) => patch({ dnsNames: event.target.value })}
+              />
+            </div>
+            <div className="editor__row">
+              <div className="field">
+                <label htmlFor="cert-ip">IP addresses</label>
+                <input
+                  id="cert-ip"
+                  value={draft.ipAddrs}
+                  placeholder="127.0.0.1"
+                  onChange={(event) => patch({ ipAddrs: event.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="cert-ttl">TTL (hours)</label>
+                <input
+                  id="cert-ttl"
+                  inputMode="numeric"
+                  value={draft.ttlHours}
+                  onChange={(event) => patch({ ttlHours: event.target.value })}
+                />
+              </div>
+            </div>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={issuing || saving}
+                aria-busy={issuing}
+                onClick={() => void issueFromHost()}
+              >
+                {issuing ? "Issuing…" : "Issue from Host"}
+              </button>
+            </div>
+            <div className="field">
+              <label htmlFor="cert-pem">Certificate</label>
+              <textarea
+                id="cert-pem"
+                spellCheck={false}
+                rows={6}
+                value={draft.certificatePem}
+                onChange={(event) =>
+                  patch({ certificatePem: event.target.value })
+                }
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="cert-key">Private key</label>
+              <textarea
+                id="cert-key"
+                spellCheck={false}
+                rows={4}
+                value={draft.privateKeyPem}
+                onChange={(event) =>
+                  patch({ privateKeyPem: event.target.value })
+                }
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="cert-ca">Issuing CA</label>
+              <textarea
+                id="cert-ca"
+                spellCheck={false}
+                rows={4}
+                value={draft.caPem}
+                onChange={(event) => patch({ caPem: event.target.value })}
+              />
             </div>
           </div>
         ) : null}

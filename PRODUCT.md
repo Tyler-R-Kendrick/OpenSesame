@@ -37,7 +37,8 @@ An Infisical-class authority console that also keeps a human store on the device
 
 - Create and unlock an E2EE vault: PBKDF2-SHA256 master key, AES-GCM wrapped vault key, sealed blob in OPFS
 - Unlock with passkey (WebAuthn PRF), PIN, and/or master password; optional TOTP MFA after primary unwrap
-- Vault items: login, passkey, card, secret, note — full create/edit/delete, folders, favorites, trash
+- Vault items: login, passkey, card, secret, note, certificate — full create/edit/delete, folders, favorites, trash
+- Dev certificates: Host private CA issues short-lived TLS certs (localhost / SAN / TTL); CLI `opensesame cert issue`, Pages vault “Issue from Host”
 - Password generator (characters and passphrase), strength estimation, password health report (weak, reused, old)
 - TOTP codes generated in-page from stored seeds; store-bridge prefers pass-otp `otpauth://` trailer lines
 - Update password / secret on a single vault item (generate or enter); notes and TOTP preserved
@@ -49,6 +50,7 @@ An Infisical-class authority console that also keeps a human store on the device
 - Encrypted export and import; installable PWA
 - Settings capability connectors: encryption key vault (default WebCrypto) and git history/persistence (default GitHub with OAuth)
 - Host CLI sealed store: `opensesame pass otp` / `pass update` / multi-tomb registry (`pass tomb`, `open`/`close`) — see ADR 0038
+- Org profiles on the signed-in principal (guest included): look up a tenant slug, then SSO or SAML. SAML is OIDC-brokered (ADR 0016); Identity verifies the assertion and attaches membership.
 
 ## Constraints
 

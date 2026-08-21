@@ -9,6 +9,7 @@ import {
 } from "../../components/FieldRow.js";
 import {
   IconCard,
+  IconCert,
   IconCheck,
   IconChevronLeft,
   IconCopy,
@@ -41,6 +42,7 @@ const KIND_ICON = {
   card: IconCard,
   secret: IconSecret,
   note: IconNote,
+  certificate: IconCert,
 };
 
 const STRENGTH_VARS = ["--s-0", "--s-1", "--s-2", "--s-3", "--s-4"] as const;
@@ -139,7 +141,11 @@ export function ItemDetail() {
           <h1>{item.name || "Untitled"}</h1>
           <div className="detail__meta">
             <span>{KIND_LABEL[item.kind]}</span>
-            {folder ? <span>{folder.name}</span> : null}
+            {folder ? (
+              <Link to={`/vault?folder=${encodeURIComponent(folder.id)}`}>
+                {folder.name}
+              </Link>
+            ) : null}
             <span>Updated {formatDate(item.updatedAt)}</span>
             {item.sample ? (
               <span className="chip chip--sample">SYNTHETIC</span>
@@ -863,6 +869,83 @@ function ItemFields({
             <p className="frow__notes">{item.notes || "This note is empty."}</p>
           </div>
         </section>
+      );
+
+    case "certificate":
+      return (
+        <>
+          <section className="detail__group">
+            <h2 className="detail__grouphead">Dev certificate</h2>
+            <FieldRow label="Common name">
+              <span className="frow__value">{item.commonName || "—"}</span>
+            </FieldRow>
+            <FieldRow label="DNS names">
+              <span className="frow__value">{item.dnsNames || "—"}</span>
+            </FieldRow>
+            <FieldRow label="Expires">
+              <span className="frow__value">{item.notAfter || "—"}</span>
+            </FieldRow>
+            {item.serial ? (
+              <FieldRow label="Serial">
+                <span className="frow__value">{item.serial}</span>
+              </FieldRow>
+            ) : null}
+          </section>
+          <section className="detail__group">
+            <h2 className="detail__grouphead">Material</h2>
+            <FieldRow
+              label="Certificate"
+              actions={
+                item.certificatePem ? (
+                  <CopyButton
+                    value={item.certificatePem}
+                    label="certificate"
+                    fieldKey="cert"
+                    copied={copied}
+                    failed={failed}
+                    onCopy={copy}
+                  />
+                ) : null
+              }
+            >
+              <span className="frow__value">
+                {item.certificatePem ? "PEM on this device" : "Not issued"}
+              </span>
+            </FieldRow>
+            <FieldRow
+              label="Private key"
+              actions={
+                <>
+                  <RevealButton
+                    revealed={revealed.has("cert-key")}
+                    label="private key"
+                    onToggle={() => toggle("cert-key")}
+                  />
+                  {item.privateKeyPem ? (
+                    <CopyButton
+                      value={item.privateKeyPem}
+                      label="private key"
+                      fieldKey="cert-key"
+                      copied={copied}
+                      failed={failed}
+                      onCopy={copy}
+                    />
+                  ) : null}
+                </>
+              }
+            >
+              <ConcealedValue
+                value={item.privateKeyPem || "—"}
+                label="private key"
+                revealed={revealed.has("cert-key")}
+              />
+            </FieldRow>
+            <p className="hint">
+              Trust the Host dev CA on this machine for local TLS. The private
+              key never leaves this vault for an agent.
+            </p>
+          </section>
+        </>
       );
   }
 }
