@@ -1,9 +1,3 @@
-import {
-  assertAtMostWins,
-  assertExclusiveClaim,
-  assertNoSecretFields,
-  checkThenSetAdmitsDoubleClaim,
-} from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
 import {
   authenticateClaim,
@@ -15,6 +9,50 @@ import {
   presentClaim,
   reviewClaim,
 } from "../index.js";
+
+async function assertAtMostWins(
+  worker: () => Promise<boolean> | boolean,
+  max: number,
+): Promise<void> {
+  const results = await Promise.all(
+    Array.from({ length: 32 }, () => Promise.resolve().then(worker)),
+  );
+  const wins = results.filter(Boolean).length;
+  if (wins > max) throw new Error(`expected at most ${max} wins, got ${wins}`);
+}
+
+async function assertExclusiveClaim(
+  worker: () => Promise<boolean> | boolean,
+): Promise<void> {
+  const results = await Promise.all(
+    Array.from({ length: 32 }, () => Promise.resolve().then(worker)),
+  );
+  if (results.filter(Boolean).length !== 1)
+    throw new Error("expected one winner");
+}
+
+function checkThenSetAdmitsDoubleClaim(): void {
+  const keys = new Set<string>();
+  if (!(!keys.has("d1") && !keys.has("d1")))
+    throw new Error("checks must both pass");
+  keys.add("d1");
+  keys.add("d1");
+}
+
+function assertNoSecretFields(value: unknown): void {
+  const blob = JSON.stringify(value);
+  for (const key of [
+    "access_token",
+    "refresh_token",
+    "client_secret",
+    "private_key",
+    "claim_token",
+    "claimToken",
+  ]) {
+    if (blob.includes(`"${key}"`))
+      throw new Error(`secret field ${key} present`);
+  }
+}
 
 describe("PACT — os-domain", () => {
   it("property: terminal claim states never leave the terminal set", () => {

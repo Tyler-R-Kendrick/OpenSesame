@@ -1,4 +1,4 @@
-import { SigningKeyProvider, overlapCast } from "@opensesame/os-domain";
+import { overlapCast, type SigningKeyProvider } from "@opensesame/os-domain";
 
 /**
  * Loads signing keys from process env `OPENSESAME_JWKS_JSON` (public+private JWKS).
