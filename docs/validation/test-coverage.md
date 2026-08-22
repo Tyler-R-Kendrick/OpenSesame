@@ -13,7 +13,7 @@ they explicitly require a live service.
 | Fuzz / property | Rust libFuzzer targets (including the connector-discovery parsers: `mcp_config`, `ini_parse`, `whois_response`, `promote_request`), Jazzer.js targets, proptest, and bounded proof gates | `pnpm audit:fuzz`; `pnpm test:fuzz`; `pnpm audit:kani`; `pnpm audit:shuttle` |
 | Dependency budget | Daemon/discovery dependency closure pinned against the ADR 0048 §5 allowlist; credential-exchange surface (sqlx, oauth2, jsonwebtoken, chacha20poly1305, task bus) kept off the daemon and the invoke-through/authn crates | `pnpm audit:daemon-deps` |
 | Behavior / functional | `*.behavior.test.ts` Given/When/Then journeys (control-plane ceremonies, Pages guest login); Playwright and live battle tests | `pnpm test`; `pnpm test:e2e`; `pnpm verify` |
-| Mutation | Stryker/Vitest over credential redaction and URL trust boundaries; cargo-mutants over Rust redaction and task validation | `pnpm test:mutation` |
+| Mutation | Stryker/Vitest over credential redaction, URL trust boundaries, and the audit metadata redaction + tamper-evidence chain (`packages/audit`); cargo-mutants over Rust redaction and task validation | `pnpm test:mutation` |
 
 ## Measured non-regression gates
 
