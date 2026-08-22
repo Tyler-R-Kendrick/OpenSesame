@@ -3285,11 +3285,8 @@ dependencies = [
 name = "opensesame-kdbx-bridge"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "base64 0.22.1",
  "insta",
  "keepass",
- "opensesame-human-vault",
  "opensesame-sealed-store",
  "serde",
  "serde_json",
