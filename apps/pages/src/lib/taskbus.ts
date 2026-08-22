@@ -35,10 +35,10 @@ function toConfig(raw: JsonObject): TaskBusConfig {
   const backend = String(raw.backend ?? "memory");
   return {
     backend: backend === "nats" ? "nats" : "memory",
-    natsUrl: (overlapCast(raw.nats_url)) ?? null,
-    source: (overlapCast(String(raw.source ?? "default"))) || "default",
+    natsUrl: overlapCast(raw.nats_url) ?? null,
+    source: overlapCast(String(raw.source ?? "default")) || "default",
     status: String(raw.status ?? "ok"),
-    lastError: (overlapCast(raw.last_error)) ?? null,
+    lastError: overlapCast(raw.last_error) ?? null,
   };
 }
 

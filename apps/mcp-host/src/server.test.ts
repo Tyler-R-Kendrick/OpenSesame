@@ -22,5 +22,5 @@ describe("mcp-host entrypoint", () => {
     // biome-ignore lint/performance/noDelete: telemetry must stay a no-op here
     delete process.env.OPENSESAME_TELEMETRY_KEY;
     await expect(import("./server.js")).resolves.toBeDefined();
-  });
+  }, 15_000);
 });

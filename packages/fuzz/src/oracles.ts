@@ -1,4 +1,10 @@
-import { type JsonObject, overlapCast, type BoundaryValue, isString, isTypeofObject } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 const SECRET_NEEDLES = [
   "password",
   "secret",
@@ -17,11 +23,7 @@ export function assertNoSecretFields(
   const redacted = redact(value);
   walk(redacted, (key, child) => {
     if (SECRET_NEEDLES.some((n) => key.toLowerCase().includes(n))) {
-      if (
-        isString(child) &&
-        child !== "[REDACTED]" &&
-        child.length > 0
-      ) {
+      if (isString(child) && child !== "[REDACTED]" && child.length > 0) {
         throw new Error(`secret field ${key} survived redaction`);
       }
     }

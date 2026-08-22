@@ -1,3 +1,10 @@
+import {
+  type JsonObject,
+  isNumber,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { createLocalJWKSet, jwtVerify } from "jose";
 import {
   assertSafeReturnTo,
@@ -16,7 +23,6 @@ import type {
   StorageLike,
   TokenResponse,
 } from "./types.js";
-import { type JsonObject, overlapCast, isTypeofObject, isString, isNumber } from "@opensesame/os-domain";
 
 const PKCE_KEY = "opensesame:pkce";
 const SESSION_KEY = "opensesame:session";
@@ -197,9 +203,9 @@ function decodeJwtPayload(token: string): JsonObject | undefined {
   const part = token.split(".")[1];
   if (!part) return undefined;
   try {
-    const payload: JsonObject = overlapCast(JSON.parse(
-      atob(part.replace(/-/g, "+").replace(/_/g, "/")),
-    ));
+    const payload: JsonObject = overlapCast(
+      JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/"))),
+    );
     return payload;
   } catch {
     return undefined;
@@ -220,8 +226,7 @@ function assertIdTokenAddressedToUs(
 ): JsonObject | undefined {
   const payload = decodeJwtPayload(idToken);
   if (!payload) return undefined;
-  const iss =
-    isString(payload.iss) ? trimSlash(payload.iss) : undefined;
+  const iss = isString(payload.iss) ? trimSlash(payload.iss) : undefined;
   if (iss !== undefined && iss !== expect.issuer) {
     throw new Error("id_token issued by a different issuer");
   }
@@ -245,10 +250,9 @@ function toSession(
   anonymous: boolean,
   expect: { issuer: string; clientId: string; nonce?: string },
 ): Session {
-  const expiresAt =
-    isNumber(tokens.expires_in)
-      ? Date.now() + tokens.expires_in * 1000
-      : undefined;
+  const expiresAt = isNumber(tokens.expires_in)
+    ? Date.now() + tokens.expires_in * 1000
+    : undefined;
   let sub: string | undefined;
   if (tokens.id_token) {
     const payload = assertIdTokenAddressedToUs(tokens.id_token, expect);
@@ -517,10 +521,9 @@ export function createOpenSesame(
       if (!isString(body.accessToken) || body.accessToken === "") {
         throw new Error("Anonymous session response carried no access token");
       }
-      const expiresAt =
-        isString(body.expiresAt)
-          ? Date.parse(body.expiresAt)
-          : undefined;
+      const expiresAt = isString(body.expiresAt)
+        ? Date.parse(body.expiresAt)
+        : undefined;
       const session: Session = {
         accessToken: body.accessToken,
         anonymous: true,

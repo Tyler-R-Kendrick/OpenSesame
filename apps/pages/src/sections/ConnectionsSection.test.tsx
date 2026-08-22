@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,
   render,
@@ -6,23 +7,25 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { overlapCast } from "@opensesame/os-domain";
-import { FIRST_RUN_KEY } from "../lib/identity-graph.js";
-import { kvDelete, kvSet } from "../lib/kv.js";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { FIRST_RUN_KEY } from "../lib/identity-graph.js";
+import { kvDelete, kvSet } from "../lib/kv.js";
+import type { SecretItem } from "../lib/vault/model.js";
 
 const online = vi.hoisted(() => ({ value: true }));
-const session = vi.hoisted(() => ({
+const session: { current: { principalId: string } | null } = vi.hoisted(() => ({
   current: { principalId: "prn_op" },
 }));
 const hostEligible = vi.hoisted(() => ({ value: true }));
 const connect = vi.hoisted(() => vi.fn());
-const connectState = vi.hoisted(() => ({
-  connecting: false,
-  error: null,
-}));
+const connectState: { connecting: boolean; error: string | null } = vi.hoisted(
+  () => ({
+    connecting: false,
+    error: null,
+  }),
+);
 
 const ensureHostSession = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
@@ -39,28 +42,29 @@ Object.assign(identitySeams, {
     connecting: connectState.connecting,
     error: connectState.error,
   }),
-  useIdentitySession: () => session.current});
+  useIdentitySession: () => session.current,
+});
 import { useOnlineSeams } from "../lib/use-online.js";
 const originalUseOnlineSeams = { ...useOnlineSeams };
-Object.assign(useOnlineSeams, {useOnline: () => online.value});
+Object.assign(useOnlineSeams, { useOnline: () => online.value });
 const shouldAutoConnect = vi.hoisted(() => vi.fn(() => true));
 import { settingsSeams } from "../lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
-Object.assign(settingsSeams, {shouldAutoConnect});
-const vault = vi.hoisted(() => ({ items: [] }));
+Object.assign(settingsSeams, { shouldAutoConnect });
+const vault: { items: SecretItem[] } = vi.hoisted(() => ({ items: [] }));
 const addItems = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const saveItem = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {useVault: () => vault,
-  useVaultStore: () => ({ addItems, saveItem })});
-
+Object.assign(vaultHooksSeams, {
+  useVault: () => vault,
+  useVaultStore: () => ({ addItems, saveItem }),
+});
 
 import { planeNoteSeams } from "../components/PlaneNote.js";
 const originalPlaneNoteSeams = { ...planeNoteSeams };
-Object.assign(planeNoteSeams, {PagesCannotHostNote: () => null,});
-
+Object.assign(planeNoteSeams, { PagesCannotHostNote: () => null });
 
 const listProviders = vi.hoisted(() => vi.fn());
 const listConnections = vi.hoisted(() => vi.fn());
@@ -82,9 +86,10 @@ const startGithubAppRegistration = vi.hoisted(() => vi.fn());
 const submitGithubAppManifest = vi.hoisted(() => vi.fn());
 
 import {
-  ConnectionsError,
-  connectionSeams,
   type Connection,
+  ConnectionsError,
+  type Provider,
+  connectionSeams,
 } from "../lib/connections.js";
 import { ConnectionsSection } from "./ConnectionsSection.js";
 const originalConnectionSeams = { ...connectionSeams };
@@ -110,7 +115,7 @@ Object.assign(connectionSeams, {
 });
 
 const catalog = vi.hoisted(() => {
-  const githubProvider = {
+  const githubProvider: Provider = {
     id: "github",
     displayName: "GitHub",
     category: "developer",
@@ -137,7 +142,7 @@ const catalog = vi.hoisted(() => {
     operations: [],
   };
 
-  const linearProvider = {
+  const linearProvider: Provider = {
     id: "linear",
     displayName: "Linear",
     category: "developer",
@@ -157,7 +162,7 @@ const catalog = vi.hoisted(() => {
     operations: [],
   };
 
-  const vercelProvider = {
+  const vercelProvider: Provider = {
     id: "vercel",
     displayName: "Vercel",
     category: "developer",
@@ -177,7 +182,7 @@ const catalog = vi.hoisted(() => {
     operations: [],
   };
 
-  const plainProvider = {
+  const plainProvider: Provider = {
     id: "plain",
     displayName: "Plain storage",
     category: "local_storage",
@@ -193,7 +198,7 @@ const catalog = vi.hoisted(() => {
     operations: [],
   };
 
-  const vaultwardenProvider = {
+  const vaultwardenProvider: Provider = {
     id: "vaultwarden",
     displayName: "Vaultwarden",
     category: "password_managers",
@@ -227,7 +232,7 @@ const catalog = vi.hoisted(() => {
   ];
 });
 
-const bundledRef = vi.hoisted(() => ({ current: [] }));
+const bundledRef: { current: Provider[] } = vi.hoisted(() => ({ current: [] }));
 
 import { embeddedCatalogSeams } from "../lib/embedded-catalog.js";
 const originalEmbeddedCatalogSeams = {
@@ -344,7 +349,11 @@ describe("ConnectionsSection gallery", () => {
     await screen.findByText("Vaultwarden");
     // Dismiss the first-run panel so tile names are unambiguous.
     await userEvent.click(screen.getByRole("button", { name: /Dismiss/i }));
-    const grid = () => overlapCast(container.querySelector(".conn-grid"));
+    const grid = () => {
+      const element = container.querySelector(".conn-grid");
+      if (!(element instanceof HTMLElement)) throw new Error("grid not found");
+      return element;
+    };
     await userEvent.type(
       screen.getByPlaceholderText("Search connectors"),
       "linear",
@@ -773,9 +782,11 @@ describe("ConnectionsSection connector page", () => {
 
     // Existing binding renders with an unbind control.
     await userEvent.click(
-      overlapCast(screen.getAllByRole("button", {
-        name: /Unbind proj_1/i,
-      })[0]),
+      overlapCast(
+        screen.getAllByRole("button", {
+          name: /Unbind proj_1/i,
+        })[0],
+      ),
     );
     await waitFor(() =>
       expect(unbindConnection).toHaveBeenCalledWith("con_1", "bnd_1"),
@@ -783,9 +794,11 @@ describe("ConnectionsSection connector page", () => {
 
     // Add a new project binding.
     await userEvent.click(
-      overlapCast(screen.getAllByRole("button", {
-        name: /Bind an identity/i,
-      })[0]),
+      overlapCast(
+        screen.getAllByRole("button", {
+          name: /Bind an identity/i,
+        })[0],
+      ),
     );
     await userEvent.type(screen.getByLabelText(/Identifier/i), "proj_9");
     await userEvent.click(screen.getByRole("button", { name: /^Bind$/i }));
@@ -802,9 +815,11 @@ describe("ConnectionsSection connector page", () => {
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
     await userEvent.click(
-      overlapCast(screen.getAllByRole("button", {
-        name: /Bind an identity/i,
-      })[0]),
+      overlapCast(
+        screen.getAllByRole("button", {
+          name: /Bind an identity/i,
+        })[0],
+      ),
     );
     await userEvent.selectOptions(screen.getByLabelText(/^Kind$/i), "agent");
     await userEvent.type(screen.getByLabelText(/Identifier/i), "user:demo");
@@ -867,6 +882,11 @@ describe("ConnectionsSection connector page", () => {
         id: "itm_r",
         kind: "secret",
         name: "GitHub reminder",
+        folderId: null,
+        favorite: false,
+        notes: "",
+        createdAt: "2026-08-01T00:00:00Z",
+        updatedAt: "2026-08-01T00:00:00Z",
         deletedAt: null,
         connectionRef: "conn/github/pat",
         grantees: [],
@@ -1023,9 +1043,11 @@ describe("ConnectionsSection deeper branches", () => {
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
     await userEvent.click(
-      overlapCast(screen.getAllByRole("button", {
-        name: /Re-authorize/i,
-      })[0]),
+      overlapCast(
+        screen.getAllByRole("button", {
+          name: /Re-authorize/i,
+        })[0],
+      ),
     );
     expect(await screen.findByText(/GitHub is authorized again/)).toBeTruthy();
   });
@@ -1042,9 +1064,11 @@ describe("ConnectionsSection deeper branches", () => {
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
     await userEvent.click(
-      overlapCast(screen.getAllByRole("button", {
-        name: /Re-authorize/i,
-      })[0]),
+      overlapCast(
+        screen.getAllByRole("button", {
+          name: /Re-authorize/i,
+        })[0],
+      ),
     );
     expect(await screen.findByText(/user said no/)).toBeTruthy();
   });
@@ -1081,9 +1105,11 @@ describe("ConnectionsSection deeper branches", () => {
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
     await userEvent.click(
-      overlapCast(screen.getAllByRole("button", {
-        name: /Unbind proj_1/i,
-      })[0]),
+      overlapCast(
+        screen.getAllByRole("button", {
+          name: /Unbind proj_1/i,
+        })[0],
+      ),
     );
     expect(await screen.findByText(/still in use/)).toBeTruthy();
   });
@@ -1156,10 +1182,10 @@ describe("ConnectionsSection deeper branches", () => {
     await userEvent.click(scope);
     expect(await screen.findByText(/Pick at least one scope/)).toBeTruthy();
     expect(
-      (
-        overlapCast(screen.getByRole("button", {
+      overlapCast(
+        screen.getByRole("button", {
           name: /Authorize with GitHub/i,
-        }))
+        }),
       ).disabled,
     ).toBe(true);
   });
@@ -1318,7 +1344,7 @@ describe("ConnectionsSection remaining branches", () => {
       authorizationUrl: "https://linear.app/oauth/authorize",
     });
     awaitConsent.mockResolvedValue({ result: "active", connection: created });
-    const scopedLinear = {
+    const scopedLinear: Provider = {
       ...catalog[1],
       scopes: [
         {

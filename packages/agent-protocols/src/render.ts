@@ -1,4 +1,4 @@
-import { type JsonObject, type BoundaryValue, isString, isTypeofObject } from "@opensesame/os-domain";
+import { type JsonObject, isString } from "@opensesame/os-domain";
 export interface AuthMdConfig {
   serviceName: string;
   protectedResource: string;
@@ -32,22 +32,15 @@ function assertSafeText(label: string, value: string): void {
   }
 }
 
-function assertSafeConfig(label: string, value: BoundaryValue): void {
-  if (isString(value)) {
-    assertSafeText(label, value);
-    return;
+function assertSafeConfig(
+  label: string,
+  value: AuthMdConfig | AgentCardConfig | JsonObject,
+): void {
+  const serialized = JSON.stringify(value);
+  if (!isString(serialized)) {
+    throw new Error(`agent_protocol_invalid_config:${label}`);
   }
-  if (Array.isArray(value)) {
-    for (const [i, item] of value.entries()) {
-      assertSafeConfig(`${label}[${i}]`, item);
-    }
-    return;
-  }
-  if (value && isTypeofObject(value)) {
-    for (const [key, child] of Object.entries(value)) {
-      assertSafeConfig(key, child);
-    }
-  }
+  assertSafeText(label, serialized);
 }
 
 export function renderAuthMd(config: AuthMdConfig): string {
@@ -164,9 +157,7 @@ export interface AgentCardConfig {
   documentationUrl?: string;
 }
 
-export function renderAgentCard(
-  config: AgentCardConfig,
-): JsonObject {
+export function renderAgentCard(config: AgentCardConfig): JsonObject {
   assertSafeConfig("agentCard", config);
   const card = {
     name: config.name,

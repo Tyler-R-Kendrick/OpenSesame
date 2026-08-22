@@ -1,24 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  continueAsGuest,
+  guestAuthDependencies,
+  linkGuestAccount,
+} from "./guest-auth.js";
+import { clearNotices, listNotices } from "./notices.js";
+const connectProvisional = vi.fn();
+const identityJson = vi.fn();
+const currentSession = vi.fn();
+const restoreSession = vi.fn();
+const createGuest = vi.fn();
 
-const connectProvisional = vi.hoisted(() => vi.fn());
-const identityJson = vi.hoisted(() => vi.fn());
-const currentSession = vi.hoisted(() => vi.fn());
-const restoreSession = vi.hoisted(() => vi.fn());
-const createGuest = vi.hoisted(() => vi.fn());
-
-vi.mock("./identity.js", () => ({
+Object.assign(guestAuthDependencies, {
   connectProvisional,
   identityJson,
   currentSession,
   restoreSession,
-}));
-
-vi.mock("./vault/store.js", () => ({
-  vaultStore: { createGuest },
-}));
-
-import { continueAsGuest, linkGuestAccount } from "./guest-auth.js";
-import { clearNotices, listNotices } from "./notices.js";
+  createGuest,
+});
 
 beforeEach(() => {
   clearNotices();

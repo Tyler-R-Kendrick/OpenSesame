@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { overlapCast } from "@opensesame/os-domain";
 import {
   assertDurableSurvivesPartition,
   assertSourceOrder,
 } from "@opensesame/testing";
 import { describe, it } from "vitest";
 import { startMockUpstream } from "./mock-upstream.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 

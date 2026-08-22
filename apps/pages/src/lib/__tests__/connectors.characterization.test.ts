@@ -1,13 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-const env = vi.hoisted(() => ({ loopbackPage: true }));
-
-vi.mock("../settings.js", () => ({
-  loadSettings: () => ({}),
-  pageIsLoopback: () => env.loopbackPage,
-  subscribeSettings: () => () => {},
-  settingsEpoch: () => 0,
-}));
+const env = { loopbackPage: true };
 
 import type { TargetState } from "../connectivity-monitor.js";
 import {
@@ -20,6 +13,14 @@ import {
 import type { HostPlane, IdentityPlane, PlaneStatus } from "../planes.js";
 import { type FailureClass, failureSentence } from "../probe-failure.js";
 import type { PagesSettings } from "../settings.js";
+import { settingsSeams } from "../settings.js";
+
+Object.assign(settingsSeams, {
+  loadSettings: () => ({}),
+  pageIsLoopback: () => env.loopbackPage,
+  subscribeSettings: () => () => {},
+  settingsEpoch: () => 0,
+});
 
 /**
  * Characterization snapshots for everything the connectivity bar says.

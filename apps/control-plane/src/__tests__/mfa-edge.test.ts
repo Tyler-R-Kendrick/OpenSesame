@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -60,9 +60,7 @@ describe("mfa routes edge cases", () => {
       body: JSON.stringify({ credentialId: "cred_no_key" }),
     });
     expect(missingKey.status).toBe(400);
-    expect((overlapCast(await missingKey.json())).error).toBe(
-      "invalid_request",
-    );
+    expect(overlapCast(await missingKey.json()).error).toBe("invalid_request");
 
     // With a public key the stub registration succeeds, counter defaulting to 0.
     const ok = await app.request("/v1/mfa/passkey/register", {
@@ -77,9 +75,7 @@ describe("mfa routes edge cases", () => {
       }),
     });
     expect(ok.status).toBe(200);
-    expect((overlapCast(await ok.json())).credentialId).toBe(
-      "cred_ok",
-    );
+    expect(overlapCast(await ok.json()).credentialId).toBe("cred_ok");
   });
 
   it("rejects malformed passkey assertions before verification", async () => {
@@ -101,9 +97,7 @@ describe("mfa routes edge cases", () => {
       }),
     });
     expect(oversized.status).toBe(400);
-    expect((overlapCast(await oversized.json())).error).toBe(
-      "invalid_request",
-    );
+    expect(overlapCast(await oversized.json()).error).toBe("invalid_request");
   });
 
   it("rate-limits anonymous passkey assertions per fingerprint", async () => {
@@ -123,9 +117,7 @@ describe("mfa routes edge cases", () => {
     }
     const limited = await attempt(20);
     expect(limited.status).toBe(429);
-    expect((overlapCast(await limited.json())).error).toBe(
-      "rate_limited",
-    );
+    expect(overlapCast(await limited.json()).error).toBe("rate_limited");
   });
 
   it("prunes the failure fence when it overflows", async () => {
@@ -157,9 +149,7 @@ describe("mfa routes edge cases", () => {
       body: JSON.stringify({ code: "000000", principalId: "prn_someone_else" }),
     });
     expect(mismatch.status).toBe(403);
-    expect((overlapCast(await mismatch.json())).error).toBe(
-      "principal_mismatch",
-    );
+    expect(overlapCast(await mismatch.json()).error).toBe("principal_mismatch");
 
     const notEnrolled = await app.request("/v1/mfa/totp/verify", {
       method: "POST",
@@ -170,9 +160,7 @@ describe("mfa routes edge cases", () => {
       body: JSON.stringify({ code: "000000" }),
     });
     expect(notEnrolled.status).toBe(404);
-    expect((overlapCast(await notEnrolled.json())).error).toBe(
-      "not_enrolled",
-    );
+    expect(overlapCast(await notEnrolled.json()).error).toBe("not_enrolled");
   });
 
   it("rejects wrong-length TOTP codes without touching the fence unfairly", async () => {
@@ -193,6 +181,6 @@ describe("mfa routes edge cases", () => {
       body: JSON.stringify({ code: "12345" }),
     });
     expect(short.status).toBe(401);
-    expect((overlapCast(await short.json())).ok).toBe(false);
+    expect(overlapCast(await short.json()).ok).toBe(false);
   });
 });

@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
+import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { decodeJwt, importJWK, jwtVerify } from "jose";
 import { describe, expect, it } from "vitest";
 import { createMockUpstreamIdp } from "./server.js";
-import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
 async function listenIdp(overrides: JsonObject = {}) {
   const idp = await createMockUpstreamIdp({
@@ -81,23 +81,19 @@ describe("mock-upstream-idp route branches", () => {
       badClient.searchParams.set("client_id", "someone-else");
       const r1 = await fetch(badClient, { redirect: "manual" });
       expect(r1.status).toBe(400);
-      expect((overlapCast(await r1.json())).error).toBe(
-        "invalid_client",
-      );
+      expect(overlapCast(await r1.json()).error).toBe("invalid_client");
 
       const badRedirect = build();
       badRedirect.searchParams.set("redirect_uri", "http://evil.example/cb");
       const r2 = await fetch(badRedirect, { redirect: "manual" });
       expect(r2.status).toBe(400);
-      expect((overlapCast(await r2.json())).error).toBe(
-        "invalid_redirect_uri",
-      );
+      expect(overlapCast(await r2.json()).error).toBe("invalid_redirect_uri");
 
       const badType = build();
       badType.searchParams.set("response_type", "token");
       const r3 = await fetch(badType, { redirect: "manual" });
       expect(r3.status).toBe(400);
-      expect((overlapCast(await r3.json())).error).toBe(
+      expect(overlapCast(await r3.json()).error).toBe(
         "unsupported_response_type",
       );
 
@@ -105,9 +101,7 @@ describe("mock-upstream-idp route branches", () => {
       plainPkce.searchParams.set("code_challenge_method", "plain");
       const r4 = await fetch(plainPkce, { redirect: "manual" });
       expect(r4.status).toBe(400);
-      expect((overlapCast(await r4.json())).error).toBe(
-        "invalid_request",
-      );
+      expect(overlapCast(await r4.json()).error).toBe("invalid_request");
     } finally {
       await idp.close();
     }
@@ -203,9 +197,7 @@ describe("mock-upstream-idp route branches", () => {
         code_verifier: "whatever",
       });
       expect(unknown.status).toBe(400);
-      expect((overlapCast(await unknown.json())).error).toBe(
-        "invalid_grant",
-      );
+      expect(overlapCast(await unknown.json()).error).toBe("invalid_grant");
 
       const { code, verifier } = await getCode(base, idp, redirectUri);
       if (!code) throw new Error("no code");
@@ -283,7 +275,7 @@ describe("mock-upstream-idp route branches", () => {
         client_secret: idp.config.clientSecret,
       });
       expect(unsupported.status).toBe(400);
-      expect((overlapCast(await unsupported.json())).error).toBe(
+      expect(overlapCast(await unsupported.json()).error).toBe(
         "unsupported_grant_type",
       );
     } finally {
@@ -370,9 +362,7 @@ describe("mock-upstream-idp route branches", () => {
 
       const missing = await fetch(`${base}/nope`);
       expect(missing.status).toBe(404);
-      expect((overlapCast(await missing.json())).error).toBe(
-        "not_found",
-      );
+      expect(overlapCast(await missing.json()).error).toBe("not_found");
     } finally {
       await idp.close();
     }
@@ -401,10 +391,12 @@ describe("mock-upstream-idp route branches", () => {
     expect(issuer).toBe("http://127.0.0.1:0");
     await idp.close();
 
-    const publicIdp = await createMockUpstreamIdp(overlapCast({
-      host: "0.0.0.0",
-      env: undefined,
-    }));
+    const publicIdp = await createMockUpstreamIdp(
+      overlapCast({
+        host: "0.0.0.0",
+        env: undefined,
+      }),
+    );
     await expect(publicIdp.listen()).rejects.toThrow(/not loopback/);
   });
 
@@ -506,9 +498,7 @@ describe("mock-upstream-idp route branches", () => {
         { origin: otherOrigin },
       );
       const payloadB = overlapCast(
-        decodeJwt(
-          (overlapCast(await tokenB.json())).id_token,
-        ),
+        decodeJwt(overlapCast(await tokenB.json()).id_token),
       );
       expect(payloadB.sub).not.toBe(payload.sub);
     } finally {

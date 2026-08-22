@@ -1,6 +1,6 @@
+import { isNumber } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createMemoryAdapterConstructor } from "../adapter/memory-adapter.js";
-import { isNumber } from "@opensesame/os-domain";
 
 describe("memory oidc adapter", () => {
   it("round-trips a payload through upsert and find", async () => {

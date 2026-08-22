@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import {
   assertDurableSurvivesPartition,
   assertExclusiveClaim,
@@ -79,7 +80,8 @@ describe("PACT — outbox claim", () => {
     expect(claimed).toHaveLength(1);
     const [row] = claimed;
     if (!row) throw new Error("missing claimed outbox row");
-    assertNoSecretFields(row);
+    const boundaryRow: BoundaryValue = overlapCast(row);
+    assertNoSecretFields(boundaryRow);
     assertNoSecretFields(row.payload);
   });
 

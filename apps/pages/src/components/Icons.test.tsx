@@ -1,14 +1,13 @@
+import { isFunction } from "@opensesame/os-domain";
 import { cleanup, render } from "@testing-library/react";
-import type { ComponentType } from "react";
-import { overlapCast, isFunction } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it } from "vitest";
 
 import * as Icons from "./Icons.js";
 
-const iconEntries = overlapCast(Object.entries(Icons).filter(
-  ([, value]) => isFunction(value),
-));
+const iconEntries = Object.entries(Icons).filter(([, value]) =>
+  isFunction(value),
+);
 
 describe("Icons", () => {
   afterEach(cleanup);

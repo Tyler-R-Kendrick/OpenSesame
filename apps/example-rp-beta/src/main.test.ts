@@ -1,9 +1,22 @@
-import { StrictMode } from "react";
+import {
+  type ComponentProps,
+  type ReactNode,
+  StrictMode,
+  isValidElement,
+} from "react";
+import type { Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { overlapCast } from "@opensesame/os-domain";
+import type { RpApp } from "./RpApp.js";
 
-const renderMock = vi.fn();
-const createRootMock = vi.fn(() => ({ render: renderMock }));
+type RpAppProps = ComponentProps<typeof RpApp>;
+
+const renderMock = vi.fn<Root["render"]>();
+const createRootMock = vi.fn<typeof import("./react-dom.js").createRoot>(
+  () => ({
+    render: renderMock,
+    unmount: vi.fn(),
+  }),
+);
 
 describe("main entrypoint", () => {
   afterEach(() => {
@@ -25,9 +38,15 @@ describe("main entrypoint", () => {
     expect(getElementById).toHaveBeenCalledWith("root");
     expect(createRootMock).toHaveBeenCalledWith(rootEl);
     expect(renderMock).toHaveBeenCalledTimes(1);
-    const tree = overlapCast(renderMock.mock.calls[0]?.[0]);
+    const tree = renderMock.mock.calls[0]?.[0];
+    if (!isValidElement<{ children?: ReactNode }>(tree)) {
+      throw new Error("expected StrictMode element");
+    }
     expect(tree.type).toBe(StrictMode);
-    const app = overlapCast(tree.props.children);
+    const app = tree.props.children;
+    if (!isValidElement<RpAppProps>(app)) {
+      throw new Error("expected RpApp element");
+    }
     expect(app.props).toMatchObject({
       name: "RP Beta",
       clientId: "rp-beta",

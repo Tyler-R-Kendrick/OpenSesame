@@ -24,7 +24,7 @@ import {
   createPostgresAdapterConstructor,
 } from "@opensesame/oauth-provider";
 import { createLogger } from "@opensesame/observability";
-import { overlapCast, type Clock } from "@opensesame/os-domain";
+import type { Clock } from "@opensesame/os-domain";
 import { ProvisionalPolicy } from "@opensesame/policy";
 import { createHonoApp } from "./app.js";
 import {
@@ -32,7 +32,7 @@ import {
   assertSecureConfig,
   loadConfig,
 } from "./config.js";
-import type { AppContext } from "./context.js";
+import type { AppContext, ControlPlaneRepositories } from "./context.js";
 import { IndexedClaimStore } from "./repos/claim-store.js";
 import { createAppStores } from "./state.js";
 
@@ -58,7 +58,7 @@ export const SYSTEM_OWNER_PRINCIPAL_ID = "prn_opensesame_system";
  * auto-admitting an owned origin client against Postgres.
  */
 export async function ensureSystemOwnerPrincipal(
-  repos: Repositories,
+  repos: Pick<Repositories, "principals">,
   clock: Clock,
 ): Promise<void> {
   const existing = await repos.principals.getById(SYSTEM_OWNER_PRINCIPAL_ID);
@@ -104,23 +104,29 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   // read from the store on the first append: starting each process at genesis
   // would leave one disconnected run per restart, which is indistinguishable
   // from a deleted tail.
-  const chainedAudit = createChainedAuditSink(baseRepos.auditEvents, {
-    tip: async () => {
-      const [newest] = await baseRepos.auditEvents.list({ limit: 1 });
-      return newest?.digest;
+  const chainedAudit = createChainedAuditSink(
+    {
+      append: (event) => baseRepos.auditEvents.append(event),
     },
-    retryOnConflict: (error) => {
-      const pg = overlapCast(error);
-      return (
-        pg.code === "23505" &&
-        pg.constraint_name === "audit_events_previous_digest_uidx"
-      );
+    {
+      tip: async () => {
+        const [newest] = await baseRepos.auditEvents.list({ limit: 1 });
+        return newest?.digest;
+      },
+      retryOnConflict: (error) => {
+        return (
+          "code" in error &&
+          error.code === "23505" &&
+          "constraint_name" in error &&
+          error.constraint_name === "audit_events_previous_digest_uidx"
+        );
+      },
     },
-  });
-  const repos: typeof baseRepos = {
+  );
+  const repos: ControlPlaneRepositories = {
     ...baseRepos,
     auditEvents: {
-      append: (event, uow) => chainedAudit.append(event, uow),
+      append: (event) => chainedAudit.append(event),
       list: (filter) => baseRepos.auditEvents.list(filter),
     },
   };

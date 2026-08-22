@@ -1,21 +1,21 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const session = vi.hoisted(() => ({
+const session: { current: { principalId: string } | null } = vi.hoisted(() => ({
   current: null,
 }));
 
 import { identitySeams } from "../../lib/identity.js";
 const originalIdentitySeams = { ...identitySeams };
-Object.assign(identitySeams, {useIdentitySession: () => session.current});
+Object.assign(identitySeams, { useIdentitySession: () => session.current });
 const loadSettings = vi.hoisted(() => vi.fn());
 
 import { settingsSeams } from "../../lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
-Object.assign(settingsSeams, {loadSettings});
+Object.assign(settingsSeams, { loadSettings });
 const listChangelog = vi.hoisted(() => vi.fn());
 
 import { changelogSeams } from "../../lib/changelog.js";

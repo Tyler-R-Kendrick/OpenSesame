@@ -1,13 +1,20 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   assertionPayload,
   b64urlToBytes,
   bytesToB64url,
   creationOptionsFromJson,
+  parsePublicKeyCredentialCreationOptionsJson,
+  parsePublicKeyCredentialRequestOptionsJson,
   registrationResponseJson,
   requestOptionsFromJson,
 } from "./webauthn.js";
-import { overlapCast } from "@opensesame/os-domain";
+
+function bytes(value: BufferSource): number[] {
+  if (value instanceof ArrayBuffer) return [...new Uint8Array(value)];
+  return [...new Uint8Array(value.buffer, value.byteOffset, value.byteLength)];
+}
 
 describe("webauthn b64url", () => {
   it("round-trips bytes", () => {
@@ -43,9 +50,10 @@ describe("creationOptionsFromJson", () => {
       challenge: "aGk",
       pubKeyCredParams: [{ type: "public-key", alg: -7 }],
     });
-    const pk = overlapCast(opts.publicKey);
-    expect([...(overlapCast(pk.challenge))]).toEqual([104, 105]);
-    expect([...(overlapCast(pk.user.id))]).toEqual([104]);
+    const pk = opts.publicKey;
+    if (!pk) throw new Error("public key options missing");
+    expect(bytes(pk.challenge)).toEqual([104, 105]);
+    expect(bytes(pk.user.id)).toEqual([104]);
     expect(pk.user.name).toBe("dev@example");
     expect(pk.excludeCredentials).toBeUndefined();
   });
@@ -60,10 +68,12 @@ describe("creationOptionsFromJson", () => {
         { id: "aGVsbG8", type: "public-key", transports: ["internal"] },
       ],
     });
-    const pk = overlapCast(opts.publicKey);
+    const pk = opts.publicKey;
+    if (!pk) throw new Error("public key options missing");
     expect(pk.excludeCredentials).toHaveLength(1);
     const first = pk.excludeCredentials?.[0];
-    expect([...(overlapCast(first?.id))]).toEqual([104, 101, 108, 108, 111]);
+    if (!first) throw new Error("excluded credential missing");
+    expect(bytes(first.id)).toEqual([104, 101, 108, 108, 111]);
     expect(first?.type).toBe("public-key");
     expect(first?.transports).toEqual(["internal"]);
   });
@@ -72,8 +82,9 @@ describe("creationOptionsFromJson", () => {
 describe("requestOptionsFromJson", () => {
   it("converts challenge to bytes and omits allowCredentials", () => {
     const opts = requestOptionsFromJson({ challenge: "aGk" });
-    const pk = overlapCast(opts.publicKey);
-    expect([...(overlapCast(pk.challenge))]).toEqual([104, 105]);
+    const pk = opts.publicKey;
+    if (!pk) throw new Error("public key options missing");
+    expect(bytes(pk.challenge)).toEqual([104, 105]);
     expect(pk.allowCredentials).toBeUndefined();
   });
 
@@ -84,16 +95,52 @@ describe("requestOptionsFromJson", () => {
       userVerification: "required",
       allowCredentials: [{ id: "aA", type: "public-key" }],
     });
-    const pk = overlapCast(opts.publicKey);
+    const pk = opts.publicKey;
+    if (!pk) throw new Error("public key options missing");
     expect(pk.rpId).toBe("id.opensesame.test");
     const first = pk.allowCredentials?.[0];
-    expect([...(overlapCast(first?.id))]).toEqual([104]);
+    if (!first) throw new Error("allowed credential missing");
+    expect(bytes(first.id)).toEqual([104]);
+  });
+});
+
+describe("WebAuthn option validation", () => {
+  it("rejects malformed creation options", () => {
+    expect(
+      parsePublicKeyCredentialCreationOptionsJson({
+        rp: { name: "OpenSesame" },
+        user: { id: "aA", name: "dev@example", displayName: "Dev" },
+        challenge: 42,
+        pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+      }),
+    ).toBeNull();
+  });
+
+  it("rejects malformed request credential descriptors", () => {
+    expect(
+      parsePublicKeyCredentialRequestOptionsJson({
+        challenge: "aGk",
+        allowCredentials: [{ id: 42, type: "public-key" }],
+      }),
+    ).toBeNull();
+  });
+
+  it("rejects unsupported authenticator policy values", () => {
+    expect(
+      parsePublicKeyCredentialCreationOptionsJson({
+        rp: { name: "OpenSesame" },
+        user: { id: "aA", name: "dev@example", displayName: "Dev" },
+        challenge: "aGk",
+        pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+        authenticatorSelection: { userVerification: "sometimes" },
+      }),
+    ).toBeNull();
   });
 });
 
 describe("registrationResponseJson", () => {
   it("serializes the attestation response with transports", () => {
-    const cred = overlapCast({
+    const cred: PublicKeyCredential = overlapCast({
       id: "cred-1",
       rawId: new Uint8Array([1, 2, 3]).buffer,
       type: "public-key",
@@ -119,7 +166,7 @@ describe("registrationResponseJson", () => {
   });
 
   it("defaults transports to [] when getTransports is missing", () => {
-    const cred = overlapCast({
+    const cred: PublicKeyCredential = overlapCast({
       id: "cred-2",
       rawId: new Uint8Array([1]).buffer,
       type: "public-key",
@@ -135,7 +182,7 @@ describe("registrationResponseJson", () => {
 
 describe("assertionPayload", () => {
   it("serializes the assertion response", () => {
-    const cred = overlapCast({
+    const cred: PublicKeyCredential = overlapCast({
       id: "cred-1",
       response: {
         clientDataJSON: new Uint8Array([1]).buffer,
@@ -149,5 +196,16 @@ describe("assertionPayload", () => {
       authenticatorData: "AgM",
       signature: "-v8",
     });
+  });
+
+  it("rejects an attestation response as an assertion", () => {
+    const cred: PublicKeyCredential = overlapCast({
+      id: "cred-1",
+      response: {
+        clientDataJSON: new Uint8Array([1]).buffer,
+        attestationObject: new Uint8Array([2]).buffer,
+      },
+    });
+    expect(() => assertionPayload(cred)).toThrow(/authenticator assertion/);
   });
 });

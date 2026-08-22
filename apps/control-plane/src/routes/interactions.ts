@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { HttpBindings } from "@hono/node-server";
+import type { OpenSesameProviderBundle } from "@opensesame/oauth-provider";
+import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
 import { createInteractionCsrf } from "../interactions/csrf.js";
@@ -20,11 +22,12 @@ import type {
 import type { Variables } from "../middleware/context.js";
 import { claimPageSecurityHeaders } from "../middleware/security-headers.js";
 import { renderConsentPage, renderLoginPage } from "../ui/interaction-pages.js";
-import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
 type NodeEnv = { Bindings: HttpBindings };
 
-function providerInteractions(provider: ProviderInteractions): ProviderInteractions {
+function providerInteractions(
+  provider: OpenSesameProviderBundle["provider"],
+): ProviderInteractions {
   // SAFETY: panva's Provider implements Grant.find/new, interactionDetails,
   // and interactionResult; the Client generic is unused at this boundary.
   return overlapCast(provider);
@@ -72,10 +75,7 @@ export function createInteractionRoutes(): Hono<
       };
     }
     try {
-      const details = overlapCast(await provider.interactionDetails(
-        http.req,
-        http.res,
-      ));
+      const details = await provider.interactionDetails(http.req, http.res);
       return { http, details };
     } catch {
       return { error: "Interaction not found or expired", status: 404 };
@@ -83,16 +83,13 @@ export function createInteractionRoutes(): Hono<
   }
 
   function verifyCsrf(uid: string, fields: JsonObject): boolean {
-    const submitted =
-      isString(fields._csrf) ? fields._csrf : undefined;
+    const submitted = isString(fields._csrf) ? fields._csrf : undefined;
     return csrf.verify(uid, submitted);
   }
 
   routes.get("/:uid", async (c) => {
     const ctx = c.get("ctx");
-    const provider = providerInteractions(
-      overlapCast(ctx.oauth.provider),
-    );
+    const provider = providerInteractions(ctx.oauth.provider);
     const loaded = await loadDetails(c, provider);
     if ("error" in loaded) {
       return c.text(loaded.error, loaded.status);
@@ -119,9 +116,7 @@ export function createInteractionRoutes(): Hono<
 
   routes.post("/:uid/login", async (c) => {
     const ctx = c.get("ctx");
-    const provider = providerInteractions(
-      overlapCast(ctx.oauth.provider),
-    );
+    const provider = providerInteractions(ctx.oauth.provider);
     const uid = c.req.param("uid");
     const fields = overlapCast(await c.req.parseBody());
     if (!verifyCsrf(uid, fields)) {
@@ -188,9 +183,7 @@ export function createInteractionRoutes(): Hono<
 
   routes.post("/:uid/confirm", async (c) => {
     const ctx = c.get("ctx");
-    const provider = providerInteractions(
-      overlapCast(ctx.oauth.provider),
-    );
+    const provider = providerInteractions(ctx.oauth.provider);
     const uid = c.req.param("uid");
     const fields = overlapCast(await c.req.parseBody());
     if (!verifyCsrf(uid, fields)) {
@@ -221,9 +214,7 @@ export function createInteractionRoutes(): Hono<
 
   routes.post("/:uid/abort", async (c) => {
     const ctx = c.get("ctx");
-    const provider = providerInteractions(
-      overlapCast(ctx.oauth.provider),
-    );
+    const provider = providerInteractions(ctx.oauth.provider);
     const uid = c.req.param("uid");
     const fields = overlapCast(await c.req.parseBody());
     if (!verifyCsrf(uid, fields)) {

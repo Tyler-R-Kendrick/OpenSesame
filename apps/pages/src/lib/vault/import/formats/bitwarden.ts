@@ -1,4 +1,12 @@
-import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString, isNumber } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  type JsonValue,
+  isNumber,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 /**
  * Bitwarden, both export shapes.
  *
@@ -25,40 +33,49 @@ import {
 } from "../types.js";
 
 /** Bitwarden's numeric match rules. Ours has no startsWith or regex. */
-const URI_MATCH = {
-  0: "domain",
-  1: "host",
-  2: "exact", // startsWith — closest honest neighbour
-  3: "exact",
-  4: "exact", // regex — we cannot evaluate one, so pin it
-  5: "never",
-};
+const URI_MATCH = new Map<number, UriMatch>([
+  [0, "domain"],
+  [1, "host"],
+  [2, "exact"], // startsWith — closest honest neighbour
+  [3, "exact"],
+  [4, "exact"], // regex — we cannot evaluate one, so pin it
+  [5, "never"],
+]);
 
-type BwUri = { uri?: unknown; match?: unknown };
-type BwField = { name?: unknown; value?: unknown; type?: unknown };
-type BwItem = {
-  type?: unknown;
-  name?: unknown;
-  notes?: unknown;
-  favorite?: unknown;
-  folderId?: unknown;
-  fields?: unknown;
-  login?: unknown;
-  card?: unknown;
-  identity?: unknown;
-  creationDate?: unknown;
-  revisionDate?: unknown;
+type BwUri = { uri?: JsonValue; match?: JsonValue };
+type BwField = {
+  name?: JsonValue;
+  value?: JsonValue;
+  type?: JsonValue;
 };
-type BwExport = {
-  encrypted?: unknown;
-  folders?: unknown;
-  items?: unknown;
+type BwItem = {
+  type?: JsonValue;
+  name?: JsonValue;
+  notes?: JsonValue;
+  favorite?: JsonValue;
+  folderId?: JsonValue;
+  fields?: JsonValue;
+  login?: JsonValue;
+  card?: JsonValue;
+  identity?: JsonValue;
+  creationDate?: JsonValue;
+  revisionDate?: JsonValue;
+};
+type BwExport = JsonObject & {
+  encrypted?: JsonValue;
+  folders?: JsonValue;
+  items: JsonValue[];
 };
 
 function isBitwardenJson(json: BoundaryValue): json is BwExport {
-  if (!json || !isTypeofObject(json)) return false;
-  const candidate = overlapCast(json);
-  return Array.isArray(candidate.items) && "encrypted" in candidate;
+  return (
+    isTypeofObject(json) &&
+    json !== null &&
+    !Array.isArray(json) &&
+    "items" in json &&
+    Array.isArray(json.items) &&
+    "encrypted" in json
+  );
 }
 
 export const bitwardenJson: ImportAdapter = {
@@ -82,7 +99,7 @@ export const bitwardenJson: ImportAdapter = {
 
     const folderNames = new Map<string, string>();
     for (const raw of Array.isArray(json.folders) ? json.folders : []) {
-      const folder = overlapCast(raw);
+      const folder: JsonObject = overlapCast(raw);
       if (isString(folder.id) && isString(folder.name)) {
         folderNames.set(folder.id, folder.name);
       }
@@ -93,29 +110,27 @@ export const bitwardenJson: ImportAdapter = {
     const warnings: string[] = [];
     let identityCount = 0;
 
-    for (const raw of overlapCast(json.items)) {
-      const bw = overlapCast(raw);
+    for (const raw of json.items) {
+      const bw: BwItem = overlapCast(raw);
       const name = asString(bw.name) || "Untitled";
-      const folder =
-        isString(bw.folderId)
-          ? (folderNames.get(bw.folderId) ?? null)
-          : null;
+      const folder = isString(bw.folderId)
+        ? (folderNames.get(bw.folderId) ?? null)
+        : null;
 
       let item: DraftItem | null = null;
 
       switch (bw.type) {
         case 1: {
-          const login = overlapCast(bw.login ?? {});
+          const login: JsonObject = overlapCast(bw.login ?? {});
           const draft = draftLogin(name);
           draft.username = asString(login.username);
           draft.password = asString(login.password);
           draft.totp = normaliseTotp(asString(login.totp));
           for (const rawUri of Array.isArray(login.uris) ? login.uris : []) {
-            const entry = overlapCast(rawUri);
-            const match =
-              isNumber(entry.match)
-                ? (URI_MATCH[entry.match] ?? "domain")
-                : "domain";
+            const entry: BwUri = overlapCast(rawUri);
+            const match = isNumber(entry.match)
+              ? (URI_MATCH.get(entry.match) ?? "domain")
+              : "domain";
             addUri(draft, asString(entry.uri), match);
           }
           item = draft;
@@ -125,7 +140,7 @@ export const bitwardenJson: ImportAdapter = {
           item = draftNote(name);
           break;
         case 3: {
-          const card = overlapCast(bw.card ?? {});
+          const card: JsonObject = overlapCast(bw.card ?? {});
           const draft = draftCard(name);
           draft.cardholder = asString(card.cardholderName);
           draft.brand = asString(card.brand);
@@ -140,7 +155,7 @@ export const bitwardenJson: ImportAdapter = {
           // We have no identity type. Rather than drop the record, keep it as a
           // note whose fields hold every populated value.
           identityCount += 1;
-          const identity = overlapCast(bw.identity ?? {});
+          const identity: JsonObject = overlapCast(bw.identity ?? {});
           const draft = draftNote(name);
           for (const [key, value] of Object.entries(identity)) {
             addField(draft, humanise(key), asString(value), isSensitive(key));
@@ -163,7 +178,7 @@ export const bitwardenJson: ImportAdapter = {
       item.updatedAt = toIso(bw.revisionDate);
 
       for (const rawField of Array.isArray(bw.fields) ? bw.fields : []) {
-        const field = overlapCast(rawField);
+        const field: BwField = overlapCast(rawField);
         addField(
           item,
           asString(field.name),

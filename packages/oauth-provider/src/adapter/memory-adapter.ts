@@ -1,6 +1,6 @@
+import { isNumber, isString } from "@opensesame/os-domain";
 import type { Adapter, AdapterPayload } from "oidc-provider";
 import type { OidcAdapterConstructor } from "./types.js";
-import { isNumber, isString } from "@opensesame/os-domain";
 
 type Stored = {
   payload: AdapterPayload;
@@ -72,8 +72,9 @@ export function createMemoryAdapterConstructor(): OidcAdapterConstructor {
       payload: AdapterPayload,
       expiresIn?: number,
     ): Promise<void> {
-      const expiresAt =
-        isNumber(expiresIn) ? Date.now() + expiresIn * 1000 : null;
+      const expiresAt = isNumber(expiresIn)
+        ? Date.now() + expiresIn * 1000
+        : null;
       bag(this.name).set(id, { payload: { ...payload }, expiresAt });
 
       const composite = key(this.name, id);

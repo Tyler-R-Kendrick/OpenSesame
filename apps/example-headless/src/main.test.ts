@@ -1,10 +1,14 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockFetch, runHeadlessDeviceLogin } from "./main.js";
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const ISSUER = "http://127.0.0.1:8788";
 
-const savedEnv = {};
+const savedEnv = new Map<string, string | undefined>();
 
 /** `delete process.env.X` trips lint/performance/noDelete; this is the same unset. */
 function unsetEnv(key: string): void {
@@ -17,25 +21,26 @@ beforeEach(() => {
     "OPENSESAME_ISSUER",
     "OPENSESAME_CLIENT_ID",
   ]) {
-    savedEnv[key] = process.env[key];
+    savedEnv.set(key, process.env[key]);
   }
 });
 
 afterEach(() => {
-  for (const [key, value] of Object.entries(savedEnv)) {
+  for (const [key, value] of savedEnv) {
     if (value === undefined) {
       unsetEnv(key);
     } else {
       process.env[key] = value;
     }
   }
+  savedEnv.clear();
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
 /** Discovery/device/token responder whose device payload can be shaped per test. */
 function deviceFlowFetch(devicePayload: JsonObject): typeof fetch {
-  return overlapCast(async (input: RequestInfo | URL, init?: RequestInit) => {
+  return async (input, init) => {
     const url = String(input);
     if (url.includes("openid-configuration")) {
       return new Response(
@@ -52,7 +57,7 @@ function deviceFlowFetch(devicePayload: JsonObject): typeof fetch {
       return new Response(JSON.stringify(devicePayload));
     }
     throw new Error(`unexpected ${url}`);
-  });
+  };
 }
 
 describe("createMockFetch", () => {
@@ -78,9 +83,7 @@ describe("createMockFetch", () => {
     const mockFetch = createMockFetch();
     const first = await mockFetch(`${ISSUER}/token`, { method: "POST" });
     expect(first.status).toBe(400);
-    expect((overlapCast(await first.json())).error).toBe(
-      "authorization_pending",
-    );
+    expect(overlapCast(await first.json()).error).toBe("authorization_pending");
     const second = await mockFetch(`${ISSUER}/token`, { method: "POST" });
     const tokens = overlapCast(await second.json());
     expect(tokens.access_token).toBe("mock-access");
@@ -112,12 +115,12 @@ describe("runHeadlessDeviceLogin", () => {
     vi.useFakeTimers();
     process.env.MOCK_DEVICE_FLOW = "1";
     const writes: string[] = [];
-    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(overlapCast((
-      chunk: BoundaryValue,
-    ) => {
-      writes.push(String(chunk));
-      return true;
-    }));
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(
+      overlapCast((chunk: BoundaryValue) => {
+        writes.push(String(chunk));
+        return true;
+      }),
+    );
 
     const pending = runHeadlessDeviceLogin();
     // The mock polls once as pending; the default sleep waits one clamped
@@ -153,7 +156,7 @@ describe("runHeadlessDeviceLogin", () => {
     process.env.OPENSESAME_CLIENT_ID = "custom-client";
     vi.resetModules();
     const seen: Array<{ url: string; body: string | undefined }> = [];
-    const fetchImpl = overlapCast(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchImpl: typeof fetch = async (input, init) => {
       const url = String(input);
       seen.push({ url, body: init?.body?.toString() });
       if (url.includes("openid-configuration")) {
@@ -179,9 +182,9 @@ describe("runHeadlessDeviceLogin", () => {
       return new Response(
         JSON.stringify({ access_token: "tok", token_type: "Bearer" }),
       );
-    });
+    };
 
-    const fresh = overlapCast(await import("./main.js"));
+    const fresh: typeof import("./main.js") = await import("./main.js");
     const result = await fresh.runHeadlessDeviceLogin({
       fetchImpl,
       sleep: async () => undefined,
@@ -226,7 +229,7 @@ describe("runHeadlessDeviceLogin", () => {
   });
 
   it("reports a missing access token as absent", async () => {
-    const fetchImpl = overlapCast(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchImpl: typeof fetch = async (input, init) => {
       const url = String(input);
       if (url.includes("openid-configuration")) {
         return new Response(
@@ -253,7 +256,7 @@ describe("runHeadlessDeviceLogin", () => {
       return new Response(
         JSON.stringify({ access_token: "", token_type: "Bearer" }),
       );
-    });
+    };
 
     const result = await runHeadlessDeviceLogin({
       fetchImpl,

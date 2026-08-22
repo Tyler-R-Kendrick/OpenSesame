@@ -1,5 +1,18 @@
 import { randomUUID } from "node:crypto";
-import { AuditEvent, AuthorizationRequest, BetterAuthSubject, ClaimItem, ClaimSession, ExternalIdentity, OutboxEvent, Principal, JsonObject, overlapCast, type BoundaryValue, isTypeofObject } from "@opensesame/os-domain";
+import {
+  type AuditEvent,
+  type AuthorizationRequest,
+  type BetterAuthSubject,
+  type BoundaryValue,
+  type ClaimItem,
+  type ClaimSession,
+  type ExternalIdentity,
+  type JsonObject,
+  type OutboxEvent,
+  type Principal,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { and, desc, eq, isNull, notExists, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type postgres from "postgres";
@@ -92,7 +105,9 @@ function mapIdentity(
     ...(row.emailNormalized != null
       ? { emailNormalized: row.emailNormalized }
       : undefined),
-    ...(row.emailVerified != null ? { emailVerified: row.emailVerified } : undefined),
+    ...(row.emailVerified != null
+      ? { emailVerified: row.emailVerified }
+      : undefined),
     ...(row.lastAuthenticatedAt
       ? { lastAuthenticatedAt: row.lastAuthenticatedAt }
       : undefined),
@@ -140,11 +155,15 @@ function mapClaim(row: typeof schema.claimSessions.$inferSelect): ClaimSession {
     ...(row.creatorPrincipalId
       ? { creatorPrincipalId: row.creatorPrincipalId }
       : undefined),
-    ...(row.creatorAgentId ? { creatorAgentId: row.creatorAgentId } : undefined),
+    ...(row.creatorAgentId
+      ? { creatorAgentId: row.creatorAgentId }
+      : undefined),
     ...(row.creatorInstanceId
       ? { creatorInstanceId: row.creatorInstanceId }
       : undefined),
-    ...(row.userCodeDigest ? { userCodeDigest: row.userCodeDigest } : undefined),
+    ...(row.userCodeDigest
+      ? { userCodeDigest: row.userCodeDigest }
+      : undefined),
     ...(row.proofKeyJkt ? { proofKeyJkt: row.proofKeyJkt } : undefined),
     ...(row.requestedDestination
       ? {
@@ -155,7 +174,9 @@ function mapClaim(row: typeof schema.claimSessions.$inferSelect): ClaimSession {
       ? { requestedGrant: overlapCast(row.requestedGrant) }
       : undefined),
     ...(row.presentedAt ? { presentedAt: row.presentedAt } : undefined),
-    ...(row.authenticatedAt ? { authenticatedAt: row.authenticatedAt } : undefined),
+    ...(row.authenticatedAt
+      ? { authenticatedAt: row.authenticatedAt }
+      : undefined),
     ...(row.reviewedAt ? { reviewedAt: row.reviewedAt } : undefined),
     ...(row.completedAt ? { completedAt: row.completedAt } : undefined),
     ...(row.revokedAt ? { revokedAt: row.revokedAt } : undefined),
@@ -184,12 +205,12 @@ function isUniqueViolation(err: BoundaryValue): boolean {
   // postgres-js surfaces the PG error code on the error itself; the PGlite
   // driver wraps the original error in `cause`. Check both so the conflict
   // mapping behaves identically under either driver.
-  for (const candidate of [err, (overlapCast(err))?.cause]) {
+  for (const candidate of [err, overlapCast(err)?.cause]) {
     if (
       isTypeofObject(candidate) &&
       candidate !== null &&
       "code" in candidate &&
-      (overlapCast(candidate)).code === "23505"
+      overlapCast(candidate).code === "23505"
     ) {
       return true;
     }
@@ -249,7 +270,8 @@ export class PostgresRepositories implements Repositories {
         if (!row) throw new Error("insert principal returned no row");
         return mapPrincipal(row);
       } catch (err) {
-        if (isUniqueViolation(err)) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (isUniqueViolation(boundaryError)) {
           throw new ConflictError(`principal already exists: ${principal.id}`);
         }
         throw err;
@@ -346,7 +368,8 @@ export class PostgresRepositories implements Repositories {
         if (!row) throw new Error("insert identity returned no row");
         return mapIdentity(row);
       } catch (err) {
-        if (isUniqueViolation(err)) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (isUniqueViolation(boundaryError)) {
           throw new ConflictError(
             "external identity collision for kind+issuer+tenant+subject",
           );
@@ -423,7 +446,8 @@ export class PostgresRepositories implements Repositories {
           linkedAt: inserted.linkedAt,
         };
       } catch (err) {
-        if (isUniqueViolation(err)) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (isUniqueViolation(boundaryError)) {
           throw new ConflictError(
             `better auth subject already linked: ${row.betterAuthUserId}`,
           );
@@ -475,7 +499,8 @@ export class PostgresRepositories implements Repositories {
         if (!row) throw new Error("insert authorization request failed");
         return mapAuthorizationRequest(row);
       } catch (err) {
-        if (isUniqueViolation(err)) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (isUniqueViolation(boundaryError)) {
           throw new ConflictError(
             `authorization request conflict: ${request.id}`,
           );
@@ -513,7 +538,9 @@ export class PostgresRepositories implements Repositories {
       const [row] = await dbOf(uow, this.db)
         .update(schema.authorizationRequests)
         .set({
-          ...(patch.status !== undefined ? { status: patch.status } : undefined),
+          ...(patch.status !== undefined
+            ? { status: patch.status }
+            : undefined),
           ...(patch.expiresAt !== undefined
             ? { expiresAt: patch.expiresAt }
             : undefined),
@@ -585,7 +612,8 @@ export class PostgresRepositories implements Repositories {
         if (!row) throw new Error("insert claim session failed");
         return mapClaim(row);
       } catch (err) {
-        if (isUniqueViolation(err)) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (isUniqueViolation(boundaryError)) {
           throw new ConflictError(`claim session conflict: ${session.id}`);
         }
         throw err;

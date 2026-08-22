@@ -1,3 +1,10 @@
+import {
+  type JsonValue,
+  isBoolean,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
+
 export type RecoveryNodeKind =
   | "account"
   | "device"
@@ -91,7 +98,7 @@ export interface IndependentRootAnalysis {
   minimumIndependentRootCount: number;
 }
 
-const NODE_KINDS = new Set<RecoveryNodeKind>([
+const NODE_KINDS = new Set<string>([
   "account",
   "device",
   "mailbox",
@@ -102,7 +109,7 @@ const NODE_KINDS = new Set<RecoveryNodeKind>([
   "recovery_code",
   "trusted_contact",
 ]);
-const EDGE_KINDS = new Set<RecoveryEdgeKind>([
+const EDGE_KINDS = new Set<string>([
   "authenticates",
   "recovers",
   "stores",
@@ -113,8 +120,19 @@ const MAX_NODES = 10_000;
 const MAX_EDGES = 50_000;
 const MAX_VALUE_LENGTH = 200;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+type RecoveryGraphInput =
+  | JsonValue
+  | {
+      readonly nodes: readonly RecoveryNode[];
+      readonly edges: readonly (RecoveryEdge | undefined)[];
+    };
+
+function isNodeKind(value: JsonValue | undefined): value is RecoveryNodeKind {
+  return isString(value) && NODE_KINDS.has(value);
+}
+
+function isEdgeKind(value: JsonValue | undefined): value is RecoveryEdgeKind {
+  return isString(value) && EDGE_KINDS.has(value);
 }
 
 function issue(
@@ -127,12 +145,16 @@ function issue(
 }
 
 /** Parse and normalize user-declared graph data without mutating the input. */
-export function validateRecoveryGraph(input: unknown): RecoveryGraphValidation {
+export function validateRecoveryGraph(
+  input: RecoveryGraphInput,
+): RecoveryGraphValidation {
+  // SAFETY: RecoveryGraph is already the same JSON-shaped boundary represented by JsonValue; callers supply either form.
+  const raw = input as JsonValue;
   const errors: RecoveryGraphIssue[] = [];
   if (
-    !isRecord(input) ||
-    !Array.isArray(input.nodes) ||
-    !Array.isArray(input.edges)
+    !isJsonObject(raw) ||
+    !Array.isArray(raw.nodes) ||
+    !Array.isArray(raw.edges)
   ) {
     return {
       valid: false,
@@ -146,29 +168,29 @@ export function validateRecoveryGraph(input: unknown): RecoveryGraphValidation {
       ],
     };
   }
-  if (input.nodes.length > MAX_NODES)
+  if (raw.nodes.length > MAX_NODES)
     issue(errors, "too_many_nodes", "nodes", "too many nodes");
-  if (input.edges.length > MAX_EDGES)
+  if (raw.edges.length > MAX_EDGES)
     issue(errors, "too_many_edges", "edges", "too many edges");
 
   const nodes: RecoveryNode[] = [];
   const nodeIds = new Set<string>();
-  for (const [index, value] of input.nodes.entries()) {
+  for (const [index, value] of raw.nodes.entries()) {
     const path = `nodes[${index}]`;
-    if (!isRecord(value)) {
+    if (!isJsonObject(value)) {
       issue(errors, "invalid_node", path, "expected an object");
       continue;
     }
     const { id, kind, displayName, independentRoot } = value;
-    if (typeof id !== "string" || id.length === 0)
+    if (!isString(id) || id.length === 0)
       issue(errors, "empty_value", `${path}.id`, "id is required");
     else if (id.length > MAX_VALUE_LENGTH)
       issue(errors, "value_too_long", `${path}.id`, "id is too long");
     else if (nodeIds.has(id))
       issue(errors, "duplicate_node", `${path}.id`, "node id is duplicated");
-    if (typeof kind !== "string" || !NODE_KINDS.has(kind as RecoveryNodeKind))
+    if (!isNodeKind(kind))
       issue(errors, "invalid_node", `${path}.kind`, "unknown node kind");
-    if (typeof displayName !== "string" || displayName.trim().length === 0)
+    if (!isString(displayName) || displayName.trim().length === 0)
       issue(
         errors,
         "empty_value",
@@ -182,7 +204,7 @@ export function validateRecoveryGraph(input: unknown): RecoveryGraphValidation {
         `${path}.displayName`,
         "displayName is too long",
       );
-    if (typeof independentRoot !== "boolean")
+    if (!isBoolean(independentRoot))
       issue(
         errors,
         "invalid_node",
@@ -190,22 +212,21 @@ export function validateRecoveryGraph(input: unknown): RecoveryGraphValidation {
         "independentRoot must be boolean",
       );
     if (
-      typeof id === "string" &&
+      isString(id) &&
       id.length > 0 &&
       id.length <= MAX_VALUE_LENGTH &&
       !nodeIds.has(id)
     ) {
       nodeIds.add(id);
       if (
-        typeof kind === "string" &&
-        NODE_KINDS.has(kind as RecoveryNodeKind) &&
-        typeof displayName === "string" &&
+        isNodeKind(kind) &&
+        isString(displayName) &&
         displayName.trim() &&
-        typeof independentRoot === "boolean"
+        isBoolean(independentRoot)
       ) {
         nodes.push({
           id,
-          kind: kind as RecoveryNodeKind,
+          kind,
           displayName,
           independentRoot,
         });
@@ -215,43 +236,42 @@ export function validateRecoveryGraph(input: unknown): RecoveryGraphValidation {
 
   const edges: RecoveryEdge[] = [];
   const edgeKeys = new Set<string>();
-  for (const [index, value] of input.edges.entries()) {
+  for (const [index, value] of raw.edges.entries()) {
     const path = `edges[${index}]`;
-    if (!isRecord(value)) {
+    if (!isJsonObject(value)) {
       issue(errors, "invalid_edge", path, "expected an object");
       continue;
     }
     const { from, to, kind } = value;
-    if (typeof from !== "string" || !nodeIds.has(from))
+    if (!isString(from) || !nodeIds.has(from))
       issue(
         errors,
         "unknown_node",
         `${path}.from`,
         "from must reference a known node",
       );
-    if (typeof to !== "string" || !nodeIds.has(to))
+    if (!isString(to) || !nodeIds.has(to))
       issue(
         errors,
         "unknown_node",
         `${path}.to`,
         "to must reference a known node",
       );
-    if (typeof kind !== "string" || !EDGE_KINDS.has(kind as RecoveryEdgeKind))
+    if (!isEdgeKind(kind))
       issue(errors, "invalid_edge", `${path}.kind`, "unknown edge kind");
     if (
-      typeof from === "string" &&
-      typeof to === "string" &&
-      typeof kind === "string" &&
+      isString(from) &&
+      isString(to) &&
       nodeIds.has(from) &&
       nodeIds.has(to) &&
-      EDGE_KINDS.has(kind as RecoveryEdgeKind)
+      isEdgeKind(kind)
     ) {
       const key = `${from}\0${to}\0${kind}`;
       if (edgeKeys.has(key))
         issue(errors, "duplicate_edge", path, "edge is duplicated");
       else {
         edgeKeys.add(key);
-        edges.push({ from, to, kind: kind as RecoveryEdgeKind });
+        edges.push({ from, to, kind });
       }
     }
   }
@@ -269,7 +289,8 @@ export function validateRecoveryGraph(input: unknown): RecoveryGraphValidation {
 }
 
 function adjacency(graph: RecoveryGraph): Map<string, string[]> {
-  const result = new Map(graph.nodes.map((node) => [node.id, [] as string[]]));
+  const result = new Map<string, string[]>();
+  for (const node of graph.nodes) result.set(node.id, []);
   for (const edge of graph.edges) result.get(edge.from)?.push(edge.to);
   for (const neighbors of result.values()) neighbors.sort();
   return result;

@@ -9,6 +9,7 @@ import {
   presentClaim,
   reviewClaim,
 } from "../index.js";
+import type { BoundaryValue } from "../json.js";
 
 async function assertAtMostWins(
   worker: () => Promise<boolean> | boolean,
@@ -39,7 +40,7 @@ function checkThenSetAdmitsDoubleClaim(): void {
   keys.add("d1");
 }
 
-function assertNoSecretFields(value: unknown): void {
+function assertNoSecretFields(value: BoundaryValue): void {
   const blob = JSON.stringify(value);
   for (const key of [
     "access_token",

@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
 import {
   EVENT_ROTATION_FAILED,
@@ -8,7 +9,6 @@ import {
   consumeRotationEvents,
   toPublicJobView,
 } from "../rotation.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 describe("toPublicJobView", () => {
   it("maps top-level fallbacks when there is no target block", () => {

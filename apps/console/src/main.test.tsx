@@ -4,9 +4,7 @@ import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { sdkBrowserSeams } from "./sdk-browser.js";
 
-(
-  overlapCast(globalThis)
-).IS_REACT_ACT_ENVIRONMENT = true;
+overlapCast(globalThis).IS_REACT_ACT_ENVIRONMENT = true;
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -19,6 +17,10 @@ describe("console entrypoint", () => {
     seams.createOpenSesame = vi.fn(() => ({
       signIn: vi.fn(),
       continueAnonymously: vi.fn(),
+      getSession: vi.fn(),
+      presentClaim: vi.fn(),
+      readClaim: vi.fn(),
+      completeClaim: vi.fn(),
       signOut: vi.fn(),
     }));
     document.body.innerHTML = '<div id="root"></div>';

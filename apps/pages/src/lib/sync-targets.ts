@@ -1,4 +1,10 @@
-import { type JsonObject, overlapCast, type BoundaryValue, isString, isTypeofObject } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 /**
  * Host sync target client (WP-C / ADR 0041).
  *
@@ -36,6 +42,16 @@ export type SyncTargetOutcome = {
 
 const FORBIDDEN_KEYS =
   /^(value|secret|password|token|access_token|refresh_token)$/i;
+const SYNC_TARGET_STATUSES = new Set<string>([
+  "idle",
+  "syncing",
+  "ready",
+  "error",
+]);
+
+function isSyncTargetStatus(value: string): value is SyncTargetStatus {
+  return SYNC_TARGET_STATUSES.has(value);
+}
 
 function assertNoSecretLeak(value: BoundaryValue, path = "response"): void {
   if (value === null || value === undefined) return;
@@ -49,10 +65,8 @@ function assertNoSecretLeak(value: BoundaryValue, path = "response"): void {
     for (const item of value) assertNoSecretLeak(item, path);
     return;
   }
-  if (isTypeofObject(value)) {
-    for (const [key, nested] of Object.entries(
-      overlapCast(value),
-    )) {
+  if (isJsonObject(value)) {
+    for (const [key, nested] of Object.entries(value)) {
       if (FORBIDDEN_KEYS.test(key)) {
         throw new Error(`${path} contained forbidden key ${key}`);
       }
@@ -62,6 +76,7 @@ function assertNoSecretLeak(value: BoundaryValue, path = "response"): void {
 }
 
 function normalizeTarget(raw: JsonObject): SyncTarget {
+  const status = String(raw.status ?? "idle");
   return {
     id: String(raw.id ?? ""),
     projectId: String(raw.project_id ?? raw.projectId ?? ""),
@@ -69,25 +84,22 @@ function normalizeTarget(raw: JsonObject): SyncTarget {
     connectionId: String(raw.connection_id ?? raw.connectionId ?? ""),
     providerId: String(raw.provider_id ?? raw.providerId ?? ""),
     operation: String(raw.operation ?? ""),
-    status: overlapCast(String(raw.status ?? "idle")),
-    statusDetail:
-      isString(raw.status_detail)
-        ? raw.status_detail
-        : isString(raw.statusDetail)
-          ? raw.statusDetail
-          : null,
-    contentVersion:
-      isString(raw.content_version)
-        ? raw.content_version
-        : isString(raw.contentVersion)
-          ? raw.contentVersion
-          : null,
-    lastSyncedAt:
-      isString(raw.last_synced_at)
-        ? raw.last_synced_at
-        : isString(raw.lastSyncedAt)
-          ? raw.lastSyncedAt
-          : null,
+    status: isSyncTargetStatus(status) ? status : "error",
+    statusDetail: isString(raw.status_detail)
+      ? raw.status_detail
+      : isString(raw.statusDetail)
+        ? raw.statusDetail
+        : null,
+    contentVersion: isString(raw.content_version)
+      ? raw.content_version
+      : isString(raw.contentVersion)
+        ? raw.contentVersion
+        : null,
+    lastSyncedAt: isString(raw.last_synced_at)
+      ? raw.last_synced_at
+      : isString(raw.lastSyncedAt)
+        ? raw.lastSyncedAt
+        : null,
     organizationId: String(raw.organization_id ?? raw.organizationId ?? ""),
     createdAt: String(raw.created_at ?? raw.createdAt ?? ""),
     updatedAt: String(raw.updated_at ?? raw.updatedAt ?? ""),
@@ -96,25 +108,23 @@ function normalizeTarget(raw: JsonObject): SyncTarget {
 
 function normalizeOutcome(raw: JsonObject): SyncTargetOutcome {
   const targetRaw = raw.target;
-  if (!targetRaw || !isTypeofObject(targetRaw) || Array.isArray(targetRaw)) {
+  if (!isJsonObject(targetRaw)) {
     throw new Error("sync outcome missing target");
   }
   return {
-    target: normalizeTarget(overlapCast(targetRaw)),
+    target: normalizeTarget(targetRaw),
     ok: Boolean(raw.ok),
     keysSynced: Number(raw.keys_synced ?? raw.keysSynced ?? 0),
-    contentVersion:
-      isString(raw.content_version)
-        ? raw.content_version
-        : isString(raw.contentVersion)
-          ? raw.contentVersion
-          : null,
-    error:
-      isString(raw.error)
-        ? raw.error
-        : raw.error === null
-          ? null
-          : undefined,
+    contentVersion: isString(raw.content_version)
+      ? raw.content_version
+      : isString(raw.contentVersion)
+        ? raw.contentVersion
+        : null,
+    error: isString(raw.error)
+      ? raw.error
+      : raw.error === null
+        ? null
+        : undefined,
   };
 }
 
@@ -130,12 +140,12 @@ async function listSyncTargetsDefault(options?: {
   if (!res.ok) {
     throw new Error(`List sync targets failed (${res.status}).`);
   }
-  const body = overlapCast(await res.json());
+  const body: { sync_targets?: BoundaryValue[] } = overlapCast(
+    await res.json(),
+  );
   assertNoSecretLeak(body);
   const targets = (body.sync_targets ?? [])
-    .filter(
-      (row): row is JsonObject => !!row && isTypeofObject(row),
-    )
+    .filter((row): row is JsonObject => isJsonObject(row))
     .map(normalizeTarget);
   assertNoSecretLeak(targets);
   return targets;
@@ -157,10 +167,11 @@ export async function createSyncTarget(input: {
     }),
   });
   if (!res.ok) {
-    const err = overlapCast(await res.json().catch(() => null));
-    throw new Error(err?.hint ?? `Create sync target failed (${res.status}).`);
+    const err: BoundaryValue = await res.json().catch(() => null);
+    const hint = isJsonObject(err) && isString(err.hint) ? err.hint : undefined;
+    throw new Error(hint ?? `Create sync target failed (${res.status}).`);
   }
-  const body = overlapCast(await res.json());
+  const body: JsonObject = overlapCast(await res.json());
   assertNoSecretLeak(body);
   const target = normalizeTarget(body);
   assertNoSecretLeak(target);
@@ -188,14 +199,16 @@ async function syncTargetDefault(
     {
       method: "POST",
       body: JSON.stringify({
-        ...(options?.keyNames?.length ? { key_names: options.keyNames } : undefined),
+        ...(options?.keyNames?.length
+          ? { key_names: options.keyNames }
+          : undefined),
       }),
     },
   );
   if (!res.ok) {
     throw new Error(`Sync target failed (${res.status}).`);
   }
-  const body = overlapCast(await res.json());
+  const body: JsonObject = overlapCast(await res.json());
   assertNoSecretLeak(body);
   const outcome = normalizeOutcome(body);
   assertNoSecretLeak(outcome);
@@ -212,12 +225,10 @@ export async function syncAllForConfig(
   if (!res.ok) {
     throw new Error(`Sync-all failed (${res.status}).`);
   }
-  const body = overlapCast(await res.json());
+  const body: { outcomes?: BoundaryValue[] } = overlapCast(await res.json());
   assertNoSecretLeak(body);
   const outcomes = (body.outcomes ?? [])
-    .filter(
-      (row): row is JsonObject => !!row && isTypeofObject(row),
-    )
+    .filter((row): row is JsonObject => isJsonObject(row))
     .map(normalizeOutcome);
   assertNoSecretLeak(outcomes);
   return outcomes;

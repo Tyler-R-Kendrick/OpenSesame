@@ -1,6 +1,6 @@
+import { isFunction } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import * as worker from "../index.js";
-import { isFunction } from "@opensesame/os-domain";
 
 describe("worker public surface", () => {
   it("re-exports the cleanup, rotation and task bus APIs", () => {

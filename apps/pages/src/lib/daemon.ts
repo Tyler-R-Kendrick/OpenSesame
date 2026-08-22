@@ -1,3 +1,4 @@
+import { isString, overlapCast } from "@opensesame/os-domain";
 import { localNetworkFetch } from "./local-network-fetch.js";
 import {
   loadSettings,
@@ -8,7 +9,6 @@ import {
   shippedIdentityApi,
 } from "./settings.js";
 import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
-import { overlapCast, isString } from "@opensesame/os-domain";
 
 export type DaemonHealth = {
   status: string;
@@ -50,8 +50,7 @@ async function probeDaemonDefault(
   return {
     status: isString(body.status) ? body.status : "ok",
     service: "opensesame-daemon",
-    hostApi:
-      isString(body.host_api) && body.host_api ? body.host_api : null,
+    hostApi: isString(body.host_api) && body.host_api ? body.host_api : null,
     identityApi:
       isString(body.identity_api) && body.identity_api
         ? body.identity_api
@@ -137,9 +136,7 @@ export const daemonSeams = {
   applyDaemonPairing: applyDaemonPairingDefault,
 };
 
-export async function probeDaemon(
-  raw?: string,
-): Promise<DaemonHealth> {
+export async function probeDaemon(raw?: string): Promise<DaemonHealth> {
   return raw === undefined
     ? daemonSeams.probeDaemon()
     : daemonSeams.probeDaemon(raw);

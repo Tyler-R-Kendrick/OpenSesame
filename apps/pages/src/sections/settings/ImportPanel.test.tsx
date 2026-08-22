@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,9 +14,10 @@ const applyImport = vi.hoisted(() => vi.fn());
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {useVault: () => vault.current,
-  useVaultStore: () => ({ applyImport })});
-
+Object.assign(vaultHooksSeams, {
+  useVault: () => vault.current,
+  useVaultStore: () => ({ applyImport }),
+});
 
 const location = vi.hoisted(() => ({ hash: "" }));
 
@@ -61,7 +62,10 @@ const BITWARDEN_JSON = JSON.stringify({
 });
 
 function pickFile(file: File) {
-  const input = overlapCast(document.getElementById("manager-import"));
+  const input = document.getElementById("manager-import");
+  if (!(input instanceof HTMLInputElement)) {
+    throw new Error("import input not found");
+  }
   fireEvent.change(input, { target: { files: [file] } });
 }
 
@@ -235,11 +239,9 @@ describe("ImportPanel", () => {
     ).toBeTruthy();
     expect(screen.getByText(/1 match by name and username/)).toBeTruthy();
     expect(
-      (
-        overlapCast(screen.getByRole("button", {
-          name: /Nothing to import/i,
-        }))
-      ).disabled,
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: /Nothing to import/i,
+      }).disabled,
     ).toBe(true);
     // Untick skip-duplicates to bring in copies anyway.
     await userEvent.click(
@@ -272,7 +274,8 @@ describe("ImportPanel", () => {
 
   it("accepts files dropped onto the drop zone", async () => {
     render(<ImportPanel />);
-    const drop = overlapCast(document.querySelector(".imp__drop"));
+    const drop = document.querySelector(".imp__drop");
+    if (!(drop instanceof HTMLElement)) throw new Error("drop zone not found");
     const file = makeFile("dropped.env", "API_KEY=sk-123\n");
     fireEvent.drop(drop, { dataTransfer: { files: [file] } });
     expect(await screen.findByText(/Recognised as/)).toBeTruthy();
@@ -301,9 +304,9 @@ describe("ImportPanel", () => {
     pickFile(makeFile("chrome.csv", csv));
     await screen.findByText(/Recognised as/);
     // Browser exports have no folders → the single-folder input is offered.
-    const input = overlapCast(screen.getByLabelText(
+    const input = screen.getByLabelText<HTMLInputElement>(
       /Name of the folder to import into/,
-    ));
+    );
     expect(input.value).toBe("Imported from your browser");
     await userEvent.clear(input);
     await userEvent.type(input, "From Chrome");
@@ -339,7 +342,8 @@ describe("ImportPanel edge branches", () => {
 
   it("highlights the drop zone while dragging", () => {
     render(<ImportPanel />);
-    const drop = overlapCast(document.querySelector(".imp__drop"));
+    const drop = document.querySelector(".imp__drop");
+    if (!(drop instanceof HTMLElement)) throw new Error("drop zone not found");
     fireEvent.dragOver(drop);
     expect(drop.className).toContain("is-over");
     fireEvent.dragLeave(drop);

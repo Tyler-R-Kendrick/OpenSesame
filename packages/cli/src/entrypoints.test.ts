@@ -1,6 +1,6 @@
+import { isFunction, overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as index from "./index.js";
-import { overlapCast, isFunction } from "@opensesame/os-domain";
 
 afterEach(() => {
   vi.restoreAllMocks();

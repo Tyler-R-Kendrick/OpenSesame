@@ -21,6 +21,14 @@ import {
   shippedIdentityApi,
 } from "../../lib/settings.js";
 
+export const endpointsPanelDependencies = {
+  checkTurso,
+  setTursoSessionToken,
+  loadSettings,
+  saveSettings,
+  pageIsLoopback,
+};
+
 /**
  * Endpoints, collapsed.
  *
@@ -34,16 +42,18 @@ type EndpointKey = "hostApi" | "identityApi" | "daemonApi" | "mfaAppUrl";
 const TRAILING_SLASH = /\/$/;
 
 export function EndpointsPanel() {
-  const [settings, setSettings] = useState<PagesSettings>(() => loadSettings());
+  const [settings, setSettings] = useState<PagesSettings>(() =>
+    endpointsPanelDependencies.loadSettings(),
+  );
   const [open, setOpen] = useState(false);
   const [saved, setSaved] = useState<Set<EndpointKey>>(() => new Set());
 
   function commit(key: EndpointKey, raw: string) {
     const value = raw.trim().replace(TRAILING_SLASH, "");
-    const current = loadSettings();
+    const current = endpointsPanelDependencies.loadSettings();
     if (current[key] === value) return;
-    saveSettings({ ...current, [key]: value });
-    setSettings(loadSettings());
+    endpointsPanelDependencies.saveSettings({ ...current, [key]: value });
+    setSettings(endpointsPanelDependencies.loadSettings());
     setSaved((previous) => new Set(previous).add(key));
   }
 
@@ -101,7 +111,10 @@ export function EndpointsPanel() {
             status={savedChip("hostApi")}
             onValueChange={(value) => edit("hostApi", value)}
             onCommit={(value) => commit("hostApi", value)}
-            fills={fill("hostApi", pageIsLoopback() ? shippedHostApi : "")}
+            fills={fill(
+              "hostApi",
+              endpointsPanelDependencies.pageIsLoopback() ? shippedHostApi : "",
+            )}
           />
           <FieldShell
             id="identity-api"
@@ -116,7 +129,9 @@ export function EndpointsPanel() {
             onCommit={(value) => commit("identityApi", value)}
             fills={fill(
               "identityApi",
-              pageIsLoopback() ? shippedIdentityApi : "",
+              endpointsPanelDependencies.pageIsLoopback()
+                ? shippedIdentityApi
+                : "",
             )}
           />
           <FieldShell
@@ -130,7 +145,12 @@ export function EndpointsPanel() {
             status={savedChip("daemonApi")}
             onValueChange={(value) => edit("daemonApi", value)}
             onCommit={(value) => commit("daemonApi", value)}
-            fills={fill("daemonApi", pageIsLoopback() ? shippedDaemonApi : "")}
+            fills={fill(
+              "daemonApi",
+              endpointsPanelDependencies.pageIsLoopback()
+                ? shippedDaemonApi
+                : "",
+            )}
             hint={
               <>
                 Local Pages keep Host and Identity on loopback after pairing.
@@ -164,7 +184,9 @@ export function EndpointsPanel() {
  * one — but it is no longer wedged into the middle of the endpoint list.
  */
 export function TursoSyncPanel() {
-  const [tursoUrl, setTursoUrl] = useState(() => loadSettings().tursoUrl);
+  const [tursoUrl, setTursoUrl] = useState(
+    () => endpointsPanelDependencies.loadSettings().tursoUrl,
+  );
   const [token, setToken] = useState("");
   const [status, setStatus] = useState<{
     tone: "ok" | "err";
@@ -175,9 +197,12 @@ export function TursoSyncPanel() {
   async function apply() {
     setBusy(true);
     try {
-      saveSettings({ ...loadSettings(), tursoUrl: tursoUrl.trim() });
-      setTursoSessionToken(token);
-      const mode = await checkTurso();
+      endpointsPanelDependencies.saveSettings({
+        ...endpointsPanelDependencies.loadSettings(),
+        tursoUrl: tursoUrl.trim(),
+      });
+      endpointsPanelDependencies.setTursoSessionToken(token);
+      const mode = await endpointsPanelDependencies.checkTurso();
       setStatus({
         tone: mode === "memory" ? "err" : "ok",
         text:

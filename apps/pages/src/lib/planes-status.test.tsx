@@ -1,4 +1,4 @@
-import { type BoundaryValue } from "@opensesame/os-domain";
+import type { BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

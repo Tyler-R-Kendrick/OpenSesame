@@ -13,10 +13,7 @@ export function taskBusControlsDisabled(
   return busy || config?.source === "env";
 }
 
-export function taskBusSaveFlash(
-  applied: boolean,
-  config: TaskBusConfig,
-) {
+export function taskBusSaveFlash(applied: boolean, config: TaskBusConfig) {
   if (applied) {
     return { tone: "ok", text: "TaskBus config applied on Host." };
   }
@@ -28,10 +25,7 @@ export function taskBusSaveFlash(
   };
 }
 
-export function taskBusPingFlash(
-  ok: boolean,
-  config: TaskBusConfig,
-) {
+export function taskBusPingFlash(ok: boolean, config: TaskBusConfig) {
   if (ok) {
     return { tone: "ok", text: "Host reached TaskBus / NATS." };
   }
