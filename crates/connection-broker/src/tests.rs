@@ -2824,3 +2824,247 @@ async fn minting_against_a_revoked_connection_fails() {
         "materialization_denied" | "invalid_request"
     ));
 }
+
+// ---- project-config secret store (ADR 0052) --------------------------------
+
+mod secret_config_store {
+    use super::*;
+    use crate::store::{
+        claim_config_sync_batch, dead_letter_config_sync, delete_config_value,
+        delete_secret_config, get_config_value_version_sealed, get_secret_config,
+        insert_secret_config, list_config_key_meta, list_config_value_versions,
+        list_secret_configs, load_config_values_sealed, mark_config_sync_published,
+        park_config_sync, upsert_config_value, SecretConfigRow, UpsertConfigValue,
+    };
+    use chrono::Utc;
+
+    const ORG: &str = "org_test";
+    const PROJECT: &str = "proj_test";
+    const CONFIG: &str = "cfg_dev";
+
+    fn config_row(id: &str, slug: &str, environment: &str) -> SecretConfigRow {
+        SecretConfigRow {
+            id: id.into(),
+            organization_id: ORG.into(),
+            project_id: PROJECT.into(),
+            slug: slug.into(),
+            display_name: slug.to_uppercase(),
+            environment: environment.into(),
+            parent_config_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    async fn seeded_pool() -> sqlx::SqlitePool {
+        let db = Db::connect_memory().await.expect("db");
+        let pool = db.pool().clone();
+        insert_secret_config(&pool, &config_row(CONFIG, "development", "development"))
+            .await
+            .expect("insert config");
+        pool
+    }
+
+    fn upsert<'a>(key_name: &'a str, plaintext: &'a [u8]) -> UpsertConfigValue<'a> {
+        UpsertConfigValue {
+            organization_id: ORG,
+            project_id: PROJECT,
+            config_id: CONFIG,
+            key_name,
+            plaintext,
+            actor_id: Some("operator:test"),
+        }
+    }
+
+    #[tokio::test]
+    async fn config_crud_roundtrip() {
+        let pool = seeded_pool().await;
+        let found = get_secret_config(&pool, ORG, CONFIG)
+            .await
+            .expect("get")
+            .expect("some");
+        assert_eq!(found.slug, "development");
+        assert_eq!(found.environment, "development");
+        let listed = list_secret_configs(&pool, ORG, PROJECT)
+            .await
+            .expect("list");
+        assert_eq!(listed.len(), 1);
+        // Another org sees nothing.
+        assert!(get_secret_config(&pool, "org_other", CONFIG)
+            .await
+            .expect("get")
+            .is_none());
+        assert!(delete_secret_config(&pool, ORG, CONFIG).await.expect("del"));
+        assert!(!delete_secret_config(&pool, ORG, CONFIG).await.expect("del"));
+    }
+
+    #[tokio::test]
+    async fn an_invalid_environment_is_refused() {
+        let db = Db::connect_memory().await.expect("db");
+        let pool = db.pool().clone();
+        let error = insert_secret_config(&pool, &config_row("cfg_bad", "bad", "prod"))
+            .await
+            .expect_err("must refuse");
+        assert_eq!(error.code(), "invalid_request");
+    }
+
+    #[tokio::test]
+    async fn upsert_bumps_versions_and_seals_per_version() {
+        let pool = seeded_pool().await;
+        let v1 = upsert_config_value(&pool, &KEY, upsert("API_KEY", b"first"))
+            .await
+            .expect("v1");
+        let v2 = upsert_config_value(&pool, &KEY, upsert("API_KEY", b"second"))
+            .await
+            .expect("v2");
+        assert_eq!((v1, v2), (1, 2));
+
+        let meta = list_config_key_meta(&pool, ORG, CONFIG)
+            .await
+            .expect("meta");
+        assert_eq!(meta.len(), 1);
+        assert_eq!(meta[0].key_name, "API_KEY");
+        assert_eq!(meta[0].version, 2);
+
+        // Head opens under the v2 AAD, and only the v2 AAD.
+        let sealed = load_config_values_sealed(&pool, ORG, CONFIG)
+            .await
+            .expect("sealed");
+        assert_eq!(sealed.len(), 1);
+        let ad_v2 = crate::crypto::config_value_ad(ORG, PROJECT, CONFIG, "API_KEY", 2);
+        assert_eq!(
+            crate::crypto::open_with_ad(&KEY, &ad_v2, &sealed[0].sealed).expect("open"),
+            b"second"
+        );
+        let ad_v1 = crate::crypto::config_value_ad(ORG, PROJECT, CONFIG, "API_KEY", 1);
+        assert!(crate::crypto::open_with_ad(&KEY, &ad_v1, &sealed[0].sealed).is_err());
+
+        // The v1 row is still retrievable and opens under its own AAD.
+        let old = get_config_value_version_sealed(&pool, ORG, CONFIG, "API_KEY", 1)
+            .await
+            .expect("query")
+            .expect("v1 kept");
+        assert_eq!(
+            crate::crypto::open_with_ad(&KEY, &ad_v1, &old.sealed).expect("open v1"),
+            b"first"
+        );
+    }
+
+    #[tokio::test]
+    async fn upsert_against_a_missing_config_is_refused() {
+        let db = Db::connect_memory().await.expect("db");
+        let pool = db.pool().clone();
+        let error = upsert_config_value(&pool, &KEY, upsert("API_KEY", b"x"))
+            .await
+            .expect_err("must refuse");
+        assert_eq!(error.code(), "config_not_found");
+    }
+
+    #[tokio::test]
+    async fn delete_tombstones_and_versions_stay_monotonic() {
+        let pool = seeded_pool().await;
+        upsert_config_value(&pool, &KEY, upsert("API_KEY", b"first"))
+            .await
+            .expect("v1");
+        assert!(delete_config_value(&pool, ORG, CONFIG, "API_KEY", None)
+            .await
+            .expect("delete"));
+        assert!(list_config_key_meta(&pool, ORG, CONFIG)
+            .await
+            .expect("meta")
+            .is_empty());
+        let versions = list_config_value_versions(&pool, ORG, CONFIG, "API_KEY")
+            .await
+            .expect("versions");
+        assert_eq!(versions.len(), 2);
+        assert!(versions[0].deleted);
+        // A deleted version slot is not retrievable as a value.
+        assert!(
+            get_config_value_version_sealed(&pool, ORG, CONFIG, "API_KEY", 2)
+                .await
+                .expect("query")
+                .is_none()
+        );
+        // Re-inserting continues after the tombstone: no version reuse.
+        let v3 = upsert_config_value(&pool, &KEY, upsert("API_KEY", b"third"))
+            .await
+            .expect("v3");
+        assert_eq!(v3, 3);
+    }
+
+    #[tokio::test]
+    async fn mutations_append_sync_wakes_and_backup_events_atomically() {
+        let pool = seeded_pool().await;
+        upsert_config_value(&pool, &KEY, upsert("API_KEY", b"sw0rdf1sh-plaintext"))
+            .await
+            .expect("upsert");
+
+        let claimed = claim_config_sync_batch(&pool, 10, 60).await.expect("claim");
+        assert_eq!(claimed.len(), 1);
+        assert_eq!(claimed[0].event_type, "sync.config.dirty");
+        assert_eq!(claimed[0].config_id, CONFIG);
+        // The lease holds: a second claim sees nothing.
+        assert!(claim_config_sync_batch(&pool, 10, 60)
+            .await
+            .expect("claim")
+            .is_empty());
+
+        // The backup outbox got its own event in the same transaction, and the
+        // payload carries names only — never a value.
+        let backup: Vec<String> =
+            sqlx::query_scalar("SELECT payload_json FROM outbox_events ORDER BY created_at")
+                .fetch_all(&pool)
+                .await
+                .expect("outbox");
+        assert!(!backup.is_empty());
+        assert!(backup
+            .iter()
+            .all(|payload| !payload.contains("sw0rdf1sh-plaintext")));
+    }
+
+    #[tokio::test]
+    async fn park_and_dead_letter_shape_the_sync_queue() {
+        let pool = seeded_pool().await;
+        upsert_config_value(&pool, &KEY, upsert("A", b"1"))
+            .await
+            .expect("upsert");
+        let first = claim_config_sync_batch(&pool, 10, 60).await.expect("claim");
+        let ids: Vec<String> = first.iter().map(|e| e.id.clone()).collect();
+
+        // Parked with zero backoff → claimable again, attempts grew.
+        park_config_sync(&pool, &ids, "provider 503", 0)
+            .await
+            .expect("park");
+        let again = claim_config_sync_batch(&pool, 10, 60).await.expect("claim");
+        assert_eq!(again.len(), 1);
+        assert!(again[0].attempts >= 2);
+
+        dead_letter_config_sync(&pool, &ids, "gave up")
+            .await
+            .expect("dead");
+        park_config_sync(&pool, &ids, "should not resurrect", 0)
+            .await
+            .expect("park");
+        assert!(claim_config_sync_batch(&pool, 10, 60)
+            .await
+            .expect("claim")
+            .is_empty());
+
+        // Published rows never come back either.
+        upsert_config_value(&pool, &KEY, upsert("B", b"2"))
+            .await
+            .expect("upsert");
+        let fresh = claim_config_sync_batch(&pool, 10, 60).await.expect("claim");
+        let fresh_ids: Vec<String> = fresh.iter().map(|e| e.id.clone()).collect();
+        mark_config_sync_published(&pool, &fresh_ids)
+            .await
+            .expect("publish");
+        park_config_sync(&pool, &fresh_ids, "no-op", 0)
+            .await
+            .expect("park");
+        assert!(claim_config_sync_batch(&pool, 10, 60)
+            .await
+            .expect("claim")
+            .is_empty());
+    }
+}
