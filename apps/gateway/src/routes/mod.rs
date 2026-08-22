@@ -16,6 +16,7 @@ mod nats_callout;
 mod protected_resource;
 mod receipts;
 mod rotation;
+mod secret_configs;
 mod session;
 mod sync;
 mod sync_blobs;
@@ -204,6 +205,44 @@ pub fn router(state: AppState) -> Router {
             get(changelog::list_for_project),
         )
         .route("/api/v1/changelog", post(changelog::record))
+        // ADR 0052: project-config secret store — write-only value intake;
+        // every response is key names + version metadata, never values.
+        .route(
+            "/api/v1/projects/{project_id}/configs",
+            get(secret_configs::list_for_project)
+                .post(secret_configs::create)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/configs/{id}",
+            get(secret_configs::get).delete(secret_configs::delete),
+        )
+        .route(
+            "/api/v1/configs/{id}/secrets",
+            get(secret_configs::list_keys)
+                .put(secret_configs::put_secrets)
+                .layer(DefaultBodyLimit::max(256 * 1024)),
+        )
+        .route(
+            "/api/v1/configs/{id}/secrets/{key}",
+            delete(secret_configs::delete_secret),
+        )
+        .route(
+            "/api/v1/configs/{id}/secrets/{key}/versions",
+            get(secret_configs::list_versions),
+        )
+        .route(
+            "/api/v1/configs/{id}/secrets/{key}/rollback",
+            post(secret_configs::rollback).layer(DefaultBodyLimit::max(4 * 1024)),
+        )
+        .route(
+            "/api/v1/configs/{a}/compare/{b}",
+            get(secret_configs::compare),
+        )
+        .route(
+            "/api/v1/configs/{id}/branch",
+            post(secret_configs::branch).layer(DefaultBodyLimit::max(4 * 1024)),
+        )
         // WP-C: sync targets — ConnectionRef fan-out; never returns secrets.
         .route(
             "/api/v1/sync-targets",
