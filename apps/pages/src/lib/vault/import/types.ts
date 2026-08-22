@@ -101,7 +101,7 @@ export type DetectInput = {
   text: string;
   /** Present only for CSV-shaped text, so JSON adapters can ignore it. */
   headers: string[] | null;
-  json: unknown;
+  json: BoundaryValue;
 };
 
 export type ParseInput = DetectInput;

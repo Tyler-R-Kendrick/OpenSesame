@@ -1,3 +1,9 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isFunction,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assertDiscoveredUrl,
@@ -6,7 +12,6 @@ import {
 } from "./client.js";
 import { ClaimRequestError } from "./errors.js";
 import * as sdk from "./index.js";
-import { type JsonObject, overlapCast, type BoundaryValue, isFunction } from "@opensesame/os-domain";
 import type { Session } from "./types.js";
 
 class MemStorage {

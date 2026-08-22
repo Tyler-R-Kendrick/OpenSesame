@@ -1,6 +1,10 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createApiClient } from "./index.js";
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const syncTarget = {
   id: "synctarget_01J",
@@ -16,6 +20,10 @@ const syncTarget = {
   organization_id: "organization_01J",
   created_at: "2026-08-08T10:00:00.000Z",
   updated_at: "2026-08-08T10:05:00.000Z",
+};
+
+type SyncPushBody = {
+  blobs: Array<{ ciphertext: number[] }>;
 };
 
 const outcome = {
@@ -190,7 +198,7 @@ describe("api-client invoke and E2EE sync", () => {
     // base64 for bytes [1, 2, 3, 255]
     const ciphertextB64 = btoa(String.fromCharCode(1, 2, 3, 255));
     await client.syncPush([{ id: "blob_01J", epoch: 4, ciphertextB64 }]);
-    const body = overlapCast(JSON.parse(calls[0]?.body ?? "{}"));
+    const body: SyncPushBody = overlapCast(JSON.parse(calls[0]?.body ?? "{}"));
     expect(body.blobs[0]?.ciphertext).toEqual([1, 2, 3, 255]);
     expect(calls[0]?.url).toBe("https://host.test:8787/api/v1/sync/push");
   });

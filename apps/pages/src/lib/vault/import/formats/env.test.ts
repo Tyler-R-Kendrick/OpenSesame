@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { readHeaderRow } from "../csv.js";
 import {
@@ -8,7 +9,6 @@ import {
   summarise,
 } from "../index.js";
 import { parseDotenv } from "./env.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 function input(fileName: string, text: string): DetectInput {
   let json = null;

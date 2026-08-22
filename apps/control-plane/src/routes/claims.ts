@@ -12,7 +12,17 @@ import {
   evaluateDevicePoll,
   initialPollInterval,
 } from "@opensesame/device-auth";
-import { type ClaimItem, type ClaimSession, DomainError, parseClaimToken, verifyClaimToken, verifyUserCode, isString } from "@opensesame/os-domain";
+import {
+  type ClaimItem,
+  type ClaimSession,
+  DomainError,
+  type JsonObject,
+  isString,
+  overlapCast,
+  parseClaimToken,
+  verifyClaimToken,
+  verifyUserCode,
+} from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
@@ -205,9 +215,22 @@ claimRoutes.post(
           return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
         }
 
+        // Hono established JSON syntax and Zod bounded each record. Contextual
+        // types retain that JSON-safe contract past Zod's `unknown` values.
+        const targetManifest: JsonObject = overlapCast(
+          parsed.data.targetManifest,
+        );
+        const requestedDestination: JsonObject | undefined =
+          parsed.data.requestedDestination === undefined
+            ? undefined
+            : overlapCast(parsed.data.requestedDestination);
+        const requestedGrant: JsonObject | undefined =
+          parsed.data.requestedGrant === undefined
+            ? undefined
+            : overlapCast(parsed.data.requestedGrant);
         const created = await ctx.claims.createClaim({
           type: parsed.data.type,
-          targetManifest: parsed.data.targetManifest,
+          targetManifest,
           creatorPrincipalId: principalId,
           ...(parsed.data.ttlSeconds !== undefined
             ? { ttlMs: parsed.data.ttlSeconds * 1000 }
@@ -215,12 +238,8 @@ claimRoutes.post(
           ...(parsed.data.proofKeyJkt !== undefined
             ? { proofKeyJkt: parsed.data.proofKeyJkt }
             : undefined),
-          ...(parsed.data.requestedDestination !== undefined
-            ? { requestedDestination: parsed.data.requestedDestination }
-            : undefined),
-          ...(parsed.data.requestedGrant !== undefined
-            ? { requestedGrant: parsed.data.requestedGrant }
-            : undefined),
+          ...(requestedDestination ? { requestedDestination } : undefined),
+          ...(requestedGrant ? { requestedGrant } : undefined),
         });
 
         await appendAuditEvent(ctx.repos.auditEvents, {
@@ -379,12 +398,13 @@ claimRoutes.post(
       if (session.state === "presented") {
         session = await ctx.claims.authenticateClaim(id);
       }
+      const destination: JsonObject | undefined = parsed.data.destination
+        ? overlapCast(parsed.data.destination)
+        : undefined;
       if (session.state === "authenticated") {
         await ctx.claims.reviewClaim(id, {
           acceptedItemIds: parsed.data.acceptedItemIds,
-          ...(parsed.data.destination !== undefined
-            ? { destination: parsed.data.destination }
-            : undefined),
+          ...(destination ? { destination } : undefined),
         });
       }
 
@@ -392,8 +412,8 @@ claimRoutes.post(
       const decision: CompleteDecision = {
         acceptedItemIds: parsed.data.acceptedItemIds,
       };
-      if (parsed.data.destination !== undefined) {
-        decision.destination = parsed.data.destination;
+      if (destination !== undefined) {
+        decision.destination = destination;
       }
       if (parsed.data.idempotencyKey !== undefined) {
         decision.idempotencyKey = parsed.data.idempotencyKey;
@@ -405,8 +425,9 @@ claimRoutes.post(
 
       // Preserve principal / project ids from target manifest on completion
       const manifest = result.session.targetManifest;
-      const projectId =
-        isString(manifest.projectId) ? manifest.projectId : undefined;
+      const projectId = isString(manifest.projectId)
+        ? manifest.projectId
+        : undefined;
       if (projectId) {
         const project = ctx.stores.projects.get(projectId);
         if (
@@ -429,8 +450,7 @@ claimRoutes.post(
           });
         }
       }
-      const agentId =
-        isString(manifest.agentId) ? manifest.agentId : undefined;
+      const agentId = isString(manifest.agentId) ? manifest.agentId : undefined;
       if (agentId) {
         const agent = ctx.stores.agents.get(agentId);
         if (
@@ -460,10 +480,9 @@ claimRoutes.post(
         ...toClaimResponse(result.session),
         won: result.won,
         preserved: {
-          principalId:
-            isString(manifest.ownerPrincipalId)
-              ? manifest.ownerPrincipalId
-              : principalId,
+          principalId: isString(manifest.ownerPrincipalId)
+            ? manifest.ownerPrincipalId
+            : principalId,
           ...(projectId !== undefined ? { projectId } : undefined),
           ...(agentId !== undefined ? { agentId } : undefined),
         },

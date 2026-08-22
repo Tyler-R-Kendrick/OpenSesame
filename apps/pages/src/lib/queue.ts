@@ -1,4 +1,4 @@
-import { overlapCast, isTypeofObject, isString } from "@opensesame/os-domain";
+import { isString, isTypeofObject, overlapCast } from "@opensesame/os-domain";
 /**
  * Offline outbox.
  *
@@ -43,8 +43,7 @@ function loadDeviceActions(): DeviceAction[] {
     .filter((item): item is DeviceAction => {
       if (!item || !isTypeofObject(item)) return false;
       if (item.kind !== "device_approve") return false;
-      if (!item.id || !item.userCode || !isString(item.createdAt))
-        return false;
+      if (!item.id || !item.userCode || !isString(item.createdAt)) return false;
       const createdAt = Date.parse(item.createdAt);
       return !Number.isNaN(createdAt) && Date.now() - createdAt <= QUEUE_TTL_MS;
     })
@@ -105,9 +104,9 @@ export function enqueue(action: QueuedActionInput): QueuedAction {
 }
 
 export function dequeue(id: string): void {
-  return queueSeams.dequeue(id);
+  queueSeams.dequeue(id);
 }
 
 export function clearStagedClaimTokens(): void {
-  return queueSeams.clearStagedClaimTokens();
+  queueSeams.clearStagedClaimTokens();
 }

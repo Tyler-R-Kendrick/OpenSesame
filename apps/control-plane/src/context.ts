@@ -1,3 +1,4 @@
+import type { AuditSink } from "@opensesame/audit";
 import type {
   MemoryPrincipalMappingStore,
   PasskeyChallengeStore,
@@ -13,10 +14,14 @@ import type { ControlPlaneConfig } from "./config.js";
 import type { IndexedClaimStore } from "./repos/claim-store.js";
 import type { AppStores } from "./state.js";
 
+export type ControlPlaneRepositories = Omit<Repositories, "auditEvents"> & {
+  auditEvents: AuditSink & Pick<Repositories["auditEvents"], "list">;
+};
+
 export interface AppContext {
   config: ControlPlaneConfig;
   log: Logger;
-  repos: Repositories;
+  repos: ControlPlaneRepositories;
   claimStore: IndexedClaimStore;
   claims: ClaimEngine;
   oauth: OpenSesameProviderBundle;

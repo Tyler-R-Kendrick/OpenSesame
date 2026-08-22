@@ -5,6 +5,11 @@ import {
   type ServerResponse,
   createServer,
 } from "node:http";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isString,
+} from "@opensesame/os-domain";
 import { SignJWT } from "jose";
 import {
   type MockIdpConfig,
@@ -13,7 +18,6 @@ import {
   createMockIdpKeys,
   readMockIdpConfig,
 } from "./config.js";
-import { type JsonObject, type BoundaryValue, isString } from "@opensesame/os-domain";
 
 type AuthCode = {
   clientId: string;
@@ -56,10 +60,7 @@ export interface MockUpstreamIdp {
   close(): Promise<void>;
 }
 
-function securityHeaders(
-  extra: Record<string, string> = {},
-  issuer = "",
-) {
+function securityHeaders(extra: Record<string, string> = {}, issuer = "") {
   const headers = {
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
@@ -69,8 +70,10 @@ function securityHeaders(
     ...extra,
   };
   if (issuer.startsWith("https://")) {
-    headers["strict-transport-security"] =
-      "max-age=63072000; includeSubDomains";
+    return {
+      ...headers,
+      "strict-transport-security": "max-age=63072000; includeSubDomains",
+    };
   }
   return headers;
 }
@@ -284,7 +287,9 @@ export async function createMockUpstreamIdp(
           scope,
           codeChallenge,
           ...(nonce !== undefined ? { nonce } : undefined),
-          ...(originClient !== undefined ? { origin: originClient } : undefined),
+          ...(originClient !== undefined
+            ? { origin: originClient }
+            : undefined),
         };
         codes.set(code, entry);
 
@@ -318,8 +323,9 @@ export async function createMockUpstreamIdp(
         const clientSecret =
           body.get("client_secret") ?? basicClientSecret(req) ?? "";
         const originClient = originFromClientId(clientId);
-        const requestOrigin =
-          isString(req.headers.origin) ? req.headers.origin : "";
+        const requestOrigin = isString(req.headers.origin)
+          ? req.headers.origin
+          : "";
 
         if (originClient) {
           if (requestOrigin !== originClient) {
@@ -375,7 +381,9 @@ export async function createMockUpstreamIdp(
           const tokens = await issueTokens({
             clientId,
             scope: stored.scope,
-            ...(stored.nonce !== undefined ? { nonce: stored.nonce } : undefined),
+            ...(stored.nonce !== undefined
+              ? { nonce: stored.nonce }
+              : undefined),
           });
           return sendJson(res, 200, tokens, config.issuer, cors);
         }

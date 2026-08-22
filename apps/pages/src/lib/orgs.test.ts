@@ -35,6 +35,7 @@ describe("orgs", () => {
   });
 
   it("looks up a tenant by slug", async () => {
+    // SAFETY: the fixture has the same request/response function contract as the seam.
     identitySeams.identityJson = vi.fn(async (path: string) => {
       expect(path).toBe("/v1/organizations/tenants/acme");
       return {
@@ -53,12 +54,14 @@ describe("orgs", () => {
   });
 
   it("rejects a malformed slug before calling Identity", async () => {
+    // SAFETY: the mock intentionally preserves the seam's exact function type.
     identitySeams.identityJson = vi.fn() as typeof identitySeams.identityJson;
     await expect(lookupOrgTenant("Nope!")).rejects.toThrow(/slug/);
     expect(identitySeams.identityJson).not.toHaveBeenCalled();
   });
 
   it("joins a tenant and selects that org profile", async () => {
+    // SAFETY: the fixture has the same request/response function contract as the seam.
     identitySeams.identityJson = vi.fn(async () => ({
       id: "org:acme",
       slug: "acme",
@@ -76,6 +79,7 @@ describe("orgs", () => {
   });
 
   it("lists memberships when Identity is configured", async () => {
+    // SAFETY: the fixture has the same request/response function contract as the seam.
     identitySeams.identityJson = vi.fn(async () => ({
       organizations: [{ id: "org:1", slug: "acme", displayName: "Acme" }],
     })) as typeof identitySeams.identityJson;
@@ -86,6 +90,7 @@ describe("orgs", () => {
 
   it("returns no memberships when Identity is not configured", async () => {
     identitySeams.identityBase = () => "";
+    // SAFETY: the mock intentionally preserves the seam's exact function type.
     identitySeams.identityJson = vi.fn() as typeof identitySeams.identityJson;
     await expect(listOrgMemberships()).resolves.toEqual([]);
     expect(identitySeams.identityJson).not.toHaveBeenCalled();

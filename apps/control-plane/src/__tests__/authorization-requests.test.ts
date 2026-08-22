@@ -1,6 +1,6 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -29,7 +29,7 @@ async function inboxRefOf(
     headers: { authorization: `Bearer ${who.accessToken}` },
   });
   expect(res.status).toBe(200);
-  return (overlapCast(await res.json())).approverRef;
+  return overlapCast(await res.json()).approverRef;
 }
 
 async function principal(app: App) {
@@ -128,9 +128,11 @@ describe("authorization request inbox", () => {
     const app = plane();
     const approver = await principal(app);
     const requester = await principal(app);
-    const body = overlapCast(await (
-      await ask(app, requester.accessToken, await inboxRefOf(app, approver))
-    ).json());
+    const body = overlapCast(
+      await (
+        await ask(app, requester.accessToken, await inboxRefOf(app, approver))
+      ).json(),
+    );
 
     const res = await decide(
       app,
@@ -147,9 +149,11 @@ describe("authorization request inbox", () => {
     const app = plane();
     const approver = await principal(app);
     const requester = await principal(app);
-    const body = overlapCast(await (
-      await ask(app, requester.accessToken, await inboxRefOf(app, approver))
-    ).json());
+    const body = overlapCast(
+      await (
+        await ask(app, requester.accessToken, await inboxRefOf(app, approver))
+      ).json(),
+    );
 
     const res = await decide(
       app,
@@ -167,9 +171,11 @@ describe("authorization request inbox", () => {
     const approver = await principal(app);
     const requester = await principal(app);
     const stranger = await principal(app);
-    const body = overlapCast(await (
-      await ask(app, requester.accessToken, await inboxRefOf(app, approver))
-    ).json());
+    const body = overlapCast(
+      await (
+        await ask(app, requester.accessToken, await inboxRefOf(app, approver))
+      ).json(),
+    );
 
     const read = await app.request(
       `/v1/authorization-requests/${body.authReqId}`,
@@ -189,9 +195,11 @@ describe("authorization request inbox", () => {
     const app = plane();
     const approver = await principal(app);
     const requester = await principal(app);
-    const body = overlapCast(await (
-      await ask(app, requester.accessToken, await inboxRefOf(app, approver))
-    ).json());
+    const body = overlapCast(
+      await (
+        await ask(app, requester.accessToken, await inboxRefOf(app, approver))
+      ).json(),
+    );
 
     const poll = await app.request(
       `/v1/authorization-requests/${body.authReqId}/poll`,
@@ -205,9 +213,11 @@ describe("authorization request inbox", () => {
     const app = plane();
     const approver = await principal(app);
     const requester = await principal(app);
-    const body = overlapCast(await (
-      await ask(app, requester.accessToken, await inboxRefOf(app, approver))
-    ).json());
+    const body = overlapCast(
+      await (
+        await ask(app, requester.accessToken, await inboxRefOf(app, approver))
+      ).json(),
+    );
     const url = `/v1/authorization-requests/${body.authReqId}/poll`;
     const auth = { authorization: `Bearer ${requester.accessToken}` };
 
@@ -224,9 +234,11 @@ describe("authorization request inbox", () => {
     const app = plane();
     const approver = await principal(app);
     const requester = await principal(app);
-    const body = overlapCast(await (
-      await ask(app, requester.accessToken, await inboxRefOf(app, approver))
-    ).json());
+    const body = overlapCast(
+      await (
+        await ask(app, requester.accessToken, await inboxRefOf(app, approver))
+      ).json(),
+    );
 
     expect(
       (
@@ -310,7 +322,7 @@ describe("authorization request inbox", () => {
     const read = await app.request(`/v1/authorization-requests/${authReqId}`, {
       headers: { authorization: `Bearer ${approver.accessToken}` },
     });
-    expect((overlapCast(await read.json())).status).toBe("expired");
+    expect(overlapCast(await read.json()).status).toBe("expired");
 
     // Asking for only the pending rows must not return it, which is the part
     // a projection-on-read cannot deliver.

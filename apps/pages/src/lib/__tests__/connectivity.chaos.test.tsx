@@ -34,10 +34,18 @@ const DAEMON = "http://127.0.0.1:18790";
 
 type Mode = "up" | "down" | "timeout" | "error" | "impostor";
 
-const net = {
-  host: "up" as Mode,
-  identity: "up" as Mode,
-  daemon: "up" as Mode,
+type ChaosEnvironment = {
+  host: Mode;
+  identity: Mode;
+  daemon: Mode;
+  flapEvery: number;
+  calls: { host: number; identity: number; daemon: number };
+};
+
+const net: ChaosEnvironment = {
+  host: "up",
+  identity: "up",
+  daemon: "up",
   /** Fail every Nth request, to simulate a flapping link. */
   flapEvery: 0,
   calls: { host: 0, identity: 0, daemon: 0 },
@@ -50,7 +58,7 @@ function which(url: string): "host" | "identity" | "daemon" | null {
   return null;
 }
 
-function bodyFor(target: "host" | "identity" | "daemon"): unknown {
+function bodyFor(target: "host" | "identity" | "daemon") {
   if (target === "daemon") {
     return {
       status: "ok",
@@ -87,6 +95,7 @@ function chaosFetch(input: RequestInfo | URL, init?: RequestInit) {
       return new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener("abort", () =>
           reject(
+            // SAFETY: RequestInit.signal is the AbortSignal supplied by the test fetch seam.
             (init.signal as AbortSignal).reason ??
               new DOMException("aborted", "AbortError"),
           ),

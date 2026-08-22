@@ -1,4 +1,4 @@
-import { fixtures } from "@opensesame/os-domain";
+import { fixtures, overlapCast } from "@opensesame/os-domain";
 import { assertNoSecretFields } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
 import {
@@ -10,7 +10,7 @@ import {
 describe("PACT — device-auth projection", () => {
   it("contract: UI projection has no secret fields", () => {
     const projection = projectDeviceAuth(fixtures.pendingDeviceAuth());
-    assertNoSecretFields(projection);
+    assertNoSecretFields(overlapCast(projection));
     expect(JSON.stringify(projection)).not.toMatch(/user_code|device_code/i);
   });
 

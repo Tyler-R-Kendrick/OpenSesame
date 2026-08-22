@@ -1,7 +1,7 @@
+import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { and, eq, lt } from "drizzle-orm";
 import type { Database } from "./repos/postgres.js";
 import * as schema from "./schema/index.js";
-import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
 /**
  * Payload shape the oidc-provider adapter stores.
@@ -68,10 +68,11 @@ export function oidcRowValues(
   payload: OidcStorePayload,
   expiresAt: Date | null,
 ) {
+  const storedPayload: JsonObject = overlapCast(payload);
   return {
     model,
     id,
-    payload,
+    payload: storedPayload,
     expiresAt,
     uid: isString(payload.uid) ? payload.uid : null,
     userCode: isString(payload.userCode) ? payload.userCode : null,
@@ -92,7 +93,7 @@ export function oidcPayloadFromRow(
   now: Date = new Date(),
 ): OidcStorePayload | undefined {
   if (row.expiresAt && row.expiresAt <= now) return undefined;
-  const payload = overlapCast({ ...row.payload });
+  const payload: OidcStorePayload = overlapCast({ ...row.payload });
   if (row.consumedAt) {
     payload.consumed = Math.floor(row.consumedAt.getTime() / 1000);
   }

@@ -1,6 +1,6 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -54,9 +54,7 @@ describe("principals routes edge cases", () => {
       headers,
     });
     expect(limited.status).toBe(429);
-    expect((overlapCast(await limited.json())).error).toBe(
-      "rate_limited",
-    );
+    expect(overlapCast(await limited.json()).error).toBe("rate_limited");
 
     // A different fingerprint has its own budget.
     const other = await app.request("/v1/principals/provisional", {
@@ -235,7 +233,7 @@ describe("principals routes edge cases", () => {
       assurance: "verified",
     });
     expect(suspended.status).toBe(403);
-    expect((overlapCast(await suspended.json())).error).toBe(
+    expect(overlapCast(await suspended.json()).error).toBe(
       "principal_inactive",
     );
 
@@ -276,7 +274,7 @@ describe("principals routes edge cases", () => {
       assurance: "verified",
     });
     expect(res.status).toBe(403);
-    expect((overlapCast(await res.json())).error).toBe(
+    expect(overlapCast(await res.json()).error).toBe(
       "identity_link_requires_upstream",
     );
   });
@@ -397,9 +395,7 @@ describe("principals routes edge cases", () => {
       { headers: { "x-opensesame-mapping-token": "mapping-test-token" } },
     );
     expect(missing.status).toBe(400);
-    expect((overlapCast(await missing.json())).error).toBe(
-      "validation_error",
-    );
+    expect(overlapCast(await missing.json()).error).toBe("validation_error");
   });
 
   it("mapping resolve finds upstream mappings and linked identities", async () => {

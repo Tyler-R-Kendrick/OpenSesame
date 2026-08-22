@@ -40,7 +40,9 @@ function toDomain(client: StoreClientRecord): OAuthClientRecord {
     allowedScopes: client.allowedScopes,
     allowedResources: client.allowedResources,
     ...(client.metadataUri ? { metadataUri: client.metadataUri } : undefined),
-    ...(client.metadataDigest ? { metadataDigest: client.metadataDigest } : undefined),
+    ...(client.metadataDigest
+      ? { metadataDigest: client.metadataDigest }
+      : undefined),
     state: client.state,
     createdAt: client.createdAt ?? client.firstSeenAt ?? new Date(0),
     updatedAt:
@@ -66,7 +68,9 @@ function toStoreRecord(client: OAuthClientRecord): StoreClientRecord {
     allowedScopes: client.allowedScopes,
     allowedResources: client.allowedResources,
     ...(client.metadataUri ? { metadataUri: client.metadataUri } : undefined),
-    ...(client.metadataDigest ? { metadataDigest: client.metadataDigest } : undefined),
+    ...(client.metadataDigest
+      ? { metadataDigest: client.metadataDigest }
+      : undefined),
     state: client.state,
     createdAt: client.createdAt,
     updatedAt: client.updatedAt,

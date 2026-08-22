@@ -1,4 +1,5 @@
 import { appendAuditEvent } from "@opensesame/audit";
+import { isBoolean, isString, overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
@@ -6,7 +7,6 @@ import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { AppClaimService, ClaimError } from "../services/app-claim.js";
 import { authenticatedPrincipalId } from "./organizations.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 export const appClaimRoutes = new Hono<{ Variables: Variables }>();
 
@@ -57,11 +57,17 @@ appClaimRoutes.post(
     if (denied) return denied;
 
     const body = overlapCast(await c.req.json().catch(() => ({})));
+    if (body.origin !== undefined && !isString(body.origin)) {
+      return c.json(
+        { error: "validation_error", message: "origin must be a string" },
+        400,
+      );
+    }
     try {
       const started = await claimService(ctx).startClaim({
         applicationId: c.req.param("id"),
         ownerPrincipalId: principalId,
-        ...(body.origin !== undefined ? { origin: body.origin } : undefined),
+        ...(isString(body.origin) ? { origin: body.origin } : undefined),
       });
       await appendAuditEvent(ctx.repos.auditEvents, {
         eventType: "oauth_client.claim_challenge_started",
@@ -86,10 +92,7 @@ appClaimRoutes.post(
       );
     } catch (err) {
       if (err instanceof ClaimError) {
-        return c.json(
-          { error: err.code, message: err.message },
-          overlapCast(err.status),
-        );
+        return c.json({ error: err.code, message: err.message }, err.status);
       }
       throw err;
     }
@@ -107,9 +110,24 @@ appClaimRoutes.post(
     if (denied) return denied;
 
     const body = overlapCast(await c.req.json().catch(() => ({})));
-    if (!body.challenge) {
+    if (!isString(body.challenge) || !body.challenge) {
       return c.json(
         { error: "validation_error", message: "challenge is required" },
+        400,
+      );
+    }
+    if (body.origin !== undefined && !isString(body.origin)) {
+      return c.json(
+        { error: "validation_error", message: "origin must be a string" },
+        400,
+      );
+    }
+    if (body.attachAlias !== undefined && !isBoolean(body.attachAlias)) {
+      return c.json(
+        {
+          error: "validation_error",
+          message: "attachAlias must be a boolean",
+        },
         400,
       );
     }
@@ -117,8 +135,8 @@ appClaimRoutes.post(
       const result = await claimService(ctx).verifyAndClaim({
         challenge: body.challenge,
         ownerPrincipalId: principalId,
-        ...(body.origin !== undefined ? { origin: body.origin } : undefined),
-        ...(body.attachAlias !== undefined
+        ...(isString(body.origin) ? { origin: body.origin } : undefined),
+        ...(isBoolean(body.attachAlias)
           ? { attachAlias: body.attachAlias }
           : undefined),
       });
@@ -137,10 +155,7 @@ appClaimRoutes.post(
       return c.json(result);
     } catch (err) {
       if (err instanceof ClaimError) {
-        return c.json(
-          { error: err.code, message: err.message },
-          overlapCast(err.status),
-        );
+        return c.json({ error: err.code, message: err.message }, err.status);
       }
       throw err;
     }

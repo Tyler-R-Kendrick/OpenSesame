@@ -4,7 +4,6 @@ import {
   readClaimStash,
   writeClaimStash,
 } from "./claim-stash.js";
-import { type BoundaryValue } from "@opensesame/os-domain";
 
 class MemoryStorage {
   private readonly store = new Map<string, string>();
@@ -19,7 +18,9 @@ class MemoryStorage {
   }
 }
 
-function installStorage(storage: BoundaryValue): void {
+function installStorage(
+  storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | undefined,
+): void {
   Object.defineProperty(globalThis, "sessionStorage", {
     value: storage,
     configurable: true,

@@ -1,4 +1,8 @@
-import { AuditEvent, JsonObject, overlapCast } from "@opensesame/os-domain";
+import {
+  type AuditEvent,
+  JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 
@@ -30,8 +34,7 @@ async function listEvents(app: App, token: string, query = "") {
     headers: auth(token),
   });
   expect(res.status).toBe(200);
-  return (overlapCast(await res.json()))
-    .events;
+  return overlapCast(await res.json()).events;
 }
 
 describe("audit events filtering", () => {
@@ -104,7 +107,7 @@ describe("audit events filtering", () => {
       { headers: auth(owner.accessToken) },
     );
     expect(bad.status).toBe(400);
-    expect((overlapCast(await bad.json())).error).toBe(
+    expect(overlapCast(await bad.json()).error).toBe(
       "event_type_not_changelog",
     );
 

@@ -1,7 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const hostFetch = vi.hoisted(() => vi.fn());
+const hostFetch = vi.hoisted(() =>
+  vi.fn<(path: string, init?: RequestInit) => Promise<Response>>(),
+);
 const ensureHostSession = vi.hoisted(() => vi.fn());
 const project = vi.hoisted(() => ({
   current: { id: "personal", name: "Personal", kind: "personal" },
@@ -10,9 +12,11 @@ const project = vi.hoisted(() => ({
 
 import { identitySeams } from "../identity.js";
 const originalIdentitySeams = { ...identitySeams };
-Object.assign(identitySeams, {hostFetch,
+Object.assign(identitySeams, {
+  hostFetch,
   ensureHostSession,
-  hostLocalSessionEligible: () => true});
+  hostLocalSessionEligible: () => true,
+});
 import { projectSeams } from "../projects.js";
 const originalProjectSeams = { ...projectSeams };
 Object.assign(projectSeams, {
@@ -55,6 +59,17 @@ const INPUT = {
   epoch: 4,
 };
 
+type PushBody = {
+  blobs: Array<{ id: string; epoch: number; ciphertext: number[] }>;
+};
+
+function pushedBody(call = 0): PushBody {
+  const init = hostFetch.mock.calls[call]?.[1];
+  if (!init) throw new Error(`missing Host push ${call}`);
+  const body: PushBody = overlapCast(JSON.parse(String(init.body)));
+  return body;
+}
+
 beforeEach(() => {
   hostFetch.mockReset();
   ensureHostSession.mockReset().mockResolvedValue(undefined);
@@ -88,8 +103,7 @@ describe("vault host backup state", () => {
     project.current = { id: "team-ops", name: "Ops", kind: "team" };
     hostFetch.mockResolvedValue(ok());
     await pushSealedVaultToHost(INPUT);
-    const [, init] = overlapCast(hostFetch.mock.calls[0]);
-    const body = overlapCast(JSON.parse(String(init.body)));
+    const body = pushedBody();
     expect(body.blobs.map((b) => b.id)).toEqual([
       "project:team-ops:vault:header",
       "project:team-ops:vault:body",
@@ -100,8 +114,7 @@ describe("vault host backup state", () => {
     project.explode = true;
     hostFetch.mockResolvedValue(ok());
     await pushSealedVaultToHost(INPUT);
-    const [, init] = overlapCast(hostFetch.mock.calls[0]);
-    const body = overlapCast(JSON.parse(String(init.body)));
+    const body = pushedBody();
     expect(body.blobs.map((b) => b.id)).toEqual(["vault:header", "vault:body"]);
   });
 });
@@ -190,8 +203,7 @@ describe("flushPendingVaultHostBackup", () => {
     queueOne();
     hostFetch.mockResolvedValue(ok());
     await expect(flushPendingVaultHostBackup()).resolves.toBe(1);
-    const [, init] = overlapCast(hostFetch.mock.calls[0]);
-    const body = overlapCast(JSON.parse(String(init.body)));
+    const body = pushedBody();
     expect(body.blobs[0]?.ciphertext).toEqual(
       Array.from(new TextEncoder().encode("header")),
     );
@@ -269,8 +281,7 @@ describe("installVaultHostBackupFlushHooks", () => {
     documentListeners.get("visibilitychange")?.();
     expect(listOfflineMutations()).toHaveLength(1);
 
-    (overlapCast(document)).visibilityState =
-      "visible";
+    overlapCast(document).visibilityState = "visible";
     documentListeners.get("visibilitychange")?.();
     await vi.waitFor(() => {
       expect(listOfflineMutations()).toHaveLength(0);

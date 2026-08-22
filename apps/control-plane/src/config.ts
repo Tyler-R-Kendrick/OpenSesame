@@ -29,6 +29,21 @@ export interface ControlPlaneConfig {
    * Empty rejects mapping resolve in production; allowDevDefaults may omit in tests.
    */
   mappingResolveToken: string;
+  /**
+   * Issuers allowed to promote a provisional principal via a verified
+   * `id_token` on POST /v1/principals/link-identities (ADR 0033).
+   */
+  trustedUpstreamIssuers: string[];
+  protocolFeatures: {
+    oid4vp: boolean;
+    oid4vci: boolean;
+    fedcm: boolean;
+    digitalCredentialsApi: boolean;
+    openidFederation: boolean;
+    sdJwtVc: boolean;
+    tokenStatusList: boolean;
+    presentationAgentIntents: boolean;
+  };
 }
 
 const DEV_CLAIM_PEPPER = "dev-claim-pepper-change-me";
@@ -143,6 +158,29 @@ export function loadConfig(
       // Local/dev default aligned with gateway callout shared secret.
       return allowDevDefaults ? "opensesame-dev-mapping-resolve" : "";
     })(),
+    trustedUpstreamIssuers: (
+      env.OPENSESAME_TRUSTED_UPSTREAMS ??
+      (allowDevDefaults
+        ? "https://shoo.dev,http://127.0.0.1:9090,http://localhost:9090"
+        : "https://shoo.dev")
+    )
+      .split(",")
+      .map((s) => s.trim().replace(/\/+$/, ""))
+      .filter(Boolean),
+    protocolFeatures: {
+      oid4vp: truthy(env.OPENSESAME_OID4VP_ENABLED),
+      oid4vci: truthy(env.OPENSESAME_OID4VCI_ENABLED),
+      fedcm: truthy(env.OPENSESAME_FEDCM_ENABLED),
+      digitalCredentialsApi: truthy(
+        env.OPENSESAME_DIGITAL_CREDENTIALS_API_ENABLED,
+      ),
+      openidFederation: truthy(env.OPENSESAME_OPENID_FEDERATION_ENABLED),
+      sdJwtVc: truthy(env.OPENSESAME_SD_JWT_VC_ENABLED),
+      tokenStatusList: truthy(env.OPENSESAME_TOKEN_STATUS_LIST_ENABLED),
+      presentationAgentIntents: truthy(
+        env.OPENSESAME_PRESENTATION_AGENT_INTENTS_ENABLED,
+      ),
+    },
   };
   if (env.DATABASE_URL) {
     config.databaseUrl = env.DATABASE_URL;

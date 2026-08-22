@@ -1,4 +1,5 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import type { SealedBlob, VaultHeader } from "./crypto.js";
 import {
   buildOfflineBackup,
   cacheCiphertextSnapshot,
@@ -10,7 +11,6 @@ import {
   refuseDeploymentSealWrap,
   serializeOfflineBackup,
 } from "./offline-backup.js";
-import type { SealedBlob, VaultHeader } from "./crypto.js";
 
 const header: VaultHeader = {
   v: 1,

@@ -2,7 +2,11 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { redactAuditMetadata } from "@opensesame/audit";
-import { canTransitionClaim, type JsonObject, overlapCast } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  canTransitionClaim,
+  overlapCast,
+} from "@opensesame/os-domain";
 import {
   assertDurableSurvivesPartition,
   assertNoSecretFields,

@@ -151,15 +151,17 @@ export async function joinOrgTenant(
   return orgSeams.joinOrgTenant(slug, method, idToken);
 }
 
-export function orgAuthUpstream(
-  tenant: OrgTenant,
-  method: OrgAuthMethod,
-): {
+export type OrgAuthUpstream = {
   id: string;
   displayName: string;
   issuer: string;
   accountKind: string;
-} {
+};
+
+export function orgAuthUpstream(
+  tenant: OrgTenant,
+  method: OrgAuthMethod,
+): OrgAuthUpstream {
   return {
     id: `org:${tenant.slug}:${method.kind}`,
     displayName: tenant.displayName,

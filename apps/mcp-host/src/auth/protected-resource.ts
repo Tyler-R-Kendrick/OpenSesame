@@ -1,4 +1,4 @@
-import { type JsonObject } from "@opensesame/os-domain";
+import type { JsonObject } from "@opensesame/os-domain";
 /**
  * Protected Resource Metadata (OAuth PRM) notes for MCP host clients.
  *
@@ -19,15 +19,10 @@ export interface ProtectedResourceNotes {
 export function summarizeProtectedResource(
   body: JsonObject,
 ): ProtectedResourceNotes {
-  const schemes = Array.isArray(body.authorization_servers)
-    ? body.authorization_servers
-    : [];
   return {
     profile: "oauth-bearer-rfc6750-v1",
     resource: String(body.resource ?? ""),
     bearerAccepted: true,
     dpopAdvertised: Boolean(body.dpop_signing_alg_values_supported),
-    // schemes reserved for future issuer wiring
-    ...(schemes.length ? undefined : undefined),
   };
 }

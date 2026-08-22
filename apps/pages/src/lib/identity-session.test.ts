@@ -1,3 +1,4 @@
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   HostSessionError,
@@ -21,7 +22,6 @@ import {
   probeOrphanSession,
 } from "./identity.js";
 import { loadSettings, saveSettings } from "./settings.js";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const HOST = "http://127.0.0.1:18787";
 const IDENTITY = "http://127.0.0.1:18788";
@@ -190,8 +190,8 @@ describe("session lifecycle", () => {
     });
     const error = await connectProvisional().catch((caught) => caught);
     expect(error).toBeInstanceOf(IdentityError);
-    expect((overlapCast(error)).status).toBe(403);
-    expect((overlapCast(error)).message).toBe("provisioning disabled");
+    expect(overlapCast(error).status).toBe(403);
+    expect(overlapCast(error).message).toBe("provisioning disabled");
   });
 
   it("throws away a session minted after the user ended it", async () => {
@@ -223,7 +223,7 @@ describe("session lifecycle", () => {
 
     const error = await pending.catch((caught) => caught);
     expect(error).toBeInstanceOf(IdentityError);
-    expect((overlapCast(error)).status).toBe(409);
+    expect(overlapCast(error).status).toBe(409);
     expect(currentSession()).toBeNull();
     // The orphaned credential is revoked rather than left to live out its TTL.
     await vi.waitFor(() => {
@@ -326,7 +326,7 @@ describe("adopted tokens", () => {
     });
     const error = await adoptToken("bad").catch((caught) => caught);
     expect(error).toBeInstanceOf(IdentityError);
-    expect((overlapCast(error)).message).toBe("token expired");
+    expect(overlapCast(error).message).toBe("token expired");
     expect(currentSession()).toBeNull();
   });
 
@@ -401,8 +401,8 @@ describe("identityFetch and readers", () => {
     await connectProvisional();
     const error = await identityJson("/v1/broken").catch((caught) => caught);
     expect(error).toBeInstanceOf(IdentityError);
-    expect((overlapCast(error)).message).toBe("bad_request_code");
-    expect((overlapCast(error)).status).toBe(400);
+    expect(overlapCast(error).message).toBe("bad_request_code");
+    expect(overlapCast(error).status).toBe(400);
   });
 });
 
@@ -430,8 +430,8 @@ describe("missing configuration", () => {
     stubFetch(() => jsonResponse({}, 401));
     const error = await ensureIdentitySession().catch((caught) => caught);
     expect(error).toBeInstanceOf(IdentityError);
-    expect((overlapCast(error)).status).toBe(0);
-    expect((overlapCast(error)).message).toMatch(/No Identity API/);
+    expect(overlapCast(error).status).toBe(0);
+    expect(overlapCast(error).message).toMatch(/No Identity API/);
   });
 
   it("refuses a provisional mint with no issuer", async () => {
@@ -500,10 +500,8 @@ describe("Host session minting", () => {
     });
     const error = await ensureHostSession().catch((caught) => caught);
     expect(error).toBeInstanceOf(HostSessionError);
-    expect((overlapCast(error)).code).toBe("invalid_host");
-    expect((overlapCast(error)).message).toMatch(
-      /invalid local session/,
-    );
+    expect(overlapCast(error).code).toBe("invalid_host");
+    expect(overlapCast(error).message).toMatch(/invalid local session/);
   });
 
   it("rejects an invalid device grant", async () => {
@@ -527,8 +525,8 @@ describe("Host session minting", () => {
     });
     const error = await ensureHostSession().catch((caught) => caught);
     expect(error).toBeInstanceOf(HostSessionError);
-    expect((overlapCast(error)).code).toBe("setup_required");
-    expect((overlapCast(error)).message).toContain("finish setup first");
+    expect(overlapCast(error).code).toBe("setup_required");
+    expect(overlapCast(error).message).toContain("finish setup first");
   });
 
   it("falls back to status codes for detail-less and non-JSON failures", async () => {
@@ -540,8 +538,8 @@ describe("Host session minting", () => {
       return undefined;
     });
     let error = await ensureHostSession().catch((caught) => caught);
-    expect((overlapCast(error)).code).toBe("invalid_host");
-    expect((overlapCast(error)).message).toMatch(/\(500\)/);
+    expect(overlapCast(error).code).toBe("invalid_host");
+    expect(overlapCast(error).message).toMatch(/\(500\)/);
 
     clearHostSession();
     stubBasic((url) => {
@@ -552,7 +550,7 @@ describe("Host session minting", () => {
       return undefined;
     });
     error = await ensureHostSession().catch((caught) => caught);
-    expect((overlapCast(error)).message).toMatch(/\(502\)/);
+    expect(overlapCast(error).message).toMatch(/\(502\)/);
   });
 
   it("surfaces approval and exchange failures", async () => {
@@ -567,7 +565,7 @@ describe("Host session minting", () => {
       return undefined;
     });
     let error = await ensureHostSession().catch((caught) => caught);
-    expect((overlapCast(error)).message).toContain("unknown user code");
+    expect(overlapCast(error).message).toContain("unknown user code");
 
     clearHostSession();
     stubBasic((url) => {
@@ -582,7 +580,7 @@ describe("Host session minting", () => {
       return undefined;
     });
     error = await ensureHostSession().catch((caught) => caught);
-    expect((overlapCast(error)).message).toMatch(/exchange failed/);
+    expect(overlapCast(error).message).toMatch(/exchange failed/);
 
     clearHostSession();
     stubBasic((url) => {
@@ -597,7 +595,7 @@ describe("Host session minting", () => {
       return undefined;
     });
     error = await ensureHostSession().catch((caught) => caught);
-    expect((overlapCast(error)).message).toMatch(/invalid session/);
+    expect(overlapCast(error).message).toMatch(/invalid session/);
   });
 
   it("drops the Host session when the API answers 401", async () => {

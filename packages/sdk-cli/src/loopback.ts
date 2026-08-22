@@ -5,12 +5,18 @@ import {
   createServer,
 } from "node:http";
 import {
+  type BoundaryValue,
+  type JsonObject,
+  isJsonObject,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
+import {
   assertDiscoveredUrl,
   assertDiscoveryBelongsToIssuer,
   assertSecureUrl,
   trimSlash,
 } from "./secure-url.js";
-import { overlapCast, isString } from "@opensesame/os-domain";
 
 export interface LoopbackLoginConfig {
   issuer: string;
@@ -50,6 +56,39 @@ function pkce() {
   return { verifier, challenge, state };
 }
 
+function parseJsonObject(value: BoundaryValue, label: string): JsonObject {
+  if (!isJsonObject(value)) throw new Error(`${label} response was invalid`);
+  return value;
+}
+
+function parseLoopbackTokens(value: BoundaryValue): LoopbackTokens {
+  const tokens = parseJsonObject(value, "token endpoint");
+  if (
+    !isString(tokens.access_token) ||
+    !isString(tokens.token_type) ||
+    (tokens.expires_in !== undefined && !isNumber(tokens.expires_in)) ||
+    (tokens.refresh_token !== undefined && !isString(tokens.refresh_token)) ||
+    (tokens.id_token !== undefined && !isString(tokens.id_token)) ||
+    (tokens.scope !== undefined && !isString(tokens.scope))
+  ) {
+    throw new Error("token endpoint response was invalid");
+  }
+  return {
+    access_token: tokens.access_token,
+    token_type: tokens.token_type,
+    ...(tokens.expires_in === undefined
+      ? undefined
+      : { expires_in: tokens.expires_in }),
+    ...(tokens.refresh_token === undefined
+      ? undefined
+      : { refresh_token: tokens.refresh_token }),
+    ...(tokens.id_token === undefined
+      ? undefined
+      : { id_token: tokens.id_token }),
+    ...(tokens.scope === undefined ? undefined : { scope: tokens.scope }),
+  };
+}
+
 /**
  * RFC 8252 loopback authorization code + PKCE.
  * Binds exclusively to 127.0.0.1 (never 0.0.0.0).
@@ -64,16 +103,24 @@ export async function loopbackLogin(
   );
   if (!discoveryRes.ok)
     throw new Error(`discovery failed: ${discoveryRes.status}`);
-  const meta = overlapCast(await discoveryRes.json());
+  const rawMeta: BoundaryValue = await discoveryRes.json();
+  const meta = parseJsonObject(rawMeta, "discovery");
   // This document says where the code and the verifier go. Take it only from the
   // issuer that names itself, and only over a channel nobody can rewrite.
-  assertDiscoveryBelongsToIssuer(meta, issuer);
-  assertDiscoveredUrl(
-    meta.authorization_endpoint,
-    "authorization_endpoint",
+  assertDiscoveryBelongsToIssuer(
+    isString(meta.issuer) ? { issuer: meta.issuer } : {},
     issuer,
   );
-  assertDiscoveredUrl(meta.token_endpoint, "token_endpoint", issuer);
+  if (!isString(meta.authorization_endpoint)) {
+    throw new Error("issuer does not advertise authorization_endpoint");
+  }
+  if (!isString(meta.token_endpoint)) {
+    throw new Error("issuer does not advertise token_endpoint");
+  }
+  const authorizationEndpoint = meta.authorization_endpoint;
+  const tokenEndpoint = meta.token_endpoint;
+  assertDiscoveredUrl(authorizationEndpoint, "authorization_endpoint", issuer);
+  assertDiscoveredUrl(tokenEndpoint, "token_endpoint", issuer);
 
   const { verifier, challenge, state } = pkce();
   const scopes = (config.scopes ?? ["openid", "profile"]).join(" ");
@@ -127,7 +174,7 @@ export async function loopbackLogin(
             client_id: config.clientId,
             code_verifier: verifier,
           });
-          const tokenRes = await fetchImpl(meta.token_endpoint, {
+          const tokenRes = await fetchImpl(tokenEndpoint, {
             method: "POST",
             headers: { "content-type": "application/x-www-form-urlencoded" },
             body,
@@ -139,7 +186,8 @@ export async function loopbackLogin(
             reject(new Error(`token exchange failed: ${tokenRes.status}`));
             return;
           }
-          const tokens = overlapCast(await tokenRes.json());
+          const rawTokens: BoundaryValue = await tokenRes.json();
+          const tokens = parseLoopbackTokens(rawTokens);
           res.writeHead(200, { "content-type": "text/html" });
           res.end(
             "<html><body><h1>Signed in</h1><p>You can close this window.</p></body></html>",
@@ -156,12 +204,12 @@ export async function loopbackLogin(
     let redirectUri = "";
     server.listen(0, "127.0.0.1", () => {
       const addr = server.address();
-      if (!addr || isString(addr)) {
+      if (!(addr instanceof Object)) {
         reject(new Error("failed to bind loopback"));
         return;
       }
       redirectUri = `http://127.0.0.1:${addr.port}/callback`;
-      const auth = new URL(meta.authorization_endpoint);
+      const auth = new URL(authorizationEndpoint);
       auth.searchParams.set("response_type", "code");
       auth.searchParams.set("client_id", config.clientId);
       auth.searchParams.set("redirect_uri", redirectUri);

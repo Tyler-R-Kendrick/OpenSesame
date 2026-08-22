@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 import {
   type TotpConfig,
   TotpParseError,
@@ -6,10 +6,12 @@ import {
   secondsRemaining,
   totpCode,
 } from "../lib/vault/totp.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const RADIUS = 8;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+const RING_STYLE: CSSProperties & { "--dash": string } = {
+  "--dash": `${CIRCUMFERENCE}`,
+};
 
 /** Live RFC 6238 code, regenerated on the period boundary. */
 export function TotpCode({ secret }: { secret: string }) {
@@ -85,7 +87,7 @@ export function TotpCode({ secret }: { secret: string }) {
       <svg
         className="totp__ring"
         viewBox="0 0 20 20"
-        style={{ [overlapCast("--dash")]: `${CIRCUMFERENCE}` }}
+        style={RING_STYLE}
         role="img"
         aria-label={`${state.remaining} seconds remaining`}
       >

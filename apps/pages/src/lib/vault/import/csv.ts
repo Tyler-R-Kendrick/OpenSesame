@@ -1,4 +1,3 @@
-import { overlapCast } from "@opensesame/os-domain";
 /**
  * RFC 4180 CSV reader.
  *
@@ -42,7 +41,7 @@ export function parseCsvCells(input: string): string[][] {
   };
 
   for (let i = 0; i < text.length; i += 1) {
-    const char = overlapCast(text[i]);
+    const char = text.charAt(i);
 
     if (quoted) {
       if (char !== '"') {

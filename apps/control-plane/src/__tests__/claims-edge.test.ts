@@ -1,6 +1,10 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -51,7 +55,7 @@ describe("claims routes edge cases", () => {
       headers: { authorization: `Bearer ${claim.claimToken}` },
     });
     expect(byBearer.status).toBe(200);
-    expect((overlapCast(await byBearer.json())).id).toBe(claim.claimId);
+    expect(overlapCast(await byBearer.json()).id).toBe(claim.claimId);
   });
 
   it("rejects claim reads with malformed or mismatched tokens", async () => {
@@ -92,9 +96,7 @@ describe("claims routes edge cases", () => {
       type: "not-a-type",
     });
     expect(invalid.status).toBe(400);
-    expect((overlapCast(await invalid.json())).error).toBe(
-      "validation_error",
-    );
+    expect(overlapCast(await invalid.json()).error).toBe("validation_error");
 
     // Provisional principals hold at most 8 live claims.
     for (let i = 0; i < 8; i += 1) {
@@ -107,9 +109,9 @@ describe("claims routes edge cases", () => {
       targetManifest: {},
     });
     expect(overQuota.status).toBe(403);
-    expect(
-      (overlapCast(await overQuota.json())).reasons,
-    ).toContain("quota_claims");
+    expect(overlapCast(await overQuota.json()).reasons).toContain(
+      "quota_claims",
+    );
   });
 
   it("an expired claim no longer counts against the live-claims quota", async () => {
@@ -155,9 +157,7 @@ describe("claims routes edge cases", () => {
       body: JSON.stringify({ token: "not-a-claim-token-at-all" }),
     });
     expect(invalidClaim.status).toBe(401);
-    expect((overlapCast(await invalidClaim.json())).error).toBe(
-      "invalid_token",
-    );
+    expect(overlapCast(await invalidClaim.json()).error).toBe("invalid_token");
 
     const unknown = await app.request("/v1/claims/present", {
       method: "POST",
@@ -227,7 +227,7 @@ describe("claims routes edge cases", () => {
       }),
     });
     expect(badToken.status).toBe(401);
-    expect((overlapCast(await badToken.json())).error).toBe(
+    expect(overlapCast(await badToken.json()).error).toBe(
       "invalid_claim_token",
     );
 
@@ -242,9 +242,7 @@ describe("claims routes edge cases", () => {
       }),
     });
     expect(pending.status).toBe(422);
-    expect((overlapCast(await pending.json())).error).toBe(
-      "INVALID_TRANSITION",
-    );
+    expect(overlapCast(await pending.json()).error).toBe("INVALID_TRANSITION");
   });
 
   it("completes a presented claim, then maps replay to a domain error", async () => {
@@ -288,9 +286,7 @@ describe("claims routes edge cases", () => {
       headers: { "x-claim-token": claim.claimToken },
     });
     expect(poll.status).toBe(200);
-    expect((overlapCast(await poll.json())).status).toBe(
-      "completed",
-    );
+    expect(overlapCast(await poll.json()).status).toBe("completed");
   });
 
   it("deny requires the creator and ends polling with access_denied", async () => {
@@ -331,15 +327,13 @@ describe("claims routes edge cases", () => {
       headers: { authorization: `Bearer ${owner.accessToken}` },
     });
     expect(denied.status).toBe(200);
-    expect((overlapCast(await denied.json())).state).toBe("denied");
+    expect(overlapCast(await denied.json()).state).toBe("denied");
 
     const poll = await app.request(`/v1/claims/${claim.claimId}/poll`, {
       headers: { "x-claim-token": claim.claimToken },
     });
     expect(poll.status).toBe(400);
-    expect((overlapCast(await poll.json())).error).toBe(
-      "access_denied",
-    );
+    expect(overlapCast(await poll.json()).error).toBe("access_denied");
 
     // Denial is terminal.
     const again = await app.request(`/v1/claims/${claim.claimId}/deny`, {

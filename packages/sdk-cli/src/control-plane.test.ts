@@ -1,17 +1,19 @@
+import { isJsonObject } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
 import { createControlPlaneClient } from "./control-plane.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 describe("createControlPlaneClient", () => {
   it("keeps a claim id inside its path segment", async () => {
     const seen: string[] = [];
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      seen.push(String(input));
-      return new Response(JSON.stringify({ ok: true }), { status: 200 });
-    });
+    const fetchImpl: typeof fetch = vi.fn(
+      async (input: string | URL | Request) => {
+        seen.push(String(input));
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    );
     const cp = createControlPlaneClient({
       baseUrl: "http://127.0.0.1:8788",
-      fetchImpl: overlapCast(fetchImpl),
+      fetchImpl,
     });
 
     // An id that tries to aim the request — and the claim token with it — elsewhere.
@@ -41,32 +43,34 @@ describe("createControlPlaneClient", () => {
   // mount turns each ceremony into a 404 that reads as a permissions problem.
   it("calls the control plane paths the server actually mounts", async () => {
     const seen: string[] = [];
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      const url = new URL(String(input));
-      seen.push(url.pathname);
-      if (url.pathname === "/v1/principals/provisional") {
-        return new Response(
-          JSON.stringify({
-            principalId: "prn_guest",
-            state: "provisional",
-            assurance: "provisional",
-            sessionId: "ps_1",
-            accessToken: "pst_guest",
-            expiresAt: new Date(Date.now() + 3600_000).toISOString(),
-            tokenType: "Bearer",
-          }),
-          { status: 201 },
-        );
-      }
-      if (url.pathname === "/v1/principals/provisional/revoke") {
-        return new Response(null, { status: 204 });
-      }
-      return new Response(JSON.stringify({ ok: true }), { status: 200 });
-    });
+    const fetchImpl: typeof fetch = vi.fn(
+      async (input: string | URL | Request) => {
+        const url = new URL(String(input));
+        seen.push(url.pathname);
+        if (url.pathname === "/v1/principals/provisional") {
+          return new Response(
+            JSON.stringify({
+              principalId: "prn_guest",
+              state: "provisional",
+              assurance: "provisional",
+              sessionId: "ps_1",
+              accessToken: "pst_guest",
+              expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+              tokenType: "Bearer",
+            }),
+            { status: 201 },
+          );
+        }
+        if (url.pathname === "/v1/principals/provisional/revoke") {
+          return new Response(null, { status: 204 });
+        }
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    );
     const cp = createControlPlaneClient({
       baseUrl: "http://127.0.0.1:8788",
       accessToken: "pst_existing",
-      fetchImpl: overlapCast(fetchImpl),
+      fetchImpl,
     });
 
     await cp.whoami();
@@ -84,8 +88,8 @@ describe("createControlPlaneClient", () => {
 
   it("bootstraps a provisional principal before anonymous agent registration", async () => {
     const calls: Array<{ path: string; auth: string | null }> = [];
-    const fetchImpl = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchImpl: typeof fetch = vi.fn(
+      async (input: string | URL | Request, init?: RequestInit) => {
         const url = new URL(String(input));
         const headers = new Headers(init?.headers);
         calls.push({ path: url.pathname, auth: headers.get("authorization") });
@@ -118,29 +122,29 @@ describe("createControlPlaneClient", () => {
     );
     const cp = createControlPlaneClient({
       baseUrl: "http://127.0.0.1:8788",
-      fetchImpl: overlapCast(fetchImpl),
+      fetchImpl,
     });
 
-    const result = overlapCast(await cp.registerAnonymousAgent({
+    const result = await cp.registerAnonymousAgent({
       displayName: "a",
       publicKeyJkt: "jkt",
-    }));
+    });
 
     expect(calls).toEqual([
       { path: "/v1/principals/provisional", auth: null },
       { path: "/v1/agents", auth: "Bearer pst_guest" },
     ]);
     expect(result.claimToken).toBe("osc_clm_x.y");
-    expect((overlapCast(result.provisional)).principalId).toBe(
-      "prn_guest",
-    );
+    expect(
+      isJsonObject(result.provisional) && result.provisional.principalId,
+    ).toBe("prn_guest");
   });
 
   it("logout without a session is a no-op", async () => {
-    const fetchImpl = vi.fn();
+    const fetchImpl: typeof fetch = vi.fn();
     const cp = createControlPlaneClient({
       baseUrl: "http://127.0.0.1:8788",
-      fetchImpl: overlapCast(fetchImpl),
+      fetchImpl,
     });
     await cp.logout();
     expect(fetchImpl).not.toHaveBeenCalled();
