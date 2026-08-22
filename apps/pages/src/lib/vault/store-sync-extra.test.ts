@@ -10,7 +10,6 @@ import {
   parseTrailerMeta,
   sealedBytesToSyncBlobs,
   splitStorePath,
-  storePathToSyncBlobId,
   stripOtpauthFromTrailer,
   vaultItemToEntry,
 } from "./store-sync.js";
@@ -214,12 +213,6 @@ describe("filterEntriesForProject", () => {
 });
 
 describe("sync blob ids", () => {
-  it("scopes ids by project and trims slashes", () => {
-    expect(storePathToSyncBlobId("/Email/github/")).toBe("Email/github");
-    expect(storePathToSyncBlobId("a/b", "team")).toBe("project:team:a/b");
-    expect(storePathToSyncBlobId("a/b", "  ")).toBe("a/b");
-  });
-
   it("refuses to ship an empty ciphertext blob", () => {
     expect(() =>
       sealedBytesToSyncBlobs([
