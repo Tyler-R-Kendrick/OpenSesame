@@ -77,6 +77,22 @@ export const AUDIT_METADATA_ALLOWLIST = new Set([
 const DENY_KEY =
   /value|token|secret|password|authorization|cookie|code_verifier|user.?code|device.?code|refresh|bearer/i;
 
+/**
+ * Whether a metadata key is refused outright.
+ *
+ * This runs before the allowlist and is deliberately redundant with it: every
+ * key it catches is already absent from `AUDIT_METADATA_ALLOWLIST`, so the
+ * allowlist alone would drop them. It is kept as the layer that stays correct
+ * if someone later adds a secret-shaped key to the allowlist by mistake.
+ *
+ * Exported because that redundancy makes it unreachable through
+ * `redactAuditMetadata` — mutating the pattern there changes no observable
+ * behaviour, so the intent can only be pinned by testing the predicate.
+ */
+export function isDeniedMetadataKey(key: string): boolean {
+  return DENY_KEY.test(key);
+}
+
 function truncateString(value: string): string {
   return value.length > AUDIT_VALUE_MAX_LENGTH
     ? `${value.slice(0, AUDIT_VALUE_MAX_LENGTH)}…`
@@ -99,7 +115,13 @@ export function redactAuditMetadata(
   if (!metadata) return {};
   const out: JsonObject = {};
   for (const [key, value] of Object.entries(metadata)) {
-    if (DENY_KEY.test(key)) continue;
+    // Stryker disable next-line ConditionalExpression: this layer is
+    // deliberately redundant with the allowlist below — every key it catches
+    // is already absent from the allowlist, so removing the check changes no
+    // observable behaviour and no test can kill the mutant. It is kept as the
+    // layer that still holds if a secret-shaped key is added to the allowlist
+    // by mistake; that intent is pinned by testing isDeniedMetadataKey.
+    if (isDeniedMetadataKey(key)) continue;
     if (!AUDIT_METADATA_ALLOWLIST.has(key)) continue;
     if (isString(value)) {
       out[key] = truncateString(value);
