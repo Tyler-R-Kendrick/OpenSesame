@@ -34,7 +34,6 @@ import {
   sortItems,
 } from "../lib/vault/model.js";
 import "./vault.css";
-import { overlapCast } from "@opensesame/os-domain";
 
 const KIND_ORDER: ItemKind[] = [
   "login",
@@ -51,9 +50,10 @@ const KIND_ICON = {
   card: IconCard,
   secret: IconSecret,
   note: IconNote,
+  certificate: IconShield,
 };
 
-const FILTER_TITLE = {
+const FILTER_TITLE: Record<string, string> = {
   all: "All items",
   favorites: "Favorites",
   trash: "Trash",
@@ -168,11 +168,11 @@ export function VaultSection() {
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      const target = overlapCast(event.target);
+      const target = event.target;
       const typing =
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
-        target?.isContentEditable;
+        (target instanceof HTMLElement && target.isContentEditable);
       if (typing) return;
       if (event.key === "/") {
         event.preventDefault();

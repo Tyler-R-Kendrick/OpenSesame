@@ -47,7 +47,12 @@ import {
 } from "../lib/queue.js";
 import { useOnline } from "../lib/use-online.js";
 import "./authority.css";
-import { type JsonObject, overlapCast, type BoundaryValue, isString, isNumber } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  isNumber,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 
 /* ------------------------------------------------------------------ */
 /* Types the shared modules do not model                              */
@@ -197,11 +202,11 @@ function createClaimClient(session: IdentitySession | null) {
 
   const fetchImpl: typeof fetch = async (input, init) => {
     const href =
-      isString(input)
-        ? input
-        : input instanceof URL
-          ? input.href
-          : input.url;
+      input instanceof URL
+        ? input.href
+        : input instanceof Request
+          ? input.url
+          : input;
     const res = await fetch(href, {
       ...init,
       // An adopted token stands alone; a cookie sent beside it could answer in
@@ -1208,7 +1213,7 @@ function ClaimArea({
     setBusy("present");
     const { client, failure } = createClaimClient(active);
     try {
-      const read = overlapCast(await client.presentClaim(trimmed));
+      const read: ClaimView = overlapCast(await client.presentClaim(trimmed));
       if (currentSession()?.accessToken !== active.accessToken) {
         // The session changed while this was in flight. The claim was read for
         // the principal that is gone, and offering it to the new one would hand
@@ -1292,11 +1297,13 @@ function ClaimArea({
       // This client never saw the presentation — a fresh one is built per step —
       // so the claim bearer is passed explicitly. The claim id alone is public,
       // and the API will not attach ownership on the strength of it.
-      const done = overlapCast(await client.completeClaim(presented.id, {
-        acceptedItemIds,
-        userCode: consentCode,
-        claimToken,
-      }));
+      const done: ClaimView = overlapCast(
+        await client.completeClaim(presented.id, {
+          acceptedItemIds,
+          userCode: consentCode,
+          claimToken,
+        }),
+      );
       if (currentSession()?.accessToken !== active.accessToken) {
         // It landed, but under the principal that was connected when Accept was
         // pressed. Reporting it as this one's would name the wrong owner.
@@ -1890,25 +1897,23 @@ function ProtocolArea({ active }: { active: boolean }) {
           {doc ? (
             <>
               <dl className="kv">
-                {DISCOVERY_URLS.filter(
-                  (entry) => isString(doc[entry.key]),
-                ).map((entry) => (
-                  <div key={entry.key}>
-                    <dt>{entry.label}</dt>
-                    <dd className="authority-wrap">
-                      <code>{overlapCast(doc[entry.key])}</code>
-                    </dd>
-                  </div>
-                ))}
+                {DISCOVERY_URLS.filter((entry) => isString(doc[entry.key])).map(
+                  (entry) => (
+                    <div key={entry.key}>
+                      <dt>{entry.label}</dt>
+                      <dd className="authority-wrap">
+                        <code>{overlapCast(doc[entry.key])}</code>
+                      </dd>
+                    </div>
+                  ),
+                )}
               </dl>
 
               <div className="authority-lists">
                 {DISCOVERY_LISTS.map((entry) => {
                   const value = doc[entry.key];
                   const values = Array.isArray(value)
-                    ? value.filter(
-                        (item): item is string => isString(item),
-                      )
+                    ? value.filter((item): item is string => isString(item))
                     : null;
                   return (
                     <div className="authority-list" key={entry.key}>
@@ -2287,7 +2292,7 @@ function unreachableMessage(): string {
   return `Could not reach the Identity API at ${identityBase()}. Start it, or point this page somewhere else in Settings.`;
 }
 
-function describePrincipalError(err: BoundaryValue): string {
+function describePrincipalError(err: unknown): string {
   if (err instanceof IdentityError) {
     if (err.status === 401) {
       return "Your session is no longer valid — it expired or was revoked. Disconnect and connect again.";
@@ -2306,7 +2311,7 @@ function describePrincipalError(err: BoundaryValue): string {
 }
 
 /** The token is checked against the API before this tab acts on it. */
-function describeAdoptError(err: BoundaryValue): string {
+function describeAdoptError(err: unknown): string {
   if (err instanceof IdentityError) {
     if (err.status === 401) {
       return "The Identity API rejected that token. Check you copied the whole line, and that it has not expired — run the CLI again for a fresh one.";
@@ -2321,7 +2326,7 @@ function describeAdoptError(err: BoundaryValue): string {
   return unreachableMessage();
 }
 
-function describeConnectError(err: BoundaryValue): string {
+function describeConnectError(err: unknown): string {
   if (err instanceof IdentityError) {
     if (err.status === 409) {
       // Raised locally when a lock or Disconnect landed mid-connect.
@@ -2395,7 +2400,7 @@ function describePresentFailure(failure: TransportFailure): string {
 
 function describeCompleteFailure(
   failure: TransportFailure,
-  err: BoundaryValue,
+  err: unknown,
 ): string {
   if (err instanceof Error && err.message.includes("Authentication required")) {
     return "The session was lost between presenting and completing. Connect on the Session tab and come back — the presented claim is held here, so accepting it again costs no new token.";

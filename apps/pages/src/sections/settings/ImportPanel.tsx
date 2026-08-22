@@ -33,7 +33,7 @@ import {
 import type { DetectInput } from "../../lib/vault/import/types.js";
 import type { VaultItem } from "../../lib/vault/model.js";
 import "./import.css";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 
 /** Rows rendered in the preview before it collapses to a count. */
 const PREVIEW_LIMIT = 60;
@@ -78,7 +78,7 @@ const KIND_ICON = {
   secret: IconSecret,
 } as const;
 
-function messageFrom(caught: BoundaryValue): string {
+function messageFrom(caught: unknown): string {
   return caught instanceof Error
     ? caught.message
     : "That file could not be read.";
