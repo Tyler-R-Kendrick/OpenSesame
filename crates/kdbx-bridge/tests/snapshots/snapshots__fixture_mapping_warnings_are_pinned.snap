@@ -1,0 +1,14 @@
+---
+source: crates/kdbx-bridge/tests/snapshots.rs
+expression: warnings
+---
+[
+  {
+    "path": "Personal/Email/Example Mail (2)",
+    "warning": {
+      "kind": "path_collision",
+      "desired": "Personal/Email/Example Mail",
+      "assigned": "Personal/Email/Example Mail (2)"
+    }
+  }
+]
