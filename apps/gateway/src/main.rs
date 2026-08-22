@@ -6,7 +6,7 @@ mod app_state;
 mod backup;
 mod backup_bus;
 mod bootstrap;
-mod cert_issuers;
+pub use opensesame_gateway::cert_issuers;
 mod config;
 mod dev_pki;
 mod github_webhook;
