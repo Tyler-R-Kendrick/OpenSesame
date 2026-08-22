@@ -96,8 +96,10 @@ describe("device approval", () => {
   });
 
   it("distinguishes the failures a human can act on", async () => {
-    const status = (code: number): typeof fetch => async () =>
-      new Response(null, { status: code });
+    const status =
+      (code: number): typeof fetch =>
+      async () =>
+        new Response(null, { status: code });
     const attempt = (code: number) =>
       approveDevice({
         baseUrl: "http://id.example",

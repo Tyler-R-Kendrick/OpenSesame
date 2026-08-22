@@ -105,9 +105,7 @@ declare module "oidc-provider" {
       ) => import("@opensesame/os-domain").BoundaryValue;
     };
     Client: {
-      find(
-        id: string,
-      ): Promise<import("@opensesame/os-domain").BoundaryValue>;
+      find(id: string): Promise<import("@opensesame/os-domain").BoundaryValue>;
     };
     registerGrantType(...args: unknown[]): void;
   }

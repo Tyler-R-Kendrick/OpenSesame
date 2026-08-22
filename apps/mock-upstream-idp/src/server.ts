@@ -60,7 +60,7 @@ function securityHeaders(
   extra: Record<string, string> = {},
   issuer = "",
 ) {
-  const headers = {
+  const headers: Record<string, string> = {
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
     "referrer-policy": "no-referrer",
