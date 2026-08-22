@@ -55,12 +55,15 @@ server.
    on `POST /token` — see `apps/mock-upstream-idp/src/server.ts`, which answers
    `unauthorized_client` / `origin_cors_denied` when the header disagrees with the client id.
    A browser sets that header for itself; a server-side exchange must set it deliberately, so
-   the RP does. Origin-profile is the *only* mode the leg implements; there is no
-   confidential-client path, and `OPENSESAME_UPSTREAM_CLIENT_ID` /
-   `OPENSESAME_UPSTREAM_CLIENT_SECRET` are not read by the control plane. A broker that
-   cannot serve the origin-profile contract cannot currently be used here — adding a
-   secret-bearing path is deferred until a real deployment needs one, rather than shipping
-   an untested credential flow (see `docs/architecture/federated-signin.md` §7.4).
+   the RP does. When `OPENSESAME_UPSTREAM_ISSUER`, `OPENSESAME_UPSTREAM_CLIENT_ID` and
+   `OPENSESAME_UPSTREAM_CLIENT_SECRET` are all three configured, the leg authenticates to
+   that one issuer as a confidential client instead, and does *not* send the `Origin`
+   header — a confidential client is bound by its secret, and claiming a browser origin it
+   does not have would be a false assertion. The issuer is matched exactly, so a secret is
+   never offered to an issuer it was not configured for, and `assertSecureConfig` refuses to
+   boot when the credentialed issuer is absent from the trusted allowlist (or, in
+   production, is not HTTPS). A deployment that has a secret should use it; a broker with no
+   notion of one should not be made to invent one.
 5. **A brand-new user's principal is minted provisional and promoted in place.** The callback
    looks the external-identity tuple up first: a hit reuses its principal, unchanged. A miss
    mints a provisional principal and immediately promotes it to `state: "active"` /
