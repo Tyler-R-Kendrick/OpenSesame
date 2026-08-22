@@ -12,7 +12,6 @@ import { clearNotices, listNotices } from "./notices.js";
 const connectProvisional = vi.fn();
 const identityJson = vi.fn();
 const currentSession = vi.fn();
-const restoreSession = vi.fn();
 const createGuest = vi.fn();
 const vaultStatus = vi.fn();
 const loadFederationSession = vi.fn();
@@ -21,7 +20,6 @@ Object.assign(guestAuthDependencies, {
   connectProvisional,
   identityJson,
   currentSession,
-  restoreSession,
   createGuest,
   vaultStatus,
   loadFederationSession,
@@ -33,7 +31,6 @@ beforeEach(() => {
   connectProvisional.mockReset();
   identityJson.mockReset();
   currentSession.mockReset();
-  restoreSession.mockReset();
   createGuest.mockReset();
   createGuest.mockResolvedValue(undefined);
   vaultStatus.mockReset();
@@ -73,9 +70,7 @@ describe("continueAsGuest", () => {
       kind: "guest_claim",
       title: "Claim this guest session",
     });
-    expect(sessionStorage.getItem("opensesame:guest-claim-session")).toContain(
-      "guest-tok",
-    );
+    expect(sessionStorage).toHaveLength(0);
   });
 
   it("still enters as a guest when Identity minting fails", async () => {
@@ -89,17 +84,12 @@ describe("continueAsGuest", () => {
 });
 
 describe("linkGuestAccount", () => {
-  it("restores the stashed guest session and posts the id_token", async () => {
+  it("uses the active guest session without persisting its bearer", async () => {
     await continueAsGuest();
     connectProvisional.mockClear();
     await linkGuestAccount("id.token.here");
-    expect(restoreSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        principalId: "prn_guest",
-        accessToken: "guest-tok",
-      }),
-    );
     expect(connectProvisional).not.toHaveBeenCalled();
+    expect(sessionStorage).toHaveLength(0);
     expect(identityJson).toHaveBeenCalledWith(
       "/v1/principals/link-identities",
       expect.objectContaining({
@@ -110,7 +100,7 @@ describe("linkGuestAccount", () => {
     expect(listNotices()).toHaveLength(0);
   });
 
-  it("mints a principal when there is no stashed guest, then posts the id_token", async () => {
+  it("resumes the HttpOnly cookie when navigation cleared memory", async () => {
     currentSession.mockReturnValue(null);
     await linkGuestAccount("id.token.here");
     expect(connectProvisional).toHaveBeenCalledTimes(1);

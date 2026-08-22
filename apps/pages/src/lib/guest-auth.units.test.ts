@@ -4,9 +4,9 @@
  *
  * `guest-auth.ts` is in the Stryker `mutate` set at a 100% break threshold.
  * These tests exist to pin the small decisions that a reader would otherwise
- * have to take on trust: which sessions are worth stashing, that the stash is
- * single-use, which failures are swallowed and which are surfaced, and exactly
- * when a pending federated link is marked or cleared. Each is load-bearing for
+ * have to take on trust: no bearer is stashed, which failures are swallowed or
+ * surfaced, and exactly when a pending federated link is marked or cleared.
+ * Each is load-bearing for
  * ADR 0033 §4 — a first-time visitor must end up on one durable principal
  * without ever typing a password.
  */
@@ -15,16 +15,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   guestAuthDependencies,
   guestAuthSeams,
-  restoreStashedGuestSession,
-  stashCurrentSession,
   storedKeyPresent,
-  takeStashedSession,
 } from "./guest-auth.js";
 import { IdentityError, type IdentitySession } from "./identity.js";
 import { clearNotices, listNotices, pushNotice } from "./notices.js";
 import { type VaultStatus, vaultStore } from "./vault/store.js";
 
-const STASH_KEY = "opensesame:guest-claim-session";
 const PENDING_LINK_KEY = "opensesame:federation:pending-link";
 
 const REAL = { ...guestAuthDependencies };
@@ -40,7 +36,6 @@ type GuestAuthDependencyOverrides = {
     path: string,
     init?: RequestInit,
   ) => Promise<Record<string, never>>;
-  restoreSession?: (session: IdentitySession) => void;
   createGuest?: () => Promise<void>;
   vaultStatus?: () => VaultStatus;
   loadFederationSession?: () => FederationSessionFixture | null;
@@ -72,107 +67,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("stashCurrentSession", () => {
-  it("stores the active bearer so it survives the upstream redirect", () => {
-    withDeps({ currentSession: () => session() });
-    stashCurrentSession();
-    expect(JSON.parse(sessionStorage.getItem(STASH_KEY) ?? "null")).toEqual({
-      principalId: "prn_1",
-      accessToken: "pst_1",
-      issuerOrigin: "https://id.test",
-    });
-  });
-
-  it("carries expiresAt when the session has one", () => {
-    withDeps({
-      currentSession: () => session({ expiresAt: "2030-01-01T00:00:00.000Z" }),
-    });
-    stashCurrentSession();
-    const stored = JSON.parse(sessionStorage.getItem(STASH_KEY) ?? "null");
-    expect(stored.expiresAt).toBe("2030-01-01T00:00:00.000Z");
-  });
-
-  it("stores nothing when there is no session", () => {
-    withDeps({ currentSession: () => null });
-    stashCurrentSession();
-    expect(sessionStorage.getItem(STASH_KEY)).toBeNull();
-  });
-
-  it("refuses a cookie-only session, which has no bearer worth carrying", () => {
-    withDeps({ currentSession: () => session({ cookieOnly: true }) });
-    stashCurrentSession();
-    expect(sessionStorage.getItem(STASH_KEY)).toBeNull();
-  });
-
-  it("survives a storage that refuses writes (private mode)", () => {
-    withDeps({ currentSession: () => session() });
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new Error("QuotaExceeded");
-    });
-    expect(() => stashCurrentSession()).not.toThrow();
-  });
-});
-
-describe("takeStashedSession", () => {
-  it("returns null when nothing is stashed", () => {
-    expect(takeStashedSession()).toBeNull();
-  });
-
-  it("consumes the stash, so a second read finds nothing", () => {
-    sessionStorage.setItem(STASH_KEY, JSON.stringify(session()));
-    expect(takeStashedSession()).toEqual(session());
-    expect(takeStashedSession()).toBeNull();
-  });
-
-  it.each([
-    ["principalId", { accessToken: "a", issuerOrigin: "o" }],
-    ["accessToken", { principalId: "p", issuerOrigin: "o" }],
-    ["issuerOrigin", { principalId: "p", accessToken: "a" }],
-  ])("rejects a record missing %s", (_field, partial) => {
-    sessionStorage.setItem(STASH_KEY, JSON.stringify(partial));
-    expect(takeStashedSession()).toBeNull();
-  });
-
-  it("rejects a record that is not JSON", () => {
-    sessionStorage.setItem(STASH_KEY, "{not json");
-    expect(takeStashedSession()).toBeNull();
-  });
-});
-
-describe("restoreStashedGuestSession", () => {
-  it("restores the stashed bearer and reports success", () => {
-    const restoreSession = vi.fn();
-    withDeps({ restoreSession });
-    sessionStorage.setItem(STASH_KEY, JSON.stringify(session()));
-
-    expect(restoreStashedGuestSession()).toBe(true);
-    expect(restoreSession).toHaveBeenCalledWith(session());
-  });
-
-  it("carries expiresAt through the restore", () => {
-    const restoreSession = vi.fn();
-    withDeps({ restoreSession });
-    sessionStorage.setItem(
-      STASH_KEY,
-      JSON.stringify(session({ expiresAt: "2030-01-01T00:00:00.000Z" })),
-    );
-
-    restoreStashedGuestSession();
-    expect(restoreSession).toHaveBeenCalledWith(
-      expect.objectContaining({ expiresAt: "2030-01-01T00:00:00.000Z" }),
-    );
-  });
-
-  it("reports failure and restores nothing when the stash is empty", () => {
-    const restoreSession = vi.fn();
-    withDeps({ restoreSession });
-    expect(restoreStashedGuestSession()).toBe(false);
-    expect(restoreSession).not.toHaveBeenCalled();
-  });
-});
-
 describe("claimGuestAuth", () => {
-  it("re-stashes rather than minting a second principal when already prompted", async () => {
+  it("does not mint or persist a bearer when already prompted", async () => {
     const connectProvisional = vi.fn();
     const currentSession = vi.fn(() => session());
     withDeps({ connectProvisional, currentSession });
@@ -181,7 +77,7 @@ describe("claimGuestAuth", () => {
     await guestAuthSeams.claimGuestAuth();
 
     expect(connectProvisional).not.toHaveBeenCalled();
-    expect(sessionStorage.getItem(STASH_KEY)).not.toBeNull();
+    expect(sessionStorage.length).toBe(0);
   });
 
   it("mints a provisional principal and raises the claim prompt", async () => {
@@ -234,7 +130,6 @@ describe("adoptFederatedIdentity", () => {
       currentSession: () => session(),
       connectProvisional: vi.fn(async () => undefined),
       identityJson: vi.fn(async () => ({})),
-      restoreSession: vi.fn(),
       createGuest: vi.fn(async () => undefined),
       loadFederationSession: () => null,
       ...overrides,
@@ -333,20 +228,6 @@ describe("adoptFederatedIdentity", () => {
     deps({
       vaultStatus: () => "locked",
       currentSession: () => session(),
-      identityJson,
-    });
-
-    await guestAuthSeams.adoptFederatedIdentity("id-token");
-
-    expect(identityJson).toHaveBeenCalled();
-  });
-
-  it("links on a locked vault when only a stashed session survives", async () => {
-    const identityJson = vi.fn(async () => ({}));
-    sessionStorage.setItem(STASH_KEY, JSON.stringify(session()));
-    deps({
-      vaultStatus: () => "locked",
-      currentSession: () => null,
       identityJson,
     });
 
@@ -456,8 +337,7 @@ describe("when sessionStorage itself throws", () => {
     });
   }
 
-  it("treats an unreadable stash as absent, and defers instead of minting", async () => {
-    // hasStashedSession() must answer false, so the locked-vault branch defers.
+  it("defers a locked-vault link when storage is unavailable", async () => {
     const identityJson = vi.fn(async () => ({}));
     const connectProvisional = vi.fn(async () => undefined);
     withDeps({
@@ -489,30 +369,6 @@ describe("when sessionStorage itself throws", () => {
     expect(listNotices()).toHaveLength(0);
   });
 
-  it("does not consume the stash when there is nothing to consume", () => {
-    const removeItem = vi.spyOn(Storage.prototype, "removeItem");
-    expect(takeStashedSession()).toBeNull();
-    expect(removeItem).not.toHaveBeenCalled();
-  });
-});
-
-describe("restore passes exactly the fields it has", () => {
-  it("omits expiresAt entirely rather than carrying an undefined key", () => {
-    const restoreSession = vi.fn<(session: IdentitySession) => void>();
-    withDeps({ restoreSession });
-    sessionStorage.setItem(STASH_KEY, JSON.stringify(session()));
-
-    restoreStashedGuestSession();
-
-    const passed = restoreSession.mock.calls[0]?.[0];
-    // toEqual would accept an explicit `expiresAt: undefined`; the key list
-    // is what actually distinguishes "absent" from "present but undefined".
-    expect(Object.keys(passed ?? {}).sort()).toEqual([
-      "accessToken",
-      "issuerOrigin",
-      "principalId",
-    ]);
-  });
 });
 
 describe("default dependencies delegate to the real vault store", () => {

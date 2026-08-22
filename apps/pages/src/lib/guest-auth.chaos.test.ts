@@ -21,7 +21,6 @@ describe("chaos — guest login under a broken Identity plane", () => {
     guestAuthDependencies.connectProvisional = vi.fn();
     guestAuthDependencies.identityJson = vi.fn();
     guestAuthDependencies.currentSession = () => null;
-    guestAuthDependencies.restoreSession = () => {};
   });
 
   afterEach(() => {

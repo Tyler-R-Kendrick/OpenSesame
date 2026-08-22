@@ -7,7 +7,6 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { beginSignIn, defaultUpstream } from "../lib/federation.js";
-import { stashCurrentSession } from "../lib/guest-auth.js";
 import {
   type Notice,
   dismissNotice,
@@ -22,7 +21,6 @@ import { IconAlert, IconBell, IconInfo, IconX } from "./Icons.js";
 export const notificationsBarDependencies = {
   beginSignIn,
   defaultUpstream,
-  stashCurrentSession,
 };
 
 function NotificationsBarDefault() {
@@ -121,7 +119,6 @@ function NotificationsBarDefault() {
                     primary={{
                       label: "Sign in to claim",
                       onClick: () => {
-                        notificationsBarDependencies.stashCurrentSession();
                         void notificationsBarDependencies.beginSignIn(
                           notificationsBarDependencies.defaultUpstream(),
                           {
