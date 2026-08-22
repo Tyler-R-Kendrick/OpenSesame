@@ -2,6 +2,10 @@ import { overlapCast } from "@opensesame/os-domain";
 import * as client from "openid-client";
 import type { ControlPlaneConfig } from "../config.js";
 import type { AppContext } from "../context.js";
+import {
+  type VerifiedOrgIdToken,
+  verifyOrgIdToken,
+} from "../routes/org-assertion.js";
 
 /**
  * Server-side OIDC relying-party leg for the hosted login page (ADR 0033 §4).
@@ -321,7 +325,7 @@ export async function completeFederatedAuth(
   }
   const config = await upstreamConfiguration(ctx, pending.issuer);
 
-  let claims: client.IDToken | undefined;
+  let rawIdToken: string;
   try {
     const tokens = await client.authorizationCodeGrant(config, currentUrl, {
       pkceCodeVerifier: pending.verifier,
@@ -329,7 +333,7 @@ export async function completeFederatedAuth(
       expectedNonce: pending.nonce,
       idTokenExpected: true,
     });
-    claims = tokens.claims();
+    rawIdToken = tokens.id_token ?? "";
   } catch (cause) {
     throw new FederatedAuthError(
       "exchange_failed",
@@ -337,33 +341,52 @@ export async function completeFederatedAuth(
       { cause },
     );
   }
-
-  // Same precedence as verifyOrgIdToken: a broker that issues per-RP pairwise
-  // subjects must be joined on the pairwise value, never on its global sub.
-  const pairwise = claims?.pairwise_sub;
-  const subject =
-    typeof pairwise === "string" && pairwise
-      ? pairwise
-      : typeof claims?.sub === "string"
-        ? claims.sub
-        : "";
-  if (!subject) {
+  if (!rawIdToken) {
     throw new FederatedAuthError(
-      "missing_subject",
-      "The sign-in provider returned no subject",
+      "exchange_failed",
+      "The sign-in provider returned no id_token",
     );
   }
 
-  const email = typeof claims?.email === "string" ? claims.email : "";
-  const name = typeof claims?.name === "string" ? claims.name : "";
-  const emailVerified = claims?.email_verified;
+  /*
+   * Verify the id_token's SIGNATURE against the issuer's published JWKS.
+   *
+   * openid-client does not do this for the code grant, and it is right not to
+   * have to: OIDC Core §3.1.3.7 lets a client lean on TLS to the token
+   * endpoint instead. But `docs/architecture/federated-signin.md` §7.5 states
+   * that the signature is checked against the discovered JWKS, and that
+   * document is the contract. Leaning on TLS alone would also mean a dev or
+   * self-hosted stack pointed at an `http://` broker has no integrity check on
+   * the assertion at all.
+   *
+   * `verifyOrgIdToken` is the same verifier the agent-facing
+   * POST /v1/principals/link-identities path already uses: it pins RS256/ES256,
+   * discovers the JWKS, checks `iss`, and applies the pairwise-over-global
+   * subject precedence. Reusing it keeps one definition of "verified upstream
+   * identity" for both surfaces. openid-client has meanwhile checked `aud`,
+   * `nonce` and `exp`, which this verifier does not; together they cover the
+   * whole claim set.
+   */
+  let verified: VerifiedOrgIdToken;
+  try {
+    verified = await verifyOrgIdToken(rawIdToken, pending.issuer);
+  } catch (cause) {
+    throw new FederatedAuthError(
+      "exchange_failed",
+      "The sign-in provider's assertion did not verify",
+      { cause },
+    );
+  }
 
+  const email = verified.email?.trim().toLowerCase();
   return {
     issuer: pending.issuer,
-    subject,
-    ...(email ? { email: email.trim().toLowerCase() } : undefined),
-    ...(name ? { name } : undefined),
-    ...(typeof emailVerified === "boolean" ? { emailVerified } : undefined),
+    subject: verified.sub,
+    ...(email ? { email } : undefined),
+    ...(verified.name ? { name: verified.name } : undefined),
+    ...(typeof verified.emailVerified === "boolean"
+      ? { emailVerified: verified.emailVerified }
+      : undefined),
   };
 }
 
