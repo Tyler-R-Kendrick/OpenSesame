@@ -3068,3 +3068,292 @@ mod secret_config_store {
             .is_empty());
     }
 }
+
+mod secret_config_domain {
+    use super::*;
+    use crate::secret_config::{CreateSecretConfig, StoreSecretSource};
+    use std::collections::BTreeMap;
+
+    async fn broker_and_pool() -> (Db, ConnectionBroker) {
+        broker().await
+    }
+
+    fn create(project: &str, slug: &str, environment: &str) -> CreateSecretConfig {
+        CreateSecretConfig {
+            project_id: project.into(),
+            slug: slug.into(),
+            display_name: None,
+            environment: environment.into(),
+            parent_config_id: None,
+        }
+    }
+
+    fn secrets(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+    }
+
+    const ORG: &str = "org_domain";
+
+    #[tokio::test]
+    async fn config_lifecycle_with_changelog() {
+        let (_db, broker) = broker_and_pool().await;
+        clear_secret_changelog_for_tests();
+        let view = broker
+            .create_secret_config(
+                ORG,
+                create("proj", "development", "development"),
+                Some("op"),
+            )
+            .await
+            .expect("create");
+        assert_eq!(view.slug, "development");
+
+        broker
+            .put_config_secrets(
+                ORG,
+                &view.id,
+                &secrets(&[("API_KEY", "v-secret")]),
+                Some("op"),
+            )
+            .await
+            .expect("put");
+        let meta = broker.config_key_meta(ORG, &view.id).await.expect("meta");
+        assert_eq!(meta.len(), 1);
+        assert_eq!(meta[0].version, 1);
+
+        let entries = list_secret_changelog(ORG, "proj", 10);
+        let kinds: Vec<&str> = entries.iter().map(|e| e.event_type.as_str()).collect();
+        assert!(kinds.contains(&"secret.config.created"));
+        assert!(kinds.contains(&"secret.value.changed"));
+        // Changelog never carries the value.
+        for entry in &entries {
+            let text = serde_json::to_string(entry).expect("json");
+            assert!(!text.contains("v-secret"));
+        }
+
+        broker
+            .delete_config_secret(ORG, &view.id, "API_KEY", Some("op"))
+            .await
+            .expect("delete value");
+        broker
+            .delete_secret_config(ORG, &view.id, Some("op"))
+            .await
+            .expect("delete config");
+    }
+
+    #[tokio::test]
+    async fn invalid_key_names_and_oversized_values_are_refused() {
+        let (_db, broker) = broker_and_pool().await;
+        let view = broker
+            .create_secret_config(ORG, create("proj", "dev-a", "development"), None)
+            .await
+            .expect("create");
+        let bad = broker
+            .put_config_secrets(ORG, &view.id, &secrets(&[("has-dash", "x")]), None)
+            .await
+            .expect_err("bad key");
+        assert_eq!(bad.code(), "invalid_request");
+        let huge = "x".repeat(crate::MAX_CREDENTIAL_BYTES + 1);
+        let big = broker
+            .put_config_secrets(ORG, &view.id, &secrets(&[("OK_KEY", huge.as_str())]), None)
+            .await
+            .expect_err("oversized");
+        assert_eq!(big.code(), "invalid_request");
+    }
+
+    #[tokio::test]
+    async fn store_source_resolves_inheritance_and_references() {
+        let (db, broker) = broker_and_pool().await;
+        let root = broker
+            .create_secret_config(ORG, create("proj", "base", "development"), None)
+            .await
+            .expect("root");
+        let mut child_spec = create("proj", "branch-a", "development");
+        child_spec.parent_config_id = Some(root.id.clone());
+        let child = broker
+            .create_secret_config(ORG, child_spec, None)
+            .await
+            .expect("child");
+
+        broker
+            .put_config_secrets(
+                ORG,
+                &root.id,
+                &secrets(&[
+                    ("HOST", "db.example"),
+                    ("PORT", "5432"),
+                    ("USER", "root-user"),
+                ]),
+                None,
+            )
+            .await
+            .expect("root put");
+        broker
+            .put_config_secrets(
+                ORG,
+                &child.id,
+                &secrets(&[
+                    ("USER", "child-user"),
+                    ("URL", "postgres://${USER}@${HOST}:${PORT}/app"),
+                    ("LITERAL", "keep $${THIS} verbatim"),
+                ]),
+                None,
+            )
+            .await
+            .expect("child put");
+
+        let source = StoreSecretSource::new(db.pool().clone(), KEY);
+        let resolved = source
+            .load_config_secrets(ORG, "proj", &child.id)
+            .await
+            .expect("resolve");
+        assert_eq!(resolved["HOST"], "db.example");
+        assert_eq!(resolved["USER"], "child-user"); // child overrides parent
+        assert_eq!(resolved["URL"], "postgres://child-user@db.example:5432/app");
+        assert_eq!(resolved["LITERAL"], "keep ${THIS} verbatim");
+    }
+
+    #[tokio::test]
+    async fn reference_cycles_and_missing_refs_fail_closed() {
+        let (db, broker) = broker_and_pool().await;
+        let cfg = broker
+            .create_secret_config(ORG, create("proj", "cyclic", "development"), None)
+            .await
+            .expect("cfg");
+        broker
+            .put_config_secrets(
+                ORG,
+                &cfg.id,
+                &secrets(&[("A", "${B}"), ("B", "${A}"), ("LONER", "${MISSING}")]),
+                None,
+            )
+            .await
+            .expect("put");
+        let source = StoreSecretSource::new(db.pool().clone(), KEY);
+        let error = source
+            .load_config_secrets(ORG, "proj", &cfg.id)
+            .await
+            .expect_err("must fail");
+        assert_eq!(error.code(), "invalid_request");
+    }
+
+    #[tokio::test]
+    async fn production_values_cannot_be_referenced_from_dev() {
+        let (_db, broker) = broker_and_pool().await;
+        let prod = broker
+            .create_secret_config(ORG, create("proj", "prod", "production"), None)
+            .await
+            .expect("prod");
+        broker
+            .put_config_secrets(ORG, &prod.id, &secrets(&[("DB_URL", "prod-only")]), None)
+            .await
+            .expect("prod put");
+        let dev = broker
+            .create_secret_config(ORG, create("proj", "dev", "development"), None)
+            .await
+            .expect("dev");
+        // Refused at write time.
+        let error = broker
+            .put_config_secrets(
+                ORG,
+                &dev.id,
+                &secrets(&[("LEAK", "${config:prod.DB_URL}")]),
+                None,
+            )
+            .await
+            .expect_err("must refuse");
+        assert_eq!(error.code(), "invalid_request");
+        // Prod may reference prod.
+        broker
+            .put_config_secrets(
+                ORG,
+                &prod.id,
+                &secrets(&[("MIRROR", "${config:prod.DB_URL}")]),
+                None,
+            )
+            .await
+            .expect("prod self-reference allowed");
+    }
+
+    #[tokio::test]
+    async fn rollback_reseal_produces_a_new_head_version() {
+        let (db, broker) = broker_and_pool().await;
+        let cfg = broker
+            .create_secret_config(ORG, create("proj", "rollme", "development"), None)
+            .await
+            .expect("cfg");
+        broker
+            .put_config_secrets(ORG, &cfg.id, &secrets(&[("K", "one")]), None)
+            .await
+            .expect("v1");
+        broker
+            .put_config_secrets(ORG, &cfg.id, &secrets(&[("K", "two")]), None)
+            .await
+            .expect("v2");
+        let new_head = broker
+            .rollback_config_secret(ORG, &cfg.id, "K", 1, Some("op"))
+            .await
+            .expect("rollback");
+        assert_eq!(new_head, 3);
+        let source = StoreSecretSource::new(db.pool().clone(), KEY);
+        let resolved = source
+            .load_config_secrets(ORG, "proj", &cfg.id)
+            .await
+            .expect("resolve");
+        assert_eq!(resolved["K"], "one");
+        // Rolling back to a version that never existed is refused.
+        let missing = broker
+            .rollback_config_secret(ORG, &cfg.id, "K", 99, None)
+            .await
+            .expect_err("no such version");
+        assert_eq!(missing.code(), "config_value_not_found");
+    }
+
+    #[tokio::test]
+    async fn delete_config_refuses_while_sync_targets_reference_it() {
+        let (_db, broker) = broker_and_pool().await;
+        let organization = opensesame_domain::OrganizationId::new();
+        let org = organization.to_string();
+        let cfg = broker
+            .create_secret_config(&org, create("proj", "referenced", "development"), None)
+            .await
+            .expect("cfg");
+        // A vercel connection to hang a sync target from.
+        let connection = broker
+            .create_connection(
+                &organization,
+                CreateConnection {
+                    provider_id: "vercel".into(),
+                    integration_id: None,
+                    display_name: Some("Vercel".into()),
+                    logical_name: Some("vercel-conn".into()),
+                    project_id: Some("proj".into()),
+                    scopes: None,
+                    shareability: None,
+                    owner_subject: None,
+                },
+            )
+            .await
+            .expect("connection");
+        broker
+            .create_sync_target(
+                &organization,
+                CreateSyncTarget {
+                    project_id: "proj".into(),
+                    config_id: cfg.id.clone(),
+                    connection_id: connection.connection_id.clone(),
+                    operation: None,
+                },
+            )
+            .await
+            .expect("target");
+        let refused = broker
+            .delete_secret_config(&org, &cfg.id, None)
+            .await
+            .expect_err("must refuse");
+        assert_eq!(refused.code(), "invalid_request");
+    }
+}

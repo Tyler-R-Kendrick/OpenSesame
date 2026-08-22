@@ -21,6 +21,7 @@ pub mod installation;
 pub mod integration;
 pub mod model;
 pub mod rotation;
+pub mod secret_config;
 pub mod store;
 pub mod sync_target;
 pub mod token;
@@ -67,6 +68,9 @@ pub use crate::rotation::{
     consume_rotation_events, execute_connection_rotation, policy_due_at, request_rotation,
     RotationJob, RotationPolicy, RotationRegistry, RotationService, RotationStatus, RotationTarget,
     EVENT_ROTATION_FAILED, EVENT_ROTATION_REQUESTED, EVENT_ROTATION_SUCCEEDED,
+};
+pub use crate::secret_config::{
+    ConfigKeyMeta, CreateSecretConfig, SecretConfigView, StoreSecretSource,
 };
 pub use crate::sync_target::{
     CreateSyncTarget, EmptySecretSource, MapSecretSource, SyncOutcome, SyncSecretSource,
