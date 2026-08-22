@@ -1,4 +1,3 @@
-import type { BoundaryValue } from "@opensesame/os-domain";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
@@ -425,7 +424,7 @@ function ConnectThisMachineDefault({
   );
 }
 
-function errorText(error: BoundaryValue): string {
+function errorText(error: unknown): string {
   return error instanceof Error
     ? error.message
     : "Could not reach a daemon on this machine.";
