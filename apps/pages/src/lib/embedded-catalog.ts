@@ -14,157 +14,187 @@ import type {
 } from "./connections.js";
 import { loadSettings } from "./settings.js";
 
-const CATEGORY: Record<ProviderCategory, string[]> = {
-  encryption: [
-    "webcrypto",
-    "age",
-    "fido2",
-    "yubikey",
-    "aws-kms",
-    "azure-key-vault-keys",
-    "gcp-kms",
-    "sealed-local",
+const CATEGORY = new Map<ProviderCategory, readonly string[]>([
+  [
+    "encryption",
+    [
+      "webcrypto",
+      "age",
+      "fido2",
+      "yubikey",
+      "aws-kms",
+      "azure-key-vault-keys",
+      "gcp-kms",
+      "sealed-local",
+    ],
   ],
-  cloud_secret_storage: [
-    "aws-parameter-store",
-    "aws-secrets-manager",
-    "azure-app-configuration",
-    "azure-key-vault-secrets",
-    "gcp-secret-manager",
-    "doppler",
-    "foks",
-    "bitwarden-secrets-manager",
-    "vault",
-    "openbao",
-    "encrypted-remote",
+  [
+    "cloud_secret_storage",
+    [
+      "aws-parameter-store",
+      "aws-secrets-manager",
+      "azure-app-configuration",
+      "azure-key-vault-secrets",
+      "gcp-secret-manager",
+      "doppler",
+      "foks",
+      "bitwarden-secrets-manager",
+      "vault",
+      "openbao",
+      "encrypted-remote",
+    ],
   ],
-  password_managers: [
-    "1password",
-    "bitwarden",
-    "vaultwarden",
-    "infisical",
-    "proton-pass",
-    "passwordstate",
+  [
+    "password_managers",
+    [
+      "1password",
+      "bitwarden",
+      "vaultwarden",
+      "infisical",
+      "proton-pass",
+      "passwordstate",
+    ],
   ],
-  local_storage: ["keychain", "keepass", "password-store", "plain"],
-  developer: ["github", "gitlab", "vercel"],
-  productivity: ["linear"],
-  communication: [],
-  storage: [],
-  crm: [],
-  payments: ["stripe"],
-  identity: [],
-  testing: [],
-};
+  ["local_storage", ["keychain", "keepass", "password-store", "plain"]],
+  ["developer", ["github", "gitlab", "vercel"]],
+  ["productivity", ["linear"]],
+  ["communication", []],
+  ["storage", []],
+  ["crm", []],
+  ["payments", ["stripe"]],
+  ["identity", []],
+  ["testing", []],
+]);
 
-const NAMES: Record<string, string> = {
-  "1password": "1Password",
-  "aws-bedrock": "AWS Bedrock",
-  "aws-kms": "AWS KMS",
-  "aws-parameter-store": "AWS Parameter Store",
-  "aws-secrets-manager": "AWS Secrets Manager",
-  "azure-app-configuration": "Azure App Configuration",
-  "azure-key-vault-keys": "Azure Key Vault Keys",
-  "azure-key-vault-secrets": "Azure Key Vault Secrets",
-  "azure-openai": "Azure OpenAI",
-  "bitwarden-secrets-manager": "Bitwarden Secrets Manager",
-  "better-auth": "Better Auth",
-  fido2: "FIDO2",
-  github: "GitHub",
-  gitlab: "GitLab",
-  linear: "Linear",
-  stripe: "Stripe",
-  vercel: "Vercel",
-  foks: "FOKS",
-  "gcp-kms": "Google Cloud KMS",
-  "gcp-secret-manager": "Google Cloud Secret Manager",
-  huggingface: "Hugging Face",
-  keepass: "KeePass",
-  "password-store": "password-store",
-  "proton-pass": "Proton Pass",
-  "sealed-local": "Sealed local",
-  webcrypto: "WebCrypto",
-  "encrypted-remote": "Encrypted remote",
-  vault: "HashiCorp Vault",
-  workos: "WorkOS",
-  yubikey: "YubiKey",
-};
+const PROVIDER_CATEGORIES = new Set<string>(CATEGORY.keys());
 
-const FIELDS: Record<string, ConfigurationField[]> = {
-  age: [
-    { name: "recipients", label: "Recipients", secret: false, required: true },
-    { name: "identity", label: "Identity", secret: true, required: true },
-  ],
-  "better-auth": [
-    { name: "base_url", label: "Base URL", secret: false, required: true },
-    { name: "api_key", label: "API key", secret: true, required: true },
-    {
-      name: "api_key_header",
-      label: "API key header",
-      secret: false,
-      required: true,
-    },
-    { name: "config_id", label: "Config ID", secret: false, required: false },
-  ],
-  auth0: [
-    { name: "domain", label: "Tenant domain", secret: false, required: true },
-    { name: "client_id", label: "Client ID", secret: false, required: true },
-    {
-      name: "client_secret",
-      label: "Client secret",
-      secret: true,
-      required: true,
-    },
-    { name: "audience", label: "Audience", secret: false, required: false },
-  ],
-  bitwarden: [
-    {
-      name: "session_token",
-      label: "Session token",
-      secret: true,
-      required: false,
-    },
-    { name: "server_url", label: "Server URL", secret: false, required: false },
-  ],
-  "bitwarden-secrets-manager": [
-    {
-      name: "access_token",
-      label: "Access token",
-      secret: true,
-      required: true,
-    },
-    {
-      name: "organization_id",
-      label: "Organization ID",
-      secret: false,
-      required: false,
-    },
-    { name: "project_id", label: "Project ID", secret: false, required: false },
-  ],
-  keychain: [
-    { name: "service", label: "Service", secret: false, required: true },
-  ],
-  keepass: [
-    {
-      name: "database_path",
-      label: "Database path",
-      secret: false,
-      required: true,
-    },
-    { name: "password", label: "Password", secret: true, required: true },
-  ],
-  "password-store": [
-    {
-      name: "store_dir",
-      label: "Store directory",
-      secret: false,
-      required: true,
-    },
-  ],
-  plain: [
-    { name: "namespace", label: "Namespace", secret: false, required: true },
-  ],
-};
+const NAMES = new Map(
+  Object.entries({
+    "1password": "1Password",
+    "aws-bedrock": "AWS Bedrock",
+    "aws-kms": "AWS KMS",
+    "aws-parameter-store": "AWS Parameter Store",
+    "aws-secrets-manager": "AWS Secrets Manager",
+    "azure-app-configuration": "Azure App Configuration",
+    "azure-key-vault-keys": "Azure Key Vault Keys",
+    "azure-key-vault-secrets": "Azure Key Vault Secrets",
+    "azure-openai": "Azure OpenAI",
+    "bitwarden-secrets-manager": "Bitwarden Secrets Manager",
+    "better-auth": "Better Auth",
+    fido2: "FIDO2",
+    github: "GitHub",
+    gitlab: "GitLab",
+    linear: "Linear",
+    stripe: "Stripe",
+    vercel: "Vercel",
+    foks: "FOKS",
+    "gcp-kms": "Google Cloud KMS",
+    "gcp-secret-manager": "Google Cloud Secret Manager",
+    huggingface: "Hugging Face",
+    keepass: "KeePass",
+    "password-store": "password-store",
+    "proton-pass": "Proton Pass",
+    "sealed-local": "Sealed local",
+    webcrypto: "WebCrypto",
+    "encrypted-remote": "Encrypted remote",
+    vault: "HashiCorp Vault",
+    workos: "WorkOS",
+    yubikey: "YubiKey",
+  }),
+);
+
+const FIELDS = new Map<string, ConfigurationField[]>(
+  Object.entries({
+    age: [
+      {
+        name: "recipients",
+        label: "Recipients",
+        secret: false,
+        required: true,
+      },
+      { name: "identity", label: "Identity", secret: true, required: true },
+    ],
+    "better-auth": [
+      { name: "base_url", label: "Base URL", secret: false, required: true },
+      { name: "api_key", label: "API key", secret: true, required: true },
+      {
+        name: "api_key_header",
+        label: "API key header",
+        secret: false,
+        required: true,
+      },
+      { name: "config_id", label: "Config ID", secret: false, required: false },
+    ],
+    auth0: [
+      { name: "domain", label: "Tenant domain", secret: false, required: true },
+      { name: "client_id", label: "Client ID", secret: false, required: true },
+      {
+        name: "client_secret",
+        label: "Client secret",
+        secret: true,
+        required: true,
+      },
+      { name: "audience", label: "Audience", secret: false, required: false },
+    ],
+    bitwarden: [
+      {
+        name: "session_token",
+        label: "Session token",
+        secret: true,
+        required: false,
+      },
+      {
+        name: "server_url",
+        label: "Server URL",
+        secret: false,
+        required: false,
+      },
+    ],
+    "bitwarden-secrets-manager": [
+      {
+        name: "access_token",
+        label: "Access token",
+        secret: true,
+        required: true,
+      },
+      {
+        name: "organization_id",
+        label: "Organization ID",
+        secret: false,
+        required: false,
+      },
+      {
+        name: "project_id",
+        label: "Project ID",
+        secret: false,
+        required: false,
+      },
+    ],
+    keychain: [
+      { name: "service", label: "Service", secret: false, required: true },
+    ],
+    keepass: [
+      {
+        name: "database_path",
+        label: "Database path",
+        secret: false,
+        required: true,
+      },
+      { name: "password", label: "Password", secret: true, required: true },
+    ],
+    "password-store": [
+      {
+        name: "store_dir",
+        label: "Store directory",
+        secret: false,
+        required: true,
+      },
+    ],
+    plain: [
+      { name: "namespace", label: "Namespace", secret: false, required: true },
+    ],
+  }),
+);
 
 const LLM = [
   ["anthropic", "https://docs.anthropic.com/en/api/getting-started", "api_key"],
@@ -258,7 +288,7 @@ const BUNDLED_REVISION = "2026-08-13.1";
 
 function title(id: string): string {
   return (
-    NAMES[id] ??
+    NAMES.get(id) ??
     id.replace(
       /(^|-)([a-z])/g,
       (_, separator: string, letter: string) =>
@@ -268,8 +298,8 @@ function title(id: string): string {
 }
 
 function categoryOf(id: string): ProviderCategory {
-  for (const category of Object.keys(CATEGORY)) {
-    if (isProviderCategory(category) && CATEGORY[category].includes(id)) {
+  for (const [category, providerIds] of CATEGORY) {
+    if (providerIds.includes(id)) {
       return category;
     }
   }
@@ -277,7 +307,7 @@ function categoryOf(id: string): ProviderCategory {
 }
 
 function isProviderCategory(value: string): value is ProviderCategory {
-  return Object.hasOwn(CATEGORY, value);
+  return PROVIDER_CATEGORIES.has(value);
 }
 
 function preview(
@@ -303,7 +333,7 @@ function preview(
     operations: [
       authKind === "configuration" ? "secret.configure" : "model.invoke",
     ],
-    configurationFields: FIELDS[id] ?? [],
+    configurationFields: FIELDS.get(id) ?? [],
   };
 }
 

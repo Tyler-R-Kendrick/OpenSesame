@@ -78,7 +78,7 @@ const KIND_ICON = {
   secret: IconSecret,
 } as const;
 
-function messageFrom(caught: unknown): string {
+function messageFrom<Thrown>(caught: Thrown): string {
   return caught instanceof Error
     ? caught.message
     : "That file could not be read.";

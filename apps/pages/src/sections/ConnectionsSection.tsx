@@ -109,12 +109,12 @@ type LoadFailure = {
   setupRequired?: boolean;
 };
 
-function defaultsFor(provider: Provider): Record<string, string> {
-  const defaults: Record<string, string> = {};
+function defaultsFor(provider: Provider) {
+  const defaults = new Map<string, string>();
   for (const [key, value] of Object.entries(configurationDefaults(provider))) {
-    if (value !== undefined) defaults[key] = value;
+    if (value !== undefined) defaults.set(key, value);
   }
-  return defaults;
+  return Object.fromEntries(defaults);
 }
 
 const CATEGORY_LABELS = {
@@ -201,7 +201,7 @@ function relative(iso: string | null): string | null {
   return null;
 }
 
-function errorText(error: unknown): string {
+function errorText<Thrown>(error: Thrown): string {
   if (error instanceof HostSessionError) {
     if (error.code === "setup_required") {
       return `${error.message} Connect on Authority first so this page can mint a Host session, then try again.`;

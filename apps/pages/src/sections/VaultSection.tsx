@@ -53,16 +53,16 @@ const KIND_ICON = {
   certificate: IconShield,
 };
 
-const FILTER_TITLE: Record<string, string> = {
-  all: "All items",
-  favorites: "Favorites",
-  trash: "Trash",
-  login: "Logins",
-  passkey: "Passkeys",
-  card: "Cards",
-  secret: "Agent secrets",
-  note: "Secure notes",
-};
+const FILTER_TITLE = new Map([
+  ["all", "All items"],
+  ["favorites", "Favorites"],
+  ["trash", "Trash"],
+  ["login", "Logins"],
+  ["passkey", "Passkeys"],
+  ["card", "Cards"],
+  ["secret", "Agent secrets"],
+  ["note", "Secure notes"],
+]);
 
 /**
  * The rail carries these filters on desktop, but it is hidden on a phone — so the
@@ -205,7 +205,7 @@ export function VaultSection() {
   }, [items, filter, folderId, query]);
 
   const detailOpen = location.pathname !== "/vault";
-  const title = folderId ? "Folder" : (FILTER_TITLE[filter] ?? "All items");
+  const title = folderId ? "Folder" : (FILTER_TITLE.get(filter) ?? "All items");
 
   return (
     <div className="vault" data-pane={detailOpen ? "detail" : "list"}>

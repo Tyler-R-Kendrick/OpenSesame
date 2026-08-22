@@ -201,9 +201,13 @@ async function callIdentity<T>(path: string, init?: RequestInit): Promise<T> {
   return overlapCast(body);
 }
 
-function errorText(value: unknown): string {
+function isThrownString<Value>(value: Value): value is Value & string {
+  return typeof value === "string";
+}
+
+function errorText<Value>(value: Value): string {
   if (value instanceof Error) return value.message;
-  if (typeof value === "string") return value;
+  if (isThrownString(value)) return value;
   return "Unknown error.";
 }
 

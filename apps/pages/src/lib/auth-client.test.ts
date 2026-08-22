@@ -35,6 +35,17 @@ type OpenSesameApi = {
   } | null;
 };
 
+type OpenSesameWindowStub = {
+  location: { origin: string; href: string };
+  OpenSesame?: OpenSesameApi;
+  __opensesameAutoBindBootstrapped?: boolean;
+  __opensesameAuthorizeLinksBootstrapped?: boolean;
+  dispatchEvent: ReturnType<typeof vi.fn>;
+  addEventListener: ReturnType<typeof vi.fn>;
+  removeEventListener: ReturnType<typeof vi.fn>;
+  open: ReturnType<typeof vi.fn>;
+};
+
 function bytesToBase64Url(bytes: Uint8Array): string {
   let binary = "";
   for (let i = 0; i < bytes.length; i += 1) {
@@ -59,16 +70,7 @@ function loadClient(): OpenSesameApi {
     addEventListener: vi.fn(),
   };
 
-  const windowStub: {
-    location: { origin: string; href: string };
-    OpenSesame?: OpenSesameApi;
-    __opensesameAutoBindBootstrapped?: boolean;
-    __opensesameAuthorizeLinksBootstrapped?: boolean;
-    dispatchEvent: ReturnType<typeof vi.fn>;
-    addEventListener: ReturnType<typeof vi.fn>;
-    removeEventListener: ReturnType<typeof vi.fn>;
-    open: ReturnType<typeof vi.fn>;
-  } = {
+  const windowStub: OpenSesameWindowStub = {
     location: {
       origin: "http://localhost:5173",
       href: "http://localhost:5173/",

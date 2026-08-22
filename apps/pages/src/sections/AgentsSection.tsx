@@ -550,13 +550,13 @@ function taskErrorFor(status: number, base: string): string {
   return `The Host answered ${status} and did not describe the task. Check the Host logs at ${base}.`;
 }
 
-const STATUS_CHIP: Record<string, string> = {
-  active: "chip--ok",
-  failed: "chip--err",
-  cancelled: "chip--err",
-  restricting: "chip--warn",
-  pending: "chip--warn",
-};
+const STATUS_CHIP = new Map([
+  ["active", "chip--ok"],
+  ["failed", "chip--err"],
+  ["cancelled", "chip--err"],
+  ["restricting", "chip--warn"],
+  ["pending", "chip--warn"],
+]);
 
 const ROW_CHIP = {
   held: "chip--ok",
@@ -566,7 +566,7 @@ const ROW_CHIP = {
 };
 
 function statusChip(status: string): string {
-  return STATUS_CHIP[status] ?? "";
+  return STATUS_CHIP.get(status) ?? "";
 }
 
 function rowChip(state: RowState): string {
@@ -852,7 +852,7 @@ function RegisterAgent({ online }: { online: boolean }) {
   );
 }
 
-function registerErrorFor(err: unknown): string {
+function registerErrorFor<Thrown>(err: Thrown): string {
   if (err instanceof IdentityError) {
     if (err.status === 401) {
       return "Your principal session was rejected. Reconnect and try again.";
@@ -1005,14 +1005,14 @@ function AgentActivity({
   );
 }
 
-const OUTCOME_CHIP: Record<string, string> = {
-  succeeded: "chip--ok",
-  denied: "chip--warn",
-  failed: "chip--err",
-};
+const OUTCOME_CHIP = new Map([
+  ["succeeded", "chip--ok"],
+  ["denied", "chip--warn"],
+  ["failed", "chip--err"],
+]);
 
 function outcomeChip(outcome: string): string {
-  return OUTCOME_CHIP[outcome] ?? "";
+  return OUTCOME_CHIP.get(outcome) ?? "";
 }
 
 /* ------------------------------------------------------------ no principal */

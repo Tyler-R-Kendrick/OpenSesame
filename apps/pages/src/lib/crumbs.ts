@@ -28,28 +28,28 @@ export const SETTINGS_CATEGORY_LABEL = {
   danger: "Danger",
 } satisfies Record<SettingsCategory, string>;
 
-const HASH_TO_SETTINGS: Record<string, SettingsCategory> = {
-  general: "general",
-  security: "security",
-  connectivity: "connectivity",
-  data: "data",
-  danger: "danger",
-  import: "data",
-  "github-backup": "data",
-  taskbus: "connectivity",
-  unlock: "security",
-};
+const HASH_TO_SETTINGS = new Map<string, SettingsCategory>([
+  ["general", "general"],
+  ["security", "security"],
+  ["connectivity", "connectivity"],
+  ["data", "data"],
+  ["danger", "danger"],
+  ["import", "data"],
+  ["github-backup", "data"],
+  ["taskbus", "connectivity"],
+  ["unlock", "security"],
+]);
 
-const VAULT_FILTER_LABEL: Record<string, string> = {
-  favorites: "Favorites",
-  trash: "Trash",
-  login: KIND_PLURAL.login,
-  passkey: KIND_PLURAL.passkey,
-  card: KIND_PLURAL.card,
-  secret: KIND_PLURAL.secret,
-  note: KIND_PLURAL.note,
-  certificate: "Certificates",
-};
+const VAULT_FILTER_LABEL = new Map([
+  ["favorites", "Favorites"],
+  ["trash", "Trash"],
+  ["login", KIND_PLURAL.login],
+  ["passkey", KIND_PLURAL.passkey],
+  ["card", KIND_PLURAL.card],
+  ["secret", KIND_PLURAL.secret],
+  ["note", KIND_PLURAL.note],
+  ["certificate", "Certificates"],
+]);
 
 const ITEM_KINDS = new Set<string>(Object.keys(KIND_LABEL));
 const SETTINGS_CATEGORY_SET = new Set<string>(SETTINGS_CATEGORIES);
@@ -66,7 +66,7 @@ export function settingsCategoryFromHash(
   hash: string,
 ): SettingsCategory | null {
   const raw = hash.replace(/^#/, "");
-  return HASH_TO_SETTINGS[raw] ?? null;
+  return HASH_TO_SETTINGS.get(raw) ?? null;
 }
 
 /** `/settings/connectivity` or `/settings#connectivity` → connectivity. */
@@ -158,8 +158,9 @@ function vaultCrumbs(
     crumbs.push({ label: ctx.folderName });
     return crumbs;
   }
-  if (filter && VAULT_FILTER_LABEL[filter]) {
-    crumbs.push({ label: VAULT_FILTER_LABEL[filter] });
+  const filterLabel = filter ? VAULT_FILTER_LABEL.get(filter) : undefined;
+  if (filterLabel) {
+    crumbs.push({ label: filterLabel });
     return crumbs;
   }
   return [{ label: "Vault" }];

@@ -2292,7 +2292,7 @@ function unreachableMessage(): string {
   return `Could not reach the Identity API at ${identityBase()}. Start it, or point this page somewhere else in Settings.`;
 }
 
-function describePrincipalError(err: unknown): string {
+function describePrincipalError<Thrown>(err: Thrown): string {
   if (err instanceof IdentityError) {
     if (err.status === 401) {
       return "Your session is no longer valid — it expired or was revoked. Disconnect and connect again.";
@@ -2311,7 +2311,7 @@ function describePrincipalError(err: unknown): string {
 }
 
 /** The token is checked against the API before this tab acts on it. */
-function describeAdoptError(err: unknown): string {
+function describeAdoptError<Thrown>(err: Thrown): string {
   if (err instanceof IdentityError) {
     if (err.status === 401) {
       return "The Identity API rejected that token. Check you copied the whole line, and that it has not expired — run the CLI again for a fresh one.";
@@ -2326,7 +2326,7 @@ function describeAdoptError(err: unknown): string {
   return unreachableMessage();
 }
 
-function describeConnectError(err: unknown): string {
+function describeConnectError<Thrown>(err: Thrown): string {
   if (err instanceof IdentityError) {
     if (err.status === 409) {
       // Raised locally when a lock or Disconnect landed mid-connect.
@@ -2398,9 +2398,9 @@ function describePresentFailure(failure: TransportFailure): string {
   return `The Identity API answered ${status}${code ? ` (${code})` : ""} when presenting the claim. Nothing was accepted; check its logs and try again.`;
 }
 
-function describeCompleteFailure(
+function describeCompleteFailure<Thrown>(
   failure: TransportFailure,
-  err: unknown,
+  err: Thrown,
 ): string {
   if (err instanceof Error && err.message.includes("Authentication required")) {
     return "The session was lost between presenting and completing. Connect on the Session tab and come back — the presented claim is held here, so accepting it again costs no new token.";

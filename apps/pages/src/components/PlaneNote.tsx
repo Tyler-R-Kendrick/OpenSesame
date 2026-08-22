@@ -424,7 +424,7 @@ function ConnectThisMachineDefault({
   );
 }
 
-function errorText(error: unknown): string {
+function errorText<Thrown>(error: Thrown): string {
   return error instanceof Error
     ? error.message
     : "Could not reach a daemon on this machine.";
