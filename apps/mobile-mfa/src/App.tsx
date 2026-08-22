@@ -1,19 +1,34 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isJsonObject,
+  readString,
+} from "@opensesame/os-domain";
 import { useEffect, useMemo, useState } from "react";
 import { QrCode } from "./QrCode.js";
 import {
-  type PublicKeyCredentialCreationOptionsJSON,
-  type PublicKeyCredentialRequestOptionsJSON,
   assertionPayload,
   creationOptionsFromJson,
+  isPublicKeyCredential,
+  parsePublicKeyCredentialCreationOptionsJson,
+  parsePublicKeyCredentialRequestOptionsJson,
   registrationResponseJson,
   requestOptionsFromJson,
 } from "./webauthn.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const identityApi =
   import.meta.env.VITE_IDENTITY_API ?? "http://127.0.0.1:8788";
 
 type StatusKind = "info" | "ok" | "err";
+
+async function responseObject(response: Response): Promise<JsonObject | null> {
+  const value: BoundaryValue = await response.json().catch(() => null);
+  return isJsonObject(value) ? value : null;
+}
+
+function stringField(body: JsonObject | null, key: string): string | undefined {
+  return readString(body?.[key]);
+}
 
 function parseDeepLink() {
   if (window === undefined) return {};
@@ -132,21 +147,28 @@ export function App() {
           headers,
         },
       );
-      const optsBody = overlapCast(await optsRes.json().catch(() => ({})));
-      if (!optsRes.ok || !optsBody.options) {
+      const optsBody = await responseObject(optsRes);
+      const options = parsePublicKeyCredentialCreationOptionsJson(
+        optsBody?.options,
+      );
+      if (!optsRes.ok || !options) {
         report(
           "err",
-          optsBody.hint ??
-            optsBody.error ??
+          stringField(optsBody, "hint") ??
+            stringField(optsBody, "error") ??
             `Registration options failed (${optsRes.status})`,
         );
         return;
       }
-      const cred = overlapCast(await navigator.credentials.create(
-        creationOptionsFromJson(optsBody.options),
-      ));
+      const cred = await navigator.credentials.create(
+        creationOptionsFromJson(options),
+      );
       if (!cred) {
         report("err", "Passkey creation was cancelled.");
+        return;
+      }
+      if (!isPublicKeyCredential(cred)) {
+        report("err", "Passkey creation returned an invalid credential.");
         return;
       }
       const reg = await fetch(`${base}/v1/mfa/passkey/register`, {
@@ -154,12 +176,12 @@ export function App() {
         headers,
         body: JSON.stringify({ response: registrationResponseJson(cred) }),
       });
-      const regBody = overlapCast(await reg.json().catch(() => ({})));
+      const regBody = await responseObject(reg);
       if (!reg.ok) {
         report(
           "err",
-          regBody.hint ??
-            regBody.error ??
+          stringField(regBody, "hint") ??
+            stringField(regBody, "error") ??
             `Passkey register failed (${reg.status})`,
         );
         return;
@@ -172,22 +194,29 @@ export function App() {
           headers,
         },
       );
-      const authOptsBody = overlapCast(await authOptsRes.json().catch(() => ({})));
-      if (!authOptsRes.ok || !authOptsBody.options) {
+      const authOptsBody = await responseObject(authOptsRes);
+      const authOptions = parsePublicKeyCredentialRequestOptionsJson(
+        authOptsBody?.options,
+      );
+      if (!authOptsRes.ok || !authOptions) {
         report(
           "ok",
-          `Passkey registered for ${regBody.principalId ?? "session"} — assert options unavailable`,
+          `Passkey registered for ${stringField(regBody, "principalId") ?? "session"} — assert options unavailable`,
         );
         return;
       }
-      const assertion = overlapCast(await navigator.credentials.get(
-        requestOptionsFromJson(authOptsBody.options),
-      ));
+      const assertion = await navigator.credentials.get(
+        requestOptionsFromJson(authOptions),
+      );
       if (!assertion) {
         report(
           "ok",
-          `Passkey registered for ${regBody.principalId ?? "session"}`,
+          `Passkey registered for ${stringField(regBody, "principalId") ?? "session"}`,
         );
+        return;
+      }
+      if (!isPublicKeyCredential(assertion)) {
+        report("err", "Passkey authentication returned an invalid credential.");
         return;
       }
       const assertRes = await fetch(`${base}/v1/mfa/passkey/assert`, {
@@ -195,11 +224,11 @@ export function App() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(assertionPayload(assertion)),
       });
-      const assertBody = overlapCast(await assertRes.json().catch(() => ({})));
+      const assertBody = await responseObject(assertRes);
       report(
         assertRes.ok ? "ok" : "err",
         assertRes.ok
-          ? `Passkey registered and asserted for ${assertBody.principalId ?? regBody.principalId}`
+          ? `Passkey registered and asserted for ${stringField(assertBody, "principalId") ?? stringField(regBody, "principalId") ?? "session"}`
           : "Passkey assert failed",
       );
     } catch (e) {
@@ -222,16 +251,18 @@ export function App() {
         headers,
         body: "{}",
       });
-      const body = overlapCast(await res.json().catch(() => ({})));
+      const body = await responseObject(res);
       if (!res.ok) {
         report(
           "err",
-          body.hint ?? body.error ?? `TOTP enroll failed (${res.status})`,
+          stringField(body, "hint") ??
+            stringField(body, "error") ??
+            `TOTP enroll failed (${res.status})`,
         );
         return;
       }
-      setTotpSecret(body.secret ?? "");
-      setTotpOtpauthUrl(body.otpauthUrl ?? "");
+      setTotpSecret(stringField(body, "secret") ?? "");
+      setTotpOtpauthUrl(stringField(body, "otpauthUrl") ?? "");
       report("ok", "TOTP enrolled. Scan or copy the secret below.");
     } finally {
       setBusy(null);
@@ -251,10 +282,11 @@ export function App() {
         headers,
         body: JSON.stringify({ code: totpCode }),
       });
-      const body = overlapCast(await res.json().catch(() => ({})));
+      const body = await responseObject(res);
+      const verified = body?.ok === true;
       report(
-        res.ok && body.ok ? "ok" : "err",
-        res.ok && body.ok ? "TOTP verified" : "TOTP verification failed",
+        res.ok && verified ? "ok" : "err",
+        res.ok && verified ? "TOTP verified" : "TOTP verification failed",
       );
     } finally {
       setBusy(null);
