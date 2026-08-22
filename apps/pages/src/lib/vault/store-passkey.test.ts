@@ -1,4 +1,4 @@
-import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet } from "../kv.js";
 import { WrongPasswordError, randomBytes } from "./crypto.js";
@@ -13,12 +13,19 @@ const PASSWORD = "correct horse battery staple";
  * wrapping, unwrapping, header persistence — runs for real. These stand-ins
  * return the PRF output a platform authenticator would have produced.
  */
-const ceremony = vi.hoisted(() => ({
-  prfOutput: null,
-  failCreate: null,
-  failGet: null,
-  noPrf: false,
-}));
+const ceremony = vi.hoisted(
+  (): {
+    prfOutput: ArrayBuffer | null;
+    failCreate: unknown;
+    failGet: unknown;
+    noPrf: boolean;
+  } => ({
+    prfOutput: null,
+    failCreate: null,
+    failGet: null,
+    noPrf: false,
+  }),
+);
 
 const originalUnlockMethodsSeams = { ...unlockMethodsSeams };
 Object.assign(unlockMethodsSeams, {
@@ -30,10 +37,11 @@ Object.assign(unlockMethodsSeams, {
       throw new DOMException("The operation was aborted.", "AbortError");
     }
     if (ceremony.failCreate) throw ceremony.failCreate;
-    ceremony.prfOutput = overlapCast(randomBytes(32).buffer);
+    const prfOutput: ArrayBuffer = overlapCast(randomBytes(32).buffer);
+    ceremony.prfOutput = prfOutput;
     return {
       credential: overlapCast({ rawId: randomBytes(16).buffer }),
-      prfOutput: ceremony.prfOutput,
+      prfOutput,
       prfSalt: randomBytes(16),
       userId: randomBytes(16),
     };
@@ -89,9 +97,10 @@ describe("VaultStore passkey unlock", () => {
     controller.abort();
     const failure = await store
       .createWithPasskey(controller.signal)
-      .catch((error: BoundaryValue) => error);
+      .catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(DOMException);
-    expect(overlapCast(failure).name).toBe("AbortError");
+    if (!(failure instanceof DOMException)) throw failure;
+    expect(failure.name).toBe("AbortError");
     expect(store.getSnapshot().status).toBe("empty");
     expect(kvGet(HEADER_KEY)).toBeNull();
   });
@@ -187,9 +196,10 @@ describe("VaultStore passkey unlock", () => {
     const reopened = new VaultStore();
     const failure = await reopened
       .unlockWithPasskey(new AbortController().signal)
-      .catch((error: BoundaryValue) => error);
+      .catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(DOMException);
-    expect(overlapCast(failure).name).toBe("AbortError");
+    if (!(failure instanceof DOMException)) throw failure;
+    expect(failure.name).toBe("AbortError");
     // Switching methods mid-ceremony is not a wrong credential.
     expect(reopened.getSnapshot().failedAttempts).toBe(0);
   });

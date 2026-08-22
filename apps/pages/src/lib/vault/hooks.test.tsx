@@ -1,4 +1,3 @@
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,11 +8,13 @@ const hostFetch = vi.hoisted(() => vi.fn());
 
 import { identitySeams } from "../identity.js";
 const originalIdentitySeams = { ...identitySeams };
-Object.assign(identitySeams, {endSession,
+Object.assign(identitySeams, {
+  endSession,
   clearStagedClaimTokens,
   hostFetch,
   ensureHostSession: vi.fn().mockResolvedValue(undefined),
-  hostLocalSessionEligible: () => false});
+  hostLocalSessionEligible: () => false,
+});
 import { queueSeams } from "../queue.js";
 const originalQueueSeams = { ...queueSeams };
 Object.assign(queueSeams, { clearStagedClaimTokens });
@@ -367,6 +368,9 @@ describe("clearCopiedSecret", () => {
 
 describe("useTheme", () => {
   it("applies the theme attribute and removes it for system", () => {
+    const initialProps: { theme: "system" | "light" | "dark" } = {
+      theme: "dark",
+    };
     const { rerender } = renderHook(
       ({ theme }: { theme: "system" | "light" | "dark" }) => {
         const snapshot = vaultStore.getSnapshot();
@@ -376,7 +380,7 @@ describe("useTheme", () => {
         });
         useTheme();
       },
-      { initialProps: { theme: overlapCast("dark") } },
+      { initialProps },
     );
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
 
