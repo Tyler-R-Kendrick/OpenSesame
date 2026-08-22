@@ -17,6 +17,7 @@ import {
   guestAuthSeams,
   restoreStashedGuestSession,
   stashCurrentSession,
+  storedKeyPresent,
   takeStashedSession,
 } from "./guest-auth.js";
 import { IdentityError } from "./identity.js";
@@ -618,5 +619,23 @@ describe("prompt de-duplication is per kind, not per any-notice", () => {
     guestAuthSeams.recoverPendingFederatedLink();
 
     expect(listNotices().find((n) => n.kind === "federated_link")).toBeTruthy();
+  });
+});
+
+describe("storedKeyPresent", () => {
+  it("reports presence and absence of a key", () => {
+    expect(storedKeyPresent("absent-key")).toBe(false);
+    sessionStorage.setItem("present-key", "v");
+    expect(storedKeyPresent("present-key")).toBe(true);
+  });
+
+  it("answers exactly false — not undefined — when the store throws", () => {
+    // Every caller negates this, so `undefined` would behave identically at
+    // every call site. Asserting the exact value is the only way a broken
+    // fail-closed path becomes visible at all.
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("SecurityError: storage is blocked");
+    });
+    expect(storedKeyPresent("anything")).toBe(false);
   });
 });

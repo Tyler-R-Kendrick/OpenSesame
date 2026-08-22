@@ -95,18 +95,29 @@ function takeStashedSessionDefault(): StashedSession | null {
   }
 }
 
-/** Non-destructive: `takeStashedSession` consumes, this only looks. */
-function hasStashedSession(): boolean {
+/**
+ * Presence check for a storage key that fails closed.
+ *
+ * Private mode, a spent quota, or a browser configured to block site data all
+ * make `sessionStorage` *throw* rather than return null. A probe that cannot
+ * read must answer "absent", never "present" — answering "present" would make
+ * a locked-vault sign-in look resumable when nothing was stored.
+ *
+ * Exported only so a test can assert it returns exactly `false` on a throwing
+ * store. Every caller negates the result, so `undefined` would behave
+ * identically at every call site and the failure would be invisible.
+ */
+export function storedKeyPresent(key: string): boolean {
   try {
-    return sessionStorage.getItem(STASH_KEY) !== null;
-    // Emptying this catch returns `undefined` instead of `false`, and the only
-    // consumer negates the result (`!hasStashedSession()`), where the two are
-    // indistinguishable. No test can tell them apart, so the mutant is
-    // equivalent rather than uncovered.
-    // Stryker disable next-line BlockStatement: equivalent, see above
+    return sessionStorage.getItem(key) !== null;
   } catch {
     return false;
   }
+}
+
+/** Non-destructive: `takeStashedSession` consumes, this only looks. */
+function hasStashedSession(): boolean {
+  return storedKeyPresent(STASH_KEY);
 }
 
 function markPendingLink(): void {
@@ -126,15 +137,7 @@ function clearPendingLink(): void {
 }
 
 function pendingLinkMarked(): boolean {
-  try {
-    return sessionStorage.getItem(PENDING_LINK_KEY) !== null;
-    // As in hasStashedSession: the sole consumer is `!pendingLinkMarked()`, so
-    // `undefined` and `false` cannot be told apart by any observable
-    // behaviour.
-    // Stryker disable next-line BlockStatement: equivalent, see above
-  } catch {
-    return false;
-  }
+  return storedKeyPresent(PENDING_LINK_KEY);
 }
 
 function restoreStashedGuestSessionDefault(): boolean {
