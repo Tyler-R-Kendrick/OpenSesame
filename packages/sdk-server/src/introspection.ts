@@ -1,4 +1,12 @@
-import type { JsonObject, JsonValue } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  type JsonValue,
+  isBoolean,
+  isJsonObject,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
 import { AuthError, AuthorizationError } from "./errors.js";
 import { hasRequiredScopes } from "./jwt-utils.js";
 import { assertSecureUrl } from "./verifier.js";
@@ -32,27 +40,21 @@ function encodeBasicAuth(clientId: string, clientSecret: string): string {
   return btoa(credentials);
 }
 
-function isJsonValue(value: unknown): value is JsonValue {
+function isJsonValue(value: BoundaryValue): value is JsonValue {
   if (
     value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean" ||
-    typeof value === "number"
+    isString(value) ||
+    isBoolean(value) ||
+    isNumber(value)
   ) {
     return true;
   }
   if (Array.isArray(value)) return value.every(isJsonValue);
-  if (typeof value !== "object") return false;
-  return Object.values(value).every(isJsonValue);
+  return isJsonObject(value) && Object.values(value).every(isJsonValue);
 }
 
-function isJsonObject(value: unknown): value is JsonObject {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.values(value).every(isJsonValue)
-  );
+function isDeepJsonObject(value: BoundaryValue): value is JsonObject {
+  return isJsonObject(value) && Object.values(value).every(isJsonValue);
 }
 
 /** Introspect an opaque access token via RFC 7662 (fail-closed on errors). */
@@ -64,13 +66,16 @@ export async function introspectOpaqueAccessToken(
   const fetchFn = options.fetch ?? globalThis.fetch;
   const body = new URLSearchParams({ token });
 
-  const headers: Record<string, string> = {
+  const headers = new Headers({
     "Content-Type": "application/x-www-form-urlencoded",
     Accept: "application/json",
-  };
+  });
 
   if (options.clientId !== undefined && options.clientSecret !== undefined) {
-    headers.Authorization = `Basic ${encodeBasicAuth(options.clientId, options.clientSecret)}`;
+    headers.set(
+      "Authorization",
+      `Basic ${encodeBasicAuth(options.clientId, options.clientSecret)}`,
+    );
   } else if (options.clientId !== undefined) {
     body.set("client_id", options.clientId);
   }
@@ -101,7 +106,7 @@ export async function introspectOpaqueAccessToken(
     );
   }
 
-  let data: unknown;
+  let data: BoundaryValue;
   try {
     data = await response.json();
   } catch (error) {
@@ -112,7 +117,7 @@ export async function introspectOpaqueAccessToken(
     );
   }
 
-  if (!isJsonObject(data) || !("active" in data)) {
+  if (!isDeepJsonObject(data) || !("active" in data)) {
     throw new AuthError(
       "introspection_failed",
       "Token introspection returned invalid response",
@@ -123,7 +128,7 @@ export async function introspectOpaqueAccessToken(
     throw new AuthError("token_inactive", "Token is not active");
   }
 
-  const scope = typeof data.scope === "string" ? data.scope : undefined;
+  const scope = isString(data.scope) ? data.scope : undefined;
   if (!hasRequiredScopes(scope, options.requiredScopes ?? [])) {
     throw new AuthorizationError(
       "insufficient_scope",

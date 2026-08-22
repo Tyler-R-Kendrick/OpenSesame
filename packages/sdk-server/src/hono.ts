@@ -13,12 +13,6 @@ export interface OpenSesameAuthOptions {
   onError?: (c: Context, error: Error) => Response | Promise<Response>;
 }
 
-function normalizeError(error: unknown): Error {
-  return error instanceof Error
-    ? error
-    : new Error("Access-token verification failed");
-}
-
 function defaultToken(c: Context): string | undefined {
   const header = c.req.header("authorization");
   if (!header) return undefined;
@@ -56,7 +50,12 @@ export function openSesameAuth(
       identity = await options.verifier.verifyAccessToken(token);
     } catch (error) {
       if (options.onError) {
-        return options.onError(c, normalizeError(error));
+        return options.onError(
+          c,
+          error instanceof Error
+            ? error
+            : new Error("Access-token verification failed"),
+        );
       }
       if (error instanceof AuthorizationError) {
         return c.json(

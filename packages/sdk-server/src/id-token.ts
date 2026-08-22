@@ -4,6 +4,7 @@ import { AuthError } from "./errors.js";
 import {
   ID_TOKEN_ALGORITHMS,
   assertAllowedJwtAlgorithm,
+  isJwtString,
   mapJwtVerifyError,
   trimSlash,
 } from "./jwt-utils.js";
@@ -57,7 +58,7 @@ export async function verifyIdToken(
       clockTolerance: options.clockToleranceSeconds ?? 5,
     }));
   } catch (error) {
-    throw mapJwtVerifyError(error);
+    throw mapJwtVerifyError(error instanceof Error ? error : undefined);
   }
 
   if (payload.sub === undefined || payload.sub === "") {
@@ -77,7 +78,7 @@ export async function verifyIdToken(
     aud: payload.aud ?? options.audience,
     payload,
   };
-  if (typeof payload.nonce === "string") {
+  if (isJwtString(payload.nonce)) {
     verified.nonce = payload.nonce;
   }
   return verified;

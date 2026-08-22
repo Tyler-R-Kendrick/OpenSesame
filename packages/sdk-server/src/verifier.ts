@@ -1,4 +1,9 @@
 import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
+import {
   type JSONWebKeySet,
   type JWTPayload,
   type JWTVerifyGetKey,
@@ -7,7 +12,7 @@ import {
   jwtVerify,
 } from "jose";
 import { AuthorizationError } from "./errors.js";
-import { hasRequiredScopes, trimSlash } from "./jwt-utils.js";
+import { hasRequiredScopes, isJwtString, trimSlash } from "./jwt-utils.js";
 
 export interface VerifiedIdentity {
   sub: string;
@@ -204,7 +209,7 @@ export function createJwksKeySource(
     const fetchImpl = config.fetchImpl ?? globalThis.fetch;
     const fallback = (): URL => assertSecureUrl(`${issuer}/jwks`, "jwksUri");
     if (!fetchImpl) return fallback();
-    let meta: unknown;
+    let meta: BoundaryValue;
     try {
       const res = await fetchImpl(
         `${issuer}/.well-known/openid-configuration`,
@@ -215,16 +220,16 @@ export function createJwksKeySource(
     } catch {
       return fallback();
     }
-    if (typeof meta !== "object" || meta === null || Array.isArray(meta)) {
+    if (!isJsonObject(meta)) {
       throw new Error("Discovery document is not a JSON object");
     }
-    if (!("issuer" in meta) || typeof meta.issuer !== "string") {
+    if (!isString(meta.issuer)) {
       throw new Error("Discovery document does not name the configured issuer");
     }
     if (trimSlash(meta.issuer) !== issuer) {
       throw new Error("Discovery document does not name the configured issuer");
     }
-    if (!("jwks_uri" in meta) || typeof meta.jwks_uri !== "string") {
+    if (!isString(meta.jwks_uri)) {
       return fallback();
     }
     return assertDiscoveredJwksUri(meta.jwks_uri, issuerUrl);
@@ -307,26 +312,23 @@ export function createOpenSesameVerifier(
         throw new Error("Token missing iss");
       }
 
-      const tokenUse =
-        typeof payload.token_use === "string"
-          ? payload.token_use
-          : typeof payload.typ === "string"
-            ? payload.typ
-            : undefined;
+      const tokenUse = isJwtString(payload.token_use)
+        ? payload.token_use
+        : isJwtString(payload.typ)
+          ? payload.typ
+          : undefined;
       if (tokenUse === "id" || tokenUse === "refresh") {
         throw new Error(`Unexpected token type: ${tokenUse}`);
       }
 
       const scopeClaim = payload.scp;
-      const scope =
-        typeof payload.scope === "string"
-          ? payload.scope
-          : typeof scopeClaim === "string"
-            ? scopeClaim
-            : Array.isArray(scopeClaim) &&
-                scopeClaim.every((item) => typeof item === "string")
-              ? scopeClaim.join(" ")
-              : undefined;
+      const scope = isJwtString(payload.scope)
+        ? payload.scope
+        : isJwtString(scopeClaim)
+          ? scopeClaim
+          : Array.isArray(scopeClaim) && scopeClaim.every(isJwtString)
+            ? scopeClaim.join(" ")
+            : undefined;
 
       if (!hasRequiredScopes(scope, config.requiredScopes ?? [])) {
         throw new AuthorizationError(
@@ -336,12 +338,11 @@ export function createOpenSesameVerifier(
       }
 
       const namespacedAssurance = payload["os:assurance"];
-      const assurance =
-        typeof payload.assurance === "string"
-          ? payload.assurance
-          : typeof namespacedAssurance === "string"
-            ? namespacedAssurance
-            : undefined;
+      const assurance = isJwtString(payload.assurance)
+        ? payload.assurance
+        : isJwtString(namespacedAssurance)
+          ? namespacedAssurance
+          : undefined;
 
       const identity: VerifiedIdentity = {
         sub: payload.sub,
