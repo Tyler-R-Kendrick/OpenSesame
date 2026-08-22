@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { overlapCast, isFunction } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 
 const SKIP = new Set([
   "oracles.ts",
@@ -15,8 +15,10 @@ export async function runTarget(
   fileUrl: string,
   seconds: number,
 ): Promise<void> {
-  const mod = overlapCast(await import(fileUrl));
-  if (!isFunction(mod.fuzz)) {
+  const mod = overlapCast<unknown, { fuzz?: (input: Buffer) => void }>(
+    await import(fileUrl),
+  );
+  if (typeof mod.fuzz !== "function") {
     return;
   }
   const deadline = Date.now() + seconds * 1000;
