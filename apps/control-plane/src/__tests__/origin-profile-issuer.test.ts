@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
+import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import type { startServer } from "../server.js";
-import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 
@@ -54,7 +54,9 @@ async function stop(started: Started): Promise<void> {
 function decodeJwtPayload(jwt: string): JsonObject {
   const part = jwt.split(".")[1];
   if (!part) throw new Error("not a jwt");
-  return overlapCast(JSON.parse(Buffer.from(part, "base64url").toString("utf8")));
+  return overlapCast(
+    JSON.parse(Buffer.from(part, "base64url").toString("utf8")),
+  );
 }
 
 describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
@@ -273,17 +275,19 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       const grant = new provider.Grant({ accountId, clientId: CLIENT_ID });
       grant.addOIDCScope("openid");
       await grant.save();
-      const code = new provider.AuthorizationCode(overlapCast({
-        client,
-        accountId,
-        redirectUri: REDIRECT_URI,
-        scope: "openid",
-        authTime: Math.floor(Date.now() / 1000),
-        nonce: "n-1",
-        codeChallenge: challenge,
-        codeChallengeMethod: "S256",
-        grantId: grant.jti,
-      }));
+      const code = new provider.AuthorizationCode(
+        overlapCast({
+          client,
+          accountId,
+          redirectUri: REDIRECT_URI,
+          scope: "openid",
+          authTime: Math.floor(Date.now() / 1000),
+          nonce: "n-1",
+          codeChallenge: challenge,
+          codeChallengeMethod: "S256",
+          grantId: grant.jti,
+        }),
+      );
       const codeValue = await code.save();
 
       const tokenRes = await fetch(`http://127.0.0.1:${started.port}/token`, {
@@ -312,8 +316,7 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       // Pairwise: the sub is not the account id, and it is the truthful
       // persisted mapping for (account, sector).
       expect(payload.sub).not.toBe(accountId);
-      const sector = (overlapCast(client))
-        .sectorIdentifier;
+      const sector = overlapCast(client).sectorIdentifier;
       const mapping = await started.ctx.oauth.pairwiseStore.find(
         accountId,
         sector,
@@ -364,17 +367,19 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
       const grant = new provider.Grant({ accountId, clientId: CLIENT_ID });
       grant.addOIDCScope("openid");
       await grant.save();
-      const code = new provider.AuthorizationCode(overlapCast({
-        client,
-        accountId,
-        redirectUri: REDIRECT_URI,
-        scope: "openid",
-        authTime: Math.floor(Date.now() / 1000),
-        nonce: "n-1",
-        codeChallenge: challenge,
-        codeChallengeMethod: "S256",
-        grantId: grant.jti,
-      }));
+      const code = new provider.AuthorizationCode(
+        overlapCast({
+          client,
+          accountId,
+          redirectUri: REDIRECT_URI,
+          scope: "openid",
+          authTime: Math.floor(Date.now() / 1000),
+          nonce: "n-1",
+          codeChallenge: challenge,
+          codeChallengeMethod: "S256",
+          grantId: grant.jti,
+        }),
+      );
       const codeValue = await code.save();
 
       const tokenRes = await fetch(`http://127.0.0.1:${started.port}/token`, {
@@ -489,17 +494,19 @@ describe("origin-profile issuer (ADR 0050 slice 3a)", () => {
         const grant = new provider.Grant({ accountId, clientId });
         grant.addOIDCScope("openid");
         await grant.save();
-        const code = new provider.AuthorizationCode(overlapCast({
-          client,
-          accountId,
-          redirectUri,
-          scope: "openid",
-          authTime: Math.floor(Date.now() / 1000),
-          nonce: "n-1",
-          codeChallenge: challenge,
-          codeChallengeMethod: "S256",
-          grantId: grant.jti,
-        }));
+        const code = new provider.AuthorizationCode(
+          overlapCast({
+            client,
+            accountId,
+            redirectUri,
+            scope: "openid",
+            authTime: Math.floor(Date.now() / 1000),
+            nonce: "n-1",
+            codeChallenge: challenge,
+            codeChallengeMethod: "S256",
+            grantId: grant.jti,
+          }),
+        );
         const codeValue = await code.save();
         const tokenRes = await fetch(`http://127.0.0.1:${started.port}/token`, {
           method: "POST",

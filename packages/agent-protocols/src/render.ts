@@ -167,9 +167,7 @@ export interface AgentCardConfig {
   documentationUrl?: string;
 }
 
-export function renderAgentCard(
-  config: AgentCardConfig,
-): JsonObject {
+export function renderAgentCard(config: AgentCardConfig): JsonObject {
   assertSafeConfig("agentCard", config);
   const card = {
     name: config.name,

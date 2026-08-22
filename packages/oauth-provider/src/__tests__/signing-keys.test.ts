@@ -1,6 +1,6 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { EnvSigningKeyProvider } from "../keys/dev-signing-key-provider.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const PRIVATE_FIELDS = ["d", "p", "q", "dp", "dq", "qi"] as const;
 

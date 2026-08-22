@@ -12,6 +12,11 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { createApiClient } from "@opensesame/api-client";
 import {
+  type BoundaryValue,
+  isNumber,
+  overlapCast,
+} from "@opensesame/os-domain";
+import {
   DeviceFlowClient,
   createControlPlaneClient,
   loopbackLogin,
@@ -24,7 +29,6 @@ import {
   helpText,
   parseArgs,
 } from "./parse.js";
-import { overlapCast, type BoundaryValue, isNumber } from "@opensesame/os-domain";
 
 function defaultIssuer(): string {
   return process.env.OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
@@ -170,7 +174,11 @@ async function clearSession(): Promise<void> {
   }
 }
 
-function emit(flags: { json: boolean }, human: string, data: BoundaryValue): void {
+function emit(
+  flags: { json: boolean },
+  human: string,
+  data: BoundaryValue,
+): void {
   const redacted = redactSecrets(data);
   if (flags.json) {
     process.stdout.write(`${JSON.stringify(redacted, null, 2)}\n`);
@@ -285,7 +293,9 @@ async function dispatch(
           issuer,
           clientId,
           fetchImpl,
-          ...(deps?.openBrowser ? { openBrowser: deps.openBrowser } : undefined),
+          ...(deps?.openBrowser
+            ? { openBrowser: deps.openBrowser }
+            : undefined),
         });
         await saveSession({
           accessToken: tokens.access_token,
@@ -339,7 +349,9 @@ async function dispatch(
         ...(tokens.refresh_token !== undefined
           ? { refreshToken: tokens.refresh_token }
           : undefined),
-        ...(tokens.id_token !== undefined ? { idToken: tokens.id_token } : undefined),
+        ...(tokens.id_token !== undefined
+          ? { idToken: tokens.id_token }
+          : undefined),
         ...(tokens.expires_in !== undefined
           ? { expiresAt: Date.now() + tokens.expires_in * 1000 }
           : undefined),

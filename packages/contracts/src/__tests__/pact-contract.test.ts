@@ -1,8 +1,8 @@
+import { overlapCast } from "@opensesame/os-domain";
 import {
   assertFailClosedStatuses,
   assertNoSecretFields,
 } from "@opensesame/testing";
-import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   CreateClaimRequestSchema,

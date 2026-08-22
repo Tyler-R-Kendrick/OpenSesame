@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   b64ToBytes,
@@ -7,7 +8,6 @@ import {
   persistSealedStore,
   sealDevOnly,
 } from "./index.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 /**
  * A minimal OPFS stand-in: a directory of named files held in memory, shaped

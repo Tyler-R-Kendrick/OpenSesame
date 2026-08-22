@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,16 +15,18 @@ const ensureHostSession = vi.hoisted(() =>
 
 import { useOnlineSeams } from "../../lib/use-online.js";
 const originalUseOnlineSeams = { ...useOnlineSeams };
-Object.assign(useOnlineSeams, {useOnline: () => online.value});
+Object.assign(useOnlineSeams, { useOnline: () => online.value });
 import { planeSeams } from "../../lib/planes.js";
 const originalPlaneSeams = { ...planeSeams };
-Object.assign(planeSeams, {usePlaneStatus: () => planes.value});
+Object.assign(planeSeams, { usePlaneStatus: () => planes.value });
 import { identitySeams } from "../../lib/identity.js";
 const originalIdentitySeams = { ...identitySeams };
-Object.assign(identitySeams, {useIdentitySession: () => session,
+Object.assign(identitySeams, {
+  useIdentitySession: () => session,
   ensureHostSession,
   hostBase: () => "http://127.0.0.1:8787",
-  hostLocalSessionEligible: () => true});
+  hostLocalSessionEligible: () => true,
+});
 const loadSettings = vi.hoisted(() =>
   vi.fn(() => ({
     hostApi: "http://127.0.0.1:8787",
@@ -37,7 +39,7 @@ const saveSettings = vi.hoisted(() => vi.fn());
 
 import { settingsSeams } from "../../lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
-Object.assign(settingsSeams, {loadSettings, saveSettings});
+Object.assign(settingsSeams, { loadSettings, saveSettings });
 const getBackupStatus = vi.hoisted(() => vi.fn());
 const putBackupTarget = vi.hoisted(() => vi.fn());
 const deleteBackupTarget = vi.hoisted(() => vi.fn());
@@ -81,7 +83,10 @@ const createGithubPasswordRepo = vi.hoisted(() => vi.fn());
 
 import { githubHistorySeams } from "../../lib/github-history.js";
 const originalGithubHistorySeams = { ...githubHistorySeams };
-Object.assign(githubHistorySeams, { listGithubRepos, createGithubPasswordRepo });
+Object.assign(githubHistorySeams, {
+  listGithubRepos,
+  createGithubPasswordRepo,
+});
 
 import type { Connection } from "../../lib/connections.js";
 import { GithubBackupPanel } from "./GithubBackupPanel.js";
@@ -194,7 +199,7 @@ describe("GithubBackupPanel", () => {
     // The environment select adopts the target's branch.
     await waitFor(() =>
       expect(
-        (overlapCast(screen.getByRole("combobox", { name: "" }))).value,
+        overlapCast(screen.getByRole("combobox", { name: "" })).value,
       ).toBe("staging"),
     );
   });
@@ -359,9 +364,9 @@ describe("GithubBackupPanel", () => {
     });
     // Remote select now points at the new repo.
     await waitFor(() =>
-      expect(
-        (overlapCast(screen.getByLabelText(/^Repository$/i))).value,
-      ).toBe("https://github.com/octocat/opensesame-passwords.git"),
+      expect(overlapCast(screen.getByLabelText(/^Repository$/i)).value).toBe(
+        "https://github.com/octocat/opensesame-passwords.git",
+      ),
     );
   });
 
@@ -538,10 +543,10 @@ describe("GithubBackupPanel", () => {
       await screen.findByText(/Host API is not reachable from this tab/),
     ).toBeTruthy();
     expect(
-      (
-        overlapCast(screen.getByRole("button", {
+      overlapCast(
+        screen.getByRole("button", {
           name: /Save backup target/i,
-        }))
+        }),
       ).disabled,
     ).toBe(true);
   });
@@ -744,7 +749,7 @@ describe("GithubBackupPanel selectors", () => {
     const select = await screen.findByLabelText(/^Installation$/i);
     await screen.findByText(/octo-org \(Organization\) · id 5555/);
     await userEvent.selectOptions(select, "5555");
-    expect((overlapCast(select)).value).toBe("5555");
+    expect(overlapCast(select).value).toBe("5555");
   });
 
   it("edits the new-repo name before creating", async () => {

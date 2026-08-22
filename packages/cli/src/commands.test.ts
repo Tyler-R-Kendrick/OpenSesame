@@ -1,9 +1,13 @@
 import { chmod, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCli } from "./run.js";
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const ISSUER = "http://127.0.0.1:8788";
 let dir = "";
@@ -44,14 +48,16 @@ type Route = (
 
 /** Answers the first route that matches; anything else throws loudly. */
 function routerFetch(...routes: Route[]): typeof fetch {
-  return overlapCast(vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(input);
-    for (const route of routes) {
-      const res = await route(url, init);
-      if (res) return res;
-    }
-    throw new Error(`unexpected ${url}`);
-  }));
+  return overlapCast(
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      for (const route of routes) {
+        const res = await route(url, init);
+        if (res) return res;
+      }
+      throw new Error(`unexpected ${url}`);
+    }),
+  );
 }
 
 function json(body: BoundaryValue, status = 200): Response {
@@ -131,9 +137,11 @@ describe("runCli — help and parse failures", () => {
   });
 
   it("reports a dispatch failure as a message, not a stack trace", async () => {
-    const broken = overlapCast(vi.fn(async () => {
-      throw new Error("connection refused");
-    }));
+    const broken = overlapCast(
+      vi.fn(async () => {
+        throw new Error("connection refused");
+      }),
+    );
     const code = await runCli(["login", "--device", "--issuer", ISSUER], {
       fetchImpl: broken,
     });

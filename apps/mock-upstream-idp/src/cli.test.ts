@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { overlapCast } from "@opensesame/os-domain";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cliSeams, runCli } from "./cli.js";
 
 describe("mock-upstream-idp cli", () => {

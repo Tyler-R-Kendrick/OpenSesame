@@ -1,7 +1,7 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOpenSesame } from "./client.js";
 import { createPkcePair, sha256Base64Url } from "./pkce.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 class MemStorage {
   readonly #m = new Map<string, string>();

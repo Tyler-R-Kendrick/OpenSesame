@@ -1,3 +1,4 @@
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import {
@@ -5,7 +6,6 @@ import {
   ensurePersonalOrganization,
   hostApiEndpoint,
 } from "../routes/organizations.js";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -103,7 +103,7 @@ describe("organizations routes edge cases", () => {
 
     const lowAssurance = await createOrg(app, anon.accessToken, "anon-org");
     expect(lowAssurance.status).toBe(403);
-    expect((overlapCast(await lowAssurance.json())).error).toBe(
+    expect(overlapCast(await lowAssurance.json()).error).toBe(
       "assurance_too_low",
     );
 
@@ -121,7 +121,7 @@ describe("organizations routes edge cases", () => {
     expect((await createOrg(app, owner.accessToken, "acme")).status).toBe(201);
     const dupe = await createOrg(app, owner.accessToken, "acme");
     expect(dupe.status).toBe(409);
-    expect((overlapCast(await dupe.json())).error).toBe("slug_taken");
+    expect(overlapCast(await dupe.json()).error).toBe("slug_taken");
   });
 
   it("reads hide deleted and foreign organizations", async () => {
@@ -168,9 +168,7 @@ describe("organizations routes edge cases", () => {
     const list = await app.request("/v1/organizations", {
       headers: auth(owner.accessToken),
     });
-    const ids = (
-      overlapCast(await list.json())
-    ).organizations.map((o) => o.id);
+    const ids = overlapCast(await list.json()).organizations.map((o) => o.id);
     expect(ids).not.toContain(org.id);
   });
 
@@ -180,9 +178,9 @@ describe("organizations routes edge cases", () => {
     const member = await provisional(app);
     const outsider = await provisional(app);
 
-    const org = overlapCast(await (
-      await createOrg(app, owner.accessToken, "members-org")
-    ).json());
+    const org = overlapCast(
+      await (await createOrg(app, owner.accessToken, "members-org")).json(),
+    );
 
     expect(
       (
@@ -206,17 +204,13 @@ describe("organizations routes edge cases", () => {
       headers: auth(member.accessToken),
     });
     expect(asMember.status).toBe(403);
-    expect((overlapCast(await asMember.json())).error).toBe(
-      "owner_required",
-    );
+    expect(overlapCast(await asMember.json()).error).toBe("owner_required");
 
     const asOwner = await app.request(`/v1/organizations/${org.id}/members`, {
       headers: auth(owner.accessToken),
     });
     expect(asOwner.status).toBe(200);
-    expect(
-      (overlapCast(await asOwner.json())).members,
-    ).toHaveLength(2);
+    expect(overlapCast(await asOwner.json()).members).toHaveLength(2);
   });
 
   it("fences member addition by role and principal state", async () => {
@@ -226,9 +220,9 @@ describe("organizations routes edge cases", () => {
     const third = await provisional(app);
     const outsider = await provisional(app);
 
-    const org = overlapCast(await (
-      await createOrg(app, owner.accessToken, "add-org")
-    ).json());
+    const org = overlapCast(
+      await (await createOrg(app, owner.accessToken, "add-org")).json(),
+    );
     const add = (token: string, body: BoundaryValue) =>
       app.request(`/v1/organizations/${org.id}/members`, {
         method: "POST",
@@ -270,9 +264,7 @@ describe("organizations routes edge cases", () => {
       role: "member",
     });
     expect(inactive.status).toBe(409);
-    expect((overlapCast(await inactive.json())).error).toBe(
-      "principal_inactive",
-    );
+    expect(overlapCast(await inactive.json()).error).toBe("principal_inactive");
 
     expect(
       (
@@ -287,9 +279,7 @@ describe("organizations routes edge cases", () => {
       role: "member",
     });
     expect(dupe.status).toBe(409);
-    expect((overlapCast(await dupe.json())).error).toBe(
-      "membership_exists",
-    );
+    expect(overlapCast(await dupe.json()).error).toBe("membership_exists");
 
     // A plain member cannot add anyone.
     expect(
@@ -307,9 +297,9 @@ describe("organizations routes edge cases", () => {
     const owner = await verified(app, "org-role-owner");
     const member = await provisional(app);
 
-    const org = overlapCast(await (
-      await createOrg(app, owner.accessToken, "role-org")
-    ).json());
+    const org = overlapCast(
+      await (await createOrg(app, owner.accessToken, "role-org")).json(),
+    );
     await app.request(`/v1/organizations/${org.id}/members`, {
       method: "POST",
       headers: {
@@ -368,16 +358,14 @@ describe("organizations routes edge cases", () => {
       role: "member",
     });
     expect(lastOwner.status).toBe(409);
-    expect((overlapCast(await lastOwner.json())).error).toBe(
-      "last_owner",
-    );
+    expect(overlapCast(await lastOwner.json()).error).toBe("last_owner");
 
     // Host acknowledgement gates the change.
     const promoted = await change(owner.accessToken, member.principalId, {
       role: "admin",
     });
     expect(promoted.status).toBe(200);
-    expect((overlapCast(await promoted.json())).role).toBe("admin");
+    expect(overlapCast(await promoted.json()).role).toBe("admin");
 
     // Host failure restores the previous role.
     fetchSpy.mockResolvedValue(new Response("nope", { status: 500 }));
@@ -385,15 +373,13 @@ describe("organizations routes edge cases", () => {
       role: "member",
     });
     expect(failed.status).toBe(502);
-    expect((overlapCast(await failed.json())).error).toBe(
+    expect(overlapCast(await failed.json()).error).toBe(
       "session_revocation_failed",
     );
     const members = await app.request(`/v1/organizations/${org.id}/members`, {
       headers: auth(owner.accessToken),
     });
-    const rows = (
-      overlapCast(await members.json())
-    ).members;
+    const rows = overlapCast(await members.json()).members;
     expect(rows.find((m) => m.principalId === member.principalId)?.role).toBe(
       "admin",
     );
@@ -412,9 +398,9 @@ describe("organizations routes edge cases", () => {
     const member = await provisional(app);
     const outsider = await provisional(app);
 
-    const org = overlapCast(await (
-      await createOrg(app, owner.accessToken, "remove-org")
-    ).json());
+    const org = overlapCast(
+      await (await createOrg(app, owner.accessToken, "remove-org")).json(),
+    );
     await app.request(`/v1/organizations/${org.id}/members`, {
       method: "POST",
       headers: {
@@ -444,9 +430,7 @@ describe("organizations routes edge cases", () => {
 
     const lastOwner = await remove(owner.accessToken, owner.principalId);
     expect(lastOwner.status).toBe(409);
-    expect((overlapCast(await lastOwner.json())).error).toBe(
-      "last_owner",
-    );
+    expect(overlapCast(await lastOwner.json()).error).toBe("last_owner");
 
     // Host failure keeps the membership in place.
     const fetchSpy = mockHostFetch(() =>
@@ -469,9 +453,7 @@ describe("organizations routes edge cases", () => {
     const after = await app.request(`/v1/organizations/${org.id}/members`, {
       headers: auth(owner.accessToken),
     });
-    expect(
-      (overlapCast(await after.json())).members,
-    ).toHaveLength(1);
+    expect(overlapCast(await after.json()).members).toHaveLength(1);
   });
 });
 
@@ -490,7 +472,7 @@ describe("device approve edge cases", () => {
       body: JSON.stringify({ user_code: "ABCD-EFGH" }),
     });
     expect(res.status).toBe(503);
-    expect((overlapCast(await res.json())).error).toBe(
+    expect(overlapCast(await res.json()).error).toBe(
       "operator_token_unconfigured",
     );
   });
@@ -518,9 +500,7 @@ describe("device approve edge cases", () => {
       body: JSON.stringify({ user_code: "   " }),
     });
     expect(missing.status).toBe(400);
-    expect((overlapCast(await missing.json())).error).toBe(
-      "invalid_request",
-    );
+    expect(overlapCast(await missing.json()).error).toBe("invalid_request");
   });
 
   it("requires disambiguation when the principal holds several memberships", async () => {
@@ -540,7 +520,7 @@ describe("device approve edge cases", () => {
       body: JSON.stringify({ user_code: "ABCD-EFGH" }),
     });
     expect(res.status).toBe(400);
-    expect((overlapCast(await res.json())).error).toBe(
+    expect(overlapCast(await res.json()).error).toBe(
       "organization_id_required",
     );
   });
@@ -549,9 +529,9 @@ describe("device approve edge cases", () => {
     const { app, ctx } = createControlPlane({ config: testConfig() });
     const owner = await verified(app, "device-deny-owner");
     const other = await verified(app, "device-deny-other");
-    const foreignOrg = overlapCast(await (
-      await createOrg(app, other.accessToken, "foreign-org")
-    ).json());
+    const foreignOrg = overlapCast(
+      await (await createOrg(app, other.accessToken, "foreign-org")).json(),
+    );
 
     // Not a member.
     const notMember = await app.request("/v1/device/approve", {
@@ -566,7 +546,7 @@ describe("device approve edge cases", () => {
       }),
     });
     expect(notMember.status).toBe(403);
-    expect((overlapCast(await notMember.json())).error).toBe(
+    expect(overlapCast(await notMember.json()).error).toBe(
       "organization_access_denied",
     );
 
@@ -609,21 +589,21 @@ describe("device approve edge cases", () => {
     );
     const notFound = await approve();
     expect(notFound.status).toBe(404);
-    expect((overlapCast(await notFound.json())).error).toBe(
+    expect(overlapCast(await notFound.json()).error).toBe(
       "host_approval_failed",
     );
 
     fetchSpy.mockResolvedValue(new Response("boom", { status: 500 }));
     const badGateway = await approve();
     expect(badGateway.status).toBe(502);
-    expect((overlapCast(await badGateway.json())).error).toBe(
+    expect(overlapCast(await badGateway.json()).error).toBe(
       "host_approval_failed",
     );
 
     fetchSpy.mockRejectedValue(new Error("connection refused"));
     const unreachable = await approve();
     expect(unreachable.status).toBe(502);
-    expect((overlapCast(await unreachable.json())).error).toBe(
+    expect(overlapCast(await unreachable.json()).error).toBe(
       "host_api_unreachable",
     );
 
@@ -631,9 +611,7 @@ describe("device approve edge cases", () => {
     fetchSpy.mockResolvedValue(new Response("approved-plain", { status: 200 }));
     const plain = await approve();
     expect(plain.status).toBe(200);
-    expect((overlapCast(await plain.json())).body).toBe(
-      "approved-plain",
-    );
+    expect(overlapCast(await plain.json()).body).toBe("approved-plain");
   });
 
   it("fails closed when the Host API URL is not a plain HTTP(S) base", async () => {
@@ -650,8 +628,6 @@ describe("device approve edge cases", () => {
       body: JSON.stringify({ user_code: "ABCD-EFGH" }),
     });
     expect(res.status).toBe(500);
-    expect((overlapCast(await res.json())).error).toBe(
-      "invalid_host_api_url",
-    );
+    expect(overlapCast(await res.json()).error).toBe("invalid_host_api_url");
   });
 });

@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { overlapCast } from "@opensesame/os-domain";
 import type { Page, TestInfo } from "@playwright/test";
 import { PNG } from "pngjs";
 import { afterEach, describe, expect, it } from "vitest";
@@ -20,7 +21,6 @@ import {
   comparePngBuffers,
   rebaseline,
 } from "./compare.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 function solidPng(width: number, height: number, fill: number): Buffer {
   const img = new PNG({ width, height });

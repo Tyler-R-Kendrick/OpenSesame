@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { overlapCast } from "@opensesame/os-domain";
 import { assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
 import { createOpenSesame } from "./client.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 

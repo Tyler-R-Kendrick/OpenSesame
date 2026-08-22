@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,12 +15,14 @@ const hostLocalSessionEligible = vi.hoisted(() => vi.fn(() => true));
 
 import { useOnlineSeams } from "../../lib/use-online.js";
 const originalUseOnlineSeams = { ...useOnlineSeams };
-Object.assign(useOnlineSeams, {useOnline: () => online.value});
+Object.assign(useOnlineSeams, { useOnline: () => online.value });
 import { identitySeams } from "../../lib/identity.js";
 const originalIdentitySeams = { ...identitySeams };
-Object.assign(identitySeams, {useIdentitySession: () => session.current,
+Object.assign(identitySeams, {
+  useIdentitySession: () => session.current,
   ensureHostSession,
-  hostLocalSessionEligible});
+  hostLocalSessionEligible,
+});
 const listSyncTargets = vi.hoisted(() => vi.fn());
 const syncTarget = vi.hoisted(() => vi.fn());
 const deleteSyncTarget = vi.hoisted(() => vi.fn());
@@ -73,8 +75,7 @@ describe("SyncTargetsPanel", () => {
     expect(screen.getByText(/Offline — sync requires Host/i)).toBeTruthy();
     expect(listSyncTargets).not.toHaveBeenCalled();
     expect(
-      (overlapCast(screen.getByRole("button", { name: /Refresh/i })))
-        .disabled,
+      overlapCast(screen.getByRole("button", { name: /Refresh/i })).disabled,
     ).toBe(true);
   });
 
