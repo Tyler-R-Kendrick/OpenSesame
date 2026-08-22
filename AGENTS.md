@@ -46,8 +46,8 @@ pnpm dev                 # turbo dev (control-plane, console, worker,
 pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
 pnpm lint                # Biome gate for files changed from origin/main
-pnpm lint:all            # full-repository Biome audit
-pnpm lint:anti-slop      # Oxlint anti-slop (not yet in lint:all; drive to green)
+pnpm lint:all            # full-repository Biome audit + Oxlint anti-slop
+pnpm lint:anti-slop      # Oxlint anti-slop (also runs as part of lint:all)
 pnpm lint:fix            # fix changed and staged files
 pnpm test                # turbo test across every workspace test script
 pnpm test:integration    # turbo run test:integration
