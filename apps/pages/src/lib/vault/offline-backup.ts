@@ -1,4 +1,10 @@
-import { type JsonObject, overlapCast, isTypeofObject, isString, isNumber } from "@opensesame/os-domain";
+import {
+  type BoundaryObject,
+  isNumber,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 /**
  * Offline encrypted vault / sync-blob backup.
  *
@@ -151,10 +157,10 @@ function parseOfflineBackupDefault(fileText: string): OfflineBackupEnvelope {
   } catch {
     throw new Error("That file is not valid JSON.");
   }
-  if (!isTypeofObject(parsed) || parsed === null || Array.isArray(parsed)) {
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
     throw new Error("That file is not an OpenSesame offline backup.");
   }
-  const row = overlapCast(parsed);
+  const row: BoundaryObject = overlapCast(parsed);
   if (
     row.format !== OFFLINE_BACKUP_FORMAT ||
     row.v !== OFFLINE_BACKUP_VERSION
@@ -164,20 +170,42 @@ function parseOfflineBackupDefault(fileText: string): OfflineBackupEnvelope {
   if (row.deploymentSealUsed !== false) {
     throw new Error("That backup claims a deployment seal wrap — refused.");
   }
-  const vault = overlapCast(row.vault);
-  if (!vault?.header || !vault.body?.ivB64 || !vault.body?.ctB64) {
+  if (
+    !isTypeofObject(row.vault) ||
+    row.vault === null ||
+    Array.isArray(row.vault)
+  ) {
     throw new Error("That backup is missing sealed vault ciphertext.");
   }
-  const syncBlobs = Array.isArray(row.syncBlobs)
-    ? (overlapCast(row.syncBlobs))
-    : [];
-  if (syncBlobs.length > MAX_SYNC_BLOBS) {
+  const vault: BoundaryObject = overlapCast(row.vault);
+  if (
+    !vault.header ||
+    !isTypeofObject(vault.body) ||
+    vault.body === null ||
+    Array.isArray(vault.body)
+  ) {
+    throw new Error("That backup is missing sealed vault ciphertext.");
+  }
+  const body: BoundaryObject = overlapCast(vault.body);
+  if (!isString(body.ivB64) || !isString(body.ctB64)) {
+    throw new Error("That backup is missing sealed vault ciphertext.");
+  }
+  const rawSyncBlobs = Array.isArray(row.syncBlobs) ? row.syncBlobs : [];
+  if (rawSyncBlobs.length > MAX_SYNC_BLOBS) {
     throw new Error("That backup has too many sync blobs.");
   }
+  const syncBlobs: SyncBlobCiphertext[] = [];
   let syncBytes = 0;
-  for (const blob of syncBlobs) {
+  for (const rawBlob of rawSyncBlobs) {
     if (
-      !blob ||
+      !isTypeofObject(rawBlob) ||
+      rawBlob === null ||
+      Array.isArray(rawBlob)
+    ) {
+      throw new Error("That backup has a malformed sync blob.");
+    }
+    const blob: BoundaryObject = overlapCast(rawBlob);
+    if (
       !isString(blob.id) ||
       !isNumber(blob.epoch) ||
       !isString(blob.ciphertextB64) ||
@@ -189,16 +217,25 @@ function parseOfflineBackupDefault(fileText: string): OfflineBackupEnvelope {
     if (syncBytes > MAX_OFFLINE_BACKUP_BYTES) {
       throw new Error("That backup's sync ciphertext is larger than 64 MB.");
     }
+    syncBlobs.push({
+      id: blob.id,
+      epoch: blob.epoch,
+      ciphertextB64: blob.ciphertextB64,
+    });
   }
+  const header: VaultHeader = overlapCast(vault.header);
+  const sealedBody: SealedBlob = {
+    ivB64: body.ivB64,
+    ctB64: body.ctB64,
+  };
   return {
     format: OFFLINE_BACKUP_FORMAT,
     v: OFFLINE_BACKUP_VERSION,
     projectId: isString(row.projectId) ? row.projectId : null,
-    exportedAt:
-      isString(row.exportedAt)
-        ? row.exportedAt
-        : new Date().toISOString(),
-    vault: { header: vault.header, body: vault.body },
+    exportedAt: isString(row.exportedAt)
+      ? row.exportedAt
+      : new Date().toISOString(),
+    vault: { header, body: sealedBody },
     syncBlobs,
     deploymentSealUsed: false,
   };
@@ -316,7 +353,7 @@ export function parseOfflineBackup(fileText: string): OfflineBackupEnvelope {
 }
 
 export function cacheCiphertextSnapshot(envelope: OfflineBackupEnvelope): void {
-  return offlineBackupSeams.cacheCiphertextSnapshot(envelope);
+  offlineBackupSeams.cacheCiphertextSnapshot(envelope);
 }
 
 export function enqueueOfflineMutation(

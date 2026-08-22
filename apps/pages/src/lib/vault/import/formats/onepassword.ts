@@ -1,4 +1,12 @@
-import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString, isNumber } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  type JsonValue,
+  isNumber,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 /**
  * 1Password, both export shapes.
  *
@@ -35,31 +43,43 @@ const CATEGORY = {
 
 type PuxValue = JsonObject;
 type PuxField = {
-  title?: unknown;
-  designation?: unknown;
-  name?: unknown;
-  value?: unknown;
+  title?: BoundaryValue;
+  designation?: BoundaryValue;
+  name?: BoundaryValue;
+  value?: BoundaryValue;
 };
-type PuxSection = { title?: unknown; fields?: unknown };
+type PuxSection = { title?: BoundaryValue; fields?: BoundaryValue };
 type PuxItem = {
-  uuid?: unknown;
-  favIndex?: unknown;
-  createdAt?: unknown;
-  updatedAt?: unknown;
-  trashed?: unknown;
-  categoryUuid?: unknown;
-  details?: unknown;
-  overview?: unknown;
+  uuid?: BoundaryValue;
+  favIndex?: BoundaryValue;
+  createdAt?: BoundaryValue;
+  updatedAt?: BoundaryValue;
+  trashed?: BoundaryValue;
+  categoryUuid?: BoundaryValue;
+  details?: BoundaryValue;
+  overview?: BoundaryValue;
 };
 
-type PuxExport = { accounts?: unknown };
+type PuxExport = JsonObject & { accounts: JsonValue[] };
 
-function isPuxExport(json: BoundaryValue): json is PuxExport {
-  if (!json || !isTypeofObject(json)) return false;
-  const accounts = (overlapCast(json)).accounts;
+function isPuxExport(json: unknown): json is PuxExport {
+  if (
+    typeof json !== "object" ||
+    json === null ||
+    Array.isArray(json) ||
+    !("accounts" in json)
+  )
+    return false;
+  const accounts = json.accounts;
   if (!Array.isArray(accounts) || accounts.length === 0) return false;
-  const first = overlapCast(accounts[0]);
-  return Array.isArray(first?.vaults);
+  const first = accounts[0];
+  return (
+    typeof first === "object" &&
+    first !== null &&
+    !Array.isArray(first) &&
+    "vaults" in first &&
+    Array.isArray(first.vaults)
+  );
 }
 
 /**
@@ -67,8 +87,7 @@ function isPuxExport(json: BoundaryValue): json is PuxExport {
  * `{string}`, `{concealed}`, `{totp}`, `{date}`, `{monthYear}`, `{email}`, …
  */
 function readValue(value: BoundaryValue) {
-  if (isString(value))
-    return { text: value, concealed: false, totp: false };
+  if (isString(value)) return { text: value, concealed: false, totp: false };
   if (!value || !isTypeofObject(value)) {
     return { text: "", concealed: false, totp: false };
   }
@@ -88,7 +107,7 @@ function readValue(value: BoundaryValue) {
     return { text: toIso(record.date) ?? "", concealed: false, totp: false };
   }
   if (isTypeofObject(record.email) && record.email !== null) {
-    const email = (overlapCast(record.email)).email_address;
+    const email = overlapCast(record.email).email_address;
     return { text: asString(email), concealed: false, totp: false };
   }
   for (const key of [
@@ -138,25 +157,27 @@ export const onepasswordPux: ImportAdapter = {
     const warnings: string[] = [];
     let trashed = 0;
 
-    for (const rawAccount of overlapCast(json.accounts)) {
-      const account = overlapCast(rawAccount);
+    for (const rawAccount of json.accounts) {
+      const account: JsonObject = overlapCast(rawAccount);
       for (const rawVault of Array.isArray(account.vaults)
         ? account.vaults
         : []) {
-        const vault = overlapCast(rawVault);
-        const vaultName = asString((overlapCast(vault.attrs))?.name);
+        const vault: JsonObject = overlapCast(rawVault);
+        const attrs: JsonObject = overlapCast(vault.attrs ?? {});
+        const vaultName = asString(attrs.name);
 
         for (const rawEntry of Array.isArray(vault.items) ? vault.items : []) {
-          const entry = (overlapCast(rawEntry)).item ?? rawEntry;
-          const pux = overlapCast(entry);
+          const wrappedEntry: JsonObject = overlapCast(rawEntry);
+          const entry = wrappedEntry.item ?? rawEntry;
+          const pux: PuxItem = overlapCast(entry);
 
           if (pux.trashed === true) {
             trashed += 1;
             continue;
           }
 
-          const overview = overlapCast(pux.overview ?? {});
-          const details = overlapCast(pux.details ?? {});
+          const overview: JsonObject = overlapCast(pux.overview ?? {});
+          const details: JsonObject = overlapCast(pux.details ?? {});
           const name = asString(overview.title) || "Untitled";
           const category = asString(pux.categoryUuid);
 
@@ -176,7 +197,7 @@ export const onepasswordPux: ImportAdapter = {
             for (const rawField of Array.isArray(details.loginFields)
               ? details.loginFields
               : []) {
-              const field = overlapCast(rawField);
+              const field: PuxField = overlapCast(rawField);
               const designation = asString(field.designation);
               const value = asString(field.value);
               if (designation === "username") item.username = value;
@@ -189,7 +210,8 @@ export const onepasswordPux: ImportAdapter = {
             for (const rawUrl of Array.isArray(overview.urls)
               ? overview.urls
               : []) {
-              addUri(item, asString((overlapCast(rawUrl)).url));
+              const url: JsonObject = overlapCast(rawUrl);
+              addUri(item, asString(url.url));
             }
           }
 
