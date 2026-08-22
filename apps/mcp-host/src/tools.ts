@@ -10,7 +10,6 @@ import {
   setTaskContext,
   updateTaskFromResponse,
 } from "./task-context.js";
-import { type BoundaryValue } from "@opensesame/os-domain";
 
 export const hostTools = [
   "task_start",
@@ -39,6 +38,20 @@ const capabilitySchema = z.object({
   resource: z.string(),
 });
 
+const taskStateResponseSchema = z.object({
+  task_run_id: z.string().optional(),
+  state_version: z.number().optional(),
+});
+
+const intentResponseSchema = z.object({
+  intent_id: z.string(),
+  intent_digest: z.string(),
+  task_state_version: z.number().optional(),
+  canonical_arguments: z.unknown().optional(),
+});
+
+const errorResponseSchema = z.object({ error: z.string().optional() });
+
 export function registerHostTools(server: McpServer): void {
   assertsNoSecretTools(hostTools);
 
@@ -66,15 +79,27 @@ export function registerHostTools(server: McpServer): void {
           }),
         });
         const body = await res.json();
-        if (res.ok) {
-          updateTaskFromResponse(body);
+        const taskState = taskStateResponseSchema.safeParse(body);
+        if (
+          res.ok &&
+          taskState.success &&
+          taskState.data.task_run_id !== undefined &&
+          taskState.data.state_version !== undefined
+        ) {
+          updateTaskFromResponse({
+            task_run_id: taskState.data.task_run_id,
+            state_version: taskState.data.state_version,
+          });
         }
         return {
-          content: textContent(forAgent(JSON.stringify(body))),
+          content: textContent(forAgent(JSON.stringify(body) ?? "null")),
           isError: !res.ok,
         };
       } catch (e) {
-        return toolError("task_start_failed", e);
+        return toolError(
+          "task_start_failed",
+          e instanceof Error ? e : String(e),
+        );
       }
     },
   );
@@ -90,16 +115,31 @@ export function registerHostTools(server: McpServer): void {
         const id = task_run_id ?? requireTaskRunId();
         const res = await hostFetch(`/api/v1/tasks/${encodeURIComponent(id)}`);
         const body = await res.json();
-        if (res.ok) {
+        const taskState = taskStateResponseSchema.safeParse(body);
+        if (
+          res.ok &&
+          taskState.success &&
+          taskState.data.task_run_id !== undefined &&
+          taskState.data.state_version !== undefined
+        ) {
           // A status read refreshes the active task; it does not switch to another.
-          updateTaskFromResponse(body, { adopt: false });
+          updateTaskFromResponse(
+            {
+              task_run_id: taskState.data.task_run_id,
+              state_version: taskState.data.state_version,
+            },
+            { adopt: false },
+          );
         }
         return {
-          content: textContent(forAgent(JSON.stringify(body))),
+          content: textContent(forAgent(JSON.stringify(body) ?? "null")),
           isError: !res.ok,
         };
       } catch (e) {
-        return toolError("task_status_failed", e);
+        return toolError(
+          "task_status_failed",
+          e instanceof Error ? e : String(e),
+        );
       }
     },
   );
@@ -140,26 +180,32 @@ export function registerHostTools(server: McpServer): void {
           }),
         });
         const body = await res.json();
-        if (res.ok) {
+        const intentResponse = intentResponseSchema.safeParse(body);
+        if (res.ok && intentResponse.success) {
           setTaskContext({
             taskRunId: ctx.taskRunId,
-            stateVersion: body.task_state_version ?? ctx.stateVersion,
+            stateVersion:
+              intentResponse.data.task_state_version ?? ctx.stateVersion,
             frozenIntent: {
-              intentId: body.intent_id,
-              intentDigest: body.intent_digest,
+              intentId: intentResponse.data.intent_id,
+              intentDigest: intentResponse.data.intent_digest,
               operation,
               resource,
               audience,
-              canonicalArguments: body.canonical_arguments ?? args,
+              canonicalArguments:
+                intentResponse.data.canonical_arguments ?? args,
             },
           });
         }
         return {
-          content: textContent(forAgent(JSON.stringify(body))),
+          content: textContent(forAgent(JSON.stringify(body) ?? "null")),
           isError: !res.ok,
         };
       } catch (e) {
-        return toolError("task_invoke_failed", e);
+        return toolError(
+          "task_invoke_failed",
+          e instanceof Error ? e : String(e),
+        );
       }
     },
   );
@@ -191,11 +237,14 @@ export function registerHostTools(server: McpServer): void {
           setTaskContext(null);
         }
         return {
-          content: textContent(forAgent(JSON.stringify(body))),
+          content: textContent(forAgent(JSON.stringify(body) ?? "null")),
           isError: !res.ok,
         };
       } catch (e) {
-        return toolError("task_terminate_failed", e);
+        return toolError(
+          "task_terminate_failed",
+          e instanceof Error ? e : String(e),
+        );
       }
     },
   );
@@ -204,9 +253,14 @@ export function registerHostTools(server: McpServer): void {
     try {
       const res = await daemonFetch("/v1/toolbar/status");
       const body = await res.json();
-      return { content: textContent(forAgent(JSON.stringify(body))) };
+      return {
+        content: textContent(forAgent(JSON.stringify(body) ?? "null")),
+      };
     } catch (e) {
-      return toolError("daemon_unavailable", e);
+      return toolError(
+        "daemon_unavailable",
+        e instanceof Error ? e : String(e),
+      );
     }
   });
 
@@ -226,7 +280,7 @@ export function registerHostTools(server: McpServer): void {
         ),
       };
     } catch (e) {
-      return toolError("host_unavailable", e);
+      return toolError("host_unavailable", e instanceof Error ? e : String(e));
     }
   });
 
@@ -258,15 +312,22 @@ export function registerHostTools(server: McpServer): void {
           }),
         });
         const body = await res.json();
+        const errorResponse = errorResponseSchema.safeParse(body);
         // The digest has been spent. Keeping it in context invites a second call
         // that can only be refused, and describes authority that no longer exists.
         clearFrozenIntent();
         return {
-          content: textContent(forAgent(JSON.stringify(body))),
-          isError: !res.ok || body?.error === "materialize_denied",
+          content: textContent(forAgent(JSON.stringify(body) ?? "null")),
+          isError:
+            !res.ok ||
+            (errorResponse.success &&
+              errorResponse.data.error === "materialize_denied"),
         };
       } catch (e) {
-        return toolError("operator_invoke_failed", e);
+        return toolError(
+          "operator_invoke_failed",
+          e instanceof Error ? e : String(e),
+        );
       }
     },
   );
@@ -276,7 +337,7 @@ function textContent(text: string) {
   return [{ type: "text" as const, text }];
 }
 
-function toolError(label: string, e: BoundaryValue) {
+function toolError(label: string, e: Error | string) {
   const message = e instanceof Error ? e.message : String(e);
   try {
     return {
