@@ -37,4 +37,25 @@ describe("issueCertificate", () => {
     if (!init) throw new Error("Host request was not recorded");
     expect(JSON.parse(String(init.body)).common_name).toBe("localhost");
   });
+
+  it("adversarial: rejects a successful response without one-time key material", async () => {
+    hostFetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          certificate:
+            "-----BEGIN CERTIFICATE-----\nMII\n-----END CERTIFICATE-----",
+          private_key: "",
+          ca_certificate:
+            "-----BEGIN CERTIFICATE-----\nCA\n-----END CERTIFICATE-----",
+          common_name: "localhost",
+          not_after: "2026-01-02",
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+
+    await expect(issueCertificate({ commonName: "localhost" })).rejects.toThrow(
+      "Host returned incomplete certificate material",
+    );
+  });
 });

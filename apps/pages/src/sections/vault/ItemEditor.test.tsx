@@ -9,7 +9,9 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { IssuedCertificate } from "../../lib/certs.js";
 import type {
+  CertificateItem,
   Folder,
   LoginItem,
   SecretItem,
@@ -30,6 +32,16 @@ const vault = vi.hoisted(
 );
 const saveItem = vi.hoisted(() => vi.fn<(item: VaultItem) => Promise<void>>());
 const compileSecretToHost = vi.hoisted(() => vi.fn());
+const issueCertificateFromHost = vi.hoisted(() =>
+  vi.fn<
+    (input: {
+      commonName: string;
+      dnsNames?: string[];
+      ipAddrs?: string[];
+      ttlHours?: number;
+    }) => Promise<IssuedCertificate>
+  >(),
+);
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
@@ -42,6 +54,9 @@ Object.assign(vaultHooksSeams, {
 import { connectionSeams } from "../../lib/connections.js";
 const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, { compileSecretToHost });
+
+import { certsSeams } from "../../lib/certs.js";
+Object.assign(certsSeams, { issueCertificate: issueCertificateFromHost });
 
 import { ItemEditor } from "./ItemEditor.js";
 
@@ -81,6 +96,44 @@ function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
   };
 }
 
+function makeCertificate(
+  overrides: Partial<CertificateItem> = {},
+): CertificateItem {
+  return {
+    id: "itm_cert",
+    kind: "certificate",
+    name: "Local TLS",
+    folderId: null,
+    favorite: false,
+    notes: "",
+    fields: [],
+    createdAt: "2026-08-01T00:00:00Z",
+    updatedAt: "2026-08-01T00:00:00Z",
+    deletedAt: null,
+    commonName: "localhost",
+    dnsNames: "localhost",
+    ipAddrs: "127.0.0.1",
+    ttlHours: "24",
+    certificatePem: "",
+    privateKeyPem: "",
+    caPem: "",
+    serial: "",
+    notAfter: "",
+    ...overrides,
+  };
+}
+
+const issuedCertificate: IssuedCertificate = {
+  certificate: "-----BEGIN CERTIFICATE-----\nleaf\n-----END CERTIFICATE-----",
+  privateKey: "-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----",
+  caCertificate: "-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----",
+  serial: "aabbcc",
+  commonName: "barber.local",
+  dnsNames: ["barber.local", "www.barber.local"],
+  notBefore: "2026-08-21T00:00:00Z",
+  notAfter: "2026-08-22T00:00:00Z",
+};
+
 function inputByLabel(label: string | RegExp): HTMLInputElement {
   const element = screen.getByLabelText(label);
   if (!(element instanceof HTMLInputElement)) {
@@ -100,6 +153,7 @@ describe("ItemEditor", () => {
     vault.current = { items: [], folders: [] };
     saveItem.mockResolvedValue(undefined);
     compileSecretToHost.mockResolvedValue(undefined);
+    issueCertificateFromHost.mockResolvedValue(issuedCertificate);
   });
 
   afterEach(() => {
@@ -133,6 +187,162 @@ describe("ItemEditor", () => {
     expect(saved.username).toBe("me@example.com");
     expect(saved.password).toBe("s3cret-s3cret");
     expect(await screen.findByText("navigated away")).toBeTruthy();
+  });
+
+  it("behavior: issues and seals a new certificate in one submit", async () => {
+    renderNew("/vault/new/certificate");
+    await userEvent.clear(screen.getByLabelText(/Common name/i));
+    await userEvent.type(screen.getByLabelText(/Common name/i), "barber.local");
+    await userEvent.clear(screen.getByLabelText(/DNS names/i));
+    await userEvent.type(
+      screen.getByLabelText(/DNS names/i),
+      "barber.local, www.barber.local",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Create certificate/i }),
+    );
+
+    await waitFor(() => expect(saveItem).toHaveBeenCalledOnce());
+    expect(issueCertificateFromHost).toHaveBeenCalledWith({
+      commonName: "barber.local",
+      dnsNames: ["barber.local", "www.barber.local"],
+      ipAddrs: ["127.0.0.1"],
+      ttlHours: 24,
+    });
+    expect(savedItem()).toMatchObject({
+      kind: "certificate",
+      name: "barber.local",
+      commonName: "barber.local",
+      certificatePem: issuedCertificate.certificate,
+      privateKeyPem: issuedCertificate.privateKey,
+      caPem: issuedCertificate.caCertificate,
+    });
+    expect(await screen.findByText("navigated away")).toBeTruthy();
+  });
+
+  it("characterization: asks for names and lifetime, never PEM material", () => {
+    const { container } = renderNew("/vault/new/certificate");
+    expect(screen.queryByLabelText(/^Certificate$/i)).toBeNull();
+    expect(screen.queryByLabelText(/^Private key$/i)).toBeNull();
+    expect(screen.queryByLabelText(/^Issuing CA$/i)).toBeNull();
+    expect({
+      labels: Array.from(container.querySelectorAll("label"), (label) =>
+        label.textContent?.trim(),
+      ),
+      actions: Array.from(container.querySelectorAll("button"), (button) =>
+        button.textContent?.trim(),
+      ),
+      guidance: Array.from(container.querySelectorAll("p.hint"), (hint) =>
+        hint.textContent?.trim(),
+      ),
+    }).toMatchInlineSnapshot(`
+      {
+        "actions": [
+          "Add field",
+          "Create certificate",
+        ],
+        "guidance": [
+          "The Host issues the certificate; the returned material is sealed in this device vault.",
+          "OpenSesame generates an ECDSA P-256 private key and issues a short-lived TLS certificate from the Host private CA. You never need to paste certificate material.",
+        ],
+        "labels": [
+          "Type",
+          "Name",
+          "Common name",
+          "DNS names",
+          "IP addresses",
+          "TTL (hours)",
+          "Notes",
+          "Folder",
+          "Pin to the top of the list",
+        ],
+      }
+    `);
+  });
+
+  it("adversarial: does not save when Host issuance fails", async () => {
+    issueCertificateFromHost.mockRejectedValueOnce(new Error("issuer offline"));
+    renderNew("/vault/new/certificate");
+    await userEvent.click(
+      screen.getByRole("button", { name: /Create certificate/i }),
+    );
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "issuer offline",
+    );
+    expect(saveItem).not.toHaveBeenCalled();
+  });
+
+  it("retries vault sealing without issuing another certificate", async () => {
+    saveItem
+      .mockRejectedValueOnce(new Error("vault temporarily locked"))
+      .mockResolvedValueOnce(undefined);
+    renderNew("/vault/new/certificate");
+    await userEvent.click(
+      screen.getByRole("button", { name: /Create certificate/i }),
+    );
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "vault temporarily locked",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalledTimes(2));
+    expect(issueCertificateFromHost).toHaveBeenCalledOnce();
+    expect(saveItem.mock.calls[1]?.[0]).toEqual(saveItem.mock.calls[0]?.[0]);
+  });
+
+  it("issues a blank legacy certificate instead of saving it blank", async () => {
+    vault.current = { items: [makeCertificate()], folders: [] };
+    render(
+      <MemoryRouter initialEntries={["/vault/itm_cert/edit"]}>
+        <Routes>
+          <Route
+            path="/vault/:itemId/edit"
+            element={<ItemEditor mode="edit" />}
+          />
+          <Route path="*" element={<div>navigated away</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Issue now/i }));
+
+    await waitFor(() => expect(saveItem).toHaveBeenCalledOnce());
+    expect(savedItem()).toMatchObject({
+      certificatePem: issuedCertificate.certificate,
+      privateKeyPem: issuedCertificate.privateKey,
+      caPem: issuedCertificate.caCertificate,
+    });
+  });
+
+  it("edits issued metadata without reissuing or exposing PEM inputs", async () => {
+    vault.current = {
+      items: [
+        makeCertificate({
+          certificatePem: issuedCertificate.certificate,
+          privateKeyPem: issuedCertificate.privateKey,
+          caPem: issuedCertificate.caCertificate,
+          serial: issuedCertificate.serial,
+          notAfter: issuedCertificate.notAfter,
+        }),
+      ],
+      folders: [],
+    };
+    render(
+      <MemoryRouter initialEntries={["/vault/itm_cert/edit"]}>
+        <Routes>
+          <Route
+            path="/vault/:itemId/edit"
+            element={<ItemEditor mode="edit" />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(inputByLabel(/Common name/i).readOnly).toBe(true);
+    expect(screen.queryByLabelText(/^Private key$/i)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
+
+    await waitFor(() => expect(saveItem).toHaveBeenCalledOnce());
+    expect(issueCertificateFromHost).not.toHaveBeenCalled();
   });
 
   it("prefills a new login from the save-prompt query", () => {

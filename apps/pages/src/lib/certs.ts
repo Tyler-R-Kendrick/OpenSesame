@@ -36,15 +36,29 @@ function toIssued(raw: JsonObject): IssuedCertificate {
   const dns = Array.isArray(raw.dns_names)
     ? raw.dns_names.filter(isString)
     : [];
+  const certificate = readString(raw.certificate);
+  const privateKey = readString(raw.private_key);
+  const caCertificate = readString(raw.ca_certificate);
+  const commonName = readString(raw.common_name);
+  const notAfter = readString(raw.not_after);
+  if (
+    !certificate ||
+    !privateKey ||
+    !caCertificate ||
+    !commonName ||
+    !notAfter
+  ) {
+    throw new Error("Host returned incomplete certificate material");
+  }
   return {
-    certificate: String(raw.certificate ?? ""),
-    privateKey: String(raw.private_key ?? ""),
-    caCertificate: String(raw.ca_certificate ?? ""),
+    certificate,
+    privateKey,
+    caCertificate,
     serial: String(raw.serial ?? ""),
-    commonName: String(raw.common_name ?? ""),
+    commonName,
     dnsNames: dns,
     notBefore: String(raw.not_before ?? ""),
-    notAfter: String(raw.not_after ?? ""),
+    notAfter,
   };
 }
 
