@@ -1,4 +1,4 @@
-import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
+import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 /**
  * Credential rotation consumer (WP-E).
  *
@@ -66,9 +66,7 @@ export function assertNoSecrets(payload: JsonObject): void {
   }
 }
 
-export function toPublicJobView(
-  data: JsonObject,
-): RotationJobView {
+export function toPublicJobView(data: JsonObject): RotationJobView {
   assertNoSecrets(data);
   const target = overlapCast(data.target);
   const statusRaw = String(data.status ?? "requested");
@@ -81,19 +79,17 @@ export function toPublicJobView(
     status,
     secretsReturned: false,
   };
-  const connectionId =
-    isString(target?.connection_id)
-      ? target.connection_id
-      : isString(data.connection_id)
-        ? data.connection_id
-        : undefined;
+  const connectionId = isString(target?.connection_id)
+    ? target.connection_id
+    : isString(data.connection_id)
+      ? data.connection_id
+      : undefined;
   if (connectionId) view.connectionId = connectionId;
-  const storePath =
-    isString(target?.path)
-      ? target.path
-      : isString(data.store_path)
-        ? data.store_path
-        : undefined;
+  const storePath = isString(target?.path)
+    ? target.path
+    : isString(data.store_path)
+      ? data.store_path
+      : undefined;
   if (storePath) view.storePath = storePath;
   if (isString(data.project_id)) view.projectId = data.project_id;
   if (isString(data.organization_id)) {

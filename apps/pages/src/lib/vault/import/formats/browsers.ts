@@ -255,8 +255,10 @@ const COLUMN_PATTERNS = {
  * and its web address.
  */
 function resolveColumns(headers: string[]) {
-  const roles = overlapCast(Object.keys(COLUMN_PATTERNS));
-  const keys = overlapCast(Object.fromEntries(roles.map((role) => [role, null])));
+  const roles: ColumnRole[] = overlapCast(Object.keys(COLUMN_PATTERNS));
+  const keys: Record<ColumnRole, string | null> = overlapCast(
+    Object.fromEntries(roles.map((role) => [role, null])),
+  );
   const claimed = new Set<string>();
 
   for (const pass of [0, 1] as const) {

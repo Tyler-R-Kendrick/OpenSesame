@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AuditEvent } from "@opensesame/os-domain";
+import { type AuditEvent, overlapCast } from "@opensesame/os-domain";
 import { assertNoSecretFields, assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
 import { appendAuditEvent } from "../append.js";
@@ -80,6 +80,6 @@ describe("PACT — identity audit chain", () => {
       eventType: "claim.completed",
       outcome: "succeeded",
     });
-    assertNoSecretFields(store.rows[0]);
+    assertNoSecretFields(overlapCast(store.rows[0]));
   });
 });

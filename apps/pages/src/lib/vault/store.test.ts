@@ -1,5 +1,13 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvSeams, kvSet } from "../kv.js";
+import {
+  PERSONAL_PROJECT_ID,
+  PROJECTS_KEY,
+  createProject,
+  rehydrateProjects,
+  setActiveProject,
+} from "../projects.js";
 import { PBKDF2_ITERATIONS, createVault } from "./crypto.js";
 import { createItem } from "./model.js";
 import {
@@ -13,7 +21,6 @@ import {
   defaultPrefs,
   normalizeVaultPrefs,
 } from "./store.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const PASSWORD = "correct horse battery staple";
 
@@ -165,6 +172,83 @@ describe("VaultStore multi-method unlock", () => {
     kvDelete(ATTEMPTS_KEY);
     kvDelete(HEADER_KEY);
     kvDelete(BODY_KEY);
+  });
+
+  it("seals a new vault with a PIN and no master password", async () => {
+    const store = new VaultStore();
+    await store.createWithPin("48291037");
+    const header = store.getSnapshot().header;
+    expect(header?.unlocks?.pin).toBeDefined();
+    expect(header?.wrap).toBeUndefined();
+    expect(header?.kdf).toBeUndefined();
+    store.lock();
+
+    const reopened = new VaultStore();
+    await reopened.unlockWithPin("48291037");
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+  });
+
+  it("carries an unlocked vault into a new project without asking for a password", async () => {
+    kvDelete(PROJECTS_KEY);
+    rehydrateProjects();
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.saveItem(createItem("login", "Personal only"));
+    const project = await createProject("Work");
+    await setActiveProject(project.id);
+    await store.forkUnlockedIntoActiveScope();
+    expect(store.getSnapshot().status).toBe("unlocked");
+    expect(store.getSnapshot().items).toEqual([]);
+    expect(store.getSnapshot().header?.wrap).toBeDefined();
+    store.lock();
+
+    const reopened = new VaultStore();
+    await reopened.unlock(PASSWORD);
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+    expect(reopened.getSnapshot().items).toEqual([]);
+
+    await setActiveProject(PERSONAL_PROJECT_ID);
+    kvDelete(PROJECTS_KEY);
+    rehydrateProjects();
+  });
+
+  it("refuses to fork a locked vault into a new project", async () => {
+    const store = new VaultStore();
+    await expect(store.forkUnlockedIntoActiveScope()).rejects.toThrow(
+      /Unlock the vault/,
+    );
+  });
+
+  it("loads the active project scope and drops the previous vault key", async () => {
+    kvDelete(PROJECTS_KEY);
+    rehydrateProjects();
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    const project = await createProject("Work");
+    await setActiveProject(project.id);
+    store.loadActiveProjectScope();
+    expect(store.isUnlocked()).toBe(false);
+    expect(store.getSnapshot().status).toBe("empty");
+    await setActiveProject(PERSONAL_PROJECT_ID);
+    kvDelete(PROJECTS_KEY);
+    rehydrateProjects();
+  });
+
+  it("lets a guest in without wrapping a password or passkey", async () => {
+    kvDelete(HEADER_KEY);
+    const store = new VaultStore();
+    await store.createGuest();
+    expect(store.getSnapshot().status).toBe("unlocked");
+    expect(store.getSnapshot().header?.wrap).toBeUndefined();
+    expect(kvGet(HEADER_KEY)).toBeNull();
+    store.lock();
+    expect(store.getSnapshot().status).toBe("empty");
+  });
+
+  it("rejects a weak PIN without creating a vault", async () => {
+    const store = new VaultStore();
+    await expect(store.createWithPin("11111111")).rejects.toThrow(/repeated/);
+    expect(store.getSnapshot().status).toBe("empty");
   });
 
   it("unlocks with an enrolled PIN after locking", async () => {

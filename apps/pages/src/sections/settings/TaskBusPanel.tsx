@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { useCallback, useEffect, useState } from "react";
 import { IconAlert, IconCheck } from "../../components/Icons.js";
 import {
@@ -21,7 +22,6 @@ import {
   putTaskBusConfig,
 } from "../../lib/taskbus.js";
 import { useOnline } from "../../lib/use-online.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 type Flash = { tone: "ok" | "err" | "warn"; text: string };
 
@@ -74,7 +74,11 @@ export function TaskBusPanel() {
         natsUrl: backend === "nats" ? natsUrl : undefined,
       });
       setConfig(result.config);
-      setFlash(taskBusSaveFlash(result.applied, result.config));
+      const next = taskBusSaveFlash(result.applied, result.config);
+      setFlash({
+        tone: result.applied ? "ok" : "warn",
+        text: next.text,
+      });
     } catch (caught) {
       setFlash({
         tone: "err",
@@ -93,7 +97,8 @@ export function TaskBusPanel() {
       await ensureHostSession();
       const result = await pingTaskBus();
       setConfig(result.config);
-      setFlash(taskBusPingFlash(result.ok, result.config));
+      const next = taskBusPingFlash(result.ok, result.config);
+      setFlash({ tone: result.ok ? "ok" : "err", text: next.text });
     } catch (caught) {
       setFlash({
         tone: "err",

@@ -1,6 +1,6 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createApiClient } from "./index.js";
-import { type BoundaryValue } from "@opensesame/os-domain";
 
 const egress = {
   scheme: "https",

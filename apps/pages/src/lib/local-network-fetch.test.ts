@@ -1,9 +1,13 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   localNetworkFetch,
   targetAddressSpaceFor,
 } from "./local-network-fetch.js";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
+
+type LocalRequestInit = RequestInit & {
+  targetAddressSpace?: "local" | "loopback";
+};
 
 describe("local-network-fetch", () => {
   afterEach(() => {
@@ -22,17 +26,15 @@ describe("local-network-fetch", () => {
   });
 
   it("aborts hung fetches even when the browser ignores AbortSignal.timeout", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        (_input: RequestInfo | URL, init?: RequestInit) =>
-          new Promise<Response>((_resolve, reject) => {
-            init?.signal?.addEventListener("abort", () => {
-              reject(init.signal?.reason ?? new Error("aborted"));
-            });
-          }),
-      ),
+    const fetchMock = vi.fn(
+      (_input: RequestInfo | URL, init?: LocalRequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(init.signal?.reason ?? new Error("aborted"));
+          });
+        }),
     );
+    vi.stubGlobal("fetch", fetchMock);
     await expect(
       localNetworkFetch("https://box.tail123.ts.net/health", {
         timeoutMs: 30,
@@ -42,9 +44,8 @@ describe("local-network-fetch", () => {
         error instanceof DOMException ||
         (error instanceof Error && /timed out|abort/i.test(String(error))),
     );
-    const init = overlapCast(
-      (overlapCast(fetch)).mock.calls[0]?.[1],
-    );
+    const init = fetchMock.mock.calls[0]?.[1];
+    if (!init) throw new Error("fetch request was not recorded");
     expect(init.targetAddressSpace).toBe("local");
   });
 });

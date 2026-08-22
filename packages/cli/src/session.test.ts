@@ -1,9 +1,9 @@
 import { chmod, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCli } from "./run.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const ISSUER = "http://127.0.0.1:8788";
 let dir = "";
@@ -25,68 +25,67 @@ function sessionFile(): string {
   return join(dir, "identity-session.json");
 }
 
-async function writeSession(
-  contents: JsonObject,
-  mode = 0o600,
-): Promise<void> {
+async function writeSession(contents: JsonObject, mode = 0o600): Promise<void> {
   await writeFile(sessionFile(), JSON.stringify(contents), { mode });
   await chmod(sessionFile(), mode);
 }
 
 /** Answers discovery, the device endpoints, and `principals/me`. */
 function idpFetch(): typeof fetch {
-  return overlapCast(vi.fn(async (input: RequestInfo | URL) => {
-    const url = String(input);
-    if (url.includes("openid-configuration")) {
-      return new Response(
-        JSON.stringify({
-          issuer: ISSUER,
-          authorization_endpoint: `${ISSUER}/auth`,
-          token_endpoint: `${ISSUER}/token`,
-          device_authorization_endpoint: `${ISSUER}/device`,
-          jwks_uri: `${ISSUER}/jwks`,
-        }),
-      );
-    }
-    if (url.endsWith("/device")) {
-      return new Response(
-        JSON.stringify({
-          device_code: "dc",
-          user_code: "ABCD-EFGH",
-          verification_uri: `${ISSUER}/device`,
-          expires_in: 600,
-          interval: 1,
-        }),
-      );
-    }
-    if (url.endsWith("/token")) {
-      return new Response(
-        JSON.stringify({
-          access_token: "at-1",
-          token_type: "Bearer",
-          expires_in: 3600,
-        }),
-      );
-    }
-    if (url.endsWith("/v1/principals/me")) {
-      return new Response(JSON.stringify({ id: "p-1" }), { status: 200 });
-    }
-    if (url.endsWith("/v1/principals/provisional")) {
-      return new Response(
-        JSON.stringify({
-          principalId: "prn_guest",
-          state: "provisional",
-          assurance: "provisional",
-          sessionId: "ps_1",
-          accessToken: "pst_guest",
-          expiresAt: new Date(Date.now() + 3600_000).toISOString(),
-          tokenType: "Bearer",
-        }),
-        { status: 201 },
-      );
-    }
-    throw new Error(`unexpected ${url}`);
-  }));
+  return overlapCast(
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("openid-configuration")) {
+        return new Response(
+          JSON.stringify({
+            issuer: ISSUER,
+            authorization_endpoint: `${ISSUER}/auth`,
+            token_endpoint: `${ISSUER}/token`,
+            device_authorization_endpoint: `${ISSUER}/device`,
+            jwks_uri: `${ISSUER}/jwks`,
+          }),
+        );
+      }
+      if (url.endsWith("/device")) {
+        return new Response(
+          JSON.stringify({
+            device_code: "dc",
+            user_code: "ABCD-EFGH",
+            verification_uri: `${ISSUER}/device`,
+            expires_in: 600,
+            interval: 1,
+          }),
+        );
+      }
+      if (url.endsWith("/token")) {
+        return new Response(
+          JSON.stringify({
+            access_token: "at-1",
+            token_type: "Bearer",
+            expires_in: 3600,
+          }),
+        );
+      }
+      if (url.endsWith("/v1/principals/me")) {
+        return new Response(JSON.stringify({ id: "p-1" }), { status: 200 });
+      }
+      if (url.endsWith("/v1/principals/provisional")) {
+        return new Response(
+          JSON.stringify({
+            principalId: "prn_guest",
+            state: "provisional",
+            assurance: "provisional",
+            sessionId: "ps_1",
+            accessToken: "pst_guest",
+            expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+            tokenType: "Bearer",
+          }),
+          { status: 201 },
+        );
+      }
+      throw new Error(`unexpected ${url}`);
+    }),
+  );
 }
 
 beforeEach(async () => {
@@ -149,15 +148,15 @@ describe("cli session file", () => {
       clientId: "opensesame-cli",
     });
     const seen: Array<string | null> = [];
-    const watchful = overlapCast(vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
+    const watchful: typeof fetch = overlapCast(
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         seen.push(new Headers(init?.headers).get("authorization"));
         if (String(input).endsWith("/v1/principals/me")) {
           return new Response(JSON.stringify({ id: "p-1" }), { status: 200 });
         }
         throw new Error(`unexpected ${String(input)}`);
-      },
-    ));
+      }),
+    );
 
     const elsewhere = await runCli(
       [
@@ -201,15 +200,15 @@ describe("cli session file", () => {
       principalId: "prn_guest",
     });
     const seen: Array<{ path: string; auth: string | null }> = [];
-    const watchful = overlapCast(vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
+    const watchful: typeof fetch = overlapCast(
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         seen.push({
           path: new URL(String(input)).pathname,
           auth: new Headers(init?.headers).get("authorization"),
         });
         return new Response(null, { status: 204 });
-      },
-    ));
+      }),
+    );
 
     const code = await runCli(["logout", "--issuer", ISSUER], {
       fetchImpl: watchful,
@@ -243,9 +242,11 @@ describe("cli session file", () => {
       clientId: "opensesame-cli",
       expiresAt: Date.now() - 1000,
     });
-    const partitioned = overlapCast(vi.fn(async () => {
-      throw new Error("ECONNREFUSED");
-    }));
+    const partitioned: typeof fetch = overlapCast(
+      vi.fn(async () => {
+        throw new Error("ECONNREFUSED");
+      }),
+    );
     const code = await runCli(["whoami", "--issuer", ISSUER], {
       fetchImpl: partitioned,
     });

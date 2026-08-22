@@ -18,12 +18,16 @@ import type {
   Principal,
   ProvisionalSession,
 } from "@opensesame/os-domain";
+import { isString } from "@opensesame/os-domain";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { decodeJwt } from "jose";
 import { cookieAuthAllowed, requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { serializeKeyed } from "../serialize.js";
+import { OrgAssertionError, verifyOrgIdToken } from "./org-assertion.js";
 import {
   authenticatedPrincipalId,
   ensurePersonalOrganization,
@@ -125,6 +129,7 @@ principalRoutes.post(
             ttlMs: ctx.config.provisionalTtlMs,
             quotaProfile: "anonymous",
             allowedActions: [
+              "project.create",
               "project.create_temporary",
               "resource.create_temporary",
               "claim.create",
@@ -299,7 +304,9 @@ principalRoutes.get("/me", requirePrincipal(), async (c) => {
       id: i.id,
       kind: i.kind,
       issuer: i.issuer,
-      ...(i.displayHint !== undefined ? { displayHint: i.displayHint } : undefined),
+      ...(i.displayHint !== undefined
+        ? { displayHint: i.displayHint }
+        : undefined),
       assurance: i.assurance,
     })),
   });
@@ -317,7 +324,9 @@ principalRoutes.get("/identities", requirePrincipal(), async (c) => {
       kind: i.kind,
       issuer: i.issuer,
       subject: i.subject,
-      ...(i.displayHint !== undefined ? { displayHint: i.displayHint } : undefined),
+      ...(i.displayHint !== undefined
+        ? { displayHint: i.displayHint }
+        : undefined),
       assurance: i.assurance,
       linkedAt: i.linkedAt.toISOString(),
     })),
@@ -340,10 +349,25 @@ principalRoutes.post(
       return c.json({ error: "principal_inactive" }, 403);
     }
 
-    // Nothing in this request proves the caller controls `issuer`/`subject`, and a
-    // successful link promotes a provisional principal to `verified` — the very
-    // assurance that gates organizations, projects and OAuth client registration.
-    // Caller-asserted links are therefore a dev seam only, like stub TOTP.
+    const parsed = LinkIdentityRequestSchema.safeParse(await c.req.json());
+    if (!parsed.success) {
+      return c.json(
+        { error: "validation_error", details: parsed.error.flatten() },
+        400,
+      );
+    }
+
+    // A verified upstream `id_token` is the production claim path (ADR 0033).
+    // Self-asserted issuer/subject tuples prove nothing and stay a dev seam.
+    if ("idToken" in parsed.data) {
+      return linkFromVerifiedIdToken(
+        c,
+        principal,
+        principalId,
+        parsed.data.idToken,
+      );
+    }
+
     if (!ctx.config.allowDevDefaults) {
       return c.json(
         {
@@ -351,14 +375,6 @@ principalRoutes.post(
           hint: "Complete an upstream authentication ceremony; self-asserted identity links are dev-only",
         },
         403,
-      );
-    }
-
-    const parsed = LinkIdentityRequestSchema.safeParse(await c.req.json());
-    if (!parsed.success) {
-      return c.json(
-        { error: "validation_error", details: parsed.error.flatten() },
-        400,
       );
     }
 
@@ -510,6 +526,148 @@ principalRoutes.post(
     );
   },
 );
+
+function issuerKey(issuer: string): string {
+  return issuer.trim().replace(/\/+$/, "");
+}
+
+async function linkFromVerifiedIdToken(
+  c: Context<{ Variables: Variables }>,
+  principal: Principal,
+  principalId: string,
+  idToken: string,
+) {
+  const ctx = c.get("ctx");
+  let issuer = "";
+  try {
+    const claims = decodeJwt(idToken);
+    issuer = isString(claims.iss) ? issuerKey(claims.iss) : "";
+  } catch {
+    return c.json({ error: "invalid_token", message: "Not a JWT." }, 400);
+  }
+  const trusted = ctx.config.trustedUpstreamIssuers.map(issuerKey);
+  if (!issuer || !trusted.includes(issuer)) {
+    return c.json(
+      {
+        error: "untrusted_issuer",
+        message: "That identity issuer is not in the allowlist.",
+      },
+      403,
+    );
+  }
+
+  let subject: string;
+  try {
+    const verified = await verifyOrgIdToken(idToken, issuer);
+    subject = verified.sub;
+  } catch (error) {
+    if (error instanceof OrgAssertionError) {
+      const status = error.code === "upstream_unavailable" ? 502 : 401;
+      return c.json({ error: error.code, message: error.message }, status);
+    }
+    throw error;
+  }
+
+  const existing = await ctx.repos.externalIdentities.findByTuple({
+    kind: "oidc",
+    issuer,
+    subject,
+  });
+  if (existing) {
+    if (existing.principalId === principalId) {
+      return c.json(
+        LinkIdentityResponseSchema.parse({
+          principalId,
+          identity: {
+            id: existing.id,
+            kind: existing.kind,
+            issuer: existing.issuer,
+            subject: existing.subject,
+            ...(existing.displayHint !== undefined
+              ? { displayHint: existing.displayHint }
+              : undefined),
+            assurance: existing.assurance,
+            linkedAt: existing.linkedAt.toISOString(),
+          },
+        }),
+      );
+    }
+    return c.json(
+      {
+        error: "identity_collision",
+        message:
+          "External identity already bound to another principal; merge requires dual authentication",
+      },
+      409,
+    );
+  }
+
+  const now = ctx.clock();
+  const identity: ExternalIdentity = {
+    id: `xid_${randomUUID()}`,
+    principalId,
+    kind: "oidc",
+    issuer,
+    subject,
+    assurance: "verified",
+    linkedAt: now,
+    metadata: {},
+  };
+  try {
+    await ctx.repos.externalIdentities.create(identity);
+  } catch (err) {
+    if (err instanceof ConflictError) {
+      return c.json({ error: "identity_collision", message: err.message }, 409);
+    }
+    throw err;
+  }
+
+  if (
+    principal.assurance === "provisional" ||
+    principal.state === "provisional"
+  ) {
+    await ctx.repos.principals.update(
+      principalId,
+      {
+        state: "active",
+        assurance: "verified",
+        verifiedAt: now,
+        updatedAt: now,
+      },
+      principal.version,
+    );
+  }
+
+  await appendAuditEvent(ctx.repos.auditEvents, {
+    eventType: "principal.identity_linked",
+    outcome: "succeeded",
+    principalId,
+    targetType: "external_identity",
+    targetId: identity.id,
+    correlationId: c.get("correlationId"),
+    metadata: {
+      action: "principal.link_identity",
+      kind: identity.kind,
+      issuer: identity.issuer,
+      via: "id_token",
+    },
+  });
+
+  return c.json(
+    LinkIdentityResponseSchema.parse({
+      principalId,
+      identity: {
+        id: identity.id,
+        kind: identity.kind,
+        issuer: identity.issuer,
+        subject: identity.subject,
+        assurance: identity.assurance,
+        linkedAt: identity.linkedAt.toISOString(),
+      },
+    }),
+    201,
+  );
+}
 
 principalRoutes.delete("/identities/:id", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");

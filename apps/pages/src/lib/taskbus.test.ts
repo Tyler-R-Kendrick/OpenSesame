@@ -1,10 +1,12 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
-const hostFetch = vi.hoisted(() => vi.fn());
+const hostFetch = vi.hoisted(() =>
+  vi.fn<(path: string, init?: RequestInit) => Promise<Response>>(),
+);
 import { identitySeams } from "./identity.js";
 const originalIdentitySeams = { ...identitySeams };
-Object.assign(identitySeams, {hostFetch});
+Object.assign(identitySeams, { hostFetch });
 import { getTaskBusConfig, pingTaskBus, putTaskBusConfig } from "./taskbus.js";
 
 function jsonResponse(status: number, body: BoundaryValue): Response {
@@ -50,7 +52,8 @@ describe("taskbus client", () => {
       backend: "nats",
       natsUrl: "nats://box.tail.ts.net:4222",
     });
-    const [, init] = overlapCast(hostFetch.mock.calls[0]);
+    const init = hostFetch.mock.calls[0]?.[1];
+    if (!init) throw new Error("Host request was not recorded");
     expect(JSON.parse(String(init.body)).nats_url).toContain("tail");
   });
 

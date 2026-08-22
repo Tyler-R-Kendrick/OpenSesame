@@ -1,7 +1,11 @@
+import {
+  type BoundaryValue,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { Database } from "./repos/postgres.js";
 import * as schema from "./schema/index.js";
-import { overlapCast, type BoundaryValue, isTypeofObject } from "@opensesame/os-domain";
 
 /**
  * OAuth client persistence — structural types matching `ClientRecordStore`
@@ -132,13 +136,13 @@ function isUniqueViolation(err: BoundaryValue): boolean {
   // postgres.js puts `code` on the error itself; drizzle wraps driver
   // errors (notably PGlite's) in a DrizzleQueryError with a `cause`.
   if (!isTypeofObject(err) || err === null) return false;
-  const code = (overlapCast(err)).code;
+  const code = overlapCast(err).code;
   if (code === "23505") return true;
-  const cause = (overlapCast(err)).cause;
+  const cause = overlapCast(err).cause;
   return (
     isTypeofObject(cause) &&
     cause !== null &&
-    (overlapCast(cause)).code === "23505"
+    overlapCast(cause).code === "23505"
   );
 }
 
@@ -268,7 +272,8 @@ export function createPostgresClientRecordStore(
         }
         return mapRow(row);
       } catch (err) {
-        if (!isUniqueViolation(err)) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (!isUniqueViolation(boundaryError)) {
           throw err;
         }
         const existing =
@@ -441,7 +446,8 @@ export function createPostgresClientOriginStore(
         }
         return mapOriginRow(row);
       } catch (err) {
-        if (!isUniqueViolation(err)) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (!isUniqueViolation(boundaryError)) {
           throw err;
         }
         const existing = await findByOrigin(origin.canonicalOrigin);

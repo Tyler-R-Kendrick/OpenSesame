@@ -1,11 +1,22 @@
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import type { JsonObject } from "@opensesame/os-domain";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Folder } from "../lib/vault/model.js";
+import type { VaultPrefs } from "../lib/vault/store.js";
 
-const vault = vi.hoisted(() => ({
+type TestItem = { id: string; deletedAt?: string | null; sample?: boolean };
+
+const vault: {
+  current: {
+    prefs: VaultPrefs;
+    items: TestItem[];
+    folders: Folder[];
+    header: JsonObject | null;
+  };
+} = vi.hoisted(() => ({
   current: {
     prefs: {
       theme: "system",
@@ -120,6 +131,12 @@ function makeFile(name: string, contents: string): File {
     value: () => Promise.resolve(contents),
   });
   return file;
+}
+
+function fileInput(id: string): HTMLInputElement {
+  const input = document.getElementById(id);
+  if (!(input instanceof HTMLInputElement)) throw new Error(`${id} not found`);
+  return input;
 }
 
 describe("SettingsSection", () => {
@@ -271,11 +288,9 @@ describe("SettingsSection", () => {
     vault.current.header = null;
     renderSettings("#security");
     expect(screen.getByText(/no master-password unlock/)).toBeTruthy();
-    const button = overlapCast(
-      screen.getByRole("button", {
-        name: /Change master password/i,
-      }),
-    );
+    const button = screen.getByRole<HTMLButtonElement>("button", {
+      name: /Change master password/i,
+    });
     expect(button.disabled).toBe(true);
   });
 
@@ -291,11 +306,13 @@ describe("SettingsSection", () => {
 
   it("suggests a password, revealing it rather than asking for a confirm", async () => {
     renderSettings("#security");
+    // SAFETY: the labeled control is the password input rendered by the settings form.
     const field = screen.getByLabelText("New password") as HTMLInputElement;
     expect(field.type).toBe("password");
     await userEvent.click(
       screen.getByRole("button", { name: /Suggest a strong password/i }),
     );
+    // SAFETY: the labeled control remains the same password input after reveal.
     const revealed = screen.getByLabelText("New password") as HTMLInputElement;
     expect(revealed.type).toBe("text");
     expect(revealed.value.length).toBeGreaterThan(11);
@@ -396,7 +413,7 @@ describe("SettingsSection", () => {
       unchanged: 3,
     });
     renderSettings("#data");
-    const input = overlapCast(document.getElementById("store-manifest-file"));
+    const input = fileInput("store-manifest-file");
     fireEvent.change(input, {
       target: { files: [makeFile("manifest.json", '[{"path":"a"}]')] },
     });
@@ -408,7 +425,7 @@ describe("SettingsSection", () => {
 
   it("rejects manifests that are not JSON arrays", async () => {
     renderSettings("#data");
-    const input = overlapCast(document.getElementById("store-manifest-file"));
+    const input = fileInput("store-manifest-file");
     fireEvent.change(input, {
       target: { files: [makeFile("manifest.json", '{"nope":true}')] },
     });
@@ -435,7 +452,7 @@ describe("SettingsSection", () => {
 
   it("requires the export password before importing a vault", async () => {
     renderSettings("#data");
-    const input = overlapCast(document.getElementById("import-file"));
+    const input = fileInput("import-file");
     fireEvent.change(input, {
       target: { files: [makeFile("vault.json", "{}")] },
     });
@@ -451,7 +468,7 @@ describe("SettingsSection", () => {
       screen.getByLabelText(/Master password that export was sealed under/i),
       "hunter2",
     );
-    const input = overlapCast(document.getElementById("import-file"));
+    const input = fileInput("import-file");
     fireEvent.change(input, {
       target: { files: [makeFile("vault.json", "{}")] },
     });
@@ -468,7 +485,7 @@ describe("SettingsSection", () => {
       screen.getByLabelText(/Master password that export was sealed under/i),
       "hunter2",
     );
-    const input = overlapCast(document.getElementById("import-file"));
+    const input = fileInput("import-file");
     fireEvent.change(input, {
       target: { files: [makeFile("vault.json", "{}")] },
     });

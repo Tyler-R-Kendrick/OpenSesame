@@ -1,11 +1,21 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const vault = {
+import type { Folder, LoginItem, NoteItem } from "../lib/vault/model.js";
+
+type VaultHarness = {
+  current: {
+    items: Array<LoginItem | NoteItem>;
+    folders: Folder[];
+    header: JsonObject | null;
+  };
+};
+
+const vault: VaultHarness = {
   current: {
     items: [],
     folders: [],
@@ -15,10 +25,8 @@ const vault = {
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {useVault: () => vault.current});
+Object.assign(vaultHooksSeams, { useVault: () => vault.current });
 
-
-import type { LoginItem, NoteItem } from "../lib/vault/model.js";
 import { VaultSection, VaultWelcome } from "./VaultSection.js";
 
 function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
@@ -139,9 +147,8 @@ describe("VaultSection", () => {
   it("focuses search when / is pressed outside a field", () => {
     vault.current = { items: [makeLogin()], folders: [], header: null };
     renderSection();
-    const search = overlapCast(screen.getByLabelText(
-      "Search vault items",
-    ));
+    const search =
+      screen.getByLabelText<HTMLInputElement>("Search vault items");
     fireEvent.keyDown(window, { key: "/" });
     expect(document.activeElement).toBe(search);
   });
@@ -149,9 +156,8 @@ describe("VaultSection", () => {
   it("ignores / pressed while typing in a field", async () => {
     vault.current = { items: [makeLogin()], folders: [], header: null };
     renderSection();
-    const search = overlapCast(screen.getByLabelText(
-      "Search vault items",
-    ));
+    const search =
+      screen.getByLabelText<HTMLInputElement>("Search vault items");
     search.focus();
     fireEvent.keyDown(search, { key: "/" });
     // Already-focused input keeps focus; the key is not hijacked again.

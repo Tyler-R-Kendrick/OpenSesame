@@ -1,4 +1,4 @@
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 /**
  * Vault cryptography — WebCrypto only, no dependencies, no dev-only stand-ins.
  *
@@ -147,6 +147,15 @@ export async function importVaultKey(raw: Uint8Array): Promise<CryptoKey> {
     "encrypt",
     "decrypt",
   ]);
+}
+
+/** Random vault key with no wrap yet — caller enrolls passkey, PIN, and/or password. */
+export async function mintVaultKey(): Promise<{
+  vaultKey: CryptoKey;
+  rawVaultKey: Uint8Array;
+}> {
+  const rawVaultKey = randomBytes(VAULT_KEY_BYTES);
+  return { vaultKey: await importVaultKey(rawVaultKey), rawVaultKey };
 }
 
 /** Wipe a buffer we are done with. Best effort — JS strings cannot be wiped. */

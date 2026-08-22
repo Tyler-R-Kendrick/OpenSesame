@@ -103,6 +103,19 @@ file, that trade changes and this decision should be revisited.
 
 ## Characterization snapshots
 
+This repo's Verify equivalent (the .NET [Verify](https://github.com/VerifyTests/Verify)
+pattern: capture once, fail on drift, accept the diff deliberately) is:
+
+- **TypeScript:** Vitest `toMatchSnapshot()` / `__snapshots__/*.snap` — see
+  `apps/pages/src/lib/__tests__/connectors.characterization.test.ts` and
+  `guest-surfaces.characterization.test.ts`.
+- **Rust:** `insta::assert_json_snapshot!` beside the daemon/discovery
+  surfaces (`src/snapshots/`).
+- **Pixels:** Playwright baselines in `packages/visual-contract`.
+
+Update is always explicit: Vitest `-u`, `INSTA_UPDATE=1`, or
+`VISUAL_UPDATE=1 pnpm test:visual`. Read the diff before accepting it.
+
 Snapshots pin what a surface *currently* produces so a change has to be looked
 at and accepted. They do not assert the behavior is correct — the tests beside
 them do that.
@@ -116,6 +129,9 @@ merely wrong:
 - `packages/audit` redaction — what reaches an append-only trail. A key that
   stops appearing is an event quietly losing evidence; one that starts
   appearing may be a secret entering a log that is designed never to forget.
+- Pages guest-login / claim-notice copy — a rewrite of "no passkey or
+  password" or the claim prompt is how a guest path quietly becomes a
+  registered-auth demand.
 
 When one fails, read the diff before updating it. Accepting a snapshot without
 reading it is worse than not having it, because it converts a question into a

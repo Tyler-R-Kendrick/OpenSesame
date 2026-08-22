@@ -1,6 +1,8 @@
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   VaultCorruptError,
+  type VaultHeader,
   WrongPasswordError,
   createVault,
   importVaultKey,
@@ -9,6 +11,7 @@ import {
 import {
   MAX_PIN_LENGTH,
   MIN_PIN_LENGTH,
+  type PinUnlockRecord,
   WebauthnHostError,
   assertKeepsPrimaryUnlock,
   assertPinPolicy,
@@ -32,7 +35,6 @@ import {
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const PASSWORD = "correct horse battery staple";
 const PIN = "48291037";
@@ -73,10 +75,10 @@ describe("PIN unwrap guards", () => {
     const { rawVaultKey: raw } = await createVault(PASSWORD);
     const record = await wrapVaultKeyWithPin(raw, PIN);
     raw.fill(0);
-    const tampered = {
+    const tampered: PinUnlockRecord = overlapCast({
       ...record,
-      kdf: { ...record.kdf, alg: overlapCast("scrypt") },
-    };
+      kdf: { ...record.kdf, alg: "scrypt" },
+    });
     await expect(unwrapVaultKeyWithPin(tampered, PIN)).rejects.toBeInstanceOf(
       VaultCorruptError,
     );
@@ -108,10 +110,10 @@ describe("PIN unwrap guards", () => {
 describe("WebAuthn PRF wrap", () => {
   async function prfWrap() {
     const { rawVaultKey: raw } = await createVault(PASSWORD);
-    const prfOutput = overlapCast(randomBytes(32).buffer);
+    const prfOutput: ArrayBuffer = overlapCast(randomBytes(32).buffer);
     const prfSalt = randomBytes(16);
-    const credentialId = overlapCast(randomBytes(16).buffer);
-    const userId = overlapCast(randomBytes(16).buffer);
+    const credentialId: ArrayBuffer = overlapCast(randomBytes(16).buffer);
+    const userId: ArrayBuffer = overlapCast(randomBytes(16).buffer);
     const record = await wrapVaultKeyWithPrf(
       raw,
       prfOutput,
@@ -133,7 +135,7 @@ describe("WebAuthn PRF wrap", () => {
 
   it("rejects a different passkey's PRF output", async () => {
     const { record } = await prfWrap();
-    const other = overlapCast(randomBytes(32).buffer);
+    const other: ArrayBuffer = overlapCast(randomBytes(32).buffer);
     await expect(unwrapVaultKeyWithPrf(record, other)).rejects.toBeInstanceOf(
       WrongPasswordError,
     );
@@ -174,23 +176,29 @@ describe("PRF extension results", () => {
     expect(prfExtensionSupported(undefined)).toBe(false);
     expect(prfExtensionSupported({})).toBe(false);
     expect(
-      prfExtensionSupported(overlapCast({
-        prf: { enabled: true },
-      })),
+      prfExtensionSupported(
+        overlapCast({
+          prf: { enabled: true },
+        }),
+      ),
     ).toBe(true);
     const first = overlapCast(randomBytes(32).buffer);
     expect(
-      prfExtensionSupported(overlapCast({
-        prf: { results: { first } },
-      })),
+      prfExtensionSupported(
+        overlapCast({
+          prf: { results: { first } },
+        }),
+      ),
     ).toBe(true);
 
     expect(readPrfFirst(undefined)).toBeNull();
     expect(readPrfFirst({})).toBeNull();
     expect(
-      readPrfFirst(overlapCast({
-        prf: { results: { first } },
-      })),
+      readPrfFirst(
+        overlapCast({
+          prf: { results: { first } },
+        }),
+      ),
     ).toBe(first);
   });
 });
@@ -253,10 +261,10 @@ describe("WebAuthn host preflight extras", () => {
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(WebauthnHostError);
-      const hostError = overlapCast(error);
-      expect(hostError.name).toBe("WebauthnHostError");
-      expect(hostError.check.hostname).toBe("10.0.0.8");
-      expect(hostError.message).toBe(formatWebauthnHostError(hostError.check));
+      if (!(error instanceof WebauthnHostError)) throw error;
+      expect(error.name).toBe("WebauthnHostError");
+      expect(error.check.hostname).toBe("10.0.0.8");
+      expect(error.message).toBe(formatWebauthnHostError(error.check));
     }
   });
 
@@ -304,7 +312,7 @@ describe("primary unlock bookkeeping", () => {
     expect(primaryUnlockCount(null)).toBe(0);
     expect(preferredUnlockMethod(null)).toBeNull();
 
-    const pinOnly = overlapCast({
+    const pinOnly: VaultHeader = overlapCast({
       ...header,
       wrap: undefined,
       kdf: undefined,
@@ -320,11 +328,23 @@ describe("primary unlock bookkeeping", () => {
 });
 
 describe("passkey ceremonies", () => {
+  class TestPublicKeyCredential implements Credential {
+    readonly id = "test-credential";
+    readonly type = "public-key";
+    readonly rawId = randomBytes(16).buffer;
+
+    constructor(private readonly extensionResults: BoundaryValue) {}
+
+    getClientExtensionResults(): BoundaryValue {
+      return this.extensionResults;
+    }
+  }
+
   function stubCredentials(overrides: {
-    create?: (options: BoundaryValue) => Promise<BoundaryValue>;
-    get?: (options: BoundaryValue) => Promise<BoundaryValue>;
+    create?: (options: CredentialCreationOptions) => Promise<Credential | null>;
+    get?: (options: CredentialRequestOptions) => Promise<Credential | null>;
   }): void {
-    vi.stubGlobal("PublicKeyCredential", class PublicKeyCredential {});
+    vi.stubGlobal("PublicKeyCredential", TestPublicKeyCredential);
     vi.stubGlobal("navigator", { credentials: overrides });
   }
 
@@ -343,24 +363,38 @@ describe("passkey ceremonies", () => {
   });
 
   it("creates a credential and returns its PRF output", async () => {
-    const prfOutput = overlapCast(randomBytes(32).buffer);
+    const prfOutput: ArrayBuffer = overlapCast(randomBytes(32).buffer);
     stubCredentials({
       create: async (options) => {
-        const publicKey = (overlapCast(options))
-          .publicKey;
+        const { publicKey } = options;
+        if (!publicKey) throw new Error("missing public-key options");
         expect(publicKey.rp.id).toBe("localhost");
-        return {
-          rawId: randomBytes(16).buffer,
-          getClientExtensionResults: () => ({
-            prf: { results: { first: prfOutput } },
-          }),
-        };
+        return new TestPublicKeyCredential({
+          prf: { results: { first: prfOutput } },
+        });
       },
     });
     const result = await createPasskeyUnlockCeremony();
     expect(result.prfOutput).toBe(prfOutput);
     expect(result.prfSalt).toHaveLength(16);
     expect(result.userId).toHaveLength(16);
+  });
+
+  it("forwards a deliberate create abort without wrapping it", async () => {
+    stubCredentials({
+      create: async (options) => {
+        expect(options.signal).toBeInstanceOf(AbortSignal);
+        throw new DOMException("The operation was aborted.", "AbortError");
+      },
+    });
+    const controller = new AbortController();
+    const failure = await createPasskeyUnlockCeremony(
+      undefined,
+      controller.signal,
+    ).catch((error: BoundaryValue) => error);
+    expect(failure).toBeInstanceOf(DOMException);
+    if (!(failure instanceof DOMException)) throw failure;
+    expect(failure.name).toBe("AbortError");
   });
 
   it("maps a rejected creation into actionable copy", async () => {
@@ -379,25 +413,20 @@ describe("passkey ceremonies", () => {
 
   it("refuses an authenticator without PRF support", async () => {
     stubCredentials({
-      create: async () => ({
-        rawId: randomBytes(16).buffer,
-        getClientExtensionResults: () => ({}),
-      }),
+      create: async () => new TestPublicKeyCredential({}),
     });
     await expect(createPasskeyUnlockCeremony()).rejects.toThrow(/PRF result/);
   });
 
   it("gets a PRF output for an enrolled record", async () => {
-    const prfOutput = overlapCast(randomBytes(32).buffer);
+    const prfOutput: ArrayBuffer = overlapCast(randomBytes(32).buffer);
     let seenRpId: string | undefined;
     stubCredentials({
       get: async (options) => {
-        seenRpId = (overlapCast(options)).publicKey.rpId;
-        return {
-          getClientExtensionResults: () => ({
-            prf: { results: { first: prfOutput } },
-          }),
-        };
+        seenRpId = options.publicKey?.rpId;
+        return new TestPublicKeyCredential({
+          prf: { results: { first: prfOutput } },
+        });
       },
     });
     const record = {
@@ -414,7 +443,7 @@ describe("passkey ceremonies", () => {
     let seenSignal: AbortSignal | undefined;
     stubCredentials({
       get: async (options) => {
-        seenSignal = (overlapCast(options)).signal;
+        seenSignal = options.signal;
         throw new DOMException("The operation was aborted.", "AbortError");
       },
     });
@@ -433,7 +462,8 @@ describe("passkey ceremonies", () => {
     expect(seenSignal).toBe(controller.signal);
     // Deliberate cancels must stay distinguishable from ceremony failures.
     expect(failure).toBeInstanceOf(DOMException);
-    expect((overlapCast(failure)).name).toBe("AbortError");
+    if (!(failure instanceof DOMException)) throw failure;
+    expect(failure.name).toBe("AbortError");
   });
 
   it("maps unlock ceremony failures the same way", async () => {
@@ -455,7 +485,7 @@ describe("passkey ceremonies", () => {
     await expect(getPasskeyUnlockCeremony(record)).rejects.toThrow(/cancelled/);
 
     stubCredentials({
-      get: async () => ({ getClientExtensionResults: () => ({}) }),
+      get: async () => new TestPublicKeyCredential({}),
     });
     await expect(getPasskeyUnlockCeremony(record)).rejects.toThrow(
       /PRF result/,

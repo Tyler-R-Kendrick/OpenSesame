@@ -1,11 +1,15 @@
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { act } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App.js";
 
-(overlapCast(globalThis)).IS_REACT_ACT_ENVIRONMENT = true;
+overlapCast(globalThis).IS_REACT_ACT_ENVIRONMENT = true;
 
 let container: HTMLDivElement;
 let root: Root;
@@ -58,17 +62,15 @@ function setInput(input: HTMLInputElement, value: string) {
 }
 
 function userCodeInput(): HTMLInputElement {
-  const input = overlapCast(container.querySelector(
-    'input[placeholder="ABCD-EFGH"]',
-  ));
+  const input = overlapCast(
+    container.querySelector('input[placeholder="ABCD-EFGH"]'),
+  );
   if (!input) throw new Error("user code input not found");
   return input;
 }
 
 function tokenInput(): HTMLInputElement {
-  const input = overlapCast(container.querySelector(
-    'input[type="password"]',
-  ));
+  const input = overlapCast(container.querySelector('input[type="password"]'));
   if (!input) throw new Error("token input not found");
   return input;
 }
@@ -129,11 +131,14 @@ function fakeRegistrationCredential() {
 function fakeAssertionCredential() {
   return {
     id: "cred-1",
+    rawId: new Uint8Array([1]).buffer,
+    type: "public-key",
     response: {
       clientDataJSON: new Uint8Array([1]).buffer,
       authenticatorData: new Uint8Array([2]).buffer,
       signature: new Uint8Array([3]).buffer,
     },
+    getClientExtensionResults: () => ({}),
   };
 }
 
@@ -270,9 +275,7 @@ describe("approveDevice", () => {
     const principalLabel = [...container.querySelectorAll("label")].find((l) =>
       l.textContent?.includes("Principal id"),
     );
-    const principalInput = overlapCast(principalLabel?.querySelector(
-      "input",
-    ));
+    const principalInput = overlapCast(principalLabel?.querySelector("input"));
     await act(async () => {
       setInput(principalInput, "prn_operator");
     });
@@ -370,7 +373,7 @@ describe("registerPasskey", () => {
           rp: { name: "OpenSesame" },
           user: { id: "aA", name: "dev", displayName: "Dev" },
           challenge: "aGk",
-          pubKeyCredParams: [],
+          pubKeyCredParams: [{ type: "public-key", alg: -7 }],
         },
       }),
     );
@@ -391,7 +394,7 @@ describe("registerPasskey", () => {
             rp: { name: "OpenSesame" },
             user: { id: "aA", name: "dev", displayName: "Dev" },
             challenge: "aGk",
-            pubKeyCredParams: [],
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
           },
         }),
       )
@@ -414,7 +417,7 @@ describe("registerPasskey", () => {
             rp: { name: "OpenSesame" },
             user: { id: "aA", name: "dev", displayName: "Dev" },
             challenge: "aGk",
-            pubKeyCredParams: [],
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
             excludeCredentials: [{ id: "aA", type: "public-key" }],
           },
         }),
@@ -454,7 +457,7 @@ describe("registerPasskey", () => {
             rp: { name: "OpenSesame" },
             user: { id: "aA", name: "dev", displayName: "Dev" },
             challenge: "aGk",
-            pubKeyCredParams: [],
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
           },
         }),
       )
@@ -480,7 +483,7 @@ describe("registerPasskey", () => {
             rp: { name: "OpenSesame" },
             user: { id: "aA", name: "dev", displayName: "Dev" },
             challenge: "aGk",
-            pubKeyCredParams: [],
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
           },
         }),
       )
@@ -504,7 +507,7 @@ describe("registerPasskey", () => {
             rp: { name: "OpenSesame" },
             user: { id: "aA", name: "dev", displayName: "Dev" },
             challenge: "aGk",
-            pubKeyCredParams: [],
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
           },
         }),
       )
@@ -527,7 +530,7 @@ describe("registerPasskey", () => {
           rp: { name: "OpenSesame" },
           user: { id: "aA", name: "dev", displayName: "Dev" },
           challenge: "aGk",
-          pubKeyCredParams: [],
+          pubKeyCredParams: [{ type: "public-key", alg: -7 }],
         },
       }),
     );
@@ -557,7 +560,7 @@ describe("registerPasskey", () => {
             rp: { name: "OpenSesame" },
             user: { id: "aA", name: "dev", displayName: "Dev" },
             challenge: "aGk",
-            pubKeyCredParams: [],
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
           },
         }),
       )
@@ -580,7 +583,7 @@ describe("registerPasskey", () => {
             rp: { name: "OpenSesame" },
             user: { id: "aA", name: "dev", displayName: "Dev" },
             challenge: "aGk",
-            pubKeyCredParams: [],
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
           },
         }),
       )
@@ -604,7 +607,7 @@ describe("registerPasskey", () => {
             rp: { name: "OpenSesame" },
             user: { id: "aA", name: "dev", displayName: "Dev" },
             challenge: "aGk",
-            pubKeyCredParams: [],
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
           },
         }),
       )
@@ -628,7 +631,7 @@ describe("registerPasskey", () => {
           rp: { name: "OpenSesame" },
           user: { id: "aA", name: "dev", displayName: "Dev" },
           challenge: "aGk",
-          pubKeyCredParams: [],
+          pubKeyCredParams: [{ type: "public-key", alg: -7 }],
         },
       }),
     );

@@ -1,4 +1,11 @@
-import { overlapCast, isString, isNumber } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isJsonObject,
+  isNumber,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 /**
  * Identity plane session.
  *
@@ -201,7 +208,9 @@ function revokeRequest(bearer?: string): Promise<Response> {
       method: "POST",
       credentials: "include",
       timeoutMs: IDENTITY_FETCH_MS,
-      ...(bearer ? { headers: { authorization: `Bearer ${bearer}` } } : undefined),
+      ...(bearer
+        ? { headers: { authorization: `Bearer ${bearer}` } }
+        : undefined),
     },
   );
 }
@@ -270,12 +279,10 @@ async function hostSessionFailure(
     ? "setup_required"
     : "invalid_host";
   try {
-    const payload = overlapCast(await response.json());
+    const payload: JsonObject = overlapCast(await response.json());
+    const nested = isJsonObject(payload.body) ? payload.body : undefined;
     const detail =
-      payload.body?.hint ??
-      payload.body?.error ??
-      payload.hint ??
-      payload.error;
+      nested?.hint ?? nested?.error ?? payload.hint ?? payload.error;
     if (isString(detail)) {
       return new HostSessionError(code, `${fallback}: ${detail}`);
     }
@@ -362,10 +369,7 @@ async function mintHostSession(
     throw await hostSessionFailure(authorize, "Host session request failed");
   }
   const grant = overlapCast(await authorize.json());
-  if (
-    !isString(grant.device_code) ||
-    !isString(grant.user_code)
-  ) {
+  if (!isString(grant.device_code) || !isString(grant.user_code)) {
     throw new HostSessionError(
       "invalid_host",
       "Host returned an invalid device grant.",
@@ -528,8 +532,10 @@ async function hostFetchDefault(
 
 async function readError(res: Response): Promise<string> {
   try {
-    const body = overlapCast(await res.json());
-    return body.message ?? body.error ?? `Request failed (${res.status}).`;
+    const body: JsonObject = overlapCast(await res.json());
+    if (isString(body.message)) return body.message;
+    if (isString(body.error)) return body.error;
+    return `Request failed (${res.status}).`;
   } catch {
     return `Request failed (${res.status}).`;
   }
@@ -609,12 +615,23 @@ async function connectProvisionalDefault(): Promise<IdentitySession> {
     timeoutMs: IDENTITY_FETCH_MS,
   });
   if (!res.ok) throw new IdentityError(await readError(res), res.status);
-  const body = overlapCast(await res.json());
+  const body: JsonObject = overlapCast(await res.json());
+  if (
+    !isString(body.principalId) ||
+    !isString(body.accessToken) ||
+    (body.expiresAt !== undefined && !isString(body.expiresAt))
+  ) {
+    throw new IdentityError(
+      "Identity returned an invalid provisional session.",
+      502,
+    );
+  }
+  const accessToken = body.accessToken;
   if (sessionEpoch !== epoch) {
     // A lock or Disconnect landed while this was in flight. Adopting it now
     // would resurrect a credential the user just ended, so throw it away.
     pendingRevoke = (pendingRevoke ?? Promise.resolve())
-      .then(() => revokeRequest(body.accessToken))
+      .then(() => revokeRequest(accessToken))
       .then(() => undefined)
       .catch(() => undefined);
     throw new IdentityError(
@@ -622,14 +639,15 @@ async function connectProvisionalDefault(): Promise<IdentitySession> {
       409,
     );
   }
-  session = {
+  const nextSession: IdentitySession = {
     principalId: body.principalId,
-    accessToken: body.accessToken,
+    accessToken,
     expiresAt: body.expiresAt,
     issuerOrigin: new URL(issuer).origin,
   };
+  session = nextSession;
   emit();
-  return session;
+  return nextSession;
 }
 
 async function resumeCookieSession(): Promise<IdentitySession | null> {
@@ -642,7 +660,7 @@ async function resumeCookieSession(): Promise<IdentitySession | null> {
     if (!res.ok) return null;
     const body = overlapCast(await res.json());
     if (!isString(body.id) || !body.id) return null;
-    session = {
+    const nextSession: IdentitySession = {
       principalId: body.id,
       // An opaque local identity for Host-session deduplication only. It is
       // never sent as a bearer; the HttpOnly cookie authenticates requests.
@@ -650,9 +668,10 @@ async function resumeCookieSession(): Promise<IdentitySession | null> {
       cookieOnly: true,
       issuerOrigin: identityOrigin(),
     };
+    session = nextSession;
     setOrphan(false);
     emit();
-    return session;
+    return nextSession;
   } catch {
     return null;
   }
@@ -676,7 +695,10 @@ async function adoptTokenDefault(accessToken: string): Promise<void> {
     timeoutMs: IDENTITY_FETCH_MS,
   });
   if (!res.ok) throw new IdentityError(await readError(res), res.status);
-  const me = overlapCast(await res.json());
+  const me: BoundaryValue = await res.json();
+  if (!isJsonObject(me) || !isString(me.id)) {
+    throw new IdentityError("Identity returned an invalid principal.", 502);
+  }
   if (sessionEpoch !== epoch) {
     throw new IdentityError(
       "The session was ended while adopting that token. Try again.",
@@ -696,6 +718,13 @@ async function adoptTokenDefault(accessToken: string): Promise<void> {
 
 async function fetchPrincipalDefault(): Promise<Principal> {
   return identityJson<Principal>("/v1/principals/me");
+}
+
+/** Put a stashed bearer back in this tab after an OIDC round-trip. */
+function restoreSessionDefault(next: IdentitySession): void {
+  session = next;
+  setOrphan(false);
+  emit();
 }
 
 export type HealthState = "unknown" | "reachable" | "unreachable";
@@ -749,7 +778,11 @@ export async function probeIdentityDetailed(): Promise<ProbeResult> {
       return { health: "unreachable", failure: "not-opensesame" };
     }
   } catch (error) {
-    return { health: "unreachable", failure: classifyThrown(error) };
+    const thrown =
+      error instanceof DOMException || error instanceof Error
+        ? error
+        : String(error);
+    return { health: "unreachable", failure: classifyThrown(thrown) };
   }
 }
 
@@ -814,7 +847,11 @@ export async function probeHostDetailed(): Promise<ProbeResult> {
         // other throws exactly the same way — so the second path still has to
         // be tried. Costs a doubled request while Host is genuinely down; the
         // degraded cadence backs off, so it stays cheap.
-        failure = classifyThrown(error);
+        const thrown =
+          error instanceof DOMException || error instanceof Error
+            ? error
+            : String(error);
+        failure = classifyThrown(thrown);
       }
     }
     return {
@@ -911,6 +948,7 @@ export const identitySeams = {
   probeHost: probeHostDefault,
   useOrphanSession: useOrphanSessionDefault,
   fetchPrincipal: fetchPrincipalDefault,
+  restoreSession: restoreSessionDefault,
 };
 
 export async function hostFetch(
@@ -921,7 +959,7 @@ export async function hostFetch(
 }
 
 export function endSession(): void {
-  return identitySeams.endSession();
+  identitySeams.endSession();
 }
 
 export async function ensureHostSession(): Promise<HostSession> {
@@ -963,7 +1001,7 @@ export async function identityFetch(
   return identitySeams.identityFetch(...args);
 }
 export function noteUnauthorized(): void {
-  return identitySeams.noteUnauthorized();
+  identitySeams.noteUnauthorized();
 }
 export async function identityJson<T>(
   ...args: Parameters<typeof identityJsonDefault>
@@ -988,4 +1026,8 @@ export function useOrphanSession(): boolean {
 }
 export async function fetchPrincipal(): Promise<Principal> {
   return identitySeams.fetchPrincipal();
+}
+
+export function restoreSession(next: IdentitySession): void {
+  identitySeams.restoreSession(next);
 }

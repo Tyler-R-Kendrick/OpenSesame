@@ -136,7 +136,7 @@ export function classifyHostConnector(
   if (offline) {
     return { ...shell, tone: "offline", detail: "Offline", ...probed(target) };
   }
-  const byPlane: Record<HostPlane, { tone: ConnectorTone; detail: string }> = {
+  const byPlane = {
     live: { tone: "live", detail: base },
     pending: { tone: "live", detail: base ? `Checking ${base}` : "Checking" },
     loopback: {
@@ -153,7 +153,7 @@ export function classifyHostConnector(
       detail: base ? labelFor(target, base, offline) : "Down",
     },
     unset: { tone: "off", detail: "Not configured" },
-  };
+  } satisfies Record<HostPlane, { tone: ConnectorTone; detail: string }>;
   return { ...shell, ...byPlane[status.host], ...probed(target) };
 }
 
@@ -175,14 +175,11 @@ export function classifyIdentityConnector(
   if (offline) {
     return { ...shell, tone: "offline", detail: "Offline", ...probed(target) };
   }
-  const byPlane: Record<
-    IdentityPlane,
-    { tone: ConnectorTone; detail: string }
-  > = {
+  const byPlane = {
     connected: { tone: "live", detail: base },
     none: { tone: "attn", detail: "No identity session" },
     down: { tone: "attn", detail: labelFor(target, base, offline) },
-  };
+  } satisfies Record<IdentityPlane, { tone: ConnectorTone; detail: string }>;
   return { ...shell, ...byPlane[status.identity], ...probed(target) };
 }
 
@@ -226,10 +223,12 @@ export function classifyMachineConnector(
  * History and keys are the same shape: a capability bound to a catalog
  * connector, which may or may not still need Host to authorize it.
  */
+type CapabilityClassification = { tone: ConnectorTone; detail: string };
+
 function classifyCapability(
   id: CapabilityId,
   binding: CapabilityConnectorBinding,
-): { tone: ConnectorTone; detail: string } {
+): CapabilityClassification {
   const label = connectorLabel(binding.providerId);
   if (capabilityDef(id).requiresAuth(binding.providerId)) {
     if (!binding.connectionId) {

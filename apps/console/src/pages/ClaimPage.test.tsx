@@ -1,21 +1,16 @@
 import {
+  type BoundaryValue,
   type JsonObject,
   overlapCast,
-  type BoundaryValue,
 } from "@opensesame/os-domain";
 // @vitest-environment jsdom
 import { type ReactElement, act } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  ClaimRequestError,
-  sdkBrowserSeams,
-} from "../sdk-browser.js";
+import { ClaimRequestError, sdkBrowserSeams } from "../sdk-browser.js";
 import { ClaimPage } from "./ClaimPage.js";
 
-(
-  overlapCast(globalThis)
-).IS_REACT_ACT_ENVIRONMENT = true;
+overlapCast(globalThis).IS_REACT_ACT_ENVIRONMENT = true;
 
 interface MockClient {
   getSession: ReturnType<typeof vi.fn>;
@@ -99,7 +94,7 @@ function seedStash(stash: BoundaryValue): void {
 
 function stash(): JsonObject | null {
   const raw = sessionStorage.getItem("opensesame.claim");
-  return raw ? (overlapCast(JSON.parse(raw))) : null;
+  return raw ? overlapCast(JSON.parse(raw)) : null;
 }
 
 beforeEach(() => {

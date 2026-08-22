@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   type ControlPlaneConfig,
@@ -10,7 +11,6 @@ import { createControlPlane } from "../create-app.js";
 import { sanitizeCorrelationId } from "../middleware/context.js";
 import { startServer } from "../server.js";
 import { bumpUsage, createAppStores, getUsage } from "../state.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 function testConfig() {
   return {
@@ -38,6 +38,17 @@ function prodBase(): ControlPlaneConfig {
     hostApiUrl: "https://host.example",
     operatorToken: "operator-secret",
     mappingResolveToken: "mapping-resolve-secret",
+    trustedUpstreamIssuers: ["https://issuer.example"],
+    protocolFeatures: {
+      oid4vp: false,
+      oid4vci: false,
+      fedcm: false,
+      digitalCredentialsApi: false,
+      openidFederation: false,
+      sdJwtVc: false,
+      tokenStatusList: false,
+      presentationAgentIntents: false,
+    },
   };
 }
 
@@ -281,7 +292,7 @@ describe("http surface", () => {
     const { app } = createControlPlane({ config: testConfig(), ready: false });
     const res = await app.request("/v1/health/ready");
     expect(res.status).toBe(503);
-    expect((overlapCast(await res.json())).status).toBe("not_ready");
+    expect(overlapCast(await res.json()).status).toBe("not_ready");
   });
 
   it("allows private-network requests when asked in preflight", async () => {

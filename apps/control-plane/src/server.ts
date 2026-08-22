@@ -1,4 +1,6 @@
 import http from "node:http";
+import type { OutgoingHttpHeader, OutgoingHttpHeaders } from "node:http";
+import type { AddressInfo } from "node:net";
 import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { getRequestListener } from "@hono/node-server";
@@ -6,8 +8,13 @@ import {
   evaluateTokenCors,
   parseOriginClientId,
 } from "@opensesame/oauth-provider";
+import {
+  type BoundaryValue,
+  isFunction,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { createControlPlane } from "./create-app.js";
-import { overlapCast, isTypeofObject, isString } from "@opensesame/os-domain";
 
 function applyHeaders(
   res: http.ServerResponse,
@@ -25,21 +32,57 @@ function attachTokenCors(
 ): void {
   applyHeaders(res, headers);
   const originalWriteHead = res.writeHead.bind(res);
-  res.writeHead = overlapCast((statusCode: number, ...rest: unknown[]) => {
+  res.writeHead = function writeHead(
+    statusCode: number,
+    statusMessageOrHeaders?:
+      | string
+      | OutgoingHttpHeaders
+      | OutgoingHttpHeader[],
+    responseHeaders?: OutgoingHttpHeaders | OutgoingHttpHeader[],
+  ) {
     applyHeaders(res, headers);
-    return originalWriteHead(statusCode, ...(overlapCast(rest)));
-  });
+    const statusMessage: string | undefined = isString(
+      overlapCast(statusMessageOrHeaders),
+    )
+      ? overlapCast(statusMessageOrHeaders)
+      : undefined;
+    if (statusMessage !== undefined) {
+      return originalWriteHead(statusCode, statusMessage, responseHeaders);
+    }
+    const outgoingHeaders:
+      | OutgoingHttpHeaders
+      | OutgoingHttpHeader[]
+      | undefined = overlapCast(statusMessageOrHeaders);
+    return originalWriteHead(statusCode, outgoingHeaders);
+  };
   const originalEnd = res.end.bind(res);
-  res.end = overlapCast((...args: unknown[]) => {
+  res.end = function end(
+    chunk?: BoundaryValue,
+    encodingOrCallback?: BufferEncoding | (() => void),
+    callback?: () => void,
+  ) {
     applyHeaders(res, headers);
-    return originalEnd(...(overlapCast(args)));
-  });
+    if (chunk === undefined) {
+      return isFunction(encodingOrCallback)
+        ? originalEnd(encodingOrCallback)
+        : originalEnd();
+    }
+    if (isFunction(encodingOrCallback)) {
+      return originalEnd(chunk, encodingOrCallback);
+    }
+    return encodingOrCallback === undefined
+      ? originalEnd(chunk, callback)
+      : originalEnd(chunk, encodingOrCallback, callback);
+  };
 }
 
 async function readBody(req: http.IncomingMessage): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
-    chunks.push(overlapCast(chunk));
+    if (!(chunk instanceof Uint8Array)) {
+      throw new TypeError("HTTP request body yielded a non-byte chunk");
+    }
+    chunks.push(Buffer.from(chunk));
   }
   return Buffer.concat(chunks);
 }
@@ -54,7 +97,7 @@ function replayRequest(
 ): http.IncomingMessage {
   // SAFETY: oidc-provider only reads this as a stream plus IncomingMessage
   // header/method fields, which we copy onto the replayed Readable below.
-  const forwarded = overlapCast(Readable.from([body]));
+  const forwarded: http.IncomingMessage = overlapCast(Readable.from([body]));
   forwarded.headers = req.headers;
   forwarded.rawHeaders = req.rawHeaders;
   forwarded.method = req.method;
@@ -237,10 +280,10 @@ export async function startServer(
   });
 
   const address = server.address();
-  const boundPort =
-    isTypeofObject(address) && address !== null
-      ? address.port
-      : config.port;
+  const addressInfo: AddressInfo | null = isString(overlapCast(address))
+    ? null
+    : overlapCast(address);
+  const boundPort = addressInfo?.port ?? config.port;
 
   ctx.log.info(
     { host: config.host, port: boundPort, issuer: config.issuer },

@@ -1,3 +1,4 @@
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   TAILSCALE_CLIENT_URL,
@@ -10,7 +11,6 @@ import {
   waitForTailnet,
 } from "./tailscale.js";
 import { normalizeTailnetBase } from "./urls.js";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 describe("tailnet pairing", () => {
   afterEach(() => {
@@ -120,9 +120,7 @@ describe("tailnet detection", () => {
   it("counts opaque, redirect, and plain OK answers as on-tailnet", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(() =>
-        Promise.resolve(overlapCast({ type: "opaque", ok: false })),
-      ),
+      vi.fn(() => Promise.resolve(overlapCast({ type: "opaque", ok: false }))),
     );
     await expect(detectTailnet()).resolves.toBe(true);
 
@@ -195,9 +193,9 @@ describe("discoverTailscaleDaemon", () => {
       "https://down.tail123.ts.net",
     ).catch((caught: BoundaryValue) => caught);
     expect(error).toBeInstanceOf(Error);
-    expect((overlapCast(error)).message).toMatch(/Tailscale Serve URL/);
-    expect((overlapCast(error)).message).toMatch(/down\.tail123\.ts\.net/);
-    expect((overlapCast(error)).message).toMatch(/Failed to fetch/);
+    expect(overlapCast(error).message).toMatch(/Tailscale Serve URL/);
+    expect(overlapCast(error).message).toMatch(/down\.tail123\.ts\.net/);
+    expect(overlapCast(error).message).toMatch(/Failed to fetch/);
   });
 });
 

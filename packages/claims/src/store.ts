@@ -1,4 +1,9 @@
-import type { ClaimItem, ClaimSession, Clock, JsonObject } from "@opensesame/os-domain";
+import type {
+  ClaimItem,
+  ClaimSession,
+  Clock,
+  JsonObject,
+} from "@opensesame/os-domain";
 
 /**
  * Persistence seam for claim sessions. Implementations must provide

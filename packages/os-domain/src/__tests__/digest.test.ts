@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
+  type BoundaryValue,
   canonicalize,
   digestManifest,
   sha256Hex,
-  type BoundaryValue,
 } from "../index.js";
 
 describe("canonicalize", () => {

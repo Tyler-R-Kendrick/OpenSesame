@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { AUDIT_VALUE_MAX_LENGTH, redactAuditMetadata } from "../redact.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 describe("redactAuditMetadata", () => {
   it("keeps allowlisted keys and drops secrets", () => {
@@ -40,7 +40,9 @@ describe("redactAuditMetadata", () => {
 
   it("bounds a caller-supplied value", () => {
     const long = "https://idp.example/".padEnd(5_000, "x");
-    const out = overlapCast(redactAuditMetadata({ issuer: long }));
+    const out = overlapCast<unknown, { issuer: string }>(
+      redactAuditMetadata({ issuer: long }),
+    );
     // Truncated, not dropped: a shortened issuer still says what happened, and
     // the store no longer grows to whatever length a caller sends.
     expect(out.issuer.length).toBe(AUDIT_VALUE_MAX_LENGTH + 1);

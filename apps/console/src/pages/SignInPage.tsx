@@ -1,7 +1,7 @@
-import { createOpenSesame } from "../sdk-browser.js";
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { useState } from "react";
 import { clearClaimStash } from "../lib/claim-stash.js";
-import { type BoundaryValue } from "@opensesame/os-domain";
+import { createOpenSesame } from "../sdk-browser.js";
 
 const issuer =
   import.meta.env.VITE_OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";

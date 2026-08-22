@@ -4,7 +4,10 @@
     "packages/observability/src/agent-payload.ts",
     "packages/os-domain/src/endpoint-display.ts",
     "packages/sdk-cli/src/secure-url.ts",
-    "apps/pages/src/lib/probe-failure.ts"
+    "apps/pages/src/lib/probe-failure.ts",
+    "apps/pages/src/lib/guest-auth.ts",
+    "apps/pages/src/lib/notices.ts",
+    "packages/policy/src/provisional.ts"
   ],
   "ignorePatterns": [
     ".agents/**",

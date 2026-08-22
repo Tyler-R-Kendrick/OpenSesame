@@ -1,6 +1,10 @@
 import { ClaimEngine, MemoryClaimStore } from "@opensesame/claims";
 import { createRepositories } from "@opensesame/database";
-import { fixtures, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  fixtures,
+  overlapCast,
+} from "@opensesame/os-domain";
 import type { Project, ProvisionalSession } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {

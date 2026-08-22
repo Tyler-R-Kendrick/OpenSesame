@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { overlapCast, isFunction } from "@opensesame/os-domain";
+import { type BoundaryValue, isFunction } from "@opensesame/os-domain";
 
 const SKIP = new Set([
   "oracles.ts",
@@ -11,12 +11,22 @@ const SKIP = new Set([
   "run.ts",
 ]);
 
+type FuzzTarget = (input: Buffer) => void;
+
+interface FuzzModule {
+  fuzz?: BoundaryValue;
+}
+
+function isFuzzTarget(value: BoundaryValue): value is FuzzTarget {
+  return isFunction(value);
+}
+
 export async function runTarget(
   fileUrl: string,
   seconds: number,
 ): Promise<void> {
-  const mod = overlapCast(await import(fileUrl));
-  if (!isFunction(mod.fuzz)) {
+  const mod: FuzzModule = await import(fileUrl);
+  if (!isFuzzTarget(mod.fuzz)) {
     return;
   }
   const deadline = Date.now() + seconds * 1000;

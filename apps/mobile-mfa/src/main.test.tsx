@@ -2,7 +2,7 @@ import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-(overlapCast(globalThis)).IS_REACT_ACT_ENVIRONMENT = true;
+overlapCast(globalThis).IS_REACT_ACT_ENVIRONMENT = true;
 
 afterEach(() => {
   vi.resetModules();

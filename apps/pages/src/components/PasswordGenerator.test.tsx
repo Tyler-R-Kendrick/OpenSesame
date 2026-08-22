@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,
   fireEvent,
@@ -5,7 +6,6 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,8 +13,7 @@ const copySecret = vi.hoisted(() => vi.fn());
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {useCopySecret: () => copySecret});
-
+Object.assign(vaultHooksSeams, { useCopySecret: () => copySecret });
 
 import { PasswordGenerator } from "./PasswordGenerator.js";
 
@@ -95,10 +94,10 @@ describe("PasswordGenerator", () => {
     ).toBeTruthy();
     expect(generatedValue()).toBe("—");
     expect(
-      (
-        overlapCast(screen.getByRole("button", {
+      overlapCast(
+        screen.getByRole("button", {
           name: "Use this password",
-        }))
+        }),
       ).disabled,
     ).toBe(true);
   });

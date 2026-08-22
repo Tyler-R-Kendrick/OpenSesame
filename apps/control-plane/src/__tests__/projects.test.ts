@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
   const res = await app.request("/v1/principals/provisional", {
@@ -86,7 +86,7 @@ describe("project personal ensure and CRUD", () => {
     );
   });
 
-  it("blocks provisional principals from creating non-personal projects (org gate parity)", async () => {
+  it("lets provisional principals create a standard project without upgrading", async () => {
     const { app } = createControlPlane({
       config: {
         port: 0,
@@ -95,7 +95,7 @@ describe("project personal ensure and CRUD", () => {
       },
     });
     const created = await provisional(app);
-    const denied = await app.request("/v1/projects", {
+    const allowed = await app.request("/v1/projects", {
       method: "POST",
       headers: {
         authorization: `Bearer ${created.accessToken}`,
@@ -107,8 +107,13 @@ describe("project personal ensure and CRUD", () => {
         displayName: "Demo App",
       }),
     });
-    expect(denied.status).toBe(403);
-    expect(await denied.json()).toMatchObject({ error: "forbidden" });
+    expect(allowed.status).toBe(201);
+    expect(await allowed.json()).toMatchObject({
+      slug: "demo-app",
+      displayName: "Demo App",
+      kind: "standard",
+      role: "owner",
+    });
   });
 
   it("lets verified principals create, patch, list, and soft-delete projects", async () => {

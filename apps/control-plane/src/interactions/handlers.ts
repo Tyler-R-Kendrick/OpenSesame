@@ -1,13 +1,12 @@
 import { randomBytes } from "node:crypto";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { appendAuditEvent } from "@opensesame/audit";
 import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
 import { parseOriginClientId } from "@opensesame/oauth-provider";
 import {
-  overlapCast,
-  isString,
-  type BoundaryValue,
   type Principal,
   type ProvisionalSession,
+  isString,
 } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import { ensurePersonalOrganization } from "../routes/organizations.js";
@@ -20,7 +19,11 @@ import {
   type LoginPageModel,
   collectConsentScopes,
 } from "../ui/interaction-pages.js";
-import type { InteractionDetails, ProviderInteractions } from "./types.js";
+import type {
+  GrantHandle,
+  InteractionDetails,
+  ProviderInteractions,
+} from "./types.js";
 
 function interactionBase(uid: string): string {
   return `/interaction/${encodeURIComponent(uid)}`;
@@ -112,6 +115,7 @@ export async function mintProvisionalForInteraction(
     ttlMs: ctx.config.provisionalTtlMs,
     quotaProfile: "anonymous",
     allowedActions: [
+      "project.create",
       "project.create_temporary",
       "resource.create_temporary",
       "claim.create",
@@ -174,8 +178,8 @@ export async function mintProvisionalForInteraction(
 /** Finish the login prompt; returns the oidc-provider resume URL. */
 export async function finishLoginInteraction(
   provider: ProviderInteractions,
-  req: BoundaryValue,
-  res: BoundaryValue,
+  req: IncomingMessage,
+  res: ServerResponse,
   accountId: string,
 ): Promise<string> {
   return provider.interactionResult(
@@ -190,8 +194,8 @@ export async function finishLoginInteraction(
 export async function finishConsentDeny(
   ctx: AppContext,
   provider: ProviderInteractions,
-  req: BoundaryValue,
-  res: BoundaryValue,
+  req: IncomingMessage,
+  res: ServerResponse,
   details: InteractionDetails,
   correlationId: string,
 ): Promise<string> {
@@ -225,8 +229,8 @@ export async function finishConsentDeny(
 export async function finishConsentAllow(
   ctx: AppContext,
   provider: ProviderInteractions,
-  req: BoundaryValue,
-  res: BoundaryValue,
+  req: IncomingMessage,
+  res: ServerResponse,
   details: InteractionDetails,
   correlationId: string,
 ): Promise<string> {
@@ -238,17 +242,12 @@ export async function finishConsentAllow(
   const accountId = session?.accountId;
   if (!accountId) throw new Error("missing session accountId for consent");
 
-  type GrantHandle = {
-    addOIDCScope(scope: string): void;
-    addOIDCClaims(claims: string[]): void;
-    addResourceScope(indicator: string, scope: string): void;
-    save(): Promise<string>;
-  };
   let grant: GrantHandle;
 
   if (grantId) {
-    grant = overlapCast(await provider.Grant.find(grantId));
-    if (!grant) throw new Error("grant not found");
+    const existingGrant = await provider.Grant.find(grantId);
+    if (!existingGrant) throw new Error("grant not found");
+    grant = existingGrant;
   } else {
     grant = new provider.Grant({ accountId, clientId });
   }

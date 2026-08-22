@@ -1,8 +1,8 @@
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { defineConfig, devices } from "@playwright/test";
 import { isFunction } from "@opensesame/os-domain";
+import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 5180;
 const HOST = "127.0.0.1";

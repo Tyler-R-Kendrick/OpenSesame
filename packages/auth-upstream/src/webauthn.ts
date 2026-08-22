@@ -1,4 +1,4 @@
-import { overlapCast, isString } from "@opensesame/os-domain";
+import { isString, overlapCast } from "@opensesame/os-domain";
 /**
  * Production WebAuthn registration + assertion via @simplewebauthn/server.
  * Requires a previously issued challenge that matches clientDataJSON.challenge.
@@ -9,7 +9,6 @@ import {
   generateAuthenticationOptions,
   generateRegistrationOptions,
 } from "@simplewebauthn/server";
-import { simpleWebAuthnSeams } from "./simplewebauthn.js";
 import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
@@ -19,6 +18,7 @@ import type {
   PasskeyCredential,
   PasskeyVerifyFn,
 } from "./passkey.js";
+import { simpleWebAuthnSeams } from "./simplewebauthn.js";
 
 function toBase64Url(bytes: Uint8Array): string {
   return Buffer.from(bytes)
@@ -214,9 +214,9 @@ export function createSimpleWebAuthnVerifyFn(
   return async (assertion: PasskeyAssertion, credential: PasskeyCredential) => {
     let clientData: { challenge?: string; type?: string; origin?: string };
     try {
-      clientData = overlapCast(JSON.parse(
-        Buffer.from(assertion.clientDataJSON).toString("utf8"),
-      ));
+      clientData = overlapCast(
+        JSON.parse(Buffer.from(assertion.clientDataJSON).toString("utf8")),
+      );
     } catch {
       return false;
     }

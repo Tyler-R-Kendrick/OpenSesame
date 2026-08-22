@@ -1,4 +1,4 @@
-import { type JsonObject } from "@opensesame/os-domain";
+import type { JsonObject } from "@opensesame/os-domain";
 /**
  * Identity-plane TaskBus sink for outbox drain.
  *

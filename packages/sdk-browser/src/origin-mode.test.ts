@@ -1,9 +1,9 @@
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOpenSesame } from "./client.js";
 import { BrowserOriginError } from "./origin.js";
 import { createPkcePair } from "./pkce.js";
 import { createTestSigningKey, mintTestIdToken } from "./test/jwt-fixtures.js";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 import type { Session } from "./types.js";
 
 class MemStorage {
@@ -165,9 +165,9 @@ describe("zero-config origin mode", () => {
     const session = await sesame.handleRedirectCallback();
     expect(session.sub).toBe("pairwise-origin");
     expect(session.refreshToken).toBe("rt-must-not-persist");
-    const stored: Session = overlapCast(JSON.parse(
-      storage.getItem("opensesame:session") ?? "{}",
-    ));
+    const stored: Session = overlapCast(
+      JSON.parse(storage.getItem("opensesame:session") ?? "{}"),
+    );
     expect(stored.refreshToken).toBeUndefined();
     expect(stored.raw?.refresh_token).toBeUndefined();
     expect(replaced.some((u) => u.includes("code="))).toBe(false);

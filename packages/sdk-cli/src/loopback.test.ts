@@ -1,6 +1,6 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
 import { loopbackLogin } from "./loopback.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const ISSUER = "http://127.0.0.1:8788";
 
@@ -17,8 +17,8 @@ function discovery(overrides: JsonObject = {}): Response {
   );
 }
 
-function idpFetch(overrides: JsonObject = {}) {
-  return overlapCast(vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+function idpFetch(overrides: JsonObject = {}): typeof fetch {
+  return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     if (url.includes("openid-configuration")) return discovery(overrides);
     if (url.endsWith("/token") && init?.method === "POST") {
@@ -32,7 +32,7 @@ function idpFetch(overrides: JsonObject = {}) {
       );
     }
     throw new Error(`unexpected ${url}`);
-  }));
+  });
 }
 
 describe("loopbackLogin", () => {

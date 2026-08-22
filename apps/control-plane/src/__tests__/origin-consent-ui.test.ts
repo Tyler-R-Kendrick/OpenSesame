@@ -1,11 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
+import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import type { startServer } from "../server.js";
 import {
   collectConsentScopes,
   renderConsentPage,
 } from "../ui/interaction-pages.js";
-import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 
@@ -91,7 +91,9 @@ async function stop(started: Started): Promise<void> {
 function decodeJwtPayload(jwt: string): JsonObject {
   const part = jwt.split(".")[1];
   if (!part) throw new Error("not a jwt");
-  return overlapCast(JSON.parse(Buffer.from(part, "base64url").toString("utf8")));
+  return overlapCast(
+    JSON.parse(Buffer.from(part, "base64url").toString("utf8")),
+  );
 }
 
 function extractCsrf(html: string): string {
@@ -112,7 +114,7 @@ async function req(
   const res = await fetch(url, {
     redirect: "manual",
     ...init,
-    headers: { ...jar.header(), ...(overlapCast(init.headers)) },
+    headers: { ...jar.header(), ...overlapCast(init.headers) },
   });
   jar.absorb(res);
   return res;
@@ -285,7 +287,9 @@ describe("origin consent UI (ADR 0050 slice 3c, F6)", () => {
         },
       );
       expect(provisional.status).toBe(201);
-      const { accessToken, principalId } = overlapCast(await provisional.json());
+      const { accessToken, principalId } = overlapCast(
+        await provisional.json(),
+      );
 
       const jar = new Jar();
       jar.absorb(
@@ -304,7 +308,7 @@ describe("origin consent UI (ADR 0050 slice 3c, F6)", () => {
       const login = await req(started, jar, `/interaction/${uid}/login`, {
         ...loginInit,
         headers: {
-          ...(overlapCast(loginInit.headers)),
+          ...overlapCast(loginInit.headers),
           origin: "http://127.0.0.1:0",
         },
       });

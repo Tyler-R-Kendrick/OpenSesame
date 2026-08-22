@@ -11,6 +11,8 @@ import {
   needsAttention,
   useConnectors,
 } from "../lib/connectors.js";
+import { beginSignIn, defaultUpstream } from "../lib/federation.js";
+import { claimGuestAuth } from "../lib/guest-auth.js";
 import { useConnect } from "../lib/identity.js";
 import { failureSentence } from "../lib/probe-failure.js";
 import { ConnectGitHistory } from "./ConnectGitHistory.js";
@@ -33,12 +35,24 @@ import { StatusNote } from "./StatusNote.js";
  * the only thing that ever pulls the eye. Clicking one that is not live opens
  * its ceremony; clicking a live one shows what it is connected to.
  */
-const GLYPHS: Record<ConnectorId, (size: number) => ReactNode> = {
+const GLYPHS = {
   host: (size) => <IconAuthority size={size} />,
   identity: (size) => <IconLogin size={size} />,
   machine: (size) => <IconTerminal size={size} />,
   history: (size) => <IconGitBranch size={size} />,
   keys: (size) => <IconVault size={size} />,
+} satisfies Record<ConnectorId, (size: number) => ReactNode>;
+
+export const connectivityBarDependencies = {
+  checkNow,
+  useConnectivityMonitor,
+  useConnectors,
+  beginSignIn,
+  defaultUpstream,
+  claimGuestAuth,
+  useConnect,
+  ConnectGitHistory,
+  ConnectThisMachine,
 };
 
 export function connectorGlyph(id: ConnectorId, size = 19): ReactNode {
@@ -46,7 +60,7 @@ export function connectorGlyph(id: ConnectorId, size = 19): ReactNode {
 }
 
 function ConnectivityBarDefault() {
-  const connectors = useConnectors();
+  const connectors = connectivityBarDependencies.useConnectors();
   const [open, setOpen] = useState<ConnectorId | null>(null);
   const attention = needsAttention(connectors);
   const offline = isOfflineSet(connectors);
@@ -79,7 +93,7 @@ function ConnectivityBarDefault() {
             onOpen={() => {
               // Opening a ceremony is a person asking, so refresh rather than
               // showing them whatever the last sweep happened to find.
-              checkNow();
+              connectivityBarDependencies.checkNow();
               setOpen(connector.id);
             }}
           />
@@ -236,7 +250,7 @@ function toneChip(tone: ConnectorStatus["tone"]): string {
   return tone === "live" ? "ok" : tone === "attn" ? "warn" : "";
 }
 
-const CEREMONY_LEAD: Record<ConnectorId, string> = {
+const CEREMONY_LEAD = {
   host: "The authority plane. It authorizes every ConnectionRef and signs every receipt.",
   identity:
     "Who you are to the fabric. Sessions are minted here and never leave this device unwrapped.",
@@ -245,7 +259,7 @@ const CEREMONY_LEAD: Record<ConnectorId, string> = {
   history:
     "The vault lives on this device. Connect git to persist encrypted history as ciphertext. Agents never see these values.",
   keys: "Where vault and sealed-store keys are wrapped. WebCrypto on this device is the built-in default.",
-};
+} satisfies Record<ConnectorId, string>;
 
 function CeremonyBody({
   connector,
@@ -256,13 +270,18 @@ function CeremonyBody({
 }) {
   switch (connector.id) {
     case "machine":
-      return <ConnectThisMachine autoDiscover onPaired={onClose} />;
+      return (
+        <connectivityBarDependencies.ConnectThisMachine
+          autoDiscover
+          onPaired={onClose}
+        />
+      );
     case "host":
       return <PlaneCeremony kind="host" onClose={onClose} />;
     case "identity":
       return <PlaneCeremony kind="identity" onClose={onClose} />;
     case "history":
-      return <ConnectGitHistory />;
+      return <connectivityBarDependencies.ConnectGitHistory />;
     default:
       return <CapabilityCeremony connector={connector} onClose={onClose} />;
   }
@@ -284,24 +303,68 @@ function PlaneCeremony({
   kind: "host" | "identity";
   onClose: () => void;
 }) {
-  const { connect, connecting, error } = useConnect();
+  const { connect, connecting, error } =
+    connectivityBarDependencies.useConnect();
+  const [guestBusy, setGuestBusy] = useState(false);
+  const [guestError, setGuestError] = useState<string | null>(null);
+  const upstream = connectivityBarDependencies.defaultUpstream();
 
   return (
     <>
-      <div className="actions">
-        {kind === "identity" ? (
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={connecting}
-            aria-busy={connecting}
-            onClick={() => void connect()}
-          >
-            {connecting ? "Signing in…" : "Sign in"}
-          </button>
-        ) : null}
-      </div>
+      {kind === "identity" ? (
+        <>
+          <p className="hint">
+            Registered sign-in uses {upstream.accountKind}. Continuing as a
+            guest needs no passkey or password — you will be asked to claim this
+            session from the notifications bell.
+          </p>
+          <div className="actions">
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={connecting || guestBusy}
+              onClick={() => {
+                void connectivityBarDependencies.beginSignIn(upstream, {
+                  returnTo: "/",
+                });
+              }}
+            >
+              Sign in with {upstream.accountKind}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={connecting || guestBusy}
+              aria-busy={guestBusy}
+              onClick={() => {
+                setGuestBusy(true);
+                setGuestError(null);
+                void (async () => {
+                  try {
+                    await connect();
+                    await connectivityBarDependencies.claimGuestAuth();
+                    onClose();
+                  } catch (caught) {
+                    setGuestError(
+                      caught instanceof Error
+                        ? caught.message
+                        : "Guest login failed.",
+                    );
+                  } finally {
+                    setGuestBusy(false);
+                  }
+                })();
+              }}
+            >
+              {guestBusy ? "Starting guest…" : "Continue as guest"}
+            </button>
+          </div>
+        </>
+      ) : null}
       {error ? <StatusNote message={{ tone: "warn", text: error }} /> : null}
+      {guestError ? (
+        <StatusNote message={{ tone: "warn", text: guestError }} />
+      ) : null}
       <p className="hint">
         Endpoints come from pairing this machine. To point at a plane someone
         else runs, open{" "}
@@ -320,7 +383,7 @@ function PlaneCeremony({
  * which is exactly what the old bar did wrong.
  */
 function Freshness({ connector }: { connector: ConnectorStatus }) {
-  const monitor = useConnectivityMonitor();
+  const monitor = connectivityBarDependencies.useConnectivityMonitor();
   const [, tick] = useState(0);
 
   // A countdown that does not count down is worse than no countdown.
@@ -356,7 +419,7 @@ function Freshness({ connector }: { connector: ConnectorStatus }) {
         type="button"
         className="btn btn--sm"
         disabled={connector.checking || monitor.offline}
-        onClick={() => checkNow()}
+        onClick={() => connectivityBarDependencies.checkNow()}
       >
         Check now
       </button>

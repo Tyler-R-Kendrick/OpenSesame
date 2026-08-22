@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   ClientAdmissionError,
@@ -5,7 +6,6 @@ import {
   defaultAdmissionFromEnv,
 } from "../clients/admission.js";
 import type { ClientAdmissionMode, OAuthClientRecord } from "../types.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const flags = {
   originClientsEnabled: true,
@@ -36,9 +36,9 @@ describe("client admission policy", () => {
         expect.unreachable("must throw");
       } catch (err) {
         expect(err).toBeInstanceOf(ClientAdmissionError);
-        expect((overlapCast(err)).code).toBe("client_inactive");
-        expect((overlapCast(err)).name).toBe("ClientAdmissionError");
-        expect((overlapCast(err)).message).toContain(state);
+        expect(overlapCast(err).code).toBe("client_inactive");
+        expect(overlapCast(err).name).toBe("ClientAdmissionError");
+        expect(overlapCast(err).message).toContain(state);
       }
     }
   });
@@ -56,9 +56,7 @@ describe("client admission policy", () => {
       });
       expect.unreachable("must throw");
     } catch (err) {
-      expect((overlapCast(err)).code).toBe(
-        "admission_mode_disabled",
-      );
+      expect(overlapCast(err).code).toBe("admission_mode_disabled");
     }
   });
 
@@ -85,7 +83,7 @@ describe("client admission policy", () => {
       });
       expect.unreachable("must throw");
     } catch (err) {
-      expect((overlapCast(err)).code).toBe("origin_required");
+      expect(overlapCast(err).code).toBe("origin_required");
     }
   });
 

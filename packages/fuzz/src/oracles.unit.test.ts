@@ -1,6 +1,10 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { assertMalformedDenied, assertNoSecretFields } from "./oracles.js";
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const identity = (v: BoundaryValue): BoundaryValue => v;
 

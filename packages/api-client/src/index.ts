@@ -34,7 +34,12 @@ import {
   SyncTargetSchema,
   type UpdateIntegrationRequest,
 } from "@opensesame/contracts";
-import { type JsonObject, overlapCast, type BoundaryValue, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 
 export interface ApiClientOptions {
   /** Host API base URL, e.g. http://127.0.0.1:8787 */

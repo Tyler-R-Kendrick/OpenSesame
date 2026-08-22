@@ -1,11 +1,11 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import { overlapCast } from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   UnsafeMetadataUrlError,
   defaultPinnedTransport,
 } from "../metadata/safe-fetcher.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 /**
  * defaultPinnedTransport is the raw pinned GET; the SSRF policy lives in

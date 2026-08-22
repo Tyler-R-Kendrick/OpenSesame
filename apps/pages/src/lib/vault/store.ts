@@ -1,4 +1,4 @@
-import { overlapCast, isBoolean, isNumber } from "@opensesame/os-domain";
+import { isBoolean, isNumber, overlapCast } from "@opensesame/os-domain";
 /**
  * Vault session store. Holds the unlocked collection in memory, seals every
  * mutation straight back to OPFS, and drops the key on lock.
@@ -21,6 +21,7 @@ import {
   assertSealed,
   createVault,
   importVaultKey,
+  mintVaultKey,
   openJson,
   rewrapVaultKey,
   sealJson,
@@ -220,6 +221,11 @@ export class VaultStore {
   #writeChain: Promise<unknown> = Promise.resolve();
   #lockHandlers = new Set<() => void>();
   #keys: VaultKeys = scopedVaultKeys();
+  /**
+   * Guest / this-tab vault: the key was never wrapped to disk. Locking or
+   * reloading must not leave a wrap-less header that cannot be unlocked.
+   */
+  #ephemeral = false;
 
   constructor() {
     this.#header = readJson<VaultHeader | null>(this.#keys.header, null);
@@ -243,6 +249,51 @@ export class VaultStore {
       readJson<Partial<VaultPrefs>>(this.#keys.prefs, {}),
     );
     this.#persistPrefsIfMigrated();
+    this.#emit();
+  }
+
+  /**
+   * Drop the previous project's session and read the active project's header.
+   * Identity stays signed in — this is a vault-scope swap, not a reload.
+   */
+  loadActiveProjectScope(): void {
+    this.lock();
+    this.#keys = scopedVaultKeys();
+    this.#header = readJson<VaultHeader | null>(this.#keys.header, null);
+    this.#prefs = normalizeVaultPrefs(
+      readJson<Partial<VaultPrefs>>(this.#keys.prefs, {}),
+    );
+    this.#persistPrefsIfMigrated();
+    this.#emit();
+  }
+
+  /**
+   * Carry the current unlock into the active project. New projects share this
+   * device's vault key so creating one does not ask for a password/passkey again.
+   */
+  async forkUnlockedIntoActiveScope(): Promise<void> {
+    if (!this.#vaultKey || !this.#header) {
+      throw new Error(
+        "Unlock the vault before carrying it into a new project.",
+      );
+    }
+    this.#keys = scopedVaultKeys();
+    const header: VaultHeader = {
+      v: 1,
+      createdAt: new Date().toISOString(),
+    };
+    if (this.#header.kdf) header.kdf = this.#header.kdf;
+    if (this.#header.wrap) header.wrap = this.#header.wrap;
+    if (this.#header.unlocks) header.unlocks = { ...this.#header.unlocks };
+    if (this.#header.hint) header.hint = this.#header.hint;
+    this.#header = header;
+    this.#body = emptyBody();
+    this.#pendingVaultKey = null;
+    await kvSetDurable(this.#keys.header, JSON.stringify(header));
+    kvSet(this.#keys.prefs, JSON.stringify(this.#prefs));
+    await this.#persist();
+    this.touch();
+    this.#armIdleTimer();
     this.#emit();
   }
 
@@ -307,11 +358,88 @@ export class VaultStore {
   async create(password: string, hint?: string): Promise<void> {
     assertMasterPasswordPolicy(password);
     const { header, vaultKey, rawVaultKey } = await createVault(password, hint);
+    await this.#persistNewVault(header, vaultKey, rawVaultKey);
+  }
+
+  /** First-run seal under a passkey PRF wrap — no master password required. */
+  async createWithPasskey(signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) {
+      throw new DOMException("The operation was aborted.", "AbortError");
+    }
+    const { vaultKey, rawVaultKey } = await mintVaultKey();
+    try {
+      const ceremony = await createPasskeyUnlockCeremony(undefined, signal);
+      if (signal?.aborted) {
+        throw new DOMException("The operation was aborted.", "AbortError");
+      }
+      const record = await wrapVaultKeyWithPrf(
+        rawVaultKey,
+        ceremony.prfOutput,
+        ceremony.prfSalt,
+        ceremony.credential.rawId,
+        ceremony.userId,
+      );
+      const header: VaultHeader = {
+        v: 1,
+        createdAt: new Date().toISOString(),
+        unlocks: { passkey: record },
+      };
+      await this.#persistNewVault(header, vaultKey, rawVaultKey);
+    } catch (error) {
+      rawVaultKey.fill(0);
+      throw error;
+    }
+  }
+
+  /**
+   * First-run guest session: no passkey, PIN, or password. The vault key lives
+   * in this tab only until an unlock method is enrolled.
+   */
+  async createGuest(): Promise<void> {
+    const { vaultKey, rawVaultKey } = await mintVaultKey();
+    this.#header = {
+      v: 1,
+      createdAt: new Date().toISOString(),
+    };
+    this.#vaultKey = vaultKey;
+    this.#stashRaw(rawVaultKey);
+    this.#pendingVaultKey = null;
+    this.#body = emptyBody();
+    this.#ephemeral = true;
+    this.touch();
+    this.#armIdleTimer();
+    this.#emit();
+  }
+
+  /** First-run seal under a PIN wrap — no master password required. */
+  async createWithPin(pin: string): Promise<void> {
+    assertPinPolicy(pin);
+    const { vaultKey, rawVaultKey } = await mintVaultKey();
+    try {
+      const record = await wrapVaultKeyWithPin(rawVaultKey, pin);
+      const header: VaultHeader = {
+        v: 1,
+        createdAt: new Date().toISOString(),
+        unlocks: { pin: record },
+      };
+      await this.#persistNewVault(header, vaultKey, rawVaultKey);
+    } catch (error) {
+      rawVaultKey.fill(0);
+      throw error;
+    }
+  }
+
+  async #persistNewVault(
+    header: VaultHeader,
+    vaultKey: CryptoKey,
+    rawVaultKey: Uint8Array,
+  ): Promise<void> {
     this.#header = header;
     this.#vaultKey = vaultKey;
     this.#stashRaw(rawVaultKey);
     this.#pendingVaultKey = null;
     this.#body = emptyBody();
+    this.#ephemeral = false;
     try {
       await kvSetDurable(this.#keys.header, JSON.stringify(header));
       await this.#persist();
@@ -519,6 +647,7 @@ export class VaultStore {
       this.#emit();
       throw error;
     }
+    this.#ephemeral = false;
     this.#emit();
   }
 
@@ -638,6 +767,10 @@ export class VaultStore {
     this.#zeroRaw();
     this.#pendingVaultKey = null;
     this.#body = emptyBody();
+    if (this.#ephemeral) {
+      this.#header = null;
+      this.#ephemeral = false;
+    }
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
     for (const handler of this.#lockHandlers) handler();

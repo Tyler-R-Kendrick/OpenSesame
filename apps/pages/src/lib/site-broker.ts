@@ -1,4 +1,9 @@
-import { overlapCast, type BoundaryValue, isString, isTypeofObject } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 /**
  * Origin-brokered sign-in for static relying parties (ADR 0034).
  *
@@ -47,6 +52,17 @@ export type SiteConsent = {
   approvedAt: string;
   lastUsedAt: string;
 };
+
+function isSiteConsent(value: BoundaryValue): value is SiteConsent {
+  return (
+    isJsonObject(value) &&
+    isString(value.origin) &&
+    Array.isArray(value.scopes) &&
+    value.scopes.every(isString) &&
+    isString(value.approvedAt) &&
+    isString(value.lastUsedAt)
+  );
+}
 
 export type SignInSuccess = {
   type: "opensesame:signin";
@@ -183,8 +199,9 @@ export function loadConsents(): SiteConsent[] {
   const raw = kvGet(scopedKey(CONSENTS_KEY));
   if (!raw) return [];
   try {
-    const parsed = overlapCast(JSON.parse(raw));
-    return Array.isArray(parsed.consents) ? parsed.consents : [];
+    const parsed: BoundaryValue = JSON.parse(raw);
+    if (!isJsonObject(parsed) || !Array.isArray(parsed.consents)) return [];
+    return parsed.consents.filter(isSiteConsent);
   } catch {
     return [];
   }
@@ -277,9 +294,9 @@ export function loadBrokerPolicy(): BrokerPolicy {
 }
 
 function normalizeRule(row: BoundaryValue): DomainRule | null {
-  if (!row || !isTypeofObject(row)) return null;
-  const domainRaw = (overlapCast(row)).domain;
-  const effectRaw = (overlapCast(row)).effect;
+  if (!isJsonObject(row)) return null;
+  const domainRaw = row.domain;
+  const effectRaw = row.effect;
   if (!isString(domainRaw)) return null;
   const domain = normalizeDomainEntry(domainRaw);
   if (!domain) return null;

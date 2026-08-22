@@ -1,3 +1,4 @@
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,
   fireEvent,
@@ -5,38 +6,81 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { UnlockMethodId } from "../lib/vault/unlock-methods.js";
 
-const v = vi.hoisted(() => ({
-  state: {
+type TestVaultState = {
+  status: "empty" | "locked";
+  header: { hint: string } | null;
+  lockedOutUntil: number | null;
+  failedAttempts: number;
+  durable: boolean;
+  awaitingTotp: boolean;
+};
+
+type TestHostCheck = {
+  ok: boolean;
+  reason?: string;
+  fixUrl?: string | null;
+};
+
+type StoreMethod =
+  | "create"
+  | "createWithPasskey"
+  | "createWithPin"
+  | "unlock"
+  | "unlockWithPin"
+  | "unlockWithPasskey"
+  | "confirmTotp"
+  | "cancelTotpChallenge"
+  | "destroy";
+
+type TestHarness = {
+  state: TestVaultState;
+  methods: UnlockMethodId[];
+  preferred: UnlockMethodId;
+  host: TestHostCheck;
+  store: Record<StoreMethod, ReturnType<typeof vi.fn>>;
+};
+
+const v = vi.hoisted((): TestHarness => {
+  const state: TestVaultState = {
     status: "locked",
     header: null,
     lockedOutUntil: null,
     failedAttempts: 0,
     durable: true,
     awaitingTotp: false,
-  },
-  methods: ["password"],
-  preferred: "password",
-  host: { ok: true },
-  store: {
-    create: vi.fn(),
-    unlock: vi.fn(),
-    unlockWithPin: vi.fn(),
-    unlockWithPasskey: vi.fn(),
-    confirmTotp: vi.fn(),
-    cancelTotpChallenge: vi.fn(),
-    destroy: vi.fn(),
-  },
-}));
+  };
+  const methods: UnlockMethodId[] = ["password"];
+  const preferred: UnlockMethodId = "password";
+  const host: TestHostCheck = { ok: true };
+  return {
+    state,
+    methods,
+    preferred,
+    host,
+    store: {
+      create: vi.fn(),
+      createWithPasskey: vi.fn(),
+      createWithPin: vi.fn(),
+      unlock: vi.fn(),
+      unlockWithPin: vi.fn(),
+      unlockWithPasskey: vi.fn(),
+      confirmTotp: vi.fn(),
+      cancelTotpChallenge: vi.fn(),
+      destroy: vi.fn(),
+    },
+  };
+});
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {useVault: () => v.state,
-  useVaultStore: () => v.store});
-
+Object.assign(vaultHooksSeams, {
+  useVault: () => v.state,
+  useVaultStore: () => v.store,
+});
 
 import { unlockMethodsSeams } from "../lib/vault/unlock-methods.js";
 const originalUnlockMethodsSeams = { ...unlockMethodsSeams };
@@ -47,6 +91,10 @@ Object.assign(unlockMethodsSeams, {
   describeWebauthnError: (error: BoundaryValue) =>
     `webauthn: ${error instanceof Error ? error.message : String(error)}`,
 });
+
+import { guestAuthSeams } from "../lib/guest-auth.js";
+const continueAsGuest = vi.fn();
+Object.assign(guestAuthSeams, { continueAsGuest });
 
 import { UnlockScreen } from "./UnlockScreen.js";
 
@@ -61,9 +109,11 @@ function submitButton(): HTMLButtonElement {
 }
 
 function masterInput(): HTMLInputElement {
-  return overlapCast(screen.getByLabelText(
-    /Master password|^Password$/,
-  ));
+  return overlapCast(screen.getByLabelText(/Master password|^Password$/));
+}
+
+function chooseSealMethod(name: string): void {
+  fireEvent.click(screen.getByRole("tab", { name }));
 }
 
 describe("UnlockScreen — first run", () => {
@@ -81,12 +131,100 @@ describe("UnlockScreen — first run", () => {
     v.host = { ok: true };
     for (const fn of Object.values(v.store)) fn.mockReset();
     v.store.create.mockResolvedValue(undefined);
+    v.store.createWithPasskey.mockResolvedValue(undefined);
+    v.store.createWithPin.mockResolvedValue(undefined);
+    continueAsGuest.mockReset();
+    continueAsGuest.mockResolvedValue(undefined);
   });
 
   afterEach(cleanup);
 
+  it("seals with a passkey without asking for a master password", async () => {
+    render(<UnlockScreen />);
+    expect(
+      screen.getByRole("heading", { name: "Seal this device" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Passkey" })).toBeTruthy();
+    expect(screen.queryByLabelText(/Master password/)).toBeNull();
+    expect(submitButton().textContent).toContain("Seal with passkey");
+    expect(submitButton().disabled).toBe(true);
+    expect(v.store.createWithPasskey).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByLabelText("I understand this vault cannot be recovered."),
+    );
+    expect(submitButton().disabled).toBe(false);
+    fireEvent.click(submitButton());
+    await waitFor(() =>
+      expect(v.store.createWithPasskey).toHaveBeenCalledTimes(1),
+    );
+    expect(v.store.create).not.toHaveBeenCalled();
+  });
+
+  it("seals with a PIN without asking for a master password", async () => {
+    render(<UnlockScreen />);
+    chooseSealMethod("PIN");
+    expect(screen.queryByLabelText(/Master password/)).toBeNull();
+    expect(submitButton().textContent).toContain("Seal with PIN");
+    expect(submitButton().disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("Device PIN"), {
+      target: { value: "12345678" },
+    });
+    fireEvent.change(screen.getByLabelText("Confirm PIN"), {
+      target: { value: "12345678" },
+    });
+    expect(submitButton().disabled).toBe(true);
+    fireEvent.click(
+      screen.getByLabelText("I understand this vault cannot be recovered."),
+    );
+    expect(submitButton().disabled).toBe(false);
+    fireEvent.click(submitButton());
+    await waitFor(() =>
+      expect(v.store.createWithPin).toHaveBeenCalledWith("12345678"),
+    );
+    expect(v.store.create).not.toHaveBeenCalled();
+  });
+
+  it("hides passkey and falls back to password when WebAuthn cannot run", () => {
+    v.host = {
+      ok: false,
+      reason: "Passkeys need a DNS hostname.",
+      fixUrl: "http://localhost:5180/",
+    };
+    render(<UnlockScreen />);
+    expect(screen.queryByRole("tab", { name: "Passkey" })).toBeNull();
+    expect(screen.getByRole("tab", { name: "PIN" })).toBeTruthy();
+    expect(screen.getByLabelText(/Master password/)).toBeTruthy();
+    expect(screen.getByText(/600,000 PBKDF2-SHA256/)).toBeTruthy();
+  });
+
+  it("switching methods cancels a pending first-run passkey seal", async () => {
+    v.store.createWithPasskey.mockImplementation(
+      (signal?: AbortSignal) =>
+        new Promise((_, reject) => {
+          signal?.addEventListener("abort", () =>
+            reject(
+              new DOMException("The operation was aborted.", "AbortError"),
+            ),
+          );
+        }),
+    );
+    render(<UnlockScreen />);
+    fireEvent.click(
+      screen.getByLabelText("I understand this vault cannot be recovered."),
+    );
+    fireEvent.click(submitButton());
+    await waitFor(() =>
+      expect(v.store.createWithPasskey).toHaveBeenCalledTimes(1),
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Password" }));
+    await waitFor(() => expect(masterInput().disabled).toBe(false));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(v.store.create).not.toHaveBeenCalled();
+  });
+
   it("explains the seal and keeps the submit disabled until the form is valid", () => {
     render(<UnlockScreen />);
+    chooseSealMethod("Password");
     expect(
       screen.getByRole("heading", { name: "Seal this device" }),
     ).toBeTruthy();
@@ -97,6 +235,7 @@ describe("UnlockScreen — first run", () => {
 
   it("warns about weak passwords as they are typed", () => {
     render(<UnlockScreen />);
+    chooseSealMethod("Password");
     fireEvent.change(masterInput(), { target: { value: "hunter2" } });
     expect(screen.getByText(/Very weak|Weak/)).toBeTruthy();
     expect(
@@ -107,6 +246,7 @@ describe("UnlockScreen — first run", () => {
 
   it("creates the vault once password, confirmation, and acknowledgement line up", async () => {
     render(<UnlockScreen />);
+    chooseSealMethod("Password");
     fireEvent.change(masterInput(), { target: { value: STRONG } });
     fireEvent.change(screen.getByLabelText("Confirm master password"), {
       target: { value: STRONG },
@@ -130,6 +270,7 @@ describe("UnlockScreen — first run", () => {
   it("shows create failures inline", async () => {
     v.store.create.mockRejectedValue(new Error("storage quota exceeded"));
     render(<UnlockScreen />);
+    chooseSealMethod("Password");
     fireEvent.change(masterInput(), { target: { value: STRONG } });
     fireEvent.change(screen.getByLabelText("Confirm master password"), {
       target: { value: STRONG },
@@ -143,16 +284,29 @@ describe("UnlockScreen — first run", () => {
 
   it("reveals and hides both password fields together", () => {
     render(<UnlockScreen />);
+    chooseSealMethod("Password");
     const master = masterInput();
     expect(master.type).toBe("password");
     fireEvent.click(screen.getByRole("button", { name: "Show password" }));
     expect(master.type).toBe("text");
     expect(
-      (overlapCast(screen.getByLabelText("Confirm master password")))
-        .type,
+      overlapCast(screen.getByLabelText("Confirm master password")).type,
     ).toBe("text");
     fireEvent.click(screen.getByRole("button", { name: "Hide password" }));
     expect(master.type).toBe("password");
+  });
+
+  it("continues as a guest without a passkey or password", async () => {
+    render(<UnlockScreen />);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Continue as guest — no passkey or password",
+      }),
+    );
+    await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
+    expect(v.store.create).not.toHaveBeenCalled();
+    expect(v.store.createWithPasskey).not.toHaveBeenCalled();
+    expect(v.store.createWithPin).not.toHaveBeenCalled();
   });
 
   it("does not offer the reset affordance on first run", () => {
@@ -308,7 +462,9 @@ describe("UnlockScreen — PIN unlock", () => {
     fireEvent.click(tab);
     expect(tab.getAttribute("aria-selected")).toBe("true");
 
-    const pin = overlapCast(screen.getByLabelText("PIN"));
+    const pin = overlapCast<unknown, HTMLInputElement>(
+      screen.getByLabelText("PIN"),
+    );
     fireEvent.change(pin, { target: { value: "123" } });
     expect(submitButton().disabled).toBe(true);
     fireEvent.change(pin, { target: { value: "12345678" } });
@@ -428,9 +584,11 @@ describe("UnlockScreen — passkey unlock", () => {
       expect(v.store.unlockWithPasskey).toHaveBeenCalledTimes(1),
     );
     // The prompt is pending ("blocking") — the Password tab must still be live.
-    const passwordTab = overlapCast(screen.getByRole("tab", {
-      name: /Password/,
-    }));
+    const passwordTab = overlapCast<unknown, HTMLButtonElement>(
+      screen.getByRole("tab", {
+        name: /Password/,
+      }),
+    );
     expect(passwordTab.disabled).toBe(false);
     fireEvent.click(passwordTab);
     // The ceremony was aborted, no error surfaced, and the password form works.

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { endSession } from "../identity.js";
+import { clearNotices } from "../notices.js";
 import { clearStagedClaimTokens } from "../queue.js";
 import { type VaultState, vaultStore } from "./store.js";
 
@@ -41,6 +42,7 @@ function useSessionGuardsDefault(): void {
       vaultStore.onLock(() => {
         clearCopiedSecret();
         clearStagedClaimTokens();
+        clearNotices();
         if (vaultStore.getSnapshot().prefs.signOutOnLock) {
           endSession();
         }
@@ -72,7 +74,10 @@ function useSessionGuardsDefault(): void {
     };
     for (const event of events) {
       if (event === "pointermove") {
-        window.addEventListener(event, onMove, { capture: true, passive: true });
+        window.addEventListener(event, onMove, {
+          capture: true,
+          passive: true,
+        });
       } else {
         window.addEventListener(event, touch, { capture: true, passive: true });
       }
@@ -175,11 +180,11 @@ function useThemeDefault(): void {
 }
 
 export function useSessionGuards(): void {
-  return vaultHooksSeams.useSessionGuards();
+  vaultHooksSeams.useSessionGuards();
 }
 
 export function useTheme(): void {
-  return vaultHooksSeams.useTheme();
+  vaultHooksSeams.useTheme();
 }
 
 export function useCopySecret(): (value: string) => Promise<CopyResult> {
@@ -187,5 +192,5 @@ export function useCopySecret(): (value: string) => Promise<CopyResult> {
 }
 
 export function clearCopiedSecret(): void {
-  return vaultHooksSeams.clearCopiedSecret();
+  vaultHooksSeams.clearCopiedSecret();
 }

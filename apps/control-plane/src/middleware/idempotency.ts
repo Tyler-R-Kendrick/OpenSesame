@@ -1,7 +1,7 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { createMiddleware } from "hono/factory";
 import { serializeKeyed } from "../serialize.js";
 import type { Variables } from "./context.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 /** Cached responses are short-lived: they hold the original body verbatim. */
 export const IDEMPOTENCY_TTL_MS = 10 * 60_000;

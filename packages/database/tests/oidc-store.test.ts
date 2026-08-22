@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { oidcPayloadFromRow, oidcRowValues } from "../src/index.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const now = new Date("2026-08-08T12:00:00.000Z");
 
@@ -19,12 +19,7 @@ describe("oidc payload storage rules", () => {
     });
 
     // A non-string key would be stored as a row nothing could look up again.
-    const odd = oidcRowValues(
-      "Session",
-      "s-1",
-      { uid: overlapCast(7) },
-      null,
-    );
+    const odd = oidcRowValues("Session", "s-1", { uid: overlapCast(7) }, null);
     expect(odd.uid).toBeNull();
     expect(odd.userCode).toBeNull();
     expect(odd.grantId).toBeNull();

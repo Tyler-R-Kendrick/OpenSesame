@@ -1,4 +1,4 @@
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * Additional vault unlock methods beyond the master password.
  *
@@ -26,6 +26,11 @@ import { parseTotp, totpCode } from "./totp.js";
 
 const IV_BYTES = 12;
 const PRF_INFO = new TextEncoder().encode("opensesame/vault/webauthn-prf/v1");
+
+type PrfExtensionOutput = {
+  enabled?: boolean;
+  results?: { first?: ArrayBuffer };
+};
 
 export const MIN_PIN_LENGTH = 8;
 export const MAX_PIN_LENGTH = 12;
@@ -257,14 +262,14 @@ export async function unwrapVaultKeyWithPrf(
 export function prfExtensionSupported(
   results: AuthenticationExtensionsClientOutputs | undefined,
 ): boolean {
-  const prf = overlapCast(results?.prf);
+  const prf: PrfExtensionOutput | undefined = overlapCast(results?.prf);
   return Boolean(prf?.results?.first || prf?.enabled);
 }
 
 export function readPrfFirst(
   results: AuthenticationExtensionsClientOutputs | undefined,
 ): ArrayBuffer | null {
-  const prf = overlapCast(results?.prf);
+  const prf: PrfExtensionOutput | undefined = overlapCast(results?.prf);
   return prf?.results?.first ?? null;
 }
 
@@ -374,7 +379,7 @@ export function formatWebauthnHostError(check: WebauthnHostCheck): string {
 }
 
 /** Map browser WebAuthn failures into actionable copy. */
-function describeWebauthnErrorDefault(error: BoundaryValue): string {
+function describeWebauthnErrorDefault<Thrown>(error: Thrown): string {
   if (error instanceof WebauthnHostError) return error.message;
   if (!(error instanceof Error)) return "Passkey ceremony failed.";
   const name = error.name;
@@ -433,16 +438,20 @@ export function assertKeepsPrimaryUnlock(
 
 async function createPasskeyUnlockCeremonyDefault(
   rpId: string = webauthnRpId(),
+  signal?: AbortSignal,
 ): Promise<PasskeyCeremony> {
+  if (signal?.aborted) {
+    throw new DOMException("The operation was aborted.", "AbortError");
+  }
   if (globalThis.PublicKeyCredential === undefined) {
     throw new Error("This browser cannot create a passkey.");
   }
   assertWebauthnHost();
   const prfSalt = randomBytes(SALT_BYTES);
   const userId = randomBytes(16);
-  let credential: PublicKeyCredential | null;
+  let result: Credential | null;
   try {
-    credential = (await navigator.credentials.create({
+    result = await navigator.credentials.create({
       publicKey: {
         challenge: overlapCast(randomBytes(32)),
         rp: { id: rpId, name: "OpenSesame" },
@@ -465,12 +474,21 @@ async function createPasskeyUnlockCeremonyDefault(
           prf: { eval: { first: prfSalt } },
         }),
       },
-    }));
-    credential = overlapCast(credential);
+      // First-run seal uses the same cancel path as unlock: switching tabs
+      // must abort the platform prompt instead of leaving it hanging.
+      signal,
+    });
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw error;
+    }
     throw new Error(describeWebauthnError(error));
   }
-  if (!credential) throw new Error("Passkey creation was cancelled.");
+  if (!result) throw new Error("Passkey creation was cancelled.");
+  if (!(result instanceof PublicKeyCredential)) {
+    throw new Error("Passkey creation returned an unexpected credential type.");
+  }
+  const credential = result;
   const prfOutput = readPrfFirst(credential.getClientExtensionResults());
   if (!prfOutput) {
     throw new Error(
@@ -490,9 +508,9 @@ async function getPasskeyUnlockCeremonyDefault(
   }
   assertWebauthnHost();
   const prfSalt = b64ToBytes(record.prfSaltB64);
-  let credential: PublicKeyCredential | null;
+  let result: Credential | null;
   try {
-    credential = (await navigator.credentials.get({
+    result = await navigator.credentials.get({
       publicKey: {
         challenge: overlapCast(randomBytes(32)),
         rpId,
@@ -511,8 +529,7 @@ async function getPasskeyUnlockCeremonyDefault(
       // Lets the UI cancel a pending platform prompt (e.g. switching to the
       // password/PIN tab) instead of being held hostage by it.
       signal,
-    }));
-    credential = overlapCast(credential);
+    });
   } catch (error) {
     // A deliberate abort must stay distinguishable from a real ceremony
     // failure, so callers can swallow it without showing an error.
@@ -521,7 +538,11 @@ async function getPasskeyUnlockCeremonyDefault(
     }
     throw new Error(describeWebauthnError(error));
   }
-  if (!credential) throw new Error("Passkey unlock was cancelled.");
+  if (!result) throw new Error("Passkey unlock was cancelled.");
+  if (!(result instanceof PublicKeyCredential)) {
+    throw new Error("Passkey unlock returned an unexpected credential type.");
+  }
+  const credential = result;
   const prfOutput = readPrfFirst(credential.getClientExtensionResults());
   if (!prfOutput) {
     throw new Error(
@@ -559,16 +580,17 @@ export function checkWebauthnHost(
   return unlockMethodsSeams.checkWebauthnHost(hostname, href);
 }
 
-export function describeWebauthnError(error: BoundaryValue): string {
+export function describeWebauthnError<Thrown>(error: Thrown): string {
   return unlockMethodsSeams.describeWebauthnError(error);
 }
 
 export async function createPasskeyUnlockCeremony(
   rpId?: string,
+  signal?: AbortSignal,
 ): Promise<PasskeyCeremony> {
   return rpId === undefined
-    ? unlockMethodsSeams.createPasskeyUnlockCeremony()
-    : unlockMethodsSeams.createPasskeyUnlockCeremony(rpId);
+    ? unlockMethodsSeams.createPasskeyUnlockCeremony(undefined, signal)
+    : unlockMethodsSeams.createPasskeyUnlockCeremony(rpId, signal);
 }
 
 export async function getPasskeyUnlockCeremony(

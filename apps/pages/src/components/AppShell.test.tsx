@@ -27,6 +27,10 @@ const originalConnectivityBarSeams = { ...connectivityBarSeams };
 Object.assign(connectivityBarSeams, {
   ConnectivityBar: () => <span data-testid="connectivity-bar" />,
 });
+import { notificationsBarSeams } from "./NotificationsBar.js";
+Object.assign(notificationsBarSeams, {
+  NotificationsBar: () => <span data-testid="notifications-bar" />,
+});
 import { planeNoteSeams } from "./PlaneNote.js";
 const originalPlaneNoteSeams = { ...planeNoteSeams };
 Object.assign(planeNoteSeams, {
