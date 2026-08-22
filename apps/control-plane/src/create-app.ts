@@ -16,6 +16,7 @@ import {
   createPostgresConsentStore,
   createPostgresOidcStore,
   createPostgresPairwiseStore,
+  createPostgresProjectStores,
   createRepositories,
 } from "@opensesame/database";
 import {
@@ -167,6 +168,11 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const consentStore = drizzleBundle
     ? createPostgresConsentStore(drizzleBundle.db)
     : undefined;
+  // Durable projects + memberships (WP-8): the same rows the projects API
+  // serves survive a restart; memory only in tests/dev.
+  const projectStores = drizzleBundle
+    ? createPostgresProjectStores(drizzleBundle.db)
+    : undefined;
   // The system owner principal must exist before the first auto-admission
   // writes owner_principal_id (a FK against Postgres). createControlPlane is
   // synchronous, so the promise travels on the context and the server awaits
@@ -196,6 +202,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       : undefined),
     ...(clientOriginStore ? { clientOrigins: clientOriginStore } : undefined),
     ...(consentStore ? { consents: consentStore } : undefined),
+    ...(projectStores ? { projectStores } : undefined),
   });
   const passkeyChallenges = createMemoryChallengeStore();
   const rp = {
