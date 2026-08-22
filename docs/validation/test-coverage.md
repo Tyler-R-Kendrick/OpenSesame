@@ -35,8 +35,22 @@ functions 95.82%, and lines 96.64%; Rust lines 69.83% and functions 67.96%.
 UI behavior is also exercised by Playwright and visual snapshots, which these
 unit-coverage reports do not instrument.
 
-The same run killed 110/110 TypeScript mutants and 12/12 Rust mutants in the
+That run killed 110/110 TypeScript mutants and 12/12 Rust mutants in the
 selected credential-redaction and URL/task-validation boundaries.
+
+The TypeScript figure then went stale, which is worth recording because of how
+it went stale rather than by how much. `guest-auth.ts`, `notices.ts` and
+`probe-failure.ts` joined the mutate list after that measurement, and the gate
+was not re-run; when it next was, on 2026-08-22, it stood at **90.77%** — 31
+surviving and 11 uncovered mutants. `guest-auth.ts` was the worst of them at
+70.59%, and only because its test file could not run under
+`vitest.mutation.config.ts`'s `node` environment at all. It is now back to
+**100.00% (445 killed, 0 survived, 0 uncovered)**.
+
+So: re-run `pnpm test:mutation:ts` whenever you add a file to
+`stryker.config.json` and update the figure above. An entry whose gate has
+never been run reads as covered while measuring nothing, which is the one
+failure mode this gate exists to prevent.
 
 Snapshot updates are always explicit. Use Vitest's `-u` or
 `VISUAL_UPDATE=1 pnpm test:visual`, inspect the diff, and commit only intended
