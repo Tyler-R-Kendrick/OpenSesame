@@ -1714,3 +1714,132 @@ pub async fn dead_letter_config_sync(
     }
     Ok(())
 }
+
+// ---- durable secret changelog (ADR 0041 / WP-D completion) -----------------
+//
+// Append-only. No UPDATE or DELETE statement may ever target this table; the
+// hash-chained Identity audit trail covers its plane, this table covers the
+// Host's. Rows carry key names + version metadata only — the changelog_hook
+// redaction runs before anything reaches here.
+
+pub async fn ensure_secret_changelog_schema(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS secret_changelog (
+            seq INTEGER PRIMARY KEY AUTOINCREMENT,
+            id TEXT UNIQUE NOT NULL,
+            organization_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            config_id TEXT NULL,
+            event_type TEXT NOT NULL,
+            actor_id TEXT NULL,
+            environment TEXT NULL,
+            key_names_json TEXT NOT NULL,
+            version_id TEXT NULL,
+            target_id TEXT NULL,
+            content_version TEXT NULL,
+            metadata_json TEXT NOT NULL,
+            occurred_at TEXT NOT NULL
+         )",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_secret_changelog_org_time \
+         ON secret_changelog(organization_id, occurred_at)",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_secret_changelog_org_config \
+         ON secret_changelog(organization_id, config_id)",
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn insert_changelog_row(
+    pool: &SqlitePool,
+    entry: &crate::changelog_hook::ChangelogEntry,
+) -> Result<i64> {
+    ensure_secret_changelog_schema(pool).await?;
+    let result = sqlx::query(
+        "INSERT INTO secret_changelog (id, organization_id, project_id, config_id, event_type, \
+         actor_id, environment, key_names_json, version_id, target_id, content_version, \
+         metadata_json, occurred_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&entry.id)
+    .bind(entry.organization_id.as_deref().unwrap_or("_unscoped"))
+    .bind(&entry.project_id)
+    .bind(&entry.config_id)
+    .bind(&entry.event_type)
+    .bind(&entry.actor_id)
+    .bind(&entry.environment)
+    .bind(serde_json::to_string(&entry.key_names)?)
+    .bind(&entry.version_id)
+    .bind(&entry.target_id)
+    .bind(&entry.content_version)
+    .bind(serde_json::to_string(&entry.metadata)?)
+    .bind(entry.occurred_at.to_rfc3339())
+    .execute(pool)
+    .await?;
+    Ok(result.last_insert_rowid())
+}
+
+pub async fn list_changelog_rows(
+    pool: &SqlitePool,
+    organization_id: &str,
+    project_id: &str,
+    limit: i64,
+    before_seq: Option<i64>,
+) -> Result<Vec<crate::changelog_hook::ChangelogEntry>> {
+    ensure_secret_changelog_schema(pool).await?;
+    let rows =
+        match before_seq {
+            Some(cursor) => sqlx::query(
+                "SELECT seq, id, organization_id, project_id, config_id, event_type, actor_id, \
+                 environment, key_names_json, version_id, target_id, content_version, \
+                 metadata_json, occurred_at FROM secret_changelog \
+                 WHERE organization_id = ? AND project_id = ? AND seq < ? \
+                 ORDER BY seq DESC LIMIT ?",
+            )
+            .bind(organization_id)
+            .bind(project_id)
+            .bind(cursor)
+            .bind(limit)
+            .fetch_all(pool)
+            .await?,
+            None => sqlx::query(
+                "SELECT seq, id, organization_id, project_id, config_id, event_type, actor_id, \
+                 environment, key_names_json, version_id, target_id, content_version, \
+                 metadata_json, occurred_at FROM secret_changelog \
+                 WHERE organization_id = ? AND project_id = ? \
+                 ORDER BY seq DESC LIMIT ?",
+            )
+            .bind(organization_id)
+            .bind(project_id)
+            .bind(limit)
+            .fetch_all(pool)
+            .await?,
+        };
+    Ok(rows
+        .into_iter()
+        .map(|r| crate::changelog_hook::ChangelogEntry {
+            seq: Some(r.get("seq")),
+            id: r.get("id"),
+            event_type: r.get("event_type"),
+            project_id: r.get("project_id"),
+            organization_id: Some(r.get("organization_id")),
+            actor_id: r.get("actor_id"),
+            config_id: r.get("config_id"),
+            environment: r.get("environment"),
+            key_names: parse_list(&r.get::<String, _>("key_names_json")),
+            version_id: r.get("version_id"),
+            target_id: r.get("target_id"),
+            content_version: r.get("content_version"),
+            occurred_at: parse_time(&r.get::<String, _>("occurred_at")),
+            metadata: serde_json::from_str(&r.get::<String, _>("metadata_json"))
+                .unwrap_or_default(),
+        })
+        .collect())
+}

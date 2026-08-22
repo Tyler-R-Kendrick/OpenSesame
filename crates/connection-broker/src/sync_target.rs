@@ -263,16 +263,21 @@ impl ConnectionBroker {
             updated_at: now,
         };
         store::insert_sync_target(&self.pool, &row).await?;
-        // CHANGELOG_HOOK: sync.target.created — WP-D wires record_secret_changelog
-        crate::record_secret_changelog(crate::RecordSecretChangelog {
-            event_type: "sync.target.created".into(),
-            project_id: row.project_id.clone(),
-            organization_id: Some(organization_id.to_string()),
-            config_id: Some(row.config_id.clone()),
-            target_id: Some(row.id.clone()),
-            key_names: Vec::new(),
-            ..Default::default()
-        });
+        // Durable changelog (metadata only; ignore-on-error keeps sync usable
+        // if the changelog table is briefly unavailable).
+        let _ = crate::changelog_hook::record_secret_changelog_durable(
+            &self.pool,
+            crate::RecordSecretChangelog {
+                event_type: "sync.target.created".into(),
+                project_id: row.project_id.clone(),
+                organization_id: Some(organization_id.to_string()),
+                config_id: Some(row.config_id.clone()),
+                target_id: Some(row.id.clone()),
+                key_names: Vec::new(),
+                ..Default::default()
+            },
+        )
+        .await;
         tracing::info!(
             sync_target_id = %row.id,
             project_id = %row.project_id,
@@ -356,18 +361,21 @@ impl ConnectionBroker {
                     Some(&synced_at),
                 )
                 .await?;
-                // CHANGELOG_HOOK: sync.target.synced — WP-D wires record_secret_changelog
-                // (metadata: target id + content_version only; never secret bodies)
-                crate::record_secret_changelog(crate::RecordSecretChangelog {
-                    event_type: "sync.target.synced".into(),
-                    project_id: row.project_id.clone(),
-                    organization_id: Some(organization_id.to_string()),
-                    config_id: Some(row.config_id.clone()),
-                    target_id: Some(row.id.clone()),
-                    content_version: Some(content_version.clone()),
-                    key_names,
-                    ..Default::default()
-                });
+                // Durable changelog (metadata: target id + content_version only).
+                let _ = crate::changelog_hook::record_secret_changelog_durable(
+                    &self.pool,
+                    crate::RecordSecretChangelog {
+                        event_type: "sync.target.synced".into(),
+                        project_id: row.project_id.clone(),
+                        organization_id: Some(organization_id.to_string()),
+                        config_id: Some(row.config_id.clone()),
+                        target_id: Some(row.id.clone()),
+                        content_version: Some(content_version.clone()),
+                        key_names,
+                        ..Default::default()
+                    },
+                )
+                .await;
                 let target = self.get_sync_target(organization_id, &row.id).await?;
                 Ok(SyncOutcome {
                     target,
@@ -388,21 +396,25 @@ impl ConnectionBroker {
                     None,
                 )
                 .await?;
-                // CHANGELOG_HOOK: sync.target.failed — WP-D wires record_secret_changelog
-                crate::record_secret_changelog(crate::RecordSecretChangelog {
-                    event_type: "sync.target.failed".into(),
-                    project_id: row.project_id.clone(),
-                    organization_id: Some(organization_id.to_string()),
-                    config_id: Some(row.config_id.clone()),
-                    target_id: Some(row.id.clone()),
-                    key_names: Vec::new(),
-                    metadata: {
-                        let mut m = serde_json::Map::new();
-                        m.insert("reason".into(), json!(error.code()));
-                        m
+                // Durable changelog.
+                let _ = crate::changelog_hook::record_secret_changelog_durable(
+                    &self.pool,
+                    crate::RecordSecretChangelog {
+                        event_type: "sync.target.failed".into(),
+                        project_id: row.project_id.clone(),
+                        organization_id: Some(organization_id.to_string()),
+                        config_id: Some(row.config_id.clone()),
+                        target_id: Some(row.id.clone()),
+                        key_names: Vec::new(),
+                        metadata: {
+                            let mut m = serde_json::Map::new();
+                            m.insert("reason".into(), json!(error.code()));
+                            m
+                        },
+                        ..Default::default()
                     },
-                    ..Default::default()
-                });
+                )
+                .await;
                 let target = self.get_sync_target(organization_id, &row.id).await?;
                 Ok(SyncOutcome {
                     target,

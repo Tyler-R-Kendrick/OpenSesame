@@ -153,7 +153,7 @@ mod pact_coverage {
             include_str!("routes/changelog.rs"),
             &[
                 "caller.organization(st.connection_organization)",
-                "list_secret_changelog(&organization_id, &project_id, limit)",
+                ".list_changelog(&organization_id, &project_id, limit, query.before_seq)",
             ],
         );
     }
