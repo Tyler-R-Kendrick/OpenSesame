@@ -61,7 +61,9 @@ export function UnlockMethodsPanel() {
     } catch (caught) {
       setMessage({
         tone: "err",
-        text: describeWebauthnError(caught),
+        text: describeWebauthnError(
+          caught instanceof Error ? caught : "Unknown WebAuthn error",
+        ),
       });
     } finally {
       setBusy(false);

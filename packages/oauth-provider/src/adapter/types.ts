@@ -1,5 +1,5 @@
-import type { Adapter, AdapterPayload } from "oidc-provider";
 import { isNumber } from "@opensesame/os-domain";
+import type { Adapter, AdapterPayload } from "oidc-provider";
 
 /**
  * oidc-provider adapter contract used by OpenSesame.
@@ -49,10 +49,9 @@ export function createPostgresAdapterConstructor(
       payload: OidcAdapterPayload,
       expiresIn?: number,
     ): Promise<void> {
-      const expiresAt =
-        isNumber(expiresIn)
-          ? new Date(Date.now() + expiresIn * 1000)
-          : null;
+      const expiresAt = isNumber(expiresIn)
+        ? new Date(Date.now() + expiresIn * 1000)
+        : null;
       await store.upsert(this.name, id, payload, expiresAt);
     }
 

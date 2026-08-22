@@ -1,15 +1,17 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import {
-  overlapCast,
   type BoundaryValue,
   type JsonObject,
+  overlapCast,
 } from "@opensesame/os-domain";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const online = vi.hoisted(() => ({ value: true }));
-const session = vi.hoisted(() => ({
+const session: {
+  current: { principalId: string; accessToken: string } | null;
+} = vi.hoisted(() => ({
   current: null,
 }));
 const connect = vi.hoisted(() => vi.fn());
@@ -22,7 +24,8 @@ const fetchPrincipal = vi.hoisted(() => vi.fn());
 
 import { identitySeams } from "../lib/identity.js";
 const originalIdentitySeams = { ...identitySeams };
-Object.assign(identitySeams, {identityFetch,
+Object.assign(identitySeams, {
+  identityFetch,
   fetchPrincipal,
   identityBase: () => "http://127.0.0.1:8788",
   useConnect: () => ({
@@ -30,10 +33,11 @@ Object.assign(identitySeams, {identityFetch,
     connecting: connectState.connecting,
     error: connectState.error,
   }),
-  useIdentitySession: () => session.current});
+  useIdentitySession: () => session.current,
+});
 import { useOnlineSeams } from "../lib/use-online.js";
 const originalUseOnlineSeams = { ...useOnlineSeams };
-Object.assign(useOnlineSeams, {useOnline: () => online.value});
+Object.assign(useOnlineSeams, { useOnline: () => online.value });
 import { planeNoteSeams } from "../components/PlaneNote.js";
 const originalPlaneNoteSeams = { ...planeNoteSeams };
 Object.assign(planeNoteSeams, { PagesCannotHostNote: () => null });
@@ -157,12 +161,13 @@ describe("SitesSection", () => {
     expect(screen.getByText("app.example.com")).toBeTruthy();
 
     // Removing the last allowed domain makes the broker public again.
-    const row = overlapCast(screen
-      .getByText("app.example.com")
-      .closest("li"));
-    await userEvent.click(
-      overlapCast(row.querySelector("button[title], .btn--danger")),
-    );
+    const row = screen.getByText("app.example.com").closest("li");
+    if (!(row instanceof HTMLLIElement)) throw new Error("rule row not found");
+    const remove = row.querySelector("button[title], .btn--danger");
+    if (!(remove instanceof HTMLButtonElement)) {
+      throw new Error("remove button not found");
+    }
+    await userEvent.click(remove);
     expect(screen.getByText(/The broker is public again/)).toBeTruthy();
     expect(screen.getByText("Public")).toBeTruthy();
   });
@@ -176,10 +181,13 @@ describe("SitesSection", () => {
     expect(screen.getByText("Blocked")).toBeTruthy();
 
     // The blocked row's danger button removes the rule.
-    const row = overlapCast(screen
-      .getByText("evil.example.com")
-      .closest("li"));
-    await userEvent.click(overlapCast(row.querySelector(".btn--danger")));
+    const row = screen.getByText("evil.example.com").closest("li");
+    if (!(row instanceof HTMLLIElement)) throw new Error("rule row not found");
+    const remove = row.querySelector(".btn--danger");
+    if (!(remove instanceof HTMLButtonElement)) {
+      throw new Error("remove button not found");
+    }
+    await userEvent.click(remove);
     expect(screen.getByText(/Unblocked evil\.example\.com/)).toBeTruthy();
     expect(screen.queryByText("Blocked")).toBeNull();
   });
@@ -189,7 +197,9 @@ describe("SitesSection", () => {
     const domain = screen.getByPlaceholderText(/example\.com, localhost:5173/);
     await userEvent.type(domain, "https://example.com/path");
     const { fireEvent } = await import("@testing-library/react");
-    fireEvent.submit(overlapCast(domain.closest("form")));
+    const form = domain.closest("form");
+    if (!(form instanceof HTMLFormElement)) throw new Error("form not found");
+    fireEvent.submit(form);
     expect(
       await screen.findByText(/Enter a hostname \(example\.com\)/),
     ).toBeTruthy();
@@ -645,9 +655,8 @@ describe("SitesSection origin validation and edge branches", () => {
       screen.getByLabelText(/^Site origin$/i),
       "https://beta.example.com",
     );
-    const name = overlapCast(document.querySelector(
-      'input[id$="-name"]',
-    ));
+    const name = document.querySelector('input[id$="-name"]');
+    if (!(name instanceof HTMLInputElement)) throw new Error("name not found");
     await userEvent.clear(name);
     await userEvent.click(
       screen.getByRole("button", { name: /Register client/i }),
@@ -665,9 +674,10 @@ describe("SitesSection origin validation and edge branches", () => {
       screen.getByLabelText(/^Site origin$/i),
       "https://beta.example.com",
     );
-    const sector = overlapCast(document.querySelector(
-      'input[id$="-sector"]',
-    ));
+    const sector = document.querySelector('input[id$="-sector"]');
+    if (!(sector instanceof HTMLInputElement)) {
+      throw new Error("sector not found");
+    }
     await userEvent.clear(sector);
     await userEvent.click(
       screen.getByRole("button", { name: /Register client/i }),
@@ -765,14 +775,15 @@ describe("SitesSection origin validation and edge branches", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Use in snippet/i }),
     );
-    const toolbar = overlapCast(screen
+    const toolbar = screen
       .getByRole("tabpanel", { name: /Sign-in module/i })
-      .closest(".panel"));
-    await userEvent.click(
-      overlapCast(Array.from(toolbar.querySelectorAll("button")).find(
-        (button) => button.textContent?.trim() === "Copy",
-      )),
+      .closest(".panel");
+    if (!(toolbar instanceof HTMLElement)) throw new Error("panel not found");
+    const button = Array.from(toolbar.querySelectorAll("button")).find(
+      (candidate) => candidate.textContent?.trim() === "Copy",
     );
+    if (!button) throw new Error("copy button not found");
+    await userEvent.click(button);
     expect(
       await screen.findByText(/browser refused clipboard access/),
     ).toBeTruthy();

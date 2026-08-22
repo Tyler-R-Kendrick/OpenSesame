@@ -1,7 +1,7 @@
 import { redactAuditMetadata } from "@opensesame/audit";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { assertNoSecretFields } from "./oracles.js";
 import { FuzzedDataProvider } from "./provider.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 export function fuzz(data: Buffer): void {
   const p = new FuzzedDataProvider(data);
@@ -11,7 +11,5 @@ export function fuzz(data: Buffer): void {
     password: "SUPERSECRET",
     reason: p.consumeString(16),
   };
-  assertNoSecretFields(meta, (v) =>
-    redactAuditMetadata(overlapCast(v)),
-  );
+  assertNoSecretFields(meta, (v) => redactAuditMetadata(overlapCast(v)));
 }

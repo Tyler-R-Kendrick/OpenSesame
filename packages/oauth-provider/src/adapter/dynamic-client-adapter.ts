@@ -1,5 +1,5 @@
-import type { OidcAdapterConstructor, OidcAdapterPayload } from "./types.js";
 import { overlapCast } from "@opensesame/os-domain";
+import type { OidcAdapterConstructor, OidcAdapterPayload } from "./types.js";
 
 /**
  * Wrap an oidc-provider adapter constructor so `Client` finds can resolve
@@ -22,7 +22,7 @@ export function withDynamicClientLoader(
       this.modelName = name;
     }
 
-    override async find(id: string): Promise<OidcAdapterPayload | undefined> {
+    async find(id: string): Promise<OidcAdapterPayload | undefined> {
       if (this.modelName === "Client") {
         const dynamic = await loadClient(id);
         if (dynamic) return dynamic;

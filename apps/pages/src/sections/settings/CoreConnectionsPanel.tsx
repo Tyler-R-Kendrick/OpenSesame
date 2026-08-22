@@ -10,6 +10,12 @@ import {
   useConnectors,
 } from "../../lib/connectors.js";
 
+export const coreConnectionsDependencies = {
+  useConnectors,
+  connectorGlyph,
+  ConnectionCeremony,
+};
+
 /**
  * The five connections the bar shows, as states rather than as a form.
  *
@@ -18,15 +24,15 @@ import {
  * the connectivity bar opens, so there is one way to repair a connection,
  * not two.
  */
-const ACTION: Record<string, string> = {
+const ACTION = {
   live: "Connected",
   attn: "Fix",
   off: "Set up",
   offline: "Paused",
-};
+} satisfies Record<string, string>;
 
 export function CoreConnectionsPanel() {
-  const connectors = useConnectors();
+  const connectors = coreConnectionsDependencies.useConnectors();
   const [open, setOpen] = useState<ConnectorId | null>(null);
   const attention = needsAttention(connectors);
   // Offline is one cause, not four broken connectors. Counting it as "3 need
@@ -64,7 +70,7 @@ export function CoreConnectionsPanel() {
               onClick={() => setOpen(connector.id)}
             >
               <span className="conn__mark" aria-hidden="true">
-                {connectorGlyph(connector.id, 20)}
+                {coreConnectionsDependencies.connectorGlyph(connector.id, 20)}
               </span>
               <span className="conn__grow">
                 <span className="conn__name">
@@ -85,7 +91,7 @@ export function CoreConnectionsPanel() {
         </div>
       </div>
       {open ? (
-        <ConnectionCeremony
+        <coreConnectionsDependencies.ConnectionCeremony
           id={open}
           connectors={connectors}
           onClose={() => setOpen(null)}

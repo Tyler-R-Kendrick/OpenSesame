@@ -10,9 +10,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 describe("PACT — CLI device flow", () => {
   it("source: expires_in of 0 is expiry, not a 15-minute default", () => {
     assertSourceOrder(readFileSync(join(here, "device-flow.ts"), "utf8"), [
+      "data.expires_in < 0",
       "this.#expiresAt =",
       "Date.now() +",
-      "data.expires_in >= 0",
       "data.expires_in * 1000",
     ]);
   });

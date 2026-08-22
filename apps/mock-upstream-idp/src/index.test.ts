@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { main } from "./index.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 type Signal = "SIGINT" | "SIGTERM";
 

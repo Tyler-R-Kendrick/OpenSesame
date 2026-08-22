@@ -1,4 +1,10 @@
 import { generateKeyPairSync } from "node:crypto";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import Provider, {
   errors,
   type ClientMetadata,
@@ -29,7 +35,6 @@ import type {
   OAuthProviderEnv,
   PairwiseSubjectStore,
 } from "./types.js";
-import { type JsonObject, overlapCast, type BoundaryValue, isString } from "@opensesame/os-domain";
 
 export interface CreateOpenSesameProviderOptions {
   issuer?: string;
@@ -52,6 +57,8 @@ export interface CreateOpenSesameProviderOptions {
   /** When omitted, MemoryAdapter is used (tests / local). Production should pass Postgres adapter. */
   jwks?: Configuration["jwks"];
 }
+
+type OidcAccountContext = BoundaryValue;
 
 export interface OpenSesameProviderBundle {
   provider: Provider;
@@ -160,15 +167,13 @@ function resolveJwks(
  * the store default, so existing static-only callers behave unchanged.
  */
 function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
-  const sectorIdentifierUri =
-    isString(meta.sector_identifier_uri)
-      ? meta.sector_identifier_uri
-      : undefined;
+  const sectorIdentifierUri = isString(meta.sector_identifier_uri)
+    ? meta.sector_identifier_uri
+    : undefined;
   const scope = isString(meta.scope) ? meta.scope : undefined;
-  const tokenEndpointAuthMethod =
-    isString(meta.token_endpoint_auth_method)
-      ? meta.token_endpoint_auth_method
-      : "client_secret_basic";
+  const tokenEndpointAuthMethod = isString(meta.token_endpoint_auth_method)
+    ? meta.token_endpoint_auth_method
+    : "client_secret_basic";
   let sector = meta.client_id;
   if (sectorIdentifierUri) {
     sector = sectorIdentifierUri;
@@ -182,8 +187,7 @@ function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
   return {
     id: meta.client_id,
     admissionMode: "pre_registered",
-    displayName:
-      isString(meta.client_name) ? meta.client_name : meta.client_id,
+    displayName: isString(meta.client_name) ? meta.client_name : meta.client_id,
     redirectUris: meta.redirect_uris ?? [],
     sectorIdentifier: sector,
     grantTypes: meta.grant_types ?? ["authorization_code"],
@@ -321,7 +325,7 @@ export function createOpenSesameProvider(
       profile: ["name"],
       email: ["email"],
     },
-    findAccount: async (_ctx, id) => ({
+    findAccount: async (_ctx: OidcAccountContext, id: string) => ({
       accountId: id,
       async claims() {
         return { sub: id };

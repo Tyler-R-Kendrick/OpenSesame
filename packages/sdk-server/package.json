@@ -13,10 +13,7 @@
       "default": "./src/hono.ts"
     }
   },
-  "files": [
-    "src",
-    "dist"
-  ],
+  "files": ["src", "dist"],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

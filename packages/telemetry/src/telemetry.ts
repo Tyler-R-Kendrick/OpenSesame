@@ -1,5 +1,10 @@
 import { SENSITIVE_KEY_PATTERN } from "@opensesame/observability";
-import { type JsonObject, overlapCast, type BoundaryValue, isNumber, isBoolean } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isBoolean,
+  isNumber,
+} from "@opensesame/os-domain";
 
 /**
  * Events `track()` will ever forward to `capture`. Anything else — typos,
@@ -132,14 +137,13 @@ function coercePrimitive(value: BoundaryValue): string | number | boolean {
  * never sees a telemetry event with a half-scrubbed value that still hints at
  * what leaked.
  */
-function sanitizeProps(
-  props: JsonObject | undefined,
-): JsonObject {
+function sanitizeProps(props: JsonObject | undefined): JsonObject {
   const out: JsonObject = {};
   if (!props) return out;
 
   for (const [key, rawValue] of Object.entries(props)) {
-    if (!(overlapCast(ALLOWED_PROP_KEYS)).includes(key)) continue;
+    const allowedKeys: readonly string[] = ALLOWED_PROP_KEYS;
+    if (!allowedKeys.includes(key)) continue;
     if (isForbiddenKeyName(key)) continue;
 
     // Checked pre-truncation: a forbidden term sitting just past the 64-char

@@ -12,59 +12,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ConnectorStatus } from "../lib/connectors.js";
 
-const env = vi.hoisted(() => ({
-  connectors: [] as ConnectorStatus[],
-}));
-
-vi.mock("../lib/connectors.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../lib/connectors.js")>();
-  return { ...actual, useConnectors: () => env.connectors };
-});
-
-const connectSpy = vi.hoisted(() => vi.fn());
-const beginSignIn = vi.hoisted(() => vi.fn());
-const claimGuestAuth = vi.hoisted(() => vi.fn());
-
-vi.mock("../lib/identity.js", () => ({
-  useConnect: () => ({ connect: connectSpy, connecting: false, error: null }),
-}));
-
-vi.mock("../lib/federation.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../lib/federation.js")>();
-  return {
-    ...actual,
-    beginSignIn,
-    defaultUpstream: () => ({
-      id: "mock",
-      displayName: "Local mock IdP",
-      issuer: "http://127.0.0.1:9090",
-      accountKind: "a seeded test account",
-    }),
-  };
-});
-
-vi.mock("../lib/guest-auth.js", () => ({
-  claimGuestAuth,
-}));
-
-const checkNow = vi.hoisted(() => vi.fn());
-
-vi.mock("../lib/connectivity-monitor.js", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("../lib/connectivity-monitor.js")>();
-  return {
-    ...actual,
-    checkNow,
-    useConnectivityMonitor: () => ({
-      offline: false,
-      host: monitorTarget,
-      identity: monitorTarget,
-      machine: monitorTarget,
-      nextCheckAt: Date.now() + 30_000,
-    }),
-  };
-});
-
+type ConnectivityBarTestEnvironment = { connectors: ConnectorStatus[] };
+const env: ConnectivityBarTestEnvironment = { connectors: [] };
+const connectSpy = vi.fn();
+const beginSignIn = vi.fn();
+const claimGuestAuth = vi.fn();
+const checkNow = vi.fn();
 const monitorTarget = {
   health: "reachable" as const,
   failure: null,
@@ -72,16 +25,38 @@ const monitorTarget = {
   checking: false,
 };
 
-vi.mock("./PlaneNote.js", () => ({
-  ConnectThisMachine: () => <div data-testid="pairing-ceremony" />,
-}));
-
 import { connectGitHistorySeams } from "./ConnectGitHistory.js";
 Object.assign(connectGitHistorySeams, {
   ConnectGitHistory: () => <div data-testid="git-ceremony" />,
 });
 
-import { ConnectivityBar } from "./ConnectivityBar.js";
+import {
+  ConnectivityBar,
+  connectivityBarDependencies,
+} from "./ConnectivityBar.js";
+
+Object.assign(connectivityBarDependencies, {
+  useConnectors: () => env.connectors,
+  checkNow,
+  useConnectivityMonitor: () => ({
+    offline: false,
+    host: monitorTarget,
+    identity: monitorTarget,
+    machine: monitorTarget,
+    nextCheckAt: Date.now() + 30_000,
+  }),
+  beginSignIn,
+  defaultUpstream: () => ({
+    id: "mock",
+    displayName: "Local mock IdP",
+    issuer: "http://127.0.0.1:9090",
+    accountKind: "a seeded test account",
+  }),
+  claimGuestAuth,
+  useConnect: () => ({ connect: connectSpy, connecting: false, error: null }),
+  ConnectThisMachine: () => <div data-testid="pairing-ceremony" />,
+  ConnectGitHistory: () => <div data-testid="git-ceremony" />,
+});
 
 function status(over: Partial<ConnectorStatus> = {}): ConnectorStatus {
   return {

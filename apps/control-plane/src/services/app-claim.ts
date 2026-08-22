@@ -10,7 +10,13 @@ import {
   canonicalizeOrigin,
   originClientId,
 } from "@opensesame/oauth-provider";
-import { overlapCast, type Clock, type JsonObject } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type Clock,
+  type JsonObject,
+  isJsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 
 /** F5: claim challenges live at most ten minutes. */
 export const CLAIM_CHALLENGE_TTL_MS = 600_000;
@@ -28,13 +34,15 @@ export type ClaimErrorCode =
   | "alias_conflict"
   | "invalid_origin";
 
+export type ClaimErrorStatus = 400 | 403 | 404 | 409 | 410;
+
 /** Typed claim-flow failure; routes map `status`/`code` verbatim. */
 export class ClaimError extends Error {
   override readonly name = "ClaimError";
 
   constructor(
     readonly code: ClaimErrorCode,
-    readonly status: number,
+    readonly status: ClaimErrorStatus,
     message: string,
   ) {
     super(message);
@@ -230,8 +238,9 @@ export class AppClaimService {
         "Well-known document exceeds 16KiB",
       );
     }
+    let parsed: BoundaryValue;
     try {
-      return overlapCast(JSON.parse(text));
+      parsed = overlapCast(JSON.parse(text));
     } catch {
       throw new ClaimError(
         "proof_fetch_failed",
@@ -239,6 +248,14 @@ export class AppClaimService {
         "Well-known document is not JSON",
       );
     }
+    if (!isJsonObject(parsed)) {
+      throw new ClaimError(
+        "proof_fetch_failed",
+        400,
+        "Well-known document must be a JSON object",
+      );
+    }
+    return parsed;
   }
 
   async verifyAndClaim(input: {

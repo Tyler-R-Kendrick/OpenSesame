@@ -1,3 +1,4 @@
+import { isFunction } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   AgentPayloadRefused,
@@ -6,7 +7,6 @@ import {
   looksLikeCredential,
   scrubLocalSecrets,
 } from "./agent-payload.js";
-import { isFunction } from "@opensesame/os-domain";
 
 /**
  * agent-payload.ts is a barrel re-exporting the shared observability guards so

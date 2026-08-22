@@ -31,7 +31,7 @@ describe("PACT — example-headless", () => {
       join(here, "../../../packages/sdk-cli/src/device-flow.ts"),
       "utf8",
     );
-    expect(src).toContain("expires_in >= 0");
+    expect(src).toContain("data.expires_in < 0");
   });
 
   it("contract: mock device payload uses DO_NOT_PRINT as the device_code", () => {

@@ -1,3 +1,5 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
+
 /**
  * Importing from another password manager.
  *
@@ -108,7 +110,7 @@ export async function readImportFile(file: File): Promise<DetectInput> {
     text = await file.text();
   }
 
-  let json = null;
+  let json: BoundaryValue = null;
   const trimmed = text.trimStart();
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {

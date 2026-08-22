@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AuthError, AuthorizationError } from "./errors.js";
 import { introspectOpaqueAccessToken } from "./introspection.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const ENDPOINT = "https://issuer.example/introspect";
 const TOKEN = "opaque-access-token-value";
@@ -12,17 +11,15 @@ function mockFetch(response: {
   json?: unknown;
   reject?: Error;
 }): typeof fetch {
-  const impl = async () => {
+  return async () => {
     if (response.reject) {
       throw response.reject;
     }
-    return overlapCast({
-      ok: response.ok ?? true,
-      status: response.status ?? 200,
-      json: async () => response.json,
+    return new Response(JSON.stringify(response.json), {
+      status: response.status ?? (response.ok === false ? 500 : 200),
+      headers: { "content-type": "application/json" },
     });
   };
-  return overlapCast(impl);
 }
 
 describe("introspectOpaqueAccessToken", () => {
@@ -67,7 +64,8 @@ describe("introspectOpaqueAccessToken", () => {
       });
     } catch (error) {
       expect(error).toBeInstanceOf(AuthError);
-      expect((overlapCast(error)).message).not.toContain(TOKEN);
+      if (!(error instanceof AuthError)) throw error;
+      expect(error.message).not.toContain(TOKEN);
     }
   });
 
@@ -101,12 +99,9 @@ describe("introspectOpaqueAccessToken", () => {
 
   it("fails closed on malformed JSON", async () => {
     const fetchImpl: typeof fetch = async () =>
-      overlapCast({
-        ok: true,
+      new Response("{", {
         status: 200,
-        json: async () => {
-          throw new SyntaxError("Unexpected token");
-        },
+        headers: { "content-type": "application/json" },
       });
 
     await expect(
@@ -154,19 +149,21 @@ describe("introspectOpaqueAccessToken", () => {
         requiredScopes: ["admin"],
       });
     } catch (error) {
-      expect((overlapCast(error)).code).toBe("insufficient_scope");
-      expect((overlapCast(error)).message).not.toContain(TOKEN);
+      expect(error).toBeInstanceOf(AuthorizationError);
+      if (!(error instanceof AuthorizationError)) throw error;
+      expect(error.code).toBe("insufficient_scope");
+      expect(error.message).not.toContain(TOKEN);
     }
   });
 
   it("sends Basic auth when client credentials are provided", async () => {
     let capturedAuth: string | undefined;
     const fetchImpl: typeof fetch = async (_url, init) => {
-      capturedAuth = (overlapCast(init?.headers)).Authorization;
-      return overlapCast({
-        ok: true,
+      capturedAuth =
+        new Headers(init?.headers).get("Authorization") ?? undefined;
+      return new Response(JSON.stringify({ active: true, sub: "user-1" }), {
         status: 200,
-        json: async () => ({ active: true, sub: "user-1" }),
+        headers: { "content-type": "application/json" },
       });
     };
 

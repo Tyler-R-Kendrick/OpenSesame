@@ -281,11 +281,11 @@ export class VaultStore {
     const header: VaultHeader = {
       v: 1,
       createdAt: new Date().toISOString(),
-      ...(this.#header.kdf ? { kdf: this.#header.kdf } : {}),
-      ...(this.#header.wrap ? { wrap: this.#header.wrap } : {}),
-      ...(this.#header.unlocks ? { unlocks: { ...this.#header.unlocks } } : {}),
-      ...(this.#header.hint ? { hint: this.#header.hint } : {}),
     };
+    if (this.#header.kdf) header.kdf = this.#header.kdf;
+    if (this.#header.wrap) header.wrap = this.#header.wrap;
+    if (this.#header.unlocks) header.unlocks = { ...this.#header.unlocks };
+    if (this.#header.hint) header.hint = this.#header.hint;
     this.#header = header;
     this.#body = emptyBody();
     this.#pendingVaultKey = null;

@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
@@ -6,7 +7,6 @@ import {
   buildTaskAccessViewModel,
 } from "../components/TaskAccessPanel.js";
 import { operatorHeadersFor } from "../lib/urls.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const gateway =
   import.meta.env.VITE_OPENSESAME_GATEWAY ?? "http://127.0.0.1:8787";

@@ -12,3 +12,4 @@ export * from "./sync-targets.js";
 export * from "./sync_blobs.js";
 export * from "./taskbus.js";
 export * from "./taskbus.openapi.js";
+export * from "./trust.js";

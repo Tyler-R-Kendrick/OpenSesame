@@ -1,3 +1,4 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import { sql } from "drizzle-orm";
 import {
   bigserial,
@@ -13,7 +14,6 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { type JsonObject } from "@opensesame/os-domain";
 
 /** bytea column mapped to Uint8Array */
 const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
@@ -90,10 +90,7 @@ export const externalIdentities = pgTable(
       withTimezone: true,
       mode: "date",
     }),
-    metadata: jsonb("metadata")
-      .$type<JsonObject>()
-      .notNull()
-      .default({}),
+    metadata: jsonb("metadata").$type<JsonObject>().notNull().default({}),
   },
   (t) => [
     uniqueIndex("external_identities_kind_issuer_tenant_subject_uidx").on(
@@ -237,10 +234,7 @@ export const resources = pgTable(
     ownerPrincipalId: text("owner_principal_id").references(
       () => principals.id,
     ),
-    manifest: jsonb("manifest")
-      .$type<JsonObject>()
-      .notNull()
-      .default({}),
+    manifest: jsonb("manifest").$type<JsonObject>().notNull().default({}),
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),
     version: integer("version").notNull().default(1),
     ...timestamps,
@@ -596,9 +590,7 @@ export const claimSessions = pgTable(
       .notNull()
       .default({}),
     targetManifestDigest: text("target_manifest_digest").notNull(),
-    requestedDestination: jsonb("requested_destination").$type<
-      JsonObject
-    >(),
+    requestedDestination: jsonb("requested_destination").$type<JsonObject>(),
     requestedGrant: jsonb("requested_grant").$type<JsonObject>(),
     presentedAt: timestamp("presented_at", {
       withTimezone: true,
@@ -759,10 +751,7 @@ export const auditEvents = pgTable(
     outcome: text("outcome").notNull(),
     correlationId: text("correlation_id").notNull(),
     causationId: text("causation_id"),
-    metadata: jsonb("metadata")
-      .$type<JsonObject>()
-      .notNull()
-      .default({}),
+    metadata: jsonb("metadata").$type<JsonObject>().notNull().default({}),
     /** Hash chain over the trail: each event names the digest of the one before it. */
     previousDigest: text("previous_digest"),
     digest: text("digest"),
@@ -796,10 +785,7 @@ export const outboxEvents = pgTable(
     aggregateType: text("aggregate_type").notNull(),
     aggregateId: text("aggregate_id").notNull(),
     eventType: text("event_type").notNull(),
-    payload: jsonb("payload")
-      .$type<JsonObject>()
-      .notNull()
-      .default({}),
+    payload: jsonb("payload").$type<JsonObject>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
       .notNull()
       .defaultNow(),

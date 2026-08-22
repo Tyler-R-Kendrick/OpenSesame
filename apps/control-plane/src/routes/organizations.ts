@@ -103,8 +103,8 @@ function toResponse(org: Organization, role: OrganizationRole) {
     createdBy: org.createdBy,
     createdAt: org.createdAt.toISOString(),
     updatedAt: org.updatedAt.toISOString(),
-    ...(org.ssoIssuer ? { ssoIssuer: org.ssoIssuer } : {}),
-    ...(org.samlIssuer ? { samlIssuer: org.samlIssuer } : {}),
+    ...(org.ssoIssuer ? { ssoIssuer: org.ssoIssuer } : undefined),
+    ...(org.samlIssuer ? { samlIssuer: org.samlIssuer } : undefined),
   });
 }
 
@@ -312,13 +312,9 @@ organizationRoutes.post(
           createdBy: principalId,
           createdAt: now,
           updatedAt: now,
-          ...(parsed.data.ssoIssuer
-            ? { ssoIssuer: parsed.data.ssoIssuer }
-            : {}),
-          ...(parsed.data.samlIssuer
-            ? { samlIssuer: parsed.data.samlIssuer }
-            : {}),
         };
+        if (parsed.data.ssoIssuer) org.ssoIssuer = parsed.data.ssoIssuer;
+        if (parsed.data.samlIssuer) org.samlIssuer = parsed.data.samlIssuer;
         ctx.stores.organizations.set(org.id, org);
         ctx.stores.organizationSlugs.set(org.slug, org.id);
         ctx.stores.organizationMemberships.set(
@@ -462,9 +458,9 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) => {
     createdBy: org.createdBy,
     createdAt: org.createdAt,
     updatedAt: ctx.clock(),
-    ...(ssoIssuer ? { ssoIssuer } : {}),
-    ...(samlIssuer ? { samlIssuer } : {}),
   };
+  if (ssoIssuer) updated.ssoIssuer = ssoIssuer;
+  if (samlIssuer) updated.samlIssuer = samlIssuer;
   ctx.stores.organizations.set(org.id, updated);
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "organization.updated",

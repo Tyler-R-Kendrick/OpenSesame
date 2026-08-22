@@ -1,5 +1,5 @@
 import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
-import { overlapCast, isString } from "@opensesame/os-domain";
+import { isString, overlapCast } from "@opensesame/os-domain";
 
 type HealthResponse = {
   health?: { ok?: boolean };
@@ -68,9 +68,11 @@ async function loadStatus() {
     hint.textContent = "";
   }
   try {
-    const res = overlapCast(await chrome.runtime.sendMessage({
-      type: "opensesame.health",
-    }));
+    const res = overlapCast(
+      await chrome.runtime.sendMessage({
+        type: "opensesame.health",
+      }),
+    );
     if (res?.error) {
       throw new Error(res.error);
     }

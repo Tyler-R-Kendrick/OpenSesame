@@ -5,22 +5,21 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ConnectorStatus } from "../../lib/connectors.js";
 
-const env = vi.hoisted(() => ({ connectors: [] as ConnectorStatus[] }));
+type CoreConnectionsTestEnvironment = { connectors: ConnectorStatus[] };
+const env: CoreConnectionsTestEnvironment = { connectors: [] };
 
-vi.mock("../../lib/connectors.js", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("../../lib/connectors.js")>();
-  return { ...actual, useConnectors: () => env.connectors };
-});
+import {
+  CoreConnectionsPanel,
+  coreConnectionsDependencies,
+} from "./CoreConnectionsPanel.js";
 
-vi.mock("../../components/ConnectivityBar.js", () => ({
+Object.assign(coreConnectionsDependencies, {
+  useConnectors: () => env.connectors,
   connectorGlyph: () => <svg data-testid="glyph" />,
   ConnectionCeremony: ({ id }: { id: string }) => (
     <div data-testid="ceremony">{id}</div>
   ),
-}));
-
-import { CoreConnectionsPanel } from "./CoreConnectionsPanel.js";
+});
 
 function status(over: Partial<ConnectorStatus> = {}): ConnectorStatus {
   return {

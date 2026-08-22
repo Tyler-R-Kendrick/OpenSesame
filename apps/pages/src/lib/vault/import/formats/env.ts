@@ -15,8 +15,7 @@ import {
   draftSecret,
 } from "../types.js";
 
-const KEY_VALUE =
-  /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/u;
+const KEY_VALUE = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/u;
 
 function stripInlineComment(value: string): string {
   let inSingle = false;
@@ -68,7 +67,9 @@ function unquote(raw: string): string {
 }
 
 /** Parse dotenv text into KEY → value pairs, preserving first-seen order. */
-export function parseDotenv(text: string): Array<{ key: string; value: string }> {
+export function parseDotenv(
+  text: string,
+): Array<{ key: string; value: string }> {
   const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/u);
   const out: Array<{ key: string; value: string }> = [];
   let i = 0;
@@ -82,7 +83,10 @@ export function parseDotenv(text: string): Array<{ key: string; value: string }>
     const key = match[1] ?? "";
     let rest = match[2] ?? "";
     const opener = rest.trimStart()[0];
-    if ((opener === '"' || opener === "'") && !isClosedQuote(rest.trimStart(), opener)) {
+    if (
+      (opener === '"' || opener === "'") &&
+      !isClosedQuote(rest.trimStart(), opener)
+    ) {
       const chunks = [rest.trimStart()];
       while (i < lines.length) {
         const next = lines[i] ?? "";
@@ -153,7 +157,9 @@ export const envFile: ImportAdapter = {
     if (input.json !== null) return false;
     if (input.headers && input.headers.length >= 2) return false;
     if (looksLikeDotenvName(input.fileName)) {
-      return dotenvLineRatio(input.text) >= 0.4 || parseDotenv(input.text).length > 0;
+      return (
+        dotenvLineRatio(input.text) >= 0.4 || parseDotenv(input.text).length > 0
+      );
     }
     const ratio = dotenvLineRatio(input.text);
     return ratio >= 0.7 && parseDotenv(input.text).length >= 1;

@@ -7,31 +7,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * still leaves them in the tab, with a notice to claim later.
  */
 
-const connectProvisional = vi.hoisted(() => vi.fn());
-const identityJson = vi.hoisted(() => vi.fn());
-const createGuest = vi.hoisted(() => vi.fn());
-
-vi.mock("./identity.js", () => ({
-  connectProvisional,
-  identityJson,
-  currentSession: () => null,
-  restoreSession: () => {},
-}));
-
-vi.mock("./vault/store.js", () => ({
-  vaultStore: { createGuest },
-}));
-
-import { claimGuestAuth, continueAsGuest } from "./guest-auth.js";
+import {
+  claimGuestAuth,
+  continueAsGuest,
+  guestAuthDependencies,
+} from "./guest-auth.js";
 import { clearNotices, listNotices, pushNotice } from "./notices.js";
 
 describe("chaos — guest login under a broken Identity plane", () => {
   beforeEach(() => {
     clearNotices();
-    createGuest.mockReset();
-    connectProvisional.mockReset();
-    identityJson.mockReset();
-    createGuest.mockResolvedValue(undefined);
+    guestAuthDependencies.createGuest = vi.fn().mockResolvedValue(undefined);
+    guestAuthDependencies.connectProvisional = vi.fn();
+    guestAuthDependencies.identityJson = vi.fn();
+    guestAuthDependencies.currentSession = () => null;
+    guestAuthDependencies.restoreSession = () => {};
   });
 
   afterEach(() => {
@@ -39,17 +29,31 @@ describe("chaos — guest login under a broken Identity plane", () => {
   });
 
   it("chaos: a refused provisional mint still opens the guest vault", async () => {
+    const connectProvisional = vi.mocked(
+      guestAuthDependencies.connectProvisional,
+    );
     connectProvisional.mockRejectedValue(new Error("429 slow down"));
     await continueAsGuest();
-    expect(createGuest).toHaveBeenCalledTimes(1);
+    expect(guestAuthDependencies.createGuest).toHaveBeenCalledTimes(1);
     expect(listNotices()[0]?.body).toMatch(/429 slow down/);
   });
 
   it("chaos: concurrent guest claims do not stack notices", async () => {
+    const connectProvisional = vi.mocked(
+      guestAuthDependencies.connectProvisional,
+    );
     connectProvisional.mockImplementation(
       () =>
         new Promise((resolve) => {
-          setTimeout(() => resolve({ principalId: "prn_guest" }), 20);
+          setTimeout(
+            () =>
+              resolve({
+                principalId: "prn_guest",
+                accessToken: "opaque-session:test",
+                issuerOrigin: "https://identity.example",
+              }),
+            20,
+          );
         }),
     );
     await Promise.all([claimGuestAuth(), claimGuestAuth(), claimGuestAuth()]);

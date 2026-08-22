@@ -117,8 +117,8 @@ export function GithubBackupPanel() {
       }
       const [nextStatus, nextConnections, integrations] = await Promise.all([
         getBackupStatus().catch(() => null),
-        listConnections().catch(() => overlapCast([])),
-        listIntegrations().catch(() => overlapCast([])),
+        listConnections().catch((): Connection[] => []),
+        listIntegrations().catch((): Integration[] => []),
       ]);
       if (nextStatus) setStatus(nextStatus);
       setConnections(nextConnections);

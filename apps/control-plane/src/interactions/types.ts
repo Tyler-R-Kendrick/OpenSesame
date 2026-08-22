@@ -1,8 +1,5 @@
-import {
-  type JsonObject,
-  type JsonValue,
-  type BoundaryValue,
-} from "@opensesame/os-domain";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import type { JsonObject, JsonValue } from "@opensesame/os-domain";
 /** Subset of the oidc-provider interaction details the interaction UI reads. */
 export interface InteractionPrompt {
   name: "login" | "consent" | string;
@@ -29,6 +26,13 @@ export interface InteractionDetails {
   };
 }
 
+export interface GrantHandle {
+  addOIDCScope(scope: string): void;
+  addOIDCClaims(claims: string[]): void;
+  addResourceScope(indicator: string, scope: string): void;
+  save(): Promise<string>;
+}
+
 /**
  * Structural subset of the panva `Provider` used here, so the handlers do
  * not fight oidc-provider's generics. `interactionResult` performs the
@@ -38,18 +42,16 @@ export interface InteractionDetails {
  */
 export type ProviderInteractions = {
   Grant: {
-    find(id: string): Promise<BoundaryValue>;
-    new (args: { accountId: string; clientId: string }): {
-      addOIDCScope(scope: string): void;
-      addOIDCClaims(claims: string[]): void;
-      addResourceScope(indicator: string, scope: string): void;
-      save(): Promise<string>;
-    };
+    find(id: string): Promise<GrantHandle | undefined>;
+    new (args: { accountId: string; clientId: string }): GrantHandle;
   };
-  interactionDetails(req: BoundaryValue, res: BoundaryValue): Promise<BoundaryValue>;
+  interactionDetails(
+    req: IncomingMessage,
+    res: ServerResponse,
+  ): Promise<InteractionDetails>;
   interactionResult(
-    req: BoundaryValue,
-    res: BoundaryValue,
+    req: IncomingMessage,
+    res: ServerResponse,
     result: JsonObject,
     opts?: { mergeWithLastSubmission?: boolean },
   ): Promise<string>;

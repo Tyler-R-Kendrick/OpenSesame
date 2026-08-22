@@ -31,7 +31,10 @@ export class UpstreamOidcProviderRegistry {
 
   /** Better Auth `socialProviders` / genericOAuth-compatible view. */
   toBetterAuthSocialConfig() {
-    const out = {};
+    const out: Record<
+      string,
+      { clientId: string; clientSecret: string; enabled: true }
+    > = {};
     for (const p of this.listEnabled()) {
       if (!p.clientSecret) continue;
       out[p.id] = {
