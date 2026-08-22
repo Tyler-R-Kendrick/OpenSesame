@@ -1,5 +1,8 @@
 use crate::ProofError;
+#[cfg(feature = "concurrency-test")]
+use shuttle::sync::Mutex;
 use std::collections::HashMap;
+#[cfg(not(feature = "concurrency-test"))]
 use std::sync::Mutex;
 
 /// Replay protection for `DPoP` `jti` values.
