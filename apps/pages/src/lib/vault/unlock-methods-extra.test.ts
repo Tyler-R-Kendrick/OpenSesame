@@ -391,7 +391,7 @@ describe("passkey ceremonies", () => {
     const failure = await createPasskeyUnlockCeremony(
       undefined,
       controller.signal,
-    ).catch((error: unknown) => error);
+    ).catch((error: BoundaryValue) => error);
     expect(failure).toBeInstanceOf(DOMException);
     if (!(failure instanceof DOMException)) throw failure;
     expect(failure.name).toBe("AbortError");
@@ -458,7 +458,7 @@ describe("passkey ceremonies", () => {
       record,
       "localhost",
       controller.signal,
-    ).catch((error: unknown) => error);
+    ).catch((error: BoundaryValue) => error);
     expect(seenSignal).toBe(controller.signal);
     // Deliberate cancels must stay distinguishable from ceremony failures.
     expect(failure).toBeInstanceOf(DOMException);

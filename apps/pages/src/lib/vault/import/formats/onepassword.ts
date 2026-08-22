@@ -62,9 +62,9 @@ type PuxItem = {
 
 type PuxExport = JsonObject & { accounts: JsonValue[] };
 
-function isPuxExport(json: unknown): json is PuxExport {
+function isPuxExport(json: BoundaryValue): json is PuxExport {
   if (
-    typeof json !== "object" ||
+    !isTypeofObject(json) ||
     json === null ||
     Array.isArray(json) ||
     !("accounts" in json)
@@ -74,7 +74,7 @@ function isPuxExport(json: unknown): json is PuxExport {
   if (!Array.isArray(accounts) || accounts.length === 0) return false;
   const first = accounts[0];
   return (
-    typeof first === "object" &&
+    isTypeofObject(first) &&
     first !== null &&
     !Array.isArray(first) &&
     "vaults" in first &&

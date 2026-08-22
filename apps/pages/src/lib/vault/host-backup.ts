@@ -7,6 +7,14 @@
  */
 
 import {
+  type BoundaryObject,
+  type BoundaryValue,
+  isNumber,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
+import {
   ensureHostSession,
   hostFetch,
   hostLocalSessionEligible,
@@ -35,14 +43,13 @@ let state: VaultHostBackupState = {
   pendingCount: 0,
 };
 
-function responseError(body: unknown, fallback: string): string {
-  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+function responseError(body: BoundaryValue, fallback: string): string {
+  if (!isTypeofObject(body) || body === null || Array.isArray(body)) {
     return fallback;
   }
-  const hint = "hint" in body ? body.hint : undefined;
-  if (typeof hint === "string") return hint;
-  const error = "error" in body ? body.error : undefined;
-  return typeof error === "string" ? error : fallback;
+  const row: BoundaryObject = overlapCast(body);
+  if (isString(row.hint)) return row.hint;
+  return isString(row.error) ? row.error : fallback;
 }
 
 function emit(next: Partial<VaultHostBackupState>): void {
@@ -141,24 +148,18 @@ export async function pushSealedVaultToHost(input: {
       body: JSON.stringify({ blobs }),
     });
     if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
+      const body: BoundaryValue = await res.json().catch(() => ({}));
       throw new Error(responseError(body, `Host sync refused (${res.status})`));
     }
-    const outcome = await res.json().catch(() => ({}));
-    const rejectedOversize =
-      typeof outcome === "object" &&
-      outcome !== null &&
-      "rejected_oversize" in outcome &&
-      typeof outcome.rejected_oversize === "number"
-        ? outcome.rejected_oversize
-        : 0;
-    const accepted =
-      typeof outcome === "object" &&
-      outcome !== null &&
-      "accepted" in outcome &&
-      typeof outcome.accepted === "number"
-        ? outcome.accepted
-        : 0;
+    const outcome: BoundaryValue = await res.json().catch(() => ({}));
+    const row: BoundaryObject =
+      isTypeofObject(outcome) && outcome !== null && !Array.isArray(outcome)
+        ? overlapCast(outcome)
+        : {};
+    const rejectedOversize = isNumber(row.rejected_oversize)
+      ? row.rejected_oversize
+      : 0;
+    const accepted = isNumber(row.accepted) ? row.accepted : 0;
     if (rejectedOversize > 0) {
       throw new Error(
         "Vault ciphertext exceeds Host sync size limit — backup did not accept this write",
@@ -235,7 +236,7 @@ export async function flushPendingVaultHostBackup(): Promise<number> {
         }),
       });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
+        const body: BoundaryValue = await res.json().catch(() => ({}));
         throw new Error(responseError(body, `sync ${res.status}`));
       }
       dequeueOfflineMutation(item.id);

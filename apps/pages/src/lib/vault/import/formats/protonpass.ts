@@ -1,6 +1,8 @@
 import {
+  type BoundaryValue,
   type JsonObject,
   type JsonValue,
+  isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
 /**
@@ -31,20 +33,24 @@ type ProtonExport = JsonObject & {
   version?: JsonValue;
 };
 
-function isProtonExport(json: unknown): json is ProtonExport {
+function isProtonExport(json: BoundaryValue): json is ProtonExport {
   if (
-    typeof json !== "object" ||
+    !isTypeofObject(json) ||
     json === null ||
     Array.isArray(json) ||
     !("vaults" in json)
   )
     return false;
   const vaults = json.vaults;
-  if (typeof vaults !== "object" || vaults === null || Array.isArray(vaults)) {
+  if (!isTypeofObject(vaults) || vaults === null || Array.isArray(vaults)) {
     return false;
   }
   return Object.values(vaults).some(
-    (vault) => typeof vault === "object" && vault !== null && "items" in vault,
+    (vault) =>
+      isTypeofObject(vault) &&
+      vault !== null &&
+      !Array.isArray(vault) &&
+      "items" in vault,
   );
 }
 

@@ -1,8 +1,10 @@
 import {
+  type BoundaryValue,
   type JsonObject,
   type JsonValue,
   isNumber,
   isString,
+  isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
 /**
@@ -31,14 +33,14 @@ import {
 } from "../types.js";
 
 /** Bitwarden's numeric match rules. Ours has no startsWith or regex. */
-const URI_MATCH: Record<number, UriMatch> = {
-  0: "domain",
-  1: "host",
-  2: "exact", // startsWith — closest honest neighbour
-  3: "exact",
-  4: "exact", // regex — we cannot evaluate one, so pin it
-  5: "never",
-};
+const URI_MATCH = new Map<number, UriMatch>([
+  [0, "domain"],
+  [1, "host"],
+  [2, "exact"], // startsWith — closest honest neighbour
+  [3, "exact"],
+  [4, "exact"], // regex — we cannot evaluate one, so pin it
+  [5, "never"],
+]);
 
 type BwUri = { uri?: JsonValue; match?: JsonValue };
 type BwField = {
@@ -65,9 +67,9 @@ type BwExport = JsonObject & {
   items: JsonValue[];
 };
 
-function isBitwardenJson(json: unknown): json is BwExport {
+function isBitwardenJson(json: BoundaryValue): json is BwExport {
   return (
-    typeof json === "object" &&
+    isTypeofObject(json) &&
     json !== null &&
     !Array.isArray(json) &&
     "items" in json &&
@@ -127,7 +129,7 @@ export const bitwardenJson: ImportAdapter = {
           for (const rawUri of Array.isArray(login.uris) ? login.uris : []) {
             const entry: BwUri = overlapCast(rawUri);
             const match = isNumber(entry.match)
-              ? (URI_MATCH[entry.match] ?? "domain")
+              ? (URI_MATCH.get(entry.match) ?? "domain")
               : "domain";
             addUri(draft, asString(entry.uri), match);
           }

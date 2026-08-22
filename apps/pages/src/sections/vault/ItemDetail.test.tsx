@@ -14,8 +14,12 @@ import type {
   VaultItem,
 } from "../../lib/vault/model.js";
 
+type VaultFixture = {
+  current: { items: VaultItem[]; folders: Folder[] };
+};
+
 const vault = vi.hoisted(
-  (): { current: { items: VaultItem[]; folders: Folder[] } } => ({
+  (): VaultFixture => ({
     current: {
       items: [],
       folders: [],

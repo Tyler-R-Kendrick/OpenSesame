@@ -379,7 +379,7 @@ export function formatWebauthnHostError(check: WebauthnHostCheck): string {
 }
 
 /** Map browser WebAuthn failures into actionable copy. */
-function describeWebauthnErrorDefault(error: unknown): string {
+function describeWebauthnErrorDefault<Thrown>(error: Thrown): string {
   if (error instanceof WebauthnHostError) return error.message;
   if (!(error instanceof Error)) return "Passkey ceremony failed.";
   const name = error.name;
@@ -580,7 +580,7 @@ export function checkWebauthnHost(
   return unlockMethodsSeams.checkWebauthnHost(hostname, href);
 }
 
-export function describeWebauthnError(error: unknown): string {
+export function describeWebauthnError<Thrown>(error: Thrown): string {
   return unlockMethodsSeams.describeWebauthnError(error);
 }
 

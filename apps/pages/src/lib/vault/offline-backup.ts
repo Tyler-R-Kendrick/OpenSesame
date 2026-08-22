@@ -1,5 +1,6 @@
 import {
   type BoundaryObject,
+  type BoundaryValue,
   isNumber,
   isString,
   isTypeofObject,
@@ -151,13 +152,13 @@ function parseOfflineBackupDefault(fileText: string): OfflineBackupEnvelope {
     throw new Error("That offline backup is larger than 64 MB.");
   }
   assertCiphertextOnlyBackupJson(fileText);
-  let parsed: unknown;
+  let parsed: BoundaryValue;
   try {
     parsed = JSON.parse(fileText);
   } catch {
     throw new Error("That file is not valid JSON.");
   }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+  if (!isTypeofObject(parsed) || parsed === null || Array.isArray(parsed)) {
     throw new Error("That file is not an OpenSesame offline backup.");
   }
   const row: BoundaryObject = overlapCast(parsed);

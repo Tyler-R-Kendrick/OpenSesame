@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet } from "../kv.js";
 import { WrongPasswordError, randomBytes } from "./crypto.js";
@@ -13,13 +13,15 @@ const PASSWORD = "correct horse battery staple";
  * wrapping, unwrapping, header persistence — runs for real. These stand-ins
  * return the PRF output a platform authenticator would have produced.
  */
+type CeremonyFixture = {
+  prfOutput: ArrayBuffer | null;
+  failCreate: BoundaryValue;
+  failGet: BoundaryValue;
+  noPrf: boolean;
+};
+
 const ceremony = vi.hoisted(
-  (): {
-    prfOutput: ArrayBuffer | null;
-    failCreate: unknown;
-    failGet: unknown;
-    noPrf: boolean;
-  } => ({
+  (): CeremonyFixture => ({
     prfOutput: null,
     failCreate: null,
     failGet: null,
@@ -97,7 +99,7 @@ describe("VaultStore passkey unlock", () => {
     controller.abort();
     const failure = await store
       .createWithPasskey(controller.signal)
-      .catch((error: unknown) => error);
+      .catch((error: BoundaryValue) => error);
     expect(failure).toBeInstanceOf(DOMException);
     if (!(failure instanceof DOMException)) throw failure;
     expect(failure.name).toBe("AbortError");
@@ -196,7 +198,7 @@ describe("VaultStore passkey unlock", () => {
     const reopened = new VaultStore();
     const failure = await reopened
       .unlockWithPasskey(new AbortController().signal)
-      .catch((error: unknown) => error);
+      .catch((error: BoundaryValue) => error);
     expect(failure).toBeInstanceOf(DOMException);
     if (!(failure instanceof DOMException)) throw failure;
     expect(failure.name).toBe("AbortError");

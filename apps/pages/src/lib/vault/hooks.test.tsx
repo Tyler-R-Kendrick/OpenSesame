@@ -34,6 +34,8 @@ type ClipboardStub = {
   writeText: ReturnType<typeof vi.fn>;
 };
 
+type ThemeProps = { theme: "system" | "light" | "dark" };
+
 function stubClipboard(overrides: Partial<ClipboardStub> = {}): ClipboardStub {
   const clipboard: ClipboardStub = {
     readText: vi.fn().mockResolvedValue(""),
@@ -368,11 +370,11 @@ describe("clearCopiedSecret", () => {
 
 describe("useTheme", () => {
   it("applies the theme attribute and removes it for system", () => {
-    const initialProps: { theme: "system" | "light" | "dark" } = {
+    const initialProps: ThemeProps = {
       theme: "dark",
     };
     const { rerender } = renderHook(
-      ({ theme }: { theme: "system" | "light" | "dark" }) => {
+      ({ theme }: ThemeProps) => {
         const snapshot = vaultStore.getSnapshot();
         vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
           ...snapshot,

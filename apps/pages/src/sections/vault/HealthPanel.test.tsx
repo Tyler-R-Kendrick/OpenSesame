@@ -5,9 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LoginItem, VaultItem } from "../../lib/vault/model.js";
 
-const vault = vi.hoisted((): { current: { items: VaultItem[] } } => ({
-  current: { items: [] },
-}));
+type VaultFixture = { current: { items: VaultItem[] } };
+
+const vault = vi.hoisted(
+  (): VaultFixture => ({
+    current: { items: [] },
+  }),
+);
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
