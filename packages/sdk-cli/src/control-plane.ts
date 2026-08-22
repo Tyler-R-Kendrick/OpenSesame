@@ -1,5 +1,10 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 import { assertSecureUrl, trimSlash } from "./secure-url.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 export interface ControlPlaneClientConfig {
   baseUrl: string;
@@ -8,7 +13,7 @@ export interface ControlPlaneClientConfig {
 }
 
 /** `POST /v1/principals/provisional` response (camelCase product API). */
-export interface ProvisionalSession {
+export interface ProvisionalSession extends JsonObject {
   principalId: string;
   state: string;
   assurance: string;
@@ -16,6 +21,38 @@ export interface ProvisionalSession {
   accessToken: string;
   expiresAt: string;
   tokenType: string;
+}
+
+function parseProvisionalSession(value: BoundaryValue): ProvisionalSession {
+  if (!isJsonObject(value) || !isString(value.accessToken)) {
+    throw new Error("provisional session response carried no access token");
+  }
+  if (
+    !isString(value.principalId) ||
+    !isString(value.state) ||
+    !isString(value.assurance) ||
+    !isString(value.sessionId) ||
+    !isString(value.expiresAt) ||
+    !isString(value.tokenType)
+  ) {
+    throw new Error("provisional session response was invalid");
+  }
+  return {
+    principalId: value.principalId,
+    state: value.state,
+    assurance: value.assurance,
+    sessionId: value.sessionId,
+    accessToken: value.accessToken,
+    expiresAt: value.expiresAt,
+    tokenType: value.tokenType,
+  };
+}
+
+function parseRegistration(value: BoundaryValue): JsonObject {
+  if (!isJsonObject(value)) {
+    throw new Error("agent registration response was invalid");
+  }
+  return value;
 }
 
 // The control plane mounts its product API under /v1 (apps/control-plane/src/app.ts).
@@ -53,10 +90,8 @@ export function createControlPlaneClient(config: ControlPlaneClientConfig) {
       if (!res.ok) {
         throw new Error(`provisional session failed: ${res.status}`);
       }
-      const session = overlapCast(await res.json());
-      if (!session.accessToken) {
-        throw new Error("provisional session response carried no access token");
-      }
+      const raw: BoundaryValue = await res.json();
+      const session = parseProvisionalSession(raw);
       bearer = session.accessToken;
       return session;
     },
@@ -115,7 +150,7 @@ export function createControlPlaneClient(config: ControlPlaneClientConfig) {
       displayName: string;
       publicKeyJkt: string;
       provider?: string;
-    }) {
+    }): Promise<JsonObject> {
       let provisional: ProvisionalSession | undefined;
       if (!bearer) {
         provisional = await this.createProvisionalSession();
@@ -125,7 +160,8 @@ export function createControlPlaneClient(config: ControlPlaneClientConfig) {
         body: JSON.stringify(input),
       });
       if (!res.ok) throw new Error(`agent register failed: ${res.status}`);
-      const registration = overlapCast(await res.json());
+      const raw: BoundaryValue = await res.json();
+      const registration = parseRegistration(raw);
       return provisional ? { ...registration, provisional } : registration;
     },
 

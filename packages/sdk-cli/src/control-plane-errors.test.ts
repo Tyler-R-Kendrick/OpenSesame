@@ -1,16 +1,17 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
 import { createControlPlaneClient } from "./control-plane.js";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const BASE = "http://127.0.0.1:8788";
 
-function fetchReturning(...responses: Response[]) {
+function fetchReturning(...responses: Response[]): typeof fetch {
   let i = 0;
-  return overlapCast(vi.fn(async () => {
+  return vi.fn(async () => {
     const res = responses[Math.min(i, responses.length - 1)];
     i += 1;
+    if (!res) throw new Error("missing mock response");
     return res;
-  }));
+  });
 }
 
 function json(body: BoundaryValue, status = 200): Response {
@@ -42,6 +43,13 @@ describe("createControlPlaneClient error paths", () => {
     );
   });
 
+  it("refuses an incomplete provisional session", async () => {
+    const cp = clientWith(fetchReturning(json({ accessToken: "pst_x" }, 201)));
+    await expect(cp.createProvisionalSession()).rejects.toThrow(
+      /response was invalid/u,
+    );
+  });
+
   it("surfaces a whoami rejection with the status", async () => {
     const cp = clientWith(fetchReturning(json({}, 401)), "pst_x");
     await expect(cp.whoami()).rejects.toThrow(/whoami failed: 401/u);
@@ -55,8 +63,8 @@ describe("createControlPlaneClient error paths", () => {
   });
 
   it("requires the osc_clm_ claim token shape before polling", async () => {
-    const fetchImpl = vi.fn();
-    const cp = clientWith(overlapCast(fetchImpl));
+    const fetchImpl: typeof fetch = vi.fn();
+    const cp = clientWith(fetchImpl);
     await expect(cp.pollClaim("clm_1", "not-a-claim-token")).rejects.toThrow(
       /osc_clm_/u,
     );
@@ -79,12 +87,12 @@ describe("createControlPlaneClient error paths", () => {
 
   it("surfaces a logout rejection and keeps the bearer", async () => {
     const seen: Array<string | null> = [];
-    const fetchImpl = overlapCast(vi.fn(
-      async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchImpl: typeof fetch = vi.fn(
+      async (_input: string | URL | Request, init?: RequestInit) => {
         seen.push(new Headers(init?.headers).get("authorization"));
         return json({}, 500);
       },
-    ));
+    );
     const cp = clientWith(fetchImpl, "pst_x");
     await expect(cp.logout()).rejects.toThrow(/logout failed: 500/u);
     // The session may still be live server-side; the client must keep the token
@@ -102,8 +110,8 @@ describe("createControlPlaneClient error paths", () => {
 
 describe("createControlPlaneClient authStatus", () => {
   it("reports unauthenticated without calling the server", async () => {
-    const fetchImpl = vi.fn();
-    const cp = clientWith(overlapCast(fetchImpl));
+    const fetchImpl: typeof fetch = vi.fn();
+    const cp = clientWith(fetchImpl);
     await expect(cp.authStatus()).resolves.toEqual({ authenticated: false });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
@@ -129,8 +137,8 @@ describe("createControlPlaneClient authStatus", () => {
 describe("createControlPlaneClient request headers", () => {
   it("marks JSON bodies and does not clobber a caller's content-type", async () => {
     const seen: Array<{ contentType: string | null; auth: string | null }> = [];
-    const fetchImpl = overlapCast(vi.fn(
-      async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchImpl: typeof fetch = vi.fn(
+      async (_input: string | URL | Request, init?: RequestInit) => {
         const headers = new Headers(init?.headers);
         seen.push({
           contentType: headers.get("content-type"),
@@ -138,7 +146,7 @@ describe("createControlPlaneClient request headers", () => {
         });
         return json({ ok: true });
       },
-    ));
+    );
     const cp = clientWith(fetchImpl, "pst_x");
 
     await cp.createTemporaryProject({ name: "t" });
