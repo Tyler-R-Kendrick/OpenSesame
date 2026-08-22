@@ -13,7 +13,7 @@ const fed = vi.hoisted(() => ({
   completeSignIn: vi.fn(),
   joinOrgTenant: vi.fn(),
   ensureIdentitySession: vi.fn(),
-  linkGuestAccount: vi.fn(),
+  adoptFederatedIdentity: vi.fn(),
 }));
 
 import { federationSeams } from "../lib/federation.js";
@@ -29,7 +29,7 @@ identitySeams.currentSession = () => null;
 identitySeams.identityBase = () => "http://127.0.0.1:18788";
 
 import { guestAuthSeams } from "../lib/guest-auth.js";
-guestAuthSeams.linkGuestAccount = fed.linkGuestAccount;
+guestAuthSeams.adoptFederatedIdentity = fed.adoptFederatedIdentity;
 
 import { FederationError } from "../lib/federation.js";
 import { FederationReturn } from "./FederationReturn.js";
@@ -50,8 +50,8 @@ describe("FederationReturn", () => {
     fed.completeSignIn.mockReset();
     fed.joinOrgTenant.mockReset();
     fed.ensureIdentitySession.mockReset();
-    fed.linkGuestAccount.mockReset();
-    fed.linkGuestAccount.mockResolvedValue(undefined);
+    fed.adoptFederatedIdentity.mockReset();
+    fed.adoptFederatedIdentity.mockResolvedValue(undefined);
   });
 
   afterEach(cleanup);
@@ -125,10 +125,10 @@ describe("FederationReturn", () => {
     renderReturn();
     expect(await screen.findByText("settings landed")).toBeTruthy();
     expect(fed.joinOrgTenant).toHaveBeenCalledWith("acme", "sso", "id-token");
-    expect(fed.linkGuestAccount).not.toHaveBeenCalled();
+    expect(fed.adoptFederatedIdentity).not.toHaveBeenCalled();
   });
 
-  it("claims the guest principal with the upstream id_token", async () => {
+  it("adopts the upstream identity with the id_token", async () => {
     fed.ensureIdentitySession.mockResolvedValue({
       principalId: "prn_guest",
       accessToken: "tok",
@@ -141,6 +141,23 @@ describe("FederationReturn", () => {
     renderReturn();
     expect(await screen.findByText("settings landed")).toBeTruthy();
     expect(fed.ensureIdentitySession).not.toHaveBeenCalled();
-    expect(fed.linkGuestAccount).toHaveBeenCalledWith("id-token");
+    expect(fed.adoptFederatedIdentity).toHaveBeenCalledWith("id-token");
+  });
+
+  it("shows the failure card when the identity cannot be attached", async () => {
+    fed.completeSignIn.mockResolvedValue({
+      returnTo: "/settings",
+      identity: { idToken: "id-token" },
+    });
+    fed.adoptFederatedIdentity.mockRejectedValue(
+      new Error(
+        "That account is already attached to a different OpenSesame identity.",
+      ),
+    );
+    renderReturn();
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Sign-in failed");
+    expect(alert.textContent).toContain("already attached to a different");
+    expect(screen.queryByText("settings landed")).toBeNull();
   });
 });

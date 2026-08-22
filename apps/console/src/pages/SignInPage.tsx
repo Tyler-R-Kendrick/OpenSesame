@@ -1,21 +1,72 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { clearClaimStash } from "../lib/claim-stash.js";
 import { createOpenSesame } from "../sdk-browser.js";
 
 const issuer =
   import.meta.env.VITE_OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
 
-export function SignInPage() {
-  const [error, setError] = useState<string | null>(null);
-  const [sessionHint, setSessionHint] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"signIn" | "anon" | null>(null);
+/** The upstream broker that fronts Google for this deployment. */
+const GOOGLE_PROVIDER = "shoo";
 
-  const sesame = createOpenSesame({
+function createClient() {
+  return createOpenSesame({
     issuer,
     clientId: "opensesame-console",
     redirectUri: `${window.location.origin}/`,
   });
+}
+
+/** An authorization response landed here: a code to spend, or a refusal. */
+function isCallbackReturn(search: string): boolean {
+  const params = new URLSearchParams(search);
+  if (params.has("error")) return true;
+  return params.has("code") && params.has("state");
+}
+
+export function SignInPage() {
+  const [error, setError] = useState<string | null>(null);
+  const [sessionHint, setSessionHint] = useState<string | null>(null);
+  const [busy, setBusy] = useState<
+    "signIn" | "google" | "anon" | "callback" | null
+  >(null);
+  const navigate = useNavigate();
+
+  /**
+   * The PKCE verifier is spent by the first exchange, so a second call would
+   * fail on state the first one already consumed. A ref survives StrictMode's
+   * remount; a state flag is reset by it.
+   */
+  const callbackStarted = useRef(false);
+
+  useEffect(() => {
+    if (callbackStarted.current) return;
+    if (!isCallbackReturn(window.location.search)) return;
+    callbackStarted.current = true;
+    const sesame = createClient();
+    setBusy("callback");
+    setError(null);
+    // handleRedirectCallback scrubs code/state/error from the URL itself, and
+    // on a refusal it also drops the verifier the redirect left behind.
+    void sesame
+      .handleRedirectCallback()
+      .then((s) => {
+        setSessionHint(`Signed in as ${s.sub ?? "unknown"}`);
+        const returnTo = sesame.getReturnTo();
+        if (returnTo) navigate(returnTo, { replace: true });
+      })
+      .catch((e: BoundaryValue) => {
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Sign-in could not be completed. Try again.",
+        );
+      })
+      .finally(() => setBusy(null));
+  }, [navigate]);
+
+  const sesame = createClient();
 
   return (
     <section className="panel">
@@ -47,6 +98,27 @@ export function SignInPage() {
           }}
         >
           {busy === "signIn" ? "Opening sign-in…" : "Sign in with OpenSesame"}
+        </button>
+        <button
+          type="button"
+          disabled={busy !== null}
+          aria-busy={busy === "google"}
+          onClick={() => {
+            setError(null);
+            setBusy("google");
+            void sesame
+              .signIn({ provider: GOOGLE_PROVIDER })
+              .catch((e: BoundaryValue) => {
+                setError(
+                  e instanceof Error
+                    ? e.message
+                    : "Sign-in failed. Check the Identity API and try again.",
+                );
+              })
+              .finally(() => setBusy(null));
+          }}
+        >
+          {busy === "google" ? "Opening sign-in…" : "Sign in with Google"}
         </button>
         <button
           type="button"

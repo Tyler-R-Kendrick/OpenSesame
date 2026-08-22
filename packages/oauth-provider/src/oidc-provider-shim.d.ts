@@ -79,6 +79,24 @@ declare module "oidc-provider" {
         }
       | undefined
     >;
+    /**
+     * Additional authorization/PAR/device/CIBA request parameters that reach
+     * `ctx.oidc.params` and the interaction session (oidc-provider 9.x).
+     * Accepts an iterable of names, or an object mapping each name to a
+     * validator called as `(ctx, value, client)` — `null`/`undefined` registers
+     * the name without validation.
+     */
+    extraParams?:
+      | string[]
+      | Record<
+          string,
+          | ((
+              ctx: KoaContext,
+              value: string | undefined,
+              client: import("@opensesame/os-domain").BoundaryValue,
+            ) => void | Promise<void>)
+          | null
+        >;
     ttl?: import("@opensesame/os-domain").JsonObject;
     routes?: Record<string, string>;
     scopes?: string[];

@@ -96,6 +96,21 @@ import { guestAuthSeams } from "../lib/guest-auth.js";
 const continueAsGuest = vi.fn();
 Object.assign(guestAuthSeams, { continueAsGuest });
 
+import { federationSeams } from "../lib/federation.js";
+const beginSignIn = vi.fn();
+const UPSTREAM = {
+  id: "mock",
+  displayName: "Local mock IdP",
+  issuer: "http://127.0.0.1:9090",
+  accountKind: "a seeded test account",
+};
+Object.assign(federationSeams, {
+  beginSignIn,
+  defaultUpstream: () => UPSTREAM,
+});
+
+const FEDERATED_BUTTON = `Sign in with ${UPSTREAM.accountKind} — no passkey or password`;
+
 import { UnlockScreen } from "./UnlockScreen.js";
 
 const STRONG = "correct horse battery staple";
@@ -135,6 +150,10 @@ describe("UnlockScreen — first run", () => {
     v.store.createWithPin.mockResolvedValue(undefined);
     continueAsGuest.mockReset();
     continueAsGuest.mockResolvedValue(undefined);
+    beginSignIn.mockReset();
+    // Real sign-in navigates away and never settles; a pending promise is the
+    // honest stand-in.
+    beginSignIn.mockReturnValue(new Promise(() => {}));
   });
 
   afterEach(cleanup);
@@ -309,6 +328,37 @@ describe("UnlockScreen — first run", () => {
     expect(v.store.createWithPin).not.toHaveBeenCalled();
   });
 
+  it("offers federated sign-in before it asks for a password (ADR 0033 §4)", () => {
+    render(<UnlockScreen />);
+    const federated = screen.getByRole("button", { name: FEDERATED_BUTTON });
+    const guest = screen.getByRole("button", {
+      name: "Continue as guest — no passkey or password",
+    });
+    // Identity first: the federated path is offered above the guest path.
+    expect(
+      federated.compareDocumentPosition(guest) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByText(/Two ways in/)).toBeTruthy();
+  });
+
+  it("starts sign-in at the default upstream and returns to the app root", () => {
+    render(<UnlockScreen />);
+    fireEvent.click(screen.getByRole("button", { name: FEDERATED_BUTTON }));
+    expect(beginSignIn).toHaveBeenCalledWith(UPSTREAM, { returnTo: "/" });
+    expect(continueAsGuest).not.toHaveBeenCalled();
+    expect(v.store.create).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a failed sign-in and re-enables the card", async () => {
+    beginSignIn.mockRejectedValue(new Error("broker unreachable"));
+    render(<UnlockScreen />);
+    const federated = screen.getByRole("button", { name: FEDERATED_BUTTON });
+    fireEvent.click(federated);
+    expect(await screen.findByText("broker unreachable")).toBeTruthy();
+    await waitFor(() => expect(federated.hasAttribute("disabled")).toBe(false));
+  });
+
   it("does not offer the reset affordance on first run", () => {
     render(<UnlockScreen />);
     expect(
@@ -335,6 +385,13 @@ describe("UnlockScreen — password unlock", () => {
   });
 
   afterEach(cleanup);
+
+  it("keeps federated sign-in off the unlock card for an existing vault", () => {
+    render(<UnlockScreen />);
+    expect(
+      screen.queryByRole("button", { name: FEDERATED_BUTTON }),
+    ).toBeNull();
+  });
 
   it("shows the stored reminder and the passkey-enrolment nudge", () => {
     render(<UnlockScreen />);

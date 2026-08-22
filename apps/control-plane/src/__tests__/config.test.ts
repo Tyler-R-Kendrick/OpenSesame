@@ -59,6 +59,36 @@ describe("assertSecureConfig", () => {
       assertSecureConfig({ ...prodBase(), host: "0.0.0.0" }),
     ).toThrow(/not loopback/);
   });
+
+  it("rejects an empty trusted upstream allowlist in production", () => {
+    expect(() =>
+      assertSecureConfig({ ...prodBase(), trustedUpstreamIssuers: [] }),
+    ).toThrow(/TRUSTED_UPSTREAMS/);
+  });
+
+  it("rejects a non-https trusted upstream issuer in production", () => {
+    expect(() =>
+      assertSecureConfig({
+        ...prodBase(),
+        trustedUpstreamIssuers: ["https://shoo.dev", "http://127.0.0.1:9090"],
+      }),
+    ).toThrow(/must use https in production/);
+  });
+
+  it("permits an empty or http trusted upstream allowlist outside production", () => {
+    const dev: ControlPlaneConfig = {
+      ...prodBase(),
+      isProduction: false,
+      trustedUpstreamIssuers: [],
+    };
+    expect(() => assertSecureConfig(dev)).not.toThrow();
+    expect(() =>
+      assertSecureConfig({
+        ...dev,
+        trustedUpstreamIssuers: ["http://127.0.0.1:9090"],
+      }),
+    ).not.toThrow();
+  });
 });
 
 describe("assertListenHostAllowed", () => {

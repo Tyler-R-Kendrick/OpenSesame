@@ -43,3 +43,6 @@ package-lock.json
 # cargo-mutants working directories
 mutants.out/
 mutants.out.old/
+
+# local Claude Code permission posture (personal, not shared)
+.claude/settings.local.json

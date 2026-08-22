@@ -227,5 +227,21 @@ export function assertSecureConfig(
       "OPENSESAME_CORS_ORIGINS must not include * or null in production",
     );
   }
+  // A deployment with no trusted broker can admit no durable principal
+  // (ADR 0033 §1/§2). Refusing to boot is louder than silently denying every
+  // sign-in. Development stays permissive: the mock IdP is plain http.
+  if (config.isProduction && !config.trustedUpstreamIssuers.length) {
+    throw new Error(
+      "OPENSESAME_TRUSTED_UPSTREAMS must list at least one issuer in production",
+    );
+  }
+  const insecureUpstream = config.trustedUpstreamIssuers.find(
+    (issuer) => !issuer.startsWith("https://"),
+  );
+  if (config.isProduction && insecureUpstream) {
+    throw new Error(
+      `OPENSESAME_TRUSTED_UPSTREAMS must use https in production; got \`${insecureUpstream}\``,
+    );
+  }
   assertListenHostAllowed(config.host, env);
 }
