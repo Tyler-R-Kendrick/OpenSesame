@@ -141,6 +141,41 @@ pub struct MapSecretSource {
     pub entries: BTreeMap<String, String>,
 }
 
+/// Wraps a source and keeps only an allow-listed subset of key names.
+/// An empty allow list means "no filter" (the wire's `key_names: []` default).
+pub struct KeyFilteredSecretSource {
+    inner: Arc<dyn SyncSecretSource>,
+    allow: std::collections::BTreeSet<String>,
+}
+
+impl KeyFilteredSecretSource {
+    pub fn new(inner: Arc<dyn SyncSecretSource>, allow: Vec<String>) -> Self {
+        Self {
+            inner,
+            allow: allow.into_iter().collect(),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl SyncSecretSource for KeyFilteredSecretSource {
+    async fn load_config_secrets(
+        &self,
+        organization_id: &str,
+        project_id: &str,
+        config_id: &str,
+    ) -> Result<BTreeMap<String, String>> {
+        let mut entries = self
+            .inner
+            .load_config_secrets(organization_id, project_id, config_id)
+            .await?;
+        if !self.allow.is_empty() {
+            entries.retain(|name, _| self.allow.contains(name));
+        }
+        Ok(entries)
+    }
+}
+
 #[async_trait::async_trait]
 impl SyncSecretSource for MapSecretSource {
     async fn load_config_secrets(
@@ -461,7 +496,7 @@ impl ConnectionBroker {
             )
             .await?;
         let key_names: Vec<String> = entries.keys().cloned().collect();
-        let content_version = content_version_for(&target.id, &key_names);
+        let content_version = content_version_for(&key, &target.id, &entries);
 
         self.invoke_env_sync(
             &target.provider_id,
@@ -606,16 +641,34 @@ fn env_sync_provider_supported(provider_id: &str) -> bool {
     matches!(provider_id, "vercel" | "railway")
 }
 
-fn content_version_for(target_id: &str, key_names: &[String]) -> String {
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(target_id.as_bytes());
-    hasher.update(b"|");
-    for name in key_names {
-        hasher.update(name.as_bytes());
-        hasher.update(b",");
+/// Change fingerprint for a synced key set (v2).
+///
+/// v1 hashed key names only, so pure value changes were invisible and any
+/// consumer that skipped "unchanged" content versions would skip real
+/// updates. v2 is an HMAC over the resolved entries, keyed by the deployment
+/// seal key: value-sensitive (including changes that arrive through secret
+/// references), deterministic, and useless to an offline brute-forcer who
+/// only sees the fingerprint.
+fn content_version_for(
+    seal_key: &[u8; 32],
+    target_id: &str,
+    entries: &BTreeMap<String, String>,
+) -> String {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+    let mut mac =
+        <Hmac<Sha256> as Mac>::new_from_slice(seal_key).expect("hmac accepts 32-byte keys");
+    mac.update(target_id.as_bytes());
+    mac.update(b"|");
+    for (name, value) in entries {
+        mac.update(name.as_bytes());
+        mac.update(b"=");
+        mac.update(value.as_bytes());
+        mac.update(b"\0");
     }
-    format!("cv_{:x}", hasher.finalize())
+    let digest = mac.finalize().into_bytes();
+    let hex: String = digest.iter().map(|b| format!("{b:02x}")).collect();
+    format!("cv2_{hex}")
 }
 
 #[cfg(test)]
@@ -630,13 +683,26 @@ mod unit_tests {
     }
 
     #[test]
-    fn content_version_is_names_only() {
-        let a = content_version_for("t1", &["FOO".into(), "BAR".into()]);
-        let b = content_version_for("t1", &["FOO".into(), "BAR".into()]);
+    fn content_version_v2_tracks_values_without_exposing_them() {
+        let key = [7u8; 32];
+        let entries: BTreeMap<String, String> = [("FOO".to_string(), "one".to_string())]
+            .into_iter()
+            .collect();
+        let a = content_version_for(&key, "t1", &entries);
+        let b = content_version_for(&key, "t1", &entries);
         assert_eq!(a, b);
-        assert!(a.starts_with("cv_"));
-        let c = content_version_for("t1", &["FOO".into()]);
-        assert_ne!(a, c);
+        assert!(a.starts_with("cv2_"));
+        // A value change alone changes the fingerprint (the v1 names-only
+        // hash missed this, which made skip-if-unchanged skip real updates).
+        let changed: BTreeMap<String, String> = [("FOO".to_string(), "two".to_string())]
+            .into_iter()
+            .collect();
+        assert_ne!(a, content_version_for(&key, "t1", &changed));
+        // Keyed: without the deployment seal key the fingerprint differs, so
+        // the stored value cannot be brute-forced from the fingerprint alone.
+        assert_ne!(a, content_version_for(&[8u8; 32], "t1", &entries));
+        // The fingerprint never embeds the value.
+        assert!(!a.contains("one"));
     }
 }
 

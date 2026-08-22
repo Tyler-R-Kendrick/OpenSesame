@@ -73,8 +73,8 @@ pub use crate::secret_config::{
     ConfigKeyMeta, CreateSecretConfig, SecretConfigView, StoreSecretSource,
 };
 pub use crate::sync_target::{
-    CreateSyncTarget, EmptySecretSource, MapSecretSource, SyncOutcome, SyncSecretSource,
-    SyncTargetStatus, SyncTargetView,
+    CreateSyncTarget, EmptySecretSource, KeyFilteredSecretSource, MapSecretSource, SyncOutcome,
+    SyncSecretSource, SyncTargetStatus, SyncTargetView,
 };
 
 use crate::store::{AuthorizationRow, ConnectionRow, CredentialRow};
