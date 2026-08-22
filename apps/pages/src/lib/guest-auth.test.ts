@@ -69,6 +69,7 @@ describe("continueAsGuest", () => {
     expect(notices[0]).toMatchObject({
       kind: "guest_claim",
       title: "Claim this guest session",
+      body: "You skipped registered sign-in. Sign in with a trusted account to attach it to this principal — the id stays the same.",
     });
     expect(sessionStorage).toHaveLength(0);
   });
@@ -79,7 +80,17 @@ describe("continueAsGuest", () => {
     expect(createGuest).toHaveBeenCalledTimes(1);
     const notices = listNotices();
     expect(notices).toHaveLength(1);
+    expect(notices[0]?.kind).toBe("guest_claim");
     expect(notices[0]?.body).toMatch(/Identity unreachable/);
+  });
+
+  it("uses the generic recovery copy for a non-Error Identity failure", async () => {
+    connectProvisional.mockRejectedValue("offline");
+    await continueAsGuest();
+    expect(listNotices()[0]).toMatchObject({
+      kind: "guest_claim",
+      body: "Continue as guest succeeded. Claim auth from the notifications bell when you want a registered sign-in.",
+    });
   });
 });
 

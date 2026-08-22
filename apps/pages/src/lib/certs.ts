@@ -90,8 +90,9 @@ async function issueCertificateDefault(input: {
     }),
   });
   if (!res.ok) await fail(res, "Could not issue certificate");
-  const body = overlapCast(await res.json());
-  return toIssued(readJsonObject(body) ?? body);
+  const body = readJsonObject(overlapCast(await res.json()));
+  if (!body) throw new Error("Host returned incomplete certificate material");
+  return toIssued(body);
 }
 
 export const certsSeams = {

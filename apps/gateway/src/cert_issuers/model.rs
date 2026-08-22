@@ -98,9 +98,6 @@ impl TryFrom<CertificateRequestInput> for CertificateRequest {
     type Error = IssuerError;
 
     fn try_from(input: CertificateRequestInput) -> Result<Self, Self::Error> {
-        if input.dns_names.len() > MAX_DNS_NAMES {
-            return Err(IssuerError::TooManyDnsNames);
-        }
         if input.ip_addrs.len() > MAX_IP_ADDRS {
             return Err(IssuerError::TooManyIpAddresses);
         }
@@ -110,6 +107,9 @@ impl TryFrom<CertificateRequestInput> for CertificateRequest {
         dns_names.insert(common_name.clone());
         for name in input.dns_names {
             dns_names.insert(normalize_dns_name(&name)?);
+        }
+        if dns_names.len() > MAX_DNS_NAMES {
+            return Err(IssuerError::TooManyDnsNames);
         }
 
         let ttl = input.ttl.unwrap_or(DEFAULT_TTL);
@@ -145,12 +145,13 @@ impl CertificateRequest {
     }
 
     pub fn require_public_dns(&self) -> Result<(), IssuerError> {
-        if !self.ip_addrs.is_empty()
-            || self.dns_names.iter().any(|name| {
-                let bare = name.strip_prefix("*.").unwrap_or(name);
-                bare == "localhost" || !bare.contains('.')
-            })
-        {
+        if !self.ip_addrs.is_empty() {
+            return Err(IssuerError::PublicDnsRequired);
+        }
+        if self.dns_names.iter().any(|name| {
+            let bare = name.strip_prefix("*.").unwrap_or(name);
+            bare == "localhost" || !bare.contains('.')
+        }) {
             return Err(IssuerError::PublicDnsRequired);
         }
         Ok(())
@@ -159,21 +160,41 @@ impl CertificateRequest {
 
 fn normalize_dns_name(raw: &str) -> Result<String, IssuerError> {
     let name = raw.trim().to_ascii_lowercase();
-    if name.is_empty() || name.len() > 253 || name.ends_with('.') || !name.is_ascii() {
+    if name.is_empty() {
+        return Err(IssuerError::InvalidDnsName);
+    }
+    if name.len() > 253 {
+        return Err(IssuerError::InvalidDnsName);
+    }
+    if name.ends_with('.') {
+        return Err(IssuerError::InvalidDnsName);
+    }
+    if !name.is_ascii() {
         return Err(IssuerError::InvalidDnsName);
     }
     let bare = name.strip_prefix("*.").unwrap_or(&name);
-    if bare.is_empty() || bare.contains('*') {
+    if bare.is_empty() {
+        return Err(IssuerError::InvalidDnsName);
+    }
+    if bare.contains('*') {
         return Err(IssuerError::InvalidDnsName);
     }
     for label in bare.split('.') {
-        if label.is_empty()
-            || label.len() > 63
-            || label.starts_with('-')
-            || label.ends_with('-')
-            || !label
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+        if label.is_empty() {
+            return Err(IssuerError::InvalidDnsName);
+        }
+        if label.len() > 63 {
+            return Err(IssuerError::InvalidDnsName);
+        }
+        if label.starts_with('-') {
+            return Err(IssuerError::InvalidDnsName);
+        }
+        if label.ends_with('-') {
+            return Err(IssuerError::InvalidDnsName);
+        }
+        if !label
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
         {
             return Err(IssuerError::InvalidDnsName);
         }
@@ -452,6 +473,59 @@ mod tests {
     }
 
     #[test]
+    fn contract_request_limits_are_exact_and_include_the_common_name() {
+        assert_eq!(DEFAULT_TTL, Duration::from_secs(86_400));
+        assert_eq!(MAX_TTL, Duration::from_secs(7_776_000));
+        assert_eq!(MAX_CERTIFICATE_CHAIN_BYTES, 262_144);
+
+        let accepted = CertificateRequest::try_from(CertificateRequestInput {
+            common_name: "example.com".into(),
+            dns_names: (0..99)
+                .map(|index| format!("n{index}.example.com"))
+                .collect(),
+            ip_addrs: (1..=16)
+                .map(|last| IpAddr::from([192, 0, 2, last]))
+                .collect(),
+            ttl: Some(MAX_TTL),
+        })
+        .unwrap();
+        assert_eq!(accepted.dns_names().len(), 100);
+        assert_eq!(accepted.ip_addrs().len(), 16);
+        assert_eq!(accepted.ttl(), MAX_TTL);
+
+        let too_many_dns = CertificateRequestInput {
+            common_name: "example.com".into(),
+            dns_names: (0..100)
+                .map(|index| format!("n{index}.example.com"))
+                .collect(),
+            ip_addrs: Vec::new(),
+            ttl: None,
+        };
+        assert_eq!(
+            CertificateRequest::try_from(too_many_dns),
+            Err(IssuerError::TooManyDnsNames)
+        );
+
+        let mut too_many_ips = CertificateRequestInput::new("example.com");
+        too_many_ips.ip_addrs = (1..=17)
+            .map(|last| IpAddr::from([192, 0, 2, last]))
+            .collect();
+        assert_eq!(
+            CertificateRequest::try_from(too_many_ips),
+            Err(IssuerError::TooManyIpAddresses)
+        );
+
+        for ttl in [Duration::ZERO, MAX_TTL + Duration::from_secs(1)] {
+            let mut input = CertificateRequestInput::new("example.com");
+            input.ttl = Some(ttl);
+            assert_eq!(
+                CertificateRequest::try_from(input),
+                Err(IssuerError::InvalidTtl)
+            );
+        }
+    }
+
+    #[test]
     fn adversarial_request_rejects_ambiguous_names_and_unsupported_challenges() {
         for name in [
             "",
@@ -459,13 +533,34 @@ mod tests {
             "example.com.",
             "a..example.com",
             "a_1.example.com",
+            "-a.example.com",
+            "a-.example.com",
             "*.*.example.com",
+            "café.example.com",
+            &format!(
+                "{}.{}.{}.{}",
+                "a".repeat(63),
+                "b".repeat(63),
+                "c".repeat(63),
+                "d".repeat(62)
+            ),
+            &format!("{}.example.com", "a".repeat(64)),
         ] {
             assert_eq!(
                 CertificateRequest::try_from(CertificateRequestInput::new(name)).unwrap_err(),
                 IssuerError::InvalidDnsName
             );
         }
+
+        let maximum_name = format!(
+            "{}.{}.{}.{}",
+            "a".repeat(63),
+            "b".repeat(63),
+            "c".repeat(63),
+            "d".repeat(61)
+        );
+        assert_eq!(maximum_name.len(), 253);
+        assert!(CertificateRequest::try_from(CertificateRequestInput::new(maximum_name)).is_ok());
         assert_eq!(
             ChallengeKind::Http01.require_dns01().unwrap_err(),
             IssuerError::UnsupportedChallenge(ChallengeKind::Http01)
@@ -482,6 +577,13 @@ mod tests {
             CertificateRequest::try_from(CertificateRequestInput::new("localhost")).unwrap();
         assert_eq!(
             local.require_public_dns(),
+            Err(IssuerError::PublicDnsRequired)
+        );
+
+        let single_label =
+            CertificateRequest::try_from(CertificateRequestInput::new("intranet")).unwrap();
+        assert_eq!(
+            single_label.require_public_dns(),
             Err(IssuerError::PublicDnsRequired)
         );
 

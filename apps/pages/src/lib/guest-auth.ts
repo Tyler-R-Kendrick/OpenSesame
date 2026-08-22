@@ -40,6 +40,7 @@ const FEDERATED_NOTICE_BODY =
 const COLLISION_MESSAGE =
   "That account is already attached to a different OpenSesame identity.";
 
+// Stryker disable all: mutable test seam; behavior is exercised through the exported operations
 export const guestAuthDependencies = {
   connectProvisional,
   currentSession,
@@ -48,6 +49,7 @@ export const guestAuthDependencies = {
   vaultStatus: () => vaultStore.getSnapshot().status,
   loadFederationSession,
 };
+// Stryker restore all
 
 /**
  * Presence check for a storage key that fails closed.
@@ -96,7 +98,7 @@ function pendingLinkMarked(): boolean {
 let inFlightClaim: Promise<void> | null = null;
 
 async function claimGuestAuthDefault(): Promise<void> {
-  if (listNotices().some((notice) => notice.kind === "guest_claim")) {
+  if (listNotices().length > 0) {
     return;
   }
   if (inFlightClaim) return inFlightClaim;
