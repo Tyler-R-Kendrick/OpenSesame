@@ -302,6 +302,9 @@ pub async fn put_secrets(
         .await
     {
         Ok(keys) => {
+            // SYNC_ACTOR: the mutation appended `sync.config.dirty` rows in the
+            // same transaction; wake the actor so fan-out starts immediately.
+            st.sync_notify.notify_one();
             let body = json!({ "keys": keys });
             if let Err(resp) = assert_no_secret_fields(&body) {
                 return resp;
@@ -360,7 +363,11 @@ pub async fn delete_secret(
         )
         .await
     {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(()) => {
+            // SYNC_ACTOR: tombstone appended `sync.config.dirty`; wake the actor.
+            st.sync_notify.notify_one();
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => broker_error(e),
     }
 }
@@ -427,6 +434,9 @@ pub async fn rollback(
         .await
     {
         Ok(new_version) => {
+            // SYNC_ACTOR: rollback wrote a new head version and appended
+            // `sync.config.dirty`; wake the actor.
+            st.sync_notify.notify_one();
             let body = json!({ "key_name": key, "version": new_version });
             if let Err(resp) = assert_no_secret_fields(&body) {
                 return resp;
