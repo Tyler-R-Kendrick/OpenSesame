@@ -1,1 +1,0 @@
-import{_ as o,o as c}from"./index-DVbuLIFf.js";async function e(n){const t=await o(()=>import("./promise-default-C7JSW0XY.js"),[]);return c(await t.connect(n))}const a={connect:e};async function s(n){return a.connect(n)}export{s as connectTurso,a as tursoConnectSeams};
