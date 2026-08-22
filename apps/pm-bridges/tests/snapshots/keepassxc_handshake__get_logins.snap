@@ -1,0 +1,21 @@
+---
+source: apps/pm-bridges/tests/keepassxc_handshake.rs
+expression: logins
+---
+{
+  "count": "1",
+  "entries": [
+    {
+      "group": "Web",
+      "login": "alice",
+      "name": "Web/example.com",
+      "password": "hunter2",
+      "stringFields": [],
+      "uuid": "e2ac1c805bacf310583c504787f1670c"
+    }
+  ],
+  "hash": "[database-hash]",
+  "nonce": "[nonce]",
+  "success": "true",
+  "version": "2.7.0"
+}

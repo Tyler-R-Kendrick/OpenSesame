@@ -9,14 +9,43 @@ description = "Local-IPC bridge binaries serving foreign password-manager client
 opensesame-sealed-store = { path = "../../crates/sealed-store" }
 anyhow = { workspace = true }
 base64 = { workspace = true }
-crypto_box = { version = "0.9.1", features = ["std"] }
+crypto_box = { version = "0.9.1", features = ["std"], optional = true }
 directories = "6.0.0"
 rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sha2 = { workspace = true }
 thiserror = { workspace = true }
 zeroize = { workspace = true }
 
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
 [dev-dependencies]
-insta = { workspace = true }
+insta = { workspace = true, features = ["redactions"] }
 tempfile = { workspace = true }
+
+[features]
+# Everything is opt-in (constitution C7): a default build compiles the shared
+# helpers and ships no serving surface at all.
+default = []
+keepassxc = ["dep:crypto_box"]
+browserpass = []
+gopass = []
+secret-service = []
+webdav = []
+
+[[bin]]
+name = "opensesame-browserpass-host"
+path = "src/bin/browserpass_host.rs"
+required-features = ["browserpass"]
+
+[[bin]]
+name = "opensesame-gopass-jsonapi"
+path = "src/bin/gopass_jsonapi.rs"
+required-features = ["gopass"]
+
+[[bin]]
+name = "opensesame-keepassxc-bridge"
+path = "src/bin/keepassxc_bridge.rs"
+required-features = ["keepassxc"]

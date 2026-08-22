@@ -1,0 +1,29 @@
+---
+source: apps/pm-bridges/tests/keepassxc_handshake.rs
+expression: groups
+---
+{
+  "defaultGroup": "keepassxc-browser",
+  "defaultGroupAlwaysAllow": false,
+  "groups": [
+    {
+      "children": [
+        {
+          "children": [],
+          "name": "Dev",
+          "uuid": "[uuid]"
+        },
+        {
+          "children": [],
+          "name": "Web",
+          "uuid": "[uuid]"
+        }
+      ],
+      "name": "OpenSesame",
+      "uuid": "[uuid]"
+    }
+  ],
+  "nonce": "[nonce]",
+  "success": "true",
+  "version": "2.7.0"
+}

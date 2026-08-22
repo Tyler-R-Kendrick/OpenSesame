@@ -1,0 +1,9 @@
+---
+source: apps/pm-bridges/tests/gopass_golden.rs
+expression: data
+---
+{
+  "current_totp": "[totp]",
+  "login": "alice",
+  "url": "https://example.com/login"
+}
