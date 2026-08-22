@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { appendAuditEvent } from "@opensesame/audit";
+import { appendAuditEvent, recordSecretChangelog } from "@opensesame/audit";
 import {
   ActiveProjectResponseSchema,
   AddProjectMemberRequestSchema,
@@ -173,6 +173,38 @@ export async function ensurePersonalProject(
     undefined,
     ctx.clock(),
   );
+  return project;
+}
+
+/**
+ * First-authenticated-session hook (WP-8): the moment a principal's session
+ * stops being anonymous (their first verified identity link), their personal
+ * project is ensured and the provisioning is recorded as a
+ * `project.personal.ensured` changelog event through
+ * {@link recordSecretChangelog} into the hash-chained audit trail. Idempotent:
+ * a later session finds the project already present and records nothing.
+ */
+export async function ensurePersonalOnAuthenticatedSession(
+  ctx: AppContext,
+  principalId: string,
+  correlationId?: string,
+): Promise<Project> {
+  const { project, created } = await ctx.stores.projects.ensurePersonal(
+    principalId,
+    undefined,
+    ctx.clock(),
+  );
+  if (created) {
+    await recordSecretChangelog(ctx.repos.auditEvents, {
+      eventType: "project.personal.ensured",
+      outcome: "succeeded",
+      projectId: project.id,
+      principalId,
+      actorType: "human",
+      ...(correlationId !== undefined ? { correlationId } : undefined),
+      metadata: { action: "project.personal.ensure", slug: project.slug },
+    });
+  }
   return project;
 }
 
@@ -432,7 +464,9 @@ projectRoutes.post(
     );
 
     if (created) {
-      await appendAuditEvent(ctx.repos.auditEvents, {
+      // The durable changelog path: same event, same redaction allowlist as
+      // appendAuditEvent, but fenced to the frozen changelog vocabulary.
+      await recordSecretChangelog(ctx.repos.auditEvents, {
         eventType: "project.personal.ensured",
         outcome: "succeeded",
         principalId,
@@ -441,9 +475,6 @@ projectRoutes.post(
         metadata: {
           action: "project.personal.ensure",
           slug: project.slug,
-          sealedStoreTombName: project.sealedStoreTombName,
-          pagesVaultFolderId: project.pagesVaultFolderId,
-          created: true,
         },
       });
     }

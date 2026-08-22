@@ -35,6 +35,7 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.2.17",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "tsx": "4.19.4",
