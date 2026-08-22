@@ -91,8 +91,7 @@ export default defineConfig({
     screenshot: "off",
   },
   webServer: {
-    command:
-      `pnpm --filter @opensesame/pages build && pnpm --filter @opensesame/pages exec vite preview --port ${PORT} --strictPort`,
+    command: `pnpm --filter @opensesame/pages build && pnpm --filter @opensesame/pages exec vite preview --port ${PORT} --strictPort`,
     // Playwright 1.55.1 rejects a webServer config specifying both `port`
     // and `url` ("Either 'port' or 'url' should be specified"); `url` alone
     // both pins the readiness check and matches `use.baseURL` above, so it's
