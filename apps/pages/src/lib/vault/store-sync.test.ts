@@ -8,7 +8,6 @@ import {
   planManifestMerge,
   sealedBytesToSyncBlobs,
   splitStorePath,
-  storePathToSyncBlobId,
   vaultItemToEntry,
 } from "./store-sync.js";
 
@@ -93,8 +92,8 @@ describe("store-sync mapping", () => {
   });
 
   it("maps sealed bytes to opaque sync blobs without plaintext", () => {
-    const id = storePathToSyncBlobId("Email/github.com", "p1");
-    expect(id).toBe("project:p1:Email/github.com");
+    // Blob ids reach the Host verbatim, so they must carry no store path.
+    const id = "project:p1:0f3a9c";
     const blobs = sealedBytesToSyncBlobs([
       { id, epoch: 4, ciphertext: new Uint8Array([1, 2, 3]) },
     ]);
