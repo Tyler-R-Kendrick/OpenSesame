@@ -1,7 +1,8 @@
-import { overlapCast } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const hostFetch = vi.hoisted(() => vi.fn());
+const hostFetch = vi.hoisted(() =>
+  vi.fn<(path: string, init?: RequestInit) => Promise<Response>>(),
+);
 import { identitySeams } from "./identity.js";
 Object.assign(identitySeams, { hostFetch });
 import { issueCertificate } from "./certs.js";
@@ -32,7 +33,8 @@ describe("issueCertificate", () => {
     const issued = await issueCertificate({ commonName: "localhost" });
     expect(issued.commonName).toBe("localhost");
     expect(issued.privateKey).toContain("BEGIN PRIVATE KEY");
-    const [, init] = overlapCast(hostFetch.mock.calls[0]);
+    const init = hostFetch.mock.calls[0]?.[1];
+    if (!init) throw new Error("Host request was not recorded");
     expect(JSON.parse(String(init.body)).common_name).toBe("localhost");
   });
 });
