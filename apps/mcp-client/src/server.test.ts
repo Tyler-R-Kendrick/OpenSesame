@@ -1,5 +1,9 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import {
+  type CallToolResult,
+  CallToolResultSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClientSeams } from "./api-client.js";
@@ -58,19 +62,17 @@ async function makeSession(identityUrl = "http://127.0.0.1:8788") {
   };
 }
 
-type ToolResult = {
-  content: Array<{ type: string; text: string }>;
-  isError?: boolean;
-};
+type ClientToolResult = Awaited<ReturnType<Client["callTool"]>>;
 
-function toolResult(value: unknown): ToolResult {
-  return overlapCast<unknown, ToolResult>(value);
+function toolResult(value: ClientToolResult): CallToolResult {
+  return CallToolResultSchema.parse(value);
 }
 
-function payload(result: ToolResult): JsonObject {
+function payload(result: CallToolResult): JsonObject {
   const first = result.content[0];
   if (!first) throw new Error("tool returned no content");
-  return overlapCast(JSON.parse(first.text));
+  if (first.type !== "text") throw new Error("tool returned non-text content");
+  return JSON.parse(first.text);
 }
 
 beforeEach(() => {

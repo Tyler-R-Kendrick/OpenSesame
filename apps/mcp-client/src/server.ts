@@ -44,15 +44,15 @@ export function requireIdentityToken(): string {
   return tok;
 }
 
-export function modelText(value: unknown) {
+export function modelText<Value>(value: Value) {
   const serialized = JSON.stringify(value);
   if (!isString(serialized)) throw new Error("model payload is not JSON");
   return [{ type: "text" as const, text: forAgent(serialized) }];
 }
 
-export function modelError(label: string, error: unknown) {
+export function modelError(label: string, error: Error | string) {
   try {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : error;
     return { content: modelText({ error: label, message }), isError: true };
   } catch {
     return { content: modelText({ error: label }), isError: true };
@@ -91,7 +91,7 @@ export function buildServer({
       const data = await client.whoami();
       return { content: modelText(data) };
     } catch (e) {
-      return modelError("whoami_failed", e);
+      return modelError("whoami_failed", e instanceof Error ? e : String(e));
     }
   });
 
@@ -108,7 +108,10 @@ export function buildServer({
         const data = await client.listConnections();
         return { content: modelText(data) };
       } catch (e) {
-        return modelError("list_connections_failed", e);
+        return modelError(
+          "list_connections_failed",
+          e instanceof Error ? e : String(e),
+        );
       }
     },
   );
@@ -135,7 +138,7 @@ export function buildServer({
         });
         return { content: modelText(data) };
       } catch (e) {
-        return modelError("invoke_failed", e);
+        return modelError("invoke_failed", e instanceof Error ? e : String(e));
       }
     },
   );
@@ -149,12 +152,12 @@ export function buildServer({
     },
     async ({ claimId, claimToken }) => {
       const base = identityUrl.replace(/\/$/, "");
-      const headers: Record<string, string> = {
-        accept: "application/json",
-        "x-claim-token": claimToken,
-      };
       try {
-        headers.authorization = `Bearer ${requireIdentityToken()}`;
+        const headers = {
+          accept: "application/json",
+          "x-claim-token": claimToken,
+          authorization: `Bearer ${requireIdentityToken()}`,
+        };
         const res = await fetch(
           `${base}/v1/claims/${encodeURIComponent(claimId)}`,
           {
@@ -167,7 +170,10 @@ export function buildServer({
           isError: !res.ok,
         };
       } catch (e) {
-        return modelError("present_claim_failed", e);
+        return modelError(
+          "present_claim_failed",
+          e instanceof Error ? e : String(e),
+        );
       }
     },
   );
