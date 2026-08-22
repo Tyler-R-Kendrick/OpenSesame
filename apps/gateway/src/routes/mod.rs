@@ -270,6 +270,13 @@ pub fn router(state: AppState) -> Router {
                 .layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route("/api/v1/rotations/{id}", get(rotation::get_job))
+        // WP-9: durable rotation policies (owner/admin configuration surface).
+        .route(
+            "/api/v1/rotation/policies",
+            get(rotation::list_policies)
+                .put(rotation::put_policy)
+                .layer(DefaultBodyLimit::max(8 * 1024)),
+        )
         .route(
             "/api/v1/tasks",
             get(tasks::list_tasks).post(tasks::start_task),

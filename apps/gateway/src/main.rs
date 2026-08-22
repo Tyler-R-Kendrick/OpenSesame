@@ -11,6 +11,7 @@ mod dev_pki;
 mod github_webhook;
 mod identity_mapping;
 mod middleware;
+mod rotation_scheduler;
 mod routes;
 mod task_engine;
 mod taskbus_config;
@@ -33,6 +34,10 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(backup::run(state.clone()));
     // When TaskBus is NATS, a dedicated durable consumer accelerates wakes.
     tokio::spawn(backup_bus::run_system_wake_consumer(state.clone()));
+    // ROTATION_SCHEDULER: durable rotation policies tick (WP-9) — lists
+    // enabled policies, executes due jobs through the broker's
+    // verify-before-revoke state machine, then advances last_rotated_at.
+    tokio::spawn(rotation_scheduler::run(state.clone()));
     let hsts = args.resource.starts_with("https://");
     let app = opensesame_host_core::http_security::apply_http_security(
         routes::router(state),
