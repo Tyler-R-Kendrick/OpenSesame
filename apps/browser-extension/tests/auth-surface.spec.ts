@@ -2,16 +2,16 @@ import { expect, test } from "@playwright/test";
 
 /**
  * Extension auth.md discovery smoke — runs against a local gateway.
- * Requires PLAYWRIGHT_BASE_URL and a live gateway.
+ * Requires PLAYWRIGHT_BASE_URL and a live gateway; skipped otherwise.
  */
-const base = process.env.PLAYWRIGHT_BASE_URL;
-if (!base) {
-  throw new Error(
-    "PLAYWRIGHT_BASE_URL is required for browser-extension e2e tests",
-  );
-}
+const base = process.env.PLAYWRIGHT_BASE_URL ?? "";
 
 test.describe("opensesame extension surface", () => {
+  test.skip(
+    base === "",
+    "PLAYWRIGHT_BASE_URL is unset — this live-gateway suite needs a running gateway URL to target",
+  );
+
   test("auth.md advertises connection-oriented invoke", async ({ request }) => {
     const res = await request.get(`${base}/auth.md`);
     expect(res.ok()).toBeTruthy();
