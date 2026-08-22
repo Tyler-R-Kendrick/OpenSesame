@@ -99,9 +99,11 @@ function takeStashedSessionDefault(): StashedSession | null {
 function hasStashedSession(): boolean {
   try {
     return sessionStorage.getItem(STASH_KEY) !== null;
-    // Stryker disable next-line BlockStatement: emptying this catch returns
-    // `undefined` instead of `false`. The only consumer negates the result
-    // (`!hasStashedSession()`), where the two are indistinguishable.
+    // Emptying this catch returns `undefined` instead of `false`, and the only
+    // consumer negates the result (`!hasStashedSession()`), where the two are
+    // indistinguishable. No test can tell them apart, so the mutant is
+    // equivalent rather than uncovered.
+    // Stryker disable next-line BlockStatement: equivalent, see above
   } catch {
     return false;
   }
@@ -126,9 +128,10 @@ function clearPendingLink(): void {
 function pendingLinkMarked(): boolean {
   try {
     return sessionStorage.getItem(PENDING_LINK_KEY) !== null;
-    // Stryker disable next-line BlockStatement: as in hasStashedSession — the
-    // sole consumer is `!pendingLinkMarked()`, so `undefined` and `false`
-    // cannot be told apart by any observable behaviour.
+    // As in hasStashedSession: the sole consumer is `!pendingLinkMarked()`, so
+    // `undefined` and `false` cannot be told apart by any observable
+    // behaviour.
+    // Stryker disable next-line BlockStatement: equivalent, see above
   } catch {
     return false;
   }
