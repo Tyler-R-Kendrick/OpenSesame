@@ -1,13 +1,17 @@
-import type {
-  AuditEvent,
-  AuthorizationRequest,
-  AuthorizationRequestStatus,
-  BetterAuthSubject,
-  ClaimItem,
-  ClaimSession,
-  ExternalIdentity,
-  OutboxEvent,
-  Principal,
+import { randomUUID } from "node:crypto";
+import {
+  type AuditEvent,
+  type AuthorizationRequest,
+  type AuthorizationRequestStatus,
+  type BetterAuthSubject,
+  type ClaimItem,
+  type ClaimSession,
+  type ExternalIdentity,
+  type OutboxEvent,
+  PERSONAL_PROJECT_SLUG,
+  type Principal,
+  type Project,
+  type ProjectMembership,
 } from "@opensesame/os-domain";
 
 export class ConflictError extends Error {
@@ -176,6 +180,97 @@ export interface AuthorizationRequestRepository {
     >,
     uow?: UnitOfWork,
   ): Promise<AuthorizationRequest>;
+}
+
+/**
+ * Value or promise of one. Project stores are read on hot request paths where
+ * the memory implementation answers synchronously (it is Map-backed) while the
+ * Postgres implementation must await the database; callers always `await`.
+ */
+export type Awaitable<T> = T | Promise<T>;
+
+/** Canonical sealed-store tomb name bound to every personal project. */
+export const PERSONAL_PROJECT_TOMB_NAME = "personal";
+
+/** Prefix of the auto-derived Pages vault folder id for a personal project. */
+export const PERSONAL_VAULT_FOLDER_PREFIX = "vault_folder_";
+
+/**
+ * Build the one personal project a principal owns. Shared by both store
+ * implementations so the row shape (slug, tomb binding, vault folder) cannot
+ * drift between memory and Postgres.
+ */
+export function buildPersonalProject(
+  principalId: string,
+  now: Date,
+  organizationId?: string,
+): Project {
+  const projectId = `prj_${randomUUID()}`;
+  return {
+    id: projectId,
+    kind: "personal",
+    slug: PERSONAL_PROJECT_SLUG,
+    displayName: "Personal",
+    state: "active",
+    ownerPrincipalId: principalId,
+    sealedStoreTombName: PERSONAL_PROJECT_TOMB_NAME,
+    pagesVaultFolderId: `${PERSONAL_VAULT_FOLDER_PREFIX}${projectId.slice(4, 12)}`,
+    createdAt: now,
+    updatedAt: now,
+    ...(organizationId !== undefined ? { organizationId } : undefined),
+  };
+}
+
+export interface EnsurePersonalProjectResult {
+  project: Project;
+  created: boolean;
+}
+
+/**
+ * Durable project rows (WP-8). `set` keeps the Map upsert semantics the
+ * control-plane routes were written against: the caller owns the full row and
+ * the store persists it verbatim.
+ */
+export interface ProjectStore {
+  get(id: string): Awaitable<Project | undefined>;
+  /** Full-row upsert (Map `set` semantics). */
+  set(id: string, project: Project): Awaitable<unknown>;
+  /** Every project owned by the principal, regardless of kind or state. */
+  listByOwner(ownerPrincipalId: string): Awaitable<Project[]>;
+  /** The principal's live personal project (not deleted / deleting). */
+  findPersonalByOwner(ownerPrincipalId: string): Awaitable<Project | undefined>;
+  /**
+   * Ensure the principal's one personal project exists — a single upsert that
+   * honors the `projects_personal_owner_uidx` partial unique index, so two
+   * racing sessions converge on the same row. Also mints the owner membership
+   * when the project is created.
+   */
+  ensurePersonal(
+    principalId: string,
+    organizationId?: string,
+    now?: Date,
+  ): Awaitable<EnsurePersonalProjectResult>;
+}
+
+/** Durable project membership rows keyed by (projectId, principalId). */
+export interface ProjectMembershipStore {
+  find(
+    projectId: string,
+    principalId: string,
+  ): Awaitable<ProjectMembership | undefined>;
+  upsert(membership: ProjectMembership): Awaitable<ProjectMembership>;
+  remove(projectId: string, principalId: string): Awaitable<boolean>;
+  /** Drop every membership of a project (project deletion). */
+  removeByProject(projectId: string): Awaitable<number>;
+  listByProject(projectId: string): Awaitable<ProjectMembership[]>;
+  listByPrincipal(principalId: string): Awaitable<ProjectMembership[]>;
+  countOwners(projectId: string): Awaitable<number>;
+}
+
+/** The pair travels together: `ensurePersonal` writes both tables. */
+export interface ProjectStores {
+  projects: ProjectStore;
+  projectMemberships: ProjectMembershipStore;
 }
 
 export interface Repositories {
