@@ -61,8 +61,18 @@ before it was handed over. Verify each is present, then treat it as done:
   Crypto/auth-touching changes additionally run `pnpm audit:ast-grep`,
   `pnpm audit:semgrep`, `pnpm audit:clippy`; new npm deps run
   `pnpm audit:osv` and `pnpm audit:cve-lite`.
-- ADRs for consequential decisions live in `docs/adr/` (0001–0051 exist; this
-  program creates 0052, 0053, 0054). Found-and-fixed security issues get a
+- ADRs for consequential decisions live in `docs/adr/`. This program creates
+  three, referred to below as **ADR-RECOVERY**, **ADR-BLINDED-STORE** and
+  **ADR-BREACH**. **Do not hardcode their numbers from this document.**
+  Allocate them at implementation time by running `ls docs/adr/` and taking
+  the next free numbers in that order, because several unmerged branches are
+  each claiming the same next number: `0052` is already taken on the
+  passkey-portability branch, and at least one other brief instructs an agent
+  to create its own `0052`. The directory also already carries three files
+  numbered `0038` and has no `0040` — that is the mistake to avoid repeating,
+  not to copy. Record the numbers you allocated in the PR body, and
+  cross-reference by filename rather than number wherever practical.
+  Found-and-fixed security issues get a
   dated `docs/security/audit-2026-08-22-<topic>.md` (append a new file; never
   edit history).
 - `packages/os-domain` must NOT import Better Auth, oidc-provider, Hono,
@@ -404,10 +414,10 @@ finishing; V1 runs the global gates.
 
 ### Swarm R — Account recovery
 
-**R1 — ADR 0052 + design docs.**
-Owns: `docs/adr/0052-account-recovery.md` (new), `DESIGN.md`,
+**R1 — ADR-RECOVERY + design docs.**
+Owns: `docs/adr/<next>-account-recovery.md` (new), `DESIGN.md`,
 `docs/security/key-hierarchy.md`.
-Write ADR 0052 with a full options matrix — each option evaluated for
+Write ADR-RECOVERY with a full options matrix — each option evaluated for
 pros/cons against the No-Recovery Rule, the ZK invariant, and the LastPass
 failure mode:
 (a) printable recovery key/emergency kit (random 256-bit wrapping VK;
@@ -632,10 +642,10 @@ Verify: `cargo +1.88.0 test -p opensesame-sealed-store`,
 `cargo +1.88.0 test -p opensesame-cli` (or the workspace test if the CLI has
 no own suite), `pnpm audit:clippy`.
 
-**M2 — Metadata docs: ADR 0053 + dated audit doc.**
-Owns: `docs/adr/0053-blinded-sealed-store-layout.md` (new),
+**M2 — Metadata docs: ADR-BLINDED-STORE + dated audit doc.**
+Owns: `docs/adr/<next+1>-blinded-sealed-store-layout.md` (new),
 `docs/security/audit-2026-08-22-sealed-store-metadata.md` (new).
-ADR 0053 records §3.3/§3.4 (motivation: the LastPass plaintext-metadata
+ADR-BLINDED-STORE records §3.3/§3.4 (motivation: the LastPass plaintext-metadata
 lesson; the decision; the v1 compatibility story; the gpg/age limitation;
 alternatives considered: per-entry random ids + mandatory index — rejected
 for losing deterministic idempotent writes; encrypting only filenames —
@@ -718,8 +728,8 @@ dedupe (N items, same password → 1 request); `buildHealthReport` purity
 (breached set injected, no fetch inside).
 Verify: `pnpm --filter @opensesame/pages test`, `pnpm lint`.
 
-**B2 — ADR 0054: server-side email breach monitoring (design only).**
-Owns: `docs/adr/0054-breach-monitoring.md` (new).
+**B2 — ADR-BREACH: server-side email breach monitoring (design only).**
+Owns: `docs/adr/<next+2>-breach-monitoring.md` (new).
 Design, do not build — and record WHY nothing is built now: the repo has no
 email/push delivery channel (`pushNotifications: false` in control-plane
 discovery; no mail sender anywhere) and the worker makes no outbound HTTP;
@@ -779,7 +789,7 @@ drizzle file decision (§1), and the final git/PR workflow.
 
 | File(s) | Owner |
 |---|---|
-| `docs/adr/0052-*`, `DESIGN.md`, `docs/security/key-hierarchy.md` | R1 |
+| `docs/adr/*-account-recovery.md`, `DESIGN.md`, `docs/security/key-hierarchy.md` | R1 |
 | `apps/pages/src/lib/vault/recovery-key.ts[.test]`, `unlock-methods.ts`, `store.ts` | R2 |
 | `RecoveryPanel.tsx`, `RecoveryGraphCard.tsx`, `UnlockScreen.tsx` | R3 |
 | `crates/human-vault/**` | R4 |
@@ -789,12 +799,12 @@ drizzle file decision (§1), and the final git/PR workflow.
 | `import/qr-image.ts[.test]`, `ImportPanel.tsx` | T4 |
 | `apps/control-plane/src/routes/mfa.ts` (+tests) | T5 |
 | `crates/sealed-store/**`, `apps/cli/**` | M1 |
-| `docs/adr/0053-*`, `docs/security/audit-2026-08-22-sealed-store-metadata.md` | M2 |
+| `docs/adr/*-blinded-sealed-store-layout.md`, `docs/security/audit-2026-08-22-sealed-store-metadata.md` | M2 |
 | `apps/gateway/src/backup.rs` | M3 |
 | `packages/audit/**`, `apps/worker/src/rotation.ts`, `store_path` producers | M4 |
 | `apps/pages/src/lib/vault/store-sync.ts[.test]` | M5 |
 | `breach.ts[.test]`, `health.ts` (+tests), `HealthPanel.tsx` | B1 |
-| `docs/adr/0054-*` | B2 |
+| `docs/adr/*-breach-monitoring.md` | B2 |
 | `SettingsSection.tsx`, `apps/pages/package.json` (merge), lockfile, git/PR | V1 |
 
 `apps/pages/package.json`: R3 and T4 each add exactly one dependency line;
@@ -837,7 +847,9 @@ file it does not own reports the need to V1 instead of editing.
 
 ## 7. Definition of done
 
-- All three ADRs (0052, 0053, 0054) and the dated audit doc exist and read
+- All three ADRs (recovery, blinded store, breach monitoring — numbered at
+  implementation time, never copied from this document) and the dated audit
+  doc exist and read
   as decisions, not summaries.
 - Recovery Kit works end-to-end in Pages (create→confirm→download→revoke→
   recover→forced re-wrap) with Rust primitives in parity; recovery-graph
