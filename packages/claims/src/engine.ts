@@ -1,4 +1,27 @@
-import { type ClaimItem, type ClaimSession, type ClaimTargetType, type Clock, DomainError, assertDependencyClosure, canonicalize, digestManifest, digestUserCode, generateClaimToken, generateUserCode, maybeExpireClaim, authenticateClaim as transitionAuthenticate, completeClaim as transitionComplete, denyClaim as transitionDeny, expireClaim as transitionExpire, presentClaim as transitionPresent, reviewClaim as transitionReview, revokeClaim as transitionRevoke, verifyClaimToken, type JsonObject, overlapCast } from "@opensesame/os-domain";
+import {
+  type ClaimItem,
+  type ClaimSession,
+  type ClaimTargetType,
+  type Clock,
+  DomainError,
+  type JsonObject,
+  assertDependencyClosure,
+  canonicalize,
+  digestManifest,
+  digestUserCode,
+  generateClaimToken,
+  generateUserCode,
+  maybeExpireClaim,
+  overlapCast,
+  authenticateClaim as transitionAuthenticate,
+  completeClaim as transitionComplete,
+  denyClaim as transitionDeny,
+  expireClaim as transitionExpire,
+  presentClaim as transitionPresent,
+  reviewClaim as transitionReview,
+  revokeClaim as transitionRevoke,
+  verifyClaimToken,
+} from "@opensesame/os-domain";
 import type {
   ClaimEngineOptions,
   ClaimStore,
@@ -138,10 +161,7 @@ export class ClaimEngine {
     );
   }
 
-  async reviewClaim(
-    id: string,
-    decision: JsonObject,
-  ): Promise<ClaimSession> {
+  async reviewClaim(id: string, decision: JsonObject): Promise<ClaimSession> {
     return this.applyTransition(id, (s) =>
       transitionReview(s, decision, this.clock()),
     );
@@ -277,12 +297,12 @@ export class ClaimEngine {
    */
   private async settleItems(id: string, accepted: Set<string>): Promise<void> {
     const items = await this.store.getItems(id);
-    const settled = items.map((item) => ({
-      ...item,
-      state: overlapCast(accepted.has(item.id)
+    const settled = items.map((item) => {
+      const state: ClaimItem["state"] = accepted.has(item.id)
         ? "accepted"
-        : "rejected"),
-    }));
+        : "rejected";
+      return { ...item, state };
+    });
     if (settled.every((item, i) => item.state === items[i]?.state)) return;
     await this.store.putItems(id, settled);
   }
