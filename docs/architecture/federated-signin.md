@@ -242,13 +242,18 @@ for itself; a server-side HTTP client does not, so the RP sets it deliberately. 
 the origin embedded in `client_id` are the same string, and the exchange fails closed rather
 than retrying without it.
 
-### 7.4 Confidential-client fallback
+### 7.4 Confidential-client fallback — *not implemented*
 
-When `OPENSESAME_UPSTREAM_CLIENT_ID` and `OPENSESAME_UPSTREAM_CLIENT_SECRET` are configured
-*for the issuer being used*, the leg authenticates as a confidential client with those
-credentials instead of deriving `origin:<origin>`. The two modes are exclusive per issuer,
-chosen by configuration and never negotiated at runtime. A secret is never sent to an issuer
-it was not configured for.
+The leg authenticates as an origin-profile public client (§7.3) against every configured
+issuer. There is no confidential-client path: `OPENSESAME_UPSTREAM_CLIENT_ID` and
+`OPENSESAME_UPSTREAM_CLIENT_SECRET` exist in `.env.schema` for the mock upstream's own
+fixtures and are **not** read by the control plane.
+
+A broker that cannot serve the origin-profile contract therefore cannot currently be used by
+this leg. If one is ever needed, the shape is: credentials configured *for a specific issuer*,
+the two modes exclusive per issuer, chosen by configuration and never negotiated at runtime,
+and a secret never sent to an issuer it was not configured for. Until that exists and is
+tested, do not document it as available.
 
 ### 7.5 Assertion validation
 

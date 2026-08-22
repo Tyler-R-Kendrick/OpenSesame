@@ -8,6 +8,17 @@ export interface LoginPageModel {
   /** Set when the browser already holds an authenticated session. */
   principalId?: string;
   publicUrl: string;
+  /**
+   * Federated sign-in offers (ADR 0033 §4). Absent when no upstream is
+   * allowlisted, in which case the page falls back to session-only actions.
+   */
+  federated?: {
+    /** POST target (`/interaction/<uid>/federated/start`). */
+    startAction: string;
+    upstreams: { issuer: string; label: string }[];
+    /** Issuer the client hinted at; rendered first and as the primary action. */
+    preferredIssuer?: string;
+  };
 }
 
 export interface ConsentPageModel {
@@ -158,8 +169,45 @@ export function renderLoginPage(model: LoginPageModel): string {
     "Sign in — OpenSesame",
     `<h1>Sign in</h1>
      <p class="lede">Authenticate to continue authorization at ${escapeHtml(model.publicUrl)}.</p>
-     <div class="panel">${continueBlock}</div>`,
+     <div class="panel">${renderFederatedBlock(model)}${continueBlock}</div>`,
   );
+}
+
+/**
+ * Federated offers, above the session actions so identity comes before a
+ * bare anonymous session (ADR 0033 §4). One plain form per upstream: the
+ * interaction pages ship under a CSP with no inline script, so there is
+ * nothing to auto-submit and the issuer travels as a hidden field that the
+ * start route re-checks against the allowlist.
+ */
+function renderFederatedBlock(model: LoginPageModel): string {
+  const federated = model.federated;
+  if (!federated || federated.upstreams.length === 0) return "";
+
+  const csrf = escapeHtml(model.csrfToken);
+  const startAction = escapeHtml(federated.startAction);
+  const ordered = [...federated.upstreams].sort((a, b) => {
+    const preferred = federated.preferredIssuer;
+    if (!preferred) return 0;
+    return a.issuer === preferred ? -1 : b.issuer === preferred ? 1 : 0;
+  });
+
+  const forms = ordered
+    .map((upstream, index) => {
+      const primary =
+        federated.preferredIssuer !== undefined
+          ? upstream.issuer === federated.preferredIssuer
+          : index === 0;
+      return `<form method="post" action="${startAction}">
+         <input type="hidden" name="_csrf" value="${csrf}"/>
+         <input type="hidden" name="issuer" value="${escapeHtml(upstream.issuer)}"/>
+         <button type="submit" class="btn ${primary ? "btn-primary" : ""}">Sign in with ${escapeHtml(upstream.label)}</button>
+       </form>`;
+    })
+    .join("\n");
+
+  return `${forms}
+     <p class="lede">or continue without a provider</p>`;
 }
 
 /**

@@ -193,7 +193,9 @@ function describeLinkFailure(caught: unknown): string {
   if (caught instanceof IdentityError && caught.status === 409) {
     return COLLISION_MESSAGE;
   }
-  return caught instanceof Error ? caught.message : "Attaching the account failed.";
+  return caught instanceof Error
+    ? caught.message
+    : "Attaching the account failed.";
 }
 
 /**

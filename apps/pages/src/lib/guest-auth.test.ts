@@ -152,7 +152,7 @@ describe("adoptFederatedIdentity", () => {
   it("defers on a locked vault instead of minting a throwaway principal", async () => {
     vaultStatus.mockReturnValue("locked");
     currentSession.mockReturnValue(null);
-    sessionStorage.setItem(FEDERATION_SESSION_KEY, "{\"idToken\":\"kept\"}");
+    sessionStorage.setItem(FEDERATION_SESSION_KEY, '{"idToken":"kept"}');
 
     await adoptFederatedIdentity("id.token.here");
 
@@ -167,7 +167,7 @@ describe("adoptFederatedIdentity", () => {
     });
     // The verified assertion must survive so the link can be finished later.
     expect(sessionStorage.getItem(FEDERATION_SESSION_KEY)).toBe(
-      "{\"idToken\":\"kept\"}",
+      '{"idToken":"kept"}',
     );
     expect(sessionStorage.getItem(PENDING_LINK_KEY)).not.toBeNull();
   });
@@ -195,7 +195,9 @@ describe("adoptFederatedIdentity", () => {
     vaultStatus.mockReturnValue("empty");
     identityJson.mockRejectedValue(new Error("Identity unreachable"));
 
-    await expect(adoptFederatedIdentity("id.token.here")).resolves.toBeUndefined();
+    await expect(
+      adoptFederatedIdentity("id.token.here"),
+    ).resolves.toBeUndefined();
 
     expect(createGuest).toHaveBeenCalledTimes(1);
     const notices = listNotices();

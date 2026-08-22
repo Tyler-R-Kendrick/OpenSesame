@@ -388,9 +388,7 @@ describe("UnlockScreen — password unlock", () => {
 
   it("keeps federated sign-in off the unlock card for an existing vault", () => {
     render(<UnlockScreen />);
-    expect(
-      screen.queryByRole("button", { name: FEDERATED_BUTTON }),
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: FEDERATED_BUTTON })).toBeNull();
   });
 
   it("shows the stored reminder and the passkey-enrolment nudge", () => {

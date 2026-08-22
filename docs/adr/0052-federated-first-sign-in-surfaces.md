@@ -55,10 +55,12 @@ server.
    on `POST /token` — see `apps/mock-upstream-idp/src/server.ts`, which answers
    `unauthorized_client` / `origin_cors_denied` when the header disagrees with the client id.
    A browser sets that header for itself; a server-side exchange must set it deliberately, so
-   the RP does. When `OPENSESAME_UPSTREAM_CLIENT_ID` and `OPENSESAME_UPSTREAM_CLIENT_SECRET`
-   are configured for that issuer, the leg uses confidential client credentials instead: a
-   deployment that has a secret should use it, and a trusted broker that has no notion of one
-   should not be made to invent one.
+   the RP does. Origin-profile is the *only* mode the leg implements; there is no
+   confidential-client path, and `OPENSESAME_UPSTREAM_CLIENT_ID` /
+   `OPENSESAME_UPSTREAM_CLIENT_SECRET` are not read by the control plane. A broker that
+   cannot serve the origin-profile contract cannot currently be used here — adding a
+   secret-bearing path is deferred until a real deployment needs one, rather than shipping
+   an untested credential flow (see `docs/architecture/federated-signin.md` §7.4).
 5. **A brand-new user's principal is minted provisional and promoted in place.** The callback
    looks the external-identity tuple up first: a hit reuses its principal, unchanged. A miss
    mints a provisional principal and immediately promotes it to `state: "active"` /
