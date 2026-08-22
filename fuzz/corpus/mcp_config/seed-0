@@ -1,0 +1,1 @@
+{"mcpServers":{"github":{"command":"npx","args":["-y","@modelcontextprotocol/server-github"],"env":{"GITHUB_TOKEN":"fuzz","CANARY_KEY":"fuzz"}},"local":{"command":"./bin/server","env":{"API_KEY":"fuzz"}}}}
