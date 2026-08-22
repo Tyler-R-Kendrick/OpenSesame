@@ -1,4 +1,5 @@
 import { overlapCast } from "@opensesame/os-domain";
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { base32Encode } from "../routes/mfa.js";
@@ -62,6 +63,18 @@ describe("base32Encode", () => {
       );
       expect(base32Decode(base32Encode(bytes))).toEqual(bytes);
     }
+  });
+
+  it("round-trips arbitrary byte strings (property)", () => {
+    // The vector cases above pin the encoding; this covers the lengths and
+    // bit-boundary alignments no hand-written fixture enumerates.
+    fc.assert(
+      fc.property(fc.uint8Array({ maxLength: 128 }), (bytes) => {
+        const encoded = base32Encode(bytes);
+        expect(encoded).toMatch(/^[A-Z2-7]*$/u);
+        expect(base32Decode(encoded)).toEqual(Buffer.from(bytes));
+      }),
+    );
   });
 
   it("emits only RFC 4648 alphabet characters", () => {
