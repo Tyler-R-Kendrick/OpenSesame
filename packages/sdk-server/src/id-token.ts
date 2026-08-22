@@ -1,4 +1,4 @@
-import type { JWTPayload, JWTVerifyGetKey } from "jose";
+import type { JSONWebKeySet, JWTPayload, JWTVerifyGetKey } from "jose";
 import { jwtVerify } from "jose";
 import { AuthError } from "./errors.js";
 import {
@@ -8,7 +8,6 @@ import {
   trimSlash,
 } from "./jwt-utils.js";
 import { createJwksKeySource } from "./verifier.js";
-import { overlapCast, isString } from "@opensesame/os-domain";
 
 export interface VerifiedIdToken {
   sub: string;
@@ -24,7 +23,7 @@ export interface VerifyIdTokenOptions {
   /** Override JWKS URI. Operator-configured; fenced as a secure URL. */
   jwksUri?: string;
   /** Inject local JWKS for tests. */
-  jwks?: { keys: unknown[] };
+  jwks?: JSONWebKeySet;
   nonce?: string;
   clockToleranceSeconds?: number;
   fetchImpl?: typeof fetch;
@@ -40,7 +39,9 @@ export async function verifyIdToken(
   const issuer = trimSlash(options.issuer);
   const getKey: JWTVerifyGetKey = await createJwksKeySource({
     issuer,
-    ...(options.jwksUri !== undefined ? { jwksUri: options.jwksUri } : undefined),
+    ...(options.jwksUri !== undefined
+      ? { jwksUri: options.jwksUri }
+      : undefined),
     ...(options.jwks !== undefined ? { jwks: options.jwks } : undefined),
     ...(options.fetchImpl !== undefined
       ? { fetchImpl: options.fetchImpl }
@@ -73,10 +74,10 @@ export async function verifyIdToken(
   const verified: VerifiedIdToken = {
     sub: payload.sub,
     iss: payload.iss,
-    aud: (overlapCast(payload.aud)) ?? options.audience,
+    aud: payload.aud ?? options.audience,
     payload,
   };
-  if (isString(payload.nonce)) {
+  if (typeof payload.nonce === "string") {
     verified.nonce = payload.nonce;
   }
   return verified;

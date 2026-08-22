@@ -1,7 +1,6 @@
 import type { Context, MiddlewareHandler, Next } from "hono";
 import { AuthError, AuthorizationError } from "./errors.js";
 import type { OpenSesameVerifier, VerifiedIdentity } from "./verifier.js";
-import { type BoundaryValue } from "@opensesame/os-domain";
 
 export type OpenSesameAuthVariables = {
   identity: VerifiedIdentity;
@@ -11,7 +10,13 @@ export interface OpenSesameAuthOptions {
   verifier: OpenSesameVerifier;
   /** Custom extractor; default Bearer scheme. */
   getToken?: (c: Context) => string | undefined;
-  onError?: (c: Context, error: BoundaryValue) => Response | Promise<Response>;
+  onError?: (c: Context, error: Error) => Response | Promise<Response>;
+}
+
+function normalizeError(error: unknown): Error {
+  return error instanceof Error
+    ? error
+    : new Error("Access-token verification failed");
 }
 
 function defaultToken(c: Context): string | undefined {
@@ -51,7 +56,7 @@ export function openSesameAuth(
       identity = await options.verifier.verifyAccessToken(token);
     } catch (error) {
       if (options.onError) {
-        return options.onError(c, error);
+        return options.onError(c, normalizeError(error));
       }
       if (error instanceof AuthorizationError) {
         return c.json(

@@ -1,6 +1,5 @@
 import { decodeProtectedHeader, errors as joseErrors } from "jose";
 import { AuthError } from "./errors.js";
-import { type BoundaryValue } from "@opensesame/os-domain";
 
 /** ID-token algorithms (ADR 0050 F7). Access-token verification may be wider. */
 export const ID_TOKEN_ALGORITHMS = ["RS256", "ES256"] as const;
@@ -45,7 +44,7 @@ export function assertAllowedJwtAlgorithm(
   }
 }
 
-export function mapJwtVerifyError(error: BoundaryValue): AuthError {
+export function mapJwtVerifyError(error: unknown): AuthError {
   if (error instanceof AuthError) return error;
 
   if (error instanceof joseErrors.JWTExpired) {

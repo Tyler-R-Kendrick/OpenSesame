@@ -1,4 +1,5 @@
 import {
+  type JSONWebKeySet,
   type JWTPayload,
   type JWTVerifyGetKey,
   createLocalJWKSet,
@@ -7,7 +8,6 @@ import {
 } from "jose";
 import { AuthorizationError } from "./errors.js";
 import { hasRequiredScopes, trimSlash } from "./jwt-utils.js";
-import { overlapCast, isString } from "@opensesame/os-domain";
 
 export interface VerifiedIdentity {
   sub: string;
@@ -32,7 +32,7 @@ export interface OpenSesameVerifierConfig {
   /** Injected for tests, and for a deployment that cannot reach discovery at boot. */
   fetchImpl?: typeof fetch;
   /** Inject local JWKS for tests. */
-  jwks?: { keys: unknown[] };
+  jwks?: JSONWebKeySet;
   clockToleranceSeconds?: number;
   requiredScopes?: string[];
   /**
@@ -179,7 +179,7 @@ export interface OpenSesameVerifier {
 export interface JwksKeySourceConfig {
   issuer: string;
   jwksUri?: string;
-  jwks?: { keys: unknown[] };
+  jwks?: JSONWebKeySet;
   fetchImpl?: typeof fetch;
 }
 
@@ -204,21 +204,29 @@ export function createJwksKeySource(
     const fetchImpl = config.fetchImpl ?? globalThis.fetch;
     const fallback = (): URL => assertSecureUrl(`${issuer}/jwks`, "jwksUri");
     if (!fetchImpl) return fallback();
-    let meta: { issuer?: unknown; jwks_uri?: unknown };
+    let meta: unknown;
     try {
       const res = await fetchImpl(
         `${issuer}/.well-known/openid-configuration`,
         { headers: { accept: "application/json" } },
       );
       if (!res.ok) return fallback();
-      meta = overlapCast(await res.json());
+      meta = await res.json();
     } catch {
       return fallback();
     }
-    if (!isString(meta.issuer) || trimSlash(meta.issuer) !== issuer) {
+    if (typeof meta !== "object" || meta === null || Array.isArray(meta)) {
+      throw new Error("Discovery document is not a JSON object");
+    }
+    if (!("issuer" in meta) || typeof meta.issuer !== "string") {
       throw new Error("Discovery document does not name the configured issuer");
     }
-    if (!isString(meta.jwks_uri)) return fallback();
+    if (trimSlash(meta.issuer) !== issuer) {
+      throw new Error("Discovery document does not name the configured issuer");
+    }
+    if (!("jwks_uri" in meta) || typeof meta.jwks_uri !== "string") {
+      return fallback();
+    }
     return assertDiscoveredJwksUri(meta.jwks_uri, issuerUrl);
   }
 
@@ -226,9 +234,7 @@ export function createJwksKeySource(
   let pending: Promise<JWTVerifyGetKey> | undefined;
   return async function keySource(): Promise<JWTVerifyGetKey> {
     if (config.jwks) {
-      return createLocalJWKSet(
-        overlapCast(config.jwks),
-      );
+      return createLocalJWKSet(config.jwks);
     }
     if (configuredJwksUri) {
       remoteKeys ??= createRemoteJWKSet(configuredJwksUri);
@@ -263,7 +269,9 @@ export function createOpenSesameVerifier(
     issuer,
     ...(config.jwksUri !== undefined ? { jwksUri: config.jwksUri } : undefined),
     ...(config.jwks !== undefined ? { jwks: config.jwks } : undefined),
-    ...(config.fetchImpl !== undefined ? { fetchImpl: config.fetchImpl } : undefined),
+    ...(config.fetchImpl !== undefined
+      ? { fetchImpl: config.fetchImpl }
+      : undefined),
   });
 
   return {
@@ -300,22 +308,24 @@ export function createOpenSesameVerifier(
       }
 
       const tokenUse =
-        isString(payload.token_use)
+        typeof payload.token_use === "string"
           ? payload.token_use
-          : isString(payload.typ)
+          : typeof payload.typ === "string"
             ? payload.typ
             : undefined;
       if (tokenUse === "id" || tokenUse === "refresh") {
         throw new Error(`Unexpected token type: ${tokenUse}`);
       }
 
+      const scopeClaim = payload.scp;
       const scope =
-        isString(payload.scope)
+        typeof payload.scope === "string"
           ? payload.scope
-          : isString(payload.scp)
-            ? payload.scp
-            : Array.isArray(payload.scp)
-              ? payload.scp.map(String).join(" ")
+          : typeof scopeClaim === "string"
+            ? scopeClaim
+            : Array.isArray(scopeClaim) &&
+                scopeClaim.every((item) => typeof item === "string")
+              ? scopeClaim.join(" ")
               : undefined;
 
       if (!hasRequiredScopes(scope, config.requiredScopes ?? [])) {
@@ -325,17 +335,18 @@ export function createOpenSesameVerifier(
         );
       }
 
+      const namespacedAssurance = payload["os:assurance"];
       const assurance =
-        isString(payload.assurance)
+        typeof payload.assurance === "string"
           ? payload.assurance
-          : isString(payload["os:assurance"])
-            ? (overlapCast(payload["os:assurance"]))
+          : typeof namespacedAssurance === "string"
+            ? namespacedAssurance
             : undefined;
 
       const identity: VerifiedIdentity = {
         sub: payload.sub,
         iss: payload.iss,
-        aud: (overlapCast(payload.aud)) ?? defaultAudience,
+        aud: payload.aud ?? defaultAudience,
         payload,
         accessToken: token,
       };
