@@ -1,5 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClientSeams } from "./api-client.js";
 import {
@@ -11,7 +12,6 @@ import {
   requireIdentityToken,
 } from "./server.js";
 import { toolsManifest } from "./tools.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const createApiClientMock = vi.fn();
 
@@ -37,9 +37,7 @@ function fakeClient(overrides: Partial<FakeClient> = {}): FakeClient {
 }
 
 function mockApiClient(client: FakeClient): void {
-  createApiClientMock.mockReturnValue(
-    overlapCast(client),
-  );
+  createApiClientMock.mockReturnValue(overlapCast(client));
 }
 
 async function makeSession(identityUrl = "http://127.0.0.1:8788") {
@@ -65,6 +63,10 @@ type ToolResult = {
   isError?: boolean;
 };
 
+function toolResult(value: unknown): ToolResult {
+  return overlapCast<unknown, ToolResult>(value);
+}
+
 function payload(result: ToolResult): JsonObject {
   const first = result.content[0];
   if (!first) throw new Error("tool returned no content");
@@ -73,8 +75,7 @@ function payload(result: ToolResult): JsonObject {
 
 beforeEach(() => {
   createApiClientMock.mockReset();
-  apiClientSeams.createApiClient =
-    overlapCast(createApiClientMock);
+  apiClientSeams.createApiClient = overlapCast(createApiClientMock);
   vi.stubEnv("OPENSESAME_ACCESS_TOKEN", undefined);
   vi.stubEnv("OPENSESAME_IDENTITY_TOKEN", undefined);
 });
@@ -132,13 +133,13 @@ describe("model payload helpers", () => {
   it("modelError extracts Error messages and stringifies non-Errors", () => {
     const fromError = modelError("op_failed", new Error("boom"));
     expect(fromError.isError).toBe(true);
-    expect(payload(overlapCast(fromError))).toEqual({
+    expect(payload(toolResult(fromError))).toEqual({
       error: "op_failed",
       message: "boom",
     });
 
     const fromString = modelError("op_failed", "nope");
-    expect(payload(overlapCast(fromString))).toEqual({
+    expect(payload(toolResult(fromString))).toEqual({
       error: "op_failed",
       message: "nope",
     });
@@ -150,7 +151,7 @@ describe("model payload helpers", () => {
       new Error("leaked access_token value"),
     );
     expect(result.isError).toBe(true);
-    expect(payload(overlapCast(result))).toEqual({ error: "op_failed" });
+    expect(payload(toolResult(result))).toEqual({ error: "op_failed" });
   });
 });
 
@@ -172,10 +173,12 @@ describe("mcp-client server tools", () => {
     mockApiClient(clientFake);
     const { client, close } = await makeSession();
     try {
-      const result = overlapCast(await client.callTool({
-        name: "host_health",
-        arguments: {},
-      }));
+      const result = toolResult(
+        await client.callTool({
+          name: "host_health",
+          arguments: {},
+        }),
+      );
       expect(result.isError).toBeFalsy();
       expect(createApiClientMock).toHaveBeenCalledWith({
         baseUrl: "http://127.0.0.1:8787",
@@ -193,10 +196,12 @@ describe("mcp-client server tools", () => {
   it("whoami fails closed without an access token", async () => {
     const { client, close } = await makeSession();
     try {
-      const result = overlapCast(await client.callTool({
-        name: "whoami",
-        arguments: {},
-      }));
+      const result = toolResult(
+        await client.callTool({
+          name: "whoami",
+          arguments: {},
+        }),
+      );
       expect(result.isError).toBe(true);
       // The guard's own message mentions "access_token", so forAgent refuses
       // it and modelError falls back to the bare label (no message key).
@@ -213,10 +218,12 @@ describe("mcp-client server tools", () => {
     mockApiClient(clientFake);
     const { client, close } = await makeSession();
     try {
-      const result = overlapCast(await client.callTool({
-        name: "whoami",
-        arguments: {},
-      }));
+      const result = toolResult(
+        await client.callTool({
+          name: "whoami",
+          arguments: {},
+        }),
+      );
       expect(result.isError).toBeFalsy();
       expect(createApiClientMock).toHaveBeenCalledWith({
         baseUrl: "http://127.0.0.1:8787",
@@ -237,10 +244,12 @@ describe("mcp-client server tools", () => {
     );
     const { client, close } = await makeSession();
     try {
-      const result = overlapCast(await client.callTool({
-        name: "whoami",
-        arguments: {},
-      }));
+      const result = toolResult(
+        await client.callTool({
+          name: "whoami",
+          arguments: {},
+        }),
+      );
       expect(result.isError).toBe(true);
       expect(payload(result)).toEqual({
         error: "whoami_failed",
@@ -257,18 +266,22 @@ describe("mcp-client server tools", () => {
     mockApiClient(clientFake);
     const { client, close } = await makeSession();
     try {
-      const ok = overlapCast(await client.callTool({
-        name: "list_connections",
-        arguments: {},
-      }));
+      const ok = toolResult(
+        await client.callTool({
+          name: "list_connections",
+          arguments: {},
+        }),
+      );
       expect(ok.isError).toBeFalsy();
       expect(payload(ok)).toEqual({ connections: [{ ref: "cr_1" }] });
 
       clientFake.listConnections.mockRejectedValueOnce(new Error("denied"));
-      const denied = overlapCast(await client.callTool({
-        name: "list_connections",
-        arguments: {},
-      }));
+      const denied = toolResult(
+        await client.callTool({
+          name: "list_connections",
+          arguments: {},
+        }),
+      );
       expect(denied.isError).toBe(true);
       expect(payload(denied)).toEqual({
         error: "list_connections_failed",
@@ -290,10 +303,12 @@ describe("mcp-client server tools", () => {
         operation: "repo.read",
         resource: "opensesame",
       };
-      const ok = overlapCast(await client.callTool({
-        name: "invoke_l1",
-        arguments: args,
-      }));
+      const ok = toolResult(
+        await client.callTool({
+          name: "invoke_l1",
+          arguments: args,
+        }),
+      );
       expect(ok.isError).toBeFalsy();
       expect(clientFake.invoke).toHaveBeenCalledWith({
         ...args,
@@ -302,10 +317,12 @@ describe("mcp-client server tools", () => {
       expect(payload(ok)).toEqual({ receipt: "rcpt_1" });
 
       clientFake.invoke.mockRejectedValueOnce(new Error("policy denied"));
-      const denied = overlapCast(await client.callTool({
-        name: "invoke_l1",
-        arguments: args,
-      }));
+      const denied = toolResult(
+        await client.callTool({
+          name: "invoke_l1",
+          arguments: args,
+        }),
+      );
       expect(denied.isError).toBe(true);
       expect(payload(denied)).toEqual({
         error: "invoke_failed",
@@ -324,10 +341,12 @@ describe("mcp-client server tools", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { client, close } = await makeSession("http://127.0.0.1:8788/");
     try {
-      const result = overlapCast(await client.callTool({
-        name: "present_claim",
-        arguments: { claimId: "clm/abc", claimToken: "osc_clm_1" },
-      }));
+      const result = toolResult(
+        await client.callTool({
+          name: "present_claim",
+          arguments: { claimId: "clm/abc", claimToken: "osc_clm_1" },
+        }),
+      );
       expect(result.isError).toBe(true); // non-2xx surfaces as tool error
       expect(fetchMock).toHaveBeenCalledWith(
         "http://127.0.0.1:8788/v1/claims/clm%2Fabc",
@@ -356,10 +375,12 @@ describe("mcp-client server tools", () => {
     );
     const { client, close } = await makeSession();
     try {
-      const result = overlapCast(await client.callTool({
-        name: "present_claim",
-        arguments: { claimId: "clm1", claimToken: "osc_clm_1" },
-      }));
+      const result = toolResult(
+        await client.callTool({
+          name: "present_claim",
+          arguments: { claimId: "clm1", claimToken: "osc_clm_1" },
+        }),
+      );
       expect(result.isError).toBe(false);
       expect(payload(result)).toEqual({
         status: 200,
@@ -375,10 +396,12 @@ describe("mcp-client server tools", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { client, close } = await makeSession();
     try {
-      const result = overlapCast(await client.callTool({
-        name: "present_claim",
-        arguments: { claimId: "clm1", claimToken: "osc_clm_1" },
-      }));
+      const result = toolResult(
+        await client.callTool({
+          name: "present_claim",
+          arguments: { claimId: "clm1", claimToken: "osc_clm_1" },
+        }),
+      );
       expect(result.isError).toBe(true);
       expect(payload(result)).toMatchObject({
         error: "present_claim_failed",
@@ -398,10 +421,12 @@ describe("mcp-client server tools", () => {
     );
     const { client, close } = await makeSession();
     try {
-      const result = overlapCast(await client.callTool({
-        name: "present_claim",
-        arguments: { claimId: "clm1", claimToken: "osc_clm_1" },
-      }));
+      const result = toolResult(
+        await client.callTool({
+          name: "present_claim",
+          arguments: { claimId: "clm1", claimToken: "osc_clm_1" },
+        }),
+      );
       expect(result.isError).toBe(true);
       expect(payload(result)).toEqual({
         error: "present_claim_failed",

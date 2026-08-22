@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { type BoundaryValue, isString } from "@opensesame/os-domain";
 /**
  * Client MCP server — tools over Host api-client + Identity claim present.
  * Does not expose materialize / getSecret (ADR 0005 / 0017).
@@ -7,10 +6,11 @@ import { type BoundaryValue, isString } from "@opensesame/os-domain";
  */
 import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { forAgent } from "@opensesame/observability";
+import { isString } from "@opensesame/os-domain";
+import { z } from "zod";
 import { createApiClient, normalizeHttpBaseUrl } from "./api-client.js";
 import { stdioTransportSeams } from "./stdio-transport.js";
-import { forAgent } from "@opensesame/observability";
-import { z } from "zod";
 import { toolsManifest } from "./tools.js";
 
 /**
@@ -44,11 +44,13 @@ export function requireIdentityToken(): string {
   return tok;
 }
 
-export function modelText(value: BoundaryValue) {
-  return [{ type: "text" as const, text: forAgent(JSON.stringify(value)) }];
+export function modelText(value: unknown) {
+  const serialized = JSON.stringify(value);
+  if (!isString(serialized)) throw new Error("model payload is not JSON");
+  return [{ type: "text" as const, text: forAgent(serialized) }];
 }
 
-export function modelError(label: string, error: BoundaryValue) {
+export function modelError(label: string, error: unknown) {
   try {
     const message = error instanceof Error ? error.message : String(error);
     return { content: modelText({ error: label, message }), isError: true };
@@ -147,7 +149,7 @@ export function buildServer({
     },
     async ({ claimId, claimToken }) => {
       const base = identityUrl.replace(/\/$/, "");
-      const headers = {
+      const headers: Record<string, string> = {
         accept: "application/json",
         "x-claim-token": claimToken,
       };
