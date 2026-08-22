@@ -1,26 +1,25 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const vault = vi.hoisted(() => ({
+import type { LoginItem, VaultItem } from "../../lib/vault/model.js";
+
+const vault = vi.hoisted((): { current: { items: VaultItem[] } } => ({
   current: { items: [] },
 }));
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {useVault: () => vault.current});
+Object.assign(vaultHooksSeams, { useVault: () => vault.current });
 
-
-import type { LoginItem } from "../../lib/vault/model.js";
 import { HealthPanel } from "./HealthPanel.js";
 
 let seq = 0;
 
 function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
   seq += 1;
-  return overlapCast({
+  return {
     id: `itm_${seq}`,
     kind: "login",
     name: `Login ${seq}`,
@@ -38,7 +37,7 @@ function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
     uris: [],
     passwordChangedAt: new Date().toISOString(),
     ...overrides,
-  });
+  };
 }
 
 function renderPanel() {

@@ -6,32 +6,39 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type {
+  Folder,
+  LoginItem,
+  SecretItem,
+  VaultItem,
+} from "../../lib/vault/model.js";
 
-const vault = vi.hoisted(() => ({
-  current: {
-    items: [],
-    folders: [],
-  },
-}));
-const saveItem = vi.hoisted(() => vi.fn());
+const vault = vi.hoisted(
+  (): { current: { items: VaultItem[]; folders: Folder[] } } => ({
+    current: {
+      items: [],
+      folders: [],
+    },
+  }),
+);
+const saveItem = vi.hoisted(() => vi.fn<(item: VaultItem) => Promise<void>>());
 const compileSecretToHost = vi.hoisted(() => vi.fn());
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {useVault: () => vault.current,
+Object.assign(vaultHooksSeams, {
+  useVault: () => vault.current,
   useVaultStore: () => ({ saveItem }),
-  useCopySecret: () => vi.fn().mockResolvedValue("copied")});
-
+  useCopySecret: () => vi.fn().mockResolvedValue("copied"),
+});
 
 import { connectionSeams } from "../../lib/connections.js";
 const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, { compileSecretToHost });
 
-import type { LoginItem, SecretItem } from "../../lib/vault/model.js";
 import { ItemEditor } from "./ItemEditor.js";
 
 function renderNew(path = "/vault/new/login") {
@@ -70,6 +77,20 @@ function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
   };
 }
 
+function inputByLabel(label: string | RegExp): HTMLInputElement {
+  const element = screen.getByLabelText(label);
+  if (!(element instanceof HTMLInputElement)) {
+    throw new Error(`expected input for ${String(label)}`);
+  }
+  return element;
+}
+
+function savedItem(): VaultItem {
+  const item = saveItem.mock.calls[0]?.[0];
+  if (!item) throw new Error("missing saved vault item");
+  return item;
+}
+
 describe("ItemEditor", () => {
   beforeEach(() => {
     vault.current = { items: [], folders: [] };
@@ -101,7 +122,8 @@ describe("ItemEditor", () => {
     await userEvent.type(screen.getByLabelText(/^Password$/i), "s3cret-s3cret");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = overlapCast(saveItem.mock.calls[0]?.[0]);
+    const saved = savedItem();
+    if (saved.kind !== "login") throw new Error("expected saved login");
     expect(saved.kind).toBe("login");
     expect(saved.name).toBe("Webmail");
     expect(saved.username).toBe("me@example.com");
@@ -111,25 +133,18 @@ describe("ItemEditor", () => {
 
   it("prefills a new login from the save-prompt query", () => {
     renderNew("/vault/new/login?name=Mail&uri=https://mail.example.com");
-    expect((overlapCast(screen.getByLabelText(/^Name$/i))).value).toBe(
-      "Mail",
-    );
+    expect(inputByLabel(/^Name$/i).value).toBe("Mail");
     expect(screen.getByDisplayValue("https://mail.example.com")).toBeTruthy();
   });
 
   it("prefills a new secret connection reference from the query", () => {
     renderNew("/vault/new/secret?name=Token&ref=conn/github/pat");
-    expect(
-      (overlapCast(screen.getByLabelText(/Connection reference/i)))
-        .value,
-    ).toBe("conn/github/pat");
+    expect(inputByLabel(/Connection reference/i).value).toBe("conn/github/pat");
   });
 
   it("prefills a new passkey relying party from the query", () => {
     renderNew("/vault/new/passkey?uri=example.com");
-    expect(
-      (overlapCast(screen.getByLabelText(/Relying party/i))).value,
-    ).toBe("example.com");
+    expect(inputByLabel(/Relying party/i).value).toBe("example.com");
   });
 
   it("falls back to a login when the kind param is unknown", () => {
@@ -142,9 +157,7 @@ describe("ItemEditor", () => {
     await userEvent.type(screen.getByLabelText(/^Name$/i), "My card");
     await userEvent.selectOptions(screen.getByLabelText(/^Type$/i), "card");
     expect(screen.getByLabelText(/Cardholder/i)).toBeTruthy();
-    expect((overlapCast(screen.getByLabelText(/^Name$/i))).value).toBe(
-      "My card",
-    );
+    expect(inputByLabel(/^Name$/i).value).toBe("My card");
     expect(screen.getByRole("heading", { name: /New card/i })).toBeTruthy();
   });
 
@@ -154,9 +167,7 @@ describe("ItemEditor", () => {
       screen.getByLabelText(/^Number$/i),
       "4111-1111 x 4242",
     );
-    expect((overlapCast(screen.getByLabelText(/^Number$/i))).value).toBe(
-      "411111114242",
-    );
+    expect(inputByLabel(/^Number$/i).value).toBe("411111114242");
   });
 
   it("adds, edits, and removes website addresses", async () => {
@@ -171,7 +182,8 @@ describe("ItemEditor", () => {
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Mail");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = overlapCast(saveItem.mock.calls[0]?.[0]);
+    const saved = savedItem();
+    if (saved.kind !== "login") throw new Error("expected saved login");
     expect(saved.uris).toHaveLength(1);
     expect(saved.uris[0]).toMatchObject({
       uri: "https://mail.example.com",
@@ -190,7 +202,7 @@ describe("ItemEditor", () => {
 
   it("reveals the password field and uses the generator", async () => {
     renderNew();
-    const password = overlapCast(screen.getByLabelText(/^Password$/i));
+    const password = inputByLabel(/^Password$/i);
     expect(password.type).toBe("password");
     await userEvent.click(
       screen.getByRole("button", { name: /Show password/i }),
@@ -258,7 +270,8 @@ describe("ItemEditor", () => {
     await userEvent.type(password, "brand-new-password");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = overlapCast(saveItem.mock.calls[0]?.[0]);
+    const saved = savedItem();
+    if (saved.kind !== "login") throw new Error("expected saved login");
     expect(saved.password).toBe("brand-new-password");
     expect(saved.passwordChangedAt).not.toBe("2026-08-01T00:00:00Z");
   });
@@ -281,7 +294,8 @@ describe("ItemEditor", () => {
     await userEvent.type(username, "other@example.com");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = overlapCast(saveItem.mock.calls[0]?.[0]);
+    const saved = savedItem();
+    if (saved.kind !== "login") throw new Error("expected saved login");
     expect(saved.passwordChangedAt).toBe("2026-08-01T00:00:00Z");
   });
 
@@ -324,7 +338,8 @@ describe("ItemEditor", () => {
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Token");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = overlapCast(saveItem.mock.calls[0]?.[0]);
+    const saved = savedItem();
+    if (saved.kind !== "secret") throw new Error("expected saved secret");
     expect(saved.grantees).toEqual(["agt_one", "agt_two"]);
   });
 
@@ -341,7 +356,8 @@ describe("ItemEditor", () => {
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Token");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = overlapCast(saveItem.mock.calls[0]?.[0]);
+    const saved = savedItem();
+    if (saved.kind !== "secret") throw new Error("expected saved secret");
     expect(saved.ceiling).toHaveLength(1);
     expect(saved.ceiling[0]).toMatchObject({
       action: "http.post",
@@ -366,7 +382,7 @@ describe("ItemEditor", () => {
     await userEvent.click(screen.getByRole("button", { name: /Add field/i }));
     const name = screen.getByLabelText("Field name");
     await userEvent.type(name, "API key");
-    const value = overlapCast(screen.getByLabelText("Field value"));
+    const value = inputByLabel("Field value");
     await userEvent.type(value, "ak_123");
     expect(value.type).toBe("text");
     await userEvent.click(
@@ -376,7 +392,7 @@ describe("ItemEditor", () => {
     await userEvent.type(screen.getByLabelText(/^Name$/i), "With fields");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = overlapCast(saveItem.mock.calls[0]?.[0]);
+    const saved = savedItem();
     expect(saved.fields).toEqual([
       expect.objectContaining({
         name: "API key",
@@ -407,7 +423,7 @@ describe("ItemEditor", () => {
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Filed");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = overlapCast(saveItem.mock.calls[0]?.[0]);
+    const saved = savedItem();
     expect(saved.folderId).toBe("fld_1");
     expect(saved.favorite).toBe(true);
   });
