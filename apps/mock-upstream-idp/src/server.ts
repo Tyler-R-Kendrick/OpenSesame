@@ -61,7 +61,7 @@ export interface MockUpstreamIdp {
 }
 
 function securityHeaders(extra: Record<string, string> = {}, issuer = "") {
-  const headers: Record<string, string> = {
+  const headers = {
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
     "referrer-policy": "no-referrer",
@@ -70,8 +70,10 @@ function securityHeaders(extra: Record<string, string> = {}, issuer = "") {
     ...extra,
   };
   if (issuer.startsWith("https://")) {
-    headers["strict-transport-security"] =
-      "max-age=63072000; includeSubDomains";
+    return {
+      ...headers,
+      "strict-transport-security": "max-age=63072000; includeSubDomains",
+    };
   }
   return headers;
 }
