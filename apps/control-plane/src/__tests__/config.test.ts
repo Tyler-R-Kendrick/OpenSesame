@@ -89,6 +89,87 @@ describe("assertSecureConfig", () => {
       }),
     ).not.toThrow();
   });
+
+  it("refuses upstream client credentials for an untrusted issuer", () => {
+    // A secret configured for an issuer we do not trust has nobody it may
+    // legitimately be sent to; failing at boot beats discovering it at runtime.
+    expect(() =>
+      assertSecureConfig({
+        ...prodBase(),
+        trustedUpstreamIssuers: ["https://shoo.dev"],
+        upstreamClientCredentials: {
+          issuer: "https://elsewhere.example",
+          clientId: "cid",
+          clientSecret: "shh",
+        },
+      }),
+    ).toThrow(/not listed in OPENSESAME_TRUSTED_UPSTREAMS/);
+  });
+
+  it("still rejects an http credentialed issuer in production, via the allowlist scan", () => {
+    // There is no separate https check for credentials: listing the issuer is
+    // mandatory, and the allowlist itself must be https in production. This
+    // pins that the combination cannot slip through either way.
+    expect(() =>
+      assertSecureConfig({
+        ...prodBase(),
+        trustedUpstreamIssuers: ["http://idp.internal"],
+        upstreamClientCredentials: {
+          issuer: "http://idp.internal",
+          clientId: "cid",
+          clientSecret: "shh",
+        },
+      }),
+    ).toThrow(/must use https in production/);
+  });
+
+  it("accepts credentials for a trusted https issuer", () => {
+    expect(() =>
+      assertSecureConfig({
+        ...prodBase(),
+        trustedUpstreamIssuers: ["https://shoo.dev"],
+        upstreamClientCredentials: {
+          issuer: "https://shoo.dev",
+          clientId: "cid",
+          clientSecret: "shh",
+        },
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe("loadConfig upstream client credentials", () => {
+  it("is absent unless issuer, client id and secret are all present", async () => {
+    const { loadConfig } = await import("../config.js");
+    const base = {
+      OPENSESAME_ALLOW_DEV_DEFAULTS: "true",
+      OPENSESAME_UPSTREAM_ISSUER: "http://127.0.0.1:9090",
+      OPENSESAME_UPSTREAM_CLIENT_ID: "cid",
+    };
+    // No secret: this is the origin-profile case, handled by derivation.
+    expect(
+      loadConfig({ ...base } as NodeJS.ProcessEnv).upstreamClientCredentials,
+    ).toBeUndefined();
+    // Secret but no client id.
+    expect(
+      loadConfig({
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "true",
+        OPENSESAME_UPSTREAM_ISSUER: "http://127.0.0.1:9090",
+        OPENSESAME_UPSTREAM_CLIENT_SECRET: "shh",
+      } as NodeJS.ProcessEnv).upstreamClientCredentials,
+    ).toBeUndefined();
+    // All three.
+    expect(
+      loadConfig({
+        ...base,
+        OPENSESAME_UPSTREAM_CLIENT_SECRET: "shh",
+      } as NodeJS.ProcessEnv).upstreamClientCredentials,
+    ).toEqual({
+      issuer: "http://127.0.0.1:9090",
+      clientId: "cid",
+      clientSecret: "shh",
+    });
+  });
 });
 
 describe("assertListenHostAllowed", () => {

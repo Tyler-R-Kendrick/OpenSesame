@@ -242,18 +242,28 @@ for itself; a server-side HTTP client does not, so the RP sets it deliberately. 
 the origin embedded in `client_id` are the same string, and the exchange fails closed rather
 than retrying without it.
 
-### 7.4 Confidential-client fallback — *not implemented*
+### 7.4 Confidential-client fallback
 
-The leg authenticates as an origin-profile public client (§7.3) against every configured
-issuer. There is no confidential-client path: `OPENSESAME_UPSTREAM_CLIENT_ID` and
-`OPENSESAME_UPSTREAM_CLIENT_SECRET` exist in `.env.schema` for the mock upstream's own
-fixtures and are **not** read by the control plane.
+When `OPENSESAME_UPSTREAM_ISSUER`, `OPENSESAME_UPSTREAM_CLIENT_ID`, and
+`OPENSESAME_UPSTREAM_CLIENT_SECRET` are **all three** set, the leg authenticates to that one
+issuer as a confidential client (`client_secret_post`) instead of deriving
+`origin:<origin>`. This exists for a broker that cannot serve the secret-less origin-profile
+contract.
 
-A broker that cannot serve the origin-profile contract therefore cannot currently be used by
-this leg. If one is ever needed, the shape is: credentials configured *for a specific issuer*,
-the two modes exclusive per issuer, chosen by configuration and never negotiated at runtime,
-and a secret never sent to an issuer it was not configured for. Until that exists and is
-tested, do not document it as available.
+The two modes are exclusive per issuer, chosen by configuration and never negotiated at
+runtime. The issuer is matched **exactly**, so a secret is never offered to an issuer it was
+not configured for; a client id with no secret stays the origin-profile case, and a secret
+with no issuer has nobody it may legitimately be sent to, so both are ignored.
+
+A confidential exchange does **not** send the `Origin` header of §7.3: that header is what
+binds an origin-profile client, and a confidential client is bound by its secret instead —
+claiming a browser origin it does not have would be a false assertion.
+
+`assertSecureConfig` refuses to boot when the credentialed issuer is absent from
+`OPENSESAME_TRUSTED_UPSTREAMS`. A credential configured for an untrusted issuer is dead
+weight at best and an exfiltration target at worst. There is no separate HTTPS assertion for
+the credentialed issuer: listing it is mandatory, and in production every allowlist entry is
+already required to be HTTPS, so the combination cannot slip through either way.
 
 ### 7.5 Assertion validation
 

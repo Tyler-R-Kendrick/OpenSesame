@@ -66,8 +66,13 @@ type StubUpstream = {
   /** Codes handed out by /authorize, keyed by code. */
   lastNonce: () => string | undefined;
   tokenOriginSeen: () => string | undefined;
+  tokenClientSeen: () => { id?: string; secret?: string };
   setSubject: (sub: string) => void;
 };
+
+/** The secret the stub expects from a confidential client. */
+const STUB_CLIENT_SECRET = "stub-upstream-secret";
+const STUB_CLIENT_ID = "opensesame-upstream-test";
 
 async function startStubUpstream(): Promise<StubUpstream> {
   const { privateKey, publicKey } = await generateKeyPair("RS256", {
@@ -80,6 +85,7 @@ async function startStubUpstream(): Promise<StubUpstream> {
   >();
   let lastNonce: string | undefined;
   let tokenOrigin: string | undefined;
+  let tokenClient: { id?: string; secret?: string } = {};
   let subject = "stub-user-1";
 
   const server = createServer((req, res) => {
@@ -148,14 +154,26 @@ async function startStubUpstream(): Promise<StubUpstream> {
             res.end(JSON.stringify({ error: "invalid_grant" }));
             return;
           }
+          tokenClient = {
+            ...(form.get("client_id")
+              ? { id: form.get("client_id") ?? undefined }
+              : undefined),
+            ...(form.get("client_secret")
+              ? { secret: form.get("client_secret") ?? undefined }
+              : undefined),
+          };
           // Origin-profile clients carry no secret, so the Origin header is
           // the only caller binding the broker has.
-          if (
-            record.clientId.startsWith("origin:") &&
-            tokenOrigin !== record.clientId.slice("origin:".length)
-          ) {
-            res.writeHead(400, { "content-type": "application/json" });
-            res.end(JSON.stringify({ error: "origin_cors_denied" }));
+          if (record.clientId.startsWith("origin:")) {
+            if (tokenOrigin !== record.clientId.slice("origin:".length)) {
+              res.writeHead(400, { "content-type": "application/json" });
+              res.end(JSON.stringify({ error: "origin_cors_denied" }));
+              return;
+            }
+          } else if (form.get("client_secret") !== STUB_CLIENT_SECRET) {
+            // A confidential client is bound by its secret instead.
+            res.writeHead(401, { "content-type": "application/json" });
+            res.end(JSON.stringify({ error: "invalid_client" }));
             return;
           }
           const verifier = form.get("code_verifier") ?? "";
@@ -209,6 +227,7 @@ async function startStubUpstream(): Promise<StubUpstream> {
       ),
     lastNonce: () => lastNonce,
     tokenOriginSeen: () => tokenOrigin,
+    tokenClientSeen: () => tokenClient,
     setSubject: (sub: string) => {
       subject = sub;
     },
@@ -218,6 +237,7 @@ async function startStubUpstream(): Promise<StubUpstream> {
 async function startControlPlane(
   upstreamIssuer: string,
   port: number,
+  extraEnv: Record<string, string> = {},
 ): Promise<Started> {
   const { startServer: start } = await import("../server.js");
   return start({
@@ -233,8 +253,18 @@ async function startControlPlane(
       ...process.env,
       OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
       OPENSESAME_TRUSTED_UPSTREAMS: upstreamIssuer,
+      ...extraEnv,
     },
   });
+}
+
+/** Reserve a port so publicUrl can name it before the server binds. */
+async function reservePort(): Promise<number> {
+  const probe = createServer();
+  await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
+  const port = (probe.address() as AddressInfo).port;
+  await new Promise<void>((r) => probe.close(() => r()));
+  return port;
 }
 
 function extractCsrf(html: string): string {
@@ -428,12 +458,7 @@ describe("federated interaction leg", () => {
   beforeAll(async () => {
     resetFederatedDiscoveryCache();
     upstream = await startStubUpstream();
-    // Bind a port first so publicUrl can name it before the server starts.
-    const probe = createServer();
-    await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
-    const port = (probe.address() as AddressInfo).port;
-    await new Promise<void>((r) => probe.close(() => r()));
-    started = await startControlPlane(upstream.issuer, port);
+    started = await startControlPlane(upstream.issuer, await reservePort());
     base = `http://127.0.0.1:${started.port}`;
   }, 30_000);
 
@@ -635,5 +660,83 @@ describe("federated interaction leg", () => {
     // identity lookup short-circuits that, so no new cookie is set.
     expect(first).toBeTruthy();
     expect(second).toBe("");
+  }, 30_000);
+});
+
+/**
+ * Confidential-client mode (federated-signin.md §7.4). A broker that cannot
+ * serve the secret-less origin-profile contract is authenticated by a secret
+ * configured *for that exact issuer* instead.
+ */
+describe("federated leg, confidential client", () => {
+  let upstream: StubUpstream;
+  let started: Started;
+  let base: string;
+
+  beforeAll(async () => {
+    resetFederatedDiscoveryCache();
+    upstream = await startStubUpstream();
+    started = await startControlPlane(upstream.issuer, await reservePort(), {
+      OPENSESAME_UPSTREAM_ISSUER: upstream.issuer,
+      OPENSESAME_UPSTREAM_CLIENT_ID: STUB_CLIENT_ID,
+      OPENSESAME_UPSTREAM_CLIENT_SECRET: STUB_CLIENT_SECRET,
+    });
+    base = `http://127.0.0.1:${started.port}`;
+  }, 30_000);
+
+  afterAll(async () => {
+    await new Promise<void>((resolve, reject) =>
+      started.server.close((err) => (err ? reject(err) : resolve())),
+    );
+    await upstream.close();
+    resetFederatedDiscoveryCache();
+  });
+
+  it("authenticates with the configured secret, not a derived origin", async () => {
+    upstream.setSubject(`conf-${randomBytes(4).toString("hex")}`);
+    const jar = new Jar();
+    const { challenge } = pkce();
+    const authRes = await req(
+      base,
+      jar,
+      `/auth?${new URLSearchParams({
+        client_id: RP_CLIENT_ID,
+        redirect_uri: RP_REDIRECT,
+        response_type: "code",
+        scope: "openid",
+        state: "s-1",
+        nonce: "n-1",
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+      }).toString()}`,
+    );
+    const location = authRes.headers.get("location") ?? "";
+    const uid = location.slice("/interaction/".length);
+    const html = await (await req(base, jar, location)).text();
+
+    const start = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/start`,
+      postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
+    );
+    expect(start.status).toBe(303);
+    const authorize = new URL(start.headers.get("location") ?? "");
+    // The authorization request must name the configured client, not origin:.
+    expect(authorize.searchParams.get("client_id")).toBe(STUB_CLIENT_ID);
+
+    const upstreamRes = await fetch(authorize, { redirect: "manual" });
+    const back = new URL(upstreamRes.headers.get("location") ?? "");
+    const res = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/callback${back.search}`,
+    );
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toContain("/auth/");
+
+    const seen = upstream.tokenClientSeen();
+    expect(seen.id).toBe(STUB_CLIENT_ID);
+    expect(seen.secret).toBe(STUB_CLIENT_SECRET);
   }, 30_000);
 });

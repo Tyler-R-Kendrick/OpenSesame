@@ -149,6 +149,51 @@ function originClientId(config: ControlPlaneConfig): string {
   return `origin:${siteOrigin(config)}`;
 }
 
+/**
+ * Confidential credentials configured *for this exact issuer*, or undefined.
+ *
+ * The issuer match is exact and is the whole point: a secret configured for
+ * one broker must never travel to another, however the flow reached this
+ * function. `assertSecureConfig` additionally refuses to boot when the
+ * credentialed issuer is not in the trusted allowlist.
+ */
+function credentialsForIssuer(
+  config: ControlPlaneConfig,
+  issuer: string,
+): { clientId: string; clientSecret: string } | undefined {
+  const configured = config.upstreamClientCredentials;
+  if (!configured || configured.issuer !== issuer) return undefined;
+  return {
+    clientId: configured.clientId,
+    clientSecret: configured.clientSecret,
+  };
+}
+
+/**
+ * How we authenticate to a given broker. The two modes are exclusive per
+ * issuer and chosen by configuration, never negotiated at runtime: a broker
+ * with configured credentials gets a confidential client, everything else
+ * gets the derived origin-profile public client.
+ */
+function clientModeFor(
+  config: ControlPlaneConfig,
+  issuer: string,
+): { clientId: string; auth: client.ClientAuth; confidential: boolean } {
+  const credentials = credentialsForIssuer(config, issuer);
+  if (credentials) {
+    return {
+      clientId: credentials.clientId,
+      auth: client.ClientSecretPost(credentials.clientSecret),
+      confidential: true,
+    };
+  }
+  return {
+    clientId: originClientId(config),
+    auth: client.None(),
+    confidential: false,
+  };
+}
+
 export function federatedRedirectUri(
   config: ControlPlaneConfig,
   uid: string,
@@ -191,9 +236,13 @@ async function upstreamConfiguration(
   const cached = discoveryCache.get(issuer);
   if (cached) return cached;
 
-  const origin = siteOrigin(ctx.config);
+  const mode = clientModeFor(ctx.config, issuer);
   const options: client.DiscoveryRequestOptions = {
-    [client.customFetch]: originPinnedFetch(origin),
+    // The Origin header is what binds an origin-profile client; a confidential
+    // client is bound by its secret and must not claim a browser origin.
+    ...(mode.confidential
+      ? undefined
+      : { [client.customFetch]: originPinnedFetch(siteOrigin(ctx.config)) }),
     // Only a dev stack may point at an http:// broker; production config
     // refuses a non-HTTPS entry in the allowlist outright (assertSecureConfig).
     ...(ctx.config.allowDevDefaults
@@ -202,13 +251,7 @@ async function upstreamConfiguration(
   };
 
   const pending = client
-    .discovery(
-      new URL(issuer),
-      originClientId(ctx.config),
-      undefined,
-      client.None(),
-      options,
-    )
+    .discovery(new URL(issuer), mode.clientId, undefined, mode.auth, options)
     .catch((cause: unknown) => {
       // A failed discovery must not poison the cache for later attempts.
       discoveryCache.delete(issuer);
