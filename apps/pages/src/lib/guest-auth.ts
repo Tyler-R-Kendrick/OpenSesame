@@ -68,6 +68,9 @@ function stashCurrentSessionDefault(): void {
     accessToken: active.accessToken,
     issuerOrigin: active.issuerOrigin,
   };
+  // Stryker disable next-line ConditionalExpression: forcing this true assigns
+  // `undefined`, which JSON.stringify then omits — the stored string is
+  // byte-identical either way, so no test can distinguish the two.
   if (active.expiresAt) payload.expiresAt = active.expiresAt;
   try {
     sessionStorage.setItem(STASH_KEY, JSON.stringify(payload));
@@ -96,6 +99,9 @@ function takeStashedSessionDefault(): StashedSession | null {
 function hasStashedSession(): boolean {
   try {
     return sessionStorage.getItem(STASH_KEY) !== null;
+    // Stryker disable next-line BlockStatement: emptying this catch returns
+    // `undefined` instead of `false`. The only consumer negates the result
+    // (`!hasStashedSession()`), where the two are indistinguishable.
   } catch {
     return false;
   }
@@ -120,6 +126,9 @@ function clearPendingLink(): void {
 function pendingLinkMarked(): boolean {
   try {
     return sessionStorage.getItem(PENDING_LINK_KEY) !== null;
+    // Stryker disable next-line BlockStatement: as in hasStashedSession — the
+    // sole consumer is `!pendingLinkMarked()`, so `undefined` and `false`
+    // cannot be told apart by any observable behaviour.
   } catch {
     return false;
   }

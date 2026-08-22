@@ -589,3 +589,34 @@ describe("branches the journey tests do not separate", () => {
     expect(listNotices().find((n) => n.kind === "federated_link")).toBeFalsy();
   });
 });
+
+/**
+ * The two "is this prompt already showing?" guards must key on the notice
+ * *kind*, not on whether any notice exists at all. A guard that fired for any
+ * notice would let a lingering guest-claim prompt suppress the "finish
+ * attaching your sign-in" one, and the person would never be told that their
+ * federated sign-in was left half-done.
+ */
+describe("prompt de-duplication is per kind, not per any-notice", () => {
+  it("still raises the guest-claim prompt when an unrelated notice is showing", async () => {
+    pushNotice({ kind: "federated_link", title: "other", body: "b" });
+    const connectProvisional = vi.fn(async () => undefined);
+    withDeps({ connectProvisional, currentSession: () => session() });
+
+    await guestAuthSeams.claimGuestAuth();
+
+    // The federated_link notice must not have masked this one.
+    expect(connectProvisional).toHaveBeenCalledTimes(1);
+    expect(listNotices().find((n) => n.kind === "guest_claim")).toBeTruthy();
+  });
+
+  it("still raises the federated prompt when an unrelated notice is showing", () => {
+    sessionStorage.setItem(PENDING_LINK_KEY, "1");
+    pushNotice({ kind: "guest_claim", title: "other", body: "b" });
+    withDeps({ loadFederationSession: () => ({ idToken: "t" }) });
+
+    guestAuthSeams.recoverPendingFederatedLink();
+
+    expect(listNotices().find((n) => n.kind === "federated_link")).toBeTruthy();
+  });
+});
