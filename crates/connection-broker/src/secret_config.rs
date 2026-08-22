@@ -342,11 +342,38 @@ use std::sync::Arc;
 use chrono::Utc;
 use serde_json::Map;
 
-use crate::changelog_hook::{record_secret_changelog, RecordSecretChangelog};
+use crate::changelog_hook::{record_secret_changelog_durable, RecordSecretChangelog};
 use crate::store::{ConfigValueVersionMetaRow, UpsertConfigValue};
 
 impl crate::ConnectionBroker {
-    fn config_changelog(
+    /// Durable changelog write through this broker's pool (fail closed on an
+    /// unknown event name). The one production entry point for Host rows.
+    pub async fn record_changelog(
+        &self,
+        input: RecordSecretChangelog,
+    ) -> Result<crate::changelog_hook::ChangelogEntry> {
+        record_secret_changelog_durable(&self.pool, input).await
+    }
+
+    /// Durable changelog read, newest first; `before_seq` pages backwards.
+    pub async fn list_changelog(
+        &self,
+        organization_id: &str,
+        project_id: &str,
+        limit: usize,
+        before_seq: Option<i64>,
+    ) -> Result<Vec<crate::changelog_hook::ChangelogEntry>> {
+        crate::changelog_hook::list_secret_changelog_durable(
+            &self.pool,
+            organization_id,
+            project_id,
+            limit,
+            before_seq,
+        )
+        .await
+    }
+
+    async fn config_changelog(
         &self,
         event_type: &str,
         config: &SecretConfigRow,
@@ -354,18 +381,22 @@ impl crate::ConnectionBroker {
         actor_id: Option<&str>,
         version_id: Option<String>,
     ) {
-        record_secret_changelog(RecordSecretChangelog {
-            event_type: event_type.into(),
-            project_id: config.project_id.clone(),
-            organization_id: Some(config.organization_id.clone()),
-            actor_id: actor_id.map(str::to_string),
-            config_id: Some(config.id.clone()),
-            environment: Some(config.environment.clone()),
-            key_names,
-            version_id,
-            metadata: Map::new(),
-            ..Default::default()
-        });
+        let _ = record_secret_changelog_durable(
+            &self.pool,
+            RecordSecretChangelog {
+                event_type: event_type.into(),
+                project_id: config.project_id.clone(),
+                organization_id: Some(config.organization_id.clone()),
+                actor_id: actor_id.map(str::to_string),
+                config_id: Some(config.id.clone()),
+                environment: Some(config.environment.clone()),
+                key_names,
+                version_id,
+                metadata: Map::new(),
+                ..Default::default()
+            },
+        )
+        .await;
     }
 
     pub async fn create_secret_config(
@@ -407,7 +438,8 @@ impl crate::ConnectionBroker {
             updated_at: now,
         };
         store::insert_secret_config(&self.pool, &row).await?;
-        self.config_changelog("secret.config.created", &row, Vec::new(), actor_id, None);
+        self.config_changelog("secret.config.created", &row, Vec::new(), actor_id, None)
+            .await;
         Ok(row.into())
     }
 
@@ -456,7 +488,8 @@ impl crate::ConnectionBroker {
             )));
         }
         store::delete_secret_config(&self.pool, organization_id, config_id).await?;
-        self.config_changelog("secret.config.deleted", &config, Vec::new(), actor_id, None);
+        self.config_changelog("secret.config.deleted", &config, Vec::new(), actor_id, None)
+            .await;
         Ok(())
     }
 
@@ -534,7 +567,8 @@ impl crate::ConnectionBroker {
             secrets.keys().cloned().collect(),
             actor_id,
             Some(format!("v{top_version}")),
-        );
+        )
+        .await;
         Ok(out)
     }
 
@@ -559,7 +593,8 @@ impl crate::ConnectionBroker {
             vec![key_name.to_string()],
             actor_id,
             None,
-        );
+        )
+        .await;
         Ok(())
     }
 
@@ -637,25 +672,26 @@ impl crate::ConnectionBroker {
             },
         )
         .await?;
-        // CHANGELOG_HOOK: upgrade to the frozen `secret.value.rolled_back`
-        // name once the durable-changelog change lands it in all four
-        // vocabulary files; until then the closest frozen name records it.
-        record_secret_changelog(RecordSecretChangelog {
-            event_type: "secret.value.changed".into(),
-            project_id: config.project_id.clone(),
-            organization_id: Some(config.organization_id.clone()),
-            actor_id: actor_id.map(str::to_string),
-            config_id: Some(config.id.clone()),
-            environment: Some(config.environment.clone()),
-            key_names: vec![key_name.to_string()],
-            version_id: Some(format!("v{new_version}")),
-            metadata: {
-                let mut m = Map::new();
-                m.insert("rolledBackTo".into(), serde_json::json!(to_version));
-                m
+        let _ = record_secret_changelog_durable(
+            &self.pool,
+            RecordSecretChangelog {
+                event_type: "secret.value.rolled_back".into(),
+                project_id: config.project_id.clone(),
+                organization_id: Some(config.organization_id.clone()),
+                actor_id: actor_id.map(str::to_string),
+                config_id: Some(config.id.clone()),
+                environment: Some(config.environment.clone()),
+                key_names: vec![key_name.to_string()],
+                version_id: Some(format!("v{new_version}")),
+                metadata: {
+                    let mut m = Map::new();
+                    m.insert("rolledBackTo".into(), serde_json::json!(to_version));
+                    m
+                },
+                ..Default::default()
             },
-            ..Default::default()
-        });
+        )
+        .await;
         Ok(new_version)
     }
 

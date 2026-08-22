@@ -6,13 +6,15 @@
 //!
 //! Frozen event type strings (must match `@opensesame/audit` / WP-B):
 //! - `secret.config.created|updated|deleted`
-//! - `secret.value.changed`
+//! - `secret.value.changed` / `secret.value.rolled_back`
 //! - `sync.target.created|synced|failed`
 //! - `credential.rotation.requested|succeeded|failed`
 //! - `project.personal.ensured`
 
 use std::collections::VecDeque;
 use std::sync::{Mutex, OnceLock};
+
+use sqlx::SqlitePool;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
@@ -28,6 +30,7 @@ pub const CHANGELOG_EVENT_TYPES: &[&str] = &[
     "secret.config.updated",
     "secret.config.deleted",
     "secret.value.changed",
+    "secret.value.rolled_back",
     "sync.target.created",
     "sync.target.synced",
     "sync.target.failed",
@@ -44,6 +47,9 @@ pub fn is_allowed_changelog_event_type(event_type: &str) -> bool {
 /// Metadata-only changelog row for Host listing APIs.
 #[derive(Debug, Clone, Serialize)]
 pub struct ChangelogEntry {
+    /// Durable-store cursor (assigned by SQLite); None for cache-only rows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub seq: Option<i64>,
     pub id: String,
     pub event_type: String,
     pub project_id: String,
@@ -177,6 +183,7 @@ pub fn record_secret_changelog(input: RecordSecretChangelog) -> ChangelogEntry {
     }
 
     let entry = ChangelogEntry {
+        seq: None,
         id: format!("chg_{}", Uuid::new_v4()),
         event_type: input.event_type,
         project_id: input.project_id,
@@ -225,6 +232,43 @@ pub fn list_secret_changelog(
         .collect();
     entries.sort_by(|a, b| b.occurred_at.cmp(&a.occurred_at));
     entries.into_iter().take(limit.clamp(1, 200)).collect()
+}
+
+/// Record a changelog event durably into the given pool: validates the frozen
+/// vocabulary (fail closed — an unknown name records nothing anywhere),
+/// appends to the `secret_changelog` table, and updates the in-memory cache.
+pub async fn record_secret_changelog_durable(
+    pool: &SqlitePool,
+    input: RecordSecretChangelog,
+) -> crate::error::Result<ChangelogEntry> {
+    if !is_allowed_changelog_event_type(&input.event_type) {
+        return Err(crate::error::BrokerError::Invalid(format!(
+            "unknown changelog event type `{}`",
+            input.event_type
+        )));
+    }
+    let mut entry = record_secret_changelog(input);
+    let seq = crate::store::insert_changelog_row(pool, &entry).await?;
+    entry.seq = Some(seq);
+    Ok(entry)
+}
+
+/// Durable read: newest first, `before_seq` pages backwards.
+pub async fn list_secret_changelog_durable(
+    pool: &SqlitePool,
+    organization_id: &str,
+    project_id: &str,
+    limit: usize,
+    before_seq: Option<i64>,
+) -> crate::error::Result<Vec<ChangelogEntry>> {
+    crate::store::list_changelog_rows(
+        pool,
+        organization_id,
+        project_id,
+        limit.clamp(1, 200) as i64,
+        before_seq,
+    )
+    .await
 }
 
 /// Clear the in-memory Host changelog (tests / local reset only).
