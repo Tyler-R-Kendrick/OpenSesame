@@ -90,6 +90,9 @@ function restoreStashedGuestSessionDefault(): boolean {
 let inFlightClaim: Promise<void> | null = null;
 
 async function claimGuestAuthDefault(): Promise<void> {
+  // Stryker disable next-line ConditionalExpression: equivalent while
+  // Notice["kind"] has a single member — the predicate then only asks whether
+  // the list is non-empty. Drop this when a second kind lands.
   if (listNotices().some((notice) => notice.kind === "guest_claim")) {
     stashCurrentSession();
     return;

@@ -152,6 +152,9 @@ function quotaFieldFor(action: string): {
       };
     case "claim.create":
       return { usage: "claims", limit: "maxClaims", reason: "quota_claims" };
+    // Stryker disable next-line ConditionalExpression: equivalent — dropping the
+    // default returns undefined instead of null, and the caller only tests it
+    // for truthiness.
     default:
       return null;
   }
