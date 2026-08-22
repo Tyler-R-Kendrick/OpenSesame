@@ -1,6 +1,6 @@
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,7 +8,7 @@ const online = vi.hoisted(() => ({ value: true }));
 const plane = vi.hoisted(() => ({
   value: { host: "live", identity: "connected" },
 }));
-const session = vi.hoisted(() => ({
+const session: { current: { principalId: string } | null } = vi.hoisted(() => ({
   current: { principalId: "prn_op" },
 }));
 const connect = vi.hoisted(() => vi.fn());
@@ -17,24 +17,24 @@ const identityFetch = vi.hoisted(() => vi.fn());
 
 import { useOnlineSeams } from "../../lib/use-online.js";
 const originalUseOnlineSeams = { ...useOnlineSeams };
-Object.assign(useOnlineSeams, {useOnline: () => online.value});
+Object.assign(useOnlineSeams, { useOnline: () => online.value });
 import { planeSeams } from "../../lib/planes.js";
 const originalPlaneSeams = { ...planeSeams };
-Object.assign(planeSeams, {usePlaneStatus: () => plane.value});
+Object.assign(planeSeams, { usePlaneStatus: () => plane.value });
 import { identitySeams } from "../../lib/identity.js";
 const originalIdentitySeams = { ...identitySeams };
-Object.assign(identitySeams, {useIdentitySession: () => session.current,
+Object.assign(identitySeams, {
+  useIdentitySession: () => session.current,
   useConnect: () => ({ connect, connecting: connecting.value }),
-  identityFetch});
+  identityFetch,
+});
 const loadSettings = vi.hoisted(() => vi.fn());
 const saveSettings = vi.hoisted(() => vi.fn());
 const shouldAutoConnect = vi.hoisted(() => vi.fn(() => true));
 
 import { settingsSeams } from "../../lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
-Object.assign(settingsSeams, {loadSettings,
-  saveSettings,
-  shouldAutoConnect});
+Object.assign(settingsSeams, { loadSettings, saveSettings, shouldAutoConnect });
 import { ActiveProjectPanel } from "./ActiveProjectPanel.js";
 
 const personalProject = {
@@ -98,9 +98,9 @@ describe("ActiveProjectPanel", () => {
   it("offers identity connect when signed out", () => {
     session.current = null;
     render(<ActiveProjectPanel />);
-    const button = overlapCast(screen.getByRole("button", {
+    const button = screen.getByRole<HTMLButtonElement>("button", {
       name: /Connect Identity/i,
-    }));
+    });
     expect(button.disabled).toBe(false);
     expect(identityFetch).not.toHaveBeenCalled();
   });
@@ -109,9 +109,9 @@ describe("ActiveProjectPanel", () => {
     session.current = null;
     connecting.value = true;
     render(<ActiveProjectPanel />);
-    const button = overlapCast(screen.getByRole("button", {
+    const button = screen.getByRole<HTMLButtonElement>("button", {
       name: /Connecting…/i,
-    }));
+    });
     expect(button.disabled).toBe(true);
   });
 
@@ -119,9 +119,9 @@ describe("ActiveProjectPanel", () => {
     session.current = null;
     shouldAutoConnect.mockReturnValue(false);
     render(<ActiveProjectPanel />);
-    const button = overlapCast(screen.getByRole("button", {
+    const button = screen.getByRole<HTMLButtonElement>("button", {
       name: /Connect Identity/i,
-    }));
+    });
     expect(button.disabled).toBe(true);
   });
 

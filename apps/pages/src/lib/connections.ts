@@ -1,4 +1,10 @@
-import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 /**
  * Connection broker client (Host plane).
  *
@@ -213,9 +219,7 @@ async function call<T>(
 /* ----------------------------------------------------------- wire mapping */
 
 function obj(value: BoundaryValue): JsonObject {
-  return value && isTypeofObject(value)
-    ? (overlapCast(value))
-    : {};
+  return value && isTypeofObject(value) ? overlapCast(value) : {};
 }
 
 function toEgress(raw: {
@@ -329,10 +333,9 @@ export type GithubAppRegistration = {
 
 function toIntegration(value: BoundaryValue): Integration {
   const raw = overlapCast(value);
-  const html =
-    isString(raw.github_app_html_url)
-      ? raw.github_app_html_url.trim()
-      : "";
+  const html = isString(raw.github_app_html_url)
+    ? raw.github_app_html_url.trim()
+    : "";
   return {
     id: String(raw.id ?? ""),
     key: String(raw.key ?? ""),
@@ -348,7 +351,7 @@ function toIntegration(value: BoundaryValue): Integration {
 
 function listIntegrationsDefault(): Promise<Integration[]> {
   return call("/integrations", {}, (body) => {
-    const raw = overlapCast(body);
+    const raw: { integrations?: BoundaryValue[] } = overlapCast(body);
     return (raw.integrations ?? []).map(toIntegration);
   });
 }
@@ -459,7 +462,9 @@ function createConnectionDefault(body: {
         ...(body.displayName ? { display_name: body.displayName } : undefined),
         ...(body.scopes ? { scopes: body.scopes } : undefined),
         ...(body.projectId ? { project_id: body.projectId } : undefined),
-        ...(body.integrationId ? { integration_id: body.integrationId } : undefined),
+        ...(body.integrationId
+          ? { integration_id: body.integrationId }
+          : undefined),
       }),
     },
     toConnection,

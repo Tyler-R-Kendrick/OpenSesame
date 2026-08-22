@@ -1,3 +1,4 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
@@ -16,7 +17,6 @@ import {
   listSyncTargets,
   syncTarget,
 } from "./sync-targets.js";
-import { type BoundaryValue } from "@opensesame/os-domain";
 
 const HOST = shippedHostApi;
 const IDENTITY = shippedIdentityApi;

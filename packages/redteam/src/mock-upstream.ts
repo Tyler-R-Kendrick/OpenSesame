@@ -1,4 +1,3 @@
-import { isString } from "@opensesame/os-domain";
 /**
  * A tiny, per-call stub HTTP server standing in for the Host API / daemon that
  * `apps/mcp-host` talks to (`hostFetch/daemonFetch` in `apps/mcp-host/src/host-api.ts`).
@@ -17,6 +16,7 @@ import { isString } from "@opensesame/os-domain";
  * `scripts/mock-upstream-daemon.mjs`.)
  */
 import http from "node:http";
+import type { AddressInfo } from "node:net";
 
 export interface MockRoute {
   /** Path to match, or a prefix ending in "*" (e.g. "/api/v1/tasks/*"). */
@@ -42,6 +42,12 @@ export interface MockUpstream {
   /** Every request the stub received, in order, for assertions to inspect. */
   requests: CapturedRequest[];
   close: () => Promise<void>;
+}
+
+function isAddressInfo(
+  address: AddressInfo | string | null,
+): address is AddressInfo {
+  return address !== null && typeof address !== "string";
 }
 
 function matchRoute(
@@ -90,7 +96,7 @@ export async function startMockUpstream(
   });
 
   const address = server.address();
-  if (!address || isString(address)) {
+  if (!isAddressInfo(address)) {
     throw new Error("mock upstream failed to bind a TCP port");
   }
 

@@ -1,4 +1,3 @@
-import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString, isFunction } from "@opensesame/os-domain";
 /**
  * Privacy-bounded telemetry for the mcp-host tool surface. Off by default:
  * everything below is a no-op unless `OPENSESAME_TELEMETRY_KEY` is set.
@@ -13,7 +12,15 @@ import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isStr
  * — that is the only edit made to `server.ts`.
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isFunction,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { type Telemetry, createTelemetry } from "@opensesame/telemetry";
+import { z } from "zod";
 import { posthogSeams } from "./posthog.js";
 
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
@@ -31,7 +38,9 @@ const ANONYMOUS_DISTINCT_ID = crypto.randomUUID();
 let posthogClient: InstanceType<typeof posthogSeams.PostHog> | undefined;
 let shutdownHooked = false;
 
-function getPosthogClient(): InstanceType<typeof posthogSeams.PostHog> | undefined {
+function getPosthogClient():
+  | InstanceType<typeof posthogSeams.PostHog>
+  | undefined {
   const key = process.env.OPENSESAME_TELEMETRY_KEY;
   if (!key) return undefined;
   if (!posthogClient) {
@@ -75,7 +84,8 @@ function createHostTelemetry(): Telemetry | undefined {
   });
 }
 
-type AnyFn = (...args: unknown[]) => BoundaryValue;
+type ToolReturn = BoundaryValue | Promise<BoundaryValue>;
+type AnyFn = (...args: BoundaryValue[]) => ToolReturn;
 
 /**
  * Narrow structural view of `McpServer` used only for the monkey-patch. The
@@ -98,25 +108,19 @@ interface ToolRegistrar {
  * returned to the MCP client is untouched and unread by telemetry beyond
  * this classification step.
  */
-interface ToolResultLike {
-  isError?: boolean;
-  content?: unknown;
-}
+const toolResultSchema = z
+  .object({
+    isError: z.boolean().optional(),
+    content: z
+      .array(z.object({ text: z.string().optional() }).passthrough())
+      .optional(),
+  })
+  .passthrough();
 
-function isToolResultLike(value: BoundaryValue): value is ToolResultLike {
-  return isTypeofObject(value) && value !== null && "content" in value;
-}
+type ToolResultLike = z.infer<typeof toolResultSchema>;
 
 function resultText(result: ToolResultLike): string {
-  const content = result.content;
-  if (!Array.isArray(content)) return "";
-  return content
-    .map((block) =>
-      block && isTypeofObject(block) && "text" in block
-        ? String((overlapCast(block)).text)
-        : "",
-    )
-    .join(" ");
+  return result.content?.map((block) => block.text ?? "").join(" ") ?? "";
 }
 
 /**
@@ -133,8 +137,9 @@ function resultText(result: ToolResultLike): string {
  * told apart from failures.
  */
 function classifyOutcome(result: BoundaryValue): "ok" | "error" | "refused" {
-  if (!isToolResultLike(result) || !result.isError) return "ok";
-  const text = resultText(result).toLowerCase();
+  const parsed = toolResultSchema.safeParse(result);
+  if (!parsed.success || !parsed.data.isError) return "ok";
+  const text = resultText(parsed.data).toLowerCase();
   return /denied|forbidden|refused|unauthorized|required|not[_-]?permitted/.test(
     text,
   )
@@ -160,7 +165,7 @@ function wrapToolHandler(
   handler: AnyFn,
   telemetry: Telemetry,
 ): AnyFn {
-  return async (...cbArgs: unknown[]) => {
+  return async (...cbArgs: BoundaryValue[]) => {
     // `getClientVersion()` reflects the client info negotiated during the
     // MCP `initialize` handshake and is available per-call on the
     // underlying `Server` (`McpServer.server`) — no fallback to a static
@@ -213,10 +218,10 @@ export function wrapServerWithTelemetry(
 
   // SAFETY: ToolRegistrar is the structural subset of McpServer.tool used
   // for the last-argument callback wrap; the SDK's overloads cannot be named.
-  const target = overlapCast(server);
+  const target: ToolRegistrar = overlapCast(server);
   const originalTool = target.tool.bind(target);
 
-  target.tool = (...args: unknown[]) => {
+  target.tool = (...args: BoundaryValue[]) => {
     const name = args[0];
     const lastIndex = args.length - 1;
     const handler = args[lastIndex];
@@ -227,10 +232,11 @@ export function wrapServerWithTelemetry(
       return originalTool(...args);
     }
     const patchedArgs = [...args];
+    const typedHandler: AnyFn = overlapCast(handler);
     patchedArgs[lastIndex] = wrapToolHandler(
       server,
       name,
-      overlapCast(handler),
+      typedHandler,
       active,
     );
     return originalTool(...patchedArgs);

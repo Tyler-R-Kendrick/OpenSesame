@@ -1,4 +1,4 @@
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { act, createElement } from "react";
 import { type Root, createRoot } from "react-dom/client";
@@ -14,9 +14,7 @@ const mocks = {
   signOut: vi.fn(),
 };
 
-(
-  overlapCast(globalThis)
-).IS_REACT_ACT_ENVIRONMENT = true;
+overlapCast(globalThis).IS_REACT_ACT_ENVIRONMENT = true;
 
 const props = {
   name: "RP Alpha",

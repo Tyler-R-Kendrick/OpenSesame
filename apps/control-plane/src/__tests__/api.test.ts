@@ -2,6 +2,7 @@ import {
   MemoryPairwiseSubjectStore,
   createPairwiseIdentifierCallback,
 } from "@opensesame/oauth-provider";
+import { overlapCast } from "@opensesame/os-domain";
 import {
   DEFAULT_PROVISIONAL_QUOTA,
   DEFAULT_VERIFIED_QUOTA,
@@ -9,7 +10,6 @@ import {
 } from "@opensesame/policy";
 import { describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
   const res = await app.request("/v1/principals/provisional", {
@@ -106,9 +106,7 @@ describe("control-plane API", () => {
       const listed = await app.request("/v1/organizations", {
         headers: { authorization: `Bearer ${created.accessToken}` },
       });
-      expect(
-        (overlapCast(await listed.json())).organizations,
-      ).toEqual([]);
+      expect(overlapCast(await listed.json()).organizations).toEqual([]);
 
       ctx.config.bootstrapPersonalOrganization = true;
       const approval = await app.request("/v1/device/approve", {
@@ -239,9 +237,9 @@ describe("control-plane API", () => {
     // Quota of three is spent.
     const overQuota = await create("four");
     expect(overQuota.status).toBe(403);
-    expect(
-      (overlapCast(await overQuota.json())).reasons,
-    ).toContain("provisional_quota_projects");
+    expect(overlapCast(await overQuota.json()).reasons).toContain(
+      "provisional_quota_projects",
+    );
 
     // Once they lapse the slots come back: the cap is live, not lifetime.
     now = new Date(now.getTime() + 120_000);
@@ -282,9 +280,7 @@ describe("control-plane API", () => {
       headers: { "x-claim-token": project.claimToken },
     });
     expect(withToken.status).toBe(200);
-    expect((overlapCast(await withToken.json())).state).toBe(
-      "pending",
-    );
+    expect(overlapCast(await withToken.json()).state).toBe("pending");
 
     const present = await app.request("/v1/claims/present", {
       method: "POST",
@@ -352,13 +348,11 @@ describe("control-plane API", () => {
 
     const card = await app.request("/.well-known/agent-card.json");
     expect(card.status).toBe(200);
-    expect((overlapCast(await card.json())).name).toBe("OpenSesame");
+    expect(overlapCast(await card.json()).name).toBe("OpenSesame");
 
     const prm = await app.request("/.well-known/oauth-protected-resource");
     expect(prm.status).toBe(200);
-    expect((overlapCast(await prm.json())).resource).toContain(
-      "8788",
-    );
+    expect(overlapCast(await prm.json()).resource).toContain("8788");
   });
 
   it("pairwise subjects differ across sectors via oauth-provider", async () => {
@@ -464,9 +458,9 @@ describe("control-plane API", () => {
       }),
     });
     expect(assertRes.status).toBe(200);
-    expect(
-      (overlapCast(await assertRes.json())).principalId,
-    ).toBe(created.principalId);
+    expect(overlapCast(await assertRes.json()).principalId).toBe(
+      created.principalId,
+    );
 
     const enroll = await app.request("/v1/mfa/totp/enroll", {
       method: "POST",
@@ -484,7 +478,7 @@ describe("control-plane API", () => {
       body: JSON.stringify({ code }),
     });
     expect(verify.status).toBe(200);
-    expect((overlapCast(await verify.json())).ok).toBe(true);
+    expect(overlapCast(await verify.json()).ok).toBe(true);
   });
 
   it("fences wrong TOTP codes after five tries", async () => {
@@ -585,9 +579,7 @@ describe("control-plane API", () => {
       headers: auth,
     });
     expect(enroll.status).toBe(403);
-    expect((overlapCast(await enroll.json())).error).toBe(
-      "totp_dev_only",
-    );
+    expect(overlapCast(await enroll.json()).error).toBe("totp_dev_only");
     const verify = await app.request("/v1/mfa/totp/verify", {
       method: "POST",
       headers: { ...auth, "content-type": "application/json" },
@@ -625,7 +617,7 @@ describe("control-plane API", () => {
       }),
     });
     expect(stubReg.status).toBe(400);
-    expect((overlapCast(await stubReg.json())).error).toBe(
+    expect(overlapCast(await stubReg.json()).error).toBe(
       "registration_attestation_required",
     );
 
@@ -878,7 +870,7 @@ describe("control-plane API", () => {
       }),
     });
     expect(collision.status).toBe(409);
-    expect((overlapCast(await collision.json())).error).toBe(
+    expect(overlapCast(await collision.json()).error).toBe(
       "identity_collision",
     );
 
@@ -962,9 +954,11 @@ describe("control-plane API", () => {
     ).toBe(true);
 
     // Every event carries the digest of the one before it, and the trail says so.
-    const chained = overlapCast(await (
-      await app.request("/v1/audit/events?limit=20", { headers: auth })
-    ).json());
+    const chained = overlapCast(
+      await (
+        await app.request("/v1/audit/events?limit=20", { headers: auth })
+      ).json(),
+    );
     expect(chained.events.every((e) => e.digest && e.previousDigest)).toBe(
       true,
     );
@@ -995,9 +989,11 @@ describe("control-plane API", () => {
     });
     expect(everything.length).toBeGreaterThan(mine.length);
 
-    const verified = overlapCast(await (
-      await app.request("/v1/audit/events/verify", { headers: auth })
-    ).json());
+    const verified = overlapCast(
+      await (
+        await app.request("/v1/audit/events/verify", { headers: auth })
+      ).json(),
+    );
     expect(verified.ok).toBe(true);
     expect(verified.checked).toBe(everything.length);
   });
@@ -1061,19 +1057,17 @@ describe("control-plane API", () => {
     });
     expect(memberOrganizations.status).toBe(200);
     expect(
-      (
-        overlapCast(await memberOrganizations.json())
-      ).organizations,
+      overlapCast(await memberOrganizations.json()).organizations,
     ).toContainEqual(
       expect.objectContaining({ id: organization.id, role: "member" }),
     );
     expect(
-      (
-        overlapCast(await (
+      overlapCast(
+        await (
           await app.request(`/v1/organizations/${organization.id}`, {
             headers: member.auth,
           })
-        ).json())
+        ).json(),
       ).role,
     ).toBe("member");
     expect(
@@ -1185,12 +1179,12 @@ describe("control-plane API", () => {
       );
       expect(failedChange.status).toBe(502);
       expect(
-        (
-          overlapCast(await (
+        overlapCast(
+          await (
             await app.request(`/v1/organizations/${organization.id}`, {
               headers: member.auth,
             })
-          ).json())
+          ).json(),
         ).role,
       ).toBe("member");
 
@@ -1344,11 +1338,13 @@ describe("control-plane API", () => {
       expect((await removal).status).toBe(204);
       await secondStarted;
 
-      const members = overlapCast(await (
-        await app.request(`/v1/organizations/${organization.id}/members`, {
-          headers: owner.auth,
-        })
-      ).json());
+      const members = overlapCast(
+        await (
+          await app.request(`/v1/organizations/${organization.id}/members`, {
+            headers: owner.auth,
+          })
+        ).json(),
+      );
       expect(members.members).not.toContainEqual(
         expect.objectContaining({ principalId: target.principalId }),
       );
@@ -1526,9 +1522,9 @@ describe("control-plane API", () => {
     expect((await createOrg("quota-one", "q-org-1")).status).toBe(201);
     const secondOrg = await createOrg("quota-two", "q-org-2");
     expect(secondOrg.status).toBe(403);
-    expect(
-      (overlapCast(await secondOrg.json())).reasons,
-    ).toContain("quota_organizations");
+    expect(overlapCast(await secondOrg.json()).reasons).toContain(
+      "quota_organizations",
+    );
 
     const createClient = (name: string, key: string) =>
       app.request("/v1/oauth/clients", {
@@ -1546,12 +1542,12 @@ describe("control-plane API", () => {
       });
     const firstClient = await createClient("RP One", "q-cli-1");
     expect(firstClient.status).toBe(201);
-    const clientId = (overlapCast(await firstClient.json())).id;
+    const clientId = overlapCast(await firstClient.json()).id;
     const secondClient = await createClient("RP Two", "q-cli-2");
     expect(secondClient.status).toBe(403);
-    expect(
-      (overlapCast(await secondClient.json())).reasons,
-    ).toContain("quota_oauth_clients");
+    expect(overlapCast(await secondClient.json()).reasons).toContain(
+      "quota_oauth_clients",
+    );
 
     // Revoking frees the slot: a quota counted from the store is a live limit,
     // not a lifetime cap.
@@ -1626,7 +1622,7 @@ describe("control-plane API", () => {
     // clients see for the same person, which is the linkage pairwise prevents.
     const taken = await register(intruder, "sec-3", "https://rp.example");
     expect(taken.status).toBe(409);
-    expect((overlapCast(await taken.json())).error).toBe(
+    expect(overlapCast(await taken.json()).error).toBe(
       "sector_identifier_taken",
     );
     expect(
@@ -1688,9 +1684,7 @@ describe("control-plane API", () => {
     const otherList = await app.request("/v1/oauth/clients", {
       headers: other.auth,
     });
-    expect(
-      (overlapCast(await otherList.json())).clients,
-    ).toEqual([]);
+    expect(overlapCast(await otherList.json()).clients).toEqual([]);
 
     // …nor repoint its redirect URIs, rotate it, or revoke it.
     const hijack = await app.request(`/v1/oauth/clients/${client.id}`, {
@@ -1758,16 +1752,14 @@ describe("control-plane API", () => {
       }),
     });
     expect(escalate.status).toBe(403);
-    expect((overlapCast(await escalate.json())).error).toBe(
+    expect(overlapCast(await escalate.json()).error).toBe(
       "identity_link_requires_upstream",
     );
     // The principal must not have been promoted.
     const me = await prod.app.request("/v1/principals/me", {
       headers: { authorization: `Bearer ${created.accessToken}` },
     });
-    expect((overlapCast(await me.json())).assurance).toBe(
-      "provisional",
-    );
+    expect(overlapCast(await me.json()).assurance).toBe("provisional");
 
     // In dev the link works, but a collision never reveals the bound principal.
     const { app } = createControlPlane({
@@ -1880,9 +1872,7 @@ describe("control-plane API", () => {
     // The owner still gets a replay for their own key.
     const replay = await register(victim.accessToken);
     expect(replay.headers.get("idempotency-replayed")).toBe("true");
-    expect((overlapCast(await replay.json())).agentId).toBe(
-      mine.agentId,
-    );
+    expect(overlapCast(await replay.json()).agentId).toBe(mine.agentId);
   });
 
   it("does not replay unauthenticated provisional signups across callers", async () => {
@@ -2008,9 +1998,7 @@ describe("projects hierarchy and sharing", () => {
 
     // Listing again must not mint a second personal project.
     const again = await app.request("/v1/projects", { headers: auth });
-    expect(
-      (overlapCast(await again.json())).projects,
-    ).toHaveLength(1);
+    expect(overlapCast(await again.json()).projects).toHaveLength(1);
 
     const active = await app.request("/v1/projects/active", { headers: auth });
     expect(active.status).toBe(200);
@@ -2019,7 +2007,7 @@ describe("projects hierarchy and sharing", () => {
     expect(activeBody.project.id).toBe(projects[0]?.id);
   });
 
-  it("denies standard project creation to provisional principals", async () => {
+  it("lets provisional principals create a standard project", async () => {
     const { app } = createControlPlane({ config });
     const created = await provisional(app);
     const res = await app.request("/v1/projects", {
@@ -2028,11 +2016,13 @@ describe("projects hierarchy and sharing", () => {
         authorization: `Bearer ${created.accessToken}`,
         "content-type": "application/json",
       },
-      body: JSON.stringify({ displayName: "Nope" }),
+      body: JSON.stringify({ displayName: "Guest Work" }),
     });
-    expect(res.status).toBe(403);
-    const body = overlapCast(await res.json());
-    expect(body.reasons).toContain("provisional_action_not_permitted");
+    expect(res.status).toBe(201);
+    expect(overlapCast(await res.json())).toMatchObject({
+      displayName: "Guest Work",
+      kind: "standard",
+    });
   });
 
   it("creates, swaps to, shares, and unshares a project", async () => {
@@ -2058,9 +2048,10 @@ describe("projects hierarchy and sharing", () => {
       body: JSON.stringify({ projectId: project.id }),
     });
     expect(swapped.status).toBe(200);
-    expect(
-      overlapCast(await swapped.json()),
-    ).toMatchObject({ project: { id: project.id }, isFallback: false });
+    expect(overlapCast(await swapped.json())).toMatchObject({
+      project: { id: project.id },
+      isFallback: false,
+    });
 
     // Before sharing, the other principal cannot see it.
     const before = await app.request(`/v1/projects/${project.id}`, {
@@ -2079,9 +2070,7 @@ describe("projects hierarchy and sharing", () => {
     const memberList = await app.request("/v1/projects", {
       headers: member.auth,
     });
-    const memberProjects = (
-      overlapCast(await memberList.json())
-    ).projects;
+    const memberProjects = overlapCast(await memberList.json()).projects;
     expect(memberProjects).toHaveLength(2);
     expect(
       memberProjects.find((entry) => entry.id === project.id),
@@ -2122,9 +2111,10 @@ describe("projects hierarchy and sharing", () => {
     const memberActive = await app.request("/v1/projects/active", {
       headers: member.auth,
     });
-    expect(
-      overlapCast(await memberActive.json()),
-    ).toMatchObject({ isFallback: true, project: { kind: "personal" } });
+    expect(overlapCast(await memberActive.json())).toMatchObject({
+      isFallback: true,
+      project: { kind: "personal" },
+    });
   });
 
   it("keeps the personal project unshareable, undeletable, and quota-free", async () => {
@@ -2133,9 +2123,9 @@ describe("projects hierarchy and sharing", () => {
     const other = await verifiedPrincipal(app, "personal-other");
 
     const list = await app.request("/v1/projects", { headers: owner.auth });
-    const personal = (
-      overlapCast(await list.json())
-    ).projects.find((entry) => entry.kind === "personal");
+    const personal = overlapCast(await list.json()).projects.find(
+      (entry) => entry.kind === "personal",
+    );
     expect(personal).toBeDefined();
     if (!personal) throw new Error("personal project missing");
 
@@ -2231,9 +2221,10 @@ describe("projects hierarchy and sharing", () => {
     const active = await app.request("/v1/projects/active", {
       headers: owner.auth,
     });
-    expect(
-      overlapCast(await active.json()),
-    ).toMatchObject({ isFallback: true, project: { kind: "personal" } });
+    expect(overlapCast(await active.json())).toMatchObject({
+      isFallback: true,
+      project: { kind: "personal" },
+    });
 
     const gone = await app.request(`/v1/projects/${project.id}`, {
       headers: owner.auth,
@@ -2248,9 +2239,9 @@ describe("projects hierarchy and sharing", () => {
     const personalList = await app.request("/v1/projects", {
       headers: owner.auth,
     });
-    const personal = (
-      overlapCast(await personalList.json())
-    ).projects.find((entry) => entry.kind === "personal");
+    const personal = overlapCast(await personalList.json()).projects.find(
+      (entry) => entry.kind === "personal",
+    );
     if (!personal) throw new Error("personal project missing");
 
     const first = await app.request("/v1/agents", {
@@ -2262,9 +2253,7 @@ describe("projects hierarchy and sharing", () => {
       }),
     });
     expect(first.status).toBe(201);
-    expect((overlapCast(await first.json())).projectId).toBe(
-      personal.id,
-    );
+    expect(overlapCast(await first.json()).projectId).toBe(personal.id);
 
     const created = await app.request("/v1/projects", {
       method: "POST",
@@ -2287,8 +2276,6 @@ describe("projects hierarchy and sharing", () => {
       }),
     });
     expect(second.status).toBe(201);
-    expect((overlapCast(await second.json())).projectId).toBe(
-      project.id,
-    );
+    expect(overlapCast(await second.json()).projectId).toBe(project.id);
   });
 });

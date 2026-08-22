@@ -1,6 +1,6 @@
+import { isFunction } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import * as api from "../index.js";
-import { isFunction } from "@opensesame/os-domain";
 
 describe("package barrel", () => {
   it("re-exports the public surface", () => {

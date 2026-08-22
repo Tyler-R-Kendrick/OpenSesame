@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import type { Connection, Provider } from "./connections.js";
 import {
@@ -16,7 +17,6 @@ import {
   vaultItemsForProvider,
 } from "./identity-graph.js";
 import { createItem, newUri } from "./vault/model.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 function provider(overrides: Partial<Provider> = {}): Provider {
   return {

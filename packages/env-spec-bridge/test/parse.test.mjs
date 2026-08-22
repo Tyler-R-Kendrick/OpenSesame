@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const bin = join(__dirname, "../bin/opensesame-env-parse.mjs");
+const { main, parseSchemaFile } = await import(
+  "../bin/opensesame-env-parse.mjs"
+);
 
 test("parses schema without leaking sensitive static values", () => {
   const path = join(__dirname, "tmp.env.schema");
@@ -29,9 +30,7 @@ LEAKY=sk_live_should_not_appear_when_sensitive
 `,
   );
   try {
-    const r = spawnSync(process.execPath, [bin, path], { encoding: "utf8" });
-    assert.equal(r.status, 0, r.stderr);
-    const j = JSON.parse(r.stdout);
+    const j = parseSchemaFile(path);
     assert.equal(j.items.length, 3);
     const api = j.items.find((i) => i.key === "API_URL");
     assert.equal(api.value, "http://localhost:3000");
@@ -43,16 +42,21 @@ LEAKY=sk_live_should_not_appear_when_sensitive
     const leaky = j.items.find((i) => i.key === "LEAKY");
     assert.equal(leaky.sensitive, true);
     assert.equal(leaky.value, null);
-    assert.ok(!r.stdout.includes("sk_live_should_not_appear"));
+    assert.ok(!JSON.stringify(j).includes("sk_live_should_not_appear"));
   } finally {
     unlinkSync(path);
   }
 });
 
 test("adversarial: missing schema path exits 2", () => {
-  const r = spawnSync(process.execPath, [bin], { encoding: "utf8" });
-  assert.equal(r.status, 2);
-  assert.match(r.stderr, /usage: opensesame-env-parse/);
+  let stderr = "";
+  assert.equal(
+    main([], (message) => {
+      stderr = message;
+    }),
+    2,
+  );
+  assert.match(stderr, /usage: opensesame-env-parse/);
 });
 
 test("property: @sensitive static values are always null", () => {
@@ -68,12 +72,10 @@ LEAK=super-secret-value
 `,
   );
   try {
-    const r = spawnSync(process.execPath, [bin, path], { encoding: "utf8" });
-    assert.equal(r.status, 0, r.stderr);
-    const j = JSON.parse(r.stdout);
+    const j = parseSchemaFile(path);
     assert.equal(j.items[0].sensitive, true);
     assert.equal(j.items[0].value, null);
-    assert.equal(r.stdout.includes("super-secret-value"), false);
+    assert.equal(JSON.stringify(j).includes("super-secret-value"), false);
   } finally {
     unlinkSync(path);
   }
@@ -88,12 +90,12 @@ TOKEN=sk_live_concurrent # gitleaks:allow -- fixture
 `,
   );
   try {
-    const runs = Array.from({ length: 8 }, () =>
-      spawnSync(process.execPath, [bin, path], { encoding: "utf8" }),
-    );
-    for (const r of runs) {
-      assert.equal(r.status, 0, r.stderr);
-      assert.equal(r.stdout.includes("sk_live_concurrent"), false); // gitleaks:allow -- fixture
+    const runs = Array.from({ length: 8 }, () => parseSchemaFile(path));
+    for (const result of runs) {
+      assert.equal(
+        JSON.stringify(result).includes("sk_live_concurrent"),
+        false,
+      ); // gitleaks:allow -- fixture
     }
   } finally {
     unlinkSync(path);
@@ -104,8 +106,7 @@ test("contract: output is JSON with schema_path and parser id", () => {
   const path = join(__dirname, "tmp-contract.env.schema");
   writeFileSync(path, "# @public\nAPI=http://127.0.0.1:1\n");
   try {
-    const r = spawnSync(process.execPath, [bin, path], { encoding: "utf8" });
-    const j = JSON.parse(r.stdout);
+    const j = parseSchemaFile(path);
     assert.equal(j.parser, "@env-spec/parser");
     assert.equal(j.schema_path, path);
     assert.equal(Array.isArray(j.items), true);

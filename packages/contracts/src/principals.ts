@@ -61,17 +61,23 @@ export const IdentitySummarySchema = z.object({
 });
 export type IdentitySummary = z.infer<typeof IdentitySummarySchema>;
 
-export const LinkIdentityRequestSchema = z.object({
-  kind: ExternalIdentityKindSchema,
-  issuer: z.string().min(1),
-  subject: z.string().min(1),
-  tenant: z.string().optional(),
-  displayHint: z.string().optional(),
-  /** Email is never used for auto-link; accepted only as a display hint. */
-  emailNormalized: z.string().email().optional(),
-  emailVerified: z.boolean().optional(),
-  assurance: AssuranceLevelSchema.default("verified"),
-});
+export const LinkIdentityRequestSchema = z.union([
+  z.object({
+    /** Verified upstream assertion. Production claim path (ADR 0033). */
+    idToken: z.string().min(16),
+  }),
+  z.object({
+    kind: ExternalIdentityKindSchema,
+    issuer: z.string().min(1),
+    subject: z.string().min(1),
+    tenant: z.string().optional(),
+    displayHint: z.string().optional(),
+    /** Email is never used for auto-link; accepted only as a display hint. */
+    emailNormalized: z.string().email().optional(),
+    emailVerified: z.boolean().optional(),
+    assurance: AssuranceLevelSchema.default("verified"),
+  }),
+]);
 export type LinkIdentityRequest = z.infer<typeof LinkIdentityRequestSchema>;
 
 export const LinkIdentityResponseSchema = z.object({

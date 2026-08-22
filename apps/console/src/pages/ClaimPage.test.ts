@@ -1,7 +1,7 @@
+import { overlapCast } from "@opensesame/os-domain";
 import type { ClaimPresentation } from "@opensesame/sdk-browser";
 import { describe, expect, it } from "vitest";
 import { buildClaimCompletion, toClaim } from "./ClaimPage.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const presentation = (items?: ClaimPresentation["items"]): ClaimPresentation =>
   overlapCast({
@@ -30,10 +30,7 @@ describe("claim projection", () => {
 
   it("contract: a claim with items names every one of them", () => {
     const claim = toClaim(
-      presentation(overlapCast([
-        { id: "itm_a" },
-        { id: "itm_b" },
-      ])),
+      presentation(overlapCast([{ id: "itm_a" }, { id: "itm_b" }])),
     );
     expect(claim.itemIds).toEqual(["itm_a", "itm_b"]);
   });

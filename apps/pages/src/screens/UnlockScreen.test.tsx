@@ -8,31 +8,72 @@ import {
 } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { UnlockMethodId } from "../lib/vault/unlock-methods.js";
 
-const v = vi.hoisted(() => ({
-  state: {
+type TestVaultState = {
+  status: "empty" | "locked";
+  header: { hint: string } | null;
+  lockedOutUntil: number | null;
+  failedAttempts: number;
+  durable: boolean;
+  awaitingTotp: boolean;
+};
+
+type TestHostCheck = {
+  ok: boolean;
+  reason?: string;
+  fixUrl?: string | null;
+};
+
+type StoreMethod =
+  | "create"
+  | "createWithPasskey"
+  | "createWithPin"
+  | "unlock"
+  | "unlockWithPin"
+  | "unlockWithPasskey"
+  | "confirmTotp"
+  | "cancelTotpChallenge"
+  | "destroy";
+
+type TestHarness = {
+  state: TestVaultState;
+  methods: UnlockMethodId[];
+  preferred: UnlockMethodId;
+  host: TestHostCheck;
+  store: Record<StoreMethod, ReturnType<typeof vi.fn>>;
+};
+
+const v = vi.hoisted((): TestHarness => {
+  const state: TestVaultState = {
     status: "locked",
     header: null,
     lockedOutUntil: null,
     failedAttempts: 0,
     durable: true,
     awaitingTotp: false,
-  },
-  methods: ["password"],
-  preferred: "password",
-  host: { ok: true },
-  store: {
-    create: vi.fn(),
-    createWithPasskey: vi.fn(),
-    createWithPin: vi.fn(),
-    unlock: vi.fn(),
-    unlockWithPin: vi.fn(),
-    unlockWithPasskey: vi.fn(),
-    confirmTotp: vi.fn(),
-    cancelTotpChallenge: vi.fn(),
-    destroy: vi.fn(),
-  },
-}));
+  };
+  const methods: UnlockMethodId[] = ["password"];
+  const preferred: UnlockMethodId = "password";
+  const host: TestHostCheck = { ok: true };
+  return {
+    state,
+    methods,
+    preferred,
+    host,
+    store: {
+      create: vi.fn(),
+      createWithPasskey: vi.fn(),
+      createWithPin: vi.fn(),
+      unlock: vi.fn(),
+      unlockWithPin: vi.fn(),
+      unlockWithPasskey: vi.fn(),
+      confirmTotp: vi.fn(),
+      cancelTotpChallenge: vi.fn(),
+      destroy: vi.fn(),
+    },
+  };
+});
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
@@ -421,7 +462,9 @@ describe("UnlockScreen — PIN unlock", () => {
     fireEvent.click(tab);
     expect(tab.getAttribute("aria-selected")).toBe("true");
 
-    const pin = overlapCast(screen.getByLabelText("PIN"));
+    const pin = overlapCast<unknown, HTMLInputElement>(
+      screen.getByLabelText("PIN"),
+    );
     fireEvent.change(pin, { target: { value: "123" } });
     expect(submitButton().disabled).toBe(true);
     fireEvent.change(pin, { target: { value: "12345678" } });
@@ -541,7 +584,7 @@ describe("UnlockScreen — passkey unlock", () => {
       expect(v.store.unlockWithPasskey).toHaveBeenCalledTimes(1),
     );
     // The prompt is pending ("blocking") — the Password tab must still be live.
-    const passwordTab = overlapCast(
+    const passwordTab = overlapCast<unknown, HTMLButtonElement>(
       screen.getByRole("tab", {
         name: /Password/,
       }),

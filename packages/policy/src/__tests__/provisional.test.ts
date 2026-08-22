@@ -144,6 +144,26 @@ describe("ProvisionalPolicy", () => {
     expect(clientDenied.reasons).toContain("quota_oauth_clients");
   });
 
+  it("allows a guest to create a standard project under quota", () => {
+    const request = {
+      subject: { type: "principal" as const, id: "prn_x" },
+      action: "project.create",
+      resource: { type: "project", id: "*" },
+    };
+    expect(
+      policy.evaluate(fixtures.provisionalPrincipal(), request, usage({}))
+        .effect,
+    ).toBe("allow");
+    const denied = policy.evaluate(
+      fixtures.provisionalPrincipal(),
+      request,
+      usage({ projects: 3 }),
+    );
+    expect(denied.effect).toBe("deny");
+    expect(denied.reasons).toContain("provisional_quota_projects");
+    expect(denied.obligations).toContain("upgrade_identity");
+  });
+
   it("gives a provisional principal no organization or client allowance", () => {
     for (const action of ["organization.create", "oauth.client.register"]) {
       const d = policy.evaluate(

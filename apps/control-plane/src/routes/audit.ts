@@ -67,7 +67,9 @@ auditRoutes.get("/events", requirePrincipal(), async (c) => {
       correlationId: e.correlationId,
       // Defense in depth: re-redact on read so legacy rows cannot leak values.
       metadata: redactAuditMetadata(e.metadata),
-      ...(e.principalId !== undefined ? { principalId: e.principalId } : undefined),
+      ...(e.principalId !== undefined
+        ? { principalId: e.principalId }
+        : undefined),
       ...(e.actorType !== undefined ? { actorType: e.actorType } : undefined),
       ...(e.actorId !== undefined ? { actorId: e.actorId } : undefined),
       ...(e.clientId !== undefined ? { clientId: e.clientId } : undefined),
@@ -77,7 +79,9 @@ auditRoutes.get("/events", requirePrincipal(), async (c) => {
       ...(e.projectId !== undefined ? { projectId: e.projectId } : undefined),
       ...(e.claimId !== undefined ? { claimId: e.claimId } : undefined),
       ...(e.sessionId !== undefined ? { sessionId: e.sessionId } : undefined),
-      ...(e.targetType !== undefined ? { targetType: e.targetType } : undefined),
+      ...(e.targetType !== undefined
+        ? { targetType: e.targetType }
+        : undefined),
       ...(e.targetId !== undefined ? { targetId: e.targetId } : undefined),
       ...(e.previousDigest !== undefined
         ? { previousDigest: e.previousDigest }

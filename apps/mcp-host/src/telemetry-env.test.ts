@@ -1,11 +1,18 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isFunction,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { type Telemetry, createTelemetry } from "@opensesame/telemetry";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 import { posthogSeams } from "./posthog.js";
 import { wrapServerWithTelemetry } from "./telemetry.js";
 
-type AnyFn = (...args: unknown[]) => BoundaryValue;
+type ToolReturn = BoundaryValue | Promise<BoundaryValue>;
+type AnyFn = (...args: BoundaryValue[]) => ToolReturn;
 
 class FakePostHog {
   static failShutdown = false;
@@ -31,21 +38,43 @@ class FakePostHog {
 const instances: FakePostHog[] = [];
 
 function makeFakeServer(clientInfo?: { name: string; version: string }) {
-  const registered = new Map<string, AnyFn>();
+  const registered = new Map<string, BoundaryValue>();
   const fake = {
-    tool: (...args: unknown[]) => {
-      registered.set(overlapCast(args[0]), overlapCast(args[args.length - 1]));
-      return { name: args[0] };
+    tool: (...args: BoundaryValue[]) => {
+      const name = args[0];
+      if (!isString(name)) {
+        throw new Error("invalid_test_tool_name");
+      }
+      registered.set(name, args[args.length - 1]);
+      return { name };
     },
     server: {
       getClientVersion: () => clientInfo,
     },
   };
-  return { server: overlapCast(fake), registered };
+  const server: McpServer = overlapCast(fake);
+  return {
+    server,
+    registered,
+    register: (...args: BoundaryValue[]) => fake.tool(...args),
+  };
 }
 
-function toolFnOf(server: McpServer): AnyFn {
-  return (overlapCast(server)).tool;
+function requireHandler(
+  registered: Map<string, BoundaryValue>,
+  name: string,
+): AnyFn {
+  const handler = registered.get(name);
+  if (!isFunction(handler)) {
+    throw new Error(`missing_test_tool_handler:${name}`);
+  }
+  const typedHandler: AnyFn = overlapCast(handler);
+  return typedHandler;
+}
+
+function installFakePostHog(seams: typeof posthogSeams): void {
+  const fakePostHog: typeof seams.PostHog = overlapCast(FakePostHog);
+  seams.PostHog = fakePostHog;
 }
 
 const ENV_KEYS = [
@@ -59,7 +88,7 @@ describe("wrapServerWithTelemetry env-driven path", () => {
   beforeEach(() => {
     for (const key of ENV_KEYS) saved.set(key, process.env[key]);
     FakePostHog.failShutdown = false;
-    posthogSeams.PostHog = overlapCast(FakePostHog);
+    installFakePostHog(posthogSeams);
   });
 
   afterEach(() => {
@@ -80,15 +109,15 @@ describe("wrapServerWithTelemetry env-driven path", () => {
     delete process.env.OPENSESAME_TELEMETRY_HOST;
     const before = instances.length;
 
-    const { server, registered } = makeFakeServer({
+    const { server, registered, register } = makeFakeServer({
       name: "claude-code",
       version: "1.0.0",
     });
     wrapServerWithTelemetry(server);
-    toolFnOf(server)("host_ready", "desc", {}, async () => ({
+    register("host_ready", "desc", {}, async () => ({
       content: [{ type: "text", text: "ok" }],
     }));
-    await registered.get("host_ready")?.();
+    await requireHandler(registered, "host_ready")();
 
     const second = makeFakeServer();
     wrapServerWithTelemetry(second.server);
@@ -114,7 +143,7 @@ describe("wrapServerWithTelemetry env-driven path", () => {
   it("honors OPENSESAME_TELEMETRY_HOST for a fresh process", async () => {
     vi.resetModules();
     const { posthogSeams: seams } = await import("./posthog.js");
-    seams.PostHog = overlapCast(FakePostHog);
+    installFakePostHog(seams);
     const { wrapServerWithTelemetry: freshWrap } = await import(
       "./telemetry.js"
     );
@@ -132,7 +161,7 @@ describe("wrapServerWithTelemetry env-driven path", () => {
   it("flushes on SIGINT/SIGTERM and swallows a failed flush", async () => {
     vi.resetModules();
     const { posthogSeams: seams } = await import("./posthog.js");
-    seams.PostHog = overlapCast(FakePostHog);
+    installFakePostHog(seams);
     const { wrapServerWithTelemetry: freshWrap } = await import(
       "./telemetry.js"
     );
@@ -161,10 +190,10 @@ describe("wrapServerWithTelemetry env-driven path", () => {
     const telemetry: Telemetry = createTelemetry({
       capture: (event, props) => events.push({ event, props }),
     });
-    const { server, registered } = makeFakeServer();
+    const { server, registered, register } = makeFakeServer();
     wrapServerWithTelemetry(server, telemetry);
 
-    toolFnOf(server)("weird", "desc-only");
+    register("weird", "desc-only");
     expect(registered.get("weird")).toBe("desc-only");
     expect(events).toHaveLength(0);
   });

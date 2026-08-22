@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   VaultCorruptError,
@@ -11,7 +12,6 @@ import {
   sealJson,
   unlockVaultKey,
 } from "./crypto.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 // A low iteration count keeps the suite fast; the production floor is asserted separately.
 const PASSWORD = "correct horse battery staple";

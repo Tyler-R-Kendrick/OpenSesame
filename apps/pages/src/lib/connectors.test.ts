@@ -1,13 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const env = vi.hoisted(() => ({ loopbackPage: true }));
-
-vi.mock("./settings.js", () => ({
-  loadSettings: () => ({}),
-  pageIsLoopback: () => env.loopbackPage,
-  subscribeSettings: () => () => {},
-  settingsEpoch: () => 0,
-}));
+const env = { loopbackPage: true };
 
 import type { MonitorSnapshot, TargetState } from "./connectivity-monitor.js";
 import {
@@ -25,7 +18,15 @@ import {
 } from "./connectors.js";
 import type { HostPlane, IdentityPlane, PlaneStatus } from "./planes.js";
 import type { FailureClass } from "./probe-failure.js";
+import { settingsSeams } from "./settings.js";
 import type { PagesSettings } from "./settings.js";
+
+Object.assign(settingsSeams, {
+  loadSettings: () => ({}),
+  pageIsLoopback: () => env.loopbackPage,
+  subscribeSettings: () => () => {},
+  settingsEpoch: () => 0,
+});
 
 function plane(over: Partial<PlaneStatus> = {}): PlaneStatus {
   return {

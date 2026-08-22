@@ -6,7 +6,6 @@ import {
   assertDiscoveredJwksUri,
   createOpenSesameVerifier,
 } from "./verifier.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const ISSUER = "http://127.0.0.1:8788";
 const AUDIENCE = "rp-alpha";
@@ -358,10 +357,10 @@ describe("openSesameAuth hono middleware", () => {
     });
     expect(res.status).toBe(401);
     expect(res.headers.get("www-authenticate")).toContain("Bearer");
-    const body = overlapCast(await res.json());
-    expect(body.error).toBe("invalid_token");
-    // No verifier internals in the answer.
-    expect(body.error_description).toBe("The access token is not valid");
+    expect(await res.json()).toEqual({
+      error: "invalid_token",
+      error_description: "The access token is not valid",
+    });
   });
 
   it("does not report a handler's own failure as an invalid token", async () => {

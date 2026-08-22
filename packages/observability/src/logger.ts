@@ -1,10 +1,15 @@
 import {
+  type BoundaryValue,
+  type MutableBoundaryObject,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
+import {
   type DestinationStream,
   type Logger,
   type LoggerOptions,
   pino,
 } from "pino";
-import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject } from "@opensesame/os-domain";
 
 /** Paths redacted from structured logs (tokens, codes, secrets). */
 export const LOG_REDACT_PATHS = [
@@ -58,10 +63,15 @@ const MAX_REDACT_DEPTH = 12;
 export function redactDeep<T>(value: T): T {
   // SAFETY: walk preserves T's structure; it only replaces sensitive string
   // values and cycles, never the container type.
-  return overlapCast(walk(value, 0, new WeakSet<object>()));
+  const input: BoundaryValue = overlapCast(value);
+  return overlapCast(walk(input, 0, new WeakSet<object>()));
 }
 
-function walk(value: BoundaryValue, depth: number, seen: WeakSet<object>): BoundaryValue {
+function walk(
+  value: BoundaryValue,
+  depth: number,
+  seen: WeakSet<object>,
+): BoundaryValue {
   if (value === null || !isTypeofObject(value)) return value;
   if (depth >= MAX_REDACT_DEPTH) return CENSOR;
   if (seen.has(value)) return "[Circular]";
@@ -74,7 +84,7 @@ function walk(value: BoundaryValue, depth: number, seen: WeakSet<object>): Bound
   const proto = Object.getPrototypeOf(value);
   if (proto !== Object.prototype && proto !== null) return value;
 
-  const out: JsonObject = {};
+  const out: MutableBoundaryObject = {};
   for (const [key, item] of Object.entries(overlapCast(value))) {
     out[key] = SENSITIVE_KEY_PATTERN.test(key)
       ? CENSOR

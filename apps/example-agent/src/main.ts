@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { overlapCast } from "@opensesame/os-domain";
 /**
  * Anonymous agent registration + claim poll demo.
  *
@@ -12,6 +11,7 @@ import {
   ClaimSessionResponseSchema,
   RegisterAgentResponseSchema,
 } from "@opensesame/contracts";
+import { overlapCast } from "@opensesame/os-domain";
 import { createControlPlaneClient, redactSecrets } from "@opensesame/sdk-cli";
 
 const api = process.env.OPENSESAME_API_URL ?? "http://127.0.0.1:8788";

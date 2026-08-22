@@ -1,6 +1,10 @@
+import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
-import { DeviceFlowClient, redactSecrets } from "./device-flow.js";
-import { type JsonObject, overlapCast, type BoundaryValue, isFunction } from "@opensesame/os-domain";
+import {
+  DeviceFlowClient,
+  type DeviceFlowClientConfig,
+  redactSecrets,
+} from "./device-flow.js";
 
 const ISSUER = "http://127.0.0.1:8788";
 
@@ -31,19 +35,19 @@ type Handlers = {
   token?: Response | (() => Response);
 };
 
-function fetchWith(handlers: Handlers, seen?: RequestInit[]) {
-  return overlapCast(vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+function fetchWith(handlers: Handlers, seen?: RequestInit[]): typeof fetch {
+  return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     if (init) seen?.push(init);
     const url = String(input);
     const pick = (v: Response | (() => Response) | undefined): Response => {
       if (!v) throw new Error(`unexpected ${url}`);
-      return isFunction(v) ? v() : v;
+      return v instanceof Response ? v : v();
     };
     if (url.includes("openid-configuration")) return pick(handlers.discovery);
     if (url.endsWith("/device")) return pick(handlers.device);
     if (url.endsWith("/token")) return pick(handlers.token);
     throw new Error(`unexpected ${url}`);
-  }));
+  });
 }
 
 function json(body: BoundaryValue, status = 200): Response {
@@ -52,7 +56,7 @@ function json(body: BoundaryValue, status = 200): Response {
 
 function clientWith(
   fetchImpl: typeof fetch,
-  extra: JsonObject = {},
+  extra: Pick<DeviceFlowClientConfig, "signal"> = {},
 ) {
   return new DeviceFlowClient({
     issuer: ISSUER,
@@ -78,10 +82,7 @@ describe("DeviceFlowClient discovery and start failures", () => {
   });
 
   it("refuses an issuer that does not advertise a device endpoint", async () => {
-    const doc = discoveryDoc();
-    (
-      overlapCast(doc)
-    ).device_authorization_endpoint = undefined;
+    const doc = discoveryDoc({ device_authorization_endpoint: undefined });
     const c = clientWith(fetchWith({ discovery: json(doc) }));
     await expect(c.start()).rejects.toThrow(/device_authorization_endpoint/u);
   });
@@ -91,6 +92,16 @@ describe("DeviceFlowClient discovery and start failures", () => {
       fetchWith({ discovery: json(discoveryDoc()), device: json({}, 400) }),
     );
     await expect(c.start()).rejects.toThrow(/device authorize failed: 400/u);
+  });
+
+  it("refuses malformed device authorization data", async () => {
+    const c = clientWith(
+      fetchWith({
+        discovery: json(discoveryDoc()),
+        device: json(deviceResponse({ expires_in: "600" })),
+      }),
+    );
+    await expect(c.start()).rejects.toThrow(/response was invalid/u);
   });
 });
 

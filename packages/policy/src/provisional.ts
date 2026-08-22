@@ -1,4 +1,8 @@
-import type { AssuranceLevel, Principal, JsonObject } from "@opensesame/os-domain";
+import type {
+  AssuranceLevel,
+  JsonObject,
+  Principal,
+} from "@opensesame/os-domain";
 import { isProvisionalPrincipal } from "@opensesame/os-domain";
 
 /**
@@ -60,7 +64,7 @@ export const DEFAULT_PROVISIONAL_QUOTA: ProvisionalQuota = {
   maxAgents: 2,
   maxOrganizations: 0,
   maxOAuthClients: 0,
-  maxProjects: 0,
+  maxProjects: 3,
   maxClaims: 8,
 };
 
@@ -88,6 +92,7 @@ const HIGH_RISK_ACTIONS = new Set([
 ]);
 
 const PROVISIONAL_ALLOWED = new Set([
+  "project.create",
   "project.create_temporary",
   "resource.create_temporary",
   "resource.read",

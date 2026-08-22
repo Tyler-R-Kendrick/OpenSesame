@@ -1,3 +1,12 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  type JsonValue,
+  isJsonObject,
+  isNumber,
+  isString,
+  isTypeofObject,
+} from "@opensesame/os-domain";
 import { encodeQrTerminal } from "@opensesame/qr";
 import {
   assertDiscoveredUrl,
@@ -5,7 +14,6 @@ import {
   assertSecureUrl,
   trimSlash,
 } from "./secure-url.js";
-import { type JsonObject, overlapCast, isString, isTypeofObject } from "@opensesame/os-domain";
 
 export interface DeviceAuthorizationResponse {
   device_code: string;
@@ -59,6 +67,68 @@ async function defaultSleep(ms: number): Promise<void> {
   await new Promise((r) => setTimeout(r, ms));
 }
 
+function parseJsonObject(value: BoundaryValue, label: string): JsonObject {
+  if (!isJsonObject(value)) throw new Error(`${label} response was invalid`);
+  return value;
+}
+
+function parseDeviceAuthorizationResponse(
+  value: BoundaryValue,
+): DeviceAuthorizationResponse {
+  const data = parseJsonObject(value, "device authorization");
+  if (
+    !isString(data.device_code) ||
+    !isString(data.user_code) ||
+    !isString(data.verification_uri) ||
+    !isNumber(data.expires_in) ||
+    !Number.isFinite(data.expires_in) ||
+    data.expires_in < 0 ||
+    (data.verification_uri_complete !== undefined &&
+      !isString(data.verification_uri_complete)) ||
+    (data.interval !== undefined && !isNumber(data.interval))
+  ) {
+    throw new Error("device authorization response was invalid");
+  }
+  return {
+    device_code: data.device_code,
+    user_code: data.user_code,
+    verification_uri: data.verification_uri,
+    expires_in: data.expires_in,
+    ...(data.verification_uri_complete === undefined
+      ? undefined
+      : { verification_uri_complete: data.verification_uri_complete }),
+    ...(data.interval === undefined ? undefined : { interval: data.interval }),
+  };
+}
+
+function parseTokenSuccess(value: JsonObject): TokenSuccess | undefined {
+  if (!isString(value.access_token) || !isString(value.token_type)) {
+    return undefined;
+  }
+  if (
+    (value.expires_in !== undefined && !isNumber(value.expires_in)) ||
+    (value.refresh_token !== undefined && !isString(value.refresh_token)) ||
+    (value.id_token !== undefined && !isString(value.id_token)) ||
+    (value.scope !== undefined && !isString(value.scope))
+  ) {
+    return undefined;
+  }
+  return {
+    access_token: value.access_token,
+    token_type: value.token_type,
+    ...(value.expires_in === undefined
+      ? undefined
+      : { expires_in: value.expires_in }),
+    ...(value.refresh_token === undefined
+      ? undefined
+      : { refresh_token: value.refresh_token }),
+    ...(value.id_token === undefined
+      ? undefined
+      : { id_token: value.id_token }),
+    ...(value.scope === undefined ? undefined : { scope: value.scope }),
+  };
+}
+
 export class DeviceFlowClient {
   readonly #issuer: string;
   readonly #clientId: string;
@@ -96,12 +166,19 @@ export class DeviceFlowClient {
       `${this.#issuer}/.well-known/openid-configuration`,
     );
     if (!res.ok) throw new Error(`discovery failed: ${res.status}`);
-    const doc = overlapCast(await res.json());
-    assertDiscoveryBelongsToIssuer(doc, this.#issuer);
-    if (!doc.device_authorization_endpoint) {
+    const raw: BoundaryValue = await res.json();
+    const doc = parseJsonObject(raw, "discovery");
+    assertDiscoveryBelongsToIssuer(
+      isString(doc.issuer) ? { issuer: doc.issuer } : {},
+      this.#issuer,
+    );
+    if (!isString(doc.device_authorization_endpoint)) {
       throw new Error(
         "issuer does not advertise device_authorization_endpoint",
       );
+    }
+    if (!isString(doc.token_endpoint)) {
+      throw new Error("issuer does not advertise token_endpoint");
     }
     assertDiscoveredUrl(
       doc.device_authorization_endpoint,
@@ -132,7 +209,8 @@ export class DeviceFlowClient {
     if (!res.ok) {
       throw new Error(`device authorize failed: ${res.status}`);
     }
-    const data = overlapCast(await res.json());
+    const raw: BoundaryValue = await res.json();
+    const data = parseDeviceAuthorizationResponse(raw);
     // These are the URIs the CLI prints for a person to open and type a code into.
     // Whatever answered here chooses them, so they are held to the same bar as the
     // endpoints: a device flow that sends the user to an attacker's page is a
@@ -148,17 +226,13 @@ export class DeviceFlowClient {
     this.#intervalSeconds = Math.min(
       Math.max(
         Number.isFinite(data.interval) && (data.interval ?? 0) > 0
-          ? Number(data.interval)
+          ? (data.interval ?? 5)
           : 5,
         5,
       ),
       MAX_POLL_INTERVAL_SECONDS,
     );
-    this.#expiresAt =
-      Date.now() +
-      (Number.isFinite(data.expires_in) && data.expires_in >= 0
-        ? data.expires_in * 1000
-        : 15 * 60 * 1000);
+    this.#expiresAt = Date.now() + data.expires_in * 1000;
     const safe: SafeDeviceStart = {
       userCode: data.user_code,
       verificationUri: data.verification_uri,
@@ -188,14 +262,13 @@ export class DeviceFlowClient {
     };
     if (this.config.signal) init.signal = this.config.signal;
     const res = await this.#fetch(meta.token_endpoint, init);
-    const json = overlapCast(await res.json());
-    if (res.ok && isString(json.access_token)) {
-      // SAFETY: access_token was checked as string above; remaining token
-      // fields are optional JSON from the token endpoint. TokenSuccess is a
-      // named object type, so TypeScript requires the unknown step.
-      return { status: "success", tokens: overlapCast(json) };
+    const raw: BoundaryValue = await res.json();
+    const json = isJsonObject(raw) ? raw : {};
+    const tokens = parseTokenSuccess(json);
+    if (res.ok && tokens) {
+      return { status: "success", tokens };
     }
-    const error = String(json.error ?? "unknown");
+    const error = isString(json.error) ? json.error : "unknown";
     if (error === "authorization_pending") {
       return {
         status: "authorization_pending",
@@ -211,10 +284,9 @@ export class DeviceFlowClient {
     }
     if (error === "access_denied") return { status: "access_denied" };
     if (error === "expired_token") return { status: "expired_token" };
-    const description =
-      isString(json.error_description)
-        ? json.error_description
-        : undefined;
+    const description = isString(json.error_description)
+      ? json.error_description
+      : undefined;
     return description !== undefined
       ? { status: "error", error, description }
       : { status: "error", error };
@@ -274,13 +346,15 @@ export class DeviceFlowClient {
 }
 
 /** Redact secrets from objects before JSON logging. */
-export function redactSecrets<T>(value: T): T {
+export function redactSecrets(
+  value: JsonValue | undefined,
+): JsonValue | undefined {
   if (value === null || !isTypeofObject(value)) return value;
   if (Array.isArray(value)) {
-    return overlapCast(value.map((v) => redactSecrets(v)));
+    return value.map((item) => redactSecrets(item) ?? null);
   }
   const out: JsonObject = {};
-  for (const [k, v] of Object.entries(overlapCast(value))) {
+  for (const [k, v] of Object.entries(value)) {
     if (
       /device_code|access_token|refresh_token|id_token|code_verifier|client_secret|client_assertion|claimToken|claim_token|operator|password|passphrase|secret|cookie|authorization|api[-_]?key|private_key|signing_key|bearer/iu.test(
         k,
@@ -291,5 +365,5 @@ export function redactSecrets<T>(value: T): T {
       out[k] = redactSecrets(v);
     }
   }
-  return overlapCast(out);
+  return out;
 }

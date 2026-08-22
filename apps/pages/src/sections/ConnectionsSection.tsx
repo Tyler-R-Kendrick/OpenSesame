@@ -100,11 +100,7 @@ import { shouldAutoConnect } from "../lib/settings.js";
 import { useOnline } from "../lib/use-online.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import "./connections.css";
-import {
-  type BoundaryValue,
-  isTypeofObject,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 
 type Flash = { tone: "ok" | "warn" | "err"; text: string };
 type LoadFailure = {
@@ -112,6 +108,14 @@ type LoadFailure = {
   unreachable: boolean;
   setupRequired?: boolean;
 };
+
+function defaultsFor(provider: Provider) {
+  const defaults = new Map<string, string>();
+  for (const [key, value] of Object.entries(configurationDefaults(provider))) {
+    if (value !== undefined) defaults.set(key, value);
+  }
+  return Object.fromEntries(defaults);
+}
 
 const CATEGORY_LABELS = {
   encryption: "Encryption (secrets in git)",
@@ -197,7 +201,7 @@ function relative(iso: string | null): string | null {
   return null;
 }
 
-function errorText(error: BoundaryValue): string {
+function errorText<Thrown>(error: Thrown): string {
   if (error instanceof HostSessionError) {
     if (error.code === "setup_required") {
       return `${error.message} Connect on Authority first so this page can mint a Host session, then try again.`;
@@ -222,10 +226,9 @@ function errorText(error: BoundaryValue): string {
   // Zod dumps every issue as JSON — one bad field across the catalog becomes
   // dozens of "error lines" in the banner. Never render that wall.
   if (
-    error &&
-    isTypeofObject(error) &&
+    error instanceof Error &&
     "issues" in error &&
-    Array.isArray(overlapCast(error).issues)
+    Array.isArray(error.issues)
   ) {
     return "Host returned data this page does not understand. Try Reload, or pair Host again from Settings.";
   }
@@ -2589,7 +2592,7 @@ function ConnectForm({
   );
   const [apiKey, setApiKey] = useState("");
   const [configuration, setConfiguration] = useState<Record<string, string>>(
-    () => configurationDefaults(provider),
+    () => defaultsFor(provider),
   );
   const [busy, setBusy] = useState(false);
   const nameId = useId();
@@ -2689,13 +2692,13 @@ function ConnectForm({
     }
   }
 
-  async function saveConfiguration(event: FormEvent) {
+  async function saveConfiguration(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
-    const form = overlapCast(event.currentTarget);
+    const form = event.currentTarget;
     const payload = configurationPayload(provider, configuration);
     form.reset();
-    setConfiguration(configurationDefaults(provider));
+    setConfiguration(defaultsFor(provider));
     let created = false;
     try {
       const connection = await createConnection({
@@ -2738,7 +2741,7 @@ function ConnectForm({
         {(provider.configurationFields ?? []).map((field) => {
           const id = `${nameId}-${field.name}`;
           const guidance = fieldGuidance(field);
-          const automatic = configurationDefaults(provider)[field.name];
+          const automatic = defaultsFor(provider)[field.name];
           return (
             <div className="field" key={field.name}>
               <label className="label conn-field-label" htmlFor={id}>

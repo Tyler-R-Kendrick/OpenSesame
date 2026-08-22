@@ -1,4 +1,9 @@
-import { type JsonObject, overlapCast, isTypeofObject } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 /**
  * GitHub history helpers for the sealed-store capability.
  *
@@ -30,6 +35,11 @@ function toRepo(raw: JsonObject): GithubRepoSummary {
   };
 }
 
+function responseHint(body: JsonObject): string | undefined {
+  if (isString(body.hint)) return body.hint;
+  return isString(body.error) ? body.error : undefined;
+}
+
 async function listGithubReposDefault(
   connectionId: string,
 ): Promise<GithubRepoSummary[]> {
@@ -37,17 +47,15 @@ async function listGithubReposDefault(
     `/api/v1/connections/${encodeURIComponent(connectionId)}/github/repos`,
   );
   if (!res.ok) {
-    const body = overlapCast(await res.json().catch(() => ({})));
+    const body: JsonObject = overlapCast(await res.json().catch(() => ({})));
     throw new Error(
-      body.hint || body.error || `Could not list GitHub repos (${res.status})`,
+      responseHint(body) ?? `Could not list GitHub repos (${res.status})`,
     );
   }
-  const body = overlapCast(await res.json());
+  const body: JsonObject = overlapCast(await res.json());
   const rows = Array.isArray(body.repositories) ? body.repositories : [];
   return rows
-    .filter(
-      (row): row is JsonObject => !!row && isTypeofObject(row),
-    )
+    .filter((row): row is JsonObject => isJsonObject(row))
     .map(toRepo)
     .filter((repo) => repo.cloneUrl.startsWith("https://"));
 }
@@ -76,12 +84,12 @@ async function createGithubPasswordRepoDefault(
     },
   );
   if (!res.ok) {
-    const body = overlapCast(await res.json().catch(() => ({})));
+    const body: JsonObject = overlapCast(await res.json().catch(() => ({})));
     throw new Error(
-      body.hint || body.error || `Could not create GitHub repo (${res.status})`,
+      responseHint(body) ?? `Could not create GitHub repo (${res.status})`,
     );
   }
-  const raw = overlapCast(await res.json());
+  const raw: JsonObject = overlapCast(await res.json());
   const repo = toRepo(raw);
   if (!repo.cloneUrl.startsWith("https://")) {
     throw new Error("Host returned a repo without an https clone URL");

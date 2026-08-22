@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { overlapCast } from "@opensesame/os-domain";
 import { assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
 import {
@@ -10,7 +11,6 @@ import {
   normalizeHttpBaseUrl,
   normalizeLoopbackBaseUrl,
 } from "./index.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 describe("normalizeLoopbackBaseUrl", () => {
   it("accepts loopback origins and strips trailing slash", () => {
@@ -131,9 +131,11 @@ describe("api-client", () => {
       },
     });
     await client.whoami();
-    const claims = overlapCast(JSON.parse(
-      Buffer.from(dpop.split(".").at(1) ?? "", "base64url").toString("utf8"),
-    ));
+    const claims = overlapCast(
+      JSON.parse(
+        Buffer.from(dpop.split(".").at(1) ?? "", "base64url").toString("utf8"),
+      ),
+    );
     // The verifier in crates/proof requires ath whenever a token is present.
     expect(claims.ath).toBe(await accessTokenHash("opaque-session-token"));
     expect(claims.htu).toBe("https://host.test:8787/api/v1/whoami");
@@ -146,9 +148,11 @@ describe("api-client", () => {
       "https://host.test/api?next=elsewhere",
       "POST",
     );
-    const claims = overlapCast(JSON.parse(
-      Buffer.from(proof.split(".").at(1) ?? "", "base64url").toString("utf8"),
-    ));
+    const claims = overlapCast(
+      JSON.parse(
+        Buffer.from(proof.split(".").at(1) ?? "", "base64url").toString("utf8"),
+      ),
+    );
     expect(claims.htu).toBe("https://host.test/api");
     // No token, no ath: the verifier rejects an unexpected one.
     expect(claims.ath).toBeUndefined();
@@ -215,12 +219,12 @@ describe("api-client", () => {
     expect(await client.whoami()).toEqual({});
     expect(calls).toBe(2);
     const nonceOf = (proof: string) =>
-      (
-        overlapCast(JSON.parse(
+      overlapCast(
+        JSON.parse(
           Buffer.from(proof.split(".").at(1) ?? "", "base64url").toString(
             "utf8",
           ),
-        ))
+        ),
       ).nonce;
     expect(nonceOf(proofs.at(0) ?? "")).toBeUndefined();
     expect(nonceOf(proofs.at(1) ?? "")).toBe("n-from-server");
@@ -259,11 +263,13 @@ describe("api-client", () => {
     });
     await client.health();
     await client.health();
-    const second = overlapCast(JSON.parse(
-      Buffer.from(proofs.at(1)?.split(".").at(1) ?? "", "base64url").toString(
-        "utf8",
+    const second = overlapCast(
+      JSON.parse(
+        Buffer.from(proofs.at(1)?.split(".").at(1) ?? "", "base64url").toString(
+          "utf8",
+        ),
       ),
-    ));
+    );
     expect(second.nonce).toBe("n-1");
   });
 

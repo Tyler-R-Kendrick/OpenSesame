@@ -1,4 +1,8 @@
-import { overlapCast, type BoundaryValue, isTypeofObject, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 /**
  * Local project registry — the top level of the client hierarchy.
  *
@@ -57,26 +61,21 @@ function defaultState(): ProjectsState {
 }
 
 function sanitize(raw: BoundaryValue): ProjectsState {
-  if (!isTypeofObject(raw) || raw === null) return defaultState();
-  const candidate = overlapCast(raw);
+  if (!isJsonObject(raw)) return defaultState();
+  const candidate = raw;
   const projects: PagesProject[] = [];
   if (Array.isArray(candidate.projects)) {
     for (const entry of candidate.projects) {
-      if (
-        isTypeofObject(entry) &&
-        entry !== null &&
-        isString((overlapCast(entry)).id) &&
-        isString((overlapCast(entry)).name)
-      ) {
-        const project = overlapCast(entry);
+      if (isJsonObject(entry) && isString(entry.id) && isString(entry.name)) {
+        const id = entry.id;
+        const name = entry.name;
         projects.push({
-          id: project.id,
-          name: project.name,
-          kind: project.id === PERSONAL_PROJECT_ID ? "personal" : "standard",
-          createdAt:
-            isString(project.createdAt)
-              ? project.createdAt
-              : new Date(0).toISOString(),
+          id,
+          name,
+          kind: id === PERSONAL_PROJECT_ID ? "personal" : "standard",
+          createdAt: isString(entry.createdAt)
+            ? entry.createdAt
+            : new Date(0).toISOString(),
         });
       }
     }
@@ -88,10 +87,9 @@ function sanitize(raw: BoundaryValue): ProjectsState {
   const state: ProjectsState = {
     v: 1,
     projects: [personalProject(), ...withoutPersonal],
-    activeId:
-      isString(candidate.activeId)
-        ? candidate.activeId
-        : PERSONAL_PROJECT_ID,
+    activeId: isString(candidate.activeId)
+      ? candidate.activeId
+      : PERSONAL_PROJECT_ID,
   };
   if (!state.projects.some((project) => project.id === state.activeId)) {
     state.activeId = PERSONAL_PROJECT_ID;

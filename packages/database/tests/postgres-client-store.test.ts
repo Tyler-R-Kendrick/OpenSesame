@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { overlapCast } from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   type ClientClaimChallengeStore,
@@ -10,7 +11,6 @@ import {
 import { oauthClients } from "../src/schema/index.js";
 import { makePrincipal } from "./factories.js";
 import { type PgTestContext, createPgTestContext } from "./pg-harness-full.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 let ctx: PgTestContext;
 let clients: ClientRecordStore;

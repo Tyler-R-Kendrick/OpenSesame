@@ -1,19 +1,22 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { SecretItem } from "../lib/vault/model.js";
 
 const online = vi.hoisted(() => ({ value: true }));
-const session = vi.hoisted(() => ({
+const session: { current: { principalId: string } | null } = vi.hoisted(() => ({
   current: { principalId: "prn_op" },
 }));
 const connect = vi.hoisted(() => vi.fn());
-const connectState = vi.hoisted(() => ({
-  connecting: false,
-  error: null,
-}));
+const connectState: { connecting: boolean; error: Error | null } = vi.hoisted(
+  () => ({
+    connecting: false,
+    error: null,
+  }),
+);
 const currentSession = vi.hoisted(() => vi.fn());
 const hostFetch = vi.hoisted(() => vi.fn());
 const identityJson = vi.hoisted(() => vi.fn());
@@ -31,24 +34,25 @@ Object.assign(identitySeams, {
     connecting: connectState.connecting,
     error: connectState.error,
   }),
-  useIdentitySession: () => session.current});
+  useIdentitySession: () => session.current,
+});
 import { useOnlineSeams } from "../lib/use-online.js";
 const originalUseOnlineSeams = { ...useOnlineSeams };
-Object.assign(useOnlineSeams, {useOnline: () => online.value});
-const vault = vi.hoisted(() => ({
+Object.assign(useOnlineSeams, { useOnline: () => online.value });
+const vault: {
+  current: { items: SecretItem[]; status: "empty" | "locked" | "unlocked" };
+} = vi.hoisted(() => ({
   current: { items: [], status: "unlocked" },
 }));
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {useVault: () => vault.current});
-
+Object.assign(vaultHooksSeams, { useVault: () => vault.current });
 
 import { planeNoteSeams } from "../components/PlaneNote.js";
 const originalPlaneNoteSeams = { ...planeNoteSeams };
 Object.assign(planeNoteSeams, { PagesCannotHostNote: () => null });
 
-import type { SecretItem } from "../lib/vault/model.js";
 import { AgentsSection } from "./AgentsSection.js";
 
 function makeSecret(overrides: Partial<SecretItem> = {}): SecretItem {
@@ -300,8 +304,7 @@ describe("AgentsSection", () => {
     online.value = false;
     renderAgents();
     expect(
-      (overlapCast(screen.getByRole("button", { name: /^Inspect$/i })))
-        .disabled,
+      overlapCast(screen.getByRole("button", { name: /^Inspect$/i })).disabled,
     ).toBe(true);
     expect(screen.getByText(/You are offline/)).toBeTruthy();
   });
@@ -328,9 +331,10 @@ describe("AgentsSection", () => {
       screen.getByRole("button", { name: /Generate keypair/i }),
     );
     await screen.findByRole("button", { name: /Regenerate/i });
-    const form = overlapCast(screen
+    const form = screen
       .getByRole("button", { name: /Register agent/i })
-      .closest("form"));
+      .closest("form");
+    if (!(form instanceof HTMLFormElement)) throw new Error("form not found");
     const { fireEvent } = await import("@testing-library/react");
     fireEvent.submit(form);
     expect(screen.getByRole("alert").textContent).toMatch(

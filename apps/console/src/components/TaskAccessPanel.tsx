@@ -1,4 +1,10 @@
-import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 export interface TaskCapability {
   action: string;
   resource: string;
@@ -14,9 +20,7 @@ export interface TaskAccessViewModel {
 
 function normalizeCapabilities(raw: BoundaryValue): TaskCapability[] {
   if (isTypeofObject(raw) && raw !== null && "capabilities" in raw) {
-    return normalizeCapabilities(
-      (overlapCast(raw)).capabilities,
-    );
+    return normalizeCapabilities(overlapCast(raw).capabilities);
   }
   if (!Array.isArray(raw)) {
     return [];

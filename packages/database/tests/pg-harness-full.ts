@@ -1,11 +1,11 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
+import { overlapCast } from "@opensesame/os-domain";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { type Database, PostgresRepositories } from "../src/repos/postgres.js";
 import * as schema from "../src/schema/index.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +28,6 @@ export async function createPgTestContext(): Promise<PgTestContext> {
   await migrate(db, { migrationsFolder: join(here, "..", "drizzle") });
   // SAFETY: drizzle(PGlite) is the same schema-typed Database as postgres-js;
   // the query-result HKT differs, so TypeScript requires the unknown step.
-  const database = overlapCast(db);
+  const database: Database = overlapCast(db);
   return { repos: new PostgresRepositories(database), db: database, client };
 }

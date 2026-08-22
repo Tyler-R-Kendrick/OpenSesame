@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ZipError, readZipText } from "./zip.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 function crc32(bytes: Uint8Array): number {
   let crc = 0xffffffff;

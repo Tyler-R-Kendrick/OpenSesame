@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  type JsonObject,
   isBoolean,
   isFunction,
   isJsonObject,
@@ -10,7 +11,6 @@ import {
   overlapCast,
   readJsonObject,
   readString,
-  type JsonObject,
 } from "../json.js";
 
 describe("json boundary helpers", () => {

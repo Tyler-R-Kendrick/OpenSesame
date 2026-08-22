@@ -30,7 +30,11 @@ OPENSESAME_CONTROL_PLANE_PORT="$OPENSESAME_CONTROL_PLANE_PORT" \
 OPENSESAME_CORS_ORIGINS="$OPENSESAME_CORS_ORIGINS" \
 pnpm --filter @opensesame/control-plane start &
 IDENTITY_PID=$!
-trap 'kill "$HOST_PID" "$IDENTITY_PID" 2>/dev/null || true' EXIT INT TERM
+export OPENSESAME_MOCK_IDP_PORT="${OPENSESAME_MOCK_IDP_PORT:-9090}"
+MOCK_IDP_URL="http://127.0.0.1:${OPENSESAME_MOCK_IDP_PORT}"
+pnpm --filter @opensesame/mock-upstream-idp dev &
+MOCK_IDP_PID=$!
+trap 'kill "$HOST_PID" "$IDENTITY_PID" "$MOCK_IDP_PID" 2>/dev/null || true' EXIT INT TERM
 
 wait_for() {
   local url="$1"
@@ -60,9 +64,11 @@ wait_for_identity() {
 
 wait_for "$VITE_HOST_API/health/live"
 wait_for_identity "$IDENTITY_URL/v1/health/live"
+wait_for "$MOCK_IDP_URL/.well-known/openid-configuration"
 
 # WebAuthn rejects IP origins (`127.0.0.1`) with "This is an invalid domain."
 # Prefer http://localhost:5180 for passkey enroll/unlock (CORS allows both).
 echo "Pages UI: http://localhost:5180  (use localhost, not 127.0.0.1, for passkeys)" >&2
+echo "Mock IdP (guest claim): $MOCK_IDP_URL" >&2
 
 pnpm --filter @opensesame/pages dev:web "$@"

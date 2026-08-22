@@ -26,7 +26,7 @@ export type ResolveOriginClientOptions = {
 };
 
 function canonicalOptions(options: ResolveOriginClientOptions) {
-  const canonicalOpts = {
+  const canonicalOpts: Parameters<typeof canonicalizeOrigin>[1] = {
     allowLoopbackHttp: options.allowLoopbackHttp ?? true,
   };
   if (options.production !== undefined) {

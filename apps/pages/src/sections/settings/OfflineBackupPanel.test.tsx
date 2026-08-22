@@ -1,10 +1,15 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const vaultState = vi.hoisted(() => ({
+const vaultState: {
+  current: {
+    header: JsonObject | null;
+    status: "empty" | "locked" | "unlocked";
+  };
+} = vi.hoisted(() => ({
   current: {
     header: null,
     status: "empty",
@@ -14,9 +19,10 @@ const importSealed = vi.hoisted(() => vi.fn());
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {useVault: () => vaultState.current,
-  useVaultStore: () => ({ importSealed })});
-
+Object.assign(vaultHooksSeams, {
+  useVault: () => vaultState.current,
+  useVaultStore: () => ({ importSealed }),
+});
 
 const kvGet = vi.hoisted(() => vi.fn());
 
@@ -28,7 +34,7 @@ const loadSettings = vi.hoisted(() => vi.fn());
 
 import { settingsSeams } from "../../lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
-Object.assign(settingsSeams, {loadSettings});
+Object.assign(settingsSeams, { loadSettings });
 const buildOfflineBackup = vi.hoisted(() => vi.fn());
 const serializeOfflineBackup = vi.hoisted(() => vi.fn());
 const parseOfflineBackup = vi.hoisted(() => vi.fn());
@@ -81,9 +87,9 @@ describe("OfflineBackupPanel", () => {
   it("disables export while the vault is empty", () => {
     vaultState.current = { header: null, status: "empty" };
     render(<OfflineBackupPanel />);
-    const button = overlapCast(screen.getByRole("button", {
+    const button = screen.getByRole<HTMLButtonElement>("button", {
       name: /Download offline backup/i,
-    }));
+    });
     expect(button.disabled).toBe(true);
   });
 
@@ -150,9 +156,10 @@ describe("OfflineBackupPanel", () => {
   }
 
   function pickFile(file: File) {
-    const input = overlapCast(document.getElementById(
-      "offline-backup-file",
-    ));
+    const input = document.getElementById("offline-backup-file");
+    if (!(input instanceof HTMLInputElement)) {
+      throw new Error("backup input not found");
+    }
     fireEvent.change(input, { target: { files: [file] } });
   }
 
@@ -202,11 +209,8 @@ describe("OfflineBackupPanel", () => {
     );
     // Password field is cleared after a successful restore.
     expect(
-      (
-        overlapCast(screen.getByLabelText(
-          /Master password for restore/i,
-        ))
-      ).value,
+      screen.getByLabelText<HTMLInputElement>(/Master password for restore/i)
+        .value,
     ).toBe("");
   });
 
@@ -292,11 +296,8 @@ describe("OfflineBackupPanel", () => {
     vaultState.current = { header: { v: 1 }, status: "locked" };
     render(<OfflineBackupPanel />);
     expect(
-      (
-        overlapCast(screen.getByLabelText(
-          /Master password for restore/i,
-        ))
-      ).disabled,
+      overlapCast(screen.getByLabelText(/Master password for restore/i))
+        .disabled,
     ).toBe(true);
   });
 });

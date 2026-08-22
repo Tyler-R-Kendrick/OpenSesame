@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createApiClient } from "./api-client";
 import {
   assertNoPlaintextInSealedJson,
@@ -7,7 +8,6 @@ import {
   persistSealedStore,
 } from "./client-core";
 import { type Session, createOpenSesame } from "./sdk-browser";
-import { useCallback, useEffect, useMemo, useState } from "react";
 
 const hostApi = import.meta.env.VITE_HOST_API ?? "http://127.0.0.1:8787";
 const issuer =

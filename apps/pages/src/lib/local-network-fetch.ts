@@ -103,9 +103,7 @@ export async function localNetworkFetch(
     };
     if (space) {
       // Not in all TypeScript DOM libs yet; browsers that ignore it are fine.
-      (
-        overlapCast(requestInit)
-      ).targetAddressSpace = space;
+      overlapCast(requestInit).targetAddressSpace = space;
     }
     return await fetch(input, requestInit);
   } finally {

@@ -1,4 +1,9 @@
 import { randomUUID } from "node:crypto";
+import {
+  type BoundaryValue,
+  isNumber,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   type OidcStore,
@@ -9,7 +14,6 @@ import {
 import type { Database } from "../src/repos/postgres.js";
 import { makePrincipal } from "./factories.js";
 import { type PgTestContext, createPgTestContext } from "./pg-harness-full.js";
-import { isNumber } from "@opensesame/os-domain";
 
 let ctx: PgTestContext;
 let oidc: OidcStore;
@@ -85,7 +89,8 @@ describe("createPostgresOidcStore", () => {
     await oidc.consume("AuthorizationCode", id);
     const found = await oidc.find("AuthorizationCode", id);
     expect(found?.jti).toBe("code-1");
-    expect(isNumber(found?.consumed)).toBe(true);
+    const consumed: BoundaryValue = overlapCast(found?.consumed);
+    expect(isNumber(consumed)).toBe(true);
   });
 
   it("destroy removes the row entirely", async () => {

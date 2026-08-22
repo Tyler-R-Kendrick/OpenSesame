@@ -1,4 +1,10 @@
-import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  type JsonValue,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 /**
  * Proton Pass JSON export.
  *
@@ -21,19 +27,30 @@ import {
   toIso,
 } from "../types.js";
 
-type ProtonExport = {
-  vaults?: unknown;
-  encrypted?: unknown;
-  version?: unknown;
+type ProtonExport = JsonObject & {
+  vaults: JsonObject;
+  encrypted?: JsonValue;
+  version?: JsonValue;
 };
 
 function isProtonExport(json: BoundaryValue): json is ProtonExport {
-  if (!json || !isTypeofObject(json)) return false;
-  const vaults = (overlapCast(json)).vaults;
-  if (!vaults || !isTypeofObject(vaults) || Array.isArray(vaults))
+  if (
+    !isTypeofObject(json) ||
+    json === null ||
+    Array.isArray(json) ||
+    !("vaults" in json)
+  )
     return false;
+  const vaults = json.vaults;
+  if (!isTypeofObject(vaults) || vaults === null || Array.isArray(vaults)) {
+    return false;
+  }
   return Object.values(vaults).some(
-    (vault) => isTypeofObject(vault) && vault !== null && "items" in vault,
+    (vault) =>
+      isTypeofObject(vault) &&
+      vault !== null &&
+      !Array.isArray(vault) &&
+      "items" in vault,
   );
 }
 
@@ -50,7 +67,7 @@ export const protonpassJson: ImportAdapter = {
     if (!isProtonExport(json)) {
       throw new Error("That file is not a Proton Pass export.");
     }
-    if ((overlapCast(json)).encrypted === true) {
+    if (json.encrypted === true) {
       throw new Error(
         "That export is encrypted. Re-export from Proton Pass as unencrypted JSON.",
       );
@@ -62,23 +79,21 @@ export const protonpassJson: ImportAdapter = {
     let trashed = 0;
     let aliases = 0;
 
-    for (const rawVault of Object.values(
-      overlapCast(json.vaults),
-    )) {
-      const vault = overlapCast(rawVault);
+    for (const rawVault of Object.values(json.vaults)) {
+      const vault: JsonObject = overlapCast(rawVault);
       const vaultName = asString(vault.name);
 
       for (const rawItem of Array.isArray(vault.items) ? vault.items : []) {
-        const entry = overlapCast(rawItem);
+        const entry: JsonObject = overlapCast(rawItem);
         // State 2 is trashed.
         if (entry.state === 2) {
           trashed += 1;
           continue;
         }
 
-        const data = overlapCast(entry.data ?? {});
-        const metadata = overlapCast(data.metadata ?? {});
-        const content = overlapCast(data.content ?? {});
+        const data: JsonObject = overlapCast(entry.data ?? {});
+        const metadata: JsonObject = overlapCast(data.metadata ?? {});
+        const content: JsonObject = overlapCast(data.content ?? {});
         const name = asString(metadata.name) || "Untitled";
         const type = asString(data.type);
 
@@ -92,8 +107,8 @@ export const protonpassJson: ImportAdapter = {
           const expiry = asString(content.expirationDate);
           const match = /^(\d{2})(\d{4})$/u.exec(expiry);
           if (match) {
-            card.expMonth = overlapCast(match[1]);
-            card.expYear = overlapCast(match[2]);
+            card.expMonth = match[1] ?? "";
+            card.expYear = match[2] ?? "";
           }
           addField(card, "PIN", asString(content.pin), true);
           item = card;
@@ -137,8 +152,8 @@ export const protonpassJson: ImportAdapter = {
         for (const rawField of Array.isArray(data.extraFields)
           ? data.extraFields
           : []) {
-          const field = overlapCast(rawField);
-          const fieldData = overlapCast(field.data ?? {});
+          const field: JsonObject = overlapCast(rawField);
+          const fieldData: JsonObject = overlapCast(field.data ?? {});
           const fieldType = asString(field.type);
           const value =
             asString(fieldData.content) || asString(fieldData.totpUri);

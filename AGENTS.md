@@ -223,6 +223,123 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   `scripts/cargo-audit-gate.sh`, `scripts/gitleaks-gate.sh`,
   `scripts/semgrep-gate.sh`, `scripts/daemon-deps-gate.sh`.
 
+### Codex Security checker
+
+`codex-security` is an external, model-backed review tool. It supplements the
+deterministic `pnpm audit:*` gates; it does not replace them. CLI `0.1.16` with
+bundled plugin `0.1.22` was the latest release validated in this repository on
+2026-08-21.
+
+Before a scan, check the installed and published versions. Upgrade only when
+the task authorizes changing user-level tooling, and install an exact version:
+
+```bash
+codex-security --version
+npm view @openai/codex-security version dist-tags --json
+npm install -g @openai/codex-security@<exact-version>
+codex-security --version
+```
+
+Routine reviews must target a committed diff or explicit paths. Never start a
+bare, uncapped repository-wide scan. Set the budget before permitting network
+access, run preflight first, and retain artifacts outside the checkout:
+
+```bash
+codex-security scan <clean-checkout> \
+  --diff <base-sha-or-ref> --head HEAD \
+  --max-cost 15 \
+  --fail-on-severity high \
+  --headless --verbose \
+  --output-dir <trusted-state-dir> --archive-existing \
+  --dry-run
+
+# Remove --dry-run only after checking target, base/head, model, effort,
+# authentication method, output directory, and maxCostUsd in preflight output.
+```
+
+The `$15` cap is the default ceiling, not a promise that the scan will finish.
+Raising it or running a whole-repository scan requires explicit human approval.
+With CLI `0.1.16` at `xhigh`, prior runs demonstrated why: a full scan consumed
+`$56.73` after only `64/2,313` files, and a 70-file diff hit `$15.05` after
+`10/70` files. Use `--path` to split intentionally selected security boundaries
+when a complete diff cannot fit the approved budget. Record any lower reasoning
+effort as a coverage limitation.
+
+Committed-diff scans require a completely clean checkout, including no
+untracked files. Never stash, remove, or overwrite user work to satisfy this
+check. Scan a disposable local clone at the same HEAD instead:
+
+```bash
+repo_root="$(git rev-parse --show-toplevel)"
+scan_root="$(mktemp -d -p /tmp opensesame-codex-security.XXXXXX)"
+git clone --no-local "$repo_root" "$scan_root/repo"
+base_sha="$(git -C "$repo_root" rev-parse <base-sha-or-ref>)"
+# Use "$scan_root/repo" as <clean-checkout> and "$base_sha" as the diff base.
+```
+
+Do not run that setup with `sudo`, and do not change repository or ancestor
+ownership. Codex Security rejects an output directory when any ancestor is
+owned by neither root nor its effective UID. Managed sandboxes may map `/`,
+`/home`, and `/tmp` to UID `65534`, so changing the leaf directory cannot fix
+`Scan output parent must have a trusted owner`.
+
+When that ownership error occurs, the harness must run the checker in an
+isolated user namespace/container with this mount contract:
+
+- a synthetic root owned by the namespace's effective UID;
+- the clean checkout mounted read-only at `/workspace`;
+- a dedicated host artifact directory mounted read-write at `/state`;
+- an ephemeral `CODEX_HOME`, with only required auth/config inputs mounted
+  read-only;
+- runtime libraries, certificates, and the resolver target mounted read-only;
+- the scan launched from `/workspace` with `--output-dir /state`.
+
+This Bubblewrap invocation is the known-good Linux implementation. Replace the
+three host paths and scan arguments; if `/etc/resolv.conf` targets a different
+absolute path, mount that target read-only instead of `/mnt/wsl`:
+
+```bash
+bwrap --unshare-user --uid 0 --gid 0 --tmpfs / --dev /dev --proc /proc \
+  --ro-bind /usr /usr --ro-bind /bin /bin --ro-bind /lib /lib \
+  --ro-bind /etc /etc --dir /mnt --ro-bind /mnt/wsl /mnt/wsl \
+  --dir /home --dir /home/codex \
+  --ro-bind /home/codex/.local /home/codex/.local \
+  --dir /home/codex/.codex \
+  --ro-bind /home/codex/.codex/auth.json /home/codex/.codex/auth.json \
+  --ro-bind /home/codex/.codex/config.toml /home/codex/.codex/config.toml \
+  --dir /workspace --ro-bind <clean-checkout> /workspace \
+  --bind <trusted-host-state-dir> /state --tmpfs /tmp \
+  --setenv HOME /home/codex \
+  --setenv PATH /home/codex/.local/bin:/usr/bin:/bin \
+  --chdir /workspace /home/codex/.local/bin/codex-security scan /workspace \
+  --diff <base-sha> --head HEAD --max-cost 15 --fail-on-severity high \
+  --headless --verbose --output-dir /state --archive-existing --dry-run
+```
+
+Keep `--dry-run` for the first invocation. Remove it only after the printed
+preflight is correct and model/repository egress has been approved.
+
+Do not weaken the ownership check, use world-writable auth/config files, expose
+the host home, or make the repository writable to the scanner. Obtain explicit
+approval for the model's network/repository-content egress.
+
+Interpret results narrowly:
+
+- `cost_limit_exceeded`, interruption, or `partial_output=true` is incomplete;
+- only entries marked `completed` in
+  `artifacts/02_discovery/work_ledger.jsonl` were actually reviewed;
+- `no_candidate` means no candidate in that completed file, not that the diff
+  or repository is secure;
+- `--fail-on-severity` is a release gate only after a complete scan;
+- validate every candidate against the source-to-sink path before changing
+  code, then add a regression test at the enforcement boundary;
+- report CLI/plugin versions, base/head SHAs, scope, effort, cap and actual
+  cost, completed/total files, findings, and residual unreviewed scope.
+
+Keep scanner artifacts private. They may contain sensitive paths or threat
+models. Never publish exploit details, tokens, credentials, claim values, or
+other secret material in issues, logs, or scan reports.
+
 ## 7. Skills
 
 Agent skills live under `skills/*/SKILL.md` (canonical). `.agents/skills/`

@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { useCallback, useEffect, useState } from "react";
 import { IconAlert, IconCheck } from "../../components/Icons.js";
 import {
@@ -12,7 +13,6 @@ import {
   shouldAutoConnect,
 } from "../../lib/settings.js";
 import { useOnline } from "../../lib/use-online.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 export type ProjectSummary = {
   id: string;
@@ -63,18 +63,22 @@ export function ActiveProjectPanel() {
         body: "{}",
       });
       if (!ensureRes.ok) {
-        const err = overlapCast(await ensureRes.json().catch(() => null));
+        const err: { message?: string; error?: string } | null = overlapCast(
+          await ensureRes.json().catch(() => null),
+        );
         throw new Error(
           err?.message ?? err?.error ?? `Ensure failed (${ensureRes.status})`,
         );
       }
-      const personal = overlapCast(await ensureRes.json());
+      const personal: ProjectSummary = overlapCast(await ensureRes.json());
       const listRes = await identityFetch("/v1/projects");
       if (!listRes.ok) {
         throw new Error(`List projects failed (${listRes.status})`);
       }
-      const body = overlapCast(await listRes.json());
-      const nextProjects = body.projects ?? [];
+      const body: { projects?: ProjectSummary[] } = overlapCast(
+        await listRes.json(),
+      );
+      const nextProjects: ProjectSummary[] = body.projects ?? [];
       setProjects(nextProjects);
 
       const preferred =
