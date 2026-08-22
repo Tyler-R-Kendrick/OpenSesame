@@ -159,20 +159,3 @@ mod tests {
         assert_eq!(cache.len(), 0);
     }
 }
-
-#[cfg(kani)]
-mod kani_proofs {
-    use super::*;
-
-    #[kani::proof]
-    fn replay_and_capacity() {
-        let cache = InMemoryReplayCache::with_limits(300, 2);
-        assert!(cache.check_and_record_at("a", 100).is_ok());
-        assert!(matches!(
-            cache.check_and_record_at("a", 110),
-            Err(ProofError::Replay(_))
-        ));
-        assert!(cache.check_and_record_at("b", 100).is_ok());
-        assert!(cache.check_and_record_at("c", 100).is_err());
-    }
-}

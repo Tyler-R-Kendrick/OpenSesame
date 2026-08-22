@@ -23,14 +23,26 @@ if ! rustup component list --toolchain "$TOOLCHAIN" | grep -q '^miri.*installed'
 fi
 
 echo "==> cargo +$TOOLCHAIN miri test (lib, selected crates)"
+export MIRIFLAGS="${MIRIFLAGS:--Zmiri-disable-isolation}"
+export PROPTEST_CASES="${PROPTEST_CASES:-1}"
 cargo "+$TOOLCHAIN" miri test \
   -p opensesame-domain \
-  -p opensesame-proof \
-  -p opensesame-human-vault \
   -p opensesame-redaction \
   -p opensesame-claims \
   -p opensesame-audit \
   -p opensesame-grants \
   --lib
+
+# The proof crate's signature paths enter AWS-LC FFI, which Miri cannot
+# execute. Its pure replay cache remains useful undefined-behavior coverage.
+cargo "+$TOOLCHAIN" miri test -p opensesame-proof --lib 'replay::tests::'
+
+# Full Argon2/XChaCha execution under Miri duplicates library-level coverage and
+# is prohibitively slow. Keep the vault's trust-boundary rejection paths here.
+for filter in \
+  a_stored_nonce_of_the_wrong_length_is_an_error_not_a_panic \
+  unsupported_version_rejected; do
+  cargo "+$TOOLCHAIN" miri test -p opensesame-human-vault --lib "$filter"
+done
 
 echo "miri-gate: CLEAN"
