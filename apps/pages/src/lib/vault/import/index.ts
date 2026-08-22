@@ -10,6 +10,8 @@ import type { BoundaryValue } from "@opensesame/os-domain";
 
 import { readHeaderRow } from "./csv.js";
 import { bitwardenCsv, bitwardenJson } from "./formats/bitwarden.js";
+import { fidoCxf } from "./formats/cxf.js";
+import { keepassKdbx } from "./formats/kdbx.js";
 import {
   appleCsv,
   chromiumCsv,
@@ -30,6 +32,7 @@ import type {
   DetectInput,
   DraftItem,
   ImportAdapter,
+  ParseInput,
   ParseResult,
   SourceId,
 } from "./types.js";
@@ -53,8 +56,10 @@ export { parseDotenv } from "./formats/env.js";
 export const ADAPTERS: ImportAdapter[] = [
   envFile,
   bitwardenJson,
+  fidoCxf,
   protonpassJson,
   onepasswordPux,
+  keepassKdbx,
   bitwardenCsv,
   onepasswordCsv,
   lastpassCsv,
@@ -90,6 +95,28 @@ function looksLikeCsv(text: string): boolean {
   return firstLine.includes(",");
 }
 
+/**
+ * Extensions whose contents are a single encrypted blob rather than text.
+ * The magic-byte check below catches the same file under any other name, so
+ * this list only has to cover what people actually pick.
+ */
+const BINARY_EXTENSIONS = [".kdbx", ".kdb"];
+
+/**
+ * A NUL in the first kilobyte means the file was never text, whatever the
+ * extension claimed. UTF-8 decoding has already mangled it by this point, so
+ * the bytes are re-read rather than salvaged.
+ */
+function looksBinary(text: string): boolean {
+  return text.slice(0, 1024).includes("\u0000");
+}
+
+const EMPTY_TEXT: Omit<DetectInput, "fileName" | "bytes"> = {
+  text: "",
+  headers: null,
+  json: null,
+};
+
 /** Read a picked file into the shape adapters inspect. */
 export async function readImportFile(file: File): Promise<DetectInput> {
   if (file.size > MAX_BYTES) {
@@ -102,12 +129,25 @@ export async function readImportFile(file: File): Promise<DetectInput> {
   const name = file.name.toLowerCase();
   const isArchive = name.endsWith(".1pux") || name.endsWith(".zip");
 
+  if (BINARY_EXTENSIONS.some((ext) => name.endsWith(ext))) {
+    const buffer = await file.arrayBuffer();
+    return { fileName: file.name, ...EMPTY_TEXT, bytes: new Uint8Array(buffer) };
+  }
+
   let text: string;
   if (isArchive) {
     const buffer = await file.arrayBuffer();
     text = await readZipText(buffer, (entry) => entry.endsWith("export.data"));
   } else {
     text = await file.text();
+  }
+
+  // A database saved under a name we did not anticipate. Reading it twice
+  // costs one extra pass over a file the user is importing anyway, and is far
+  // better than telling them their vault "is not a password export".
+  if (!isArchive && looksBinary(text)) {
+    const buffer = await file.arrayBuffer();
+    return { fileName: file.name, ...EMPTY_TEXT, bytes: new Uint8Array(buffer) };
   }
 
   let json: BoundaryValue = null;
@@ -126,11 +166,24 @@ export async function readImportFile(file: File): Promise<DetectInput> {
   const headers =
     json === null && looksLikeCsv(text) ? readHeaderRow(text) : null;
 
-  return { fileName: file.name, text, headers, json };
+  return { fileName: file.name, text, headers, json, bytes: null };
+}
+
+/**
+ * Binary input only ever reaches `"binary"` adapters, and text input never
+ * does. Without this a CSV detector would be handed an empty `text` for every
+ * database, and `genericCsv` — which accepts almost anything — sits at the end
+ * of the chain waiting to claim it.
+ */
+function handles(adapter: ImportAdapter, input: DetectInput): boolean {
+  return input.bytes !== null
+    ? adapter.accepts === "binary"
+    : adapter.accepts !== "binary";
 }
 
 export function detectFormat(input: DetectInput): ImportAdapter | null {
   for (const adapter of ADAPTERS) {
+    if (!handles(adapter, input)) continue;
     try {
       if (adapter.detect(input)) return adapter;
     } catch {
@@ -140,27 +193,70 @@ export function detectFormat(input: DetectInput): ImportAdapter | null {
   return null;
 }
 
-export function parseImport(
+function adapterOrThrow(
   input: DetectInput,
   forced?: SourceId,
-): ParseResult {
+): ImportAdapter {
   const adapter = forced ? adapterFor(forced) : detectFormat(input);
   if (!adapter) {
     throw new ImportError(
       "This does not look like a .env file or a password-manager export. If you know the format, name it and the file will be read again.",
     );
   }
-  const result = adapter.parse(input);
+  return adapter;
+}
+
+/**
+ * A result with nothing in it is a failed read wearing a success's clothes —
+ * except when the adapter is asking for a password, where empty is the whole
+ * point.
+ */
+function checkNotEmpty(result: ParseResult, adapter: ImportAdapter): void {
+  if (result.needsPassword) return;
   if (result.items.length === 0 && result.skipped.length === 0) {
     throw new ImportError(
       `That file parsed as ${adapter.label} but held no items.`,
     );
   }
+}
+
+/**
+ * Synchronous read, for the text and CSV formats that have always been one.
+ * A format whose parse is asynchronous — every encrypted binary one — is
+ * refused here by name rather than returning a promise dressed as a result;
+ * use `parseImportAsync`, which handles both.
+ */
+export function parseImport(input: ParseInput, forced?: SourceId): ParseResult {
+  const adapter = adapterOrThrow(input, forced);
+  const result = adapter.parse(input);
+  if (result instanceof Promise) {
+    // Nothing must observe a floating rejection from a promise we discard.
+    void result.catch(() => {});
+    throw new ImportError(
+      `${adapter.label} has to be decrypted before it can be read; use the asynchronous import path.`,
+    );
+  }
+  checkNotEmpty(result, adapter);
+  return result;
+}
+
+/**
+ * The path the import screen uses. Identical to `parseImport` for text
+ * formats, and the only way to read a binary one.
+ */
+export async function parseImportAsync(
+  input: ParseInput,
+  forced?: SourceId,
+): Promise<ParseResult> {
+  const adapter = adapterOrThrow(input, forced);
+  const result = await adapter.parse(input);
+  checkNotEmpty(result, adapter);
   return result;
 }
 
 export type ImportSummary = {
   logins: number;
+  passkeys: number;
   cards: number;
   notes: number;
   secrets: number;
@@ -172,6 +268,7 @@ export type ImportSummary = {
 export function summarise(items: DraftItem[]): ImportSummary {
   const folders = new Set<string>();
   let logins = 0;
+  let passkeys = 0;
   let cards = 0;
   let notes = 0;
   let secrets = 0;
@@ -184,13 +281,15 @@ export function summarise(items: DraftItem[]): ImportSummary {
       logins += 1;
       if (item.totp) withTotp += 1;
       if (!item.password) withoutPassword += 1;
-    } else if (item.kind === "card") cards += 1;
+    } else if (item.kind === "passkey") passkeys += 1;
+    else if (item.kind === "card") cards += 1;
     else if (item.kind === "secret") secrets += 1;
     else notes += 1;
   }
 
   return {
     logins,
+    passkeys,
     cards,
     notes,
     secrets,

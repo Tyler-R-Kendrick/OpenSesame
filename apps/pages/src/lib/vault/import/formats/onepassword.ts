@@ -19,7 +19,7 @@ import {
 import { hasHeaders, parseCsv, pick } from "../csv.js";
 import {
   type DraftItem,
-  type ImportAdapter,
+  type TextImportAdapter,
   type ParseResult,
   type SkippedRecord,
   addField,
@@ -138,7 +138,7 @@ function readValue(value: BoundaryValue) {
   return { text: "", concealed: false, totp: false };
 }
 
-export const onepasswordPux: ImportAdapter = {
+export const onepasswordPux: TextImportAdapter = {
   id: "1password-1pux",
   label: "1Password (.1pux)",
   shortName: "1Password",
@@ -299,7 +299,7 @@ function applySections(item: DraftItem, sections: BoundaryValue): void {
 
 const CSV_HEADERS = ["title", "password"];
 
-export const onepasswordCsv: ImportAdapter = {
+export const onepasswordCsv: TextImportAdapter = {
   id: "1password-csv",
   label: "1Password (.csv)",
   shortName: "1Password",

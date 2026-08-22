@@ -20,6 +20,8 @@
     "@opensesame/qr": "workspace:^",
     "@opensesame/sdk-browser": "workspace:*",
     "@tursodatabase/sync-wasm": "0.7.2",
+    "hash-wasm": "4.12.0",
+    "kdbxweb": "2.1.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-router": "8.3.0"
