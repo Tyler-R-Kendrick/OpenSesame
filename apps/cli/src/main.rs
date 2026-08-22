@@ -1234,12 +1234,14 @@ async fn main() -> anyhow::Result<()> {
                 certs::cmd_issue(
                     &cli.server,
                     &cli.output,
-                    common_name,
-                    dns,
-                    ips,
-                    ttl_hours,
-                    out_dir,
-                    reveal,
+                    certs::IssueOptions {
+                        common_name,
+                        dns,
+                        ips,
+                        ttl_hours,
+                        out_dir,
+                        reveal,
+                    },
                 )
                 .await?;
             }

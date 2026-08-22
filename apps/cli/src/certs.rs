@@ -66,19 +66,24 @@ pub async fn cmd_ls(server: &str, output: &str) -> Result<()> {
     Ok(())
 }
 
-/// Arguments mirror the `cert issue` flags one for one; bundling them into
-/// a struct would relocate the same fields without simplifying the call.
-#[allow(clippy::too_many_arguments)]
-pub async fn cmd_issue(
-    server: &str,
-    output: &str,
-    common_name: String,
-    dns: Vec<String>,
-    ips: Vec<String>,
-    ttl_hours: u64,
-    out_dir: Option<PathBuf>,
-    reveal: bool,
-) -> Result<()> {
+pub struct IssueOptions {
+    pub common_name: String,
+    pub dns: Vec<String>,
+    pub ips: Vec<String>,
+    pub ttl_hours: u64,
+    pub out_dir: Option<PathBuf>,
+    pub reveal: bool,
+}
+
+pub async fn cmd_issue(server: &str, output: &str, options: IssueOptions) -> Result<()> {
+    let IssueOptions {
+        common_name,
+        dns,
+        ips,
+        ttl_hours,
+        out_dir,
+        reveal,
+    } = options;
     if out_dir.is_none() && !reveal {
         bail!("refusing to issue private-key material without --out-dir or --reveal");
     }
