@@ -28,7 +28,7 @@ export const SETTINGS_CATEGORY_LABEL = {
   danger: "Danger",
 } satisfies Record<SettingsCategory, string>;
 
-const HASH_TO_SETTINGS = {
+const HASH_TO_SETTINGS: Record<string, SettingsCategory> = {
   general: "general",
   security: "security",
   connectivity: "connectivity",
@@ -38,9 +38,9 @@ const HASH_TO_SETTINGS = {
   "github-backup": "data",
   taskbus: "connectivity",
   unlock: "security",
-} satisfies Record<string, SettingsCategory>;
+};
 
-const VAULT_FILTER_LABEL = {
+const VAULT_FILTER_LABEL: Record<string, string> = {
   favorites: "Favorites",
   trash: "Trash",
   login: KIND_PLURAL.login,
@@ -49,7 +49,7 @@ const VAULT_FILTER_LABEL = {
   secret: KIND_PLURAL.secret,
   note: KIND_PLURAL.note,
   certificate: "Certificates",
-} satisfies Record<string, string>;
+};
 
 const ITEM_KINDS = new Set<string>(Object.keys(KIND_LABEL));
 const SETTINGS_CATEGORY_SET = new Set<string>(SETTINGS_CATEGORIES);

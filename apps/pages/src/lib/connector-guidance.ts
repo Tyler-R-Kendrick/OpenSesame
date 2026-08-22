@@ -1,5 +1,5 @@
-import type { ConfigurationField, Provider } from "./connections.js";
 import { isString } from "@opensesame/os-domain";
+import type { ConfigurationField, Provider } from "./connections.js";
 
 type FieldGuidance = { help: string; placeholder: string };
 
@@ -19,7 +19,7 @@ const CATEGORY_SUMMARY = {
   testing: "Exercise the connection flow without a production provider.",
 };
 
-const FIELD_GUIDANCE = {
+const FIELD_GUIDANCE: Record<string, FieldGuidance> = {
   recipients: {
     help: "One or more age recipients, such as age1… or an SSH public key. Secrets are encrypted so only these recipients can decrypt them.",
     placeholder: "age1… or ssh-ed25519 …",
@@ -251,7 +251,7 @@ export function fieldGuidance(field: ConfigurationField): FieldGuidance {
     };
   }
   if (!field.required) {
-    const delegated = {
+    const delegated: Record<string, FieldGuidance> = {
       region: {
         help: "Leave blank to use the region from the Host's AWS profile, environment, container, or instance identity.",
         placeholder: "Auto-detect from Host",
@@ -305,9 +305,7 @@ export function fieldGuidance(field: ConfigurationField): FieldGuidance {
   );
 }
 
-export function configurationDefaults(
-  provider: Pick<Provider, "id">,
-) {
+export function configurationDefaults(provider: Pick<Provider, "id">) {
   if (provider.id === "keychain") return { service: "opensesame" };
   if (provider.id === "plain") return { namespace: "opensesame" };
   if (provider.id === "better-auth") {

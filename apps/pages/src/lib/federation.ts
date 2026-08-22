@@ -1,5 +1,7 @@
 import {
+  type BoundaryValue,
   type JsonObject,
+  isJsonObject,
   isNumber,
   isString,
   overlapCast,
@@ -99,6 +101,19 @@ export type UpstreamIdentity = {
   picture?: string;
 };
 
+function isUpstreamIdentity(value: BoundaryValue): value is UpstreamIdentity {
+  return (
+    isJsonObject(value) &&
+    isString(value.issuer) &&
+    isString(value.upstreamId) &&
+    isString(value.idToken) &&
+    isString(value.pairwiseSub) &&
+    isString(value.audience) &&
+    isString(value.jwksUri) &&
+    isNumber(value.expiresAt)
+  );
+}
+
 export class FederationError extends Error {
   readonly code: string;
   constructor(code: string, message: string) {
@@ -175,8 +190,12 @@ export async function discover(issuer: string): Promise<OidcDiscovery> {
       `${issuer} returned ${response.status} for its discovery document.`,
     );
   }
-  const doc = overlapCast(await response.json());
-  if (!doc.authorization_endpoint || !doc.token_endpoint || !doc.jwks_uri) {
+  const doc: Partial<OidcDiscovery> = overlapCast(await response.json());
+  if (
+    !isString(doc.authorization_endpoint) ||
+    !isString(doc.token_endpoint) ||
+    !isString(doc.jwks_uri)
+  ) {
     throw new FederationError(
       "upstream_unavailable",
       `${issuer} published an incomplete discovery document.`,
@@ -193,7 +212,12 @@ export async function discover(issuer: string): Promise<OidcDiscovery> {
       `${issuer} claims to be ${doc.issuer}.`,
     );
   }
-  return { ...overlapCast(doc), issuer };
+  return {
+    issuer,
+    authorization_endpoint: doc.authorization_endpoint,
+    token_endpoint: doc.token_endpoint,
+    jwks_uri: doc.jwks_uri,
+  };
 }
 
 type PendingAuth = {
@@ -320,10 +344,16 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
       "Sign-in state did not match.",
     );
   }
+  if (!code) {
+    throw new FederationError(
+      "invalid_request",
+      "The broker returned no code.",
+    );
+  }
 
   const body = new URLSearchParams({
     grant_type: "authorization_code",
-    code: overlapCast(code),
+    code,
     redirect_uri: redirectUri(),
     client_id: originClientId(),
     code_verifier: pending.verifier,
@@ -352,8 +382,10 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
     );
   }
 
-  const tokens = overlapCast(await response.json());
-  if (!tokens.id_token) {
+  const tokens: { id_token?: BoundaryValue } = overlapCast(
+    await response.json(),
+  );
+  if (!isString(tokens.id_token)) {
     throw new FederationError(
       "exchange_failed",
       `${pending.issuer} returned no id_token.`,
@@ -398,7 +430,7 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
 
   const expected = originClientId();
   const audience = Array.isArray(claims.aud)
-    ? overlapCast(claims.aud)
+    ? claims.aud.filter((value): value is string => isString(value))
     : [String(claims.aud ?? "")];
   if (!audience.includes(expected)) {
     throw new FederationError(
@@ -464,7 +496,11 @@ function loadSessionDefault(): UpstreamIdentity | null {
   const raw = sessionStorage.getItem(SESSION_KEY);
   if (!raw) return null;
   try {
-    const identity = overlapCast(JSON.parse(raw));
+    const identity: BoundaryValue = JSON.parse(raw);
+    if (!isUpstreamIdentity(identity)) {
+      sessionStorage.removeItem(SESSION_KEY);
+      return null;
+    }
     if (identity.expiresAt <= Date.now()) {
       sessionStorage.removeItem(SESSION_KEY);
       return null;

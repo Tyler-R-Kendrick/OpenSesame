@@ -1,9 +1,20 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isBoolean,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import parity from "../../../../connectors/fnox-parity.json";
-import type { Provider, ProviderCategory } from "./connections.js";
+import type {
+  ConfigurationField,
+  Provider,
+  ProviderCategory,
+} from "./connections.js";
 import { loadSettings } from "./settings.js";
-import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString, isBoolean } from "@opensesame/os-domain";
 
-const CATEGORY = {
+const CATEGORY: Record<ProviderCategory, string[]> = {
   encryption: [
     "webcrypto",
     "age",
@@ -46,7 +57,7 @@ const CATEGORY = {
   testing: [],
 };
 
-const NAMES = {
+const NAMES: Record<string, string> = {
   "1password": "1Password",
   "aws-bedrock": "AWS Bedrock",
   "aws-kms": "AWS KMS",
@@ -79,7 +90,7 @@ const NAMES = {
   yubikey: "YubiKey",
 };
 
-const FIELDS = {
+const FIELDS: Record<string, ConfigurationField[]> = {
   age: [
     { name: "recipients", label: "Recipients", secret: false, required: true },
     { name: "identity", label: "Identity", secret: true, required: true },
@@ -257,10 +268,16 @@ function title(id: string): string {
 }
 
 function categoryOf(id: string): ProviderCategory {
-  for (const [category, ids] of Object.entries(CATEGORY)) {
-    if (ids.includes(id)) return overlapCast(category);
+  for (const category of Object.keys(CATEGORY)) {
+    if (isProviderCategory(category) && CATEGORY[category].includes(id)) {
+      return category;
+    }
   }
   return "developer";
+}
+
+function isProviderCategory(value: string): value is ProviderCategory {
+  return Object.hasOwn(CATEGORY, value);
 }
 
 function preview(
@@ -400,13 +417,15 @@ async function open(): Promise<TursoDb> {
   const settings = loadSettings();
   const remote = settings.tursoUrl.trim();
   const { connectTurso } = await import("./turso-connect.js");
-  const database = overlapCast(await connectTurso({
-    path: "opensesame-connectors.db",
-    ...(remote && sessionToken
-      ? { url: remote, authToken: () => Promise.resolve(sessionToken) }
-      : undefined),
-    clientName: "opensesame-pages",
-  }));
+  const database: TursoDb = overlapCast(
+    await connectTurso({
+      path: "opensesame-connectors.db",
+      ...(remote && sessionToken
+        ? { url: remote, authToken: () => Promise.resolve(sessionToken) }
+        : undefined),
+      clientName: "opensesame-pages",
+    }),
+  );
   if (remote && sessionToken) {
     try {
       await database.pull();
@@ -437,8 +456,8 @@ async function db(): Promise<TursoDb> {
 }
 
 function validProvider(value: BoundaryValue): value is Provider {
-  if (!value || !isTypeofObject(value)) return false;
-  const item = overlapCast(value);
+  if (!isJsonObject(value)) return false;
+  const item = value;
   return (
     isString(item.id) &&
     isString(item.displayName) &&
@@ -454,21 +473,20 @@ function validProvider(value: BoundaryValue): value is Provider {
 }
 
 export function decodeEmbeddedProviders(value: string): Provider[] | null {
-  let parsed: unknown;
+  let parsed: BoundaryValue;
   try {
     parsed = JSON.parse(value);
   } catch {
     return null;
   }
   if (
-    parsed === null ||
-    !isTypeofObject(parsed) ||
-    (overlapCast(parsed)).revision !== BUNDLED_REVISION ||
-    !Array.isArray((overlapCast(parsed)).providers)
+    !isJsonObject(parsed) ||
+    parsed.revision !== BUNDLED_REVISION ||
+    !Array.isArray(parsed.providers)
   ) {
     return null;
   }
-  const providers = (overlapCast(parsed)).providers;
+  const providers = parsed.providers;
   return providers.length > 0 && providers.every(validProvider)
     ? providers
     : null;
@@ -529,7 +547,7 @@ export function getBundledProviders(): Provider[] {
 }
 
 export function setTursoSessionToken(token: string): void {
-  return embeddedCatalogSeams.setTursoSessionToken(token);
+  embeddedCatalogSeams.setTursoSessionToken(token);
 }
 
 export async function checkTurso(): Promise<typeof lastMode> {

@@ -8,7 +8,7 @@
  * the ones we can actually tell apart — and each one has a different remedy,
  * which is the whole point of separating them.
  */
-import { type BoundaryValue, isOnline } from "@opensesame/os-domain";
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { isOnline as readOnline } from "./connectivity.js";
 
 export type ProbeThrownValue = BoundaryValue | DOMException;
