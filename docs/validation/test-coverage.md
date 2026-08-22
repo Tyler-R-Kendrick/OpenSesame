@@ -35,6 +35,16 @@ functions 95.82%, and lines 96.64%; Rust lines 69.83% and functions 67.96%.
 UI behavior is also exercised by Playwright and visual snapshots, which these
 unit-coverage reports do not instrument.
 
+Re-measured on 2026-08-22: TypeScript statements 92.14% (16831/18266),
+branches 85.21% (12374/14522), functions 93.15% (3605/3870), and lines 93.21%
+(15687/16829) — still clear of the 80% floors, but three to four points below
+the August 19 figures across every metric. Code landed in that window without
+proportional tests. That is what a ratchet permits and what it is for: the
+gate stays green while the trend is visibly downward, which is the argument
+for reading the mutation score rather than this table. The Rust half was not
+re-measured — `cargo-llvm-cov` was not installed on that machine, and the gate
+fails loudly rather than reporting a number it did not compute.
+
 That run killed 110/110 TypeScript mutants and 12/12 Rust mutants in the
 selected credential-redaction and URL/task-validation boundaries.
 
