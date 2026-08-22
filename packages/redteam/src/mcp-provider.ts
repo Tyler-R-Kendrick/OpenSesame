@@ -1,4 +1,3 @@
-import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 /**
  * promptfoo custom provider: the "provider under test" for the three
  * deterministic red-team classes (confused-deputy, credential-exfiltration,
@@ -34,6 +33,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import {
   type MockRoute,
   type MockUpstream,
@@ -74,8 +74,8 @@ interface ProviderResponse {
   error?: string;
 }
 
-function processEnvStrings() {
-  const out = {};
+function processEnvStrings(): Record<string, string> {
+  const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (isString(value)) out[key] = value;
   }
@@ -114,7 +114,7 @@ export default class McpHostStructuralProvider {
     _prompt: string,
     context?: { vars?: JsonObject },
   ): Promise<ProviderResponse> {
-    const vars = overlapCast(context?.vars ?? {});
+    const vars: RedteamVars = overlapCast(context?.vars ?? {});
 
     if (!Array.isArray(vars.calls) || vars.calls.length === 0) {
       return {

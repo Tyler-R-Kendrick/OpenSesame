@@ -1,4 +1,3 @@
-import { isString } from "@opensesame/os-domain";
 /**
  * A tiny, per-call stub HTTP server standing in for the Host API / daemon that
  * `apps/mcp-host` talks to (`hostFetch/daemonFetch` in `apps/mcp-host/src/host-api.ts`).
@@ -90,7 +89,7 @@ export async function startMockUpstream(
   });
 
   const address = server.address();
-  if (!address || isString(address)) {
+  if (!address || typeof address === "string") {
     throw new Error("mock upstream failed to bind a TCP port");
   }
 
