@@ -74,12 +74,12 @@ interface ProviderResponse {
   error?: string;
 }
 
-function processEnvStrings(): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(process.env)) {
-    if (isString(value)) out[key] = value;
-  }
-  return out;
+function processEnvStrings() {
+  return Object.fromEntries(
+    Object.entries(process.env).filter((entry): entry is [string, string] =>
+      isString(entry[1]),
+    ),
+  );
 }
 
 function withTimeout<T>(

@@ -16,6 +16,7 @@
  * `scripts/mock-upstream-daemon.mjs`.)
  */
 import http from "node:http";
+import type { AddressInfo } from "node:net";
 
 export interface MockRoute {
   /** Path to match, or a prefix ending in "*" (e.g. "/api/v1/tasks/*"). */
@@ -41,6 +42,12 @@ export interface MockUpstream {
   /** Every request the stub received, in order, for assertions to inspect. */
   requests: CapturedRequest[];
   close: () => Promise<void>;
+}
+
+function isAddressInfo(
+  address: AddressInfo | string | null,
+): address is AddressInfo {
+  return address !== null && typeof address !== "string";
 }
 
 function matchRoute(
@@ -89,7 +96,7 @@ export async function startMockUpstream(
   });
 
   const address = server.address();
-  if (!address || typeof address === "string") {
+  if (!isAddressInfo(address)) {
     throw new Error("mock upstream failed to bind a TCP port");
   }
 
