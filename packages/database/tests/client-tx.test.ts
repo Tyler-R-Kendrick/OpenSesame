@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { isFunction } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MemoryRepositories,
@@ -17,7 +18,6 @@ import {
   outboxClaimToken,
   outboxHoldActive,
 } from "../src/repos/interfaces.js";
-import { isFunction } from "@opensesame/os-domain";
 
 afterEach(() => {
   vi.unstubAllEnvs();

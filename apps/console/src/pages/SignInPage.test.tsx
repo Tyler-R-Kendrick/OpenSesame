@@ -6,9 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sdkBrowserSeams } from "../sdk-browser.js";
 import { SignInPage } from "./SignInPage.js";
 
-(
-  overlapCast(globalThis)
-).IS_REACT_ACT_ENVIRONMENT = true;
+overlapCast(globalThis).IS_REACT_ACT_ENVIRONMENT = true;
 
 interface MockClient {
   signIn: ReturnType<typeof vi.fn>;

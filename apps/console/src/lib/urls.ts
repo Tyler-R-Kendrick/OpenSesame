@@ -12,10 +12,7 @@ export function isLoopbackUrl(raw: string): boolean {
   return normalizeLoopbackBaseUrl(raw) !== null;
 }
 
-export function operatorHeadersFor(
-  base: string,
-  operatorToken: string,
-) {
+export function operatorHeadersFor(base: string, operatorToken: string) {
   if (!operatorToken || !isLoopbackUrl(base)) return {};
   return { authorization: `Bearer operator:${operatorToken}` };
 }

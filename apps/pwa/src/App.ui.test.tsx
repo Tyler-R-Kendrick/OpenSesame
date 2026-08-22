@@ -1,4 +1,4 @@
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 // @vitest-environment jsdom
 import type { Session } from "@opensesame/sdk-browser";
 import { act } from "react";
@@ -17,12 +17,11 @@ const mocks = {
   health: vi.fn(),
   probeDaemon: vi.fn(),
   loadSealedStore: vi.fn(),
-  persistSealedStore: vi.fn(),
+  persistSealedStore:
+    vi.fn<(deviceId: string, sealedJson: string) => Promise<void>>(),
 };
 
-(
-  overlapCast(globalThis)
-).IS_REACT_ACT_ENVIRONMENT = true;
+overlapCast(globalThis).IS_REACT_ACT_ENVIRONMENT = true;
 
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
@@ -232,7 +231,7 @@ describe("App health and sealed store", () => {
     );
     expect(mocks.loadSealedStore).toHaveBeenCalledWith("pwa-device");
     expect(mocks.persistSealedStore).toHaveBeenCalledTimes(1);
-    const [, sealed] = overlapCast(mocks.persistSealedStore.mock.calls[0]);
+    const [, sealed] = mocks.persistSealedStore.mock.calls[0];
     expect(JSON.parse(sealed)).toEqual({
       cursor: { device_id: "pwa-device", epoch: 0 },
       blobs: [],

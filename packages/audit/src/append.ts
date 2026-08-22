@@ -1,5 +1,11 @@
 import { randomUUID } from "node:crypto";
-import type { AuditActorType, AuditEvent, AuditOutcome, JsonObject, BoundaryValue } from "@opensesame/os-domain";
+import type {
+  AuditActorType,
+  AuditEvent,
+  AuditOutcome,
+  BoundaryValue,
+  JsonObject,
+} from "@opensesame/os-domain";
 import { redactAuditMetadata } from "./redact.js";
 
 export interface AuditSink {

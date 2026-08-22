@@ -1,12 +1,12 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import {
+  type AuditEvent,
+  type BoundaryValue,
+  type JsonObject,
   isFunction,
   isString,
   isTypeofObject,
   overlapCast,
-  type AuditEvent,
-  type BoundaryValue,
-  type JsonObject,
 } from "@opensesame/os-domain";
 import type { AuditSink } from "./append.js";
 

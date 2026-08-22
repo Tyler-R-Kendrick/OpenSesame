@@ -1,6 +1,10 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -52,11 +56,7 @@ function clientBody(overrides: JsonObject = {}) {
   };
 }
 
-async function createClient(
-  app: App,
-  token: string,
-  body: JsonObject,
-) {
+async function createClient(app: App, token: string, body: JsonObject) {
   return app.request("/v1/oauth/clients", {
     method: "POST",
     headers: { ...auth(token), "content-type": "application/json" },
@@ -71,9 +71,7 @@ describe("oauth clients routes edge cases", () => {
 
     const register = await createClient(app, anon.accessToken, clientBody());
     expect(register.status).toBe(403);
-    expect((overlapCast(await register.json())).error).toBe(
-      "assurance_too_low",
-    );
+    expect(overlapCast(await register.json()).error).toBe("assurance_too_low");
 
     for (const [method, path] of [
       ["PATCH", "/v1/oauth/clients/cli_x"],
@@ -104,7 +102,7 @@ describe("oauth clients routes edge cases", () => {
       clientBody({ admissionMode: "dynamic_registration" }),
     );
     expect(gated.status).toBe(400);
-    expect((overlapCast(await gated.json())).error).toBe(
+    expect(overlapCast(await gated.json()).error).toBe(
       "admission_mode_disabled",
     );
 
@@ -116,7 +114,7 @@ describe("oauth clients routes edge cases", () => {
     const other = await verified(app, "oauth-create-other");
     const stolen = await createClient(app, other.accessToken, clientBody());
     expect(stolen.status).toBe(409);
-    expect((overlapCast(await stolen.json())).error).toBe(
+    expect(overlapCast(await stolen.json()).error).toBe(
       "sector_identifier_taken",
     );
 
@@ -134,15 +132,11 @@ describe("oauth clients routes edge cases", () => {
     const list = await app.request("/v1/oauth/clients", {
       headers: auth(owner.accessToken),
     });
-    expect(
-      (overlapCast(await list.json())).clients,
-    ).toHaveLength(2);
+    expect(overlapCast(await list.json()).clients).toHaveLength(2);
     const otherList = await app.request("/v1/oauth/clients", {
       headers: auth(other.accessToken),
     });
-    expect(
-      (overlapCast(await otherList.json())).clients,
-    ).toHaveLength(0);
+    expect(overlapCast(await otherList.json()).clients).toHaveLength(0);
   });
 
   it("patches only owned, live clients", async () => {
@@ -226,9 +220,7 @@ describe("oauth clients routes edge cases", () => {
     const list = await app.request("/v1/oauth/clients", {
       headers: auth(owner.accessToken),
     });
-    const ids = (
-      overlapCast(await list.json())
-    ).clients.map((c) => c.id);
+    const ids = overlapCast(await list.json()).clients.map((c) => c.id);
     expect(ids).toEqual([next.id]);
   });
 
@@ -253,7 +245,7 @@ describe("oauth clients routes edge cases", () => {
       headers: auth(owner.accessToken),
     });
     expect(revoked.status).toBe(200);
-    expect((overlapCast(await revoked.json())).state).toBe("revoked");
+    expect(overlapCast(await revoked.json()).state).toBe("revoked");
 
     // Revoking again is still the owner's own client, not a 404.
     const again = await app.request(`/v1/oauth/clients/${client.id}/revoke`, {

@@ -27,11 +27,11 @@ const env: MonitorTestEnvironment = {
 };
 
 import {
-  connectivityMonitorDependencies,
   DEGRADED_MS,
   HEALTHY_MS,
   STRIKES_TO_FAIL,
   checkNow,
+  connectivityMonitorDependencies,
   connectivitySnapshot,
   daemonIsProbable,
   resetConnectivityMonitorForTests,

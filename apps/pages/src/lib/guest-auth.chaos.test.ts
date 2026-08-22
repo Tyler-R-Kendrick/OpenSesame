@@ -45,7 +45,15 @@ describe("chaos — guest login under a broken Identity plane", () => {
     connectProvisional.mockImplementation(
       () =>
         new Promise((resolve) => {
-          setTimeout(() => resolve({ principalId: "prn_guest" }), 20);
+          setTimeout(
+            () =>
+              resolve({
+                principalId: "prn_guest",
+                accessToken: "opaque-session:test",
+                issuerOrigin: "https://identity.example",
+              }),
+            20,
+          );
         }),
     );
     await Promise.all([claimGuestAuth(), claimGuestAuth(), claimGuestAuth()]);

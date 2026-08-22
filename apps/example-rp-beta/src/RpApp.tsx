@@ -1,7 +1,7 @@
-import { type Session, createOpenSesame } from "./sdk-browser.js";
 import { useEffect, useMemo, useState } from "react";
+import { type Session, createOpenSesame } from "./sdk-browser.js";
 import "./rp.css";
-import { type BoundaryValue } from "@opensesame/os-domain";
+import type { BoundaryValue } from "@opensesame/os-domain";
 
 const issuer =
   import.meta.env.VITE_OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";

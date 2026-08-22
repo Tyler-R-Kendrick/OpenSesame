@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   type ControlPlaneConfig,
@@ -10,7 +11,6 @@ import { createControlPlane } from "../create-app.js";
 import { sanitizeCorrelationId } from "../middleware/context.js";
 import { startServer } from "../server.js";
 import { bumpUsage, createAppStores, getUsage } from "../state.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 function testConfig() {
   return {

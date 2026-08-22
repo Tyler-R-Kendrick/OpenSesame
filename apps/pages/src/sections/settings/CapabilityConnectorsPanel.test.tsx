@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,14 +9,16 @@ const online = vi.hoisted(() => ({ value: true }));
 const planes = vi.hoisted(() => ({
   value: { host: "live", identity: "connected" },
 }));
-const session = vi.hoisted(() => ({
+const session: { current: { principalId: string } | null } = vi.hoisted(() => ({
   current: { principalId: "prn_op" },
 }));
 const connect = vi.hoisted(() => vi.fn());
-const connectState = vi.hoisted(() => ({
-  connecting: false,
-  error: null,
-}));
+const connectState: { connecting: boolean; error: string | null } = vi.hoisted(
+  () => ({
+    connecting: false,
+    error: null,
+  }),
+);
 const hostLocalSessionEligible = vi.hoisted(() => vi.fn(() => true));
 const ensureHostSession = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
@@ -24,13 +26,14 @@ const ensureHostSession = vi.hoisted(() =>
 
 import { useOnlineSeams } from "../../lib/use-online.js";
 const originalUseOnlineSeams = { ...useOnlineSeams };
-Object.assign(useOnlineSeams, {useOnline: () => online.value});
+Object.assign(useOnlineSeams, { useOnline: () => online.value });
 import { planeSeams } from "../../lib/planes.js";
 const originalPlaneSeams = { ...planeSeams };
-Object.assign(planeSeams, {usePlaneStatus: () => planes.value});
+Object.assign(planeSeams, { usePlaneStatus: () => planes.value });
 import { identitySeams } from "../../lib/identity.js";
 const originalIdentitySeams = { ...identitySeams };
-Object.assign(identitySeams, {useIdentitySession: () => session.current,
+Object.assign(identitySeams, {
+  useIdentitySession: () => session.current,
   useConnect: () => ({
     connect,
     connecting: connectState.connecting,
@@ -38,16 +41,15 @@ Object.assign(identitySeams, {useIdentitySession: () => session.current,
   }),
   ensureHostSession,
   hostBase: () => "http://127.0.0.1:8787",
-  hostLocalSessionEligible});
+  hostLocalSessionEligible,
+});
 const loadSettings = vi.hoisted(() => vi.fn());
 const saveSettings = vi.hoisted(() => vi.fn());
 const shouldAutoConnect = vi.hoisted(() => vi.fn(() => true));
 
 import { settingsSeams } from "../../lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
-Object.assign(settingsSeams, {loadSettings,
-  saveSettings,
-  shouldAutoConnect});
+Object.assign(settingsSeams, { loadSettings, saveSettings, shouldAutoConnect });
 const listConnections = vi.hoisted(() => vi.fn());
 const listProviders = vi.hoisted(() => vi.fn());
 const listIntegrations = vi.hoisted(() => vi.fn());
@@ -142,7 +144,11 @@ describe("CapabilityConnectorsPanel", () => {
   });
 
   it("lists both capabilities with their default connectors", async () => {
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     expect(screen.getByText("Encryption key vault")).toBeTruthy();
     expect(screen.getByText("History & persistence")).toBeTruthy();
     // WebCrypto needs no Host auth.
@@ -153,7 +159,11 @@ describe("CapabilityConnectorsPanel", () => {
 
   it("shows the connected account when GitHub is authorized", async () => {
     listConnections.mockResolvedValue([githubConnection]);
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText("Connected as octocat")).toBeTruthy();
     expect(
       screen.getByRole("button", { name: /Re-authorize with OAuth/i }),
@@ -164,7 +174,11 @@ describe("CapabilityConnectorsPanel", () => {
     hostLocalSessionEligible.mockReturnValue(false);
     session.current = null;
     connect.mockResolvedValue(undefined);
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     await waitFor(() => expect(connect).toHaveBeenCalled());
   });
 
@@ -172,14 +186,22 @@ describe("CapabilityConnectorsPanel", () => {
     hostLocalSessionEligible.mockReturnValue(false);
     session.current = null;
     shouldAutoConnect.mockReturnValue(false);
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     expect(connect).not.toHaveBeenCalled();
   });
 
   it("surfaces identity connect errors", () => {
     hostLocalSessionEligible.mockReturnValue(false);
     connectState.error = "identity plane down";
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     const alert = screen.getByRole("alert");
     expect(alert.textContent).toMatch(/identity plane down/);
   });
@@ -188,12 +210,20 @@ describe("CapabilityConnectorsPanel", () => {
     hostLocalSessionEligible.mockReturnValue(false);
     session.current = null;
     connectState.connecting = true;
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     expect(screen.getByText(/Starting your OpenSesame session/)).toBeTruthy();
   });
 
   it("warns that OAuth needs the GitHub App when none is configured", async () => {
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     await screen.findByText("Authorize this connector to sync");
     await userEvent.click(
       screen.getByRole("button", { name: /Authorize GitHub \(OAuth\)/i }),
@@ -211,7 +241,11 @@ describe("CapabilityConnectorsPanel", () => {
       manifest: {},
       redirectUrl: "https://host.example/cb",
     });
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     const deploy = await screen.findByRole("button", {
       name: /Create GitHub App for this organization/i,
     });
@@ -227,7 +261,11 @@ describe("CapabilityConnectorsPanel", () => {
 
   it("reports GitHub App deployment failures", async () => {
     startGithubAppRegistration.mockRejectedValue(new Error("host offline"));
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     const deploy = await screen.findByRole("button", {
       name: /Create GitHub App for this organization/i,
     });
@@ -256,7 +294,11 @@ describe("CapabilityConnectorsPanel", () => {
       result: "active",
       connection: githubConnection,
     });
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Authorize GitHub \(OAuth\)/i,
@@ -292,7 +334,11 @@ describe("CapabilityConnectorsPanel", () => {
       result: "failed",
       connection: { ...githubConnection, statusDetail: "access denied" },
     });
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Authorize GitHub \(OAuth\)/i,
@@ -313,7 +359,11 @@ describe("CapabilityConnectorsPanel", () => {
       result: "cancelled",
       connection: githubConnection,
     });
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Authorize GitHub \(OAuth\)/i,
@@ -323,7 +373,11 @@ describe("CapabilityConnectorsPanel", () => {
   });
 
   it("requires a token before connecting with a PAT", async () => {
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Connect GitHub with token/i,
@@ -336,10 +390,10 @@ describe("CapabilityConnectorsPanel", () => {
     );
     await userEvent.type(input, "   ");
     expect(
-      (
-        overlapCast(screen.getByRole("button", {
+      overlapCast(
+        screen.getByRole("button", {
           name: /Connect GitHub with token/i,
-        }))
+        }),
       ).disabled,
     ).toBe(true);
   });
@@ -347,7 +401,11 @@ describe("CapabilityConnectorsPanel", () => {
   it("connects GitHub with a personal access token", async () => {
     createConnection.mockResolvedValue(githubConnection);
     setConnectionCredential.mockResolvedValue(githubConnection);
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     const input = await screen.findByLabelText(
       /connect with a personal access token/i,
     );
@@ -363,7 +421,7 @@ describe("CapabilityConnectorsPanel", () => {
     );
     expect(await screen.findByText(/GitHub connected as octocat/)).toBeTruthy();
     // The token field is cleared once sealed on the Host.
-    expect((overlapCast(input)).value).toBe("");
+    expect(overlapCast(input).value).toBe("");
   });
 
   it("reports a stored token that never became active", async () => {
@@ -373,7 +431,11 @@ describe("CapabilityConnectorsPanel", () => {
       status: "pending",
       statusDetail: "bad credentials",
     });
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     const input = await screen.findByLabelText(
       /connect with a personal access token/i,
     );
@@ -386,7 +448,11 @@ describe("CapabilityConnectorsPanel", () => {
 
   it("persists the remote chosen through the history picker", async () => {
     listConnections.mockResolvedValue([githubConnection]);
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     await screen.findByText("Connected as octocat");
     await userEvent.click(screen.getByTestId("pick-remote"));
     expect(saveSettings).toHaveBeenCalledWith(
@@ -409,7 +475,11 @@ describe("CapabilityConnectorsPanel", () => {
         callbackUrl: "https://host.example/cb/aws",
       },
     ]);
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     await userEvent.selectOptions(
       screen.getByLabelText(/^Connector$/i, {
         selector: "#cap-connector-encryption",
@@ -438,7 +508,11 @@ describe("CapabilityConnectorsPanel", () => {
         history: { providerId: "gitlab", remote: "" },
       },
     });
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     const input = await screen.findByLabelText(
       /Git remote for encrypted store/i,
     );
@@ -452,7 +526,11 @@ describe("CapabilityConnectorsPanel", () => {
       "",
       "/settings?github_app=error&reason=expired_state",
     );
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     expect(
       await screen.findByText(/registration session expired/i),
     ).toBeTruthy();
@@ -461,7 +539,11 @@ describe("CapabilityConnectorsPanel", () => {
 
   it("confirms GitHub App registration from the redirect", async () => {
     window.history.replaceState({}, "", "/settings?github_app=registered");
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     expect(
       await screen.findByText(/GitHub App registered\. Authorize History/),
     ).toBeTruthy();
@@ -469,10 +551,16 @@ describe("CapabilityConnectorsPanel", () => {
 
   it("disables authorize while the Host plane is down", async () => {
     planes.value = { host: "degraded", identity: "connected" };
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
-    const button = overlapCast(await screen.findByRole("button", {
-      name: /Authorize GitHub \(OAuth\)/i,
-    }));
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
+    const button = overlapCast(
+      await screen.findByRole("button", {
+        name: /Authorize GitHub \(OAuth\)/i,
+      }),
+    );
     expect(button.disabled).toBe(true);
     expect(
       screen.getAllByText(/Host API is not reachable from this tab yet/).length,
@@ -508,7 +596,11 @@ describe("CapabilityConnectorsPanel edge branches", () => {
     listConnections.mockResolvedValue([
       { ...githubConnection, status: "pending", accountLabel: null },
     ]);
-    const { unmount } = render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    const { unmount } = render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText("Authorization incomplete")).toBeTruthy();
     unmount();
 
@@ -527,7 +619,11 @@ describe("CapabilityConnectorsPanel edge branches", () => {
         statusDetail: "token exchange blew up",
       },
     ]);
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText("token exchange blew up")).toBeTruthy();
   });
 
@@ -535,7 +631,11 @@ describe("CapabilityConnectorsPanel edge branches", () => {
     listConnections.mockRejectedValue(new Error("down"));
     listProviders.mockRejectedValue(new Error("down"));
     listIntegrations.mockRejectedValue(new Error("down"));
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     expect(
       await screen.findByText("Authorize this connector to sync"),
     ).toBeTruthy();
@@ -547,7 +647,11 @@ describe("CapabilityConnectorsPanel edge branches", () => {
       "",
       "/settings?github_app=error&reason=missing_code",
     );
-    const { unmount } = render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    const { unmount } = render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText(/incomplete redirect/)).toBeTruthy();
     unmount();
 
@@ -556,13 +660,21 @@ describe("CapabilityConnectorsPanel edge branches", () => {
       "",
       "/settings?github_app=error&reason=something_custom",
     );
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText(/something_custom/)).toBeTruthy();
   });
 
   it("confirms installation from the redirect", async () => {
     window.history.replaceState({}, "", "/settings?github_app=installed");
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     expect(
       await screen.findByText(/GitHub App installed\. Authorize/),
     ).toBeTruthy();
@@ -574,7 +686,11 @@ describe("CapabilityConnectorsPanel edge branches", () => {
     ]);
     createConnection.mockResolvedValue(githubConnection);
     authorizeConnection.mockRejectedValue(new Error("popup blocked"));
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Authorize GitHub \(OAuth\)/i,
@@ -601,7 +717,11 @@ describe("CapabilityConnectorsPanel edge branches", () => {
     });
     createConnection.mockResolvedValue(gitlabConnection);
     setConnectionCredential.mockResolvedValue(gitlabConnection);
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     const input = await screen.findByLabelText(
       /connect with a personal access token/i,
     );
@@ -639,7 +759,11 @@ describe("CapabilityConnectorsPanel edge branches", () => {
       result: "active",
       connection: gitlabConnection,
     });
-    render(<MemoryRouter><CapabilityConnectorsPanel /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <CapabilityConnectorsPanel />
+      </MemoryRouter>,
+    );
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Authorize GitLab \(OAuth\)/i,

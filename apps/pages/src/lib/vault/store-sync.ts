@@ -101,7 +101,7 @@ export function entryToVaultItem(
     meta.kind === "secret" ? "secret" : meta.kind === "note" ? "note" : "login";
 
   if (kind === "secret") {
-    const item = overlapCast(createItem("secret", name));
+    const item: SecretItem = overlapCast(createItem("secret", name));
     item.folderId = folderId;
     item.value = entry.secret;
     item.notes = meta.notes ?? "";

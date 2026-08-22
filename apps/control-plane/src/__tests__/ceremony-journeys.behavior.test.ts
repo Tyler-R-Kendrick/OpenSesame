@@ -1,6 +1,6 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 /**
  * Behaviour specifications for the ceremony journeys.
@@ -157,7 +157,7 @@ async function theyShareTheirInboxHandle(
     headers: { authorization: `Bearer ${who.accessToken}` },
   });
   expect(res.status).toBe(200);
-  return (overlapCast(await res.json())).approverRef;
+  return overlapCast(await res.json()).approverRef;
 }
 
 describe("Journey: an agent asks a person to authorize something", () => {

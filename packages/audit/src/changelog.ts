@@ -1,4 +1,8 @@
-import type { AuditActorType, AuditOutcome, JsonObject } from "@opensesame/os-domain";
+import type {
+  AuditActorType,
+  AuditOutcome,
+  JsonObject,
+} from "@opensesame/os-domain";
 import {
   type AppendAuditEventInput,
   type AuditSink,

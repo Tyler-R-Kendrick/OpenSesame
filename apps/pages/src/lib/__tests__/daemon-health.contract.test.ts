@@ -1,6 +1,6 @@
+import type { JsonValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type JsonValue } from "@opensesame/os-domain";
 
 const env = { loopbackPage: true };
 

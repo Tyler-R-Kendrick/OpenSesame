@@ -1,3 +1,4 @@
+import { isFunction } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createUpstreamAuth } from "../better-auth.js";
 import { noEmailAutoLinkPolicy } from "../email-link.js";
@@ -7,7 +8,6 @@ import {
   mockUpstreamProvider,
 } from "../oidc-registry.js";
 import { createPasskeySeam } from "../passkey.js";
-import { isFunction } from "@opensesame/os-domain";
 
 const baseOptions = {
   baseURL: "http://127.0.0.1:8788",

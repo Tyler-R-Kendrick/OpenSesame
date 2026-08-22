@@ -1,6 +1,6 @@
 import { runInNewContext } from "node:vm";
+import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 // Vitest/Vite loads the shipped IIFE as text so we exercise the real file.
 import source from "../../public/auth.js?raw";
 
@@ -35,6 +35,17 @@ type OpenSesameApi = {
   } | null;
 };
 
+type OpenSesameWindowStub = {
+  location: { origin: string; href: string };
+  OpenSesame?: OpenSesameApi;
+  __opensesameAutoBindBootstrapped?: boolean;
+  __opensesameAuthorizeLinksBootstrapped?: boolean;
+  dispatchEvent: ReturnType<typeof vi.fn>;
+  addEventListener: ReturnType<typeof vi.fn>;
+  removeEventListener: ReturnType<typeof vi.fn>;
+  open: ReturnType<typeof vi.fn>;
+};
+
 function bytesToBase64Url(bytes: Uint8Array): string {
   let binary = "";
   for (let i = 0; i < bytes.length; i += 1) {
@@ -59,7 +70,7 @@ function loadClient(): OpenSesameApi {
     addEventListener: vi.fn(),
   };
 
-  const windowStub: JsonObject = {
+  const windowStub: OpenSesameWindowStub = {
     location: {
       origin: "http://localhost:5173",
       href: "http://localhost:5173/",
@@ -90,7 +101,7 @@ function loadClient(): OpenSesameApi {
     window: windowStub,
   });
 
-  const api = overlapCast(windowStub.OpenSesame);
+  const api = windowStub.OpenSesame;
   if (!api) throw new Error("OpenSesame API was not installed");
   return api;
 }
@@ -160,10 +171,8 @@ describe("auth.js client helpers", () => {
       true,
       ["sign", "verify"],
     );
-    const jwk = overlapCast(await subtle.exportKey(
-      "jwk",
-      pair.publicKey,
-    ));
+    const jwk: JsonWebKey & { kid?: string; alg?: string; use?: string } =
+      await subtle.exportKey("jwk", pair.publicKey);
     jwk.kid = "test-key";
     jwk.alg = "ES256";
     jwk.use = "sig";

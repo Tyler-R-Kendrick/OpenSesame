@@ -1,3 +1,9 @@
+import {
+  type JsonObject,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { Hono } from "hono";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
@@ -8,7 +14,6 @@ import {
   membershipKey,
   serializeMembershipMutation,
 } from "./organizations.js";
-import { type JsonObject, overlapCast, isTypeofObject, isString } from "@opensesame/os-domain";
 
 /**
  * Device authorization approval — Identity plane proxy to Host API.
@@ -31,10 +36,9 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
   const parsedBody = await c.req.json().catch(() => undefined);
   const body =
     parsedBody && isTypeofObject(parsedBody) && !Array.isArray(parsedBody)
-      ? (overlapCast(parsedBody))
+      ? overlapCast(parsedBody)
       : {};
-  const userCode =
-    isString(body.user_code) ? body.user_code.trim() : "";
+  const userCode = isString(body.user_code) ? body.user_code.trim() : "";
   if (!userCode) {
     return c.json(
       { error: "invalid_request", hint: "user_code required" },
@@ -53,9 +57,7 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
     );
   }
   const organizationId =
-    (isString(body.organization_id)
-      ? body.organization_id.trim()
-      : "") ||
+    (isString(body.organization_id) ? body.organization_id.trim() : "") ||
     (memberships.length === 1 ? memberships[0]?.organizationId : undefined);
   if (!organizationId) {
     return c.json(

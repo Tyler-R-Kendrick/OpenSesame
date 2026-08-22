@@ -1,6 +1,6 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -43,11 +43,7 @@ function auth(token: string) {
   return { authorization: `Bearer ${token}` };
 }
 
-async function registerAgent(
-  app: App,
-  token: string,
-  body: JsonObject,
-) {
+async function registerAgent(app: App, token: string, body: JsonObject) {
   return app.request("/v1/agents", {
     method: "POST",
     headers: { ...auth(token), "content-type": "application/json" },
@@ -63,9 +59,7 @@ describe("agents routes edge cases", () => {
       displayName: "no-key",
     });
     expect(res.status).toBe(400);
-    expect((overlapCast(await res.json())).error).toBe(
-      "validation_error",
-    );
+    expect(overlapCast(await res.json()).error).toBe("validation_error");
   });
 
   it("registers with full attestation metadata into the active project", async () => {
@@ -87,8 +81,7 @@ describe("agents routes edge cases", () => {
     const active = await app.request("/v1/projects/active", {
       headers: auth(owner.accessToken),
     });
-    const personal = (overlapCast(await active.json()))
-      .project;
+    const personal = overlapCast(await active.json()).project;
     expect(body.projectId).toBe(personal.id);
   });
 
@@ -113,9 +106,7 @@ describe("agents routes edge cases", () => {
       projectId: project.id,
     });
     expect(intoProject.status).toBe(201);
-    expect(
-      (overlapCast(await intoProject.json())).projectId,
-    ).toBe(project.id);
+    expect(overlapCast(await intoProject.json()).projectId).toBe(project.id);
 
     // Unknown and foreign projects are both 404.
     expect(
@@ -154,9 +145,7 @@ describe("agents routes edge cases", () => {
       publicKeyJkt: "jkt-quota-three",
     });
     expect(third.status).toBe(403);
-    expect((overlapCast(await third.json())).reasons).toContain(
-      "quota_agents",
-    );
+    expect(overlapCast(await third.json()).reasons).toContain("quota_agents");
   });
 
   it("starts a fresh claim only for the agent's owner", async () => {

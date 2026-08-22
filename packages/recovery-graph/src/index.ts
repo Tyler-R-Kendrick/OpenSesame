@@ -1,8 +1,8 @@
 import {
+  type JsonValue,
   isBoolean,
   isJsonObject,
   isString,
-  type JsonValue,
 } from "@opensesame/os-domain";
 
 export type RecoveryNodeKind =

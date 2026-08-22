@@ -38,7 +38,13 @@ import {
   browsableUrl,
 } from "../lib/vault/model.js";
 import "./agents.css";
-import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 
 export function AgentsSection() {
   const online = useOnline();
@@ -249,9 +255,7 @@ function readCap(raw: BoundaryValue): Cap | null {
       return { action, resource: sel.value, values: [sel.value] };
     }
     if (Array.isArray(sel.values)) {
-      const values = sel.values.filter(
-        (v): v is string => isString(v),
-      );
+      const values = sel.values.filter((v): v is string => isString(v));
       if (values.length > 0) {
         return { action, resource: values.join(", "), values };
       }
@@ -261,11 +265,11 @@ function readCap(raw: BoundaryValue): Cap | null {
 }
 
 function readCaps(raw: BoundaryValue): Cap[] {
-  let list: unknown[] = [];
+  let list: BoundaryValue[] = [];
   if (Array.isArray(raw)) {
     list = raw;
   } else if (raw && isTypeofObject(raw)) {
-    const inner = (overlapCast(raw)).capabilities;
+    const inner = overlapCast(raw).capabilities;
     if (Array.isArray(inner)) list = inner;
   }
   return list.map(readCap).filter((c): c is Cap => c !== null);
@@ -546,13 +550,13 @@ function taskErrorFor(status: number, base: string): string {
   return `The Host answered ${status} and did not describe the task. Check the Host logs at ${base}.`;
 }
 
-const STATUS_CHIP = {
-  active: "chip--ok",
-  failed: "chip--err",
-  cancelled: "chip--err",
-  restricting: "chip--warn",
-  pending: "chip--warn",
-};
+const STATUS_CHIP = new Map([
+  ["active", "chip--ok"],
+  ["failed", "chip--err"],
+  ["cancelled", "chip--err"],
+  ["restricting", "chip--warn"],
+  ["pending", "chip--warn"],
+]);
 
 const ROW_CHIP = {
   held: "chip--ok",
@@ -562,7 +566,7 @@ const ROW_CHIP = {
 };
 
 function statusChip(status: string): string {
-  return STATUS_CHIP[status] ?? "";
+  return STATUS_CHIP.get(status) ?? "";
 }
 
 function rowChip(state: RowState): string {
@@ -848,7 +852,7 @@ function RegisterAgent({ online }: { online: boolean }) {
   );
 }
 
-function registerErrorFor(err: BoundaryValue): string {
+function registerErrorFor<Thrown>(err: Thrown): string {
   if (err instanceof IdentityError) {
     if (err.status === 401) {
       return "Your principal session was rejected. Reconnect and try again.";
@@ -1001,14 +1005,14 @@ function AgentActivity({
   );
 }
 
-const OUTCOME_CHIP = {
-  succeeded: "chip--ok",
-  denied: "chip--warn",
-  failed: "chip--err",
-};
+const OUTCOME_CHIP = new Map([
+  ["succeeded", "chip--ok"],
+  ["denied", "chip--warn"],
+  ["failed", "chip--err"],
+]);
 
 function outcomeChip(outcome: string): string {
-  return OUTCOME_CHIP[outcome] ?? "";
+  return OUTCOME_CHIP.get(outcome) ?? "";
 }
 
 /* ------------------------------------------------------------ no principal */

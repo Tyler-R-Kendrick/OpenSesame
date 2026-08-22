@@ -1,7 +1,7 @@
 import {
   type JsonObject,
-  overlapCast,
   isTypeofObject,
+  overlapCast,
   readJsonObject,
   readString,
 } from "@opensesame/os-domain";
@@ -48,9 +48,9 @@ function toTarget(raw: JsonObject): BackupTargetView {
     branch: String(raw.branch ?? "main"),
     enabled: Boolean(raw.enabled),
     status: String(raw.status ?? "pending"),
-    lastCommitSha: (overlapCast(raw.last_commit_sha)) ?? null,
-    lastSyncedAt: (overlapCast(raw.last_synced_at)) ?? null,
-    lastError: (overlapCast(raw.last_error)) ?? null,
+    lastCommitSha: overlapCast(raw.last_commit_sha) ?? null,
+    lastSyncedAt: overlapCast(raw.last_synced_at) ?? null,
+    lastError: overlapCast(raw.last_error) ?? null,
   };
 }
 
@@ -85,9 +85,7 @@ async function listGithubInstallationsDefault(
   const installations = body.installations;
   const rows = Array.isArray(installations) ? installations : [];
   return rows
-    .filter(
-      (row): row is JsonObject => !!row && isTypeofObject(row),
-    )
+    .filter((row): row is JsonObject => !!row && isTypeofObject(row))
     .map((row) => ({
       id: String(row.id ?? ""),
       accountLogin: String(row.account_login ?? ""),
@@ -110,8 +108,12 @@ async function putBackupTargetDefault(input: {
     method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      ...(input.connectionId ? { connection_id: input.connectionId } : undefined),
-      ...(input.integrationId ? { integration_id: input.integrationId } : undefined),
+      ...(input.connectionId
+        ? { connection_id: input.connectionId }
+        : undefined),
+      ...(input.integrationId
+        ? { integration_id: input.integrationId }
+        : undefined),
       installation_id: input.installationId,
       owner: input.owner,
       repo: input.repo,

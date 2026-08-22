@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,
   fireEvent,
@@ -6,7 +7,6 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,26 +17,32 @@ const planes = vi.hoisted(() => ({
 
 import { useOnlineSeams } from "../../lib/use-online.js";
 const originalUseOnlineSeams = { ...useOnlineSeams };
-Object.assign(useOnlineSeams, {useOnline: () => online.value});
+Object.assign(useOnlineSeams, { useOnline: () => online.value });
 import { planeSeams } from "../../lib/planes.js";
 const originalPlaneSeams = { ...planeSeams };
-Object.assign(planeSeams, {usePlaneStatus: () => planes.value});
+Object.assign(planeSeams, { usePlaneStatus: () => planes.value });
 const ensureHostSession = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 );
 
 import { identitySeams } from "../../lib/identity.js";
 const originalIdentitySeams = { ...identitySeams };
-Object.assign(identitySeams, {useIdentitySession: () => ({ principalId: "prn_op" }),
+Object.assign(identitySeams, {
+  useIdentitySession: () => ({ principalId: "prn_op" }),
   hostLocalSessionEligible: () => true,
-  ensureHostSession});
+  ensureHostSession,
+});
 const getTaskBusConfig = vi.hoisted(() => vi.fn());
 const putTaskBusConfig = vi.hoisted(() => vi.fn());
 const pingTaskBus = vi.hoisted(() => vi.fn());
 
 import { taskBusSeams } from "../../lib/taskbus.js";
 const originalTaskBusSeams = { ...taskBusSeams };
-Object.assign(taskBusSeams, { getTaskBusConfig, putTaskBusConfig, pingTaskBus });
+Object.assign(taskBusSeams, {
+  getTaskBusConfig,
+  putTaskBusConfig,
+  pingTaskBus,
+});
 
 import { TaskBusPanel } from "./TaskBusPanel.js";
 
@@ -98,7 +104,7 @@ describe("TaskBusPanel edges", () => {
     // memory default → no URL field.
     expect(screen.queryByPlaceholderText("nats://127.0.0.1:4222")).toBeNull();
     fireEvent.change(select, { target: { value: "nats" } });
-    expect((overlapCast(select)).value).toBe("nats");
+    expect(overlapCast(select).value).toBe("nats");
     expect(screen.getByPlaceholderText("nats://127.0.0.1:4222")).toBeTruthy();
     fireEvent.change(select, { target: { value: "memory" } });
     expect(screen.queryByPlaceholderText("nats://127.0.0.1:4222")).toBeNull();

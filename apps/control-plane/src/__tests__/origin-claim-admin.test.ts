@@ -1,10 +1,15 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  type JsonValue,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { SYSTEM_OWNER_PRINCIPAL_ID } from "../create-app.js";
 import type { startServer } from "../server.js";
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 type App = Started["app"];
@@ -25,11 +30,11 @@ interface DocServer {
   server: http.Server;
   origin: string;
   clientId: string;
-  host(document: JsonObject | null): void;
+  host(document: JsonValue | null): void;
 }
 
 async function startDocServer(): Promise<DocServer> {
-  let document: JsonObject | null = null;
+  let document: JsonValue | null = null;
   const server = http.createServer((req, res) => {
     if (req.url === "/.well-known/opensesame-client.json" && document) {
       res.writeHead(200, { "content-type": "application/json" });
@@ -43,7 +48,7 @@ async function startDocServer(): Promise<DocServer> {
     server.listen(0, "127.0.0.1", () => resolve());
     server.on("error", reject);
   });
-  const port = (overlapCast(server.address())).port;
+  const port = overlapCast(server.address()).port;
   const origin = `http://127.0.0.1:${port}`;
   return {
     server,
@@ -140,7 +145,12 @@ function claimStart(app: App, clientId: string, token: string, body = {}) {
   );
 }
 
-function claimVerify(app: App, clientId: string, token: string, body: BoundaryValue) {
+function claimVerify(
+  app: App,
+  clientId: string,
+  token: string,
+  body: BoundaryValue,
+) {
   return app.request(
     `/v1/oauth/applications/${encodeURIComponent(clientId)}/claim/verify`,
     {
@@ -329,9 +339,46 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
 
       const res = await claimStart(started.app, doc.clientId, accessToken);
       expect(res.status).toBe(403);
-      expect((overlapCast(await res.json())).error).toBe(
-        "assurance_too_low",
+      expect(overlapCast(await res.json()).error).toBe("assurance_too_low");
+    } finally {
+      await stop(started);
+      await stopDocServer(doc);
+    }
+  });
+
+  it("rejects malformed claim fields before ownership verification", async () => {
+    const doc = await startDocServer();
+    const started = await startControlPlane();
+    try {
+      await admit(started, doc.clientId, doc.origin);
+      const user = await verifiedUser(started.app, `user-${randomUUID()}`);
+
+      const invalidOrigin = await claimStart(
+        started.app,
+        doc.clientId,
+        user.accessToken,
+        { origin: 42 },
       );
+      expect(invalidOrigin.status).toBe(400);
+      expect(overlapCast(await invalidOrigin.json()).error).toBe(
+        "validation_error",
+      );
+
+      const invalidChallenge = await claimVerify(
+        started.app,
+        doc.clientId,
+        user.accessToken,
+        { challenge: 42 },
+      );
+      expect(invalidChallenge.status).toBe(400);
+
+      const invalidAlias = await claimVerify(
+        started.app,
+        doc.clientId,
+        user.accessToken,
+        { challenge: "not-used", attachAlias: "yes" },
+      );
+      expect(invalidAlias.status).toBe(400);
     } finally {
       await stop(started);
       await stopDocServer(doc);
@@ -419,7 +466,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
 
       // The hosted document carries a challenge the server never minted.
       doc.host({
-        ...(overlapCast(startedClaim.document)),
+        ...overlapCast(startedClaim.document),
         challenge: randomBytes(32).toString("base64url"),
       });
       const verify = await claimVerify(
@@ -431,9 +478,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         },
       );
       expect(verify.status).toBe(400);
-      expect((overlapCast(await verify.json())).error).toBe(
-        "proof_mismatch",
-      );
+      expect(overlapCast(await verify.json()).error).toBe("proof_mismatch");
 
       const record = await started.ctx.oauth.clientStore.findById(doc.clientId);
       expect(record).toMatchObject({
@@ -441,6 +486,34 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         ownershipStatus: "unclaimed",
       });
       expect(record?.claimedAt).toBeUndefined();
+    } finally {
+      await stop(started);
+      await stopDocServer(doc);
+    }
+  });
+
+  it("rejects a non-object ownership proof document", async () => {
+    const doc = await startDocServer();
+    const started = await startControlPlane();
+    try {
+      await admit(started, doc.clientId, doc.origin);
+      const user = await verifiedUser(started.app, `user-${randomUUID()}`);
+      const startedClaim = await startAndHostClaim(
+        started,
+        doc,
+        user.accessToken,
+        user.principalId,
+      );
+      doc.host([]);
+
+      const verify = await claimVerify(
+        started.app,
+        doc.clientId,
+        user.accessToken,
+        { challenge: startedClaim.challenge },
+      );
+      expect(verify.status).toBe(400);
+      expect(overlapCast(await verify.json()).error).toBe("proof_fetch_failed");
     } finally {
       await stop(started);
       await stopDocServer(doc);
@@ -461,7 +534,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
       );
 
       doc.host({
-        ...(overlapCast(startedClaim.document)),
+        ...overlapCast(startedClaim.document),
         origin: "https://someone-else.example",
       });
       const verify = await claimVerify(
@@ -473,9 +546,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         },
       );
       expect(verify.status).toBe(400);
-      expect((overlapCast(await verify.json())).error).toBe(
-        "proof_mismatch",
-      );
+      expect(overlapCast(await verify.json()).error).toBe("proof_mismatch");
       expect(
         (await started.ctx.oauth.clientStore.findById(doc.clientId))
           ?.ownerPrincipalId,
@@ -510,9 +581,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         },
       );
       expect(verify.status).toBe(410);
-      expect((overlapCast(await verify.json())).error).toBe(
-        "challenge_expired",
-      );
+      expect(overlapCast(await verify.json()).error).toBe("challenge_expired");
       expect(
         (await started.ctx.oauth.clientStore.findById(doc.clientId))
           ?.ownerPrincipalId,
@@ -555,9 +624,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         },
       );
       expect(replay.status).toBe(409);
-      expect((overlapCast(await replay.json())).error).toBe(
-        "challenge_consumed",
-      );
+      expect(overlapCast(await replay.json()).error).toBe("challenge_consumed");
 
       // A different principal can never replay someone else's challenge.
       const other = await verifiedUser(started.app, `user-${randomUUID()}`);
@@ -630,10 +697,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         },
       );
       expect(aliasVerify.status).toBe(200);
-      expect(
-        (overlapCast(await aliasVerify.json()))
-          .aliasAttached,
-      ).toBe(true);
+      expect(overlapCast(await aliasVerify.json()).aliasAttached).toBe(true);
 
       const attached = await started.ctx.stores.clientOrigins.listByApplication(
         doc.clientId,
@@ -684,9 +748,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         );
         expect(stealStart.status).toBe(201);
         const stealClaim = overlapCast(await stealStart.json());
-        aliasDoc.host(
-          overlapCast(stealClaim.document),
-        );
+        aliasDoc.host(overlapCast(stealClaim.document));
         const stealVerify = await claimVerify(
           started.app,
           otherDoc.clientId,
@@ -698,7 +760,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
           },
         );
         expect(stealVerify.status).toBe(409);
-        expect((overlapCast(await stealVerify.json())).error).toBe(
+        expect(overlapCast(await stealVerify.json()).error).toBe(
           "alias_conflict",
         );
         // Ownership of the second application is untouched.
@@ -773,9 +835,7 @@ describe("origin client admin suspend/revoke (ADR 0050 R-B, slice 3b)", () => {
         OPERATOR_TOKEN,
       );
       expect(suspended.status).toBe(200);
-      expect((overlapCast(await suspended.json())).state).toBe(
-        "suspended",
-      );
+      expect(overlapCast(await suspended.json()).state).toBe("suspended");
 
       // Durable: the store itself reflects the transition (no overlay).
       expect(
@@ -825,9 +885,7 @@ describe("origin client admin suspend/revoke (ADR 0050 R-B, slice 3b)", () => {
         OPERATOR_TOKEN,
       );
       expect(revoked.status).toBe(200);
-      expect((overlapCast(await revoked.json())).state).toBe(
-        "revoked",
-      );
+      expect(overlapCast(await revoked.json()).state).toBe("revoked");
       expect(
         (await started.ctx.oauth.clientStore.findById(doc.clientId))?.state,
       ).toBe("revoked");

@@ -1,6 +1,6 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import McpHostStructuralProvider, { type RedteamVars } from "./mcp-provider.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 type ToolResponse = {
   isError?: boolean;

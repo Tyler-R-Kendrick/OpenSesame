@@ -1,4 +1,9 @@
-import { type JsonObject, isString, isNumber, isBoolean } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  isBoolean,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
 /**
  * Allowlisted metadata keys that may appear in audit events.
  * Anything else is dropped; secrets matching deny patterns are stripped.

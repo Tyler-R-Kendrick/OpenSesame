@@ -1,11 +1,18 @@
 import {
+  type BoundaryValue,
+  type JsonValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
+import {
+  type CapabilityConnectorBinding,
   type CapabilityConnectorMap,
+  type CapabilityId,
   defaultCapabilityConnectors,
   normalizeCapabilityConnectors,
 } from "./capabilities.js";
 import { kvGet, kvSet, kvSetDurable } from "./kv.js";
 import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
-import { overlapCast, isString } from "@opensesame/os-domain";
 
 export type PagesSettings = {
   hostApi: string;
@@ -111,46 +118,78 @@ function defaultsForPage(): PersistedSettings {
   return pageIsLoopback() ? localDefaults() : remoteDefaults();
 }
 
+function optionalString(value: JsonValue | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  if (!isString(value)) throw new Error("invalid persisted string");
+  return value;
+}
+
+function readCapabilityConnectors(
+  value: JsonValue | undefined,
+):
+  | Partial<Record<CapabilityId, Partial<CapabilityConnectorBinding>>>
+  | undefined {
+  if (!isJsonObject(value)) return undefined;
+  const connectors: Partial<
+    Record<CapabilityId, Partial<CapabilityConnectorBinding>>
+  > = {};
+  for (const id of ["encryption", "history"] as const) {
+    const candidate = value[id];
+    if (!isJsonObject(candidate)) continue;
+    connectors[id] = {
+      ...(isString(candidate.providerId)
+        ? { providerId: candidate.providerId }
+        : undefined),
+      ...(isString(candidate.connectionId)
+        ? { connectionId: candidate.connectionId }
+        : undefined),
+      ...(isString(candidate.remote)
+        ? { remote: candidate.remote }
+        : undefined),
+    };
+  }
+  return connectors;
+}
+
 function loadPersisted(): PersistedSettings {
   const defaults = defaultsForPage();
   try {
     const raw = kvGet(PERSIST_KEY);
     if (!raw) return { ...defaults };
-    const parsed = overlapCast(JSON.parse(raw));
+    const parsed: BoundaryValue = JSON.parse(raw);
+    if (!isJsonObject(parsed)) throw new Error("invalid persisted settings");
+    const hostApi = optionalString(parsed.hostApi)?.trim() ?? "";
+    const identityApi = optionalString(parsed.identityApi)?.trim() ?? "";
+    const daemonApi = optionalString(parsed.daemonApi)?.trim() ?? "";
+    const tursoUrl = optionalString(parsed.tursoUrl)?.trim() ?? "";
+    const mfaAppUrl = optionalString(parsed.mfaAppUrl);
     return {
       hostApi:
-        parsed.hostApi?.trim() &&
+        hostApi &&
         !(
           runtimeHostApi &&
-          (overlapCast(LEGACY_HOST_APIS)).includes(
-            parsed.hostApi.trim(),
-          )
+          LEGACY_HOST_APIS.some((legacy) => legacy === hostApi)
         )
-          ? parsed.hostApi.trim()
+          ? hostApi
           : defaults.hostApi,
       identityApi:
-        parsed.identityApi?.trim() &&
+        identityApi &&
         !(
           runtimeIdentityApi &&
-          (overlapCast(LEGACY_IDENTITY_APIS)).includes(
-            parsed.identityApi.trim(),
-          )
+          LEGACY_IDENTITY_APIS.some((legacy) => legacy === identityApi)
         )
-          ? parsed.identityApi.trim()
+          ? identityApi
           : defaults.identityApi,
-      daemonApi: parsed.daemonApi?.trim() || defaults.daemonApi,
-      tursoUrl: parsed.tursoUrl?.trim() || "",
+      daemonApi: daemonApi || defaults.daemonApi,
+      tursoUrl,
       mfaAppUrl:
-        parsed.mfaAppUrl !== undefined
-          ? parsed.mfaAppUrl.trim()
-          : defaults.mfaAppUrl,
+        mfaAppUrl !== undefined ? mfaAppUrl.trim() : defaults.mfaAppUrl,
       capabilityConnectors: normalizeCapabilityConnectors(
-        parsed.capabilityConnectors,
+        readCapabilityConnectors(parsed.capabilityConnectors),
       ),
-      activeProjectId:
-        isString(parsed.activeProjectId)
-          ? parsed.activeProjectId.trim()
-          : defaults.activeProjectId,
+      activeProjectId: isString(parsed.activeProjectId)
+        ? parsed.activeProjectId.trim()
+        : defaults.activeProjectId,
     };
   } catch {
     return { ...defaults };
@@ -238,7 +277,7 @@ export function loadSettings(): PagesSettings {
 }
 
 export function saveSettings(next: PagesSettings): void {
-  return settingsSeams.saveSettings(next);
+  settingsSeams.saveSettings(next);
 }
 
 export function subscribeSettings(listener: () => void): () => void {
