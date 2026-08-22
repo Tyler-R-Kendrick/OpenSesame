@@ -439,6 +439,16 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
+    fn externally_signed_leaf(request: &CertificateRequest) -> (String, GeneratedLeafRequest) {
+        let ca_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
+        let mut ca_params = CertificateParams::default();
+        ca_params.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+        let ca = ca_params.self_signed(&ca_key).unwrap();
+        let leaf = GeneratedLeafRequest::generate(request).unwrap();
+        let csr = rcgen::CertificateSigningRequestParams::from_pem(leaf.csr_pem()).unwrap();
+        (csr.signed_by(&ca, &ca_key).unwrap().pem(), leaf)
+    }
+
     proptest! {
         #[test]
         fn property_certificate_request_parser_is_bounded_and_never_panics(
@@ -526,6 +536,71 @@ mod tests {
     }
 
     #[test]
+    fn contract_external_certificate_size_limit_is_exact() {
+        let request =
+            CertificateRequest::try_from(CertificateRequestInput::new("example.com")).unwrap();
+        let (certificate, leaf) = externally_signed_leaf(&request);
+        let exact = format!(
+            "{certificate}{}",
+            " ".repeat(MAX_CERTIFICATE_CHAIN_BYTES - certificate.len())
+        );
+        assert!(normalize_external_certificate(
+            exact,
+            leaf,
+            &request,
+            IssuerKind::CloudflareOriginCa,
+            false,
+        )
+        .is_ok());
+
+        let (certificate, leaf) = externally_signed_leaf(&request);
+        let oversized = format!(
+            "{certificate}{}",
+            " ".repeat(MAX_CERTIFICATE_CHAIN_BYTES + 1 - certificate.len())
+        );
+        assert_eq!(
+            normalize_external_certificate(
+                oversized,
+                leaf,
+                &request,
+                IssuerKind::CloudflareOriginCa,
+                false,
+            )
+            .unwrap_err(),
+            IssuerError::InvalidCertificateResponse
+        );
+
+        let (certificate, leaf) = externally_signed_leaf(&request);
+        assert_eq!(
+            normalize_external_certificate(
+                certificate,
+                leaf,
+                &request,
+                IssuerKind::LetsEncrypt,
+                true,
+            )
+            .unwrap_err(),
+            IssuerError::InvalidCertificateResponse
+        );
+
+        let (certificate, leaf) = externally_signed_leaf(&request);
+        let substituted_request =
+            CertificateRequest::try_from(CertificateRequestInput::new("substituted.example.com"))
+                .unwrap();
+        assert_eq!(
+            normalize_external_certificate(
+                certificate,
+                leaf,
+                &substituted_request,
+                IssuerKind::CloudflareOriginCa,
+                false,
+            )
+            .unwrap_err(),
+            IssuerError::CertificateNamesMismatch
+        );
+    }
+
+    #[test]
     fn adversarial_request_rejects_ambiguous_names_and_unsupported_challenges() {
         for name in [
             "",
@@ -606,5 +681,21 @@ mod tests {
         assert!(!debug.contains("BEGIN PRIVATE KEY"));
         assert!(leaf.csr_pem().contains("BEGIN CERTIFICATE REQUEST"));
         assert!(leaf.into_private_key().contains("BEGIN PRIVATE KEY"));
+
+        let issued = IssuedCertificate::new(
+            CertificateBundle {
+                certificate_chain_pem: "certificate".into(),
+                issuer_certificate_pem: None,
+                issuer: IssuerKind::OpenSesamePrivateCa,
+                trust: TrustClass::PrivateLocal,
+                common_name: "example.com".into(),
+                dns_names: vec!["example.com".into()],
+            },
+            Zeroizing::new("issued-private-key".into()),
+        );
+        let debug = format!("{issued:?}");
+        assert!(debug.contains("IssuedCertificate"));
+        assert!(debug.contains("[REDACTED]"));
+        assert!(!debug.contains("issued-private-key"));
     }
 }
