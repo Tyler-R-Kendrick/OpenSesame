@@ -7,13 +7,12 @@ description = "Bitwarden/Vaultwarden consume-client (upstream credential source,
 
 [dependencies]
 aes = "0.8.4"
-anyhow = { workspace = true }
 argon2 = { workspace = true }
 base64 = { workspace = true }
-cbc = "0.1.2"
+cbc = { version = "0.1.2", features = ["alloc", "block-padding"] }
 hkdf = { workspace = true }
 hmac = { workspace = true }
-pbkdf2 = { version = "0.12.2", default-features = false }
+pbkdf2 = { version = "0.12.2", default-features = false, features = ["hmac"] }
 reqwest = { workspace = true }
 secrecy = { workspace = true }
 serde = { workspace = true }
@@ -24,5 +23,8 @@ url = { workspace = true }
 zeroize = { workspace = true }
 
 [dev-dependencies]
-insta = { workspace = true }
+http-body-util = { workspace = true }
+hyper = { workspace = true }
+hyper-util = { workspace = true }
+insta = { workspace = true, features = ["redactions"] }
 tokio = { workspace = true }
