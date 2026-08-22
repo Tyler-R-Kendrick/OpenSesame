@@ -1,4 +1,3 @@
-import { overlapCast } from "@opensesame/os-domain";
 /**
  * The claim bearer between steps of the ceremony, bound to this app's storage
  * choice: session storage keeps it to this tab and clears when the tab closes,
@@ -11,6 +10,7 @@ import {
   type StashStorage,
   createClaimStash,
 } from "@opensesame/ceremony-kit";
+import { overlapCast } from "@opensesame/os-domain";
 
 export type { ClaimStash };
 

@@ -11,7 +11,6 @@ import {
 } from "../lib/claim-stash.js";
 import { readFragmentToken } from "../lib/deep-link.js";
 import { consoleOrigin, issuer } from "../lib/issuer.js";
-import { type BoundaryValue } from "@opensesame/os-domain";
 
 interface Claim {
   id: string;
@@ -69,7 +68,7 @@ function toClaim(presented: ClaimPresentation): Claim {
   };
 }
 
-function describe(e: BoundaryValue, fallback: string): string {
+function describe(e: Error | null, fallback: string): string {
   if (e instanceof ClaimRequestError) {
     if (e.status === 401 || e.status === 404) {
       return "This claim link is no longer valid. Ask for a fresh one.";
@@ -186,7 +185,7 @@ export function ClaimCeremony() {
       }
       setError(
         describe(
-          e,
+          e instanceof Error ? e : null,
           "Could not load this claim. Check the token and try again.",
         ),
       );
@@ -274,7 +273,12 @@ export function ClaimCeremony() {
         clearClaimStash();
         setPhase({ kind: "token" });
       }
-      setError(describe(e, "Claim could not be completed. Try again."));
+      setError(
+        describe(
+          e instanceof Error ? e : null,
+          "Claim could not be completed. Try again.",
+        ),
+      );
     } finally {
       setCompleting(false);
     }
