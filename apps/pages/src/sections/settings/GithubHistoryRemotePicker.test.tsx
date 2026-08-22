@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -210,10 +210,10 @@ describe("GithubHistoryRemotePicker", () => {
     const input = screen.getByLabelText(/Create private password store/i);
     await userEvent.clear(input);
     expect(
-      (
-        overlapCast(screen.getByRole("button", {
+      overlapCast(
+        screen.getByRole("button", {
           name: /Create private repo/i,
-        }))
+        }),
       ).disabled,
     ).toBe(true);
   });

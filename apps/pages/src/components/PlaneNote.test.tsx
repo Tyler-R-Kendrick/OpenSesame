@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,
   fireEvent,
@@ -7,7 +8,6 @@ import {
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

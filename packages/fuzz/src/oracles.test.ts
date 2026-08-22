@@ -1,6 +1,10 @@
 import { redactAuditMetadata } from "@opensesame/audit";
 import { canonicalResource } from "@opensesame/oauth-provider";
-import { canTransitionClaim, type JsonObject, overlapCast } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  canTransitionClaim,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { assertNoSecretFields } from "./oracles.js";
 import { seedProvisional } from "./provisional_identity.js";

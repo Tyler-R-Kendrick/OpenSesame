@@ -1,3 +1,8 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ConnectionsError,
@@ -22,7 +27,6 @@ import {
   shippedHostApi,
   shippedIdentityApi,
 } from "./settings.js";
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const HOST = shippedHostApi;
 const IDENTITY = shippedIdentityApi;
@@ -457,7 +461,7 @@ describe("transport", () => {
     const error = await listConnections().catch((caught) => caught);
 
     expect(error).toBeInstanceOf(HostSessionError);
-    expect((overlapCast(error)).code).toBe("setup_required");
+    expect(overlapCast(error).code).toBe("setup_required");
   });
 
   it("surfaces the API error code and hint", async () => {
@@ -476,8 +480,8 @@ describe("transport", () => {
     );
 
     expect(error).toBeInstanceOf(ConnectionsError);
-    expect((overlapCast(error)).code).toBe("not_refreshable");
-    expect((overlapCast(error)).message).toContain("no refresh token");
+    expect(overlapCast(error).code).toBe("not_refreshable");
+    expect(overlapCast(error).message).toContain("no refresh token");
   });
 
   it("reports an unreachable host rather than a bare network error", async () => {
@@ -488,8 +492,8 @@ describe("transport", () => {
 
     const error = await listConnections().catch((caught) => caught);
 
-    expect((overlapCast(error)).code).toBe("unreachable");
-    expect((overlapCast(error)).message).toContain(HOST);
+    expect(overlapCast(error).code).toBe("unreachable");
+    expect(overlapCast(error).message).toContain(HOST);
   });
 });
 
@@ -763,8 +767,8 @@ describe("connection endpoints", () => {
     stubHostFetch(() => new Response("bad gateway", { status: 502 }));
     const error = await listConnections().catch((caught) => caught);
     expect(error).toBeInstanceOf(ConnectionsError);
-    expect((overlapCast(error)).code).toBe("unknown_error");
-    expect((overlapCast(error)).status).toBe(502);
+    expect(overlapCast(error).code).toBe("unknown_error");
+    expect(overlapCast(error).status).toBe(502);
   });
 });
 

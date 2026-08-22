@@ -1,4 +1,10 @@
-import { type JsonObject, overlapCast, isTypeofObject, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 /**
  * Host + Identity secret/config changelog clients (read-only UI surface).
  *
@@ -63,37 +69,28 @@ function assertNoSecretMetadata(events: ChangelogEvent[]): void {
 }
 
 function normalizeHostEvent(raw: JsonObject): ChangelogEvent {
-  const metadata =
-    raw.metadata &&
-    isTypeofObject(raw.metadata) &&
-    !Array.isArray(raw.metadata)
-      ? (overlapCast(raw.metadata))
-      : {};
+  const metadata: JsonObject = isJsonObject(raw.metadata)
+    ? overlapCast(raw.metadata)
+    : {};
   const keyNames = Array.isArray(raw.key_names)
-    ? (overlapCast(raw.key_names)).filter(
-        (n): n is string => isString(n),
-      )
+    ? raw.key_names.filter((n): n is string => isString(n))
     : Array.isArray(metadata.keyNames)
-      ? (overlapCast(metadata.keyNames)).filter(
-          (n): n is string => isString(n),
-        )
+      ? metadata.keyNames.filter((n): n is string => isString(n))
       : undefined;
   return {
     id: String(raw.id ?? ""),
     eventType: String(raw.event_type ?? raw.eventType ?? ""),
     occurredAt: String(raw.occurred_at ?? raw.occurredAt ?? ""),
-    projectId:
-      isString(raw.project_id)
-        ? raw.project_id
-        : isString(raw.projectId)
-          ? raw.projectId
-          : undefined,
-    actorId:
-      isString(raw.actor_id)
-        ? raw.actor_id
-        : isString(raw.actorId)
-          ? raw.actorId
-          : undefined,
+    projectId: isString(raw.project_id)
+      ? raw.project_id
+      : isString(raw.projectId)
+        ? raw.projectId
+        : undefined,
+    actorId: isString(raw.actor_id)
+      ? raw.actor_id
+      : isString(raw.actorId)
+        ? raw.actorId
+        : undefined,
     metadata,
     ...(keyNames ? { keyNames } : undefined),
     ...(isString(raw.config_id)
@@ -136,11 +133,9 @@ export async function listHostChangelog(
   if (!res.ok) {
     throw new Error(`Host changelog failed (${res.status}).`);
   }
-  const body = overlapCast(await res.json());
+  const body: { events?: BoundaryValue[] } = overlapCast(await res.json());
   const events = (body.events ?? [])
-    .filter(
-      (row): row is JsonObject => !!row && isTypeofObject(row),
-    )
+    .filter((row): row is JsonObject => isJsonObject(row))
     .map(normalizeHostEvent);
   assertNoSecretMetadata(events);
   return events;
@@ -161,7 +156,7 @@ export async function listIdentityChangelog(options?: {
   if (!res.ok) {
     throw new Error(`Identity changelog failed (${res.status}).`);
   }
-  const body = overlapCast(await res.json());
+  const body: { events?: ChangelogEvent[] } = overlapCast(await res.json());
   const events = (body.events ?? [])
     .filter((e) => isSecretChangelogEventType(e.eventType))
     .filter((e) =>
@@ -199,21 +194,18 @@ async function listChangelogDefault(options: {
 }
 
 function formatChangelogSummaryDefault(event: ChangelogEvent): string {
+  const metadataKeyNames = event.metadata.keyNames;
   const keys =
     event.keyNames?.join(", ") ||
-    (Array.isArray(event.metadata.keyNames)
-      ? (overlapCast(event.metadata.keyNames)).join(", ")
+    (Array.isArray(metadataKeyNames)
+      ? metadataKeyNames.filter(isString).join(", ")
       : "");
   const config =
     event.configId ||
-    (isString(event.metadata.configId)
-      ? event.metadata.configId
-      : "");
+    (isString(event.metadata.configId) ? event.metadata.configId : "");
   const env =
     event.environment ||
-    (isString(event.metadata.environment)
-      ? event.metadata.environment
-      : "");
+    (isString(event.metadata.environment) ? event.metadata.environment : "");
   const parts = [event.eventType];
   if (config) parts.push(`config ${config}`);
   if (env) parts.push(env);

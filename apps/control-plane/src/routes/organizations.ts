@@ -94,7 +94,7 @@ export function hostApiEndpoint(
 }
 
 function toResponse(org: Organization, role: OrganizationRole) {
-  const response = {
+  return OrganizationResponseSchema.parse({
     id: org.id,
     slug: org.slug,
     displayName: org.displayName,
@@ -103,10 +103,9 @@ function toResponse(org: Organization, role: OrganizationRole) {
     createdBy: org.createdBy,
     createdAt: org.createdAt.toISOString(),
     updatedAt: org.updatedAt.toISOString(),
-  };
-  if (org.ssoIssuer) response.ssoIssuer = org.ssoIssuer;
-  if (org.samlIssuer) response.samlIssuer = org.samlIssuer;
-  return OrganizationResponseSchema.parse(response);
+    ...(org.ssoIssuer ? { ssoIssuer: org.ssoIssuer } : undefined),
+    ...(org.samlIssuer ? { samlIssuer: org.samlIssuer } : undefined),
+  });
 }
 
 function tenantAuthMethods(org: Organization) {

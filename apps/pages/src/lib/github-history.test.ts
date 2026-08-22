@@ -1,3 +1,4 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_PASSWORD_REPO_NAME,
@@ -8,7 +9,6 @@ import {
 } from "./github-history.js";
 import { clearHostSession, clearSession } from "./identity.js";
 import { saveSettings, shippedHostApi } from "./settings.js";
-import { type BoundaryValue } from "@opensesame/os-domain";
 
 const HOST = shippedHostApi;
 

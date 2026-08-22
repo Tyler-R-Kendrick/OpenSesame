@@ -1,10 +1,29 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isFunction,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { type Telemetry, createTelemetry } from "@opensesame/telemetry";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { z } from "zod";
 import { wrapServerWithTelemetry } from "./telemetry.js";
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
-type AnyFn = (...args: unknown[]) => BoundaryValue;
+type ToolReturn = BoundaryValue | Promise<BoundaryValue>;
+type AnyFn = (...args: BoundaryValue[]) => ToolReturn;
+
+const toolResultSchema = z.object({
+  content: z.array(z.object({ type: z.string(), text: z.string() })),
+  isError: z.boolean().optional(),
+});
+
+type ToolResult = z.infer<typeof toolResultSchema>;
+
+function requireToolResult(value: BoundaryValue): ToolResult {
+  return toolResultSchema.parse(value);
+}
 
 /**
  * A minimal fake standing in for `McpServer`: just enough surface
@@ -17,25 +36,26 @@ type AnyFn = (...args: unknown[]) => BoundaryValue;
 function makeFakeServer(clientInfo?: { name: string; version: string }) {
   const registered = new Map<string, AnyFn>();
   const fake = {
-    tool: (...args: unknown[]) => {
-      const name = overlapCast(args[0]);
-      const handler = overlapCast(args[args.length - 1]);
-      registered.set(name, handler);
+    tool: (...args: BoundaryValue[]) => {
+      const name = args[0];
+      const handler = args[args.length - 1];
+      if (!isString(name) || !isFunction(handler)) {
+        throw new Error("invalid_test_tool_registration");
+      }
+      const typedHandler: AnyFn = overlapCast(handler);
+      registered.set(name, typedHandler);
       return { name };
     },
     server: {
       getClientVersion: () => clientInfo,
     },
   };
-  return { server: overlapCast(fake), registered };
-}
-
-/** Cast through the fake's own shape to call `.tool()` with arbitrary args
- * without fighting the real SDK's six overloaded call signatures — the fake
- * server ignores everything but "first arg is the name, last arg is the
- * callback" anyway. */
-function toolFnOf(server: McpServer): AnyFn {
-  return (overlapCast(server)).tool;
+  const server: McpServer = overlapCast(fake);
+  return {
+    server,
+    registered,
+    register: (...args: BoundaryValue[]) => fake.tool(...args),
+  };
 }
 
 function capturingTelemetry() {
@@ -68,21 +88,22 @@ describe("wrapServerWithTelemetry", () => {
   });
 
   it("does not touch tool registration when no telemetry is configured", () => {
-    const { server } = makeFakeServer();
-    const originalTool = toolFnOf(server);
+    const { server, register } = makeFakeServer();
+    const originalTool = server.tool;
     wrapServerWithTelemetry(server); // no explicit telemetry, no env key
-    expect(toolFnOf(server)).toBe(originalTool);
+    expect(server.tool).toBe(originalTool);
+    expect(register).toBeDefined();
   });
 
   it("emits mcp_tool_call with exactly tool/duration_ms/outcome/client on success", async () => {
-    const { server, registered } = makeFakeServer({
+    const { server, registered, register } = makeFakeServer({
       name: "claude-code",
       version: "9.9.9",
     });
     const { telemetry, events } = capturingTelemetry();
     wrapServerWithTelemetry(server, telemetry);
 
-    toolFnOf(server)("task_start", "desc", {}, async () => ({
+    register("task_start", "desc", {}, async () => ({
       content: [
         {
           type: "text",
@@ -97,9 +118,9 @@ describe("wrapServerWithTelemetry", () => {
 
     const handler = registered.get("task_start");
     expect(handler).toBeDefined();
-    const result = overlapCast(await handler?.({
-      principal_id: "top-secret-principal",
-    }));
+    const result = requireToolResult(
+      await handler?.({ principal_id: "top-secret-principal" }),
+    );
 
     // The real tool response is unaffected by wrapping.
     expect(result.content[0]?.text).toContain("should-not-leak");
@@ -122,11 +143,11 @@ describe("wrapServerWithTelemetry", () => {
   });
 
   it("falls back to client: 'unknown' before the MCP handshake completes", async () => {
-    const { server, registered } = makeFakeServer(undefined);
+    const { server, registered, register } = makeFakeServer(undefined);
     const { telemetry, events } = capturingTelemetry();
     wrapServerWithTelemetry(server, telemetry);
 
-    toolFnOf(server)("host_ready", "desc", {}, async () => ({
+    register("host_ready", "desc", {}, async () => ({
       content: [{ type: "text", text: "ok" }],
     }));
 
@@ -135,11 +156,11 @@ describe("wrapServerWithTelemetry", () => {
   });
 
   it("classifies a thrown error as outcome: error with error_class only (never the message)", async () => {
-    const { server, registered } = makeFakeServer();
+    const { server, registered, register } = makeFakeServer();
     const { telemetry, events } = capturingTelemetry();
     wrapServerWithTelemetry(server, telemetry);
 
-    toolFnOf(server)("task_status", "desc", {}, async () => {
+    register("task_status", "desc", {}, async () => {
       throw new TypeError("leaked bearer token abc123");
     });
 
@@ -154,11 +175,11 @@ describe("wrapServerWithTelemetry", () => {
   });
 
   it("classifies a returned isError result carrying a denial as refused", async () => {
-    const { server, registered } = makeFakeServer();
+    const { server, registered, register } = makeFakeServer();
     const { telemetry, events } = capturingTelemetry();
     wrapServerWithTelemetry(server, telemetry);
 
-    toolFnOf(server)("operator_invoke_l1", "desc", {}, async () => ({
+    register("operator_invoke_l1", "desc", {}, async () => ({
       content: [
         { type: "text", text: JSON.stringify({ error: "materialize_denied" }) },
       ],
@@ -170,11 +191,11 @@ describe("wrapServerWithTelemetry", () => {
   });
 
   it("classifies a returned isError result with no refusal wording as a generic error", async () => {
-    const { server, registered } = makeFakeServer();
+    const { server, registered, register } = makeFakeServer();
     const { telemetry, events } = capturingTelemetry();
     wrapServerWithTelemetry(server, telemetry);
 
-    toolFnOf(server)("daemon_status", "desc", {}, async () => ({
+    register("daemon_status", "desc", {}, async () => ({
       content: [{ type: "text", text: "daemon_unavailable: fetch failed" }],
       isError: true,
     }));
@@ -184,12 +205,12 @@ describe("wrapServerWithTelemetry", () => {
   });
 
   it("re-throws the original error unchanged after tracking it", async () => {
-    const { server, registered } = makeFakeServer();
+    const { server, registered, register } = makeFakeServer();
     const { telemetry } = capturingTelemetry();
     wrapServerWithTelemetry(server, telemetry);
 
     const original = new RangeError("boom");
-    toolFnOf(server)("task_terminate", "desc", {}, async () => {
+    register("task_terminate", "desc", {}, async () => {
       throw original;
     });
 
@@ -197,14 +218,14 @@ describe("wrapServerWithTelemetry", () => {
   });
 
   it("keeps working (unwrapped) with no telemetry configured", async () => {
-    const { server, registered } = makeFakeServer();
+    const { server, registered, register } = makeFakeServer();
     wrapServerWithTelemetry(server); // no telemetry arg, no env key => no-op
 
-    toolFnOf(server)("host_ready", "desc", {}, async () => ({
+    register("host_ready", "desc", {}, async () => ({
       content: [{ type: "text", text: "ok" }],
     }));
 
-    const result = overlapCast(await registered.get("host_ready")?.());
+    const result = requireToolResult(await registered.get("host_ready")?.());
     expect(result.content[0]?.text).toBe("ok");
   });
 });

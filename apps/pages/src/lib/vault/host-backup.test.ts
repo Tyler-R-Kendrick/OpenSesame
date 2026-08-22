@@ -1,13 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { overlapCast } from "@opensesame/os-domain";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const hostFetch = vi.hoisted(() => vi.fn());
+const hostFetch = vi.hoisted(() =>
+  vi.fn<(path: string, init?: RequestInit) => Promise<Response>>(),
+);
 const ensureHostSession = vi.hoisted(() => vi.fn());
 import { identitySeams } from "../identity.js";
 const originalIdentitySeams = { ...identitySeams };
-Object.assign(identitySeams, {hostFetch,
+Object.assign(identitySeams, {
+  hostFetch,
   ensureHostSession,
-  hostLocalSessionEligible: () => true});
+  hostLocalSessionEligible: () => true,
+});
 import { projectSeams } from "../projects.js";
 const originalProjectSeams = { ...projectSeams };
 Object.assign(projectSeams, {
@@ -23,6 +27,10 @@ import {
   clearOfflineMutations,
   listOfflineMutations,
 } from "./offline-backup.js";
+
+type PushBody = {
+  blobs: Array<{ id: string; epoch: number; ciphertext: number[] }>;
+};
 
 describe("vault host backup", () => {
   beforeEach(() => {
@@ -51,8 +59,9 @@ describe("vault host backup", () => {
       "/api/v1/sync/blobs/push",
       expect.objectContaining({ method: "POST" }),
     );
-    const [, init] = overlapCast(hostFetch.mock.calls[0]);
-    const body = overlapCast(JSON.parse(String(init.body)));
+    const init = hostFetch.mock.calls[0]?.[1];
+    if (!init) throw new Error("missing Host push");
+    const body: PushBody = overlapCast(JSON.parse(String(init.body)));
     expect(body.blobs.map((b) => b.id)).toEqual(["vault:header", "vault:body"]);
     expect(body.blobs.every((b) => b.ciphertext.length > 0)).toBe(true);
     expect(body.blobs.every((b) => b.epoch === 3)).toBe(true);
@@ -67,9 +76,9 @@ describe("vault host backup", () => {
       bodyJson: '{"ct":"x"}',
       epoch: 1,
     });
-    expect(listOfflineMutations().some((m) => m.kind === "push_sync_blobs")).toBe(
-      true,
-    );
+    expect(
+      listOfflineMutations().some((m) => m.kind === "push_sync_blobs"),
+    ).toBe(true);
     expect(getVaultHostBackupState().lastError).toMatch(/Not on GitHub yet/);
   });
 

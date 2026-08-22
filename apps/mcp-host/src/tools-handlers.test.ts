@@ -1,15 +1,28 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  type BoundaryValue,
+  isFunction,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { z } from "zod";
 import { resetFetchForTests, setFetchForTests } from "./host-api.js";
 import { getTaskContext, setTaskContext } from "./task-context.js";
 import { registerHostTools } from "./tools.js";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
-type AnyFn = (...args: unknown[]) => BoundaryValue;
+type ToolReturn = BoundaryValue | Promise<BoundaryValue>;
+type AnyFn = (...args: BoundaryValue[]) => ToolReturn;
 
-interface ToolResult {
-  content: Array<{ type: string; text: string }>;
-  isError?: boolean;
+const toolResultSchema = z.object({
+  content: z.array(z.object({ type: z.string(), text: z.string() })),
+  isError: z.boolean().optional(),
+});
+
+type ToolResult = z.infer<typeof toolResultSchema>;
+
+function requireToolResult(value: BoundaryValue): ToolResult {
+  return toolResultSchema.parse(value);
 }
 
 /**
@@ -21,11 +34,17 @@ interface ToolResult {
 function makeRegistrar() {
   const handlers = new Map<string, AnyFn>();
   const server = {
-    tool: (...args: unknown[]) => {
-      handlers.set(overlapCast(args[0]), overlapCast(args[args.length - 1]));
+    tool: (...args: BoundaryValue[]) => {
+      const name = args[0];
+      const handler = args[args.length - 1];
+      if (!isString(name) || !isFunction(handler)) {
+        throw new Error("invalid_test_tool_registration");
+      }
+      const typedHandler: AnyFn = overlapCast(handler);
+      handlers.set(name, typedHandler);
     },
   };
-  const typedServer = overlapCast(server);
+  const typedServer: McpServer = overlapCast(server);
   registerHostTools(typedServer);
   return handlers;
 }
@@ -37,7 +56,7 @@ async function callTool(
 ): Promise<ToolResult> {
   const handler = handlers.get(name);
   expect(handler, `tool ${name} registered`).toBeDefined();
-  return overlapCast(await handler?.(args));
+  return requireToolResult(await handler?.(args));
 }
 
 function jsonResponse(body: BoundaryValue, status = 200): Response {

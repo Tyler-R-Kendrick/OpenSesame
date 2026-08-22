@@ -1,6 +1,9 @@
-import { decodeProtectedHeader, errors as joseErrors } from "jose";
+import {
+  type JWTPayload,
+  decodeProtectedHeader,
+  errors as joseErrors,
+} from "jose";
 import { AuthError } from "./errors.js";
-import { type BoundaryValue } from "@opensesame/os-domain";
 
 /** ID-token algorithms (ADR 0050 F7). Access-token verification may be wider. */
 export const ID_TOKEN_ALGORITHMS = ["RS256", "ES256"] as const;
@@ -17,6 +20,11 @@ export function hasRequiredScopes(
   if (required.length === 0) return true;
   const have = new Set((scope ?? "").split(/\s+/u).filter(Boolean));
   return required.every((s) => have.has(s));
+}
+
+/** Narrow a custom JOSE payload claim without coercing malformed values. */
+export function isJwtString(value: JWTPayload[string]): value is string {
+  return typeof value === "string";
 }
 
 export function assertAllowedJwtAlgorithm(
@@ -45,7 +53,7 @@ export function assertAllowedJwtAlgorithm(
   }
 }
 
-export function mapJwtVerifyError(error: BoundaryValue): AuthError {
+export function mapJwtVerifyError(error: Error | undefined): AuthError {
   if (error instanceof AuthError) return error;
 
   if (error instanceof joseErrors.JWTExpired) {
@@ -94,6 +102,6 @@ export function mapJwtVerifyError(error: BoundaryValue): AuthError {
   }
 
   return new AuthError("invalid_token", "Token verification failed", {
-    cause: error instanceof Error ? error : undefined,
+    cause: error,
   });
 }

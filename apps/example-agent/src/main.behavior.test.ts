@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMockFetch, runAnonymousAgentDemo } from "./main.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const CLAIM_ID = "clm_demo";
 const CLAIM_TOKEN = "osc_clm_demo.secretvalue000000000000000000000000";

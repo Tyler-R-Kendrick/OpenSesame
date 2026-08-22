@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { overlapCast } from "@opensesame/os-domain";
 import { assertNoSecretFields, assertSourceOrder } from "@opensesame/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -9,7 +10,6 @@ import {
   writeClaimStash,
 } from "./claim-stash.js";
 import { isLoopbackUrl, operatorHeadersFor } from "./urls.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -82,9 +82,11 @@ describe("PACT — console operator + claim stash", () => {
       configurable: true,
     });
     writeClaimStash({ token: "osc_clm_x.secret", presented: false });
-    const parsed = overlapCast(JSON.parse(
-      globalThis.sessionStorage.getItem("opensesame.claim") ?? "null",
-    ));
+    const parsed = overlapCast(
+      JSON.parse(
+        globalThis.sessionStorage.getItem("opensesame.claim") ?? "null",
+      ),
+    );
     expect(parsed.token).toBe("osc_clm_x.secret");
     assertNoSecretFields({ claimId: "clm_1", principalId: "prn_1" });
     assertSourceOrder(readFileSync(join(here, "urls.ts"), "utf8"), [

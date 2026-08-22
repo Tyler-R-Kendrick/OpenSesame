@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { JsonObject } from "@opensesame/os-domain";
 import {
   assertAtMostWins,
   assertNoSecretFields,
@@ -12,7 +13,6 @@ import {
   createTelemetry,
   redactionTest,
 } from "../telemetry.js";
-import { type JsonObject } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 

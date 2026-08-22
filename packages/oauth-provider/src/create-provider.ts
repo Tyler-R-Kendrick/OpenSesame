@@ -1,4 +1,10 @@
 import { generateKeyPairSync } from "node:crypto";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import Provider, {
   errors,
   type ClientMetadata,
@@ -29,12 +35,6 @@ import type {
   OAuthProviderEnv,
   PairwiseSubjectStore,
 } from "./types.js";
-import {
-  type JsonObject,
-  overlapCast,
-  type BoundaryValue,
-  isString,
-} from "@opensesame/os-domain";
 
 export interface CreateOpenSesameProviderOptions {
   issuer?: string;
@@ -58,10 +58,10 @@ export interface CreateOpenSesameProviderOptions {
   jwks?: Configuration["jwks"];
 }
 
-type OidcAccountContext = Record<string, never>;
+type OidcAccountContext = BoundaryValue;
 
 export interface OpenSesameProviderBundle {
-  provider: typeof Provider;
+  provider: Provider;
   env: OAuthProviderEnv;
   pairwiseStore: PairwiseSubjectStore;
   clientStore: ClientRecordStore;

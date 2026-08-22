@@ -1,5 +1,5 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { overlapCast } from "@opensesame/os-domain";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,13 +20,15 @@ const state = vi.hoisted(() => {
 
 import { settingsSeams } from "../lib/settings.js";
 const originalSettingsSeams = { ...settingsSeams };
-Object.assign(settingsSeams, {loadSettings: () => ({ mfaAppUrl: state.mfaAppUrl }),
+Object.assign(settingsSeams, {
+  loadSettings: () => ({ mfaAppUrl: state.mfaAppUrl }),
   subscribeSettings: (listener: () => void) => {
     state.listeners.push(listener);
     return () => {
       state.listeners = state.listeners.filter((l) => l !== listener);
     };
-  }});
+  },
+});
 import { webauthnSeams } from "../lib/webauthn.js";
 const originalWebauthnSeams = { ...webauthnSeams };
 Object.assign(webauthnSeams, {

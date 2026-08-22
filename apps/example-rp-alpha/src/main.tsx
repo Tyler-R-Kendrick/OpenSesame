@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
-import { createRoot } from "./react-dom.js";
 import { RpApp } from "./RpApp.js";
+import { createRoot } from "./react-dom.js";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root");

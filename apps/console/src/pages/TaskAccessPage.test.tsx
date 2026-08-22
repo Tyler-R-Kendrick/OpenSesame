@@ -1,4 +1,4 @@
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 // @vitest-environment jsdom
 import { type ReactElement, act } from "react";
 import { type Root, createRoot } from "react-dom/client";
@@ -6,9 +6,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskAccessPage } from "./TaskAccessPage.js";
 
-(
-  overlapCast(globalThis)
-).IS_REACT_ACT_ENVIRONMENT = true;
+overlapCast(globalThis).IS_REACT_ACT_ENVIRONMENT = true;
 
 let container: HTMLDivElement;
 let root: Root;

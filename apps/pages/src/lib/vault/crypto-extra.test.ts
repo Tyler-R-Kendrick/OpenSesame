@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   MAX_PBKDF2_ITERATIONS,
@@ -16,7 +17,6 @@ import {
   unwrapRawVaultKeyFromPassword,
   wrapVaultKeyWithPassword,
 } from "./crypto.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const PASSWORD = "correct horse battery staple";
 
@@ -43,9 +43,9 @@ describe("assertKdfParams", () => {
 
   it("rejects a foreign algorithm", async () => {
     const base = await kdf();
-    expect(() => assertKdfParams({ ...base, alg: overlapCast("argon2") })).toThrow(
-      /unsupported key derivation/,
-    );
+    expect(() =>
+      assertKdfParams({ ...base, alg: overlapCast("argon2") }),
+    ).toThrow(/unsupported key derivation/);
   });
 
   it("rejects iteration counts outside the envelope", async () => {

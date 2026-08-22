@@ -1,5 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { AuthorizationRequest, ClaimSession, ExternalIdentity, Principal, overlapCast } from "@opensesame/os-domain";
+import {
+  type AuthorizationRequest,
+  type ClaimSession,
+  type ExternalIdentity,
+  type Principal,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { ConflictError, MemoryRepositories, withOutbox } from "../src/index.js";
 
@@ -70,8 +76,11 @@ describe("MemoryRepositories", () => {
       verdict: "allow",
       nested: { note: "orig" },
     });
-    (overlapCast(loaded?.reviewDecision)).nested.note =
-      "mutated";
+    if (!loaded?.reviewDecision) throw new Error("missing review decision");
+    const reviewDecision: { nested: { note: string } } = overlapCast(
+      loaded.reviewDecision,
+    );
+    reviewDecision.nested.note = "mutated";
     const again = await repos.claimSessions.getById(created.id);
     expect(again?.reviewDecision).toEqual({
       verdict: "allow",

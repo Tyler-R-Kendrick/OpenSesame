@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { transitionPresentation, type PresentationSession } from "../index.js";
+import { type PresentationSession, transitionPresentation } from "../index.js";
 
 const session = (state: PresentationSession["state"]): PresentationSession => ({
   id: "presentation",

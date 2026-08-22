@@ -16,7 +16,14 @@ import {
   applySlowDown,
   initialPollInterval,
 } from "@opensesame/device-auth";
-import { type AuthorizationRequest, DomainError, maybeExpire, settle, type JsonObject } from "@opensesame/os-domain";
+import {
+  type AuthorizationRequest,
+  DomainError,
+  type JsonObject,
+  maybeExpire,
+  overlapCast,
+  settle,
+} from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
@@ -220,12 +227,18 @@ function toResponse(request: AuthorizationRequest) {
     authorizationDetails: request.authorizationDetails,
     expiresAt: request.expiresAt.toISOString(),
     intervalSeconds: request.intervalSeconds,
-    ...(request.connectionId ? { connectionId: request.connectionId } : undefined),
-    ...(request.delegationId ? { delegationId: request.delegationId } : undefined),
+    ...(request.connectionId
+      ? { connectionId: request.connectionId }
+      : undefined),
+    ...(request.delegationId
+      ? { delegationId: request.delegationId }
+      : undefined),
     ...(request.decidedAt
       ? { decidedAt: request.decidedAt.toISOString() }
       : undefined),
-    ...(request.decidedByKind ? { decidedByKind: request.decidedByKind } : undefined),
+    ...(request.decidedByKind
+      ? { decidedByKind: request.decidedByKind }
+      : undefined),
   });
 }
 
@@ -262,6 +275,12 @@ authorizationRequestRoutes.post(
       );
     }
     const body = parsed.data;
+    // The HTTP JSON parser establishes JSON-safe values; Zod establishes the
+    // bounded authorization-detail object shape while preserving RFC 9396
+    // extension members.
+    const authorizationDetails: JsonObject[] = body.authorizationDetails.map(
+      (detail) => overlapCast(detail),
+    );
 
     // Knowing the handle is what authorizes the asking. A handle that does not
     // verify, and one that verifies for a principal that is gone or not
@@ -291,7 +310,7 @@ authorizationRequestRoutes.post(
     const digest = requestDigest({
       principalId: approverId,
       requesterRef: ref,
-      authorizationDetails: body.authorizationDetails,
+      authorizationDetails,
       bindingMessage: body.bindingMessage,
       ...(body.connectionId ? { connectionId: body.connectionId } : undefined),
       ...(body.delegationId ? { delegationId: body.delegationId } : undefined),
@@ -300,7 +319,7 @@ authorizationRequestRoutes.post(
       id: newRequestId(),
       principalId: approverId,
       requesterRef: ref,
-      authorizationDetails: body.authorizationDetails,
+      authorizationDetails,
       requestDigest: digest,
       bindingMessage: body.bindingMessage,
       status: "pending",
@@ -326,8 +345,12 @@ authorizationRequestRoutes.post(
       metadata: {
         authReqId: created.id,
         requestDigest: created.requestDigest,
-        ...(created.connectionId ? { connectionId: created.connectionId } : undefined),
-        ...(created.delegationId ? { delegationId: created.delegationId } : undefined),
+        ...(created.connectionId
+          ? { connectionId: created.connectionId }
+          : undefined),
+        ...(created.delegationId
+          ? { delegationId: created.delegationId }
+          : undefined),
       },
     });
 
@@ -503,7 +526,9 @@ function decideRoute(status: "approved" | "denied") {
           authReqId: saved.id,
           requestDigest: saved.requestDigest,
           decidedByKind: saved.decidedByKind ?? "human",
-          ...(saved.connectionId ? { connectionId: saved.connectionId } : undefined),
+          ...(saved.connectionId
+            ? { connectionId: saved.connectionId }
+            : undefined),
         },
       });
       POLL_STATE.delete(id);

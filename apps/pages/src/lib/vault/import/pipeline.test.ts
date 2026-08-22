@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import { overlapCast } from "@opensesame/os-domain";
+import { describe, expect, it, vi } from "vitest";
 
 import { zipSeams } from "./zip.js";
 const originalZipSeams = { ...zipSeams };

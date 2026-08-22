@@ -1,6 +1,6 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
 import { loopbackLogin } from "./loopback.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const ISSUER = "http://127.0.0.1:8788";
 
@@ -22,15 +22,15 @@ function idpFetch(
     new Response(JSON.stringify({ access_token: "at", token_type: "Bearer" }), {
       status: 200,
     }),
-) {
-  return overlapCast(vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+): typeof fetch {
+  return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     if (url.includes("openid-configuration")) return discovery();
     if (url.endsWith("/token") && init?.method === "POST") {
       return tokenResponder();
     }
     throw new Error(`unexpected ${url}`);
-  }));
+  });
 }
 
 type OpenBrowser = (url: string) => Promise<void> | void;
@@ -121,6 +121,23 @@ describe("loopbackLogin callback handling", () => {
     ).rejects.toThrow(/token exchange failed: 500/u);
   });
 
+  it("refuses a malformed token response", async () => {
+    await expect(
+      loopbackLogin({
+        issuer: ISSUER,
+        clientId: "cli",
+        fetchImpl: idpFetch(
+          async () => new Response(JSON.stringify({ access_token: "at" })),
+        ),
+        timeoutMs: 5_000,
+        openBrowser: browserRedirect((redirect, state) => {
+          redirect.searchParams.set("code", "abc");
+          redirect.searchParams.set("state", state);
+        }),
+      }),
+    ).rejects.toThrow(/response was invalid/u);
+  });
+
   it("rejects when the token endpoint cannot be reached", async () => {
     await expect(
       loopbackLogin({
@@ -184,9 +201,9 @@ describe("loopbackLogin callback handling", () => {
   });
 
   it("surfaces a discovery failure with the status", async () => {
-    const fetchImpl = overlapCast(vi.fn(
+    const fetchImpl: typeof fetch = vi.fn(
       async () => new Response(JSON.stringify({}), { status: 503 }),
-    ));
+    );
     await expect(
       loopbackLogin({
         issuer: ISSUER,

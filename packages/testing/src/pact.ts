@@ -1,4 +1,4 @@
-import { type JsonObject, type BoundaryValue } from "@opensesame/os-domain";
+import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 /**
  * Property / Adversarial / Chaos / conTract helpers (see docs/validation/pact.md).
  */

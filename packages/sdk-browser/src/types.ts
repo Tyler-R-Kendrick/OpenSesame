@@ -1,4 +1,4 @@
-import { type JsonObject } from "@opensesame/os-domain";
+import type { JsonObject } from "@opensesame/os-domain";
 export interface OidcDiscoveryDocument {
   issuer: string;
   authorization_endpoint: string;

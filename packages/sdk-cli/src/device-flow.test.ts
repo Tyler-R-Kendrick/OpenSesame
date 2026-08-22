@@ -1,13 +1,13 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
 import { DeviceFlowClient, redactSecrets } from "./device-flow.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 describe("DeviceFlowClient", () => {
   it("starts and polls with authorization_pending then success", async () => {
     let polls = 0;
     const sleeps: number[] = [];
-    const fetchImpl = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchImpl: typeof fetch = vi.fn(
+      async (input: string | URL | Request, init?: RequestInit) => {
         const url = String(input);
         if (url.includes("openid-configuration")) {
           return new Response(
@@ -61,7 +61,7 @@ describe("DeviceFlowClient", () => {
     const client = new DeviceFlowClient({
       issuer: "http://127.0.0.1:8788",
       clientId: "opensesame-cli",
-      fetchImpl: overlapCast(fetchImpl),
+      fetchImpl,
       sleep: async (ms) => {
         sleeps.push(ms);
       },
@@ -97,7 +97,7 @@ describe("DeviceFlowClient", () => {
     const client2 = new DeviceFlowClient({
       issuer: "http://127.0.0.1:8788",
       clientId: "opensesame-cli",
-      fetchImpl: overlapCast(fetchImpl),
+      fetchImpl,
       sleep: async (ms) => {
         sleeps.push(ms);
       },
@@ -112,11 +112,8 @@ describe("DeviceFlowClient", () => {
 });
 
 describe("DeviceFlowClient refusals", () => {
-  const base = (
-    over: JsonObject,
-    device: JsonObject = {},
-  ) =>
-    overlapCast(vi.fn(async (input: RequestInfo | URL) => {
+  const base = (over: JsonObject, device: JsonObject = {}) =>
+    vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
       if (url.includes("openid-configuration")) {
         return new Response(
@@ -147,7 +144,7 @@ describe("DeviceFlowClient refusals", () => {
         );
       }
       throw new Error(url);
-    }));
+    });
 
   const client = (fetchImpl: typeof fetch) =>
     new DeviceFlowClient({
