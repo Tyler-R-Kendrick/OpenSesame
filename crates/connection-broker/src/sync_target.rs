@@ -452,6 +452,29 @@ impl ConnectionBroker {
         Ok(outcomes)
     }
 
+    /// Current value-blind fingerprint for one sync target: the
+    /// `content_version` a sync run would record if it pushed right now.
+    /// Values are loaded and resolved in-process; only the keyed `cv2_`
+    /// fingerprint leaves. The sync actor compares this against the target's
+    /// stored `content_version` to skip egress when nothing changed.
+    pub async fn current_content_version(
+        &self,
+        organization_id: &OrganizationId,
+        target_id: &str,
+        secrets: Arc<dyn SyncSecretSource>,
+    ) -> Result<String> {
+        let target = self.sync_target_in_org(organization_id, target_id).await?;
+        let key = *self.sealing_key()?;
+        let entries = secrets
+            .load_config_secrets(
+                &organization_id.to_string(),
+                &target.project_id,
+                &target.config_id,
+            )
+            .await?;
+        Ok(content_version_for(&key, &target.id, &entries))
+    }
+
     async fn sync_target_in_org(
         &self,
         organization_id: &OrganizationId,
