@@ -1257,6 +1257,8 @@ pub async fn list_secret_configs(
     project_id: &str,
 ) -> Result<Vec<SecretConfigRow>> {
     ensure_secret_configs_schema(pool).await?;
+    // SECRET_CONFIG_COLUMNS is constant; all data values are bound below.
+    // ast-grep-ignore: sql-format-injection
     let rows = sqlx::query(&format!(
         "SELECT {SECRET_CONFIG_COLUMNS} FROM secret_configs \
          WHERE organization_id = ? AND project_id = ? ORDER BY slug",
@@ -1274,6 +1276,8 @@ pub async fn get_secret_config(
     config_id: &str,
 ) -> Result<Option<SecretConfigRow>> {
     ensure_secret_configs_schema(pool).await?;
+    // SECRET_CONFIG_COLUMNS is constant; all data values are bound below.
+    // ast-grep-ignore: sql-format-injection
     let row = sqlx::query(&format!(
         "SELECT {SECRET_CONFIG_COLUMNS} FROM secret_configs \
          WHERE id = ? AND organization_id = ?",
