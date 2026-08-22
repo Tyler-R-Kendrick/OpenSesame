@@ -259,7 +259,7 @@ describe("ItemEditor", () => {
         ],
         "guidance": [
           "The Host issues the certificate; the returned material is sealed in this device vault.",
-          "OpenSesame generates an ECDSA P-256 private key and issues a short-lived TLS certificate from the Host private CA. You never need to paste certificate material.",
+          "OpenSesame generates an ECDSA P-256 private key and issues a short-lived TLS certificate from your configured issuer, or its private CA by default. You never need to paste certificate material.",
         ],
         "labels": [
           "Type",
