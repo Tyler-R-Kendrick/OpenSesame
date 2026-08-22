@@ -34,10 +34,21 @@ if command -v jazzer >/dev/null 2>&1 && node -e 'import("@jazzer.js/core")' >/de
   if [[ "$fail" -ne 0 ]]; then
     exit 1
   fi
-  echo "jazzer-gate: CLEAN"
+  echo "jazzer-gate: CLEAN (coverage-guided)"
   exit 0
+fi
+
+# The local runner feeds each target uniform random bytes. That is a crash
+# smoke test, not fuzzing: without coverage feedback it will not walk into a
+# branch that needs structured input, so a clean pass says far less than a
+# native Jazzer.js run. Reporting both as "CLEAN" made an absent fuzzer look
+# like a passing one, so the fallback names itself.
+if [[ -n "${JAZZER_REQUIRE_NATIVE:-}" ]]; then
+  echo "jazzer-gate: native Jazzer.js addon not loaded and JAZZER_REQUIRE_NATIVE is set" >&2
+  exit 1
 fi
 
 echo "==> jazzer-gate: local runner (${SECONDS_PER_TARGET}s/target; native Jazzer.js addon not loaded)"
 FUZZ_SECONDS="$SECONDS_PER_TARGET" pnpm exec tsx src/run.ts
-echo "jazzer-gate: CLEAN"
+echo "jazzer-gate: DEGRADED — random-input smoke only, not coverage-guided fuzzing"
+echo "jazzer-gate: set JAZZER_REQUIRE_NATIVE=1 to fail instead of falling back"
