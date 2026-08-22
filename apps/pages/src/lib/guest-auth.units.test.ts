@@ -28,7 +28,14 @@ const PENDING_LINK_KEY = "opensesame:federation:pending-link";
 
 const REAL = { ...guestAuthDependencies };
 
-type Overrides = Partial<typeof guestAuthDependencies>;
+/**
+ * Test doubles are deliberately loose here. `identityJson` is generic over its
+ * response body and `connectProvisional` resolves a full session; a double that
+ * returns one concrete shape cannot satisfy either signature, and forcing it to
+ * would mean building a whole fake session for assertions that never read one.
+ * Keys are still constrained to real dependency names, so a typo is caught.
+ */
+type Overrides = Partial<Record<keyof typeof guestAuthDependencies, unknown>>;
 
 function withDeps(overrides: Overrides): void {
   Object.assign(guestAuthDependencies, overrides);
