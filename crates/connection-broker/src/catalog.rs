@@ -640,15 +640,15 @@ mod tests {
     #[test]
     fn embedded_catalog_is_valid_and_versioned() {
         let catalog = load().expect("embedded catalog");
-        assert_eq!(catalog.revision(), "2026-08-12.2");
-        assert_eq!(catalog.providers().len(), 85);
+        assert_eq!(catalog.revision(), "2026-08-22.1");
+        assert_eq!(catalog.providers().len(), 86);
         assert_eq!(
             catalog
                 .providers()
                 .iter()
                 .filter(|provider| provider.id != "mock")
                 .count(),
-            84
+            85
         );
         assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
     }
@@ -693,6 +693,42 @@ mod tests {
             assert_eq!(provider.category, category, "wrong category for {id}");
             assert!(matches!(&provider.auth, AuthMethod::Configuration));
         }
+    }
+
+    /// Passbolt is not an fnox provider: it is a self-hosted, PGP-keyed
+    /// password manager whose connection is configured, not OAuth'd. The row
+    /// must survive the strict loader with its two secret fields intact, and
+    /// must claim no egress — the server URL is user-supplied, so a static
+    /// allowlist cannot enumerate it (see the client-side pinning rule).
+    #[test]
+    fn passbolt_round_trips_through_the_strict_loader() {
+        let catalog = load().expect("embedded catalog");
+        let passbolt = catalog.find("passbolt").expect("passbolt provider");
+        assert_eq!(passbolt.category, Category::PasswordManagers);
+        assert!(matches!(&passbolt.auth, AuthMethod::Configuration));
+        let fields: Vec<(&str, bool, bool)> = passbolt
+            .connection_configuration_fields()
+            .iter()
+            .map(|field| (field.name.as_str(), field.secret, field.required))
+            .collect();
+        assert_eq!(
+            fields,
+            vec![
+                ("server_url", false, true),
+                ("private_key", true, true),
+                ("passphrase", true, true),
+            ]
+        );
+        assert_eq!(passbolt.egress.scheme, "none");
+        assert!(passbolt.egress.authorities.is_empty());
+        assert!(passbolt.egress.path_prefixes.is_empty());
+        assert!(passbolt.scopes.is_empty());
+        assert_eq!(passbolt.operations, vec!["secret.configure".to_string()]);
+
+        // The row survives a parse of the document it came from, so the
+        // committed JSON is what the loader accepts, not a hand-built struct.
+        let reparsed = Catalog::parse(CATALOG_JSON).expect("reparse");
+        assert_eq!(reparsed.find("passbolt"), Some(passbolt));
     }
 
     #[test]

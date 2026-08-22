@@ -1,0 +1,21 @@
+[package]
+name = "opensesame-kdbx-bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "KDBX4 (KeePass) read/write bridge to the sealed store (ADR 0052)"
+
+[dependencies]
+opensesame-sealed-store = { path = "../sealed-store" }
+keepass = { version = "0.13.22", features = ["save_kdbx4"] }
+serde = { workspace = true }
+thiserror = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+# `keepass` is also a dev-dependency so the conformance fixture can be built
+# against the library directly, independent of this crate's exporter.
+keepass = { version = "0.13.22", features = ["save_kdbx4"] }
+insta = { workspace = true, features = ["redactions"] }
+serde_json = { workspace = true }
+tempfile = { workspace = true }

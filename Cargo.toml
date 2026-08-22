@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
+  "crates/provider-bitwarden",
+  "crates/kdbx-bridge",
   "crates/core",
   "crates/host-core",
   "crates/client-core",
@@ -42,6 +44,7 @@ members = [
   "apps/callback-edge",
   "apps/cli",
   "apps/credential-helpers",
+  "apps/pm-bridges",
 ]
 default-members = ["apps/gateway", "apps/cli", "apps/worker"]
 exclude = ["fuzz"]

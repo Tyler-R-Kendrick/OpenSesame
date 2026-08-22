@@ -73,6 +73,7 @@ describe("detectFormat / parseImport", () => {
       fileName: "mystery.txt",
       text: "no structure here at all",
       headers: null,
+      bytes: null,
       json: null,
     };
     expect(detectFormat(input)).toBeNull();
@@ -83,7 +84,7 @@ describe("detectFormat / parseImport", () => {
   it("throws when a forced source id is unknown", () => {
     expect(() =>
       parseImport(
-        { fileName: "x", text: "a,b", headers: ["a", "b"], json: null },
+        { fileName: "x", text: "a,b", headers: ["a", "b"], bytes: null, json: null },
         overlapCast("nope"),
       ),
     ).toThrow(ImportError);
@@ -94,7 +95,7 @@ describe("detectFormat / parseImport", () => {
       fileName: "export.json",
       text: '{"encrypted":false,"items":[]}',
       headers: null,
-      json: { encrypted: false, items: [] },
+      bytes: null, json: { encrypted: false, items: [] },
     };
     expect(() => parseImport(input)).toThrow(/held no items/);
   });
@@ -104,7 +105,7 @@ describe("detectFormat / parseImport", () => {
       fileName: "export.json",
       text: "{}",
       headers: null,
-      json: { encrypted: false, items: [] },
+      bytes: null, json: { encrypted: false, items: [] },
     };
     // bitwardenJson.detect runs on this shape without throwing; sanity check
     // that the chain as a whole tolerates and identifies it.
@@ -116,6 +117,7 @@ describe("detectFormat / parseImport", () => {
       fileName: "notes.txt",
       text: "KEY=value",
       headers: null,
+      bytes: null,
       json: null,
     };
     const result = parseImport(input, "env-file");
@@ -158,6 +160,7 @@ describe("summarise", () => {
   it("summarises an empty preview as zeroes", () => {
     expect(summarise([])).toEqual({
       logins: 0,
+      passkeys: 0,
       cards: 0,
       notes: 0,
       secrets: 0,

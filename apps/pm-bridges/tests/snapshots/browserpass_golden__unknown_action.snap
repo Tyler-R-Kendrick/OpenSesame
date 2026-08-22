@@ -1,0 +1,13 @@
+---
+source: apps/pm-bridges/tests/browserpass_golden.rs
+expression: "run.responses[0]"
+---
+{
+  "code": 12,
+  "params": {
+    "action": "delete",
+    "message": "Invalid request action"
+  },
+  "status": "error",
+  "version": 3001002
+}

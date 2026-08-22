@@ -1,0 +1,35 @@
+opensesame-provider-bitwarden
+=============================
+
+Copyright the OpenSesame authors. Licensed under the MIT license, as the rest
+of this workspace is (see the repository LICENSE).
+
+Attribution
+-----------
+
+The Bitwarden vault format (KDF ladder, HKDF-stretched master key, the
+`{type}.{base64 parts}` EncString envelope) and the Bitwarden server API
+surface used here (`/identity/accounts/prelogin`, `/identity/connect/token`,
+`/api/sync`, `/api/config`) are implemented from their public descriptions.
+
+The design of this client is informed by **rbw** — an unofficial Bitwarden CLI
+by Jesse Luehrs, MIT licensed, <https://github.com/doy/rbw>. rbw is a clean
+derivation reference under this repository's licensing policy
+(`docs/competitors/REUSE.md`, constitution C3): permissively licensed, so
+deriving from it with attribution is allowed. This crate does not depend on
+rbw and does not vendor its code; the debt is architectural — which endpoints
+matter, how the key ladder is sequenced, and which envelope types a consume
+client actually has to handle.
+
+No source is copied from AGPL/GPL projects. In particular, nothing here is
+taken from vaultwarden (AGPL-3.0) or from Bitwarden's own clients or server
+(AGPL-3.0 / GPL-3.0). `deny.toml` mechanically enforces the permissive-only
+dependency policy for the Rust side.
+
+Trademarks
+----------
+
+"Bitwarden" is a trademark of Bitwarden, Inc.; "Vaultwarden" is the name of an
+independent project. Neither endorses nor is affiliated with OpenSesame. The
+names are used here only to describe the servers this client interoperates
+with.

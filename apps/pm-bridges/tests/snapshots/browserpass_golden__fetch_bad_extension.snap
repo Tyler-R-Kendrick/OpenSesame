@@ -1,0 +1,14 @@
+---
+source: apps/pm-bridges/tests/browserpass_golden.rs
+expression: "run.responses[0]"
+---
+{
+  "code": 23,
+  "params": {
+    "action": "fetch",
+    "file": "Web/example.com",
+    "message": "The requested password file does not have the expected '.gpg' extension"
+  },
+  "status": "error",
+  "version": 3001002
+}
