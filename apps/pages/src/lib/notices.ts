@@ -37,6 +37,10 @@ function subscribeNoticesDefault(listener: Listener): () => void {
 function pushNoticeDefault(
   input: Omit<Notice, "id" | "createdAt"> & { id?: string },
 ): Notice {
+  // Stryker disable next-line ConditionalExpression,ArrowFunction: equivalent
+  // while Notice["kind"] has a single member — the predicate is false for every
+  // notice either way. Drop this when a second kind lands and the filter starts
+  // discriminating.
   notices = notices.filter((notice) => notice.kind !== input.kind);
   const notice: Notice = {
     ...input,

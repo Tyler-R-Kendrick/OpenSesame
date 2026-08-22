@@ -45,6 +45,8 @@ function stashCurrentSessionDefault(): void {
     accessToken: active.accessToken,
     issuerOrigin: active.issuerOrigin,
   };
+  // Stryker disable next-line ConditionalExpression: equivalent — the payload
+  // is only ever JSON.stringify'd, and that drops an undefined expiresAt.
   if (active.expiresAt) payload.expiresAt = active.expiresAt;
   try {
     sessionStorage.setItem(STASH_KEY, JSON.stringify(payload));
@@ -56,6 +58,9 @@ function stashCurrentSessionDefault(): void {
 function takeStashedSessionDefault(): StashedSession | null {
   try {
     const raw = sessionStorage.getItem(STASH_KEY);
+    // Stryker disable next-line ConditionalExpression: equivalent — without the
+    // fast path, JSON.parse(null) yields null and the field check below throws
+    // into the same catch, so a missing record still reads as null.
     if (!raw) return null;
     sessionStorage.removeItem(STASH_KEY);
     // SAFETY: the serialized record is immediately checked for all required session fields below.
@@ -85,6 +90,9 @@ function restoreStashedGuestSessionDefault(): boolean {
 let inFlightClaim: Promise<void> | null = null;
 
 async function claimGuestAuthDefault(): Promise<void> {
+  // Stryker disable next-line ConditionalExpression: equivalent while
+  // Notice["kind"] has a single member — the predicate then only asks whether
+  // the list is non-empty. Drop this when a second kind lands.
   if (listNotices().some((notice) => notice.kind === "guest_claim")) {
     stashCurrentSession();
     return;
