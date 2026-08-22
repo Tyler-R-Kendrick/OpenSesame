@@ -13,7 +13,9 @@ import { dirname, join } from "node:path";
 import { createApiClient } from "@opensesame/api-client";
 import {
   type BoundaryValue,
+  type JsonValue,
   isNumber,
+  isString,
   overlapCast,
 } from "@opensesame/os-domain";
 import {
@@ -50,6 +52,16 @@ function sessionPath(): string {
 
 function trimSlash(url: string): string {
   return url.replace(/\/+$/u, "");
+}
+
+interface OidcDiscoveryResponse {
+  token_endpoint?: BoundaryValue;
+}
+
+interface RefreshTokenResponse {
+  access_token?: BoundaryValue;
+  refresh_token?: BoundaryValue;
+  expires_in?: BoundaryValue;
 }
 
 /**
@@ -105,9 +117,9 @@ async function refreshSession(
       `${trimSlash(session.issuer)}/.well-known/openid-configuration`,
     );
     if (!discovery.ok) return null;
-    const meta = overlapCast(await discovery.json());
+    const meta: OidcDiscoveryResponse = overlapCast(await discovery.json());
     const tokenEndpoint = meta.token_endpoint;
-    if (!tokenEndpoint) return null;
+    if (!isString(tokenEndpoint)) return null;
     const issuerOrigin = new URL(session.issuer).origin;
     if (new URL(tokenEndpoint).origin !== issuerOrigin) return null;
     const body = new URLSearchParams({
@@ -121,12 +133,14 @@ async function refreshSession(
       body,
     });
     if (!res.ok) return null;
-    const tokens = overlapCast(await res.json());
-    if (!tokens.access_token) return null;
+    const tokens: RefreshTokenResponse = overlapCast(await res.json());
+    if (!isString(tokens.access_token)) return null;
     const next: SessionFile = {
       ...session,
       accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token ?? session.refreshToken,
+      refreshToken: isString(tokens.refresh_token)
+        ? tokens.refresh_token
+        : session.refreshToken,
       ...(isNumber(tokens.expires_in)
         ? { expiresAt: Date.now() + tokens.expires_in * 1000 }
         : undefined),
@@ -177,7 +191,7 @@ async function clearSession(): Promise<void> {
 function emit(
   flags: { json: boolean },
   human: string,
-  data: BoundaryValue,
+  data: JsonValue | undefined,
 ): void {
   const redacted = redactSecrets(data);
   if (flags.json) {
@@ -481,12 +495,22 @@ async function dispatch(
       });
       const health = await host.health();
       const daemon = await host.probeDaemon();
+      const daemonHealth: JsonValue | undefined = overlapCast(daemon.health);
       emit(
         command.flags,
         health.ok
           ? `Host API up. Daemon ${daemon.available ? "available" : "unavailable"}.`
           : "Host API unreachable.",
-        { health, daemon },
+        {
+          health,
+          daemon: {
+            available: daemon.available,
+            url: daemon.url,
+            ...(daemonHealth === undefined
+              ? undefined
+              : { health: daemonHealth }),
+          },
+        },
       );
       return health.ok ? 0 : 1;
     }
@@ -497,7 +521,21 @@ async function dispatch(
         fetchImpl,
       });
       const discovery = await host.discover();
-      emit(command.flags, `Discovery source: ${discovery.source}`, discovery);
+      emit(command.flags, `Discovery source: ${discovery.source}`, {
+        source: discovery.source,
+        ...(discovery.resource === undefined
+          ? undefined
+          : { resource: discovery.resource }),
+        ...(discovery.authorizationServers === undefined
+          ? undefined
+          : { authorizationServers: discovery.authorizationServers }),
+        ...(discovery.dpopBound === undefined
+          ? undefined
+          : { dpopBound: discovery.dpopBound }),
+        ...(discovery.ready === undefined
+          ? undefined
+          : { ready: discovery.ready }),
+      });
       return discovery.source === "none" ? 1 : 0;
     }
 

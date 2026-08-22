@@ -148,7 +148,7 @@ describe("cli session file", () => {
       clientId: "opensesame-cli",
     });
     const seen: Array<string | null> = [];
-    const watchful = overlapCast(
+    const watchful: typeof fetch = overlapCast(
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         seen.push(new Headers(init?.headers).get("authorization"));
         if (String(input).endsWith("/v1/principals/me")) {
@@ -200,7 +200,7 @@ describe("cli session file", () => {
       principalId: "prn_guest",
     });
     const seen: Array<{ path: string; auth: string | null }> = [];
-    const watchful = overlapCast(
+    const watchful: typeof fetch = overlapCast(
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         seen.push({
           path: new URL(String(input)).pathname,
@@ -242,7 +242,7 @@ describe("cli session file", () => {
       clientId: "opensesame-cli",
       expiresAt: Date.now() - 1000,
     });
-    const partitioned = overlapCast(
+    const partitioned: typeof fetch = overlapCast(
       vi.fn(async () => {
         throw new Error("ECONNREFUSED");
       }),

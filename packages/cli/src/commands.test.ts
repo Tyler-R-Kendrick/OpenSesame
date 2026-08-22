@@ -137,7 +137,7 @@ describe("runCli — help and parse failures", () => {
   });
 
   it("reports a dispatch failure as a message, not a stack trace", async () => {
-    const broken = overlapCast(
+    const broken: typeof fetch = overlapCast(
       vi.fn(async () => {
         throw new Error("connection refused");
       }),
@@ -660,6 +660,21 @@ describe("runCli — session refresh", () => {
     const code = await runCli(["whoami", "--issuer", ISSUER], { fetchImpl });
     expect(code).toBe(1);
     expect(out).toMatch(/Not authenticated/);
+  });
+
+  it("rejects a non-string access token from the refresh grant", async () => {
+    await writeExpiredSession();
+    const fetchImpl = routerFetch((url) => {
+      if (url.includes("openid-configuration")) return json(discoveryDoc);
+      if (url.endsWith("/token")) return json({ access_token: 42 });
+      return undefined;
+    });
+    const code = await runCli(["whoami", "--issuer", ISSUER], { fetchImpl });
+    expect(code).toBe(1);
+    expect(out).toMatch(/Not authenticated/);
+    expect(JSON.parse(await readFile(sessionFile(), "utf8")).accessToken).toBe(
+      "at-old",
+    );
   });
 });
 
