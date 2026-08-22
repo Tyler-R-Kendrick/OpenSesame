@@ -17,11 +17,19 @@ they explicitly require a live service.
 
 ## Measured non-regression gates
 
-`pnpm test:coverage` measures every workspace with a Vitest test script plus all
-Rust workspace targets. The initial whole-repository floors are deliberately
-the measured baseline, not an inflated claim:
+`pnpm test:coverage` measures every workspace with a `vitest run` test script
+plus all Rust workspace targets. Workspace packages whose test script does not
+run `vitest run` are excluded from the TypeScript measurement; the gate prints
+a loud warning listing every excluded package so the gap stays visible. The
+floors ratchet to roughly one point below the measured baseline, not an
+inflated claim:
 
-- TypeScript: statements 80%, branches 80%, functions 80%, lines 80%.
+- TypeScript (repository-wide): statements 94%, branches 88%, functions 94%,
+  lines 95% (env overrides `TS_COVERAGE_STATEMENTS`, `TS_COVERAGE_BRANCHES`,
+  `TS_COVERAGE_FUNCTIONS`, `TS_COVERAGE_LINES`).
+- TypeScript (per package): every measured package must have at least 50%
+  lines coverage (env override `TS_COVERAGE_PACKAGE_LINES`), so the
+  repository-wide aggregate cannot hide a hollow package.
 - Rust: lines 69%, functions 67%.
 - Mutation: the selected TypeScript and Rust security slices must have no
   surviving mutants.
