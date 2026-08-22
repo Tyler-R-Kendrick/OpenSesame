@@ -522,3 +522,70 @@ describe("default dependencies delegate to the real vault store", () => {
     expect(spy).toHaveBeenCalled();
   });
 });
+
+/**
+ * Cases aimed at decisions the broader tests happen to step over. Each pins a
+ * branch whose two sides are easy to conflate — and each one failed against a
+ * deliberately mutated copy of the source before being kept.
+ */
+describe("branches the journey tests do not separate", () => {
+  it("does not call a 503 a collision, on the first-run path", async () => {
+    // `caught instanceof IdentityError && caught.status === 409` — widening
+    // that `&&` to `||`, or forcing it true, would report every upstream
+    // failure as "that account is already taken", which is a lie the user
+    // cannot act on.
+    withDeps({
+      vaultStatus: () => "empty",
+      createGuest: vi.fn(async () => undefined),
+      currentSession: () => session(),
+      identityJson: vi.fn(async () => {
+        throw new IdentityError("service unavailable", 503);
+      }),
+      loadFederationSession: () => null,
+    });
+
+    await guestAuthSeams.adoptFederatedIdentity("id-token");
+
+    const body = listNotices()[0]?.body ?? "";
+    expect(body).toContain("service unavailable");
+    expect(body).not.toContain("already attached to a different");
+  });
+
+  it("clears a stale pending marker when first-run linking succeeds", async () => {
+    // The marker survives in sessionStorage across reloads; leaving it set
+    // after a successful link means prompting forever for finished work.
+    sessionStorage.setItem(PENDING_LINK_KEY, "1");
+    withDeps({
+      vaultStatus: () => "empty",
+      createGuest: vi.fn(async () => undefined),
+      currentSession: () => session(),
+      identityJson: vi.fn(async () => ({})),
+      loadFederationSession: () => null,
+    });
+
+    await guestAuthSeams.adoptFederatedIdentity("id-token");
+
+    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+  });
+
+  it("links rather than defers when the vault is open but no session is held", async () => {
+    // Only a *locked* vault defers. An open vault with no session yet is the
+    // ordinary first federated sign-in of a session: mint and link.
+    const identityJson = vi.fn(async () => ({}));
+    const connectProvisional = vi.fn(async () => undefined);
+    withDeps({
+      vaultStatus: () => "unlocked",
+      currentSession: () => null,
+      connectProvisional,
+      identityJson,
+      createGuest: vi.fn(async () => undefined),
+      loadFederationSession: () => null,
+    });
+
+    await guestAuthSeams.adoptFederatedIdentity("id-token");
+
+    expect(connectProvisional).toHaveBeenCalledTimes(1);
+    expect(identityJson).toHaveBeenCalled();
+    expect(listNotices().find((n) => n.kind === "federated_link")).toBeFalsy();
+  });
+});
