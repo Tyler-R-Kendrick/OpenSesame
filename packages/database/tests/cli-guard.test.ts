@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { overlapCast } from "@opensesame/os-domain";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 /**
  * The db:migrate / db:reset CLI guards run at module load when argv[1] names

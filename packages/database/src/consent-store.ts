@@ -1,8 +1,12 @@
 import { randomUUID } from "node:crypto";
+import {
+  type BoundaryValue,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "./repos/postgres.js";
 import * as schema from "./schema/index.js";
-import { overlapCast, type BoundaryValue, isTypeofObject } from "@opensesame/os-domain";
 
 /**
  * Human consent persistence (ADR 0034 §3, ADR 0050 F6): per-principal,
@@ -64,13 +68,13 @@ function isUniqueViolation(err: BoundaryValue): boolean {
   // postgres.js puts `code` on the error itself; drizzle wraps driver
   // errors (notably PGlite's) in a DrizzleQueryError with a `cause`.
   if (!isTypeofObject(err) || err === null) return false;
-  const code = (overlapCast(err)).code;
+  const code = overlapCast(err).code;
   if (code === "23505") return true;
-  const cause = (overlapCast(err)).cause;
+  const cause = overlapCast(err).cause;
   return (
     isTypeofObject(cause) &&
     cause !== null &&
-    (overlapCast(cause)).code === "23505"
+    overlapCast(cause).code === "23505"
   );
 }
 
@@ -172,7 +176,8 @@ export function createPostgresConsentStore(db: Database): ConsentStore {
         }
         return mapRow(row);
       } catch (err) {
-        if (!isUniqueViolation(err)) throw err;
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (!isUniqueViolation(boundaryError)) throw err;
         // A concurrent confirmation inserted first — widen the winner's row.
         const winner = await findActive(grant.principalId, grant.clientId);
         if (!winner) throw err;
