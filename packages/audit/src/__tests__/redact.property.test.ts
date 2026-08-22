@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   AUDIT_METADATA_ALLOWLIST,
   AUDIT_VALUE_MAX_LENGTH,
+  isDeniedMetadataKey,
   redactAuditMetadata,
 } from "../redact.js";
 
@@ -135,5 +136,139 @@ describe("redactAuditMetadata properties", () => {
         }
       }),
     );
+  });
+});
+
+/**
+ * The expected allowlist, written out rather than derived from the Set under
+ * test. An earlier version of this test iterated AUDIT_METADATA_ALLOWLIST
+ * itself, which made it self-confirming: blanking an entry to "" simply meant
+ * the loop tested "" and passed. Mutation testing caught that — 16 string
+ * literals survived. Any change here should be a deliberate edit in both
+ * places.
+ */
+const EXPECTED_ALLOWLIST = [
+  "reason",
+  "action",
+  "kind",
+  "issuer",
+  "tenant",
+  "slug",
+  "note",
+  "sectorIdentifier",
+  "admissionMode",
+  "previousClientId",
+  "resourceType",
+  "resourceId",
+  "projectId",
+  "organizationId",
+  "claimId",
+  "agentId",
+  "state",
+  "fromState",
+  "toState",
+  "outcome",
+  "idempotencyKey",
+  "ttlSeconds",
+  "quotaProfile",
+  "path",
+  "method",
+  "statusCode",
+  "won",
+  "count",
+  "type",
+  "configId",
+  "environment",
+  "keyNames",
+  "versionId",
+  "targetId",
+  "contentVersion",
+  "actor",
+  "authReqId",
+  "approvalId",
+  "requestDigest",
+  "bindingMessageDigest",
+  "decidedByKind",
+  "connectionId",
+  "delegationId",
+  "offerId",
+  "invocationId",
+  "subject",
+  "providerId",
+  "materialization",
+] as const;
+
+describe("allowlist and deny layers", () => {
+  it("holds exactly the expected keys", () => {
+    expect([...AUDIT_METADATA_ALLOWLIST].sort()).toEqual(
+      [...EXPECTED_ALLOWLIST].sort(),
+    );
+  });
+
+  it("passes every expected key through", () => {
+    for (const key of EXPECTED_ALLOWLIST) {
+      expect(isDeniedMetadataKey(key)).toBe(false);
+      expect(redactAuditMetadata({ [key]: "kept" })).toEqual({ [key]: "kept" });
+    }
+  });
+
+  it("keeps string arrays, which is how keyNames travels", () => {
+    expect(redactAuditMetadata({ keyNames: ["API_KEY", "DB_URL"] })).toEqual({
+      keyNames: ["API_KEY", "DB_URL"],
+    });
+    // A mixed array is not a name list, so it is dropped rather than coerced.
+    expect(redactAuditMetadata({ keyNames: ["API_KEY", 7] })).toEqual({});
+  });
+
+  it("preserves an explicit null rather than dropping the key", () => {
+    // A recorded null says "this was absent"; dropping the key says nothing
+    // was recorded. Those read differently to a reviewer.
+    expect(redactAuditMetadata({ note: null })).toEqual({ note: null });
+    expect(Object.hasOwn(redactAuditMetadata({ note: null }), "note")).toBe(
+      true,
+    );
+  });
+
+  it("truncates only past the ceiling, not at it", () => {
+    const atCeiling = "a".repeat(AUDIT_VALUE_MAX_LENGTH);
+    const overCeiling = "a".repeat(AUDIT_VALUE_MAX_LENGTH + 1);
+    expect(redactAuditMetadata({ note: atCeiling })).toEqual({
+      note: atCeiling,
+    });
+    expect(redactAuditMetadata({ note: overCeiling }).note).toBe(
+      `${"a".repeat(AUDIT_VALUE_MAX_LENGTH)}\u2026`,
+    );
+  });
+
+  it("refuses secret-shaped keys, separator or not", () => {
+    // This layer is redundant with the allowlist today, so it is asserted
+    // directly: through redactAuditMetadata these keys are dropped either way,
+    // and a weakened pattern would change nothing observable.
+    for (const key of [
+      "value",
+      "accessToken",
+      "client_secret",
+      "PASSWORD",
+      "authorization",
+      "Cookie",
+      "code_verifier",
+      "user_code",
+      "usercode",
+      "userCode",
+      "device_code",
+      "devicecode",
+      "deviceCode",
+      "refresh_token",
+      "bearer",
+    ]) {
+      expect(isDeniedMetadataKey(key)).toBe(true);
+      expect(redactAuditMetadata({ [key]: "leak" })).toEqual({});
+    }
+  });
+
+  it("does not refuse ordinary allowlisted keys by accident", () => {
+    for (const key of ["reason", "action", "slug", "projectId", "outcome"]) {
+      expect(isDeniedMetadataKey(key)).toBe(false);
+    }
   });
 });
