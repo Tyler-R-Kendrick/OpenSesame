@@ -1843,3 +1843,318 @@ pub async fn list_changelog_rows(
         })
         .collect())
 }
+
+// ---- rotation (WP-9: durable policies + jobs) -------------------------------
+//
+// Durable schedule + job state for automated credential rotation. A policy row
+// is the recurring intent (rotate this target every N seconds); a job row is
+// one execution, and its `state` column holds the `opensesame-rotation`
+// `RotationState` name (snake_case) — the rotation module persists every legal
+// transition here so a restart resumes from the last persisted state instead
+// of forgetting in-flight work. Rows never carry secret material: targets are
+// ids/paths, detail is an operator hint. DDL is idempotent `ensure_*` schema
+// following the sync_targets precedent above.
+
+#[derive(Clone, Debug)]
+pub struct RotationPolicyRow {
+    pub id: String,
+    pub organization_id: String,
+    /// `connection` or `store_path` (CHECK-enforced).
+    pub target_kind: String,
+    pub target_id: String,
+    pub interval_seconds: i64,
+    pub last_rotated_at: Option<String>,
+    pub enabled: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug)]
+pub struct RotationJobRow {
+    pub id: String,
+    pub policy_id: Option<String>,
+    pub organization_id: String,
+    pub target_kind: String,
+    pub target_id: String,
+    /// `RotationState` name (snake_case), or `scheduled` before execution.
+    pub state: String,
+    pub detail: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+pub async fn ensure_rotation_schema(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS rotation_policies (
+            id TEXT PRIMARY KEY,
+            organization_id TEXT NOT NULL,
+            target_kind TEXT NOT NULL CHECK (target_kind IN ('connection','store_path')),
+            target_id TEXT NOT NULL,
+            interval_seconds INTEGER NOT NULL,
+            last_rotated_at TEXT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+         )",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_rotation_policies_org \
+         ON rotation_policies(organization_id)",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS rotation_jobs (
+            id TEXT PRIMARY KEY,
+            policy_id TEXT NULL,
+            organization_id TEXT NOT NULL,
+            target_kind TEXT NOT NULL,
+            target_id TEXT NOT NULL,
+            state TEXT NOT NULL,
+            detail TEXT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+         )",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_rotation_jobs_org_time \
+         ON rotation_jobs(organization_id, created_at)",
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+fn rotation_policy_from_row(row: &sqlx::sqlite::SqliteRow) -> RotationPolicyRow {
+    RotationPolicyRow {
+        id: row.get("id"),
+        organization_id: row.get("organization_id"),
+        target_kind: row.get("target_kind"),
+        target_id: row.get("target_id"),
+        interval_seconds: row.get("interval_seconds"),
+        last_rotated_at: row.get("last_rotated_at"),
+        enabled: row.get::<i64, _>("enabled") != 0,
+        created_at: parse_time(&row.get::<String, _>("created_at")),
+        updated_at: parse_time(&row.get::<String, _>("updated_at")),
+    }
+}
+
+fn rotation_job_from_row(row: &sqlx::sqlite::SqliteRow) -> RotationJobRow {
+    RotationJobRow {
+        id: row.get("id"),
+        policy_id: row.get("policy_id"),
+        organization_id: row.get("organization_id"),
+        target_kind: row.get("target_kind"),
+        target_id: row.get("target_id"),
+        state: row.get("state"),
+        detail: row.get("detail"),
+        created_at: parse_time(&row.get::<String, _>("created_at")),
+        updated_at: parse_time(&row.get::<String, _>("updated_at")),
+    }
+}
+
+const ROTATION_POLICY_COLUMNS: &str = "id, organization_id, target_kind, target_id, \
+     interval_seconds, last_rotated_at, enabled, created_at, updated_at";
+
+const ROTATION_JOB_COLUMNS: &str = "id, policy_id, organization_id, target_kind, target_id, \
+     state, detail, created_at, updated_at";
+
+/// Insert-or-update by policy id. `last_rotated_at` and `created_at` are
+/// preserved on update — only the schedule shape changes.
+pub async fn upsert_rotation_policy(pool: &SqlitePool, row: &RotationPolicyRow) -> Result<()> {
+    ensure_rotation_schema(pool).await?;
+    sqlx::query(
+        "INSERT INTO rotation_policies (id, organization_id, target_kind, target_id, \
+         interval_seconds, last_rotated_at, enabled, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) \
+         ON CONFLICT (id) DO UPDATE SET target_kind = excluded.target_kind, \
+         target_id = excluded.target_id, interval_seconds = excluded.interval_seconds, \
+         enabled = excluded.enabled, updated_at = excluded.updated_at",
+    )
+    .bind(&row.id)
+    .bind(&row.organization_id)
+    .bind(&row.target_kind)
+    .bind(&row.target_id)
+    .bind(row.interval_seconds)
+    .bind(&row.last_rotated_at)
+    .bind(i64::from(row.enabled))
+    .bind(row.created_at.to_rfc3339())
+    .bind(row.updated_at.to_rfc3339())
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn list_rotation_policies(
+    pool: &SqlitePool,
+    organization_id: &str,
+) -> Result<Vec<RotationPolicyRow>> {
+    ensure_rotation_schema(pool).await?;
+    // ROTATION_POLICY_COLUMNS is a compile-time constant; organization_id is bound.
+    // ast-grep-ignore: sql-format-injection
+    let rows = sqlx::query(&format!(
+        "SELECT {ROTATION_POLICY_COLUMNS} FROM rotation_policies \
+         WHERE organization_id = ? ORDER BY created_at ASC, id ASC"
+    ))
+    .bind(organization_id)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.iter().map(rotation_policy_from_row).collect())
+}
+
+/// All enabled policies across every organization — the scheduler's read.
+pub async fn list_enabled_rotation_policies(pool: &SqlitePool) -> Result<Vec<RotationPolicyRow>> {
+    ensure_rotation_schema(pool).await?;
+    // ROTATION_POLICY_COLUMNS is a compile-time constant; no data interpolated.
+    // ast-grep-ignore: sql-format-injection
+    let rows = sqlx::query(&format!(
+        "SELECT {ROTATION_POLICY_COLUMNS} FROM rotation_policies \
+         WHERE enabled = 1 ORDER BY created_at ASC, id ASC"
+    ))
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.iter().map(rotation_policy_from_row).collect())
+}
+
+pub async fn get_rotation_policy(pool: &SqlitePool, id: &str) -> Result<Option<RotationPolicyRow>> {
+    ensure_rotation_schema(pool).await?;
+    // ROTATION_POLICY_COLUMNS is a compile-time constant; only `id` is bound data.
+    // ast-grep-ignore: sql-format-injection
+    let row = sqlx::query(&format!(
+        "SELECT {ROTATION_POLICY_COLUMNS} FROM rotation_policies WHERE id = ?"
+    ))
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.as_ref().map(rotation_policy_from_row))
+}
+
+pub async fn set_policy_last_rotated(
+    pool: &SqlitePool,
+    id: &str,
+    last_rotated_at: &str,
+) -> Result<()> {
+    ensure_rotation_schema(pool).await?;
+    sqlx::query("UPDATE rotation_policies SET last_rotated_at = ?, updated_at = ? WHERE id = ?")
+        .bind(last_rotated_at)
+        .bind(Utc::now().to_rfc3339())
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn insert_rotation_job(pool: &SqlitePool, row: &RotationJobRow) -> Result<()> {
+    ensure_rotation_schema(pool).await?;
+    sqlx::query(
+        "INSERT INTO rotation_jobs (id, policy_id, organization_id, target_kind, target_id, \
+         state, detail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&row.id)
+    .bind(&row.policy_id)
+    .bind(&row.organization_id)
+    .bind(&row.target_kind)
+    .bind(&row.target_id)
+    .bind(&row.state)
+    .bind(&row.detail)
+    .bind(row.created_at.to_rfc3339())
+    .bind(row.updated_at.to_rfc3339())
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Persist one state transition. `detail = None` keeps the previously recorded
+/// detail (e.g. `verify_skipped` survives the transitions after it).
+pub async fn update_rotation_job_state(
+    pool: &SqlitePool,
+    id: &str,
+    state: &str,
+    detail: Option<&str>,
+) -> Result<()> {
+    ensure_rotation_schema(pool).await?;
+    sqlx::query(
+        "UPDATE rotation_jobs SET state = ?, detail = COALESCE(?, detail), updated_at = ? \
+         WHERE id = ?",
+    )
+    .bind(state)
+    .bind(detail)
+    .bind(Utc::now().to_rfc3339())
+    .bind(id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn list_rotation_jobs(
+    pool: &SqlitePool,
+    organization_id: &str,
+    limit: i64,
+) -> Result<Vec<RotationJobRow>> {
+    ensure_rotation_schema(pool).await?;
+    // ROTATION_JOB_COLUMNS is a compile-time constant; data values are bound.
+    // ast-grep-ignore: sql-format-injection
+    let rows = sqlx::query(&format!(
+        "SELECT {ROTATION_JOB_COLUMNS} FROM rotation_jobs \
+         WHERE organization_id = ? ORDER BY created_at DESC, id DESC LIMIT ?"
+    ))
+    .bind(organization_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.iter().map(rotation_job_from_row).collect())
+}
+
+pub async fn get_rotation_job(pool: &SqlitePool, id: &str) -> Result<Option<RotationJobRow>> {
+    ensure_rotation_schema(pool).await?;
+    // ROTATION_JOB_COLUMNS is a compile-time constant; only `id` is bound data.
+    // ast-grep-ignore: sql-format-injection
+    let row = sqlx::query(&format!(
+        "SELECT {ROTATION_JOB_COLUMNS} FROM rotation_jobs WHERE id = ?"
+    ))
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.as_ref().map(rotation_job_from_row))
+}
+
+/// Dependents-updated step of a connection rotation: wake the sync actor for
+/// every config that has a sync target on the rotated connection. One
+/// `sync.config.dirty` row per distinct config, all in one transaction.
+/// Returns how many configs were dirtied.
+pub async fn append_config_sync_dirty_for_connection(
+    pool: &SqlitePool,
+    organization_id: &str,
+    connection_id: &str,
+) -> Result<usize> {
+    ensure_sync_targets_schema(pool).await?;
+    ensure_secret_configs_schema(pool).await?;
+    let rows = sqlx::query(
+        "SELECT DISTINCT project_id, config_id FROM sync_targets \
+         WHERE organization_id = ? AND connection_id = ?",
+    )
+    .bind(organization_id)
+    .bind(connection_id)
+    .fetch_all(pool)
+    .await?;
+    if rows.is_empty() {
+        return Ok(0);
+    }
+    let mut tx = pool.begin().await?;
+    for row in &rows {
+        append_config_sync_outbox(
+            &mut tx,
+            "sync.config.dirty",
+            organization_id,
+            &row.get::<String, _>("project_id"),
+            &row.get::<String, _>("config_id"),
+        )
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(rows.len())
+}
