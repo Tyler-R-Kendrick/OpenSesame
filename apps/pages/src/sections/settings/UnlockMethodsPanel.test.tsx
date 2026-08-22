@@ -1,9 +1,11 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { WebauthnHostCheck } from "../../lib/vault/unlock-methods.js";
 
-const vault = vi.hoisted(() => ({
+const vault: { current: { header: JsonObject | null } } = vi.hoisted(() => ({
   current: { header: null },
 }));
 const store = vi.hoisted(() => ({
@@ -19,16 +21,21 @@ const store = vi.hoisted(() => ({
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {useVault: () => vault.current,
-  useVaultStore: () => store});
+Object.assign(vaultHooksSeams, {
+  useVault: () => vault.current,
+  useVaultStore: () => store,
+});
 
 const listAvailableUnlockMethods = vi.hoisted(() => vi.fn(() => ["password"]));
 const checkWebauthnHost = vi.hoisted(() =>
-  vi.fn(() => ({
-    ok: true,
-    reason: "",
-    fixUrl: null,
-  })),
+  vi.fn(
+    (): WebauthnHostCheck => ({
+      ok: true,
+      hostname: "localhost",
+      reason: "",
+      fixUrl: null,
+    }),
+  ),
 );
 const describeWebauthnError = vi.hoisted(() =>
   vi.fn((error: { message?: string }) =>
@@ -46,11 +53,11 @@ Object.assign(unlockMethodsSeams, {
 
 import { passwordSeams } from "../../lib/vault/password.js";
 const originalPasswordSeams = { ...passwordSeams };
-Object.assign(passwordSeams, {estimateStrength: (password: string) => ({
+Object.assign(passwordSeams, {
+  estimateStrength: (password: string) => ({
     score: password.length >= 12 ? 3 : 1,
-  }),});
-
-
+  }),
+});
 
 import { qrSeams } from "../../components/QrCode.js";
 const originalQrSeams = { ...qrSeams };
@@ -79,7 +86,12 @@ describe("UnlockMethodsPanel", () => {
   beforeEach(() => {
     vault.current = { header: { wrap: {}, kdf: {}, unlocks: {} } };
     listAvailableUnlockMethods.mockReturnValue(["password"]);
-    checkWebauthnHost.mockReturnValue({ ok: true, reason: "", fixUrl: null });
+    checkWebauthnHost.mockReturnValue({
+      ok: true,
+      hostname: "localhost",
+      reason: "",
+      fixUrl: null,
+    });
     store.enrollPasskey.mockResolvedValue(undefined);
     store.removePasskey.mockResolvedValue(undefined);
     store.enrollPin.mockResolvedValue(undefined);
@@ -117,10 +129,7 @@ describe("UnlockMethodsPanel", () => {
     expect((await screen.findByRole("status")).textContent).toMatch(
       /PIN unlock enrolled/,
     );
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-    expect((screen.getByLabelText("New PIN") as HTMLInputElement).value).toBe(
-      "",
-    );
+    expect(screen.getByLabelText<HTMLInputElement>("New PIN").value).toBe("");
   });
 
   it("rejects mismatched PINs", async () => {
@@ -131,8 +140,8 @@ describe("UnlockMethodsPanel", () => {
     // The submit button is disabled on mismatch; submit the form directly.
     const form = screen.getByLabelText("New PIN").closest("form");
     expect(form).toBeTruthy();
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-    fireEvent.submit(form as HTMLFormElement);
+    if (!(form instanceof HTMLFormElement)) throw new Error("form not found");
+    fireEvent.submit(form);
     expect((await screen.findByRole("alert")).textContent).toMatch(
       /PINs do not match/,
     );
@@ -144,9 +153,8 @@ describe("UnlockMethodsPanel", () => {
     render(<UnlockMethodsPanel />);
     await userEvent.type(screen.getByLabelText("New PIN"), "1234");
     await userEvent.type(screen.getByLabelText("Confirm PIN"), "1234");
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     expect(
-      (screen.getByRole("button", { name: /Enroll PIN/i }) as HTMLButtonElement)
+      screen.getByRole<HTMLButtonElement>("button", { name: /Enroll PIN/i })
         .disabled,
     ).toBe(true);
   });
@@ -194,10 +202,8 @@ describe("UnlockMethodsPanel", () => {
       screen.getByLabelText("Confirm master password"),
       "correct horse staples",
     );
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-    const form = screen
-      .getByLabelText("New master password")
-      .closest("form") as HTMLFormElement;
+    const form = screen.getByLabelText("New master password").closest("form");
+    if (!(form instanceof HTMLFormElement)) throw new Error("form not found");
     fireEvent.submit(form);
     expect((await screen.findByRole("alert")).textContent).toMatch(
       /passwords do not match/,
@@ -213,13 +219,10 @@ describe("UnlockMethodsPanel", () => {
       screen.getByLabelText("Confirm master password"),
       "short",
     );
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     expect(
-      (
-        screen.getByRole("button", {
-          name: /Enroll password/i,
-        }) as HTMLButtonElement
-      ).disabled,
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: /Enroll password/i,
+      }).disabled,
     ).toBe(true);
   });
 
@@ -241,9 +244,11 @@ describe("UnlockMethodsPanel", () => {
     listAvailableUnlockMethods.mockReturnValue(["password", "passkey"]);
     render(<UnlockMethodsPanel />);
     expect(screen.getByText(/^Enrolled\. Platform authenticator/)).toBeTruthy();
-    const remove = screen.getAllByRole("button", { name: /^Remove$/i })[0];
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-    await userEvent.click(remove as HTMLElement);
+    const remove = screen.getAllByRole<HTMLButtonElement>("button", {
+      name: /^Remove$/i,
+    })[0];
+    if (!remove) throw new Error("remove button not found");
+    await userEvent.click(remove);
     expect(store.removePasskey).toHaveBeenCalled();
     expect((await screen.findByRole("status")).textContent).toMatch(
       /Passkey unlock removed/,
@@ -256,35 +261,34 @@ describe("UnlockMethodsPanel", () => {
     };
     listAvailableUnlockMethods.mockReturnValue(["passkey"]);
     render(<UnlockMethodsPanel />);
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-    const remove = screen.getAllByRole("button", {
+    const remove = screen.getAllByRole<HTMLButtonElement>("button", {
       name: /^Remove$/i,
-    })[0] as HTMLButtonElement;
+    })[0];
+    if (!remove) throw new Error("remove button not found");
     expect(remove.disabled).toBe(true);
   });
 
   it("warns when the host cannot do WebAuthn and offers no fix", () => {
     checkWebauthnHost.mockReturnValue({
       ok: false,
+      hostname: "example.test",
       reason: "WebAuthn is unavailable here.",
       fixUrl: null,
     });
     render(<UnlockMethodsPanel />);
     expect(screen.getByText(/WebAuthn is unavailable here/)).toBeTruthy();
     expect(screen.getByText(/Use a DNS hostname/)).toBeTruthy();
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     expect(
-      (
-        screen.getByRole("button", {
-          name: /Enroll passkey/i,
-        }) as HTMLButtonElement
-      ).disabled,
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: /Enroll passkey/i,
+      }).disabled,
     ).toBe(true);
   });
 
   it("offers a localhost fix when WebAuthn needs a DNS hostname", async () => {
     checkWebauthnHost.mockReturnValue({
       ok: false,
+      hostname: "127.0.0.1",
       reason: "Passkeys need a secure DNS hostname.",
       fixUrl: "http://localhost:5180/settings",
     });
@@ -301,6 +305,7 @@ describe("UnlockMethodsPanel", () => {
   it("shows the fallback error when there is no fix URL", async () => {
     checkWebauthnHost.mockReturnValue({
       ok: false,
+      hostname: "example.test",
       reason: "WebAuthn is unavailable here.",
       fixUrl: null,
     });
@@ -322,6 +327,7 @@ describe("UnlockMethodsPanel", () => {
   it("ignores the enroll-passkey param when the host cannot do WebAuthn", () => {
     checkWebauthnHost.mockReturnValue({
       ok: false,
+      hostname: "example.test",
       reason: "no webauthn",
       fixUrl: null,
     });
@@ -360,9 +366,11 @@ describe("UnlockMethodsPanel", () => {
   it("removes an enrolled PIN", async () => {
     pinHeader();
     render(<UnlockMethodsPanel />);
-    const remove = screen.getAllByRole("button", { name: /^Remove$/i })[0];
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-    await userEvent.click(remove as HTMLElement);
+    const remove = screen.getAllByRole<HTMLButtonElement>("button", {
+      name: /^Remove$/i,
+    })[0];
+    if (!remove) throw new Error("remove button not found");
+    await userEvent.click(remove);
     expect(store.removePin).toHaveBeenCalled();
     expect((await screen.findByRole("status")).textContent).toMatch(
       /PIN unlock removed/,
@@ -372,9 +380,11 @@ describe("UnlockMethodsPanel", () => {
   it("removes an enrolled password", async () => {
     pinHeader();
     render(<UnlockMethodsPanel />);
-    const remove = screen.getAllByRole("button", { name: /^Remove$/i })[1];
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-    await userEvent.click(remove as HTMLElement);
+    const remove = screen.getAllByRole<HTMLButtonElement>("button", {
+      name: /^Remove$/i,
+    })[1];
+    if (!remove) throw new Error("remove button not found");
+    await userEvent.click(remove);
     expect(store.removePassword).toHaveBeenCalled();
     expect((await screen.findByRole("status")).textContent).toMatch(
       /Password unlock removed/,
