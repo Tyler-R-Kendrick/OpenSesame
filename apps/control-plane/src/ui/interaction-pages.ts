@@ -151,18 +151,23 @@ function pageShell(title: string, body: string): string {
 export function renderLoginPage(model: LoginPageModel): string {
   const csrf = escapeHtml(model.csrfToken);
   const action = escapeHtml(model.loginAction);
+  // Exactly one primary action per page. When a provider is on offer it holds
+  // that slot (ADR 0033 §4: identity before an anonymous principal), so the
+  // session action steps down to secondary rather than competing with it.
+  const hasFederated = (model.federated?.upstreams.length ?? 0) > 0;
+  const sessionButtonClass = hasFederated ? "btn" : "btn btn-primary";
   const continueBlock = model.principalId
     ? `<p>Signed in as <code>${escapeHtml(model.principalId)}</code>.</p>
        <form method="post" action="${action}">
          <input type="hidden" name="_csrf" value="${csrf}"/>
          <input type="hidden" name="action" value="continue"/>
-         <button type="submit" class="btn btn-primary">Continue</button>
+         <button type="submit" class="${sessionButtonClass}">Continue</button>
        </form>`
     : `<p>No session yet. Start a session to authorize this application.</p>
        <form method="post" action="${action}">
          <input type="hidden" name="_csrf" value="${csrf}"/>
          <input type="hidden" name="action" value="start"/>
-         <button type="submit" class="btn btn-primary">Start a session</button>
+         <button type="submit" class="${sessionButtonClass}">Start a session</button>
        </form>`;
 
   return pageShell(
@@ -201,7 +206,7 @@ function renderFederatedBlock(model: LoginPageModel): string {
       return `<form method="post" action="${startAction}">
          <input type="hidden" name="_csrf" value="${csrf}"/>
          <input type="hidden" name="issuer" value="${escapeHtml(upstream.issuer)}"/>
-         <button type="submit" class="btn ${primary ? "btn-primary" : ""}">Sign in with ${escapeHtml(upstream.label)}</button>
+         <button type="submit" class="${primary ? "btn btn-primary" : "btn"}">Sign in with ${escapeHtml(upstream.label)}</button>
        </form>`;
     })
     .join("\n");
