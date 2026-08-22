@@ -10,10 +10,20 @@ import {
   type JsonObject,
   type OutboxEvent,
   type Principal,
+  type Project,
+  type ProjectMembership,
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
-import { and, desc, eq, isNull, notExists, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  getTableColumns,
+  isNull,
+  notExists,
+  sql,
+} from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type postgres from "postgres";
 import * as schema from "../schema/index.js";
@@ -24,15 +34,20 @@ import {
   type ClaimItemRepository,
   type ClaimSessionRepository,
   ConflictError,
+  type EnsurePersonalProjectResult,
   type ExternalIdentityRepository,
   type NewOutboxEvent,
   NotFoundError,
   OUTBOX_CLAIM_HOLD_MS,
   type OutboxRepository,
   type PrincipalRepository,
+  type ProjectMembershipStore,
+  type ProjectStore,
+  type ProjectStores,
   type Repositories,
   type TransactionFn,
   type UnitOfWork,
+  buildPersonalProject,
   outboxClaimToken,
   outboxHoldActive,
 } from "./interfaces.js";
@@ -918,6 +933,256 @@ export class PostgresRepositories implements Repositories {
 
 export function createPostgresRepositories(db: Database): PostgresRepositories {
   return new PostgresRepositories(db);
+}
+
+function mapProject(row: typeof schema.projects.$inferSelect): Project {
+  return {
+    id: row.id,
+    kind: overlapCast(row.kind),
+    slug: row.slug,
+    displayName: row.displayName,
+    state: overlapCast(row.state),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    ...(row.organizationId
+      ? { organizationId: row.organizationId }
+      : undefined),
+    ...(row.ownerPrincipalId
+      ? { ownerPrincipalId: row.ownerPrincipalId }
+      : undefined),
+    ...(row.expiresAt ? { expiresAt: row.expiresAt } : undefined),
+    ...(row.claimPolicyId ? { claimPolicyId: row.claimPolicyId } : undefined),
+    ...(row.sealedStoreTombName
+      ? { sealedStoreTombName: row.sealedStoreTombName }
+      : undefined),
+    ...(row.pagesVaultFolderId
+      ? { pagesVaultFolderId: row.pagesVaultFolderId }
+      : undefined),
+  };
+}
+
+function projectRowValues(project: Project) {
+  return {
+    id: project.id,
+    kind: project.kind,
+    organizationId: project.organizationId ?? null,
+    ownerPrincipalId: project.ownerPrincipalId ?? null,
+    slug: project.slug,
+    displayName: project.displayName,
+    state: project.state,
+    expiresAt: project.expiresAt ?? null,
+    claimPolicyId: project.claimPolicyId ?? null,
+    sealedStoreTombName: project.sealedStoreTombName ?? null,
+    pagesVaultFolderId: project.pagesVaultFolderId ?? null,
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+  };
+}
+
+function mapMembership(
+  row: typeof schema.projectMemberships.$inferSelect,
+): ProjectMembership {
+  return {
+    projectId: row.projectId,
+    principalId: row.principalId,
+    role: overlapCast(row.role),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+/** Postgres project rows behind the `ProjectStore` interface. */
+export class PostgresProjectStore implements ProjectStore {
+  constructor(private readonly db: Database) {}
+
+  async get(id: string): Promise<Project | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(schema.projects)
+      .where(eq(schema.projects.id, id))
+      .limit(1);
+    return row ? mapProject(row) : undefined;
+  }
+
+  /** Full-row upsert — the durable equivalent of the former Map `set`. */
+  async set(id: string, project: Project): Promise<void> {
+    const values = projectRowValues({ ...project, id });
+    const { id: _id, ...update } = values;
+    await this.db
+      .insert(schema.projects)
+      .values(values)
+      .onConflictDoUpdate({ target: schema.projects.id, set: update });
+  }
+
+  async listByOwner(ownerPrincipalId: string): Promise<Project[]> {
+    const rows = await this.db
+      .select()
+      .from(schema.projects)
+      .where(eq(schema.projects.ownerPrincipalId, ownerPrincipalId));
+    return rows.map(mapProject);
+  }
+
+  async findPersonalByOwner(
+    ownerPrincipalId: string,
+  ): Promise<Project | undefined> {
+    const rows = await this.db
+      .select()
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.kind, "personal"),
+          eq(schema.projects.ownerPrincipalId, ownerPrincipalId),
+        ),
+      );
+    const live = rows.find(
+      (row) => row.state !== "deleted" && row.state !== "deleting",
+    );
+    return live ? mapProject(live) : undefined;
+  }
+
+  async ensurePersonal(
+    principalId: string,
+    organizationId?: string,
+    now: Date = new Date(),
+  ): Promise<EnsurePersonalProjectResult> {
+    const candidate = buildPersonalProject(principalId, now, organizationId);
+    // One statement, racing sessions converge: the INSERT targets the
+    // `projects_personal_owner_uidx` partial unique index, and on conflict a
+    // no-op DO UPDATE lets RETURNING hand back the row that already won.
+    // `xmax = 0` distinguishes a fresh insert from the pre-existing row.
+    const [row] = await this.db
+      .insert(schema.projects)
+      .values(projectRowValues(candidate))
+      .onConflictDoUpdate({
+        target: schema.projects.ownerPrincipalId,
+        targetWhere: sql`kind = 'personal'`,
+        set: { updatedAt: sql`${schema.projects.updatedAt}` },
+      })
+      .returning({
+        ...getTableColumns(schema.projects),
+        inserted: sql<boolean>`(xmax = 0)`,
+      });
+    if (!row) throw new Error("ensurePersonal returned no row");
+    const project = mapProject(row);
+    if (row.inserted) {
+      await this.db
+        .insert(schema.projectMemberships)
+        .values({
+          projectId: project.id,
+          principalId,
+          role: "owner",
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoNothing();
+    }
+    return { project, created: Boolean(row.inserted) };
+  }
+}
+
+/** Postgres membership rows behind the `ProjectMembershipStore` interface. */
+export class PostgresProjectMembershipStore implements ProjectMembershipStore {
+  constructor(private readonly db: Database) {}
+
+  async find(
+    projectId: string,
+    principalId: string,
+  ): Promise<ProjectMembership | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(schema.projectMemberships)
+      .where(
+        and(
+          eq(schema.projectMemberships.projectId, projectId),
+          eq(schema.projectMemberships.principalId, principalId),
+        ),
+      )
+      .limit(1);
+    return row ? mapMembership(row) : undefined;
+  }
+
+  async upsert(membership: ProjectMembership): Promise<ProjectMembership> {
+    const [row] = await this.db
+      .insert(schema.projectMemberships)
+      .values({
+        projectId: membership.projectId,
+        principalId: membership.principalId,
+        role: membership.role,
+        createdAt: membership.createdAt,
+        updatedAt: membership.updatedAt,
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.projectMemberships.projectId,
+          schema.projectMemberships.principalId,
+        ],
+        set: {
+          role: membership.role,
+          createdAt: membership.createdAt,
+          updatedAt: membership.updatedAt,
+        },
+      })
+      .returning();
+    if (!row) throw new Error("upsert project membership returned no row");
+    return mapMembership(row);
+  }
+
+  async remove(projectId: string, principalId: string): Promise<boolean> {
+    const rows = await this.db
+      .delete(schema.projectMemberships)
+      .where(
+        and(
+          eq(schema.projectMemberships.projectId, projectId),
+          eq(schema.projectMemberships.principalId, principalId),
+        ),
+      )
+      .returning({ projectId: schema.projectMemberships.projectId });
+    return rows.length > 0;
+  }
+
+  async removeByProject(projectId: string): Promise<number> {
+    const rows = await this.db
+      .delete(schema.projectMemberships)
+      .where(eq(schema.projectMemberships.projectId, projectId))
+      .returning({ projectId: schema.projectMemberships.projectId });
+    return rows.length;
+  }
+
+  async listByProject(projectId: string): Promise<ProjectMembership[]> {
+    const rows = await this.db
+      .select()
+      .from(schema.projectMemberships)
+      .where(eq(schema.projectMemberships.projectId, projectId));
+    return rows.map(mapMembership);
+  }
+
+  async listByPrincipal(principalId: string): Promise<ProjectMembership[]> {
+    const rows = await this.db
+      .select()
+      .from(schema.projectMemberships)
+      .where(eq(schema.projectMemberships.principalId, principalId));
+    return rows.map(mapMembership);
+  }
+
+  async countOwners(projectId: string): Promise<number> {
+    const rows = await this.db
+      .select({ principalId: schema.projectMemberships.principalId })
+      .from(schema.projectMemberships)
+      .where(
+        and(
+          eq(schema.projectMemberships.projectId, projectId),
+          eq(schema.projectMemberships.role, "owner"),
+        ),
+      );
+    return rows.length;
+  }
+}
+
+export function createPostgresProjectStores(db: Database): ProjectStores {
+  return {
+    projects: new PostgresProjectStore(db),
+    projectMemberships: new PostgresProjectMembershipStore(db),
+  };
 }
 
 export type { postgres };

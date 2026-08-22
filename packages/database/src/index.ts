@@ -7,7 +7,10 @@ export {
   createMemoryProjectStores,
 } from "./repos/memory.js";
 export {
+  PostgresProjectMembershipStore,
+  PostgresProjectStore,
   PostgresRepositories,
+  createPostgresProjectStores,
   createPostgresRepositories,
   type Database,
 } from "./repos/postgres.js";
