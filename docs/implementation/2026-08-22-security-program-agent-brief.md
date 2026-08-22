@@ -28,6 +28,29 @@ subagents:
    client-side and opt-in, plus a design ADR for server-side email breach
    monitoring.
 
+## 0.1 Already landed — do not redo
+
+These were found while drafting this brief and fixed on the branch stack
+before it was handed over. Verify each is present, then treat it as done:
+
+- **control-plane TOTP enrollment URI** now emits an RFC 4648 base32 secret
+  (`base32Encode` in `apps/control-plane/src/routes/mfa.ts`), with a fence in
+  `src/__tests__/mfa-totp-uri.test.ts`. T5 below is complete.
+- **sealed-store commit subjects** are name-free (`COMMIT_ADD`/`COMMIT_EDIT`/
+  `COMMIT_REMOVE`/`COMMIT_REBIND` in `crates/sealed-store/src/store.rs`), with
+  a plant-name fence over `git log`. The §3.4 half of M1 is complete; the
+  blinded-path/AD work (§3.3) is NOT.
+- **`storePathToSyncBlobId` is deleted** along with its tests. M5 is complete.
+- **`contract_envelopes_are_ciphertext_only`** is renamed to
+  `contract_envelope_payload_is_ciphertext_only`, and a companion
+  `characterize_associated_data_is_cleartext_today` pins the cleartext AD with
+  distinctive sentinels. When §3.3 lands, invert that characterization test
+  into an absence assertion rather than deleting it.
+- **`scripts/jazzer-gate.sh`** distinguishes a coverage-guided pass from the
+  random-input fallback and honors `JAZZER_REQUIRE_NATIVE=1`.
+- **The vendored anti-slop suites** under `tools/oxlint/anti-slop` now run via
+  `packages/testing/src/anti-slop-rules.test.ts`.
+
 ## 1. Repository law (binding on every subagent)
 
 - Toolchain: Node ≥ 22, pnpm 9.15.0 via Corepack, Rust pinned `1.88`
@@ -168,9 +191,14 @@ Two independent crypto stacks exist. Do not conflate them:
   Dead code (referenced only by `store-sync.test.ts` ≈96). Remove it.
 - Audit/observability: `packages/audit/src/redact.ts` line ≈11 — metadata
   allowlist ADMITS `path`, `keyNames`, `slug`, `environment`, `issuer`,
-  `subject` (store paths and key names land plaintext in Postgres
-  `audit_events.metadata` and ride `outbox_events` → NATS → worker logs via
-  `apps/worker/src/rotation.ts` ≈88 `RotationJobView.storePath`).
+  `subject`. Read these carefully before treating any of them as a leak:
+  `path` sits beside `method` and `statusCode`, so it is the HTTP request
+  path, not a secret store path — digesting it would cost audit legibility
+  for no confidentiality gain. `keyNames` is the real candidate (secret key
+  names, admitted by the string-array branch at ≈110-116), together with
+  `outbox_events.payload.store_path`, which rides → NATS → worker logs via
+  `apps/worker/src/rotation.ts` ≈88 `RotationJobView.storePath`. Confirm
+  each value's provenance at the call site before changing the allowlist.
   Blinding primitives that already exist: `packages/os-domain/src/crypto/digest.ts`
   (`sha256Hex`, `canonicalize`) and `packages/os-domain/src/crypto/claim-token.ts`
   (`hmacDigest` — peppered, purpose-domain-separated).
@@ -317,7 +345,7 @@ payload — verify by reading the restore/consumer code first.
 
 ### 3.6 Audit metadata digests
 
-In `packages/audit/src/redact.ts`, `path` and `keyNames` values no longer
+In `packages/audit/src/redact.ts`, `keyNames` values no longer
 pass verbatim: each value V becomes `hmac:<first 16 hex of digest>` using the
 existing peppered `hmacDigest` pattern from
 `packages/os-domain/src/crypto/claim-token.ts` with purpose string
@@ -644,7 +672,7 @@ sites; if a producer file is owned by another task — none are expected —
 report to V1 instead of editing).
 Implement §3.6. Preserve event-correlation semantics: the digest is
 deterministic per pepper, so "same secret, later event" still correlates.
-Tests: `path`/`keyNames` inputs no longer appear verbatim in redacted
+Tests: `keyNames` inputs no longer appear verbatim in redacted
 output; digests are stable within a pepper and change across peppers; the
 worker's rotation view carries digests only (plant `XZQPATH/name`, assert
 absent from the view and from log lines).
