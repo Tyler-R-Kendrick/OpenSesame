@@ -18,6 +18,8 @@ import { startFixedPortUpstream } from "./mock-upstream-daemon.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PACKAGE_DIR = path.resolve(__dirname, "..");
+const hostPort = process.env.MOCK_HOST_API_PORT ?? "8787";
+const daemonPort = process.env.MOCK_DAEMON_PORT ?? "18790";
 
 async function main() {
   let upstream;
@@ -26,15 +28,14 @@ async function main() {
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.error(
-      `\nredteam: could not start the fixture Host API / daemon on 127.0.0.1:8787 and 127.0.0.1:18790 (${message}).\nThe prompt-injection test class needs those ports free to stand in for a real Host API / daemon. Stop whatever is already listening there (a real 'pnpm dev', another redteam run, etc.) and try again.\n\nThe other three test classes (confused-deputy, credential-exfiltration, malformed-input) don't depend on this stub and need no model credentials either. You can still run the full suite with 'pnpm --filter @opensesame/redteam redteam:eval' once the ports are free — or accept that only the prompt-injection cases will fail with a connection error, which is expected without this stub.\n`,
+      `\nredteam: could not start the fixture Host API / daemon on 127.0.0.1:${hostPort} and 127.0.0.1:${daemonPort} (${message}).\nThe prompt-injection test class needs those ports free to stand in for a real Host API / daemon. Stop whatever is already listening there (a real 'pnpm dev', another redteam run, etc.) and try again.\n\nThe other three test classes (confused-deputy, credential-exfiltration, malformed-input) don't depend on this stub and need no model credentials either. You can still run the full suite with 'pnpm --filter @opensesame/redteam redteam:eval' once the ports are free — or accept that only the prompt-injection cases will fail with a connection error, which is expected without this stub.\n`,
     );
     process.exitCode = 1;
     return;
   }
 
   console.error(
-    "redteam: fixture Host API / daemon up on 127.0.0.1:8787 and 127.0.0.1:18790; " +
-      "running promptfoo eval...",
+    `redteam: fixture Host API / daemon up on 127.0.0.1:${hostPort} and 127.0.0.1:${daemonPort}; running promptfoo eval...`,
   );
 
   const child = spawn(
