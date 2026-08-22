@@ -7,6 +7,11 @@
   "workspaces": [],
   "packageManager": "pnpm@9.15.4",
   "dependencies": {
-    "deepsec": "2.3.5"
+    "deepsec": "2.3.6"
+  },
+  "pnpm": {
+    "overrides": {
+      "@earendil-works/pi-coding-agent@0.81.1>undici": "8.9.0"
+    }
   }
 }
