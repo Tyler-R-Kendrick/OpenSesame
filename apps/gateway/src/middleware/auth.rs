@@ -234,6 +234,47 @@ impl Caller {
     }
 }
 
+pub(crate) const OPERATOR_ORGANIZATION_HEADER: &str = "x-opensesame-organization";
+
+/// Resolve the caller's organization without allowing a session to select a
+/// different tenant. Operators may select an explicit canonical organization.
+#[allow(clippy::result_large_err)]
+pub fn resolve_caller_organization(
+    st: &AppState,
+    who: &Caller,
+    headers: &axum::http::HeaderMap,
+) -> Result<opensesame_domain::OrganizationId, Response> {
+    let selected = headers.get(OPERATOR_ORGANIZATION_HEADER);
+    match who {
+        Caller::Operator => match selected {
+            Some(raw) => match raw.to_str().ok().and_then(|value| {
+                opensesame_domain::OrganizationId::parse(value)
+                    .ok()
+                    .filter(|id| id.to_string() == value)
+            }) {
+                Some(id) => Ok(id),
+                None => Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error":"invalid_request","hint":"x-opensesame-organization must be a canonical organization id"})),
+                )
+                    .into_response()),
+            },
+            None => Ok(who.organization(st.connection_organization)),
+        },
+        Caller::Session { .. } => {
+            if selected.is_some() {
+                Err((
+                    StatusCode::FORBIDDEN,
+                    Json(json!({"error":"forbidden","hint":"sessions cannot select an organization header"})),
+                )
+                    .into_response())
+            } else {
+                Ok(who.organization(st.connection_organization))
+            }
+        }
+    }
+}
+
 /// Resolves the caller once: session first (fenced), operator second (unfenced).
 #[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
 pub fn resolve_caller(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, Response> {

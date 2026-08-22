@@ -39,8 +39,12 @@ const issueCertificateFromHost = vi.hoisted(() =>
       dnsNames?: string[];
       ipAddrs?: string[];
       ttlHours?: number;
+      idempotencyKey?: string;
     }) => Promise<IssuedCertificate>
   >(),
+);
+const acknowledgeCertificateDelivery = vi.hoisted(() =>
+  vi.fn<(deliveryId: string) => Promise<void>>(),
 );
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
@@ -56,7 +60,10 @@ const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, { compileSecretToHost });
 
 import { certsSeams } from "../../lib/certs.js";
-Object.assign(certsSeams, { issueCertificate: issueCertificateFromHost });
+Object.assign(certsSeams, {
+  issueCertificate: issueCertificateFromHost,
+  acknowledgeCertificateDelivery,
+});
 
 import { ItemEditor } from "./ItemEditor.js";
 
@@ -132,6 +139,7 @@ const issuedCertificate: IssuedCertificate = {
   dnsNames: ["barber.local", "www.barber.local"],
   notBefore: "2026-08-21T00:00:00Z",
   notAfter: "2026-08-22T00:00:00Z",
+  deliveryId: "certificate-request:one",
 };
 
 function inputByLabel(label: string | RegExp): HTMLInputElement {
@@ -154,6 +162,7 @@ describe("ItemEditor", () => {
     saveItem.mockResolvedValue(undefined);
     compileSecretToHost.mockResolvedValue(undefined);
     issueCertificateFromHost.mockResolvedValue(issuedCertificate);
+    acknowledgeCertificateDelivery.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -203,11 +212,18 @@ describe("ItemEditor", () => {
     );
 
     await waitFor(() => expect(saveItem).toHaveBeenCalledOnce());
+    expect(acknowledgeCertificateDelivery).toHaveBeenCalledWith(
+      "certificate-request:one",
+    );
+    expect(saveItem.mock.invocationCallOrder[0]).toBeLessThan(
+      acknowledgeCertificateDelivery.mock.invocationCallOrder[0] ?? 0,
+    );
     expect(issueCertificateFromHost).toHaveBeenCalledWith({
       commonName: "barber.local",
       dnsNames: ["barber.local", "www.barber.local"],
       ipAddrs: ["127.0.0.1"],
       ttlHours: 24,
+      idempotencyKey: expect.any(String),
     });
     expect(savedItem()).toMatchObject({
       kind: "certificate",
@@ -288,6 +304,7 @@ describe("ItemEditor", () => {
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalledTimes(2));
     expect(issueCertificateFromHost).toHaveBeenCalledOnce();
+    expect(acknowledgeCertificateDelivery).toHaveBeenCalledOnce();
     expect(saveItem.mock.calls[1]?.[0]).toEqual(saveItem.mock.calls[0]?.[0]);
   });
 

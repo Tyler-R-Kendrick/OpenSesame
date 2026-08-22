@@ -21,6 +21,7 @@ export type IssuedCertificate = {
   dnsNames: string[];
   notBefore: string;
   notAfter: string;
+  deliveryId?: string;
 };
 
 async function fail(res: Response, fallback: string): Promise<never> {
@@ -38,18 +39,13 @@ function toIssued(raw: JsonObject): IssuedCertificate {
     : [];
   const certificate = readString(raw.certificate);
   const privateKey = readString(raw.private_key);
-  const caCertificate = readString(raw.ca_certificate);
+  const caCertificate = readString(raw.ca_certificate) ?? "";
   const commonName = readString(raw.common_name);
   const notAfter = readString(raw.not_after);
-  if (
-    !certificate ||
-    !privateKey ||
-    !caCertificate ||
-    !commonName ||
-    !notAfter
-  ) {
+  if (!certificate || !privateKey || !commonName || !notAfter) {
     throw new Error("Host returned incomplete certificate material");
   }
+  const deliveryId = readString(raw.delivery_id);
   return {
     certificate,
     privateKey,
@@ -59,7 +55,18 @@ function toIssued(raw: JsonObject): IssuedCertificate {
     dnsNames: dns,
     notBefore: String(raw.not_before ?? ""),
     notAfter,
+    ...(deliveryId ? { deliveryId } : undefined),
   };
+}
+
+async function acknowledgeCertificateDeliveryDefault(
+  deliveryId: string,
+): Promise<void> {
+  const res = await hostFetch(
+    `/api/v1/certs/deliveries/${encodeURIComponent(deliveryId)}/ack`,
+    { method: "POST" },
+  );
+  if (!res.ok) await fail(res, "Could not acknowledge certificate delivery");
 }
 
 async function issueCertificateDefault(input: {
@@ -67,10 +74,14 @@ async function issueCertificateDefault(input: {
   dnsNames?: string[];
   ipAddrs?: string[];
   ttlHours?: number;
+  idempotencyKey?: string;
 }): Promise<IssuedCertificate> {
+  const headers = new Headers({ "content-type": "application/json" });
+  if (input.idempotencyKey)
+    headers.set("idempotency-key", input.idempotencyKey);
   const res = await hostFetch("/api/v1/certs/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers,
     body: JSON.stringify({
       common_name: input.commonName,
       dns_names: input.dnsNames ?? [],
@@ -85,10 +96,17 @@ async function issueCertificateDefault(input: {
 
 export const certsSeams = {
   issueCertificate: issueCertificateDefault,
+  acknowledgeCertificateDelivery: acknowledgeCertificateDeliveryDefault,
 };
 
 export async function issueCertificate(
   input: Parameters<typeof issueCertificateDefault>[0],
 ): Promise<IssuedCertificate> {
   return certsSeams.issueCertificate(input);
+}
+
+export async function acknowledgeCertificateDelivery(
+  deliveryId: string,
+): Promise<void> {
+  return certsSeams.acknowledgeCertificateDelivery(deliveryId);
 }

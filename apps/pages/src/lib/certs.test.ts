@@ -5,7 +5,7 @@ const hostFetch = vi.hoisted(() =>
 );
 import { identitySeams } from "./identity.js";
 Object.assign(identitySeams, { hostFetch });
-import { issueCertificate } from "./certs.js";
+import { acknowledgeCertificateDelivery, issueCertificate } from "./certs.js";
 
 describe("issueCertificate", () => {
   beforeEach(() => hostFetch.mockReset());
@@ -25,6 +25,7 @@ describe("issueCertificate", () => {
           dns_names: ["localhost"],
           not_before: "2026-01-01",
           not_after: "2026-01-02",
+          delivery_id: "certificate-request:one",
           purpose: "dev",
         }),
         { status: 200, headers: { "content-type": "application/json" } },
@@ -33,9 +34,19 @@ describe("issueCertificate", () => {
     const issued = await issueCertificate({ commonName: "localhost" });
     expect(issued.commonName).toBe("localhost");
     expect(issued.privateKey).toContain("BEGIN PRIVATE KEY");
+    expect(issued.deliveryId).toBe("certificate-request:one");
     const init = hostFetch.mock.calls[0]?.[1];
     if (!init) throw new Error("Host request was not recorded");
     expect(JSON.parse(String(init.body)).common_name).toBe("localhost");
+  });
+
+  it("contract: acknowledges one-time material only after holder storage", async () => {
+    hostFetch.mockResolvedValue(new Response(null, { status: 204 }));
+    await acknowledgeCertificateDelivery("certificate-request:one");
+    expect(hostFetch).toHaveBeenCalledWith(
+      "/api/v1/certs/deliveries/certificate-request%3Aone/ack",
+      { method: "POST" },
+    );
   });
 
   it("adversarial: rejects a successful response without one-time key material", async () => {

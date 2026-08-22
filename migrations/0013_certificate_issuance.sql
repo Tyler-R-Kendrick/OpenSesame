@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS certificate_issuance_requests (
   authority_id TEXT NOT NULL,
   request_digest TEXT NOT NULL,
   idempotency_key TEXT NOT NULL,
+  created_by TEXT NOT NULL,
   state TEXT NOT NULL,
   common_name TEXT NOT NULL,
   san_json TEXT NOT NULL,

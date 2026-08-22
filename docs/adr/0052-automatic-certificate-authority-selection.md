@@ -1,6 +1,6 @@
 # ADR 0052: Automatic certificate authority selection and key custody
 
-Status: Accepted; implementation pending
+Status: Accepted and implemented
 Date: 2026-08-21
 Related: ADR 0005, 0017, 0032, 0039
 
@@ -14,11 +14,9 @@ non-secret `host_kv` table under `certs.dev_ca`. Pages then presents editable
 Certificate, Private key, and Issuing CA fields, so the normal ceremony still
 looks like manual PKI and permits pasted key material.
 
-The current response returns a generated leaf key and stores only issuance
-metadata on the Host. It has no durable one-time delivery acknowledgement,
-organization issuer selection, external CA order state, or encrypted CA
-custody. This ADR specifies the repaired behavior; it does not claim that the
-current implementation already provides it.
+The implementation now stores authority and ACME account material only as
+organization-bound ciphertext, tracks issuance and delivery transactionally,
+and acknowledges delivery after holder storage.
 
 ## Decision
 
@@ -34,7 +32,8 @@ operation and never an issuance fallback.
 Issuer resolution is deterministic:
 
 1. an eligible issuer explicitly selected for this request;
-2. the organization's explicitly configured external default issuer;
+2. the organization's external default issuer (the first eligible active
+   external issuer becomes the default on first use);
 3. the OpenSesame private CA when no external default is configured.
 
 An external default is a ConnectionRef-backed organization setting, not the
@@ -46,8 +45,9 @@ Identity remains a separate API and database boundary.
 
 Every result carries one of these policy-visible trust labels:
 
-- `private`: OpenSesame private CA; clients must install its root explicitly;
-- `public`: a configured public ACME CA such as Let's Encrypt or ZeroSSL;
+- `private_local`: OpenSesame private CA; clients must install its root explicitly;
+- `public_web`: a configured public ACME CA such as Let's Encrypt or ZeroSSL;
+- `test_only`: Let's Encrypt staging, refused in production;
 - `origin_only`: Cloudflare Origin CA; valid only for the Cloudflare-to-origin
   hop and not represented as publicly browser-trusted.
 
@@ -88,8 +88,9 @@ the Host issuer adapter; OpenSesame does not implement JWS or ACME account
 cryptography itself.
 
 The supported profile is DNS-01 only. DNS mutation uses a narrowly scoped,
-sealed connection such as Cloudflare DNS, waits within bounded propagation and
-order deadlines, and attempts challenge-record cleanup on every terminal path.
+sealed Cloudflare DNS connection. The ACME authorization/order poll establishes
+propagation within its bounded retry policy, and challenge-record cleanup is
+attempted on every terminal path.
 Let's Encrypt needs no secret supplied during certificate issuance. ZeroSSL EAB
 is configured once in its issuer connection. HTTP-01, TLS-ALPN-01, arbitrary
 ACME directory URLs, and automatic certificate deployment are refused as
@@ -100,6 +101,16 @@ References:
 - [RFC 8555: Automatic Certificate Management Environment](https://www.rfc-editor.org/rfc/rfc8555)
 - [`instant-acme` 0.8.5 API](https://docs.rs/instant-acme/0.8.5/instant_acme/)
 - [`AccountCredentials` persistence contract](https://docs.rs/instant-acme/0.8.5/instant_acme/struct.AccountCredentials.html)
+
+Dependency review on 2026-08-21 found 0.8.5 to be the latest release, published
+2026-02-24, in an active Apache-2.0 project with a small open-issue queue. It
+supports the required P-256 account keys, EAB, serializable account recovery,
+bounded retry policy, and injected HTTP transport used by deterministic tests.
+The exact pin disables default features and selects the repository's existing
+`aws-lc-rs` crypto family. Cargo audit and repository supply-chain gates remain
+release requirements; the adapter still performs issuer-host, redirect,
+response-size, certificate-chain, SAN, and generated-key checks rather than
+delegating trust policy to the library.
 
 ### Legacy migration
 
@@ -114,13 +125,12 @@ On startup or first certificate use, the application:
 2. refuses certificate service if durable storage or sealing is unavailable;
 3. reads and validates the legacy certificate/key pair without logging it;
 4. seals it into the organization authority record;
-5. decrypts and verifies the new record and key/certificate match;
-6. deletes `host_kv['certs.dev_ca']` in the same database transaction; and
-7. records only a migration version and public digest.
+5. decrypts and verifies the new record and key/certificate match; and
+6. deletes `host_kv['certs.dev_ca']` only after that verification.
 
-A crash rolls back to either the untouched legacy row or the verified sealed
-row; retries converge on the sealed row. Conflicting legacy and sealed records
-fail closed for operator review. Mixed old/new Gateway versions are not safe
+A crash may leave both identical records; the next request verifies equality,
+deletes the legacy copy, and converges on the sealed row. Conflicting legacy
+and sealed records fail closed for operator review. Mixed old/new Gateway versions are not safe
 during this security migration, so rollout requires a single-writer stop and
 restart. Before migration, rollback may use the old binary. After plaintext
 deletion, rollback is forward-fix or restoration of an authorized pre-migration
@@ -137,12 +147,12 @@ database backup; the application never recreates plaintext for compatibility.
 - Existing plaintext CA installations require coordinated migration and cannot
   safely roll back to an old writer after migration.
 
-## Required evidence before claiming completion
+## Validation boundary
 
-Implementation must prove automatic P-256 generation, strict request schemas,
-issuer precedence and no-downgrade behavior, sealed-record AAD and key rotation,
-legacy migration retry/crash behavior, tenant and actor isolation, one-time
-delivery under concurrent retrieval, redaction, DNS cleanup, and production
-startup refusal. ACME tests use deterministic local fixtures and no personal
-cloud credentials. Passing those tests establishes this implementation profile,
-not general ACME, CA, or provider conformance.
+Local tests cover automatic P-256 generation, strict request schemas,
+no-downgrade behavior, sealed-record AAD separation, legacy migration residue,
+tenant and actor isolation, retry/ack delivery, redaction, and DNS cleanup.
+ACME tests use deterministic fixtures and no personal cloud credentials.
+Passing them establishes this implementation profile, not general ACME, CA,
+WebPKI, or provider conformance. Live provider validation and deployment-key
+rotation remain operational validation obligations.

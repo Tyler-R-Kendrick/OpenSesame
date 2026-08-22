@@ -10,7 +10,10 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { PasswordGenerator } from "../../components/PasswordGenerator.js";
-import { issueCertificate } from "../../lib/certs.js";
+import {
+  acknowledgeCertificateDelivery,
+  issueCertificate,
+} from "../../lib/certs.js";
 import { compileSecretToHost } from "../../lib/connections.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
@@ -75,11 +78,15 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
   const [reveal, setReveal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDeliveryId, setPendingDeliveryId] = useState<string>();
+  const [issuanceKey, setIssuanceKey] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
     setDraft(initial);
     setShowGenerator(false);
     setReveal(false);
+    setPendingDeliveryId(undefined);
+    setIssuanceKey(crypto.randomUUID());
   }, [initial]);
 
   if (!draft) {
@@ -110,6 +117,7 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
     }
     setSaving(true);
     setError(null);
+    let deliveryId = pendingDeliveryId;
     try {
       let next = draft;
       if (next.kind === "certificate" && !next.certificatePem) {
@@ -124,7 +132,10 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
             .map((name) => name.trim())
             .filter(Boolean),
           ttlHours: Number(next.ttlHours) || 24,
+          idempotencyKey: issuanceKey,
         });
+        deliveryId = issued.deliveryId;
+        setPendingDeliveryId(deliveryId);
         next = {
           ...next,
           name: next.name.trim() || issued.commonName,
@@ -148,6 +159,10 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
         next = { ...next, passwordChangedAt: new Date().toISOString() };
       }
       await store.saveItem(next);
+      if (deliveryId) {
+        await acknowledgeCertificateDelivery(deliveryId);
+        setPendingDeliveryId(undefined);
+      }
       if (next.kind === "secret" && next.connectionRef) {
         try {
           await compileSecretToHost(next);

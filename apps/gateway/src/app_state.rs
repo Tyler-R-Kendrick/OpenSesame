@@ -83,6 +83,9 @@ pub struct AppState {
     /// purpose — a restart forgets everyone, and an unknown holder is
     /// *offline*, which is the fail-closed direction (ADR 0046 decision 5).
     pub relay_presence: Arc<Mutex<std::collections::HashMap<String, std::time::Instant>>>,
+    /// Development-only process-local CA when no sealing key is configured.
+    /// Production and persisted CAs never use this fallback.
+    pub ephemeral_certificate_ca: Arc<Mutex<Option<crate::dev_pki::DevCa>>>,
     /// Organization connections are created under until caller metadata carries
     /// the organization directly.
     pub connection_organization: OrganizationId,
@@ -180,6 +183,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         connection_ref: boot.connection_ref,
         connection_broker,
         relay_presence: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        ephemeral_certificate_ca: Arc::new(Mutex::new(None)),
         connection_organization,
         operator_token: config::resolve_operator_token(),
         claim_pepper: config::resolve_claim_pepper(),

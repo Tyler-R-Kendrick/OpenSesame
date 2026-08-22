@@ -82,6 +82,7 @@ pub struct StoredCertificateIssuanceRequest {
     pub authority_id: String,
     pub request_digest: String,
     pub idempotency_key: String,
+    pub created_by: String,
     pub state: String,
     pub common_name: String,
     pub san_json: String,
@@ -1291,14 +1292,15 @@ impl Db {
             anyhow::bail!("new certificate issuance requests must be unfulfilled and created");
         }
         let result = sqlx::query(
-            "INSERT INTO certificate_issuance_requests (id, organization_id, authority_id, request_digest, idempotency_key, state, common_name, san_json, delivery_key_id, delivery_ciphertext, delivery_nonce, delivery_aad_digest, delivery_expires_at, expires_at, version, created_at, updated_at) \
-             SELECT ?, ?, id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM certificate_authorities \
+            "INSERT INTO certificate_issuance_requests (id, organization_id, authority_id, request_digest, idempotency_key, created_by, state, common_name, san_json, delivery_key_id, delivery_ciphertext, delivery_nonce, delivery_aad_digest, delivery_expires_at, expires_at, version, created_at, updated_at) \
+             SELECT ?, ?, id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM certificate_authorities \
              WHERE id = ? AND organization_id = ? AND status = 'active'",
         )
         .bind(&request.id)
         .bind(&request.organization_id)
         .bind(&request.request_digest)
         .bind(&request.idempotency_key)
+        .bind(&request.created_by)
         .bind(&request.state)
         .bind(&request.common_name)
         .bind(&request.san_json)
@@ -1465,6 +1467,71 @@ impl Db {
         }
         transaction.commit().await?;
         Ok(Some(delivery))
+    }
+
+    /// Reads a bounded encrypted delivery without consuming it. Callers must
+    /// acknowledge only after the response has been durably stored by the
+    /// holder; this avoids losing a generated private key on transport failure.
+    pub async fn get_certificate_delivery(
+        &self,
+        organization_id: &str,
+        request_id: &str,
+        created_by: &str,
+        now: &str,
+    ) -> anyhow::Result<Option<SealedCertificateDelivery>> {
+        let mut transaction = self.pool.begin().await?;
+        let row = sqlx::query(
+            "SELECT version, delivery_key_id, delivery_ciphertext, delivery_nonce, delivery_aad_digest, delivery_expires_at \
+             FROM certificate_issuance_requests WHERE organization_id = ? AND id = ? AND created_by = ? AND state = 'completed'",
+        )
+        .bind(organization_id)
+        .bind(request_id)
+        .bind(created_by)
+        .fetch_optional(&mut *transaction)
+        .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let version: i64 = row.get("version");
+        let Some(expires_at) = row.get::<Option<String>, _>("delivery_expires_at") else {
+            return Ok(None);
+        };
+        if certificate_time_is_expired(&expires_at, now)? {
+            clear_certificate_delivery(&mut transaction, request_id, version).await?;
+            transaction.commit().await?;
+            return Ok(None);
+        }
+        let delivery = sealed_certificate_delivery(&row)?;
+        transaction.commit().await?;
+        Ok(Some(delivery))
+    }
+
+    /// Clears an encrypted delivery after holder acknowledgement. The CAS makes
+    /// repeated or concurrent acknowledgements harmless.
+    pub async fn acknowledge_certificate_delivery(
+        &self,
+        organization_id: &str,
+        request_id: &str,
+        created_by: &str,
+    ) -> anyhow::Result<bool> {
+        let row = sqlx::query(
+            "SELECT version FROM certificate_issuance_requests \
+             WHERE organization_id = ? AND id = ? AND created_by = ? AND state = 'completed' AND delivery_ciphertext IS NOT NULL",
+        )
+        .bind(organization_id)
+        .bind(request_id)
+        .bind(created_by)
+        .fetch_optional(&self.pool)
+        .await?;
+        let Some(row) = row else {
+            return Ok(false);
+        };
+        let mut transaction = self.pool.begin().await?;
+        let cleared =
+            clear_certificate_delivery(&mut transaction, request_id, row.get::<i64, _>("version"))
+                .await?;
+        transaction.commit().await?;
+        Ok(cleared)
     }
 
     pub async fn get_issued_certificate(
@@ -1835,8 +1902,24 @@ fn validate_sealed_material(material: &SealedCertificateMaterial) -> anyhow::Res
 }
 
 fn validate_san_json(san_json: &str) -> anyhow::Result<()> {
-    serde_json::from_str::<Vec<String>>(san_json)
-        .context("certificate SAN metadata must be a JSON string array")?;
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Sans {
+        dns_names: Vec<String>,
+        ip_addrs: Vec<String>,
+    }
+    let sans: Sans = serde_json::from_str(san_json)
+        .context("certificate SAN metadata must contain DNS names and IP addresses")?;
+    if sans.dns_names.len() > 100
+        || sans.ip_addrs.len() > 16
+        || sans
+            .dns_names
+            .iter()
+            .chain(&sans.ip_addrs)
+            .any(|value| value.is_empty() || value.len() > 253)
+    {
+        anyhow::bail!("certificate SAN metadata exceeds bounds");
+    }
     Ok(())
 }
 
@@ -1891,6 +1974,7 @@ fn stored_certificate_issuance_request(
         authority_id: row.get("authority_id"),
         request_digest: row.get("request_digest"),
         idempotency_key: row.get("idempotency_key"),
+        created_by: row.get("created_by"),
         state: row.get("state"),
         common_name: row.get("common_name"),
         san_json: row.get("san_json"),
@@ -2270,9 +2354,10 @@ mod tests {
             authority_id: authority_id.into(),
             request_digest: format!("sha256:{id}"),
             idempotency_key: idempotency_key.into(),
+            created_by: "principal:owner".into(),
             state: "created".into(),
             common_name: "localhost".into(),
-            san_json: r#"["localhost","127.0.0.1"]"#.into(),
+            san_json: r#"{"dns_names":["localhost"],"ip_addrs":["127.0.0.1"]}"#.into(),
             delivery: None,
             expires_at: "2099-01-01T00:00:00+00:00".into(),
             version: 1,
@@ -2295,7 +2380,7 @@ mod tests {
             certificate_digest: format!("sha256:{id}"),
             serial_number: id.into(),
             common_name: "localhost".into(),
-            san_json: r#"["localhost","127.0.0.1"]"#.into(),
+            san_json: r#"{"dns_names":["localhost"],"ip_addrs":["127.0.0.1"]}"#.into(),
             not_before: "2026-08-21T00:00:00+00:00".into(),
             expires_at: "2026-08-22T00:00:00+00:00".into(),
             status: "active".into(),
@@ -2732,6 +2817,71 @@ mod tests {
                 && !column.contains("ciphertext")
                 && !column.contains("nonce")
         }));
+    }
+
+    #[tokio::test]
+    async fn contract_certificate_delivery_retries_until_holder_acknowledges() {
+        let db = Db::connect_memory().await.unwrap();
+        db.insert_certificate_authority(&certificate_authority("org:one", "ca:one", true))
+            .await
+            .unwrap();
+        let request = certificate_request("org:one", "ca:one", "request:one", "idem:one");
+        db.insert_certificate_issuance_request(&request)
+            .await
+            .unwrap();
+        let delivery = certificate_delivery("2099-01-01T00:00:00+00:00");
+        db.complete_certificate_issuance(
+            "org:one",
+            "request:one",
+            1,
+            "created",
+            &delivery,
+            &issued_certificate("org:one", "ca:one", "request:one", "certificate:one"),
+        )
+        .await
+        .unwrap();
+
+        assert!(db
+            .get_certificate_delivery(
+                "org:one",
+                "request:one",
+                "principal:attacker",
+                "2026-08-21T00:00:00+00:00",
+            )
+            .await
+            .unwrap()
+            .is_none());
+        for _ in 0..2 {
+            assert_eq!(
+                db.get_certificate_delivery(
+                    "org:one",
+                    "request:one",
+                    "principal:owner",
+                    "2026-08-21T00:00:00+00:00",
+                )
+                .await
+                .unwrap(),
+                Some(delivery.clone())
+            );
+        }
+        assert!(db
+            .acknowledge_certificate_delivery("org:one", "request:one", "principal:owner")
+            .await
+            .unwrap());
+        assert!(db
+            .get_certificate_delivery(
+                "org:one",
+                "request:one",
+                "principal:owner",
+                "2026-08-21T00:00:00+00:00",
+            )
+            .await
+            .unwrap()
+            .is_none());
+        assert!(!db
+            .acknowledge_certificate_delivery("org:one", "request:one", "principal:owner")
+            .await
+            .unwrap());
     }
 
     #[tokio::test]

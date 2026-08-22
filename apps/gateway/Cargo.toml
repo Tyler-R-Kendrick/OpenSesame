@@ -48,11 +48,19 @@ hmac = { workspace = true }
 hex = { workspace = true }
 blake3 = { workspace = true }
 sha2 = { workspace = true }
+async-trait = { workspace = true }
+bytes = { workspace = true }
+http = { workspace = true }
+http-body-util = "0.1.3"
+instant-acme = { version = "=0.8.5", default-features = false, features = ["aws-lc-rs"] }
 rcgen = { version = "0.13.2", features = ["x509-parser"] }
 time = { version = "0.3.41", default-features = false, features = ["std"] }
+x509-parser = "0.16.0"
+zeroize = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }
+proptest = { workspace = true }
 sqlx = { workspace = true }
 tower = { workspace = true }
 url = { workspace = true }

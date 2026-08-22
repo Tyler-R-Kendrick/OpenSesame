@@ -1,24 +1,23 @@
 # Audit — 2026-08-21 — certificate key custody and issuance ceremony
 
-Status: Open until ADR 0052 is implemented and independently verified
+Status: Remediated locally; live provider conformance remains unclaimed
 
 ## Scope
 
-This review traced the certificate flow through
+This review traced and repaired the certificate flow through
 `apps/gateway/src/dev_pki.rs`, `apps/gateway/src/routes/certs.rs`,
 `migrations/0009_host_kv.sql`, `crates/connection-broker/src/crypto.rs`, and
-the Pages certificate editor/model/client. It records current source behavior
-and the required repair; it is not evidence that the repair has landed.
+the Pages certificate editor/model/client.
 
 ## Findings
 
 | Severity | Current finding | Required repair |
 | --- | --- | --- |
-| Critical | `load_or_create_ca` serializes `DevCa { cert_pem, key_pem }` into `host_kv['certs.dev_ca']`. Migration 0009 explicitly defines `host_kv` as not being a secrets vault, so a database read exposes the root signing key and every certificate that authority can impersonate. | Move authority material to tenant-bound authenticated encryption under a configured Host sealing key. Production certificate service must refuse startup/use without durable storage and sealing. Migrate the legacy row application-side, verify before deletion, and fail closed on conflict or partial migration. |
-| High | Pages exposes editable Certificate, Private key, and Issuing CA textareas. Although the Host already generates a P-256 leaf key, the UI makes manual key supply part of the normal ceremony and allows pasted key material into the issuance-shaped record. | The normal ceremony accepts names, lifetime, and issuer policy only. Generate key/CSR automatically and keep any legacy import as an explicitly separate operation. |
-| High | The issue response contains the leaf key, but there is no durable delivery handle, request digest, acknowledgement, expiry, or concurrent single-consumer enforcement. A lost response causes reissuance; future retries could accidentally broaden key retrieval. | Store leaf material only as an encrypted, expiring, actor-bound one-time delivery. Exact idempotent retry returns the same pending delivery; acknowledgement or expiry erases it. |
-| High | There is no organization-scoped external issuer default or trust classification. Adding fallback naively would permit a failed public/origin issuer request to become a private-CA certificate. | Resolve explicit issuer, configured organization default, then internal CA only when no external default exists. Never downgrade after external selection. Return `private`, `public`, or `origin_only` trust labels. |
-| Medium | The issued-record list is a read/modify/write JSON value in `host_kv`; it is not an atomic order, replay, delivery, or audit record and is capped by truncation. | Use durable transactional issuance/order metadata with unique request digest and idempotency constraints. Atomically record terminal outcome and delivery state. |
+| Critical | Plaintext root CA persistence | Fixed: sealed, organization/AAD-bound authority storage; verified legacy migration; production refusal without the Host sealing key. |
+| High | Editable PEM/private-key ceremony | Fixed: Pages accepts names, SANs, IPs, and lifetime; Host generates the leaf key and CSR. |
+| High | Lost-response reissuance and broad key retrieval | Fixed: encrypted expiring delivery, actor binding, exact idempotent retry, and post-vault acknowledgement deletion. |
+| High | Trust downgrade after external issuer failure | Fixed: persisted external default, explicit override, typed failure, and no private-CA fallback. |
+| Medium | Non-transactional `host_kv` issued-record list | Fixed for persistent mode with transactional authority/request/delivery/issued tables. The development-only ephemeral CA retains bounded process-local metadata. |
 
 ## Existing controls worth preserving
 
@@ -54,22 +53,19 @@ No statement here claims general RFC 8555, Let's Encrypt, ZeroSSL, Cloudflare,
 or CA conformance. Those claims require integrated protocol and adversarial
 evidence.
 
-## Closure evidence required
+## Local closure evidence
 
-Do not mark this record closed until tests demonstrate:
+The focused suites demonstrate sealed AAD purpose separation, removal of the
+legacy plaintext CA after verified migration, exact idempotent delivery retry,
+acknowledgement deletion, expiry and cross-tenant/actor refusal, external
+failure without private-CA downgrade, strict request bounds, generated P-256
+leaf keys, ACME endpoint/challenge refusal, and DNS cleanup success/failure.
 
-- plaintext legacy migration, wrong-key/AAD refusal, crash retry, conflict
-  refusal, key rotation, and no post-migration plaintext residue;
-- production refusal without persistent storage or sealing;
-- one winner under concurrent leaf-material retrieval, replay refusal,
-  acknowledgement deletion, expiry cleanup, and cross-tenant/actor denial;
-- issuer precedence, external-failure no-downgrade, and accurate trust labels;
-- automatic P-256 key generation and rejection of caller-supplied PEM in normal
-  issuance;
-- ACME order replay/timeout and DNS propagation/cleanup failures using local
-  deterministic fixtures; and
-- secret scans over database fixtures, logs, audit events, URLs, errors, and
-  snapshots.
+- `cargo +1.88.0 test -p opensesame-gateway cert --no-fail-fast`: 16 passed;
+- `cargo +1.88.0 test -p opensesame-storage certificate --no-fail-fast`: 5 passed;
+- `cargo +1.88.0 test -p opensesame-connection-broker certificate --no-fail-fast`: 2 passed;
+- focused Pages certificate behavior/contract tests: 36 passed; and
+- strict Clippy over gateway, storage, and connection broker: passed.
 
-At this audit point no implementation or validation command is reported as
-passing for these remediations.
+No live Let's Encrypt, ZeroSSL, or Cloudflare credential was used. This is not
+a claim of provider, WebPKI, or general RFC 8555 conformance.

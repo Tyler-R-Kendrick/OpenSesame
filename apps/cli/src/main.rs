@@ -198,7 +198,7 @@ enum Commands {
         #[command(subcommand)]
         cmd: IntentCmd,
     },
-    /// Issue TLS certificates from the Host private CA (Infisical-style dev certs).
+    /// Issue TLS certificates with an automatically selected Host-owned issuer.
     Cert {
         #[command(subcommand)]
         cmd: CertCmd,
@@ -212,7 +212,7 @@ enum CertCmd {
         #[arg(long)]
         out: Option<PathBuf>,
     },
-    /// Issue a short-lived leaf certificate (default: localhost / 24h).
+    /// Generate a key and issue a short-lived certificate (default: localhost / 24h).
     Issue {
         #[arg(long = "cn", default_value = "localhost")]
         common_name: String,
