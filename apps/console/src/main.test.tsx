@@ -16,6 +16,8 @@ describe("console entrypoint", () => {
     const { sdkBrowserSeams: seams } = await import("./sdk-browser.js");
     seams.createOpenSesame = vi.fn(() => ({
       signIn: vi.fn(),
+      handleRedirectCallback: vi.fn(),
+      getReturnTo: vi.fn(() => null),
       continueAnonymously: vi.fn(),
       getSession: vi.fn(),
       presentClaim: vi.fn(),

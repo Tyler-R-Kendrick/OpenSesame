@@ -120,6 +120,59 @@ export function isResourceAllowed(
   return permitted.includes(target);
 }
 
+/**
+ * Federated upstream hints the browser SDK appends to the authorize URL
+ * (`packages/sdk-browser` `signIn({ provider })`): `kc_idp_hint` for Keycloak
+ * wire compatibility and `login_hint_provider` as the OpenSesame-native name.
+ * oidc-provider drops unregistered authorization parameters, so both must be
+ * declared here for the hosted login page to read them off
+ * `interaction.details.params` and preselect an upstream provider.
+ */
+export const FEDERATED_PROVIDER_HINT_PARAMS = [
+  "kc_idp_hint",
+  "login_hint_provider",
+] as const;
+
+/**
+ * Upstream provider aliases are short identifiers, never markup or URLs.
+ * Anything outside this shape is a hint we cannot honour, so it is dropped
+ * rather than rejected: an unusable hint must never fail an otherwise valid
+ * authorization request, and must never reach the login page as a value a
+ * renderer could be tempted to trust.
+ */
+const PROVIDER_HINT_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
+
+/**
+ * Per-param validator. oidc-provider runs these for every registered extra
+ * param regardless of presence, so this normalizes in place instead of
+ * throwing: a conforming value survives to the interaction session, anything
+ * else becomes `undefined` and is omitted from the persisted params.
+ */
+function createProviderHintValidator(
+  name: string,
+): (ctx: BoundaryValue, value: string | undefined) => void {
+  return (ctx, value) => {
+    if (value === undefined) return;
+    if (isString(value) && PROVIDER_HINT_PATTERN.test(value)) return;
+    const scope: { oidc?: { params?: JsonObject } } = overlapCast(ctx);
+    const params = scope.oidc?.params;
+    if (params) params[name] = undefined;
+  };
+}
+
+/** `extraParams` entry: both hint names, each normalized on the way in. */
+function buildProviderHintParams(): Record<
+  string,
+  (ctx: BoundaryValue, value: string | undefined) => void
+> {
+  return Object.fromEntries(
+    FEDERATED_PROVIDER_HINT_PARAMS.map((name) => [
+      name,
+      createProviderHintValidator(name),
+    ]),
+  );
+}
+
 function buildJwks(): NonNullable<Configuration["jwks"]> {
   const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
   const jwk = overlapCast(privateKey.export({ format: "jwk" }));
@@ -325,6 +378,10 @@ export function createOpenSesameProvider(
       profile: ["name"],
       email: ["email"],
     },
+    // Federated upstream hints sent by the browser SDK survive into
+    // `interaction.details.params` so the hosted login page can preselect the
+    // caller's provider. Values are normalized, never trusted or echoed.
+    extraParams: buildProviderHintParams(),
     findAccount: async (_ctx: OidcAccountContext, id: string) => ({
       accountId: id,
       async claims() {
