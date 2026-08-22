@@ -218,9 +218,9 @@ export async function discoverTailscaleDaemon(
 }
 
 export function openTailscaleLogin(): void {
-  return tailscaleSeams.openTailscaleLogin();
+  tailscaleSeams.openTailscaleLogin();
 }
 
 export function assertDaemonReachableFromPage(raw: string): void {
-  return tailscaleSeams.assertDaemonReachableFromPage(raw);
+  tailscaleSeams.assertDaemonReachableFromPage(raw);
 }

@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvSet } from "../kv.js";
 import { createVault } from "./crypto.js";
@@ -13,7 +14,6 @@ import {
   assertMasterPasswordPolicy,
   normalizeVaultPrefs,
 } from "./store.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const PASSWORD = "correct horse battery staple";
 const NEXT_PASSWORD = "fourteen ungulate carriage nail";

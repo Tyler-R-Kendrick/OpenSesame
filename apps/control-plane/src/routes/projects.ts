@@ -11,7 +11,15 @@ import {
   ProjectResponseSchema,
   SetActiveProjectRequestSchema,
 } from "@opensesame/contracts";
-import { PERSONAL_PROJECT_SLUG, type Project, type ProjectMembership, type ProjectRole, type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  PERSONAL_PROJECT_SLUG,
+  type Project,
+  type ProjectMembership,
+  type ProjectRole,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
@@ -191,10 +199,7 @@ export function ensurePersonalProject(
   return ensurePersonalProjectInner(ctx, principalId).project;
 }
 
-function ensurePersonalProjectInner(
-  ctx: AppContext,
-  principalId: string,
-) {
+function ensurePersonalProjectInner(ctx: AppContext, principalId: string) {
   const existing = findPersonalProject(ctx, principalId);
   if (existing) {
     return { project: existing, created: false };
@@ -383,15 +388,13 @@ projectRoutes.post(
             ? { organizationId: parsed.data.organizationId }
             : undefined),
         };
-        const tomb =
-          isString(rawBody.sealedStoreTombName)
-            ? rawBody.sealedStoreTombName.trim()
-            : "";
+        const tomb = isString(rawBody.sealedStoreTombName)
+          ? rawBody.sealedStoreTombName.trim()
+          : "";
         if (tomb) project.sealedStoreTombName = tomb;
-        const folder =
-          isString(rawBody.pagesVaultFolderId)
-            ? rawBody.pagesVaultFolderId.trim()
-            : "";
+        const folder = isString(rawBody.pagesVaultFolderId)
+          ? rawBody.pagesVaultFolderId.trim()
+          : "";
         if (folder) project.pagesVaultFolderId = folder;
 
         ctx.stores.projects.set(project.id, project);
@@ -649,35 +652,61 @@ projectRoutes.patch("/:id", requirePrincipal(), async (c) => {
     next.displayName = displayName;
   }
   if (body.sealedStoreTombName !== undefined) {
-    if (body.sealedStoreTombName === null || !body.sealedStoreTombName.trim()) {
+    if (body.sealedStoreTombName === null) {
       Reflect.deleteProperty(next, "sealedStoreTombName");
+    } else if (!isString(body.sealedStoreTombName)) {
+      return c.json(
+        { error: "validation_error", message: "invalid sealedStoreTombName" },
+        400,
+      );
     } else {
-      if (
-        !tombName.test(body.sealedStoreTombName.trim()) ||
-        body.sealedStoreTombName.includes("..")
-      ) {
-        return c.json(
-          { error: "validation_error", message: "invalid sealedStoreTombName" },
-          400,
-        );
+      const sealedStoreTombName = body.sealedStoreTombName.trim();
+      if (!sealedStoreTombName) {
+        Reflect.deleteProperty(next, "sealedStoreTombName");
+      } else {
+        if (
+          !tombName.test(sealedStoreTombName) ||
+          sealedStoreTombName.includes("..")
+        ) {
+          return c.json(
+            {
+              error: "validation_error",
+              message: "invalid sealedStoreTombName",
+            },
+            400,
+          );
+        }
+        next.sealedStoreTombName = sealedStoreTombName;
       }
-      next.sealedStoreTombName = body.sealedStoreTombName.trim();
     }
   }
   if (body.pagesVaultFolderId !== undefined) {
-    if (body.pagesVaultFolderId === null || !body.pagesVaultFolderId.trim()) {
+    if (body.pagesVaultFolderId === null) {
       Reflect.deleteProperty(next, "pagesVaultFolderId");
+    } else if (!isString(body.pagesVaultFolderId)) {
+      return c.json(
+        { error: "validation_error", message: "invalid pagesVaultFolderId" },
+        400,
+      );
     } else {
-      if (
-        !folderId.test(body.pagesVaultFolderId.trim()) ||
-        body.pagesVaultFolderId.includes("..")
-      ) {
-        return c.json(
-          { error: "validation_error", message: "invalid pagesVaultFolderId" },
-          400,
-        );
+      const pagesVaultFolderId = body.pagesVaultFolderId.trim();
+      if (!pagesVaultFolderId) {
+        Reflect.deleteProperty(next, "pagesVaultFolderId");
+      } else {
+        if (
+          !folderId.test(pagesVaultFolderId) ||
+          pagesVaultFolderId.includes("..")
+        ) {
+          return c.json(
+            {
+              error: "validation_error",
+              message: "invalid pagesVaultFolderId",
+            },
+            400,
+          );
+        }
+        next.pagesVaultFolderId = pagesVaultFolderId;
       }
-      next.pagesVaultFolderId = body.pagesVaultFolderId.trim();
     }
   }
 

@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isString, overlapCast } from "@opensesame/os-domain";
 import {
   assertExclusiveClaim,
   assertNoSecretFields,
@@ -10,7 +11,6 @@ import {
 import { describe, expect, it } from "vitest";
 import { assertMockIdpListenAllowed } from "./config.js";
 import { createMockUpstreamIdp } from "./server.js";
-import { overlapCast, isString } from "@opensesame/os-domain";
 
 const here = dirname(fileURLToPath(import.meta.url));
 

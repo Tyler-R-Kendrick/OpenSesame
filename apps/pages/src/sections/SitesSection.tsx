@@ -46,7 +46,13 @@ import {
 } from "../lib/site-broker.js";
 import { useOnline } from "../lib/use-online.js";
 import "./sites.css";
-import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 
 type OAuthClient = {
   id: string;
@@ -118,7 +124,7 @@ class SitesError extends Error {
 
 function messageFrom(body: BoundaryValue): string | null {
   if (body && isTypeofObject(body) && "message" in body) {
-    const value = (overlapCast(body)).message;
+    const value = overlapCast(body).message;
     if (isString(value) && value.trim()) return value;
   }
   return null;
@@ -126,7 +132,7 @@ function messageFrom(body: BoundaryValue): string | null {
 
 function codeFrom(body: BoundaryValue): string {
   if (body && isTypeofObject(body) && "error" in body) {
-    const value = (overlapCast(body)).error;
+    const value = overlapCast(body).error;
     if (isString(value) && value.trim()) return value;
   }
   return "unknown_error";
@@ -134,18 +140,16 @@ function codeFrom(body: BoundaryValue): string {
 
 function fieldErrorsFrom(body: BoundaryValue): string[] {
   if (!body || !isTypeofObject(body) || !("details" in body)) return [];
-  const details = (overlapCast(body)).details;
+  const details = overlapCast(body).details;
   if (!details || !isTypeofObject(details)) return [];
   const out: string[] = [];
-  const form = (overlapCast(details)).formErrors;
+  const form = overlapCast(details).formErrors;
   if (Array.isArray(form)) {
     for (const item of form) if (isString(item)) out.push(item);
   }
-  const fields = (overlapCast(details)).fieldErrors;
+  const fields = overlapCast(details).fieldErrors;
   if (fields && isTypeofObject(fields)) {
-    for (const [key, value] of Object.entries(
-      overlapCast(fields),
-    )) {
+    for (const [key, value] of Object.entries(overlapCast(fields))) {
       if (Array.isArray(value)) {
         for (const item of value) {
           if (isString(item)) out.push(`${key}: ${item}`);
@@ -197,9 +201,13 @@ async function callIdentity<T>(path: string, init?: RequestInit): Promise<T> {
   return overlapCast(body);
 }
 
-function errorText(value: BoundaryValue): string {
+function isThrownString<Value>(value: Value): value is Value & string {
+  return typeof value === "string";
+}
+
+function errorText<Value>(value: Value): string {
   if (value instanceof Error) return value.message;
-  if (isString(value)) return value;
+  if (isThrownString(value)) return value;
   return "Unknown error.";
 }
 

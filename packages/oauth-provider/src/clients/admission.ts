@@ -1,10 +1,10 @@
+import { overlapCast } from "@opensesame/os-domain";
 import {
   type ClientAdmissionMode,
   type OAuthClientRecord,
   type OAuthProviderEnv,
   ORIGIN_PROFILE_FORBIDDEN_SCOPES,
 } from "../types.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 export class ClientAdmissionError extends Error {
   readonly code: string;
@@ -82,7 +82,8 @@ export function createClientAdmissionPolicy(
     assertOriginScopes(scopes: string[]): void {
       for (const scope of scopes) {
         if (
-          (overlapCast(ORIGIN_PROFILE_FORBIDDEN_SCOPES)).includes(scope)
+          // SAFETY: this module owns the readonly literal scope list and only reads it as strings.
+          (ORIGIN_PROFILE_FORBIDDEN_SCOPES as readonly string[]).includes(scope)
         ) {
           throw new ClientAdmissionError(
             "origin_forbidden_scope",

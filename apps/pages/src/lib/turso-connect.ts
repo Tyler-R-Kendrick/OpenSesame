@@ -1,14 +1,19 @@
-import { overlapCast, type JsonObject } from "@opensesame/os-domain";
+export type TursoConnectOptions = {
+  path: string;
+  url?: string;
+  authToken?: () => Promise<string>;
+  clientName: string;
+};
 
-async function connectDefault(options: JsonObject) {
+async function connectDefault(options: TursoConnectOptions) {
   const module = await import("@tursodatabase/sync-wasm/vite");
-  return overlapCast(await module.connect(options));
+  return module.connect(options);
 }
 
 export const tursoConnectSeams = {
   connect: connectDefault,
 };
 
-export async function connectTurso(options: JsonObject) {
+export async function connectTurso(options: TursoConnectOptions) {
   return tursoConnectSeams.connect(options);
 }

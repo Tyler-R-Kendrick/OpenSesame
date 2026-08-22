@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isFunction } from "@opensesame/os-domain";
-import { runWorker, type WorkerRuntime } from "../main.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type WorkerRuntime, runWorker } from "../main.js";
 
 const ENV_KEYS = [
   "DATABASE_URL",

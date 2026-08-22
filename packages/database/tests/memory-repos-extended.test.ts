@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   ConflictError,
@@ -14,7 +15,6 @@ import {
   makeIdentity,
   makePrincipal,
 } from "./factories.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 describe("MemoryRepositories.principals", () => {
   it("rejects duplicates and reports misses", async () => {

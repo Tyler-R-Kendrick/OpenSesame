@@ -1,3 +1,4 @@
+import type { JsonObject } from "@opensesame/os-domain";
 import {
   cleanup,
   fireEvent,
@@ -9,18 +10,17 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type JsonObject } from "@opensesame/os-domain";
 
 const online = vi.hoisted(() => ({ value: true }));
 // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-const session = vi.hoisted(() => ({
-  current: null as {
+const session: {
+  current: {
     principalId: string;
     accessToken: string;
     expiresAt?: string;
     adopted?: boolean;
-  } | null,
-}));
+  } | null;
+} = vi.hoisted(() => ({ current: null }));
 const orphan = vi.hoisted(() => ({ value: false }));
 
 const currentSession = vi.hoisted(() => vi.fn());
@@ -90,7 +90,6 @@ import { passkeyCeremonyNoteSeams } from "../components/PasskeyCeremonyNote.js";
 const originalPasskeyCeremonyNoteSeams = { ...passkeyCeremonyNoteSeams };
 Object.assign(passkeyCeremonyNoteSeams, { PasskeyCeremonyNote: () => null });
 
-
 import { AuthoritySection } from "./AuthoritySection.js";
 
 const activeSession = {
@@ -118,7 +117,7 @@ const principalBody = {
   ],
 };
 
-function jsonResponse(body: JsonObject, ok = true, status = 200) {
+function jsonResponse(body: JsonObject | undefined, ok = true, status = 200) {
   // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
   return {
     ok,
@@ -185,9 +184,9 @@ describe("AuthoritySection", () => {
 
   /** Route claim ceremony calls by URL suffix. */
   function mockClaimTransport(handlers: {
-    present?: unknown;
+    present?: JsonObject;
     presentStatus?: number;
-    complete?: unknown;
+    complete?: JsonObject;
     completeStatus?: number;
   }) {
     fetchMock.mockImplementation((input: string) => {

@@ -1,4 +1,3 @@
-import { overlapCast } from "@opensesame/os-domain";
 /**
  * Push sealed vault ciphertext to Host after every local persist (ADR 0039).
  *
@@ -8,16 +7,24 @@ import { overlapCast } from "@opensesame/os-domain";
  */
 
 import {
+  type BoundaryObject,
+  type BoundaryValue,
+  isNumber,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
+import {
   ensureHostSession,
   hostFetch,
   hostLocalSessionEligible,
 } from "../identity.js";
 import { activeProject } from "../projects.js";
 import {
+  type SyncBlobCiphertext,
+  dequeueOfflineMutation,
   enqueueOfflineMutation,
   listOfflineMutations,
-  dequeueOfflineMutation,
-  type SyncBlobCiphertext,
 } from "./offline-backup.js";
 
 export type VaultHostBackupState = {
@@ -35,6 +42,15 @@ let state: VaultHostBackupState = {
   lastError: null,
   pendingCount: 0,
 };
+
+function responseError(body: BoundaryValue, fallback: string): string {
+  if (!isTypeofObject(body) || body === null || Array.isArray(body)) {
+    return fallback;
+  }
+  const row: BoundaryObject = overlapCast(body);
+  if (isString(row.hint)) return row.hint;
+  return isString(row.error) ? row.error : fallback;
+}
 
 function emit(next: Partial<VaultHostBackupState>): void {
   state = {
@@ -132,18 +148,24 @@ export async function pushSealedVaultToHost(input: {
       body: JSON.stringify({ blobs }),
     });
     if (!res.ok) {
-      const body = overlapCast(await res.json().catch(() => ({})));
-      throw new Error(
-        body.hint || body.error || `Host sync refused (${res.status})`,
-      );
+      const body: BoundaryValue = await res.json().catch(() => ({}));
+      throw new Error(responseError(body, `Host sync refused (${res.status})`));
     }
-    const outcome = overlapCast(await res.json().catch(() => ({})));
-    if ((outcome.rejected_oversize ?? 0) > 0) {
+    const outcome: BoundaryValue = await res.json().catch(() => ({}));
+    const row: BoundaryObject =
+      isTypeofObject(outcome) && outcome !== null && !Array.isArray(outcome)
+        ? overlapCast(outcome)
+        : {};
+    const rejectedOversize = isNumber(row.rejected_oversize)
+      ? row.rejected_oversize
+      : 0;
+    const accepted = isNumber(row.accepted) ? row.accepted : 0;
+    if (rejectedOversize > 0) {
       throw new Error(
         "Vault ciphertext exceeds Host sync size limit — backup did not accept this write",
       );
     }
-    if ((outcome.accepted ?? 0) < 1) {
+    if (accepted < 1) {
       throw new Error("Host accepted no vault sync blobs");
     }
     emit({
@@ -214,8 +236,8 @@ export async function flushPendingVaultHostBackup(): Promise<number> {
         }),
       });
       if (!res.ok) {
-        const body = overlapCast(await res.json().catch(() => ({})));
-        throw new Error(body.hint || body.error || `sync ${res.status}`);
+        const body: BoundaryValue = await res.json().catch(() => ({}));
+        throw new Error(responseError(body, `sync ${res.status}`));
       }
       dequeueOfflineMutation(item.id);
       flushed += 1;
@@ -232,10 +254,11 @@ export async function flushPendingVaultHostBackup(): Promise<number> {
   if (flushed > 0) {
     emit({
       lastPushedAt: new Date().toISOString(),
-      lastError:
-        listOfflineMutations().some((m) => m.kind === "push_sync_blobs")
-          ? state.lastError
-          : null,
+      lastError: listOfflineMutations().some(
+        (m) => m.kind === "push_sync_blobs",
+      )
+        ? state.lastError
+        : null,
     });
   } else {
     emit({});

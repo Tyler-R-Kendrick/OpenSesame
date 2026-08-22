@@ -2,18 +2,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const env = vi.hoisted(() => ({ online: true }));
-
-vi.mock("./connectivity.js", () => ({
-  isOnline: () => env.online,
-}));
-
 import {
   type FailureClass,
   classifyResponse,
   classifyThrown,
   failureLabel,
   failureSentence,
+  probeFailureSeams,
 } from "./probe-failure.js";
+
+const isOnline = vi.fn(() => env.online);
+probeFailureSeams.isOnline = isOnline;
 
 const ALL: FailureClass[] = [
   "offline",

@@ -89,12 +89,7 @@ function itemToJson(item) {
   };
 }
 
-function main() {
-  const file = process.argv[2];
-  if (!file) {
-    console.error("usage: opensesame-env-parse <path-to-.env.schema>");
-    process.exit(2);
-  }
+export function parseSchemaFile(file) {
   const src = readFileSync(file, "utf8");
   const doc = parseEnvSpecDotEnvFile(src);
   const items = [];
@@ -103,12 +98,23 @@ function main() {
       items.push(itemToJson(el));
     }
   }
-  const out = {
+  return {
     schema_path: file,
     parser: "@env-spec/parser",
     items,
   };
-  process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
 }
 
-main();
+export function main(args = process.argv.slice(2), error = console.error) {
+  const file = args[0];
+  if (!file) {
+    error("usage: opensesame-env-parse <path-to-.env.schema>");
+    return 2;
+  }
+  process.stdout.write(`${JSON.stringify(parseSchemaFile(file), null, 2)}\n`);
+  return 0;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  process.exitCode = main();
+}

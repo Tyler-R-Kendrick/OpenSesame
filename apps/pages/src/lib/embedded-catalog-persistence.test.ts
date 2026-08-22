@@ -1,5 +1,6 @@
+import { isFunction } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type JsonObject, overlapCast, isFunction } from "@opensesame/os-domain";
+import type { TursoConnectOptions } from "./turso-connect.js";
 
 type FakeDb = {
   store: Map<string, string>;
@@ -13,18 +14,28 @@ type FakeDb = {
   close: () => Promise<void>;
 };
 
-const state = vi.hoisted(() => ({
-  dbs: [],
-  connectError: null,
-  pullError: null,
-  hang: false,
-  lastConnectOptions: null,
-}));
+type TestState = {
+  dbs: FakeDb[];
+  connectError: Error | null;
+  pullError: Error | null;
+  hang: boolean;
+  lastConnectOptions: TursoConnectOptions | null;
+};
+
+const state = vi.hoisted(
+  (): TestState => ({
+    dbs: [],
+    connectError: null,
+    pullError: null,
+    hang: false,
+    lastConnectOptions: null,
+  }),
+);
 
 import { tursoConnectSeams } from "./turso-connect.js";
 const originalTursoConnectSeams = { ...tursoConnectSeams };
 Object.assign(tursoConnectSeams, {
-  connect: (options: JsonObject) => {
+  connect: (options: TursoConnectOptions) => {
     state.lastConnectOptions = options;
     if (state.connectError) return Promise.reject(state.connectError);
     if (state.hang) return new Promise(() => {});
@@ -187,7 +198,8 @@ describe("embedded catalog persistence", () => {
   it("closes the previous database when the session token changes", async () => {
     await readEmbeddedProviders();
     const db = state.dbs[0];
-    const close = vi.spyOn(overlapCast(db), "close");
+    if (!db) throw new Error("database was not opened");
+    const close = vi.spyOn(db, "close");
     setTursoSessionToken("new-token");
     await vi.waitFor(() => expect(close).toHaveBeenCalled());
   });

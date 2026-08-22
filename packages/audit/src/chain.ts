@@ -1,5 +1,13 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { AuditEvent, JsonObject, overlapCast, type BoundaryValue, isTypeofObject, isString, isFunction } from "@opensesame/os-domain";
+import {
+  type AuditEvent,
+  type BoundaryValue,
+  type JsonObject,
+  isFunction,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import type { AuditSink } from "./append.js";
 
 /**
@@ -55,7 +63,7 @@ function stableJson(value: BoundaryValue): string {
   if (value === null || !isTypeofObject(value))
     return JSON.stringify(value) ?? "null";
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
-  const row = overlapCast(value);
+  const row = overlapCast<BoundaryValue, Record<string, BoundaryValue>>(value);
   const keys = Object.keys(row).sort();
   return `{${keys.map((k) => `${JSON.stringify(k)}:${stableJson(row[k])}`).join(",")}}`;
 }
@@ -88,7 +96,7 @@ export interface ChainedAuditSinkOptions {
    */
   tip?: string | (() => Promise<string | undefined>);
   /** Retry once after another process wins the durable predecessor slot. */
-  retryOnConflict?: (error: BoundaryValue) => boolean;
+  retryOnConflict?: (error: Error) => boolean;
 }
 
 /**
@@ -103,12 +111,14 @@ export function createChainedAuditSink(
   options: ChainedAuditSinkOptions = {},
 ): AuditSink & { tip(): string } {
   let tip = isString(options.tip) ? options.tip : AUDIT_CHAIN_GENESIS;
-  const resolveTip =
-    isFunction(options.tip) ? options.tip : undefined;
+  const resolveTip = isFunction(options.tip) ? options.tip : undefined;
   let resolved = resolveTip === undefined;
   let queue: Promise<unknown> = Promise.resolve();
 
-  async function link(event: AuditEvent, uow?: BoundaryValue): Promise<AuditEvent> {
+  async function link(
+    event: AuditEvent,
+    uow?: BoundaryValue,
+  ): Promise<AuditEvent> {
     if (!resolved && resolveTip) {
       // A store that cannot be read leaves the tip at genesis: refusing to write
       // the event would lose the trail entirely, which is worse than a chain with
@@ -134,7 +144,12 @@ export function createChainedAuditSink(
         tip = linked.digest ?? previousDigest;
         return stored;
       } catch (error) {
-        if (attempt > 0 || !resolveTip || !options.retryOnConflict?.(error)) {
+        if (
+          attempt > 0 ||
+          !resolveTip ||
+          !(error instanceof Error) ||
+          !options.retryOnConflict?.(error)
+        ) {
           throw error;
         }
         tip = (await resolveTip()) ?? AUDIT_CHAIN_GENESIS;

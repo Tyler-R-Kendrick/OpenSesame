@@ -1,3 +1,4 @@
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it } from "vitest";
 import { kvDelete, kvSet } from "../kv.js";
 import { createVault, sealJson } from "./crypto.js";
@@ -15,7 +16,6 @@ import {
   refuseDeploymentSealWrap,
   serializeOfflineBackup,
 } from "./offline-backup.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 
 const PASSWORD = "correct horse battery staple";
 
@@ -82,7 +82,7 @@ describe("buildOfflineBackup", () => {
 describe("serializeOfflineBackup", () => {
   it("refuses an envelope that claims a deployment seal", async () => {
     const envelope = await realEnvelope();
-    const tainted = overlapCast({
+    const tainted: OfflineBackupEnvelope = overlapCast({
       ...envelope,
       deploymentSealUsed: true,
     });

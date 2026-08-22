@@ -10,12 +10,12 @@ import {
   issueRegistrationChallenge,
   verifyRegistrationAttestation,
 } from "@opensesame/auth-upstream";
+import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { authenticatedPrincipalId } from "./organizations.js";
-import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
 /** Minimal WebAuthn registration response shape (SimpleWebAuthn JSON). */
 type RegistrationResponseBody = {
@@ -160,8 +160,12 @@ async function auditMfaDenial(
     ...(input.correlationId !== undefined
       ? { correlationId: input.correlationId }
       : undefined),
-    ...(input.targetType !== undefined ? { targetType: input.targetType } : undefined),
-    ...(input.targetId !== undefined ? { targetId: input.targetId } : undefined),
+    ...(input.targetType !== undefined
+      ? { targetType: input.targetType }
+      : undefined),
+    ...(input.targetId !== undefined
+      ? { targetId: input.targetId }
+      : undefined),
     metadata: { action: input.eventType, reason: input.reason },
   });
 }
@@ -289,8 +293,7 @@ mfaRoutes.post("/passkey/assert", async (c) => {
       body.authenticatorData,
       body.signature,
     ].some(
-      (value) =>
-        !isString(value) || value.length > MAX_PASSKEY_FIELD_LENGTH,
+      (value) => !isString(value) || value.length > MAX_PASSKEY_FIELD_LENGTH,
     )
   ) {
     return c.json({ error: "invalid_request" }, 400);

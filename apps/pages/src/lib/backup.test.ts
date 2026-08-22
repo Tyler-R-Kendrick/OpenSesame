@@ -1,10 +1,12 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
-const hostFetch = vi.hoisted(() => vi.fn());
+const hostFetch = vi.hoisted(() =>
+  vi.fn<(path: string, init?: RequestInit) => Promise<Response>>(),
+);
 import { identitySeams } from "./identity.js";
 const originalIdentitySeams = { ...identitySeams };
-Object.assign(identitySeams, {hostFetch});
+Object.assign(identitySeams, { hostFetch });
 import {
   branchForEnvironment,
   filterGithubBackupConnections,
@@ -72,7 +74,8 @@ describe("backup workflow client", () => {
       owner: "acme",
       repo: "r",
     });
-    const [, init] = overlapCast(hostFetch.mock.calls[0]);
+    const init = hostFetch.mock.calls[0]?.[1];
+    if (!init) throw new Error("Host request was not recorded");
     const sent = JSON.parse(String(init.body));
     expect(sent.connection_id).toBe("conn_1");
     expect(sent.installation_id).toBe("777");
@@ -259,7 +262,8 @@ describe("backup workflow edge cases", () => {
       branch: "env/production",
       enabled: false,
     });
-    const [, init] = overlapCast(hostFetch.mock.calls[0]);
+    const init = hostFetch.mock.calls[0]?.[1];
+    if (!init) throw new Error("Host request was not recorded");
     expect(JSON.parse(String(init.body))).toEqual({
       integration_id: "int-1",
       installation_id: "9",

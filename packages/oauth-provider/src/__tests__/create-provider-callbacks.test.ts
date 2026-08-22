@@ -1,4 +1,9 @@
 import { generateKeyPairSync } from "node:crypto";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   type OpenSesameProviderBundle,
@@ -6,7 +11,6 @@ import {
   isPkceRequired,
   isResourceAllowed,
 } from "../create-provider.js";
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 const ISSUER = "https://id.example.test";
 const API = "https://api.example.test";
@@ -24,8 +28,7 @@ type ResourceIndicatorsConfig = {
 function resourceIndicators(
   bundle: OpenSesameProviderBundle,
 ): ResourceIndicatorsConfig {
-  return overlapCast(bundle.configuration.features
-    ?.resourceIndicators);
+  return overlapCast(bundle.configuration.features?.resourceIndicators);
 }
 
 describe("provider resource indicator callbacks", () => {

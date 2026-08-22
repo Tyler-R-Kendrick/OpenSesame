@@ -23,6 +23,17 @@ function prodBase(): ControlPlaneConfig {
     hostApiUrl: "https://host.example",
     operatorToken: "operator-secret",
     mappingResolveToken: "mapping-resolve-secret",
+    trustedUpstreamIssuers: ["https://issuer.example"],
+    protocolFeatures: {
+      oid4vp: false,
+      oid4vci: false,
+      fedcm: false,
+      digitalCredentialsApi: false,
+      openidFederation: false,
+      sdJwtVc: false,
+      tokenStatusList: false,
+      presentationAgentIntents: false,
+    },
   };
 }
 

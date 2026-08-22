@@ -1,10 +1,15 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   accessTokenHash,
   createApiClient,
   createDpopKeyPair,
 } from "./index.js";
-import { type JsonObject, overlapCast, type BoundaryValue, isString } from "@opensesame/os-domain";
 
 function jsonClient(handler: (url: string, init?: RequestInit) => Response) {
   const calls: { url: string; method: string; body: string }[] = [];
@@ -27,9 +32,11 @@ function ok(body: BoundaryValue): Response {
 }
 
 function proofClaims(proof: string): JsonObject {
-  return overlapCast(JSON.parse(
-    Buffer.from(proof.split(".").at(1) ?? "", "base64url").toString("utf8"),
-  ));
+  return overlapCast(
+    JSON.parse(
+      Buffer.from(proof.split(".").at(1) ?? "", "base64url").toString("utf8"),
+    ),
+  );
 }
 
 afterEach(() => {

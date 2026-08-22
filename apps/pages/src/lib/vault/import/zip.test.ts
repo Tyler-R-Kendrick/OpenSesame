@@ -1,6 +1,6 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { ZipError, readZipText } from "./zip.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 /** CRC-32, needed because a ZIP entry header carries one. */
 function crc32(bytes: Uint8Array): number {

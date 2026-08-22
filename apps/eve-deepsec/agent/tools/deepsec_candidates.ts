@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { overlapCast, isString } from "@opensesame/os-domain";
+import { isString, overlapCast } from "@opensesame/os-domain";
 
 import { defineTool } from "eve/tools";
 import { z } from "zod";
@@ -56,10 +56,9 @@ export default defineTool({
       } catch {
         continue;
       }
-      const rel =
-        isString(data.path)
-          ? data.path
-          : relative(repoRoot, jsonPath);
+      const rel = isString(data.path)
+        ? data.path
+        : relative(repoRoot, jsonPath);
       if (pathPrefix && !rel.startsWith(pathPrefix)) continue;
       for (const c of data.candidates ?? []) {
         const s = c.vulnSlug;

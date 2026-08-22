@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import {
   assertFailClosedStatuses,
   assertNoSecretFields,
@@ -31,7 +32,9 @@ describe("PACT — published contracts fail closed", () => {
       paths["/api/v1/operator/taskbus/ping"].post.responses,
       ["401", "403", "422"],
     );
-    assertNoSecretFields(taskBusOpenApi.components.schemas.TaskBusConfig);
+    assertNoSecretFields(
+      overlapCast(taskBusOpenApi.components.schemas.TaskBusConfig),
+    );
     for (const leak of FORBIDDEN_TASKBUS_RESPONSE_KEYS) {
       expect(
         Object.keys(taskBusOpenApi.components.schemas.TaskBusConfig.properties),

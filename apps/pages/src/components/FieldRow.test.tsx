@@ -13,8 +13,7 @@ const copySecret = vi.hoisted(() => vi.fn());
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {useCopySecret: () => copySecret});
-
+Object.assign(vaultHooksSeams, { useCopySecret: () => copySecret });
 
 import {
   ConcealedValue,

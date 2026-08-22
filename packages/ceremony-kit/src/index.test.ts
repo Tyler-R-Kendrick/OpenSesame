@@ -7,7 +7,6 @@ import {
   parseUserCode,
   readFragmentToken,
 } from "./index.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 function memoryStorage(): StashStorage & { map: Map<string, string> } {
   const map = new Map<string, string>();
@@ -77,16 +76,19 @@ describe("claim stash", () => {
 });
 
 describe("device approval", () => {
-  const ok = () => Promise.resolve(new Response(null, { status: 204 }));
+  const ok: typeof fetch = async () => new Response(null, { status: 204 });
 
   it("posts the trimmed code to the identity API", async () => {
     const fetchImpl = vi.fn(ok);
     await approveDevice({
       baseUrl: "http://id.example/",
       userCode: " abcd-efgh ",
-      fetchImpl: overlapCast(fetchImpl),
+      fetchImpl,
     });
-    const [url, init] = overlapCast(fetchImpl.mock.calls[0]);
+    const call = fetchImpl.mock.calls[0];
+    if (!call) throw new Error("expected fetch to be called");
+    const [url, init] = call;
+    if (!init) throw new Error("expected fetch init");
     // The trailing slash is normalized away rather than doubled.
     expect(url).toBe("http://id.example/v1/device/approve");
     expect(JSON.parse(String(init.body))).toEqual({ user_code: "abcd-efgh" });
@@ -94,13 +96,15 @@ describe("device approval", () => {
   });
 
   it("distinguishes the failures a human can act on", async () => {
-    const status = (code: number) => () =>
-      Promise.resolve(new Response(null, { status: code }));
+    const status =
+      (code: number): typeof fetch =>
+      async () =>
+        new Response(null, { status: code });
     const attempt = (code: number) =>
       approveDevice({
         baseUrl: "http://id.example",
         userCode: "ABCD",
-        fetchImpl: overlapCast(status(code)),
+        fetchImpl: status(code),
       });
     await expect(attempt(401)).rejects.toThrow(/Sign in first/);
     await expect(attempt(404)).rejects.toThrow(/not found or has expired/);
@@ -113,7 +117,7 @@ describe("device approval", () => {
       approveDevice({
         baseUrl: "http://id.example",
         userCode: "   ",
-        fetchImpl: overlapCast(fetchImpl),
+        fetchImpl,
       }),
     ).rejects.toThrow(/Enter the user code/);
     expect(fetchImpl).not.toHaveBeenCalled();

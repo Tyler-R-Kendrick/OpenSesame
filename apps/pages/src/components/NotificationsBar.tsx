@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { beginSignIn, defaultUpstream } from "../lib/federation.js";
+import { stashCurrentSession } from "../lib/guest-auth.js";
 import {
   dismissNotice,
   listNotices,
@@ -12,6 +13,12 @@ import {
 } from "../lib/notices.js";
 import { loadQueue } from "../lib/queue.js";
 import { IconBell, IconX } from "./Icons.js";
+
+export const notificationsBarDependencies = {
+  beginSignIn,
+  defaultUpstream,
+  stashCurrentSession,
+};
 
 function NotificationsBarDefault() {
   const notices = useSyncExternalStore(subscribeNotices, listNotices);
@@ -100,9 +107,13 @@ function NotificationsBarDefault() {
                       type="button"
                       className="btn btn--primary"
                       onClick={() => {
-                        void beginSignIn(defaultUpstream(), {
-                          returnTo: "/",
-                        });
+                        notificationsBarDependencies.stashCurrentSession();
+                        void notificationsBarDependencies.beginSignIn(
+                          notificationsBarDependencies.defaultUpstream(),
+                          {
+                            returnTo: "/",
+                          },
+                        );
                       }}
                     >
                       Sign in to claim

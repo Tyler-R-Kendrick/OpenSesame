@@ -67,8 +67,8 @@ function shuffle<T>(input: T[]): T[] {
   const out = [...input];
   for (let i = out.length - 1; i > 0; i -= 1) {
     const j = randomIndex(i + 1);
-    const a = overlapCast(out[i]);
-    const b = overlapCast(out[j]);
+    const a: T = overlapCast(out[i]);
+    const b: T = overlapCast(out[j]);
     out[i] = b;
     out[j] = a;
   }
@@ -371,7 +371,7 @@ export const WORDS: readonly string[] = [
 export function generatePassphrase(options: PassphraseOptions): string {
   const count = Math.max(3, Math.min(options.words, 12));
   const parts = Array.from({ length: count }, () => {
-    const word = overlapCast(WORDS[randomIndex(WORDS.length)]);
+    const word: string = overlapCast(WORDS[randomIndex(WORDS.length)]);
     return options.capitalize
       ? word.charAt(0).toUpperCase() + word.slice(1)
       : word;

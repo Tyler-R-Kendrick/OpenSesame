@@ -1,4 +1,3 @@
-import { type BoundaryValue } from "@opensesame/os-domain";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
@@ -180,8 +179,7 @@ function ConnectThisMachineDefault({
   // parses as a URL — otherwise the chip is a dead end.
   useEffect(() => {
     if (phase !== "manual") return;
-    const read = navigator.clipboard?.readText;
-    if (typeof read !== "function") return;
+    if (!navigator.clipboard?.readText) return;
     let cancelled = false;
     void navigator.clipboard.readText().then(
       (text) => {
@@ -426,7 +424,7 @@ function ConnectThisMachineDefault({
   );
 }
 
-function errorText(error: BoundaryValue): string {
+function errorText<Thrown>(error: Thrown): string {
   return error instanceof Error
     ? error.message
     : "Could not reach a daemon on this machine.";

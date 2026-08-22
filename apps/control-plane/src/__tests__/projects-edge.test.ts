@@ -1,6 +1,10 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
-import { type JsonObject, overlapCast, type BoundaryValue } from "@opensesame/os-domain";
 
 type App = ReturnType<typeof createControlPlane>["app"];
 
@@ -43,11 +47,7 @@ function auth(token: string) {
   return { authorization: `Bearer ${token}` };
 }
 
-async function createProject(
-  app: App,
-  token: string,
-  body: JsonObject,
-) {
+async function createProject(app: App, token: string, body: JsonObject) {
   return app.request("/v1/projects", {
     method: "POST",
     headers: { ...auth(token), "content-type": "application/json" },
@@ -94,9 +94,7 @@ describe("projects routes edge cases", () => {
     const list = await app.request("/v1/projects", {
       headers: auth(owner.accessToken),
     });
-    const projects = (
-      overlapCast(await list.json())
-    ).projects;
+    const projects = overlapCast(await list.json()).projects;
     expect(projects.map((p) => p.slug)).toEqual(["personal", "beta", "alpha"]);
 
     // The reserved slug and collisions are refused.
@@ -111,14 +109,14 @@ describe("projects routes edge cases", () => {
       slug: "alpha",
     });
     expect(dupe.status).toBe(409);
-    expect((overlapCast(await dupe.json())).error).toBe("slug_taken");
+    expect(overlapCast(await dupe.json()).error).toBe("slug_taken");
 
     // A name with no sluggable characters gets a generated slug.
     const symbols = await createProject(app, owner.accessToken, {
       displayName: "!!!",
     });
     expect(symbols.status).toBe(201);
-    expect((overlapCast(await symbols.json())).slug).toMatch(
+    expect(overlapCast(await symbols.json()).slug).toMatch(
       /^project-[0-9a-f]{8}$/,
     );
   });
@@ -132,7 +130,7 @@ describe("projects routes edge cases", () => {
       organizationId: "org:missing",
     });
     expect(unknownOrg.status).toBe(404);
-    expect((overlapCast(await unknownOrg.json())).error).toBe(
+    expect(overlapCast(await unknownOrg.json()).error).toBe(
       "organization_not_found",
     );
 
@@ -152,9 +150,7 @@ describe("projects routes edge cases", () => {
       organizationId: org.id,
     });
     expect(inOrg.status).toBe(201);
-    expect(
-      (overlapCast(await inOrg.json())).organizationId,
-    ).toBe(org.id);
+    expect(overlapCast(await inOrg.json()).organizationId).toBe(org.id);
   });
 
   it("lets provisional principals create a standard project", async () => {
@@ -221,9 +217,7 @@ describe("projects routes edge cases", () => {
       body: JSON.stringify({ projectId: project.id }),
     });
     expect(swapped.status).toBe(200);
-    expect((overlapCast(await swapped.json())).isFallback).toBe(
-      false,
-    );
+    expect(overlapCast(await swapped.json()).isFallback).toBe(false);
 
     // A selection pointing at a vanished project falls back to personal.
     ctx.stores.activeProjects.set(owner.principalId, "prj_gone");
@@ -260,7 +254,7 @@ describe("projects routes edge cases", () => {
       headers: auth(owner.accessToken),
     });
     expect(visible.status).toBe(200);
-    expect((overlapCast(await visible.json())).role).toBe("owner");
+    expect(overlapCast(await visible.json()).role).toBe("owner");
 
     now = new Date(now.getTime() + 61_000);
     expect(
@@ -273,9 +267,7 @@ describe("projects routes edge cases", () => {
     const list = await app.request("/v1/projects", {
       headers: auth(owner.accessToken),
     });
-    const slugs = (
-      overlapCast(await list.json())
-    ).projects.map((p) => p.id);
+    const slugs = overlapCast(await list.json()).projects.map((p) => p.id);
     expect(slugs).not.toContain(project.projectId);
   });
 
@@ -338,9 +330,7 @@ describe("projects routes edge cases", () => {
 
     const renamed = await patch({ displayName: "Renamed" });
     expect(renamed.status).toBe(200);
-    expect(
-      (overlapCast(await renamed.json())).displayName,
-    ).toBe("Renamed");
+    expect(overlapCast(await renamed.json()).displayName).toBe("Renamed");
 
     const updated = await patch({
       sealedStoreTombName: "tomb-2",
@@ -408,31 +398,26 @@ describe("projects routes edge cases", () => {
       body: JSON.stringify({ displayName: "Hijack" }),
     });
     expect(memberPatch.status).toBe(403);
-    expect((overlapCast(await memberPatch.json())).error).toBe(
-      "admin_required",
-    );
+    expect(overlapCast(await memberPatch.json()).error).toBe("admin_required");
 
     const memberDelete = await app.request(`/v1/projects/${project.id}`, {
       method: "DELETE",
       headers: auth(member.accessToken),
     });
     expect(memberDelete.status).toBe(403);
-    expect((overlapCast(await memberDelete.json())).error).toBe(
-      "owner_required",
-    );
+    expect(overlapCast(await memberDelete.json()).error).toBe("owner_required");
 
     // The personal project can never be deleted.
     const active = await app.request("/v1/projects/active", {
       headers: auth(owner.accessToken),
     });
-    const personal = (overlapCast(await active.json()))
-      .project;
+    const personal = overlapCast(await active.json()).project;
     const personalDelete = await app.request(`/v1/projects/${personal.id}`, {
       method: "DELETE",
       headers: auth(owner.accessToken),
     });
     expect(personalDelete.status).toBe(409);
-    expect((overlapCast(await personalDelete.json())).error).toBe(
+    expect(overlapCast(await personalDelete.json()).error).toBe(
       "personal_project_immutable",
     );
 
@@ -487,8 +472,7 @@ describe("projects routes edge cases", () => {
     const active = await app.request("/v1/projects/active", {
       headers: auth(owner.accessToken),
     });
-    const personal = (overlapCast(await active.json()))
-      .project;
+    const personal = overlapCast(await active.json()).project;
     const sharePersonal = await addMember(
       app,
       owner.accessToken,
@@ -497,7 +481,7 @@ describe("projects routes edge cases", () => {
       "member",
     );
     expect(sharePersonal.status).toBe(409);
-    expect((overlapCast(await sharePersonal.json())).error).toBe(
+    expect(overlapCast(await sharePersonal.json()).error).toBe(
       "personal_project_not_shareable",
     );
 
@@ -543,9 +527,7 @@ describe("projects routes edge cases", () => {
       "member",
     );
     expect(inactive.status).toBe(409);
-    expect((overlapCast(await inactive.json())).error).toBe(
-      "principal_inactive",
-    );
+    expect(overlapCast(await inactive.json()).error).toBe("principal_inactive");
 
     // Members and an admin.
     expect(
@@ -578,9 +560,7 @@ describe("projects routes edge cases", () => {
       "member",
     );
     expect(dupe.status).toBe(409);
-    expect((overlapCast(await dupe.json())).error).toBe(
-      "membership_exists",
-    );
+    expect(overlapCast(await dupe.json()).error).toBe("membership_exists");
 
     // Only an owner mints another owner.
     const ownerByAdmin = await addMember(
@@ -591,9 +571,7 @@ describe("projects routes edge cases", () => {
       "owner",
     );
     expect(ownerByAdmin.status).toBe(403);
-    expect((overlapCast(await ownerByAdmin.json())).error).toBe(
-      "owner_required",
-    );
+    expect(overlapCast(await ownerByAdmin.json()).error).toBe("owner_required");
 
     // Members cannot add anyone.
     const memberAdds = await addMember(
@@ -617,9 +595,7 @@ describe("projects routes edge cases", () => {
       headers: auth(owner.accessToken),
     });
     expect(list.status).toBe(200);
-    expect(
-      (overlapCast(await list.json())).members,
-    ).toHaveLength(3);
+    expect(overlapCast(await list.json()).members).toHaveLength(3);
   });
 
   it("changes member roles with owner and last-owner fences", async () => {
@@ -710,23 +686,21 @@ describe("projects routes edge cases", () => {
       role: "member",
     });
     expect(noop.status).toBe(200);
-    expect((overlapCast(await noop.json())).role).toBe("member");
+    expect(overlapCast(await noop.json()).role).toBe("member");
 
     // Admins may move members between non-owner roles.
     const promoted = await changeRole(admin.accessToken, member.principalId, {
       role: "admin",
     });
     expect(promoted.status).toBe(200);
-    expect((overlapCast(await promoted.json())).role).toBe("admin");
+    expect(overlapCast(await promoted.json()).role).toBe("admin");
 
     // The last owner cannot be demoted.
     const demote = await changeRole(owner.accessToken, owner.principalId, {
       role: "member",
     });
     expect(demote.status).toBe(409);
-    expect((overlapCast(await demote.json())).error).toBe(
-      "last_owner",
-    );
+    expect(overlapCast(await demote.json()).error).toBe("last_owner");
   });
 
   it("removes members with self-leave, owner, and last-owner fences", async () => {
@@ -801,9 +775,7 @@ describe("projects routes edge cases", () => {
     // The last owner cannot leave.
     const lastOwner = await remove(owner.accessToken, owner.principalId);
     expect(lastOwner.status).toBe(409);
-    expect((overlapCast(await lastOwner.json())).error).toBe(
-      "last_owner",
-    );
+    expect(overlapCast(await lastOwner.json()).error).toBe("last_owner");
 
     // Owner removes a member.
     expect((await remove(owner.accessToken, member.principalId)).status).toBe(
@@ -819,9 +791,7 @@ describe("projects routes edge cases", () => {
     const active = await app.request("/v1/projects/active", {
       headers: auth(owner.accessToken),
     });
-    const personal = (
-      overlapCast(await active.json())
-    ).project;
+    const personal = overlapCast(await active.json()).project;
 
     // Personal projects refuse sharing through the API, so seed a second owner
     // directly to get past the last-owner fence.
@@ -839,7 +809,7 @@ describe("projects routes edge cases", () => {
       { method: "DELETE", headers: auth(owner.accessToken) },
     );
     expect(res.status).toBe(409);
-    expect((overlapCast(await res.json())).error).toBe(
+    expect(overlapCast(await res.json()).error).toBe(
       "personal_project_immutable",
     );
   });

@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
+import { isString, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createMockUpstreamIdp } from "./server.js";
-import { overlapCast, isString } from "@opensesame/os-domain";
 
 describe("mock-upstream-idp", () => {
   it("serves discovery, authorize (auto-approve), token, and jwks", async () => {

@@ -1,3 +1,4 @@
+import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   ALLOWED_EVENTS,
@@ -5,7 +6,6 @@ import {
   createTelemetry,
   redactionTest,
 } from "../telemetry.js";
-import { type JsonObject, overlapCast, isString } from "@opensesame/os-domain";
 
 function capturing() {
   const events: Array<{ event: string; props: JsonObject }> = [];
@@ -120,7 +120,7 @@ describe("createTelemetry — primitive coercion", () => {
     const long = "x".repeat(200);
     telemetry.track("item_opened", { item_type: long });
     expect(events[0]?.props.item_type).toBe("x".repeat(64));
-    expect((overlapCast(events[0]?.props.item_type)).length).toBe(64);
+    expect(overlapCast(events[0]?.props.item_type).length).toBe(64);
   });
 
   it("does not truncate short strings", () => {

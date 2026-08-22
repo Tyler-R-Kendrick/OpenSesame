@@ -1,0 +1,18 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`guest surface copy > says exactly this on the Identity glyph ceremony 1`] = `
+{
+  "guest": "Continue as guest",
+  "lead": "Registered sign-in uses a seeded test account. Continuing as a guest needs no passkey or password — you will be asked to claim this session from the notifications bell.",
+  "registered": "Sign in with a seeded test account",
+}
+`;
+
+exports[`guest surface copy > says exactly this on the claim-ceremony notice 1`] = `
+{
+  "body": "You skipped registered sign-in. Sign in with a trusted account to attach it to this principal — the id stays the same.",
+  "title": "Claim this guest session",
+}
+`;
+
+exports[`guest surface copy > says exactly this on the first-run unlock card 1`] = `"Continue as guest — no passkey or password"`;

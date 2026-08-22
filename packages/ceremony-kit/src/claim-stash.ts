@@ -1,4 +1,9 @@
-import { overlapCast, isTypeofObject, isString, isBoolean } from "@opensesame/os-domain";
+import {
+  isBoolean,
+  isString,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 /**
  * The claim bearer between steps of a ceremony.
  *
@@ -76,8 +81,7 @@ export function createClaimStash(
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (!isTypeofObject(parsed) || parsed === null) return null;
-        const { token, presented, claimId, principalId } =
-          overlapCast(parsed);
+        const { token, presented, claimId, principalId } = overlapCast(parsed);
         if (!isString(token) || !isBoolean(presented)) {
           return null;
         }

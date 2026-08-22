@@ -1,10 +1,10 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   canonicalResource,
   createOpenSesameProvider,
   isResourceAllowed,
 } from "../create-provider.js";
-import { overlapCast } from "@opensesame/os-domain";
 
 const ISSUER = "https://id.example.test";
 

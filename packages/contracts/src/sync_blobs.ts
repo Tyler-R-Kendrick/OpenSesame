@@ -1,5 +1,10 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isTypeofObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { z } from "zod";
-import { type JsonObject, overlapCast, type BoundaryValue, isTypeofObject } from "@opensesame/os-domain";
 
 /**
  * Host sync-blob wire contract — opaque ciphertext only.

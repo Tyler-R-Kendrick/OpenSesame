@@ -1,4 +1,3 @@
-import { isBoolean } from "@opensesame/os-domain";
 /**
  * Passkey / WebAuthn seam. Production wires Better Auth + SimpleWebAuthn;
  * tests inject `verifyAssertion`.
@@ -31,6 +30,12 @@ export type PasskeyVerifyFn = (
   assertion: PasskeyAssertion,
   credential: PasskeyCredential,
 ) => Promise<boolean | PasskeyVerifyResult>;
+
+function isBooleanOutcome(
+  value: boolean | PasskeyVerifyResult,
+): value is boolean {
+  return value === true || value === false;
+}
 
 export interface PasskeySeam {
   register(
@@ -65,7 +70,8 @@ export function createPasskeySeam(options?: {
       if (!credential) return { ok: false };
       const outcome = await verifyAssertion(assertion, credential);
       const result: PasskeyVerifyResult =
-        isBoolean(outcome) ? { ok: outcome } : outcome;
+        // The verifier contract returns either a boolean or its structured result.
+        isBooleanOutcome(outcome) ? { ok: outcome } : outcome;
       if (!result.ok) return { ok: false };
 
       const next = result.newCounter;

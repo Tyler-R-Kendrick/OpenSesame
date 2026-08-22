@@ -2,6 +2,7 @@ import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { createRemoteJWKSet, decodeProtectedHeader, jwtVerify } from "jose";
 
 const ALLOWED_ALGS = ["RS256", "ES256"] as const;
+const ALLOWED_ALG_SET = new Set<string>(ALLOWED_ALGS);
 const DISCOVERY_MS = 5_000;
 
 export class OrgAssertionError extends Error {
@@ -65,10 +66,7 @@ async function verifyOrgIdTokenDefault(
   } catch {
     throw new OrgAssertionError("invalid_token", "Not a JWT.");
   }
-  if (
-    !isString(header.alg) ||
-    !(ALLOWED_ALGS as readonly string[]).includes(header.alg)
-  ) {
+  if (!isString(header.alg) || !ALLOWED_ALG_SET.has(header.alg)) {
     throw new OrgAssertionError(
       "invalid_token",
       "Token algorithm is not allowed.",
@@ -93,9 +91,8 @@ async function verifyOrgIdTokenDefault(
     throw new OrgAssertionError("invalid_token", "Token was not accepted.");
   }
 
-  const pairwise =
-    typeof payload.pairwise_sub === "string" ? payload.pairwise_sub : "";
-  const sub = pairwise || (typeof payload.sub === "string" ? payload.sub : "");
+  const pairwise = isString(payload.pairwise_sub) ? payload.pairwise_sub : "";
+  const sub = pairwise || (isString(payload.sub) ? payload.sub : "");
   if (!sub) {
     throw new OrgAssertionError("invalid_token", "Token carries no subject.");
   }
