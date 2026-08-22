@@ -7,13 +7,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Folder, LoginItem, NoteItem } from "../lib/vault/model.js";
 
-const vault: {
+type VaultHarness = {
   current: {
     items: Array<LoginItem | NoteItem>;
     folders: Folder[];
     header: JsonObject | null;
   };
-} = {
+};
+
+const vault: VaultHarness = {
   current: {
     items: [],
     folders: [],
