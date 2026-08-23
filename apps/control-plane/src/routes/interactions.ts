@@ -32,6 +32,7 @@ import type { Variables } from "../middleware/context.js";
 import { claimPageSecurityHeaders } from "../middleware/security-headers.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { renderConsentPage, renderLoginPage } from "../ui/interaction-pages.js";
+import { ensurePersonalOnAuthenticatedSession } from "./projects.js";
 
 type NodeEnv = { Bindings: HttpBindings };
 
@@ -357,6 +358,15 @@ export function createInteractionRoutes(): Hono<
         return c.text(attached.message, 409);
       }
       accountId = minted.principalId;
+      // The same first-authenticated-session guarantee POST
+      // /v1/principals/link-identities gives: a principal that just became
+      // verified gets its personal project. Both federated surfaces have to
+      // agree here, or where you signed in decides whether you have one.
+      await ensurePersonalOnAuthenticatedSession(
+        ctx,
+        minted.principalId,
+        correlationId,
+      );
       setCookie(c, ctx.config.provisionalCookieName, minted.accessToken, {
         httpOnly: true,
         sameSite: "Lax",

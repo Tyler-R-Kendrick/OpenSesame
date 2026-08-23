@@ -627,6 +627,49 @@ describe("federated interaction leg", () => {
     expect(jar.get("os_provisional")).toBeTruthy();
   });
 
+  /**
+   * Parity with POST /v1/principals/link-identities, which ensures the personal
+   * project on a principal's first authenticated session. Without the same call
+   * here, *where* you signed in would decide whether you have one — the API
+   * surface gives you a project, the hosted login page does not.
+   *
+   * Asserted by re-running the ensure and requiring it to report `created:
+   * false`: the only way that holds is if the sign-in already did it.
+   */
+  it("gives a federated first-timer the personal project the API path does", async () => {
+    const subject = `project-${randomBytes(4).toString("hex")}`;
+    upstream.setSubject(subject);
+    const { jar, uid, html } = await loginPage();
+    const start = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/start`,
+      postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
+    );
+    const authorize = new URL(start.headers.get("location") ?? "");
+    const upstreamRes = await fetch(authorize, { redirect: "manual" });
+    const back = new URL(upstreamRes.headers.get("location") ?? "");
+    const res = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/callback${back.search}`,
+    );
+    expect(res.status).toBe(303);
+
+    const identity = await started.ctx.repos.externalIdentities.findByTuple({
+      kind: "oidc",
+      issuer: upstream.issuer,
+      subject,
+    });
+    expect(identity).toBeTruthy();
+    const { created } = await started.ctx.stores.projects.ensurePersonal(
+      identity?.principalId ?? "",
+      undefined,
+      started.ctx.clock(),
+    );
+    expect(created).toBe(false);
+  }, 30_000);
+
   it("reuses the same principal on a second sign-in", async () => {
     const subject = `repeat-${randomBytes(4).toString("hex")}`;
     upstream.setSubject(subject);
