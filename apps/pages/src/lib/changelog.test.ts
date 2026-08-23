@@ -4,6 +4,7 @@ import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
   formatChangelogSummary,
   listHostChangelog,
+  listHostChangelogPage,
   listIdentityChangelog,
 } from "./changelog.js";
 import {
@@ -339,6 +340,50 @@ describe("changelog guards and fallbacks", () => {
     expect(
       spy.mock.calls.some(([url]) =>
         String(url).includes("/v1/audit/events?changelog=1&limit=5"),
+      ),
+    ).toBe(true);
+  });
+
+  it("pages the durable Host changelog with before_seq / next_before_seq", async () => {
+    const spy = stubHostFetch((url) => {
+      if (url.includes("/changelog")) {
+        const paged = url.includes("before_seq=41");
+        return jsonResponse({
+          project_id: "project_1",
+          events: [
+            {
+              id: paged ? "chg_older" : "chg_newer",
+              seq: paged ? 40 : 41,
+              event_type: "secret.value.changed",
+              project_id: "project_1",
+              key_names: ["API_KEY"],
+              occurred_at: "2026-08-17T12:00:00Z",
+              metadata: {},
+            },
+          ],
+          next_before_seq: paged ? null : 41,
+        });
+      }
+      return jsonResponse({ error: "unexpected" }, 500);
+    });
+
+    const first = await listHostChangelogPage("project_1", { limit: 1 });
+    expect(first.events.map((e) => e.id)).toEqual(["chg_newer"]);
+    expect(first.events[0]?.seq).toBe(41);
+    expect(first.nextBeforeSeq).toBe(41);
+    expect(
+      spy.mock.calls.some(([url]) => String(url).includes("before_seq")),
+    ).toBe(false);
+
+    const older = await listHostChangelogPage("project_1", {
+      limit: 1,
+      beforeSeq: first.nextBeforeSeq ?? 0,
+    });
+    expect(older.events.map((e) => e.id)).toEqual(["chg_older"]);
+    expect(older.nextBeforeSeq).toBeNull();
+    expect(
+      spy.mock.calls.some(([url]) =>
+        String(url).includes("changelog?limit=1&before_seq=41"),
       ),
     ).toBe(true);
   });

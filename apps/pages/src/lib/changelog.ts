@@ -2,6 +2,7 @@ import {
   type BoundaryValue,
   type JsonObject,
   isJsonObject,
+  isNumber,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -43,6 +44,8 @@ export function isSecretChangelogEventType(
 
 export type ChangelogEvent = {
   id: string;
+  /** Durable-store cursor (Host plane); absent on cache-only rows. */
+  seq?: number;
   eventType: string;
   occurredAt: string;
   projectId?: string;
@@ -80,6 +83,7 @@ function normalizeHostEvent(raw: JsonObject): ChangelogEvent {
       : undefined;
   return {
     id: String(raw.id ?? ""),
+    ...(isNumber(raw.seq) ? { seq: raw.seq } : undefined),
     eventType: String(raw.event_type ?? raw.eventType ?? ""),
     occurredAt: String(raw.occurred_at ?? raw.occurredAt ?? ""),
     projectId: isString(raw.project_id)
@@ -122,24 +126,60 @@ function normalizeHostEvent(raw: JsonObject): ChangelogEvent {
   };
 }
 
+/** One durable-store page: events plus the cursor for the next-older page. */
+export type ChangelogPage = {
+  events: ChangelogEvent[];
+  /** Pass as `beforeSeq` to fetch the next-older page; null when exhausted. */
+  nextBeforeSeq: number | null;
+};
+
+/** List one cursor-paged Host changelog page for a project (authz-gated). */
+async function listHostChangelogPageDefault(
+  projectId: string,
+  options?: { limit?: number; beforeSeq?: number },
+): Promise<ChangelogPage> {
+  const limit = Math.min(Math.max(options?.limit ?? 50, 1), 200);
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (options?.beforeSeq !== undefined) {
+    params.set("before_seq", String(options.beforeSeq));
+  }
+  const res = await hostFetch(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/changelog?${params}`,
+  );
+  if (!res.ok) {
+    throw new Error(`Host changelog failed (${res.status}).`);
+  }
+  const body: { events?: BoundaryValue[]; next_before_seq?: BoundaryValue } =
+    overlapCast(await res.json());
+  const events = (body.events ?? [])
+    .filter((row): row is JsonObject => isJsonObject(row))
+    .map(normalizeHostEvent);
+  assertNoSecretMetadata(events);
+  return {
+    events,
+    nextBeforeSeq: isNumber(body.next_before_seq) ? body.next_before_seq : null,
+  };
+}
+
+export async function listHostChangelogPage(
+  projectId: string,
+  options?: { limit?: number; beforeSeq?: number },
+): Promise<ChangelogPage> {
+  return options === undefined
+    ? changelogSeams.listHostChangelogPage(projectId)
+    : changelogSeams.listHostChangelogPage(projectId, options);
+}
+
 /** List Host-plane changelog events for a project (authz-gated). */
 export async function listHostChangelog(
   projectId: string,
   options?: { limit?: number },
 ): Promise<ChangelogEvent[]> {
-  const limit = Math.min(Math.max(options?.limit ?? 50, 1), 200);
-  const res = await hostFetch(
-    `/api/v1/projects/${encodeURIComponent(projectId)}/changelog?limit=${limit}`,
+  const page = await listHostChangelogPageDefault(
+    projectId,
+    options === undefined ? undefined : { ...options },
   );
-  if (!res.ok) {
-    throw new Error(`Host changelog failed (${res.status}).`);
-  }
-  const body: { events?: BoundaryValue[] } = overlapCast(await res.json());
-  const events = (body.events ?? [])
-    .filter((row): row is JsonObject => isJsonObject(row))
-    .map(normalizeHostEvent);
-  assertNoSecretMetadata(events);
-  return events;
+  return page.events;
 }
 
 /** List Identity audit events filtered to secret/config changelog types. */
@@ -222,6 +262,7 @@ function formatChangelogSummaryDefault(event: ChangelogEvent): string {
 
 export const changelogSeams = {
   listChangelog: listChangelogDefault,
+  listHostChangelogPage: listHostChangelogPageDefault,
   formatChangelogSummary: formatChangelogSummaryDefault,
 };
 
