@@ -14,6 +14,9 @@ use sha2::Sha256;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+#[cfg(test)]
+mod chunk_tests;
+
 pub const ENVELOPE_VERSION: u32 = 1;
 
 #[derive(Debug, Error)]
@@ -285,6 +288,130 @@ pub fn kek_from_webauthn_prf(
     hk.expand(b"opensesame/vault/webauthn-prf/v1", &mut out)
         .map_err(|_| VaultCryptoError::Kdf)?;
     Ok(out)
+}
+
+// ---------------------------------------------------------------------------
+// Attachment chunk crypto (ADR 0054).
+//
+// Attachments are streamed, so they are sealed one bounded chunk at a time
+// rather than through `encrypt_item`, whose whole-buffer base64-in-JSON
+// envelope costs ~37% size and holds the entire payload in memory. A chunk is
+// a raw binary frame; its associated data binds the attachment, the store
+// path, and the chunk's position in the run, so a chunk cannot be reordered,
+// dropped, appended to, or spliced in from another attachment.
+// ---------------------------------------------------------------------------
+
+/// Magic prefix of a sealed chunk frame.
+pub const OSCHUNK_MAGIC: &[u8; 8] = b"OSCHNK1\n";
+
+/// Bytes of frame that precede the ciphertext: magic followed by the nonce.
+pub const OSCHUNK_HEADER_LEN: usize = OSCHUNK_MAGIC.len() + 24;
+
+/// Poly1305 tag length; a frame shorter than header + tag cannot be authentic.
+const AEAD_TAG_LEN: usize = 16;
+
+/// Per-attachment content key. Derived from the item key and a random
+/// attachment id, so two attachments of identical bytes never share a key —
+/// content addressing over ciphertext then leaks no equality between them.
+#[derive(Zeroize, ZeroizeOnDrop)]
+pub struct AttachmentKey(pub [u8; 32]);
+
+/// Context bound into every chunk frame as AEAD associated data.
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+pub struct ChunkAd {
+    pub envelope_version: u32,
+    /// 32 lowercase hex characters identifying the attachment.
+    pub attachment_id: String,
+    /// Logical store path the attachment is filed under.
+    pub item_id: String,
+    /// 0-based position of this chunk.
+    pub chunk_index: u32,
+    /// Total chunks in the attachment; binding it defeats truncation.
+    pub chunk_count: u32,
+}
+
+/// Derive the per-attachment content key.
+pub fn derive_attachment_key(idk: &ItemDataKey, attachment_id: &[u8; 16]) -> AttachmentKey {
+    let hk = Hkdf::<Sha256>::new(Some(attachment_id), &idk.0);
+    let mut out = [0u8; 32];
+    // A 32-byte expand from SHA-256 is always within HKDF's output bound, so
+    // this cannot fail; keep the key type infallible for streaming callers.
+    hk.expand(b"opensesame/sealed-store/attachment/v1", &mut out)
+        .expect("32 bytes is within HKDF-SHA256 output length");
+    AttachmentKey(out)
+}
+
+/// Digest of a chunk's associated data, used verbatim as the AEAD AAD.
+pub fn chunk_ad_digest(ad: &ChunkAd) -> Result<String, VaultCryptoError> {
+    let bytes = serde_json::to_vec(ad).map_err(|_| VaultCryptoError::Kdf)?;
+    Ok(format!("blake3:{}", blake3::hash(&bytes).to_hex()))
+}
+
+/// Seal one plaintext chunk into a binary frame.
+pub fn seal_chunk(
+    key: &AttachmentKey,
+    plaintext: &[u8],
+    ad: &ChunkAd,
+) -> Result<Vec<u8>, VaultCryptoError> {
+    if ad.envelope_version != ENVELOPE_VERSION {
+        return Err(VaultCryptoError::UnsupportedVersion(ad.envelope_version));
+    }
+    if ad.chunk_index >= ad.chunk_count {
+        return Err(VaultCryptoError::AdMismatch);
+    }
+    let digest = chunk_ad_digest(ad)?;
+    let cipher = XChaCha20Poly1305::new_from_slice(&key.0).map_err(|_| VaultCryptoError::Aead)?;
+    let mut nonce = [0u8; 24];
+    rand::thread_rng().fill_bytes(&mut nonce);
+    let ct = cipher
+        .encrypt(
+            XNonce::from_slice(&nonce),
+            Payload {
+                msg: plaintext,
+                aad: digest.as_bytes(),
+            },
+        )
+        .map_err(|_| VaultCryptoError::Aead)?;
+    let mut frame = Vec::with_capacity(OSCHUNK_HEADER_LEN + ct.len());
+    frame.extend_from_slice(OSCHUNK_MAGIC);
+    frame.extend_from_slice(&nonce);
+    frame.extend_from_slice(&ct);
+    Ok(frame)
+}
+
+/// Open a sealed chunk frame, requiring the caller's independently
+/// reconstructed context to match what was sealed.
+pub fn open_chunk(
+    key: &AttachmentKey,
+    frame: &[u8],
+    ad: &ChunkAd,
+) -> Result<Vec<u8>, VaultCryptoError> {
+    if ad.envelope_version != ENVELOPE_VERSION {
+        return Err(VaultCryptoError::UnsupportedVersion(ad.envelope_version));
+    }
+    if ad.chunk_index >= ad.chunk_count {
+        return Err(VaultCryptoError::AdMismatch);
+    }
+    if !frame.starts_with(OSCHUNK_MAGIC) {
+        return Err(VaultCryptoError::Aead);
+    }
+    // Reject anything too short to hold a nonce and a tag before indexing.
+    if frame.len() < OSCHUNK_HEADER_LEN + AEAD_TAG_LEN {
+        return Err(VaultCryptoError::NonceLength);
+    }
+    let mut nonce = [0u8; 24];
+    nonce.copy_from_slice(&frame[OSCHUNK_MAGIC.len()..OSCHUNK_HEADER_LEN]);
+    let digest = chunk_ad_digest(ad)?;
+    let cipher = XChaCha20Poly1305::new_from_slice(&key.0).map_err(|_| VaultCryptoError::Aead)?;
+    cipher
+        .decrypt(
+            XNonce::from_slice(&nonce),
+            Payload {
+                msg: &frame[OSCHUNK_HEADER_LEN..],
+                aad: digest.as_bytes(),
+            },
+        )
+        .map_err(|_| VaultCryptoError::Aead)
 }
 
 /// Decode a stored nonce, refusing any length XChaCha20 would panic on.

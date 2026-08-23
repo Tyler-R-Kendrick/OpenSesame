@@ -57,6 +57,7 @@ Do not add a suite that only documents the happy path.
 | Device-auth projection | slow_down interval caps at 60s | projection has no secret fields | 20 slow_downs stay at 60s | no `user_code` / `device_code` in UI JSON |
 | Observability | `token_type` kept; depth ceiling before recurse | nested `access_token` / `pin` redacted | cyclic objects terminate | `[Redacted]` not plaintext |
 | QR | empty payload refused | `assertPayload` before encode | concurrent encodes of one payload are identical | `QrEncodeError` |
+| Sealed store attachments | proptest round-trip over arbitrary sizes; any single bit flip and any truncation fail closed; distinct attachment ids never share ciphertext | chunk spliced from another attachment, reordered, or tampered fails closed; reveal gate refuses without a TTY | GC spares orphans inside the grace window and removes nothing when any manifest will not open | listing is metadata-only; manifest bound to its path and to `collection_id="attachments"`; golden vectors pin the KDF, AD digest and frame layout |
 | Client-core | `sealDevOnly` gated by `isDevOrTestEnv` | no `getSecret(` | production NODE_ENV never XORs | blobs are ciphertext-only |
 | CLI device SDK | `expires_in >= 0` is real expiry | printed instructions omit `device_code` | `expires_in: 0` does not spin | interval floor 5, cap 60 |
 | Auth-upstream | `principalId` stable on upgrade | no email auto-link | concurrent upgrades to one upstream keep a single mapping | unknown principal throws |

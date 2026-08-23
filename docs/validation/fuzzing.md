@@ -114,7 +114,7 @@ ADR 0036 as a follow-up. Do not invent a dual-writer SQLite cluster
 | proof | `jwt_jwk`, `uri_normalize`, `replay_cache` |
 | authn | `token_audience`, `device_auth`, `oidc_discovery` |
 | redaction | `redaction` |
-| human-vault | `vault_envelope` |
+| human-vault | `vault_envelope`, `attachment_chunk` |
 | claims | `claim_replay` |
 | audit | `receipt_verify` |
 | env-spec | `env_spec` |
