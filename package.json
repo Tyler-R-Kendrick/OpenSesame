@@ -26,7 +26,7 @@
     "test:coverage:rust": "cargo +1.88.0 llvm-cov --workspace --all-targets --summary-only --fail-under-lines 69 --fail-under-functions 67 --json --output-path coverage/rust-summary.json",
     "test:coverage": "pnpm test:coverage:ts && pnpm test:coverage:rust",
     "test:mutation:ts": "stryker run",
-    "test:mutation:rust": "cargo +1.88.0 mutants --gitignore true -p opensesame-redaction -p opensesame-task-bus -p opensesame-relay -p opensesame-connection-detect --file crates/redaction/src/lib.rs --file crates/task-bus/src/validate.rs --file crates/relay/src/lib.rs --file crates/connection-detect/src/lib.rs -j 2 -o artifacts/mutation/rust",
+    "test:mutation:rust": "cargo +1.88.0 mutants --gitignore true -p opensesame-redaction -p opensesame-task-bus -p opensesame-relay -p opensesame-connection-detect -p opensesame-human-vault -p opensesame-sealed-store --file crates/redaction/src/lib.rs --file crates/task-bus/src/validate.rs --file crates/relay/src/lib.rs --file crates/connection-detect/src/lib.rs --file crates/human-vault/src/lib.rs --file crates/sealed-store/src/attachment.rs -j 2 -o artifacts/mutation/rust",
     "test:mutation": "pnpm test:mutation:ts && pnpm test:mutation:rust",
     "audit:cve-lite": "bash ./scripts/cve-lite-gate.sh",
     "audit:ast-grep": "bash ./scripts/ast-grep-security-gate.sh",
