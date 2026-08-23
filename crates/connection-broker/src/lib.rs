@@ -73,9 +73,6 @@ pub use crate::rotation::{
 pub use crate::secret_config::{
     ConfigKeyMeta, CreateSecretConfig, SecretConfigView, StoreSecretSource,
 };
-pub use crate::secret_config::{
-    ConfigKeyMeta, CreateSecretConfig, SecretConfigView, StoreSecretSource,
-};
 pub use crate::sync_target::{
     CreateSyncTarget, EmptySecretSource, KeyFilteredSecretSource, MapSecretSource, SyncOutcome,
     SyncSecretSource, SyncTargetStatus, SyncTargetView,
