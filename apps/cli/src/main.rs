@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 mod attach;
-=======
 mod bridge;
->>>>>>> claude/file-attachment-storage-k0waw7
 mod certs;
 mod configs;
 mod connect;
