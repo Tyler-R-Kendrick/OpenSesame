@@ -10,6 +10,10 @@ const REMOTE: &str = "origin";
 /// Git config key gating best-effort push after every auto-commit.
 const AUTOPUSH_KEY: &str = "opensesame.autopush";
 
+/// Most `git add` invocations we will hand paths to at once. One attachment can
+/// contribute a thousand chunk objects, which would overrun the argument limit.
+const ADD_BATCH: usize = 100;
+
 pub fn ensure_git_repo(root: &Path) -> Result<(), StoreError> {
     if !root.join(".git").exists() {
         let status = Command::new("git")
@@ -63,19 +67,27 @@ pub fn auto_commit(root: &Path, message: &str) -> Result<(), StoreError> {
             ) || path.ends_with(".osseal")
                 || path.ends_with(".gpg")
                 || path.ends_with(".age")
+                // Attachment ciphertext (ADR 0054). Both are sealed bytes, so
+                // they travel under the same "only ciphertext leaves" rule as
+                // entries. The attachment revision map stays local, like the
+                // entry one, and is deliberately absent from this list.
+                || path.ends_with(".osattach")
+                || path.ends_with(".oschunk")
         })
         .collect();
     if paths.is_empty() {
         return Ok(());
     }
-    let add = Command::new("git")
-        .args(["add", "-A", "--"])
-        .args(paths)
-        .current_dir(root)
-        .status()
-        .map_err(|e| StoreError::Git(e.to_string()))?;
-    if !add.success() {
-        return Err(StoreError::Git("git add failed".into()));
+    for batch in paths.chunks(ADD_BATCH) {
+        let add = Command::new("git")
+            .args(["add", "-A", "--"])
+            .args(batch)
+            .current_dir(root)
+            .status()
+            .map_err(|e| StoreError::Git(e.to_string()))?;
+        if !add.success() {
+            return Err(StoreError::Git("git add failed".into()));
+        }
     }
     // Empty commit is fine to skip when nothing staged changes.
     let status = Command::new("git")
@@ -243,6 +255,21 @@ mod tests {
             .status();
     }
 
+    fn tracked_files(dir: &Path) -> String {
+        let tree = Command::new("git")
+            .args([
+                "-C",
+                dir.to_str().unwrap(),
+                "ls-tree",
+                "-r",
+                "--name-only",
+                "HEAD",
+            ])
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&tree.stdout).into_owned()
+    }
+
     #[test]
     fn auto_commit_records_insert() {
         let dir = tempfile::tempdir().unwrap();
@@ -272,18 +299,39 @@ mod tests {
             .output()
             .unwrap();
         assert!(String::from_utf8_lossy(&log.stdout).contains(crate::store::COMMIT_ADD));
-        let tree = Command::new("git")
-            .args([
-                "-C",
-                dir.path().to_str().unwrap(),
-                "ls-tree",
-                "-r",
-                "--name-only",
-                "HEAD",
-            ])
-            .output()
-            .unwrap();
-        assert!(!String::from_utf8_lossy(&tree.stdout).contains("manifest.json"));
+        assert!(!tracked_files(dir.path()).contains("manifest.json"));
+    }
+
+    #[test]
+    fn attachment_ciphertext_is_committed_but_local_state_is_not() {
+        let dir = tempfile::tempdir().unwrap();
+        git_init(dir.path());
+        init_store(dir.path(), &[]).unwrap();
+
+        // Stand in for what an attachment writes: a manifest, a chunk object,
+        // and the local-only revision map.
+        std::fs::create_dir_all(dir.path().join(".attachments/objects/ab")).unwrap();
+        std::fs::create_dir_all(dir.path().join("Taxes")).unwrap();
+        std::fs::write(dir.path().join("Taxes/w2.osattach"), b"sealed manifest").unwrap();
+        std::fs::write(
+            dir.path().join(".attachments/objects/ab/abcd.oschunk"),
+            b"sealed chunk",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join(".opensesame-attachment-revisions.json"),
+            b"{}",
+        )
+        .unwrap();
+
+        auto_commit(dir.path(), crate::store::COMMIT_ATTACH).unwrap();
+        let tracked = tracked_files(dir.path());
+        assert!(tracked.contains("Taxes/w2.osattach"), "{tracked}");
+        assert!(tracked.contains("abcd.oschunk"), "{tracked}");
+        assert!(
+            !tracked.contains("attachment-revisions"),
+            "anti-rollback state is local-only: {tracked}"
+        );
     }
 
     #[test]

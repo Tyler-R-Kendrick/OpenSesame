@@ -35,8 +35,8 @@ use opensesame_domain::{
 use opensesame_env_spec::{parse_schema_json, schema_summary};
 use opensesame_grants::delegate;
 use opensesame_human_vault::{
-    ad_digest, decrypt_item, encrypt_item, AssociatedData, EncryptedEnvelope, ItemDataKey,
-    ENVELOPE_VERSION,
+    ad_digest, decrypt_item, derive_attachment_key, encrypt_item, open_chunk, seal_chunk,
+    AssociatedData, ChunkAd, EncryptedEnvelope, ItemDataKey, ENVELOPE_VERSION,
 };
 use opensesame_proof::{
     assert_proof_key_strength, decode_dpop_proof, normalize_htu, InMemoryReplayCache, ReplayCache,
@@ -58,8 +58,7 @@ use crate::types::{
     BoundedJson, CapabilityAlgebraInput, ClaimReplayInput, DeviceAuthInput, FuzzGrant,
     GithubWebhookHmacInput, GrantPairInput, JwtJwkInput, NatsCalloutEvalInput, RedactionInput,
     ReplayCacheInput, ResourceMatchInput, RotationSeqInput, TokenAudienceInput, UriNormalizeInput,
-    VaultMutateInput,
-};
+    VaultMutateInput, AttachmentChunkInput};
 
 pub const MAX_PARSER_BYTES: usize = 4096;
 
@@ -1013,6 +1012,66 @@ mod oracle_smoke {
             project_count: 1,
         });
     }
+}
+
+/// `open_chunk` is the only place attacker-controlled bytes meet the
+/// attachment AEAD. It indexes into the frame to lift out a nonce, so a short
+/// or malformed frame must be refused rather than panic. Nothing here asserts
+/// a decrypt succeeds — the property is that no input crashes, and that no
+/// input that was not honestly sealed ever opens.
+pub fn fuzz_attachment_chunk(input: AttachmentChunkInput) {
+    let idk = ItemDataKey(input.key);
+    let key = derive_attachment_key(&idk, &input.attachment_id);
+
+    let count = input.chunk_count.max(1);
+    let index = input.chunk_index % count;
+    let ad = ChunkAd {
+        envelope_version: ENVELOPE_VERSION,
+        attachment_id: input
+            .attachment_id
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect(),
+        item_id: "fuzz/item".to_string(),
+        chunk_index: index,
+        chunk_count: count,
+    };
+
+    // Honest path: whatever the plaintext, it must round-trip exactly.
+    if let Ok(frame) = seal_chunk(&key, &input.plaintext, &ad) {
+        let opened = open_chunk(&key, &frame, &ad).expect("honest frame must open");
+        assert_eq!(opened, input.plaintext, "round-trip must be exact");
+
+        // Truncation at an arbitrary offset must never yield a prefix.
+        let at = (input.truncate_at as usize) % (frame.len() + 1);
+        if at < frame.len() {
+            assert!(
+                open_chunk(&key, &frame[..at], &ad).is_err(),
+                "a truncated frame must not open"
+            );
+        }
+
+        // A frame must not open at a position it was not sealed at.
+        if count > 1 {
+            let mut moved = ad.clone();
+            moved.chunk_index = (index + 1) % count;
+            assert!(
+                open_chunk(&key, &frame, &moved).is_err(),
+                "a chunk must not open at another position"
+            );
+        }
+    }
+
+    // Hostile path: arbitrary bytes, optionally wearing the right magic so the
+    // cheap prefix check does not short-circuit the interesting code.
+    let mut hostile = input.hostile_frame.clone();
+    if input.prefix_with_magic {
+        let mut framed = b"OSCHNK1\n".to_vec();
+        framed.append(&mut hostile);
+        hostile = framed;
+    }
+    // Must not panic, and must not authenticate.
+    let _ = open_chunk(&key, &hostile, &ad);
 }
 
 /// The gateway KV v2 facade's mount/path grammar, compiled straight from the

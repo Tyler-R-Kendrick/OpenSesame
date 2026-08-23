@@ -26,6 +26,8 @@ pub(crate) const COMMIT_EDIT: &str = "seal: edit entry";
 pub(crate) const COMMIT_REMOVE: &str = "seal: remove entry";
 pub(crate) const COMMIT_REBIND: &str = "seal: rebind entry encryption context";
 pub(crate) const COMMIT_RESTORE: &str = "seal: restore entry";
+pub(crate) const COMMIT_ATTACH: &str = "seal: add attachment";
+pub(crate) const COMMIT_DETACH: &str = "seal: remove attachment";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FormatHint {
