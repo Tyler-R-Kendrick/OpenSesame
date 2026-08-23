@@ -11,8 +11,8 @@
 //! frame layout itself.
 
 use opensesame_human_vault::{
-    chunk_ad_digest, derive_attachment_key, open_chunk, ChunkAd, ItemDataKey, OSCHUNK_HEADER_LEN,
-    OSCHUNK_MAGIC, ENVELOPE_VERSION,
+    chunk_ad_digest, derive_attachment_key, open_chunk, ChunkAd, ItemDataKey, ENVELOPE_VERSION,
+    OSCHUNK_HEADER_LEN, OSCHUNK_MAGIC,
 };
 
 /// Fixed inputs. These are arbitrary but frozen.
@@ -78,12 +78,18 @@ fn a_frame_sealed_earlier_still_opens() {
 
 #[test]
 fn frame_geometry_is_frozen() {
-    assert_eq!(OSCHUNK_MAGIC, b"OSCHNK1\n", "frame magic is part of the format");
+    assert_eq!(
+        OSCHUNK_MAGIC, b"OSCHNK1\n",
+        "frame magic is part of the format"
+    );
     assert_eq!(OSCHUNK_HEADER_LEN, 32, "8 magic + 24 nonce");
     let frame = unhex(GOLDEN_FRAME_HEX);
     assert!(frame.starts_with(OSCHUNK_MAGIC));
     // 23 bytes of plaintext + 32 header + 16 Poly1305 tag.
-    assert_eq!(frame.len(), GOLDEN_PLAINTEXT.len() + OSCHUNK_HEADER_LEN + 16);
+    assert_eq!(
+        frame.len(),
+        GOLDEN_PLAINTEXT.len() + OSCHUNK_HEADER_LEN + 16
+    );
 }
 
 #[test]

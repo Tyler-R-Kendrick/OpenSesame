@@ -6,7 +6,6 @@
 //! must be load-bearing, and a malformed frame must fail closed rather than
 //! panic.
 
-
 use super::*;
 
 fn ad(index: u32, count: u32) -> ChunkAd {

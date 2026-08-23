@@ -205,8 +205,9 @@ what changed recently, and what needs attention.
 - **Do** treat a reload re-locking the vault as correct behavior and say so.
 
 ### Don't:
-- **Don't** add a shortcut around the master password. There is no PIN, no
-  "remember this device," no recovery.
+- **Don't** add a shortcut around the master password. A passkey or PIN may
+  unlock the vault, but each is an alternate wrap of the same vault key,
+  entered every time — never a remembered device and never a recovery path.
 - **Don't** put a secret, or a hash of one, on the network.
 - **Don't** let prose run the full width of a panel.
 - **Don't** clone Bitwarden's brand identity.
