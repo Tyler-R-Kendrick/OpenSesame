@@ -65,9 +65,10 @@ pub use crate::integration::{
 };
 pub use crate::model::*;
 pub use crate::rotation::{
-    consume_rotation_events, execute_connection_rotation, policy_due_at, request_rotation,
-    RotationJob, RotationPolicy, RotationRegistry, RotationService, RotationStatus, RotationTarget,
-    EVENT_ROTATION_FAILED, EVENT_ROTATION_REQUESTED, EVENT_ROTATION_SUCCEEDED,
+    consume_rotation_events, execute_connection_rotation, execute_rotation, parse_interval,
+    policy_due_at, request_rotation, RotationJob, RotationPolicy, RotationStatus, RotationTarget,
+    UpsertRotationPolicy, EVENT_ROTATION_FAILED, EVENT_ROTATION_REQUESTED,
+    EVENT_ROTATION_SUCCEEDED,
 };
 pub use crate::secret_config::{
     ConfigKeyMeta, CreateSecretConfig, SecretConfigView, StoreSecretSource,

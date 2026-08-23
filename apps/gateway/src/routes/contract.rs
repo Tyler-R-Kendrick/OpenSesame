@@ -98,6 +98,9 @@ const UNDOCUMENTED_ROUTES: &[(&str, &str)] = &[
     ("/api/v1/rotations", "GET"),
     ("/api/v1/rotations", "POST"),
     ("/api/v1/rotations/{id}", "GET"),
+    // WP-9: durable rotation policies (owner/admin configuration surface).
+    ("/api/v1/rotation/policies", "GET"),
+    ("/api/v1/rotation/policies", "PUT"),
     // Experimental AAUTH protocol surface — deliberately unpublished.
     ("/experimental/aauth/v1/status", "GET"),
     ("/experimental/aauth/v1/map/person", "POST"),

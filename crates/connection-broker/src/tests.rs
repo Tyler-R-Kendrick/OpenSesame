@@ -3507,3 +3507,142 @@ mod durable_changelog {
         }
     }
 }
+
+// ---- rotation (WP-9): machine-driven execution over the durable store -------
+
+#[tokio::test]
+async fn rotation_happy_path_completes_the_machine_and_wakes_dependents() {
+    let (db, broker, org, integration_id) = organization_oauth_broker().await;
+    let connection = broker
+        .create_connection(
+            &org,
+            CreateConnection {
+                provider_id: String::new(),
+                integration_id: Some(integration_id),
+                project_id: Some("proj-rot".into()),
+                ..create("mock")
+            },
+        )
+        .await
+        .unwrap();
+    let start = broker
+        .start_authorization(&org, &connection.connection_id, None, None)
+        .await
+        .unwrap();
+    broker
+        .complete_authorization("mock", "initial-code", &start.state)
+        .await
+        .unwrap();
+
+    // A config synced through this connection: the DependentsUpdated step must
+    // append a `sync.config.dirty` wake for it. The row goes in at store level
+    // so the test does not depend on the env-sync provider allowlist.
+    let cfg = broker
+        .create_secret_config(
+            &org.to_string(),
+            crate::secret_config::CreateSecretConfig {
+                project_id: "proj-rot".into(),
+                slug: "production".into(),
+                display_name: None,
+                environment: "production".into(),
+                parent_config_id: None,
+            },
+            None,
+        )
+        .await
+        .unwrap();
+    store::insert_sync_target(
+        db.pool(),
+        &store::SyncTargetRow {
+            id: "st_rot".into(),
+            organization_id: org.to_string(),
+            project_id: "proj-rot".into(),
+            config_id: cfg.id.clone(),
+            connection_id: connection.connection_id.clone(),
+            provider_id: "vercel".into(),
+            operation: "env.set".into(),
+            status: "idle".into(),
+            status_detail: None,
+            content_version: None,
+            last_synced_at: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        },
+    )
+    .await
+    .unwrap();
+
+    use opensesame_task_bus::TaskBus as _;
+    let bus = opensesame_task_bus::InMemoryTaskBus::default();
+    let job = request_rotation(
+        &broker,
+        &bus,
+        RotationTarget::Connection {
+            connection_id: connection.connection_id.clone(),
+        },
+        Some("proj-rot".into()),
+        &org.to_string(),
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(job.state, "scheduled");
+
+    let done = execute_connection_rotation(&broker, &bus, &org, &job.id)
+        .await
+        .unwrap();
+    assert_eq!(done.state, "completed", "{done:?}");
+    assert_eq!(done.status, RotationStatus::Succeeded);
+    // Verification is honestly skipped (no provider no-op invoke) and the
+    // skip note survives the later transitions.
+    assert!(done
+        .detail
+        .as_deref()
+        .unwrap_or_default()
+        .contains("verify_skipped"));
+
+    // The durable row holds the terminal machine state.
+    let persisted = broker
+        .get_rotation_job(&org.to_string(), &job.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(persisted.state, "completed");
+
+    // DependentsUpdated appended exactly one sync wake for the config.
+    let dirty: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM config_sync_outbox WHERE config_id = ? \
+         AND event_type = 'sync.config.dirty'",
+    )
+    .bind(&cfg.id)
+    .fetch_one(db.pool())
+    .await
+    .unwrap();
+    assert_eq!(dirty, 1);
+
+    // Frozen changelog vocabulary only; requested + succeeded recorded; no
+    // token material anywhere near the changelog or the bus.
+    let entries = broker
+        .list_changelog(&org.to_string(), "proj-rot", 20, None)
+        .await
+        .unwrap();
+    assert!(entries
+        .iter()
+        .any(|e| e.event_type == EVENT_ROTATION_REQUESTED));
+    assert!(entries
+        .iter()
+        .any(|e| e.event_type == EVENT_ROTATION_SUCCEEDED));
+    for entry in &entries {
+        assert!(is_allowed_changelog_event_type(&entry.event_type));
+        let text = serde_json::to_string(entry).unwrap();
+        assert!(!text.contains("race-access"));
+        assert!(!text.contains("race-refresh"));
+    }
+    let events = bus.drain(20).await.unwrap();
+    assert!(events.iter().any(|e| e.r#type == EVENT_ROTATION_SUCCEEDED));
+    for event in &events {
+        let text = event.data.to_string();
+        assert!(!text.contains("race-access"));
+        assert!(!text.contains("race-refresh"));
+    }
+}

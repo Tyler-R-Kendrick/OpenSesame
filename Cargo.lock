@@ -2808,6 +2808,7 @@ dependencies = [
  "oauth2",
  "opensesame-connection-detect",
  "opensesame-domain",
+ "opensesame-rotation",
  "opensesame-storage",
  "opensesame-task-bus",
  "rand 0.8.7",

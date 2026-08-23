@@ -11,6 +11,7 @@ mod dev_pki;
 mod github_webhook;
 mod identity_mapping;
 mod middleware;
+mod rotation_scheduler;
 mod routes;
 mod sync_actor;
 mod task_engine;
@@ -38,6 +39,10 @@ async fn main() -> anyhow::Result<()> {
     // fans out `sync_all_for_config`; config-value mutations wake it via
     // `sync_notify`, the tick covers everything else.
     tokio::spawn(sync_actor::run(state.clone()));
+    // ROTATION_SCHEDULER: durable rotation policies tick (WP-9) — lists
+    // enabled policies, executes due jobs through the broker's
+    // verify-before-revoke state machine, then advances last_rotated_at.
+    tokio::spawn(rotation_scheduler::run(state.clone()));
     let hsts = args.resource.starts_with("https://");
     let app = opensesame_host_core::http_security::apply_http_security(
         routes::router(state),
