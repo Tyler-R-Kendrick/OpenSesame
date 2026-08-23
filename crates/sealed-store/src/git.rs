@@ -67,7 +67,7 @@ pub fn auto_commit(root: &Path, message: &str) -> Result<(), StoreError> {
             ) || path.ends_with(".osseal")
                 || path.ends_with(".gpg")
                 || path.ends_with(".age")
-                // Attachment ciphertext (ADR 0052). Both are sealed bytes, so
+                // Attachment ciphertext (ADR 0054). Both are sealed bytes, so
                 // they travel under the same "only ciphertext leaves" rule as
                 // entries. The attachment revision map stays local, like the
                 // entry one, and is deliberately absent from this list.

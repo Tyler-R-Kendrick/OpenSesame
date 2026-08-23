@@ -1,4 +1,4 @@
-//! Chunked, content-addressed file attachments for the sealed store (ADR 0052).
+//! Chunked, content-addressed file attachments for the sealed store (ADR 0054).
 //!
 //! An attachment is stored as a set of independently sealed chunk objects plus
 //! one sealed manifest. The manifest is the root of trust: it names the chunk
