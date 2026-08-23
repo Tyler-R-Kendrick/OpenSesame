@@ -23,7 +23,7 @@
     "test:security": "pnpm --filter @opensesame/testing test:security",
     "test:redteam": "pnpm --filter @opensesame/redteam redteam",
     "test:visual": "pnpm --filter @opensesame/visual-contract test:visual",
-    "test:anti-slop": "diff -ru --exclude=LICENSE skills/install-anti-slop/assets/anti-slop tools/oxlint/anti-slop && pnpm typecheck:anti-slop && vitest run --globals tools/oxlint/anti-slop",
+    "test:anti-slop": "diff -ru --exclude=LICENSE --exclude=node_modules --exclude=package.json --exclude=vitest.config.ts skills/install-anti-slop/assets/anti-slop tools/oxlint/anti-slop && pnpm typecheck:anti-slop && vitest run --globals tools/oxlint/anti-slop",
     "typecheck:anti-slop": "tsc --noEmit --allowImportingTsExtensions --module NodeNext --moduleResolution NodeNext --target ESNext --skipLibCheck --types node tools/oxlint/anti-slop/index.ts tools/oxlint/anti-slop/effect/index.ts",
     "test:coverage:ts": "node scripts/ts-coverage-gate.mjs",
     "test:coverage:rust": "cargo +1.88.0 llvm-cov --workspace --all-targets --summary-only --fail-under-lines 69 --fail-under-functions 67 --json --output-path coverage/rust-summary.json",
