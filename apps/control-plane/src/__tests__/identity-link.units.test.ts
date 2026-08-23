@@ -79,9 +79,20 @@ function makeFakes(): Fakes {
     clock: () => NOW,
     repos: {
       externalIdentities: {
-        findByTuple: async (q: { issuer: string; subject: string }) =>
+        // Honours `kind` as the real repository does: the unique index is
+        // (kind, issuer, tenant, subject), so a lookup that ignored the kind
+        // would let an OIDC identity collide with a non-OIDC one that happens
+        // to share an issuer and subject.
+        findByTuple: async (q: {
+          kind: string;
+          issuer: string;
+          subject: string;
+        }) =>
           state.identities.find(
-            (e) => e.issuer === q.issuer && e.subject === q.subject,
+            (e) =>
+              e.kind === q.kind &&
+              e.issuer === q.issuer &&
+              e.subject === q.subject,
           ) ?? null,
         listByEmailNormalized: async (email: string) =>
           state.identities.filter((e) => e.emailNormalized === email),
@@ -440,5 +451,26 @@ describe("which principals get promoted", () => {
     const result = await attachVerifiedExternalIdentity(f.ctx, "prn_1", INPUT);
     expect(result.ok).toBe(true);
     expect(f.updates).toHaveLength(0);
+  });
+});
+
+describe("the lookup is scoped by identity kind", () => {
+  it("does not treat a different-kind identity as the same one", async () => {
+    // The unique index is (kind, issuer, tenant, subject). A SAML assertion
+    // from the same issuer naming the same subject is a different identity,
+    // and must not be mistaken for a collision with the OIDC one.
+    f.identities.push(
+      identity({
+        id: "xid_saml",
+        principalId: "prn_someone_else",
+        kind: "saml",
+      }),
+    );
+
+    const result = await attachVerifiedExternalIdentity(f.ctx, "prn_1", INPUT);
+
+    expect(result.ok).toBe(true);
+    expect(f.created).toHaveLength(1);
+    expect(f.created[0]?.kind).toBe("oidc");
   });
 });
