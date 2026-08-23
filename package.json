@@ -101,7 +101,8 @@
       "web-ext-run>tmp": "0.2.7",
       "firefox-profile>adm-zip": "0.6.0",
       "promptfoo>ai": "6.0.237",
-      "promptfoo>@huggingface/transformers": "-"
+      "promptfoo>@huggingface/transformers": "-",
+      "kdbxweb>@xmldom/xmldom": "0.8.13"
     }
   }
 }
