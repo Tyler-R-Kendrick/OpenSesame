@@ -851,6 +851,79 @@ mod pact {
     }
 
     #[test]
+    fn an_oversize_attachment_is_refused_before_anything_is_read() {
+        // The ceiling is checked against the declared length before a single
+        // byte is read, so this needs no gigabyte on disk. Untested, this guard
+        // could be inverted and nothing else would notice.
+        let (_dir, root, key) = store();
+        let mut source = std::io::Cursor::new(b"tiny".to_vec());
+        let err = root
+            .attach_add(
+                "Taxes/huge",
+                &mut source,
+                MAX_ATTACHMENT_BYTES + 1,
+                AttachMeta {
+                    filename: "x.pdf".into(),
+                    mime: None,
+                },
+                &key,
+                false,
+            )
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("over the"),
+            "should refuse on size, not on a later length mismatch: {err}"
+        );
+        // Nothing was written on the way to refusing.
+        assert!(root.object_files().unwrap().is_empty());
+    }
+
+    #[test]
+    fn an_overlong_filename_is_refused() {
+        let (_dir, root, key) = store();
+        let mut source = std::io::Cursor::new(b"x".to_vec());
+        assert!(root
+            .attach_add(
+                "Taxes/long",
+                &mut source,
+                1,
+                AttachMeta {
+                    filename: "a".repeat(300),
+                    mime: None
+                },
+                &key,
+                false,
+            )
+            .is_err());
+    }
+
+    #[test]
+    fn a_source_longer_than_declared_is_refused() {
+        // The counterpart to declared_length_must_match_source. A file that
+        // grew between stat and read must not silently seal truncated: the
+        // chunk count is already bound into every frame.
+        let (_dir, root, key) = store();
+        let mut source = std::io::Cursor::new(vec![7u8; 5000]);
+        let err = root
+            .attach_add(
+                "Taxes/grew",
+                &mut source,
+                100,
+                AttachMeta {
+                    filename: "x.pdf".into(),
+                    mime: None,
+                },
+                &key,
+                false,
+            )
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("longer than the declared length"),
+            "{err}"
+        );
+    }
+
+    #[test]
     fn existing_name_needs_force() {
         let (_dir, root, key) = store();
         add(&root, &key, "Taxes/w2", b"one");
@@ -896,6 +969,38 @@ mod pact {
         assert_eq!(outcome.skipped_recent, 1);
         assert_eq!(outcome.kept, 1);
         assert!(get(&root, &key, "Taxes/w2").is_ok());
+    }
+
+    #[test]
+    fn gc_reclaims_an_orphan_once_it_is_past_the_grace_window() {
+        // The other GC tests both assert nothing was removed, which leaves the
+        // reclaim path itself unproven: GC could silently never free space and
+        // they would all still pass. Backdate an orphan past the grace window
+        // and require that it actually goes.
+        let (_dir, root, key) = store();
+        add(&root, &key, "Taxes/w2", b"sensitive");
+        let live_before = root.object_files().unwrap().len();
+
+        let orphan = object_relative(&"cd".repeat(32)).unwrap();
+        confined_write(&root.path, &orphan, b"orphaned ciphertext").unwrap();
+        let aged = std::time::SystemTime::now()
+            - std::time::Duration::from_secs(GC_GRACE_SECONDS + 60);
+        let handle = std::fs::File::options()
+            .write(true)
+            .open(root.path.join(&orphan))
+            .unwrap();
+        handle
+            .set_times(std::fs::FileTimes::new().set_modified(aged))
+            .unwrap();
+        drop(handle);
+
+        let outcome = root.attach_gc(&key).unwrap();
+        assert_eq!(outcome.removed, 1, "an aged orphan must be reclaimed");
+        assert_eq!(outcome.kept, live_before, "referenced chunks must survive");
+        assert_eq!(outcome.skipped_recent, 0);
+        assert!(!root.path.join(&orphan).exists(), "the file must be gone");
+        // And the attachment that was never orphaned still opens.
+        assert_eq!(get(&root, &key, "Taxes/w2").unwrap(), b"sensitive".to_vec());
     }
 
     #[test]
