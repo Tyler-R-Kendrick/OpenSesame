@@ -1,3 +1,4 @@
+mod attach;
 mod bridge;
 mod certs;
 mod configs;
@@ -540,6 +541,11 @@ enum PassCmd {
         #[arg(long)]
         tomb: Option<String>,
     },
+    /// File attachments stored as sealed, content-addressed chunks.
+    Attach {
+        #[command(subcommand)]
+        cmd: PassAttachCmd,
+    },
     /// OTP tokens (pass-otp parity).
     Otp {
         #[command(subcommand)]
@@ -672,6 +678,82 @@ enum PassOtpCmd {
     },
     /// Validate an otpauth URI.
     Validate { uri: String },
+}
+
+#[derive(Subcommand, Debug)]
+enum PassAttachCmd {
+    /// Seal a file into the store as chunked ciphertext.
+    Add {
+        /// Logical store path to file the attachment under.
+        name: String,
+        /// File to attach. Must be a regular file: its length fixes the chunk
+        /// count, which is bound into every chunk.
+        file: PathBuf,
+        /// Content type. Defaults to a guess from the file extension.
+        #[arg(long)]
+        mime: Option<String>,
+        /// Replace an attachment already stored at this path.
+        #[arg(long)]
+        force: bool,
+        /// Overwrite and delete the source file after sealing.
+        #[arg(long)]
+        shred: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Reassemble an attachment. Plaintext output, so it is reveal-gated.
+    Get {
+        name: String,
+        /// Write to this file instead of stdout.
+        #[arg(long)]
+        out: Option<PathBuf>,
+        /// Required when stdin is not a TTY.
+        #[arg(long)]
+        reveal: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// List stored attachments. Metadata only, never bytes.
+    Ls {
+        prefix: Option<String>,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Remove an attachment's manifest and reclaim its chunks.
+    Rm {
+        name: String,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Reclaim chunk objects no manifest references.
+    Gc {
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Replicate attachment ciphertext to a configured target.
+    Sync {
+        /// Copy ciphertext into this directory instead of using a connector.
+        /// Point it at a mounted encrypted volume.
+        #[arg(long)]
+        to_dir: Option<PathBuf>,
+        /// Host API base URL when replicating through a storage connector.
+        #[arg(long)]
+        server: Option<String>,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -944,6 +1026,35 @@ async fn main() -> anyhow::Result<()> {
                 path,
                 tomb,
             } => store::cmd_backup(remote, auto_push, path, tomb).await?,
+            PassCmd::Attach { cmd } => match cmd {
+                PassAttachCmd::Add {
+                    name,
+                    file,
+                    mime,
+                    force,
+                    shred,
+                    path,
+                    tomb,
+                } => attach::cmd_attach_add(name, file, mime, force, shred, path, tomb)?,
+                PassAttachCmd::Get {
+                    name,
+                    out,
+                    reveal,
+                    path,
+                    tomb,
+                } => attach::cmd_attach_get(name, out, reveal, path, tomb)?,
+                PassAttachCmd::Ls { prefix, path, tomb } => {
+                    attach::cmd_attach_ls(prefix, path, tomb)?
+                }
+                PassAttachCmd::Rm { name, path, tomb } => attach::cmd_attach_rm(name, path, tomb)?,
+                PassAttachCmd::Gc { path, tomb } => attach::cmd_attach_gc(path, tomb)?,
+                PassAttachCmd::Sync {
+                    to_dir,
+                    server,
+                    path,
+                    tomb,
+                } => attach::cmd_attach_sync(to_dir, server, path, tomb)?,
+            },
             PassCmd::Otp { cmd } => match cmd {
                 PassOtpCmd::Code { name, path, tomb } => store::cmd_otp_code(name, path, tomb)?,
                 PassOtpCmd::Insert {
