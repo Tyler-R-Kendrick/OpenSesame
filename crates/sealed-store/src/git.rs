@@ -312,7 +312,6 @@ mod tests {
         // Stand in for what an attachment writes: a manifest, a chunk object,
         // and the local-only revision map.
         std::fs::create_dir_all(dir.path().join(".attachments/objects/ab")).unwrap();
-        std::fs::write(dir.path().join("Taxes/w2.osattach").parent().unwrap(), "").ok();
         std::fs::create_dir_all(dir.path().join("Taxes")).unwrap();
         std::fs::write(dir.path().join("Taxes/w2.osattach"), b"sealed manifest").unwrap();
         std::fs::write(

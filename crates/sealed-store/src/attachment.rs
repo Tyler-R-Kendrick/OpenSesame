@@ -707,6 +707,7 @@ fn hex_to_bytes(hex: &str, out: &mut [u8; 16]) -> Result<(), StoreError> {
 mod pact {
     use super::*;
     use crate::store::{init_store, init_store_key};
+    use crate::Entry;
     use tempfile::TempDir;
 
     fn store() -> (TempDir, StoreRoot, ItemDataKey) {
