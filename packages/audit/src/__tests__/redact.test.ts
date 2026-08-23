@@ -112,6 +112,21 @@ describe("authorization inbox metadata (ADR 0046)", () => {
   });
 });
 
+describe("link and mint provenance", () => {
+  it("keeps `via`, which says what authorised the change", () => {
+    // Both call sites that set this — the identity link and the hosted-login
+    // mint — were having it dropped here, so the trail recorded that an
+    // identity was linked without recording what authorised it. That is the
+    // difference between a verified admission and a self-asserted one.
+    expect(redactAuditMetadata({ via: "id_token" })).toEqual({
+      via: "id_token",
+    });
+    expect(redactAuditMetadata({ via: "interaction_login" })).toEqual({
+      via: "interaction_login",
+    });
+  });
+});
+
 describe("redaction boundaries (mutation coverage)", () => {
   it("pins the exact allowlist", () => {
     // A characterization of the boundary itself: any membership change — a key
@@ -122,6 +137,7 @@ describe("redaction boundaries (mutation coverage)", () => {
       "kind",
       "issuer",
       "tenant",
+      "via",
       "slug",
       "note",
       "sectorIdentifier",

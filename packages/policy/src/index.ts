@@ -1,5 +1,6 @@
 export {
   ProvisionalPolicy,
+  quotaFieldFor,
   DEFAULT_PROVISIONAL_QUOTA,
   DEFAULT_VERIFIED_QUOTA,
   type AuthorizationRequest,

@@ -1,8 +1,9 @@
 # Federated sign-in — wire contract
 
 Implements ADR 0033 (federated identity admission) and ADR 0034 (origin-brokered sign-in
-for static sites). This document is the contract; where code and this file disagree, one of
-them is a bug.
+for static sites); §7 additionally implements ADR 0052 (federated sign-in on the first-run
+and hosted-login surfaces). This document is the contract; where code and this file
+disagree, one of them is a bug.
 
 ## Topology
 
@@ -175,3 +176,136 @@ once, by name.
 - Upstream unreachable: `upstream_unavailable`, and an already-signed-in human keeps their
   session until the token expires.
 - Unlisted issuer: refused even if the signature verifies, per ADR 0033 §2.
+
+## 7. Control-plane relying-party leg (server-side)
+
+Sections 1–6 describe the *browser* leg: a static deployment with no server, relaying a
+token it did not mint. This section describes the other leg, decided in ADR 0052 — the
+control-plane's hosted login page acting as a real OIDC relying party, server-side, on
+`openid-client`. The two coexist and are not interchangeable. Here a code is exchanged by a
+server, the assertion never reaches the browser, and the result is a resolved OpenSesame
+principal rather than a passthrough token.
+
+Everything in §1 (upstream contract, `client_id` derivation, consumed claims) still holds.
+This section adds only what differs because a server is present.
+
+### 7.1 Routes and why they sit where they do
+
+| Route | Purpose |
+| --- | --- |
+| `POST /interaction/:uid/federated/start` | Begin an authorization-code + PKCE S256 flow against a trusted issuer; respond with a redirect to the upstream `authorization_endpoint` |
+| `GET /interaction/:uid/federated/callback` | Receive `code`/`state`, exchange, resolve a principal, complete the oidc-provider interaction |
+
+The redirect URI is `{publicUrl}/interaction/{uid}/federated/callback` — one per
+interaction, not one per deployment. It **must** live under `/interaction/:uid`: the
+oidc-provider interaction cookie is path-scoped to that prefix, so a callback landing
+anywhere else arrives without the interaction it exists to complete, and has no session to
+resume. Registering a fixed deployment-wide callback path is not an acceptable substitute.
+
+Because the redirect URI varies per interaction, the upstream must accept it. For an
+origin-profile client that is automatic — admission is by origin, and every such URI shares
+the deployment origin. A confidential client (§7.4) requires the pattern to be registered
+upstream.
+
+### 7.2 Pending-state cookie
+
+Between `start` and `callback` the flow's pending state is held in a cookie, never in
+server memory and never in the URL:
+
+| Attribute | Value |
+| --- | --- |
+| Name | `os.fed.<uid>` — one per interaction |
+| Contents | `issuer`, `state`, `nonce`, PKCE `code_verifier` |
+| `HttpOnly` | Yes — script must not read the verifier |
+| `SameSite` | `Lax` — the callback is a top-level cross-site GET redirect, which `Lax` permits and `Strict` would drop |
+| `Path` | `/interaction/<uid>` — one interaction's pending state is never sent with another's request |
+| Max-Age | `600` seconds |
+| `Secure` | Set when the configured public URL is `https`; omitted for plain-http local dev, where it would make the cookie unusable |
+
+The cookie is cleared once the callback consumes it, successfully or not. Its `state` must
+equal the `state` returned by the upstream: the binding is what makes tampering
+self-defeating, since replacing either half alone breaks the pair. `nonce` must equal the
+`nonce` claim of the returned `id_token`. A missing, expired, or mismatched cookie is a
+refusal, never a fresh flow — restarting silently would discard exactly the binding that
+protects the exchange.
+
+### 7.3 Token request
+
+`POST {token_endpoint}` carries `grant_type=authorization_code`, the `code`, the
+`redirect_uri` used in `start`, the `code_verifier`, and `client_id`.
+
+The request **must** carry an explicit `Origin` header equal to the deployment origin
+whenever `client_id` is `origin:<origin>`. The broker enforces origin equality on `POST
+/token` and answers `403 unauthorized_client` / `origin_cors_denied` when the header is
+absent or disagrees (see `apps/mock-upstream-idp/src/server.ts`). A browser sets that header
+for itself; a server-side HTTP client does not, so the RP sets it deliberately. `Origin` and
+the origin embedded in `client_id` are the same string, and the exchange fails closed rather
+than retrying without it.
+
+### 7.4 Confidential-client fallback
+
+When `OPENSESAME_UPSTREAM_ISSUER`, `OPENSESAME_UPSTREAM_CLIENT_ID`, and
+`OPENSESAME_UPSTREAM_CLIENT_SECRET` are **all three** set, the leg authenticates to that one
+issuer as a confidential client (`client_secret_post`) instead of deriving
+`origin:<origin>`. This exists for a broker that cannot serve the secret-less origin-profile
+contract.
+
+The two modes are exclusive per issuer, chosen by configuration and never negotiated at
+runtime. The issuer is matched **exactly**, so a secret is never offered to an issuer it was
+not configured for; a client id with no secret stays the origin-profile case, and a secret
+with no issuer has nobody it may legitimately be sent to, so both are ignored.
+
+A confidential exchange does **not** send the `Origin` header of §7.3: that header is what
+binds an origin-profile client, and a confidential client is bound by its secret instead —
+claiming a browser origin it does not have would be a false assertion.
+
+`assertSecureConfig` refuses to boot when the credentialed issuer is absent from
+`OPENSESAME_TRUSTED_UPSTREAMS`. A credential configured for an untrusted issuer is dead
+weight at best and an exfiltration target at worst. There is no separate HTTPS assertion for
+the credentialed issuer: listing it is mandatory, and in production every allowlist entry is
+already required to be HTTPS, so the combination cannot slip through either way.
+
+### 7.5 Assertion validation
+
+Before any principal is touched, in this order:
+
+1. `state` from the callback equals `state` from the `os.fed.<uid>` cookie.
+2. The `id_token` signature verifies against the issuer's published JWKS, discovered from
+   `/.well-known/openid-configuration` — never from a hardcoded key.
+3. `iss` equals the pending issuer, **and** that issuer is present in
+   `OPENSESAME_TRUSTED_UPSTREAMS`. A signature only proves who signed; the allowlist decides
+   who is trusted (ADR 0033 §2). In production the allowlist must be non-empty and every
+   entry https, enforced at boot by `assertSecureConfig`.
+4. `aud` matches the client id actually used for the exchange.
+5. `nonce` equals the pending `nonce`.
+6. `exp` is in the future.
+7. The subject claim is present and a string.
+
+Any failure ends the interaction with an error. There is no partial admission.
+
+### 7.6 Principal resolution
+
+Keyed on the external-identity tuple `(kind, issuer, tenant?, subject)` — never on email,
+which is never used to link (ADR 0033, `docs/identity-linking.md`).
+
+| Case | Outcome |
+| --- | --- |
+| Tuple already bound to a principal | Reuse that principal unchanged. No new principal, no re-linking, `principalId` stable. |
+| No tuple, no principal | Mint a principal `state: "provisional"` / `assurance: "provisional"`, bind the tuple, then promote **in place** to `state: "active"` / `assurance: "verified"` with `principalId` unchanged. |
+| Bound principal is `suspended` or `closed` | Refuse. A valid assertion does not reinstate a principal an operator disabled; reinstatement is an operator action. |
+| Tuple bound to a *different* principal than the interaction's current one | `409` conflict. Do not echo the bound `principalId` — that would let a caller enumerate which principal owns an upstream identity. Merging requires dual authentication. |
+| Concurrent callbacks racing to bind the same tuple | The losing write is a conflict and is surfaced as one. Never retried into a second principal for the same tuple. |
+
+The mint-then-promote pair is one logical admission, not two steps a caller can drive: a
+provisional principal still cannot promote itself (ADR 0033 §3). Promotion here rests on the
+assertion validated in §7.5 and nothing else. `principalId` surviving promotion is what keeps
+anything done provisionally from being orphaned by signing in.
+
+### 7.7 What this leg does not do
+
+It does not decrypt or unseal any client-side vault. Federated sign-in establishes identity;
+the vault is device encryption with a separate key hierarchy, and no broker assertion is an
+input to it. On the Pages first-run surface the federated path therefore creates the same
+ephemeral guest vault as "Continue as guest", and sealing remains a later, separate step
+(ADR 0052 §1).
+

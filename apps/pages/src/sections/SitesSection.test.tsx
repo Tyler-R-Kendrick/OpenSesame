@@ -535,48 +535,50 @@ describe("SitesSection origin validation and edge branches", () => {
     );
   }
 
+  /**
+   * Each rejection case is a full render, a character-by-character type and a
+   * submit, and the tests below do three or four of them in a row. On a loaded
+   * machine — the repo gate runs Playwright alongside Vitest — the default
+   * one-second find window expires while the machine is busy, not because the
+   * message never arrives. The wider window changes nothing about what is
+   * asserted: the validation message still has to appear.
+   */
+  const FIND_TIMEOUT = { timeout: 5_000 } as const;
+
+  async function expectRejection(pattern: RegExp) {
+    expect(
+      (await screen.findAllByText(pattern, undefined, FIND_TIMEOUT)).length,
+    ).toBeGreaterThan(0);
+  }
+
   it("rejects origins with credentials, paths, queries, and fragments", async () => {
     await submitOrigin("https://user:pass@app.example.com");
-    expect(
-      (await screen.findAllByText(/Remove the credentials/)).length,
-    ).toBeGreaterThan(0);
+    await expectRejection(/Remove the credentials/);
     cleanup();
 
     await submitOrigin("https://app.example.com/app");
-    expect(
-      (await screen.findAllByText(/An origin has no path/)).length,
-    ).toBeGreaterThan(0);
+    await expectRejection(/An origin has no path/);
     cleanup();
 
     await submitOrigin("https://app.example.com/?x=1");
-    expect(
-      (await screen.findAllByText(/no query string/)).length,
-    ).toBeGreaterThan(0);
+    await expectRejection(/no query string/);
     cleanup();
 
     await submitOrigin("https://app.example.com/#frag");
-    expect((await screen.findAllByText(/no fragment/)).length).toBeGreaterThan(
-      0,
-    );
+    await expectRejection(/no fragment/);
   });
 
   it("rejects default ports and unparseable input", async () => {
     await submitOrigin("https://app.example.com:443");
-    expect(
-      (await screen.findAllByText(/Drop the default port :443/)).length,
-    ).toBeGreaterThan(0);
+    await expectRejection(/Drop the default port :443/);
     cleanup();
 
     await submitOrigin("http://localhost:80");
-    expect(
-      (await screen.findAllByText(/Drop the default port :80/)).length,
-    ).toBeGreaterThan(0);
+    await expectRejection(/Drop the default port :80/);
     cleanup();
 
     await submitOrigin("https://");
-    expect(
-      (await screen.findAllByText(/Include the scheme|not a URL/)).length,
-    ).toBeGreaterThan(0);
+    await expectRejection(/Include the scheme|not a URL/);
   });
 
   it("accepts a loopback http origin", async () => {

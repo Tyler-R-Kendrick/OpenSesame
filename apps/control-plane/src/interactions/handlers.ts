@@ -19,6 +19,7 @@ import {
   type LoginPageModel,
   collectConsentScopes,
 } from "../ui/interaction-pages.js";
+import { federatedUpstreams, matchUpstreamHint } from "./federated.js";
 import type {
   GrantHandle,
   InteractionDetails,
@@ -35,12 +36,36 @@ export function buildLoginPageModel(
   csrfToken: string,
   principalId: string | undefined,
 ): LoginPageModel {
+  const upstreams = federatedUpstreams(ctx.config);
+  // The SDK sends both spellings (packages/sdk-browser signIn({provider}));
+  // oidc-provider only surfaces them because they are declared extraParams.
+  const hint = isString(details.params.login_hint_provider)
+    ? details.params.login_hint_provider
+    : isString(details.params.kc_idp_hint)
+      ? details.params.kc_idp_hint
+      : undefined;
+  const preferred = matchUpstreamHint(upstreams, hint);
+
   return {
     uid: details.uid,
     csrfToken,
     loginAction: `${interactionBase(details.uid)}/login`,
     ...(principalId !== undefined ? { principalId } : undefined),
     publicUrl: ctx.config.publicUrl,
+    ...(upstreams.length > 0
+      ? {
+          federated: {
+            startAction: `${interactionBase(details.uid)}/federated/start`,
+            upstreams: upstreams.map((u) => ({
+              issuer: u.issuer,
+              label: u.label,
+            })),
+            ...(preferred !== undefined
+              ? { preferredIssuer: preferred.issuer }
+              : undefined),
+          },
+        }
+      : undefined),
   };
 }
 

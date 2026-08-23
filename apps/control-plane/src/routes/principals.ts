@@ -27,6 +27,7 @@ import { cookieAuthAllowed, requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { serializeKeyed } from "../serialize.js";
+import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { OrgAssertionError, verifyOrgIdToken } from "./org-assertion.js";
 import {
   authenticatedPrincipalId,
@@ -361,12 +362,7 @@ principalRoutes.post(
     // A verified upstream `id_token` is the production claim path (ADR 0033).
     // Self-asserted issuer/subject tuples prove nothing and stay a dev seam.
     if ("idToken" in parsed.data) {
-      return linkFromVerifiedIdToken(
-        c,
-        principal,
-        principalId,
-        parsed.data.idToken,
-      );
+      return linkFromVerifiedIdToken(c, principalId, parsed.data.idToken);
     }
 
     if (!ctx.config.allowDevDefaults) {
@@ -541,9 +537,14 @@ function issuerKey(issuer: string): string {
   return issuer.trim().replace(/\/+$/, "");
 }
 
+/**
+ * ADR 0033 production path: decode `iss`, allowlist it, verify the token, then
+ * hand the verified subject to the shared identity-link service. Storage,
+ * promotion and audit all live in that service so the hosted relying-party leg
+ * behaves identically.
+ */
 async function linkFromVerifiedIdToken(
   c: Context<{ Variables: Variables }>,
-  principal: Principal,
   principalId: string,
   idToken: string,
 ) {
@@ -566,10 +567,9 @@ async function linkFromVerifiedIdToken(
     );
   }
 
-  let subject: string;
+  let verified: Awaited<ReturnType<typeof verifyOrgIdToken>>;
   try {
-    const verified = await verifyOrgIdToken(idToken, issuer);
-    subject = verified.sub;
+    verified = await verifyOrgIdToken(idToken, issuer);
   } catch (error) {
     if (error instanceof OrgAssertionError) {
       const status = error.code === "upstream_unavailable" ? 502 : 401;
@@ -578,112 +578,53 @@ async function linkFromVerifiedIdToken(
     throw error;
   }
 
-  const existing = await ctx.repos.externalIdentities.findByTuple({
-    kind: "oidc",
+  // Claims captured for display/support only. Email is never a join key — see
+  // the security invariant in services/identity-link.ts.
+  const emailNormalized = verified.email?.trim().toLowerCase();
+  const result = await attachVerifiedExternalIdentity(ctx, principalId, {
     issuer,
-    subject,
-  });
-  if (existing) {
-    if (existing.principalId === principalId) {
-      return c.json(
-        LinkIdentityResponseSchema.parse({
-          principalId,
-          identity: {
-            id: existing.id,
-            kind: existing.kind,
-            issuer: existing.issuer,
-            subject: existing.subject,
-            ...(existing.displayHint !== undefined
-              ? { displayHint: existing.displayHint }
-              : undefined),
-            assurance: existing.assurance,
-            linkedAt: existing.linkedAt.toISOString(),
-          },
-        }),
-      );
-    }
-    return c.json(
-      {
-        error: "identity_collision",
-        message:
-          "External identity already bound to another principal; merge requires dual authentication",
-      },
-      409,
-    );
-  }
-
-  const now = ctx.clock();
-  const identity: ExternalIdentity = {
-    id: `xid_${randomUUID()}`,
-    principalId,
-    kind: "oidc",
-    issuer,
-    subject,
-    assurance: "verified",
-    linkedAt: now,
-    metadata: {},
-  };
-  try {
-    await ctx.repos.externalIdentities.create(identity);
-  } catch (err) {
-    if (err instanceof ConflictError) {
-      return c.json({ error: "identity_collision", message: err.message }, 409);
-    }
-    throw err;
-  }
-
-  if (
-    principal.assurance === "provisional" ||
-    principal.state === "provisional"
-  ) {
-    await ctx.repos.principals.update(
-      principalId,
-      {
-        state: "active",
-        assurance: "verified",
-        verifiedAt: now,
-        updatedAt: now,
-      },
-      principal.version,
-    );
-  }
-
-  await appendAuditEvent(ctx.repos.auditEvents, {
-    eventType: "principal.identity_linked",
-    outcome: "succeeded",
-    principalId,
-    targetType: "external_identity",
-    targetId: identity.id,
+    subject: verified.sub,
     correlationId: c.get("correlationId"),
-    metadata: {
-      action: "principal.link_identity",
+    ...(verified.name !== undefined
+      ? { displayHint: verified.name }
+      : undefined),
+    ...(emailNormalized ? { emailNormalized } : undefined),
+    ...(verified.emailVerified !== undefined
+      ? { emailVerified: verified.emailVerified }
+      : undefined),
+  });
+
+  if (!result.ok) {
+    return c.json({ error: result.error, message: result.message }, 409);
+  }
+
+  const identity = result.identity;
+  const body = LinkIdentityResponseSchema.parse({
+    principalId,
+    identity: {
+      id: identity.id,
       kind: identity.kind,
       issuer: identity.issuer,
-      via: "id_token",
+      subject: identity.subject,
+      ...(identity.displayHint !== undefined
+        ? { displayHint: identity.displayHint }
+        : undefined),
+      assurance: identity.assurance,
+      linkedAt: identity.linkedAt.toISOString(),
     },
   });
-
-  // First authenticated session for this principal (see the dev-seam path).
-  await ensurePersonalOnAuthenticatedSession(
-    ctx,
-    principalId,
-    c.get("correlationId"),
-  );
-
-  return c.json(
-    LinkIdentityResponseSchema.parse({
+  if (!result.alreadyLinked) {
+    // First authenticated session for this principal (see the dev-seam path).
+    // Only on a fresh link: an idempotent re-link is not a first session, and
+    // main's pre-refactor code returned before this point in that case.
+    await ensurePersonalOnAuthenticatedSession(
+      ctx,
       principalId,
-      identity: {
-        id: identity.id,
-        kind: identity.kind,
-        issuer: identity.issuer,
-        subject: identity.subject,
-        assurance: identity.assurance,
-        linkedAt: identity.linkedAt.toISOString(),
-      },
-    }),
-    201,
-  );
+      c.get("correlationId"),
+    );
+  }
+
+  return result.alreadyLinked ? c.json(body) : c.json(body, 201);
 }
 
 principalRoutes.delete("/identities/:id", requirePrincipal(), async (c) => {

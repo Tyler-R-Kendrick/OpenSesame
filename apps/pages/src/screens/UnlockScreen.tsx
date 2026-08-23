@@ -14,6 +14,7 @@ import {
   IconShield,
   IconVault,
 } from "../components/Icons.js";
+import { beginSignIn, defaultUpstream } from "../lib/federation.js";
 import { continueAsGuest } from "../lib/guest-auth.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { estimateStrength } from "../lib/vault/password.js";
@@ -91,6 +92,9 @@ export function UnlockScreen() {
   const store = useVaultStore();
   const firstRun = status === "empty";
   const passkeyHost = checkWebauthnHost();
+  // Reads location.hostname, so it must be resolved at render, not at import:
+  // loopback deployments get the local mock IdP, everything else the broker.
+  const upstream = defaultUpstream();
 
   const methods = useMemo(() => {
     if (!firstRun) return listAvailableUnlockMethods(header);
@@ -288,12 +292,18 @@ export function UnlockScreen() {
   const disabled =
     busy || lockedFor > 0 || (firstRun ? createBlocked : unlockBlocked);
 
-  const brandCopy = firstRun
-    ? activeMethod === "passkey"
-      ? "Seal this device with a passkey. A password is optional — add one later in Settings if you want a typed backup."
+  // ADR 0033 §4: first run asks who you are before it asks for a master
+  // password. Both paths are offered plainly — sign in with a federated
+  // account, or seal this device locally right now.
+  const firstRunSealCopy =
+    activeMethod === "passkey"
+      ? "Or seal this device with a passkey. A password is optional — add one later in Settings if you want a typed backup."
       : activeMethod === "pin"
-        ? "Seal this device with a PIN. A password is optional — add one later in Settings if you want a typed backup."
-        : "Choose a master password to seal this device. You can add a passkey or PIN later in Settings."
+        ? "Or seal this device with a PIN. A password is optional — add one later in Settings if you want a typed backup."
+        : "Or choose a master password to seal this device. You can add a passkey or PIN later in Settings.";
+
+  const brandCopy = firstRun
+    ? `Two ways in: sign in with ${upstream.accountKind} and this device opens with no passkey or password. ${firstRunSealCopy}`
     : awaitingTotp
       ? "Enter the code from your authenticator app to finish unlocking."
       : "Unlock with a passkey, PIN, or password — whichever you enrolled. The vault key is not stored; a reload asks again.";
@@ -621,26 +631,51 @@ export function UnlockScreen() {
           ) : null}
 
           {firstRun ? (
-            <button
-              type="button"
-              className="unlock__switch"
-              disabled={busy}
-              onClick={() => {
-                setError(null);
-                setBusy(true);
-                void continueAsGuest()
-                  .catch((caught) => {
-                    setError(
-                      caught instanceof Error
-                        ? caught.message
-                        : "Guest login failed.",
-                    );
-                  })
-                  .finally(() => setBusy(false));
-              }}
-            >
-              Continue as guest — no passkey or password
-            </button>
+            <>
+              <button
+                type="button"
+                className="unlock__switch"
+                disabled={busy}
+                onClick={() => {
+                  setError(null);
+                  setBusy(true);
+                  // Success navigates away to the upstream, so only the failure
+                  // path ever gets to clear busy.
+                  void beginSignIn(upstream, { returnTo: "/" }).catch(
+                    (caught) => {
+                      setError(
+                        caught instanceof Error
+                          ? caught.message
+                          : "Sign-in failed.",
+                      );
+                      setBusy(false);
+                    },
+                  );
+                }}
+              >
+                Sign in with {upstream.accountKind} — no passkey or password
+              </button>
+              <button
+                type="button"
+                className="unlock__switch"
+                disabled={busy}
+                onClick={() => {
+                  setError(null);
+                  setBusy(true);
+                  void continueAsGuest()
+                    .catch((caught) => {
+                      setError(
+                        caught instanceof Error
+                          ? caught.message
+                          : "Guest login failed.",
+                      );
+                    })
+                    .finally(() => setBusy(false));
+                }}
+              >
+                Continue as guest — no passkey or password
+              </button>
+            </>
           ) : null}
         </div>
 

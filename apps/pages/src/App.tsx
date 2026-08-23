@@ -3,10 +3,12 @@ import {
   type ReactNode,
   createContext,
   useContext,
+  useEffect,
 } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 import { AppShell as DefaultAppShell } from "./components/AppShell.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "./lib/federation.js";
+import { recoverPendingFederatedLink } from "./lib/guest-auth.js";
 import {
   useSessionGuards as defaultUseSessionGuards,
   useTheme as defaultUseTheme,
@@ -85,6 +87,15 @@ function VaultApp() {
   const { status } = slots.useVault();
   slots.useTheme();
   slots.useSessionGuards();
+
+  // A reload drops the in-memory notice but not the upstream assertion in
+  // sessionStorage. Once the vault is open, raise the prompt again so a link
+  // deferred by a locked vault can still be finished from the bell. No-ops
+  // unless a link is actually outstanding.
+  useEffect(() => {
+    if (status !== "unlocked") return;
+    recoverPendingFederatedLink();
+  }, [status]);
 
   if (status !== "unlocked") {
     return <slots.UnlockScreen />;
