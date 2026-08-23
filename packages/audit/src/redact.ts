@@ -17,6 +17,13 @@ export const AUDIT_METADATA_ALLOWLIST = new Set([
   "kind",
   "issuer",
   "tenant",
+  // How the subject came to be linked or minted — "id_token" for an assertion
+  // an upstream vouched for, "interaction_login" for a principal minted at the
+  // hosted login page. Both call sites already set it and both were dropping
+  // it here, so the trail recorded that an identity was linked without
+  // recording what authorised it. That provenance is the difference between a
+  // verified admission and a self-asserted one.
+  "via",
   "slug",
   "note",
   "sectorIdentifier",

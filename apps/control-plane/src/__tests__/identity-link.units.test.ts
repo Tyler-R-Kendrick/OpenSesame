@@ -31,6 +31,7 @@ type Fakes = {
   identities: ExternalIdentity[];
   principals: Map<string, Principal>;
   audits: { eventType: string; outcome: string }[];
+  auditEvents: Record<string, unknown>[];
   created: ExternalIdentity[];
   updates: { id: string; patch: Record<string, unknown> }[];
   createImpl: (identity: ExternalIdentity) => Promise<ExternalIdentity>;
@@ -67,6 +68,7 @@ function makeFakes(): Fakes {
     identities: [],
     principals: new Map([["prn_1", principal()]]),
     audits: [],
+    auditEvents: [],
     created: [],
     updates: [],
     createImpl: async (record) => record,
@@ -107,6 +109,7 @@ function makeFakes(): Fakes {
             eventType: event.eventType,
             outcome: event.outcome,
           });
+          state.auditEvents.push(event as Record<string, unknown>);
           return event;
         },
       },
@@ -303,5 +306,139 @@ describe("email is evidence, never a join key", () => {
     await attachVerifiedExternalIdentity(f.ctx, "prn_1", INPUT);
 
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The audit trail is evidence, and evidence is only useful if its content is
+ * exact. These pin the event type, outcome, target and metadata that a human
+ * or a compliance export will actually read — a linked identity whose audit
+ * row says nothing in particular is an unexplained privilege change.
+ */
+describe("what the audit trail records", () => {
+  it("records a successful link with the fields an investigator needs", async () => {
+    f.audits = [];
+    const result = await attachVerifiedExternalIdentity(f.ctx, "prn_1", INPUT);
+    if (!result.ok) throw new Error("expected a link");
+
+    expect(f.auditEvents).toHaveLength(1);
+    expect(f.auditEvents[0]).toMatchObject({
+      eventType: "principal.identity_linked",
+      outcome: "succeeded",
+      principalId: "prn_1",
+      targetType: "external_identity",
+      targetId: result.identity.id,
+      correlationId: "corr-1",
+      metadata: {
+        action: "principal.link_identity",
+        kind: "oidc",
+        issuer: "https://shoo.dev",
+        via: "id_token",
+      },
+    });
+  });
+
+  it("records the email collision as denied, and says why it was ignored", async () => {
+    f.identities.push(
+      identity({
+        id: "xid_other",
+        principalId: "prn_someone_else",
+        subject: "another-subject",
+        emailNormalized: "person@example.com",
+      }),
+    );
+    f.auditEvents = [];
+
+    await attachVerifiedExternalIdentity(f.ctx, "prn_1", {
+      ...INPUT,
+      emailNormalized: "person@example.com",
+    });
+
+    const denied = f.auditEvents.find((e) => e.outcome === "denied");
+    expect(denied).toMatchObject({
+      eventType: "principal.identity_link_email_collision",
+      outcome: "denied",
+      principalId: "prn_1",
+      correlationId: "corr-1",
+      metadata: {
+        action: "principal.link_identity",
+        note: "email_not_used_for_link",
+      },
+    });
+  });
+});
+
+describe("the shape of the row that gets written", () => {
+  it("writes kind oidc, not some other scheme", async () => {
+    await attachVerifiedExternalIdentity(f.ctx, "prn_1", INPUT);
+    expect(f.created[0]?.kind).toBe("oidc");
+  });
+
+  it("omits display fields entirely rather than storing undefined", async () => {
+    // A conditional spread forced always-on would write `displayHint:
+    // undefined`, which reads back as a column that was set to nothing rather
+    // than one that was never supplied.
+    await attachVerifiedExternalIdentity(f.ctx, "prn_1", INPUT);
+    const keys = Object.keys(f.created[0] ?? {});
+    expect(keys).not.toContain("displayHint");
+    expect(keys).not.toContain("emailNormalized");
+    expect(keys).not.toContain("emailVerified");
+  });
+
+  it("keeps each display field independent of the others", async () => {
+    await attachVerifiedExternalIdentity(f.ctx, "prn_1", {
+      ...INPUT,
+      emailNormalized: "person@example.com",
+    });
+    const keys = Object.keys(f.created[0] ?? {});
+    expect(keys).toContain("emailNormalized");
+    expect(keys).not.toContain("displayHint");
+    expect(keys).not.toContain("emailVerified");
+  });
+
+  it("names the collision in words a user can act on", async () => {
+    f.identities.push(identity({ principalId: "prn_someone_else" }));
+    const result = await attachVerifiedExternalIdentity(f.ctx, "prn_1", INPUT);
+    if (result.ok) throw new Error("expected a refusal");
+    expect(result.message).toBe(
+      "External identity already bound to another principal; merge requires dual authentication",
+    );
+  });
+});
+
+describe("which principals get promoted", () => {
+  it.each([
+    ["assurance and state both provisional", "provisional", "provisional"],
+    ["only the assurance still provisional", "provisional", "active"],
+    ["only the state still provisional", "verified", "provisional"],
+  ] as const)("promotes when %s", async (_label, assurance, state) => {
+    // Either half being provisional means the principal is not yet durable.
+    // Requiring both would strand a half-migrated record as permanently
+    // unpromotable.
+    f.principals.set("prn_1", principal({ assurance, state }));
+
+    await attachVerifiedExternalIdentity(f.ctx, "prn_1", INPUT);
+
+    expect(f.updates).toHaveLength(1);
+    expect(f.updates[0]?.patch).toMatchObject({
+      state: "active",
+      assurance: "verified",
+    });
+  });
+
+  it("leaves a principal that is durable on both counts untouched", async () => {
+    f.principals.set(
+      "prn_1",
+      principal({ assurance: "verified", state: "active" }),
+    );
+    await attachVerifiedExternalIdentity(f.ctx, "prn_1", INPUT);
+    expect(f.updates).toHaveLength(0);
+  });
+
+  it("tolerates a principal that has vanished between lookup and promotion", async () => {
+    f.principals.clear();
+    const result = await attachVerifiedExternalIdentity(f.ctx, "prn_1", INPUT);
+    expect(result.ok).toBe(true);
+    expect(f.updates).toHaveLength(0);
   });
 });
