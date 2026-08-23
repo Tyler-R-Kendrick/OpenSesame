@@ -1,4 +1,5 @@
 mod certs;
+mod configs;
 mod connect;
 mod github;
 mod store;
@@ -141,6 +142,11 @@ enum Commands {
     Init {
         #[arg(long, default_value = ".env.schema")]
         schema: PathBuf,
+    },
+    /// Project-config secret store (write-only values; ADR 0052).
+    Config {
+        #[command(subcommand)]
+        cmd: configs::ConfigCmd,
     },
     /// Password-store management (`pass` parity): init, insert, show, ls, …
     #[command(name = "pass")]
@@ -552,6 +558,25 @@ enum PassCmd {
         #[arg(long)]
         tomb: Option<String>,
     },
+    /// Show an entry's git history: sha, timestamp, subject (metadata only).
+    History {
+        name: String,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Restore an entry's content from a past commit as a NEW commit.
+    Restore {
+        name: String,
+        /// Commit sha from `pass history`.
+        #[arg(long)]
+        rev: String,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
     /// Multi-tomb registry.
     Tomb {
         #[command(subcommand)]
@@ -802,6 +827,7 @@ async fn main() -> anyhow::Result<()> {
             print!("{}", completion_script(shell));
         }
         Commands::Init { schema } => init_schema(&schema)?,
+        Commands::Config { cmd } => configs::run(&cli.server, &cli.output, cmd).await?,
         Commands::Pass { cmd } => match cmd {
             PassCmd::Init {
                 path,
@@ -937,6 +963,13 @@ async fn main() -> anyhow::Result<()> {
                 path,
                 tomb,
             )?,
+            PassCmd::History { name, path, tomb } => store::cmd_history(name, path, tomb)?,
+            PassCmd::Restore {
+                name,
+                rev,
+                path,
+                tomb,
+            } => store::cmd_restore(name, rev, path, tomb)?,
             PassCmd::Tomb { cmd } => match cmd {
                 PassTombCmd::List => store::cmd_tomb_list()?,
                 PassTombCmd::Add {
@@ -1905,17 +1938,17 @@ fn init_schema(path: &std::path::Path) -> anyhow::Result<()> {
 fn completion_script(shell: CompletionShell) -> &'static str {
     match shell {
         CompletionShell::Bash => {
-            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init pass tui dev daemon task intent cert' -- "${COMP_WORDS[COMP_CWORD]}") ); }
+            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass tui dev daemon task intent cert' -- "${COMP_WORDS[COMP_CWORD]}") ); }
 complete -F _opensesame opensesame
 "#
         }
         CompletionShell::Zsh => {
             r#"#compdef opensesame
-_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init pass tui dev daemon task intent cert)'
+_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass tui dev daemon task intent cert)'
 "#
         }
         CompletionShell::Fish => {
-            r#"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init pass tui dev daemon task intent cert'
+            r#"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass tui dev daemon task intent cert'
 "#
         }
     }

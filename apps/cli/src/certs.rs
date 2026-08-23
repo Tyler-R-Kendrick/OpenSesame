@@ -52,14 +52,14 @@ pub async fn cmd_ls(server: &str, output: &str) -> Result<()> {
         println!("No issued certificates on this Host.");
         return Ok(());
     }
-    println!(
-        "{:<20} {:<18} {}",
-        "COMMON NAME", "EXPIRES", "SERIAL"
-    );
+    let (name_header, expires_header, serial_header) = ("COMMON NAME", "EXPIRES", "SERIAL");
+    println!("{name_header:<20} {expires_header:<18} {serial_header}");
     for row in rows {
         println!(
             "{:<20} {:<18} {}",
-            row.get("common_name").and_then(Value::as_str).unwrap_or("-"),
+            row.get("common_name")
+                .and_then(Value::as_str)
+                .unwrap_or("-"),
             row.get("not_after").and_then(Value::as_str).unwrap_or("-"),
             row.get("serial").and_then(Value::as_str).unwrap_or("-"),
         );
@@ -67,6 +67,7 @@ pub async fn cmd_ls(server: &str, output: &str) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)] // mirrors the `cert issue` flag surface
 pub async fn cmd_issue(
     server: &str,
     output: &str,
@@ -82,7 +83,8 @@ pub async fn cmd_issue(
         dns_names.push(common_name.clone());
     }
     let mut ip_addrs = ips;
-    if ip_addrs.is_empty() && (common_name == "localhost" || dns_names.iter().any(|d| d == "localhost"))
+    if ip_addrs.is_empty()
+        && (common_name == "localhost" || dns_names.iter().any(|d| d == "localhost"))
     {
         ip_addrs.push("127.0.0.1".into());
     }
@@ -112,7 +114,7 @@ pub async fn cmd_issue(
         .unwrap_or("");
 
     if let Some(ref dir) = out_dir {
-        fs::create_dir_all(&dir).with_context(|| format!("creating {}", dir.display()))?;
+        fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
         let stem = sanitize_stem(&common_name);
         write_pem(&dir.join(format!("{stem}.crt.pem")), cert, 0o644)?;
         write_pem(&dir.join(format!("{stem}.key.pem")), key, 0o600)?;
@@ -156,7 +158,13 @@ pub async fn cmd_issue(
 fn sanitize_stem(cn: &str) -> String {
     let stem: String = cn
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     if stem.is_empty() {
         "cert".into()
