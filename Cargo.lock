@@ -3467,6 +3467,7 @@ dependencies = [
  "age",
  "anyhow",
  "base64 0.22.1",
+ "blake3",
  "directories",
  "hmac 0.12.1",
  "libc",
