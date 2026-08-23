@@ -1,4 +1,4 @@
-//! `opensesame pass attach` — human CLI for sealed file attachments (ADR 0052).
+//! `opensesame pass attach` — human CLI for sealed file attachments (ADR 0054).
 //!
 //! Attachments hold documents people care about losing and care about leaking:
 //! tax paperwork, identity documents, scans. Two rules shape everything here.

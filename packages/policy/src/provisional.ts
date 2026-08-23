@@ -111,8 +111,15 @@ export interface ProvisionalUsage {
   claims: number;
 }
 
-/** Which quota field, if any, a given action spends. */
-function quotaFieldFor(action: string): {
+/**
+ * Which quota field, if any, a given action spends.
+ *
+ * Exported so a test can assert that an unmetered action maps to exactly
+ * `null`. The only consumer is a truthiness check, so `undefined` would behave
+ * identically there and a broken mapping would be invisible — the exact-value
+ * assertion is what makes this table's "spends nothing" answer observable.
+ */
+export function quotaFieldFor(action: string): {
   usage: keyof ProvisionalUsage;
   limit: keyof ProvisionalQuota;
   reason: string;

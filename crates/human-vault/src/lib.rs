@@ -291,7 +291,7 @@ pub fn kek_from_webauthn_prf(
 }
 
 // ---------------------------------------------------------------------------
-// Attachment chunk crypto (ADR 0052).
+// Attachment chunk crypto (ADR 0054).
 //
 // Attachments are streamed, so they are sealed one bounded chunk at a time
 // rather than through `encrypt_item`, whose whole-buffer base64-in-JSON

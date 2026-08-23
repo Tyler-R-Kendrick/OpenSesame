@@ -22,7 +22,7 @@ OpenSesame. Nothing file-shaped exists in the repo today. Build, in one pass:
    pushes sealed bytes through a credential-injecting gateway endpoint
    (Dropbox first), or copies ciphertext to a user-mounted **encrypted disk**
    directory with no gateway involvement.
-3. **ADR 0052** recording the options matrix (git-native vs Solid pods vs
+3. **ADR 0054** recording the options matrix (git-native vs Solid pods vs
    atproto PDS blobs vs IPFS vs gossip/tor vs external-only) and every
    deliberate trade-off named in this document.
 
@@ -157,7 +157,7 @@ that way.
   `crates/human-vault/src/lib.rs` tests.
 - Fuzz targets in `fuzz/fuzz_targets/` (mirror `vault_envelope.rs`;
   register in `fuzz/Cargo.toml`).
-- Docs: ADRs in `docs/adr/` — next free number is **0052** (verify with
+- Docs: ADRs in `docs/adr/` — next free number is **0054** (verify with
   `ls docs/adr/`; ADR 0038 has three colliding filenames — do not repeat
   that mistake).
 
@@ -227,7 +227,7 @@ reorder; `chunk_count` plus the manifest's totals block truncation and
 extension. Deliberate trade-off vs `aead::stream`/age streaming: per-chunk
 AD gives the same protections while keeping chunks individually
 content-addressable (random access, per-chunk replication) with zero new
-dependencies — record in ADR 0052.
+dependencies — record in ADR 0054.
 
 ### 3.3 Key derivation
 
@@ -236,7 +236,7 @@ dependencies — record in ADR 0052.
 Fresh random `attachment_id` per `attach add` ⇒ unique key per attachment
 ⇒ no nonce-reuse concern across attachments, no equality leak. This is the
 first real derivation step toward `docs/security/key-hierarchy.md` — say so
-in ADR 0052. All key types `Zeroize + ZeroizeOnDrop`; zeroize plaintext
+in ADR 0054. All key types `Zeroize + ZeroizeOnDrop`; zeroize plaintext
 chunk buffers after sealing.
 
 ### 3.4 Store layout
@@ -590,14 +590,14 @@ nothing.
 
 ### Swarm F — Docs & client notice
 
-Owns: `docs/adr/0052-file-attachment-storage.md` (new),
+Owns: `docs/adr/0054-file-attachment-storage.md` (new),
 `docs/adr/0038-sealed-store-backup-github-app.md`,
 `docs/validation/pact.md`, `AGENTS.md`,
 `apps/pages/src/lib/vault/import/zip.ts`.
 
 Tasks:
 
-1. ADR 0052: context; options matrix with verdicts — git-native chunked
+1. ADR 0054: context; options matrix with verdicts — git-native chunked
    ciphertext (chosen: free private remotes, offline-first, rides ADR
    0037/0038 fabric, E2EE preserved), Solid pods & atproto PDS blobs
    (roadmap connectors; ciphertext-only makes their public-ish blob
@@ -611,7 +611,7 @@ Tasks:
    client-driven replication rationale (gateway never holds chunks),
    encrypted-disk `--to-dir` mode, ceremony curl walkthrough.
 2. ADR 0038 (backup file): amend the committed-artifact list with
-   `.osattach` + `.attachments/**/*.oschunk`, pointing at ADR 0052.
+   `.osattach` + `.attachments/**/*.oschunk`, pointing at ADR 0054.
 3. `docs/validation/pact.md`: add the "Sealed-store attachments" row.
 4. `AGENTS.md` §3 crib sheet: `pass attach` examples under the sealed-store
    block.
