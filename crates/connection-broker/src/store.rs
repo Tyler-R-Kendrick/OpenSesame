@@ -1059,3 +1059,658 @@ pub async fn update_sync_target_status(
     .await?;
     Ok(())
 }
+
+// ---- project-config secret store (ADR 0052) --------------------------------
+//
+// Values are sealed with the broker deployment key under the §4.2 AAD
+// (org|project|config|key|version) before they touch a row. Reads on the API
+// surface return names + version metadata only; `load_config_values_sealed`
+// hands ciphertext rows to in-process consumers (sync, rotation, operator
+// materialize), which open them with `crypto::open_with_ad` and never persist
+// plaintext.
+//
+// DDL lives here as idempotent `ensure_*` schema, following the sync_targets
+// precedent above, so this module does not own root `migrations/` numbering.
+
+#[derive(Clone, Debug)]
+pub struct SecretConfigRow {
+    pub id: String,
+    pub organization_id: String,
+    pub project_id: String,
+    pub slug: String,
+    pub display_name: String,
+    pub environment: String,
+    pub parent_config_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConfigKeyMetaRow {
+    pub key_name: String,
+    pub version: i64,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConfigValueRow {
+    pub key_name: String,
+    pub version: i64,
+    pub sealed: SealedBlob,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConfigValueVersionMetaRow {
+    pub version: i64,
+    pub deleted: bool,
+    pub actor_id: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+/// One dirty-config wake event for the sync actor. Kept in a dedicated table
+/// because the shared `outbox_events` table is drained wholesale by the backup
+/// actor (`claim_outbox_batch` has no event-type filter); sharing it would let
+/// the backup pass consume sync wakes before the sync actor ever saw them.
+#[derive(Clone, Debug)]
+pub struct ConfigSyncEventRow {
+    pub id: String,
+    pub event_type: String,
+    pub organization_id: String,
+    pub project_id: String,
+    pub config_id: String,
+    pub attempts: i64,
+    pub created_at: DateTime<Utc>,
+}
+
+pub const CONFIG_ENVIRONMENTS: [&str; 4] = ["development", "staging", "production", "custom"];
+
+pub async fn ensure_secret_configs_schema(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS secret_configs (
+            id TEXT PRIMARY KEY,
+            organization_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            slug TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            environment TEXT NOT NULL CHECK (environment IN
+                ('development','staging','production','custom')),
+            parent_config_id TEXT NULL REFERENCES secret_configs(id),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE (organization_id, project_id, slug)
+         )",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_secret_configs_org_project \
+         ON secret_configs(organization_id, project_id)",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS config_secret_values (
+            organization_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            config_id TEXT NOT NULL REFERENCES secret_configs(id),
+            key_name TEXT NOT NULL,
+            ciphertext BLOB NOT NULL,
+            nonce BLOB NOT NULL,
+            aad_digest TEXT NOT NULL,
+            version INTEGER NOT NULL,
+            updated_by TEXT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (config_id, key_name)
+         )",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS config_secret_value_versions (
+            config_id TEXT NOT NULL,
+            key_name TEXT NOT NULL,
+            version INTEGER NOT NULL,
+            ciphertext BLOB NOT NULL,
+            nonce BLOB NOT NULL,
+            aad_digest TEXT NOT NULL,
+            deleted INTEGER NOT NULL DEFAULT 0,
+            actor_id TEXT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (config_id, key_name, version)
+         )",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS config_sync_outbox (
+            id TEXT PRIMARY KEY,
+            event_type TEXT NOT NULL,
+            organization_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            config_id TEXT NOT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            available_at TEXT NULL,
+            published_at TEXT NULL,
+            dead_lettered_at TEXT NULL,
+            last_error TEXT NULL,
+            created_at TEXT NOT NULL
+         )",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_config_sync_outbox_pending \
+         ON config_sync_outbox(published_at, dead_lettered_at, available_at)",
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+fn secret_config_from_row(row: &sqlx::sqlite::SqliteRow) -> SecretConfigRow {
+    SecretConfigRow {
+        id: row.get("id"),
+        organization_id: row.get("organization_id"),
+        project_id: row.get("project_id"),
+        slug: row.get("slug"),
+        display_name: row.get("display_name"),
+        environment: row.get("environment"),
+        parent_config_id: row.get("parent_config_id"),
+        created_at: parse_time(&row.get::<String, _>("created_at")),
+        updated_at: parse_time(&row.get::<String, _>("updated_at")),
+    }
+}
+
+const SECRET_CONFIG_COLUMNS: &str = "id, organization_id, project_id, slug, display_name, \
+     environment, parent_config_id, created_at, updated_at";
+
+pub async fn insert_secret_config(pool: &SqlitePool, row: &SecretConfigRow) -> Result<()> {
+    ensure_secret_configs_schema(pool).await?;
+    if !CONFIG_ENVIRONMENTS.contains(&row.environment.as_str()) {
+        return Err(BrokerError::Invalid(format!(
+            "environment must be one of {}",
+            CONFIG_ENVIRONMENTS.join(", ")
+        )));
+    }
+    sqlx::query(
+        "INSERT INTO secret_configs (id, organization_id, project_id, slug, display_name, \
+         environment, parent_config_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&row.id)
+    .bind(&row.organization_id)
+    .bind(&row.project_id)
+    .bind(&row.slug)
+    .bind(&row.display_name)
+    .bind(&row.environment)
+    .bind(&row.parent_config_id)
+    .bind(row.created_at.to_rfc3339())
+    .bind(row.updated_at.to_rfc3339())
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn list_secret_configs(
+    pool: &SqlitePool,
+    organization_id: &str,
+    project_id: &str,
+) -> Result<Vec<SecretConfigRow>> {
+    ensure_secret_configs_schema(pool).await?;
+    // SECRET_CONFIG_COLUMNS is constant; all data values are bound below.
+    // ast-grep-ignore: sql-format-injection
+    let rows = sqlx::query(&format!(
+        "SELECT {SECRET_CONFIG_COLUMNS} FROM secret_configs \
+         WHERE organization_id = ? AND project_id = ? ORDER BY slug",
+    ))
+    .bind(organization_id)
+    .bind(project_id)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.iter().map(secret_config_from_row).collect())
+}
+
+pub async fn get_secret_config(
+    pool: &SqlitePool,
+    organization_id: &str,
+    config_id: &str,
+) -> Result<Option<SecretConfigRow>> {
+    ensure_secret_configs_schema(pool).await?;
+    // SECRET_CONFIG_COLUMNS is constant; all data values are bound below.
+    // ast-grep-ignore: sql-format-injection
+    let row = sqlx::query(&format!(
+        "SELECT {SECRET_CONFIG_COLUMNS} FROM secret_configs \
+         WHERE id = ? AND organization_id = ?",
+    ))
+    .bind(config_id)
+    .bind(organization_id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.as_ref().map(secret_config_from_row))
+}
+
+/// Deletes a config and its values/versions in one transaction. The caller
+/// (domain layer) is responsible for refusing while sync targets reference it.
+pub async fn delete_secret_config(
+    pool: &SqlitePool,
+    organization_id: &str,
+    config_id: &str,
+) -> Result<bool> {
+    ensure_secret_configs_schema(pool).await?;
+    let mut tx = pool.begin().await?;
+    let deleted = sqlx::query("DELETE FROM secret_configs WHERE id = ? AND organization_id = ?")
+        .bind(config_id)
+        .bind(organization_id)
+        .execute(&mut *tx)
+        .await?;
+    if deleted.rows_affected() == 0 {
+        return Ok(false);
+    }
+    sqlx::query("DELETE FROM config_secret_values WHERE config_id = ?")
+        .bind(config_id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("DELETE FROM config_secret_value_versions WHERE config_id = ?")
+        .bind(config_id)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    Ok(true)
+}
+
+pub struct UpsertConfigValue<'a> {
+    pub organization_id: &'a str,
+    pub project_id: &'a str,
+    pub config_id: &'a str,
+    pub key_name: &'a str,
+    pub plaintext: &'a [u8],
+    pub actor_id: Option<&'a str>,
+}
+
+async fn append_config_sync_outbox(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    event_type: &str,
+    organization_id: &str,
+    project_id: &str,
+    config_id: &str,
+) -> Result<()> {
+    sqlx::query(
+        "INSERT INTO config_sync_outbox (id, event_type, organization_id, project_id, \
+         config_id, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+    )
+    .bind(uuid::Uuid::now_v7().to_string())
+    .bind(event_type)
+    .bind(organization_id)
+    .bind(project_id)
+    .bind(config_id)
+    .bind(Utc::now().to_rfc3339())
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+/// Seals the plaintext under the next version's AAD and, in ONE transaction:
+/// upserts the head row, appends an immutable versions row, appends a
+/// `sync.config.dirty` wake for the sync actor, and appends a backup outbox
+/// event so the backup snapshot stays complete. Returns the new head version.
+pub async fn upsert_config_value(
+    pool: &SqlitePool,
+    key: &[u8; 32],
+    p: UpsertConfigValue<'_>,
+) -> Result<u64> {
+    ensure_secret_configs_schema(pool).await?;
+    let config = get_secret_config(pool, p.organization_id, p.config_id)
+        .await?
+        .ok_or(BrokerError::ConfigNotFound)?;
+    if config.project_id != p.project_id {
+        return Err(BrokerError::ConfigNotFound);
+    }
+    let mut tx = pool.begin().await?;
+    let head: Option<i64> = sqlx::query_scalar(
+        "SELECT version FROM config_secret_values WHERE config_id = ? AND key_name = ?",
+    )
+    .bind(p.config_id)
+    .bind(p.key_name)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let last_version: Option<i64> = sqlx::query_scalar(
+        "SELECT MAX(version) FROM config_secret_value_versions \
+         WHERE config_id = ? AND key_name = ?",
+    )
+    .bind(p.config_id)
+    .bind(p.key_name)
+    .fetch_one(&mut *tx)
+    .await?;
+    let next = head.unwrap_or(0).max(last_version.unwrap_or(0)) + 1;
+    let aad = crate::crypto::config_value_ad(
+        p.organization_id,
+        p.project_id,
+        p.config_id,
+        p.key_name,
+        next as u64,
+    );
+    let sealed = crate::crypto::seal_with_ad(key, &aad, p.plaintext)?;
+    let now = Utc::now().to_rfc3339();
+    sqlx::query(
+        "INSERT INTO config_secret_values (organization_id, project_id, config_id, key_name, \
+         ciphertext, nonce, aad_digest, version, updated_by, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+         ON CONFLICT (config_id, key_name) DO UPDATE SET ciphertext = excluded.ciphertext, \
+         nonce = excluded.nonce, aad_digest = excluded.aad_digest, version = excluded.version, \
+         updated_by = excluded.updated_by, updated_at = excluded.updated_at",
+    )
+    .bind(p.organization_id)
+    .bind(p.project_id)
+    .bind(p.config_id)
+    .bind(p.key_name)
+    .bind(&sealed.ciphertext)
+    .bind(&sealed.nonce)
+    .bind(&sealed.aad_digest)
+    .bind(next)
+    .bind(p.actor_id)
+    .bind(&now)
+    .bind(&now)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        "INSERT INTO config_secret_value_versions (config_id, key_name, version, ciphertext, \
+         nonce, aad_digest, deleted, actor_id, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)",
+    )
+    .bind(p.config_id)
+    .bind(p.key_name)
+    .bind(next)
+    .bind(&sealed.ciphertext)
+    .bind(&sealed.nonce)
+    .bind(&sealed.aad_digest)
+    .bind(p.actor_id)
+    .bind(&now)
+    .execute(&mut *tx)
+    .await?;
+    append_config_sync_outbox(
+        &mut tx,
+        "sync.config.dirty",
+        p.organization_id,
+        p.project_id,
+        p.config_id,
+    )
+    .await?;
+    append_backup_outbox(&mut tx, "config.value.changed", p.config_id, p.key_name).await?;
+    tx.commit().await?;
+    Ok(next as u64)
+}
+
+/// Tombstones the head value: appends a `deleted` versions row (empty
+/// ciphertext — a tombstone has nothing to seal) and removes the head row, in
+/// one transaction with the sync + backup outbox events.
+pub async fn delete_config_value(
+    pool: &SqlitePool,
+    organization_id: &str,
+    config_id: &str,
+    key_name: &str,
+    actor_id: Option<&str>,
+) -> Result<bool> {
+    ensure_secret_configs_schema(pool).await?;
+    let Some(config) = get_secret_config(pool, organization_id, config_id).await? else {
+        return Err(BrokerError::ConfigNotFound);
+    };
+    let mut tx = pool.begin().await?;
+    let head: Option<i64> = sqlx::query_scalar(
+        "SELECT version FROM config_secret_values WHERE config_id = ? AND key_name = ?",
+    )
+    .bind(config_id)
+    .bind(key_name)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(head) = head else {
+        return Ok(false);
+    };
+    let now = Utc::now().to_rfc3339();
+    sqlx::query(
+        "INSERT INTO config_secret_value_versions (config_id, key_name, version, ciphertext, \
+         nonce, aad_digest, deleted, actor_id, created_at) VALUES (?, ?, ?, x'', x'', '', 1, ?, ?)",
+    )
+    .bind(config_id)
+    .bind(key_name)
+    .bind(head + 1)
+    .bind(actor_id)
+    .bind(&now)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query("DELETE FROM config_secret_values WHERE config_id = ? AND key_name = ?")
+        .bind(config_id)
+        .bind(key_name)
+        .execute(&mut *tx)
+        .await?;
+    append_config_sync_outbox(
+        &mut tx,
+        "sync.config.dirty",
+        organization_id,
+        &config.project_id,
+        config_id,
+    )
+    .await?;
+    append_backup_outbox(&mut tx, "config.value.deleted", config_id, key_name).await?;
+    tx.commit().await?;
+    Ok(true)
+}
+
+pub async fn list_config_key_meta(
+    pool: &SqlitePool,
+    organization_id: &str,
+    config_id: &str,
+) -> Result<Vec<ConfigKeyMetaRow>> {
+    ensure_secret_configs_schema(pool).await?;
+    let rows = sqlx::query(
+        "SELECT key_name, version, updated_at FROM config_secret_values \
+         WHERE organization_id = ? AND config_id = ? ORDER BY key_name",
+    )
+    .bind(organization_id)
+    .bind(config_id)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|r| ConfigKeyMetaRow {
+            key_name: r.get("key_name"),
+            version: r.get("version"),
+            updated_at: parse_time(&r.get::<String, _>("updated_at")),
+        })
+        .collect())
+}
+
+/// Ciphertext rows for in-process consumers only. Never serialize these onto
+/// an API response.
+pub async fn load_config_values_sealed(
+    pool: &SqlitePool,
+    organization_id: &str,
+    config_id: &str,
+) -> Result<Vec<ConfigValueRow>> {
+    ensure_secret_configs_schema(pool).await?;
+    let rows = sqlx::query(
+        "SELECT key_name, version, ciphertext, nonce, aad_digest FROM config_secret_values \
+         WHERE organization_id = ? AND config_id = ? ORDER BY key_name",
+    )
+    .bind(organization_id)
+    .bind(config_id)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|r| ConfigValueRow {
+            key_name: r.get("key_name"),
+            version: r.get("version"),
+            sealed: SealedBlob {
+                ciphertext: r.get("ciphertext"),
+                nonce: r.get("nonce"),
+                aad_digest: r.get("aad_digest"),
+            },
+        })
+        .collect())
+}
+
+pub async fn list_config_value_versions(
+    pool: &SqlitePool,
+    organization_id: &str,
+    config_id: &str,
+    key_name: &str,
+) -> Result<Vec<ConfigValueVersionMetaRow>> {
+    ensure_secret_configs_schema(pool).await?;
+    if get_secret_config(pool, organization_id, config_id)
+        .await?
+        .is_none()
+    {
+        return Err(BrokerError::ConfigNotFound);
+    }
+    let rows = sqlx::query(
+        "SELECT version, deleted, actor_id, created_at FROM config_secret_value_versions \
+         WHERE config_id = ? AND key_name = ? ORDER BY version DESC",
+    )
+    .bind(config_id)
+    .bind(key_name)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|r| ConfigValueVersionMetaRow {
+            version: r.get("version"),
+            deleted: r.get::<i64, _>("deleted") != 0,
+            actor_id: r.get("actor_id"),
+            created_at: parse_time(&r.get::<String, _>("created_at")),
+        })
+        .collect())
+}
+
+pub async fn get_config_value_version_sealed(
+    pool: &SqlitePool,
+    organization_id: &str,
+    config_id: &str,
+    key_name: &str,
+    version: u64,
+) -> Result<Option<ConfigValueRow>> {
+    ensure_secret_configs_schema(pool).await?;
+    if get_secret_config(pool, organization_id, config_id)
+        .await?
+        .is_none()
+    {
+        return Err(BrokerError::ConfigNotFound);
+    }
+    let row = sqlx::query(
+        "SELECT key_name, version, ciphertext, nonce, aad_digest \
+         FROM config_secret_value_versions \
+         WHERE config_id = ? AND key_name = ? AND version = ? AND deleted = 0",
+    )
+    .bind(config_id)
+    .bind(key_name)
+    .bind(version as i64)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| ConfigValueRow {
+        key_name: r.get("key_name"),
+        version: r.get("version"),
+        sealed: SealedBlob {
+            ciphertext: r.get("ciphertext"),
+            nonce: r.get("nonce"),
+            aad_digest: r.get("aad_digest"),
+        },
+    }))
+}
+
+// ---- config sync outbox (sync actor wake queue) ----------------------------
+
+pub async fn claim_config_sync_batch(
+    pool: &SqlitePool,
+    limit: i64,
+    lease_seconds: i64,
+) -> Result<Vec<ConfigSyncEventRow>> {
+    ensure_secret_configs_schema(pool).await?;
+    let now = Utc::now();
+    let lease_until = (now + chrono::Duration::seconds(lease_seconds)).to_rfc3339();
+    let mut tx = pool.begin().await?;
+    let rows = sqlx::query(
+        "SELECT id, event_type, organization_id, project_id, config_id, attempts, created_at \
+         FROM config_sync_outbox \
+         WHERE published_at IS NULL AND dead_lettered_at IS NULL \
+           AND (available_at IS NULL OR available_at <= ?) \
+         ORDER BY created_at LIMIT ?",
+    )
+    .bind(now.to_rfc3339())
+    .bind(limit)
+    .fetch_all(&mut *tx)
+    .await?;
+    let events: Vec<ConfigSyncEventRow> = rows
+        .into_iter()
+        .map(|r| ConfigSyncEventRow {
+            id: r.get("id"),
+            event_type: r.get("event_type"),
+            organization_id: r.get("organization_id"),
+            project_id: r.get("project_id"),
+            config_id: r.get("config_id"),
+            attempts: r.get::<i64, _>("attempts") + 1,
+            created_at: parse_time(&r.get::<String, _>("created_at")),
+        })
+        .collect();
+    for event in &events {
+        sqlx::query(
+            "UPDATE config_sync_outbox SET available_at = ?, attempts = attempts + 1 WHERE id = ?",
+        )
+        .bind(&lease_until)
+        .bind(&event.id)
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(events)
+}
+
+pub async fn mark_config_sync_published(pool: &SqlitePool, ids: &[String]) -> Result<()> {
+    let now = Utc::now().to_rfc3339();
+    for id in ids {
+        sqlx::query("UPDATE config_sync_outbox SET published_at = ? WHERE id = ?")
+            .bind(&now)
+            .bind(id)
+            .execute(pool)
+            .await?;
+    }
+    Ok(())
+}
+
+pub async fn park_config_sync(
+    pool: &SqlitePool,
+    ids: &[String],
+    reason: &str,
+    backoff_seconds: i64,
+) -> Result<()> {
+    let available = (Utc::now() + chrono::Duration::seconds(backoff_seconds)).to_rfc3339();
+    for id in ids {
+        sqlx::query(
+            "UPDATE config_sync_outbox SET available_at = ?, last_error = ? \
+             WHERE id = ? AND published_at IS NULL",
+        )
+        .bind(&available)
+        .bind(reason)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    }
+    Ok(())
+}
+
+pub async fn dead_letter_config_sync(
+    pool: &SqlitePool,
+    ids: &[String],
+    reason: &str,
+) -> Result<()> {
+    let now = Utc::now().to_rfc3339();
+    for id in ids {
+        sqlx::query(
+            "UPDATE config_sync_outbox SET dead_lettered_at = ?, last_error = ? \
+             WHERE id = ? AND published_at IS NULL",
+        )
+        .bind(&now)
+        .bind(reason)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    }
+    Ok(())
+}
