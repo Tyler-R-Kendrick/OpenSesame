@@ -5,6 +5,7 @@
 //! Host invoke paths — reveal is a human CLI concern.
 
 mod age_fmt;
+mod attachment;
 mod entry;
 mod envelope;
 mod generate;
@@ -20,6 +21,11 @@ mod tomb_registry;
 mod update;
 
 pub use age_fmt::{decrypt_age_file, encrypt_age_file, read_age_recipients};
+pub use attachment::{
+    sanitize_filename, AttachMeta, AttachmentManifest, AttachmentSummary, ChunkRef, GcOutcome,
+    ATTACHMENT_REVISION_FILE, ATTACH_EXT, CHUNK_EXT, CHUNK_PLAINTEXT_BYTES, GC_GRACE_SECONDS,
+    MAX_ATTACHMENT_BYTES,
+};
 pub use entry::Entry;
 pub use envelope::{open_osseal, seal_osseal, OpenedOsseal, OSSEAL_MAGIC};
 pub use generate::generate_password;
