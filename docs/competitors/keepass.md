@@ -139,7 +139,7 @@ than a tier-1 one.
 | Strongbox | iOS / macOS |
 | KeeWeb, kdbxweb consumers | Browser / Electron |
 
-None of these needs a server. All of them open a correct KDBX 4.0 file.
+None of these needs a server. All of them open a correct KDBX 4.x file, 4.1 included — which is what this repo's exporter emits.
 
 ## Differentiators (why operators still pick KeePass)
 
@@ -196,7 +196,7 @@ None of these needs a server. All of them open a correct KDBX 4.0 file.
   the edges; the store's own format, git history, and revision fences stay
   the system of record.
 - Do not claim KDBX write parity beyond what is verified. The writer is
-  constrained to KDBX 4.0 / AES-256 or ChaCha20 / Argon2id and is checked
+  constrained to KDBX 4.1 / AES-256 or ChaCha20 / Argon2id and is checked
   by a cross-implementation conformance fixture that an independent reader
   must open.
 

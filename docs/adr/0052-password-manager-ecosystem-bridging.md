@@ -136,7 +136,7 @@ Sanctioned dependencies and references for this work:
 
 | Dependency / reference | Licence | Stance |
 |---|---|---|
-| `keepass` crate (Rust KDBX) | MIT | Permissive dependency, pinned. KDBX4 **write** is experimental upstream, which is why the KDBX writer is constrained to KDBX 4.0 / AES-256 or ChaCha20 / Argon2id and guarded by a cross-implementation conformance fixture |
+| `keepass` crate (Rust KDBX) | MIT | Permissive dependency, pinned. KDBX4 **write** is experimental upstream, which is why the KDBX writer is constrained to KDBX 4.1 / AES-256 or ChaCha20 / Argon2id and guarded by a cross-implementation conformance fixture. 4.1, not 4.0: `dump_kdbx4` rejects any version other than `KDB4(1)`, and KeePass 2.x, KeePassXC and `kdbxweb` all read 4.1 |
 | kdbxweb (TS KDBX) | MIT | Permissive dependency (pages adapter), lazily imported |
 | hash-wasm | MIT | Permissive dependency — supplies Argon2 to kdbxweb via `CryptoEngine.setArgon2Impl`; pages has no Argon2 of its own |
 | `crypto_box` (RustCrypto NaCl box) | MIT OR Apache-2.0 | Permissive dependency — keepassxc-protocol transport crypto |
