@@ -25,9 +25,9 @@ Install the bundled Oxlint plugin into the current repository and integrate it w
    This creates `tools/oxlint/anti-slop/`. Pass another relative destination as the first argument when the repository has an established tooling layout. The script refuses to replace an existing destination; only use `--force` after backing up and reviewing existing files.
 
 3. Install current compatible dependencies rather than trusting versions remembered by the agent:
-   - Query `npm view oxlint version` and `npm view @oxlint/plugins version`.
+   - Query `npm view oxlint version`, `npm view @oxlint/plugins version`, `npm view typescript version`, and `npm view @types/node version`.
    - Install the same current version of both packages with the repository's package manager.
-   - `oxlint` is a development dependency. The copied source imports `@oxlint/plugins`, so install it as a development dependency for a local-only plugin.
+   - Install `oxlint`, `@oxlint/plugins`, `typescript`, and `@types/node` as development dependencies. The imported-dictionary analyzer uses the TypeScript compiler API and Node path resolution; do not assume they are available transitively.
    - Do not replace the package manager or rewrite unrelated dependency ranges.
 
 4. Register the generic plugin, configure ignores, and enable all generic rules. For `oxlint.config.ts` or `.oxlintrc.json`, merge these fields with the existing configuration:
@@ -92,7 +92,7 @@ Install the bundled Oxlint plugin into the current repository and integrate it w
    },
    ```
 
-   Merge these entries with the generic plugin configuration rather than replacing it. Do not enable the Effect plugin merely because Effect appears transitively in a lockfile; require a direct package-manifest dependency or an explicit user request. The rule covers relative project imports. Report package-alias imports as a current limitation rather than pretending they are enforced.
+   Merge these entries with the generic plugin configuration rather than replacing it. Do not enable the Effect plugin merely because Effect appears transitively in a lockfile; require a direct package-manifest dependency or an explicit user request. Relative imports and common `@/`, `~/`, and `#` aliases are covered by default. Configure additional workspace aliases with `projectImportPrefixes`, for example `["@workspace/"]`; do not leave known project aliases outside the rule's scope.
 
 5. Run the repository's lint command and typecheck. For Vite+, run the repository's full `vp check` command after adding both lint and format ignores. If findings appear in owned project source, report them and fix them only when the user asked for migration/cleanup. Do not suppress rules, weaken rule severity, add unsafe casts, or mechanically launder types to make lint pass.
 
