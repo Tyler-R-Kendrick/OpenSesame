@@ -1,0 +1,53 @@
+---
+source: crates/kdbx-bridge/tests/snapshots.rs
+expression: "serde_json::json!({\n    \"group_path\": unmapped.group_path, \"title\": unmapped.title, \"fields\":\n    unmapped.fields.iter().map(|f|\n    serde_json::json!({\n        \"key\": f.key, \"value\": f.value, \"protected\": f.protected,\n    })).collect::<Vec<_>>(),\n})"
+---
+{
+  "fields": [
+    {
+      "key": "Title",
+      "protected": false,
+      "value": "GitHub"
+    },
+    {
+      "key": "Password",
+      "protected": true,
+      "value": "fixture-password"
+    },
+    {
+      "key": "otp",
+      "protected": true,
+      "value": "otpauth://totp/GitHub?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=6&period=30&algorithm=SHA1"
+    },
+    {
+      "key": "UserName",
+      "protected": false,
+      "value": "alice"
+    },
+    {
+      "key": "URL",
+      "protected": false,
+      "value": "https://github.com"
+    },
+    {
+      "key": "Notes",
+      "protected": false,
+      "value": "one\ntwo"
+    },
+    {
+      "key": "API Key",
+      "protected": true,
+      "value": "fixture-api-key"
+    },
+    {
+      "key": "Comment",
+      "protected": false,
+      "value": "not secret"
+    }
+  ],
+  "group_path": [
+    "Personal",
+    "Email"
+  ],
+  "title": "GitHub"
+}

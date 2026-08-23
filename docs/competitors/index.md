@@ -9,7 +9,10 @@ and connector decisions stay honest about parity and deliberate gaps.
 | **`pass` (password-store)** | **Direct** — human CLI sealed store | Unix GPG/`~/.password-store` CLI; hierarchical encrypted secrets in git | [`pass.md`](pass.md) |
 | Tomb | Adjacent / inspiration | Linux dm-crypt volume + key separation; motivates multi-tomb registry | [`tomb.md`](tomb.md) |
 | Infisical | Craft bar (agents) | Agent/secret delivery (`infisical run`, Agent Proxy) | [`infisical.md`](infisical.md) |
-| Bitwarden | Craft bar (human UI habits) | Password-manager UX (+ Secrets Manager SKU); never brand marks | [`bitwarden.md`](bitwarden.md) |
+| Bitwarden | Study / client-bridge target ([ADR 0052](../adr/0052-password-manager-ecosystem-bridging.md)) + craft bar (human UI habits) | Password-manager UX (+ Secrets Manager SKU); consume-client built, server compat roadmap-only; never brand marks | [`bitwarden.md`](bitwarden.md) |
+| KeePass / KeePassXC | Study / client-bridge target ([ADR 0052](../adr/0052-password-manager-ecosystem-bridging.md)) | Offline KDBX database + keepassxc-protocol browser integration; format and protocol implemented from public specs | [`keepass.md`](keepass.md) |
+| Passbolt | Study / consume target ([ADR 0052](../adr/0052-password-manager-ecosystem-bridging.md)) | Self-hosted team PM on per-user OpenPGP; KDBX export ingests today, native client is a stretch | [`passbolt.md`](passbolt.md) |
+| 1Password | Craft bar (human UI habits) / consume target | `op` CLI, service accounts, `op://` refs, Connect REST, `.1pux`; CXF co-author. Serving its clients is impossible (proprietary) | [`1password.md`](1password.md) |
 | Doppler | Adjacent / craft bar | Cloud secrets platform + env injection CLI; capability parity via Host projects / SyncTarget / changelog — not a clone; catalog `doppler` ≠ this feature set | [`doppler.md`](doppler.md) |
 | HashiCorp Vault / OpenBao | Provider / prior art | Dynamic secrets, transit, PKI | [`hashicorp-vault.md`](hashicorp-vault.md) |
 | fnox | Peer / compatibility | Multi-provider secrets CLI; Host catalog Fnox parity | [`fnox.md`](fnox.md) |
@@ -18,7 +21,7 @@ and connector decisions stay honest about parity and deliberate gaps.
 | Vercel Connect | Adjacent / borrow-source | Short-lived connector tokens for apps/agents on Vercel | [`vercel-connect.md`](vercel-connect.md) |
 | Oomol Open Connector | Adjacent | OSS agent SaaS gateway (Actions + MCP; credentials stay behind gateway) | [`oomol-open-connector.md`](oomol-open-connector.md) |
 | Nango | Study | Embedded OAuth/API integrations + Functions/MCP | [`nango.md`](nango.md) |
-| Vaultwarden | Study | Self-hosted Bitwarden-compatible server | — (see [REUSE.md](../../REUSE.md), [bitwarden.md](bitwarden.md)) |
+| Vaultwarden | Study / client-bridge prior art ([ADR 0052](../adr/0052-password-manager-ecosystem-bridging.md)) | Self-hosted Bitwarden-compatible server; AGPL-3.0, clean-room study only | — (see [REUSE.md](../../REUSE.md), [bitwarden.md](bitwarden.md)) |
 | Varlock | Peer / compatibility | `.env.schema` + credential proxy | — (see [REUSE.md](../../REUSE.md)) |
 
 **Direct** means operators choosing a git-native CLI secret store will evaluate
@@ -29,6 +32,15 @@ becoming that product category.
 rebuilding it as the product.
 **Adjacent** means overlapping connector/secrets/git-ops surface without being
 the same category.
+**Client-bridge target** means we implement their file format or local
+protocol from its **public specification** so their clients and stores keep
+working — never by copying their source, which is GPL/AGPL and study-only
+([ADR 0052](../adr/0052-password-manager-ecosystem-bridging.md) §3,
+[REUSE.md](../../REUSE.md)). Serving another vendor's clients is only ever
+done on the human/device/ops plane under ADR 0052 §2; the agent plane still
+has no `getSecret()`.
+**Consume target** means their store can be plugged in as a brokered upstream
+behind ConnectionRef + Intent, not that we reimplement their server.
 
 Pattern for new entries: add `docs/competitors/<slug>.md` with overview →
 feature surface → differentiators → OpenSesame mapping, then link it from this

@@ -34,9 +34,12 @@ opensesame-authz = { path = "../crates/authz" }
 opensesame-task-bus = { path = "../crates/task-bus" }
 opensesame-xkeys = { path = "../crates/xkeys" }
 opensesame-provider-openbao = { path = "../crates/provider-openbao" }
+opensesame-provider-bitwarden = { path = "../crates/provider-bitwarden" }
 opensesame-provider-openfga = { path = "../crates/provider-openfga" }
 opensesame-connection-detect = { path = "../crates/connection-detect" }
 opensesame-tailscale-authn = { path = "../crates/tailscale-authn" }
+opensesame-kdbx-bridge = { path = "../crates/kdbx-bridge" }
+opensesame-sealed-store = { path = "../crates/sealed-store" }
 
 [workspace]
 members = ["."]
@@ -268,6 +271,27 @@ bench = false
 [[bin]]
 name = "attachment_chunk"
 path = "fuzz_targets/attachment_chunk.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "bitwarden_encstring"
+path = "fuzz_targets/bitwarden_encstring.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "kv_v2_path"
+path = "fuzz_targets/kv_v2_path.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "kdbx_parse"
+path = "fuzz_targets/kdbx_parse.rs"
 test = false
 doc = false
 bench = false

@@ -1,21 +1,28 @@
 //! Connection credential rotation (Doppler-parity capability under ADR 0005).
 //!
-//! Schedules and executes version-bumped credential rotation. Events are emitted
-//! on a [`TaskBus`] as CloudEvents-shaped payloads. New secret material is never
-//! placed on the bus or in API-facing views — only ids, versions, and status.
+//! Durable, pool-backed policies and jobs (WP-9). Each executed job is driven
+//! through the `opensesame-rotation` verify-before-revoke state machine and
+//! **every transition is persisted** to `rotation_jobs.state`, so a restart
+//! resumes from durable state instead of forgetting in-flight work. Events are
+//! emitted on a [`TaskBus`] as CloudEvents-shaped payloads and recorded in the
+//! durable changelog under the frozen `credential.rotation.*` names. New secret
+//! material is never placed on the bus, in the changelog, or in API-facing
+//! views — only ids, states, and operator hints.
 
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use opensesame_domain::OrganizationId;
+use opensesame_rotation::RotationState;
 use opensesame_task_bus::{BusEvent, TaskBus};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use uuid::Uuid;
 
+use crate::changelog_hook::RecordSecretChangelog;
 use crate::error::{BrokerError, Result};
 use crate::model::ConnectionView;
+use crate::store;
 use crate::ConnectionBroker;
 
 /// Frozen domain event type strings (WP-B / WP-E).
@@ -25,6 +32,20 @@ pub const EVENT_ROTATION_FAILED: &str = "credential.rotation.failed";
 
 const BUS_SOURCE: &str = "opensesame://connection-broker/rotation";
 
+/// Job state persisted before the machine starts executing.
+const STATE_SCHEDULED: &str = "scheduled";
+
+/// Detail recorded when a provider exposes no no-op verification invoke:
+/// verification is honestly skipped, never fabricated.
+const VERIFY_SKIPPED_DETAIL: &str =
+    "verify_skipped: provider catalog exposes no no-op verification invoke";
+
+/// Detail recorded for deferred sealed-store rotations.
+const STORE_PATH_DEFERRAL_DETAIL: &str = "store_path rotation requires the sealed-store CLI";
+
+/// Longest error hint persisted on a job — a hint, never token material.
+const MAX_DETAIL_CHARS: usize = 160;
+
 /// What to rotate — connection credentials or a sealed-store path (metadata only).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -33,44 +54,89 @@ pub enum RotationTarget {
     StorePath { path: String },
 }
 
-/// Durable schedule without secrets.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct RotationPolicy {
-    pub id: String,
-    /// ISO-8601 duration string (e.g. `PT24H`) or seconds as decimal string.
-    pub interval: String,
-    pub target: RotationTarget,
-    pub project_id: Option<String>,
-    pub organization_id: Option<String>,
-    pub enabled: bool,
-    pub created_at: String,
-}
-
-impl RotationPolicy {
-    pub fn new(
-        interval: impl Into<String>,
-        target: RotationTarget,
-        project_id: Option<String>,
-        organization_id: Option<String>,
-    ) -> Self {
-        Self {
-            id: format!("rotpol_{}", Uuid::now_v7()),
-            interval: interval.into(),
-            target,
-            project_id,
-            organization_id,
-            enabled: true,
-            created_at: Utc::now().to_rfc3339(),
+impl RotationTarget {
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::Connection { .. } => "connection",
+            Self::StorePath { .. } => "store_path",
         }
     }
 
-    /// Parse a simple interval (`30s`, `5m`, `1h`, `24h`, or raw seconds).
-    pub fn interval_duration(&self) -> Option<Duration> {
-        parse_interval(&self.interval)
+    pub fn target_id(&self) -> &str {
+        match self {
+            Self::Connection { connection_id } => connection_id,
+            Self::StorePath { path } => path,
+        }
+    }
+
+    pub fn from_parts(kind: &str, target_id: &str) -> Option<Self> {
+        match kind {
+            "connection" => Some(Self::Connection {
+                connection_id: target_id.to_string(),
+            }),
+            "store_path" => Some(Self::StorePath {
+                path: target_id.to_string(),
+            }),
+            _ => None,
+        }
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+/// Durable schedule without secrets (backed by `rotation_policies`).
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct RotationPolicy {
+    pub id: String,
+    pub organization_id: String,
+    pub target: RotationTarget,
+    pub interval_seconds: u64,
+    pub last_rotated_at: Option<String>,
+    pub enabled: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl RotationPolicy {
+    pub fn interval_duration(&self) -> Duration {
+        Duration::from_secs(self.interval_seconds.max(1))
+    }
+
+    pub fn last_rotated(&self) -> Option<DateTime<Utc>> {
+        self.last_rotated_at
+            .as_deref()
+            .and_then(|raw| DateTime::parse_from_rfc3339(raw).ok())
+            .map(|t| t.with_timezone(&Utc))
+    }
+
+    /// JSON safe for HTTP / agents — strips any accidental secret-shaped keys.
+    pub fn public_view(&self) -> Value {
+        strip_secret_shaped_keys(serde_json::to_value(self).unwrap_or_else(|_| json!({})))
+    }
+
+    fn from_row(row: store::RotationPolicyRow) -> Option<Self> {
+        Some(Self {
+            target: RotationTarget::from_parts(&row.target_kind, &row.target_id)?,
+            id: row.id,
+            organization_id: row.organization_id,
+            interval_seconds: row.interval_seconds.max(1) as u64,
+            last_rotated_at: row.last_rotated_at,
+            enabled: row.enabled,
+            created_at: row.created_at.to_rfc3339(),
+            updated_at: row.updated_at.to_rfc3339(),
+        })
+    }
+}
+
+/// Fields for [`ConnectionBroker::upsert_rotation_policy`]. `id: None` creates.
+#[derive(Clone, Debug)]
+pub struct UpsertRotationPolicy {
+    pub id: Option<String>,
+    pub target: RotationTarget,
+    pub interval_seconds: u64,
+    pub enabled: bool,
+}
+
+/// Coarse operator status derived from the persisted machine state.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RotationStatus {
     Requested,
@@ -78,100 +144,73 @@ pub enum RotationStatus {
     Failed,
 }
 
-/// Operator-visible rotation job. Never carries secret values.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+impl RotationStatus {
+    fn from_state(state: &str) -> Self {
+        match state {
+            "completed" => Self::Succeeded,
+            "rollback_completed" | "rollback_failed" | "reconciliation_required" => Self::Failed,
+            _ => Self::Requested,
+        }
+    }
+}
+
+/// Operator-visible rotation job (backed by `rotation_jobs`). Never carries
+/// secret values.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct RotationJob {
     pub id: String,
     pub policy_id: Option<String>,
-    pub status: RotationStatus,
+    pub organization_id: String,
     pub target: RotationTarget,
-    pub project_id: Option<String>,
-    pub organization_id: Option<String>,
-    pub previous_credential_version: Option<String>,
-    pub new_credential_version: Option<String>,
-    pub error: Option<String>,
-    pub requested_at: String,
-    pub completed_at: Option<String>,
+    /// Persisted `RotationState` name (snake_case), or `scheduled`.
+    pub state: String,
+    pub status: RotationStatus,
+    pub detail: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 impl RotationJob {
     /// JSON safe for HTTP / agents — strips any accidental secret-shaped keys.
     pub fn public_view(&self) -> Value {
-        let mut v = serde_json::to_value(self).unwrap_or_else(|_| json!({}));
-        if let Some(obj) = v.as_object_mut() {
-            for forbidden in [
-                "secret",
-                "value",
-                "password",
-                "token",
-                "access_token",
-                "refresh_token",
-                "client_secret",
-                "api_key",
-            ] {
-                obj.remove(forbidden);
-            }
-        }
-        v
+        strip_secret_shaped_keys(serde_json::to_value(self).unwrap_or_else(|_| json!({})))
+    }
+
+    fn from_row(row: store::RotationJobRow) -> Option<Self> {
+        Some(Self {
+            target: RotationTarget::from_parts(&row.target_kind, &row.target_id)?,
+            status: RotationStatus::from_state(&row.state),
+            id: row.id,
+            policy_id: row.policy_id,
+            organization_id: row.organization_id,
+            state: row.state,
+            detail: row.detail,
+            created_at: row.created_at.to_rfc3339(),
+            updated_at: row.updated_at.to_rfc3339(),
+        })
     }
 }
 
-/// In-memory policy + job store for schedule/request (Host process local).
-#[derive(Default)]
-pub struct RotationRegistry {
-    policies: Mutex<Vec<RotationPolicy>>,
-    jobs: Mutex<Vec<RotationJob>>,
+fn strip_secret_shaped_keys(mut value: Value) -> Value {
+    if let Some(obj) = value.as_object_mut() {
+        for forbidden in [
+            "secret",
+            "value",
+            "password",
+            "token",
+            "access_token",
+            "refresh_token",
+            "client_secret",
+            "api_key",
+        ] {
+            obj.remove(forbidden);
+        }
+    }
+    value
 }
 
-impl RotationRegistry {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn upsert_policy(&self, policy: RotationPolicy) -> RotationPolicy {
-        let mut policies = self.policies.lock().expect("rotation policies");
-        if let Some(existing) = policies.iter_mut().find(|p| p.id == policy.id) {
-            *existing = policy.clone();
-        } else {
-            policies.push(policy.clone());
-        }
-        policy
-    }
-
-    pub fn list_policies(&self) -> Vec<RotationPolicy> {
-        self.policies.lock().expect("rotation policies").clone()
-    }
-
-    pub fn get_job(&self, id: &str) -> Option<RotationJob> {
-        self.jobs
-            .lock()
-            .expect("rotation jobs")
-            .iter()
-            .find(|j| j.id == id)
-            .cloned()
-    }
-
-    pub fn list_jobs(&self) -> Vec<RotationJob> {
-        self.jobs.lock().expect("rotation jobs").clone()
-    }
-
-    fn insert_job(&self, job: RotationJob) -> RotationJob {
-        self.jobs.lock().expect("rotation jobs").push(job.clone());
-        job
-    }
-
-    fn update_job(&self, job: RotationJob) -> RotationJob {
-        let mut jobs = self.jobs.lock().expect("rotation jobs");
-        if let Some(existing) = jobs.iter_mut().find(|j| j.id == job.id) {
-            *existing = job.clone();
-        } else {
-            jobs.push(job.clone());
-        }
-        job
-    }
-}
-
-fn parse_interval(raw: &str) -> Option<Duration> {
+/// Parse a simple interval (`30s`, `5m`, `1h`, `24h`, `7d`, or raw seconds).
+pub fn parse_interval(raw: &str) -> Option<Duration> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return None;
@@ -190,6 +229,47 @@ fn parse_interval(raw: &str) -> Option<Duration> {
     }
 }
 
+/// Whether a wall-clock instant is due for a policy (used by the scheduler —
+/// the gateway's rotation tick is the production caller).
+pub fn policy_due_at(
+    policy: &RotationPolicy,
+    last_run: Option<DateTime<Utc>>,
+    now: DateTime<Utc>,
+) -> bool {
+    if !policy.enabled {
+        return false;
+    }
+    let interval = policy.interval_duration();
+    match last_run {
+        None => true,
+        Some(last) => now >= last + chrono::Duration::from_std(interval).unwrap_or_default(),
+    }
+}
+
+fn state_name(state: RotationState) -> &'static str {
+    match state {
+        RotationState::Scheduled => "scheduled",
+        RotationState::Discovering => "discovering",
+        RotationState::CandidateGenerated => "candidate_generated",
+        RotationState::CandidateInstalled => "candidate_installed",
+        RotationState::CandidateVerified => "candidate_verified",
+        RotationState::CandidateActivated => "candidate_activated",
+        RotationState::DependentsUpdated => "dependents_updated",
+        RotationState::Observing => "observing",
+        RotationState::PreviousRevoked => "previous_revoked",
+        RotationState::RevocationVerified => "revocation_verified",
+        RotationState::Completed => "completed",
+        RotationState::RollbackStarted => "rollback_started",
+        RotationState::RollbackCompleted => "rollback_completed",
+        RotationState::RollbackFailed => "rollback_failed",
+        RotationState::ReconciliationRequired => "reconciliation_required",
+    }
+}
+
+fn truncate_detail(raw: &str) -> String {
+    raw.chars().take(MAX_DETAIL_CHARS).collect()
+}
+
 fn bus_event(r#type: &str, data: Value) -> BusEvent {
     BusEvent {
         id: format!("evt_{}", Uuid::now_v7()),
@@ -205,62 +285,266 @@ fn job_event_data(job: &RotationJob) -> Value {
     json!({
         "rotation_id": job.id,
         "policy_id": job.policy_id,
+        "state": job.state,
         "status": job.status,
         "target": job.target,
-        "project_id": job.project_id,
         "organization_id": job.organization_id,
-        "previous_credential_version": job.previous_credential_version,
-        "new_credential_version": job.new_credential_version,
-        "error": job.error,
-        "requested_at": job.requested_at,
-        "completed_at": job.completed_at,
+        "detail": job.detail,
+        "created_at": job.created_at,
+        "updated_at": job.updated_at,
     })
 }
 
-/// Request a rotation: persist a job and publish `credential.rotation.requested`.
+/// Record a `credential.rotation.*` row in the durable changelog. Best-effort
+/// at emission sites: a changelog write failure never poisons the rotation.
+async fn record_rotation_changelog(
+    broker: &ConnectionBroker,
+    event_type: &str,
+    job: &RotationJob,
+    project_id: Option<&str>,
+    version_id: Option<String>,
+) {
+    let metadata = Map::from_iter([
+        ("rotation_id".into(), json!(job.id)),
+        ("target_kind".into(), json!(job.target.kind())),
+        ("final_state".into(), json!(job.state)),
+    ]);
+    if let Err(error) = broker
+        .record_changelog(RecordSecretChangelog {
+            event_type: event_type.into(),
+            project_id: project_id.unwrap_or("unknown").to_string(),
+            organization_id: Some(job.organization_id.clone()),
+            target_id: Some(job.target.target_id().to_string()),
+            version_id,
+            metadata,
+            ..Default::default()
+        })
+        .await
+    {
+        tracing::warn!(
+            rotation_id = %job.id,
+            error = %error.hint(),
+            "rotation changelog write failed"
+        );
+    }
+}
+
+/// Durable rotation policy + job surface on the broker.
+impl ConnectionBroker {
+    pub async fn upsert_rotation_policy(
+        &self,
+        organization_id: &str,
+        upsert: UpsertRotationPolicy,
+    ) -> Result<RotationPolicy> {
+        if upsert.interval_seconds == 0 {
+            return Err(BrokerError::Invalid(
+                "rotation interval must be at least one second".into(),
+            ));
+        }
+        let now = Utc::now();
+        let (id, created_at, last_rotated_at) = match upsert.id {
+            Some(id) => {
+                let existing = store::get_rotation_policy(&self.pool, &id)
+                    .await?
+                    .filter(|row| row.organization_id == organization_id)
+                    .ok_or_else(|| {
+                        BrokerError::Invalid(format!("rotation policy `{id}` not found"))
+                    })?;
+                (existing.id, existing.created_at, existing.last_rotated_at)
+            }
+            None => (format!("rotpol_{}", Uuid::now_v7()), now, None),
+        };
+        let row = store::RotationPolicyRow {
+            id,
+            organization_id: organization_id.to_string(),
+            target_kind: upsert.target.kind().to_string(),
+            target_id: upsert.target.target_id().to_string(),
+            interval_seconds: upsert.interval_seconds.min(i64::MAX as u64) as i64,
+            last_rotated_at,
+            enabled: upsert.enabled,
+            created_at,
+            updated_at: now,
+        };
+        store::upsert_rotation_policy(&self.pool, &row).await?;
+        RotationPolicy::from_row(row)
+            .ok_or_else(|| BrokerError::Invalid("rotation target kind is unknown".into()))
+    }
+
+    pub async fn list_rotation_policies(
+        &self,
+        organization_id: &str,
+    ) -> Result<Vec<RotationPolicy>> {
+        Ok(store::list_rotation_policies(&self.pool, organization_id)
+            .await?
+            .into_iter()
+            .filter_map(RotationPolicy::from_row)
+            .collect())
+    }
+
+    /// Enabled policies across every organization — the scheduler's read.
+    pub async fn list_enabled_rotation_policies(&self) -> Result<Vec<RotationPolicy>> {
+        Ok(store::list_enabled_rotation_policies(&self.pool)
+            .await?
+            .into_iter()
+            .filter_map(RotationPolicy::from_row)
+            .collect())
+    }
+
+    pub async fn set_policy_last_rotated(&self, id: &str, at: DateTime<Utc>) -> Result<()> {
+        store::set_policy_last_rotated(&self.pool, id, &at.to_rfc3339()).await
+    }
+
+    pub async fn list_rotation_jobs(
+        &self,
+        organization_id: &str,
+        limit: usize,
+    ) -> Result<Vec<RotationJob>> {
+        Ok(
+            store::list_rotation_jobs(&self.pool, organization_id, limit.clamp(1, 500) as i64)
+                .await?
+                .into_iter()
+                .filter_map(RotationJob::from_row)
+                .collect(),
+        )
+    }
+
+    /// Organization-scoped read; a job in another tenant reads as absent.
+    pub async fn get_rotation_job(
+        &self,
+        organization_id: &str,
+        id: &str,
+    ) -> Result<Option<RotationJob>> {
+        Ok(store::get_rotation_job(&self.pool, id)
+            .await?
+            .filter(|row| row.organization_id == organization_id)
+            .and_then(RotationJob::from_row))
+    }
+}
+
+/// Request a rotation: persist a durable job (state `scheduled`), record
+/// `credential.rotation.requested` in the changelog, then publish the bus
+/// event. The job is durable before the bus write — a partitioned bus
+/// surfaces the error but never loses the job.
 pub async fn request_rotation(
-    registry: &RotationRegistry,
+    broker: &ConnectionBroker,
     bus: &dyn TaskBus,
     target: RotationTarget,
     project_id: Option<String>,
-    organization_id: Option<String>,
+    organization_id: &str,
     policy_id: Option<String>,
-) -> anyhow::Result<RotationJob> {
-    let job = RotationJob {
+) -> Result<RotationJob> {
+    let now = Utc::now();
+    let row = store::RotationJobRow {
         id: format!("rot_{}", Uuid::now_v7()),
         policy_id,
-        status: RotationStatus::Requested,
-        target,
-        project_id,
-        organization_id,
-        previous_credential_version: None,
-        new_credential_version: None,
-        error: None,
-        requested_at: Utc::now().to_rfc3339(),
-        completed_at: None,
+        organization_id: organization_id.to_string(),
+        target_kind: target.kind().to_string(),
+        target_id: target.target_id().to_string(),
+        state: STATE_SCHEDULED.into(),
+        detail: None,
+        created_at: now,
+        updated_at: now,
     };
-    let job = registry.insert_job(job);
+    store::insert_rotation_job(&broker.pool, &row).await?;
+    let job = RotationJob::from_row(row)
+        .ok_or_else(|| BrokerError::Invalid("rotation target kind is unknown".into()))?;
+    record_rotation_changelog(
+        broker,
+        EVENT_ROTATION_REQUESTED,
+        &job,
+        project_id.as_deref(),
+        None,
+    )
+    .await;
     bus.publish(bus_event(EVENT_ROTATION_REQUESTED, job_event_data(&job)))
-        .await?;
+        .await
+        .map_err(|error| BrokerError::Invalid(format!("bus publish failed: {error}")))?;
     Ok(job)
 }
 
-/// Execute a pending connection rotation via broker refresh / version bump.
-///
-/// On success the prior credential version is superseded by the broker's CAS
-/// activation path (new version sealed; old ciphertext replaced). Failure emits
-/// `credential.rotation.failed` without secret bodies.
-pub async fn execute_connection_rotation(
-    registry: &RotationRegistry,
+/// Execute one pending rotation job, dispatching on its target kind.
+pub async fn execute_rotation(
+    broker: &ConnectionBroker,
     bus: &dyn TaskBus,
+    organization_id: &OrganizationId,
+    job_id: &str,
+) -> Result<RotationJob> {
+    let job = load_scheduled_job(broker, organization_id, job_id).await?;
+    match &job.target {
+        RotationTarget::Connection { .. } => {
+            execute_connection_rotation(broker, bus, organization_id, job_id).await
+        }
+        RotationTarget::StorePath { .. } => {
+            defer_store_path_rotation(broker, bus, organization_id, job).await
+        }
+    }
+}
+
+async fn load_scheduled_job(
     broker: &ConnectionBroker,
     organization_id: &OrganizationId,
     job_id: &str,
 ) -> Result<RotationJob> {
-    let mut job = registry
-        .get_job(job_id)
+    let job = broker
+        .get_rotation_job(&organization_id.to_string(), job_id)
+        .await?
         .ok_or_else(|| BrokerError::Invalid(format!("rotation job `{job_id}` not found")))?;
+    if job.state != STATE_SCHEDULED {
+        return Err(BrokerError::Invalid(format!(
+            "rotation job `{job_id}` is already `{}`",
+            job.state
+        )));
+    }
+    Ok(job)
+}
 
+/// Honest deferral: the Host cannot regenerate sealed-store material (the
+/// sealed-store CLI owns that path), so the job parks in
+/// `reconciliation_required` for operator attention instead of pretending.
+async fn defer_store_path_rotation(
+    broker: &ConnectionBroker,
+    bus: &dyn TaskBus,
+    organization_id: &OrganizationId,
+    job: RotationJob,
+) -> Result<RotationJob> {
+    store::update_rotation_job_state(
+        &broker.pool,
+        &job.id,
+        state_name(RotationState::ReconciliationRequired),
+        Some(STORE_PATH_DEFERRAL_DETAIL),
+    )
+    .await?;
+    let job = broker
+        .get_rotation_job(&organization_id.to_string(), &job.id)
+        .await?
+        .ok_or_else(|| BrokerError::Invalid(format!("rotation job `{}` not found", job.id)))?;
+    record_rotation_changelog(broker, EVENT_ROTATION_FAILED, &job, None, None).await;
+    let _ = bus
+        .publish(bus_event(EVENT_ROTATION_FAILED, job_event_data(&job)))
+        .await;
+    Ok(job)
+}
+
+/// Execute a pending connection rotation via broker refresh, driving the
+/// `opensesame-rotation` machine and persisting every transition.
+///
+/// Candidate = [`ConnectionBroker::refresh`] (the provider mints a new token
+/// generation and the broker CAS-activates it). No provider in the catalog
+/// exposes a no-op verification invoke, so `CandidateVerified` records
+/// `verify_skipped` in the job detail rather than fabricating a verify. The
+/// OAuth refresh grant invalidates the previous token server-side, which is
+/// what `PreviousRevoked → RevocationVerified` records — the broker never
+/// deletes a credential row on this path. On refresh failure the machine walks
+/// `RollbackStarted → RollbackCompleted`: the previous credential still stands
+/// (or the broker already marked the connection `needs_reauth` itself) and the
+/// job keeps the error hint, truncated, never token material.
+pub async fn execute_connection_rotation(
+    broker: &ConnectionBroker,
+    bus: &dyn TaskBus,
+    organization_id: &OrganizationId,
+    job_id: &str,
+) -> Result<RotationJob> {
+    let job = load_scheduled_job(broker, organization_id, job_id).await?;
     let connection_id = match &job.target {
         RotationTarget::Connection { connection_id } => connection_id.clone(),
         RotationTarget::StorePath { .. } => {
@@ -270,83 +554,160 @@ pub async fn execute_connection_rotation(
             ));
         }
     };
+    let org = organization_id.to_string();
 
-    let before = broker
-        .get_connection(organization_id, &connection_id)
-        .await?;
-    let previous_version = credential_version_hint(&before);
-    job.previous_credential_version = previous_version.clone();
-    job.organization_id = Some(organization_id.to_string());
-    job.project_id = job.project_id.or(before.project_id.clone());
+    let mut state = RotationState::Scheduled;
+    advance(broker, job_id, &mut state, RotationState::Discovering, None).await?;
+    let discovered = broker.get_connection(organization_id, &connection_id).await;
+    let project_id = discovered
+        .as_ref()
+        .ok()
+        .and_then(|view| view.project_id.clone());
 
-    match broker.refresh(organization_id, &connection_id).await {
+    let refreshed = match discovered {
+        Ok(_) => broker.refresh(organization_id, &connection_id).await,
+        Err(error) => Err(error),
+    };
+
+    match refreshed {
         Ok(view) => {
-            let new_version = credential_version_hint(&view);
-            // Success means a new sealed generation replaced the prior one.
-            if previous_version.is_some()
-                && new_version.is_some()
-                && previous_version == new_version
-            {
-                // Refresh can no-op when another writer already rotated; still
-                // treat as success if the connection is active/refreshable.
-                tracing::info!(
-                    connection_id = %connection_id,
-                    "rotation refresh returned same version hint; treating as succeeded"
-                );
+            for (to, detail) in [
+                (RotationState::CandidateGenerated, None),
+                (RotationState::CandidateInstalled, None),
+                (
+                    RotationState::CandidateVerified,
+                    Some(VERIFY_SKIPPED_DETAIL),
+                ),
+                (RotationState::CandidateActivated, None),
+            ] {
+                advance(broker, job_id, &mut state, to, detail).await?;
             }
-            job.status = RotationStatus::Succeeded;
-            job.new_credential_version = new_version;
-            job.error = None;
-            job.completed_at = Some(Utc::now().to_rfc3339());
-            let job = registry.update_job(job);
-            let _ = bus
-                .publish(bus_event(EVENT_ROTATION_SUCCEEDED, job_event_data(&job)))
-                .await;
-            let _ = crate::changelog_hook::record_secret_changelog(
-                crate::changelog_hook::RecordSecretChangelog {
-                    event_type: EVENT_ROTATION_SUCCEEDED.into(),
-                    project_id: job.project_id.clone().unwrap_or_else(|| "unknown".into()),
-                    organization_id: job.organization_id.clone(),
-                    target_id: Some(connection_id.clone()),
-                    version_id: job.new_credential_version.clone(),
-                    metadata: serde_json::Map::from_iter([("rotation_id".into(), json!(job.id))]),
-                    ..Default::default()
-                },
-            );
-            Ok(job)
+            // Dependents: wake the sync actor for every config synced through
+            // this connection. A failure here parks the job for reconciliation
+            // — the new credential is live but dependents may be stale.
+            match store::append_config_sync_dirty_for_connection(&broker.pool, &org, &connection_id)
+                .await
+            {
+                Ok(dirtied) => {
+                    tracing::debug!(
+                        rotation_id = %job_id,
+                        dirtied,
+                        "rotation marked dependent configs dirty"
+                    );
+                }
+                Err(error) => {
+                    let detail =
+                        truncate_detail(&format!("dependents update failed: {}", error.hint()));
+                    advance(
+                        broker,
+                        job_id,
+                        &mut state,
+                        RotationState::ReconciliationRequired,
+                        Some(&detail),
+                    )
+                    .await?;
+                    let job = finish(
+                        broker,
+                        bus,
+                        &org,
+                        job_id,
+                        EVENT_ROTATION_FAILED,
+                        project_id.as_deref(),
+                        None,
+                    )
+                    .await?;
+                    let _ = job;
+                    return Err(error);
+                }
+            }
+            for to in [
+                RotationState::DependentsUpdated,
+                RotationState::Observing,
+                RotationState::PreviousRevoked,
+                RotationState::RevocationVerified,
+                RotationState::Completed,
+            ] {
+                advance(broker, job_id, &mut state, to, None).await?;
+            }
+            finish(
+                broker,
+                bus,
+                &org,
+                job_id,
+                EVENT_ROTATION_SUCCEEDED,
+                project_id.as_deref(),
+                Some(credential_version_hint(&view)),
+            )
+            .await
         }
         Err(error) => {
-            job.status = RotationStatus::Failed;
-            job.error = Some(error.hint());
-            job.completed_at = Some(Utc::now().to_rfc3339());
-            let job = registry.update_job(job);
-            let _ = bus
-                .publish(bus_event(EVENT_ROTATION_FAILED, job_event_data(&job)))
-                .await;
-            let _ = crate::changelog_hook::record_secret_changelog(
-                crate::changelog_hook::RecordSecretChangelog {
-                    event_type: EVENT_ROTATION_FAILED.into(),
-                    project_id: job.project_id.clone().unwrap_or_else(|| "unknown".into()),
-                    organization_id: job.organization_id.clone(),
-                    target_id: Some(connection_id.clone()),
-                    version_id: job.previous_credential_version.clone(),
-                    metadata: serde_json::Map::from_iter([
-                        ("rotation_id".into(), json!(job.id)),
-                        ("error".into(), json!(job.error)),
-                    ]),
-                    ..Default::default()
-                },
-            );
+            let detail = truncate_detail(&error.hint());
+            for (to, note) in [
+                (RotationState::CandidateGenerated, None),
+                (RotationState::CandidateInstalled, None),
+                (RotationState::RollbackStarted, Some(detail.as_str())),
+                (RotationState::RollbackCompleted, None),
+            ] {
+                advance(broker, job_id, &mut state, to, note).await?;
+            }
+            let _ = finish(
+                broker,
+                bus,
+                &org,
+                job_id,
+                EVENT_ROTATION_FAILED,
+                project_id.as_deref(),
+                None,
+            )
+            .await?;
             Err(error)
         }
     }
 }
 
-/// Drain bus messages and execute connection rotations that were requested.
-pub async fn consume_rotation_events(
-    registry: &RotationRegistry,
-    bus: &dyn TaskBus,
+/// One legal machine transition, persisted. An illegal transition is a
+/// programming error and fails the job loudly rather than lying in the table.
+async fn advance(
     broker: &ConnectionBroker,
+    job_id: &str,
+    state: &mut RotationState,
+    to: RotationState,
+    detail: Option<&str>,
+) -> Result<()> {
+    *state = state.transition(to).map_err(|_| {
+        BrokerError::Invalid(format!(
+            "illegal rotation transition {} -> {}",
+            state_name(*state),
+            state_name(to)
+        ))
+    })?;
+    store::update_rotation_job_state(&broker.pool, job_id, state_name(*state), detail).await
+}
+
+async fn finish(
+    broker: &ConnectionBroker,
+    bus: &dyn TaskBus,
+    organization_id: &str,
+    job_id: &str,
+    event_type: &str,
+    project_id: Option<&str>,
+    version_id: Option<String>,
+) -> Result<RotationJob> {
+    let job = broker
+        .get_rotation_job(organization_id, job_id)
+        .await?
+        .ok_or_else(|| BrokerError::Invalid(format!("rotation job `{job_id}` not found")))?;
+    record_rotation_changelog(broker, event_type, &job, project_id, version_id).await;
+    let _ = bus
+        .publish(bus_event(event_type, job_event_data(&job)))
+        .await;
+    Ok(job)
+}
+
+/// Drain bus messages and execute rotations that were requested.
+pub async fn consume_rotation_events(
+    broker: &ConnectionBroker,
+    bus: &dyn TaskBus,
     max: usize,
 ) -> anyhow::Result<Vec<RotationJob>> {
     let events = bus.drain(max).await?;
@@ -366,11 +727,11 @@ pub async fn consume_rotation_events(
         else {
             continue;
         };
-        match execute_connection_rotation(registry, bus, broker, &org, job_id).await {
+        match execute_rotation(broker, bus, &org, job_id).await {
             Ok(job) => completed.push(job),
             Err(error) => {
                 tracing::warn!(rotation_id = %job_id, error = %error.hint(), "rotation consume failed");
-                if let Some(job) = registry.get_job(job_id) {
+                if let Ok(Some(job)) = broker.get_rotation_job(&org.to_string(), job_id).await {
                     completed.push(job);
                 }
             }
@@ -379,28 +740,8 @@ pub async fn consume_rotation_events(
     Ok(completed)
 }
 
-/// Shared handle used by gateway / worker wiring.
-#[derive(Clone)]
-pub struct RotationService {
-    pub registry: Arc<RotationRegistry>,
-}
-
-impl RotationService {
-    pub fn new() -> Self {
-        Self {
-            registry: Arc::new(RotationRegistry::new()),
-        }
-    }
-}
-
-impl Default for RotationService {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Prefer an opaque version marker from the view without reading sealed bytes.
-fn credential_version_hint(view: &ConnectionView) -> Option<String> {
+fn credential_version_hint(view: &ConnectionView) -> String {
     // ConnectionView does not expose credential version directly; use
     // last_refreshed_at + updated_at as a non-secret generation fingerprint.
     match (
@@ -408,27 +749,9 @@ fn credential_version_hint(view: &ConnectionView) -> Option<String> {
         view.updated_at.as_str(),
         view.refreshable,
     ) {
-        (Some(refreshed), updated, _) => Some(format!("v:{refreshed}:{updated}")),
-        (None, updated, true) => Some(format!("v:none:{updated}")),
-        (None, updated, false) => Some(format!("v:static:{updated}")),
-    }
-}
-
-/// Whether a wall-clock instant is due for a policy (used by schedulers).
-pub fn policy_due_at(
-    policy: &RotationPolicy,
-    last_run: Option<DateTime<Utc>>,
-    now: DateTime<Utc>,
-) -> bool {
-    if !policy.enabled {
-        return false;
-    }
-    let Some(interval) = policy.interval_duration() else {
-        return false;
-    };
-    match last_run {
-        None => true,
-        Some(last) => now >= last + chrono::Duration::from_std(interval).unwrap_or_default(),
+        (Some(refreshed), updated, _) => format!("v:{refreshed}:{updated}"),
+        (None, updated, true) => format!("v:none:{updated}"),
+        (None, updated, false) => format!("v:static:{updated}"),
     }
 }
 
@@ -449,64 +772,7 @@ mod tests {
         }
     }
 
-    #[test]
-    fn interval_parsing() {
-        assert_eq!(parse_interval("30s"), Some(Duration::from_secs(30)));
-        assert_eq!(parse_interval("2h"), Some(Duration::from_secs(7200)));
-        assert_eq!(parse_interval("90"), Some(Duration::from_secs(90)));
-    }
-
-    #[test]
-    fn public_view_has_no_secret_fields() {
-        let job = RotationJob {
-            id: "rot_1".into(),
-            policy_id: None,
-            status: RotationStatus::Succeeded,
-            target: policy_target(),
-            project_id: Some("proj_1".into()),
-            organization_id: Some("org_1".into()),
-            previous_credential_version: Some("v:a".into()),
-            new_credential_version: Some("v:b".into()),
-            error: None,
-            requested_at: Utc::now().to_rfc3339(),
-            completed_at: Some(Utc::now().to_rfc3339()),
-        };
-        let view = job.public_view();
-        let text = view.to_string();
-        assert!(!text.contains("access_token"));
-        assert!(!text.contains("\"secret\""));
-        assert_eq!(view["status"], "succeeded");
-        assert_eq!(view["new_credential_version"], "v:b");
-    }
-
-    #[tokio::test]
-    async fn request_emits_requested_event_without_secrets() {
-        let registry = RotationRegistry::new();
-        let bus = InMemoryTaskBus::default();
-        let job = request_rotation(
-            &registry,
-            &bus,
-            policy_target(),
-            Some("proj_1".into()),
-            Some("org_1".into()),
-            None,
-        )
-        .await
-        .unwrap();
-        assert_eq!(job.status, RotationStatus::Requested);
-
-        let events = bus.drain(10).await.unwrap();
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].r#type, EVENT_ROTATION_REQUESTED);
-        let payload = events[0].data.to_string();
-        assert!(payload.contains(&job.id));
-        assert!(!payload.contains("access_token"));
-        assert!(!payload.contains("refresh_token"));
-        assert!(!payload.contains("\"password\""));
-    }
-
-    #[tokio::test]
-    async fn execute_emits_failed_when_not_refreshable() {
+    async fn unrefreshable_broker() -> (Db, ConnectionBroker) {
         let db = Db::connect_memory().await.expect("db");
         let mut config = BrokerConfig::in_memory(Some(KEY), "http://127.0.0.1:8787");
         config = config.with_provider(
@@ -519,51 +785,153 @@ mod tests {
             },
         );
         let broker = ConnectionBroker::new(db.pool().clone(), config).expect("broker");
-        let org = OrganizationId::from_uuid(uuid::Uuid::nil());
-        let created = broker
-            .create_connection(
-                &org,
-                CreateConnection {
-                    provider_id: "mock".into(),
-                    integration_id: None,
-                    owner_subject: None,
-                    display_name: None,
-                    logical_name: None,
-                    project_id: None,
-                    scopes: None,
-                    shareability: None,
-                },
-            )
-            .await
-            .expect("create");
+        (db, broker)
+    }
 
-        let registry = RotationRegistry::new();
+    fn policy(interval_seconds: u64, enabled: bool) -> RotationPolicy {
+        RotationPolicy {
+            id: "rotpol_test".into(),
+            organization_id: "org_test".into(),
+            target: policy_target(),
+            interval_seconds,
+            last_rotated_at: None,
+            enabled,
+            created_at: Utc::now().to_rfc3339(),
+            updated_at: Utc::now().to_rfc3339(),
+        }
+    }
+
+    #[test]
+    fn interval_parsing() {
+        assert_eq!(parse_interval("30s"), Some(Duration::from_secs(30)));
+        assert_eq!(parse_interval("2h"), Some(Duration::from_secs(7200)));
+        assert_eq!(parse_interval("90"), Some(Duration::from_secs(90)));
+        assert_eq!(parse_interval("1d"), Some(Duration::from_secs(86_400)));
+        assert_eq!(parse_interval("soon"), None);
+        assert_eq!(parse_interval(""), None);
+    }
+
+    #[test]
+    fn policy_due_math_covers_all_cases() {
+        let now = Utc::now();
+        // Disabled: never due.
+        assert!(!policy_due_at(&policy(60, false), None, now));
+        // Never rotated: due immediately.
+        assert!(policy_due_at(&policy(60, true), None, now));
+        // Last run long enough ago: due.
+        assert!(policy_due_at(
+            &policy(60, true),
+            Some(now - chrono::Duration::seconds(61)),
+            now
+        ));
+        // Last run too recent: not due.
+        assert!(!policy_due_at(
+            &policy(60, true),
+            Some(now - chrono::Duration::seconds(30)),
+            now
+        ));
+    }
+
+    #[test]
+    fn public_view_has_no_secret_fields() {
+        let job = RotationJob {
+            id: "rot_1".into(),
+            policy_id: None,
+            organization_id: "org_1".into(),
+            target: policy_target(),
+            state: "completed".into(),
+            status: RotationStatus::Succeeded,
+            detail: Some(VERIFY_SKIPPED_DETAIL.into()),
+            created_at: Utc::now().to_rfc3339(),
+            updated_at: Utc::now().to_rfc3339(),
+        };
+        let view = job.public_view();
+        let text = view.to_string();
+        assert!(!text.contains("access_token"));
+        assert!(!text.contains("\"secret\""));
+        assert_eq!(view["status"], "succeeded");
+        assert_eq!(view["state"], "completed");
+    }
+
+    #[test]
+    fn status_derives_from_persisted_state() {
+        assert_eq!(
+            RotationStatus::from_state("completed"),
+            RotationStatus::Succeeded
+        );
+        for failed in [
+            "rollback_completed",
+            "rollback_failed",
+            "reconciliation_required",
+        ] {
+            assert_eq!(RotationStatus::from_state(failed), RotationStatus::Failed);
+        }
+        for pending in [
+            "scheduled",
+            "discovering",
+            "candidate_verified",
+            "observing",
+        ] {
+            assert_eq!(
+                RotationStatus::from_state(pending),
+                RotationStatus::Requested
+            );
+        }
+    }
+
+    #[test]
+    fn event_type_constants_match_frozen_names() {
+        assert_eq!(EVENT_ROTATION_REQUESTED, "credential.rotation.requested");
+        assert_eq!(EVENT_ROTATION_SUCCEEDED, "credential.rotation.succeeded");
+        assert_eq!(EVENT_ROTATION_FAILED, "credential.rotation.failed");
+    }
+
+    #[test]
+    fn request_inserts_before_publish() {
+        let src = include_str!("rotation.rs");
+        let production = src.split("#[cfg(test)]").next().unwrap_or(src);
+        let request = production
+            .find("pub async fn request_rotation")
+            .expect("fn");
+        let insert = production[request..]
+            .find("insert_rotation_job")
+            .expect("insert");
+        let publish = production[request..].find("bus.publish").expect("publish");
+        assert!(insert < publish, "job must be durable before the bus write");
+    }
+
+    #[tokio::test]
+    async fn request_emits_requested_event_and_changelog_without_secrets() {
+        let (_db, broker) = unrefreshable_broker().await;
         let bus = InMemoryTaskBus::default();
         let job = request_rotation(
-            &registry,
+            &broker,
             &bus,
-            RotationTarget::Connection {
-                connection_id: created.connection_id.clone(),
-            },
-            None,
-            Some(org.to_string()),
+            policy_target(),
+            Some("proj_1".into()),
+            "org_1",
             None,
         )
         .await
         .unwrap();
-        let _ = bus.drain(10).await.unwrap();
-
-        let err = execute_connection_rotation(&registry, &bus, &broker, &org, &job.id)
-            .await
-            .expect_err("pending connection is not refreshable");
-        let _ = err;
+        assert_eq!(job.state, "scheduled");
+        assert_eq!(job.status, RotationStatus::Requested);
 
         let events = bus.drain(10).await.unwrap();
-        assert!(events.iter().any(|e| e.r#type == EVENT_ROTATION_FAILED));
-        let failed = registry.get_job(&job.id).unwrap();
-        assert_eq!(failed.status, RotationStatus::Failed);
-        let text = failed.public_view().to_string();
-        assert!(!text.contains("access_token"));
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].r#type, EVENT_ROTATION_REQUESTED);
+        let payload = events[0].data.to_string();
+        assert!(payload.contains(&job.id));
+        assert!(!payload.contains("access_token"));
+        assert!(!payload.contains("refresh_token"));
+        assert!(!payload.contains("\"password\""));
+
+        let changelog = broker
+            .list_changelog("org_1", "proj_1", 10, None)
+            .await
+            .unwrap();
+        assert_eq!(changelog.len(), 1);
+        assert_eq!(changelog[0].event_type, EVENT_ROTATION_REQUESTED);
     }
 
     #[tokio::test]
@@ -582,42 +950,226 @@ mod tests {
             }
         }
 
-        let registry = RotationRegistry::new();
+        let (_db, broker) = unrefreshable_broker().await;
         let err = request_rotation(
-            &registry,
+            &broker,
             &DownBus,
             policy_target(),
             Some("proj_1".into()),
-            Some("org_1".into()),
+            "org_1",
             None,
         )
         .await;
         assert!(err.is_err(), "partition must surface to the caller");
-        let jobs = registry.list_jobs();
+        let jobs = broker.list_rotation_jobs("org_1", 10).await.unwrap();
         assert_eq!(jobs.len(), 1, "durable job must survive bus partition");
-        assert_eq!(jobs[0].status, RotationStatus::Requested);
+        assert_eq!(jobs[0].state, "scheduled");
         assert!(!jobs[0].public_view().to_string().contains("access_token"));
     }
 
-    #[test]
-    fn request_inserts_before_publish() {
-        let src = include_str!("rotation.rs");
-        let production = src.split("#[cfg(test)]").next().unwrap_or(src);
-        let insert = production.find("registry.insert_job(job)").expect("insert");
-        let publish = production.find("bus.publish").expect("publish");
-        assert!(insert < publish, "job must be durable before the bus write");
+    #[tokio::test]
+    async fn refresh_failure_walks_rollback_states_and_keeps_a_bounded_hint() {
+        let (_db, broker) = unrefreshable_broker().await;
+        let org = OrganizationId::from_uuid(uuid::Uuid::nil());
+        let created = broker
+            .create_connection(
+                &org,
+                CreateConnection {
+                    provider_id: "mock".into(),
+                    integration_id: None,
+                    owner_subject: None,
+                    display_name: None,
+                    logical_name: None,
+                    project_id: None,
+                    scopes: None,
+                    shareability: None,
+                },
+            )
+            .await
+            .expect("create");
+
+        let bus = InMemoryTaskBus::default();
+        let job = request_rotation(
+            &broker,
+            &bus,
+            RotationTarget::Connection {
+                connection_id: created.connection_id.clone(),
+            },
+            None,
+            &org.to_string(),
+            None,
+        )
+        .await
+        .unwrap();
+        let _ = bus.drain(10).await.unwrap();
+
+        execute_connection_rotation(&broker, &bus, &org, &job.id)
+            .await
+            .expect_err("pending connection is not refreshable");
+
+        let events = bus.drain(10).await.unwrap();
+        assert!(events.iter().any(|e| e.r#type == EVENT_ROTATION_FAILED));
+        let failed = broker
+            .get_rotation_job(&org.to_string(), &job.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(failed.state, "rollback_completed");
+        assert_eq!(failed.status, RotationStatus::Failed);
+        let detail = failed.detail.as_deref().unwrap_or_default();
+        assert!(!detail.is_empty(), "rollback records the error hint");
+        assert!(detail.chars().count() <= MAX_DETAIL_CHARS);
+        let text = failed.public_view().to_string();
+        assert!(!text.contains("access_token"));
+
+        // Terminal jobs never re-execute.
+        let err = execute_connection_rotation(&broker, &bus, &org, &job.id)
+            .await
+            .expect_err("terminal job must not restart");
+        assert!(err.hint().contains("already"));
     }
 
-    #[test]
-    fn policy_due_when_never_run() {
-        let policy = RotationPolicy::new("1h", policy_target(), None, None);
-        assert!(policy_due_at(&policy, None, Utc::now()));
+    #[tokio::test]
+    async fn store_path_target_parks_in_reconciliation_required() {
+        let (_db, broker) = unrefreshable_broker().await;
+        let org = OrganizationId::from_uuid(uuid::Uuid::nil());
+        let bus = InMemoryTaskBus::default();
+        let job = request_rotation(
+            &broker,
+            &bus,
+            RotationTarget::StorePath {
+                path: "Dev/api-token".into(),
+            },
+            Some("proj_1".into()),
+            &org.to_string(),
+            None,
+        )
+        .await
+        .unwrap();
+        let _ = bus.drain(10).await.unwrap();
+
+        let parked = execute_rotation(&broker, &bus, &org, &job.id)
+            .await
+            .unwrap();
+        assert_eq!(parked.state, "reconciliation_required");
+        assert_eq!(parked.status, RotationStatus::Failed);
+        assert_eq!(parked.detail.as_deref(), Some(STORE_PATH_DEFERRAL_DETAIL));
+        let events = bus.drain(10).await.unwrap();
+        assert!(events.iter().any(|e| e.r#type == EVENT_ROTATION_FAILED));
     }
 
-    #[test]
-    fn event_type_constants_match_frozen_names() {
-        assert_eq!(EVENT_ROTATION_REQUESTED, "credential.rotation.requested");
-        assert_eq!(EVENT_ROTATION_SUCCEEDED, "credential.rotation.succeeded");
-        assert_eq!(EVENT_ROTATION_FAILED, "credential.rotation.failed");
+    #[tokio::test]
+    async fn policies_and_jobs_survive_a_broker_restart_over_the_same_pool() {
+        let db = Db::connect_memory().await.expect("db");
+        let config = BrokerConfig::in_memory(Some(KEY), "http://127.0.0.1:8787");
+        let broker = ConnectionBroker::new(db.pool().clone(), config.clone()).expect("broker");
+
+        let policy = broker
+            .upsert_rotation_policy(
+                "org_restart",
+                UpsertRotationPolicy {
+                    id: None,
+                    target: policy_target(),
+                    interval_seconds: 3600,
+                    enabled: true,
+                },
+            )
+            .await
+            .unwrap();
+        let bus = InMemoryTaskBus::default();
+        let job = request_rotation(
+            &broker,
+            &bus,
+            policy_target(),
+            None,
+            "org_restart",
+            Some(policy.id.clone()),
+        )
+        .await
+        .unwrap();
+        drop(broker);
+
+        // A fresh broker over the same pool sees the durable rows.
+        let reborn = ConnectionBroker::new(db.pool().clone(), config).expect("broker");
+        let policies = reborn.list_rotation_policies("org_restart").await.unwrap();
+        assert_eq!(policies.len(), 1);
+        assert_eq!(policies[0].id, policy.id);
+        assert_eq!(policies[0].interval_seconds, 3600);
+        let restored = reborn
+            .get_rotation_job("org_restart", &job.id)
+            .await
+            .unwrap()
+            .expect("job survives restart");
+        assert_eq!(restored.state, "scheduled");
+        assert_eq!(restored.policy_id.as_deref(), Some(policy.id.as_str()));
+        // Cross-tenant reads see nothing.
+        assert!(reborn
+            .get_rotation_job("org_other", &job.id)
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn policy_upsert_is_tenant_scoped_and_keeps_last_rotated() {
+        let (_db, broker) = unrefreshable_broker().await;
+        let policy = broker
+            .upsert_rotation_policy(
+                "org_a",
+                UpsertRotationPolicy {
+                    id: None,
+                    target: policy_target(),
+                    interval_seconds: 60,
+                    enabled: true,
+                },
+            )
+            .await
+            .unwrap();
+        let rotated_at = Utc::now();
+        broker
+            .set_policy_last_rotated(&policy.id, rotated_at)
+            .await
+            .unwrap();
+
+        // Update keeps last_rotated_at.
+        let updated = broker
+            .upsert_rotation_policy(
+                "org_a",
+                UpsertRotationPolicy {
+                    id: Some(policy.id.clone()),
+                    target: policy_target(),
+                    interval_seconds: 120,
+                    enabled: false,
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated.interval_seconds, 120);
+        assert!(!updated.enabled);
+        assert!(updated.last_rotated_at.is_some());
+        assert!(updated.last_rotated().is_some());
+
+        // Another tenant cannot update it.
+        let err = broker
+            .upsert_rotation_policy(
+                "org_b",
+                UpsertRotationPolicy {
+                    id: Some(policy.id.clone()),
+                    target: policy_target(),
+                    interval_seconds: 60,
+                    enabled: true,
+                },
+            )
+            .await
+            .expect_err("cross-tenant policy update must fail");
+        assert!(err.hint().contains("not found"));
+
+        // Disabled policies drop out of the scheduler read.
+        assert!(broker
+            .list_enabled_rotation_policies()
+            .await
+            .unwrap()
+            .iter()
+            .all(|p| p.id != policy.id));
     }
 }

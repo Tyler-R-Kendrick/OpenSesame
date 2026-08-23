@@ -429,7 +429,7 @@ claimRoutes.post(
         ? manifest.projectId
         : undefined;
       if (projectId) {
-        const project = ctx.stores.projects.get(projectId);
+        const project = await ctx.stores.projects.get(projectId);
         if (
           project &&
           project.state === "provisional" &&
@@ -442,7 +442,7 @@ claimRoutes.post(
           // own TTL and that nothing will expire again.
           const lapsed =
             project.expiresAt !== undefined && project.expiresAt <= now;
-          ctx.stores.projects.set(projectId, {
+          await ctx.stores.projects.set(projectId, {
             ...project,
             state: lapsed ? "expired" : "active",
             updatedAt: now,

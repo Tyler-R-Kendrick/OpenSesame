@@ -1,0 +1,11 @@
+---
+source: apps/pm-bridges/tests/keepassxc_handshake.rs
+expression: associate
+---
+{
+  "hash": "[database-hash]",
+  "id": "keepassxc-browser",
+  "nonce": "[nonce]",
+  "success": "true",
+  "version": "2.7.0"
+}

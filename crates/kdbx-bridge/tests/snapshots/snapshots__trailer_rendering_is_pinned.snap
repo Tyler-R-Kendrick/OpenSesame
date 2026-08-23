@@ -1,0 +1,11 @@
+---
+source: crates/kdbx-bridge/tests/snapshots.rs
+expression: cases
+---
+{
+  "empty value": "Custom: \n",
+  "multi-line value": "notes: one\n  two\n  \n  four\n",
+  "reserved keys only": "login: alice\nurl: https://x\nnotes: n\n",
+  "value containing a colon": "Custom: key: value\n",
+  "value whose lines are already indented": "notes:   two spaces\n      four spaces\n"
+}

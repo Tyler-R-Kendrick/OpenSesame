@@ -32,6 +32,7 @@ import {
   authenticatedPrincipalId,
   ensurePersonalOrganization,
 } from "./organizations.js";
+import { ensurePersonalOnAuthenticatedSession } from "./projects.js";
 
 export const principalRoutes = new Hono<{ Variables: Variables }>();
 
@@ -507,6 +508,15 @@ principalRoutes.post(
       },
     });
 
+    // The link upgraded this session from anonymous to authenticated — the
+    // principal's personal project is ensured here, on their first
+    // authenticated session, not on the anonymous mint.
+    await ensurePersonalOnAuthenticatedSession(
+      ctx,
+      principalId,
+      c.get("correlationId"),
+    );
+
     return c.json(
       LinkIdentityResponseSchema.parse({
         principalId,
@@ -652,6 +662,13 @@ async function linkFromVerifiedIdToken(
       via: "id_token",
     },
   });
+
+  // First authenticated session for this principal (see the dev-seam path).
+  await ensurePersonalOnAuthenticatedSession(
+    ctx,
+    principalId,
+    c.get("correlationId"),
+  );
 
   return c.json(
     LinkIdentityResponseSchema.parse({

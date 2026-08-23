@@ -54,13 +54,13 @@ agentRoutes.post(
     // may use it, otherwise the caller's active (default: personal) project.
     let projectId: string;
     if (parsed.data.projectId) {
-      const project = ctx.stores.projects.get(parsed.data.projectId);
-      if (!project || !roleFor(ctx, project, principalId)) {
+      const project = await ctx.stores.projects.get(parsed.data.projectId);
+      if (!project || !(await roleFor(ctx, project, principalId))) {
         return c.json({ error: "project_not_found" }, 404);
       }
       projectId = project.id;
     } else {
-      projectId = resolveActiveProject(ctx, principalId).id;
+      projectId = (await resolveActiveProject(ctx, principalId)).id;
     }
 
     const now = ctx.clock();
