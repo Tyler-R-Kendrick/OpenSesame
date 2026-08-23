@@ -574,7 +574,8 @@ export type SecretConfigDomainEventType =
   | "secret.config.created"
   | "secret.config.updated"
   | "secret.config.deleted"
-  | "secret.value.changed";
+  | "secret.value.changed"
+  | "secret.value.rolled_back";
 
 /** Sync-target event types (frozen for WP-C/D). */
 export type SyncTargetDomainEventType =
