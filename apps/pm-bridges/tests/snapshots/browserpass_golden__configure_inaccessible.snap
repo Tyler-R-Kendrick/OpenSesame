@@ -1,0 +1,16 @@
+---
+source: apps/pm-bridges/tests/browserpass_golden.rs
+expression: response
+---
+{
+  "code": 13,
+  "params": {
+    "action": "configure",
+    "message": "The password store is not accessible",
+    "storeId": "gone",
+    "storeName": "Gone",
+    "storePath": "/nonexistent/store"
+  },
+  "status": "error",
+  "version": 3001002
+}

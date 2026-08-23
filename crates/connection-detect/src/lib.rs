@@ -87,6 +87,11 @@ pub const ALIASES: &[AliasEntry] = aliases![
     ("doppler", "token") => &["DOPPLER_TOKEN"],
     ("infisical", "token") => &["INFISICAL_TOKEN"],
     ("password-store", "store_dir") => &["PASSWORD_STORE_DIR"],
+    // Passbolt's server is self-hosted, so the base URL is the one field a host
+    // conventionally already carries. The key and its passphrase have no
+    // convention and deliberately get none here: naming an environment variable
+    // for them would invite putting them there.
+    ("passbolt", "server_url") => &["PASSBOLT_SERVER_URL"],
     ("vault", "address") => &["VAULT_ADDR"],
     ("vault", "token") => &["VAULT_TOKEN"],
     ("openbao", "address") => &["BAO_ADDR"],
@@ -446,6 +451,14 @@ mod tests {
         }
         assert_eq!(env_aliases("bitwarden", "session_token"), &["BW_SESSION"]);
         assert_eq!(env_aliases("vaultwarden", "session_token"), &["BW_SESSION"]);
+        assert_eq!(
+            env_aliases("passbolt", "server_url"),
+            &["PASSBOLT_SERVER_URL"]
+        );
+        // The private key and its passphrase have no alias by design: a
+        // detector that named one would be telling people to export it.
+        assert!(env_aliases("passbolt", "private_key").is_empty());
+        assert!(env_aliases("passbolt", "passphrase").is_empty());
     }
 
     #[test]

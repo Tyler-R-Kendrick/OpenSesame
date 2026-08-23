@@ -12,6 +12,12 @@ dual-plane system with a **host/client** product topology (see
 - **Host / authority plane (Rust)** — `host-core` + Host API `apps/gateway`
   (`:8787`): ConnectionRef → authorize → invoke → receipt. Local host agent
   `apps/daemon` (`:18790`). Host CLI `apps/cli` (binary `opensesame`).
+  Password-manager ecosystem bridging (KDBX, keepassxc-protocol,
+  browserpass/gopass hosts, Bitwarden/Passbolt consume-clients) lives in
+  `crates/kdbx-bridge`, `crates/provider-bitwarden` and the default-off
+  `apps/pm-bridges` binaries — human/device/ops plane only, never
+  agent-facing ([ADR 0052](docs/adr/0052-password-manager-ecosystem-bridging.md),
+  [ADR 0053](docs/adr/0053-pm-bridge-binaries.md)).
 - **Client plane (Rust → Wasm + TS)** — `client-core` E2EE sync +
   `packages/api-client` (Host API TS client). Browser extension
   `apps/browser-extension` (WXT), PWA `apps/pwa`, offline GitHub Pages PWA
@@ -156,6 +162,9 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `crates/tailscale-authn` | Tailnet caller identity via tailscaled LocalAPI whois (ADR 0048 §8) |
 | `crates/invoke-through` | Memory-resident invoke-through broker — egress allowlist, no redirects (ADR 0048 D6/D7) |
 | `apps/credential-helpers` | git/docker/AWS/kubectl helper bins — thin mint-path clients of the daemon (ADR 0049) |
+| `crates/kdbx-bridge` | KDBX 4.x read/write + mapping to sealed-store `Entry` (ADR 0052; not a daemon dep) |
+| `crates/provider-bitwarden` | Bitwarden/vaultwarden consume-client — memory-resident session, host+TLS pinned (ADR 0052; not a daemon dep) |
+| `apps/pm-bridges` | Local-IPC serving bins (keepassxc-protocol, browserpass, gopass, Secret Service) — per-surface cargo features, all default off (ADR 0052/0053) |
 | `apps/toolbar` | Daemon control stub (`opensesame-toolbar`) |
 | `apps/credential-agent` | Legacy credential agent (`opensesame-credential-agent`) |
 | `apps/callback-edge` | Edge callback service (`opensesame-callback-edge`) |
@@ -198,7 +207,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0050).
+  0001–0053).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).

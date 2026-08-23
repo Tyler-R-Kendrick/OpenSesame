@@ -1,0 +1,9 @@
+{
+  "Environment": {
+    "Vault": "http://127.0.0.1"
+  },
+  "FeatureStates": {},
+  "GitHash": "0000000",
+  "Server": null,
+  "Version": "2026.8.1"
+}

@@ -52,8 +52,7 @@ pub async fn cmd_ls(server: &str, output: &str) -> Result<()> {
         println!("No issued certificates on this Host.");
         return Ok(());
     }
-    let (name_header, expires_header, serial_header) = ("COMMON NAME", "EXPIRES", "SERIAL");
-    println!("{name_header:<20} {expires_header:<18} {serial_header}");
+    println!("{:<20} {:<18} SERIAL", "COMMON NAME", "EXPIRES");
     for row in rows {
         println!(
             "{:<20} {:<18} {}",
@@ -67,7 +66,9 @@ pub async fn cmd_ls(server: &str, output: &str) -> Result<()> {
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)] // mirrors the `cert issue` flag surface
+/// Arguments mirror the `cert issue` flags one for one; bundling them into
+/// a struct would relocate the same fields without simplifying the call.
+#[allow(clippy::too_many_arguments)]
 pub async fn cmd_issue(
     server: &str,
     output: &str,

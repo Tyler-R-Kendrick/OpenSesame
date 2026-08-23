@@ -664,6 +664,22 @@ pub enum HumanProviderPlan {
         installation_id: Option<String>,
         private_key_path: Option<String>,
     },
+    /// Native Bitwarden / Vaultwarden consume-client read or list.
+    ///
+    /// Planned here, executed by the human CLI
+    /// (`apps/cli/src/providers_native.rs`), which owns the TTY master-password
+    /// prompt and the HTTP client — exactly the split the `GitHubApp` variant
+    /// already uses. Carries no credential: the master password is prompted at
+    /// execution time and never stored, never in argv, never in an env var.
+    ///
+    /// Returned only when the connection opts in via `native_client` in its
+    /// public configuration; otherwise the legacy `bw`-CLI `Command` plan is
+    /// returned unchanged.
+    Bitwarden {
+        server_url: String,
+        resource: String,
+        operation: HumanProviderOperation,
+    },
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -874,6 +890,22 @@ fn config_opt(config: &Value, key: &str) -> Option<String> {
         .and_then(Value::as_str)
         .filter(|value| !value.trim().is_empty())
         .map(str::to_owned)
+}
+
+/// True when a bitwarden/vaultwarden connection opts in to the native
+/// consume-client (`crates/provider-bitwarden`) instead of shelling to `bw`.
+///
+/// Accepts a JSON boolean or the strings `"true"`/`"1"`, because connection
+/// configuration arrives from several editors that stringify booleans.
+fn native_client_enabled(config: &Value) -> bool {
+    match config.get("native_client") {
+        Some(Value::Bool(enabled)) => *enabled,
+        Some(Value::String(raw)) => {
+            let raw = raw.trim();
+            raw.eq_ignore_ascii_case("true") || raw == "1"
+        }
+        _ => false,
+    }
 }
 
 /// Build an argv-only provider operation. The resource is always one argument;
@@ -1117,6 +1149,17 @@ pub fn human_plan(
             "op",
             vec!["item".into(), "list".into(), "--format=json".into()],
         ),
+        // Opt-in native path. `native_client` is a deliberate per-connection
+        // switch: without it the legacy `bw` shelling below is unchanged, so
+        // every existing connection keeps working exactly as it did.
+        (
+            "bitwarden" | "vaultwarden",
+            operation @ (HumanProviderOperation::Read | HumanProviderOperation::List),
+        ) if native_client_enabled(public_config) => HumanProviderPlan::Bitwarden {
+            server_url: config(public_config, "server_url")?,
+            resource: resource.into(),
+            operation,
+        },
         ("bitwarden" | "vaultwarden", HumanProviderOperation::Read) => command(
             "bw",
             vec![
@@ -1335,6 +1378,13 @@ pub fn execute_human_plan(plan: HumanProviderPlan) -> Result<String, ProviderExe
         HumanProviderPlan::GitHubApp { .. } => Err(ProviderExecutionError::Unavailable(
             "github-app leases are minted by the opensesame CLI".into(),
         )),
+        // The native Bitwarden client needs an async runtime, a TTY prompt for
+        // the master password, and network egress — all of which live in the
+        // CLI (`opensesame secret read` / `list`). Agent and MCP surfaces reach
+        // this arm and are refused: a vault password is human-plane material.
+        HumanProviderPlan::Bitwarden { .. } => Err(ProviderExecutionError::Unavailable(
+            "bitwarden/vaultwarden native reads are performed by the opensesame CLI".into(),
+        )),
     }
 }
 
@@ -1429,6 +1479,172 @@ mod tests {
         assert_eq!(executable, "aws");
         assert!(args.iter().any(|arg| arg == resource));
         assert!(!args.iter().any(|arg| arg == "sh" || arg == "-c"));
+    }
+
+    #[test]
+    fn bitwarden_without_native_config_still_shells_to_the_bw_cli() {
+        for provider in ["bitwarden", "vaultwarden"] {
+            let plan = human_plan(
+                provider,
+                HumanProviderOperation::Read,
+                "GitHub",
+                &serde_json::json!({ "server_url": "https://vault.example.com" }),
+            )
+            .unwrap();
+            assert_eq!(
+                plan,
+                HumanProviderPlan::Command {
+                    executable: "bw".into(),
+                    args: vec![
+                        "get".into(),
+                        "password".into(),
+                        "GitHub".into(),
+                        "--raw".into()
+                    ],
+                },
+                "{provider} must keep the legacy plan when native_client is absent"
+            );
+            let plan = human_plan(
+                provider,
+                HumanProviderOperation::List,
+                "all",
+                &serde_json::json!({}),
+            )
+            .unwrap();
+            assert_eq!(
+                plan,
+                HumanProviderPlan::Command {
+                    executable: "bw".into(),
+                    args: vec!["list".into(), "items".into(), "--raw".into()],
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn bitwarden_with_native_config_plans_the_native_client() {
+        for provider in ["bitwarden", "vaultwarden"] {
+            for enabled in [
+                serde_json::json!(true),
+                serde_json::json!("true"),
+                serde_json::json!("TRUE"),
+                serde_json::json!("1"),
+            ] {
+                let plan = human_plan(
+                    provider,
+                    HumanProviderOperation::Read,
+                    "Work/GitHub",
+                    &serde_json::json!({
+                        "native_client": enabled,
+                        "server_url": "https://vault.example.com",
+                    }),
+                )
+                .unwrap();
+                assert_eq!(
+                    plan,
+                    HumanProviderPlan::Bitwarden {
+                        server_url: "https://vault.example.com".into(),
+                        resource: "Work/GitHub".into(),
+                        operation: HumanProviderOperation::Read,
+                    },
+                    "{provider} with native_client={enabled}"
+                );
+            }
+            let plan = human_plan(
+                provider,
+                HumanProviderOperation::List,
+                "all",
+                &serde_json::json!({
+                    "native_client": true,
+                    "server_url": "https://vault.example.com",
+                }),
+            )
+            .unwrap();
+            assert_eq!(
+                plan,
+                HumanProviderPlan::Bitwarden {
+                    server_url: "https://vault.example.com".into(),
+                    resource: "all".into(),
+                    operation: HumanProviderOperation::List,
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn a_native_bitwarden_connection_must_name_its_server() {
+        let error = human_plan(
+            "bitwarden",
+            HumanProviderOperation::Read,
+            "GitHub",
+            &serde_json::json!({ "native_client": true }),
+        )
+        .unwrap_err();
+        assert_eq!(error, ProviderExecutionError::MissingConfig("server_url".into()));
+    }
+
+    #[test]
+    fn a_falsey_native_client_flag_keeps_the_cli_path() {
+        for flag in [
+            serde_json::json!(false),
+            serde_json::json!("false"),
+            serde_json::json!("no"),
+            serde_json::json!(0),
+            serde_json::json!(null),
+        ] {
+            let plan = human_plan(
+                "bitwarden",
+                HumanProviderOperation::Read,
+                "GitHub",
+                &serde_json::json!({ "native_client": flag, "server_url": "https://x.example" }),
+            )
+            .unwrap();
+            assert!(
+                matches!(plan, HumanProviderPlan::Command { ref executable, .. } if executable == "bw"),
+                "native_client={flag} must not opt in"
+            );
+        }
+    }
+
+    #[test]
+    fn native_bitwarden_plans_carry_no_credential_material() {
+        let plan = human_plan(
+            "vaultwarden",
+            HumanProviderOperation::Read,
+            "GitHub",
+            &serde_json::json!({
+                "native_client": true,
+                "server_url": "https://vault.example.com",
+                "session_token": "BW_SESSION-should-never-be-copied",
+            }),
+        )
+        .unwrap();
+        let rendered = format!("{plan:?}");
+        assert!(
+            !rendered.contains("BW_SESSION-should-never-be-copied"),
+            "a plan must never carry a secret: {rendered}"
+        );
+    }
+
+    #[test]
+    fn the_sync_executor_refuses_the_native_bitwarden_plan() {
+        // Same contract as GitHubApp: the sync executor — the one agent and
+        // MCP surfaces can reach — refuses, and only the async CLI call site
+        // performs the read.
+        let error = execute_human_plan(HumanProviderPlan::Bitwarden {
+            server_url: "https://vault.example.com".into(),
+            resource: "GitHub".into(),
+            operation: HumanProviderOperation::Read,
+        })
+        .unwrap_err();
+        assert!(matches!(error, ProviderExecutionError::Unavailable(ref m) if m.contains("CLI")));
+        let github = execute_human_plan(HumanProviderPlan::GitHubApp {
+            app_id: None,
+            installation_id: None,
+            private_key_path: None,
+        })
+        .unwrap_err();
+        assert!(matches!(github, ProviderExecutionError::Unavailable(_)));
     }
 
     #[test]

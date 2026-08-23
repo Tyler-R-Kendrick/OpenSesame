@@ -1,0 +1,6 @@
+{
+  "kdf": 1,
+  "kdfIterations": 2,
+  "kdfMemory": 8,
+  "kdfParallelism": 1
+}

@@ -1,0 +1,12 @@
+{
+  "environment": {
+    "vault": "http://127.0.0.1"
+  },
+  "featureStates": {},
+  "gitHash": "0000000",
+  "server": {
+    "name": "Vaultwarden",
+    "url": "https://github.com/dani-garcia/vaultwarden"
+  },
+  "version": "1.35.0"
+}

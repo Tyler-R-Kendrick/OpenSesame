@@ -12,6 +12,7 @@ mod device;
 pub(crate) mod github_app;
 mod health;
 mod intents;
+mod kv_facade;
 mod nats_callout;
 mod protected_resource;
 mod receipts;
@@ -32,10 +33,11 @@ use axum::{
 use tower_http::trace::TraceLayer;
 
 use crate::app_state::AppState;
+use crate::config;
 use crate::github_webhook;
 
 pub fn router(state: AppState) -> Router {
-    Router::new()
+    let router = Router::new()
         .route("/health/live", get(health::live))
         .route("/health/ready", get(health::ready))
         .route("/health/authority", get(health::authority))
@@ -297,7 +299,17 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/experimental/aauth/v1/mission/digest",
             post(aauth::mission_digest),
-        )
+        );
+    // Vault KV v2 read facade (ops plane, default off). Merged rather than
+    // chained so that with the flag unset the routes are absent entirely: an
+    // unmounted surface answers 404, where a mounted-but-disabled one would
+    // answer 403 and confirm it exists.
+    let router = if config::kv_facade_enabled() {
+        router.merge(kv_facade::routes())
+    } else {
+        router
+    };
+    router
         .with_state(state)
         .layer(TraceLayer::new_for_http())
 }

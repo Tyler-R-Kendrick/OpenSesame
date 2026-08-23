@@ -32,6 +32,17 @@ Product license: **MIT** (see `LICENSE`).
 | OpenClaw / agentgateway OAuth exchange | Gateway-injection prior art |
 | Boundary / CyberArk Secretless | Credential injection prior art |
 | Nango / Bitwarden / Vaultwarden / Infisical | Study only; no incompatible source copy — see [docs/competitors](docs/competitors/index.md) |
+| KeePass / KeePassXC | **Study-only clean-room** (GPL). KDBX and keepassxc-protocol implemented from their public specs — see [docs/competitors/keepass.md](docs/competitors/keepass.md), [ADR 0052](docs/adr/0052-password-manager-ecosystem-bridging.md) §3 |
+| Passbolt | **Study-only clean-room** (AGPL-3.0). API implemented from public docs/OpenAPI; KDBX export ingests today — see [docs/competitors/passbolt.md](docs/competitors/passbolt.md) |
+| 1Password (clients / server / Connect) | Proprietary — serving its clients is impossible and not attempted; consume via `op` CLI, Connect REST (ops plane), and `.1pux` import — see [docs/competitors/1password.md](docs/competitors/1password.md) |
+| `keepass` crate (Rust KDBX) | **Permissive dependency allowed** (MIT), pinned. Upstream KDBX4 *write* is experimental → writer constrained to KDBX 4.0 / AES-256 or ChaCha20 / Argon2id + cross-implementation conformance fixture |
+| kdbxweb + hash-wasm (Pages KDBX) | **Permissive dependencies allowed** (MIT). hash-wasm supplies Argon2 to kdbxweb via `CryptoEngine.setArgon2Impl`; both lazily imported |
+| `crypto_box` (RustCrypto NaCl box) | **Permissive dependency allowed** (MIT OR Apache-2.0) — keepassxc-protocol transport crypto, in `apps/pm-bridges` only |
+| rpgp | **Permissive dependency allowed** (MIT OR Apache-2.0) — OpenPGP for the Passbolt consume-client |
+| oo7 (Secret Service) | **MIT — fork/derive or depend, with `NOTICE` attribution** |
+| rbw (Rust Bitwarden client) | **MIT — fork/derive with `NOTICE` attribution.** In maintenance mode: use as verified protocol knowledge, do **not** take it as a dependency |
+| browserpass-native | **ISC — reference only.** Reimplement the JSON stdio protocol; do not vendor |
+| FIDO CXF / CXP | Open specification (CXF Proposed Standard, Aug 2025). CXF import+export implemented; CXP/HPKE transport is roadmap ([ADR 0052](docs/adr/0052-password-manager-ecosystem-bridging.md) §4) |
 | Doppler / fnox / SOPS / age | Adjacent or primitive — see [docs/competitors](docs/competitors/index.md) |
 | Doppler sync / projects parity | Capability parity under ConnectionRef (ADR 0041); catalog provider `doppler` is SaaS connector only — not a clone |
 | Vercel Connect / Oomol Open Connector | Adjacent connector gateways — see [docs/competitors](docs/competitors/index.md) |
@@ -50,3 +61,22 @@ Product license: **MIT** (see `LICENSE`).
 ## License policy
 
 CI must run `cargo deny check`. Notices in `NOTICE`.
+
+Implementing a protocol or file format from its **public specification** is
+not a derivative work of any implementation of it; copying source is. That
+distinction is what makes the password-manager bridging work in
+[ADR 0052](docs/adr/0052-password-manager-ecosystem-bridging.md) legal
+against ecosystems whose reference implementations are GPL/AGPL
+(vaultwarden AGPL-3.0, Bitwarden clients GPL-3.0, KeePassXC GPL, Passbolt
+AGPL-3.0). Enforcement is mechanical on the Rust side: `deny.toml`'s
+`[licenses].allow` is permissive-only (MIT, Apache-2.0, BSD-2/3-Clause,
+ISC, MPL-2.0, Unicode, Zlib, CC0-1.0, OpenSSL, CDLA-Permissive-2.0) and
+lists **no GPL or AGPL**, so a contaminating dependency fails
+`cargo deny check` before it reaches review. The residual risk is a human
+pasting source, which is why the study-only rows above are explicit.
+
+Bitwarden's 2024 SDK licensing episode — `sdk-internal` made proprietary
+under a field-of-use clause aimed at vaultwarden-class projects, resolved
+that November by splitting into GPL-3.0 `sdk-internal` and
+Bitwarden-License `sdk-secrets` — is why Bitwarden compatibility is one
+adapter among several here and never the foundation of a strategy.
