@@ -54,6 +54,7 @@ import { EndpointsPanel, TursoSyncPanel } from "./settings/EndpointsPanel.js";
 import { GithubBackupPanel as DefaultGithubBackupPanel } from "./settings/GithubBackupPanel.js";
 import { ImportPanel as DefaultImportPanel } from "./settings/ImportPanel.js";
 import { OfflineBackupPanel as DefaultOfflineBackupPanel } from "./settings/OfflineBackupPanel.js";
+import { SecretConfigsPanel as DefaultSecretConfigsPanel } from "./settings/SecretConfigsPanel.js";
 import { SyncTargetsPanel as DefaultSyncTargetsPanel } from "./settings/SyncTargetsPanel.js";
 import { TaskBusPanel as DefaultTaskBusPanel } from "./settings/TaskBusPanel.js";
 import { UnlockMethodsPanel as DefaultUnlockMethodsPanel } from "./settings/UnlockMethodsPanel.js";
@@ -128,6 +129,7 @@ export type SettingsPanels = {
   UnlockMethodsPanel: ComponentType;
   ActiveProjectPanel: ComponentType;
   CapabilityConnectorsPanel: ComponentType;
+  SecretConfigsPanel: ComponentType;
   SyncTargetsPanel: ComponentType;
   TaskBusPanel: ComponentType;
   GithubBackupPanel: ComponentType;
@@ -140,6 +142,7 @@ const defaultPanels: SettingsPanels = {
   UnlockMethodsPanel: DefaultUnlockMethodsPanel,
   ActiveProjectPanel: DefaultActiveProjectPanel,
   CapabilityConnectorsPanel: DefaultCapabilityConnectorsPanel,
+  SecretConfigsPanel: DefaultSecretConfigsPanel,
   SyncTargetsPanel: DefaultSyncTargetsPanel,
   TaskBusPanel: DefaultTaskBusPanel,
   GithubBackupPanel: DefaultGithubBackupPanel,
@@ -710,6 +713,10 @@ export function SettingsSection({
 
       {category !== "connectivity" ? null : (
         <resolvedPanels.CapabilityConnectorsPanel />
+      )}
+
+      {category !== "connectivity" ? null : (
+        <resolvedPanels.SecretConfigsPanel />
       )}
 
       {category !== "connectivity" ? null : <resolvedPanels.SyncTargetsPanel />}
