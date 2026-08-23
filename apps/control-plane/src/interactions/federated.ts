@@ -341,6 +341,11 @@ export async function completeFederatedAuth(
       { cause },
     );
   }
+  // Belt and braces, and deliberately unreachable today: `idTokenExpected:
+  // true` above makes openid-client reject a token-less response before we get
+  // here, which the "response carries no id_token at all" chaos case proves by
+  // still failing closed. Kept so that a future change to those grant checks
+  // cannot silently turn a missing assertion into an anonymous admission.
   if (!rawIdToken) {
     throw new FederatedAuthError(
       "exchange_failed",

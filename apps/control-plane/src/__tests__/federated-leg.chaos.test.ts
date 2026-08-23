@@ -34,7 +34,8 @@ type Fault =
   | "expired"
   | "unsigned_alg"
   | "foreign_key"
-  | "no_subject";
+  | "no_subject"
+  | "no_id_token";
 
 let fault: Fault = "none";
 
@@ -144,7 +145,8 @@ async function startChaosUpstream() {
             access_token: "at",
             token_type: "Bearer",
             expires_in: 300,
-            id_token: idToken,
+            // A broker that answers the grant but omits the assertion entirely.
+            ...(fault === "no_id_token" ? undefined : { id_token: idToken }),
           });
         })();
       });
@@ -299,6 +301,7 @@ describe("CHAOS — a broker that misbehaves must not admit anyone", () => {
     ["the id_token is signed by an unpublished key", "foreign_key"],
     ["the id_token claims alg:none", "unsigned_alg"],
     ["the id_token carries no subject", "no_subject"],
+    ["the response carries no id_token at all", "no_id_token"],
   ])(
     "admits nobody when %s",
     async (_label, injected) => {
