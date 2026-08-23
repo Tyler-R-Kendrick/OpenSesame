@@ -22,5 +22,5 @@ base64 = { workspace = true }
 getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
-insta = { workspace = true }
+insta = { workspace = true, features = ["redactions"] }
 proptest = { workspace = true }
