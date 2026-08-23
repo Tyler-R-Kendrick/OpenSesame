@@ -264,3 +264,10 @@ path = "fuzz_targets/promote_request.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "attachment_chunk"
+path = "fuzz_targets/attachment_chunk.rs"
+test = false
+doc = false
+bench = false
