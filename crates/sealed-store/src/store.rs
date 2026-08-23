@@ -17,6 +17,18 @@ use crate::{age_fmt, gpg, Entry, StoreError, StoreRoot};
 const KEY_FILE: &str = ".opensesame-key";
 const REVISION_FILE: &str = ".opensesame-revisions.json";
 
+// Commit subjects name the operation, never the entry. A backup remote holds
+// the whole history, so an entry name in a commit subject publishes the folder
+// tree, the item names, and their change cadence to anyone who can read the
+// repository — the ciphertext beside it stays sealed, but the metadata does not.
+pub(crate) const COMMIT_ADD: &str = "seal: add entry";
+pub(crate) const COMMIT_EDIT: &str = "seal: edit entry";
+pub(crate) const COMMIT_REMOVE: &str = "seal: remove entry";
+pub(crate) const COMMIT_REBIND: &str = "seal: rebind entry encryption context";
+pub(crate) const COMMIT_RESTORE: &str = "seal: restore entry";
+pub(crate) const COMMIT_ATTACH: &str = "seal: add attachment";
+pub(crate) const COMMIT_DETACH: &str = "seal: remove attachment";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FormatHint {
     Osseal,
@@ -153,7 +165,7 @@ impl StoreRoot {
             return Err(StoreError::AlreadyExists(name.into()));
         }
         self.write_entry(name, entry, key, None)?;
-        auto_commit(&self.path, &format!("Add {name}"))?;
+        auto_commit(&self.path, COMMIT_ADD)?;
         Ok(())
     }
 
@@ -167,11 +179,11 @@ impl StoreRoot {
         let keep_format = existing.as_ref().map(|(_, h)| *h);
         self.write_entry(name, entry, key, keep_format)?;
         let msg = if existing.is_some() {
-            format!("Edit {name}")
+            COMMIT_EDIT
         } else {
-            format!("Add {name}")
+            COMMIT_ADD
         };
-        auto_commit(&self.path, &msg)?;
+        auto_commit(&self.path, msg)?;
         Ok(())
     }
 
@@ -250,7 +262,7 @@ impl StoreRoot {
         let entry = Entry::parse(&text);
         if legacy_osseal {
             self.write_entry(name, &entry, key, Some(FormatHint::Osseal))?;
-            auto_commit(&self.path, &format!("Bind {name} encryption context"))?;
+            auto_commit(&self.path, COMMIT_REBIND)?;
         }
         Ok(entry)
     }
@@ -290,7 +302,7 @@ impl StoreRoot {
         let entry = Entry::parse(&text);
         if legacy_osseal {
             self.write_entry(name, &entry, key, Some(FormatHint::Osseal))?;
-            auto_commit(&self.path, &format!("Bind {name} encryption context"))?;
+            auto_commit(&self.path, COMMIT_REBIND)?;
         }
         Ok(entry)
     }
@@ -301,7 +313,7 @@ impl StoreRoot {
             .strip_prefix(&self.path)
             .map_err(|_| StoreError::InvalidPath("path escapes store root".into()))?;
         confined_remove(&self.path, rel)?;
-        auto_commit(&self.path, &format!("Remove {name}"))?;
+        auto_commit(&self.path, COMMIT_REMOVE)?;
         Ok(())
     }
 
@@ -540,5 +552,55 @@ mod tests {
         .unwrap();
         assert!(root.insert("Dev/token", &entry, &key).is_err());
         assert!(!outside.path().join("target").exists());
+    }
+
+    /// A backup remote carries the whole commit history. If a subject line
+    /// names the entry, the repository publishes the folder tree, the item
+    /// names, and how often each one changes — the exact metadata that made
+    /// stolen password-manager vaults triageable, sitting next to ciphertext
+    /// that never opened.
+    #[test]
+    fn commit_subjects_never_name_the_entry() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = init_store(dir.path(), &[]).unwrap();
+        crate::git::ensure_git_repo(dir.path()).unwrap();
+        let key = ItemDataKey([9u8; 32]);
+
+        // Distinctive enough that a substring hit cannot be a coincidence.
+        let planted = "XZQPLANTED/api-token";
+        let entry = |secret: &str| Entry {
+            secret: secret.into(),
+            trailer: String::new(),
+            otp: None,
+        };
+
+        root.insert(planted, &entry("first"), &key).unwrap();
+        root.insert_or_replace(planted, &entry("second"), &key)
+            .unwrap();
+        root.rm(planted).unwrap();
+
+        let log = std::process::Command::new("git")
+            .args(["log", "--format=%B"])
+            .current_dir(dir.path())
+            .output()
+            .unwrap();
+        let subjects = String::from_utf8(log.stdout).unwrap();
+
+        assert!(
+            !subjects.contains("XZQPLANTED"),
+            "entry name leaked into commit history: {subjects}"
+        );
+        assert!(
+            !subjects.contains("api-token"),
+            "entry name leaked into commit history: {subjects}"
+        );
+        // The operation is still legible without naming the target.
+        assert!(subjects.contains(COMMIT_ADD));
+        assert!(subjects.contains(COMMIT_EDIT));
+        assert!(subjects.contains(COMMIT_REMOVE));
+
+        // Restore writes its own subject from history.rs; it must stay
+        // name-free too, or the leak returns through a different verb.
+        assert_eq!(COMMIT_RESTORE, "seal: restore entry");
     }
 }

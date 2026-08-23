@@ -319,18 +319,6 @@ export function filterEntriesForProject(
   });
 }
 
-/** Opaque sync-blob id for a store path (Host stores ciphertext only). */
-export function storePathToSyncBlobId(
-  path: string,
-  projectId?: string | null,
-): string {
-  const trimmed = path.replace(/^\/+|\/+$/gu, "");
-  if (projectId?.trim()) {
-    return `project:${projectId.trim()}:${trimmed}`;
-  }
-  return trimmed;
-}
-
 /**
  * Build Host sync blob descriptors from already-sealed ciphertext bytes.
  * Callers must seal locally first — this never accepts plaintext secrets.

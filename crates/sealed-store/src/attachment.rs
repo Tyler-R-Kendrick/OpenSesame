@@ -344,7 +344,7 @@ impl StoreRoot {
         let sealed = seal_osseal_in(COLLECTION_ATTACHMENTS, &plaintext, key, name, revision)?;
         confined_write(&self.path, &rel, &sealed)?;
 
-        auto_commit(&self.path, &format!("Attach {name}"))?;
+        auto_commit(&self.path, crate::store::COMMIT_ATTACH)?;
         Ok(summary_of(name, &manifest))
     }
 
@@ -484,7 +484,7 @@ impl StoreRoot {
             .saturating_add(1);
         self.record_attachment_revision(name, next)?;
         self.collect_garbage(key)?;
-        auto_commit(&self.path, &format!("Remove attachment {name}"))?;
+        auto_commit(&self.path, crate::store::COMMIT_DETACH)?;
         Ok(())
     }
 
@@ -983,8 +983,8 @@ mod pact {
 
         let orphan = object_relative(&"cd".repeat(32)).unwrap();
         confined_write(&root.path, &orphan, b"orphaned ciphertext").unwrap();
-        let aged = std::time::SystemTime::now()
-            - std::time::Duration::from_secs(GC_GRACE_SECONDS + 60);
+        let aged =
+            std::time::SystemTime::now() - std::time::Duration::from_secs(GC_GRACE_SECONDS + 60);
         let handle = std::fs::File::options()
             .write(true)
             .open(root.path.join(&orphan))
@@ -1093,7 +1093,10 @@ mod pact {
         // A filename long enough to be a problem downstream.
         add(&root, &key, "D/four", b"payload four");
         reseal_manifest_with(&root, &key, "D/four", |m| m.filename = "z".repeat(300));
-        assert!(get(&root, &key, "D/four").is_err(), "filename must be bounded");
+        assert!(
+            get(&root, &key, "D/four").is_err(),
+            "filename must be bounded"
+        );
 
         // A digest that is not a digest never reaches the filesystem as a path.
         add(&root, &key, "E/five", b"payload five");
