@@ -5,6 +5,7 @@ export {
 } from "./append.js";
 export {
   redactAuditMetadata,
+  isDeniedAuditMetadataKey,
   AUDIT_METADATA_ALLOWLIST,
   AUDIT_VALUE_MAX_LENGTH,
 } from "./redact.js";
