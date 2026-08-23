@@ -1,0 +1,11 @@
+---
+source: crates/kdbx-bridge/tests/snapshots.rs
+expression: paths
+---
+[
+  "Imported/KeePass/Root Note",
+  "Imported/KeePass/Personal/Email/Example Mail",
+  "Imported/KeePass/Personal/Email/Example Mail (2)",
+  "Imported/KeePass/Shared/Ops/Deploy Token",
+  "Imported/KeePass/Weird_Name/Tab_here"
+]

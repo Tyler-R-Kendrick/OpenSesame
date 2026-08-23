@@ -1,0 +1,17 @@
+---
+source: apps/pm-bridges/tests/browserpass_golden.rs
+expression: response
+---
+{
+  "data": {
+    "defaultStore": {
+      "path": "",
+      "settings": "{}"
+    },
+    "storeSettings": {
+      "default": "{}"
+    }
+  },
+  "status": "ok",
+  "version": 3001002
+}

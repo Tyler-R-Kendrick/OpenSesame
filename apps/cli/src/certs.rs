@@ -52,10 +52,7 @@ pub async fn cmd_ls(server: &str, output: &str) -> Result<()> {
         println!("No issued certificates on this Host.");
         return Ok(());
     }
-    println!(
-        "{:<20} {:<18} {}",
-        "COMMON NAME", "EXPIRES", "SERIAL"
-    );
+    println!("{:<20} {:<18} SERIAL", "COMMON NAME", "EXPIRES");
     for row in rows {
         println!(
             "{:<20} {:<18} {}",
@@ -67,6 +64,9 @@ pub async fn cmd_ls(server: &str, output: &str) -> Result<()> {
     Ok(())
 }
 
+/// Arguments mirror the `cert issue` flags one for one; bundling them into
+/// a struct would relocate the same fields without simplifying the call.
+#[allow(clippy::too_many_arguments)]
 pub async fn cmd_issue(
     server: &str,
     output: &str,
@@ -112,7 +112,7 @@ pub async fn cmd_issue(
         .unwrap_or("");
 
     if let Some(ref dir) = out_dir {
-        fs::create_dir_all(&dir).with_context(|| format!("creating {}", dir.display()))?;
+        fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
         let stem = sanitize_stem(&common_name);
         write_pem(&dir.join(format!("{stem}.crt.pem")), cert, 0o644)?;
         write_pem(&dir.join(format!("{stem}.key.pem")), key, 0o600)?;

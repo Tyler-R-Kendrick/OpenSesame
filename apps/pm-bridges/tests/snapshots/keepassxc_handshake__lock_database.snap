@@ -1,0 +1,10 @@
+---
+source: apps/pm-bridges/tests/keepassxc_handshake.rs
+expression: locked
+---
+{
+  "action": "lock-database",
+  "error": "Database not opened",
+  "errorCode": 1,
+  "nonce": "[nonce]"
+}

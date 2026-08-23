@@ -1,0 +1,48 @@
+---
+source: crates/kdbx-bridge/tests/snapshots.rs
+expression: "map::conformance_doc(&items)"
+---
+{
+  "format": "opensesame-kdbx-conformance/1",
+  "items": {
+    "Personal/Email/Example Mail": {
+      "secret": "fixture-password-one",
+      "trailer": [
+        "login: alice@example.com",
+        "url: https://mail.example.com/",
+        "notes: First line of the note.",
+        "  Second line.",
+        "  ",
+        "  Fourth line, after a blank one.",
+        "Recovery Code: abcd-efgh-ijkl"
+      ],
+      "otp": "otpauth://totp/Example%20Mail?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=Example&digits=6&period=30&algorithm=SHA1"
+    },
+    "Personal/Email/Example Mail (2)": {
+      "secret": "fixture-password-two",
+      "trailer": [
+        "login: bob@example.com"
+      ],
+      "otp": null
+    },
+    "Root Note": {
+      "secret": "",
+      "trailer": [
+        "notes: A note with no password at all."
+      ],
+      "otp": null
+    },
+    "Shared/Ops/Deploy Token": {
+      "secret": "fixture-deploy-token",
+      "trailer": [
+        "API Key: fixture-api-key"
+      ],
+      "otp": "otpauth://totp/Deploy%20Token?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=8&period=60&algorithm=SHA256"
+    },
+    "Weird_Name/Tab_here": {
+      "secret": "fixture-weird",
+      "trailer": [],
+      "otp": null
+    }
+  }
+}

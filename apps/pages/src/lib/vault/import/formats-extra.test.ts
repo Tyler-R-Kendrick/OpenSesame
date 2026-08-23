@@ -20,7 +20,7 @@ import { protonpassJson } from "./formats/protonpass.js";
 import type { DetectInput } from "./types.js";
 
 function csvInput(text: string, headers: string[] | null): DetectInput {
-  return { fileName: "export.csv", text, headers, json: null };
+  return { fileName: "export.csv", text, headers, bytes: null, json: null };
 }
 
 describe("parseDotenv quoting and escapes", () => {
@@ -65,7 +65,7 @@ describe("envFile detection", () => {
         fileName: ".env",
         text: "KEY=value",
         headers: null,
-        json: { some: "json" },
+        bytes: null, json: { some: "json" },
       }),
     ).toBe(false);
     expect(
@@ -73,6 +73,7 @@ describe("envFile detection", () => {
         fileName: ".env",
         text: "a,b\nKEY=value",
         headers: ["a", "b"],
+        bytes: null,
         json: null,
       }),
     ).toBe(false);
@@ -85,6 +86,7 @@ describe("envFile detection", () => {
           fileName: name,
           text: "KEY=value\n# comment\nnot a pair",
           headers: null,
+          bytes: null,
           json: null,
         }),
       ).toBe(true);
@@ -96,6 +98,7 @@ describe("envFile detection", () => {
       fileName: "settings.txt",
       text: "A=1\nB=2\nC=3",
       headers: null,
+      bytes: null,
       json: null,
     };
     expect(envFile.detect(strong)).toBe(true);
@@ -108,6 +111,7 @@ describe("envFile detection", () => {
       fileName: ".env",
       text: "A=1\nA=2\nEMPTY=",
       headers: null,
+      bytes: null,
       json: null,
     });
     expect(result.items).toHaveLength(1);
@@ -121,6 +125,7 @@ describe("envFile detection", () => {
       fileName: ".env",
       text: "EMPTY=",
       headers: null,
+      bytes: null,
       json: null,
     });
     expect(nothing.warnings).toEqual([]);
@@ -292,7 +297,7 @@ describe("Bitwarden JSON extras", () => {
         fileName: "x.json",
         text: "{}",
         headers: null,
-        json: { hello: "world" },
+        bytes: null, json: { hello: "world" },
       }),
     ).toThrow(/not a Bitwarden JSON export/);
   });
@@ -302,6 +307,7 @@ describe("Bitwarden JSON extras", () => {
       fileName: "x.json",
       text: "",
       headers: null,
+      bytes: null,
       json: {
         encrypted: false,
         items: [{ type: 99, name: "Mystery" }],
@@ -318,6 +324,7 @@ describe("Bitwarden JSON extras", () => {
       fileName: "x.json",
       text: "",
       headers: null,
+      bytes: null,
       json: {
         encrypted: false,
         items: [
@@ -347,6 +354,7 @@ describe("Bitwarden JSON extras", () => {
       fileName: "x.json",
       text: "",
       headers: null,
+      bytes: null,
       json: {
         encrypted: false,
         items: [{ type: 4, name: "ID", identity: { firstName: "Ada" } }],
@@ -379,6 +387,7 @@ describe("1Password 1PUX extras", () => {
       text: "",
       headers: null,
       json,
+      bytes: null,
     });
   }
 
@@ -534,6 +543,7 @@ describe("Proton Pass extras", () => {
       text: "",
       headers: null,
       json,
+      bytes: null,
     });
   }
 

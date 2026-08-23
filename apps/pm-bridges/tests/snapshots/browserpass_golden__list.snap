@@ -1,0 +1,16 @@
+---
+source: apps/pm-bridges/tests/browserpass_golden.rs
+expression: response
+---
+{
+  "data": {
+    "files": {
+      "default": [
+        "Dev/github.gpg",
+        "Web/example.com.gpg"
+      ]
+    }
+  },
+  "status": "ok",
+  "version": 3001002
+}

@@ -1,0 +1,11 @@
+---
+source: apps/pm-bridges/tests/browserpass_golden.rs
+expression: "run.responses[0]"
+---
+{
+  "data": {
+    "contents": "hunter2\nlogin: alice\nurl: https://example.com/login\notpauth://totp/Example:alice?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=Example\n"
+  },
+  "status": "ok",
+  "version": 3001002
+}

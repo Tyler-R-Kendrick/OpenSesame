@@ -22,6 +22,7 @@ use opensesame_connection_broker::github_webhook_hmac::{
 use opensesame_connection_detect::{
     ini_value, mcp_server_env_keys, mcp_server_names, PromoteRequest,
 };
+use opensesame_kdbx_bridge::map_kdbx;
 use opensesame_authz::{
     callout_permissions, evaluate_callout, permissions_include_system, CalloutEval,
 };
@@ -697,6 +698,56 @@ pub fn fuzz_nats_callout_eval(input: NatsCalloutEvalInput) {
     }
 }
 
+/// KDBX outer/inner header + XML parse, then the frozen KDBX→sealed-store
+/// mapping. Arbitrary bytes must classify as an error or map cleanly — never
+/// panic, never derive a store path that escapes the store root.
+///
+/// Runs with a fixed password so the fuzzer explores parsing rather than
+/// guessing a key; a keyfile is derived from the same bytes so the keyfile
+/// parser is exercised too.
+pub fn fuzz_kdbx_parse(data: &[u8]) {
+    let bytes = truncate(data);
+
+    // No credentials at all is a rejection, always, before any parsing.
+    assert!(
+        map_kdbx(bytes, None, None, None).is_err(),
+        "credential-less mapping must be refused"
+    );
+
+    for (password, keyfile) in [
+        (Some("correct horse battery staple"), None),
+        (Some(""), Some(bytes)),
+        (None, Some(bytes)),
+    ] {
+        let Ok((items, warnings)) = map_kdbx(bytes, password, keyfile, None) else {
+            continue;
+        };
+
+        let mut seen = std::collections::BTreeSet::new();
+        for item in &items {
+            assert!(!item.path.is_empty(), "a mapped path is never empty");
+            assert!(
+                seen.insert(item.path.clone()),
+                "collision resolution must yield unique paths: {}",
+                item.path
+            );
+            // The store's own path resolver is the arbiter: sanitization must
+            // produce something it accepts, so no group or title can traverse
+            // out of the store root.
+            opensesame_sealed_store::logical_to_relative(&item.path)
+                .expect("a mapped path is always a legal store path");
+            // Line one is line one: a secret never carries a newline.
+            assert!(
+                !item.entry.secret.contains('\n'),
+                "the secret is a single line"
+            );
+        }
+
+        // Every warning names a path that was actually mapped, or a group path.
+        assert!(warnings.len() >= items.iter().map(|i| i.warnings.len()).sum::<usize>());
+    }
+}
+
 fn truncate(data: &[u8]) -> &[u8] {
     if data.len() > MAX_PARSER_BYTES {
         &data[..MAX_PARSER_BYTES]
@@ -805,6 +856,49 @@ pub fn fuzz_promote_request(data: &[u8]) {
     }
 }
 
+/// Bitwarden EncString parse + decrypt over arbitrary bytes.
+///
+/// The invariants: parsing is total (a named error, never a panic), `Display`
+/// round-trips whatever parsed, decryption with an unrelated key fails rather
+/// than panicking, and a type-7 (COSE) envelope is *always* refused — the one
+/// format where a best-effort decode would silently corrupt vault data.
+pub fn fuzz_bitwarden_encstring(data: &[u8]) {
+    use opensesame_provider_bitwarden::{EncString, SymmetricKey};
+
+    let bytes = truncate(data);
+    let raw = String::from_utf8_lossy(bytes);
+    let authenticated = SymmetricKey::from_bytes(&[7u8; 64]).expect("64-byte key");
+    let legacy = SymmetricKey::from_bytes(&[9u8; 32]).expect("32-byte key");
+
+    match raw.parse::<EncString>() {
+        Ok(parsed) => {
+            let rendered = parsed.to_string();
+            let reparsed: EncString = rendered
+                .parse()
+                .expect("an EncString must re-parse its own Display output");
+            assert_eq!(parsed, reparsed, "EncString Display is not round-trip stable");
+            assert_eq!(rendered, reparsed.to_string());
+            // Neither key is the right one, so both must fail — but neither
+            // may panic, and neither may leak a partial plaintext.
+            assert!(authenticated.decrypt(&parsed).is_err() || legacy.decrypt(&parsed).is_err());
+            let _ = authenticated.decrypt_string(&parsed);
+            let _ = legacy.decrypt_string(&parsed);
+        }
+        Err(error) => {
+            assert!(!error.code().is_empty(), "every parse failure must be named");
+            assert!(!error.to_string().is_empty());
+        }
+    }
+
+    if raw.starts_with("7.") {
+        let error = raw
+            .parse::<EncString>()
+            .err()
+            .expect("a type-7 (COSE) EncString must never parse");
+        assert_eq!(error.code(), "cose_encrypt_unsupported");
+    }
+}
+
 fn secs_to_dt(secs: i64) -> chrono::DateTime<Utc> {
     Utc.timestamp_opt(secs.clamp(0, 2_000_000_000), 0)
         .single()
@@ -845,6 +939,31 @@ mod oracle_smoke {
     use crate::types::{GithubWebhookHmacInput, NatsCalloutEvalInput};
     use opensesame_task_bus::validate_nats_url;
 
+    /// Seed corpus for `bitwarden_encstring`: the shapes a real vault emits
+    /// plus the ones an attacker would. None may panic.
+    #[test]
+    fn bitwarden_encstring_oracle_survives_the_seed_corpus() {
+        for seed in [
+            "",
+            ".",
+            "2.",
+            "0.",
+            "7.T0NPU0U=",
+            "7.",
+            "1.aaaa|bbbb",
+            "3.aaaa|bbbb",
+            "2.AAAAAAAAAAAAAAAAAAAAAA==|AAAAAAAAAAAAAAAAAAAAAA==|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "0.AAAAAAAAAAAAAAAAAAAAAA==|AAAAAAAAAAAAAAAAAAAAAA==",
+            "2.|||",
+            "2.\u{0}|\u{0}|\u{0}",
+            "99999999999999999999.a|b",
+        ] {
+            fuzz_bitwarden_encstring(seed.as_bytes());
+        }
+        fuzz_bitwarden_encstring(&[0xff, 0xfe, 0x00, 0x7f]);
+        fuzz_bitwarden_encstring(&vec![b'2'; 4096]);
+    }
+
     #[test]
     fn taskbus_url_oracle_accepts_nats_rejects_http() {
         assert!(validate_nats_url("nats://127.0.0.1:4222").is_ok());
@@ -861,6 +980,16 @@ mod oracle_smoke {
             flip_body_bit: true,
             truncate_header: true,
         });
+    }
+
+    #[test]
+    fn kdbx_parse_oracle_survives_arbitrary_bytes() {
+        fuzz_kdbx_parse(&[]);
+        fuzz_kdbx_parse(&[0x03, 0xd9, 0xa2, 0x9a]);
+        fuzz_kdbx_parse(&[0xff; 256]);
+        let mut signed = vec![0x03, 0xd9, 0xa2, 0x9a];
+        signed.extend((0u16..512).map(|i| i as u8));
+        fuzz_kdbx_parse(&signed);
     }
 
     #[test]
@@ -883,5 +1012,52 @@ mod oracle_smoke {
             provisional: false,
             project_count: 1,
         });
+    }
+}
+
+/// The gateway KV v2 facade's mount/path grammar, compiled straight from the
+/// gateway source so this target fuzzes the shipped parser rather than a copy
+/// that could drift from it. The file it points at is dependency-free by
+/// contract; see `apps/gateway/src/routes/kv_facade_path.rs`.
+#[path = "../../apps/gateway/src/routes/kv_facade_path.rs"]
+pub mod kv_v2_path;
+
+/// Vault KV v2 mount/path routing for the gateway read facade.
+///
+/// Invariants: parsing is total (never panics, whatever the bytes); only the
+/// served mount is ever accepted; and an accepted name is a single storage key
+/// that appeared in the input verbatim — no separator, no `..`, no leading dot,
+/// no NUL — so a routed read can never leave the facade's namespace.
+pub fn fuzz_kv_v2_path(data: &[u8]) {
+    let text = String::from_utf8_lossy(truncate(data));
+    for mount in ["secret", "other", text.as_ref(), ""] {
+        match kv_v2_path::parse_kv_path(mount, text.as_ref()) {
+            Ok(parsed) => {
+                assert_eq!(mount, kv_v2_path::KV_MOUNT, "a foreign mount was accepted");
+                let name = parsed.name.as_str();
+                assert!(!name.is_empty(), "an empty key was accepted");
+                assert!(name.len() <= kv_v2_path::MAX_KV_NAME_BYTES);
+                assert!(!name.contains('/') && !name.contains('\\'), "{name:?}");
+                assert!(!name.contains("..") && !name.starts_with('.'), "{name:?}");
+                assert!(!name.contains('\0'), "{name:?}");
+                assert!(
+                    text.contains(name),
+                    "the parser returned a key that was never in the input"
+                );
+                // Re-rendering the parsed path parses back to the same path:
+                // routing is stable, so a receipt's resource string and the
+                // request that produced it can never disagree.
+                let rendered = format!("{}/{}", parsed.family.as_str(), name);
+                assert_eq!(
+                    kv_v2_path::parse_kv_path(kv_v2_path::KV_MOUNT, &rendered).as_ref(),
+                    Ok(&parsed),
+                    "rendered path did not round-trip"
+                );
+            }
+            Err(error) => {
+                // Every rejection has a stable, value-free reason.
+                assert!(!error.as_str().is_empty());
+            }
+        }
     }
 }

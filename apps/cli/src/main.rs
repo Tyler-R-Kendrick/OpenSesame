@@ -1,6 +1,8 @@
+mod bridge;
 mod certs;
 mod connect;
 mod github;
+mod providers_native;
 mod store;
 
 use clap::{Parser, Subcommand, ValueEnum};
@@ -147,6 +149,11 @@ enum Commands {
     Pass {
         #[command(subcommand)]
         cmd: PassCmd,
+    },
+    /// Local-IPC bridges for foreign password-manager clients (ADR 0053).
+    Bridge {
+        #[command(subcommand)]
+        cmd: bridge::BridgeCmd,
     },
     /// Interactive provider and connection browser (never reveals material).
     Tui,
@@ -481,6 +488,39 @@ enum PassCmd {
         #[arg(long)]
         tomb: Option<String>,
     },
+    /// Import a KeePass (.kdbx) database into the store.
+    ImportKdbx {
+        /// KDBX 4.x database to read.
+        file: PathBuf,
+        /// Optional KDBX key file, if the database uses one.
+        #[arg(long)]
+        keyfile: Option<PathBuf>,
+        /// Place imported entries under this store prefix.
+        #[arg(long)]
+        prefix: Option<String>,
+        /// Overwrite store entries that already exist and differ.
+        #[arg(long)]
+        replace: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
+    /// Export the store as a KeePass (.kdbx) database.
+    ExportKdbx {
+        /// File to write the database to.
+        dest: PathBuf,
+        /// Export only entries under this store prefix.
+        #[arg(long)]
+        prefix: Option<String>,
+        /// Required off a TTY: the export is a portable copy of the store.
+        #[arg(long)]
+        reveal: bool,
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
+    },
     /// Commit and push the store to its backup remote (git `origin`).
     Backup {
         /// Set (or replace) the backup remote before pushing.
@@ -802,6 +842,7 @@ async fn main() -> anyhow::Result<()> {
             print!("{}", completion_script(shell));
         }
         Commands::Init { schema } => init_schema(&schema)?,
+        Commands::Bridge { cmd } => bridge::run(cmd)?,
         Commands::Pass { cmd } => match cmd {
             PassCmd::Init {
                 path,
@@ -856,6 +897,21 @@ async fn main() -> anyhow::Result<()> {
                 path,
                 tomb,
             } => store::cmd_seal(manifest, replace, shred, path, tomb)?,
+            PassCmd::ImportKdbx {
+                file,
+                keyfile,
+                prefix,
+                replace,
+                path,
+                tomb,
+            } => store::cmd_import_kdbx(file, keyfile, prefix, replace, path, tomb)?,
+            PassCmd::ExportKdbx {
+                dest,
+                prefix,
+                reveal,
+                path,
+                tomb,
+            } => store::cmd_export_kdbx(dest, prefix, reveal, path, tomb)?,
             PassCmd::Backup {
                 remote,
                 auto_push,
@@ -1755,6 +1811,13 @@ async fn execute_connection_provider(
         );
         return Ok(());
     }
+    // Bitwarden/Vaultwarden reads need an async HTTP client and a TTY
+    // password ceremony, so the sync executor refuses their plan and the
+    // native call site performs it here -- the GitHubApp split above.
+    if let Some(rendered) = providers_native::execute_native_plan(&plan).await? {
+        println!("{rendered}");
+        return Ok(());
+    }
     println!("{}", execute_human_plan(plan)?);
     Ok(())
 }
@@ -2351,5 +2414,67 @@ mod tests {
         let refused = std::panic::catch_unwind(|| chrono::Duration::seconds(i64::MAX)).is_err();
         std::panic::set_hook(hook);
         assert!(refused);
+    }
+
+    /// `--output` is a *global* option, so a subcommand field of the same name
+    /// silently claims the same clap arg id and the parser panics at runtime
+    /// rather than failing to compile. Parsing is the only thing that catches
+    /// it, so pin every `pass` verb that takes a file argument.
+    #[test]
+    fn pass_kdbx_verbs_parse_without_colliding_with_the_global_output_option() {
+        use clap::Parser;
+
+        let cli = Cli::parse_from([
+            "opensesame",
+            "pass",
+            "export-kdbx",
+            "/tmp/vault.kdbx",
+            "--reveal",
+        ]);
+        let Commands::Pass {
+            cmd: PassCmd::ExportKdbx { dest, reveal, .. },
+        } = cli.command
+        else {
+            panic!("expected pass export-kdbx");
+        };
+        assert_eq!(dest, PathBuf::from("/tmp/vault.kdbx"));
+        assert!(reveal);
+
+        let cli = Cli::parse_from([
+            "opensesame",
+            "pass",
+            "import-kdbx",
+            "/tmp/vault.kdbx",
+            "--keyfile",
+            "/tmp/vault.key",
+            "--prefix",
+            "Imported",
+            "--replace",
+        ]);
+        let Commands::Pass {
+            cmd:
+                PassCmd::ImportKdbx {
+                    file,
+                    keyfile,
+                    prefix,
+                    replace,
+                    ..
+                },
+        } = cli.command
+        else {
+            panic!("expected pass import-kdbx");
+        };
+        assert_eq!(file, PathBuf::from("/tmp/vault.kdbx"));
+        assert_eq!(keyfile, Some(PathBuf::from("/tmp/vault.key")));
+        assert_eq!(prefix.as_deref(), Some("Imported"));
+        assert!(replace);
+    }
+
+    /// The whole `pass` tree must keep parsing; `debug_assert` walks every
+    /// subcommand and catches id collisions the tests above cannot enumerate.
+    #[test]
+    fn the_command_tree_has_no_conflicting_argument_ids() {
+        use clap::CommandFactory;
+        Cli::command().debug_assert();
     }
 }

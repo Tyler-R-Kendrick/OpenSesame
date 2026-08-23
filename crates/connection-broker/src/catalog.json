@@ -1741,6 +1741,22 @@
       "operations": ["secret.configure"]
     },
     {
+      "id": "passbolt",
+      "display_name": "Passbolt",
+      "category": "password_managers",
+      "docs_url": "https://www.passbolt.com/docs",
+      "provenance_url": "https://api-reference.passbolt.com/",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "server_url", "secret": false, "required": true },
+        { "name": "private_key", "secret": true, "required": true },
+        { "name": "passphrase", "secret": true, "required": true }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["secret.configure"]
+    },
+    {
       "id": "passwordstate",
       "display_name": "Passwordstate",
       "category": "password_managers",
@@ -1937,6 +1953,6 @@
       "operations": ["secret.configure"]
     }
   ],
-  "revision": "2026-08-12.2",
+  "revision": "2026-08-22.1",
   "schema_version": 1
 }

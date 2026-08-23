@@ -10,7 +10,7 @@
 import {
   type DetectInput,
   type DraftSecret,
-  type ImportAdapter,
+  type TextImportAdapter,
   type ParseResult,
   draftSecret,
 } from "../types.js";
@@ -147,7 +147,7 @@ function dotenvLineRatio(text: string): number {
   return hits / lines.length;
 }
 
-export const envFile: ImportAdapter = {
+export const envFile: TextImportAdapter = {
   id: "env-file",
   label: ".env file",
   shortName: ".env",
