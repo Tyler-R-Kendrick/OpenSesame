@@ -52,8 +52,9 @@ pnpm dev                 # turbo dev (control-plane, console, worker,
 pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
 pnpm lint                # Biome gate for files changed from origin/main
-pnpm lint:all            # full-repository Biome audit + Oxlint anti-slop
-pnpm lint:anti-slop      # Oxlint anti-slop (also runs as part of lint:all)
+pnpm lint:all            # full-repository Biome + anti-slop audit
+pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disables fail
+pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity
 pnpm lint:fix            # fix changed and staged files
 pnpm test                # turbo test across every workspace test script
 pnpm test:integration    # turbo run test:integration
@@ -78,7 +79,7 @@ pnpm db:migrate          # @opensesame/database db:migrate
 pnpm db:reset            # @opensesame/database db:reset
 pnpm generate:openapi    # writes apps/control-plane/openapi.json
 pnpm generate:sbom       # CycloneDX SBOM to sbom/bom.json
-pnpm verify              # changed-file lint + test:all
+pnpm verify              # changed-file lint + anti-slop lint/plugin tests + test:all
                           #   + cargo +1.88.0 test --workspace --all-targets
                           #   + ./scripts/battle-test.sh — full local gate
 

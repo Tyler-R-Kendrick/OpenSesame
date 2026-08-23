@@ -34,6 +34,13 @@ else
   fi
 fi
 
+anti_slop_files=$(printf '%s\n' "$staged_files" | grep -E '\.(js|jsx|ts|tsx|mjs|cjs|mts|cts)$' || true)
+if [ -n "$anti_slop_files" ]; then
+  echo "==> anti-slop (staged source files only)"
+  # shellcheck disable=SC2086
+  pnpm lint:anti-slop:files $anti_slop_files
+fi
+
 if command -v gitleaks >/dev/null 2>&1; then
   echo "==> gitleaks secret scan"
   if ! bash scripts/gitleaks-gate.sh; then
