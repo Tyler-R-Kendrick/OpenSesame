@@ -1,4 +1,12 @@
 import {
+  type BoundaryValue,
+  type JsonObject,
+  type JsonValue,
+  isJsonObject,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
+import {
   type JWTPayload,
   decodeProtectedHeader,
   errors as joseErrors,
@@ -23,8 +31,51 @@ export function hasRequiredScopes(
 }
 
 /** Narrow a custom JOSE payload claim without coercing malformed values. */
-export function isJwtString(value: JWTPayload[string]): value is string {
-  return typeof value === "string";
+export function isJwtString(value: BoundaryValue): value is string {
+  return isString(value);
+}
+
+const MAX_JWT_JSON_DEPTH = 32;
+
+function isJwtJsonValue(value: BoundaryValue, depth = 0): value is JsonValue {
+  if (depth > MAX_JWT_JSON_DEPTH) return false;
+  if (
+    value === null ||
+    value === true ||
+    value === false ||
+    isString(value) ||
+    isNumber(value)
+  ) {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.every((entry) => isJwtJsonValue(entry, depth + 1));
+  }
+  return (
+    isJsonObject(value) &&
+    Object.values(value).every((entry) => isJwtJsonValue(entry, depth + 1))
+  );
+}
+
+/** Normalize jose's broad payload dictionary at the verified JWT boundary. */
+export function parseJwtPayload(payload: BoundaryValue): JsonObject {
+  if (!isJsonObject(payload) || !Object.values(payload).every(isJwtJsonValue)) {
+    throw new AuthError("invalid_token", "Token payload is not valid JSON");
+  }
+  return payload;
+}
+
+export function readJwtAudience(
+  value: BoundaryValue,
+): string | string[] | undefined {
+  if (isJwtString(value)) return value;
+  if (!Array.isArray(value)) return undefined;
+  const audience: string[] = [];
+  for (const entry of value) {
+    if (!isJwtString(entry)) return undefined;
+    audience.push(entry);
+  }
+  return audience;
 }
 
 export function assertAllowedJwtAlgorithm(

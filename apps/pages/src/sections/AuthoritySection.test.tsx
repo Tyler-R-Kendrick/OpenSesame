@@ -12,7 +12,6 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const online = vi.hoisted(() => ({ value: true }));
-// SAFETY: Type assertion required; TypeScript cannot prove this overlap.
 const session: {
   current: {
     principalId: string;
@@ -57,10 +56,13 @@ import { useOnlineSeams } from "../lib/use-online.js";
 const originalUseOnlineSeams = { ...useOnlineSeams };
 Object.assign(useOnlineSeams, { useOnline: () => online.value });
 
-// SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-const queueItems = vi.hoisted(() => ({
-  current: [] as Array<JsonObject>,
-}));
+type QueueItemsState = { current: Array<JsonObject> };
+
+const queueItems = vi.hoisted(
+  (): QueueItemsState => ({
+    current: [],
+  }),
+);
 const enqueue = vi.hoisted(() =>
   vi.fn((item: JsonObject) => {
     queueItems.current.push({
@@ -118,7 +120,6 @@ const principalBody = {
 };
 
 function jsonResponse(body: JsonObject | undefined, ok = true, status = 200) {
-  // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
   return {
     ok,
     status,
@@ -183,12 +184,14 @@ describe("AuthoritySection", () => {
   });
 
   /** Route claim ceremony calls by URL suffix. */
-  function mockClaimTransport(handlers: {
+  type ClaimTransportHandlers = {
     present?: JsonObject;
     presentStatus?: number;
     complete?: JsonObject;
     completeStatus?: number;
-  }) {
+  };
+
+  function mockClaimTransport(handlers: ClaimTransportHandlers) {
     fetchMock.mockImplementation((input: string) => {
       const url = String(input);
       if (url.endsWith("/v1/claims/present")) {
@@ -239,20 +242,12 @@ describe("AuthoritySection", () => {
 
   async function presentToken(token = "osc_clm_part.one", code = "WORD-WORD") {
     await openTab(/Claim ownership/i);
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-    await userEvent.type(
-      document.getElementById("authority-claim-token") as HTMLElement,
-      token,
-    );
+    await userEvent.type(screen.getByLabelText(/^Claim token$/i), token);
     // The consent code is asked for before presenting, not after: presenting
     // spends the token, and finding out the code is missing afterwards would
     // spend it for nothing.
     if (code) {
-      // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-      await userEvent.type(
-        document.getElementById("authority-claim-code") as HTMLElement,
-        code,
-      );
+      await userEvent.type(screen.getByLabelText(/Consent code/i), code);
     }
     await userEvent.click(
       screen.getByRole("button", { name: /Present claim/i }),
@@ -374,10 +369,8 @@ describe("AuthoritySection", () => {
     renderAuthority();
     await screen.findByText("Not connected");
     // Empty paste is refused before the API is touched.
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-    const form = screen
-      .getByLabelText(/Access token/i)
-      .closest("form") as HTMLFormElement;
+    const form = screen.getByLabelText(/Access token/i).closest("form");
+    if (!form) throw new Error("Access token input must belong to its form");
     fireEvent.submit(form);
     expect(screen.getByRole("alert").textContent).toMatch(
       /Paste the access token/,
@@ -415,8 +408,7 @@ describe("AuthoritySection", () => {
   it("folds ambiguous glyphs in the device user code", async () => {
     renderAuthority();
     await openTab(/Authorize a device/i);
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-    const input = screen.getByLabelText(/User code/i) as HTMLInputElement;
+    const input = screen.getByLabelText<HTMLInputElement>(/User code/i);
     await userEvent.type(input, "oil0-wjzx");
     expect(input.value).toBe("0110-WJZX");
   });
@@ -523,9 +515,8 @@ describe("AuthoritySection", () => {
   it("rejects malformed claim tokens before presenting", async () => {
     renderAuthority();
     await openTab(/Claim ownership/i);
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     await userEvent.type(
-      document.getElementById("authority-claim-token") as HTMLElement,
+      screen.getByLabelText(/^Claim token$/i),
       "not-a-claim-token",
     );
     await userEvent.click(
@@ -560,10 +551,7 @@ describe("AuthoritySection", () => {
       String(url).includes("/complete"),
     );
     expect(completeCall).toBeTruthy();
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-    expect(
-      JSON.parse(String((completeCall?.[1] as RequestInit).body)),
-    ).toMatchObject({
+    expect(JSON.parse(String(completeCall?.[1]?.body))).toMatchObject({
       acceptedItemIds: ["item_1"],
       claimToken: "osc_clm_part.one",
     });
@@ -636,7 +624,6 @@ describe("AuthoritySection", () => {
   });
 
   it("refuses to complete when the server did not report items", async () => {
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     const noItems = {
       ...presentedClaim,
       items: undefined,
@@ -697,16 +684,11 @@ describe("AuthoritySection", () => {
     online.value = false;
     renderAuthority();
     await openTab(/Claim ownership/i);
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
     await userEvent.type(
-      document.getElementById("authority-claim-token") as HTMLElement,
+      screen.getByLabelText(/^Claim token$/i),
       "osc_clm_part.one",
     );
-    // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-    await userEvent.type(
-      document.getElementById("authority-claim-code") as HTMLElement,
-      "WORD-WORD",
-    );
+    await userEvent.type(screen.getByLabelText(/Consent code/i), "WORD-WORD");
     await userEvent.click(
       screen.getByRole("button", { name: /Stage for later/i }),
     );

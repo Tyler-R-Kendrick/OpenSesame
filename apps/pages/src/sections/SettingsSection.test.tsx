@@ -307,14 +307,12 @@ describe("SettingsSection", () => {
 
   it("suggests a password, revealing it rather than asking for a confirm", async () => {
     renderSettings("#security");
-    // SAFETY: the labeled control is the password input rendered by the settings form.
-    const field = screen.getByLabelText("New password") as HTMLInputElement;
+    const field = screen.getByLabelText<HTMLInputElement>("New password");
     expect(field.type).toBe("password");
     await userEvent.click(
       screen.getByRole("button", { name: /Suggest a strong password/i }),
     );
-    // SAFETY: the labeled control remains the same password input after reveal.
-    const revealed = screen.getByLabelText("New password") as HTMLInputElement;
+    const revealed = screen.getByLabelText<HTMLInputElement>("New password");
     expect(revealed.type).toBe("text");
     expect(revealed.value.length).toBeGreaterThan(11);
     expect(screen.queryByLabelText("Confirm")).toBeNull();

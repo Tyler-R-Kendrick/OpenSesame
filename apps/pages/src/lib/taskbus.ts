@@ -22,6 +22,21 @@ export type TaskBusConfig = {
   lastError: string | null;
 };
 
+export type PutTaskBusConfigInput = {
+  backend: TaskBusBackend;
+  natsUrl?: string;
+};
+
+export type PutTaskBusConfigResult = {
+  config: TaskBusConfig;
+  applied: boolean;
+};
+
+export type PingTaskBusResult = {
+  ok: boolean;
+  config: TaskBusConfig;
+};
+
 async function fail(res: Response, fallback: string): Promise<never> {
   const body = overlapCast(await res.json().catch(() => ({})));
   throw new Error(
@@ -49,10 +64,9 @@ async function getTaskBusConfigDefault(): Promise<TaskBusConfig> {
   return toConfig(readJsonObject(body.taskbus) ?? {});
 }
 
-async function putTaskBusConfigDefault(input: {
-  backend: TaskBusBackend;
-  natsUrl?: string;
-}): Promise<{ config: TaskBusConfig; applied: boolean }> {
+async function putTaskBusConfigDefault(
+  input: PutTaskBusConfigInput,
+): Promise<PutTaskBusConfigResult> {
   const res = await hostFetch("/api/v1/operator/taskbus", {
     method: "PUT",
     headers: { "content-type": "application/json" },
@@ -69,10 +83,7 @@ async function putTaskBusConfigDefault(input: {
   };
 }
 
-async function pingTaskBusDefault(): Promise<{
-  ok: boolean;
-  config: TaskBusConfig;
-}> {
+async function pingTaskBusDefault(): Promise<PingTaskBusResult> {
   const res = await hostFetch("/api/v1/operator/taskbus/ping", {
     method: "POST",
   });
@@ -99,14 +110,11 @@ export async function getTaskBusConfig(): Promise<TaskBusConfig> {
 }
 
 export async function putTaskBusConfig(
-  input: Parameters<typeof putTaskBusConfigDefault>[0],
-): Promise<{ config: TaskBusConfig; applied: boolean }> {
+  input: PutTaskBusConfigInput,
+): Promise<PutTaskBusConfigResult> {
   return taskBusSeams.putTaskBusConfig(input);
 }
 
-export async function pingTaskBus(): Promise<{
-  ok: boolean;
-  config: TaskBusConfig;
-}> {
+export async function pingTaskBus(): Promise<PingTaskBusResult> {
   return taskBusSeams.pingTaskBus();
 }

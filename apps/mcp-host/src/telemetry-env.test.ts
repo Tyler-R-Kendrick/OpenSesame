@@ -37,7 +37,12 @@ class FakePostHog {
 
 const instances: FakePostHog[] = [];
 
-function makeFakeServer(clientInfo?: { name: string; version: string }) {
+interface TestClientInfo {
+  name: string;
+  version: string;
+}
+
+function makeFakeServer(clientInfo?: TestClientInfo) {
   const registered = new Map<string, BoundaryValue>();
   const fake = {
     tool: (...args: BoundaryValue[]) => {

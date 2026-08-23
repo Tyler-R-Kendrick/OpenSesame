@@ -207,7 +207,11 @@ describe("createPostgresClientRecordStore", () => {
 });
 
 describe("createPostgresClientClaimChallengeStore", () => {
-  async function makeChallenge(overrides: { expiresAt?: Date } = {}) {
+  interface ChallengeOverrides {
+    expiresAt?: Date;
+  }
+
+  async function makeChallenge(overrides: ChallengeOverrides = {}) {
     const principal = await ctx.repos.principals.create(makePrincipal());
     const client = await clients.insertAtomic(makeClient());
     return challenges.insert({

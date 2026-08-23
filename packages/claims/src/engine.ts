@@ -23,6 +23,7 @@ import {
   verifyClaimToken,
 } from "@opensesame/os-domain";
 import type {
+  ClaimCompareAndSwapResult,
   ClaimEngineOptions,
   ClaimStore,
   CompleteDecision,
@@ -175,7 +176,7 @@ export class ClaimEngine {
     completedByPrincipalId: string,
     decision: CompleteDecision,
     attempt = 0,
-  ): Promise<{ session: ClaimSession; won: boolean }> {
+  ): Promise<ClaimCompareAndSwapResult> {
     // Losing the review CAS re-enters this method. Without a bound, concurrent
     // completers could recurse until the stack gave out.
     if (attempt >= ClaimEngine.MAX_COMPLETE_ATTEMPTS) {

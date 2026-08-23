@@ -14,6 +14,11 @@ import { wrapServerWithTelemetry } from "./telemetry.js";
 type ToolReturn = BoundaryValue | Promise<BoundaryValue>;
 type AnyFn = (...args: BoundaryValue[]) => ToolReturn;
 
+interface TestClientInfo {
+  name: string;
+  version: string;
+}
+
 const toolResultSchema = z.object({
   content: z.array(z.object({ type: z.string(), text: z.string() })),
   isError: z.boolean().optional(),
@@ -33,7 +38,7 @@ function requireToolResult(value: BoundaryValue): ToolResult {
  * outside a live client/server exchange — see tools.test.ts's own note on
  * this).
  */
-function makeFakeServer(clientInfo?: { name: string; version: string }) {
+function makeFakeServer(clientInfo?: TestClientInfo) {
   const registered = new Map<string, AnyFn>();
   const fake = {
     tool: (...args: BoundaryValue[]) => {

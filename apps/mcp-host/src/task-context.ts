@@ -13,6 +13,15 @@ export interface TaskContext {
   frozenIntent?: FrozenIntentContext;
 }
 
+export interface TaskResponse {
+  task_run_id?: string;
+  state_version?: number;
+}
+
+export interface TaskUpdateOptions {
+  adopt: boolean;
+}
+
 let current: TaskContext | null = null;
 
 export function getTaskContext(): TaskContext | null {
@@ -53,11 +62,8 @@ export function clearFrozenIntent(): void {
  * a move.
  */
 export function updateTaskFromResponse(
-  body: {
-    task_run_id?: string;
-    state_version?: number;
-  },
-  options: { adopt: boolean } = { adopt: true },
+  body: TaskResponse,
+  options: TaskUpdateOptions = { adopt: true },
 ): void {
   if (!body.task_run_id || body.state_version === undefined) {
     return;

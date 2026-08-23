@@ -29,6 +29,16 @@ export interface IdempotencyRecord {
   expiresAt: number;
 }
 
+export interface UsageSnapshot {
+  temporaryProjects: number;
+  temporaryResources: number;
+  agents: number;
+  organizations: number;
+  oauthClients: number;
+  projects: number;
+  claims: number;
+}
+
 export interface AppStores {
   provisionalSessions: Map<string, ProvisionalSession>;
   /** session token → session id */
@@ -155,15 +165,7 @@ export async function getUsage(
   stores: AppStores,
   principalId: string,
   now: Date = new Date(),
-): Promise<{
-  temporaryProjects: number;
-  temporaryResources: number;
-  agents: number;
-  organizations: number;
-  oauthClients: number;
-  projects: number;
-  claims: number;
-}> {
+): Promise<UsageSnapshot> {
   let temporaryProjects = 0;
   let projects = 0;
   for (const project of await stores.projects.listByOwner(principalId)) {

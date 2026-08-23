@@ -612,21 +612,38 @@ export type AuthorizationRequestEventType =
 
 export interface SigningKeyProvider {
   getActiveSigningKeys(): Promise<readonly JsonWebKey[]>;
-  getJwks(): Promise<{ keys: readonly JsonWebKey[] }>;
-  rotationStatus(): Promise<{ activeKid: string; retiringKids: string[] }>;
+  getJwks(): Promise<SigningJwks>;
+  rotationStatus(): Promise<SigningKeyRotationStatus>;
+}
+
+export interface SigningJwks {
+  keys: readonly JsonWebKey[];
+}
+
+export interface SigningKeyRotationStatus {
+  activeKid: string;
+  retiringKids: string[];
+}
+
+export interface AbuseChallengeInput {
+  action: string;
+  ip?: string;
+  principalId?: string;
+  proofKeyJkt?: string;
+}
+
+export interface AbuseChallengeResult {
+  allowed: boolean;
+  retryAfterMs?: number;
+  challenge?: string;
 }
 
 export interface AbuseChallengeProvider {
-  challenge(input: {
-    action: string;
-    ip?: string;
-    principalId?: string;
-    proofKeyJkt?: string;
-  }): Promise<{ allowed: boolean; retryAfterMs?: number; challenge?: string }>;
+  challenge(input: AbuseChallengeInput): Promise<AbuseChallengeResult>;
 }
 
 export class NoopAbuseChallengeProvider implements AbuseChallengeProvider {
-  async challenge(): Promise<{ allowed: boolean }> {
+  async challenge(): Promise<AbuseChallengeResult> {
     return { allowed: true };
   }
 }

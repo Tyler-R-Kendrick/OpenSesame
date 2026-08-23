@@ -1,7 +1,9 @@
 import {
   type BoundaryValue,
+  type JsonObject,
   isJsonObject,
   isString,
+  overlapCast,
 } from "@opensesame/os-domain";
 import {
   type JSONWebKeySet,
@@ -12,7 +14,13 @@ import {
   jwtVerify,
 } from "jose";
 import { AuthorizationError } from "./errors.js";
-import { hasRequiredScopes, isJwtString, trimSlash } from "./jwt-utils.js";
+import {
+  hasRequiredScopes,
+  isJwtString,
+  parseJwtPayload,
+  readJwtAudience,
+  trimSlash,
+} from "./jwt-utils.js";
 
 export interface VerifiedIdentity {
   sub: string;
@@ -21,7 +29,7 @@ export interface VerifiedIdentity {
   scope?: string;
   assurance?: string;
   tokenUse?: string;
-  payload: JWTPayload;
+  payload: JsonObject;
   accessToken: string;
 }
 
@@ -292,11 +300,9 @@ export function createOpenSesameVerifier(
           ? { ...common, audience: defaultAudience }
           : { ...common, audience: audiences };
 
-      const { payload, protectedHeader } = await jwtVerify(
-        token,
-        await keySource(),
-        verifyOptions,
-      );
+      const verified = await jwtVerify(token, await keySource(), verifyOptions);
+      const payload = parseJwtPayload(overlapCast(verified.payload));
+      const { protectedHeader } = verified;
 
       if (
         config.requireAccessTokenTypeHeader === true &&
@@ -305,10 +311,10 @@ export function createOpenSesameVerifier(
         throw new Error("Token is not an RFC 9068 access token");
       }
 
-      if (payload.sub === undefined || payload.sub === "") {
+      if (!isJwtString(payload.sub) || payload.sub === "") {
         throw new Error("Token missing sub");
       }
-      if (payload.iss === undefined) {
+      if (!isJwtString(payload.iss)) {
         throw new Error("Token missing iss");
       }
 
@@ -347,7 +353,7 @@ export function createOpenSesameVerifier(
       const identity: VerifiedIdentity = {
         sub: payload.sub,
         iss: payload.iss,
-        aud: payload.aud ?? defaultAudience,
+        aud: readJwtAudience(payload.aud) ?? defaultAudience,
         payload,
         accessToken: token,
       };

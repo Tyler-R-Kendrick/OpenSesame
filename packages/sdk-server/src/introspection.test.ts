@@ -1,3 +1,4 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { AuthError, AuthorizationError } from "./errors.js";
 import { introspectOpaqueAccessToken } from "./introspection.js";
@@ -5,12 +6,14 @@ import { introspectOpaqueAccessToken } from "./introspection.js";
 const ENDPOINT = "https://issuer.example/introspect";
 const TOKEN = "opaque-access-token-value";
 
-function mockFetch(response: {
+interface MockIntrospectionResponse {
   ok?: boolean;
   status?: number;
-  json?: unknown;
+  json?: BoundaryValue;
   reject?: Error;
-}): typeof fetch {
+}
+
+function mockFetch(response: MockIntrospectionResponse): typeof fetch {
   return async () => {
     if (response.reject) {
       throw response.reject;

@@ -1006,8 +1006,7 @@ export function noteUnauthorized(): void {
 export async function identityJson<T>(
   ...args: Parameters<typeof identityJsonDefault>
 ): Promise<T> {
-  // SAFETY: Type assertion required; TypeScript cannot prove this overlap.
-  return identitySeams.identityJson(...args) as Promise<T>;
+  return identitySeams.identityJson<T>(...args);
 }
 export async function connectProvisional(): Promise<IdentitySession> {
   return identitySeams.connectProvisional();

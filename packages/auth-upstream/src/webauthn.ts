@@ -47,6 +47,16 @@ export interface PasskeyChallengeStore {
   consume(challenge: string): ChallengeMeta | undefined;
 }
 
+export interface AuthenticationChallengeResult {
+  challenge: string;
+  options: Awaited<ReturnType<typeof generateAuthenticationOptions>>;
+}
+
+export interface RegistrationChallengeResult {
+  challenge: string;
+  options: Awaited<ReturnType<typeof generateRegistrationOptions>>;
+}
+
 /**
  * Outstanding challenges kept in memory. Issuing is cheap and unbounded from the
  * caller's side, so the store prunes expired rows and refuses to grow past this.
@@ -87,10 +97,7 @@ export async function issueAuthenticationChallenge(
   store: PasskeyChallengeStore,
   rp: WebAuthnRpConfig,
   opts?: { principalId?: string; allowCredentials?: { id: string }[] },
-): Promise<{
-  challenge: string;
-  options: Awaited<ReturnType<typeof generateAuthenticationOptions>>;
-}> {
+): Promise<AuthenticationChallengeResult> {
   const genArgs: GenerateAuthenticationOptionsOpts = {
     rpID: rp.rpID,
     // Required, not preferred: a passkey is this system's production MFA factor,
@@ -125,10 +132,7 @@ export async function issueRegistrationChallenge(
   store: PasskeyChallengeStore,
   rp: WebAuthnRpConfig,
   opts: { principalId: string; userName?: string; userDisplayName?: string },
-): Promise<{
-  challenge: string;
-  options: Awaited<ReturnType<typeof generateRegistrationOptions>>;
-}> {
+): Promise<RegistrationChallengeResult> {
   const userName = opts.userName ?? opts.principalId;
   const options = await generateRegistrationOptions({
     rpName: "OpenSesame",

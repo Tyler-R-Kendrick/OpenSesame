@@ -31,15 +31,17 @@ type EntrySpec = {
   badLocalSignature?: boolean;
 };
 
+type ArchiveOptions = {
+  eocdCount?: number;
+  eocdDirectoryOffset?: number;
+  badCentralSignature?: boolean;
+  truncateCentral?: number;
+};
+
 /** Build an archive from raw parts so corruption is one flag away. */
 async function makeArchive(
   entries: EntrySpec[],
-  options: {
-    eocdCount?: number;
-    eocdDirectoryOffset?: number;
-    badCentralSignature?: boolean;
-    truncateCentral?: number;
-  } = {},
+  options: ArchiveOptions = {},
 ): Promise<ArrayBuffer> {
   const encoder = new TextEncoder();
   const locals: Uint8Array[] = [];

@@ -1,11 +1,13 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import {
-  type CallToolResult,
-  CallToolResultSchema,
-} from "@modelcontextprotocol/sdk/types.js";
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+  type BoundaryValue,
+  type JsonObject,
+  isJsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { apiClientSeams } from "./api-client.js";
 import {
   buildServer,
@@ -64,15 +66,23 @@ async function makeSession(identityUrl = "http://127.0.0.1:8788") {
 
 type ClientToolResult = Awaited<ReturnType<Client["callTool"]>>;
 
-function toolResult(value: ClientToolResult): CallToolResult {
-  return CallToolResultSchema.parse(value);
+const textToolResultSchema = z.object({
+  content: z.array(z.object({ type: z.literal("text"), text: z.string() })),
+  isError: z.boolean().optional(),
+});
+
+type TextToolResult = z.infer<typeof textToolResultSchema>;
+
+function toolResult(value: ClientToolResult): TextToolResult {
+  return textToolResultSchema.parse(value);
 }
 
-function payload(result: CallToolResult): JsonObject {
+function payload(result: TextToolResult): JsonObject {
   const first = result.content[0];
   if (!first) throw new Error("tool returned no content");
-  if (first.type !== "text") throw new Error("tool returned non-text content");
-  return JSON.parse(first.text);
+  const value: BoundaryValue = JSON.parse(first.text);
+  if (!isJsonObject(value)) throw new Error("tool returned non-object JSON");
+  return value;
 }
 
 beforeEach(() => {

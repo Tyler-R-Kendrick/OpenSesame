@@ -25,7 +25,12 @@ export interface ClaimStore {
     id: string,
     expectedVersion: number,
     next: ClaimSession,
-  ): Promise<{ session: ClaimSession; won: boolean }>;
+  ): Promise<ClaimCompareAndSwapResult>;
+}
+
+export interface ClaimCompareAndSwapResult {
+  session: ClaimSession;
+  won: boolean;
 }
 
 export interface ClaimEngineOptions {

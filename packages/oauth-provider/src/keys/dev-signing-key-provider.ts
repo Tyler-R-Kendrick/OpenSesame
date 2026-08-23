@@ -1,4 +1,9 @@
-import { type SigningKeyProvider, overlapCast } from "@opensesame/os-domain";
+import {
+  type SigningJwks,
+  type SigningKeyProvider,
+  type SigningKeyRotationStatus,
+  overlapCast,
+} from "@opensesame/os-domain";
 
 /**
  * Loads signing keys from process env `OPENSESAME_JWKS_JSON` (public+private JWKS).
@@ -34,7 +39,7 @@ export class EnvSigningKeyProvider implements SigningKeyProvider {
     return this.parse().keys;
   }
 
-  async getJwks(): Promise<{ keys: readonly JsonWebKey[] }> {
+  async getJwks(): Promise<SigningJwks> {
     const { keys } = this.parse();
     return {
       keys: keys.map((k) => {
@@ -47,10 +52,7 @@ export class EnvSigningKeyProvider implements SigningKeyProvider {
     };
   }
 
-  async rotationStatus(): Promise<{
-    activeKid: string;
-    retiringKids: string[];
-  }> {
+  async rotationStatus(): Promise<SigningKeyRotationStatus> {
     const { kid } = this.parse();
     return { activeKid: kid, retiringKids: [] };
   }

@@ -4,6 +4,27 @@ import { decodeJwt, importJWK, jwtVerify } from "jose";
 import { describe, expect, it } from "vitest";
 import { createMockUpstreamIdp } from "./server.js";
 
+interface AuthorizationParameters {
+  state?: string;
+  nonce?: string;
+  scope?: string;
+}
+
+interface TokenRequestFields {
+  grant_type: string;
+  code?: string;
+  redirect_uri?: string;
+  client_id?: string;
+  client_secret?: string;
+  code_verifier?: string;
+  refresh_token?: string;
+}
+
+interface TokenRequestHeaders {
+  authorization?: string;
+  origin?: string;
+}
+
 async function listenIdp(overrides: JsonObject = {}) {
   const idp = await createMockUpstreamIdp({
     host: "127.0.0.1",
@@ -32,7 +53,7 @@ async function getCode(
   base: string,
   idp: Awaited<ReturnType<typeof createMockUpstreamIdp>>,
   redirectUri: string,
-  extra: Record<string, string> = {},
+  extra: AuthorizationParameters = {},
 ) {
   const verifier = randomBytes(32).toString("base64url");
   const url = new URL(`${base}/authorize`);
@@ -50,8 +71,8 @@ async function getCode(
 
 function tokenRequest(
   base: string,
-  body: Record<string, string>,
-  headers: Record<string, string> = {},
+  body: TokenRequestFields,
+  headers: TokenRequestHeaders = {},
 ) {
   return fetch(`${base}/token`, {
     method: "POST",
@@ -59,7 +80,7 @@ function tokenRequest(
       "content-type": "application/x-www-form-urlencoded",
       ...headers,
     },
-    body: new URLSearchParams(body),
+    body: new URLSearchParams(Object.entries(body)),
   });
 }
 

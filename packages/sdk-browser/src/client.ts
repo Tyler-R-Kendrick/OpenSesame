@@ -220,9 +220,15 @@ function decodeJwtPayload(token: string): JsonObject | undefined {
  * this ceremony asked for is somebody else's token, and caching a `sub` from it
  * would hand the application the wrong identity.
  */
+interface IdTokenExpectation {
+  issuer: string;
+  clientId: string;
+  nonce?: string;
+}
+
 function assertIdTokenAddressedToUs(
   idToken: string,
-  expect: { issuer: string; clientId: string; nonce?: string },
+  expect: IdTokenExpectation,
 ): JsonObject | undefined {
   const payload = decodeJwtPayload(idToken);
   if (!payload) return undefined;
@@ -248,7 +254,7 @@ function assertIdTokenAddressedToUs(
 function toSession(
   tokens: TokenResponse,
   anonymous: boolean,
-  expect: { issuer: string; clientId: string; nonce?: string },
+  expect: IdTokenExpectation,
 ): Session {
   const expiresAt = isNumber(tokens.expires_in)
     ? Date.now() + tokens.expires_in * 1000

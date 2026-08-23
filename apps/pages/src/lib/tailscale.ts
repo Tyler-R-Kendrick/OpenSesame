@@ -82,6 +82,12 @@ export type WaitForTailnetOptions = {
   timeoutMs?: number;
 };
 
+export type DiscoverErrorInput = {
+  fromGithubPages: boolean;
+  triedLoopback: boolean;
+  detail?: string;
+};
+
 /** Poll until this browser/OS is on the tailnet, or time out. */
 async function waitForTailnetDefault(
   options: WaitForTailnetOptions = {},
@@ -97,11 +103,7 @@ async function waitForTailnetDefault(
   }
 }
 
-export function discoverErrorMessage(input: {
-  fromGithubPages: boolean;
-  triedLoopback: boolean;
-  detail?: string;
-}): string {
+export function discoverErrorMessage(input: DiscoverErrorInput): string {
   const parts: string[] = [];
   if (input.fromGithubPages && input.triedLoopback) {
     parts.push("This github.io page cannot reach 127.0.0.1 (or localhost).");

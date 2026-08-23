@@ -1,15 +1,13 @@
 import { encodeQrSvg } from "@opensesame/qr";
 import { useMemo } from "react";
 
-export function QrCode({
-  value,
-  label,
-  size = 160,
-}: {
+export interface QrCodeProps {
   value: string;
   label: string;
   size?: number;
-}) {
+}
+
+export function QrCode({ value, label, size = 160 }: QrCodeProps) {
   const src = useMemo(() => {
     const trimmed = value.trim();
     if (!trimmed) return null;
