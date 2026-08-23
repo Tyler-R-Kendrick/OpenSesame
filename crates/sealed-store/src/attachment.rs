@@ -1051,6 +1051,67 @@ mod pact {
         assert!(units.iter().any(|(rel, _)| rel.ends_with(".oschunk")));
     }
 
+    /// Re-seal `name`'s manifest after `mutate` has tampered with it, keeping
+    /// the envelope perfectly valid. This models the one attacker who gets
+    /// past the AEAD: someone holding the key.
+    fn reseal_manifest_with(
+        root: &StoreRoot,
+        key: &ItemDataKey,
+        name: &str,
+        mutate: impl FnOnce(&mut AttachmentManifest),
+    ) {
+        let mut manifest = root.open_manifest(name, key).unwrap();
+        mutate(&mut manifest);
+        let revision = root.attachment_revisions().unwrap()[name];
+        let plaintext = serde_json::to_vec(&manifest).unwrap();
+        let sealed =
+            seal_osseal_in(COLLECTION_ATTACHMENTS, &plaintext, key, name, revision).unwrap();
+        confined_write(&root.path, &attach_relative(name).unwrap(), &sealed).unwrap();
+    }
+
+    #[test]
+    fn a_manifest_that_decrypts_but_lies_is_refused() {
+        // These guards sit behind the AEAD, so only a key-holder or a bug can
+        // reach them — which is exactly why nothing was exercising them.
+        let (_dir, root, key) = store();
+
+        // Claims more chunks than it lists.
+        add(&root, &key, "A/one", b"payload one");
+        reseal_manifest_with(&root, &key, "A/one", |m| m.chunk_count += 1);
+        assert!(get(&root, &key, "A/one").is_err(), "chunk count must agree");
+
+        // Chunk sizes no longer sum to the declared total.
+        add(&root, &key, "B/two", b"payload two");
+        reseal_manifest_with(&root, &key, "B/two", |m| m.total_bytes += 512);
+        assert!(get(&root, &key, "B/two").is_err(), "sizes must agree");
+
+        // An unsupported format version.
+        add(&root, &key, "C/three", b"payload three");
+        reseal_manifest_with(&root, &key, "C/three", |m| m.format = 99);
+        assert!(get(&root, &key, "C/three").is_err(), "format must be known");
+
+        // A filename long enough to be a problem downstream.
+        add(&root, &key, "D/four", b"payload four");
+        reseal_manifest_with(&root, &key, "D/four", |m| m.filename = "z".repeat(300));
+        assert!(get(&root, &key, "D/four").is_err(), "filename must be bounded");
+
+        // A digest that is not a digest never reaches the filesystem as a path.
+        add(&root, &key, "E/five", b"payload five");
+        reseal_manifest_with(&root, &key, "E/five", |m| {
+            m.chunks[0].digest = "../../etc/passwd".into()
+        });
+        assert!(get(&root, &key, "E/five").is_err(), "digest must be hex");
+    }
+
+    #[test]
+    fn a_chunk_of_unexpected_length_is_refused() {
+        let (_dir, root, key) = store();
+        add(&root, &key, "A/one", b"payload one");
+        // The manifest is honest about the digest but lies about the size.
+        reseal_manifest_with(&root, &key, "A/one", |m| m.chunks[0].ct_bytes += 1);
+        assert!(get(&root, &key, "A/one").is_err());
+    }
+
     #[test]
     fn manifest_is_bound_to_its_path() {
         let (_dir, root, key) = store();
