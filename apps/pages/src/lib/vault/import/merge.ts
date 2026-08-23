@@ -91,7 +91,10 @@ export function planMerge(
     const key = duplicateKey({
       kind: draft.kind,
       name: draft.name,
-      username: draft.kind === "login" ? draft.username : "",
+      username:
+        draft.kind === "login" || draft.kind === "passkey"
+          ? draft.username
+          : "",
     });
     if (seen.has(key)) {
       duplicates.push(draft);
@@ -160,6 +163,20 @@ export function planMerge(
         });
         break;
       }
+      case "passkey":
+        items.push({
+          ...base,
+          kind: "passkey",
+          rpId: draft.rpId,
+          username: draft.username,
+          credentialIdB64: draft.credentialIdB64,
+          publicKeyB64: draft.publicKeyB64,
+          authenticator: draft.authenticator,
+          // An imported credential unlocks nothing until it is enrolled here;
+          // the exporting vault's claim about PRF says nothing about ours.
+          unlocksVault: false,
+        });
+        break;
       case "card":
         items.push({
           ...base,

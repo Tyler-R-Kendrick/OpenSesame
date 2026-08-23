@@ -129,7 +129,7 @@ describe("FUZZ — decodePending survives arbitrary cookie bytes", () => {
       expect(decoded === undefined || isWellFormed(decoded)).toBe(true);
     }
     // Prototype pollution attempt must not have taken.
-    expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 
   it("round-trips any well-formed record it accepts", () => {

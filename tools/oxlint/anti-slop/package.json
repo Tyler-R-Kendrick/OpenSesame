@@ -1,0 +1,15 @@
+{
+  "name": "@opensesame/anti-slop",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Vendored Oxlint anti-slop plugin rules and their RuleTester suites",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@oxlint/plugins": "1.79.0",
+    "oxlint": "1.79.0",
+    "vitest": "4.1.10"
+  }
+}

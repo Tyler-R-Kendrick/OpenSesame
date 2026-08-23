@@ -46,3 +46,6 @@ mutants.out.old/
 
 # local Claude Code permission posture (personal, not shared)
 .claude/settings.local.json
+
+# Ephemeral Claude agent worktrees (live sandboxes, never repo content)
+.claude/worktrees/

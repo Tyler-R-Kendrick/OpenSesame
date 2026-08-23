@@ -1,0 +1,12 @@
+---
+source: apps/pm-bridges/tests/keepassxc_handshake.rs
+expression: handshake
+---
+{
+  "action": "change-public-keys",
+  "clientID": "[client-id]",
+  "nonce": "[nonce]",
+  "publicKey": "[host-public-key]",
+  "success": "true",
+  "version": "2.7.0"
+}

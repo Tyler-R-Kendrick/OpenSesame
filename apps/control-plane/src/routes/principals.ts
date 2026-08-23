@@ -33,6 +33,7 @@ import {
   authenticatedPrincipalId,
   ensurePersonalOrganization,
 } from "./organizations.js";
+import { ensurePersonalOnAuthenticatedSession } from "./projects.js";
 
 export const principalRoutes = new Hono<{ Variables: Variables }>();
 
@@ -503,6 +504,15 @@ principalRoutes.post(
       },
     });
 
+    // The link upgraded this session from anonymous to authenticated — the
+    // principal's personal project is ensured here, on their first
+    // authenticated session, not on the anonymous mint.
+    await ensurePersonalOnAuthenticatedSession(
+      ctx,
+      principalId,
+      c.get("correlationId"),
+    );
+
     return c.json(
       LinkIdentityResponseSchema.parse({
         principalId,
@@ -603,6 +613,17 @@ async function linkFromVerifiedIdToken(
       linkedAt: identity.linkedAt.toISOString(),
     },
   });
+  if (!result.alreadyLinked) {
+    // First authenticated session for this principal (see the dev-seam path).
+    // Only on a fresh link: an idempotent re-link is not a first session, and
+    // main's pre-refactor code returned before this point in that case.
+    await ensurePersonalOnAuthenticatedSession(
+      ctx,
+      principalId,
+      c.get("correlationId"),
+    );
+  }
+
   return result.alreadyLinked ? c.json(body) : c.json(body, 201);
 }
 

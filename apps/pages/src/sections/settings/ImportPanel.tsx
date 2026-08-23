@@ -9,8 +9,10 @@ import {
   IconCard,
   IconCheck,
   IconInfo,
+  IconLock,
   IconLogin,
   IconNote,
+  IconPasskey,
   IconSecret,
   IconUpload,
   IconX,
@@ -21,7 +23,7 @@ import {
   type ParseResult,
   type SourceId,
   adapterFor,
-  parseImport,
+  parseImportAsync,
   readImportFile,
   summarise,
 } from "../../lib/vault/import/index.js";
@@ -63,6 +65,18 @@ type Stage =
    * user can name the format themselves instead of starting over.
    */
   | { step: "failed"; fileName: string; file: DetectInput }
+  /**
+   * An encrypted database that has not been opened yet. The bytes are held in
+   * `file`; the password lives in a field on this screen for exactly as long
+   * as it takes to decrypt, and is never put in state that outlives it.
+   */
+  | {
+      step: "locked";
+      fileName: string;
+      file: DetectInput;
+      source: SourceId;
+      note: string;
+    }
   | {
       step: "preview";
       fileName: string;
@@ -73,6 +87,7 @@ type Stage =
 
 const KIND_ICON = {
   login: IconLogin,
+  passkey: IconPasskey,
   card: IconCard,
   note: IconNote,
   secret: IconSecret,
@@ -97,6 +112,11 @@ export function ImportPanel() {
     "keep",
   );
   const [singleFolder, setSingleFolder] = useState("");
+  /**
+   * The master password of an encrypted database being opened. It is cleared
+   * the moment the file is read, and never leaves this component.
+   */
+  const [password, setPassword] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const { hash } = importPanelSeams.useLocation();
@@ -153,11 +173,33 @@ export function ImportPanel() {
     setOptions(defaultMergeOptions);
     setFolderMode("keep");
     setSingleFolder("");
+    setPassword("");
     if (fileRef.current) fileRef.current.value = "";
+  }
+
+  /**
+   * A parse either produced a preview or asked for the password to the blob it
+   * was given. Both answers land here so there is one place that decides what
+   * the screen shows next.
+   */
+  function show(fileName: string, file: DetectInput, next: ParseResult) {
+    if (next.needsPassword === true) {
+      setStage({
+        step: "locked",
+        fileName,
+        file,
+        source: next.source,
+        note: next.warnings[0] ?? "",
+      });
+      return;
+    }
+    setStage({ step: "preview", fileName, file, result: next });
+    adoptDefaults(next);
   }
 
   async function readFile(file: File) {
     setError(null);
+    setPassword("");
     setStage({ step: "reading", fileName: file.name });
     let parsed: DetectInput;
     try {
@@ -172,19 +214,31 @@ export function ImportPanel() {
     }
 
     try {
-      const parsedResult = parseImport(parsed);
-      setStage({
-        step: "preview",
-        fileName: file.name,
-        file: parsed,
-        result: parsedResult,
-      });
-      adoptDefaults(parsedResult);
+      show(file.name, parsed, await parseImportAsync(parsed));
     } catch (caught) {
       setError(messageFrom(caught));
       setStage({ step: "failed", fileName: file.name, file: parsed });
     } finally {
       if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  /** Decrypt the database already in hand with the password just typed. */
+  async function unlock() {
+    if (stage.step !== "locked" || password === "") return;
+    setError(null);
+    setBusy(true);
+    try {
+      const next = await parseImportAsync(
+        { ...stage.file, password },
+        stage.source,
+      );
+      setPassword("");
+      show(stage.fileName, stage.file, next);
+    } catch (caught) {
+      setError(messageFrom(caught));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -200,18 +254,21 @@ export function ImportPanel() {
   }
 
   /** Re-read the file already in hand as a format the user named. */
-  function reparse(source: SourceId) {
-    if (stage.step !== "preview" && stage.step !== "failed") return;
+  async function reparse(source: SourceId) {
+    if (
+      stage.step !== "preview" &&
+      stage.step !== "failed" &&
+      stage.step !== "locked"
+    ) {
+      return;
+    }
     setError(null);
     try {
-      const next = parseImport(stage.file, source);
-      setStage({
-        step: "preview",
-        fileName: stage.fileName,
-        file: stage.file,
-        result: next,
-      });
-      adoptDefaults(next);
+      show(
+        stage.fileName,
+        stage.file,
+        await parseImportAsync({ ...stage.file, password }, source),
+      );
     } catch (caught) {
       setError(messageFrom(caught));
     }
@@ -276,7 +333,7 @@ export function ImportPanel() {
                 ref={fileRef}
                 id="manager-import"
                 type="file"
-                accept=".env,.csv,.json,.1pux,.zip,text/plain,text/csv,application/json"
+                accept=".env,.csv,.json,.1pux,.zip,.kdbx,text/plain,text/csv,application/json"
                 className="visually-hidden"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
@@ -307,6 +364,59 @@ export function ImportPanel() {
           <output className="imp__reading">Reading {stage.fileName}…</output>
         ) : null}
 
+        {stage.step === "locked" ? (
+          <form
+            className="imp__preview"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void unlock();
+            }}
+          >
+            <div className="imp__found">
+              <div>
+                <h3>{stage.fileName}</h3>
+                <p className="hint">
+                  {adapterFor(stage.source)?.label ?? stage.source}
+                  {stage.note === "" ? "" : ` — ${stage.note}`}
+                </p>
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="imp-password">Master password</label>
+              <input
+                id="imp-password"
+                type="password"
+                autoComplete="off"
+                // The one field on this page whose value is a secret; nothing
+                // should be offering to remember it.
+                data-1p-ignore="true"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </div>
+            {error ? (
+              <p className="note note--err" role="alert">
+                <span>{error}</span>
+              </p>
+            ) : null}
+            <div className="actions">
+              <button
+                type="submit"
+                className="btn btn--primary"
+                disabled={busy || password === ""}
+                aria-busy={busy}
+              >
+                <IconLock size={16} />
+                {busy ? "Opening…" : "Open database"}
+              </button>
+              <button type="button" className="btn btn--ghost" onClick={reset}>
+                <IconX size={16} />
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : null}
+
         {stage.step === "failed" ? (
           <div className="imp__preview">
             <div className="imp__found">
@@ -323,7 +433,7 @@ export function ImportPanel() {
                 <select
                   id="imp-format-force"
                   defaultValue=""
-                  onChange={(event) => reparse(overlapCast(event.target.value))}
+                  onChange={(event) => void reparse(overlapCast(event.target.value))}
                 >
                   <option value="" disabled>
                     Choose a format…
@@ -360,7 +470,7 @@ export function ImportPanel() {
                 <select
                   id="imp-format"
                   value={result.source}
-                  onChange={(event) => reparse(overlapCast(event.target.value))}
+                  onChange={(event) => void reparse(overlapCast(event.target.value))}
                 >
                   {LISTED.map((adapter) => (
                     <option key={adapter.id} value={adapter.id}>
@@ -377,6 +487,12 @@ export function ImportPanel() {
                 one="login"
                 many="logins"
                 kind="login"
+              />
+              <Count
+                n={summary.passkeys}
+                one="passkey"
+                many="passkeys"
+                kind="passkey"
               />
               <Count n={summary.cards} one="card" many="cards" kind="card" />
               <Count n={summary.notes} one="note" many="notes" kind="note" />

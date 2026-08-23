@@ -118,7 +118,7 @@ async function startChaosUpstream() {
           const claims: Record<string, unknown> = {
             nonce: fault === "wrong_nonce" ? "not-the-nonce" : rec.nonce,
           };
-          if (fault !== "no_subject") claims["pairwise_sub"] = "chaos-subject";
+          if (fault !== "no_subject") claims.pairwise_sub = "chaos-subject";
 
           let jwt = new SignJWT(claims)
             .setProtectedHeader({ alg: "RS256", kid: "chaos-1" })

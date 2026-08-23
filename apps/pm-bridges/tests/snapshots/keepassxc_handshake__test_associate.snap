@@ -1,0 +1,11 @@
+---
+source: apps/pm-bridges/tests/keepassxc_handshake.rs
+expression: tested
+---
+{
+  "hash": "[database-hash]",
+  "id": "[association-id]",
+  "nonce": "[nonce]",
+  "success": "true",
+  "version": "2.7.0"
+}

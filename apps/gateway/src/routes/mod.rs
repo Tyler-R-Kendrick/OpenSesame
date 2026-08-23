@@ -12,10 +12,12 @@ mod device;
 pub(crate) mod github_app;
 mod health;
 mod intents;
+mod kv_facade;
 mod nats_callout;
 mod protected_resource;
 mod receipts;
 mod rotation;
+mod secret_configs;
 mod session;
 mod sync;
 mod sync_blobs;
@@ -31,10 +33,11 @@ use axum::{
 use tower_http::trace::TraceLayer;
 
 use crate::app_state::AppState;
+use crate::config;
 use crate::github_webhook;
 
 pub fn router(state: AppState) -> Router {
-    Router::new()
+    let router = Router::new()
         .route("/health/live", get(health::live))
         .route("/health/ready", get(health::ready))
         .route("/health/authority", get(health::authority))
@@ -204,6 +207,44 @@ pub fn router(state: AppState) -> Router {
             get(changelog::list_for_project),
         )
         .route("/api/v1/changelog", post(changelog::record))
+        // ADR 0052: project-config secret store — write-only value intake;
+        // every response is key names + version metadata, never values.
+        .route(
+            "/api/v1/projects/{project_id}/configs",
+            get(secret_configs::list_for_project)
+                .post(secret_configs::create)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/configs/{id}",
+            get(secret_configs::get).delete(secret_configs::delete),
+        )
+        .route(
+            "/api/v1/configs/{id}/secrets",
+            get(secret_configs::list_keys)
+                .put(secret_configs::put_secrets)
+                .layer(DefaultBodyLimit::max(256 * 1024)),
+        )
+        .route(
+            "/api/v1/configs/{id}/secrets/{key}",
+            delete(secret_configs::delete_secret),
+        )
+        .route(
+            "/api/v1/configs/{id}/secrets/{key}/versions",
+            get(secret_configs::list_versions),
+        )
+        .route(
+            "/api/v1/configs/{id}/secrets/{key}/rollback",
+            post(secret_configs::rollback).layer(DefaultBodyLimit::max(4 * 1024)),
+        )
+        .route(
+            "/api/v1/configs/{a}/compare/{b}",
+            get(secret_configs::compare),
+        )
+        .route(
+            "/api/v1/configs/{id}/branch",
+            post(secret_configs::branch).layer(DefaultBodyLimit::max(4 * 1024)),
+        )
         // WP-C: sync targets — ConnectionRef fan-out; never returns secrets.
         .route(
             "/api/v1/sync-targets",
@@ -231,6 +272,13 @@ pub fn router(state: AppState) -> Router {
                 .layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route("/api/v1/rotations/{id}", get(rotation::get_job))
+        // WP-9: durable rotation policies (owner/admin configuration surface).
+        .route(
+            "/api/v1/rotation/policies",
+            get(rotation::list_policies)
+                .put(rotation::put_policy)
+                .layer(DefaultBodyLimit::max(8 * 1024)),
+        )
         .route(
             "/api/v1/tasks",
             get(tasks::list_tasks).post(tasks::start_task),
@@ -251,7 +299,17 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/experimental/aauth/v1/mission/digest",
             post(aauth::mission_digest),
-        )
+        );
+    // Vault KV v2 read facade (ops plane, default off). Merged rather than
+    // chained so that with the flag unset the routes are absent entirely: an
+    // unmounted surface answers 404, where a mounted-but-disabled one would
+    // answer 403 and confirm it exists.
+    let router = if config::kv_facade_enabled() {
+        router.merge(kv_facade::routes())
+    } else {
+        router
+    };
+    router
         .with_state(state)
         .layer(TraceLayer::new_for_http())
 }

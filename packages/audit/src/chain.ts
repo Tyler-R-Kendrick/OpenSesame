@@ -112,22 +112,24 @@ export function createChainedAuditSink(
 ): AuditSink & { tip(): string } {
   let tip = isString(options.tip) ? options.tip : AUDIT_CHAIN_GENESIS;
   const resolveTip = isFunction(options.tip) ? options.tip : undefined;
-  let resolved = resolveTip === undefined;
+  let pendingResolve = resolveTip;
   let queue: Promise<unknown> = Promise.resolve();
 
   async function link(
     event: AuditEvent,
     uow?: BoundaryValue,
   ): Promise<AuditEvent> {
-    if (!resolved && resolveTip) {
-      // A store that cannot be read leaves the tip at genesis: refusing to write
-      // the event would lose the trail entirely, which is worse than a chain with
-      // a visible seam in it.
-      resolved = true;
+    const resolveOnce = pendingResolve;
+    if (resolveOnce) {
+      pendingResolve = undefined;
+      // The call sits outside the try so only a failed read is absorbed.
+      const read = resolveOnce();
       try {
-        tip = (await resolveTip()) ?? AUDIT_CHAIN_GENESIS;
+        tip = (await read) ?? AUDIT_CHAIN_GENESIS;
       } catch {
-        tip = AUDIT_CHAIN_GENESIS;
+        // A store that cannot be read leaves the tip at genesis: refusing to
+        // write the event would lose the trail entirely, which is worse than a
+        // chain with a visible seam in it.
       }
     }
     for (let attempt = 0; ; attempt += 1) {
@@ -159,10 +161,9 @@ export function createChainedAuditSink(
 
   return {
     append(event: AuditEvent, uow?: BoundaryValue): Promise<AuditEvent> {
-      const next = queue.then(
-        () => link(event, uow),
-        () => link(event, uow),
-      );
+      // `queue` is always the previous `next` with its rejection swallowed, so
+      // it never rejects and one fulfillment handler is enough.
+      const next = queue.then(() => link(event, uow));
       queue = next.catch(() => undefined);
       return next;
     },

@@ -1,0 +1,10 @@
+---
+source: apps/pm-bridges/tests/keepassxc_handshake.rs
+expression: totp
+---
+{
+  "nonce": "[nonce]",
+  "success": "true",
+  "totp": "[totp]",
+  "version": "2.7.0"
+}

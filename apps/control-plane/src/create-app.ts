@@ -8,6 +8,7 @@ import {
 import { ClaimEngine } from "@opensesame/claims";
 import {
   ConflictError,
+  type ProjectStores,
   type Repositories,
   createDrizzle,
   createPostgresClientClaimChallengeStore,
@@ -16,6 +17,7 @@ import {
   createPostgresConsentStore,
   createPostgresOidcStore,
   createPostgresPairwiseStore,
+  createPostgresProjectStores,
   createRepositories,
 } from "@opensesame/database";
 import {
@@ -41,6 +43,17 @@ export interface CreateControlPlaneOptions {
   clock?: Clock;
   ready?: boolean;
   processEnv?: NodeJS.ProcessEnv;
+  /**
+   * Test seam: inject repositories (e.g. an in-process PGlite-backed
+   * PostgresRepositories) instead of deriving them from `databaseUrl`.
+   */
+  repos?: Repositories;
+  /**
+   * Test seam: inject project stores. Defaults to the Postgres stores when a
+   * `databaseUrl` is configured, memory otherwise — this lets route suites run
+   * against the Postgres implementation without a server.
+   */
+  projectStores?: ProjectStores;
 }
 
 /**
@@ -96,9 +109,11 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const clock: Clock = options.clock ?? (() => new Date());
   const log = createLogger({ name: "control-plane", level: config.logLevel });
 
-  const baseRepos = createRepositories(
-    config.databaseUrl ? { databaseUrl: config.databaseUrl } : undefined,
-  );
+  const baseRepos =
+    options.repos ??
+    createRepositories(
+      config.databaseUrl ? { databaseUrl: config.databaseUrl } : undefined,
+    );
   // Every audit write goes through the chain, so a trail cannot be quietly
   // rewritten by anything that cannot recompute every later digest. The tip is
   // read from the store on the first append: starting each process at genesis
@@ -167,6 +182,11 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const consentStore = drizzleBundle
     ? createPostgresConsentStore(drizzleBundle.db)
     : undefined;
+  // Durable projects + memberships (WP-8): the same rows the projects API
+  // serves survive a restart; memory only in tests/dev.
+  const projectStores =
+    options.projectStores ??
+    (drizzleBundle ? createPostgresProjectStores(drizzleBundle.db) : undefined);
   // The system owner principal must exist before the first auto-admission
   // writes owner_principal_id (a FK against Postgres). createControlPlane is
   // synchronous, so the promise travels on the context and the server awaits
@@ -196,6 +216,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       : undefined),
     ...(clientOriginStore ? { clientOrigins: clientOriginStore } : undefined),
     ...(consentStore ? { consents: consentStore } : undefined),
+    ...(projectStores ? { projectStores } : undefined),
   });
   const passkeyChallenges = createMemoryChallengeStore();
   const rp = {

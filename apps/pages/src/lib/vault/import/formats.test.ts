@@ -35,7 +35,7 @@ function input(fileName: string, text: string): DetectInput {
     json === null && text.split("\n")[0]?.includes(",")
       ? readHeaderRow(text)
       : null;
-  return { fileName, text, headers, json };
+  return { fileName, text, headers, json, bytes: null };
 }
 
 function expectDetected(file: DetectInput, id: SourceId): void {

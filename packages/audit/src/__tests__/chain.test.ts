@@ -4,6 +4,7 @@ import { appendAuditEvent } from "../append.js";
 import {
   AUDIT_CHAIN_GENESIS,
   auditEventDigest,
+  canonicalAuditPayload,
   createChainedAuditSink,
   verifyAuditChain,
 } from "../chain.js";
@@ -237,5 +238,182 @@ describe("audit chain", () => {
     // The event that never landed left no gap for the next one to point at.
     expect(verifyAuditChain(store.rows).ok).toBe(true);
     expect(store.rows[0]?.previousDigest).toBe(AUDIT_CHAIN_GENESIS);
+  });
+
+  it("starts a chain at the literal genesis digest", () => {
+    expect(AUDIT_CHAIN_GENESIS).toBe("genesis");
+  });
+
+  it("covers every attribution field in the canonical payload", () => {
+    const event: AuditEvent = {
+      id: "evt_1",
+      occurredAt: new Date("2026-01-02T03:04:05.678Z"),
+      eventType: "unit.test",
+      outcome: "succeeded",
+      correlationId: "corr_1",
+      causationId: "cause_1",
+      principalId: "prin_1",
+      actorType: "human",
+      actorId: "actor_1",
+      agentInstanceId: "agent_1",
+      clientId: "client_1",
+      organizationId: "org_1",
+      projectId: "proj_1",
+      claimId: "claim_1",
+      sessionId: "sess_1",
+      targetType: "credential",
+      targetId: "target_1",
+      // `c: undefined` exercises the defensive JSON.stringify fallback in
+      // stableJson; runtime metadata can carry it however the types read.
+      metadata: overlapCast({
+        b: [1, "two", true, null],
+        a: { z: 1, a: "x" },
+        c: undefined,
+      }),
+    };
+    expect(JSON.parse(canonicalAuditPayload(event, "prev-digest"))).toEqual([
+      "prev-digest",
+      "evt_1",
+      "2026-01-02T03:04:05.678Z",
+      "unit.test",
+      "succeeded",
+      "corr_1",
+      "cause_1",
+      "prin_1",
+      "human",
+      "actor_1",
+      "agent_1",
+      "client_1",
+      "org_1",
+      "proj_1",
+      "claim_1",
+      "sess_1",
+      "credential",
+      "target_1",
+      '{"a":{"a":"x","z":1},"b":[1,"two",true,null],"c":null}',
+    ]);
+  });
+
+  it("flags a missing half of the link as unlinked, not a crash", () => {
+    const base: AuditEvent = {
+      id: "e1",
+      occurredAt: new Date("2026-08-08T00:00:00.000Z"),
+      eventType: "a.one",
+      outcome: "succeeded",
+      correlationId: "c1",
+      metadata: {},
+    };
+    expect(verifyAuditChain([{ ...base, digest: "d" }])).toMatchObject({
+      ok: false,
+      reason: "unlinked",
+    });
+    expect(
+      verifyAuditChain([{ ...base, previousDigest: AUDIT_CHAIN_GENESIS }]),
+    ).toMatchObject({ ok: false, reason: "unlinked" });
+  });
+
+  it("reports a predecessor digest of a different length as broken", () => {
+    const base: AuditEvent = {
+      id: "e1",
+      occurredAt: new Date("2026-08-08T00:00:00.000Z"),
+      eventType: "a.one",
+      outcome: "succeeded",
+      correlationId: "c1",
+      metadata: {},
+    };
+    const previousDigest = "not-genesis-width";
+    const linked: AuditEvent = { ...base, previousDigest };
+    linked.digest = auditEventDigest(linked, previousDigest);
+    expect(verifyAuditChain([linked])).toEqual({
+      ok: false,
+      reason: "broken",
+      eventId: "e1",
+    });
+  });
+
+  it("seeds the first link from the resolved tip and never re-resolves it", async () => {
+    const store = memorySink();
+    let reads = 0;
+    const sink = createChainedAuditSink(store, {
+      tip: async () => {
+        reads += 1;
+        return "seeded-tip";
+      },
+    });
+    await appendAuditEvent(sink, { eventType: "a.one", outcome: "succeeded" });
+    await appendAuditEvent(sink, { eventType: "a.two", outcome: "succeeded" });
+    expect(reads).toBe(1);
+    expect(store.rows[0]?.previousDigest).toBe("seeded-tip");
+    expect(store.rows[1]?.previousDigest).toBe(store.rows[0]?.digest);
+  });
+
+  it("retries a lost predecessor race once and then throws", async () => {
+    let attempts = 0;
+    const sink = createChainedAuditSink(
+      {
+        append: async () => {
+          attempts += 1;
+          throw Object.assign(new Error("predecessor used"), {
+            code: "conflict",
+          });
+        },
+      },
+      {
+        tip: async () => undefined,
+        retryOnConflict: (error) => overlapCast(error).code === "conflict",
+      },
+    );
+    await expect(
+      appendAuditEvent(sink, { eventType: "a.one", outcome: "succeeded" }),
+    ).rejects.toThrow(/predecessor used/);
+    expect(attempts).toBe(2);
+  });
+
+  it("does not retry when the conflict predicate declines", async () => {
+    let attempts = 0;
+    const sink = createChainedAuditSink(
+      {
+        append: async () => {
+          attempts += 1;
+          throw new Error("denied-slot");
+        },
+      },
+      { tip: async () => undefined, retryOnConflict: () => false },
+    );
+    await expect(
+      appendAuditEvent(sink, { eventType: "a.one", outcome: "succeeded" }),
+    ).rejects.toThrow(/denied-slot/);
+    expect(attempts).toBe(1);
+  });
+
+  it("does not retry a non-Error failure even with a conflict predicate", async () => {
+    let attempts = 0;
+    const sink = createChainedAuditSink(
+      {
+        append: () => {
+          attempts += 1;
+          return Promise.reject({ code: "conflict" });
+        },
+      },
+      { tip: async () => undefined, retryOnConflict: () => true },
+    );
+    await expect(
+      appendAuditEvent(sink, { eventType: "a.one", outcome: "succeeded" }),
+    ).rejects.toEqual({ code: "conflict" });
+    expect(attempts).toBe(1);
+  });
+
+  it("propagates the append failure when no conflict predicate is configured", async () => {
+    const sink = createChainedAuditSink(
+      {
+        append: async () => {
+          throw new Error("partition");
+        },
+      },
+      { tip: async () => undefined },
+    );
+    await expect(
+      appendAuditEvent(sink, { eventType: "a.one", outcome: "succeeded" }),
+    ).rejects.toThrow(/partition/);
   });
 });

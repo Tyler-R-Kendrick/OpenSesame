@@ -16,3 +16,4 @@ packages:
   - "apps/mobile-mfa"
   - "apps/mcp-client"
   - "apps/mcp-host"
+  - "tools/oxlint/anti-slop"

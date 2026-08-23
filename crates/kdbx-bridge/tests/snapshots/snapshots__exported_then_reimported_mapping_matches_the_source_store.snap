@@ -1,0 +1,17 @@
+---
+source: crates/kdbx-bridge/tests/snapshots.rs
+expression: "map::conformance_doc(&items)"
+---
+{
+  "format": "opensesame-kdbx-conformance/1",
+  "items": {
+    "Personal/Email/GitHub": {
+      "secret": "fixture-password",
+      "trailer": [
+        "login: alice",
+        "API Key: fixture-api-key"
+      ],
+      "otp": null
+    }
+  }
+}

@@ -84,6 +84,15 @@ export const AUDIT_METADATA_ALLOWLIST = new Set([
 const DENY_KEY =
   /value|token|secret|password|authorization|cookie|code_verifier|user.?code|device.?code|refresh|bearer/i;
 
+/**
+ * The deny pass, exported so the boundary is directly testable: a key that
+ * names the secret it identifies never reaches an audit row, allowlisted or
+ * not.
+ */
+export function isDeniedAuditMetadataKey(key: string): boolean {
+  return DENY_KEY.test(key);
+}
+
 function truncateString(value: string): string {
   return value.length > AUDIT_VALUE_MAX_LENGTH
     ? `${value.slice(0, AUDIT_VALUE_MAX_LENGTH)}…`
@@ -106,7 +115,7 @@ export function redactAuditMetadata(
   if (!metadata) return {};
   const out: JsonObject = {};
   for (const [key, value] of Object.entries(metadata)) {
-    if (DENY_KEY.test(key)) continue;
+    if (isDeniedAuditMetadataKey(key)) continue;
     if (!AUDIT_METADATA_ALLOWLIST.has(key)) continue;
     if (isString(value)) {
       out[key] = truncateString(value);

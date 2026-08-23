@@ -20,6 +20,7 @@ export const SECRET_CHANGELOG_EVENT_TYPES = [
   "secret.config.updated",
   "secret.config.deleted",
   "secret.value.changed",
+  "secret.value.rolled_back",
   "sync.target.created",
   "sync.target.synced",
   "sync.target.failed",

@@ -1,0 +1,74 @@
+{
+  "cases": [
+    {
+      "email": "Vector-User@Example.COM",
+      "enc_string": "2.paWlpaWlpaWlpaWlpaWlpQ==|RYOS0c+uG2/gtuxaIokqdBWNIa5ztdUhbX+g9dwZ3JQ=|KQDad4Qd2L4xvC4aMUbdXlG23HiGCSw5YIFiQszO0nI=",
+      "kdf": {
+        "iterations": 100000,
+        "type": "pbkdf2-sha256"
+      },
+      "master_password": "correct horse battery staple",
+      "master_password_hash_b64": "UODpKZkflfjpns1SzEGHybyepQDdVq/pELjZzycgVwU=",
+      "name": "pbkdf2-sha256-100000",
+      "plaintext": "s3cr3t-vault-value",
+      "slow": false,
+      "stretched_key_hex": "aab316044b0d3c9cdae7cb7daf12c1e275de8d01c8475b4a868404971587e1f310957020eaa3edd0e0d20beaed5d84cd83695e06c8ee73ce513387511a5069bd",
+      "user_key_hex": "02132435465768798a9bacbdcedff00112233445566778899aabbccddeef00112233445566778899aabbccddeeff102132435465768798a9bacbdcedfe0f2031",
+      "wrapped_user_key": "2.WlpaWlpaWlpaWlpaWlpaWg==|p6qmU3wD2si1qAxyUQYEORrrYbI39DarP+fHqrG3+qj+DEk8DNKxg8A5QAc46NMkEDW665fkV29AQNm9GtM5HC9FWLHXgBPrtICJIevEeE4=|rdxHq5bMvQ5EO9wjlIb6+ioiFpvBrey+3N+1CCFSqmo="
+    },
+    {
+      "email": "vector-user@example.com",
+      "enc_string": "2.paWlpaWlpaWlpaWlpaWlpQ==|xqrBw7+BWOMsVQkAoZPSv/tys/doF13qbklgPI57cjU=|pO5r6A0u2Ysihvr4W1a5Qixh4A7x5xf7LEXn1kBjnMc=",
+      "kdf": {
+        "iterations": 600000,
+        "type": "pbkdf2-sha256"
+      },
+      "master_password": "correct horse battery staple",
+      "master_password_hash_b64": "qfueW5xS7w5rJWOfPqoLir9qHNGn5tYEEZGuPgeH50U=",
+      "name": "pbkdf2-sha256-600000-bitwarden-default",
+      "plaintext": "s3cr3t-vault-value",
+      "slow": true,
+      "stretched_key_hex": "9a4d6ed3bf06541f82687263e0b6337a7f8ce06795ae6c8529322c4abf4d0db090d964d6a44c400a19ef2d7d5657ad791943678f6d7fd32b18ddf635a19b4f6d",
+      "user_key_hex": "04172a3d506376899cafc2d5e8fb0e2134475a6d8093a6b9ccdff205182b3e5164778a9db0c3d6e9fc0f2235485b6e8194a7bacde0f306192c3f5265788b9eb1",
+      "wrapped_user_key": "2.WlpaWlpaWlpaWlpaWlpaWg==|Jmn2Cm3r7w4pcfuN+OgVtPnNsT/ceSLl0WxgOBMobxM9tpFSDfgniVrilreL3or6GuvqECZ5gnwpm2ipElvFgCmrCBq8fpu2Qpb/lGKOXoc=|iLdwiq9A89SpXZMSvpjb1ibP8rjcCTM7vBrw7XJWo9w="
+    },
+    {
+      "email": "argon-user@example.com",
+      "enc_string": "2.paWlpaWlpaWlpaWlpaWlpQ==|8sdqzDYMhPpQNKUFzyXIX56AcOfD9yqhFGAOSE/k+60=|yjb3nb/LDOMfs5kgsxMtYIeVTsKb12qCkLJsOkp/434=",
+      "kdf": {
+        "iterations": 2,
+        "memory_kib": 8192,
+        "parallelism": 1,
+        "type": "argon2id"
+      },
+      "master_password": "hunter2-hunter2-hunter2",
+      "master_password_hash_b64": "B/GJkxL7K3DlLzmW/6+mZx7EJILk3gQFDwLwD3m8KY8=",
+      "name": "argon2id-8mib-t2-p1",
+      "plaintext": "argon-protected-value",
+      "slow": false,
+      "stretched_key_hex": "4979d7c46da73bedbc1e504338ae168268bcf357cc93791daffe7e6dcccdd647d4549944a230e377dbd39966fdeb668b99b20d26a600389b78cf3e67b5377fb9",
+      "user_key_hex": "061d344b627990a7bed5ec031a31485f768da4bbd2e900172e455c738aa1b8cfe6fd142b425970879eb5cce3fa11283f566d849bb2c9e0f70e253c536a8198af",
+      "wrapped_user_key": "2.WlpaWlpaWlpaWlpaWlpaWg==|MbaIJ+kznkSpp4Q4Q5VM8aks4aJuJrrJJc/kVpVefImKjiqcpAWDg9N0KtQnbFdJ51Hp4ZvMQ9tA2GJC9ZIrjw8JcuknZjtEHD1cGOhSJk0=|GjIhcrLCKCudI79o7tq5b0uIiQlg/ZPibYhyUDHasfM="
+    },
+    {
+      "email": "argon-user@example.com",
+      "enc_string": "2.paWlpaWlpaWlpaWlpaWlpQ==|oMaJE92wAgwIKCcEms+LUP0M8RugVWGMcIsqTu8vdkM=|edepWoLBQkorw6ocDZIETgnMNauGT/qd4w4yLQO8VM8=",
+      "kdf": {
+        "iterations": 3,
+        "memory_kib": 65536,
+        "parallelism": 4,
+        "type": "argon2id"
+      },
+      "master_password": "hunter2-hunter2-hunter2",
+      "master_password_hash_b64": "aCxOW0oViRCxM75hHF7ULjvrMi2SaWcmILPK0mBmBbY=",
+      "name": "argon2id-64mib-t3-p4-bitwarden-default",
+      "plaintext": "argon-protected-value",
+      "slow": true,
+      "stretched_key_hex": "f33ade46b97ea958df160cb5b1e0c4b94e614cfa945d4497fdcc09175acd5a428be9e6eff587eb960f5cc4677ee0515eabf9896ebed04cafed724e2d06e9abec",
+      "user_key_hex": "0825425f7c99b6d3f00d2a4764819ebbd8f5122f4c6986a3c0ddfa1734516e8ba8c5e2ff1c39567390adcae704213e5b7895b2cfec092643607d9ab7d4f10e2b",
+      "wrapped_user_key": "2.WlpaWlpaWlpaWlpaWlpaWg==|8ipf9yI3RxOLcPgI452Ey+6bMBcfE5QX7bOsUi1TgSzOs5sjo3GV8p83GGR/croMcZsz+jCe7hnFvuVWmNnt82FnfSQgM8NlGEkHHIPnSFU=|3z4WoZzYtnF+hDPDmrVMO+vJfB7f802RVY3vz3vNn3A="
+    }
+  ],
+  "ladder": "master password + email(salt) -> KDF -> master key -> {PBKDF2(master key, salt=password, 1) = server hash; HKDF-Expand(info=enc|mac) = stretched key -> unwraps user key}",
+  "note": "Self-generated golden vectors for the Bitwarden key ladder. Fixture credentials only — no real account. Regenerate with `cargo test -p opensesame-provider-bitwarden --test crypto_vectors -- --ignored regenerate`."
+}

@@ -1,0 +1,50 @@
+---
+source: crates/kdbx-bridge/tests/snapshots.rs
+expression: "serde_json::json!({ \"first\": first, \"second_is_a_no_op\": second, })"
+---
+{
+  "first": {
+    "created": [
+      "Root Note",
+      "Personal/Email/Example Mail",
+      "Personal/Email/Example Mail (2)",
+      "Shared/Ops/Deploy Token",
+      "Weird_Name/Tab_here"
+    ],
+    "skipped": [],
+    "unchanged": [],
+    "updated": [],
+    "warnings": [
+      {
+        "path": "Personal/Email/Example Mail (2)",
+        "warning": {
+          "assigned": "Personal/Email/Example Mail (2)",
+          "desired": "Personal/Email/Example Mail",
+          "kind": "path_collision"
+        }
+      }
+    ]
+  },
+  "second_is_a_no_op": {
+    "created": [],
+    "skipped": [],
+    "unchanged": [
+      "Root Note",
+      "Personal/Email/Example Mail",
+      "Personal/Email/Example Mail (2)",
+      "Shared/Ops/Deploy Token",
+      "Weird_Name/Tab_here"
+    ],
+    "updated": [],
+    "warnings": [
+      {
+        "path": "Personal/Email/Example Mail (2)",
+        "warning": {
+          "assigned": "Personal/Email/Example Mail (2)",
+          "desired": "Personal/Email/Example Mail",
+          "kind": "path_collision"
+        }
+      }
+    ]
+  }
+}

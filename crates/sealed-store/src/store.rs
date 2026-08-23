@@ -59,7 +59,7 @@ pub fn unlock_store_key(root: &Path, password: &[u8]) -> Result<ItemDataKey, Sto
 }
 
 impl StoreRoot {
-    fn revisions(&self) -> Result<BTreeMap<String, u64>, StoreError> {
+    pub(crate) fn revisions(&self) -> Result<BTreeMap<String, u64>, StoreError> {
         let path = self.path.join(REVISION_FILE);
         if !path.exists() {
             return Ok(BTreeMap::new());

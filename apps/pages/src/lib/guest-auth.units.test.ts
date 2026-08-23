@@ -204,7 +204,7 @@ describe("claimGuestAuth", () => {
   it("falls back to generic words when the failure is not an Error", async () => {
     withDeps({
       connectProvisional: vi.fn(async () => {
-        // biome-ignore lint/complexity/useLiteralKeys: deliberate non-Error throw
+        // A bare string, not an Error: the notice must still read sensibly.
         throw "not-an-error";
       }),
       currentSession: () => session(),

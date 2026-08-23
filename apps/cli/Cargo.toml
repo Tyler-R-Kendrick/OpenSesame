@@ -13,11 +13,15 @@ opensesame-authn = { path = "../../crates/authn" }
 opensesame-domain = { path = "../../crates/domain" }
 opensesame-env-spec = { path = "../../crates/env-spec" }
 opensesame-connector-host = { path = "../../crates/connector-host" }
+opensesame-kdbx-bridge = { path = "../../crates/kdbx-bridge" }
+opensesame-provider-bitwarden = { path = "../../crates/provider-bitwarden" }
 opensesame-sealed-store = { path = "../../crates/sealed-store" }
+opensesame-pm-bridges = { path = "../pm-bridges" }
 anyhow = { workspace = true }
 clap = { workspace = true }
 jsonwebtoken = { workspace = true }
 reqwest = { workspace = true }
+secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
@@ -33,4 +37,7 @@ regex = "1.11.1"
 
 [dev-dependencies]
 base64 = { workspace = true }
+http-body-util = { workspace = true }
+hyper = { workspace = true }
+hyper-util = { workspace = true }
 tempfile = "3.20.0"
