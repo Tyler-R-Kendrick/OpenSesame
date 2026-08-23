@@ -82,10 +82,25 @@ const UNDOCUMENTED_ROUTES: &[(&str, &str)] = &[
     ("/api/v1/sync-targets/{id}", "GET"),
     ("/api/v1/sync-targets/{id}", "DELETE"),
     ("/api/v1/sync-targets/{id}/sync", "POST"),
+    // ADR 0052: project-config secret store — value-blind responses.
+    ("/api/v1/projects/{project_id}/configs", "GET"),
+    ("/api/v1/projects/{project_id}/configs", "POST"),
+    ("/api/v1/configs/{id}", "GET"),
+    ("/api/v1/configs/{id}", "DELETE"),
+    ("/api/v1/configs/{id}/secrets", "GET"),
+    ("/api/v1/configs/{id}/secrets", "PUT"),
+    ("/api/v1/configs/{id}/secrets/{key}", "DELETE"),
+    ("/api/v1/configs/{id}/secrets/{key}/versions", "GET"),
+    ("/api/v1/configs/{id}/secrets/{key}/rollback", "POST"),
+    ("/api/v1/configs/{a}/compare/{b}", "GET"),
+    ("/api/v1/configs/{id}/branch", "POST"),
     // WP-E: credential rotation requests.
     ("/api/v1/rotations", "GET"),
     ("/api/v1/rotations", "POST"),
     ("/api/v1/rotations/{id}", "GET"),
+    // WP-9: durable rotation policies (owner/admin configuration surface).
+    ("/api/v1/rotation/policies", "GET"),
+    ("/api/v1/rotation/policies", "PUT"),
     // Experimental AAUTH protocol surface — deliberately unpublished.
     ("/experimental/aauth/v1/status", "GET"),
     ("/experimental/aauth/v1/map/person", "POST"),

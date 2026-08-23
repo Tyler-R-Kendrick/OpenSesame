@@ -141,6 +141,41 @@ pub struct MapSecretSource {
     pub entries: BTreeMap<String, String>,
 }
 
+/// Wraps a source and keeps only an allow-listed subset of key names.
+/// An empty allow list means "no filter" (the wire's `key_names: []` default).
+pub struct KeyFilteredSecretSource {
+    inner: Arc<dyn SyncSecretSource>,
+    allow: std::collections::BTreeSet<String>,
+}
+
+impl KeyFilteredSecretSource {
+    pub fn new(inner: Arc<dyn SyncSecretSource>, allow: Vec<String>) -> Self {
+        Self {
+            inner,
+            allow: allow.into_iter().collect(),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl SyncSecretSource for KeyFilteredSecretSource {
+    async fn load_config_secrets(
+        &self,
+        organization_id: &str,
+        project_id: &str,
+        config_id: &str,
+    ) -> Result<BTreeMap<String, String>> {
+        let mut entries = self
+            .inner
+            .load_config_secrets(organization_id, project_id, config_id)
+            .await?;
+        if !self.allow.is_empty() {
+            entries.retain(|name, _| self.allow.contains(name));
+        }
+        Ok(entries)
+    }
+}
+
 #[async_trait::async_trait]
 impl SyncSecretSource for MapSecretSource {
     async fn load_config_secrets(
@@ -228,16 +263,21 @@ impl ConnectionBroker {
             updated_at: now,
         };
         store::insert_sync_target(&self.pool, &row).await?;
-        // CHANGELOG_HOOK: sync.target.created — WP-D wires record_secret_changelog
-        crate::record_secret_changelog(crate::RecordSecretChangelog {
-            event_type: "sync.target.created".into(),
-            project_id: row.project_id.clone(),
-            organization_id: Some(organization_id.to_string()),
-            config_id: Some(row.config_id.clone()),
-            target_id: Some(row.id.clone()),
-            key_names: Vec::new(),
-            ..Default::default()
-        });
+        // Durable changelog (metadata only; ignore-on-error keeps sync usable
+        // if the changelog table is briefly unavailable).
+        let _ = crate::changelog_hook::record_secret_changelog_durable(
+            &self.pool,
+            crate::RecordSecretChangelog {
+                event_type: "sync.target.created".into(),
+                project_id: row.project_id.clone(),
+                organization_id: Some(organization_id.to_string()),
+                config_id: Some(row.config_id.clone()),
+                target_id: Some(row.id.clone()),
+                key_names: Vec::new(),
+                ..Default::default()
+            },
+        )
+        .await;
         tracing::info!(
             sync_target_id = %row.id,
             project_id = %row.project_id,
@@ -321,18 +361,21 @@ impl ConnectionBroker {
                     Some(&synced_at),
                 )
                 .await?;
-                // CHANGELOG_HOOK: sync.target.synced — WP-D wires record_secret_changelog
-                // (metadata: target id + content_version only; never secret bodies)
-                crate::record_secret_changelog(crate::RecordSecretChangelog {
-                    event_type: "sync.target.synced".into(),
-                    project_id: row.project_id.clone(),
-                    organization_id: Some(organization_id.to_string()),
-                    config_id: Some(row.config_id.clone()),
-                    target_id: Some(row.id.clone()),
-                    content_version: Some(content_version.clone()),
-                    key_names,
-                    ..Default::default()
-                });
+                // Durable changelog (metadata: target id + content_version only).
+                let _ = crate::changelog_hook::record_secret_changelog_durable(
+                    &self.pool,
+                    crate::RecordSecretChangelog {
+                        event_type: "sync.target.synced".into(),
+                        project_id: row.project_id.clone(),
+                        organization_id: Some(organization_id.to_string()),
+                        config_id: Some(row.config_id.clone()),
+                        target_id: Some(row.id.clone()),
+                        content_version: Some(content_version.clone()),
+                        key_names,
+                        ..Default::default()
+                    },
+                )
+                .await;
                 let target = self.get_sync_target(organization_id, &row.id).await?;
                 Ok(SyncOutcome {
                     target,
@@ -353,21 +396,25 @@ impl ConnectionBroker {
                     None,
                 )
                 .await?;
-                // CHANGELOG_HOOK: sync.target.failed — WP-D wires record_secret_changelog
-                crate::record_secret_changelog(crate::RecordSecretChangelog {
-                    event_type: "sync.target.failed".into(),
-                    project_id: row.project_id.clone(),
-                    organization_id: Some(organization_id.to_string()),
-                    config_id: Some(row.config_id.clone()),
-                    target_id: Some(row.id.clone()),
-                    key_names: Vec::new(),
-                    metadata: {
-                        let mut m = serde_json::Map::new();
-                        m.insert("reason".into(), json!(error.code()));
-                        m
+                // Durable changelog.
+                let _ = crate::changelog_hook::record_secret_changelog_durable(
+                    &self.pool,
+                    crate::RecordSecretChangelog {
+                        event_type: "sync.target.failed".into(),
+                        project_id: row.project_id.clone(),
+                        organization_id: Some(organization_id.to_string()),
+                        config_id: Some(row.config_id.clone()),
+                        target_id: Some(row.id.clone()),
+                        key_names: Vec::new(),
+                        metadata: {
+                            let mut m = serde_json::Map::new();
+                            m.insert("reason".into(), json!(error.code()));
+                            m
+                        },
+                        ..Default::default()
                     },
-                    ..Default::default()
-                });
+                )
+                .await;
                 let target = self.get_sync_target(organization_id, &row.id).await?;
                 Ok(SyncOutcome {
                     target,
@@ -403,6 +450,29 @@ impl ConnectionBroker {
             outcomes.push(outcome);
         }
         Ok(outcomes)
+    }
+
+    /// Current value-blind fingerprint for one sync target: the
+    /// `content_version` a sync run would record if it pushed right now.
+    /// Values are loaded and resolved in-process; only the keyed `cv2_`
+    /// fingerprint leaves. The sync actor compares this against the target's
+    /// stored `content_version` to skip egress when nothing changed.
+    pub async fn current_content_version(
+        &self,
+        organization_id: &OrganizationId,
+        target_id: &str,
+        secrets: Arc<dyn SyncSecretSource>,
+    ) -> Result<String> {
+        let target = self.sync_target_in_org(organization_id, target_id).await?;
+        let key = *self.sealing_key()?;
+        let entries = secrets
+            .load_config_secrets(
+                &organization_id.to_string(),
+                &target.project_id,
+                &target.config_id,
+            )
+            .await?;
+        Ok(content_version_for(&key, &target.id, &entries))
     }
 
     async fn sync_target_in_org(
@@ -461,7 +531,7 @@ impl ConnectionBroker {
             )
             .await?;
         let key_names: Vec<String> = entries.keys().cloned().collect();
-        let content_version = content_version_for(&target.id, &key_names);
+        let content_version = content_version_for(&key, &target.id, &entries);
 
         self.invoke_env_sync(
             &target.provider_id,
@@ -606,16 +676,34 @@ fn env_sync_provider_supported(provider_id: &str) -> bool {
     matches!(provider_id, "vercel" | "railway")
 }
 
-fn content_version_for(target_id: &str, key_names: &[String]) -> String {
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(target_id.as_bytes());
-    hasher.update(b"|");
-    for name in key_names {
-        hasher.update(name.as_bytes());
-        hasher.update(b",");
+/// Change fingerprint for a synced key set (v2).
+///
+/// v1 hashed key names only, so pure value changes were invisible and any
+/// consumer that skipped "unchanged" content versions would skip real
+/// updates. v2 is an HMAC over the resolved entries, keyed by the deployment
+/// seal key: value-sensitive (including changes that arrive through secret
+/// references), deterministic, and useless to an offline brute-forcer who
+/// only sees the fingerprint.
+fn content_version_for(
+    seal_key: &[u8; 32],
+    target_id: &str,
+    entries: &BTreeMap<String, String>,
+) -> String {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+    let mut mac =
+        <Hmac<Sha256> as Mac>::new_from_slice(seal_key).expect("hmac accepts 32-byte keys");
+    mac.update(target_id.as_bytes());
+    mac.update(b"|");
+    for (name, value) in entries {
+        mac.update(name.as_bytes());
+        mac.update(b"=");
+        mac.update(value.as_bytes());
+        mac.update(b"\0");
     }
-    format!("cv_{:x}", hasher.finalize())
+    let digest = mac.finalize().into_bytes();
+    let hex: String = digest.iter().map(|b| format!("{b:02x}")).collect();
+    format!("cv2_{hex}")
 }
 
 #[cfg(test)]
@@ -630,13 +718,26 @@ mod unit_tests {
     }
 
     #[test]
-    fn content_version_is_names_only() {
-        let a = content_version_for("t1", &["FOO".into(), "BAR".into()]);
-        let b = content_version_for("t1", &["FOO".into(), "BAR".into()]);
+    fn content_version_v2_tracks_values_without_exposing_them() {
+        let key = [7u8; 32];
+        let entries: BTreeMap<String, String> = [("FOO".to_string(), "one".to_string())]
+            .into_iter()
+            .collect();
+        let a = content_version_for(&key, "t1", &entries);
+        let b = content_version_for(&key, "t1", &entries);
         assert_eq!(a, b);
-        assert!(a.starts_with("cv_"));
-        let c = content_version_for("t1", &["FOO".into()]);
-        assert_ne!(a, c);
+        assert!(a.starts_with("cv2_"));
+        // A value change alone changes the fingerprint (the v1 names-only
+        // hash missed this, which made skip-if-unchanged skip real updates).
+        let changed: BTreeMap<String, String> = [("FOO".to_string(), "two".to_string())]
+            .into_iter()
+            .collect();
+        assert_ne!(a, content_version_for(&key, "t1", &changed));
+        // Keyed: without the deployment seal key the fingerprint differs, so
+        // the stored value cannot be brute-forced from the fingerprint alone.
+        assert_ne!(a, content_version_for(&[8u8; 32], "t1", &entries));
+        // The fingerprint never embeds the value.
+        assert!(!a.contains("one"));
     }
 }
 

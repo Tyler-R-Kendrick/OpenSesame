@@ -5,7 +5,22 @@ import type {
   ClaimSession,
   ExternalIdentity,
   Principal,
+  Project,
 } from "@opensesame/os-domain";
+
+export function makeProject(overrides: Partial<Project> = {}): Project {
+  const now = new Date();
+  return {
+    id: overrides.id ?? `prj_${randomUUID()}`,
+    kind: "standard",
+    slug: overrides.slug ?? `proj-${randomUUID().slice(0, 8)}`,
+    displayName: "Test Project",
+    state: "active",
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
 
 export function makePrincipal(overrides: Partial<Principal> = {}): Principal {
   const now = new Date();

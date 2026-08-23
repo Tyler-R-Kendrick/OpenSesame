@@ -11,7 +11,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use opensesame_connection_broker::{CreateSyncTarget, EmptySecretSource, SyncSecretSource};
+use opensesame_connection_broker::{CreateSyncTarget, KeyFilteredSecretSource, SyncSecretSource};
 use opensesame_task_bus::BusEvent;
 use serde::Deserialize;
 use serde_json::json;
@@ -104,9 +104,10 @@ pub struct CreateBody {
     pub operation: Option<String>,
 }
 
-/// Sync body: key **names** only on the wire. Values resolve on Host via
-/// `MapSecretSource` when tests inject them; production uses Empty until a
-/// project-config authority store lands (never accept values from clients).
+/// Sync body: key **names** only on the wire — an optional filter over the
+/// config's stored key set. Values resolve on Host through the ADR 0052
+/// project-config store (`broker.sync_secret_source()`); clients can never
+/// supply values on this API.
 #[derive(Debug, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct SyncBody {
@@ -158,10 +159,26 @@ async fn publish_sync_bus(
     })
 }
 
-fn secret_source_from_body(body: &SyncBody) -> Arc<dyn SyncSecretSource> {
-    // Client may only name keys. Values are never accepted on this API.
-    let _ = body.key_names.len();
-    Arc::new(EmptySecretSource)
+/// Production secret source: the host-sealed config store, optionally
+/// narrowed to the key names the caller listed. Fails when the deployment
+/// seal key is unset — a keyless deployment cannot sync.
+#[allow(clippy::result_large_err)]
+fn secret_source_from_body(
+    st: &AppState,
+    body: &SyncBody,
+) -> Result<Arc<dyn SyncSecretSource>, Response> {
+    let source = st
+        .connection_broker
+        .sync_secret_source()
+        .map_err(broker_error)?;
+    if body.key_names.is_empty() {
+        Ok(source)
+    } else {
+        Ok(Arc::new(KeyFilteredSecretSource::new(
+            source,
+            body.key_names.clone(),
+        )))
+    }
 }
 
 /// `GET /api/v1/sync-targets`
@@ -302,7 +319,10 @@ pub async fn sync_one(
     };
     let organization_id = organization_or_return!(&st, &who, &headers);
     let body = body.map(|Json(b)| b).unwrap_or_default();
-    let secrets = secret_source_from_body(&body);
+    let secrets = match secret_source_from_body(&st, &body) {
+        Ok(secrets) => secrets,
+        Err(resp) => return resp,
+    };
     match st
         .connection_broker
         .sync_target(&organization_id, &id, secrets)
@@ -356,7 +376,10 @@ pub async fn sync_all(
         )
             .into_response();
     }
-    let secrets: Arc<dyn SyncSecretSource> = Arc::new(EmptySecretSource);
+    let secrets = match secret_source_from_body(&st, &SyncBody::default()) {
+        Ok(secrets) => secrets,
+        Err(resp) => return resp,
+    };
     match st
         .connection_broker
         .sync_all_for_config(&organization_id, config_id, secrets)
@@ -456,6 +479,25 @@ mod tests {
             .await
             .unwrap();
 
+        // The production secret source resolves the config from the ADR 0052
+        // store, so the target must reference a real config. Keys stay empty:
+        // egress short-circuits and the sync records ready with zero keys.
+        let config = st
+            .connection_broker
+            .create_secret_config(
+                &org.to_string(),
+                opensesame_connection_broker::CreateSecretConfig {
+                    project_id: "project:1".into(),
+                    slug: "production".into(),
+                    display_name: None,
+                    environment: "production".into(),
+                    parent_config_id: None,
+                },
+                None,
+            )
+            .await
+            .unwrap();
+
         let headers = auth_headers(&st).await;
         let app = router(st.clone());
 
@@ -470,7 +512,7 @@ mod tests {
             .body(Body::from(
                 json!({
                     "project_id": "project:1",
-                    "config_id": "config:prod",
+                    "config_id": config.id,
                     "connection_id": connection.connection_id,
                     "operation": "env.set"
                 })

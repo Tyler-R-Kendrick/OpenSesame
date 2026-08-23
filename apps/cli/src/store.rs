@@ -7,11 +7,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use opensesame_kdbx_bridge::{export_kdbx, import_kdbx, ExportOptions, ImportOptions};
 use opensesame_sealed_store::{
-    apply_secret_update, default_tombs_config_path, ensure_git_repo, generate_password,
-    git_passthrough, init_store, init_store_key, load_tomb_registry, parse_manifest, parse_otpauth,
-    push_backup, remote_url, resolve_store_dir, resolve_tomb_paths, rotate_secret_entry,
-    save_tomb_registry, seal_manifest, set_auto_push, set_remote, totp_code, unlock_store_key,
-    validate_otpauth, Entry, StoreRoot, TombBackend, TombEntry, UpdateMode, UpdateOptions,
+    apply_secret_update, default_tombs_config_path, ensure_git_repo, entry_history,
+    generate_password, git_passthrough, init_store, init_store_key, load_tomb_registry,
+    parse_manifest, parse_otpauth, push_backup, remote_url, resolve_store_dir, resolve_tomb_paths,
+    restore_entry, rotate_secret_entry, save_tomb_registry, seal_manifest, set_auto_push,
+    set_remote, totp_code, unlock_store_key, validate_otpauth, Entry, StoreRoot, TombBackend,
+    TombEntry, UpdateMode, UpdateOptions,
 };
 use regex::Regex;
 
@@ -43,7 +44,7 @@ fn prompt_line(prompt: &str) -> anyhow::Result<String> {
 
 /// Read a secret without echoing it — `pass` parity. Non-TTY stdin (pipes,
 /// heredocs) falls back to a plain line read, since nothing echoes there.
-fn prompt_secret_hidden(prompt: &str) -> anyhow::Result<String> {
+pub(crate) fn prompt_secret_hidden(prompt: &str) -> anyhow::Result<String> {
     use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
     if !io::stdin().is_terminal() {
         return prompt_line(prompt);
@@ -668,6 +669,44 @@ pub fn cmd_rotate(
         } else {
             println!("rotated {name}");
         }
+    }
+    Ok(())
+}
+
+// —— history / restore ————————————————————————————————————
+
+/// List the commits touching an entry's ciphertext file, newest first.
+/// Metadata only (sha, timestamp, subject) — no unlock, no plaintext.
+pub fn cmd_history(
+    name: String,
+    path: Option<PathBuf>,
+    tomb: Option<String>,
+) -> anyhow::Result<()> {
+    let root_path = resolve_root(path, tomb.as_deref())?;
+    let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
+    for item in entry_history(&root, &name).map_err(|e| anyhow::anyhow!("{e}"))? {
+        let when = chrono::DateTime::from_timestamp(item.timestamp, 0)
+            .map(|t| t.to_rfc3339())
+            .unwrap_or_else(|| item.timestamp.to_string());
+        println!("{} {} {}", item.commit, when, item.subject);
+    }
+    Ok(())
+}
+
+/// Restore an entry's content from a past commit as a NEW commit; the
+/// anti-rollback revision counter only ever advances.
+pub fn cmd_restore(
+    name: String,
+    rev: String,
+    path: Option<PathBuf>,
+    tomb: Option<String>,
+) -> anyhow::Result<()> {
+    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let new_revision =
+        restore_entry(&root, &name, &rev, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
+    match new_revision {
+        Some(revision) => println!("restored {name} from {rev} (revision {revision})"),
+        None => println!("restored {name} from {rev}"),
     }
     Ok(())
 }

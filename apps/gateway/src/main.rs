@@ -11,7 +11,9 @@ mod dev_pki;
 mod github_webhook;
 mod identity_mapping;
 mod middleware;
+mod rotation_scheduler;
 mod routes;
+mod sync_actor;
 mod task_engine;
 mod taskbus_config;
 
@@ -33,6 +35,14 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(backup::run(state.clone()));
     // When TaskBus is NATS, a dedicated durable consumer accelerates wakes.
     tokio::spawn(backup_bus::run_system_wake_consumer(state.clone()));
+    // SYNC_ACTOR: drains `sync.config.dirty` from the config sync outbox and
+    // fans out `sync_all_for_config`; config-value mutations wake it via
+    // `sync_notify`, the tick covers everything else.
+    tokio::spawn(sync_actor::run(state.clone()));
+    // ROTATION_SCHEDULER: durable rotation policies tick (WP-9) — lists
+    // enabled policies, executes due jobs through the broker's
+    // verify-before-revoke state machine, then advances last_rotated_at.
+    tokio::spawn(rotation_scheduler::run(state.clone()));
     let hsts = args.resource.starts_with("https://");
     let app = opensesame_host_core::http_security::apply_http_security(
         routes::router(state),
@@ -153,7 +163,7 @@ mod pact_coverage {
             include_str!("routes/changelog.rs"),
             &[
                 "caller.organization(st.connection_organization)",
-                "list_secret_changelog(&organization_id, &project_id, limit)",
+                ".list_changelog(&organization_id, &project_id, limit, query.before_seq)",
             ],
         );
     }

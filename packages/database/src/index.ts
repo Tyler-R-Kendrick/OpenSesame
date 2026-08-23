@@ -1,8 +1,16 @@
 export * from "./schema/index.js";
 export * from "./repos/interfaces.js";
-export { MemoryRepositories } from "./repos/memory.js";
 export {
+  MemoryProjectMembershipStore,
+  MemoryProjectStore,
+  MemoryRepositories,
+  createMemoryProjectStores,
+} from "./repos/memory.js";
+export {
+  PostgresProjectMembershipStore,
+  PostgresProjectStore,
   PostgresRepositories,
+  createPostgresProjectStores,
   createPostgresRepositories,
   type Database,
 } from "./repos/postgres.js";

@@ -52,8 +52,8 @@ pnpm dev                 # turbo dev (control-plane, console, worker,
 pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
 pnpm lint                # Biome gate for files changed from origin/main
-pnpm lint:all            # full-repository Biome audit
-pnpm lint:anti-slop      # Oxlint anti-slop (not yet in lint:all; drive to green)
+pnpm lint:all            # full-repository Biome audit + Oxlint anti-slop
+pnpm lint:anti-slop      # Oxlint anti-slop (also runs as part of lint:all)
 pnpm lint:fix            # fix changed and staged files
 pnpm test                # turbo test across every workspace test script
 pnpm test:integration    # turbo run test:integration
@@ -67,7 +67,7 @@ pnpm test:live-stack     # scripts/live-stack-test.sh (live OpenFGA/OpenBao/gate
 pnpm test:all            # typecheck + test + test:integration
 
 # Test-depth suites (none of these are in `pnpm verify`)
-pnpm test:coverage       # TS (v8, 80% floors) + Rust (llvm-cov) — docs/validation/test-coverage.md
+pnpm test:coverage       # TS (v8, 94/88/94/95 floors + 50% per-pkg lines) + Rust (llvm-cov) — docs/validation/test-coverage.md
 pnpm test:coverage:ts    # scripts/ts-coverage-gate.mjs; floors ratchet, never lower
 pnpm test:coverage:rust  # cargo llvm-cov --fail-under-lines/-functions
 pnpm test:mutation       # Stryker (TS) + cargo-mutants (Rust), scoped high-value files

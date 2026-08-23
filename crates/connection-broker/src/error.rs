@@ -43,6 +43,10 @@ pub enum BrokerError {
     BindingNotFound,
     #[error("sync target not found")]
     SyncTargetNotFound,
+    #[error("secret config not found")]
+    ConfigNotFound,
+    #[error("secret config value not found")]
+    ConfigValueNotFound,
     /// `POST /credential` against an OAuth provider, or `authorize` against an
     /// api_key one.
     #[error("credential kind not supported by provider `{0}`")]
@@ -84,6 +88,8 @@ impl BrokerError {
             Self::BindingExists => "binding_exists",
             Self::BindingNotFound => "binding_not_found",
             Self::SyncTargetNotFound => "sync_target_not_found",
+            Self::ConfigNotFound => "config_not_found",
+            Self::ConfigValueNotFound => "config_value_not_found",
             Self::UnsupportedCredential(_) => "unsupported_credential",
             Self::MaterializationDenied => "materialization_denied",
             Self::Unmintable(_) => "unmintable",
@@ -110,6 +116,8 @@ impl BrokerError {
             Self::ConnectionNotFound
             | Self::BindingNotFound
             | Self::SyncTargetNotFound
+            | Self::ConfigNotFound
+            | Self::ConfigValueNotFound
             | Self::IntegrationNotFound => 404,
             Self::ProviderUnconfigured { .. } | Self::SealUnavailable(_) => 503,
             Self::BindingExists | Self::IntegrationConflict | Self::IntegrationInUse => 409,

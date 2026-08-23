@@ -10,6 +10,7 @@ mod envelope;
 mod generate;
 mod git;
 mod gpg;
+mod history;
 mod manifest;
 mod otp;
 mod path;
@@ -28,6 +29,9 @@ pub use git::{
     set_auto_push, set_remote, GIT_TOKEN_ENV,
 };
 pub use gpg::{decrypt_gpg_file, encrypt_gpg_file, read_gpg_id};
+// —— entry history / restore (pass history, pass restore) ————————————————
+pub use history::{entry_history, restore_entry, HistoryEntry};
+// —— end entry history / restore ——————————————————————————————————————————
 pub use manifest::{parse_manifest, seal_manifest, ManifestEntry, SealOutcome};
 pub use otp::{
     find_otpauth_in_trailer, parse_otpauth, sync_trailer_otp, totp_code, validate_otpauth,

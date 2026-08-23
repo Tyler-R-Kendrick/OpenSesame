@@ -1,6 +1,11 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
-import { AUDIT_VALUE_MAX_LENGTH, redactAuditMetadata } from "../redact.js";
+import {
+  AUDIT_METADATA_ALLOWLIST,
+  AUDIT_VALUE_MAX_LENGTH,
+  isDeniedAuditMetadataKey,
+  redactAuditMetadata,
+} from "../redact.js";
 
 describe("redactAuditMetadata", () => {
   it("keeps allowlisted keys and drops secrets", () => {
@@ -104,5 +109,108 @@ describe("authorization inbox metadata (ADR 0046)", () => {
       deviceCode: "d",
     });
     expect(dropped).toEqual({});
+  });
+});
+
+describe("redaction boundaries (mutation coverage)", () => {
+  it("pins the exact allowlist", () => {
+    // A characterization of the boundary itself: any membership change — a key
+    // added, removed, or blanked — must be a reviewed edit to this list too.
+    expect([...AUDIT_METADATA_ALLOWLIST]).toEqual([
+      "reason",
+      "action",
+      "kind",
+      "issuer",
+      "tenant",
+      "slug",
+      "note",
+      "sectorIdentifier",
+      "admissionMode",
+      "previousClientId",
+      "resourceType",
+      "resourceId",
+      "projectId",
+      "organizationId",
+      "claimId",
+      "agentId",
+      "state",
+      "fromState",
+      "toState",
+      "outcome",
+      "idempotencyKey",
+      "ttlSeconds",
+      "quotaProfile",
+      "path",
+      "method",
+      "statusCode",
+      "won",
+      "count",
+      "type",
+      "configId",
+      "environment",
+      "keyNames",
+      "versionId",
+      "targetId",
+      "contentVersion",
+      "actor",
+      "authReqId",
+      "approvalId",
+      "requestDigest",
+      "bindingMessageDigest",
+      "decidedByKind",
+      "connectionId",
+      "delegationId",
+      "offerId",
+      "invocationId",
+      "subject",
+      "providerId",
+      "materialization",
+    ]);
+  });
+
+  it("denies code-shaped keys with or without a separator", () => {
+    for (const key of [
+      "usercode",
+      "user_code",
+      "userCode",
+      "devicecode",
+      "device_code",
+      "deviceCode",
+      "bearerHint",
+      "refreshHandle",
+    ]) {
+      expect(isDeniedAuditMetadataKey(key), key).toBe(true);
+    }
+    expect(isDeniedAuditMetadataKey("reason")).toBe(false);
+  });
+
+  it("drops a secret-shaped key even when the allowlist names it", () => {
+    AUDIT_METADATA_ALLOWLIST.add("bearerHint");
+    try {
+      expect(redactAuditMetadata({ bearerHint: "x" })).toEqual({});
+    } finally {
+      AUDIT_METADATA_ALLOWLIST.delete("bearerHint");
+    }
+  });
+
+  it("keeps a value exactly at the length cap and truncates one past it", () => {
+    const exact = "a".repeat(AUDIT_VALUE_MAX_LENGTH);
+    expect(redactAuditMetadata({ note: exact })).toEqual({ note: exact });
+    const over = "a".repeat(AUDIT_VALUE_MAX_LENGTH + 1);
+    expect(redactAuditMetadata({ note: over })).toEqual({ note: `${exact}…` });
+  });
+
+  it("keeps null and drops structured values it cannot vouch for", () => {
+    expect(redactAuditMetadata({ won: null })).toEqual({ won: null });
+    expect(redactAuditMetadata({ note: { nested: 1 } })).toEqual({});
+    expect(redactAuditMetadata({ keyNames: [1, 2] })).toEqual({});
+    expect(redactAuditMetadata({ keyNames: ["ok", 1] })).toEqual({});
+  });
+
+  it("bounds every entry of a string-array value", () => {
+    const over = "k".repeat(AUDIT_VALUE_MAX_LENGTH + 1);
+    expect(redactAuditMetadata({ keyNames: [over, "SHORT"] })).toEqual({
+      keyNames: [`${"k".repeat(AUDIT_VALUE_MAX_LENGTH)}…`, "SHORT"],
+    });
   });
 });

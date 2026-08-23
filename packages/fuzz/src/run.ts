@@ -45,11 +45,17 @@ export async function main(): Promise<void> {
         name.endsWith(".ts") && !name.endsWith(".test.ts") && !SKIP.has(name),
     )
     .filter((name) => (only ? name.startsWith(only) : true));
+  process.stdout.write(
+    "==> local fuzz runner: DEGRADED (uncoverage-guided fallback; random bytes only)\n",
+  );
   for (const name of files) {
     const fileUrl = pathToFileURL(path.join(dir, name)).href;
     process.stdout.write(`--> ${name} (${seconds}s)\n`);
     await runTarget(fileUrl, seconds);
   }
+  process.stdout.write(
+    "local fuzz runner: DEGRADED (uncoverage-guided fallback) — no coverage feedback; not equivalent to Jazzer.js\n",
+  );
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {

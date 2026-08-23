@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# TypeScript fuzz pass. Prefer native Jazzer.js when the addon loads; otherwise
-# drive the same `fuzz(Buffer)` exports with the local runner.
+# TypeScript fuzz pass. Requires native Jazzer.js; when the addon is not
+# loadable the gate fails closed. Set JAZZER_ALLOW_FALLBACK=1 to explicitly
+# opt in to the local uncoverage-guided runner (reported as DEGRADED, never
+# CLEAN).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -38,6 +40,15 @@ if command -v jazzer >/dev/null 2>&1 && node -e 'import("@jazzer.js/core")' >/de
   exit 0
 fi
 
+if [[ "${JAZZER_ALLOW_FALLBACK:-0}" != "1" ]]; then
+  echo "jazzer-gate: native Jazzer.js addon is not loadable." >&2
+  echo "  pnpm --filter @opensesame/fuzz install  # rebuild @jazzer.js/core native addon" >&2
+  echo "  (or set JAZZER_ALLOW_FALLBACK=1 to run the uncoverage-guided local runner," >&2
+  echo "   which reports DEGRADED, never CLEAN)" >&2
+  echo "This gate is optional and is not part of pnpm verify." >&2
+  exit 1
+fi
+
 echo "==> jazzer-gate: local runner (${SECONDS_PER_TARGET}s/target; native Jazzer.js addon not loaded)"
 FUZZ_SECONDS="$SECONDS_PER_TARGET" pnpm exec tsx src/run.ts
-echo "jazzer-gate: CLEAN"
+echo "jazzer-gate: DEGRADED (uncoverage-guided fallback) — not a CLEAN coverage-guided pass"
