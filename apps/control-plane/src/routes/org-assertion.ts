@@ -1,4 +1,9 @@
-import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  isBoolean,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { createRemoteJWKSet, decodeProtectedHeader, jwtVerify } from "jose";
 
 const ALLOWED_ALGS = ["RS256", "ES256"] as const;
@@ -56,10 +61,25 @@ async function discoverJwksUriDefault(issuer: string): Promise<string> {
   return doc.jwks_uri;
 }
 
+/**
+ * Subject plus the profile claims we are willing to carry forward.
+ *
+ * `email`/`emailVerified`/`name` are read straight off a payload that already
+ * passed `jwtVerify`; they add no verification of their own and are never a
+ * join key (see services/identity-link.ts). Keys are present only when the
+ * token actually carried the claim.
+ */
+export type VerifiedOrgIdToken = {
+  sub: string;
+  email?: string;
+  emailVerified?: boolean;
+  name?: string;
+};
+
 async function verifyOrgIdTokenDefault(
   idToken: string,
   issuer: string,
-): Promise<{ sub: string }> {
+): Promise<VerifiedOrgIdToken> {
   let header: ReturnType<typeof decodeProtectedHeader>;
   try {
     header = decodeProtectedHeader(idToken);
@@ -96,7 +116,17 @@ async function verifyOrgIdTokenDefault(
   if (!sub) {
     throw new OrgAssertionError("invalid_token", "Token carries no subject.");
   }
-  return { sub };
+  const email = isString(payload.email) ? payload.email : undefined;
+  const emailVerified = isBoolean(payload.email_verified)
+    ? payload.email_verified
+    : undefined;
+  const name = isString(payload.name) ? payload.name : undefined;
+  return {
+    sub,
+    ...(email !== undefined ? { email } : undefined),
+    ...(emailVerified !== undefined ? { emailVerified } : undefined),
+    ...(name !== undefined ? { name } : undefined),
+  };
 }
 
 export const orgAssertionSeams = {
@@ -107,6 +137,6 @@ export const orgAssertionSeams = {
 export async function verifyOrgIdToken(
   idToken: string,
   issuer: string,
-): Promise<{ sub: string }> {
+): Promise<VerifiedOrgIdToken> {
   return orgAssertionSeams.verifyOrgIdToken(idToken, issuer);
 }

@@ -15,6 +15,8 @@ let root: Root;
 beforeEach(() => {
   sdkBrowserSeams.createOpenSesame = vi.fn(() => ({
     signIn: vi.fn(),
+    handleRedirectCallback: vi.fn(),
+    getReturnTo: vi.fn(() => null),
     continueAnonymously: vi.fn(),
     signOut: vi.fn(),
     getSession: vi.fn().mockResolvedValue(null),

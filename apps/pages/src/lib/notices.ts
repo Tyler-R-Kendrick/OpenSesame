@@ -6,7 +6,13 @@
 
 export type Notice = {
   id: string;
-  kind: "guest_claim";
+  /**
+   * `federated_link` is a verified upstream identity that has not been attached
+   * to a principal yet — the vault was locked when the browser came back, or a
+   * reload dropped the in-memory prompt while the assertion lived on in
+   * sessionStorage.
+   */
+  kind: "guest_claim" | "federated_link";
   title: string;
   body: string;
   userCode?: string;

@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FederationError, completeSignIn } from "../lib/federation.js";
-import { linkGuestAccount } from "../lib/guest-auth.js";
+import { adoptFederatedIdentity } from "../lib/guest-auth.js";
 import { ensureIdentitySession } from "../lib/identity.js";
 import { joinOrgTenant } from "../lib/orgs.js";
 import "./broker.css";
@@ -29,9 +29,10 @@ export function FederationReturn() {
             result.identity.idToken,
           );
         } else if (result?.identity?.idToken) {
-          // Restore the guest bearer first. Minting here would create a second
-          // principal, then the stash would have to fight the new cookie.
-          await linkGuestAccount(result.identity.idToken);
+          // Attach the identity in whatever state this device is in: a true
+          // first run opens a guest vault first, a locked vault defers to a
+          // notice rather than binding the identity to a throwaway principal.
+          await adoptFederatedIdentity(result.identity.idToken);
         }
         if (cancelled) return;
         if (result?.returnTo) {

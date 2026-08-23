@@ -34,6 +34,18 @@ export interface ControlPlaneConfig {
    * `id_token` on POST /v1/principals/link-identities (ADR 0033).
    */
   trustedUpstreamIssuers: string[];
+  /**
+   * Confidential-client credentials for ONE upstream issuer, when that broker
+   * cannot serve the secret-less origin-profile contract (ADR 0034). Present
+   * only when an issuer, a client id, AND a non-empty secret are all
+   * configured together; the issuer is matched exactly, so a secret is never
+   * offered to an issuer it was not configured for.
+   */
+  upstreamClientCredentials?: {
+    issuer: string;
+    clientId: string;
+    clientSecret: string;
+  };
   protocolFeatures: {
     oid4vp: boolean;
     oid4vci: boolean;
@@ -185,6 +197,21 @@ export function loadConfig(
   if (env.DATABASE_URL) {
     config.databaseUrl = env.DATABASE_URL;
   }
+  // All three must be present together: a client id without a secret is the
+  // origin-profile case (handled by derivation), and a secret without an
+  // issuer has nobody it may legitimately be sent to.
+  const upstreamIssuer = (env.OPENSESAME_UPSTREAM_ISSUER ?? "")
+    .trim()
+    .replace(/\/+$/, "");
+  const upstreamClientId = (env.OPENSESAME_UPSTREAM_CLIENT_ID ?? "").trim();
+  const upstreamClientSecret = env.OPENSESAME_UPSTREAM_CLIENT_SECRET ?? "";
+  if (upstreamIssuer && upstreamClientId && upstreamClientSecret) {
+    config.upstreamClientCredentials = {
+      issuer: upstreamIssuer,
+      clientId: upstreamClientId,
+      clientSecret: upstreamClientSecret,
+    };
+  }
   return config;
 }
 
@@ -226,6 +253,37 @@ export function assertSecureConfig(
     throw new Error(
       "OPENSESAME_CORS_ORIGINS must not include * or null in production",
     );
+  }
+  // A deployment with no trusted broker can admit no durable principal
+  // (ADR 0033 §1/§2). Refusing to boot is louder than silently denying every
+  // sign-in. Development stays permissive: the mock IdP is plain http.
+  if (config.isProduction && !config.trustedUpstreamIssuers.length) {
+    throw new Error(
+      "OPENSESAME_TRUSTED_UPSTREAMS must list at least one issuer in production",
+    );
+  }
+  const insecureUpstream = config.trustedUpstreamIssuers.find(
+    (issuer) => !issuer.startsWith("https://"),
+  );
+  if (config.isProduction && insecureUpstream) {
+    throw new Error(
+      `OPENSESAME_TRUSTED_UPSTREAMS must use https in production; got \`${insecureUpstream}\``,
+    );
+  }
+  // A client secret is only ever sent to the issuer it was configured for, so
+  // that issuer must be one we actually trust — otherwise the credential is
+  // dead weight at best and an exfiltration target at worst.
+  const credentials = config.upstreamClientCredentials;
+  if (credentials) {
+    // Membership is the whole check. A separate https assertion here would be
+    // unreachable: in production the allowlist scan above has already rejected
+    // every non-https entry, and a credentialed issuer outside the allowlist
+    // fails on the line above.
+    if (!config.trustedUpstreamIssuers.includes(credentials.issuer)) {
+      throw new Error(
+        "OPENSESAME_UPSTREAM_ISSUER carries client credentials but is not listed in OPENSESAME_TRUSTED_UPSTREAMS",
+      );
+    }
   }
   assertListenHostAllowed(config.host, env);
 }

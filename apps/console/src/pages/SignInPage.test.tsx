@@ -1,7 +1,8 @@
 import { overlapCast } from "@opensesame/os-domain";
 // @vitest-environment jsdom
-import { type ReactElement, act } from "react";
+import { type ReactElement, StrictMode, act } from "react";
 import { type Root, createRoot } from "react-dom/client";
+import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sdkBrowserSeams } from "../sdk-browser.js";
 import { SignInPage } from "./SignInPage.js";
@@ -10,6 +11,8 @@ overlapCast(globalThis).IS_REACT_ACT_ENVIRONMENT = true;
 
 interface MockClient {
   signIn: ReturnType<typeof vi.fn>;
+  handleRedirectCallback: ReturnType<typeof vi.fn>;
+  getReturnTo: ReturnType<typeof vi.fn>;
   continueAnonymously: ReturnType<typeof vi.fn>;
   signOut: ReturnType<typeof vi.fn>;
 }
@@ -18,12 +21,63 @@ let client: MockClient;
 let container: HTMLDivElement;
 let root: Root;
 
+/** Where the router went, so a post-callback redirect can be asserted. */
+function RouteProbe() {
+  const location = useLocation();
+  return <span data-testid="route">{location.pathname}</span>;
+}
+
+function routedTo(): string | undefined {
+  return container.querySelector('[data-testid="route"]')?.textContent ?? "";
+}
+
+/** The browser URL the page reads its authorization response from. */
+function visit(url: string): void {
+  window.history.replaceState(null, "", url);
+}
+
 async function render(ui: ReactElement): Promise<void> {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
   await act(async () => {
-    root.render(ui);
+    root.render(
+      <MemoryRouter>
+        {ui}
+        <RouteProbe />
+      </MemoryRouter>,
+    );
+  });
+}
+
+/**
+ * StrictMode mounts, tears down, and remounts the same instance — the shape a
+ * single-use PKCE verifier is most easily spent twice by.
+ */
+async function renderTwiceMounted(ui: ReactElement): Promise<void> {
+  container = document.createElement("div");
+  document.body.appendChild(container);
+  root = createRoot(container);
+  await act(async () => {
+    root.render(
+      <StrictMode>
+        <MemoryRouter>
+          {ui}
+          <RouteProbe />
+        </MemoryRouter>
+      </StrictMode>,
+    );
+  });
+  // Belt and braces: a re-render must not restart the exchange either.
+  await act(async () => {
+    root.render(
+      <StrictMode>
+        <MemoryRouter>
+          {ui}
+          <RouteProbe />
+        </MemoryRouter>
+      </StrictMode>,
+    );
   });
 }
 
@@ -44,11 +98,14 @@ function buttonNamed(text: string): HTMLButtonElement {
 beforeEach(() => {
   client = {
     signIn: vi.fn(),
+    handleRedirectCallback: vi.fn(),
+    getReturnTo: vi.fn(() => null),
     continueAnonymously: vi.fn(),
     signOut: vi.fn(),
   };
   sdkBrowserSeams.createOpenSesame = vi.fn(() => overlapCast(client));
   sessionStorage.clear();
+  visit("/");
 });
 
 afterEach(async () => {
@@ -63,6 +120,7 @@ describe("SignInPage", () => {
     await render(<SignInPage />);
     expect(container.textContent).toContain("Sign in");
     expect(buttonNamed("Sign in with OpenSesame")).toBeDefined();
+    expect(buttonNamed("Sign in with Google")).toBeDefined();
     expect(buttonNamed("Continue anonymously")).toBeDefined();
     expect(buttonNamed("Sign out")).toBeDefined();
     expect(sdkBrowserSeams.createOpenSesame).toHaveBeenCalledWith(
@@ -157,5 +215,107 @@ describe("SignInPage", () => {
     expect(container.querySelector("output.ok")).toBeNull();
     expect(container.querySelector(".err")).toBeNull();
     expect(sessionStorage.getItem("opensesame.claim")).toBeNull();
+  });
+
+  it("sends the Google button through the shoo broker", async () => {
+    client.signIn.mockResolvedValue(undefined);
+    await render(<SignInPage />);
+    await click(buttonNamed("Sign in with Google"));
+    expect(client.signIn).toHaveBeenCalledTimes(1);
+    expect(client.signIn).toHaveBeenCalledWith({ provider: "shoo" });
+  });
+
+  it("shows the error message when broker sign-in fails", async () => {
+    client.signIn.mockRejectedValue(new Error("broker unreachable"));
+    await render(<SignInPage />);
+    await click(buttonNamed("Sign in with Google"));
+    expect(container.textContent).toContain("broker unreachable");
+  });
+
+  it("does not touch the callback exchange on a plain visit", async () => {
+    await render(<SignInPage />);
+    expect(client.handleRedirectCallback).not.toHaveBeenCalled();
+    expect(buttonNamed("Sign in with OpenSesame")).toBeDefined();
+    expect(buttonNamed("Sign in with Google")).toBeDefined();
+    expect(buttonNamed("Continue anonymously")).toBeDefined();
+    expect(buttonNamed("Sign out")).toBeDefined();
+  });
+
+  it("completes the PKCE exchange exactly once across a double mount", async () => {
+    visit("/?code=abc&state=xyz");
+    client.handleRedirectCallback.mockResolvedValue({
+      anonymous: false,
+      sub: "prn_7",
+    });
+    await renderTwiceMounted(<SignInPage />);
+    // The verifier is single-use: a second exchange would fail on state the
+    // first one already spent.
+    expect(client.handleRedirectCallback).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("Signed in as prn_7");
+  });
+
+  it("shows the signed-in session hint after the redirect exchange", async () => {
+    visit("/?code=abc&state=xyz");
+    client.handleRedirectCallback.mockResolvedValue({
+      anonymous: false,
+      sub: "prn_3",
+    });
+    await render(<SignInPage />);
+    expect(client.handleRedirectCallback).toHaveBeenCalledTimes(1);
+    expect(container.querySelector("output.ok")?.textContent).toBe(
+      "Signed in as prn_3",
+    );
+    expect(container.querySelector(".err")).toBeNull();
+  });
+
+  it("names the session unknown when the exchange carries no principal", async () => {
+    visit("/?code=abc&state=xyz");
+    client.handleRedirectCallback.mockResolvedValue({ anonymous: false });
+    await render(<SignInPage />);
+    expect(container.textContent).toContain("Signed in as unknown");
+  });
+
+  it("honors the stored return-to after a successful exchange", async () => {
+    visit("/?code=abc&state=xyz");
+    client.handleRedirectCallback.mockResolvedValue({
+      anonymous: false,
+      sub: "prn_7",
+    });
+    client.getReturnTo.mockReturnValue("/task-access");
+    await render(<SignInPage />);
+    expect(routedTo()).toBe("/task-access");
+  });
+
+  it("stays put when no return-to was stored", async () => {
+    visit("/?code=abc&state=xyz");
+    client.handleRedirectCallback.mockResolvedValue({
+      anonymous: false,
+      sub: "prn_7",
+    });
+    await render(<SignInPage />);
+    expect(routedTo()).toBe("/");
+  });
+
+  it("renders a refused authorization and still offers the sign-in buttons", async () => {
+    visit("/?error=access_denied");
+    client.handleRedirectCallback.mockRejectedValue(
+      new Error("Authorization error: access_denied"),
+    );
+    await render(<SignInPage />);
+    expect(client.handleRedirectCallback).toHaveBeenCalledTimes(1);
+    const shown = container.querySelector(".err");
+    expect(shown?.textContent).toContain("access_denied");
+    expect(buttonNamed("Sign in with OpenSesame").disabled).toBe(false);
+    expect(buttonNamed("Sign in with Google").disabled).toBe(false);
+    expect(buttonNamed("Continue anonymously").disabled).toBe(false);
+  });
+
+  it("falls back to a generic message for non-Error callback failures", async () => {
+    visit("/?code=abc&state=xyz");
+    client.handleRedirectCallback.mockRejectedValue("boom");
+    await render(<SignInPage />);
+    expect(container.querySelector(".err")?.textContent).toContain(
+      "Sign-in could not be completed. Try again.",
+    );
   });
 });

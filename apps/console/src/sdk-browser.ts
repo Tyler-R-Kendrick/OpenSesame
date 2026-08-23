@@ -9,6 +9,8 @@ export { ClaimRequestError } from "@opensesame/sdk-browser";
 type ConsoleBrowserClient = Pick<
   OpenSesameBrowserClient,
   | "signIn"
+  | "handleRedirectCallback"
+  | "getReturnTo"
   | "continueAnonymously"
   | "getSession"
   | "presentClaim"

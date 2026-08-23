@@ -8,6 +8,7 @@
     "apps/pages/src/lib/guest-auth.ts",
     "apps/pages/src/lib/notices.ts",
     "packages/policy/src/provisional.ts",
+    "apps/control-plane/src/services/identity-link.ts",
     "packages/audit/src/redact.ts",
     "packages/audit/src/chain.ts"
   ],
