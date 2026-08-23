@@ -397,6 +397,22 @@ impl<'a> Arbitrary<'a> for RedactionInput {
     }
 }
 
+/// Drives the attachment chunk primitive with attacker-shaped input: an
+/// arbitrary byte string presented as a sealed frame, plus arbitrary
+/// associated data to open it under.
+#[derive(Clone, Debug, Arbitrary)]
+pub struct AttachmentChunkInput {
+    pub key: [u8; 32],
+    pub attachment_id: [u8; 16],
+    pub plaintext: Vec<u8>,
+    /// Bytes handed to `open_chunk` as though they were a frame.
+    pub hostile_frame: Vec<u8>,
+    pub chunk_index: u32,
+    pub chunk_count: u32,
+    pub prefix_with_magic: bool,
+    pub truncate_at: u16,
+}
+
 #[derive(Clone, Debug, Arbitrary)]
 pub struct VaultMutateInput {
     pub key: [u8; 32],

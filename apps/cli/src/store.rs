@@ -93,7 +93,7 @@ pub fn resolve_root(path: Option<PathBuf>, tomb: Option<&str>) -> anyhow::Result
     Ok(resolve_store_dir())
 }
 
-fn open_unlocked(
+pub(crate) fn open_unlocked(
     path: Option<PathBuf>,
     tomb: Option<&str>,
 ) -> anyhow::Result<(StoreRoot, opensesame_sealed_store::ItemDataKey)> {
@@ -313,7 +313,7 @@ pub fn cmd_seal(
 
 /// Best-effort overwrite-then-remove for a plaintext manifest. Not proof
 /// against journaling filesystems, but better than leaving the bytes named.
-fn shred_file(path: &Path) -> anyhow::Result<()> {
+pub(crate) fn shred_file(path: &Path) -> anyhow::Result<()> {
     if let Ok(meta) = std::fs::metadata(path) {
         let zeros = vec![0u8; meta.len() as usize];
         let _ = std::fs::write(path, &zeros);

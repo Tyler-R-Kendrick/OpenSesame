@@ -39,6 +39,7 @@
     "@electric-sql/pglite": "0.2.17",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
+    "fast-check": "4.9.0",
     "tsx": "4.19.4",
     "typescript": "5.8.3",
     "vitest": "4.1.10"

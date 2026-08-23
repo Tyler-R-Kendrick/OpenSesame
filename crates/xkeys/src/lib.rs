@@ -265,3 +265,111 @@ mod pact {
         assert!(!json.contains("secret-item"));
     }
 }
+
+/// Generated property tests.
+///
+/// The `pact` module above calls its round-trip check a "property" test, but it
+/// walks four fixed payloads and tampers three fixed offsets. These generate
+/// their inputs instead: arbitrary plaintext lengths, arbitrary key material,
+/// and — the case a fixed offset cannot reach — a flip at *every* byte position
+/// of the sealed blob. `proptest` was already a declared dev-dependency of this
+/// crate with no test using it.
+#[cfg(test)]
+mod property {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn round_trips_arbitrary_plaintext(plaintext in proptest::collection::vec(any::<u8>(), 0..2048)) {
+            let kp = XKeyPair::generate();
+            let sealed = seal(&plaintext, &kp.public_key()).unwrap();
+            prop_assert_eq!(open(&sealed, &kp).unwrap(), plaintext);
+        }
+
+        #[test]
+        fn any_other_recipient_fails_closed(
+            plaintext in proptest::collection::vec(any::<u8>(), 0..256),
+            secret in any::<[u8; 32]>(),
+        ) {
+            let alice = XKeyPair::generate();
+            let mallory = XKeyPair::from_secret_bytes(secret);
+            prop_assume!(mallory.public_bytes() != alice.public_bytes());
+            let sealed = seal(&plaintext, &alice.public_key()).unwrap();
+            prop_assert!(open(&sealed, &mallory).is_err());
+        }
+
+        /// A single flipped bit anywhere — version byte, ephemeral key, nonce,
+        /// ciphertext or tag — must error, never panic and never yield bytes.
+        #[test]
+        fn any_single_bit_flip_fails_closed(
+            plaintext in proptest::collection::vec(any::<u8>(), 1..128),
+            bit in 0usize..8,
+        ) {
+            let kp = XKeyPair::generate();
+            let sealed = seal(&plaintext, &kp.public_key()).unwrap();
+            for index in 0..sealed.len() {
+                let mut hostile = sealed.clone();
+                hostile[index] ^= 1u8 << bit;
+                prop_assert!(
+                    open(&hostile, &kp).is_err(),
+                    "opened after flipping bit {} of byte {}", bit, index
+                );
+            }
+        }
+
+        /// Every truncation is refused cleanly, including lengths just under
+        /// the header+tag floor where slicing is easiest to get wrong.
+        #[test]
+        fn any_truncation_fails_closed(
+            plaintext in proptest::collection::vec(any::<u8>(), 1..256),
+            cut in 0usize..512,
+        ) {
+            let kp = XKeyPair::generate();
+            let sealed = seal(&plaintext, &kp.public_key()).unwrap();
+            let cut = cut.min(sealed.len().saturating_sub(1));
+            prop_assert!(open(&sealed[..cut], &kp).is_err());
+        }
+
+        /// Sealing twice must produce a fresh ephemeral key *and* a fresh
+        /// nonce. Asserting only that the blobs differ is too weak: the random
+        /// ephemeral key alone guarantees that, so such a test still passes
+        /// with a hardcoded nonce. These read the two header fields directly.
+        #[test]
+        fn sealing_uses_a_fresh_ephemeral_key_and_nonce(
+            plaintext in proptest::collection::vec(any::<u8>(), 1..128),
+        ) {
+            let kp = XKeyPair::generate();
+            let first = seal(&plaintext, &kp.public_key()).unwrap();
+            let second = seal(&plaintext, &kp.public_key()).unwrap();
+
+            let eph = |blob: &[u8]| blob[1..1 + PK_LEN].to_vec();
+            let nonce = |blob: &[u8]| blob[1 + PK_LEN..1 + PK_LEN + NONCE_LEN].to_vec();
+
+            prop_assert_ne!(eph(&first), eph(&second), "ephemeral key was reused");
+            prop_assert_ne!(nonce(&first), nonce(&second), "nonce was reused");
+            prop_assert_ne!(first, second);
+        }
+
+        /// The blob must never carry its own plaintext.
+        #[test]
+        fn sealed_blob_never_contains_the_plaintext(
+            plaintext in proptest::collection::vec(any::<u8>(), 8..128),
+        ) {
+            let kp = XKeyPair::generate();
+            let sealed = seal(&plaintext, &kp.public_key()).unwrap();
+            prop_assert!(
+                !sealed.windows(plaintext.len()).any(|w| w == plaintext.as_slice())
+            );
+        }
+
+        #[test]
+        fn public_key_is_a_function_of_the_secret(secret in any::<[u8; 32]>()) {
+            let a = XKeyPair::from_secret_bytes(secret);
+            let b = XKeyPair::from_secret_bytes(secret);
+            prop_assert_eq!(a.public_bytes(), b.public_bytes());
+            let sealed = seal(b"cross-instance", &a.public_key()).unwrap();
+            prop_assert_eq!(open(&sealed, &b).unwrap(), b"cross-instance".to_vec());
+        }
+    }
+}
