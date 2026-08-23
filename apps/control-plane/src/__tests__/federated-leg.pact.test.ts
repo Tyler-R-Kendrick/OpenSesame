@@ -23,6 +23,24 @@ const routesSource = readFileSync(
   "utf8",
 );
 
+/**
+ * A source oracle reads the file as written, which stops being true the moment
+ * a mutation run instruments it: Stryker rewrites each expression through a
+ * `stryMutAct_` guard, so literal fragments like `idTokenExpected: true` are no
+ * longer present in order — or at all.
+ *
+ * These oracles are a refactor guard, not a behavioural claim, and mutation
+ * testing measures behaviour. So under instrumentation they step aside rather
+ * than assert against rewritten code. Everything else in this file is
+ * behavioural and keeps running either way.
+ *
+ * Worth knowing before adding any file to the Stryker `mutate` set: a file that
+ * is both mutated and covered by a source oracle will fail the dry run, which
+ * is how this was found.
+ */
+const INSTRUMENTED = federatedSource.includes("stryMutAct_");
+const describeSourceOracle = INSTRUMENTED ? describe.skip : describe;
+
 function config(overrides: Partial<ControlPlaneConfig> = {}) {
   return {
     publicUrl: "https://identity.example",
@@ -42,7 +60,7 @@ function config(overrides: Partial<ControlPlaneConfig> = {}) {
  * every assertion true but reorders the checks is exactly the change these
  * catch.
  */
-describe("PACT — federated leg fail-closed ordering", () => {
+describeSourceOracle("PACT — federated leg fail-closed ordering", () => {
   it("checks the issuer allowlist before it ever talks to the network", () => {
     assertSourceOrder(federatedSource, [
       "export async function beginFederatedAuth",
@@ -94,7 +112,13 @@ describe("PACT — federated leg fail-closed ordering", () => {
       "returned no id_token",
     ]);
   });
+});
 
+/**
+ * The route file is not in the Stryker `mutate` set, so these oracles read it
+ * as written and run under a mutation pass too.
+ */
+describe("PACT — federated route ordering", () => {
   it("deletes the single-use pending cookie before the exchange runs", () => {
     assertSourceOrder(routesSource, [
       "decodePending(getCookie",
