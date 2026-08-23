@@ -295,7 +295,7 @@ pub fn build_fixtures(shape: Shape) -> BTreeMap<&'static str, Value> {
                 "revisionDate": "2026-02-03T04:05:10.000Z",
                 "login": {
                     "username": null,
-                    "password": "7.2E2ldTVOKk2Zh8YQ0gxpAg==",
+                    "password": "7.2E2ldTVOKk2Zh8YQ0gxpAg==", // gitleaks:allow -- synthetic type-7 COSE EncString
                     "totp": null,
                     "uris": []
                 },

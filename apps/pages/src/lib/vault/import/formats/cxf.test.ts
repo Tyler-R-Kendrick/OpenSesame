@@ -215,7 +215,7 @@ describe("fidoCxf.parse of a foreign document", () => {
               username: "ada@example.org",
               userDisplayName: "Ada",
               userHandle: "dXNlcg",
-              key: "TUlHSEFnRUFNQk1HQnlxR1NNNDlB",
+              key: "TUlHSEFnRUFNQk1HQnlxR1NNNDlB", // gitleaks:allow -- truncated PEM header, no key body
             },
           ],
         },
@@ -265,7 +265,7 @@ describe("fidoCxf.parse of a foreign document", () => {
               keyType: "ed25519",
               privateKey: {
                 fieldType: "concealed-string",
-                value: "-----BEGIN OPENSSH PRIVATE KEY-----",
+                value: "-----BEGIN OPENSSH PRIVATE KEY-----", // gitleaks:allow -- header line only, no key body
               },
               keyComment: "ada@laptop",
             },
@@ -325,9 +325,7 @@ describe("fidoCxf.parse of a foreign document", () => {
         {
           id: "w",
           title: "Home Wi-Fi",
-          credentials: [
-            { type: "wifi", ssid: "Home", passphrase: "hunter2" },
-          ],
+          credentials: [{ type: "wifi", ssid: "Home", passphrase: "hunter2" }],
         },
         {
           id: "addr",
@@ -348,10 +346,7 @@ describe("fidoCxf.parse of a foreign document", () => {
       document([
         {
           ...BASIC,
-          credentials: [
-            ...BASIC.credentials,
-            { type: "wifi", ssid: "Home" },
-          ],
+          credentials: [...BASIC.credentials, { type: "wifi", ssid: "Home" }],
         },
       ]),
     );
@@ -372,9 +367,7 @@ describe("fidoCxf.parse of a foreign document", () => {
             id: "c1",
             title: "Work",
             items: [{ item: "top" }],
-            subcollections: [
-              { id: "c2", title: "Vendors", items: ["deep"] },
-            ],
+            subcollections: [{ id: "c2", title: "Vendors", items: ["deep"] }],
           },
         ],
       ),

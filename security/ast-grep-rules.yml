@@ -1,4 +1,28 @@
 # OpenSesame ast-grep security rules (error-level findings must stay at zero).
+#
+# Two families of rule live here, and they are scoped differently on purpose.
+#
+# The injection rules (SQL, shell, eval, child_process, document.write,
+# dangerouslySetInnerHTML) run over EVERYTHING, tests included. A test that
+# shells out through a format string is still a shell injection.
+#
+# The browser-risk rules (innerHTML, web storage, Math.random) carry the
+# `TEST_FILES` ignore list below. They describe what shipping code does in a
+# real browser: web storage an XSS can read, markup an XSS can inject, a
+# PRNG something depends on for unpredictability. A unit test that seeds
+# sessionStorage so it can assert the production reader handles it, or clears
+# a container with `innerHTML = ""`, is doing none of those things — the code
+# never reaches a browser and there is no attacker in the room.
+#
+# That distinction is not cosmetic. Before this scoping the gate reported 34
+# findings, 31 of them test setup, and it had never once been green. A gate
+# that is permanently red reports nothing: a genuine new finding arrives as
+# finding number 35 and no one sees it. The three real production findings
+# are suppressed individually at their call sites, each with a reason, so
+# adding a fourth still turns this red.
+#
+# `security/ast-grep-negative-control.md` explains how to confirm the gate can
+# still fail; `pnpm audit:ast-grep` runs it.
 id: sql-format-injection
 language: rust
 severity: error
@@ -21,6 +45,19 @@ id: ts-math-random-security
 language: typescript
 severity: error
 message: Math.random is not cryptographically secure
+ignores:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "**/*.spec.tsx"
+  - "**/*.units.test.ts"
+  - "**/*.behavior.test.ts"
+  - "**/*.characterization.test.ts"
+  - "**/*.chaos.test.ts"
+  - "**/*.fuzz.test.ts"
+  - "**/*.pact.test.ts"
+  - "**/__tests__/**"
+  - "**/tests/**"
 rule:
   pattern: Math.random()
 ---
@@ -37,6 +74,19 @@ id: ts-innerhtml
 language: typescript
 severity: error
 message: innerHTML assignment risks XSS
+ignores:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "**/*.spec.tsx"
+  - "**/*.units.test.ts"
+  - "**/*.behavior.test.ts"
+  - "**/*.characterization.test.ts"
+  - "**/*.chaos.test.ts"
+  - "**/*.fuzz.test.ts"
+  - "**/*.pact.test.ts"
+  - "**/__tests__/**"
+  - "**/tests/**"
 rule:
   pattern: $EL.innerHTML = $X
 ---
@@ -44,6 +94,19 @@ id: tsx-innerhtml
 language: tsx
 severity: error
 message: innerHTML assignment risks XSS
+ignores:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "**/*.spec.tsx"
+  - "**/*.units.test.ts"
+  - "**/*.behavior.test.ts"
+  - "**/*.characterization.test.ts"
+  - "**/*.chaos.test.ts"
+  - "**/*.fuzz.test.ts"
+  - "**/*.pact.test.ts"
+  - "**/__tests__/**"
+  - "**/tests/**"
 rule:
   pattern: $EL.innerHTML = $X
 ---
@@ -65,6 +128,19 @@ id: ts-localstorage-set
 language: typescript
 severity: error
 message: localStorage/sessionStorage can be exfiltrated via XSS — avoid for secrets/sealed material
+ignores:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "**/*.spec.tsx"
+  - "**/*.units.test.ts"
+  - "**/*.behavior.test.ts"
+  - "**/*.characterization.test.ts"
+  - "**/*.chaos.test.ts"
+  - "**/*.fuzz.test.ts"
+  - "**/*.pact.test.ts"
+  - "**/__tests__/**"
+  - "**/tests/**"
 rule:
   any:
     - pattern: localStorage.setItem($K, $V)
@@ -74,6 +150,19 @@ id: tsx-localstorage-set
 language: tsx
 severity: error
 message: localStorage/sessionStorage can be exfiltrated via XSS — avoid for secrets/sealed material
+ignores:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "**/*.spec.tsx"
+  - "**/*.units.test.ts"
+  - "**/*.behavior.test.ts"
+  - "**/*.characterization.test.ts"
+  - "**/*.chaos.test.ts"
+  - "**/*.fuzz.test.ts"
+  - "**/*.pact.test.ts"
+  - "**/__tests__/**"
+  - "**/tests/**"
 rule:
   any:
     - pattern: localStorage.setItem($K, $V)

@@ -106,7 +106,7 @@ function vault(): VaultBody {
         ipAddrs: "127.0.0.1",
         ttlHours: "24",
         certificatePem: "-----BEGIN CERTIFICATE-----",
-        privateKeyPem: "-----BEGIN PRIVATE KEY-----",
+        privateKeyPem: "-----BEGIN PRIVATE KEY-----", // gitleaks:allow -- header line only, no key body
         caPem: "",
         serial: "01",
         notAfter: NOW,
@@ -218,7 +218,7 @@ const FOREIGN = {
               username: "fixture@example.org",
               userDisplayName: "Fixture Person",
               userHandle: "dXNlci1oYW5kbGU",
-              key: "cHJpdmF0ZS1rZXktdGhpcy12YXVsdC1yZWZ1c2Vz",
+              key: "cHJpdmF0ZS1rZXktdGhpcy12YXVsdC1yZWZ1c2Vz", // gitleaks:allow -- decodes to "private-key-this-vault-refuses"
             },
           ],
         },

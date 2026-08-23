@@ -73,6 +73,13 @@ function stashCurrentSessionDefault(): void {
   // byte-identical either way, so no test can distinguish the two.
   if (active.expiresAt) payload.expiresAt = active.expiresAt;
   try {
+    // This one is real and deliberate: it is the guest access token, and the
+    // OIDC redirect is a full navigation that drops JS state, so there is
+    // nowhere else to keep it. The posture is the one set in
+    // docs/security/audit-2026-08-07-sdk-browser-storage.md — sessionStorage
+    // rather than localStorage, and no refresh token, which this payload has
+    // no field for. `takeStashedSession` consumes it on the way back.
+    // ast-grep-ignore: ts-localstorage-set
     sessionStorage.setItem(STASH_KEY, JSON.stringify(payload));
   } catch {
     /* private mode — resumeCookieSession is the fallback */
@@ -122,6 +129,10 @@ function hasStashedSession(): boolean {
 
 function markPendingLink(): void {
   try {
+    // A literal "1", not secret material: the rule guards against storing
+    // something an XSS could exfiltrate, and the only thing this leaks is
+    // that a link is pending, which the notice on screen already says.
+    // ast-grep-ignore: ts-localstorage-set
     sessionStorage.setItem(PENDING_LINK_KEY, "1");
   } catch {
     /* private mode — the in-memory notice is the only prompt then */

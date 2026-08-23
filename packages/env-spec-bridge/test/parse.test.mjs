@@ -93,7 +93,7 @@ TOKEN=sk_live_concurrent # gitleaks:allow -- fixture
     const runs = Array.from({ length: 8 }, () => parseSchemaFile(path));
     for (const result of runs) {
       assert.equal(
-        JSON.stringify(result).includes("sk_live_concurrent"),
+        JSON.stringify(result).includes("sk_live_concurrent"), // gitleaks:allow -- the assertion is that this is NOT emitted
         false,
       ); // gitleaks:allow -- fixture
     }
