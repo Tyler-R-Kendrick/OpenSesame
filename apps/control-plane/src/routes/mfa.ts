@@ -31,6 +31,31 @@ type RegistrationResponseBody = {
   authenticatorAttachment?: string;
 };
 
+const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+/**
+ * RFC 4648 base32, unpadded. The Key URI Format requires the `secret`
+ * parameter in base32; authenticator apps base32-decode it verbatim, so any
+ * other encoding silently derives a different key.
+ */
+export function base32Encode(bytes: Uint8Array): string {
+  let bits = 0;
+  let value = 0;
+  let out = "";
+  for (const byte of bytes) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      out += BASE32_ALPHABET[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) {
+    out += BASE32_ALPHABET[(value << (5 - bits)) & 31];
+  }
+  return out;
+}
+
 /** DEV/test TOTP: HMAC-SHA1 truncated to 6 digits (RFC 6238-style). */
 function totpCode(
   secretB64: string,
@@ -359,7 +384,7 @@ mfaRoutes.post("/totp/enroll", requirePrincipal(), async (c) => {
   const secret = randomBytes(20);
   const secretB64 = secret.toString("base64");
   ctx.stores.totpSecrets.set(principalId, secretB64);
-  const otpauthUrl = `otpauth://totp/OpenSesame:${encodeURIComponent(principalId)}?secret=${secret.toString("hex")}&issuer=OpenSesame`;
+  const otpauthUrl = `otpauth://totp/OpenSesame:${encodeURIComponent(principalId)}?secret=${base32Encode(secret)}&issuer=OpenSesame`;
   return c.json({
     ok: true,
     secret: secretB64,

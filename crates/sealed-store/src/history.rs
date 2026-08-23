@@ -1,12 +1,13 @@
 //! Git history for sealed-store entries (`opensesame pass history` / `restore`).
 //!
 //! History is metadata only: commit sha, subject, timestamp — auto-commits are
-//! `Add {name}` / `Edit {name}` / `Remove {name}` / `Restore {name}`, so the
-//! log never names plaintext. Restore never rewrites history and never winds
+//! name-free operation subjects (`seal: add entry`, `seal: edit entry`,
+//! `seal: remove entry`, `seal: restore entry`), so neither the secret nor the
+//! entry it belongs to is named. History is scoped by path, not by subject. Restore never rewrites history and never winds
 //! the anti-rollback counter back: for `.osseal` entries the old plaintext is
 //! recovered and re-sealed at a **bumped** revision (writing the literal old
 //! blob would be refused by the revision check), committed as a NEW
-//! `Restore {name}` commit; for `.gpg`/`.age` entries — which carry no local
+//! restore commit; for `.gpg`/`.age` entries — which carry no local
 //! revision counter — the old ciphertext blob is written back verbatim.
 
 use std::path::{Path, PathBuf};
@@ -24,7 +25,7 @@ use crate::{Entry, StoreError, StoreRoot};
 pub struct HistoryEntry {
     /// Full commit sha.
     pub commit: String,
-    /// Commit subject, e.g. `Edit Dev/api-token`.
+    /// Commit subject — the operation only, never the entry name.
     pub subject: String,
     /// Committer timestamp, unix seconds.
     pub timestamp: i64,
@@ -170,12 +171,12 @@ pub fn restore_entry(
                 .map_err(|e| StoreError::Crypto(format!("utf8: {e}")))?;
             let entry = Entry::parse(&text);
             root.write_entry_unchecked(name, &entry, key)?;
-            auto_commit(&root.path, &format!("Restore {name}"))?;
+            auto_commit(&root.path, crate::store::COMMIT_RESTORE)?;
             Ok(root.revisions()?.get(name).copied())
         }
         _ => {
             confined_write(&root.path, &blob.rel, &blob.bytes)?;
-            auto_commit(&root.path, &format!("Restore {name}"))?;
+            auto_commit(&root.path, crate::store::COMMIT_RESTORE)?;
             Ok(None)
         }
     }
@@ -228,8 +229,8 @@ mod tests {
         let (_dir, root, _key) = seeded();
         let log = entry_history(&root, "Dev/a").unwrap();
         assert_eq!(log.len(), 2);
-        assert_eq!(log[0].subject, "Edit Dev/a");
-        assert_eq!(log[1].subject, "Add Dev/a");
+        assert_eq!(log[0].subject, crate::store::COMMIT_EDIT);
+        assert_eq!(log[1].subject, crate::store::COMMIT_ADD);
         assert!(log.iter().all(|e| e.timestamp > 0));
         assert!(log.iter().all(|e| e.commit.len() == 40));
     }
@@ -255,8 +256,8 @@ mod tests {
 
         let log = entry_history(&root, "Dev/a").unwrap();
         assert_eq!(log.len(), 3);
-        assert_eq!(log[0].subject, "Restore Dev/a");
-        assert_eq!(log[2].subject, "Add Dev/a");
+        assert_eq!(log[0].subject, crate::store::COMMIT_RESTORE);
+        assert_eq!(log[2].subject, crate::store::COMMIT_ADD);
 
         // The restored blob itself is sealed at the bumped revision, so the
         // pre-restore blob is now stale ciphertext.

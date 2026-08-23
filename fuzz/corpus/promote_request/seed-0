@@ -1,0 +1,1 @@
+{"provider_id":"github","source":{"kind":"env_var","name":"GITHUB_TOKEN"},"mode":"mint","confirm":true,"wipe_after_import":false}

@@ -634,26 +634,83 @@ mod pact {
         }
     }
 
+    /// Sentinels distinctive enough that a substring hit cannot be chance.
+    /// The previous fixture used single letters ("i", "o", "p"), which no
+    /// absence assertion could have tested meaningfully.
+    fn sentinel_ad() -> AssociatedData {
+        AssociatedData {
+            envelope_version: ENVELOPE_VERSION,
+            item_id: "XZQITEM/api-token".into(),
+            organization_id: "XZQORG".into(),
+            project_id: "XZQPROJECT".into(),
+            collection_id: "XZQCOLLECTION".into(),
+            key_id: "XZQKEY".into(),
+            revision: 1,
+        }
+    }
+
     #[test]
-    fn contract_envelopes_are_ciphertext_only() {
+    fn contract_envelope_payload_is_ciphertext_only() {
         let idk = ItemDataKey::generate();
-        let env = encrypt_item(
-            &idk,
-            b"secret-item",
-            AssociatedData {
-                envelope_version: ENVELOPE_VERSION,
-                item_id: "i".into(),
-                organization_id: "o".into(),
-                project_id: "p".into(),
-                collection_id: "c".into(),
-                key_id: "k".into(),
-                revision: 1,
-            },
-        )
-        .unwrap();
+        let env = encrypt_item(&idk, b"secret-item", sentinel_ad()).unwrap();
         let json = serde_json::to_string(&env).unwrap();
         assert!(!json.contains("secret-item"));
         assert!(!json.contains("access_token"));
         assert_eq!(decrypt_item(&idk, &env).unwrap(), b"secret-item");
+    }
+
+    /// Approval test for the envelope wire shape.
+    ///
+    /// `insta` is this repo's Verify-equivalent: the expected value lives in a
+    /// committed `.snap` file and is reused on every later run, so a change to
+    /// what the envelope publishes shows up as a reviewable diff instead of
+    /// passing silently. It was previously wired into `apps/daemon` only,
+    /// though this is the format that reaches disk and backup remotes.
+    ///
+    /// The nonce and ciphertext are random per call and the digest follows
+    /// them, so those three are redacted — the point is the *shape* and which
+    /// fields carry readable values. Every identifier under `ad` appearing in
+    /// cleartext here is the exposure `characterize_associated_data_is_
+    /// cleartext_today` asserts; when the format is blinded, this snapshot
+    /// must be reviewed and accepted rather than regenerated unread.
+    #[test]
+    fn envelope_wire_shape_is_pinned() {
+        let idk = ItemDataKey([3u8; 32]);
+        let env = encrypt_item(&idk, b"secret-item", sentinel_ad()).unwrap();
+        insta::assert_json_snapshot!(env, {
+            ".nonce" => "[nonce]",
+            ".ciphertext" => "[ciphertext]",
+            ".ad_digest" => "[digest]",
+        });
+    }
+
+    /// Characterization, not an endorsement: `ad` is serialized beside the
+    /// ciphertext in the clear, so every identifier in it — including the
+    /// caller's `item_id`, which `sealed-store` sets to the entry's logical
+    /// path — is readable by anyone holding the envelope.
+    ///
+    /// This test pins that exposure so it stays visible and cannot widen
+    /// unnoticed. Blinding these identifiers changes the on-disk envelope
+    /// format and needs its own migration; when that lands, this test should
+    /// invert into an absence assertion.
+    #[test]
+    fn characterize_associated_data_is_cleartext_today() {
+        let idk = ItemDataKey::generate();
+        let env = encrypt_item(&idk, b"secret-item", sentinel_ad()).unwrap();
+        let json = serde_json::to_string(&env).unwrap();
+
+        for identifier in [
+            "XZQITEM/api-token",
+            "XZQORG",
+            "XZQPROJECT",
+            "XZQCOLLECTION",
+            "XZQKEY",
+        ] {
+            assert!(
+                json.contains(identifier),
+                "associated data no longer carries {identifier} in the clear — \
+                 if it is now blinded, invert this test into an absence assertion"
+            );
+        }
     }
 }

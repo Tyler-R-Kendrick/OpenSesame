@@ -115,6 +115,12 @@ export function redactAuditMetadata(
   if (!metadata) return {};
   const out: JsonObject = {};
   for (const [key, value] of Object.entries(metadata)) {
+    // Stryker disable next-line ConditionalExpression: this layer is
+    // deliberately redundant with the allowlist below — every key it catches
+    // is already absent from the allowlist, so removing the check changes no
+    // observable behaviour and no test can kill the mutant. It is kept as the
+    // layer that still holds if a secret-shaped key is added to the allowlist
+    // by mistake; that intent is pinned by testing isDeniedAuditMetadataKey.
     if (isDeniedAuditMetadataKey(key)) continue;
     if (!AUDIT_METADATA_ALLOWLIST.has(key)) continue;
     if (isString(value)) {

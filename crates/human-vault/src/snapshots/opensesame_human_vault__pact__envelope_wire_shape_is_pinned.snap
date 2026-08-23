@@ -1,0 +1,19 @@
+---
+source: crates/human-vault/src/lib.rs
+expression: env
+---
+{
+  "version": 1,
+  "nonce": "[nonce]",
+  "ciphertext": "[ciphertext]",
+  "ad": {
+    "envelope_version": 1,
+    "item_id": "XZQITEM/api-token",
+    "organization_id": "XZQORG",
+    "project_id": "XZQPROJECT",
+    "collection_id": "XZQCOLLECTION",
+    "key_id": "XZQKEY",
+    "revision": 1
+  },
+  "ad_digest": "[digest]"
+}

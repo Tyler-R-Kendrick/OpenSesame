@@ -261,7 +261,6 @@ mod tests {
             &key,
         )
         .unwrap();
-        auto_commit(dir.path(), "Add a").unwrap();
         let log = Command::new("git")
             .args([
                 "-C",
@@ -272,7 +271,7 @@ mod tests {
             ])
             .output()
             .unwrap();
-        assert!(String::from_utf8_lossy(&log.stdout).contains("Add a"));
+        assert!(String::from_utf8_lossy(&log.stdout).contains(crate::store::COMMIT_ADD));
         let tree = Command::new("git")
             .args([
                 "-C",
@@ -340,7 +339,7 @@ mod tests {
             .current_dir(bare.path())
             .output()
             .unwrap();
-        assert!(String::from_utf8_lossy(&log.stdout).contains("Add b"));
+        assert!(String::from_utf8_lossy(&log.stdout).contains(crate::store::COMMIT_ADD));
     }
 
     #[test]
