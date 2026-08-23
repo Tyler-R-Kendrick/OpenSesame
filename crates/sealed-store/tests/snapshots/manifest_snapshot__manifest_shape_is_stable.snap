@@ -1,0 +1,27 @@
+---
+source: crates/sealed-store/tests/manifest_snapshot.rs
+expression: sample()
+---
+{
+  "format": 1,
+  "attachment_id": "[id]",
+  "filename": "w2.pdf",
+  "mime": "application/pdf",
+  "total_bytes": 1400000,
+  "chunk_bytes": 1048576,
+  "chunk_count": 2,
+  "chunks": [
+    {
+      "digest": "[digest]",
+      "ct_bytes": 1048624,
+      "pt_bytes": 1048576
+    },
+    {
+      "digest": "[digest]",
+      "ct_bytes": 351472,
+      "pt_bytes": 351424
+    }
+  ],
+  "content_digest": "[digest]",
+  "created_at_unix_ms": "[ts]"
+}

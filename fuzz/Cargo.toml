@@ -269,6 +269,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "attachment_chunk"
+path = "fuzz_targets/attachment_chunk.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "bitwarden_encstring"
 path = "fuzz_targets/bitwarden_encstring.rs"
 test = false
