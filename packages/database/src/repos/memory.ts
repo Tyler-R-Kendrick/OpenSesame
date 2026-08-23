@@ -8,6 +8,8 @@ import type {
   ExternalIdentity,
   OutboxEvent,
   Principal,
+  Project,
+  ProjectMembership,
 } from "@opensesame/os-domain";
 import {
   type AuditEventRepository,
@@ -16,15 +18,20 @@ import {
   type ClaimItemRepository,
   type ClaimSessionRepository,
   ConflictError,
+  type EnsurePersonalProjectResult,
   type ExternalIdentityRepository,
   type NewOutboxEvent,
   NotFoundError,
   OUTBOX_CLAIM_HOLD_MS,
   type OutboxRepository,
   type PrincipalRepository,
+  type ProjectMembershipStore,
+  type ProjectStore,
+  type ProjectStores,
   type Repositories,
   type TransactionFn,
   type UnitOfWork,
+  buildPersonalProject,
   outboxClaimToken,
   outboxHoldActive,
 } from "./interfaces.js";
@@ -541,4 +548,137 @@ export class MemoryRepositories implements Repositories {
     uow.commit();
     return result;
   }
+}
+
+function membershipKey(projectId: string, principalId: string): string {
+  return `${projectId}:${principalId}`;
+}
+
+/**
+ * In-memory membership store — the Map the control plane used to hold in
+ * `AppStores`, promoted to the store interface. It deliberately *extends* Map
+ * keyed by `${projectId}:${principalId}` so existing tests that seed rows via
+ * `store.set(key, membership)` keep observing the same state the interface
+ * methods read.
+ */
+export class MemoryProjectMembershipStore
+  extends Map<string, ProjectMembership>
+  implements ProjectMembershipStore
+{
+  find(projectId: string, principalId: string): ProjectMembership | undefined {
+    return super.get(membershipKey(projectId, principalId));
+  }
+
+  upsert(membership: ProjectMembership): ProjectMembership {
+    this.set(
+      membershipKey(membership.projectId, membership.principalId),
+      membership,
+    );
+    return membership;
+  }
+
+  remove(projectId: string, principalId: string): boolean {
+    return this.delete(membershipKey(projectId, principalId));
+  }
+
+  removeByProject(projectId: string): number {
+    let removed = 0;
+    for (const [key, membership] of this) {
+      if (membership.projectId === projectId) {
+        this.delete(key);
+        removed += 1;
+      }
+    }
+    return removed;
+  }
+
+  listByProject(projectId: string): ProjectMembership[] {
+    return [...this.values()].filter((m) => m.projectId === projectId);
+  }
+
+  listByPrincipal(principalId: string): ProjectMembership[] {
+    return [...this.values()].filter((m) => m.principalId === principalId);
+  }
+
+  countOwners(projectId: string): number {
+    let count = 0;
+    for (const membership of this.values()) {
+      if (membership.projectId === projectId && membership.role === "owner") {
+        count += 1;
+      }
+    }
+    return count;
+  }
+}
+
+/**
+ * In-memory project store — the former `AppStores.projects` Map behind the
+ * store interface. Extends Map keyed by project id for the same test-seeding
+ * reason as {@link MemoryProjectMembershipStore}; `get`/`set` keep their Map
+ * semantics and double as the interface's read/upsert.
+ */
+export class MemoryProjectStore
+  extends Map<string, Project>
+  implements ProjectStore
+{
+  constructor(private readonly memberships: ProjectMembershipStore) {
+    super();
+  }
+
+  listByOwner(ownerPrincipalId: string): Project[] {
+    return [...this.values()].filter(
+      (p) => p.ownerPrincipalId === ownerPrincipalId,
+    );
+  }
+
+  findPersonalByOwner(ownerPrincipalId: string): Project | undefined {
+    for (const project of this.values()) {
+      if (
+        project.kind === "personal" &&
+        project.ownerPrincipalId === ownerPrincipalId &&
+        project.state !== "deleted" &&
+        project.state !== "deleting"
+      ) {
+        return project;
+      }
+    }
+    return undefined;
+  }
+
+  async ensurePersonal(
+    principalId: string,
+    organizationId?: string,
+    now: Date = new Date(),
+  ): Promise<EnsurePersonalProjectResult> {
+    const existing = this.findPersonalByOwner(principalId);
+    if (existing) {
+      return { project: existing, created: false };
+    }
+    const project = buildPersonalProject(principalId, now, organizationId);
+    this.set(project.id, project);
+    await this.memberships.upsert({
+      projectId: project.id,
+      principalId,
+      role: "owner",
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { project, created: true };
+  }
+}
+
+/**
+ * The linked pair: `projects.ensurePersonal` mints the owner membership.
+ * Returns the concrete classes (a narrowing of {@link ProjectStores}) so
+ * Map-level seeding in tests stays typed.
+ */
+export function createMemoryProjectStores(): ProjectStores & {
+  projects: MemoryProjectStore;
+  projectMemberships: MemoryProjectMembershipStore;
+} {
+  const projectMemberships = new MemoryProjectMembershipStore();
+  return {
+    projects: new MemoryProjectStore(projectMemberships),
+    projectMemberships,
+  };
 }

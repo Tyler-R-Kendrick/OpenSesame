@@ -2,9 +2,13 @@ import {
   type ClientClaimChallengeStore,
   type ClientOriginStore,
   type ConsentStore,
+  type ProjectMembershipStore,
+  type ProjectStore,
+  type ProjectStores,
   createMemoryClientClaimChallengeStore,
   createMemoryClientOriginStore,
   createMemoryConsentStore,
+  createMemoryProjectStores,
 } from "@opensesame/database";
 import {
   type ClientRecordStore,
@@ -15,8 +19,6 @@ import type {
   AgentInstance,
   Organization,
   OrganizationMembership,
-  Project,
-  ProjectMembership,
   ProvisionalSession,
 } from "@opensesame/os-domain";
 
@@ -31,9 +33,13 @@ export interface AppStores {
   provisionalSessions: Map<string, ProvisionalSession>;
   /** session token → session id */
   provisionalTokens: Map<string, string>;
-  projects: Map<string, Project>;
-  /** `${projectId}:${principalId}` → membership */
-  projectMemberships: Map<string, ProjectMembership>;
+  /**
+   * Durable project rows (WP-8). Memory-backed in tests/dev, Postgres when a
+   * database is configured — same interface either way.
+   */
+  projects: ProjectStore;
+  /** Durable project memberships, keyed by (projectId, principalId). */
+  projectMemberships: ProjectMembershipStore;
   /** project id → tail of serialized membership mutations */
   projectMembershipMutations: Map<string, Promise<void>>;
   /** principalId → active (swapped-in) project id */
@@ -90,12 +96,14 @@ export function createAppStores(options?: {
   clientClaimChallenges?: ClientClaimChallengeStore;
   clientOrigins?: ClientOriginStore;
   consents?: ConsentStore;
+  projectStores?: ProjectStores;
 }): AppStores {
+  const projectStores = options?.projectStores ?? createMemoryProjectStores();
   return {
     provisionalSessions: new Map(),
     provisionalTokens: new Map(),
-    projects: new Map(),
-    projectMemberships: new Map(),
+    projects: projectStores.projects,
+    projectMemberships: projectStores.projectMemberships,
     projectMembershipMutations: new Map(),
     activeProjects: new Map(),
     organizations: new Map(),
@@ -158,8 +166,7 @@ export async function getUsage(
 }> {
   let temporaryProjects = 0;
   let projects = 0;
-  for (const project of stores.projects.values()) {
-    if (project.ownerPrincipalId !== principalId) continue;
+  for (const project of await stores.projects.listByOwner(principalId)) {
     if (!LIVE_PROJECT_STATES.has(project.state)) continue;
     if (project.expiresAt && project.expiresAt <= now) continue;
     // The always-present personal project never spends a quota slot.

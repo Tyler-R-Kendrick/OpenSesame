@@ -274,6 +274,9 @@ importers:
         specifier: 3.25.67
         version: 3.25.67
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: 0.2.17
+        version: 0.2.17
       '@opensesame/testing':
         specifier: workspace:*
         version: link:../../packages/testing
