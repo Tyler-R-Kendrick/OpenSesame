@@ -453,7 +453,7 @@ mod tests {
         Association {
             id: "opensesame-1".into(),
             name: "firefox".into(),
-            id_key: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=".into(),
+            id_key: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=".into(), // gitleaks:allow -- decodes to "1234...32", test pairing fixture
             created_at: "1750000000".into(),
         }
     }

@@ -5,7 +5,12 @@ title = "opensesame"
 [extend]
 useDefault = true
 
-[allowlist]
+# Written in the plural `[[allowlists]]` form throughout. gitleaks refuses to
+# load a config that mixes the deprecated singular `[allowlist]` with this one,
+# so the build-output pruning below had to move across when the per-rule
+# exemptions were added.
+
+[[allowlists]]
 description = "Build outputs, package stores, and local tooling (must prune for dir scans)"
 paths = [
   '''(^|/)\.git(?:/|$)''',
@@ -31,7 +36,38 @@ paths = [
 ]
 
 # Remediated historical commits that still contain old sk_test_* test placeholders.
+[[allowlists]]
+description = "Remediated historical commits (old sk_test_* placeholders)"
 commits = [
   '''9b15cdf5f97ab761f5324d9d69865e064e700663''',
   '''ff63081de227dc7573698504cf50b30fe57989da''',
+]
+
+# Cryptographic test vectors — the four files that cannot carry a comment.
+#
+# Everywhere else the exemption is a trailing `// gitleaks:allow` on the
+# offending line, which is precise: the rest of the file stays scanned. These
+# four cannot take one. Three are JSON, which has no comment syntax, and
+# Cargo.lock is generated — a comment there is erased by the next resolve.
+#
+# Each was read before it was listed and every value is visibly synthetic: the
+# Bitwarden vectors use "correct horse battery staple" as the master password
+# and a wrapped user key that base64-decodes to "ZZZZZZZZZZZZZZZZ", and the
+# Cargo.lock hit is a crate checksum, not a credential.
+#
+# Note these are whole-file exemptions. `targetRules` would have pinned each to
+# the single rule it answers, but it has no effect on rules inherited through
+# `[extend] useDefault` in gitleaks 8.28 — verified by running a scan with and
+# without it and getting the same 12 findings. So a genuine AWS key pasted into
+# one of these four fixtures would not be caught. Keep the list to files whose
+# entire contents someone has read, and prefer the inline comment anywhere it
+# is possible.
+
+[[allowlists]]
+description = "Synthetic crypto vectors and a lockfile checksum (no comment syntax available)"
+paths = [
+  '''(^|/)crates/provider-bitwarden/tests/vectors/crypto_vectors\.json$''',
+  '''(^|/)crates/provider-bitwarden/tests/fixtures/cloud/sync\.json$''',
+  '''(^|/)crates/provider-bitwarden/tests/fixtures/vaultwarden/sync\.json$''',
+  '''(^|/)Cargo\.lock$''',
 ]
