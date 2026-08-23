@@ -19,7 +19,7 @@ import type { UriMatch } from "../../model.js";
 import { hasHeaders, parseCsv, pick } from "../csv.js";
 import {
   type DraftItem,
-  type ImportAdapter,
+  type TextImportAdapter,
   type ParseResult,
   type SkippedRecord,
   addField,
@@ -78,7 +78,7 @@ function isBitwardenJson(json: BoundaryValue): json is BwExport {
   );
 }
 
-export const bitwardenJson: ImportAdapter = {
+export const bitwardenJson: TextImportAdapter = {
   id: "bitwarden-json",
   label: "Bitwarden (.json)",
   shortName: "Bitwarden",
@@ -202,7 +202,7 @@ export const bitwardenJson: ImportAdapter = {
 
 const CSV_HEADERS = ["name", "login_username", "login_password"];
 
-export const bitwardenCsv: ImportAdapter = {
+export const bitwardenCsv: TextImportAdapter = {
   id: "bitwarden-csv",
   label: "Bitwarden (.csv)",
   shortName: "Bitwarden",

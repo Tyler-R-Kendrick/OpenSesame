@@ -11,7 +11,7 @@ import { hostOf } from "../../model.js";
 import { hasHeaders, parseCsv, pick } from "../csv.js";
 import {
   type DraftItem,
-  type ImportAdapter,
+  type TextImportAdapter,
   type ParseResult,
   type SkippedRecord,
   addField,
@@ -22,7 +22,7 @@ import {
   toIso,
 } from "../types.js";
 
-export const chromiumCsv: ImportAdapter = {
+export const chromiumCsv: TextImportAdapter = {
   id: "chromium-csv",
   label: "Chrome, Edge, Brave, or Opera (.csv)",
   shortName: "your browser",
@@ -66,7 +66,7 @@ export const chromiumCsv: ImportAdapter = {
   },
 };
 
-export const appleCsv: ImportAdapter = {
+export const appleCsv: TextImportAdapter = {
   id: "apple-csv",
   label: "Safari or Apple Passwords (.csv)",
   shortName: "Apple Passwords",
@@ -101,7 +101,7 @@ export const appleCsv: ImportAdapter = {
   },
 };
 
-export const firefoxCsv: ImportAdapter = {
+export const firefoxCsv: TextImportAdapter = {
   id: "firefox-csv",
   label: "Firefox (.csv)",
   shortName: "Firefox",
@@ -146,7 +146,7 @@ export const firefoxCsv: ImportAdapter = {
   },
 };
 
-export const genericCsv: ImportAdapter = {
+export const genericCsv: TextImportAdapter = {
   id: "generic-csv",
   label: "Any other CSV",
   shortName: "a CSV file",

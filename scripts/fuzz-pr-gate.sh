@@ -53,7 +53,9 @@ map_targets() {
     crates/rotation/*) echo rotation_fsm ;;
     crates/connection-detect/*) echo mcp_config ini_parse promote_request ;;
     crates/tailscale-authn/*) echo whois_response ;;
+    crates/kdbx-bridge/*) echo kdbx_parse ;;
     apps/daemon/*) echo promote_request mcp_config ;;
+    apps/gateway/*) echo kv_v2_path ;;
     fuzz/*) echo ALL ;;
     *) ;;
   esac

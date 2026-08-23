@@ -14,7 +14,7 @@ import {
 
 import {
   type DraftItem,
-  type ImportAdapter,
+  type TextImportAdapter,
   type ParseResult,
   type SkippedRecord,
   addField,
@@ -54,7 +54,7 @@ function isProtonExport(json: BoundaryValue): json is ProtonExport {
   );
 }
 
-export const protonpassJson: ImportAdapter = {
+export const protonpassJson: TextImportAdapter = {
   id: "protonpass-json",
   label: "Proton Pass (.json)",
   shortName: "Proton Pass",

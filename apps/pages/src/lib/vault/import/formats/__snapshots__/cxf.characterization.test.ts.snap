@@ -1,0 +1,352 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the CXF document this vault writes > serializes an unlocked vault to exactly this JSON 1`] = `
+"{
+  "version": 1,
+  "exporter": "OpenSesame",
+  "timestamp": 1772600767,
+  "accounts": [
+    {
+      "id": "opensesame-vault",
+      "username": "fixture",
+      "email": "fixture@example.com",
+      "collections": [
+        {
+          "id": "folder-work",
+          "creationAt": 1772600767,
+          "modifiedAt": 1772600767,
+          "title": "Work",
+          "items": [
+            {
+              "item": "login-1"
+            },
+            {
+              "item": "passkey-1"
+            }
+          ]
+        }
+      ],
+      "items": [
+        {
+          "id": "login-1",
+          "creationAt": 1772600767,
+          "modifiedAt": 1772600767,
+          "title": "Example Mail",
+          "credentials": [
+            {
+              "type": "basic-auth",
+              "username": {
+                "fieldType": "string",
+                "value": "fixture@example.com"
+              },
+              "password": {
+                "fieldType": "concealed-string",
+                "value": "fixture-password"
+              }
+            },
+            {
+              "type": "totp",
+              "secret": "JBSWY3DPEHPK3PXP",
+              "period": 30,
+              "digits": 6,
+              "algorithm": "sha1",
+              "username": "fixture@example.com",
+              "issuer": "Example",
+              "extensions": [
+                {
+                  "name": "com.opensesame.vault",
+                  "otpauth": "otpauth://totp/Example:fixture?secret=JBSWY3DPEHPK3PXP&issuer=Example"
+                }
+              ]
+            },
+            {
+              "type": "note",
+              "content": {
+                "fieldType": "string",
+                "value": "Shared with the team."
+              }
+            },
+            {
+              "type": "custom-fields",
+              "id": "login-1",
+              "label": "Custom fields",
+              "fields": [
+                {
+                  "fieldType": "string",
+                  "value": "12",
+                  "label": "Seat number"
+                },
+                {
+                  "fieldType": "concealed-string",
+                  "value": "0000",
+                  "label": "Support PIN"
+                }
+              ]
+            }
+          ],
+          "favorite": true,
+          "scope": {
+            "urls": [
+              "https://mail.example.com"
+            ],
+            "androidApps": []
+          }
+        },
+        {
+          "id": "passkey-1",
+          "creationAt": 1772600767,
+          "modifiedAt": 1772600767,
+          "title": "example.org passkey",
+          "credentials": [
+            {
+              "type": "passkey",
+              "credentialId": "Y3JlZC1pZC0wMDE",
+              "rpId": "example.org",
+              "username": "fixture@example.org",
+              "userDisplayName": "fixture@example.org",
+              "userHandle": "",
+              "key": "",
+              "extensions": [
+                {
+                  "name": "com.opensesame.vault",
+                  "publicKey": "cHVibGljLWtleS1ieXRlcw",
+                  "authenticator": "cross-platform"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "card-1",
+          "creationAt": 1772600767,
+          "modifiedAt": 1772600767,
+          "title": "Fixture Card",
+          "credentials": [
+            {
+              "type": "credit-card",
+              "number": {
+                "fieldType": "concealed-string",
+                "value": "4111111111111111"
+              },
+              "fullName": {
+                "fieldType": "string",
+                "value": "Fixture Holder"
+              },
+              "cardType": {
+                "fieldType": "string",
+                "value": "Visa"
+              },
+              "verificationNumber": {
+                "fieldType": "concealed-string",
+                "value": "123"
+              },
+              "expiryDate": {
+                "fieldType": "year-month",
+                "value": "2031-07"
+              }
+            }
+          ]
+        },
+        {
+          "id": "secret-1",
+          "creationAt": 1772600767,
+          "modifiedAt": 1772600767,
+          "title": "Deploy Token",
+          "credentials": [
+            {
+              "type": "api-key",
+              "key": {
+                "fieldType": "concealed-string",
+                "value": "fixture-deploy-token"
+              },
+              "keyType": "opensesame-agent-secret",
+              "extensions": [
+                {
+                  "name": "com.opensesame.vault",
+                  "connectionRef": "conn:github:deploy"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "note-1",
+          "creationAt": 1772600767,
+          "modifiedAt": 1772600767,
+          "title": "Safe combination",
+          "credentials": [
+            {
+              "type": "note",
+              "content": {
+                "fieldType": "string",
+                "value": "Left 12, right 4."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+"
+`;
+
+exports[`the CXF document this vault writes > serializes an unlocked vault to exactly this JSON 2`] = `
+[
+  {
+    "name": "Local dev cert",
+    "reason": "CXF has no credential type for an X.509 certificate and its private key, and splitting one across custom fields would produce something no manager could use.",
+  },
+]
+`;
+
+exports[`what another manager's CXF document becomes > maps every credential type to exactly this result 1`] = `
+{
+  "items": [
+    {
+      "createdAt": "2026-01-02T03:24:05.000Z",
+      "favorite": true,
+      "fields": [
+        {
+          "hidden": false,
+          "name": "Seat",
+          "value": "12",
+        },
+        {
+          "hidden": true,
+          "name": "Support PIN",
+          "value": "0000",
+        },
+        {
+          "hidden": false,
+          "name": "Field",
+          "value": "no label at all",
+        },
+        {
+          "hidden": false,
+          "name": "Tags",
+          "value": "personal, email",
+        },
+      ],
+      "folder": "Everyday",
+      "kind": "login",
+      "name": "Fixture Mail",
+      "notes": "A note on the login.",
+      "password": "fixture-password",
+      "passwordChangedAt": null,
+      "totp": "otpauth://totp/Fixture%20Mail%3Afixture?secret=JBSWY3DPEHPK3PXP&issuer=Example&period=60&digits=8&algorithm=SHA256",
+      "updatedAt": "2026-02-03T03:45:06.000Z",
+      "uris": [
+        {
+          "match": "domain",
+          "uri": "https://mail.example.com",
+        },
+        {
+          "match": "domain",
+          "uri": "https://webmail.example.com",
+        },
+      ],
+      "username": "fixture@example.com",
+    },
+    {
+      "authenticator": "platform",
+      "createdAt": "2026-01-02T03:24:05.000Z",
+      "credentialIdB64": "Y3JlZC1pZC0wMDE=",
+      "favorite": false,
+      "fields": [],
+      "folder": "Everyday",
+      "kind": "passkey",
+      "name": "example.org",
+      "notes": "",
+      "passwordChangedAt": null,
+      "publicKeyB64": "",
+      "rpId": "example.org",
+      "updatedAt": "2026-01-02T03:24:05.000Z",
+      "username": "fixture@example.org",
+    },
+    {
+      "brand": "Visa",
+      "cardholder": "Fixture Holder",
+      "code": "123",
+      "createdAt": "2026-01-02T03:24:05.000Z",
+      "expMonth": "07",
+      "expYear": "2031",
+      "favorite": false,
+      "fields": [],
+      "folder": "Everyday/Banking",
+      "kind": "card",
+      "name": "Fixture Card",
+      "notes": "",
+      "number": "4111111111111111",
+      "passwordChangedAt": null,
+      "updatedAt": "2026-01-02T03:24:05.000Z",
+    },
+    {
+      "createdAt": "2026-01-02T03:24:05.000Z",
+      "favorite": false,
+      "fields": [
+        {
+          "hidden": false,
+          "name": "Key type",
+          "value": "ed25519",
+        },
+        {
+          "hidden": false,
+          "name": "Comment",
+          "value": "fixture@laptop",
+        },
+      ],
+      "folder": null,
+      "kind": "secret",
+      "name": "Build box",
+      "notes": "",
+      "passwordChangedAt": null,
+      "updatedAt": "2026-01-02T03:24:05.000Z",
+      "value": "-----BEGIN OPENSSH PRIVATE KEY-----fixture",
+    },
+    {
+      "createdAt": "2026-01-02T03:24:05.000Z",
+      "favorite": false,
+      "fields": [
+        {
+          "hidden": false,
+          "name": "Username",
+          "value": "fixture",
+        },
+      ],
+      "folder": null,
+      "kind": "secret",
+      "name": "Weather service",
+      "notes": "",
+      "passwordChangedAt": null,
+      "updatedAt": "2026-01-02T03:24:05.000Z",
+      "value": "fixture-api-key",
+    },
+    {
+      "createdAt": "2026-01-02T03:24:05.000Z",
+      "favorite": false,
+      "fields": [],
+      "folder": null,
+      "kind": "note",
+      "name": "Safe combination",
+      "notes": "L12 R4",
+      "passwordChangedAt": null,
+      "updatedAt": "2026-01-02T03:24:05.000Z",
+    },
+  ],
+  "skipped": [
+    {
+      "name": "Home Wi-Fi",
+      "reason": "A Wi-Fi network credential has no matching item in this vault.",
+    },
+    {
+      "name": "Home address",
+      "reason": "An address is personal data rather than a credential, and this vault has nowhere to put it.",
+    },
+  ],
+  "source": "fido-cxf",
+  "warnings": [
+    "This file carried passkey private keys. They were not imported — this vault never holds one — so those credentials come in as references and have to be registered again.",
+  ],
+}
+`;

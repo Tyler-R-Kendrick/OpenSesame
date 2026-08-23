@@ -97,6 +97,9 @@ pub struct AppState {
     /// Wakes the backup actor immediately after configuration changes or
     /// resync requests; the actor's tick covers ordinary mutations (ADR 0039).
     pub backup_notify: Arc<tokio::sync::Notify>,
+    /// Wakes the sync-on-write actor immediately after config-value mutations
+    /// (`sync.config.dirty` outbox appends); its tick drains anything missed.
+    pub sync_notify: Arc<tokio::sync::Notify>,
     /// Host event bus (`OPENSESAME_TASKBUS` / `NATS_URL` / stored operator config).
     pub task_bus: Arc<RwLock<Arc<dyn TaskBus>>>,
 }
@@ -178,6 +181,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         frozen_intents: Arc::new(Mutex::new(HashMap::new())),
         receipt_verifier: Arc::new(receipt_verifier),
         backup_notify: Arc::new(tokio::sync::Notify::new()),
+        sync_notify: Arc::new(tokio::sync::Notify::new()),
         task_bus: Arc::new(RwLock::new(task_bus)),
     })
 }

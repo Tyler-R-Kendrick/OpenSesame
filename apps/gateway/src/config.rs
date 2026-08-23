@@ -50,6 +50,19 @@ pub fn dev_bootstrap_enabled() -> bool {
         .is_some_and(|v| v == "true" || v == "1")
 }
 
+/// Vault KV v2 read facade (`apps/gateway/src/routes/kv_facade.rs`), default off.
+///
+/// Read the same way `dev_bootstrap_enabled` is, and for the same reason: the
+/// router is built from `AppState`, so a flag that decides whether a route
+/// group is *mounted at all* has to be readable without threading a new field
+/// through state. Off means the routes do not exist, so a probe sees 404 rather
+/// than a 403 that confirms the surface is there.
+pub fn kv_facade_enabled() -> bool {
+    env::var("OPENSESAME_KV_FACADE")
+        .ok()
+        .is_some_and(|v| v == "true" || v == "1")
+}
+
 pub fn cors_origins() -> Vec<String> {
     opensesame_host_core::http_security::cors_origins_from_env()
 }

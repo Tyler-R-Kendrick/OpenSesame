@@ -13,6 +13,11 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 
+// Stryker copies the project into .stryker-tmp and instruments chain.ts, so
+// the literal-source oracle below would read mutated text and fail the dry
+// run. Behavior tests kill the mutants; the oracle runs in every normal pass.
+const inMutationSandbox = here.includes(".stryker-tmp");
+
 function memorySink() {
   const rows: AuditEvent[] = [];
   return {
@@ -25,14 +30,17 @@ function memorySink() {
 }
 
 describe("PACT — identity audit chain", () => {
-  it("compares digests with timingSafeEqual after hashing canonical fields", () => {
-    assertSourceOrder(readFileSync(join(here, "../chain.ts"), "utf8"), [
-      "canonicalAuditPayload",
-      'createHash("sha256")',
-      "timingSafeEqual",
-      "queue.then",
-    ]);
-  });
+  it.skipIf(inMutationSandbox)(
+    "compares digests with timingSafeEqual after hashing canonical fields",
+    () => {
+      assertSourceOrder(readFileSync(join(here, "../chain.ts"), "utf8"), [
+        "canonicalAuditPayload",
+        'createHash("sha256")',
+        "timingSafeEqual",
+        "queue.then",
+      ]);
+    },
+  );
 
   it("property: many serialized appends still verify as one chain", async () => {
     const store = memorySink();

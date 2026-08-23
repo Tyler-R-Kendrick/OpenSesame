@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { appendAuditEvent } from "@opensesame/audit";
+import { appendAuditEvent, recordSecretChangelog } from "@opensesame/audit";
 import {
   ActiveProjectResponseSchema,
   AddProjectMemberRequestSchema,
@@ -30,9 +30,6 @@ import { getUsage } from "../state.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 export const projectRoutes = new Hono<{ Variables: Variables }>();
-
-const PERSONAL_TOMB_NAME = "personal";
-const PERSONAL_VAULT_FOLDER_PREFIX = "vault_folder_";
 
 /** States a caller can still see and act on. */
 const VISIBLE_PROJECT_STATES = new Set(["provisional", "active"]);
@@ -65,13 +62,14 @@ function isVisible(project: Project, now: Date): boolean {
  * minted through the claims flow without a membership row, so their creating
  * principal resolves as owner via the ownership field instead.
  */
-export function roleFor(
+export async function roleFor(
   ctx: AppContext,
   project: Project,
   principalId: string,
-): ProjectRole | undefined {
-  const membership = ctx.stores.projectMemberships.get(
-    projectMembershipKey(project.id, principalId),
+): Promise<ProjectRole | undefined> {
+  const membership = await ctx.stores.projectMemberships.find(
+    project.id,
+    principalId,
   );
   if (membership) return membership.role;
   if (
@@ -81,16 +79,6 @@ export function roleFor(
     return "owner";
   }
   return undefined;
-}
-
-function ownerCount(ctx: AppContext, projectId: string): number {
-  let count = 0;
-  for (const membership of ctx.stores.projectMemberships.values()) {
-    if (membership.projectId === projectId && membership.role === "owner") {
-      count += 1;
-    }
-  }
-  return count;
 }
 
 /** Serialize membership mutations per project so checks and writes don't interleave. */
@@ -169,84 +157,72 @@ function membershipResponse(membership: ProjectMembership) {
   });
 }
 
-function findPersonalProject(
-  ctx: AppContext,
-  principalId: string,
-): Project | undefined {
-  for (const project of ctx.stores.projects.values()) {
-    if (
-      project.kind === "personal" &&
-      project.ownerPrincipalId === principalId &&
-      project.state !== "deleted" &&
-      project.state !== "deleting"
-    ) {
-      return project;
-    }
-  }
-  return undefined;
-}
-
 /**
  * Every principal has exactly one personal project — the default scope that
  * vaults, agents and sites land in until the caller swaps to another project.
  * Provisioned lazily on first touch rather than at signup so existing
- * principals pick one up too.
+ * principals pick one up too. The store's `ensurePersonal` is a single upsert
+ * honoring the `projects_personal_owner_uidx` partial unique index.
  */
-export function ensurePersonalProject(
+export async function ensurePersonalProject(
   ctx: AppContext,
   principalId: string,
-): Project {
-  return ensurePersonalProjectInner(ctx, principalId).project;
+): Promise<Project> {
+  const { project } = await ctx.stores.projects.ensurePersonal(
+    principalId,
+    undefined,
+    ctx.clock(),
+  );
+  return project;
 }
 
-function ensurePersonalProjectInner(ctx: AppContext, principalId: string) {
-  const existing = findPersonalProject(ctx, principalId);
-  if (existing) {
-    return { project: existing, created: false };
-  }
-  const now = ctx.clock();
-  const projectId = `prj_${randomUUID()}`;
-  const project: Project = {
-    id: projectId,
-    kind: "personal",
-    slug: PERSONAL_PROJECT_SLUG,
-    displayName: "Personal",
-    state: "active",
-    ownerPrincipalId: principalId,
-    sealedStoreTombName: PERSONAL_TOMB_NAME,
-    pagesVaultFolderId: `${PERSONAL_VAULT_FOLDER_PREFIX}${projectId.slice(4, 12)}`,
-    createdAt: now,
-    updatedAt: now,
-  };
-  ctx.stores.projects.set(projectId, project);
-  ctx.stores.projectMemberships.set(
-    projectMembershipKey(project.id, principalId),
-    {
+/**
+ * First-authenticated-session hook (WP-8): the moment a principal's session
+ * stops being anonymous (their first verified identity link), their personal
+ * project is ensured and the provisioning is recorded as a
+ * `project.personal.ensured` changelog event through
+ * {@link recordSecretChangelog} into the hash-chained audit trail. Idempotent:
+ * a later session finds the project already present and records nothing.
+ */
+export async function ensurePersonalOnAuthenticatedSession(
+  ctx: AppContext,
+  principalId: string,
+  correlationId?: string,
+): Promise<Project> {
+  const { project, created } = await ctx.stores.projects.ensurePersonal(
+    principalId,
+    undefined,
+    ctx.clock(),
+  );
+  if (created) {
+    await recordSecretChangelog(ctx.repos.auditEvents, {
+      eventType: "project.personal.ensured",
+      outcome: "succeeded",
       projectId: project.id,
       principalId,
-      role: "owner",
-      createdAt: now,
-      updatedAt: now,
-    },
-  );
-  return { project, created: true };
+      actorType: "human",
+      ...(correlationId !== undefined ? { correlationId } : undefined),
+      metadata: { action: "project.personal.ensure", slug: project.slug },
+    });
+  }
+  return project;
 }
 
 /**
  * The project new resources land in: the principal's swapped-in active
  * project when it is still visible to them, else their personal project.
  */
-export function resolveActiveProject(
+export async function resolveActiveProject(
   ctx: AppContext,
   principalId: string,
-): Project {
-  const personal = ensurePersonalProject(ctx, principalId);
+): Promise<Project> {
+  const personal = await ensurePersonalProject(ctx, principalId);
   const activeId = ctx.stores.activeProjects.get(principalId);
   if (activeId) {
-    const project = ctx.stores.projects.get(activeId);
+    const project = await ctx.stores.projects.get(activeId);
     if (
       project &&
-      roleFor(ctx, project, principalId) &&
+      (await roleFor(ctx, project, principalId)) &&
       isVisible(project, ctx.clock())
     ) {
       return project;
@@ -257,21 +233,21 @@ export function resolveActiveProject(
 }
 
 /** Projects the principal can see: memberships plus membership-less owned ones. */
-function visibleProjects(
+async function visibleProjects(
   ctx: AppContext,
   principalId: string,
   now: Date,
-): Array<{ project: Project; role: ProjectRole }> {
+): Promise<Array<{ project: Project; role: ProjectRole }>> {
   const seen = new Map<string, { project: Project; role: ProjectRole }>();
-  for (const membership of ctx.stores.projectMemberships.values()) {
-    if (membership.principalId !== principalId) continue;
-    const project = ctx.stores.projects.get(membership.projectId);
+  for (const membership of await ctx.stores.projectMemberships.listByPrincipal(
+    principalId,
+  )) {
+    const project = await ctx.stores.projects.get(membership.projectId);
     if (!project || !isVisible(project, now)) continue;
     seen.set(project.id, { project, role: membership.role });
   }
-  for (const project of ctx.stores.projects.values()) {
+  for (const project of await ctx.stores.projects.listByOwner(principalId)) {
     if (project.kind !== "temporary") continue;
-    if (project.ownerPrincipalId !== principalId) continue;
     if (seen.has(project.id) || !isVisible(project, now)) continue;
     seen.set(project.id, { project, role: "owner" });
   }
@@ -281,8 +257,8 @@ function visibleProjects(
 projectRoutes.get("/", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = authenticatedPrincipalId(c.get("principalId"));
-  ensurePersonalProject(ctx, principalId);
-  const projects = visibleProjects(ctx, principalId, ctx.clock())
+  await ensurePersonalProject(ctx, principalId);
+  const projects = (await visibleProjects(ctx, principalId, ctx.clock()))
     .sort((a, b) => {
       // Personal project first, then newest first — the swap list order.
       if (a.project.kind === "personal") return -1;
@@ -368,7 +344,7 @@ projectRoutes.post(
             400,
           );
         }
-        const slugTaken = visibleProjects(ctx, principalId, now).some(
+        const slugTaken = (await visibleProjects(ctx, principalId, now)).some(
           ({ project }) => project.slug === slug,
         );
         if (slugTaken) {
@@ -397,17 +373,14 @@ projectRoutes.post(
           : "";
         if (folder) project.pagesVaultFolderId = folder;
 
-        ctx.stores.projects.set(project.id, project);
-        ctx.stores.projectMemberships.set(
-          projectMembershipKey(project.id, principalId),
-          {
-            projectId: project.id,
-            principalId,
-            role: "owner",
-            createdAt: now,
-            updatedAt: now,
-          },
-        );
+        await ctx.stores.projects.set(project.id, project);
+        await ctx.stores.projectMemberships.upsert({
+          projectId: project.id,
+          principalId,
+          role: "owner",
+          createdAt: now,
+          updatedAt: now,
+        });
 
         await appendAuditEvent(ctx.repos.auditEvents, {
           eventType: "project.created",
@@ -429,9 +402,9 @@ projectRoutes.get("/active", requirePrincipal(), async (c) => {
   const principalId = authenticatedPrincipalId(c.get("principalId"));
   // resolveActiveProject drops a stale selection, so a surviving entry means
   // the caller explicitly swapped to this project rather than falling back.
-  const project = resolveActiveProject(ctx, principalId);
+  const project = await resolveActiveProject(ctx, principalId);
   const isFallback = ctx.stores.activeProjects.get(principalId) === undefined;
-  const role = roleFor(ctx, project, principalId) ?? "owner";
+  const role = (await roleFor(ctx, project, principalId)) ?? "owner";
   return c.json(
     ActiveProjectResponseSchema.parse({
       project: toResponse(project, role),
@@ -450,8 +423,8 @@ projectRoutes.put("/active", requirePrincipal(), async (c) => {
       400,
     );
   }
-  const project = ctx.stores.projects.get(parsed.data.projectId);
-  const role = project && roleFor(ctx, project, principalId);
+  const project = await ctx.stores.projects.get(parsed.data.projectId);
+  const role = project && (await roleFor(ctx, project, principalId));
   if (!project || !role || !isVisible(project, ctx.clock())) {
     return c.json({ error: "not_found" }, 404);
   }
@@ -484,10 +457,16 @@ projectRoutes.post(
       return c.json({ error: "not_found" }, 404);
     }
 
-    const { project, created } = ensurePersonalProjectInner(ctx, principalId);
+    const { project, created } = await ctx.stores.projects.ensurePersonal(
+      principalId,
+      undefined,
+      ctx.clock(),
+    );
 
     if (created) {
-      await appendAuditEvent(ctx.repos.auditEvents, {
+      // The durable changelog path: same event, same redaction allowlist as
+      // appendAuditEvent, but fenced to the frozen changelog vocabulary.
+      await recordSecretChangelog(ctx.repos.auditEvents, {
         eventType: "project.personal.ensured",
         outcome: "succeeded",
         principalId,
@@ -496,9 +475,6 @@ projectRoutes.post(
         metadata: {
           action: "project.personal.ensure",
           slug: project.slug,
-          sealedStoreTombName: project.sealedStoreTombName,
-          pagesVaultFolderId: project.pagesVaultFolderId,
-          created: true,
         },
       });
     }
@@ -569,7 +545,7 @@ projectRoutes.post(
       createdAt: now,
       updatedAt: now,
     };
-    ctx.stores.projects.set(projectId, project);
+    await ctx.stores.projects.set(projectId, project);
 
     const claim = await ctx.claims.createClaim({
       type: "project",
@@ -612,8 +588,8 @@ projectRoutes.post(
 projectRoutes.get("/:id", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = authenticatedPrincipalId(c.get("principalId"));
-  const project = ctx.stores.projects.get(c.req.param("id"));
-  const role = project && roleFor(ctx, project, principalId);
+  const project = await ctx.stores.projects.get(c.req.param("id"));
+  const role = project && (await roleFor(ctx, project, principalId));
   if (!project || !role || !isVisible(project, ctx.clock())) {
     return c.json({ error: "not_found" }, 404);
   }
@@ -623,8 +599,8 @@ projectRoutes.get("/:id", requirePrincipal(), async (c) => {
 projectRoutes.patch("/:id", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = authenticatedPrincipalId(c.get("principalId"));
-  const project = ctx.stores.projects.get(c.req.param("id"));
-  const role = project && roleFor(ctx, project, principalId);
+  const project = await ctx.stores.projects.get(c.req.param("id"));
+  const role = project && (await roleFor(ctx, project, principalId));
   if (!project || !role || !isVisible(project, ctx.clock())) {
     return c.json({ error: "not_found" }, 404);
   }
@@ -710,7 +686,7 @@ projectRoutes.patch("/:id", requirePrincipal(), async (c) => {
     }
   }
 
-  ctx.stores.projects.set(project.id, next);
+  await ctx.stores.projects.set(project.id, next);
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "project.updated",
     outcome: "succeeded",
@@ -730,8 +706,8 @@ projectRoutes.delete("/:id", requirePrincipal(), async (c) => {
   const principalId = authenticatedPrincipalId(c.get("principalId"));
   const projectId = c.req.param("id");
   return serializeProjectMutation(ctx, projectId, async () => {
-    const project = ctx.stores.projects.get(projectId);
-    const role = project && roleFor(ctx, project, principalId);
+    const project = await ctx.stores.projects.get(projectId);
+    const role = project && (await roleFor(ctx, project, principalId));
     if (!project || !role || !isVisible(project, ctx.clock())) {
       return c.json({ error: "not_found" }, 404);
     }
@@ -743,16 +719,12 @@ projectRoutes.delete("/:id", requirePrincipal(), async (c) => {
       return c.json({ error: "personal_project_immutable" }, 409);
     }
     const now = ctx.clock();
-    ctx.stores.projects.set(projectId, {
+    await ctx.stores.projects.set(projectId, {
       ...project,
       state: "deleted",
       updatedAt: now,
     });
-    for (const [key, membership] of ctx.stores.projectMemberships) {
-      if (membership.projectId === projectId) {
-        ctx.stores.projectMemberships.delete(key);
-      }
-    }
+    await ctx.stores.projectMemberships.removeByProject(projectId);
     for (const [holder, activeId] of ctx.stores.activeProjects) {
       if (activeId === projectId) ctx.stores.activeProjects.delete(holder);
     }
@@ -771,17 +743,17 @@ projectRoutes.delete("/:id", requirePrincipal(), async (c) => {
 projectRoutes.get("/:id/members", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = authenticatedPrincipalId(c.get("principalId"));
-  const project = ctx.stores.projects.get(c.req.param("id"));
-  const role = project && roleFor(ctx, project, principalId);
+  const project = await ctx.stores.projects.get(c.req.param("id"));
+  const role = project && (await roleFor(ctx, project, principalId));
   if (!project || !role || !isVisible(project, ctx.clock())) {
     return c.json({ error: "not_found" }, 404);
   }
   if (role === "member") {
     return c.json({ error: "admin_required" }, 403);
   }
-  const members = [...ctx.stores.projectMemberships.values()]
-    .filter((candidate) => candidate.projectId === project.id)
-    .map(membershipResponse);
+  const members = (
+    await ctx.stores.projectMemberships.listByProject(project.id)
+  ).map(membershipResponse);
   return c.json({ members });
 });
 
@@ -790,8 +762,9 @@ projectRoutes.post("/:id/members", requirePrincipal(), async (c) => {
   const actorPrincipalId = authenticatedPrincipalId(c.get("principalId"));
   const projectId = c.req.param("id");
   return serializeProjectMutation(ctx, projectId, async () => {
-    const project = ctx.stores.projects.get(projectId);
-    const actorRole = project && roleFor(ctx, project, actorPrincipalId);
+    const project = await ctx.stores.projects.get(projectId);
+    const actorRole =
+      project && (await roleFor(ctx, project, actorPrincipalId));
     if (!project || !actorRole || !isVisible(project, ctx.clock())) {
       return c.json({ error: "not_found" }, 404);
     }
@@ -819,8 +792,7 @@ projectRoutes.post("/:id/members", requirePrincipal(), async (c) => {
     if (principal.state === "suspended" || principal.state === "closed") {
       return c.json({ error: "principal_inactive" }, 409);
     }
-    const key = projectMembershipKey(projectId, principal.id);
-    if (ctx.stores.projectMemberships.has(key)) {
+    if (await ctx.stores.projectMemberships.find(projectId, principal.id)) {
       return c.json({ error: "membership_exists" }, 409);
     }
     const now = ctx.clock();
@@ -831,7 +803,7 @@ projectRoutes.post("/:id/members", requirePrincipal(), async (c) => {
       createdAt: now,
       updatedAt: now,
     };
-    ctx.stores.projectMemberships.set(key, membership);
+    await ctx.stores.projectMemberships.upsert(membership);
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "project.member_added",
       outcome: "succeeded",
@@ -856,8 +828,9 @@ projectRoutes.patch(
     const actorPrincipalId = authenticatedPrincipalId(c.get("principalId"));
     const projectId = c.req.param("id");
     return serializeProjectMutation(ctx, projectId, async () => {
-      const project = ctx.stores.projects.get(projectId);
-      const actorRole = project && roleFor(ctx, project, actorPrincipalId);
+      const project = await ctx.stores.projects.get(projectId);
+      const actorRole =
+        project && (await roleFor(ctx, project, actorPrincipalId));
       if (!project || !actorRole || !isVisible(project, ctx.clock())) {
         return c.json({ error: "not_found" }, 404);
       }
@@ -865,8 +838,10 @@ projectRoutes.patch(
         return c.json({ error: "admin_required" }, 403);
       }
       const targetPrincipalId = c.req.param("principalId");
-      const key = projectMembershipKey(projectId, targetPrincipalId);
-      const target = ctx.stores.projectMemberships.get(key);
+      const target = await ctx.stores.projectMemberships.find(
+        projectId,
+        targetPrincipalId,
+      );
       if (!target) return c.json({ error: "membership_not_found" }, 404);
       const parsed = ChangeProjectMemberRoleRequestSchema.safeParse(
         await c.req.json(),
@@ -887,7 +862,10 @@ projectRoutes.patch(
       if (target.role === parsed.data.role) {
         return c.json(membershipResponse(target));
       }
-      if (target.role === "owner" && ownerCount(ctx, projectId) === 1) {
+      if (
+        target.role === "owner" &&
+        (await ctx.stores.projectMemberships.countOwners(projectId)) === 1
+      ) {
         return c.json({ error: "last_owner" }, 409);
       }
       const updated: ProjectMembership = {
@@ -895,7 +873,7 @@ projectRoutes.patch(
         role: parsed.data.role,
         updatedAt: ctx.clock(),
       };
-      ctx.stores.projectMemberships.set(key, updated);
+      await ctx.stores.projectMemberships.upsert(updated);
       await appendAuditEvent(ctx.repos.auditEvents, {
         eventType: "project.member_role_changed",
         outcome: "succeeded",
@@ -922,8 +900,9 @@ projectRoutes.delete(
     const actorPrincipalId = authenticatedPrincipalId(c.get("principalId"));
     const projectId = c.req.param("id");
     return serializeProjectMutation(ctx, projectId, async () => {
-      const project = ctx.stores.projects.get(projectId);
-      const actorRole = project && roleFor(ctx, project, actorPrincipalId);
+      const project = await ctx.stores.projects.get(projectId);
+      const actorRole =
+        project && (await roleFor(ctx, project, actorPrincipalId));
       if (!project || !actorRole || !isVisible(project, ctx.clock())) {
         return c.json({ error: "not_found" }, 404);
       }
@@ -932,19 +911,24 @@ projectRoutes.delete(
       if (actorRole === "member" && !leavingSelf) {
         return c.json({ error: "admin_required" }, 403);
       }
-      const key = projectMembershipKey(projectId, targetPrincipalId);
-      const target = ctx.stores.projectMemberships.get(key);
+      const target = await ctx.stores.projectMemberships.find(
+        projectId,
+        targetPrincipalId,
+      );
       if (!target) return c.json({ error: "membership_not_found" }, 404);
       if (target.role === "owner" && actorRole !== "owner") {
         return c.json({ error: "owner_required" }, 403);
       }
-      if (target.role === "owner" && ownerCount(ctx, projectId) === 1) {
+      if (
+        target.role === "owner" &&
+        (await ctx.stores.projectMemberships.countOwners(projectId)) === 1
+      ) {
         return c.json({ error: "last_owner" }, 409);
       }
       if (project.kind === "personal") {
         return c.json({ error: "personal_project_immutable" }, 409);
       }
-      ctx.stores.projectMemberships.delete(key);
+      await ctx.stores.projectMemberships.remove(projectId, targetPrincipalId);
       if (ctx.stores.activeProjects.get(targetPrincipalId) === projectId) {
         ctx.stores.activeProjects.delete(targetPrincipalId);
       }

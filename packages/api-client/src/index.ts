@@ -3,16 +3,24 @@ import {
   type AuthorizeRequest,
   type AuthorizeResponse,
   AuthorizeResponseSchema,
+  type BranchConfigBody,
+  type CompareConfigsResponse,
+  CompareConfigsResponseSchema,
+  type ConfigKeysResponse,
+  ConfigKeysResponseSchema,
   type Connection,
   ConnectionSchema,
   type CreateBindingRequest,
   type CreateConnectionRequest,
   type CreateIntegrationRequest,
+  type CreateSecretConfigBody,
   type CreateSyncTargetRequest,
   type DiscoverConnectionsResponse,
   DiscoverConnectionsResponseSchema,
   type Integration,
   IntegrationSchema,
+  type ListConfigSecretVersionsResponse,
+  ListConfigSecretVersionsResponseSchema,
   type ListConnectionsResponse,
   ListConnectionsResponseSchema,
   type ListEventsResponse,
@@ -21,10 +29,17 @@ import {
   ListIntegrationsResponseSchema,
   type ListProvidersResponse,
   ListProvidersResponseSchema,
+  type ListSecretConfigsResponse,
+  ListSecretConfigsResponseSchema,
   type ListSyncTargetsResponse,
   ListSyncTargetsResponseSchema,
+  type PutConfigSecretsBody,
   type RevokeResponse,
   RevokeResponseSchema,
+  type RollbackConfigSecretResponse,
+  RollbackConfigSecretResponseSchema,
+  type SecretConfigView,
+  SecretConfigViewSchema,
   type SyncAllResponse,
   SyncAllResponseSchema,
   type SyncTarget,
@@ -351,6 +366,10 @@ export function createApiClient(options: ApiClientOptions) {
     return `/api/v1/integrations/${encodeURIComponent(id)}`;
   }
 
+  function configPath(id: string, suffix = ""): string {
+    return `/api/v1/configs/${encodeURIComponent(id)}${suffix}`;
+  }
+
   return {
     baseUrl: base,
 
@@ -619,6 +638,120 @@ export function createApiClient(options: ApiClientOptions) {
           method: "POST",
           body: JSON.stringify({ config_id: configId }),
         },
+      );
+    },
+
+    async listSecretConfigs(
+      projectId: string,
+    ): Promise<ListSecretConfigsResponse> {
+      return requestParsed(
+        "secret_configs",
+        ListSecretConfigsResponseSchema,
+        `/api/v1/projects/${encodeURIComponent(projectId)}/configs`,
+      );
+    },
+
+    async createSecretConfig(
+      projectId: string,
+      body: CreateSecretConfigBody,
+    ): Promise<SecretConfigView> {
+      return requestParsed(
+        "secret_config_create",
+        SecretConfigViewSchema,
+        `/api/v1/projects/${encodeURIComponent(projectId)}/configs`,
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    async getSecretConfig(id: string): Promise<SecretConfigView> {
+      return requestParsed(
+        "secret_config",
+        SecretConfigViewSchema,
+        configPath(id),
+      );
+    },
+
+    async deleteSecretConfig(id: string): Promise<void> {
+      const res = await request(configPath(id), { method: "DELETE" });
+      if (!res.ok) throw await requestFailure("secret_config_delete", res);
+    },
+
+    /**
+     * The only value-carrying call on this surface: values go up, only key
+     * names + versions come back.
+     */
+    async putConfigSecrets(
+      id: string,
+      body: PutConfigSecretsBody,
+    ): Promise<ConfigKeysResponse> {
+      return requestParsed(
+        "config_secrets_put",
+        ConfigKeysResponseSchema,
+        configPath(id, "/secrets"),
+        { method: "PUT", body: JSON.stringify(body) },
+      );
+    },
+
+    async listConfigKeys(id: string): Promise<ConfigKeysResponse> {
+      return requestParsed(
+        "config_keys",
+        ConfigKeysResponseSchema,
+        configPath(id, "/secrets"),
+      );
+    },
+
+    async deleteConfigSecret(id: string, keyName: string): Promise<void> {
+      const res = await request(
+        configPath(id, `/secrets/${encodeURIComponent(keyName)}`),
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw await requestFailure("config_secret_delete", res);
+    },
+
+    async listConfigSecretVersions(
+      id: string,
+      keyName: string,
+    ): Promise<ListConfigSecretVersionsResponse> {
+      return requestParsed(
+        "config_secret_versions",
+        ListConfigSecretVersionsResponseSchema,
+        configPath(id, `/secrets/${encodeURIComponent(keyName)}/versions`),
+      );
+    },
+
+    async rollbackConfigSecret(
+      id: string,
+      keyName: string,
+      toVersion: number,
+    ): Promise<RollbackConfigSecretResponse> {
+      return requestParsed(
+        "config_secret_rollback",
+        RollbackConfigSecretResponseSchema,
+        configPath(id, `/secrets/${encodeURIComponent(keyName)}/rollback`),
+        { method: "POST", body: JSON.stringify({ to_version: toVersion }) },
+      );
+    },
+
+    async compareConfigs(
+      a: string,
+      b: string,
+    ): Promise<CompareConfigsResponse> {
+      return requestParsed(
+        "config_compare",
+        CompareConfigsResponseSchema,
+        configPath(a, `/compare/${encodeURIComponent(b)}`),
+      );
+    },
+
+    async branchConfig(
+      id: string,
+      body: BranchConfigBody,
+    ): Promise<SecretConfigView> {
+      return requestParsed(
+        "config_branch",
+        SecretConfigViewSchema,
+        configPath(id, "/branch"),
+        { method: "POST", body: JSON.stringify(body) },
       );
     },
 

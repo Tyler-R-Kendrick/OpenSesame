@@ -5,12 +5,14 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use opensesame_kdbx_bridge::{export_kdbx, import_kdbx, ExportOptions, ImportOptions};
 use opensesame_sealed_store::{
-    apply_secret_update, default_tombs_config_path, ensure_git_repo, generate_password,
-    git_passthrough, init_store, init_store_key, load_tomb_registry, parse_manifest, parse_otpauth,
-    push_backup, remote_url, resolve_store_dir, resolve_tomb_paths, rotate_secret_entry,
-    save_tomb_registry, seal_manifest, set_auto_push, set_remote, totp_code, unlock_store_key,
-    validate_otpauth, Entry, StoreRoot, TombBackend, TombEntry, UpdateMode, UpdateOptions,
+    apply_secret_update, default_tombs_config_path, ensure_git_repo, entry_history,
+    generate_password, git_passthrough, init_store, init_store_key, load_tomb_registry,
+    parse_manifest, parse_otpauth, push_backup, remote_url, resolve_store_dir, resolve_tomb_paths,
+    restore_entry, rotate_secret_entry, save_tomb_registry, seal_manifest, set_auto_push,
+    set_remote, totp_code, unlock_store_key, validate_otpauth, Entry, StoreRoot, TombBackend,
+    TombEntry, UpdateMode, UpdateOptions,
 };
 use regex::Regex;
 
@@ -42,7 +44,7 @@ fn prompt_line(prompt: &str) -> anyhow::Result<String> {
 
 /// Read a secret without echoing it — `pass` parity. Non-TTY stdin (pipes,
 /// heredocs) falls back to a plain line read, since nothing echoes there.
-fn prompt_secret_hidden(prompt: &str) -> anyhow::Result<String> {
+pub(crate) fn prompt_secret_hidden(prompt: &str) -> anyhow::Result<String> {
     use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
     if !io::stdin().is_terminal() {
         return prompt_line(prompt);
@@ -671,6 +673,44 @@ pub fn cmd_rotate(
     Ok(())
 }
 
+// —— history / restore ————————————————————————————————————
+
+/// List the commits touching an entry's ciphertext file, newest first.
+/// Metadata only (sha, timestamp, subject) — no unlock, no plaintext.
+pub fn cmd_history(
+    name: String,
+    path: Option<PathBuf>,
+    tomb: Option<String>,
+) -> anyhow::Result<()> {
+    let root_path = resolve_root(path, tomb.as_deref())?;
+    let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
+    for item in entry_history(&root, &name).map_err(|e| anyhow::anyhow!("{e}"))? {
+        let when = chrono::DateTime::from_timestamp(item.timestamp, 0)
+            .map(|t| t.to_rfc3339())
+            .unwrap_or_else(|| item.timestamp.to_string());
+        println!("{} {} {}", item.commit, when, item.subject);
+    }
+    Ok(())
+}
+
+/// Restore an entry's content from a past commit as a NEW commit; the
+/// anti-rollback revision counter only ever advances.
+pub fn cmd_restore(
+    name: String,
+    rev: String,
+    path: Option<PathBuf>,
+    tomb: Option<String>,
+) -> anyhow::Result<()> {
+    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let new_revision =
+        restore_entry(&root, &name, &rev, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
+    match new_revision {
+        Some(revision) => println!("restored {name} from {rev} (revision {revision})"),
+        None => println!("restored {name} from {rev}"),
+    }
+    Ok(())
+}
+
 // —— tombs ————————————————————————————————————————————————
 
 pub fn cmd_tomb_list() -> anyhow::Result<()> {
@@ -804,6 +844,99 @@ pub fn cmd_close(name: Option<String>) -> anyhow::Result<()> {
         }
     }
     println!("closed: {}", resolved.entry.name);
+    Ok(())
+}
+
+/// Import a KeePass database into the sealed store (ADR 0052).
+///
+/// Entries merge by store path, so re-importing the same database is a no-op.
+/// Only paths and mapping notes are printed — never secret material.
+pub fn cmd_import_kdbx(
+    file: PathBuf,
+    keyfile: Option<PathBuf>,
+    prefix: Option<String>,
+    replace: bool,
+    path: Option<PathBuf>,
+    tomb: Option<String>,
+) -> anyhow::Result<()> {
+    let bytes = std::fs::read(&file)?;
+    let keyfile_bytes = keyfile.map(std::fs::read).transpose()?;
+    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let kdbx_password = prompt_secret_hidden("KDBX password")?;
+    let password = (!kdbx_password.is_empty()).then_some(kdbx_password.as_str());
+
+    let mut opts = ImportOptions::default();
+    if let Some(prefix) = prefix {
+        opts = opts.with_prefix(prefix);
+    }
+    if replace {
+        opts = opts.replacing();
+    }
+    let summary = import_kdbx(
+        &bytes,
+        password,
+        keyfile_bytes.as_deref(),
+        &root,
+        &key,
+        opts,
+    )
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    for path in &summary.created {
+        println!("created {path}");
+    }
+    for path in &summary.updated {
+        println!("updated {path}");
+    }
+    for skipped in &summary.skipped {
+        println!("skipped {} ({:?})", skipped.path, skipped.reason);
+    }
+    for warning in &summary.warnings {
+        eprintln!("note: {} — {:?}", warning.path, warning.warning);
+    }
+    println!(
+        "imported {} of {} entries ({} unchanged, {} skipped)",
+        summary.created.len() + summary.updated.len(),
+        summary.total(),
+        summary.unchanged.len(),
+        summary.skipped.len()
+    );
+    Ok(())
+}
+
+/// Export the sealed store as a KeePass database (ADR 0052).
+///
+/// The output is a portable copy of the store guarded only by the password
+/// chosen here, so it carries the same human ceremony as `pass show`.
+pub fn cmd_export_kdbx(
+    dest: PathBuf,
+    prefix: Option<String>,
+    reveal: bool,
+    path: Option<PathBuf>,
+    tomb: Option<String>,
+) -> anyhow::Result<()> {
+    require_reveal(reveal)?;
+    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let password = prompt_secret_hidden("KDBX password for the export")?;
+    if password.is_empty() {
+        anyhow::bail!("refusing to write an unprotected KDBX export");
+    }
+    if io::stdin().is_terminal() {
+        let confirm = prompt_secret_hidden("Confirm KDBX password")?;
+        if confirm != password {
+            anyhow::bail!("passwords did not match");
+        }
+    }
+    let bytes = export_kdbx(
+        &root,
+        &key,
+        prefix.as_deref(),
+        &password,
+        ExportOptions::default(),
+    )
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
+    std::fs::write(&dest, &bytes)?;
+    println!("wrote {} ({} bytes)", dest.display(), bytes.len());
     Ok(())
 }
 

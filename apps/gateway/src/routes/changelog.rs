@@ -1,8 +1,9 @@
 //! Host-readable secret/config changelog (metadata only).
 //!
-//! Lists project-scoped events recorded via
-//! [`opensesame_connection_broker::record_secret_changelog`]. Never returns
-//! secret values — only key names, version ids, and sync target metadata.
+//! Lists project-scoped events from the durable `secret_changelog` table
+//! (cursor-paged by `seq`; the in-memory ring is only a cache / fallback).
+//! Never returns secret values — only key names, version ids, and sync
+//! target metadata.
 
 use axum::{
     extract::{Path, Query, State},
@@ -10,10 +11,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use opensesame_connection_broker::{
-    is_allowed_changelog_event_type, list_secret_changelog, record_secret_changelog,
-    RecordSecretChangelog,
-};
+use opensesame_connection_broker::{is_allowed_changelog_event_type, RecordSecretChangelog};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -24,6 +22,9 @@ use crate::middleware::auth::resolve_caller;
 pub struct ListQuery {
     #[serde(default = "default_limit")]
     limit: usize,
+    /// Durable-store cursor: return rows with seq strictly below this.
+    #[serde(default)]
+    before_seq: Option<i64>,
 }
 
 fn default_limit() -> usize {
@@ -55,12 +56,21 @@ pub async fn list_for_project(
     let limit = query.limit.clamp(1, 200);
     // Host-owned store: filter by the authenticated organization, never by a
     // caller-supplied project id across tenants.
-    let events = list_secret_changelog(&organization_id, &project_id, limit);
+    let events = match st
+        .connection_broker
+        .list_changelog(&organization_id, &project_id, limit, query.before_seq)
+        .await
+    {
+        Ok(events) => events,
+        Err(e) => return crate::routes::connections::broker_error(e),
+    };
+    let next_cursor = events.iter().filter_map(|e| e.seq).min();
     (
         StatusCode::OK,
         Json(json!({
             "project_id": project_id,
             "events": events,
+            "next_before_seq": next_cursor,
         })),
     )
         .into_response()
@@ -127,20 +137,27 @@ pub async fn record(
         crate::middleware::auth::Caller::Operator => Some("operator".into()),
         crate::middleware::auth::Caller::Session { subject, .. } => Some(subject.clone()),
     };
-    let entry = record_secret_changelog(RecordSecretChangelog {
-        event_type: body.event_type,
-        project_id: body.project_id,
-        organization_id: Some(organization_id),
-        actor_id,
-        config_id: body.config_id,
-        environment: body.environment,
-        key_names: body.key_names,
-        version_id: body.version_id,
-        target_id: body.target_id,
-        content_version: body.content_version,
-        occurred_at: None,
-        metadata: body.metadata,
-    });
+    let entry = match st
+        .connection_broker
+        .record_changelog(RecordSecretChangelog {
+            event_type: body.event_type,
+            project_id: body.project_id,
+            organization_id: Some(organization_id),
+            actor_id,
+            config_id: body.config_id,
+            environment: body.environment,
+            key_names: body.key_names,
+            version_id: body.version_id,
+            target_id: body.target_id,
+            content_version: body.content_version,
+            occurred_at: None,
+            metadata: body.metadata,
+        })
+        .await
+    {
+        Ok(entry) => entry,
+        Err(e) => return crate::routes::connections::broker_error(e),
+    };
     let serialized = serde_json::to_value(&entry).unwrap_or_else(|_| json!({}));
     (StatusCode::CREATED, Json(serialized)).into_response()
 }

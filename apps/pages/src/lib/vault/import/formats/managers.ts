@@ -13,7 +13,7 @@ import { hostOf } from "../../model.js";
 import { hasHeaders, parseCsv, pick } from "../csv.js";
 import {
   type DraftItem,
-  type ImportAdapter,
+  type TextImportAdapter,
   type ParseResult,
   type SkippedRecord,
   addField,
@@ -31,7 +31,7 @@ function flattenGroup(group: string): string | null {
   return trimmed.replace(/\\/gu, " / ");
 }
 
-export const lastpassCsv: ImportAdapter = {
+export const lastpassCsv: TextImportAdapter = {
   id: "lastpass-csv",
   label: "LastPass (.csv)",
   shortName: "LastPass",
@@ -86,7 +86,7 @@ export const lastpassCsv: ImportAdapter = {
   },
 };
 
-export const keepassxcCsv: ImportAdapter = {
+export const keepassxcCsv: TextImportAdapter = {
   id: "keepassxc-csv",
   label: "KeePassXC (.csv)",
   shortName: "KeePassXC",
@@ -119,7 +119,7 @@ export const keepassxcCsv: ImportAdapter = {
   },
 };
 
-export const keepassCsv: ImportAdapter = {
+export const keepassCsv: TextImportAdapter = {
   id: "keepass-csv",
   label: "KeePass 2.x (.csv)",
   shortName: "KeePass",
@@ -151,7 +151,7 @@ export const keepassCsv: ImportAdapter = {
   },
 };
 
-export const dashlaneCsv: ImportAdapter = {
+export const dashlaneCsv: TextImportAdapter = {
   id: "dashlane-csv",
   label: "Dashlane (.csv)",
   shortName: "Dashlane",
@@ -225,7 +225,7 @@ export const dashlaneCsv: ImportAdapter = {
   },
 };
 
-export const nordpassCsv: ImportAdapter = {
+export const nordpassCsv: TextImportAdapter = {
   id: "nordpass-csv",
   label: "NordPass (.csv)",
   shortName: "NordPass",
