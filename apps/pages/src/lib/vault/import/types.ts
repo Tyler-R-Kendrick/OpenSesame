@@ -166,6 +166,14 @@ export type DetectInput = {
    * consider it, and a binary adapter can rely on it.
    */
   bytes: Uint8Array | null;
+  /**
+   * Attachments the archive carried that this import does not bring across.
+   *
+   * A `.1pux` holds documents beside its data file and the pipeline reads only
+   * the data file, so without this a migrating user silently loses every scan
+   * and PDF they had stored. Present only for archives that contained any.
+   */
+  skippedAttachments?: { count: number; sample: string[] };
 };
 
 export type ParseInput = DetectInput & {
