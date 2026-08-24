@@ -5,6 +5,7 @@
 
 import {
   type JsonObject,
+  isString,
   overlapCast,
   readJsonObject,
   readString,
@@ -33,7 +34,7 @@ async function fail(res: Response, fallback: string): Promise<never> {
 
 function toIssued(raw: JsonObject): IssuedCertificate {
   const dns = Array.isArray(raw.dns_names)
-    ? raw.dns_names.filter((n): n is string => typeof n === "string")
+    ? raw.dns_names.filter(isString)
     : [];
   return {
     certificate: String(raw.certificate ?? ""),

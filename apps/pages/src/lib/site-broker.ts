@@ -46,6 +46,12 @@ export type BrokerRequest = {
   scope: string;
 };
 
+export type BrokerAuthorizeParams = {
+  origin: string;
+  state: string;
+  scope?: string;
+};
+
 export type SiteConsent = {
   origin: string;
   scopes: string[];
@@ -83,6 +89,11 @@ export type SignInError = {
 
 export type SignInMessage = SignInSuccess | SignInError;
 
+export type DeliverToRpOptions = {
+  redirectUri?: string | null;
+  close?: boolean;
+};
+
 const MIN_STATE_BYTES = 16;
 
 export function pagesPublicBase(origin: string = location.origin): string {
@@ -96,7 +107,7 @@ export function brokerAuthorizePath(): string {
 }
 
 export function brokerAuthorizeUrl(
-  params: { origin: string; state: string; scope?: string },
+  params: BrokerAuthorizeParams,
   base: string = pagesPublicBase(),
 ): string {
   const url = new URL(brokerAuthorizePath(), base);
@@ -517,7 +528,7 @@ export function buildErrorMessage(
 function deliverToRpDefault(
   message: SignInMessage,
   targetOrigin: string,
-  options: { redirectUri?: string | null; close?: boolean } = {},
+  options: DeliverToRpOptions = {},
 ): "postMessage" | "fragment" | "none" {
   try {
     if (window.opener && !window.opener.closed) {
@@ -569,7 +580,7 @@ export const siteBrokerSeams = {
 export function deliverToRp(
   message: SignInMessage,
   targetOrigin: string,
-  options: { redirectUri?: string | null; close?: boolean } = {},
+  options: DeliverToRpOptions = {},
 ): "postMessage" | "fragment" | "none" {
   return siteBrokerSeams.deliverToRp(message, targetOrigin, options);
 }

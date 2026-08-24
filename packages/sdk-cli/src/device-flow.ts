@@ -63,6 +63,10 @@ export interface SafeDeviceStart {
   intervalSeconds: number;
 }
 
+export interface DeviceInstructionsOptions {
+  qr?: boolean;
+}
+
 async function defaultSleep(ms: number): Promise<void> {
   await new Promise((r) => setTimeout(r, ms));
 }
@@ -323,7 +327,7 @@ export class DeviceFlowClient {
   /** Format user-facing instructions — never includes device_code. */
   formatInstructions(
     start: SafeDeviceStart,
-    options: { qr?: boolean } = {},
+    options: DeviceInstructionsOptions = {},
   ): string {
     const lines = [
       "To sign in, enter this shortcode:",

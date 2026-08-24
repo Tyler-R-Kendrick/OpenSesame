@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { isJsonObject, isString } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -31,13 +32,15 @@ type World = {
   provisionalMints: number;
 };
 
-let world: World;
-
-function givenADevice(options: {
+type DeviceOptions = {
   vault: "empty" | "locked" | "unlocked";
   hasSession?: boolean;
-  linkFails?: unknown;
-}): void {
+  linkFails?: Error;
+};
+
+let world: World;
+
+function givenADevice(options: DeviceOptions): void {
   world = { vaultCreated: false, linkedTokens: [], provisionalMints: 0 };
   Object.assign(guestAuthDependencies, {
     vaultStatus: () => options.vault,
@@ -55,10 +58,13 @@ function givenADevice(options: {
     connectProvisional: vi.fn(async () => {
       world.provisionalMints += 1;
     }),
-    identityJson: vi.fn(async (_path: string, init?: { body?: string }) => {
+    identityJson: vi.fn(async (_path: string, init?: RequestInit) => {
       if (options.linkFails) throw options.linkFails;
-      const body = JSON.parse(init?.body ?? "{}") as { idToken?: string };
-      world.linkedTokens.push(body.idToken ?? "");
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      if (!isJsonObject(body) || !isString(body.idToken)) {
+        throw new Error("identityJson test seam received an invalid body");
+      }
+      world.linkedTokens.push(body.idToken);
       return {};
     }),
     restoreSession: vi.fn(),

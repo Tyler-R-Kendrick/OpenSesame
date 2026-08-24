@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { ControlPlaneConfig } from "../config.js";
 import type { AppContext } from "../context.js";
 import {
-  FederatedAuthError,
   beginFederatedAuth,
   completeFederatedAuth,
   federatedUpstreams,
@@ -55,32 +54,25 @@ describe("the allowlist is re-checked on the way back in", () => {
   });
 
   it("carries the untrusted_issuer code, not a generic failure", async () => {
-    const failure = await completeFederatedAuth(
-      ctxWith(),
-      { ...PENDING, issuer: "https://evil.example" },
-      new URL("https://identity.example/cb?code=c&state=st"),
-    ).catch((caught: unknown) => caught);
-
-    expect(failure).toBeInstanceOf(FederatedAuthError);
-    expect((failure as FederatedAuthError).code).toBe("untrusted_issuer");
+    await expect(
+      completeFederatedAuth(
+        ctxWith(),
+        { ...PENDING, issuer: "https://evil.example" },
+        new URL("https://identity.example/cb?code=c&state=st"),
+      ),
+    ).rejects.toMatchObject({ code: "untrusted_issuer" });
   });
 
   it("refuses to start against an issuer outside the allowlist", async () => {
-    const failure = await beginFederatedAuth(
-      ctxWith(),
-      "uid-1",
-      "https://evil.example",
-    ).catch((caught: unknown) => caught);
-
-    expect(failure).toBeInstanceOf(FederatedAuthError);
-    expect((failure as FederatedAuthError).code).toBe("untrusted_issuer");
+    await expect(
+      beginFederatedAuth(ctxWith(), "uid-1", "https://evil.example"),
+    ).rejects.toMatchObject({ code: "untrusted_issuer" });
   });
 
   it("refuses an empty issuer rather than treating it as unset", async () => {
-    const failure = await beginFederatedAuth(ctxWith(), "uid-1", "").catch(
-      (caught: unknown) => caught,
-    );
-    expect((failure as FederatedAuthError).code).toBe("untrusted_issuer");
+    await expect(
+      beginFederatedAuth(ctxWith(), "uid-1", ""),
+    ).rejects.toMatchObject({ code: "untrusted_issuer" });
   });
 });
 

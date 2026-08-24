@@ -200,7 +200,6 @@ function variableDeclarator(variable: Variable): ESTree.VariableDeclarator | nul
 function knownValueEvidence(
   expression: ESTree.Expression,
   scopes: Parameters<typeof resolvedVariableForIdentifier>[0],
-  boundary: ESTree.Node | null,
   visitedVariables: ReadonlySet<Variable>,
 ): KnownValueEvidence | null {
   const unwrapped = unwrapExpressionParentheses(expression);
@@ -234,9 +233,7 @@ function knownValueEvidence(
   );
   const annotation = annotatedIdentifier?.typeAnnotation?.typeAnnotation;
   if (annotation !== undefined && annotatedIdentifier !== undefined) {
-    if (functionBoundary(annotatedIdentifier) !== boundary || broadTypeKind(annotation) !== null) {
-      return null;
-    }
+    if (broadTypeKind(annotation) !== null) return null;
     return { type: annotation };
   }
 
@@ -246,18 +243,12 @@ function knownValueEvidence(
     declarator.parent.type !== "VariableDeclaration" ||
     declarator.parent.kind !== "const" ||
     declarator.init === null ||
-    variable.references.some((reference) => reference.isWrite() && !reference.init) ||
-    functionBoundary(declarator) !== boundary
+    variable.references.some((reference) => reference.isWrite() && !reference.init)
   ) {
     return null;
   }
 
-  return knownValueEvidence(
-    declarator.init,
-    scopes,
-    boundary,
-    new Set([...visitedVariables, variable]),
-  );
+  return knownValueEvidence(declarator.init, scopes, new Set([...visitedVariables, variable]));
 }
 
 function widenedBinding(
@@ -268,15 +259,14 @@ function widenedBinding(
   readonly evidence: KnownValueEvidence;
   readonly declaredAt: number;
   readonly boundary: ESTree.Node | null;
+  readonly immutable: boolean;
 } | null {
   const declarator = variableDeclarator(variable);
   if (
     declarator === null ||
     declarator.parent.type !== "VariableDeclaration" ||
-    declarator.parent.kind !== "const" ||
     declarator.id.type !== "Identifier" ||
-    declarator.init === null ||
-    variable.references.some((reference) => reference.isWrite() && !reference.init)
+    declarator.init === null
   ) {
     return null;
   }
@@ -294,8 +284,23 @@ function widenedBinding(
     initializerAssertion !== null && initializerBroadKind !== null
       ? assertedExpression(initializerAssertion)
       : declarator.init;
-  const evidence = knownValueEvidence(originalExpression, scopes, boundary, new Set([variable]));
-  return evidence === null ? null : { broadKind, evidence, declaredAt: declarator.end, boundary };
+  const evidence = knownValueEvidence(originalExpression, scopes, new Set([variable]));
+  return evidence === null
+    ? null
+    : {
+        broadKind,
+        evidence,
+        declaredAt: declarator.end,
+        boundary,
+        immutable: declarator.parent.kind === "const",
+      };
+}
+
+function hasWriteBefore(variable: Variable, position: number): boolean {
+  return variable.references.some(
+    (reference) =>
+      reference.isWrite() && !reference.init && reference.identifier.start < position,
+  );
 }
 
 function assertionIsNarrower(
@@ -337,7 +342,8 @@ export const noWidenThenAssertRule = defineRule({
       if (
         widened === null ||
         node.start <= widened.declaredAt ||
-        functionBoundary(node) !== widened.boundary ||
+        (!widened.immutable && functionBoundary(node) !== widened.boundary) ||
+        hasWriteBefore(variable, node.start) ||
         !assertionIsNarrower(
           context.sourceCode.text,
           widened.broadKind,

@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 
 type App = ReturnType<typeof createControlPlane>["app"];
+interface ProvisionalRequestHeaders {
+  "x-correlation-id"?: string;
+}
 
 function testConfig() {
   return {
@@ -12,7 +15,7 @@ function testConfig() {
   } as const;
 }
 
-async function provisional(app: App, headers: Record<string, string> = {}) {
+async function provisional(app: App, headers: ProvisionalRequestHeaders = {}) {
   const res = await app.request("/v1/principals/provisional", {
     method: "POST",
     headers,

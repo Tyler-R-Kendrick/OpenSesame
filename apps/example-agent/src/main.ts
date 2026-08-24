@@ -76,11 +76,20 @@ export function createMockFetch(): typeof fetch {
   });
 }
 
-export async function runAnonymousAgentDemo(options?: {
+export interface AnonymousAgentDemoOptions {
   fetchImpl?: typeof fetch;
   pollTimes?: number;
   sleep?: (ms: number) => Promise<void>;
-}): Promise<{ claimId: string; finalState: string }> {
+}
+
+export interface AnonymousAgentDemoResult {
+  claimId: string;
+  finalState: string;
+}
+
+export async function runAnonymousAgentDemo(
+  options?: AnonymousAgentDemoOptions,
+): Promise<AnonymousAgentDemoResult> {
   const fetchImpl =
     options?.fetchImpl ??
     (process.env.MOCK_AGENT_FLOW === "1" ? createMockFetch() : fetch);

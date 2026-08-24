@@ -340,10 +340,12 @@ describe("passkey ceremonies", () => {
     }
   }
 
-  function stubCredentials(overrides: {
+  type CredentialOverrides = {
     create?: (options: CredentialCreationOptions) => Promise<Credential | null>;
     get?: (options: CredentialRequestOptions) => Promise<Credential | null>;
-  }): void {
+  };
+
+  function stubCredentials(overrides: CredentialOverrides): void {
     vi.stubGlobal("PublicKeyCredential", TestPublicKeyCredential);
     vi.stubGlobal("navigator", { credentials: overrides });
   }

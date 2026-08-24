@@ -36,7 +36,8 @@ export default defineConfig({
     "coverage/**",
     "artifacts/**",
     "sbom/**",
-    "apps/pages/public/auth.js",
+    // The plugin and its installer mirror contain the syntax they diagnose.
+    // `pnpm test:anti-slop` validates both implementations and exact parity.
     "skills/install-anti-slop/**",
     "tools/oxlint/anti-slop/**",
   ],
@@ -51,9 +52,7 @@ export default defineConfig({
     "anti-slop/no-object-parameters": "error",
     "anti-slop/no-reflect-apply": "error",
     "anti-slop/no-reflect-get": "error",
-    // Schema-free TypeScript: allow `typeof` inside type guards/assertions,
-    // still reject ad hoc narrowing at call sites.
-    "anti-slop/no-runtime-typeof": ["error", { allowInTypeGuards: true }],
+    "anti-slop/no-runtime-typeof": "error",
     "anti-slop/no-shape-in-symbol-names": "error",
     "anti-slop/no-unknown-parameters": "error",
     "anti-slop/no-unknown-returns": "error",

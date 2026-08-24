@@ -234,7 +234,7 @@ export interface EnsurePersonalProjectResult {
 export interface ProjectStore {
   get(id: string): Awaitable<Project | undefined>;
   /** Full-row upsert (Map `set` semantics). */
-  set(id: string, project: Project): Awaitable<unknown>;
+  set(id: string, project: Project): Awaitable<void>;
   /** Every project owned by the principal, regardless of kind or state. */
   listByOwner(ownerPrincipalId: string): Awaitable<Project[]>;
   /** The principal's live personal project (not deleted / deleting). */

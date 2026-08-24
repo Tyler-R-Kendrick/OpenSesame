@@ -70,6 +70,11 @@ export type MonitorSnapshot = {
   nextCheckAt: number | null;
 };
 
+type MachineProbeResult = {
+  ok: boolean;
+  failure: FailureClass | null;
+};
+
 /** Everything is green: check rarely enough to be free. */
 export const HEALTHY_MS = 30_000;
 /** Something is not: check often enough to catch the recovery. */
@@ -239,10 +244,7 @@ export function daemonIsProbable(
   return loopbackPage || !isLoopbackUrl(base);
 }
 
-async function probeMachine(): Promise<{
-  ok: boolean;
-  failure: FailureClass | null;
-}> {
+async function probeMachine(): Promise<MachineProbeResult> {
   const daemonApi = connectivityMonitorDependencies
     .loadSettings()
     .daemonApi.trim();

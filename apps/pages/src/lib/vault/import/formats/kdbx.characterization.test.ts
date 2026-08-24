@@ -114,8 +114,7 @@ async function parse(bytes: Uint8Array): Promise<ParseResult> {
 }
 
 beforeAll(async () => {
-  const codec = await import("kdbxweb");
-  kdbxweb = (codec as unknown as { default?: Kdbxweb }).default ?? codec;
+  kdbxweb = await import("kdbxweb");
   // Writing a database needs the same Argon2 the adapter installs for
   // reading one; the adapter only does so inside `parse()`, which has not run
   // yet when these fixtures are built.
@@ -133,7 +132,7 @@ beforeAll(async () => {
         hashLength: length,
         outputType: "binary",
       });
-      return hash.buffer as ArrayBuffer;
+      return new Uint8Array(hash).buffer;
     },
   );
 }, 30_000);
@@ -253,10 +252,30 @@ describe("what a KeePass database becomes", () => {
         {
           name: "Same/Group",
           entries: [
-            { fields: [["Title", "Twin"], ["Password", "1"]] },
-            { fields: [["Title", "Twin"], ["Password", "2"]] },
-            { fields: [["Title", "Twin"], ["Password", "3"]] },
-            { fields: [["Title", ""], ["Password", "nameless"]] },
+            {
+              fields: [
+                ["Title", "Twin"],
+                ["Password", "1"],
+              ],
+            },
+            {
+              fields: [
+                ["Title", "Twin"],
+                ["Password", "2"],
+              ],
+            },
+            {
+              fields: [
+                ["Title", "Twin"],
+                ["Password", "3"],
+              ],
+            },
+            {
+              fields: [
+                ["Title", ""],
+                ["Password", "nameless"],
+              ],
+            },
             { fields: [["Password", "no title field at all"]] },
           ],
         },
@@ -264,7 +283,12 @@ describe("what a KeePass database becomes", () => {
           name: "Recycle Bin",
           recycleBin: true,
           entries: [
-            { fields: [["Title", "Deleted"], ["Password", "gone"]] },
+            {
+              fields: [
+                ["Title", "Deleted"],
+                ["Password", "gone"],
+              ],
+            },
           ],
         },
       ],

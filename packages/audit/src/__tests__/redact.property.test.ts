@@ -1,4 +1,9 @@
-import type { JsonObject } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  isBoolean,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
@@ -47,7 +52,10 @@ const anyValue = fc.oneof(
   fc.dictionary(fc.string(), fc.string()),
 );
 
-const anyMetadata = fc.dictionary(anyKey, anyValue) as fc.Arbitrary<JsonObject>;
+const anyMetadata = fc.dictionary(
+  anyKey,
+  anyValue,
+) satisfies fc.Arbitrary<JsonObject>;
 
 describe("redactAuditMetadata properties", () => {
   it("never emits a key outside the allowlist", () => {
@@ -79,7 +87,7 @@ describe("redactAuditMetadata properties", () => {
     fc.assert(
       fc.property(anyMetadata, (metadata) => {
         for (const value of Object.values(redactAuditMetadata(metadata))) {
-          if (typeof value === "string") {
+          if (isString(value)) {
             expect(value.length).toBeLessThanOrEqual(ceiling);
           } else if (Array.isArray(value)) {
             for (const entry of value) {
@@ -127,11 +135,10 @@ describe("redactAuditMetadata properties", () => {
         for (const value of Object.values(redactAuditMetadata(metadata))) {
           const ok =
             value === null ||
-            typeof value === "string" ||
-            typeof value === "number" ||
-            typeof value === "boolean" ||
-            (Array.isArray(value) &&
-              value.every((entry) => typeof entry === "string"));
+            isString(value) ||
+            isNumber(value) ||
+            isBoolean(value) ||
+            (Array.isArray(value) && value.every(isString));
           expect(ok).toBe(true);
         }
       }),

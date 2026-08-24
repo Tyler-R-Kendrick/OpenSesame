@@ -5,10 +5,12 @@ import { createMockFetch, runAnonymousAgentDemo } from "./main.js";
 const CLAIM_ID = "clm_demo";
 const CLAIM_TOKEN = "osc_clm_demo.secretvalue000000000000000000000000";
 
-function makeFetchImpl(options?: {
+interface MockFetchOptions {
   claimStates?: string[];
   verificationUri?: string;
-}): typeof fetch {
+}
+
+function makeFetchImpl(options?: MockFetchOptions): typeof fetch {
   const claimStates = options?.claimStates ?? ["pending", "completed"];
   let polls = 0;
   return overlapCast(async (input: RequestInfo | URL, init?: RequestInit) => {

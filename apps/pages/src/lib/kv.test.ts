@@ -10,8 +10,9 @@ import {
 } from "./kv.js";
 
 type FakeRoot = ReturnType<typeof makeOpfsRoot>;
+type FakeOpfsOptions = { failWrites?: boolean };
 
-function makeOpfsRoot(options: { failWrites?: boolean } = {}) {
+function makeOpfsRoot(options: FakeOpfsOptions = {}) {
   const files = new Map<string, string>();
   return {
     files,

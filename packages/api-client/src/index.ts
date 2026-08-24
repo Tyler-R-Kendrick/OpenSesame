@@ -88,6 +88,11 @@ export interface HostDiscovery {
   source: "prm" | "ready" | "none";
 }
 
+export interface HostHealth {
+  ok: boolean;
+  body: string;
+}
+
 interface ResponseSchema<T> {
   parse(value: BoundaryValue): T;
 }
@@ -373,7 +378,7 @@ export function createApiClient(options: ApiClientOptions) {
   return {
     baseUrl: base,
 
-    async health(): Promise<{ ok: boolean; body: string }> {
+    async health(): Promise<HostHealth> {
       const res = await request("/health/live");
       return { ok: res.ok, body: await res.text() };
     },

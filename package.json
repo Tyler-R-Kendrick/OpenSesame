@@ -13,7 +13,8 @@
     "typecheck": "turbo run typecheck",
     "lint": "biome check --changed --since=origin/main --no-errors-on-unmatched .",
     "lint:all": "biome check . && pnpm lint:anti-slop",
-    "lint:anti-slop": "oxlint --config oxlint.config.ts .",
+    "lint:anti-slop": "pnpm lint:anti-slop:files .",
+    "lint:anti-slop:files": "oxlint --config oxlint.config.ts --disable-nested-config --report-unused-disable-directives-severity=error --deny-warnings --no-error-on-unmatched-pattern",
     "lint:fix": "biome check --write --changed --since=origin/main --no-errors-on-unmatched . && biome check --write --staged --no-errors-on-unmatched .",
     "setup:hooks": "bash scripts/setup-hooks.sh",
     "test": "turbo run test --concurrency=4",
@@ -22,6 +23,8 @@
     "test:security": "pnpm --filter @opensesame/testing test:security",
     "test:redteam": "pnpm --filter @opensesame/redteam redteam",
     "test:visual": "pnpm --filter @opensesame/visual-contract test:visual",
+    "test:anti-slop": "diff -ru --exclude=.turbo --exclude=LICENSE --exclude=node_modules --exclude=package.json --exclude=vitest.config.ts skills/install-anti-slop/assets/anti-slop tools/oxlint/anti-slop && pnpm typecheck:anti-slop && vitest run --globals tools/oxlint/anti-slop",
+    "typecheck:anti-slop": "tsc --noEmit --allowImportingTsExtensions --module NodeNext --moduleResolution NodeNext --target ESNext --skipLibCheck --types node tools/oxlint/anti-slop/index.ts tools/oxlint/anti-slop/effect/index.ts",
     "test:coverage:ts": "node scripts/ts-coverage-gate.mjs",
     "test:coverage:rust": "cargo +1.88.0 llvm-cov --workspace --all-targets --summary-only --fail-under-lines 69 --fail-under-functions 67 --json --output-path coverage/rust-summary.json",
     "test:coverage": "pnpm test:coverage:ts && pnpm test:coverage:rust",
@@ -52,8 +55,8 @@
     "db:migrate": "pnpm --filter @opensesame/database db:migrate",
     "db:reset": "pnpm --filter @opensesame/database db:reset",
     "generate:openapi": "pnpm --filter @opensesame/control-plane generate:openapi",
-    "generate:sbom": "mkdir -p sbom && pnpm dlx @cyclonedx/cdxgen -o sbom/bom.json",
-    "verify": "pnpm lint && pnpm test:all && cargo +1.88.0 test --workspace --all-targets && ./scripts/battle-test.sh"
+    "generate:sbom": "mkdir -p sbom && pnpm --package @cyclonedx/cdxgen@12.8.4 dlx env -u NODE_PATH -u STARSHIP_SESSION_KEY cdxgen -o sbom/bom.json",
+    "verify": "pnpm lint && pnpm lint:anti-slop && pnpm test:anti-slop && pnpm test:all && cargo +1.88.0 test --workspace --all-targets && ./scripts/battle-test.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
@@ -65,6 +68,7 @@
     "@simplewebauthn/server": "13.2.2",
     "@stryker-mutator/core": "10.0.0",
     "@stryker-mutator/vitest-runner": "10.0.0",
+    "@types/node": "22.15.29",
     "@vitejs/plugin-react": "4.5.0",
     "@vitest/coverage-v8": "4.1.10",
     "better-auth": "1.6.26",

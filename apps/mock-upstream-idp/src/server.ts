@@ -28,6 +28,21 @@ type AuthCode = {
   origin?: string;
 };
 
+interface SecurityHeaderOverrides {
+  "content-type"?: string;
+  location?: string;
+  "access-control-allow-origin"?: string;
+  "access-control-allow-methods"?: string;
+  "access-control-allow-headers"?: string;
+  vary?: string;
+}
+
+interface TokenIssueRequest {
+  clientId: string;
+  nonce?: string;
+  scope: string;
+}
+
 function isOriginClientId(clientId: string): boolean {
   return clientId.startsWith("origin:");
 }
@@ -60,7 +75,7 @@ export interface MockUpstreamIdp {
   close(): Promise<void>;
 }
 
-function securityHeaders(extra: Record<string, string> = {}, issuer = "") {
+function securityHeaders(extra: SecurityHeaderOverrides = {}, issuer = "") {
   const headers = {
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
@@ -83,7 +98,7 @@ function sendJson(
   status: number,
   body: BoundaryValue,
   issuer = "",
-  extra: Record<string, string> = {},
+  extra: SecurityHeaderOverrides = {},
 ): void {
   const payload = JSON.stringify(body);
   res.writeHead(
@@ -166,11 +181,7 @@ export async function createMockUpstreamIdp(
     ],
   };
 
-  async function issueTokens(params: {
-    clientId: string;
-    nonce?: string;
-    scope: string;
-  }): Promise<JsonObject> {
+  async function issueTokens(params: TokenIssueRequest): Promise<JsonObject> {
     const now = Math.floor(Date.now() / 1000);
     const accessToken = `mock-access-${now}`;
     const origin = originFromClientId(params.clientId);

@@ -22,6 +22,6 @@ describe("mock-upstream-idp cli", () => {
     cliSeams.exit = overlapCast(exitSpy);
     runCli();
     await vi.waitFor(() => expect(exitSpy).toHaveBeenCalledWith(1));
-    expect(errorSpy).toHaveBeenCalledWith(failure);
+    expect(errorSpy).toHaveBeenCalledWith(failure.message);
   });
 });

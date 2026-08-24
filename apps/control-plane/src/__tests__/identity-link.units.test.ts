@@ -1,5 +1,9 @@
 import { ConflictError } from "@opensesame/database";
-import type { ExternalIdentity, Principal } from "@opensesame/os-domain";
+import type {
+  AuditEvent,
+  ExternalIdentity,
+  Principal,
+} from "@opensesame/os-domain";
 import { overlapCast } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "../context.js";
@@ -31,11 +35,15 @@ type Fakes = {
   identities: ExternalIdentity[];
   principals: Map<string, Principal>;
   audits: { eventType: string; outcome: string }[];
-  auditEvents: Record<string, unknown>[];
+  auditEvents: AuditEvent[];
   created: ExternalIdentity[];
-  updates: { id: string; patch: Record<string, unknown> }[];
+  updates: { id: string; patch: PrincipalPatch }[];
   createImpl: (identity: ExternalIdentity) => Promise<ExternalIdentity>;
 };
+
+type PrincipalPatch = Parameters<
+  AppContext["repos"]["principals"]["update"]
+>[1];
 
 function principal(overrides: Partial<Principal> = {}): Principal {
   return {
@@ -46,7 +54,7 @@ function principal(overrides: Partial<Principal> = {}): Principal {
     updatedAt: NOW,
     version: 1,
     ...overrides,
-  } as Principal;
+  };
 }
 
 function identity(overrides: Partial<ExternalIdentity> = {}): ExternalIdentity {
@@ -60,7 +68,7 @@ function identity(overrides: Partial<ExternalIdentity> = {}): ExternalIdentity {
     linkedAt: NOW,
     metadata: {},
     ...overrides,
-  } as ExternalIdentity;
+  };
 }
 
 function makeFakes(): Fakes {
@@ -72,7 +80,7 @@ function makeFakes(): Fakes {
     created: [],
     updates: [],
     createImpl: async (record) => record,
-    ctx: undefined as unknown as AppContext,
+    ctx: overlapCast({}),
   };
 
   state.ctx = overlapCast({
@@ -105,22 +113,18 @@ function makeFakes(): Fakes {
       },
       principals: {
         getById: async (id: string) => state.principals.get(id) ?? null,
-        update: async (
-          id: string,
-          patch: Record<string, unknown>,
-          _version: number,
-        ) => {
+        update: async (id: string, patch: PrincipalPatch, _version: number) => {
           state.updates.push({ id, patch });
           return state.principals.get(id) ?? null;
         },
       },
       auditEvents: {
-        append: async (event: { eventType: string; outcome: string }) => {
+        append: async (event: AuditEvent) => {
           state.audits.push({
             eventType: event.eventType,
             outcome: event.outcome,
           });
-          state.auditEvents.push(event as Record<string, unknown>);
+          state.auditEvents.push(event);
           return event;
         },
       },

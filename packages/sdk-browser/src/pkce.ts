@@ -22,12 +22,14 @@ export async function sha256Base64Url(input: string): Promise<string> {
   return base64UrlEncode(new Uint8Array(digest));
 }
 
-export async function createPkcePair(): Promise<{
+export interface PkcePair {
   codeVerifier: string;
   codeChallenge: string;
   state: string;
   nonce: string;
-}> {
+}
+
+export async function createPkcePair(): Promise<PkcePair> {
   const codeVerifier = randomString(32);
   const codeChallenge = await sha256Base64Url(codeVerifier);
   return {

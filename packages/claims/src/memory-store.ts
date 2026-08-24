@@ -1,6 +1,6 @@
 import type { ClaimItem, ClaimSession } from "@opensesame/os-domain";
 import { DomainError } from "@opensesame/os-domain";
-import type { ClaimStore } from "./store.js";
+import type { ClaimCompareAndSwapResult, ClaimStore } from "./store.js";
 
 /** In-memory ClaimStore with mutex-style CAS for concurrent completion tests. */
 export class MemoryClaimStore implements ClaimStore {
@@ -59,7 +59,7 @@ export class MemoryClaimStore implements ClaimStore {
     id: string,
     expectedVersion: number,
     next: ClaimSession,
-  ): Promise<{ session: ClaimSession; won: boolean }> {
+  ): Promise<ClaimCompareAndSwapResult> {
     return this.withLock(id, async () => {
       const current = this.sessions.get(id);
       if (!current) {

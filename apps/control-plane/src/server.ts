@@ -16,6 +16,14 @@ import {
 } from "@opensesame/os-domain";
 import { createControlPlane } from "./create-app.js";
 
+export interface StartedControlPlane {
+  server: http.Server;
+  port: number;
+  host: string;
+  app: ReturnType<typeof createControlPlane>["app"];
+  ctx: ReturnType<typeof createControlPlane>["ctx"];
+}
+
 function applyHeaders(
   res: http.ServerResponse,
   headers: Record<string, string>,
@@ -111,13 +119,7 @@ function replayRequest(
 
 export async function startServer(
   options: Parameters<typeof createControlPlane>[0] = {},
-): Promise<{
-  server: http.Server;
-  port: number;
-  host: string;
-  app: ReturnType<typeof createControlPlane>["app"];
-  ctx: ReturnType<typeof createControlPlane>["ctx"];
-}> {
+): Promise<StartedControlPlane> {
   const { app, ctx, config } = createControlPlane(options);
   const honoListener = getRequestListener(app.fetch);
   const oidcCallback = ctx.oauth.provider.callback();

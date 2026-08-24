@@ -4,7 +4,7 @@
 #
 # Mode is controlled by OPENSESAME_PREPUSH:
 #   off  -> skip entirely
-#   fast -> pnpm typecheck && pnpm test   (default when unset)
+#   fast -> anti-slop + typecheck + tests (default when unset)
 #   full -> pnpm verify
 set -e
 
@@ -24,7 +24,7 @@ case "$mode" in
     exit 0
     ;;
   fast)
-    pnpm typecheck && pnpm test
+    pnpm lint:anti-slop && pnpm test:anti-slop && pnpm typecheck && pnpm test
     ;;
   full)
     pnpm verify

@@ -144,14 +144,13 @@ export function secondsRemaining(
   return totpSeams.secondsRemaining(period, atMs);
 }
 
+export type TotpSetupOptions = { label?: string; issuer?: string };
+
 /**
  * Build an otpauth:// URI suitable for authenticator QR enrollment.
  * Passes through an existing otpauth URI after validating it.
  */
-export function totpSetupUri(
-  raw: string,
-  opts: { label?: string; issuer?: string } = {},
-): string {
+export function totpSetupUri(raw: string, opts: TotpSetupOptions = {}): string {
   const trimmed = raw.trim();
   if (!trimmed) throw new TotpParseError("the secret is empty");
   if (/^otpauth:\/\//i.test(trimmed)) {

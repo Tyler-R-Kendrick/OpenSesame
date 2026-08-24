@@ -4,8 +4,8 @@ import { main as mainImpl } from "./index.js";
 
 export const cliSeams = {
   main: mainImpl,
-  error: (...args: unknown[]) => {
-    console.error(...args);
+  error: (message: string) => {
+    console.error(message);
   },
   exit: (code: number) => {
     process.exit(code);
@@ -14,7 +14,7 @@ export const cliSeams = {
 
 export function runCli(): void {
   cliSeams.main().catch((err) => {
-    cliSeams.error(err);
+    cliSeams.error(err instanceof Error ? err.message : String(err));
     cliSeams.exit(1);
   });
 }

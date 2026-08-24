@@ -60,6 +60,11 @@ export type ChangelogEvent = {
   contentVersion?: string;
 };
 
+export type ChangelogOptions = {
+  projectId?: string;
+  limit?: number;
+};
+
 function assertNoSecretMetadata(events: ChangelogEvent[]): void {
   for (const event of events) {
     for (const key of Object.keys(event.metadata)) {
@@ -173,7 +178,7 @@ export async function listHostChangelogPage(
 /** List Host-plane changelog events for a project (authz-gated). */
 export async function listHostChangelog(
   projectId: string,
-  options?: { limit?: number },
+  options?: ChangelogOptions,
 ): Promise<ChangelogEvent[]> {
   const page = await listHostChangelogPageDefault(
     projectId,
@@ -183,10 +188,9 @@ export async function listHostChangelog(
 }
 
 /** List Identity audit events filtered to secret/config changelog types. */
-export async function listIdentityChangelog(options?: {
-  projectId?: string;
-  limit?: number;
-}): Promise<ChangelogEvent[]> {
+export async function listIdentityChangelog(
+  options?: ChangelogOptions,
+): Promise<ChangelogEvent[]> {
   const limit = Math.min(Math.max(options?.limit ?? 50, 1), 200);
   const params = new URLSearchParams({
     changelog: "1",
@@ -218,10 +222,9 @@ export async function listIdentityChangelog(options?: {
 }
 
 /** Prefer Host project changelog; fall back to Identity audit filter. */
-async function listChangelogDefault(options: {
-  projectId?: string;
-  limit?: number;
-}): Promise<ChangelogEvent[]> {
+async function listChangelogDefault(
+  options: ChangelogOptions,
+): Promise<ChangelogEvent[]> {
   if (options.projectId) {
     try {
       return await listHostChangelog(options.projectId, {
@@ -266,10 +269,9 @@ export const changelogSeams = {
   formatChangelogSummary: formatChangelogSummaryDefault,
 };
 
-export async function listChangelog(options: {
-  projectId?: string;
-  limit?: number;
-}): Promise<ChangelogEvent[]> {
+export async function listChangelog(
+  options: ChangelogOptions,
+): Promise<ChangelogEvent[]> {
   return changelogSeams.listChangelog(options);
 }
 

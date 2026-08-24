@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   type JsonObject,
+  isBigint,
   isBoolean,
   isFunction,
   isJsonObject,
   isNumber,
   isString,
+  isSymbol,
   isTypeofObject,
   isUndefined,
   overlapCast,
@@ -19,6 +21,15 @@ describe("json boundary helpers", () => {
     expect(isString(value)).toBe(true);
     expect(isNumber(value)).toBe(false);
     expect(isBoolean(false)).toBe(true);
+    expect(isBigint(1n)).toBe(true);
+    expect(isSymbol(Symbol("value"))).toBe(true);
+    expect(isNumber(Number.NaN)).toBe(true);
+    expect(isNumber(Number.POSITIVE_INFINITY)).toBe(true);
+    const spoofedObject = new Date();
+    Object.defineProperty(spoofedObject, Symbol.toStringTag, {
+      value: "String",
+    });
+    expect(isString(spoofedObject)).toBe(false);
   });
 
   it("treats null as typeof object and not a JSON object", () => {

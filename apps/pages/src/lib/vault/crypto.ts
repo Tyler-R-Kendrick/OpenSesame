@@ -66,6 +66,16 @@ export type SealedBlob = {
   ctB64: string;
 };
 
+export type MintedVaultKey = {
+  vaultKey: CryptoKey;
+  rawVaultKey: Uint8Array;
+};
+
+export type PasswordWrappedVaultKey = {
+  kdf: KdfParams;
+  wrap: SealedBlob;
+};
+
 export function randomBytes(length: number): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(length));
 }
@@ -150,10 +160,7 @@ export async function importVaultKey(raw: Uint8Array): Promise<CryptoKey> {
 }
 
 /** Random vault key with no wrap yet — caller enrolls passkey, PIN, and/or password. */
-export async function mintVaultKey(): Promise<{
-  vaultKey: CryptoKey;
-  rawVaultKey: Uint8Array;
-}> {
+export async function mintVaultKey(): Promise<MintedVaultKey> {
   const rawVaultKey = randomBytes(VAULT_KEY_BYTES);
   return { vaultKey: await importVaultKey(rawVaultKey), rawVaultKey };
 }
@@ -287,7 +294,7 @@ export async function rewrapVaultKey(
 export async function wrapVaultKeyWithPassword(
   rawVaultKey: Uint8Array,
   password: string,
-): Promise<{ kdf: KdfParams; wrap: SealedBlob }> {
+): Promise<PasswordWrappedVaultKey> {
   const salt = randomBytes(SALT_BYTES);
   const masterKey = await deriveMasterKey(password, salt, PBKDF2_ITERATIONS);
   const wrap = await encrypt(masterKey, rawVaultKey);

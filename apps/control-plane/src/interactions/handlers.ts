@@ -26,6 +26,11 @@ import type {
   ProviderInteractions,
 } from "./types.js";
 
+export interface ProvisionalInteractionCredentials {
+  principalId: string;
+  accessToken: string;
+}
+
 function interactionBase(uid: string): string {
   return `/interaction/${encodeURIComponent(uid)}`;
 }
@@ -120,7 +125,7 @@ export async function mintProvisionalForInteraction(
   ctx: AppContext,
   fingerprint: string,
   correlationId: string,
-): Promise<{ principalId: string; accessToken: string }> {
+): Promise<ProvisionalInteractionCredentials> {
   const now = ctx.clock();
 
   if (ctx.stores.provisionalSessions.size >= MAX_PROVISIONAL) {

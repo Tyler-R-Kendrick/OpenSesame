@@ -11,6 +11,10 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
 
+interface DeviceApprovalHeaders {
+  origin?: string;
+}
+
 async function provisional(app: ReturnType<typeof createControlPlane>["app"]) {
   const res = await app.request("/v1/principals/provisional", {
     method: "POST",
@@ -736,7 +740,7 @@ describe("control-plane API", () => {
     });
     const created = await provisional(app);
     const cookie = `${config.provisionalCookieName}=${created.accessToken}`;
-    const approve = (headers: Record<string, string>) =>
+    const approve = (headers: DeviceApprovalHeaders) =>
       app.request("/v1/device/approve", {
         method: "POST",
         headers: { cookie, "content-type": "application/json", ...headers },

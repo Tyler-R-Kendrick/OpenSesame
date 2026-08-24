@@ -270,7 +270,7 @@ async function rollbackConfigSecretDefault(
   configId: string,
   keyName: string,
   toVersion: number,
-): Promise<{ keyName: string; version: number }> {
+) {
   const res = await hostFetch(
     configPath(configId, `/secrets/${encodeURIComponent(keyName)}/rollback`),
     {

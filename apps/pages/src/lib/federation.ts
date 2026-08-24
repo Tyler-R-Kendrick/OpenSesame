@@ -168,7 +168,9 @@ export async function derivedSubjectFor(
   return b64urlEncode(await sha256(`${pairwiseSub}:${origin}`));
 }
 
-async function createPkce(): Promise<{ verifier: string; challenge: string }> {
+type Pkce = { verifier: string; challenge: string };
+
+async function createPkce(): Promise<Pkce> {
   const verifier = b64urlEncode(crypto.getRandomValues(new Uint8Array(32)));
   return { verifier, challenge: b64urlEncode(await sha256(verifier)) };
 }

@@ -14,9 +14,9 @@ import {
 
 import {
   type DraftItem,
-  type TextImportAdapter,
   type ParseResult,
   type SkippedRecord,
+  type TextImportAdapter,
   addField,
   addUri,
   asString,
