@@ -38,11 +38,25 @@ describe("PACT — hosted ceremony pages", () => {
     ]);
   });
 
-  it("chaos: the delegate stub scrubs the fragment and never calls out", () => {
+  it("chaos: the delegate ceremony scrubs the fragment before presenting", () => {
+    // The stub-era rule was "never calls out"; the live ceremony's rule is
+    // stricter where it matters: the bearer leaves the URL before any network
+    // call spends it, and presenting happens exactly once — a failure after
+    // that point must not re-present, because a second present burns the
+    // offer for everyone.
     const src = read("pages/DelegateClaim.tsx");
-    assertSourceOrder(src, ["readFragmentToken", "history.replaceState"]);
-    expect(src).not.toMatch(/\bfetch\s*\(/);
-    expect(src).not.toMatch(/createOpenSesame/);
+    assertSourceOrder(src, [
+      "readFragmentToken",
+      "history.replaceState",
+      "void present(token)",
+    ]);
+    expect(src).toContain("presenting it spends it");
+    // The consent code is required client-side before the claim call, so a
+    // missing code never costs a network round trip against a spent token.
+    assertSourceOrder(src, [
+      "const code = userCode.trim()",
+      "delegations/claim",
+    ]);
   });
 
   it("contract: guest identity copy never claims to show a credential", () => {

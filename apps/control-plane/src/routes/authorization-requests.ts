@@ -355,6 +355,23 @@ authorizationRequestRoutes.post(
       },
     });
 
+    // The outbox row is what the worker's webhook dispatcher fans out to the
+    // approver's registered hooks (ADR 0046 decision 12). Digest-shaped keys
+    // only, plus the approver id the dispatcher routes on — the inbox stays
+    // the source of truth; a hook is a doorbell, not the door.
+    await ctx.repos.outbox.append({
+      id: randomBytes(16).toString("hex"),
+      aggregateType: "authorization_request",
+      aggregateId: created.id,
+      eventType: "authority.invocation.requested",
+      payload: {
+        principalId: created.principalId,
+        authReqId: created.id,
+        requestDigest: created.requestDigest,
+        expiresAt: created.expiresAt.toISOString(),
+      },
+    });
+
     return c.json(toResponse(created), 201);
   },
 );
@@ -530,6 +547,19 @@ function decideRoute(status: "approved" | "denied") {
           ...(saved.connectionId
             ? { connectionId: saved.connectionId }
             : undefined),
+        },
+      });
+      await ctx.repos.outbox.append({
+        id: randomBytes(16).toString("hex"),
+        aggregateType: "authorization_request",
+        aggregateId: saved.id,
+        eventType: "authority.invocation.completed",
+        payload: {
+          principalId: saved.principalId,
+          authReqId: saved.id,
+          requestDigest: saved.requestDigest,
+          status: saved.status,
+          decidedByKind: saved.decidedByKind ?? "human",
         },
       });
       POLL_STATE.delete(id);

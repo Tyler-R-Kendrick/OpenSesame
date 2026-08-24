@@ -21,6 +21,7 @@ import { organizationRoutes } from "./routes/organizations.js";
 import { originClientAdminRoutes } from "./routes/origin-clients-admin.js";
 import { principalRoutes } from "./routes/principals.js";
 import { projectRoutes } from "./routes/projects.js";
+import { webhookRoutes } from "./routes/webhooks.js";
 
 export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   const app = new Hono<{ Variables: Variables }>();
@@ -68,6 +69,7 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/v1/projects", projectRoutes);
   app.route("/v1/claims", claimRoutes);
   app.route("/v1/authorization-requests", authorizationRequestRoutes);
+  app.route("/v1/webhooks", webhookRoutes);
   app.route("/v1/agents", agentRoutes);
   app.route("/v1/mfa", mfaRoutes);
   app.route("/v1/device", deviceRoutes);

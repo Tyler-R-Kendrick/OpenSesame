@@ -12,6 +12,8 @@ import {
   type Principal,
   type Project,
   type ProjectMembership,
+  type WebhookDelivery,
+  type WebhookEndpoint,
 } from "@opensesame/os-domain";
 
 export class ConflictError extends Error {
@@ -273,6 +275,34 @@ export interface ProjectStores {
   projectMemberships: ProjectMembershipStore;
 }
 
+export interface WebhookEndpointRepository {
+  create(endpoint: WebhookEndpoint, uow?: UnitOfWork): Promise<WebhookEndpoint>;
+  getById(id: string): Promise<WebhookEndpoint | null>;
+  /** Live endpoints only: a disabled receiver gets nothing. */
+  listForPrincipal(principalId: string): Promise<WebhookEndpoint[]>;
+  deleteById(id: string, uow?: UnitOfWork): Promise<boolean>;
+}
+
+export interface WebhookDeliveryRepository {
+  enqueue(
+    delivery: WebhookDelivery,
+    uow?: UnitOfWork,
+  ): Promise<WebhookDelivery>;
+  /**
+   * Due, undelivered, un-dead deliveries — attempts bumped on claim so two
+   * dispatchers racing cannot both count the same try as the first.
+   */
+  claimDue(limit: number, now: Date): Promise<WebhookDelivery[]>;
+  markDelivered(id: string, at: Date): Promise<void>;
+  /** Failure with the next attempt already scheduled; `dead` ends retrying. */
+  recordFailure(
+    id: string,
+    error: string,
+    nextAttemptAt: Date,
+    dead: boolean,
+  ): Promise<void>;
+}
+
 export interface Repositories {
   principals: PrincipalRepository;
   authorizationRequests: AuthorizationRequestRepository;
@@ -282,6 +312,8 @@ export interface Repositories {
   claimItems: ClaimItemRepository;
   auditEvents: AuditEventRepository;
   outbox: OutboxRepository;
+  webhookEndpoints: WebhookEndpointRepository;
+  webhookDeliveries: WebhookDeliveryRepository;
   /**
    * Run work in a single transaction. Domain writes + outbox append must share this boundary.
    */
