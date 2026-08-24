@@ -128,6 +128,10 @@ provider seeing ciphertext and nothing else.
 - **No cross-attachment deduplication**, per decision 5. Storing the same file
   under two paths costs twice the space. This is the price of not leaking
   equality.
+- **The external tier uploads to Dropbox only.** The target route refuses a
+  connection whose provider has no uploader implemented, so the limitation
+  surfaces at configuration time rather than as a partial sync. Adding a
+  provider means an uploader and a catalog egress entry, not a schema change.
 - **A second sealed collection now exists.** Entries bind `collection_id`
   `"entries"` and manifests bind `"attachments"`, so neither can be replayed as
   the other even at the same path and revision.
@@ -135,21 +139,33 @@ provider seeing ciphertext and nothing else.
 ## Ceremony
 
 Establishing an external target reuses the existing connector flow; only the
-final registration is new:
+final registration and the replication call are new. All three steps are
+implemented.
 
 ```bash
 # 1. Create and authorize a storage connection (existing ceremony).
+#    Dropbox is OAuth, so the organization needs an integration first.
 curl -X POST "$HOST/api/v1/connections" \
   -d '{"provider_id":"dropbox","display_name":"Documents"}'
 curl -X POST "$HOST/api/v1/connections/$ID/authorize"   # follow the returned URL
 
-# 2. Register it as where attachment ciphertext should go.
+# 2. Register it as where attachment ciphertext should go. Operator-gated.
 curl -X PUT "$HOST/api/v1/attachments/target" \
+  -H "X-OpenSesame-Operator: $OPERATOR_TOKEN" \
   -d '{"connection_id":"'$ID'","folder_path":"/OpenSesame/attachments"}'
+
+# 3. Push sealed bytes. The client drives this; the Host injects the
+#    provider credential and forwards.
+opensesame pass attach sync
 ```
 
-For an encrypted volume instead of a provider, no ceremony is involved:
+For an encrypted volume instead of a provider, no ceremony is involved and no
+Host is contacted:
 
 ```bash
 opensesame pass attach sync --to-dir /Volumes/encrypted/opensesame
 ```
+
+Replication is idempotent: chunks are digest-addressed and uploaded in overwrite
+mode, so re-running after a partial failure is safe. A local cache skips what
+already landed and is always safe to delete.
