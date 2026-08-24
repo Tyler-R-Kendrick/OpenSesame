@@ -13,6 +13,11 @@ use crate::store;
 use crate::token::TokenSet;
 use crate::ConnectionBroker;
 
+/// Characters of an upstream error body kept for diagnostics. A provider error
+/// page is not worth holding in full, and the cap keeps a hostile upstream from
+/// deciding how much of our memory its message occupies.
+const MAX_ERROR_SNIPPET: usize = 512;
+
 #[derive(Debug, Clone)]
 pub struct GithubRepo {
     pub full_name: String,
@@ -124,6 +129,83 @@ impl ConnectionBroker {
 
         // Never echo Authorization headers or token fields from upstream.
         Ok(response)
+    }
+
+    /// POST raw bytes to a provider with the connection's credential injected.
+    ///
+    /// The sibling of [`Self::authorized_json`] for the one case where the body
+    /// is ciphertext rather than JSON: attachment replication (ADR 0054). The
+    /// same status and egress-allowlist checks apply, because the caller
+    /// supplies the URL and must not be able to aim a credentialed request at
+    /// an origin the connection never authorized.
+    ///
+    /// Three things are deliberate. Redirects are not followed — a redirect
+    /// would replay the bearer token at an unapproved origin. The response body
+    /// is read only up to a cap, since a provider error page is not something
+    /// we need in full. And no part of the credential is ever returned or
+    /// logged: on failure the caller learns the status and a short snippet.
+    pub async fn authorized_bytes(
+        &self,
+        organization_id: &OrganizationId,
+        connection_id: &str,
+        url: &str,
+        extra_headers: &[(String, String)],
+        body: Vec<u8>,
+    ) -> Result<()> {
+        let row = self.row_in_org(organization_id, connection_id).await?;
+        if row.status == ConnectionStatus::Revoked {
+            return Err(BrokerError::Invalid("connection is revoked".into()));
+        }
+        if row.status != ConnectionStatus::Active {
+            return Err(BrokerError::NeedsReauth(format!(
+                "connection status is {}",
+                row.status.as_str()
+            )));
+        }
+        row.egress
+            .allows_url(url)
+            .map_err(|e| BrokerError::Invalid(e.to_string()))?;
+
+        let key = *self.sealing_key()?;
+        let credential = store::get_credential(&self.pool, &row.id)
+            .await?
+            .ok_or_else(|| BrokerError::NeedsReauth("connection has no credential".into()))?;
+        let tokens = self.open_tokens(&key, &row, &credential)?;
+        if tokens.access_token.is_empty() {
+            return Err(BrokerError::NeedsReauth("access token missing".into()));
+        }
+
+        let mut req = self
+            .http_bytes
+            .post(url)
+            .header("Authorization", format!("Bearer {}", tokens.access_token))
+            .header("Content-Type", "application/octet-stream")
+            .header("User-Agent", "OpenSesame-Host/0.1");
+        for (name, value) in extra_headers {
+            req = req.header(name.as_str(), value.as_str());
+        }
+
+        let response = req
+            .body(body)
+            .send()
+            .await
+            .map_err(|e| BrokerError::ExchangeFailed(e.to_string()))?;
+        let status = response.status();
+        if status.is_redirection() {
+            // Following this would hand the bearer token to wherever the
+            // provider points, which the allowlist never vetted.
+            return Err(BrokerError::ExchangeFailed(format!(
+                "upstream {status}: refusing to follow a redirect on a credentialed upload"
+            )));
+        }
+        if !status.is_success() {
+            let text = response.text().await.unwrap_or_default();
+            let snippet: String = text.chars().take(MAX_ERROR_SNIPPET).collect();
+            return Err(BrokerError::ExchangeFailed(format!(
+                "upstream {status}: {snippet}"
+            )));
+        }
+        Ok(())
     }
 
     async fn http_authorized(
