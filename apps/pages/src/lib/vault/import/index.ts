@@ -36,10 +36,19 @@ import type {
   ParseResult,
   SourceId,
 } from "./types.js";
-import { readZipText } from "./zip.js";
+import {
+  findSkippedAttachments,
+  readZipEntryNames,
+  readZipText,
+} from "./zip.js";
 
 export * from "./types.js";
-export { readZipText, ZipError } from "./zip.js";
+export {
+  findSkippedAttachments,
+  readZipEntryNames,
+  readZipText,
+  ZipError,
+} from "./zip.js";
 export {
   CsvParseError,
   parseCsv,
@@ -139,9 +148,15 @@ export async function readImportFile(file: File): Promise<DetectInput> {
   }
 
   let text: string;
+  let skippedAttachments: { count: number; sample: string[] } | undefined;
   if (isArchive) {
     const buffer = await file.arrayBuffer();
     text = await readZipText(buffer, (entry) => entry.endsWith("export.data"));
+    // The archive is already in memory and its central directory is already
+    // parsed once; reading the names costs nothing and is the only chance to
+    // notice documents this import is about to leave behind.
+    const skipped = findSkippedAttachments(readZipEntryNames(buffer));
+    if (skipped.count > 0) skippedAttachments = skipped;
   } else {
     text = await file.text();
   }
@@ -174,7 +189,14 @@ export async function readImportFile(file: File): Promise<DetectInput> {
   const headers =
     json === null && looksLikeCsv(text) ? readHeaderRow(text) : null;
 
-  return { fileName: file.name, text, headers, json, bytes: null };
+  return {
+    fileName: file.name,
+    text,
+    headers,
+    json,
+    bytes: null,
+    ...(skippedAttachments ? { skippedAttachments } : {}),
+  };
 }
 
 /**
