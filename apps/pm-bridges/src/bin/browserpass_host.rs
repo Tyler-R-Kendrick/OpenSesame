@@ -1,5 +1,5 @@
 //! `opensesame-browserpass-host` — a **browserpass-native compatible** stdio
-//! host backed by the OpenSesame sealed store.
+//! host backed by the `OpenSesame` sealed store.
 //!
 //! The stock [browserpass extension] speaks a small JSON protocol over
 //! Chrome/Firefox native messaging: `configure`, `list`, `fetch`, `echo`,
@@ -13,7 +13,7 @@
 //! *specification of the wire format only* — the request/response field
 //! names, the little-endian framing, and the numeric error codes. No code was
 //! copied; the store layer, error handling, and control flow here are
-//! OpenSesame's.
+//! `OpenSesame`'s.
 //!
 //! **Plane (C2).** stdio only: the caller is whatever process the browser
 //! `exec`ed this binary from, in the user's own session. It becomes reachable
@@ -39,7 +39,7 @@ use serde_json::{json, Map, Value};
 ///
 /// The extension compares this against its own minimum supported host
 /// version, so it must be a browserpass-native version code
-/// (`major*1_000_000 + minor*1_000 + patch`), not an OpenSesame version.
+/// (`major*1_000_000 + minor*1_000 + patch`), not an `OpenSesame` version.
 const PROTOCOL_VERSION: u32 = 3_001_002;
 
 // browserpass-native error codes (stable by contract: the extension maps them
@@ -122,7 +122,7 @@ fn main() {
             Err(error) => {
                 // Nothing legible arrived; there is no request to answer.
                 eprintln!("browserpass bridge: {error}");
-                std::process::exit(CODE_PARSE_REQUEST as i32);
+                std::process::exit(process_exit_code(CODE_PARSE_REQUEST));
             }
         };
 
@@ -130,7 +130,11 @@ fn main() {
             Ok(request) => request,
             Err(_) => fail(
                 &mut stdout,
-                Failure::new(CODE_PARSE_REQUEST, "", "Unable to parse the browser request"),
+                Failure::new(
+                    CODE_PARSE_REQUEST,
+                    "",
+                    "Unable to parse the browser request",
+                ),
             ),
         };
 
@@ -158,7 +162,9 @@ fn dispatch(request: &Request) -> Result<Option<Value>, Failure> {
 }
 
 fn passphrase() -> Option<String> {
-    std::env::var(ENV_STORE_PASSWORD).ok().filter(|p| !p.is_empty())
+    std::env::var(ENV_STORE_PASSWORD)
+        .ok()
+        .filter(|p| !p.is_empty())
 }
 
 fn open_store(path: &Path) -> Result<StoreAccess, opensesame_pm_bridges::BridgeError> {
@@ -337,5 +343,21 @@ fn fail(out: &mut impl Write, failure: Failure) -> ! {
         },
     );
     let _ = out.flush();
-    std::process::exit(failure.code as i32);
+    std::process::exit(process_exit_code(failure.code));
+}
+
+fn process_exit_code(code: u32) -> i32 {
+    i32::try_from(code).unwrap_or(i32::MAX)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn process_exit_code_preserves_protocol_codes_and_clamps_overflow() {
+        assert_eq!(process_exit_code(CODE_PARSE_REQUEST), 11);
+        assert_eq!(process_exit_code(i32::MAX as u32), i32::MAX);
+        assert_eq!(process_exit_code(u32::MAX), i32::MAX);
+    }
 }

@@ -2,7 +2,7 @@
 //!
 //! `$XDG_RUNTIME_DIR/org.keepassxc.KeePassXC.BrowserServer` is a name only one
 //! process can hold. Binding it blindly is how a bridge silently breaks the
-//! real KeePassXC: the browser extension keeps working, the passwords come
+//! real `KeePassXC`: the browser extension keeps working, the passwords come
 //! from the wrong place, and nobody is told. So before binding, ask who is
 //! there, and refuse with a diagnostic that *names the owner* rather than
 //! stealing the name.
@@ -50,6 +50,7 @@ impl std::fmt::Display for SocketOwner {
 
 impl SocketState {
     /// A one-line operator diagnostic. Never contains secret material.
+    #[must_use]
     pub fn diagnostic(&self, path: &Path) -> String {
         match self {
             SocketState::Free => format!("{} is free", path.display()),
@@ -70,15 +71,15 @@ impl SocketState {
     }
 }
 
-/// The conventional KeePassXC browser-server socket path.
+/// The conventional `KeePassXC` browser-server socket path.
 ///
-/// KeePassXC uses `$XDG_RUNTIME_DIR/org.keepassxc.KeePassXC.BrowserServer`,
+/// `KeePassXC` uses `$XDG_RUNTIME_DIR/org.keepassxc.KeePassXC.BrowserServer`,
 /// falling back to `$TMPDIR`/`/tmp` when the runtime dir is unset. Flatpak
 /// installs additionally nest it under `app/org.keepassxc.KeePassXC/`; that
 /// layout is out of scope for v1 and documented as such.
 pub const KEEPASSXC_SOCKET_NAME: &str = "org.keepassxc.KeePassXC.BrowserServer";
 
-/// Default socket path for the KeePassXC browser server.
+/// Default socket path for the `KeePassXC` browser server.
 pub fn keepassxc_socket_path() -> PathBuf {
     let base = std::env::var_os("XDG_RUNTIME_DIR")
         .filter(|v| !v.is_empty())
@@ -94,13 +95,13 @@ pub fn keepassxc_socket_path() -> PathBuf {
 
 /// Probe a unix socket path without disturbing whoever owns it.
 #[cfg(unix)]
+#[must_use]
 pub fn probe_unix_socket(path: &Path) -> SocketState {
     use std::os::unix::fs::FileTypeExt;
     use std::os::unix::net::UnixStream;
 
-    let meta = match std::fs::symlink_metadata(path) {
-        Ok(meta) => meta,
-        Err(_) => return SocketState::Free,
+    let Ok(meta) = std::fs::symlink_metadata(path) else {
+        return SocketState::Free;
     };
     if !meta.file_type().is_socket() {
         return SocketState::NotASocket;
@@ -123,7 +124,11 @@ pub fn probe_unix_socket(_path: &Path) -> SocketState {
 ///
 /// A live endpoint is never unlinked, no matter what the caller asked for —
 /// `--takeover` is a recovery tool for crashed servers, not a way to evict
-/// KeePassXC.
+/// `KeePassXC`.
+///
+/// # Errors
+///
+/// Returns an I/O error only when removing a verified-stale socket fails.
 #[cfg(unix)]
 pub fn takeover_if_dead(path: &Path) -> Result<SocketState, crate::BridgeError> {
     let state = probe_unix_socket(path);
@@ -149,7 +154,9 @@ fn peer_owner(stream: &std::os::unix::net::UnixStream) -> SocketOwner {
         uid: 0,
         gid: 0,
     };
-    let mut len = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
+    let Some(mut len) = socklen_from_usize(std::mem::size_of::<libc::ucred>()) else {
+        return SocketOwner::default();
+    };
     // SAFETY: `cred` and `len` are correctly sized for SO_PEERCRED on a
     // connected AF_UNIX socket, and the fd is owned by `stream` for the call.
     let rc = unsafe {
@@ -168,6 +175,11 @@ fn peer_owner(stream: &std::os::unix::net::UnixStream) -> SocketOwner {
         pid: Some(cred.pid),
         process: process_name(cred.pid),
     }
+}
+
+#[cfg(target_os = "linux")]
+fn socklen_from_usize(len: usize) -> Option<libc::socklen_t> {
+    libc::socklen_t::try_from(len).ok()
 }
 
 #[cfg(all(unix, not(target_os = "linux")))]
@@ -212,12 +224,28 @@ mod tests {
             SocketState::Live { owner } => {
                 // On Linux the kernel names us; elsewhere the owner is blank.
                 if cfg!(target_os = "linux") {
-                    assert_eq!(owner.pid, Some(std::process::id() as i32));
+                    let pid = i32::try_from(std::process::id()).expect("test pid fits i32");
+                    assert_eq!(owner.pid, Some(pid));
                 }
             }
             other => panic!("expected Live, got {other:?}"),
         }
         assert!(state.diagnostic(&path).contains("refusing to take over"));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn socket_length_conversion_rejects_values_outside_socklen_t() {
+        assert_eq!(
+            socklen_from_usize(std::mem::size_of::<libc::ucred>()),
+            Some(
+                libc::socklen_t::try_from(std::mem::size_of::<libc::ucred>())
+                    .expect("ucred size fits socklen_t")
+            )
+        );
+        if usize::BITS > libc::socklen_t::BITS {
+            assert_eq!(socklen_from_usize(usize::MAX), None);
+        }
     }
 
     #[test]
@@ -227,7 +255,9 @@ mod tests {
         let listener = UnixListener::bind(&path).unwrap();
         drop(listener); // the inode survives; the listener does not
         assert_eq!(probe_unix_socket(&path), SocketState::Stale);
-        assert!(probe_unix_socket(&path).diagnostic(&path).contains("--takeover"));
+        assert!(probe_unix_socket(&path)
+            .diagnostic(&path)
+            .contains("--takeover"));
     }
 
     #[test]
@@ -277,7 +307,10 @@ mod tests {
 
     #[test]
     fn owner_display_degrades_gracefully() {
-        assert_eq!(SocketOwner::default().to_string(), "an unidentified process");
+        assert_eq!(
+            SocketOwner::default().to_string(),
+            "an unidentified process"
+        );
         assert_eq!(
             SocketOwner {
                 pid: Some(7),

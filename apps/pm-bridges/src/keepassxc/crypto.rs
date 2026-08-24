@@ -1,4 +1,4 @@
-//! NaCl `box` for the keepassxc-protocol: X25519 + XSalsa20-Poly1305.
+//! `NaCl` `box` for the keepassxc-protocol: X25519 + XSalsa20-Poly1305.
 //!
 //! Three keypairs exist in the protocol, and conflating them is the classic
 //! way to get this wrong:
@@ -13,7 +13,7 @@
 //! half is the sole thing persisted (C5) and is compared, never used to
 //! decrypt — a quirk of the protocol, noted in its own spec.
 //!
-//! No AEAD is hand-rolled here: `crypto_box` (RustCrypto, MIT/Apache-2.0) is
+//! No AEAD is hand-rolled here: `crypto_box` (`RustCrypto`, MIT/Apache-2.0) is
 //! the implementation, and it lives only in this crate, never in the daemon's
 //! dependency tree (C4).
 
@@ -42,17 +42,23 @@ impl HostKeys {
     }
 
     /// Deterministic constructor — tests only, so a handshake can be pinned.
+    #[must_use]
     pub fn from_secret_bytes(bytes: [u8; 32]) -> Self {
         let secret = SecretKey::from_bytes(bytes);
         let public = secret.public_key();
         Self { secret, public }
     }
 
+    #[must_use]
     pub fn public_b64(&self) -> String {
         encode_b64(self.public.as_bytes())
     }
 
     /// The shared box with a peer's public key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the peer key is not valid base64 or is not 32 bytes.
     pub fn box_with(&self, peer_public_b64: &str) -> Result<SessionBox, BridgeError> {
         let bytes = decode_b64(peer_public_b64, Some(32))?;
         let mut key = [0u8; 32];
@@ -63,13 +69,17 @@ impl HostKeys {
     }
 }
 
-/// An established NaCl box between the host key and one client key.
+/// An established `NaCl` box between the host key and one client key.
 pub struct SessionBox {
     inner: SalsaBox,
 }
 
 impl SessionBox {
     /// Open a base64 box under a base64 nonce.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for malformed inputs or failed authenticated decryption.
     pub fn open(&self, message_b64: &str, nonce_b64: &str) -> Result<Vec<u8>, BridgeError> {
         let nonce = decode_b64(nonce_b64, Some(NONCE_LEN))?;
         let ciphertext = decode_b64(message_b64, None)?;
@@ -79,6 +89,10 @@ impl SessionBox {
     }
 
     /// Seal `plaintext` under a base64 nonce, returning base64 ciphertext.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for a malformed nonce or failed authenticated encryption.
     pub fn seal(&self, plaintext: &[u8], nonce_b64: &str) -> Result<String, BridgeError> {
         let nonce = decode_b64(nonce_b64, Some(NONCE_LEN))?;
         let ciphertext = self
@@ -90,6 +104,7 @@ impl SessionBox {
 }
 
 /// A fresh 24-byte nonce, base64 encoded.
+#[must_use]
 pub fn random_nonce_b64() -> String {
     use rand::RngCore;
     let mut nonce = [0u8; NONCE_LEN];
@@ -107,6 +122,10 @@ pub fn generate_client_keys() -> (SecretKey, String) {
 
 /// Build the client half of a session box. The mirror of
 /// [`HostKeys::box_with`], for code standing in for the extension.
+///
+/// # Errors
+///
+/// Returns an error when the host key is not valid base64 or is not 32 bytes.
 pub fn client_box(secret: &SecretKey, host_public_b64: &str) -> Result<SessionBox, BridgeError> {
     let bytes = decode_b64(host_public_b64, Some(32))?;
     let mut key = [0u8; 32];
@@ -130,7 +149,9 @@ mod tests {
         let client_side = client_box(&client_secret, &host.public_b64()).unwrap();
 
         let nonce = random_nonce_b64();
-        let sealed = client_side.seal(br#"{"action":"get-databasehash"}"#, &nonce).unwrap();
+        let sealed = client_side
+            .seal(br#"{"action":"get-databasehash"}"#, &nonce)
+            .unwrap();
         let opened = host_side.open(&sealed, &nonce).unwrap();
         assert_eq!(opened, br#"{"action":"get-databasehash"}"#);
 
@@ -190,7 +211,10 @@ mod tests {
         let a = HostKeys::from_secret_bytes([7u8; 32]);
         let b = HostKeys::from_secret_bytes([7u8; 32]);
         assert_eq!(a.public_b64(), b.public_b64());
-        assert_ne!(a.public_b64(), HostKeys::from_secret_bytes([8u8; 32]).public_b64());
+        assert_ne!(
+            a.public_b64(),
+            HostKeys::from_secret_bytes([8u8; 32]).public_b64()
+        );
     }
 
     #[test]

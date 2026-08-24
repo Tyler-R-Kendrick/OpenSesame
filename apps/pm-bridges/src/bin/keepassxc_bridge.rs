@@ -1,6 +1,6 @@
 //! `opensesame-keepassxc-bridge` — serve the **keepassxc-protocol** from the
-//! OpenSesame sealed store, so the stock KeePassXC-Browser extension works
-//! against OpenSesame unchanged.
+//! `OpenSesame` sealed store, so the stock KeePassXC-Browser extension works
+//! against `OpenSesame` unchanged.
 //!
 //! Two transports, both opt-in:
 //!
@@ -16,7 +16,7 @@
 //! a time-boxed window and prints the incoming key's fingerprint to confirm.
 //! Without it, `associate` is refused (C2(b)).
 //!
-//! Implemented from the public keepassxc-protocol document; KeePassXC's own
+//! Implemented from the public keepassxc-protocol document; `KeePassXC`'s own
 //! (GPL) source was not read or copied (C3).
 
 use std::io::{self, IsTerminal};
@@ -36,7 +36,10 @@ enum Mode {
     /// invokes us, and browsers pass their own arguments we must ignore).
     Stdio,
     /// UDS server on the keepassxc-proxy socket.
-    Serve { socket: PathBuf, takeover: bool },
+    Serve {
+        socket: PathBuf,
+        takeover: bool,
+    },
     Help,
 }
 

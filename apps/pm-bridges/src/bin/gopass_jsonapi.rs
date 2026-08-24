@@ -1,5 +1,5 @@
 //! `opensesame-gopass-jsonapi` — a **gopass-jsonapi compatible** stdio host
-//! backed by the OpenSesame sealed store.
+//! backed by the `OpenSesame` sealed store.
 //!
 //! The [gopassbridge] extension talks to `gopass-jsonapi` over Mozilla/Chrome
 //! native messaging with the same 32-bit-LE framing browserpass uses, but a
@@ -23,9 +23,7 @@
 use std::io::{self, Write};
 
 use opensesame_pm_bridges::framing::{self, ReadOutcome};
-use opensesame_pm_bridges::store::{
-    host_of, name_matches, trailer_value, StoreAccess, StoreMatch,
-};
+use opensesame_pm_bridges::store::{host_of, name_matches, trailer_value, StoreAccess, StoreMatch};
 use opensesame_pm_bridges::{now_unix, BridgeError};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -54,8 +52,8 @@ fn main() {
             }
         };
         let response = match serde_json::from_slice::<Request>(&message) {
-            Ok(request) => dispatch(&request).unwrap_or_else(error_value),
-            Err(_) => error_value(BridgeError::Protocol("malformed request".into())),
+            Ok(request) => dispatch(&request).unwrap_or_else(|error| error_value(&error)),
+            Err(_) => error_value(&BridgeError::Protocol("malformed request".into())),
         };
         let _ = framing::write_json(&mut stdout, &response);
         let _ = stdout.flush();
@@ -66,7 +64,7 @@ fn main() {
 ///
 /// [`BridgeError`]'s `Display` is a failure *class* by construction — it
 /// never interpolates entry contents — so it is safe to hand to the caller.
-fn error_value(error: BridgeError) -> Value {
+fn error_value(error: &BridgeError) -> Value {
     json!({ "error": error.to_string() })
 }
 

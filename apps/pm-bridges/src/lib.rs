@@ -1,5 +1,5 @@
 //! Local-IPC bridges that let **foreign password-manager clients** drive the
-//! OpenSesame sealed store (ADR 0053).
+//! `OpenSesame` sealed store (ADR 0053).
 //!
 //! # Why these binaries may hand back plaintext
 //!
@@ -15,7 +15,7 @@
 //! 2. **One-time explicit human approval per caller identity.** For the
 //!    native-messaging hosts the approval *is* `opensesame bridge install …`
 //!    — the manifest a browser needs before it will ever launch the binary.
-//!    For the KeePassXC bridge it is the pairing ceremony: `associate` is
+//!    For the `KeePassXC` bridge it is the pairing ceremony: `associate` is
 //!    refused unless a human opened a time-boxed window with
 //!    `opensesame bridge keepassxc pair` and confirmed the incoming key's
 //!    fingerprint.
@@ -85,6 +85,7 @@ impl From<opensesame_sealed_store::StoreError> for BridgeError {
 }
 
 /// Seconds since the Unix epoch, or `0` if the clock is before it.
+#[must_use]
 pub fn now_unix() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
