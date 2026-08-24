@@ -44,6 +44,7 @@ uuid = { workspace = true }
 clap = { workspace = true }
 hmac = { workspace = true }
 hex = { workspace = true }
+blake3 = { workspace = true }
 sha2 = { workspace = true }
 rcgen = { version = "0.13.2", features = ["x509-parser"] }
 time = { version = "0.3.41", default-features = false, features = ["std"] }

@@ -1,6 +1,11 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ZipError, readZipText } from "./zip.js";
+import {
+  ZipError,
+  findSkippedAttachments,
+  readZipEntryNames,
+  readZipText,
+} from "./zip.js";
 
 function crc32(bytes: Uint8Array): number {
   let crc = 0xffffffff;
@@ -223,5 +228,63 @@ describe("readZipText corruption handling", () => {
     await expect(
       readZipText(zip, (name) => name === "missing"),
     ).rejects.toThrow(/a\.txt, b\.txt/u);
+  });
+});
+
+describe("attachments a .1pux import leaves behind", () => {
+  it("names the documents a 1Password archive carries beside its data file", async () => {
+    // The shape 1Password actually exports: the data file plus a files/
+    // directory of attachments, which readZipText ignores entirely.
+    const zip = await makeArchive([
+      { name: "export.data", content: '{"accounts":[]}' },
+      { name: "files/abc123__passport.pdf", content: "%PDF-1.4 scan" },
+      { name: "files/def456__w2-2025.pdf", content: "%PDF-1.4 tax" },
+    ]);
+
+    const skipped = findSkippedAttachments(readZipEntryNames(zip));
+    expect(skipped.count).toBe(2);
+    expect(skipped.sample).toContain("abc123__passport.pdf");
+    // The data file is not an attachment.
+    expect(skipped.sample.join(" ")).not.toContain("export.data");
+  });
+
+  it("stays silent for an archive that has no attachments", async () => {
+    const zip = await makeArchive([
+      { name: "export.data", content: '{"accounts":[]}' },
+    ]);
+    expect(findSkippedAttachments(readZipEntryNames(zip)).count).toBe(0);
+  });
+
+  it("does not count the files/ directory record itself", () => {
+    // Directory entries end in a slash and are not documents.
+    expect(findSkippedAttachments(["files/"]).count).toBe(0);
+    expect(findSkippedAttachments(["export.data", "files/"]).count).toBe(0);
+  });
+
+  it("finds attachments when the archive nests everything under a folder", () => {
+    // Some exports wrap the whole thing in a top-level directory.
+    const skipped = findSkippedAttachments([
+      "My Vault/export.data",
+      "My Vault/files/xyz__licence.png",
+    ]);
+    expect(skipped.count).toBe(1);
+    expect(skipped.sample).toEqual(["xyz__licence.png"]);
+  });
+
+  it("does not mistake a path that merely mentions files for an attachment", () => {
+    // `profiles/` ends in "files/" as a substring but is not the files
+    // directory; matching on a segment boundary is what keeps these apart.
+    expect(findSkippedAttachments(["profiles/data.json"]).count).toBe(0);
+    expect(findSkippedAttachments(["myfiles/thing.pdf"]).count).toBe(0);
+  });
+
+  it("caps the sample so a large archive does not flood the message", () => {
+    const many = Array.from(
+      { length: 40 },
+      (_, i) => `files/id${i}__doc${i}.pdf`,
+    );
+    const skipped = findSkippedAttachments(many);
+    expect(skipped.count).toBe(40);
+    expect(skipped.sample).toHaveLength(3);
   });
 });

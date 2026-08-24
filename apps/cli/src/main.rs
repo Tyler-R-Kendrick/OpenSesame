@@ -741,14 +741,14 @@ enum PassAttachCmd {
         tomb: Option<String>,
     },
     /// Replicate attachment ciphertext to a configured target.
+    ///
+    /// The Host API base URL comes from the global `--server`, so this verb
+    /// honours OPENSESAME_SERVER like every other authenticated command.
     Sync {
         /// Copy ciphertext into this directory instead of using a connector.
         /// Point it at a mounted encrypted volume.
         #[arg(long)]
         to_dir: Option<PathBuf>,
-        /// Host API base URL when replicating through a storage connector.
-        #[arg(long)]
-        server: Option<String>,
         #[arg(long)]
         path: Option<PathBuf>,
         #[arg(long)]
@@ -1048,12 +1048,9 @@ async fn main() -> anyhow::Result<()> {
                 }
                 PassAttachCmd::Rm { name, path, tomb } => attach::cmd_attach_rm(name, path, tomb)?,
                 PassAttachCmd::Gc { path, tomb } => attach::cmd_attach_gc(path, tomb)?,
-                PassAttachCmd::Sync {
-                    to_dir,
-                    server,
-                    path,
-                    tomb,
-                } => attach::cmd_attach_sync(to_dir, server, path, tomb)?,
+                PassAttachCmd::Sync { to_dir, path, tomb } => {
+                    attach::cmd_attach_sync(to_dir, &cli.server, path, tomb).await?
+                }
             },
             PassCmd::Otp { cmd } => match cmd {
                 PassOtpCmd::Code { name, path, tomb } => store::cmd_otp_code(name, path, tomb)?,

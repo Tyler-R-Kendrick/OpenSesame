@@ -46,11 +46,15 @@ describe("main", () => {
     await expect(main()).resolves.toBeUndefined();
   });
 
+  // Unfiltered, so this imports and runs every target in-process. That is
+  // ~1s alone but several times that under a loaded `turbo test`, which the
+  // 5s default timeout does not survive. The subprocess cases below carry an
+  // explicit budget for the same reason.
   it("runs all targets when no filter argument is present", async () => {
     process.env.FUZZ_SECONDS = "0";
     process.argv = [process.execPath, "run.ts"];
     await expect(main()).resolves.toBeUndefined();
-  });
+  }, 60_000);
 });
 
 describe("runner entrypoint", () => {
