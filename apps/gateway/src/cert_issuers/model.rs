@@ -30,6 +30,7 @@ pub enum IssuerKind {
 }
 
 impl IssuerKind {
+    #[must_use]
     pub const fn trust(self) -> TrustClass {
         match self {
             Self::OpenSesamePrivateCa => TrustClass::PrivateLocal,
@@ -58,6 +59,9 @@ pub enum ChallengeKind {
 }
 
 impl ChallengeKind {
+    /// # Errors
+    ///
+    /// Returns [`IssuerError::UnsupportedChallenge`] unless this is DNS-01.
     pub fn require_dns01(self) -> Result<(), IssuerError> {
         match self {
             Self::Dns01 => Ok(()),
@@ -128,22 +132,30 @@ impl TryFrom<CertificateRequestInput> for CertificateRequest {
 }
 
 impl CertificateRequest {
+    #[must_use]
     pub fn common_name(&self) -> &str {
         &self.common_name
     }
 
+    #[must_use]
     pub fn dns_names(&self) -> &[String] {
         &self.dns_names
     }
 
+    #[must_use]
     pub fn ip_addrs(&self) -> &[IpAddr] {
         &self.ip_addrs
     }
 
+    #[must_use]
     pub const fn ttl(&self) -> Duration {
         self.ttl
     }
 
+    /// # Errors
+    ///
+    /// Returns [`IssuerError::PublicDnsRequired`] when the request contains an
+    /// IP address, localhost, or a single-label DNS name.
     pub fn require_public_dns(&self) -> Result<(), IssuerError> {
         if !self.ip_addrs.is_empty() {
             return Err(IssuerError::PublicDnsRequired);
@@ -212,13 +224,17 @@ impl fmt::Debug for GeneratedLeafRequest {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("GeneratedLeafRequest")
-            .field("csr_der_len", &self.csr_der.len())
-            .field("private_key", &"[REDACTED]")
+            .field("key_pair", &"[REDACTED]")
+            .field("csr_der", &format_args!("[{} bytes]", self.csr_der.len()))
+            .field("csr_pem", &format_args!("[{} bytes]", self.csr_pem.len()))
             .finish()
     }
 }
 
 impl GeneratedLeafRequest {
+    /// # Errors
+    ///
+    /// Returns an issuer error when key or CSR generation fails.
     pub fn generate(request: &CertificateRequest) -> Result<Self, IssuerError> {
         let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)
             .map_err(|_| IssuerError::KeyGeneration)?;
@@ -239,10 +255,12 @@ impl GeneratedLeafRequest {
         })
     }
 
+    #[must_use]
     pub fn csr_der(&self) -> &[u8] {
         &self.csr_der
     }
 
+    #[must_use]
     pub fn csr_pem(&self) -> &str {
         &self.csr_pem
     }
@@ -301,12 +319,14 @@ impl IssuedCertificate {
     }
 
     #[cfg(test)]
+    #[must_use]
     pub fn bundle(&self) -> &CertificateBundle {
         &self.bundle
     }
 
     /// Consumes the issuance result so leaf-key material can only be handed to
     /// the caller once by this boundary.
+    #[must_use]
     pub fn into_delivery(self) -> (CertificateBundle, Zeroizing<String>) {
         (self.bundle, self.private_key_pem)
     }

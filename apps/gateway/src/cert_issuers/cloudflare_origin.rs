@@ -13,6 +13,7 @@ pub enum CloudflareOriginValidity {
 }
 
 impl CloudflareOriginValidity {
+    #[must_use]
     pub const fn days(self) -> u16 {
         match self {
             Self::Days7 => 7,
@@ -31,6 +32,10 @@ pub struct CloudflareOriginRequest {
 }
 
 impl CloudflareOriginRequest {
+    /// # Errors
+    ///
+    /// Returns [`IssuerError::PublicDnsRequired`] when the request is not
+    /// eligible for public DNS issuance.
     pub fn from_generated(
         request: &CertificateRequest,
         leaf: &GeneratedLeafRequest,
@@ -49,6 +54,10 @@ impl CloudflareOriginRequest {
 #[derive(Clone, Debug, Deserialize)]
 pub struct CloudflareOriginApiError {
     #[serde(rename = "code")]
+    #[expect(
+        clippy::pub_underscore_fields,
+        reason = "the public response shape preserves the ignored provider field"
+    )]
     pub _code: u32,
 }
 
@@ -57,6 +66,10 @@ pub struct CloudflareOriginResult {
     pub certificate: String,
     #[serde(default)]
     #[serde(rename = "expires_on")]
+    #[expect(
+        clippy::pub_underscore_fields,
+        reason = "the public response shape preserves the ignored provider field"
+    )]
     pub _expires_on: Option<String>,
 }
 
@@ -69,6 +82,10 @@ pub struct CloudflareOriginApiResponse {
 }
 
 impl CloudflareOriginApiResponse {
+    /// # Errors
+    ///
+    /// Returns an issuer error when Cloudflare rejects the request or returns
+    /// a certificate that fails normalization.
     pub fn normalize(
         self,
         request: &CertificateRequest,

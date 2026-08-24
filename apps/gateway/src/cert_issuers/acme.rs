@@ -7,9 +7,9 @@ use bytes::Bytes;
 use http::{Request, Response};
 use http_body_util::BodyExt;
 use instant_acme::{
-    Account, AccountBuilder, AccountCredentials, AuthorizationStatus, BodyWrapper, BytesResponse,
-    ChallengeType, HttpClient, Identifier, LetsEncrypt, NewAccount, NewOrder, OrderStatus,
-    RetryPolicy, ZeroSsl,
+    Account, AccountBuilder, AccountCredentials, AuthorizationHandle, AuthorizationStatus,
+    BodyWrapper, BytesResponse, ChallengeType, HttpClient, Identifier, LetsEncrypt, NewAccount,
+    NewOrder, OrderStatus, RetryPolicy, ZeroSsl,
 };
 use serde_json::Value;
 use zeroize::Zeroizing;
@@ -33,6 +33,63 @@ impl ReqwestAcmeHttp {
             .map(|client| Self(client, provider.endpoint_host()))
             .map_err(|_| IssuerError::Acme("client_setup"))
     }
+
+    async fn send(
+        client: reqwest::Client,
+        allowed_host: &'static str,
+        request: Request<BodyWrapper<Bytes>>,
+    ) -> Result<BytesResponse, instant_acme::Error> {
+        let (parts, body) = request.into_parts();
+        if parts.uri.scheme_str() != Some("https")
+            || parts.uri.host() != Some(allowed_host)
+            || !matches!(parts.uri.port_u16(), None | Some(443))
+        {
+            return Err(instant_acme::Error::Other(
+                std::io::Error::other("ACME endpoint is outside the issuer boundary").into(),
+            ));
+        }
+        let body = body
+            .collect()
+            .await
+            .expect("infallible ACME request body")
+            .to_bytes();
+        if body.len() > MAX_ACME_BODY_BYTES {
+            return Err(instant_acme::Error::Other(
+                std::io::Error::other("ACME request body exceeds limit").into(),
+            ));
+        }
+        let mut response = client
+            .request(parts.method, parts.uri.to_string())
+            .headers(parts.headers)
+            .body(body)
+            .send()
+            .await
+            .map_err(|error| instant_acme::Error::Other(error.into()))?;
+        let status = response.status();
+        let version = response.version();
+        let headers = response.headers().clone();
+        let mut body = Vec::new();
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .map_err(|error| instant_acme::Error::Other(error.into()))?
+        {
+            if body.len().saturating_add(chunk.len()) > MAX_ACME_BODY_BYTES {
+                return Err(instant_acme::Error::Other(
+                    std::io::Error::other("ACME response body exceeds limit").into(),
+                ));
+            }
+            body.extend_from_slice(&chunk);
+        }
+        let mut response = Response::builder().status(status).version(version);
+        *response
+            .headers_mut()
+            .expect("response builder accepts headers") = headers;
+        Ok(response
+            .body(BodyWrapper::from(body))
+            .expect("response builder accepts bounded body")
+            .into())
+    }
 }
 
 impl HttpClient for ReqwestAcmeHttp {
@@ -42,58 +99,7 @@ impl HttpClient for ReqwestAcmeHttp {
     ) -> Pin<Box<dyn Future<Output = Result<BytesResponse, instant_acme::Error>> + Send>> {
         let client = self.0.clone();
         let allowed_host = self.1;
-        Box::pin(async move {
-            let (parts, body) = request.into_parts();
-            if parts.uri.scheme_str() != Some("https")
-                || parts.uri.host() != Some(allowed_host)
-                || !matches!(parts.uri.port_u16(), None | Some(443))
-            {
-                return Err(instant_acme::Error::Other(
-                    std::io::Error::other("ACME endpoint is outside the issuer boundary").into(),
-                ));
-            }
-            let body = body
-                .collect()
-                .await
-                .expect("infallible ACME request body")
-                .to_bytes();
-            if body.len() > MAX_ACME_BODY_BYTES {
-                return Err(instant_acme::Error::Other(
-                    std::io::Error::other("ACME request body exceeds limit").into(),
-                ));
-            }
-            let mut response = client
-                .request(parts.method, parts.uri.to_string())
-                .headers(parts.headers)
-                .body(body)
-                .send()
-                .await
-                .map_err(|error| instant_acme::Error::Other(error.into()))?;
-            let status = response.status();
-            let version = response.version();
-            let headers = response.headers().clone();
-            let mut body = Vec::new();
-            while let Some(chunk) = response
-                .chunk()
-                .await
-                .map_err(|error| instant_acme::Error::Other(error.into()))?
-            {
-                if body.len().saturating_add(chunk.len()) > MAX_ACME_BODY_BYTES {
-                    return Err(instant_acme::Error::Other(
-                        std::io::Error::other("ACME response body exceeds limit").into(),
-                    ));
-                }
-                body.extend_from_slice(&chunk);
-            }
-            let mut response = Response::builder().status(status).version(version);
-            *response
-                .headers_mut()
-                .expect("response builder accepts headers") = headers;
-            Ok(response
-                .body(BodyWrapper::from(body))
-                .expect("response builder accepts bounded body")
-                .into())
-        })
+        Box::pin(Self::send(client, allowed_host, request))
     }
 }
 
@@ -110,6 +116,7 @@ pub enum AcmeProvider {
 }
 
 impl AcmeProvider {
+    #[must_use]
     pub const fn directory_url(self) -> &'static str {
         match self {
             Self::LetsEncrypt(AcmeEnvironment::Production) => LetsEncrypt::Production.url(),
@@ -118,6 +125,7 @@ impl AcmeProvider {
         }
     }
 
+    #[must_use]
     pub const fn issuer(self) -> IssuerKind {
         match self {
             Self::LetsEncrypt(AcmeEnvironment::Production) => IssuerKind::LetsEncrypt,
@@ -151,6 +159,10 @@ impl fmt::Debug for ExternalAccountBinding {
 }
 
 impl ExternalAccountBinding {
+    /// # Errors
+    ///
+    /// Returns [`IssuerError::InvalidAccountConfiguration`] when the key ID or
+    /// HMAC key is outside the accepted size and character bounds.
     pub fn new(key_id: String, hmac_key: Vec<u8>) -> Result<Self, IssuerError> {
         if key_id.is_empty()
             || key_id.len() > 256
@@ -177,10 +189,12 @@ impl fmt::Debug for AcmeAccountCredentials {
 }
 
 impl AcmeAccountCredentials {
+    #[must_use]
     pub fn as_bytes_for_sealing(&self) -> &[u8] {
         self.0.as_bytes()
     }
 
+    #[must_use]
     pub fn from_unsealed(json: String) -> Self {
         Self(Zeroizing::new(json))
     }
@@ -209,10 +223,12 @@ impl fmt::Debug for Dns01Record {
 }
 
 impl Dns01Record {
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    #[must_use]
     pub fn value(&self) -> &str {
         &self.value
     }
@@ -247,10 +263,15 @@ impl fmt::Debug for AcmeAccount {
 }
 
 impl AcmeAccount {
+    #[must_use]
     pub const fn provider_kind(&self) -> IssuerKind {
         self.provider.issuer()
     }
 
+    /// # Errors
+    ///
+    /// Returns an issuer error when account configuration is invalid or the
+    /// provider rejects account creation.
     pub async fn create(
         provider: AcmeProvider,
         contacts: &[String],
@@ -302,6 +323,10 @@ impl AcmeAccount {
         Ok((Self { provider, account }, credentials))
     }
 
+    /// # Errors
+    ///
+    /// Returns an issuer error when the sealed credentials are invalid for the
+    /// selected provider or account restoration fails.
     pub async fn restore(
         provider: AcmeProvider,
         credentials: AcmeAccountCredentials,
@@ -320,6 +345,10 @@ impl AcmeAccount {
         Ok(Self { provider, account })
     }
 
+    /// # Errors
+    ///
+    /// Returns an issuer error when the request is ineligible, DNS provisioning
+    /// fails, the ACME order fails, or cleanup cannot be completed safely.
     pub async fn issue_dns01<P: Dns01Provisioner>(
         &self,
         request: &CertificateRequest,
@@ -345,30 +374,8 @@ impl AcmeAccount {
         let outcome = async {
             let mut authorizations = order.authorizations();
             while let Some(result) = authorizations.next().await {
-                let mut authorization = result.map_err(|_| IssuerError::Acme("authorization"))?;
-                match authorization.status {
-                    AuthorizationStatus::Valid => continue,
-                    AuthorizationStatus::Pending => {}
-                    _ => return Err(IssuerError::Acme("authorization_state")),
-                }
-                let mut challenge = authorization
-                    .challenge(ChallengeType::Dns01)
-                    .ok_or(IssuerError::Acme("dns01_unavailable"))?;
-                let identifier = challenge.identifier().to_string();
-                let bare = identifier.strip_prefix("*.").unwrap_or(&identifier);
-                let record = Dns01Record {
-                    name: format!("_acme-challenge.{bare}"),
-                    value: Zeroizing::new(challenge.key_authorization().dns_value()),
-                };
-                let lease = dns
-                    .present(&record)
-                    .await
-                    .map_err(|_| IssuerError::Dns01("present"))?;
-                leases.push(lease);
-                challenge
-                    .set_ready()
-                    .await
-                    .map_err(|_| IssuerError::Acme("challenge_ready"))?;
+                let authorization = result.map_err(|_| IssuerError::Acme("authorization"))?;
+                leases.extend(prepare_authorization(authorization, dns).await?);
             }
 
             if order
@@ -402,6 +409,35 @@ impl AcmeAccount {
             (result, false) => result,
         }
     }
+}
+
+async fn prepare_authorization<P: Dns01Provisioner>(
+    mut authorization: AuthorizationHandle<'_>,
+    dns: &P,
+) -> Result<Option<Dns01Lease<P::Lease>>, IssuerError> {
+    match authorization.status {
+        AuthorizationStatus::Valid => return Ok(None),
+        AuthorizationStatus::Pending => {}
+        _ => return Err(IssuerError::Acme("authorization_state")),
+    }
+    let mut challenge = authorization
+        .challenge(ChallengeType::Dns01)
+        .ok_or(IssuerError::Acme("dns01_unavailable"))?;
+    let identifier = challenge.identifier().to_string();
+    let bare = identifier.strip_prefix("*.").unwrap_or(&identifier);
+    let record = Dns01Record {
+        name: format!("_acme-challenge.{bare}"),
+        value: Zeroizing::new(challenge.key_authorization().dns_value()),
+    };
+    let lease = dns
+        .present(&record)
+        .await
+        .map_err(|_| IssuerError::Dns01("present"))?;
+    challenge
+        .set_ready()
+        .await
+        .map_err(|_| IssuerError::Acme("challenge_ready"))?;
+    Ok(Some(lease))
 }
 
 fn validate_contacts(contacts: &[String]) -> Result<(), IssuerError> {
@@ -511,6 +547,10 @@ mod tests {
     }
 
     impl HttpClient for MockAcmeHttp {
+        #[expect(
+            clippy::excessive_nesting,
+            reason = "the single match is a cohesive deterministic ACME protocol fixture"
+        )]
         fn request(
             &self,
             mut request: Request<BodyWrapper<Bytes>>,
