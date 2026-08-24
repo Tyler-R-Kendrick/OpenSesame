@@ -10,15 +10,15 @@ import type { BoundaryValue } from "@opensesame/os-domain";
 
 import { readHeaderRow } from "./csv.js";
 import { bitwardenCsv, bitwardenJson } from "./formats/bitwarden.js";
-import { fidoCxf } from "./formats/cxf.js";
-import { keepassKdbx } from "./formats/kdbx.js";
 import {
   appleCsv,
   chromiumCsv,
   firefoxCsv,
   genericCsv,
 } from "./formats/browsers.js";
+import { fidoCxf } from "./formats/cxf.js";
 import { envFile } from "./formats/env.js";
+import { keepassKdbx } from "./formats/kdbx.js";
 import {
   dashlaneCsv,
   keepassCsv,
@@ -131,7 +131,11 @@ export async function readImportFile(file: File): Promise<DetectInput> {
 
   if (BINARY_EXTENSIONS.some((ext) => name.endsWith(ext))) {
     const buffer = await file.arrayBuffer();
-    return { fileName: file.name, ...EMPTY_TEXT, bytes: new Uint8Array(buffer) };
+    return {
+      fileName: file.name,
+      ...EMPTY_TEXT,
+      bytes: new Uint8Array(buffer),
+    };
   }
 
   let text: string;
@@ -147,7 +151,11 @@ export async function readImportFile(file: File): Promise<DetectInput> {
   // better than telling them their vault "is not a password export".
   if (!isArchive && looksBinary(text)) {
     const buffer = await file.arrayBuffer();
-    return { fileName: file.name, ...EMPTY_TEXT, bytes: new Uint8Array(buffer) };
+    return {
+      fileName: file.name,
+      ...EMPTY_TEXT,
+      bytes: new Uint8Array(buffer),
+    };
   }
 
   let json: BoundaryValue = null;
@@ -193,10 +201,7 @@ export function detectFormat(input: DetectInput): ImportAdapter | null {
   return null;
 }
 
-function adapterOrThrow(
-  input: DetectInput,
-  forced?: SourceId,
-): ImportAdapter {
+function adapterOrThrow(input: DetectInput, forced?: SourceId): ImportAdapter {
   const adapter = forced ? adapterFor(forced) : detectFormat(input);
   if (!adapter) {
     throw new ImportError(

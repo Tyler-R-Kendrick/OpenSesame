@@ -19,9 +19,9 @@ import {
 import { hasHeaders, parseCsv, pick } from "../csv.js";
 import {
   type DraftItem,
-  type TextImportAdapter,
   type ParseResult,
   type SkippedRecord,
+  type TextImportAdapter,
   addField,
   addUri,
   asString,

@@ -433,7 +433,9 @@ export function ImportPanel() {
                 <select
                   id="imp-format-force"
                   defaultValue=""
-                  onChange={(event) => void reparse(overlapCast(event.target.value))}
+                  onChange={(event) =>
+                    void reparse(overlapCast(event.target.value))
+                  }
                 >
                   <option value="" disabled>
                     Choose a format…
@@ -470,7 +472,9 @@ export function ImportPanel() {
                 <select
                   id="imp-format"
                   value={result.source}
-                  onChange={(event) => void reparse(overlapCast(event.target.value))}
+                  onChange={(event) =>
+                    void reparse(overlapCast(event.target.value))
+                  }
                 >
                   {LISTED.map((adapter) => (
                     <option key={adapter.id} value={adapter.id}>

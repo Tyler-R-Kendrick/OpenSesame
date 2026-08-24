@@ -84,7 +84,13 @@ describe("detectFormat / parseImport", () => {
   it("throws when a forced source id is unknown", () => {
     expect(() =>
       parseImport(
-        { fileName: "x", text: "a,b", headers: ["a", "b"], bytes: null, json: null },
+        {
+          fileName: "x",
+          text: "a,b",
+          headers: ["a", "b"],
+          bytes: null,
+          json: null,
+        },
         overlapCast("nope"),
       ),
     ).toThrow(ImportError);
@@ -95,7 +101,8 @@ describe("detectFormat / parseImport", () => {
       fileName: "export.json",
       text: '{"encrypted":false,"items":[]}',
       headers: null,
-      bytes: null, json: { encrypted: false, items: [] },
+      bytes: null,
+      json: { encrypted: false, items: [] },
     };
     expect(() => parseImport(input)).toThrow(/held no items/);
   });
@@ -105,7 +112,8 @@ describe("detectFormat / parseImport", () => {
       fileName: "export.json",
       text: "{}",
       headers: null,
-      bytes: null, json: { encrypted: false, items: [] },
+      bytes: null,
+      json: { encrypted: false, items: [] },
     };
     // bitwardenJson.detect runs on this shape without throwing; sanity check
     // that the chain as a whole tolerates and identifies it.

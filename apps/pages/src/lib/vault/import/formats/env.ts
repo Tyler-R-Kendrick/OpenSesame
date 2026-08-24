@@ -10,8 +10,8 @@
 import {
   type DetectInput,
   type DraftSecret,
-  type TextImportAdapter,
   type ParseResult,
+  type TextImportAdapter,
   draftSecret,
 } from "../types.js";
 
