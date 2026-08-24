@@ -607,7 +607,8 @@ describe("federated interaction leg", () => {
    * passkey or PIN still ends up as one durable, verified principal.
    */
   it("admits a brand-new user and promotes the principal in place", async () => {
-    upstream.setSubject(`fresh-${randomBytes(4).toString("hex")}`);
+    const subject = `fresh-${randomBytes(4).toString("hex")}`;
+    upstream.setSubject(subject);
     const { jar, uid, html } = await loginPage();
     const start = await req(
       base,
@@ -631,6 +632,24 @@ describe("federated interaction leg", () => {
     expect(upstream.tokenOriginSeen()).toBe(base);
     // And it is now a real session, not an anonymous one.
     expect(jar.get("os_provisional")).toBeTruthy();
+
+    // The definition of done, asserted rather than inferred from the redirect:
+    // one canonical principal, promoted in place, with the identity bound to
+    // it. Everything above this point would still pass if the route stopped
+    // promoting and left a provisional principal behind.
+    const identity = await started.ctx.repos.externalIdentities.findByTuple({
+      kind: "oidc",
+      issuer: upstream.issuer,
+      subject,
+    });
+    expect(identity).toBeTruthy();
+    expect(identity?.assurance).toBe("verified");
+
+    const principal = await started.ctx.repos.principals.getById(
+      identity?.principalId ?? "",
+    );
+    expect(principal?.state).toBe("active");
+    expect(principal?.assurance).toBe("verified");
   });
 
   /**
