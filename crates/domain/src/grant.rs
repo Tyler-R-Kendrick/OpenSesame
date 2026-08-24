@@ -127,6 +127,88 @@ impl Grant {
         }
         Ok(())
     }
+
+    /// A replacement child may only narrow further (ADR 0046 decision 10).
+    ///
+    /// Post-claim edits are revoke-and-replace: the owner mints a narrower
+    /// grant and the old child dies. The replacement must attenuate against
+    /// the parent — it is still a delegation — **and** against the grant it
+    /// replaces, because "edit" must never be a door to widening: a caller
+    /// who could replace a read-only child with a read-write one would have
+    /// re-minted authority the ceremony never granted. Widening is a new
+    /// offer and a new ceremony, never an edit.
+    ///
+    /// The replacement keeps the current child's position in the chain
+    /// (same depth, same parent); only its authority shrinks.
+    pub fn validate_replacement(
+        parent: &Grant,
+        current: &Grant,
+        replacement: &Grant,
+    ) -> Result<(), DomainError> {
+        if replacement.delegation_depth != current.delegation_depth {
+            return Err(DomainError::GrantAttenuation(
+                "replacement must keep the chain position it replaces".into(),
+            ));
+        }
+        if replacement.parent_grant_id != current.parent_grant_id {
+            return Err(DomainError::GrantAttenuation(
+                "replacement must keep the parent it replaces".into(),
+            ));
+        }
+        Grant::validate_attenuation(parent, replacement)?;
+        // Same checks, one generation flat: the replacement is a sibling of
+        // the current child, so the depth-increment rule does not apply, but
+        // every authority dimension must still be a subset of what it
+        // replaces.
+        if !is_subset(&replacement.actions, &current.actions) {
+            return Err(DomainError::GrantAttenuation(
+                "replacement widens actions".into(),
+            ));
+        }
+        if !is_subset(&replacement.resources, &current.resources) {
+            return Err(DomainError::GrantAttenuation(
+                "replacement widens resources".into(),
+            ));
+        }
+        if !is_subset(
+            &replacement.constraints.audiences,
+            &current.constraints.audiences,
+        ) {
+            return Err(DomainError::GrantAttenuation(
+                "replacement widens audiences".into(),
+            ));
+        }
+        if replacement.constraints.expires_at > current.constraints.expires_at {
+            return Err(DomainError::GrantAttenuation(
+                "replacement extends lifetime".into(),
+            ));
+        }
+        if replacement.constraints.maximum_delegation_depth
+            > current.constraints.maximum_delegation_depth
+        {
+            return Err(DomainError::GrantAttenuation(
+                "replacement widens re-delegation".into(),
+            ));
+        }
+        if replacement.constraints.raw_credential_export
+            && !current.constraints.raw_credential_export
+        {
+            return Err(DomainError::GrantAttenuation(
+                "replacement adds export privilege".into(),
+            ));
+        }
+        for (k, v) in &replacement.constraints.budgets {
+            match current.constraints.budgets.get(k) {
+                Some(cv) if v <= cv => {}
+                _ => {
+                    return Err(DomainError::GrantAttenuation(format!(
+                        "replacement raises budget for {k}"
+                    )))
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Inclusive-start, exclusive-end validity window. Extracted so Kani can
@@ -223,6 +305,67 @@ mod tests {
         child.constraints.budgets.insert("calls".into(), 5);
         child.constraints.maximum_delegation_depth = 0;
         assert!(Grant::validate_attenuation(&parent, &child).is_ok());
+    }
+
+    #[test]
+    fn contract_a_replacement_may_only_narrow() {
+        let parent = sample_parent();
+        let mut current = parent.clone();
+        current.id = GrantId::new();
+        current.parent_grant_id = Some(parent.id);
+        current.delegation_depth = 1;
+        current.actions = vec!["repository.read".into(), "pull_request.create".into()];
+        current.resources = vec!["repo:acme/catalog".into(), "repo:acme/other".into()];
+        current.constraints.expires_at = parent.constraints.expires_at - Duration::minutes(5);
+        current.constraints.budgets.insert("calls".into(), 5);
+        current.constraints.maximum_delegation_depth = 0;
+
+        // Narrowing: fewer actions, fewer resources, shorter life, lower budget.
+        let mut narrower = current.clone();
+        narrower.id = GrantId::new();
+        narrower.actions = vec!["repository.read".into()];
+        narrower.resources = vec!["repo:acme/catalog".into()];
+        narrower.constraints.expires_at = current.constraints.expires_at - Duration::minutes(1);
+        narrower.constraints.budgets.insert("calls".into(), 2);
+        assert!(Grant::validate_replacement(&parent, &current, &narrower).is_ok());
+    }
+
+    #[test]
+    fn adversarial_a_replacement_cannot_widen_past_the_child_it_replaces() {
+        // The parent allows both actions, so attenuation against the parent
+        // alone would pass — which is exactly the hole: an "edit" that grows
+        // back what the current child had already given up.
+        let parent = sample_parent();
+        let mut current = parent.clone();
+        current.id = GrantId::new();
+        current.parent_grant_id = Some(parent.id);
+        current.delegation_depth = 1;
+        current.actions = vec!["repository.read".into()];
+        current.constraints.expires_at = parent.constraints.expires_at - Duration::minutes(5);
+        current.constraints.maximum_delegation_depth = 0;
+        current.constraints.budgets.insert("calls".into(), 3);
+
+        let mut wider = current.clone();
+        wider.id = GrantId::new();
+        wider.actions = vec!["repository.read".into(), "pull_request.create".into()];
+        assert!(Grant::validate_attenuation(&parent, &wider).is_ok());
+        assert!(Grant::validate_replacement(&parent, &current, &wider).is_err());
+
+        // Same for lifetime, budgets, and chain position.
+        let mut longer = current.clone();
+        longer.id = GrantId::new();
+        longer.constraints.expires_at = current.constraints.expires_at + Duration::minutes(1);
+        assert!(Grant::validate_replacement(&parent, &current, &longer).is_err());
+
+        let mut richer = current.clone();
+        richer.id = GrantId::new();
+        richer.constraints.budgets.insert("calls".into(), 4);
+        assert!(Grant::validate_replacement(&parent, &current, &richer).is_err());
+
+        let mut deeper = current.clone();
+        deeper.id = GrantId::new();
+        deeper.delegation_depth = 2;
+        assert!(Grant::validate_replacement(&parent, &current, &deeper).is_err());
     }
 
     #[test]

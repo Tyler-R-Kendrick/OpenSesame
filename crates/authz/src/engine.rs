@@ -70,6 +70,26 @@ impl PolicyEngine {
 
         let subject = &req.subject.id;
         let object = format!("{}:{}", req.resource.type_, req.resource.id);
+        // A delegated capability is its own eligibility for the connection it
+        // names (ADR 0044). The child grant was attenuation-validated against
+        // the owner's grant when the claim ceremony minted it, and the route
+        // has already pinned the caller to the delegation's claimant before
+        // selecting this grant — so demanding a relationship tuple on top
+        // would refuse every delegate for lacking a tuple only owners get.
+        // The fence that matters is checked here: the grant's lineage
+        // (`parent_grant_id`) and the exact connection being exercised
+        // (`connection_uuid`), so a delegated grant for one connection cannot
+        // stand in for another. Root grants still need their tuple.
+        let delegated_capability = grant.is_some_and(|g| {
+            g.parent_grant_id.is_some()
+                && req
+                    .context
+                    .get("connection_uuid")
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|raw| {
+                        g.connection_id.map(|c| c.to_string()).as_deref() == Some(raw)
+                    })
+        });
         // Relationship eligibility: connection users may execute connector_operation
         let rel_ok = match req.resource.type_.as_str() {
             "connector_operation" => {
@@ -81,6 +101,7 @@ impl PolicyEngine {
                 self.relationships
                     .check(&format!("connection:{conn}"), "user", subject)
                     || self.relationships.check(&object, "executor", subject)
+                    || delegated_capability
             }
             "project" => {
                 self.relationships.check(&object, "viewer", subject)
@@ -98,6 +119,7 @@ impl PolicyEngine {
                 self.relationships
                     .check(&format!("connection:{conn}"), "user", subject)
                     || self.relationships.check(&object, "user", subject)
+                    || delegated_capability
             }
             "organization" => self.relationships.check(&object, "member", subject),
             _ => self.relationships.check(&object, "viewer", subject),
@@ -283,6 +305,106 @@ mod tests {
             e.decide(&req, None, AvailabilityClass::A2AuthorityRequired)
                 .unwrap_err(),
             AuthzError::AuthorityUnavailable
+        );
+    }
+
+    #[test]
+    fn contract_a_delegated_grant_is_eligibility_for_its_own_connection_only() {
+        // No tuple exists for the delegate: eligibility must come from the
+        // grant's lineage, and only for the connection the grant names.
+        let e = engine_two_orgs();
+        let now = Utc::now();
+        let connection = ConnectionId::new();
+        let child = Grant {
+            id: GrantId::new(),
+            version: 1,
+            issuer_principal_id: PrincipalId::new(),
+            beneficiary_principal_id: PrincipalId::new(),
+            actor_id: None,
+            client_id: None,
+            actor_instance_id: None,
+            proof_key_thumbprint: None,
+            organization_id: OrganizationId::new(),
+            project_id: None,
+            environment_id: None,
+            connection_id: Some(connection),
+            actions: vec!["repository.read".into()],
+            resources: vec!["repo:acme/catalog".into()],
+            constraints: GrantConstraints {
+                audiences: vec!["https://api.github.com".into()],
+                not_before: None,
+                expires_at: now + Duration::hours(1),
+                required_assurance: None,
+                authentication_max_age_seconds: None,
+                allowed_networks: vec![],
+                parameter_rules_digest: None,
+                budgets: Default::default(),
+                maximum_delegation_depth: 0,
+                offline_use: OfflineUse::Forbidden,
+                raw_credential_export: false,
+            },
+            parent_grant_id: Some(GrantId::new()),
+            delegation_depth: 1,
+            created_at: now,
+            revoked_at: None,
+        };
+        let req = AuthZenRequest {
+            subject: AuthZenSubject {
+                type_: "user".into(),
+                id: "user:guest".into(),
+                properties: json!({}),
+            },
+            action: AuthZenAction {
+                name: "repository.read".into(),
+            },
+            resource: AuthZenResource {
+                type_: "connector_operation".into(),
+                id: "repo:acme/catalog".into(),
+            },
+            context: json!({
+                "connection_id": "connA",
+                "connection_uuid": connection.to_string(),
+                "audience": "https://api.github.com"
+            }),
+        };
+        let d = e
+            .decide(&req, Some(&child), AvailabilityClass::A3ExternalSideEffect)
+            .unwrap();
+        assert!(
+            d.decision,
+            "delegated capability must be its own eligibility"
+        );
+
+        // The same child grant is NOT eligibility for a different connection.
+        let mut other = req.clone();
+        other.context = json!({
+            "connection_id": "connA",
+            "connection_uuid": ConnectionId::new().to_string(),
+            "audience": "https://api.github.com"
+        });
+        let denied = e
+            .decide(
+                &other,
+                Some(&child),
+                AvailabilityClass::A3ExternalSideEffect,
+            )
+            .unwrap();
+        assert!(
+            !denied.decision,
+            "a grant must not open somebody else's connection"
+        );
+
+        // And a ROOT grant without a tuple stays refused: lineage is the pass,
+        // not mere possession of a grant object.
+        let mut root = child.clone();
+        root.parent_grant_id = None;
+        root.delegation_depth = 0;
+        let denied = e
+            .decide(&req, Some(&root), AvailabilityClass::A3ExternalSideEffect)
+            .unwrap();
+        assert!(
+            !denied.decision,
+            "a root grant still needs its relationship tuple"
         );
     }
 
