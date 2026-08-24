@@ -675,6 +675,56 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_body_over_the_chunk_limit_is_rejected_by_the_router() {
+        // The limit is a router layer, so this asserts the wiring, not just the
+        // constant: a body one byte past the ceiling must never reach the
+        // handler, let alone the provider.
+        let st = state_with_broker().await;
+        let token = operator(&st);
+        let oversize = vec![0u8; MAX_CHUNK_BODY + 1];
+        let digest = blake3::hash(&oversize).to_hex().to_string();
+        let res = app(st)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/v1/attachments/replicate/chunk?digest={digest}"))
+                    .header("x-opensesame-operator", &token)
+                    .header("content-type", "application/octet-stream")
+                    .body(Body::from(oversize))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    #[tokio::test]
+    async fn a_body_at_the_chunk_limit_is_accepted_by_the_router() {
+        // The counterpart: the ceiling must not be off by one against what the
+        // store actually writes. This gets past the router and stops at the
+        // missing target, which is how we know the limit let it through.
+        let st = state_with_broker().await;
+        let token = operator(&st);
+        let at_limit = vec![7u8; MAX_CHUNK_BODY];
+        let digest = blake3::hash(&at_limit).to_hex().to_string();
+        let res = app(st)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/v1/attachments/replicate/chunk?digest={digest}"))
+                    .header("x-opensesame-operator", &token)
+                    .header("content-type", "application/octet-stream")
+                    .body(Body::from(at_limit))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_ne!(res.status(), StatusCode::PAYLOAD_TOO_LARGE);
+        assert_eq!(res.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(body_json(res).await["error"], "no_attachment_target");
+    }
+
+    #[tokio::test]
     async fn a_traversing_manifest_path_is_refused() {
         let st = state_with_broker().await;
         let token = operator(&st);
