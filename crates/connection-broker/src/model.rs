@@ -69,6 +69,13 @@ pub enum EventKind {
     /// RFC 8693 mapping (subject = owning principal, actor = requesting
     /// caller), never token bytes.
     Materialized,
+    /// ADR 0044: an offer over this connection was minted or claimed.
+    Delegated,
+    /// ADR 0044: a delegation of this connection was revoked.
+    DelegationRevoked,
+    /// ADR 0044: an offer burned — its token was seen again after spend, or
+    /// the consent code was guessed at. Compromise evidence, not lapse.
+    DelegationBurned,
     Error,
 }
 
@@ -85,6 +92,9 @@ impl EventKind {
             Self::PolicyUpdated => "policy_updated",
             Self::Revoked => "revoked",
             Self::Materialized => "materialized",
+            Self::Delegated => "delegated",
+            Self::DelegationRevoked => "delegation_revoked",
+            Self::DelegationBurned => "delegation_burned",
             Self::Error => "error",
         }
     }
@@ -380,6 +390,9 @@ mod tests {
             EventKind::PolicyUpdated,
             EventKind::Revoked,
             EventKind::Materialized,
+            EventKind::Delegated,
+            EventKind::DelegationRevoked,
+            EventKind::DelegationBurned,
             EventKind::Error,
         ]
         .iter()
@@ -398,6 +411,9 @@ mod tests {
                 "policy_updated",
                 "revoked",
                 "materialized",
+                "delegated",
+                "delegation_revoked",
+                "delegation_burned",
                 "error"
             ]
         );

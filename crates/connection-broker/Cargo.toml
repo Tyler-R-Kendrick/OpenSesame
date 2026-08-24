@@ -9,8 +9,10 @@ name = "opensesame_connection_broker"
 path = "src/lib.rs"
 
 [dependencies]
+opensesame-claims = { path = "../claims" }
 opensesame-connection-detect = { path = "../connection-detect" }
 opensesame-domain = { path = "../domain" }
+opensesame-relay = { path = "../relay" }
 opensesame-rotation = { path = "../rotation" }
 opensesame-task-bus = { path = "../task-bus" }
 anyhow = { workspace = true }
