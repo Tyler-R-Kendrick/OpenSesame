@@ -8,6 +8,10 @@ import { resetFederatedDiscoveryCache } from "../interactions/federated.js";
 import type { startServer } from "../server.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
+type ChaosClaims = {
+  nonce: string;
+  pairwise_sub?: string;
+};
 
 /**
  * Chaos for the federated relying-party leg (ADR 0052).
@@ -54,7 +58,7 @@ async function startChaosUpstream() {
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`);
     const issuer = `http://127.0.0.1:${port}`;
-    const json = (code: number, body: unknown) => {
+    const json = <Body>(code: number, body: Body) => {
       res.writeHead(code, { "content-type": "application/json" });
       res.end(JSON.stringify(body));
     };
@@ -115,7 +119,7 @@ async function startChaosUpstream() {
             return void json(400, { error: "invalid_grant" });
           }
 
-          const claims: Record<string, unknown> = {
+          const claims: ChaosClaims = {
             nonce: fault === "wrong_nonce" ? "not-the-nonce" : rec.nonce,
           };
           if (fault !== "no_subject") claims.pairwise_sub = "chaos-subject";
@@ -156,6 +160,7 @@ async function startChaosUpstream() {
   });
 
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  // SAFETY: server.listen established the runtime AddressInfo invariant.
   const port = (server.address() as AddressInfo).port;
   return {
     issuer: `http://127.0.0.1:${port}`,
@@ -198,6 +203,7 @@ describe("CHAOS — a broker that misbehaves must not admit anyone", () => {
     upstream = await startChaosUpstream();
     const probe = createServer();
     await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
+    // SAFETY: probe.listen established the runtime AddressInfo invariant.
     const port = (probe.address() as AddressInfo).port;
     await new Promise<void>((r) => probe.close(() => r()));
     const { startServer: start } = await import("../server.js");

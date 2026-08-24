@@ -625,6 +625,12 @@ export class MemoryProjectStore
     super();
   }
 
+  override set(id: string, project: Project): this;
+  override set(id: string, project: Project): void;
+  override set(id: string, project: Project): this {
+    return super.set(id, project);
+  }
+
   listByOwner(ownerPrincipalId: string): Project[] {
     return [...this.values()].filter(
       (p) => p.ownerPrincipalId === ownerPrincipalId,

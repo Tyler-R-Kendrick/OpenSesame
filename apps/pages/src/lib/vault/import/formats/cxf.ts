@@ -39,9 +39,9 @@ import {
 
 import {
   type DraftItem,
-  type TextImportAdapter,
   type ParseResult,
   type SkippedRecord,
+  type TextImportAdapter,
   addField,
   addUri,
   draftCard,
@@ -68,14 +68,14 @@ function credentialType(raw: string): string {
     .replace(/([A-Z]+)([A-Z][a-z])/gu, "$1-$2")
     .replace(/_/gu, "-")
     .toLowerCase();
-  return TYPE_ALIASES[kebab] ?? kebab;
+  return TYPE_ALIASES.get(kebab) ?? kebab;
 }
 
 /** Names whose kebab form still is not the discriminator CXF puts on the wire. */
-const TYPE_ALIASES: Record<string, string> = {
-  "wifi-credential": CXF_TYPES.wifi,
-  "credit-card-number": CXF_TYPES.creditCard,
-};
+const TYPE_ALIASES = new Map([
+  ["wifi-credential", CXF_TYPES.wifi],
+  ["credit-card-number", CXF_TYPES.creditCard],
+]);
 
 function obj(value: BoundaryValue): BoundaryObject | null {
   return isTypeofObject(value) && value !== null && !Array.isArray(value)
@@ -92,7 +92,7 @@ function str(value: BoundaryValue): string {
 }
 
 /** An `EditableField`, or a bare string where an exporter took the shortcut. */
-function fieldValue(value: BoundaryValue): { text: string; hidden: boolean } {
+function fieldValue(value: BoundaryValue) {
   if (isString(value)) return { text: value, hidden: false };
   const row = obj(value);
   if (row === null) return { text: "", hidden: false };
@@ -131,7 +131,13 @@ function totpFrom(credential: BoundaryObject, title: string): string {
   const digits = isNumber(credential.digits) ? credential.digits : 6;
   const algorithm = str(credential.algorithm).toLowerCase();
   const issuer = str(credential.issuer);
-  if (period === 30 && digits === 6 && algorithm !== "sha256" && algorithm !== "sha512" && issuer === "") {
+  if (
+    period === 30 &&
+    digits === 6 &&
+    algorithm !== "sha256" &&
+    algorithm !== "sha512" &&
+    issuer === ""
+  ) {
     return secret;
   }
   const params = new URLSearchParams({ secret });
@@ -147,7 +153,7 @@ function totpFrom(credential: BoundaryObject, title: string): string {
 }
 
 /** `2031-07` → month and year, the two fields a card item actually holds. */
-function splitExpiry(raw: string): { month: string; year: string } {
+function splitExpiry(raw: string) {
   const match = /^(\d{4})-(\d{1,2})$/u.exec(raw.trim());
   if (match === null) return { month: "", year: "" };
   return { month: String(Number(match[2])).padStart(2, "0"), year: match[1] };
@@ -274,20 +280,28 @@ function applySecret(item: DraftItem, bucket: Bucket): void {
   addField(item, "Comment", str(sshKey.keyComment));
 }
 
-const UNSUPPORTED_REASON: Record<string, string> = {
-  [CXF_TYPES.wifi]:
+const UNSUPPORTED_REASON = new Map<string, string>([
+  [
+    CXF_TYPES.wifi,
     "A Wi-Fi network credential has no matching item in this vault.",
-  [CXF_TYPES.address]:
+  ],
+  [
+    CXF_TYPES.address,
     "An address is personal data rather than a credential, and this vault has nowhere to put it.",
-  [CXF_TYPES.personName]:
+  ],
+  [
+    CXF_TYPES.personName,
     "A person's name is personal data rather than a credential, and this vault has nowhere to put it.",
-  [CXF_TYPES.file]:
+  ],
+  [
+    CXF_TYPES.file,
     "This vault stores fields, not files, so an attached file cannot be imported.",
-};
+  ],
+]);
 
 function reasonFor(types: string[]): string {
   const named = types
-    .map((type) => UNSUPPORTED_REASON[type])
+    .map((type) => UNSUPPORTED_REASON.get(type))
     .filter((reason): reason is string => reason !== undefined);
   return named.length > 0
     ? named[0]
@@ -340,7 +354,9 @@ export const fidoCxf: TextImportAdapter = {
         const here = title === "" ? [...path] : [...path, title];
         const name = here.join("/");
         for (const rawLink of arr(collection.items)) {
-          const id = isString(rawLink) ? rawLink : str(obj(rawLink)?.item ?? "");
+          const id = isString(rawLink)
+            ? rawLink
+            : str(obj(rawLink)?.item ?? "");
           if (id !== "" && name !== "" && !folderOf.has(id)) {
             folderOf.set(id, name);
           }
@@ -386,7 +402,9 @@ export const fidoCxf: TextImportAdapter = {
           for (const url of urls) addField(item, "Website", url);
         }
 
-        const tags = arr(row.tags).map(str).filter((tag) => tag !== "");
+        const tags = arr(row.tags)
+          .map(str)
+          .filter((tag) => tag !== "");
         if (tags.length > 0) addField(item, "Tags", tags.join(", "));
 
         item.folder = folderOf.get(str(row.id)) ?? null;

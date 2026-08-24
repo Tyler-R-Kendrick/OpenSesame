@@ -147,23 +147,21 @@ describe("loadConfig upstream client credentials", () => {
       OPENSESAME_UPSTREAM_CLIENT_ID: "cid",
     };
     // No secret: this is the origin-profile case, handled by derivation.
-    expect(
-      loadConfig({ ...base } as NodeJS.ProcessEnv).upstreamClientCredentials,
-    ).toBeUndefined();
+    expect(loadConfig({ ...base }).upstreamClientCredentials).toBeUndefined();
     // Secret but no client id.
     expect(
       loadConfig({
         OPENSESAME_ALLOW_DEV_DEFAULTS: "true",
         OPENSESAME_UPSTREAM_ISSUER: "http://127.0.0.1:9090",
         OPENSESAME_UPSTREAM_CLIENT_SECRET: "shh",
-      } as NodeJS.ProcessEnv).upstreamClientCredentials,
+      }).upstreamClientCredentials,
     ).toBeUndefined();
     // All three.
     expect(
       loadConfig({
         ...base,
         OPENSESAME_UPSTREAM_CLIENT_SECRET: "shh",
-      } as NodeJS.ProcessEnv).upstreamClientCredentials,
+      }).upstreamClientCredentials,
     ).toEqual({
       issuer: "http://127.0.0.1:9090",
       clientId: "cid",

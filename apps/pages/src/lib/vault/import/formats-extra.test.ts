@@ -65,7 +65,8 @@ describe("envFile detection", () => {
         fileName: ".env",
         text: "KEY=value",
         headers: null,
-        bytes: null, json: { some: "json" },
+        bytes: null,
+        json: { some: "json" },
       }),
     ).toBe(false);
     expect(
@@ -297,7 +298,8 @@ describe("Bitwarden JSON extras", () => {
         fileName: "x.json",
         text: "{}",
         headers: null,
-        bytes: null, json: { hello: "world" },
+        bytes: null,
+        json: { hello: "world" },
       }),
     ).toThrow(/not a Bitwarden JSON export/);
   });

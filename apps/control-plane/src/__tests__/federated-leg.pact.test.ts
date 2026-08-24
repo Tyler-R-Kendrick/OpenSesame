@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { overlapCast } from "@opensesame/os-domain";
 import { assertNoSecretFields, assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
 import type { ControlPlaneConfig } from "../config.js";
@@ -42,12 +43,12 @@ const INSTRUMENTED = federatedSource.includes("stryMutAct_");
 const describeSourceOracle = INSTRUMENTED ? describe.skip : describe;
 
 function config(overrides: Partial<ControlPlaneConfig> = {}) {
-  return {
+  return overlapCast({
     publicUrl: "https://identity.example",
     allowDevDefaults: false,
     trustedUpstreamIssuers: ["https://shoo.dev"],
     ...overrides,
-  } as ControlPlaneConfig;
+  });
 }
 
 /**

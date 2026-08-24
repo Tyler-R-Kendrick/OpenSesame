@@ -38,6 +38,17 @@ const usage = (over: Partial<ProvisionalUsage> = {}): ProvisionalUsage => ({
   ...over,
 });
 
+const QUOTA_FIELD_BY_USAGE = {
+  temporaryProjects: "maxTemporaryProjects",
+  temporaryResources: "maxTemporaryResources",
+  agents: "maxAgents",
+  claims: "maxClaims",
+  projects: "maxProjects",
+} satisfies Record<
+  "temporaryProjects" | "temporaryResources" | "agents" | "claims" | "projects",
+  keyof typeof DEFAULT_PROVISIONAL_QUOTA
+>;
+
 const policy = new ProvisionalPolicy();
 
 /**
@@ -167,16 +178,7 @@ describe("quota mapping for each metered action", () => {
   ] as const)(
     "%s spends %s and denies with %s at the limit",
     (action, field, reason) => {
-      const limit =
-        DEFAULT_PROVISIONAL_QUOTA[
-          {
-            temporaryProjects: "maxTemporaryProjects",
-            temporaryResources: "maxTemporaryResources",
-            agents: "maxAgents",
-            claims: "maxClaims",
-            projects: "maxProjects",
-          }[field] as keyof typeof DEFAULT_PROVISIONAL_QUOTA
-        ];
+      const limit = DEFAULT_PROVISIONAL_QUOTA[QUOTA_FIELD_BY_USAGE[field]];
 
       // One under the limit still passes ...
       expect(

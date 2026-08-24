@@ -215,7 +215,7 @@ async function linkGuestAccountDefault(idToken: string): Promise<void> {
 }
 
 /** A 409 from link-identities is the only outcome with its own plain words. */
-function describeLinkFailure(caught: unknown): string {
+function describeLinkFailure(caught: Error | null): string {
   if (caught instanceof IdentityError && caught.status === 409) {
     return COLLISION_MESSAGE;
   }
@@ -249,7 +249,7 @@ async function adoptFederatedIdentityDefault(idToken: string): Promise<void> {
       pushNotice({
         kind: "guest_claim",
         title: GUEST_NOTICE_TITLE,
-        body: `Signed in on this device. Attach the account when Identity is reachable — ${describeLinkFailure(caught)}`,
+        body: `Signed in on this device. Attach the account when Identity is reachable — ${describeLinkFailure(caught instanceof Error ? caught : null)}`,
       });
     }
     return;

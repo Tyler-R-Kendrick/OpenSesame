@@ -1,5 +1,6 @@
 import { overlapCast } from "@opensesame/os-domain";
 import * as client from "openid-client";
+import { z } from "zod";
 import type { ControlPlaneConfig } from "../config.js";
 import type { AppContext } from "../context.js";
 import {
@@ -45,6 +46,18 @@ export type PendingFederatedAuth = {
   state: string;
   nonce: string;
   verifier: string;
+};
+
+const pendingFederatedAuthSchema = z.object({
+  issuer: z.string(),
+  state: z.string(),
+  nonce: z.string(),
+  verifier: z.string(),
+});
+
+type FederatedAuthStart = {
+  authorizationUrl: string;
+  pending: PendingFederatedAuth;
 };
 
 /** Verified upstream claims. `subject` is already pairwise-resolved. */
@@ -173,6 +186,12 @@ function credentialsForIssuer(
   };
 }
 
+type FederatedClientMode = {
+  clientId: string;
+  auth: client.ClientAuth;
+  confidential: boolean;
+};
+
 /**
  * How we authenticate to a given broker. The two modes are exclusive per
  * issuer and chosen by configuration, never negotiated at runtime: a broker
@@ -182,7 +201,7 @@ function credentialsForIssuer(
 function clientModeFor(
   config: ControlPlaneConfig,
   issuer: string,
-): { clientId: string; auth: client.ClientAuth; confidential: boolean } {
+): FederatedClientMode {
   const credentials = credentialsForIssuer(config, issuer);
   if (credentials) {
     return {
@@ -278,7 +297,7 @@ export async function beginFederatedAuth(
   ctx: AppContext,
   uid: string,
   issuer: string,
-): Promise<{ authorizationUrl: string; pending: PendingFederatedAuth }> {
+): Promise<FederatedAuthStart> {
   if (!isTrustedUpstream(ctx.config, issuer)) {
     throw new FederatedAuthError(
       "untrusted_issuer",
@@ -389,7 +408,7 @@ export async function completeFederatedAuth(
     subject: verified.sub,
     ...(email ? { email } : undefined),
     ...(verified.name ? { name: verified.name } : undefined),
-    ...(typeof verified.emailVerified === "boolean"
+    ...(verified.emailVerified !== undefined
       ? { emailVerified: verified.emailVerified }
       : undefined),
   };
@@ -409,25 +428,9 @@ export function decodePending(
 ): PendingFederatedAuth | undefined {
   if (!raw) return undefined;
   try {
-    const parsed: unknown = JSON.parse(
-      Buffer.from(raw, "base64url").toString("utf8"),
-    );
-    if (!parsed || typeof parsed !== "object") return undefined;
-    const p = parsed as Record<string, unknown>;
-    if (
-      typeof p.issuer !== "string" ||
-      typeof p.state !== "string" ||
-      typeof p.nonce !== "string" ||
-      typeof p.verifier !== "string"
-    ) {
-      return undefined;
-    }
-    return {
-      issuer: p.issuer,
-      state: p.state,
-      nonce: p.nonce,
-      verifier: p.verifier,
-    };
+    const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf8"));
+    const result = pendingFederatedAuthSchema.safeParse(parsed);
+    return result.success ? result.data : undefined;
   } catch {
     return undefined;
   }

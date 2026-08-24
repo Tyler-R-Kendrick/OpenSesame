@@ -25,13 +25,18 @@ function challengeFor(verifier: string): string {
   return createHash("sha256").update(verifier).digest("base64url");
 }
 
+interface FederatedHintParams {
+  kc_idp_hint?: string;
+  login_hint_provider?: string;
+}
+
 /** Issue an authorize request and return the persisted interaction params. */
 async function authorizeAndReadInteractionParams(
-  extra: Record<string, string>,
+  extra: FederatedHintParams,
 ): Promise<JsonObject> {
   const verifier = randomBytes(32).toString("base64url");
   const url = new URL("/auth", issuer);
-  const query: Record<string, string> = {
+  const query = {
     client_id: CLIENT_ID,
     response_type: "code",
     redirect_uri: REDIRECT_URI,
