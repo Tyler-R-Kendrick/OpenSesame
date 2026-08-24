@@ -1679,7 +1679,7 @@ mod tests {
     /// property is pinned here where the agent surface lives.
     #[test]
     fn attachments_are_invisible_to_the_agent_facing_provider() {
-        use opensesame_sealed_store::{AttachMeta, Entry, ItemDataKey, StoreRoot};
+        use opensesame_sealed_store::{AttachMeta, Entry, ItemDataKey};
 
         let dir = tempfile::tempdir().expect("tempdir");
         let store = opensesame_sealed_store::init_store(dir.path(), &[]).expect("init");
