@@ -98,6 +98,10 @@ impl EnvArg {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the match is the declarative ConfigCmd-to-HTTP route catalog"
+)]
 pub async fn run(server: &str, output: &str, cmd: ConfigCmd) -> anyhow::Result<()> {
     let token = crate::load_access_token()?;
     let client = reqwest::Client::new();
@@ -330,25 +334,8 @@ fn parse_value(raw: &str, line_no: usize) -> anyhow::Result<String> {
         let mut chars = rest.chars();
         while let Some(c) = chars.next() {
             match c {
-                '\\' => match chars.next() {
-                    Some('n') => out.push('\n'),
-                    Some('r') => out.push('\r'),
-                    Some('t') => out.push('\t'),
-                    Some('"') => out.push('"'),
-                    Some('\\') => out.push('\\'),
-                    Some(other) => {
-                        out.push('\\');
-                        out.push(other);
-                    }
-                    None => anyhow::bail!("line {line_no}: unterminated escape"),
-                },
-                '"' => {
-                    let tail = chars.as_str().trim();
-                    if tail.is_empty() || tail.starts_with('#') {
-                        return Ok(out);
-                    }
-                    anyhow::bail!("line {line_no}: unexpected content after closing quote");
-                }
+                '\\' => push_escaped(&mut out, chars.next(), line_no)?,
+                '"' => return finish_quoted(out, chars.as_str(), line_no),
                 other => out.push(other),
             }
         }
@@ -365,6 +352,31 @@ fn parse_value(raw: &str, line_no: usize) -> anyhow::Result<String> {
         anyhow::bail!("line {line_no}: unexpected content after closing quote");
     }
     Ok(raw.to_string())
+}
+
+fn finish_quoted(value: String, tail: &str, line_no: usize) -> anyhow::Result<String> {
+    let tail = tail.trim();
+    if tail.is_empty() || tail.starts_with('#') {
+        Ok(value)
+    } else {
+        anyhow::bail!("line {line_no}: unexpected content after closing quote");
+    }
+}
+
+fn push_escaped(out: &mut String, escaped: Option<char>, line_no: usize) -> anyhow::Result<()> {
+    match escaped {
+        Some('n') => out.push('\n'),
+        Some('r') => out.push('\r'),
+        Some('t') => out.push('\t'),
+        Some('"') => out.push('"'),
+        Some('\\') => out.push('\\'),
+        Some(other) => {
+            out.push('\\');
+            out.push(other);
+        }
+        None => anyhow::bail!("line {line_no}: unterminated escape"),
+    }
+    Ok(())
 }
 
 #[cfg(test)]
