@@ -1,5 +1,7 @@
 //! Tenant GitHub App Manifest registration (organization integration).
 
+use std::fmt::Write;
+
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -7,7 +9,7 @@ use axum::{
     Json,
 };
 use opensesame_connection_broker::{
-    build_manifest, convert_manifest_code, GITHUB_APP_REGISTER_URL,
+    build_manifest, convert_manifest_code, GithubAppCredentials, GITHUB_APP_REGISTER_URL,
 };
 use rand::RngCore;
 use serde::Deserialize;
@@ -51,6 +53,19 @@ pub struct RegisterBody {
     pub display_name: Option<String>,
 }
 
+fn parse_register_body(body: &str) -> Result<RegisterBody, Response> {
+    if body.trim().is_empty() {
+        return Ok(RegisterBody::default());
+    }
+    serde_json::from_str(body).map_err(|_| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_request","hint":"request body is not valid JSON"})),
+        )
+            .into_response()
+    })
+}
+
 /// Start the GitHub App Manifest flow for this organization.
 pub async fn register_start(
     State(st): State<AppState>,
@@ -68,21 +83,9 @@ pub async fn register_start(
         )
             .into_response();
     }
-    let body: RegisterBody = if body.trim().is_empty() {
-        RegisterBody::default()
-    } else {
-        match serde_json::from_str(&body) {
-            Ok(body) => body,
-            Err(_) => {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(
-                        json!({"error":"invalid_request","hint":"request body is not valid JSON"}),
-                    ),
-                )
-                    .into_response();
-            }
-        }
+    let body = match parse_register_body(&body) {
+        Ok(body) => body,
+        Err(response) => return response,
     };
     let organization_id = match who {
         Caller::Operator => st.connection_organization,
@@ -169,55 +172,75 @@ pub struct CallbackQuery {
     pub error_description: Option<String>,
 }
 
-/// GitHub redirects here after the operator creates the app from the manifest.
-pub async fn register_callback(
-    State(st): State<AppState>,
-    Query(query): Query<CallbackQuery>,
-) -> Response {
-    let fail = |return_to: Option<String>, reason: &str| -> Response {
-        let base = return_to.unwrap_or_else(|| "http://127.0.0.1:5180/connections/github".into());
-        let sep = if base.contains('?') { '&' } else { '?' };
-        Redirect::temporary(&format!(
-            "{base}{sep}github_app=error&reason={}",
-            urlencoding_encode(reason)
-        ))
-        .into_response()
-    };
+fn registration_failure(return_to: Option<String>, reason: &str) -> Response {
+    let base = return_to.unwrap_or_else(|| "http://127.0.0.1:5180/connections/github".into());
+    let sep = if base.contains('?') { '&' } else { '?' };
+    Redirect::temporary(&format!(
+        "{base}{sep}github_app=error&reason={}",
+        urlencoding_encode(reason)
+    ))
+    .into_response()
+}
 
+fn callback_codes(query: CallbackQuery) -> Result<(String, String), Response> {
     if let Some(error) = query.error.as_deref().filter(|value| !value.is_empty()) {
         let detail = query
             .error_description
             .as_deref()
             .filter(|value| !value.is_empty())
             .unwrap_or(error);
-        return fail(None, detail);
+        return Err(registration_failure(None, detail));
     }
-    let Some(state) = query.state.filter(|value| !value.is_empty()) else {
-        return fail(None, "missing_state");
-    };
-    let Some(code) = query.code.filter(|value| !value.is_empty()) else {
-        return fail(None, "missing_code");
-    };
-    let pending = {
-        let mut map = pending_map(&st);
-        prune(&mut map);
-        map.remove(&state)
-    };
-    let Some(pending) = pending else {
-        return fail(None, "unknown_or_expired_state");
-    };
-    if Instant::now() > pending.expires_at {
-        return fail(Some(pending.return_to), "expired_state");
-    }
+    let state = query
+        .state
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| registration_failure(None, "missing_state"))?;
+    let code = query
+        .code
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| registration_failure(None, "missing_code"))?;
+    Ok((state, code))
+}
 
-    let credentials = match convert_manifest_code(st.connection_broker.http_client(), &code).await {
-        Ok(credentials) => credentials,
+fn take_pending_registration(st: &AppState, state: &str) -> Result<GithubAppPending, Response> {
+    let pending = {
+        let mut map = pending_map(st);
+        prune(&mut map);
+        map.remove(state)
+    }
+    .ok_or_else(|| registration_failure(None, "unknown_or_expired_state"))?;
+    if Instant::now() > pending.expires_at {
+        return Err(registration_failure(
+            Some(pending.return_to),
+            "expired_state",
+        ));
+    }
+    Ok(pending)
+}
+
+fn registration_success(return_to: &str, integration_id: &str) -> Response {
+    let sep = if return_to.contains('?') { '&' } else { '?' };
+    Redirect::temporary(&format!(
+        "{return_to}{sep}github_app=registered&integration={}",
+        urlencoding_encode(integration_id)
+    ))
+    .into_response()
+}
+
+async fn exchange_manifest_code(st: &AppState, code: &str) -> Option<GithubAppCredentials> {
+    match convert_manifest_code(st.connection_broker.http_client(), code).await {
+        Ok(credentials) => Some(credentials),
         Err(error) => {
             tracing::warn!(%error, "github app manifest conversion failed");
-            return fail(Some(pending.return_to), "conversion_failed");
+            None
         }
-    };
+    }
+}
 
+async fn complete_registration(st: &AppState, pending: GithubAppPending, code: &str) -> Response {
+    let Some(credentials) = exchange_manifest_code(st, code).await else {
+        return registration_failure(Some(pending.return_to), "conversion_failed");
+    };
     match st
         .connection_broker
         .register_github_app_credentials(
@@ -233,23 +256,30 @@ pub async fn register_callback(
                 organization_id = %pending.organization_id,
                 "github app registered as organization integration"
             );
-            let sep = if pending.return_to.contains('?') {
-                '&'
-            } else {
-                '?'
-            };
-            Redirect::temporary(&format!(
-                "{}{sep}github_app=registered&integration={}",
-                pending.return_to,
-                urlencoding_encode(&integration.id)
-            ))
-            .into_response()
+            registration_success(&pending.return_to, &integration.id)
         }
         Err(error) => {
             tracing::warn!(%error, "failed to seal github app credentials");
-            fail(Some(pending.return_to), error.code())
+            registration_failure(Some(pending.return_to), error.code())
         }
     }
+}
+
+/// GitHub redirects here after the operator creates the app from the manifest.
+pub async fn register_callback(
+    State(st): State<AppState>,
+    Query(query): Query<CallbackQuery>,
+) -> Response {
+    let (state, code) = match callback_codes(query) {
+        Ok(codes) => codes,
+        Err(response) => return response,
+    };
+    let pending = match take_pending_registration(&st, &state) {
+        Ok(pending) => pending,
+        Err(response) => return response,
+    };
+
+    complete_registration(&st, pending, &code).await
 }
 
 fn urlencoding_encode(value: &str) -> String {
@@ -259,8 +289,40 @@ fn urlencoding_encode(value: &str) -> String {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
                 out.push(byte as char);
             }
-            _ => out.push_str(&format!("%{byte:02X}")),
+            _ => write!(out, "%{byte:02X}").expect("writing to String cannot fail"),
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn atomic_callback_codes_require_the_exact_success_pair() {
+        let (state, code) = callback_codes(CallbackQuery {
+            code: Some("code-1".into()),
+            state: Some("state-1".into()),
+            error: None,
+            error_description: None,
+        })
+        .unwrap();
+        assert_eq!((state.as_str(), code.as_str()), ("state-1", "code-1"));
+
+        assert!(callback_codes(CallbackQuery {
+            code: Some("code-1".into()),
+            state: None,
+            error: None,
+            error_description: None,
+        })
+        .is_err());
+        assert!(callback_codes(CallbackQuery {
+            code: Some("code-1".into()),
+            state: Some("state-1".into()),
+            error: Some("denied".into()),
+            error_description: Some("operator denied".into()),
+        })
+        .is_err());
+    }
 }

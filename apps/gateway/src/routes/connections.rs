@@ -106,12 +106,12 @@ async fn owned(
         .await
     {
         Ok(owner) if caller_owns(who, owner.as_ref()) => Ok(()),
-        Ok(_) => Err(broker_error(BrokerError::ConnectionNotFound)),
-        Err(e) => Err(broker_error(e)),
+        Ok(_) => Err(broker_error(&BrokerError::ConnectionNotFound)),
+        Err(e) => Err(broker_error(&e)),
     }
 }
 
-pub(crate) fn broker_error(e: BrokerError) -> Response {
+pub(crate) fn broker_error(e: &BrokerError) -> Response {
     let status = StatusCode::from_u16(e.http_status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
     if matches!(
         e,
@@ -154,7 +154,7 @@ pub async fn list_providers(
     }
     match st.connection_broker.list_providers() {
         Ok(providers) => Json(json!({"providers": providers})).into_response(),
-        Err(error) => broker_error(error),
+        Err(error) => broker_error(&error),
     }
 }
 
@@ -172,7 +172,7 @@ pub async fn list_integrations(
         .await
     {
         Ok(integrations) => Json(json!({"integrations": integrations})).into_response(),
-        Err(error) => broker_error(error),
+        Err(error) => broker_error(&error),
     }
 }
 
@@ -237,7 +237,7 @@ pub async fn create_integration(
         .await
     {
         Ok(integration) => (StatusCode::CREATED, Json(integration)).into_response(),
-        Err(error) => broker_error(error),
+        Err(error) => broker_error(&error),
     }
 }
 
@@ -256,7 +256,7 @@ pub async fn get_integration(
         .await
     {
         Ok(integration) => Json(integration).into_response(),
-        Err(error) => broker_error(error),
+        Err(error) => broker_error(&error),
     }
 }
 
@@ -311,7 +311,7 @@ pub async fn update_integration(
         .await
     {
         Ok(integration) => Json(integration).into_response(),
-        Err(error) => broker_error(error),
+        Err(error) => broker_error(&error),
     }
 }
 
@@ -333,7 +333,7 @@ pub async fn delete_integration(
         .await
     {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(error) => broker_error(error),
+        Err(error) => broker_error(&error),
     }
 }
 
@@ -358,7 +358,7 @@ pub async fn list(State(st): State<AppState>, headers: axum::http::HeaderMap) ->
         .await
     {
         Ok(c) => c,
-        Err(e) => return broker_error(e),
+        Err(e) => return broker_error(&e),
     };
     Json(json!({"connections": stored})).into_response()
 }
@@ -439,7 +439,7 @@ pub async fn create(
         .await
     {
         Ok(view) => (StatusCode::CREATED, Json(view)).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -462,7 +462,7 @@ pub async fn get(
         .await
     {
         Ok(view) => Json(view).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -481,7 +481,7 @@ pub async fn delete(
     }
     match st.connection_broker.revoke(&organization_id, &id).await {
         Ok(outcome) => Json(outcome).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -517,13 +517,13 @@ pub async fn update_policy(
         body.shareability.as_str(),
         "private" | "delegable" | "organization_wide"
     ) {
-        return broker_error(BrokerError::Invalid(
+        return broker_error(&BrokerError::Invalid(
             "shareability must be private, delegable or organization_wide".into(),
         ));
     }
     if let Some(materialization) = body.materialization.as_deref() {
         if !matches!(materialization, "deny" | "derived_short_lived") {
-            return broker_error(BrokerError::Invalid(
+            return broker_error(&BrokerError::Invalid(
                 "materialization must be deny or derived_short_lived".into(),
             ));
         }
@@ -542,7 +542,7 @@ pub async fn update_policy(
         .await
     {
         Ok(view) => Json(view).into_response(),
-        Err(error) => broker_error(error),
+        Err(error) => broker_error(&error),
     }
 }
 
@@ -589,7 +589,7 @@ pub async fn mint(
         .await
     {
         Ok(view) => Json(view).into_response(),
-        Err(error) => broker_error(error),
+        Err(error) => broker_error(&error),
     }
 }
 
@@ -624,7 +624,7 @@ pub async fn start_authorization(
         .await
     {
         Ok(start) => Json(start).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -643,7 +643,7 @@ pub async fn refresh(
     }
     match st.connection_broker.refresh(&organization_id, &id).await {
         Ok(view) => Json(view).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -678,13 +678,13 @@ pub async fn set_credential(
     let mut configuration_set = body.configuration_set;
     if let Some(value) = body.value {
         if configuration_set.insert("api_key".into(), value).is_some() {
-            return broker_error(BrokerError::Invalid(
+            return broker_error(&BrokerError::Invalid(
                 "configuration field `api_key` was supplied twice".into(),
             ));
         }
     }
     if configuration_set.is_empty() && body.configuration_clear.is_empty() {
-        return broker_error(BrokerError::Invalid(
+        return broker_error(&BrokerError::Invalid(
             "configuration_set or configuration_clear is required".into(),
         ));
     }
@@ -714,7 +714,7 @@ pub async fn set_credential(
                     .await
                 {
                     Ok(view) => Json(view).into_response(),
-                    Err(e) => broker_error(e),
+                    Err(e) => broker_error(&e),
                 };
             }
         }
@@ -731,12 +731,16 @@ pub async fn set_credential(
         .await
     {
         Ok(view) => Json(view).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
 #[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "the stable JSON request fields all describe the binding target"
+)]
 pub struct BindBody {
     pub target_kind: String,
     pub target_id: String,
@@ -785,7 +789,7 @@ pub async fn create_binding(
         .await
     {
         Ok(view) => Json(view).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -808,7 +812,7 @@ pub async fn delete_binding(
         .await
     {
         Ok(view) => Json(view).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -827,7 +831,7 @@ pub async fn events(
     }
     match st.connection_broker.events(&organization_id, &id).await {
         Ok(events) => Json(json!({"events": events})).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -1011,7 +1015,7 @@ pub async fn list_github_repos(
             })).collect::<Vec<_>>(),
         }))
         .into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -1073,7 +1077,7 @@ pub async fn create_github_repo(
             })),
         )
             .into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 

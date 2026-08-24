@@ -25,7 +25,7 @@
 //!   GitHub App minting needs an `installation_id` the daemon cannot know, so
 //!   the response carries `next.mint.installation_id_required` and the operator
 //!   supplies it per `POST /api/v1/connections/{id}/mint` call.
-//! - **invoke_through** is stateless by design (ADR 0048 D7): the daemon
+//! - **`invoke_through`** is stateless by design (ADR 0048 D7): the daemon
 //!   brokers the call at invocation time and holds no credential, so there is
 //!   no connection policy to persist and no gateway call to make.
 //!
@@ -93,9 +93,8 @@ pub async fn promote(
         (ctx, items)
     })
     .await;
-    let (ctx, items) = match derived {
-        Ok(derived) => derived,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    let Ok((ctx, items)) = derived else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
     promote_with(&st, &ctx, &items, req).await
 }
@@ -151,7 +150,10 @@ async fn promote_with(
 /// not distinguish an offer; the env key to import is resolved separately.
 fn source_matches(offered: &ProbeSource, requested: &ProbeSource) -> bool {
     match (offered, requested) {
-        (ProbeSource::EnvVar { name: a }, ProbeSource::EnvVar { name: b }) => a == b,
+        (ProbeSource::EnvVar { name: a }, ProbeSource::EnvVar { name: b })
+        | (ProbeSource::CliTool { binary: a, .. }, ProbeSource::CliTool { binary: b, .. }) => {
+            a == b
+        }
         (ProbeSource::DotFile { path: a }, ProbeSource::DotFile { path: b }) => a == b,
         (
             ProbeSource::Keychain {
@@ -175,7 +177,6 @@ fn source_matches(offered: &ProbeSource, requested: &ProbeSource) -> bool {
                 ..
             },
         ) => pa == pb && sa == sb,
-        (ProbeSource::CliTool { binary: a, .. }, ProbeSource::CliTool { binary: b, .. }) => a == b,
         _ => false,
     }
 }
@@ -671,6 +672,10 @@ mod tests {
         })
     }
 
+    #[expect(
+        clippy::excessive_nesting,
+        reason = "the cohesive HTTP stub keeps scripted route behavior together"
+    )]
     async fn spawn_stub(stub: Stub) -> String {
         let list_stub = stub.clone();
         let create_stub = stub.clone();
@@ -812,7 +817,7 @@ mod tests {
             "x-opensesame-operator",
             crate::DEV_OPERATOR_TOKEN.parse().unwrap(),
         );
-        let req = PromoteRequest {
+        let promotion_request = PromoteRequest {
             provider_id: "github".into(),
             source: ProbeSource::EnvVar {
                 name: "GITHUB_TOKEN".into(),
@@ -821,7 +826,7 @@ mod tests {
             confirm: false,
             wipe_after_import: false,
         };
-        let res = promote(State(st), None, headers, Json(req)).await;
+        let res = promote(State(st), None, headers, Json(promotion_request)).await;
         assert_eq!(res.status(), StatusCode::BAD_REQUEST);
         let body = body_json(res).await;
         assert_eq!(body["error"], "promotion_not_confirmed");
@@ -835,7 +840,7 @@ mod tests {
         let st = test_state(&url);
         let fixture = Fixture::new();
         let ctx = fixture.ctx(&[("GITHUB_TOKEN", CANARY)]);
-        let req = request(
+        let promotion_request = request(
             ProbeSource::EnvVar {
                 name: "GITHUB_TOKEN".into(),
             },
@@ -843,7 +848,7 @@ mod tests {
         );
         // The env var exists but no offer covers it — the report is the
         // authority, not the request.
-        let res = promote_with(&st, &ctx, &[], req).await;
+        let res = promote_with(&st, &ctx, &[], promotion_request).await;
         assert_eq!(res.status(), StatusCode::NOT_FOUND);
         let body = body_json(res).await;
         assert_eq!(body["error"], "offer_not_found");
@@ -935,9 +940,9 @@ mod tests {
             source.clone(),
             vec![CapabilityClass::Importable],
         )];
-        let mut req = request(source, PromotionMode::Import);
-        req.wipe_after_import = true;
-        let res = promote_with(&st, &ctx, &items, req).await;
+        let mut promotion_request = request(source, PromotionMode::Import);
+        promotion_request.wipe_after_import = true;
+        let res = promote_with(&st, &ctx, &items, promotion_request).await;
         assert_eq!(res.status(), StatusCode::OK);
         let body = body_json(res).await;
         assert_eq!(body["wiped"], true);
@@ -959,9 +964,9 @@ mod tests {
             source.clone(),
             vec![CapabilityClass::Importable],
         )];
-        let mut req = request(source, PromotionMode::Import);
-        req.wipe_after_import = true;
-        let res = promote_with(&st, &ctx, &items, req).await;
+        let mut promotion_request = request(source, PromotionMode::Import);
+        promotion_request.wipe_after_import = true;
+        let res = promote_with(&st, &ctx, &items, promotion_request).await;
         assert_eq!(res.status(), StatusCode::BAD_GATEWAY);
         let body = body_json(res).await;
         assert_eq!(body["error"], "gateway_failure");
@@ -1078,9 +1083,9 @@ mod tests {
             env_keys: vec!["GITHUB_TOKEN".into(), "OTHER_KEY".into()],
         };
         let items = vec![offer("github", offered, vec![CapabilityClass::Importable])];
-        let mut req = request(source, PromotionMode::Import);
-        req.wipe_after_import = true;
-        let res = promote_with(&st, &ctx, &items, req).await;
+        let mut promotion_request = request(source, PromotionMode::Import);
+        promotion_request.wipe_after_import = true;
+        let res = promote_with(&st, &ctx, &items, promotion_request).await;
         assert_eq!(res.status(), StatusCode::OK);
         assert_eq!(body_json(res).await["wiped"], true);
         let rewritten = std::fs::read_to_string(&path).unwrap();
@@ -1105,9 +1110,9 @@ mod tests {
             source.clone(),
             vec![CapabilityClass::Importable, CapabilityClass::Mintable],
         )];
-        let mut req = request(source, PromotionMode::Import);
-        req.wipe_after_import = true;
-        let res = promote_with(&st, &ctx, &items, req).await;
+        let mut promotion_request = request(source, PromotionMode::Import);
+        promotion_request.wipe_after_import = true;
+        let res = promote_with(&st, &ctx, &items, promotion_request).await;
         assert_eq!(res.status(), StatusCode::OK);
         let body = body_json(res).await;
         assert_eq!(body["wiped"], false);
@@ -1264,7 +1269,7 @@ mod tests {
                 "x-opensesame-operator",
                 crate::DEV_OPERATOR_TOKEN.parse().unwrap(),
             );
-            let req = PromoteRequest {
+            let promotion_request = PromoteRequest {
                 provider_id: "github".into(),
                 source: ProbeSource::EnvVar {
                     name: "GITHUB_TOKEN".into(),
@@ -1273,7 +1278,7 @@ mod tests {
                 confirm: false,
                 wipe_after_import: false,
             };
-            let res = promote(State(st), None, headers, Json(req)).await;
+            let res = promote(State(st), None, headers, Json(promotion_request)).await;
             assert_eq!(res.status(), StatusCode::BAD_REQUEST);
             insta::assert_json_snapshot!(body_json(res).await);
         }
@@ -1283,13 +1288,13 @@ mod tests {
             let st = test_state("http://127.0.0.1:1");
             let fixture = Fixture::new();
             let ctx = fixture.ctx(&[("GITHUB_TOKEN", CANARY)]);
-            let req = request(
+            let promotion_request = request(
                 ProbeSource::EnvVar {
                     name: "GITHUB_TOKEN".into(),
                 },
                 PromotionMode::Import,
             );
-            let res = promote_with(&st, &ctx, &[], req).await;
+            let res = promote_with(&st, &ctx, &[], promotion_request).await;
             assert_eq!(res.status(), StatusCode::NOT_FOUND);
             insta::assert_json_snapshot!(body_json(res).await);
         }

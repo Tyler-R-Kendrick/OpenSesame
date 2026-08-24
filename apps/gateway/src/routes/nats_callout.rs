@@ -27,7 +27,7 @@ pub struct NatsCalloutRequest {
     /// OIDC / Identity issuer of the connecting client token.
     #[serde(default)]
     pub issuer: String,
-    /// Upstream subject (pairwise or IdP sub) — never an email join key.
+    /// Upstream subject (pairwise or `IdP` sub) — never an email join key.
     #[serde(default)]
     pub subject: String,
     /// NATS one-time user nkey from the authorization request (echoed on allow).
@@ -147,16 +147,11 @@ fn normalize_request(mut req: NatsCalloutRequest) -> NatsCalloutRequest {
 }
 
 fn email_join_attempted(req: &NatsCalloutRequest) -> bool {
-    req.join_by_email
-        || req
-            .email
-            .as_ref()
-            .map(|e| !e.trim().is_empty())
-            .unwrap_or(false)
+    req.join_by_email || req.email.as_ref().is_some_and(|e| !e.trim().is_empty())
 }
 
 /// Core decision used by the HTTP handler and golden tests.
-pub async fn decide_nats_callout(
+pub fn decide_nats_callout(
     cfg: &CalloutConfig,
     req: NatsCalloutRequest,
     mapped: Option<MappedPrincipal>,
@@ -164,14 +159,17 @@ pub async fn decide_nats_callout(
     let req = normalize_request(req);
     let email_join = email_join_attempted(&req);
     let issuer_allowed = issuer_on_allowlist(&req.issuer, &cfg.issuer_allowlist);
+    let (mapped_principal_id, provisional) = mapped.map_or((None, false), |principal| {
+        (Some(principal.principal_id), principal.provisional)
+    });
 
     let eval = CalloutEval {
         issuer_allowed,
         email_join_attempted: email_join,
         issuer: req.issuer.clone(),
         subject: req.subject.clone(),
-        mapped_principal_id: mapped.as_ref().map(|m| m.principal_id.clone()),
-        provisional: mapped.as_ref().map(|m| m.provisional).unwrap_or(false),
+        mapped_principal_id,
+        provisional,
         // CONNECT-body project_ids are self-asserted. Until Identity mapping
         // supplies memberships, grant only the principal inbox.
         project_ids: vec![],
@@ -231,7 +229,7 @@ pub async fn callout(
     let req = normalize_request(body);
     if email_join_attempted(&req) {
         // Short-circuit before Identity: email must never be sent as a join key.
-        let resp = decide_nats_callout(&cfg, req, None).await;
+        let resp = decide_nats_callout(&cfg, req, None);
         return (StatusCode::OK, Json(resp)).into_response();
     }
 
@@ -262,11 +260,15 @@ pub async fn callout(
         }
     };
 
-    let resp = decide_nats_callout(&cfg, req, mapped).await;
+    let resp = decide_nats_callout(&cfg, req, mapped);
     (StatusCode::OK, Json(resp)).into_response()
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::items_after_statements,
+    reason = "the callout tests define scenario-local mapper fixtures beside their use"
+)]
 mod tests {
     use super::*;
     use crate::identity_mapping::MemoryPrincipalMapper;
@@ -304,8 +306,7 @@ mod tests {
                 issuer: "https://evil.example".into(),
                 subject: "sub-1".into(),
             }),
-        )
-        .await;
+        );
         assert_eq!(resp.decision, "deny");
         assert_eq!(resp.error, Some("unknown_issuer"));
     }
@@ -346,8 +347,7 @@ mod tests {
                 issuer: "https://identity.test".into(),
                 subject: "sub-1".into(),
             }),
-        )
-        .await;
+        );
         assert_eq!(resp.decision, "deny");
         assert_eq!(resp.error, Some("email_join_forbidden"));
     }
@@ -374,8 +374,7 @@ mod tests {
                 issuer: "https://identity.test".into(),
                 subject: "oidc-sub-9".into(),
             }),
-        )
-        .await;
+        );
         assert_eq!(resp.decision, "allow");
         assert_eq!(resp.principal_id.as_deref(), Some("prn_mapped"));
         assert_eq!(resp.provisional, Some(false));
@@ -406,8 +405,7 @@ mod tests {
                 token_claims: None,
             },
             None,
-        )
-        .await;
+        );
         assert_eq!(resp.decision, "deny");
         assert_eq!(resp.error, Some("unmapped_principal"));
     }
@@ -528,8 +526,7 @@ mod tests {
                 issuer: "https://identity.test".into(),
                 subject: "sub-mapped".into(),
             }),
-        )
-        .await;
+        );
         assert_eq!(allow.decision, "allow");
         let perms = allow.permissions.expect("permissions");
         assert!(!permissions_include_system(&perms));
@@ -649,8 +646,7 @@ mod tests {
                     token_claims: None,
                 },
                 None,
-            )
-            .await;
+            );
             assert_eq!(resp.decision, "deny");
             assert_eq!(resp.error, Some("unmapped_principal"));
             assert!(resp.permissions.is_none());

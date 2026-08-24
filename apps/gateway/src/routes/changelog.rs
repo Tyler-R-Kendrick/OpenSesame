@@ -163,6 +163,11 @@ pub async fn record(
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::excessive_nesting,
+    clippy::similar_names,
+    reason = "the changelog contract tests compare parallel header sets in cohesive scenarios"
+)]
 mod tests {
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
@@ -213,7 +218,7 @@ mod tests {
             .unwrap();
         // Attach auth headers
         let mut record_req = record_req;
-        for (k, v) in record_headers.iter() {
+        for (k, v) in &record_headers {
             record_req.headers_mut().insert(k, v.clone());
         }
         let record_res = router.clone().oneshot(record_req).await.unwrap();
@@ -236,7 +241,7 @@ mod tests {
             .body(Body::empty())
             .unwrap();
         let mut list_req = list_req;
-        for (k, v) in headers.iter() {
+        for (k, v) in &headers {
             list_req.headers_mut().insert(k, v.clone());
         }
         let list_res = router.oneshot(list_req).await.unwrap();
@@ -296,7 +301,7 @@ mod tests {
                 .to_string(),
             ))
             .unwrap();
-        for (k, v) in record_headers.iter() {
+        for (k, v) in &record_headers {
             record_req.headers_mut().insert(k, v.clone());
         }
         let record_res = router.clone().oneshot(record_req).await.unwrap();
@@ -317,7 +322,7 @@ mod tests {
             ))
             .body(Body::empty())
             .unwrap();
-        for (k, v) in other.iter() {
+        for (k, v) in &other {
             list_req.headers_mut().insert(k, v.clone());
         }
         let list_res = router.oneshot(list_req).await.unwrap();
@@ -356,7 +361,7 @@ mod tests {
                 .to_string(),
             ))
             .unwrap();
-        for (k, v) in headers.iter() {
+        for (k, v) in &headers {
             req.headers_mut().insert(k, v.clone());
         }
         let res = router.oneshot(req).await.unwrap();
@@ -404,7 +409,7 @@ mod tests {
                         .to_string(),
                     ))
                     .unwrap();
-                for (k, v) in headers.iter() {
+                for (k, v) in headers {
                     req.headers_mut().insert(k, v.clone());
                 }
                 let r = router.clone();
@@ -420,7 +425,7 @@ mod tests {
                 .uri(format!("/api/v1/projects/{project}/changelog?limit=200"))
                 .body(Body::empty())
                 .unwrap();
-            for (k, v) in headers.iter() {
+            for (k, v) in headers {
                 list.headers_mut().insert(k, v.clone());
             }
             let res = router.clone().oneshot(list).await.unwrap();

@@ -1,4 +1,4 @@
-//! Experimental AAuth draft-10 HTTP surface.
+//! Experimental `AAuth` draft-10 HTTP surface.
 //!
 //! Disabled unless `OPENSESAME_AAUTH_EXPERIMENTAL=true`. Never claims protocol
 //! conformance — only exposes lossless mapping helpers for interoperability experiments.

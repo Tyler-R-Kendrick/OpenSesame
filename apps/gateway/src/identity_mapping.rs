@@ -1,7 +1,9 @@
 //! Thin Host → Identity HTTP client for principal mapping resolve.
 //!
-//! Resolves issuer+subject → canonical principal_id only. There is intentionally
+//! Resolves issuer+subject → canonical `principal_id` only. There is intentionally
 //! **no** email lookup method — email auto-link is forbidden (ADR 0042).
+
+use std::fmt::Write;
 
 use serde::Deserialize;
 use thiserror::Error;
@@ -113,7 +115,7 @@ fn urlencoding_encode(s: &str) -> String {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
                 out.push(b as char);
             }
-            _ => out.push_str(&format!("%{b:02X}")),
+            _ => write!(out, "%{b:02X}").expect("writing to String cannot fail"),
         }
     }
     out

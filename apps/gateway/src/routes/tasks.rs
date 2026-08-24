@@ -7,7 +7,11 @@ use axum::{
     Json,
 };
 use chrono::{Duration, Utc};
-use opensesame_domain::*;
+use opensesame_domain::{
+    AuthorityContext, AuthorityContextId, AuthorityContextMode, Capability, CapabilitySet,
+    CeilingInput, FrozenIntentV2, Grant, IntentId, OrganizationId, PrincipalId, ResourceSelector,
+    TaskRunId, TaskTemplateId, FROZEN_INTENT_SCHEMA_VERSION,
+};
 use opensesame_task_access::{StartTaskParams, TaskAccessError, TaskStore};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -497,7 +501,7 @@ mod tests {
         ActorId, FrozenIntentV2, Grant, GrantConstraints, GrantId, IntentId, OfflineUse,
         OrganizationId, PrincipalId, TaskRunId, FROZEN_INTENT_SCHEMA_VERSION,
     };
-    use std::collections::HashMap;
+    use std::collections::{BTreeMap, HashMap};
 
     fn intent(
         principal: PrincipalId,
@@ -555,7 +559,7 @@ mod tests {
                 authentication_max_age_seconds: None,
                 allowed_networks: vec![],
                 parameter_rules_digest: None,
-                budgets: Default::default(),
+                budgets: BTreeMap::default(),
                 maximum_delegation_depth: 0,
                 offline_use: OfflineUse::Forbidden,
                 raw_credential_export: false,

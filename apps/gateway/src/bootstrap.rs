@@ -1,10 +1,15 @@
+use std::collections::BTreeMap;
+
 use crate::app_state::Bootstrap;
 use crate::config;
 use chrono::{Duration, Utc};
 use opensesame_authz::PolicyEngine;
 use opensesame_broker::Broker;
 use opensesame_connector_host::HostRuntime;
-use opensesame_domain::*;
+use opensesame_domain::{
+    ActorId, ConnectionId, ConnectionRecord, ConnectionRef, Grant, GrantConstraints, GrantId,
+    OfflineUse, OrganizationId, PrincipalId, ProjectId,
+};
 use opensesame_storage::Db;
 
 pub struct BootstrapArtifacts {
@@ -96,7 +101,7 @@ pub(crate) async fn create_demo_bootstrap(
             authentication_max_age_seconds: Some(3600),
             allowed_networks: vec![],
             parameter_rules_digest: None,
-            budgets: Default::default(),
+            budgets: BTreeMap::default(),
             maximum_delegation_depth: 0,
             offline_use: OfflineUse::Forbidden,
             raw_credential_export: false,

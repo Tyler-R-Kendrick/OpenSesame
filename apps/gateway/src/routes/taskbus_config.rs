@@ -1,4 +1,4 @@
-//! Operator TaskBus / NATS configuration routes.
+//! Operator `TaskBus` / NATS configuration routes.
 //!
 //! Pages configures Host; Host reaches NATS (Tailscale or loopback). Browser
 //! never opens `nats://`. The browser never holds a deployment operator
@@ -236,7 +236,7 @@ mod tests {
         let mut request = Request::builder().method(method).uri(path);
         match headers {
             Some(map) => {
-                for (name, value) in map.iter() {
+                for (name, value) in &map {
                     request = request.header(name, value);
                 }
             }
@@ -463,8 +463,8 @@ mod tests {
         assert_eq!(status, StatusCode::BAD_REQUEST);
     }
 
-    /// Wire-contract suite: every operator TaskBus response matches the Zod
-    /// contract shape (snake_case, no secret fields, required keys).
+    /// Wire-contract suite: every operator `TaskBus` response matches the Zod
+    /// contract shape (`snake_case`, no secret fields, required keys).
     fn assert_taskbus_contract(view: &Value) {
         let obj = view.as_object().expect("taskbus object");
         for key in [
@@ -509,7 +509,10 @@ mod tests {
         .await;
         assert_eq!(status, StatusCode::OK, "{body}");
         assert_taskbus_contract(&body["taskbus"]);
-        assert!(body.get("applied").and_then(|v| v.as_bool()).is_some());
+        assert!(body
+            .get("applied")
+            .and_then(serde_json::Value::as_bool)
+            .is_some());
 
         let (status, body) =
             call(&state, "POST", "/api/v1/operator/taskbus/ping", None, None).await;

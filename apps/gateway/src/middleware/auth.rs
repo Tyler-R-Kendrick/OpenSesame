@@ -61,8 +61,7 @@ pub fn require_session(
         .get("expires_at")
         .and_then(|v| v.as_str())
         .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
-        .map(|dt| chrono::Utc::now() >= dt.with_timezone(&chrono::Utc))
-        .unwrap_or(true);
+        .is_none_or(|dt| chrono::Utc::now() >= dt.with_timezone(&chrono::Utc));
     if expired {
         sessions.remove(&session_digest);
         return Err((

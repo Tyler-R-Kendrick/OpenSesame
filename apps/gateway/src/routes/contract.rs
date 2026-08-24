@@ -1,5 +1,10 @@
+#![expect(
+    clippy::excessive_nesting,
+    reason = "the route contract test is a cohesive parser and comparison of two declarative catalogs"
+)]
+
 //! Contract tests pinning the route table in `mod.rs` against the committed
-//! OpenAPI spec (`api/openapi/openapi.yaml`, OpenAPI 3.1, server `/api/v1`).
+//! `OpenAPI` spec (`api/openapi/openapi.yaml`, `OpenAPI` 3.1, server `/api/v1`).
 //! Both directions are checked statically — a route added to `mod.rs` fails
 //! until it is either documented in the spec or consciously allowlisted
 //! below, and a spec entry with no backing route fails too — plus a dynamic
@@ -19,7 +24,7 @@ use crate::config::Args;
 const SPEC: &str = include_str!("../../../../api/openapi/openapi.yaml");
 const ROUTES: &str = include_str!("mod.rs");
 
-/// Routes deliberately absent from the public OpenAPI spec, as
+/// Routes deliberately absent from the public `OpenAPI` spec, as
 /// (route path, method). A route added to `mod.rs` fails
 /// `implementation_routes_are_documented_or_allowlisted` until it is either
 /// documented in the spec or listed here under its category.

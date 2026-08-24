@@ -6,7 +6,10 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use opensesame_claims::{generate_claim_token, hash_eq, hash_secret};
-use opensesame_domain::*;
+use opensesame_domain::{
+    ActorId, ActorInstanceId, ClaimSession, ClaimSessionId, ClaimState, OrganizationId,
+    PrincipalId, ProjectId,
+};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -184,6 +187,39 @@ fn complete_gate(
     CompleteGate::Allowed
 }
 
+fn resolve_claimant(
+    st: &AppState,
+    request: &ClaimCompleteRequest,
+) -> Result<PrincipalId, Response> {
+    let claimant = request
+        .claimed_by_principal
+        .as_deref()
+        .map(|raw| {
+            crate::middleware::auth::parse_principal(raw).ok_or_else(|| {
+                (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error":"invalid_principal"})),
+                )
+                    .into_response()
+            })
+        })
+        .transpose()?;
+    if let Some(actions) = &request.narrow_actions {
+        let boot = require_demo_bootstrap(st)?;
+        if actions
+            .iter()
+            .any(|action| !boot.grant.actions.iter().any(|parent| parent == action))
+        {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error":"cannot_widen_grant"})),
+            )
+                .into_response());
+        }
+    }
+    claimant.map_or_else(|| require_demo_bootstrap(st).map(|boot| boot.principal), Ok)
+}
+
 pub async fn complete(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -258,50 +294,14 @@ pub async fn complete(
     // (operator-authenticated, e.g. the Identity plane proxy) names the
     // principal it authenticated. A supplied principal it cannot spell is a
     // refusal, never a silent fallback to somebody else.
-    let claimant = match req.claimed_by_principal.as_deref() {
-        Some(raw) => match crate::middleware::auth::parse_principal(raw) {
-            Some(principal) => Some(principal),
-            None => {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error":"invalid_principal"})),
-                )
-                    .into_response();
-            }
-        },
-        None => None,
-    };
-    // Claiming must not silently widen the requested grant.
-    if let Some(actions) = &req.narrow_actions {
-        let boot = match require_demo_bootstrap(&st) {
-            Ok(b) => b,
-            Err(resp) => return resp,
-        };
-        let parent_actions = &boot.grant.actions;
-        if actions
-            .iter()
-            .any(|a| !parent_actions.iter().any(|p| p == a))
-        {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"cannot_widen_grant"})),
-            )
-                .into_response();
-        }
-    }
-    let claimant = match claimant {
-        Some(principal) => principal,
-        // Dev seam: without an explicit claimant only the local demo bootstrap
-        // principal is available, and only where the demo seed is enabled.
-        None => match require_demo_bootstrap(&st) {
-            Ok(boot) => boot.principal,
-            Err(resp) => return resp,
-        },
+    let claimant = match resolve_claimant(&st, &req) {
+        Ok(claimant) => claimant,
+        Err(response) => return response,
     };
     session.state = ClaimState::Claimed;
     session.claimed_at = Some(Utc::now());
     session.claimed_by_principal_id = Some(claimant);
-    session.narrowed_actions = req.narrow_actions.clone();
+    session.narrowed_actions.clone_from(&req.narrow_actions);
     (
         StatusCode::OK,
         Json(json!({"state":"claimed","principal_id": claimant.to_string()})),

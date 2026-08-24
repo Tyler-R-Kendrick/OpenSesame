@@ -1,9 +1,9 @@
-//! Backup TaskBus wakes (system subjects). Outbox remains SoT; bus accelerates.
+//! Backup `TaskBus` wakes (system subjects). Outbox remains `SoT`; bus accelerates.
 //!
-//! When the Host TaskBus backend is NATS, a dedicated durable consumer
+//! When the Host `TaskBus` backend is NATS, a dedicated durable consumer
 //! (`opensesame-backup`) drains `opensesame.events.system.>` and wakes the
-//! outbox actor. The actor's SQLite claim/lease remains the only claim path —
-//! JetStream never becomes a second ledger. Memory backend skips this consumer
+//! outbox actor. The actor's `SQLite` claim/lease remains the only claim path —
+//! `JetStream` never becomes a second ledger. Memory backend skips this consumer
 //! and relies on `backup_notify` + tick only (shared in-memory bus must not be
 //! drained here or it would steal sync/rotation events).
 
@@ -47,21 +47,27 @@ pub async fn publish_backup_wake(st: &AppState, outbox_id: &str) {
     st.backup_notify.notify_one();
 }
 
-/// Drain system wakes from JetStream and wake the outbox actor (nats only).
+/// Drain system wakes from `JetStream` and wake the outbox actor (nats only).
 pub async fn run_system_wake_consumer(state: AppState) {
-    let Ok(resolved) = taskbus_config::resolve(&state.db).await else {
+    let Some(bus) = connect_system_wake_bus(&state).await else {
         return;
+    };
+    tracing::info!("backup JetStream wake consumer started");
+    drain_system_wakes(&state, &bus).await;
+}
+
+async fn connect_system_wake_bus(state: &AppState) -> Option<NatsJetStreamTaskBus> {
+    let Ok(resolved) = taskbus_config::resolve(&state.db).await else {
+        return None;
     };
     if !matches!(resolved.backend, TaskBusBackend::Nats) {
         tracing::info!("backup JetStream wake consumer idle (TaskBus backend is not nats)");
-        return;
+        return None;
     }
-    let Some(url) = resolved.nats_url.as_deref() else {
-        return;
-    };
+    let url = resolved.nats_url.as_deref()?;
 
     let filter = format!("{}.>", SYSTEM_SUBJECT_PREFIX.trim_end_matches('.'));
-    let bus = match NatsJetStreamTaskBus::connect(NatsJetStreamConfig {
+    match NatsJetStreamTaskBus::connect(NatsJetStreamConfig {
         nats_url: url.to_string(),
         stream_name: DEFAULT_STREAM_NAME.into(),
         subject_prefix: DEFAULT_SUBJECT_PREFIX.into(),
@@ -71,13 +77,15 @@ pub async fn run_system_wake_consumer(state: AppState) {
     })
     .await
     {
-        Ok(bus) => bus,
+        Ok(bus) => Some(bus),
         Err(error) => {
             tracing::warn!(%error, "backup JetStream wake consumer failed to connect");
-            return;
+            None
         }
-    };
-    tracing::info!("backup JetStream wake consumer started");
+    }
+}
+
+async fn drain_system_wakes(state: &AppState, bus: &NatsJetStreamTaskBus) {
     loop {
         match bus.drain(32).await {
             Ok(events) if !events.is_empty() => {
@@ -94,6 +102,11 @@ pub async fn run_system_wake_consumer(state: AppState) {
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::excessive_nesting,
+    clippy::items_after_statements,
+    reason = "the backup actor test keeps its fault-injection fixtures beside the single scenario"
+)]
 mod tests {
     use super::*;
 
@@ -178,7 +191,7 @@ mod tests {
             async move {
                 tokio::time::timeout(std::time::Duration::from_secs(2), n.notified())
                     .await
-                    .expect("backup_notify must fire despite bus failure")
+                    .expect("backup_notify must fire despite bus failure");
             }
         });
         // Yield so the waiter is armed.

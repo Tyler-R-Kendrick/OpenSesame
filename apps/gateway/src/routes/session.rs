@@ -28,7 +28,7 @@ pub async fn status(State(st): State<AppState>, headers: axum::http::HeaderMap) 
 ///
 /// Gated to non-production + demo bootstrap (`OPENSESAME_DEV_BOOTSTRAP`). The
 /// browser never holds an operator token; this endpoint is the Host acting as
-/// the local authority IdP for connector OAuth on loopback.
+/// the local authority `IdP` for connector OAuth on loopback.
 pub async fn local_mint(State(st): State<AppState>) -> Response {
     if config::is_production_env() {
         return (
@@ -70,8 +70,7 @@ pub async fn local_mint(State(st): State<AppState>) -> Response {
             m.get("expires_at")
                 .and_then(|v| v.as_str())
                 .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
-                .map(|dt| now < dt.with_timezone(&Utc))
-                .unwrap_or(false)
+                .is_some_and(|dt| now < dt.with_timezone(&Utc))
         });
         if sessions.len() >= 1024 {
             return (
@@ -196,15 +195,12 @@ pub async fn revoke(
     if let Err(resp) = require_operator(&st, &headers) {
         return resp;
     }
-    let organization_id = match opensesame_domain::OrganizationId::parse(&req.organization_id) {
-        Ok(id) => id,
-        Err(_) => {
-            return (
-                axum::http::StatusCode::BAD_REQUEST,
-                Json(json!({"error":"invalid_organization_id"})),
-            )
-                .into_response();
-        }
+    let Ok(organization_id) = opensesame_domain::OrganizationId::parse(&req.organization_id) else {
+        return (
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_organization_id"})),
+        )
+            .into_response();
     };
     let canonical_organization_id = organization_id.to_string();
     // Device-token minting holds this fence from reading its approval through
@@ -228,11 +224,8 @@ pub async fn revoke(
 }
 
 #[cfg(test)]
-pub async fn list_connections(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Response {
-    let caller = match resolve_caller(&st, &headers) {
+pub fn list_connections(State(st): State<AppState>, headers: &axum::http::HeaderMap) -> Response {
+    let caller = match resolve_caller(&st, headers) {
         Ok(caller) => caller,
         Err(resp) => return resp,
     };
@@ -476,7 +469,7 @@ mod tests {
             OrganizationRole::Member,
         );
 
-        let response = super::list_connections(State(state), headers).await;
+        let response = super::list_connections(State(state), &headers);
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
             .unwrap();
@@ -495,7 +488,7 @@ mod tests {
             OrganizationRole::Member,
         );
 
-        let response = super::list_connections(State(state), headers).await;
+        let response = super::list_connections(State(state), &headers);
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
             .unwrap();

@@ -181,7 +181,7 @@ const AUTH_CODE: &str = "authorization-code-do-not-leak";
 
 #[derive(Default)]
 struct AuthServerState {
-    /// code -> (code_challenge, redirect_uri, scope)
+    /// code -> (`code_challenge`, `redirect_uri`, scope)
     codes: HashMap<String, (String, String, String)>,
     live_refresh_tokens: HashSet<String>,
     reject_refresh: bool,
@@ -318,7 +318,7 @@ impl AuthServer {
         tokio::spawn(async move {
             let _ = axum::serve(listener, app).await;
         });
-        Self { state, base_url }
+        Self { base_url, state }
     }
 
     fn refreshes(&self) -> u32 {
@@ -440,10 +440,7 @@ fn assert_no_credential_material(label: &str, body: &str, verifier: &str) {
 
 async fn stored_verifier(state: &AppState, oauth_state: &str) -> String {
     use sqlx::Row;
-    let state_digest: String = Sha256::digest(oauth_state.as_bytes())
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect();
+    let state_digest = hex::encode(Sha256::digest(oauth_state.as_bytes()));
     let row = sqlx::query(
         "SELECT connection_id, code_verifier, verifier_nonce, verifier_aad_digest \
          FROM connection_authorizations WHERE state = ?",
@@ -471,7 +468,7 @@ async fn stored_verifier(state: &AppState, oauth_state: &str) -> String {
 }
 
 /// Drives create → authorize → provider consent → callback, leaving an active
-/// connection. Returns (connection_id, code verifier that was used).
+/// connection. Returns (`connection_id`, code verifier that was used).
 async fn authorize_a_mock_connection(state: &AppState) -> (String, String) {
     let (status, created) = call(
         state,
@@ -1203,6 +1200,10 @@ async fn as_session(
 }
 
 #[tokio::test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the integration journey is one cohesive role matrix across the route catalog"
+)]
 async fn integration_routes_enforce_org_roles_and_allow_member_use() {
     let (state, _server) = harness().await;
     let org = state.connection_organization;

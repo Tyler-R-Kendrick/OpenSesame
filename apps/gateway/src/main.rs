@@ -1,4 +1,4 @@
-//! OpenSesame Host API (gateway).
+//! `OpenSesame` Host API (gateway).
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 #![cfg_attr(test, allow(clippy::await_holding_lock))] // Tests serialize process-global env mutations.
 
@@ -68,11 +68,10 @@ mod pact_coverage {
             include_str!("github_webhook.rs"),
             &[
                 "if !well_formed_hub_signature",
-                ".github_webhook_secret(",
+                "configured_webhook_secret(&st)",
                 "if !verify_hub_signature_256",
-                "try_claim_host_kv",
-                "append_outbox",
-                "delete_host_kv",
+                "claim_webhook_body(&st",
+                "append_webhook_outbox(&st",
             ],
         );
         opensesame_host_core::pact::check_then_set_admits_double_claim();
@@ -113,7 +112,7 @@ mod pact_coverage {
             include_str!("routes/rotation.rs"),
             &[
                 "fn authorize(st: &AppState, headers: &axum::http::HeaderMap)",
-                ".get_connection(&organization_id, connection_id)",
+                "validate_target(&st",
                 "let job = match request_rotation(",
             ],
         );

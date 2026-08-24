@@ -1,7 +1,7 @@
 //! Vercel-shaped connector DX (`opensesame connect …`).
 //!
 //! Create, attach, list, and remove Host connections by `service/name`. Runtime
-//! output is a ConnectionRef — never a provider token (ADR 0005).
+//! output is a `ConnectionRef` — never a provider token (ADR 0005).
 
 use anyhow::{anyhow, bail, Context};
 use clap::{Parser, Subcommand};
@@ -18,7 +18,7 @@ const CONSENT_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
 #[derive(Parser, Debug)]
 pub struct ConnectArgs {
-    /// `json` for machine output. Default is a human table or a raw ConnectionRef.
+    /// `json` for machine output. Default is a human table or a raw `ConnectionRef`.
     #[arg(long = "format", short = 'F', global = true)]
     pub format: Option<String>,
     #[command(subcommand)]
@@ -69,10 +69,10 @@ pub enum ConnectCmd {
         #[arg(long)]
         all: bool,
     },
-    /// Print the ConnectionRef for `service/name`. Suitable for `REF=$(opensesame connect token …)`.
+    /// Print the `ConnectionRef` for `service/name`. Suitable for `REF=$(opensesame connect token …)`.
     Token {
         connector: String,
-        /// Accepted for Vercel-shaped scripts. OpenSesame does not mint provider tokens.
+        /// Accepted for Vercel-shaped scripts. `OpenSesame` does not mint provider tokens.
         #[arg(long)]
         scopes: Option<String>,
         #[arg(long)]
@@ -151,6 +151,10 @@ pub enum ConnectCmd {
     Discover,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the match is the flat dispatch catalog for the connect subcommands"
+)]
 pub async fn run(server: &str, args: ConnectArgs) -> anyhow::Result<()> {
     let json = matches!(args.format.as_deref(), Some("json"));
     match args.cmd {
@@ -407,7 +411,11 @@ fn flatten_scopes(scopes: &[String]) -> Vec<String> {
         .collect()
 }
 
-#[allow(clippy::too_many_arguments)] // Directly receives the create subcommand's flat CLI flags.
+#[expect(
+    clippy::too_many_arguments,
+    clippy::fn_params_excessive_bools,
+    reason = "the parameters directly project the independent create subcommand flags"
+)]
 async fn create(
     server: &str,
     json_out: bool,
@@ -610,7 +618,7 @@ async fn authorize_oauth(
         let view = get_connection(server, id).await?;
         match view["status"].as_str() {
             Some("active") => return Ok(view),
-            Some("error") | Some("revoked") => {
+            Some("error" | "revoked") => {
                 let detail = view["status_detail"]
                     .as_str()
                     .unwrap_or("authorization failed");
@@ -984,27 +992,7 @@ async fn inspect(server: &str, json_out: bool, service: &str) -> anyhow::Result<
             );
         }
         if let Some(id) = connections[0]["connection_id"].as_str() {
-            if let Ok(events) = api(
-                server,
-                reqwest::Method::GET,
-                &format!("/api/v1/connections/{id}/events"),
-                None,
-            )
-            .await
-            {
-                let rows = events
-                    .get("events")
-                    .and_then(Value::as_array)
-                    .cloned()
-                    .unwrap_or_default();
-                for event in rows.iter().take(5) {
-                    println!(
-                        "  event        {}  {}",
-                        event["kind"].as_str().unwrap_or("-"),
-                        event["at"].as_str().unwrap_or("-"),
-                    );
-                }
-            }
+            print_recent_events(server, id).await;
         }
     }
     println!("  login        inspect in the PWA provider home");
@@ -1015,6 +1003,31 @@ async fn inspect(server: &str, json_out: bool, service: &str) -> anyhow::Result<
         None => println!("  cli          no local probe for this service (vault + Host only)"),
     }
     Ok(())
+}
+
+async fn print_recent_events(server: &str, connection_id: &str) {
+    let Ok(events) = api(
+        server,
+        reqwest::Method::GET,
+        &format!("/api/v1/connections/{connection_id}/events"),
+        None,
+    )
+    .await
+    else {
+        return;
+    };
+    let rows = events
+        .get("events")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for event in rows.iter().take(5) {
+        println!(
+            "  event        {}  {}",
+            event["kind"].as_str().unwrap_or("-"),
+            event["at"].as_str().unwrap_or("-"),
+        );
+    }
 }
 
 async fn discover(server: &str, json_out: bool) -> anyhow::Result<()> {

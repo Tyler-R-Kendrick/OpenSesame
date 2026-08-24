@@ -44,8 +44,7 @@ fn tick_interval() -> Duration {
     std::env::var("OPENSESAME_BACKUP_INTERVAL_MS")
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
-        .map(Duration::from_millis)
-        .unwrap_or(Duration::from_secs(5))
+        .map_or(Duration::from_secs(5), Duration::from_millis)
 }
 
 /// Run the actor until the process exits. Spawned once from `main`; the
@@ -58,8 +57,8 @@ pub async fn run(state: AppState) {
     let interval = tick_interval();
     loop {
         tokio::select! {
-            _ = state.backup_notify.notified() => {}
-            _ = tokio::time::sleep(interval) => {}
+            () = state.backup_notify.notified() => {}
+            () = tokio::time::sleep(interval) => {}
         }
         if let Err(error) = pass(&state, &api_base, &mut token_cache).await {
             tracing::warn!(%error, "backup pass failed");

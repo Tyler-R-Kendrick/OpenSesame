@@ -55,7 +55,7 @@ pub async fn push(
             Json(json!({"error": "too_many_blobs", "max": MAX_BLOBS_PER_REQUEST})),
         )
             .into_response();
-    };
+    }
     let mut accepted = 0u32;
     let mut rejected_foreign = 0u32;
     let mut rejected_oversize = 0u32;
@@ -75,8 +75,8 @@ pub async fn push(
             .write_sync_blob(
                 &owner_id,
                 &stored,
-                MAX_SYNC_BLOBS as i64,
-                MAX_BLOBS_PER_OWNER as i64,
+                i64::try_from(MAX_SYNC_BLOBS).expect("sync blob limit fits i64"),
+                i64::try_from(MAX_BLOBS_PER_OWNER).expect("owner blob limit fits i64"),
             )
             .await
         {
@@ -148,7 +148,12 @@ pub async fn pull(
         let max_epoch = blobs.iter().map(|b| b.epoch).max().unwrap_or(since);
         match st
             .db
-            .advance_sync_cursor(&owner_id, device_id, max_epoch, MAX_DEVICE_CURSORS as i64)
+            .advance_sync_cursor(
+                &owner_id,
+                device_id,
+                max_epoch,
+                i64::try_from(MAX_DEVICE_CURSORS).expect("device cursor limit fits i64"),
+            )
             .await
         {
             Ok(cursor) => device_cursor = cursor,
@@ -202,14 +207,17 @@ fn push_outcome(
     }
     match existing_epoch {
         Some(epoch) if epoch > incoming_epoch => PushOutcome::StaleEpoch,
-        Some(_) => PushOutcome::Accept,
         None if store_len >= MAX_SYNC_BLOBS => PushOutcome::StoreFull,
         None if session_owned >= MAX_BLOBS_PER_OWNER => PushOutcome::SessionQuota,
-        None => PushOutcome::Accept,
+        Some(_) | None => PushOutcome::Accept,
     }
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::similar_names,
+    reason = "the sync decision table intentionally compares parallel owner and epoch inputs"
+)]
 mod tests {
     use super::*;
 
