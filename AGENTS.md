@@ -131,6 +131,8 @@ cargo build -p opensesame-gateway -p opensesame-cli -p opensesame-daemon
 ./target/debug/opensesame pass attach ls                        # metadata only
 ./target/debug/opensesame pass attach get Taxes/2025 --reveal --out ./  # human-gated
 ./target/debug/opensesame pass attach gc                        # reclaim orphan chunks
+./target/debug/opensesame pass attach sync --to-dir /mnt/enc          # replicate ciphertext
+./target/debug/opensesame pass attach sync                              # replicate via Host target
 ./target/debug/opensesame pass seal manifest.json --shred  # encrypt a Pages manifest
 ./target/debug/opensesame pass backup                      # commit + push to origin
 # backup auth for GitHub HTTPS remotes: GITHUB_TOKEN → GitHub App

@@ -43,8 +43,32 @@ functions 95.82%, and lines 96.64%; Rust lines 69.83% and functions 67.96%.
 UI behavior is also exercised by Playwright and visual snapshots, which these
 unit-coverage reports do not instrument.
 
-The same run killed 110/110 TypeScript mutants and 12/12 Rust mutants in the
+That run killed 110/110 TypeScript mutants and 12/12 Rust mutants in the
 selected credential-redaction and URL/task-validation boundaries.
+
+**Measured again on 2026-08-24 at `47cd090`: 805 TypeScript mutants killed, 11
+timed out, 0 survived — 100.00%, gate green.** The slice has grown from 5 files
+to 10 since August 19, so the count moved with it; the score did not. Pin the
+commit when you record a figure: an earlier run the same day reported 807, and
+the two mutants between them are simply source that changed in between.
+
+Worth recording is what happened in between rather than the two numbers. Files
+joined `stryker.config.json` without the gate being re-run, and when it next
+was, on 2026-08-22, it stood at **90.77%** — 31 surviving and 11 uncovered
+mutants against a `break: 100` threshold. One file was at 70.59% only because
+its test file could not execute under `vitest.mutation.config.ts`'s `node`
+environment at all, so its mutants were never really being measured. A
+mutate-list entry whose gate has not run reads as covered while measuring
+nothing, which is the one failure mode this gate exists to prevent.
+
+So: **re-run `pnpm test:mutation:ts` whenever you add a file to
+`stryker.config.json`, and update the figure above.** The gate is cheap
+relative to what a stale entry costs.
+
+The Rust half of both `test:coverage` and `test:mutation` was not re-measured
+here — `cargo-llvm-cov` and `cargo-mutants` were absent on that machine, and
+both gates fail loudly rather than reporting a number they did not compute.
+The August 19 Rust figures stand until someone re-runs them.
 
 ## What belongs in the mutation slice
 

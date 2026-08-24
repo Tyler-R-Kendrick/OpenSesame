@@ -185,9 +185,54 @@ pub fn cmd_attach_gc(path: Option<PathBuf>, tomb: Option<String>) -> anyhow::Res
     Ok(())
 }
 
-pub fn cmd_attach_sync(
+/// Local record of what has already been replicated, so a re-run does not
+/// re-upload every chunk. Keyed by remote path; always safe to delete.
+const SYNC_CACHE_FILE: &str = ".opensesame-attachment-sync.json";
+
+fn load_sync_cache(root: &std::path::Path) -> std::collections::BTreeSet<String> {
+    std::fs::read(root.join(SYNC_CACHE_FILE))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default()
+}
+
+fn save_sync_cache(root: &std::path::Path, cache: &std::collections::BTreeSet<String>) {
+    // Best-effort: a lost cache costs re-uploads, never correctness.
+    if let Ok(bytes) = serde_json::to_vec(cache) {
+        let _ = std::fs::write(root.join(SYNC_CACHE_FILE), bytes);
+    }
+}
+
+/// Split a replication-unit path into what the gateway needs to file it.
+///
+/// Manifests are addressed by their logical store path, chunks by digest, so
+/// the two take different endpoints. Anything else in the store is not ours to
+/// replicate.
+enum Unit {
+    Manifest { logical: String },
+    Chunk { digest: String },
+}
+
+fn classify(relative: &str) -> Option<Unit> {
+    if let Some(stem) = relative.strip_suffix(".osattach") {
+        let logical = stem.replace('\\', "/");
+        return (!logical.is_empty()).then_some(Unit::Manifest { logical });
+    }
+    if relative.ends_with(".oschunk") {
+        let digest = std::path::Path::new(relative)
+            .file_stem()
+            .and_then(|s| s.to_str())?
+            .to_string();
+        let looks_like_a_digest =
+            digest.len() == 64 && digest.bytes().all(|b| b.is_ascii_hexdigit());
+        return looks_like_a_digest.then_some(Unit::Chunk { digest });
+    }
+    None
+}
+
+pub async fn cmd_attach_sync(
     to_dir: Option<PathBuf>,
-    server: Option<String>,
+    server: &str,
     path: Option<PathBuf>,
     tomb: Option<String>,
 ) -> anyhow::Result<()> {
@@ -202,26 +247,163 @@ pub fn cmd_attach_sync(
         return Ok(());
     }
 
-    let Some(dir) = to_dir else {
-        // The connector path needs a configured attachment target and an
-        // authenticated Host session. Until that lands, say so plainly rather
-        // than pretending to have replicated anything.
-        let _ = server;
-        anyhow::bail!(
-            "connector replication is not wired up yet; use --to-dir <path> to copy ciphertext \
-             to a mounted encrypted volume"
-        );
-    };
+    match to_dir {
+        Some(dir) => sync_to_dir(&units, &dir),
+        None => sync_to_target(&units, &root_path, server).await,
+    }
+}
 
+/// Copy ciphertext to a mounted encrypted volume. No gateway, no ceremony.
+fn sync_to_dir(units: &[(String, PathBuf)], dir: &std::path::Path) -> anyhow::Result<()> {
     let mut copied = 0usize;
     for (rel, source) in units {
-        let dest = dir.join("attachments").join(&rel);
+        let dest = dir.join("attachments").join(rel);
         if let Some(parent) = dest.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::copy(&source, &dest)?;
+        std::fs::copy(source, &dest)?;
         copied += 1;
     }
     println!("replicated {copied} ciphertext file(s) to {}", dir.display());
     Ok(())
+}
+
+/// Push ciphertext through the gateway to the configured provider target.
+///
+/// The gateway injects the provider credential; this side never sees it, and
+/// the gateway never sees a store key. Uploads are idempotent by construction
+/// (digest-addressed, overwrite mode), so a re-run after a partial failure is
+/// safe.
+async fn sync_to_target(
+    units: &[(String, PathBuf)],
+    root_path: &std::path::Path,
+    server: &str,
+) -> anyhow::Result<()> {
+    let token = crate::load_access_token()?;
+    let base = server.trim_end_matches('/');
+    let client = reqwest::Client::new();
+
+    // Fail before uploading anything if there is nowhere to put it.
+    let target: serde_json::Value = client
+        .get(format!("{base}/api/v1/attachments/target"))
+        .bearer_auth(&token)
+        .send()
+        .await?
+        .error_for_status()
+        .map_err(|e| anyhow::anyhow!("could not read the attachment target: {e}"))?
+        .json()
+        .await?;
+    if target.get("target").is_none_or(|t| t.is_null()) {
+        anyhow::bail!(
+            "no attachment target configured; set one with PUT {base}/api/v1/attachments/target, \
+             or use --to-dir to copy ciphertext to a mounted encrypted volume"
+        );
+    }
+
+    let mut cache = load_sync_cache(root_path);
+    let mut uploaded = 0usize;
+    let mut skipped = 0usize;
+    let mut failed = 0usize;
+
+    for (rel, source) in units {
+        let Some(unit) = classify(rel) else {
+            continue;
+        };
+        if cache.contains(rel) {
+            skipped += 1;
+            continue;
+        }
+        let body = std::fs::read(source)?;
+        let url = match &unit {
+            Unit::Chunk { digest } => {
+                format!("{base}/api/v1/attachments/replicate/chunk?digest={digest}")
+            }
+            Unit::Manifest { logical } => format!(
+                "{base}/api/v1/attachments/replicate/manifest?path={}",
+                urlencoding_path(logical)
+            ),
+        };
+        let sent = client
+            .post(&url)
+            .bearer_auth(&token)
+            .header("Content-Type", "application/octet-stream")
+            .body(body)
+            .send()
+            .await;
+        match sent {
+            Ok(response) if response.status().is_success() => {
+                cache.insert(rel.clone());
+                uploaded += 1;
+                println!("uploaded {rel}");
+            }
+            Ok(response) => {
+                let status = response.status();
+                let detail = response.text().await.unwrap_or_default();
+                let snippet: String = detail.chars().take(200).collect();
+                eprintln!("failed {rel}: {status} {snippet}");
+                failed += 1;
+            }
+            Err(error) => {
+                eprintln!("failed {rel}: {error}");
+                failed += 1;
+            }
+        }
+    }
+
+    save_sync_cache(root_path, &cache);
+    println!("replicated {uploaded} file(s), skipped {skipped} already uploaded, {failed} failed");
+    if failed > 0 {
+        anyhow::bail!("{failed} attachment object(s) failed to replicate");
+    }
+    Ok(())
+}
+
+/// Percent-encode the few characters that would otherwise change a query
+/// string's shape. Store-logical paths are already restricted to safe
+/// characters, so this is a belt on top of braces.
+fn urlencoding_path(value: &str) -> String {
+    value
+        .chars()
+        .map(|c| match c {
+            '&' => "%26".to_string(),
+            '#' => "%23".to_string(),
+            '?' => "%3F".to_string(),
+            '+' => "%2B".to_string(),
+            ' ' => "%20".to_string(),
+            '%' => "%25".to_string(),
+            other => other.to_string(),
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn units_are_classified_by_what_the_gateway_needs() {
+        let digest = "ab".repeat(32);
+        match classify(&format!(".attachments/objects/ab/{digest}.oschunk")) {
+            Some(Unit::Chunk { digest: got }) => assert_eq!(got, digest),
+            _ => panic!("chunk should classify by digest"),
+        }
+        match classify("Taxes/2025.osattach") {
+            Some(Unit::Manifest { logical }) => assert_eq!(logical, "Taxes/2025"),
+            _ => panic!("manifest should classify by logical path"),
+        }
+        // Anything else in the store is not ours to replicate.
+        assert!(classify("Dev/token.osseal").is_none());
+        assert!(classify(".opensesame-key").is_none());
+        // A chunk whose name is not a digest is not addressable by the endpoint.
+        assert!(classify(".attachments/objects/zz/nothex.oschunk").is_none());
+    }
+
+    #[test]
+    fn query_characters_that_would_reshape_a_url_are_encoded() {
+        assert_eq!(urlencoding_path("Taxes/2025"), "Taxes/2025");
+        assert_eq!(urlencoding_path("a&b"), "a%26b");
+        assert_eq!(urlencoding_path("a b"), "a%20b");
+        assert_eq!(urlencoding_path("a#b"), "a%23b");
+        assert_eq!(urlencoding_path("100%"), "100%25");
+    }
 }

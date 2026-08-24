@@ -184,8 +184,43 @@ async function readZipTextDefault(
   return new TextDecoder().decode(expanded);
 }
 
+/**
+ * Names of every entry in the archive, for callers that need to know what the
+ * import is leaving behind.
+ *
+ * `readZipText` deliberately pulls out a single entry; everything else in a
+ * `.1pux` is discarded. That is fine for the data file and not fine for
+ * attachments, which is what this exists to surface.
+ */
+function readZipEntryNamesDefault(buffer: ArrayBuffer): string[] {
+  const bytes = new Uint8Array(buffer);
+  const view = new DataView(buffer);
+  return readCentralDirectory(view, bytes).map((entry) => entry.name);
+}
+
+/**
+ * Attachment entries a `.1pux` carries alongside its data file.
+ *
+ * 1Password nests them under `files/`; directory records end in `/` and are
+ * not themselves attachments. Returns a count and a few names, enough for the
+ * UI to tell someone what they are about to lose without listing hundreds.
+ */
+export function findSkippedAttachments(names: string[]): {
+  count: number;
+  sample: string[];
+} {
+  const files = names.filter(
+    (name) => /(^|\/)files\//.test(name) && !name.endsWith("/"),
+  );
+  return {
+    count: files.length,
+    sample: files.slice(0, 3).map((name) => name.split("/").pop() ?? name),
+  };
+}
+
 export const zipSeams = {
   readZipText: readZipTextDefault,
+  readZipEntryNames: readZipEntryNamesDefault,
 };
 
 export async function readZipText(
@@ -193,4 +228,20 @@ export async function readZipText(
   matches: (name: string) => boolean,
 ): Promise<string> {
   return zipSeams.readZipText(buffer, matches);
+}
+
+/**
+ * Entry names, or an empty list if the archive cannot be enumerated.
+ *
+ * This exists only to warn about documents being left behind. An import that
+ * would otherwise succeed must not fail because the warning could not be
+ * computed, so this swallows the error rather than propagating it — the caller
+ * gets "no attachments found", which is the safe direction to be wrong in.
+ */
+export function readZipEntryNames(buffer: ArrayBuffer): string[] {
+  try {
+    return zipSeams.readZipEntryNames(buffer);
+  } catch {
+    return [];
+  }
 }

@@ -98,6 +98,113 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/WhoAmI" }
+  /attachments/target:
+    get:
+      summary: Read the organization's attachment replication target
+      description: >-
+        Configuration and status only. The Host never holds attachment chunks —
+        clients push sealed bytes through the replicate endpoints — so there is
+        nothing here but a connection reference and a folder name.
+      responses:
+        "200":
+          description: The configured target, or null when none is set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  target:
+                    oneOf:
+                      - type: "null"
+                      - $ref: "#/components/schemas/AttachmentTargetView"
+    put:
+      summary: Point the organization's attachments at a storage connection
+      description: >-
+        Rejects a connection whose provider has no uploader implemented, so a
+        misconfiguration surfaces here rather than on the first replicate call.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PutAttachmentTargetBody" }
+      responses:
+        "200":
+          description: The stored target
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  target: { $ref: "#/components/schemas/AttachmentTargetView" }
+        "422":
+          description: >-
+            invalid_folder_path, connection_not_found, or
+            provider_unsupported_for_attachments
+    delete:
+      summary: Stop replicating attachments for the organization
+      responses:
+        "200":
+          description: Deleted
+  /attachments/replicate/chunk:
+    post:
+      summary: Forward one sealed chunk to the configured target
+      description: >-
+        Body is a raw `.oschunk` frame. The Host recomputes BLAKE3 over the body
+        and refuses a mismatch: it cannot read the ciphertext either way, but an
+        object filed under a digest that does not describe it would never
+        reassemble. Upload is idempotent by construction.
+      parameters:
+        - in: query
+          name: digest
+          required: true
+          schema: { type: string, pattern: "^[0-9a-f]{64}$" }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Stored on the provider
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stored: { type: boolean }
+        "400":
+          description: digest_mismatch — the body does not hash to the claimed digest
+        "422":
+          description: invalid_digest, empty_body, no_attachment_target, or attachment_target_disabled
+        "502":
+          description: upstream_upload_failed
+  /attachments/replicate/manifest:
+    post:
+      summary: Forward one sealed attachment manifest to the configured target
+      parameters:
+        - in: query
+          name: path
+          required: true
+          description: Store-logical attachment path, e.g. Taxes/2025
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Stored on the provider
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stored: { type: boolean }
+        "422":
+          description: invalid_path, empty_body, no_attachment_target, or attachment_target_disabled
+        "502":
+          description: upstream_upload_failed
   /credential-providers:
     get:
       summary: List native credential, storage, encryption, and lease providers
@@ -748,6 +855,30 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ContractError" }
   schemas:
+    AttachmentTargetView:
+      type: object
+      description: Where sealed attachment ciphertext is replicated. Carries no token material.
+      properties:
+        connection_id: { type: string }
+        provider_id: { type: string }
+        folder_path: { type: string }
+        enabled: { type: boolean }
+        status: { type: string }
+        last_error:
+          oneOf:
+            - type: "null"
+            - type: string
+        updated_at_unix_ms: { type: integer }
+    PutAttachmentTargetBody:
+      type: object
+      additionalProperties: false
+      required: [connection_id, folder_path]
+      properties:
+        connection_id: { type: string }
+        folder_path:
+          type: string
+          description: Absolute provider path such as /OpenSesame/attachments; no '..' or empty segments.
+        enabled: { type: boolean }
     OrganizationRole:
       type: string
       enum: [owner, admin, member]
