@@ -55,8 +55,8 @@ fn round_trip(
     keyfile: Option<&[u8]>,
 ) -> (State, State) {
     let source = populated();
-    let bytes = export_kdbx(&source.root, &source.key, None, password, export_opts)
-        .expect("export");
+    let bytes =
+        export_kdbx(&source.root, &source.key, None, password, export_opts).expect("export");
 
     let target = temp_store();
     let summary = import_kdbx(

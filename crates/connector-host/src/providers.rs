@@ -1593,7 +1593,10 @@ mod tests {
             &serde_json::json!({ "native_client": true }),
         )
         .unwrap_err();
-        assert_eq!(error, ProviderExecutionError::MissingConfig("server_url".into()));
+        assert_eq!(
+            error,
+            ProviderExecutionError::MissingConfig("server_url".into())
+        );
     }
 
     #[test]

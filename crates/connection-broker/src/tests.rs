@@ -1,5 +1,6 @@
 use chrono::Duration;
 use opensesame_storage::Db;
+use opensesame_task_bus::TaskBus as _;
 use sqlx::Row;
 
 use axum::{
@@ -3094,7 +3095,7 @@ mod secret_config_domain {
     fn secrets(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
         pairs
             .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .map(|&(key, value)| (key.to_string(), value.to_string()))
             .collect()
     }
 
@@ -3316,6 +3317,87 @@ mod secret_config_domain {
     }
 
     #[tokio::test]
+    async fn negative_stored_version_fails_closed_before_aad_open() {
+        let (db, broker) = broker_and_pool().await;
+        let cfg = broker
+            .create_secret_config(ORG, create("proj", "negative-version", "development"), None)
+            .await
+            .expect("cfg");
+        broker
+            .put_config_secrets(ORG, &cfg.id, &secrets(&[("K", "value")]), None)
+            .await
+            .expect("put");
+        sqlx::query(
+            "UPDATE config_secret_values SET version = -1 WHERE config_id = ? AND key_name = ?",
+        )
+        .bind(&cfg.id)
+        .bind("K")
+        .execute(db.pool())
+        .await
+        .expect("corrupt version fixture");
+
+        let error = broker
+            .config_key_meta(ORG, &cfg.id)
+            .await
+            .expect_err("negative database versions must be rejected");
+        assert_eq!(error.code(), "invalid_request");
+        assert!(error.hint().contains("negative"));
+
+        let source = StoreSecretSource::new(db.pool().clone(), KEY);
+        let error = source
+            .load_config_secrets(ORG, "proj", &cfg.id)
+            .await
+            .expect_err("negative version must not be cast into AAD");
+        assert_eq!(error.code(), "invalid_request");
+        assert!(error.hint().contains("negative"));
+    }
+
+    #[tokio::test]
+    async fn version_overflow_and_out_of_range_lookup_fail_without_writes() {
+        let (db, broker) = broker_and_pool().await;
+        let cfg = broker
+            .create_secret_config(ORG, create("proj", "max-version", "development"), None)
+            .await
+            .expect("cfg");
+        broker
+            .put_config_secrets(ORG, &cfg.id, &secrets(&[("K", "value")]), None)
+            .await
+            .expect("put");
+        sqlx::query(
+            "UPDATE config_secret_values SET version = ? WHERE config_id = ? AND key_name = ?",
+        )
+        .bind(i64::MAX)
+        .bind(&cfg.id)
+        .bind("K")
+        .execute(db.pool())
+        .await
+        .expect("max head fixture");
+
+        let error = broker
+            .put_config_secrets(ORG, &cfg.id, &secrets(&[("K", "replacement")]), None)
+            .await
+            .expect_err("the version counter must not wrap");
+        assert_eq!(error.code(), "invalid_request");
+        assert!(error.hint().contains("exhausted"));
+        let stored_version: i64 = sqlx::query_scalar(
+            "SELECT version FROM config_secret_values WHERE config_id = ? AND key_name = ?",
+        )
+        .bind(&cfg.id)
+        .bind("K")
+        .fetch_one(db.pool())
+        .await
+        .expect("head version");
+        assert_eq!(stored_version, i64::MAX);
+
+        let error = broker
+            .rollback_config_secret(ORG, &cfg.id, "K", u64::MAX, None)
+            .await
+            .expect_err("an out-of-range lookup must not alias a database version");
+        assert_eq!(error.code(), "invalid_request");
+        assert!(error.hint().contains("database range"));
+    }
+
+    #[tokio::test]
     async fn delete_config_refuses_while_sync_targets_reference_it() {
         let (_db, broker) = broker_and_pool().await;
         let organization = opensesame_domain::OrganizationId::new();
@@ -3513,12 +3595,19 @@ mod durable_changelog {
 
 // ---- rotation (WP-9): machine-driven execution over the durable store -------
 
-#[tokio::test]
-async fn rotation_happy_path_completes_the_machine_and_wakes_dependents() {
-    let (db, broker, org, integration_id) = organization_oauth_broker().await;
+struct RotationFixture {
+    db: Db,
+    broker: Arc<ConnectionBroker>,
+    organization: OrganizationId,
+    connection_id: String,
+    config_id: String,
+}
+
+async fn rotation_fixture() -> RotationFixture {
+    let (db, broker, organization, integration_id) = organization_oauth_broker().await;
     let connection = broker
         .create_connection(
-            &org,
+            &organization,
             CreateConnection {
                 provider_id: String::new(),
                 integration_id: Some(integration_id),
@@ -3529,7 +3618,7 @@ async fn rotation_happy_path_completes_the_machine_and_wakes_dependents() {
         .await
         .unwrap();
     let start = broker
-        .start_authorization(&org, &connection.connection_id, None, None)
+        .start_authorization(&organization, &connection.connection_id, None, None)
         .await
         .unwrap();
     broker
@@ -3540,9 +3629,9 @@ async fn rotation_happy_path_completes_the_machine_and_wakes_dependents() {
     // A config synced through this connection: the DependentsUpdated step must
     // append a `sync.config.dirty` wake for it. The row goes in at store level
     // so the test does not depend on the env-sync provider allowlist.
-    let cfg = broker
+    let config = broker
         .create_secret_config(
-            &org.to_string(),
+            &organization.to_string(),
             crate::secret_config::CreateSecretConfig {
                 project_id: "proj-rot".into(),
                 slug: "production".into(),
@@ -3558,9 +3647,9 @@ async fn rotation_happy_path_completes_the_machine_and_wakes_dependents() {
         db.pool(),
         &store::SyncTargetRow {
             id: "st_rot".into(),
-            organization_id: org.to_string(),
+            organization_id: organization.to_string(),
             project_id: "proj-rot".into(),
-            config_id: cfg.id.clone(),
+            config_id: config.id.clone(),
             connection_id: connection.connection_id.clone(),
             provider_id: "vercel".into(),
             operation: "env.set".into(),
@@ -3575,23 +3664,34 @@ async fn rotation_happy_path_completes_the_machine_and_wakes_dependents() {
     .await
     .unwrap();
 
-    use opensesame_task_bus::TaskBus as _;
+    RotationFixture {
+        db,
+        broker,
+        organization,
+        connection_id: connection.connection_id,
+        config_id: config.id,
+    }
+}
+
+#[tokio::test]
+async fn rotation_happy_path_completes_the_machine_and_wakes_dependents() {
+    let fixture = rotation_fixture().await;
     let bus = opensesame_task_bus::InMemoryTaskBus::default();
     let job = request_rotation(
-        &broker,
+        &fixture.broker,
         &bus,
         RotationTarget::Connection {
-            connection_id: connection.connection_id.clone(),
+            connection_id: fixture.connection_id,
         },
         Some("proj-rot".into()),
-        &org.to_string(),
+        &fixture.organization.to_string(),
         None,
     )
     .await
     .unwrap();
     assert_eq!(job.state, "scheduled");
 
-    let done = execute_connection_rotation(&broker, &bus, &org, &job.id)
+    let done = execute_connection_rotation(&fixture.broker, &bus, &fixture.organization, &job.id)
         .await
         .unwrap();
     assert_eq!(done.state, "completed", "{done:?}");
@@ -3605,8 +3705,9 @@ async fn rotation_happy_path_completes_the_machine_and_wakes_dependents() {
         .contains("verify_skipped"));
 
     // The durable row holds the terminal machine state.
-    let persisted = broker
-        .get_rotation_job(&org.to_string(), &job.id)
+    let persisted = fixture
+        .broker
+        .get_rotation_job(&fixture.organization.to_string(), &job.id)
         .await
         .unwrap()
         .unwrap();
@@ -3617,16 +3718,17 @@ async fn rotation_happy_path_completes_the_machine_and_wakes_dependents() {
         "SELECT COUNT(*) FROM config_sync_outbox WHERE config_id = ? \
          AND event_type = 'sync.config.dirty'",
     )
-    .bind(&cfg.id)
-    .fetch_one(db.pool())
+    .bind(&fixture.config_id)
+    .fetch_one(fixture.db.pool())
     .await
     .unwrap();
     assert_eq!(dirty, 1);
 
     // Frozen changelog vocabulary only; requested + succeeded recorded; no
     // token material anywhere near the changelog or the bus.
-    let entries = broker
-        .list_changelog(&org.to_string(), "proj-rot", 20, None)
+    let entries = fixture
+        .broker
+        .list_changelog(&fixture.organization.to_string(), "proj-rot", 20, None)
         .await
         .unwrap();
     assert!(entries

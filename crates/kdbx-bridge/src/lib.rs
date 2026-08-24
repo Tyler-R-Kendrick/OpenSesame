@@ -1,4 +1,4 @@
-//! KDBX4 (KeePass) ⇄ sealed-store bridge.
+//! `KDBX4` (`KeePass`) ⇄ sealed-store bridge.
 //!
 //! Two directions, one frozen mapping (ADR 0052 §4.5, stated normatively in
 //! this crate's `README.md`):
@@ -45,8 +45,8 @@ use opensesame_sealed_store::StoreError;
 /// The KDBX minor version this crate writes.
 ///
 /// The `keepass` crate's KDBX4 writer accepts **only** `KDB4(1)` — a request
-/// for 4.0 is rejected outright — so exports are KDBX 4.1. Both KeePass 2.x,
-/// KeePassXC and `kdbxweb` read 4.1.
+/// for `4.0` is rejected outright — so exports are `KDBX 4.1`. Both
+/// `KeePass 2.x`, `KeePassXC`, and `kdbxweb` read `4.1`.
 pub const EXPORT_KDBX_MINOR_VERSION: u16 = 1;
 
 /// Errors from the KDBX bridge.
@@ -56,11 +56,11 @@ pub const EXPORT_KDBX_MINOR_VERSION: u16 = 1;
 /// reports structure (header, HMAC, XML) and never key or field values.
 #[derive(Debug, thiserror::Error)]
 pub enum KdbxError {
-    /// The bytes are not a KeePass database at all.
+    /// The bytes are not a `KeePass` database at all.
     #[error("not a KeePass database: {0}")]
     NotKdbx(String),
 
-    /// A KeePass database, but not one this bridge reads or writes.
+    /// A `KeePass` database, but not one this bridge reads or writes.
     #[error("unsupported KeePass database version: {0}")]
     UnsupportedVersion(String),
 

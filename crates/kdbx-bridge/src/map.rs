@@ -24,7 +24,7 @@ pub const F_PASSWORD: &str = "Password";
 pub const F_URL: &str = "URL";
 /// KDBX `Notes` field.
 pub const F_NOTES: &str = "Notes";
-/// KDBX `otp` field (KeePassXC stores a full `otpauth://` URI here).
+/// KDBX `otp` field (`KeePassXC` stores a full `otpauth://` URI here).
 pub const F_OTP: &str = "otp";
 
 /// Trailer key carrying the KDBX `UserName`.
@@ -34,7 +34,7 @@ pub const K_URL: &str = "url";
 /// Trailer key carrying the KDBX `Notes`.
 pub const K_NOTES: &str = "notes";
 
-/// KeePassXC "TimeOtp" attributes, consumed together into one `otpauth://` URI.
+/// `KeePassXC` `TimeOtp` attributes, consumed together into one `otpauth://` URI.
 const TIMEOTP_SECRET: &str = "TimeOtp-Secret-Base32";
 const TIMEOTP_LENGTH: &str = "TimeOtp-Length";
 const TIMEOTP_PERIOD: &str = "TimeOtp-Period";
@@ -200,7 +200,13 @@ pub fn sanitize_segment(raw: &str) -> String {
 pub fn sanitize_key(raw: &str) -> String {
     let replaced: String = raw
         .chars()
-        .map(|ch| if ch == ':' || ch.is_control() { '_' } else { ch })
+        .map(|ch| {
+            if ch == ':' || ch.is_control() {
+                '_'
+            } else {
+                ch
+            }
+        })
         .collect();
     let trimmed = replaced.trim();
     if trimmed.is_empty() {
@@ -371,19 +377,25 @@ fn dedup(key: &str, used: &mut BTreeSet<String>, warnings: &mut Vec<MapWarning>)
 /// Percent-encode a string for use in an `otpauth://` label or query value.
 /// Only RFC 3986 unreserved characters pass through.
 fn percent_encode(value: &str) -> String {
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
     let mut out = String::with_capacity(value.len());
     for byte in value.as_bytes() {
-        let ch = *byte as char;
+        let ch = char::from(*byte);
         if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '.' | '_' | '~') {
             out.push(ch);
         } else {
-            out.push_str(&format!("%{byte:02X}"));
+            out.push('%');
+            out.push(char::from(HEX[usize::from(byte >> 4)]));
+            out.push(char::from(HEX[usize::from(byte & 0x0f)]));
         }
     }
     out
 }
 
-fn map_otp(view: &KdbxEntryView, title: &str) -> (Option<OtpUri>, BTreeSet<String>, Vec<MapWarning>) {
+fn map_otp(
+    view: &KdbxEntryView,
+    title: &str,
+) -> (Option<OtpUri>, BTreeSet<String>, Vec<MapWarning>) {
     let mut consumed = BTreeSet::new();
     let mut warnings = Vec::new();
 
@@ -439,23 +451,19 @@ fn map_otp(view: &KdbxEntryView, title: &str) -> (Option<OtpUri>, BTreeSet<Strin
         percent_encode(secret),
         percent_encode(&algorithm),
     );
-    match parse_otpauth(&uri) {
-        Ok(otp) => {
-            for key in [
-                TIMEOTP_SECRET,
-                TIMEOTP_LENGTH,
-                TIMEOTP_PERIOD,
-                TIMEOTP_ALGORITHM,
-            ] {
-                consumed.insert(key.to_string());
-            }
-            (Some(otp), consumed, warnings)
+    if let Ok(otp) = parse_otpauth(&uri) {
+        for key in [
+            TIMEOTP_SECRET,
+            TIMEOTP_LENGTH,
+            TIMEOTP_PERIOD,
+            TIMEOTP_ALGORITHM,
+        ] {
+            consumed.insert(key.to_string());
         }
-        Err(_) => {
-            warnings.push(MapWarning::UnusableTimeOtp);
-            (None, consumed, warnings)
-        }
+        return (Some(otp), consumed, warnings);
     }
+    warnings.push(MapWarning::UnusableTimeOtp);
+    (None, consumed, warnings)
 }
 
 /// Map one KDBX entry to a store path and a sealed-store [`Entry`].
@@ -519,7 +527,11 @@ pub fn map_entry(view: &KdbxEntryView) -> MappedEntry {
     }
     .with_otp(otp);
 
-    let mut segments: Vec<String> = view.group_path.iter().map(|g| sanitize_segment(g)).collect();
+    let mut segments: Vec<String> = view
+        .group_path
+        .iter()
+        .map(|g| sanitize_segment(g))
+        .collect();
     segments.push(sanitize_segment(title));
 
     MappedEntry {
@@ -548,7 +560,14 @@ pub fn unmap_entry(path: &str, entry: &Entry) -> UnmappedEntry {
     let mut fields: Vec<KdbxField> = Vec::new();
     let mut used: BTreeSet<String> = BTreeSet::new();
 
-    push_field(&mut fields, &mut used, F_TITLE, &title, false, &mut warnings);
+    push_field(
+        &mut fields,
+        &mut used,
+        F_TITLE,
+        &title,
+        false,
+        &mut warnings,
+    );
     if !entry.secret.is_empty() {
         push_field(
             &mut fields,
@@ -573,7 +592,14 @@ pub fn unmap_entry(path: &str, entry: &Entry) -> UnmappedEntry {
             other => other.to_string(),
         };
         let protected = is_protected_key(&name);
-        push_field(&mut fields, &mut used, &name, value, protected, &mut warnings);
+        push_field(
+            &mut fields,
+            &mut used,
+            &name,
+            value,
+            protected,
+            &mut warnings,
+        );
     }
 
     if !parsed.freeform.is_empty() {
@@ -748,7 +774,10 @@ mod tests {
 
     #[test]
     fn empty_values_emit_no_trailer_line() {
-        let m = map_entry(&view(&[], &[(F_TITLE, "T"), (F_USERNAME, ""), (F_URL, "u")]));
+        let m = map_entry(&view(
+            &[],
+            &[(F_TITLE, "T"), (F_USERNAME, ""), (F_URL, "u")],
+        ));
         assert_eq!(tlines(&m), ["url: u"]);
     }
 
@@ -822,7 +851,10 @@ mod tests {
             &[(F_TITLE, "T"), (F_OTP, "otpauth://totp/Demo?issuer=x")],
         ));
         assert!(m.entry.otp.is_none());
-        assert!(m.entry.trailer.contains("otp: otpauth://totp/Demo?issuer=x"));
+        assert!(m
+            .entry
+            .trailer
+            .contains("otp: otpauth://totp/Demo?issuer=x"));
         assert!(m.warnings.contains(&MapWarning::UnusableOtpField));
     }
 
@@ -871,7 +903,10 @@ mod tests {
             &[(F_TITLE, "T"), (TIMEOTP_SECRET, "!!!not-base32!!!")],
         ));
         assert!(m.entry.otp.is_none());
-        assert!(m.entry.trailer.contains("TimeOtp-Secret-Base32: !!!not-base32!!!"));
+        assert!(m
+            .entry
+            .trailer
+            .contains("TimeOtp-Secret-Base32: !!!not-base32!!!"));
         assert!(m.warnings.contains(&MapWarning::UnusableTimeOtp));
     }
 
@@ -932,12 +967,19 @@ mod tests {
     #[test]
     fn protected_key_selection_matches_the_regex() {
         for yes in [
-            "Password", "password", "API Key", "Recovery Token", "client_secret", "PassPhrase",
+            "Password",
+            "password",
+            "API Key",
+            "Recovery Token",
+            "client_secret",
+            "PassPhrase",
             "keyfile",
         ] {
             assert!(is_protected_key(yes), "{yes} should be protected");
         }
-        for no in ["Title", "UserName", "URL", "Notes", "login", "url", "notes", "Comment"] {
+        for no in [
+            "Title", "UserName", "URL", "Notes", "login", "url", "notes", "Comment",
+        ] {
             assert!(!is_protected_key(no), "{no} should not be protected");
         }
     }

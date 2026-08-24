@@ -20,6 +20,10 @@ pub struct StoredSyncBlob {
     pub ciphertext: Vec<u8>,
 }
 
+fn db_u64(value: i64, field: &str) -> anyhow::Result<u64> {
+    u64::try_from(value).with_context(|| format!("negative {field} in database"))
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SyncWriteOutcome {
     Accepted,
@@ -109,6 +113,11 @@ const MIGRATIONS: &[(&str, &str)] = &[
 ];
 
 impl Db {
+    /// Connect to `SQLite` and apply all pending embedded migrations.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database cannot be opened or migrated.
     pub async fn connect_sqlite(url: &str) -> anyhow::Result<Self> {
         let pool = SqlitePoolOptions::new()
             .max_connections(if url == "sqlite::memory:" { 1 } else { 5 })
@@ -119,10 +128,21 @@ impl Db {
         Ok(db)
     }
 
+    /// Open a migrated, process-local `SQLite` database.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `SQLite` initialization or migration fails.
     pub async fn connect_memory() -> anyhow::Result<Self> {
         Self::connect_sqlite("sqlite::memory:").await
     }
 
+    /// Apply each unapplied embedded migration atomically and in order.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when migration state cannot be read or a migration
+    /// transaction cannot be completed.
     pub async fn migrate(&self) -> anyhow::Result<()> {
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)",
@@ -155,6 +175,11 @@ impl Db {
         Ok(())
     }
 
+    /// List embedded migration versions already recorded by the database.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when migration records cannot be queried.
     pub async fn applied_migrations(&self) -> anyhow::Result<Vec<String>> {
         let rows = sqlx::query("SELECT version FROM schema_migrations ORDER BY version ASC")
             .fetch_all(&self.pool)
@@ -178,6 +203,11 @@ impl Db {
         &self.pool
     }
 
+    /// Report whether the authority is both quorate and unsealed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when authority health cannot be queried.
     pub async fn authority_quorum_ok(&self) -> anyhow::Result<bool> {
         let row = sqlx::query("SELECT quorum_ok, sealed FROM authority_health WHERE id = 1")
             .fetch_one(&self.pool)
@@ -187,6 +217,11 @@ impl Db {
         Ok(quorum_ok == 1 && sealed == 0)
     }
 
+    /// Update the persisted authority quorum state.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the health row cannot be updated.
     pub async fn set_authority_quorum(&self, ok: bool) -> anyhow::Result<()> {
         sqlx::query("UPDATE authority_health SET quorum_ok = ?, updated_at = ? WHERE id = 1")
             .bind(i32::from(ok))
@@ -196,6 +231,12 @@ impl Db {
         Ok(())
     }
 
+    /// Persist a new organization.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the organization violates database constraints or
+    /// cannot be inserted.
     pub async fn create_organization(&self, id: &OrganizationId, name: &str) -> anyhow::Result<()> {
         sqlx::query("INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)")
             .bind(id.to_string())
@@ -206,6 +247,12 @@ impl Db {
         Ok(())
     }
 
+    /// Persist a project belonging to an organization.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the organization is absent, constraints fail, or
+    /// the project cannot be inserted.
     pub async fn create_project(
         &self,
         id: &ProjectId,
@@ -224,6 +271,12 @@ impl Db {
         Ok(())
     }
 
+    /// Validate and atomically persist a provider connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when public configuration is unsafe, serialization
+    /// fails, or the transaction cannot be committed.
     pub async fn insert_connection(&self, connection: &ConnectionRecord) -> anyhow::Result<()> {
         connection
             .assert_public_config_safe()
@@ -255,6 +308,12 @@ impl Db {
         Ok(())
     }
 
+    /// Validate and update an organization-scoped provider connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when public configuration is unsafe, serialization
+    /// fails, or the database update fails.
     pub async fn update_connection(&self, connection: &ConnectionRecord) -> anyhow::Result<bool> {
         connection
             .assert_public_config_safe()
@@ -273,6 +332,11 @@ impl Db {
         Ok(result.rows_affected() == 1)
     }
 
+    /// Read one organization-scoped provider connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails or stored JSON is invalid.
     pub async fn get_connection(
         &self,
         organization_id: &OrganizationId,
@@ -290,6 +354,11 @@ impl Db {
             .map_err(Into::into)
     }
 
+    /// List provider connections belonging to one organization.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails or any stored connection is invalid.
     pub async fn list_connections(
         &self,
         organization_id: &OrganizationId,
@@ -305,6 +374,11 @@ impl Db {
             .collect()
     }
 
+    /// Delete one organization-scoped provider connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database deletion fails.
     pub async fn delete_connection(
         &self,
         organization_id: &OrganizationId,
@@ -319,6 +393,11 @@ impl Db {
         Ok(result.rows_affected() == 1)
     }
 
+    /// Persist an authorization grant.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when serialization or insertion fails.
     pub async fn insert_grant(&self, grant: &Grant) -> anyhow::Result<()> {
         sqlx::query(
             "INSERT INTO grants (id, organization_id, body_json, revoked_at, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -333,6 +412,11 @@ impl Db {
         Ok(())
     }
 
+    /// Find a grant by identifier, applying the authoritative revocation column.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query or stored grant cannot be decoded.
     pub async fn find_grant(&self, id: &GrantId) -> anyhow::Result<Option<Grant>> {
         let row = sqlx::query("SELECT body_json, revoked_at FROM grants WHERE id = ?")
             .bind(id.to_string())
@@ -353,6 +437,11 @@ impl Db {
         Ok(Some(grant))
     }
 
+    /// Revoke a live grant once.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the update fails.
     pub async fn revoke_grant(
         &self,
         id: &GrantId,
@@ -371,6 +460,10 @@ impl Db {
     /// up from `grant` to the root. Ancestor revocation must kill descendants:
     /// a child that stayed "active" after its parent died would be authority
     /// that outlived the thing it narrowed (ADR 0044 decision 8).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a grant is inactive, missing, malformed, or cyclic.
     pub async fn assert_grant_chain_active(
         &self,
         grant: &Grant,
@@ -394,6 +487,11 @@ impl Db {
         anyhow::bail!("delegation chain too deep to verify")
     }
 
+    /// Persist an invocation intent and its idempotency key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when serialization or insertion fails.
     pub async fn insert_intent(&self, intent: &Intent) -> anyhow::Result<()> {
         sqlx::query(
             "INSERT INTO intents (id, organization_id, body_json, idempotency_key, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -408,6 +506,11 @@ impl Db {
         Ok(())
     }
 
+    /// Persist an invocation attempt.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when serialization or insertion fails.
     pub async fn insert_invocation(&self, inv: &Invocation) -> anyhow::Result<()> {
         sqlx::query(
             "INSERT INTO invocations (id, intent_id, state, attempt, lease_owner, lease_expires_at, body_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -426,6 +529,11 @@ impl Db {
         Ok(())
     }
 
+    /// Persist a signed invocation receipt.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when serialization or insertion fails.
     pub async fn insert_receipt(&self, receipt: &InvocationReceipt) -> anyhow::Result<()> {
         sqlx::query(
             "INSERT INTO receipts (id, invocation_id, body_json, signature, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -440,6 +548,12 @@ impl Db {
         Ok(())
     }
 
+    /// Read a receipt with its authoritative organization binding.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query or decoding fails, including when a
+    /// receipt claims a different organization from its intent.
     pub async fn get_receipt(
         &self,
         id: &opensesame_domain::ReceiptId,
@@ -469,6 +583,11 @@ impl Db {
         })
     }
 
+    /// Count invocation rows for an intent.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the count query fails.
     pub async fn count_invocations_for_intent(
         &self,
         intent_id: &opensesame_domain::IntentId,
@@ -480,6 +599,11 @@ impl Db {
         Ok(row.get::<i64, _>("c"))
     }
 
+    /// Count all persisted receipts.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the count query fails.
     pub async fn count_receipts(&self) -> anyhow::Result<i64> {
         let row = sqlx::query("SELECT COUNT(*) as c FROM receipts")
             .fetch_one(&self.pool)
@@ -487,6 +611,12 @@ impl Db {
         Ok(row.get::<i64, _>("c"))
     }
 
+    /// Find the first receipt for an organization-scoped idempotency key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when querying or decoding fails, including an invalid
+    /// receipt organization binding.
     pub async fn find_receipt_by_idempotency(
         &self,
         org: &OrganizationId,
@@ -517,6 +647,11 @@ impl Db {
         })
     }
 
+    /// Find an intent by organization and idempotency key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails or stored intent JSON is invalid.
     pub async fn find_intent_by_idempotency(
         &self,
         org: &OrganizationId,
@@ -538,6 +673,12 @@ impl Db {
         })
     }
 
+    /// Atomically persist an encrypted item revision and its outbox event.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when insertion, outbox creation, or transaction commit
+    /// fails.
     pub async fn insert_encrypted_item(
         &self,
         vault_id: &str,
@@ -576,6 +717,12 @@ impl Db {
         Ok(())
     }
 
+    /// Atomically write an owner-scoped encrypted sync blob and outbox event.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the epoch exceeds `SQLite`'s range or a database
+    /// transaction fails.
     pub async fn write_sync_blob(
         &self,
         owner_id: &str,
@@ -643,14 +790,18 @@ impl Db {
         Ok(SyncWriteOutcome::Accepted)
     }
 
+    /// List owner-scoped encrypted sync blobs newer than `since_epoch`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails or a stored epoch is negative.
     pub async fn list_sync_blobs(
         &self,
         owner_id: &str,
         since_epoch: u64,
     ) -> anyhow::Result<Vec<StoredSyncBlob>> {
-        let since_epoch = match i64::try_from(since_epoch) {
-            Ok(epoch) => epoch,
-            Err(_) => return Ok(vec![]),
+        let Ok(since_epoch) = i64::try_from(since_epoch) else {
+            return Ok(vec![]);
         };
         let rows = sqlx::query(
             "SELECT id, epoch, ciphertext FROM encrypted_sync_blobs WHERE owner_id = ? AND epoch > ? ORDER BY epoch, id",
@@ -659,16 +810,22 @@ impl Db {
         .bind(since_epoch)
         .fetch_all(&self.pool)
         .await?;
-        Ok(rows
-            .into_iter()
-            .map(|row| StoredSyncBlob {
-                id: row.get("id"),
-                epoch: row.get::<i64, _>("epoch") as u64,
-                ciphertext: row.get("ciphertext"),
+        rows.into_iter()
+            .map(|row| {
+                Ok(StoredSyncBlob {
+                    id: row.get("id"),
+                    epoch: db_u64(row.get("epoch"), "sync epoch")?,
+                    ciphertext: row.get("ciphertext"),
+                })
             })
-            .collect())
+            .collect()
     }
 
+    /// Count all encrypted sync blobs.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the count query fails.
     pub async fn count_sync_blobs(&self) -> anyhow::Result<i64> {
         Ok(
             sqlx::query("SELECT COUNT(*) AS count FROM encrypted_sync_blobs")
@@ -678,6 +835,12 @@ impl Db {
         )
     }
 
+    /// Advance an owner/device sync cursor without allowing it to move backward.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the epoch exceeds `SQLite`'s range, database access
+    /// fails, or a stored cursor is negative.
     pub async fn advance_sync_cursor(
         &self,
         owner_id: &str,
@@ -719,7 +882,8 @@ impl Db {
         .bind(device_id)
         .fetch_one(&mut *transaction)
         .await?
-        .get::<i64, _>("epoch") as u64;
+        .get::<i64, _>("epoch");
+        let cursor = db_u64(cursor, "sync cursor")?;
         transaction.commit().await?;
         Ok(Some(cursor))
     }
@@ -729,6 +893,10 @@ impl Db {
     /// Broadcast a change event in its own transaction. Mutations that already
     /// hold a transaction use [`append_outbox_tx`] instead, so the event and
     /// the change it describes commit or roll back together.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the outbox row or transaction cannot be committed.
     pub async fn append_outbox(
         &self,
         event_type: &str,
@@ -743,6 +911,10 @@ impl Db {
     /// Claim due unpublished events for one worker pass. Claimed rows have
     /// their `available_at` pushed `lease_seconds` into the future, so a
     /// crashed worker's claim expires instead of wedging the queue.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when due events cannot be queried, leased, or committed.
     pub async fn claim_outbox_batch(
         &self,
         limit: i64,
@@ -783,6 +955,11 @@ impl Db {
         Ok(events)
     }
 
+    /// Mark selected outbox events as published in one transaction.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when an update or transaction commit fails.
     pub async fn mark_outbox_published(&self, ids: &[String]) -> anyhow::Result<()> {
         let now = Utc::now().to_rfc3339();
         let mut transaction = self.pool.begin().await?;
@@ -801,6 +978,10 @@ impl Db {
 
     /// Compensation for a failed delivery: release the claim, count the
     /// attempt, and back the event off so retries do not spin.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when an update or transaction commit fails.
     pub async fn park_outbox(
         &self,
         ids: &[String],
@@ -826,6 +1007,10 @@ impl Db {
 
     /// Terminal compensation for a poison event: record the failure and stop
     /// retrying. Full-snapshot resync reconciles whatever the event described.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when an update or transaction commit fails.
     pub async fn dead_letter_outbox(&self, ids: &[String], error: &str) -> anyhow::Result<()> {
         let now = Utc::now().to_rfc3339();
         let mut transaction = self.pool.begin().await?;
@@ -843,6 +1028,11 @@ impl Db {
         Ok(())
     }
 
+    /// Count outbox events that have not been published.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the count query fails.
     pub async fn count_unpublished_outbox(&self) -> anyhow::Result<i64> {
         Ok(
             sqlx::query("SELECT COUNT(*) AS count FROM outbox_events WHERE published_at IS NULL")
@@ -854,6 +1044,11 @@ impl Db {
 
     // —— host operator kv ————————————————————————————————
 
+    /// Read a host-operator key/value entry.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
     pub async fn get_host_kv(&self, key: &str) -> anyhow::Result<Option<String>> {
         let row = sqlx::query("SELECT value FROM host_kv WHERE key = ?")
             .bind(key)
@@ -862,6 +1057,11 @@ impl Db {
         Ok(row.map(|r| r.get::<String, _>("value")))
     }
 
+    /// Insert or replace a host-operator key/value entry.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database write fails.
     pub async fn set_host_kv(&self, key: &str, value: &str) -> anyhow::Result<()> {
         sqlx::query(
             "INSERT INTO host_kv (key, value, updated_at) VALUES (?, ?, ?) \
@@ -876,6 +1076,10 @@ impl Db {
     }
 
     /// Insert `key` only when absent. Returns `true` when this call claimed the key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database write fails.
     pub async fn try_claim_host_kv(&self, key: &str, value: &str) -> anyhow::Result<bool> {
         let result = sqlx::query(
             "INSERT INTO host_kv (key, value, updated_at) VALUES (?, ?, ?) \
@@ -889,6 +1093,11 @@ impl Db {
         Ok(result.rows_affected() > 0)
     }
 
+    /// Delete a host-operator key/value entry.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database deletion fails.
     pub async fn delete_host_kv(&self, key: &str) -> anyhow::Result<()> {
         sqlx::query("DELETE FROM host_kv WHERE key = ?")
             .bind(key)
@@ -899,6 +1108,11 @@ impl Db {
 
     // —— backup targets (ADR 0039) ——————————————————————————————
 
+    /// Insert or update the encrypted-backup target for an organization.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database write fails.
     pub async fn upsert_backup_target(&self, target: &BackupTarget) -> anyhow::Result<()> {
         let now = Utc::now().to_rfc3339();
         sqlx::query(
@@ -930,6 +1144,11 @@ impl Db {
         Ok(())
     }
 
+    /// Read an organization's encrypted-backup target.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
     pub async fn get_backup_target(
         &self,
         organization_id: &str,
@@ -957,6 +1176,10 @@ impl Db {
     }
 
     /// Record the outcome of a backup pass without touching the configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database update fails.
     pub async fn record_backup_outcome(
         &self,
         organization_id: &str,
@@ -982,6 +1205,11 @@ impl Db {
         Ok(())
     }
 
+    /// Insert or update an organization's attachment replication target.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database write fails.
     pub async fn upsert_attachment_target(
         &self,
         target: &AttachmentTarget,
@@ -1014,6 +1242,11 @@ impl Db {
         Ok(())
     }
 
+    /// Read an organization's attachment replication target.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
     pub async fn get_attachment_target(
         &self,
         organization_id: &str,
@@ -1038,6 +1271,10 @@ impl Db {
     }
 
     /// Record a replication failure without disturbing the configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the update fails.
     pub async fn record_attachment_target_error(
         &self,
         organization_id: &str,
@@ -1056,6 +1293,11 @@ impl Db {
         Ok(())
     }
 
+    /// Delete an organization's attachment replication target.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the deletion fails.
     pub async fn delete_attachment_target(&self, organization_id: &str) -> anyhow::Result<()> {
         sqlx::query("DELETE FROM attachment_targets WHERE organization_id = ?")
             .bind(organization_id)
@@ -1064,6 +1306,11 @@ impl Db {
         Ok(())
     }
 
+    /// Delete an organization's encrypted-backup target.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the database deletion fails.
     pub async fn delete_backup_target(&self, organization_id: &str) -> anyhow::Result<()> {
         sqlx::query("DELETE FROM backup_targets WHERE organization_id = ?")
             .bind(organization_id)
@@ -1074,6 +1321,10 @@ impl Db {
 
     /// Ciphertext rows a snapshot is built from. Only sealed bytes leave this
     /// query; there is no plaintext anywhere in the backup path.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when encrypted revisions cannot be queried.
     pub async fn list_encrypted_item_revisions(
         &self,
     ) -> anyhow::Result<Vec<EncryptedItemRevision>> {
@@ -1095,25 +1346,29 @@ impl Db {
             .collect())
     }
 
+    /// List every owner-scoped encrypted sync blob for snapshot backup.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails or a stored epoch is negative.
     pub async fn list_all_sync_blobs(&self) -> anyhow::Result<Vec<(String, StoredSyncBlob)>> {
         let rows = sqlx::query(
             "SELECT id, owner_id, epoch, ciphertext FROM encrypted_sync_blobs ORDER BY owner_id, epoch, id",
         )
         .fetch_all(&self.pool)
         .await?;
-        Ok(rows
-            .into_iter()
+        rows.into_iter()
             .map(|row| {
-                (
+                Ok((
                     row.get("owner_id"),
                     StoredSyncBlob {
                         id: row.get("id"),
-                        epoch: row.get::<i64, _>("epoch") as u64,
+                        epoch: db_u64(row.get("epoch"), "sync epoch")?,
                         ciphertext: row.get("ciphertext"),
                     },
-                )
+                ))
             })
-            .collect())
+            .collect()
     }
 }
 
@@ -1169,6 +1424,10 @@ pub struct EncryptedItemRevision {
 /// Append a change event inside an open transaction — the transactional-outbox
 /// write that makes "every secret mutation broadcasts an event" crash-safe.
 /// Shared with `connection-broker`, which writes the same pool.
+///
+/// # Errors
+///
+/// Returns an error when the outbox row cannot be inserted.
 pub async fn append_outbox_tx(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     event_type: &str,
@@ -1260,6 +1519,36 @@ mod tests {
     use chrono::{Duration, Utc};
     use opensesame_domain::*;
     use serde_json::json;
+
+    async fn apply_migration(pool: &SqlitePool, migration: &str) {
+        for statement in split_statements(migration) {
+            sqlx::query(&statement).execute(pool).await.unwrap();
+        }
+    }
+
+    async fn apply_migrations(pool: &SqlitePool, migrations: &[(&str, &str)]) {
+        for (_, migration) in migrations {
+            apply_migration(pool, migration).await;
+        }
+    }
+
+    async fn apply_migrations_except(
+        pool: &SqlitePool,
+        migrations: &[(&str, &str)],
+        excluded_version: &str,
+    ) {
+        for (version, migration) in migrations {
+            if *version != excluded_version {
+                apply_migration(pool, migration).await;
+            }
+        }
+    }
+
+    async fn claim_host_kv(db: std::sync::Arc<Db>, worker: usize) -> bool {
+        db.try_claim_host_kv("github.delivery.race", &format!("w{worker}"))
+            .await
+            .unwrap()
+    }
 
     fn evidence(
         organization_id: OrganizationId,
@@ -1436,6 +1725,39 @@ mod tests {
         );
     }
 
+    #[test]
+    fn database_unsigned_values_reject_negative_storage() {
+        assert_eq!(db_u64(0, "epoch").unwrap(), 0);
+        assert_eq!(
+            db_u64(i64::MAX, "epoch").unwrap(),
+            u64::try_from(i64::MAX).unwrap()
+        );
+        assert!(db_u64(-1, "epoch").is_err());
+    }
+
+    #[tokio::test]
+    async fn sync_epoch_boundaries_fail_closed() {
+        let db = Db::connect_memory().await.unwrap();
+        let too_large = StoredSyncBlob {
+            id: "too-large".into(),
+            epoch: u64::try_from(i64::MAX).unwrap() + 1,
+            ciphertext: vec![1],
+        };
+        assert!(db
+            .write_sync_blob("owner", &too_large, 10, 10)
+            .await
+            .is_err());
+
+        sqlx::query(
+            "INSERT INTO encrypted_sync_blobs (id, owner_id, epoch, ciphertext, updated_at) \
+             VALUES ('corrupt', 'owner', -1, X'01', 't')",
+        )
+        .execute(db.pool())
+        .await
+        .unwrap();
+        assert!(db.list_all_sync_blobs().await.is_err());
+    }
+
     #[tokio::test]
     async fn receipt_reads_resolve_legacy_org_and_reject_claim_mismatch() {
         let db = Db::connect_memory().await.unwrap();
@@ -1561,11 +1883,7 @@ mod tests {
             .connect("sqlite::memory:")
             .await
             .unwrap();
-        for (_, migration) in &MIGRATIONS[..4] {
-            for statement in split_statements(migration) {
-                sqlx::query(&statement).execute(&pool).await.unwrap();
-            }
-        }
+        apply_migrations(&pool, &MIGRATIONS[..4]).await;
         sqlx::query("INSERT INTO connections (id, organization_id, project_id, provider_id, logical_name, display_name, status, status_detail, requested_scopes, granted_scopes, account_label, owner_kind, owner_subject, shareability, max_invoke_level, egress_json, created_at, updated_at, integration_id) VALUES ('connection:legacy', 'org:legacy', NULL, 'stripe', 'stripe/main', 'Stripe', 'active', NULL, '[]', '[]', NULL, 'organization', NULL, 'private', 2, '{}', 't', 't', 'deployment:stripe')")
             .execute(&pool)
             .await
@@ -1594,11 +1912,7 @@ mod tests {
             .connect("sqlite::memory:")
             .await
             .unwrap();
-        for (_, migration) in &MIGRATIONS[..5] {
-            for statement in split_statements(migration) {
-                sqlx::query(&statement).execute(&pool).await.unwrap();
-            }
-        }
+        apply_migrations(&pool, &MIGRATIONS[..5]).await;
         sqlx::query("INSERT INTO integrations (id, organization_id, key, provider_id, display_name, enabled, scopes, client_id, client_secret_ciphertext, client_secret_nonce, client_secret_aad_digest, created_by, created_at, updated_at) VALUES ('integration:legacy', 'org:legacy', 'legacy', 'github', 'Legacy', 1, '[]', 'client', X'01', X'02', 'aad', 'principal:admin', 't', 't')")
             .execute(&pool)
             .await
@@ -1643,11 +1957,7 @@ mod tests {
             .connect("sqlite::memory:")
             .await
             .unwrap();
-        for (_, migration) in &MIGRATIONS[..6] {
-            for statement in split_statements(migration) {
-                sqlx::query(&statement).execute(&pool).await.unwrap();
-            }
-        }
+        apply_migrations(&pool, &MIGRATIONS[..6]).await;
         assert!(sqlx::query("SELECT 1 FROM provider_connections LIMIT 0")
             .execute(&pool)
             .await
@@ -1835,18 +2145,11 @@ mod tests {
         let db = std::sync::Arc::new(db);
         let mut handles = Vec::new();
         for i in 0..32 {
-            let db = db.clone();
-            handles.push(tokio::spawn(async move {
-                db.try_claim_host_kv("github.delivery.race", &format!("w{i}"))
-                    .await
-                    .unwrap()
-            }));
+            handles.push(tokio::spawn(claim_host_kv(db.clone(), i)));
         }
         let mut wins = 0usize;
         for handle in handles {
-            if handle.await.unwrap() {
-                wins += 1;
-            }
+            wins += usize::from(handle.await.unwrap());
         }
         assert_eq!(wins, 1);
         assert!(db
@@ -1863,14 +2166,7 @@ mod tests {
             .connect("sqlite::memory:")
             .await
             .unwrap();
-        for (version, sql) in MIGRATIONS {
-            if *version == "0008_backup_outbox" {
-                continue;
-            }
-            for statement in split_statements(sql) {
-                sqlx::query(&statement).execute(&pool).await.unwrap();
-            }
-        }
+        apply_migrations_except(&pool, MIGRATIONS, "0008_backup_outbox").await;
         assert!(sqlx::query("SELECT 1 FROM backup_targets LIMIT 0")
             .execute(&pool)
             .await

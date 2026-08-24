@@ -477,6 +477,10 @@ impl ConnectionBroker {
     /// Values are loaded and resolved in-process; only the keyed `cv2_`
     /// fingerprint leaves. The sync actor compares this against the target's
     /// stored `content_version` to skip egress when nothing changed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the target, sealing key, or resolved secrets are unavailable.
     pub async fn current_content_version(
         &self,
         organization_id: &OrganizationId,
@@ -722,7 +726,7 @@ fn content_version_for(
         mac.update(b"\0");
     }
     let digest = mac.finalize().into_bytes();
-    let hex: String = digest.iter().map(|b| format!("{b:02x}")).collect();
+    let hex = hex::encode(digest);
     format!("cv2_{hex}")
 }
 

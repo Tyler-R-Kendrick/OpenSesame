@@ -9,14 +9,14 @@
 //!         └─ HKDF-SHA256-Expand(MasterKey, info = "enc" | "mac")
 //!              → 512-bit Stretched Master Key (32B enc || 32B mac)
 //!                └─ AES-256-CBC + HMAC-SHA256 unwraps the 512-bit User Key
-//!                     └─ decrypts every vault field (EncString)
+//!                     └─ decrypts every vault field (`EncString`)
 //! ```
 //!
 //! Design rules enforced here:
 //! * every key lives in a [`secrecy::SecretBox`], is zeroized on drop, and has
 //!   no `Debug`/`Serialize` implementation that can print or persist it;
 //! * MAC verification is constant time (`hmac`'s `verify_slice`) — never `==`;
-//! * EncString type 7 (COSE) is refused by name, never best-effort decoded.
+//! * `EncString` type 7 (COSE) is refused by name, never best-effort decoded.
 //!
 //! Derived from the public Bitwarden format description; informed by rbw
 //! (MIT, <https://github.com/doy/rbw>) — see `NOTICE`. No AGPL/GPL source.
@@ -24,10 +24,10 @@
 use std::fmt;
 use std::str::FromStr;
 
-use cbc::cipher::block_padding::Pkcs7;
-use cbc::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine as _;
+use cbc::cipher::block_padding::Pkcs7;
+use cbc::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use hmac::{Hmac, Mac};
 use secrecy::{ExposeSecret, SecretBox};
 use sha2::{Digest, Sha256};
@@ -39,7 +39,7 @@ type Aes256CbcDec = cbc::Decryptor<aes::Aes256>;
 type Aes256CbcEnc = cbc::Encryptor<aes::Aes256>;
 type HmacSha256 = Hmac<Sha256>;
 
-/// Bitwarden's current PBKDF2 default (raised from 100_000 in 2023).
+/// Bitwarden's current `PBKDF2` default (raised from `100_000` in 2023).
 pub const DEFAULT_PBKDF2_ITERATIONS: u32 = 600_000;
 /// Bitwarden's own server-enforced floor. Anything lower is a downgrade.
 pub const MIN_PBKDF2_ITERATIONS: u32 = 5_000;
@@ -64,10 +64,16 @@ pub enum Kdf {
 impl Kdf {
     /// Build from the raw prelogin fields. `kdf_memory` is in **MiB** on the
     /// wire, as Bitwarden's UI presents it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::UnsupportedKdf`] for an unknown KDF or
+    /// [`Error::InvalidKdfParameters`] for missing, unsafe, or overflowing
+    /// parameters.
     pub fn from_prelogin(
         kdf: u32,
         iterations: u32,
-        memory_mib: Option<u32>,
+        memory_mebibytes: Option<u32>,
         parallelism: Option<u32>,
     ) -> Result<Self> {
         match kdf {
@@ -80,14 +86,16 @@ impl Kdf {
                 Ok(Kdf::Pbkdf2 { iterations })
             }
             1 => {
-                let memory_mib = memory_mib.ok_or_else(|| {
+                let memory_mebibytes = memory_mebibytes.ok_or_else(|| {
                     Error::InvalidKdfParameters("Argon2id requires kdfMemory".into())
                 })?;
                 let parallelism = parallelism.ok_or_else(|| {
                     Error::InvalidKdfParameters("Argon2id requires kdfParallelism".into())
                 })?;
-                let memory_kib = memory_mib.checked_mul(1024).ok_or_else(|| {
-                    Error::InvalidKdfParameters(format!("kdfMemory {memory_mib} MiB overflows"))
+                let memory_kib = memory_mebibytes.checked_mul(1024).ok_or_else(|| {
+                    Error::InvalidKdfParameters(format!(
+                        "kdfMemory {memory_mebibytes} MiB overflows"
+                    ))
                 })?;
                 Self::argon2id(iterations, memory_kib, parallelism)
             }
@@ -96,6 +104,11 @@ impl Kdf {
     }
 
     /// Argon2id with memory already in KiB (the unit `argon2` wants).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidKdfParameters`] when iterations or parallelism
+    /// are zero, or when the memory cost is below Argon2's minimum.
     pub fn argon2id(iterations: u32, memory_kib: u32, parallelism: u32) -> Result<Self> {
         if iterations == 0 || parallelism == 0 {
             return Err(Error::InvalidKdfParameters(
@@ -125,6 +138,7 @@ impl Default for Kdf {
 
 /// Bitwarden lowercases and trims the email before using it as KDF salt.
 /// Getting this wrong derives a key that simply never opens the vault.
+#[must_use]
 pub fn normalize_email(email: &str) -> String {
     email.trim().to_ascii_lowercase()
 }
@@ -134,6 +148,11 @@ pub struct MasterKey(SecretBox<[u8; KEY_LEN]>);
 
 impl MasterKey {
     /// master password + email → 256-bit master key.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidKdfParameters`] or [`Error::KeyDerivation`]
+    /// when the selected KDF parameters cannot be applied.
     pub fn derive(master_password: &[u8], email: &str, kdf: &Kdf) -> Result<Self> {
         let salt = normalize_email(email);
         let mut out = Zeroizing::new([0u8; KEY_LEN]);
@@ -161,13 +180,9 @@ impl MasterKey {
                 let params =
                     argon2::Params::new(memory_kib, iterations, parallelism, Some(KEY_LEN))
                         .map_err(|e| Error::InvalidKdfParameters(e.to_string()))?;
-                argon2::Argon2::new(
-                    argon2::Algorithm::Argon2id,
-                    argon2::Version::V0x13,
-                    params,
-                )
-                .hash_password_into(master_password, salt.as_slice(), out.as_mut())
-                .map_err(|e| Error::KeyDerivation(e.to_string()))?;
+                argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params)
+                    .hash_password_into(master_password, salt.as_slice(), out.as_mut())
+                    .map_err(|e| Error::KeyDerivation(e.to_string()))?;
             }
         }
         Ok(Self(SecretBox::new(Box::new(*out))))
@@ -176,6 +191,7 @@ impl MasterKey {
     /// The hash the server sees: PBKDF2-SHA256 over the master **key**, salted
     /// with the master **password**, one iteration, base64. The server never
     /// sees anything that can decrypt the vault.
+    #[must_use]
     pub fn password_hash_b64(&self, master_password: &[u8]) -> String {
         let mut out = Zeroizing::new([0u8; KEY_LEN]);
         pbkdf2::pbkdf2_hmac::<Sha256>(
@@ -190,6 +206,12 @@ impl MasterKey {
     /// HKDF-Expand the master key into the 512-bit stretched master key that
     /// unwraps the user key. The master key is already uniformly random, so
     /// Bitwarden expands without an extract step.
+    ///
+    /// # Panics
+    ///
+    /// Panics only if the fixed 32-byte HKDF input or output lengths violate
+    /// the `HKDF-SHA256` implementation's documented limits.
+    #[must_use]
     pub fn stretch(&self) -> SymmetricKey {
         let hkdf = hkdf::Hkdf::<Sha256>::from_prk(self.0.expose_secret().as_slice())
             .expect("32-byte PRK is always long enough for HKDF-SHA256");
@@ -207,11 +229,16 @@ impl MasterKey {
 
     /// Unwrap the account's user key (`profile.key` / token `Key`).
     ///
-    /// Modern accounts wrap it as a type-2 EncString under the *stretched*
-    /// master key. Pre-stretch accounts wrap it as a type-0 EncString under
+    /// Modern accounts wrap it as a type-2 `EncString` under the *stretched*
+    /// master key. Pre-stretch accounts wrap it as a type-0 `EncString` under
     /// the master key itself; those still exist in the wild, so both are
     /// handled — and the two are never confused, because the envelope type
     /// selects the key.
+    ///
+    /// # Errors
+    ///
+    /// Returns a named envelope, integrity, padding, or key-length error when
+    /// the wrapped user key cannot be safely decrypted.
     pub fn decrypt_user_key(&self, wrapped: &EncString) -> Result<SymmetricKey> {
         let plaintext = match wrapped.enc_type() {
             EncType::AesCbc256B64 => {
@@ -224,6 +251,7 @@ impl MasterKey {
     }
 
     /// Test/fixture support: build a master key from raw bytes.
+    #[must_use]
     pub fn from_bytes(bytes: [u8; KEY_LEN]) -> Self {
         Self(SecretBox::new(Box::new(bytes)))
     }
@@ -238,6 +266,10 @@ pub struct SymmetricKey {
 
 impl SymmetricKey {
     /// 32 bytes → enc only (legacy); 64 bytes → enc || mac.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidKeyLength`] for every other input length.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         match bytes.len() {
             KEY_LEN => {
@@ -262,13 +294,19 @@ impl SymmetricKey {
         }
     }
 
-    /// True when this key can authenticate type-2 EncStrings.
+    /// True when this key can authenticate type-2 `EncString` values.
+    #[must_use]
     pub fn has_mac(&self) -> bool {
         self.mac.is_some()
     }
 
-    /// Decrypt an EncString to raw bytes. Type 2 verifies the MAC in constant
+    /// Decrypt an `EncString` to raw bytes. Type 2 verifies the MAC in constant
     /// time *before* touching the ciphertext; type 7 is refused by name.
+    ///
+    /// # Errors
+    ///
+    /// Returns a named key-kind, integrity, envelope, key-length, or padding
+    /// error when the value cannot be safely decrypted.
     pub fn decrypt(&self, value: &EncString) -> Result<Zeroizing<Vec<u8>>> {
         match value.enc_type {
             EncType::AesCbc256B64 => {
@@ -294,13 +332,19 @@ impl SymmetricKey {
                 hmac.update(&value.iv);
                 hmac.update(&value.data);
                 // Constant time. Never `==`.
-                hmac.verify_slice(expected).map_err(|_| Error::MacMismatch)?;
+                hmac.verify_slice(expected)
+                    .map_err(|_| Error::MacMismatch)?;
                 self.decrypt_cbc(value)
             }
         }
     }
 
-    /// Decrypt an EncString that is known to hold UTF-8.
+    /// Decrypt an `EncString` that is known to hold UTF-8.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors from [`Self::decrypt`], or [`Error::NotUtf8`] when
+    /// the authenticated plaintext is not UTF-8.
     pub fn decrypt_string(&self, value: &EncString) -> Result<Zeroizing<String>> {
         let bytes = self.decrypt(value)?;
         let text = std::str::from_utf8(&bytes)
@@ -318,9 +362,8 @@ impl SymmetricKey {
                 "ciphertext must be a non-zero multiple of the AES block size",
             ));
         }
-        let cipher =
-            Aes256CbcDec::new_from_slices(self.enc.expose_secret().as_slice(), &value.iv)
-                .map_err(|_| Error::InvalidKeyLength(KEY_LEN))?;
+        let cipher = Aes256CbcDec::new_from_slices(self.enc.expose_secret().as_slice(), &value.iv)
+            .map_err(|_| Error::InvalidKeyLength(KEY_LEN))?;
         let plaintext = cipher
             .decrypt_padded_vec_mut::<Pkcs7>(&value.data)
             .map_err(|_| Error::Padding)?;
@@ -330,6 +373,11 @@ impl SymmetricKey {
     /// Encrypt with a caller-supplied IV. Deterministic on purpose: this is
     /// how the committed crypto vectors and API fixtures are generated. Real
     /// vault writes are out of scope for a consume-client.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidKeyLength`] if the fixed key material cannot be
+    /// accepted by the selected cipher or MAC implementation.
     pub fn encrypt_with_iv(&self, plaintext: &[u8], iv: [u8; AES_BLOCK]) -> Result<EncString> {
         let cipher = Aes256CbcEnc::new_from_slices(self.enc.expose_secret().as_slice(), &iv)
             .map_err(|_| Error::InvalidKeyLength(KEY_LEN))?;
@@ -358,6 +406,7 @@ impl SymmetricKey {
 
     /// Test/fixture support: the raw key material, as `enc || mac`.
     /// Deliberately `Zeroizing` and deliberately not a `Display`/`Serialize`.
+    #[must_use]
     pub fn to_bytes(&self) -> Zeroizing<Vec<u8>> {
         let mut out = Vec::with_capacity(KEY_LEN + MAC_LEN);
         out.extend_from_slice(self.enc.expose_secret().as_slice());
@@ -368,7 +417,7 @@ impl SymmetricKey {
     }
 }
 
-/// The EncString types Bitwarden has minted. Only 0 and 2 are implemented;
+/// The `EncString` types Bitwarden has minted. Only 0 and 2 are implemented;
 /// every other value is refused by name at parse time.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -393,12 +442,18 @@ pub struct EncString {
 
 impl EncString {
     /// The envelope type (0 or 2 — everything else fails to parse).
+    #[must_use]
     pub fn enc_type(&self) -> EncType {
         self.enc_type
     }
 
     /// Parse, mapping the empty string to `None` rather than an error. The
     /// Bitwarden API uses `""` and `null` interchangeably for absent fields.
+    ///
+    /// # Errors
+    ///
+    /// Returns a named parse error when a nonempty value is not a supported,
+    /// structurally valid `EncString`.
     pub fn parse_optional(raw: Option<&str>) -> Result<Option<Self>> {
         match raw.map(str::trim) {
             None | Some("") => Ok(None),
@@ -521,12 +576,16 @@ mod tests {
     use super::*;
 
     fn key64() -> SymmetricKey {
-        let bytes: Vec<u8> = (0u8..64).map(|i| i.wrapping_mul(7).wrapping_add(3)).collect();
+        let bytes: Vec<u8> = (0u8..64)
+            .map(|i| i.wrapping_mul(7).wrapping_add(3))
+            .collect();
         SymmetricKey::from_bytes(&bytes).unwrap()
     }
 
     fn key32() -> SymmetricKey {
-        let bytes: Vec<u8> = (0u8..32).map(|i| i.wrapping_mul(11).wrapping_add(5)).collect();
+        let bytes: Vec<u8> = (0u8..32)
+            .map(|i| i.wrapping_mul(11).wrapping_add(5))
+            .collect();
         SymmetricKey::from_bytes(&bytes).unwrap()
     }
 
@@ -591,12 +650,15 @@ mod tests {
         assert!(error.to_string().len() < 64, "{error}");
     }
 
-    /// Table-driven: no malformed EncString may panic, and every one of them
+    /// Table-driven: no malformed `EncString` may panic, and every one of them
     /// must produce a named error rather than a partial parse.
     #[test]
     fn malformed_enc_strings_never_panic() {
         let key = key64();
-        let good = key.encrypt_with_iv(b"payload", [4u8; 16]).unwrap().to_string();
+        let good = key
+            .encrypt_with_iv(b"payload", [4u8; 16])
+            .unwrap()
+            .to_string();
         let (head, tail) = good.split_once('.').unwrap();
         let mut parts = tail.split('|');
         let iv = parts.next().unwrap().to_owned();
@@ -620,14 +682,26 @@ mod tests {
             ("iv not base64", format!("2.!!!!|{data}|{mac}")),
             ("data not base64", format!("2.{iv}|!!!!|{mac}")),
             ("mac not base64", format!("2.{iv}|{data}|!!!!")),
-            ("short iv", format!("2.{}|{data}|{mac}", B64.encode([0u8; 8]))),
-            ("long iv", format!("2.{}|{data}|{mac}", B64.encode([0u8; 32]))),
-            ("short mac", format!("2.{iv}|{data}|{}", B64.encode([0u8; 16]))),
+            (
+                "short iv",
+                format!("2.{}|{data}|{mac}", B64.encode([0u8; 8])),
+            ),
+            (
+                "long iv",
+                format!("2.{}|{data}|{mac}", B64.encode([0u8; 32])),
+            ),
+            (
+                "short mac",
+                format!("2.{iv}|{data}|{}", B64.encode([0u8; 16])),
+            ),
             (
                 "unaligned ciphertext",
                 format!("2.{iv}|{}|{mac}", B64.encode([0u8; 17])),
             ),
-            ("empty ciphertext bytes", format!("2.{iv}|{}|{mac}", B64.encode([0u8; 0]))),
+            (
+                "empty ciphertext bytes",
+                format!("2.{iv}|{}|{mac}", B64.encode([0u8; 0])),
+            ),
             ("truncated wire", good[..good.len() / 2].to_owned()),
             ("negative type", "-1.a|b".into()),
             ("float type", "2.5.a|b".into()),
@@ -690,7 +764,10 @@ mod tests {
         let legacy = key32();
         let type2 = authenticated.encrypt_with_iv(b"x", [6u8; 16]).unwrap();
         let type0 = legacy.encrypt_with_iv(b"x", [6u8; 16]).unwrap();
-        assert_eq!(legacy.decrypt(&type2).unwrap_err().code(), "key_kind_mismatch");
+        assert_eq!(
+            legacy.decrypt(&type2).unwrap_err().code(),
+            "key_kind_mismatch"
+        );
         assert_eq!(
             authenticated.decrypt(&type0).unwrap_err().code(),
             "key_kind_mismatch"
@@ -703,7 +780,9 @@ mod tests {
             // `.err()` rather than `.unwrap_err()`: `SymmetricKey` has no
             // `Debug`, so the compiler itself enforces that a key can never be
             // printed by a test helper.
-            let error = SymmetricKey::from_bytes(&vec![0u8; len]).err().expect("rejected");
+            let error = SymmetricKey::from_bytes(&vec![0u8; len])
+                .err()
+                .expect("rejected");
             assert!(matches!(error, Error::InvalidKeyLength(l) if l == len));
         }
         assert!(SymmetricKey::from_bytes(&[0u8; 32]).is_ok());
@@ -760,7 +839,9 @@ mod tests {
             "invalid_kdf_parameters"
         );
         assert_eq!(
-            Kdf::from_prelogin(1, 0, Some(64), Some(4)).unwrap_err().code(),
+            Kdf::from_prelogin(1, 0, Some(64), Some(4))
+                .unwrap_err()
+                .code(),
             "invalid_kdf_parameters"
         );
         assert_eq!(
@@ -769,7 +850,10 @@ mod tests {
                 .code(),
             "invalid_kdf_parameters"
         );
-        assert_eq!(Kdf::from_prelogin(9, 3, None, None).unwrap_err().code(), "unsupported_kdf");
+        assert_eq!(
+            Kdf::from_prelogin(9, 3, None, None).unwrap_err().code(),
+            "unsupported_kdf"
+        );
         assert_eq!(
             Kdf::default(),
             Kdf::Pbkdf2 {
@@ -806,7 +890,9 @@ mod tests {
         // Pre-stretch accounts wrapped the user key with the master key.
         let raw_master = SymmetricKey::from_bytes(&master_bytes).unwrap();
         let user_key_bytes: Vec<u8> = (0u8..64).map(|i| i.wrapping_mul(5)).collect();
-        let wrapped = raw_master.encrypt_with_iv(&user_key_bytes, [8u8; 16]).unwrap();
+        let wrapped = raw_master
+            .encrypt_with_iv(&user_key_bytes, [8u8; 16])
+            .unwrap();
         assert_eq!(wrapped.enc_type(), EncType::AesCbc256B64);
         let unwrapped = master.decrypt_user_key(&wrapped).unwrap();
         assert_eq!(unwrapped.to_bytes().to_vec(), user_key_bytes);
@@ -822,7 +908,11 @@ mod tests {
             .unwrap();
         assert_eq!(wrapped.enc_type(), EncType::AesCbc256HmacSha256B64);
         assert_eq!(
-            master.decrypt_user_key(&wrapped).unwrap().to_bytes().to_vec(),
+            master
+                .decrypt_user_key(&wrapped)
+                .unwrap()
+                .to_bytes()
+                .to_vec(),
             user_key_bytes
         );
     }
@@ -830,7 +920,10 @@ mod tests {
     #[test]
     fn a_user_key_that_is_not_32_or_64_bytes_is_rejected() {
         let master = MasterKey::from_bytes([1u8; 32]);
-        let wrapped = master.stretch().encrypt_with_iv(&[0u8; 48], [11u8; 16]).unwrap();
+        let wrapped = master
+            .stretch()
+            .encrypt_with_iv(&[0u8; 48], [11u8; 16])
+            .unwrap();
         assert_eq!(
             master
                 .decrypt_user_key(&wrapped)

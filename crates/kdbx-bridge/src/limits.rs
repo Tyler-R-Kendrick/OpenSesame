@@ -1,4 +1,4 @@
-//! Resource limits screened out of a KDBX outer header before decryption.
+//! Resource limits screened out of a `KDBX` outer header before decryption.
 //!
 //! A KDBX file names its own KDF parameters, and the reader runs them *before*
 //! it can authenticate anything — the key derivation is what produces the key
@@ -9,7 +9,7 @@
 //! `keepass` has no API for inspecting the outer header without deriving, so
 //! this module walks the KDBX 4 outer header itself — bounds-checked, no
 //! allocation, no crypto — and refuses obviously hostile work factors up
-//! front. KeePass's own limits are far below these; a real database written by
+//! front. `KeePass`'s own limits are far below these; a real database written by
 //! any mainstream client passes.
 //!
 //! The screen is best effort by design: a header this walker cannot follow is
@@ -19,14 +19,14 @@
 
 use crate::KdbxError;
 
-/// Largest Argon2 memory cost accepted, in bytes. KeePassXC's own maximum is
+/// Largest `Argon2` memory cost accepted, in bytes. `KeePassXC`'s own maximum is
 /// far below this; its default is 64 MiB.
 pub const MAX_KDF_MEMORY_BYTES: u64 = 1 << 30;
-/// Largest Argon2 pass count accepted. KeePass defaults to single digits.
+/// Largest `Argon2` pass count accepted. `KeePass` defaults to single digits.
 pub const MAX_KDF_ITERATIONS: u64 = 1 << 12;
 /// Largest Argon2 lane count accepted.
 pub const MAX_KDF_PARALLELISM: u32 = 64;
-/// Largest AES-KDF round count accepted. KeePass defaults to 60 000.
+/// Largest `AES-KDF` round count accepted. `KeePass` defaults to 60 000.
 pub const MAX_AES_KDF_ROUNDS: u64 = 1 << 26;
 
 /// Longest outer header this walker will follow, in bytes. A real KDBX 4
@@ -203,9 +203,17 @@ mod tests {
         vd.extend_from_slice(&0x0100u16.to_le_bytes());
         for (name, value_type, value) in entries {
             vd.push(*value_type);
-            vd.extend_from_slice(&(name.len() as u32).to_le_bytes());
+            vd.extend_from_slice(
+                &u32::try_from(name.len())
+                    .expect("fixture name length fits u32")
+                    .to_le_bytes(),
+            );
             vd.extend_from_slice(name);
-            vd.extend_from_slice(&(value.len() as u32).to_le_bytes());
+            vd.extend_from_slice(
+                &u32::try_from(value.len())
+                    .expect("fixture value length fits u32")
+                    .to_le_bytes(),
+            );
             vd.extend_from_slice(value);
         }
         vd.push(VD_END);
@@ -220,7 +228,11 @@ mod tests {
         out.extend_from_slice(&[0u8; 32]);
         // The KDF parameters.
         out.push(HEADER_KDF_PARAMS);
-        out.extend_from_slice(&(vd.len() as u32).to_le_bytes());
+        out.extend_from_slice(
+            &u32::try_from(vd.len())
+                .expect("fixture dictionary length fits u32")
+                .to_le_bytes(),
+        );
         out.extend_from_slice(&vd);
         // End of header.
         out.push(HEADER_END);

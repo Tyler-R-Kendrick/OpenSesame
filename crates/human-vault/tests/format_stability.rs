@@ -10,6 +10,8 @@
 //! existing archives: the key derivation, the associated-data digest, and the
 //! frame layout itself.
 
+use std::fmt::Write as _;
+
 use opensesame_human_vault::{
     chunk_ad_digest, derive_attachment_key, open_chunk, ChunkAd, ItemDataKey, ENVELOPE_VERSION,
     OSCHUNK_HEADER_LEN, OSCHUNK_MAGIC,
@@ -48,7 +50,10 @@ fn key_derivation_is_frozen() {
     // Changing the HKDF info string, the salt, or the ikm would all still look
     // like working code — and would orphan every attachment ever sealed.
     let key = derive_attachment_key(&ItemDataKey(ITEM_KEY), &ATTACHMENT_ID_BYTES);
-    let hex: String = key.0.iter().map(|b| format!("{b:02x}")).collect();
+    let mut hex = String::with_capacity(key.0.len() * 2);
+    for byte in key.0 {
+        write!(hex, "{byte:02x}").expect("writing to a String cannot fail");
+    }
     assert_eq!(
         hex, "742afdbd3039256b9da1ebaaeece83a4ce651a82b9a53c266ef76a1b9ff61fb6",
         "attachment key derivation changed; every sealed attachment is now unreadable"
