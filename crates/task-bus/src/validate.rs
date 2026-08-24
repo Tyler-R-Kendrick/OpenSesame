@@ -1,6 +1,10 @@
 //! Operator URL and system-event guards shared by Host and fuzz oracles.
 
 /// Validate operator-supplied NATS URL (no http(s) — that is not the NATS protocol).
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn validate_nats_url(url: &str) -> Result<(), String> {
     let url = url.trim();
     if url.is_empty() {
@@ -20,11 +24,13 @@ pub fn validate_nats_url(url: &str) -> Result<(), String> {
 }
 
 /// Host-only system wake types (not callout-user publishable).
+#[must_use]
 pub fn is_system_event_type(event_type: &str) -> bool {
     event_type.starts_with("system.")
 }
 
-/// Full JetStream subject for a CloudEvents type under the default prefix.
+/// Full `JetStream` subject for a `CloudEvents` type under the default prefix.
+#[must_use]
 pub fn system_event_subject(event_type: &str) -> String {
     crate::event_subject(crate::DEFAULT_SUBJECT_PREFIX, event_type)
 }

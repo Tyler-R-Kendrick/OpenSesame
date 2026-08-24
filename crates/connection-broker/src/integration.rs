@@ -91,7 +91,7 @@ struct IntegrationRow {
     updated_at: DateTime<Utc>,
 }
 
-fn text(value: String, field: &str) -> Result<String> {
+fn text(value: &str, field: &str) -> Result<String> {
     let value = value.trim().to_string();
     if value.is_empty() {
         return Err(BrokerError::Invalid(format!("{field} is required")));
@@ -100,6 +100,20 @@ fn text(value: String, field: &str) -> Result<String> {
         return Err(BrokerError::Invalid(format!("{field} exceeds 1024 bytes")));
     }
     Ok(value)
+}
+
+fn supplied_credentials(
+    client_id: Option<String>,
+    client_secret: Option<String>,
+) -> Vec<(&'static str, String)> {
+    let mut fields = Vec::with_capacity(2);
+    if let Some(client_id) = client_id {
+        fields.push(("client_id", client_id.trim().to_owned()));
+    }
+    if let Some(client_secret) = client_secret {
+        fields.push(("client_secret", client_secret));
+    }
+    fields
 }
 
 fn parse_time(raw: &str) -> DateTime<Utc> {
@@ -147,8 +161,8 @@ fn row_from_sql(row: &sqlx::sqlite::SqliteRow) -> IntegrationRow {
     }
 }
 
-fn hint(client_id: &Option<String>) -> Option<String> {
-    client_id.as_ref().map(|value| {
+fn hint(client_id: Option<&str>) -> Option<String> {
+    client_id.map(|value| {
         let suffix: String = value
             .chars()
             .rev()
@@ -275,7 +289,7 @@ impl ConnectionBroker {
     }
 
     async fn row_view(&self, row: IntegrationRow) -> Result<IntegrationView> {
-        let provider = self.provider(&row.provider_id)?;
+        let provider = Self::provider(&row.provider_id)?;
         let configuration = self.integration_configuration(&row)?;
         let configured_fields =
             configuration::views(provider.integration_configuration_fields(), &configuration);
@@ -316,14 +330,13 @@ impl ConnectionBroker {
             return None;
         }
         let cfg = self.config.provider(&provider.id);
-        let configuration = Configuration::from_iter(
-            [
-                ("client_id", cfg.client_id.as_ref()),
-                ("client_secret", cfg.client_secret.as_ref()),
-            ]
-            .into_iter()
-            .filter_map(|(name, value)| value.map(|value| (name.into(), value.clone()))),
-        );
+        let configuration: Configuration = [
+            ("client_id", cfg.client_id.as_ref()),
+            ("client_secret", cfg.client_secret.as_ref()),
+        ]
+        .into_iter()
+        .filter_map(|(name, value)| value.map(|value| (name.into(), value.clone())))
+        .collect();
         Some(IntegrationView {
             id: format!("{DEPLOYMENT_PREFIX}{}", provider.id),
             key: format!("deployment-{}", provider.id),
@@ -341,7 +354,7 @@ impl ConnectionBroker {
                 .is_oauth()
                 .then(|| self.config.callback_url(&provider.id)),
             scopes: provider.default_scopes(),
-            client_id_hint: hint(&cfg.client_id),
+            client_id_hint: hint(cfg.client_id.as_deref()),
             has_client_secret: cfg.client_secret.is_some(),
             configured_fields: configuration::views(
                 provider.integration_configuration_fields(),
@@ -355,6 +368,9 @@ impl ConnectionBroker {
         })
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when catalog or storage access fails.
     pub async fn list_integrations(
         &self,
         organization_id: &OrganizationId,
@@ -388,6 +404,9 @@ impl ConnectionBroker {
         Ok(views)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when storage fails or the integration does not exist.
     pub async fn get_integration(
         &self,
         organization_id: &OrganizationId,
@@ -400,35 +419,28 @@ impl ConnectionBroker {
             .ok_or(BrokerError::IntegrationNotFound)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when input, scopes, configuration, sealing, or storage fails.
     pub async fn create_integration(
         &self,
         organization_id: &OrganizationId,
         request: CreateIntegration,
     ) -> Result<IntegrationView> {
-        let key = text(request.key, "key")?;
-        let provider_id = text(request.provider_id, "provider_id")?;
-        let display_name = text(request.display_name, "display_name")?;
-        let provider = self.provider(&provider_id)?;
+        let key = text(&request.key, "key")?;
+        let provider_id = text(&request.provider_id, "provider_id")?;
+        let display_name = text(&request.display_name, "display_name")?;
+        let provider = Self::provider(&provider_id)?;
         let id = format!("integration_{}", uuid::Uuid::new_v4());
         let mut configuration = request.configuration;
-        for (name, value) in [
-            ("client_id", request.client_id),
-            ("client_secret", request.client_secret),
-        ] {
-            if let Some(value) = value {
-                let value = if name == "client_id" {
-                    value.trim().to_string()
-                } else {
-                    value
-                };
-                if value.is_empty() {
-                    continue;
-                }
-                if configuration.insert(name.into(), value).is_some() {
-                    return Err(BrokerError::Invalid(format!(
-                        "configuration field `{name}` was supplied twice"
-                    )));
-                }
+        for (name, value) in supplied_credentials(request.client_id, request.client_secret) {
+            if value.is_empty() {
+                continue;
+            }
+            if configuration.insert(name.into(), value).is_some() {
+                return Err(BrokerError::Invalid(format!(
+                    "configuration field `{name}` was supplied twice"
+                )));
             }
         }
         configuration::validate_mutation(
@@ -460,7 +472,7 @@ impl ConnectionBroker {
         .bind(sealed.as_ref().map(|s| &s.nonce))
         .bind(sealed.as_ref().map(|s| &s.aad_digest))
         .bind(serde_json::to_string(&configured_field_names)?)
-        .bind(text(request.created_by, "created_by")?)
+        .bind(text(&request.created_by, "created_by")?)
         .bind(now.to_rfc3339())
         .bind(now.to_rfc3339())
         .execute(&self.pool)
@@ -480,6 +492,9 @@ impl ConnectionBroker {
     /// The App's private key and webhook secret are sealed alongside — they are
     /// what lets the backup actor mint installation tokens server-side and
     /// verify inbound webhooks (ADR 0039).
+    /// # Errors
+    ///
+    /// Returns an error when credentials, scopes, sealing, or storage validation fails.
     pub async fn register_github_app_credentials(
         &self,
         organization_id: &OrganizationId,
@@ -550,6 +565,9 @@ impl ConnectionBroker {
     /// Unseal the GitHub App signing material for server-side installation
     /// token minting. Never crosses the API boundary; the backup actor is the
     /// only caller.
+    /// # Errors
+    ///
+    /// Returns an error when the integration is unavailable or cannot be opened.
     pub async fn github_app_signing_material(
         &self,
         organization_id: &OrganizationId,
@@ -572,6 +590,9 @@ impl ConnectionBroker {
     }
 
     /// Unseal GitHub App webhook secret for signature verification (Host only).
+    /// # Errors
+    ///
+    /// Returns an error when the integration is unavailable or cannot be opened.
     pub async fn github_webhook_secret(
         &self,
         organization_id: &OrganizationId,
@@ -585,6 +606,9 @@ impl ConnectionBroker {
     }
 
     /// List GitHub App installations for backup/setup UX (ids + account login only).
+    /// # Errors
+    ///
+    /// Returns an error when signing material or the GitHub request is invalid.
     pub async fn list_github_app_installations(
         &self,
         organization_id: &OrganizationId,
@@ -607,6 +631,9 @@ impl ConnectionBroker {
         .map_err(|e| BrokerError::Invalid(e.to_string()))
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when mutation validation, transactional storage, or sealing fails.
     pub async fn update_integration(
         &self,
         organization_id: &OrganizationId,
@@ -618,23 +645,13 @@ impl ConnectionBroker {
         }
         let mut configuration_set = request.configuration_set;
         let mut configuration_clear = request.configuration_clear;
-        for (name, value) in [
-            ("client_id", request.client_id),
-            ("client_secret", request.client_secret),
-        ] {
-            if let Some(value) = value {
-                let value = if name == "client_id" {
-                    value.trim().to_string()
-                } else {
-                    value
-                };
-                if value.is_empty() {
-                    configuration_clear.push(name.into());
-                } else if configuration_set.insert(name.into(), value).is_some() {
-                    return Err(BrokerError::Invalid(format!(
-                        "configuration field `{name}` was supplied twice"
-                    )));
-                }
+        for (name, value) in supplied_credentials(request.client_id, request.client_secret) {
+            if value.is_empty() {
+                configuration_clear.push(name.into());
+            } else if configuration_set.insert(name.into(), value).is_some() {
+                return Err(BrokerError::Invalid(format!(
+                    "configuration field `{name}` was supplied twice"
+                )));
             }
         }
         let configuration_changed =
@@ -663,20 +680,20 @@ impl ConnectionBroker {
                 .await?,
         );
         if let Some(key) = request.key {
-            row.key = text(key, "key")?;
+            row.key = text(&key, "key")?;
         }
         if let Some(name) = request.display_name {
-            row.display_name = text(name, "display_name")?;
+            row.display_name = text(&name, "display_name")?;
         }
         if let Some(enabled) = request.enabled {
             row.enabled = enabled;
         }
         if let Some(scopes) = request.scopes {
-            validate_scopes(self.provider(&row.provider_id)?, &scopes)?;
+            validate_scopes(Self::provider(&row.provider_id)?, &scopes)?;
             row.scopes = scopes;
         }
         if configuration_changed {
-            let provider = self.provider(&row.provider_id)?;
+            let provider = Self::provider(&row.provider_id)?;
             configuration::validate_mutation(
                 provider.integration_configuration_fields(),
                 &configuration_set,
@@ -724,6 +741,9 @@ impl ConnectionBroker {
         self.row_view(row).await
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the integration is immutable, in use, absent, or storage fails.
     pub async fn delete_integration(
         &self,
         organization_id: &OrganizationId,
@@ -794,7 +814,7 @@ impl ConnectionBroker {
                 if let Some(provider_id) = provider_id.filter(|id| {
                     crate::accepts_pasted_access_token(id) && self.config.key().is_some()
                 }) {
-                    let provider = self.provider(provider_id)?;
+                    let provider = Self::provider(provider_id)?;
                     let scopes: Vec<String> = provider
                         .scopes
                         .iter()
@@ -822,7 +842,7 @@ impl ConnectionBroker {
             ));
         }
         let row = self.integration_row(organization_id, &view.id).await?;
-        let provider = self.provider(&row.provider_id)?;
+        let provider = Self::provider(&row.provider_id)?;
         let configuration = self.integration_configuration(&row)?;
         if !row.enabled
             || provider_id.is_some_and(|requested| requested != row.provider_id)

@@ -10,58 +10,126 @@ use opensesame_domain::{
 use std::collections::HashMap;
 
 pub trait TaskStore: Send + Sync {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn get_run(&self, id: TaskRunId) -> Result<Option<TaskRun>, TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn save_run(&self, run: &TaskRun) -> Result<(), TaskAccessError>;
     /// Compare-and-swap persist: succeeds only when the stored row matches `expected_state_version`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn save_run_cas(
         &self,
         run: &TaskRun,
         expected_state_version: u64,
     ) -> Result<(), TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn get_transition(
         &self,
         id: CapabilityStateTransitionId,
     ) -> Result<Option<CapabilityStateTransition>, TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn save_transition(
         &self,
         transition: &CapabilityStateTransition,
     ) -> Result<(), TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn get_pending_transition(
         &self,
         task_run_id: TaskRunId,
     ) -> Result<Option<CapabilityStateTransition>, TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn get_ack_set(
         &self,
         transition_id: CapabilityStateTransitionId,
     ) -> Result<AcknowledgementSet, TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn save_ack_set(
         &self,
         transition_id: CapabilityStateTransitionId,
         set: &AcknowledgementSet,
     ) -> Result<(), TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn get_result_buffer(
         &self,
         task_run_id: TaskRunId,
     ) -> Result<Option<ProtectedResultBuffer>, TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn save_result_buffer(&self, buffer: &ProtectedResultBuffer) -> Result<(), TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn get_credential(
         &self,
         task_run_id: TaskRunId,
     ) -> Result<Option<TaskCredentialRecord>, TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn save_credential(&self, record: &TaskCredentialRecord) -> Result<(), TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn get_ceiling_digest(&self, task_run_id: TaskRunId)
         -> Result<Option<String>, TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn save_ceiling_digest(
         &self,
         task_run_id: TaskRunId,
         digest: &str,
     ) -> Result<(), TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn set_pending_transition(
         &self,
         task_run_id: TaskRunId,
         transition_id: CapabilityStateTransitionId,
     ) -> Result<(), TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn clear_pending_transition(&self, task_run_id: TaskRunId) -> Result<(), TaskAccessError>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn list_runs(&self) -> Result<Vec<TaskRun>, TaskAccessError>;
 }
 
@@ -69,9 +137,9 @@ fn lock_err() -> TaskAccessError {
     TaskAccessError::Domain(DomainError::Canonicalization("lock".into()))
 }
 
-fn lock_map<'a, K: Eq + std::hash::Hash, V>(
-    map: &'a std::sync::Mutex<HashMap<K, V>>,
-) -> Result<std::sync::MutexGuard<'a, HashMap<K, V>>, TaskAccessError> {
+fn lock_map<K: Eq + std::hash::Hash, V>(
+    map: &std::sync::Mutex<HashMap<K, V>>,
+) -> Result<std::sync::MutexGuard<'_, HashMap<K, V>>, TaskAccessError> {
     map.lock().map_err(|_| lock_err())
 }
 
@@ -89,6 +157,7 @@ pub struct InMemoryTaskStore {
 impl InMemoryTaskStore {
     pub const MAX_RUNS: usize = 512;
 
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -429,6 +498,10 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         &self.store
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn compile_ceiling(
         &self,
         inputs: Vec<CeilingInput>,
@@ -437,34 +510,58 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         Ok(CeilingCompilation::compile(inputs, now)?)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn start_task(&self, params: StartTaskParams) -> Result<TaskRun, TaskAccessError> {
-        params
-            .authority_context
-            .assert_single_effective_principal()?;
+        let StartTaskParams {
+            template_id,
+            authority_context,
+            ceiling,
+            maximum_expires_at,
+            now,
+        } = params;
+        authority_context.assert_single_effective_principal()?;
+        let AuthorityContext {
+            id: authority_context_id,
+            organization_id,
+            project_id,
+            principal_ids,
+            ..
+        } = authority_context;
+        let CeilingCompilation {
+            compiled_ceiling,
+            ceiling_digest,
+            ..
+        } = ceiling;
         let mut run = TaskRun {
             id: TaskRunId::new(),
-            template_id: params.template_id,
-            organization_id: params.authority_context.organization_id,
-            project_id: params.authority_context.project_id,
-            principal_id: params.authority_context.principal_ids[0],
-            authority_context_id: params.authority_context.id,
+            template_id,
+            organization_id,
+            project_id,
+            principal_id: principal_ids[0],
+            authority_context_id,
             status: TaskRunStatus::Active,
-            capability_ceiling: params.ceiling.compiled_ceiling.clone(),
-            current_capabilities: params.ceiling.compiled_ceiling.clone(),
+            capability_ceiling: compiled_ceiling.clone(),
+            current_capabilities: compiled_ceiling,
             state_version: 1,
             state_digest: String::new(),
-            maximum_expires_at: params.maximum_expires_at,
-            created_at: params.now,
-            updated_at: params.now,
+            maximum_expires_at,
+            created_at: now,
+            updated_at: now,
         };
         run.state_digest = run.compute_state_digest()?;
         self.store.save_run(&run)?;
-        self.store
-            .save_ceiling_digest(run.id, &params.ceiling.ceiling_digest)?;
+        self.store.save_ceiling_digest(run.id, &ceiling_digest)?;
         Ok(run)
     }
 
     /// Ceiling digest is immutable after task activation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_ceiling_unchanged(&self, run: &TaskRun) -> Result<(), TaskAccessError> {
         let stored = self
             .store
@@ -477,6 +574,10 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_capability(
         &self,
         task_run_id: TaskRunId,
@@ -503,6 +604,10 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         Ok(run)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn propose_restriction(
         &self,
         params: ProposeRestrictionParams,
@@ -562,6 +667,10 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         Ok(transition)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn acknowledge(
         &self,
         transition_id: CapabilityStateTransitionId,
@@ -574,10 +683,15 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         ack.assert_matches_transition(transition.task_run_id, transition.to_state_version)?;
         let mut set = self.store.get_ack_set(transition_id)?;
         set.accept(&ack)?;
+        drop(ack);
         self.store.save_ack_set(transition_id, &set)?;
         Ok(set)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn commit_transition(
         &self,
         task_run_id: TaskRunId,
@@ -634,6 +748,10 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         Ok(run)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn release_result_buffer(
         &self,
         task_run_id: TaskRunId,
@@ -648,6 +766,10 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         Ok(buffer)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn renew_credential(
         &self,
         params: RenewCredentialParams,
@@ -677,6 +799,10 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         Ok(record)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_authority_context_unchanged(
         &self,
         run: &TaskRun,
@@ -688,7 +814,11 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         Ok(())
     }
 
-    /// Terminate a task — marks Cancelled and bumps state version. Further assert_capability calls fail.
+    /// Terminate a task — marks Cancelled and bumps state version. Further `assert_capability` calls fail.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn terminate_task(
         &self,
         task_run_id: TaskRunId,
@@ -711,6 +841,10 @@ impl<S: TaskStore> TaskAccessEngine<S> {
         Ok(run)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn list_runs(&self) -> Result<Vec<TaskRun>, TaskAccessError> {
         self.store.list_runs()
     }

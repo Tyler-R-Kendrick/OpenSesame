@@ -18,17 +18,21 @@ pub struct DelegationChain {
 }
 
 impl DelegationChain {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn validate(&self, max_depth: u32) -> Result<(), DomainError> {
         if self.hops.is_empty() {
             return Ok(());
         }
-        if self.hops.len() as u32 > max_depth {
+        if self.hops.len() > max_depth as usize {
             return Err(DomainError::DelegationDepthExceeded);
         }
 
         let mut seen_grants = std::collections::HashSet::new();
         for (i, hop) in self.hops.iter().enumerate() {
-            if hop.index != i as u32 {
+            if usize::try_from(hop.index) != Ok(i) {
                 return Err(DomainError::DelegationChainInvalid(format!(
                     "hop index {i} expected, got {}",
                     hop.index
@@ -51,10 +55,12 @@ impl DelegationChain {
         Ok(())
     }
 
+    #[must_use]
     pub fn depth(&self) -> u32 {
-        self.hops.len() as u32
+        u32::try_from(self.hops.len()).unwrap_or(u32::MAX)
     }
 
+    #[must_use]
     pub fn grant_ids(&self) -> Vec<GrantId> {
         self.hops.iter().map(|h| h.grant_id).collect()
     }

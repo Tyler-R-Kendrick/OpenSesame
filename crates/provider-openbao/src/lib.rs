@@ -1,6 +1,6 @@
-//! OpenBao credential authority adapter.
-//! OpenBao is a provider — not the public domain model.
-//! Agents never receive SecretRef material through this trait's agent-safe paths.
+//! `OpenBao` credential authority adapter.
+//! `OpenBao` is a provider — not the public domain model.
+//! Agents never receive `SecretRef` material through this trait's agent-safe paths.
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,10 @@ pub enum AuthorityError {
 }
 
 /// Operator authority base URL: https, or loopback http. No userinfo.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn assert_authority_base_url(raw: &str) -> Result<(), AuthorityError> {
     let url = url::Url::parse(raw.trim()).map_err(|e| AuthorityError::Provider(e.to_string()))?;
     if !url.username().is_empty() || url.password().is_some() {
@@ -55,7 +59,7 @@ pub enum CredentialOperation {
     Decrypt {
         ciphertext: Vec<u8>,
     },
-    /// Explicitly denied for agent paths — use ConnectionRef invoke instead.
+    /// Explicitly denied for agent paths — use `ConnectionRef` invoke instead.
     BearerHttpPlaceholder,
 }
 
@@ -90,7 +94,7 @@ pub trait CredentialAuthority: Send + Sync {
     async fn health(&self) -> Result<AuthorityHealth, AuthorityError>;
 }
 
-/// Local stand-in used when OpenBao is not reachable (dev/tests).
+/// Local stand-in used when `OpenBao` is not reachable (dev/tests).
 pub struct MemoryAuthority {
     pub quorum_ok: bool,
     pub sealed: bool,
@@ -154,6 +158,10 @@ impl CredentialAuthority for MemoryAuthority {
 ///
 /// A sealed or uninitialized response never becomes a usable handle. A missing
 /// `sealed` field is unavailable, not "open".
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn parse_sys_health(body: &Value) -> Result<AuthorityHealth, AuthorityError> {
     let sealed = match body.get("sealed") {
         Some(Value::Bool(v)) => *v,
@@ -179,6 +187,10 @@ pub fn parse_sys_health(body: &Value) -> Result<AuthorityHealth, AuthorityError>
 
 /// Refuse to mint a credential handle from a health document that is sealed
 /// or missing required fields.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn handle_from_health(body: &Value, path: &str) -> Result<CredentialHandle, AuthorityError> {
     let health = parse_sys_health(body)?;
     if health.sealed || !health.quorum_ok {
@@ -201,7 +213,7 @@ impl MemoryAuthority {
     }
 }
 
-/// Live OpenBao HTTP client (dev or production). Never returns raw secrets to agent callers
+/// Live `OpenBao` HTTP client (dev or production). Never returns raw secrets to agent callers
 /// through [`CredentialOperation::BearerHttpPlaceholder`].
 #[derive(Clone, Debug)]
 pub struct OpenBaoHttpAuthority {
@@ -211,6 +223,10 @@ pub struct OpenBaoHttpAuthority {
 }
 
 impl OpenBaoHttpAuthority {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn from_env() -> Result<Option<Self>, AuthorityError> {
         let base = match std::env::var("OPENSESAME_OPENBAO_URL") {
             Ok(u) if !u.trim().is_empty() => u.trim_end_matches('/').to_string(),
@@ -269,6 +285,10 @@ impl OpenBaoHttpAuthority {
     }
 
     /// Store a secret under KV v2 for internal connector use — not agent-readable.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub async fn kv_put(&self, mount: &str, path: &str, data: Value) -> Result<(), AuthorityError> {
         self.request(
             reqwest::Method::POST,
@@ -279,6 +299,10 @@ impl OpenBaoHttpAuthority {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub async fn kv_get(&self, mount: &str, path: &str) -> Result<Value, AuthorityError> {
         let body = self
             .request(

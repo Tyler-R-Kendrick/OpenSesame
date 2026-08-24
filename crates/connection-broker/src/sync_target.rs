@@ -1,9 +1,9 @@
 //! Host sync targets: project config → connector fan-out (Doppler-parity sync).
 //!
 //! Agents never receive secret values. Sync loads authority-plane sealed
-//! connection credentials on Host, authorizes via active ConnectionRef, and
+//! connection credentials on Host, authorizes via active `ConnectionRef`, and
 //! invokes provider egress (`env.set` / `secrets.sync`). Catalog `doppler` is a
-//! SaaS connector — not this path — and nothing shells out to the Doppler CLI.
+//! `SaaS` connector — not this path — and nothing shells out to the Doppler CLI.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -30,6 +30,7 @@ pub enum SyncTargetStatus {
 }
 
 impl SyncTargetStatus {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Idle => "idle",
@@ -39,6 +40,7 @@ impl SyncTargetStatus {
         }
     }
 
+    #[must_use]
     pub fn parse(raw: &str) -> Self {
         match raw {
             "syncing" => Self::Syncing,
@@ -49,7 +51,7 @@ impl SyncTargetStatus {
     }
 }
 
-/// Wire view — no secret fields by construction (snake_case Host contract).
+/// Wire view — no secret fields by construction (`snake_case` Host contract).
 #[derive(Clone, Debug, Serialize)]
 pub struct SyncTargetView {
     pub id: String,
@@ -214,6 +216,9 @@ fn operation_allowed(provider_id: &str, operation: &str) -> Result<()> {
 }
 
 impl ConnectionBroker {
+    /// # Errors
+    ///
+    /// Returns an error when validation, ownership, encryption, or storage fails.
     pub async fn create_sync_target(
         &self,
         organization_id: &OrganizationId,
@@ -287,6 +292,9 @@ impl ConnectionBroker {
         Ok(SyncTargetView::from(row))
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when target storage cannot be read.
     pub async fn list_sync_targets(
         &self,
         organization_id: &OrganizationId,
@@ -303,6 +311,9 @@ impl ConnectionBroker {
         Ok(rows.into_iter().map(SyncTargetView::from).collect())
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when storage fails or the target does not exist.
     pub async fn get_sync_target(
         &self,
         organization_id: &OrganizationId,
@@ -312,6 +323,9 @@ impl ConnectionBroker {
         Ok(SyncTargetView::from(row))
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when storage fails or the target does not exist.
     pub async fn delete_sync_target(
         &self,
         organization_id: &OrganizationId,
@@ -325,6 +339,9 @@ impl ConnectionBroker {
 
     /// Sync one target: load sealed credentials, authorize, invoke egress.
     /// Never returns secret values.
+    /// # Errors
+    ///
+    /// Returns an error when source retrieval, credential handling, egress, or storage fails.
     pub async fn sync_target(
         &self,
         organization_id: &OrganizationId,
@@ -429,6 +446,9 @@ impl ConnectionBroker {
 
     /// Fan-out: sync every target for a config. Partial failure records per-target
     /// error without aborting siblings.
+    /// # Errors
+    ///
+    /// Returns an error when target listing or any selected sync fails.
     pub async fn sync_all_for_config(
         &self,
         organization_id: &OrganizationId,
@@ -518,7 +538,7 @@ impl ConnectionBroker {
         let credential = store::get_credential(&self.pool, &connection.id)
             .await?
             .ok_or_else(|| BrokerError::NeedsReauth("connection has no credential".into()))?;
-        let tokens = self.open_tokens(&key, &connection, &credential)?;
+        let tokens = Self::open_tokens(&key, &connection, &credential)?;
         if tokens.access_token.is_empty() {
             return Err(BrokerError::NeedsReauth("access token missing".into()));
         }
@@ -644,21 +664,21 @@ impl ConnectionBroker {
         if parsed.host_str() != Some(authority) {
             return Err(format!("destination host is not {authority}"));
         }
-        let method = method
+        let parsed_method = method
             .parse::<reqwest::Method>()
             .map_err(|_| format!("unsupported method {method}"))?;
-        let mut req = self
+        let mut request = self
             .http
-            .request(method, url)
+            .request(parsed_method, url)
             .header("Authorization", format!("Bearer {}", tokens.access_token))
             .header("Accept", "application/json")
             .header("User-Agent", "OpenSesame-Host/0.1");
         if let Some(body) = body {
-            req = req.json(&body);
+            request = request.json(&body);
         }
-        let res = req.send().await.map_err(|e| e.to_string())?;
-        let status = res.status();
-        let text = res.text().await.map_err(|e| e.to_string())?;
+        let response = request.send().await.map_err(|e| e.to_string())?;
+        let status = response.status();
+        let text = response.text().await.map_err(|e| e.to_string())?;
         if !(200..300).contains(&status.as_u16()) {
             let snippet: String = text.chars().take(240).collect();
             return Err(format!("upstream {status}: {snippet}"));

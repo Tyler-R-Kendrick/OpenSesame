@@ -42,6 +42,10 @@ impl EnforcementAcknowledgement {
     /// Whether this acknowledgement is about the transition it is offered for.
     /// Which mediation point it speaks for is not checked here: only the set of
     /// required points knows whether that one was asked for.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_matches_transition(
         &self,
         task_run_id: TaskRunId,
@@ -81,6 +85,10 @@ impl AcknowledgementSet {
     /// Record an acknowledgement against the point it names. Refuses a point
     /// this transition never asked for, and ignores a repeat of one already
     /// settled so a retry is harmless.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn accept(&mut self, ack: &EnforcementAcknowledgement) -> Result<(), DomainError> {
         if !self.required.contains(&ack.mediation_point_id) {
             return Err(DomainError::MediationAckMismatch(
@@ -97,11 +105,13 @@ impl AcknowledgementSet {
         Ok(())
     }
 
+    #[must_use]
     pub fn satisfied(&self, point: MediationPointId) -> bool {
         self.received.iter().any(|r| r.mediation_point_id == point)
     }
 
     /// Points still to answer. Empty is the only way a transition may commit.
+    #[must_use]
     pub fn outstanding(&self) -> Vec<MediationPointId> {
         self.required
             .iter()
@@ -110,10 +120,15 @@ impl AcknowledgementSet {
             .collect()
     }
 
+    #[must_use]
     pub fn is_complete(&self) -> bool {
         self.outstanding().is_empty()
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_complete(&self) -> Result<(), DomainError> {
         if self.is_complete() {
             Ok(())

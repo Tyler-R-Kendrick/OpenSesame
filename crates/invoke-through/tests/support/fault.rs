@@ -4,7 +4,7 @@
 //! applies it to every connection it accepts, and the accepted-connection
 //! count is observable so fail-closed cases can prove the wire was — or was
 //! never — touched. No randomness, no real network, no sleeps beyond the
-//! SlowDrip byte cadence.
+//! `SlowDrip` byte cadence.
 
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -41,6 +41,10 @@ pub struct FaultListener {
 }
 
 impl FaultListener {
+    #[expect(
+        clippy::excessive_nesting,
+        reason = "the nested tasks model the test listener's accept and connection lifetimes"
+    )]
     pub async fn spawn(fault: Fault) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();

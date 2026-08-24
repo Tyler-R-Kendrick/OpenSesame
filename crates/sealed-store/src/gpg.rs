@@ -7,6 +7,10 @@ use crate::StoreError;
 
 const GPG_ID: &str = ".gpg-id";
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn read_gpg_id(root: &Path) -> Result<Vec<String>, StoreError> {
     let path = root.join(GPG_ID);
     if !path.exists() {
@@ -21,6 +25,10 @@ pub fn read_gpg_id(root: &Path) -> Result<Vec<String>, StoreError> {
         .collect())
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn decrypt_gpg_file(path: &Path) -> Result<Vec<u8>, StoreError> {
     decrypt_gpg(&fs::read(path)?)
 }
@@ -50,6 +58,10 @@ pub(crate) fn decrypt_gpg(ciphertext: &[u8]) -> Result<Vec<u8>, StoreError> {
     Ok(output.stdout)
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn encrypt_gpg_file(
     path: &Path,
     plaintext: &[u8],

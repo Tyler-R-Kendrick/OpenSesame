@@ -42,6 +42,10 @@ pub enum OtpError {
 }
 
 /// Validate and parse an otpauth:// URI (TOTP).
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn parse_otpauth(raw: &str) -> Result<OtpUri, OtpError> {
     let trimmed = raw.trim();
     if !trimmed.to_ascii_lowercase().starts_with("otpauth://") {
@@ -84,9 +88,9 @@ pub fn parse_otpauth(raw: &str) -> Result<OtpUri, OtpError> {
         .map(|(_, v)| v.to_ascii_uppercase())
         .as_deref()
     {
-        None | Some("SHA1") | Some("SHA-1") => OtpAlgorithm::Sha1,
-        Some("SHA256") | Some("SHA-256") => OtpAlgorithm::Sha256,
-        Some("SHA512") | Some("SHA-512") => OtpAlgorithm::Sha512,
+        None | Some("SHA1" | "SHA-1") => OtpAlgorithm::Sha1,
+        Some("SHA256" | "SHA-256") => OtpAlgorithm::Sha256,
+        Some("SHA512" | "SHA-512") => OtpAlgorithm::Sha512,
         Some(other) => {
             return Err(OtpError::InvalidUri(format!(
                 "unsupported algorithm {other}"
@@ -116,11 +120,16 @@ pub fn parse_otpauth(raw: &str) -> Result<OtpUri, OtpError> {
     })
 }
 
+#[must_use]
 pub fn validate_otpauth(raw: &str) -> bool {
     parse_otpauth(raw).is_ok()
 }
 
 /// RFC 6238 TOTP. `at_unix` is seconds since epoch.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn totp_code(otp: &OtpUri, at_unix: u64) -> Result<String, OtpError> {
     if otp.uri.to_ascii_lowercase().contains("otpauth://hotp/") {
         return Err(OtpError::UnsupportedType);
@@ -161,6 +170,7 @@ pub fn totp_code(otp: &OtpUri, at_unix: u64) -> Result<String, OtpError> {
 }
 
 /// Find the first otpauth:// line in trailer text.
+#[must_use]
 pub fn find_otpauth_in_trailer(trailer: &str) -> Option<OtpUri> {
     for line in trailer.lines() {
         let t = line.trim();
@@ -212,7 +222,7 @@ fn decode_base32(input: &str) -> Result<Vec<u8>, OtpError> {
             .iter()
             .position(|&b| b == c as u8)
             .ok_or_else(|| OtpError::Base32(format!("unexpected character \"{c}\"")))?;
-        value = (value << 5) | idx as u32;
+        value = (value << 5) | u32::try_from(idx).expect("base32 alphabet index fits in u32");
         bits += 5;
         if bits >= 8 {
             bits -= 8;

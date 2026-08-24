@@ -2,11 +2,19 @@ use crate::ProofError;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-/// Replay protection for DPoP `jti` values.
+/// Replay protection for `DPoP` `jti` values.
 pub trait ReplayCache: Send + Sync {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn check_and_record(&self, jti: &str) -> Result<(), ProofError>;
 
     /// Record with an explicit clock so entries can expire with the proof window.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn check_and_record_at(&self, jti: &str, now: i64) -> Result<(), ProofError> {
         let _ = now;
         self.check_and_record(jti)
@@ -40,10 +48,12 @@ impl Default for InMemoryReplayCache {
 }
 
 impl InMemoryReplayCache {
+    #[must_use]
     pub fn new() -> Self {
         Self::with_limits(DEFAULT_REPLAY_TTL_SECS, DEFAULT_REPLAY_CAPACITY)
     }
 
+    #[must_use]
     pub fn with_limits(ttl_secs: i64, capacity: usize) -> Self {
         Self {
             seen: Mutex::new(HashMap::new()),

@@ -18,21 +18,24 @@ const MIGRATION_0001: &str = include_str!("../migrations/0001_task_access.sql");
 pub enum TaskAuthorityBackend {
     InMemory,
     SqliteLocal,
-    /// PostgreSQL configured; `migrated` is true after `0001_task_access.sql` applied.
+    /// `PostgreSQL` configured; `migrated` is true after `0001_task_access.sql` applied.
     Postgres {
         migrated: bool,
     },
 }
 
 /// Returns true only when distributed Postgres task authority is configured and migrated.
+#[must_use]
 pub fn distributed_task_authority_ok(backend: TaskAuthorityBackend) -> bool {
     matches!(backend, TaskAuthorityBackend::Postgres { migrated: true })
 }
 
+#[must_use]
 pub fn is_postgres_database_url(url: &str) -> bool {
     !url.is_empty() && (url.starts_with("postgres://") || url.starts_with("postgresql://"))
 }
 
+#[must_use]
 pub fn task_authority_backend_from_url(url: &str) -> TaskAuthorityBackend {
     if is_postgres_database_url(url) {
         TaskAuthorityBackend::Postgres { migrated: false }
@@ -50,18 +53,23 @@ pub struct PostgresTaskAuthorityConfig {
 }
 
 impl PostgresTaskAuthorityConfig {
+    #[must_use]
     pub fn distributed_ready(&self) -> bool {
         is_postgres_database_url(&self.database_url)
     }
 }
 
-/// PostgreSQL implementation of [`TaskStore`] with compare-and-swap on `state_version`.
+/// `PostgreSQL` implementation of [`TaskStore`] with compare-and-swap on `state_version`.
 pub struct PostgresTaskStore {
     pool: PgPool,
     migrated: AtomicBool,
 }
 
 impl PostgresTaskStore {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub async fn connect(database_url: &str) -> Result<Self, TaskAccessError> {
         if !is_postgres_database_url(database_url) {
             return Err(TaskAccessError::Storage(
@@ -81,6 +89,10 @@ impl PostgresTaskStore {
         Ok(store)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub async fn migrate(&self) -> Result<(), TaskAccessError> {
         for stmt in MIGRATION_0001.split(';') {
             let stmt = stmt.trim();
@@ -110,7 +122,7 @@ impl PostgresTaskStore {
         &self.pool
     }
 
-    fn block_on<F: std::future::Future<Output = T>, T>(&self, fut: F) -> T {
+    fn block_on<F: std::future::Future<Output = T>, T>(fut: F) -> T {
         match tokio::runtime::Handle::try_current() {
             Ok(handle) => tokio::task::block_in_place(|| handle.block_on(fut)),
             Err(_) => tokio::runtime::Runtime::new()
@@ -120,7 +132,7 @@ impl PostgresTaskStore {
     }
 }
 
-/// Compile-time reminder that `TaskStore` must not expose SQLite pools to domain services.
+/// Compile-time reminder that `TaskStore` must not expose `SQLite` pools to domain services.
 pub fn assert_store_object_safe<T: TaskStore>() {}
 
 fn status_to_str(status: TaskRunStatus) -> &'static str {
@@ -197,7 +209,7 @@ fn row_to_run(row: &sqlx::postgres::PgRow) -> Result<TaskRun, TaskAccessError> {
         status: status_from_str(row.get::<String, _>("status").as_str())?,
         capability_ceiling: parse_capability_set(ceiling)?,
         current_capabilities: parse_capability_set(current)?,
-        state_version: row.get::<i64, _>("state_version") as u64,
+        state_version: crate::db_u64(row.get::<i64, _>("state_version"))?,
         state_digest: row.get("state_digest"),
         maximum_expires_at: row.get("maximum_expires_at"),
         created_at: row.get("created_at"),
@@ -205,18 +217,28 @@ fn row_to_run(row: &sqlx::postgres::PgRow) -> Result<TaskRun, TaskAccessError> {
     })
 }
 
+async fn stored_state_version(pool: &PgPool, task_run_id: &str) -> Result<u64, TaskAccessError> {
+    let row = sqlx::query("SELECT state_version FROM task_runs WHERE id = $1")
+        .bind(task_run_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| TaskAccessError::Storage(e.to_string()))?
+        .ok_or_else(|| TaskAccessError::TaskNotFound(task_run_id.to_string()))?;
+    crate::db_u64(row.get::<i64, _>("state_version"))
+}
+
 impl TaskStore for PostgresTaskStore {
     fn get_run(&self, id: TaskRunId) -> Result<Option<TaskRun>, TaskAccessError> {
         let pool = self.pool.clone();
         let id_str = id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let row = sqlx::query(
-                r#"
+                r"
                 SELECT id, template_id, organization_id, project_id, principal_id,
                        authority_context_id, status, capability_ceiling, current_capabilities,
                        state_version, state_digest, maximum_expires_at, created_at, updated_at
                 FROM task_runs WHERE id = $1
-                "#,
+                ",
             )
             .bind(&id_str)
             .fetch_optional(&pool)
@@ -229,7 +251,7 @@ impl TaskStore for PostgresTaskStore {
     fn save_run(&self, run: &TaskRun) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let run = run.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             let existing = sqlx::query(
                 "SELECT ceiling_digest, pending_transition_id FROM task_runs WHERE id = $1",
             )
@@ -257,9 +279,9 @@ impl TaskStore for PostgresTaskStore {
     ) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let run = run.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             let result = sqlx::query(
-                r#"
+                r"
                 UPDATE task_runs SET
                     status = $2,
                     current_capabilities = $3,
@@ -267,7 +289,7 @@ impl TaskStore for PostgresTaskStore {
                     state_digest = $5,
                     updated_at = $6
                 WHERE id = $1 AND state_version = $7
-                "#,
+                ",
             )
             .bind(run.id.to_string())
             .bind(status_to_str(run.status))
@@ -275,26 +297,16 @@ impl TaskStore for PostgresTaskStore {
                 serde_json::to_value(&run.current_capabilities)
                     .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
             )
-            .bind(run.state_version as i64)
+            .bind(crate::db_i64(run.state_version)?)
             .bind(&run.state_digest)
             .bind(run.updated_at)
-            .bind(expected_state_version as i64)
+            .bind(crate::db_i64(expected_state_version)?)
             .execute(&pool)
             .await
             .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
 
             if result.rows_affected() == 0 {
-                let actual = sqlx::query("SELECT state_version FROM task_runs WHERE id = $1")
-                    .bind(run.id.to_string())
-                    .fetch_optional(&pool)
-                    .await
-                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
-                let actual_version = match actual {
-                    Some(row) => row.get::<i64, _>("state_version") as u64,
-                    None => {
-                        return Err(TaskAccessError::TaskNotFound(run.id.to_string()));
-                    }
-                };
+                let actual_version = stored_state_version(&pool, &run.id.to_string()).await?;
                 return Err(TaskAccessError::Domain(
                     DomainError::TaskStateVersionMismatch {
                         expected: expected_state_version,
@@ -312,14 +324,14 @@ impl TaskStore for PostgresTaskStore {
     ) -> Result<Option<CapabilityStateTransition>, TaskAccessError> {
         let pool = self.pool.clone();
         let id_str = id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let row = sqlx::query(
-                r#"
+                r"
                 SELECT id, task_run_id, from_state_version, to_state_version, status,
                        removed, resulting_capabilities, trigger_evidence_digest,
                        created_at, committed_at
                 FROM capability_transitions WHERE id = $1
-                "#,
+                ",
             )
             .bind(&id_str)
             .fetch_optional(&pool)
@@ -335,7 +347,7 @@ impl TaskStore for PostgresTaskStore {
     ) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let transition = transition.clone();
-        self.block_on(async move { upsert_transition(&pool, &transition).await })
+        Self::block_on(async move { upsert_transition(&pool, &transition).await })
     }
 
     fn get_pending_transition(
@@ -344,16 +356,16 @@ impl TaskStore for PostgresTaskStore {
     ) -> Result<Option<CapabilityStateTransition>, TaskAccessError> {
         let pool = self.pool.clone();
         let id_str = task_run_id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let row = sqlx::query(
-                r#"
+                r"
                 SELECT t.id, t.task_run_id, t.from_state_version, t.to_state_version, t.status,
                        t.removed, t.resulting_capabilities, t.trigger_evidence_digest,
                        t.created_at, t.committed_at
                 FROM task_runs r
                 JOIN capability_transitions t ON t.id = r.pending_transition_id
                 WHERE r.id = $1
-                "#,
+                ",
             )
             .bind(&id_str)
             .fetch_optional(&pool)
@@ -369,7 +381,7 @@ impl TaskStore for PostgresTaskStore {
     ) -> Result<AcknowledgementSet, TaskAccessError> {
         let pool = self.pool.clone();
         let id_str = transition_id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let row =
                 sqlx::query("SELECT required, received FROM ack_sets WHERE transition_id = $1")
                     .bind(&id_str)
@@ -400,15 +412,15 @@ impl TaskStore for PostgresTaskStore {
         let pool = self.pool.clone();
         let transition_id = transition_id.to_string();
         let set = set.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             sqlx::query(
-                r#"
+                r"
                 INSERT INTO ack_sets (transition_id, required, received)
                 VALUES ($1, $2, $3)
                 ON CONFLICT (transition_id) DO UPDATE SET
                     required = EXCLUDED.required,
                     received = EXCLUDED.received
-                "#,
+                ",
             )
             .bind(&transition_id)
             .bind(
@@ -432,13 +444,13 @@ impl TaskStore for PostgresTaskStore {
     ) -> Result<Option<ProtectedResultBuffer>, TaskAccessError> {
         let pool = self.pool.clone();
         let id_str = task_run_id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let row = sqlx::query(
-                r#"
+                r"
                 SELECT task_run_id, transition_id, state_version, result_digest,
                        payload, released, created_at
                 FROM result_buffers WHERE task_run_id = $1
-                "#,
+                ",
             )
             .bind(&id_str)
             .fetch_optional(&pool)
@@ -448,7 +460,7 @@ impl TaskStore for PostgresTaskStore {
                 Ok(ProtectedResultBuffer {
                     task_run_id: TaskRunId::parse(&row.get::<String, _>("task_run_id"))?,
                     transition_id: row.get("transition_id"),
-                    state_version: row.get::<i64, _>("state_version") as u64,
+                    state_version: crate::db_u64(row.get::<i64, _>("state_version"))?,
                     result_digest: row.get("result_digest"),
                     payload: row.get("payload"),
                     created_at: row.get("created_at"),
@@ -462,9 +474,9 @@ impl TaskStore for PostgresTaskStore {
     fn save_result_buffer(&self, buffer: &ProtectedResultBuffer) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let buffer = buffer.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             sqlx::query(
-                r#"
+                r"
                 INSERT INTO result_buffers
                     (task_run_id, transition_id, state_version, result_digest, payload, released, created_at)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -475,11 +487,11 @@ impl TaskStore for PostgresTaskStore {
                     payload = EXCLUDED.payload,
                     released = EXCLUDED.released,
                     created_at = EXCLUDED.created_at
-                "#,
+                ",
             )
             .bind(buffer.task_run_id.to_string())
             .bind(&buffer.transition_id)
-            .bind(buffer.state_version as i64)
+            .bind(crate::db_i64(buffer.state_version)?)
             .bind(&buffer.result_digest)
             .bind(&buffer.payload)
             .bind(buffer.released)
@@ -497,15 +509,15 @@ impl TaskStore for PostgresTaskStore {
     ) -> Result<Option<TaskCredentialRecord>, TaskAccessError> {
         let pool = self.pool.clone();
         let id_str = task_run_id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let row = sqlx::query(
-                r#"
+                r"
                 SELECT id, task_run_id, credential_digest, state_version, issued_at, expires_at
                 FROM task_credentials
                 WHERE task_run_id = $1
                 ORDER BY issued_at DESC
                 LIMIT 1
-                "#,
+                ",
             )
             .bind(&id_str)
             .fetch_optional(&pool)
@@ -516,7 +528,7 @@ impl TaskStore for PostgresTaskStore {
                     id: opensesame_domain::TaskCredentialId::parse(&row.get::<String, _>("id"))?,
                     task_run_id: TaskRunId::parse(&row.get::<String, _>("task_run_id"))?,
                     credential_digest: row.get("credential_digest"),
-                    state_version: row.get::<i64, _>("state_version") as u64,
+                    state_version: crate::db_u64(row.get::<i64, _>("state_version"))?,
                     issued_at: row.get("issued_at"),
                     expires_at: row.get("expires_at"),
                 })
@@ -528,9 +540,9 @@ impl TaskStore for PostgresTaskStore {
     fn save_credential(&self, record: &TaskCredentialRecord) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let record = record.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             sqlx::query(
-                r#"
+                r"
                 INSERT INTO task_credentials
                     (id, task_run_id, credential_digest, state_version, issued_at, expires_at)
                 VALUES ($1, $2, $3, $4, $5, $6)
@@ -539,12 +551,12 @@ impl TaskStore for PostgresTaskStore {
                     state_version = EXCLUDED.state_version,
                     issued_at = EXCLUDED.issued_at,
                     expires_at = EXCLUDED.expires_at
-                "#,
+                ",
             )
             .bind(record.id.to_string())
             .bind(record.task_run_id.to_string())
             .bind(&record.credential_digest)
-            .bind(record.state_version as i64)
+            .bind(crate::db_i64(record.state_version)?)
             .bind(record.issued_at)
             .bind(record.expires_at)
             .execute(&pool)
@@ -560,7 +572,7 @@ impl TaskStore for PostgresTaskStore {
     ) -> Result<Option<String>, TaskAccessError> {
         let pool = self.pool.clone();
         let id_str = task_run_id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let row = sqlx::query("SELECT ceiling_digest FROM task_runs WHERE id = $1")
                 .bind(&id_str)
                 .fetch_optional(&pool)
@@ -581,12 +593,12 @@ impl TaskStore for PostgresTaskStore {
         let pool = self.pool.clone();
         let id_str = task_run_id.to_string();
         let digest = digest.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let updated = sqlx::query(
-                r#"
+                r"
                 UPDATE task_runs SET ceiling_digest = $2
                 WHERE id = $1 AND (ceiling_digest = '' OR ceiling_digest = $2)
-                "#,
+                ",
             )
             .bind(&id_str)
             .bind(&digest)
@@ -614,7 +626,7 @@ impl TaskStore for PostgresTaskStore {
         transition_id: CapabilityStateTransitionId,
     ) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             sqlx::query("UPDATE task_runs SET pending_transition_id = $2 WHERE id = $1")
                 .bind(task_run_id.to_string())
                 .bind(transition_id.to_string())
@@ -627,7 +639,7 @@ impl TaskStore for PostgresTaskStore {
 
     fn clear_pending_transition(&self, task_run_id: TaskRunId) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             sqlx::query("UPDATE task_runs SET pending_transition_id = NULL WHERE id = $1")
                 .bind(task_run_id.to_string())
                 .execute(&pool)
@@ -639,14 +651,14 @@ impl TaskStore for PostgresTaskStore {
 
     fn list_runs(&self) -> Result<Vec<TaskRun>, TaskAccessError> {
         let pool = self.pool.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             let rows = sqlx::query(
-                r#"
+                r"
                 SELECT id, template_id, organization_id, project_id, principal_id,
                        authority_context_id, status, capability_ceiling, current_capabilities,
                        state_version, state_digest, maximum_expires_at, created_at, updated_at
                 FROM task_runs ORDER BY created_at DESC
-                "#,
+                ",
             )
             .fetch_all(&pool)
             .await
@@ -664,8 +676,8 @@ fn row_to_transition(
     Ok(CapabilityStateTransition {
         id: CapabilityStateTransitionId::parse(&row.get::<String, _>("id"))?,
         task_run_id: TaskRunId::parse(&row.get::<String, _>("task_run_id"))?,
-        from_state_version: row.get::<i64, _>("from_state_version") as u64,
-        to_state_version: row.get::<i64, _>("to_state_version") as u64,
+        from_state_version: crate::db_u64(row.get::<i64, _>("from_state_version"))?,
+        to_state_version: crate::db_u64(row.get::<i64, _>("to_state_version"))?,
         status: transition_status_from_str(row.get::<String, _>("status").as_str())?,
         removed: parse_capability_set(removed)?,
         resulting_capabilities: parse_capability_set(resulting)?,
@@ -682,7 +694,7 @@ async fn upsert_task_run(
     pending_transition_id: Option<&str>,
 ) -> Result<(), TaskAccessError> {
     sqlx::query(
-        r#"
+        r"
         INSERT INTO task_runs (
             id, template_id, organization_id, project_id, principal_id, authority_context_id,
             status, capability_ceiling, current_capabilities, state_version, state_digest,
@@ -699,7 +711,7 @@ async fn upsert_task_run(
             maximum_expires_at = EXCLUDED.maximum_expires_at,
             pending_transition_id = EXCLUDED.pending_transition_id,
             updated_at = EXCLUDED.updated_at
-        "#,
+        ",
     )
     .bind(run.id.to_string())
     .bind(run.template_id.to_string())
@@ -716,7 +728,7 @@ async fn upsert_task_run(
         serde_json::to_value(&run.current_capabilities)
             .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
     )
-    .bind(run.state_version as i64)
+    .bind(crate::db_i64(run.state_version)?)
     .bind(&run.state_digest)
     .bind(ceiling_digest)
     .bind(run.maximum_expires_at)
@@ -734,7 +746,7 @@ async fn upsert_transition(
     transition: &CapabilityStateTransition,
 ) -> Result<(), TaskAccessError> {
     sqlx::query(
-        r#"
+        r"
         INSERT INTO capability_transitions (
             id, task_run_id, from_state_version, to_state_version, status,
             removed, resulting_capabilities, trigger_evidence_digest, created_at, committed_at
@@ -745,12 +757,12 @@ async fn upsert_transition(
             resulting_capabilities = EXCLUDED.resulting_capabilities,
             trigger_evidence_digest = EXCLUDED.trigger_evidence_digest,
             committed_at = EXCLUDED.committed_at
-        "#,
+        ",
     )
     .bind(transition.id.to_string())
     .bind(transition.task_run_id.to_string())
-    .bind(transition.from_state_version as i64)
-    .bind(transition.to_state_version as i64)
+    .bind(crate::db_i64(transition.from_state_version)?)
+    .bind(crate::db_i64(transition.to_state_version)?)
     .bind(transition_status_to_str(transition.status))
     .bind(
         serde_json::to_value(&transition.removed)

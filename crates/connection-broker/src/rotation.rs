@@ -55,6 +55,7 @@ pub enum RotationTarget {
 }
 
 impl RotationTarget {
+    #[must_use]
     pub fn kind(&self) -> &'static str {
         match self {
             Self::Connection { .. } => "connection",
@@ -62,6 +63,7 @@ impl RotationTarget {
         }
     }
 
+    #[must_use]
     pub fn target_id(&self) -> &str {
         match self {
             Self::Connection { connection_id } => connection_id,
@@ -69,6 +71,7 @@ impl RotationTarget {
         }
     }
 
+    #[must_use]
     pub fn from_parts(kind: &str, target_id: &str) -> Option<Self> {
         match kind {
             "connection" => Some(Self::Connection {
@@ -96,10 +99,12 @@ pub struct RotationPolicy {
 }
 
 impl RotationPolicy {
+    #[must_use]
     pub fn interval_duration(&self) -> Duration {
         Duration::from_secs(self.interval_seconds.max(1))
     }
 
+    #[must_use]
     pub fn last_rotated(&self) -> Option<DateTime<Utc>> {
         self.last_rotated_at
             .as_deref()
@@ -108,6 +113,7 @@ impl RotationPolicy {
     }
 
     /// JSON safe for HTTP / agents — strips any accidental secret-shaped keys.
+    #[must_use]
     pub fn public_view(&self) -> Value {
         strip_secret_shaped_keys(serde_json::to_value(self).unwrap_or_else(|_| json!({})))
     }
@@ -117,7 +123,7 @@ impl RotationPolicy {
             target: RotationTarget::from_parts(&row.target_kind, &row.target_id)?,
             id: row.id,
             organization_id: row.organization_id,
-            interval_seconds: row.interval_seconds.max(1) as u64,
+            interval_seconds: u64::try_from(row.interval_seconds.max(1)).ok()?,
             last_rotated_at: row.last_rotated_at,
             enabled: row.enabled,
             created_at: row.created_at.to_rfc3339(),
@@ -162,7 +168,7 @@ pub struct RotationJob {
     pub policy_id: Option<String>,
     pub organization_id: String,
     pub target: RotationTarget,
-    /// Persisted `RotationState` name (snake_case), or `scheduled`.
+    /// Persisted [`RotationState`] name (`snake_case`), or `scheduled`.
     pub state: String,
     pub status: RotationStatus,
     pub detail: Option<String>,
@@ -172,6 +178,7 @@ pub struct RotationJob {
 
 impl RotationJob {
     /// JSON safe for HTTP / agents — strips any accidental secret-shaped keys.
+    #[must_use]
     pub fn public_view(&self) -> Value {
         strip_secret_shaped_keys(serde_json::to_value(self).unwrap_or_else(|_| json!({})))
     }
@@ -210,6 +217,7 @@ fn strip_secret_shaped_keys(mut value: Value) -> Value {
 }
 
 /// Parse a simple interval (`30s`, `5m`, `1h`, `24h`, `7d`, or raw seconds).
+#[must_use]
 pub fn parse_interval(raw: &str) -> Option<Duration> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
@@ -231,6 +239,7 @@ pub fn parse_interval(raw: &str) -> Option<Duration> {
 
 /// Whether a wall-clock instant is due for a policy (used by the scheduler —
 /// the gateway's rotation tick is the production caller).
+#[must_use]
 pub fn policy_due_at(
     policy: &RotationPolicy,
     last_run: Option<DateTime<Utc>>,
@@ -331,6 +340,9 @@ async fn record_rotation_changelog(
 
 /// Durable rotation policy + job surface on the broker.
 impl ConnectionBroker {
+    /// # Errors
+    ///
+    /// Returns an error when policy validation or durable persistence fails.
     pub async fn upsert_rotation_policy(
         &self,
         organization_id: &str,
@@ -359,7 +371,7 @@ impl ConnectionBroker {
             organization_id: organization_id.to_string(),
             target_kind: upsert.target.kind().to_string(),
             target_id: upsert.target.target_id().to_string(),
-            interval_seconds: upsert.interval_seconds.min(i64::MAX as u64) as i64,
+            interval_seconds: i64::try_from(upsert.interval_seconds).unwrap_or(i64::MAX),
             last_rotated_at,
             enabled: upsert.enabled,
             created_at,
@@ -370,6 +382,9 @@ impl ConnectionBroker {
             .ok_or_else(|| BrokerError::Invalid("rotation target kind is unknown".into()))
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when durable policy storage cannot be read.
     pub async fn list_rotation_policies(
         &self,
         organization_id: &str,
@@ -382,6 +397,10 @@ impl ConnectionBroker {
     }
 
     /// Enabled policies across every organization — the scheduler's read.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when durable policy storage cannot be read.
     pub async fn list_enabled_rotation_policies(&self) -> Result<Vec<RotationPolicy>> {
         Ok(store::list_enabled_rotation_policies(&self.pool)
             .await?
@@ -390,25 +409,37 @@ impl ConnectionBroker {
             .collect())
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the durable policy timestamp cannot be updated.
     pub async fn set_policy_last_rotated(&self, id: &str, at: DateTime<Utc>) -> Result<()> {
         store::set_policy_last_rotated(&self.pool, id, &at.to_rfc3339()).await
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when durable job storage cannot be read.
     pub async fn list_rotation_jobs(
         &self,
         organization_id: &str,
         limit: usize,
     ) -> Result<Vec<RotationJob>> {
-        Ok(
-            store::list_rotation_jobs(&self.pool, organization_id, limit.clamp(1, 500) as i64)
-                .await?
-                .into_iter()
-                .filter_map(RotationJob::from_row)
-                .collect(),
+        Ok(store::list_rotation_jobs(
+            &self.pool,
+            organization_id,
+            i64::try_from(limit.clamp(1, 500)).unwrap_or(500),
         )
+        .await?
+        .into_iter()
+        .filter_map(RotationJob::from_row)
+        .collect())
     }
 
     /// Organization-scoped read; a job in another tenant reads as absent.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when durable job storage cannot be read.
     pub async fn get_rotation_job(
         &self,
         organization_id: &str,
@@ -425,6 +456,10 @@ impl ConnectionBroker {
 /// `credential.rotation.requested` in the changelog, then publish the bus
 /// event. The job is durable before the bus write — a partitioned bus
 /// surfaces the error but never loses the job.
+///
+/// # Errors
+///
+/// Returns an error when durable persistence or request-event publication fails.
 pub async fn request_rotation(
     broker: &ConnectionBroker,
     bus: &dyn TaskBus,
@@ -463,6 +498,10 @@ pub async fn request_rotation(
 }
 
 /// Execute one pending rotation job, dispatching on its target kind.
+///
+/// # Errors
+///
+/// Returns an error when the job is invalid or its target cannot be rotated.
 pub async fn execute_rotation(
     broker: &ConnectionBroker,
     bus: &dyn TaskBus,
@@ -525,6 +564,89 @@ async fn defer_store_path_rotation(
     Ok(job)
 }
 
+struct SuccessfulRotation<'a> {
+    broker: &'a ConnectionBroker,
+    bus: &'a dyn TaskBus,
+    organization_id: &'a str,
+    job_id: &'a str,
+    connection_id: &'a str,
+    project_id: Option<&'a str>,
+}
+
+async fn complete_successful_rotation(
+    context: SuccessfulRotation<'_>,
+    state: &mut RotationState,
+    view: &ConnectionView,
+) -> Result<RotationJob> {
+    for (to, detail) in [
+        (RotationState::CandidateGenerated, None),
+        (RotationState::CandidateInstalled, None),
+        (
+            RotationState::CandidateVerified,
+            Some(VERIFY_SKIPPED_DETAIL),
+        ),
+        (RotationState::CandidateActivated, None),
+    ] {
+        advance(context.broker, context.job_id, state, to, detail).await?;
+    }
+    match store::append_config_sync_dirty_for_connection(
+        &context.broker.pool,
+        context.organization_id,
+        context.connection_id,
+    )
+    .await
+    {
+        Ok(dirtied) => {
+            tracing::debug!(
+                rotation_id = %context.job_id,
+                dirtied,
+                "rotation marked dependent configs dirty"
+            );
+        }
+        Err(error) => {
+            let detail = truncate_detail(&format!("dependents update failed: {}", error.hint()));
+            advance(
+                context.broker,
+                context.job_id,
+                state,
+                RotationState::ReconciliationRequired,
+                Some(&detail),
+            )
+            .await?;
+            finish(
+                context.broker,
+                context.bus,
+                context.organization_id,
+                context.job_id,
+                EVENT_ROTATION_FAILED,
+                context.project_id,
+                None,
+            )
+            .await?;
+            return Err(error);
+        }
+    }
+    for to in [
+        RotationState::DependentsUpdated,
+        RotationState::Observing,
+        RotationState::PreviousRevoked,
+        RotationState::RevocationVerified,
+        RotationState::Completed,
+    ] {
+        advance(context.broker, context.job_id, state, to, None).await?;
+    }
+    finish(
+        context.broker,
+        context.bus,
+        context.organization_id,
+        context.job_id,
+        EVENT_ROTATION_SUCCEEDED,
+        context.project_id,
+        Some(credential_version_hint(view)),
+    )
+    .await
+}
+
 /// Execute a pending connection rotation via broker refresh, driving the
 /// `opensesame-rotation` machine and persisting every transition.
 ///
@@ -538,6 +660,10 @@ async fn defer_store_path_rotation(
 /// `RollbackStarted → RollbackCompleted`: the previous credential still stands
 /// (or the broker already marked the connection `needs_reauth` itself) and the
 /// job keeps the error hint, truncated, never token material.
+///
+/// # Errors
+///
+/// Returns an error when the job, connection, state transition, refresh, or dependent update fails.
 pub async fn execute_connection_rotation(
     broker: &ConnectionBroker,
     bus: &dyn TaskBus,
@@ -571,72 +697,17 @@ pub async fn execute_connection_rotation(
 
     match refreshed {
         Ok(view) => {
-            for (to, detail) in [
-                (RotationState::CandidateGenerated, None),
-                (RotationState::CandidateInstalled, None),
-                (
-                    RotationState::CandidateVerified,
-                    Some(VERIFY_SKIPPED_DETAIL),
-                ),
-                (RotationState::CandidateActivated, None),
-            ] {
-                advance(broker, job_id, &mut state, to, detail).await?;
-            }
-            // Dependents: wake the sync actor for every config synced through
-            // this connection. A failure here parks the job for reconciliation
-            // — the new credential is live but dependents may be stale.
-            match store::append_config_sync_dirty_for_connection(&broker.pool, &org, &connection_id)
-                .await
-            {
-                Ok(dirtied) => {
-                    tracing::debug!(
-                        rotation_id = %job_id,
-                        dirtied,
-                        "rotation marked dependent configs dirty"
-                    );
-                }
-                Err(error) => {
-                    let detail =
-                        truncate_detail(&format!("dependents update failed: {}", error.hint()));
-                    advance(
-                        broker,
-                        job_id,
-                        &mut state,
-                        RotationState::ReconciliationRequired,
-                        Some(&detail),
-                    )
-                    .await?;
-                    let job = finish(
-                        broker,
-                        bus,
-                        &org,
-                        job_id,
-                        EVENT_ROTATION_FAILED,
-                        project_id.as_deref(),
-                        None,
-                    )
-                    .await?;
-                    let _ = job;
-                    return Err(error);
-                }
-            }
-            for to in [
-                RotationState::DependentsUpdated,
-                RotationState::Observing,
-                RotationState::PreviousRevoked,
-                RotationState::RevocationVerified,
-                RotationState::Completed,
-            ] {
-                advance(broker, job_id, &mut state, to, None).await?;
-            }
-            finish(
-                broker,
-                bus,
-                &org,
-                job_id,
-                EVENT_ROTATION_SUCCEEDED,
-                project_id.as_deref(),
-                Some(credential_version_hint(&view)),
+            complete_successful_rotation(
+                SuccessfulRotation {
+                    broker,
+                    bus,
+                    organization_id: &org,
+                    job_id,
+                    connection_id: &connection_id,
+                    project_id: project_id.as_deref(),
+                },
+                &mut state,
+                &view,
             )
             .await
         }
@@ -705,6 +776,10 @@ async fn finish(
 }
 
 /// Drain bus messages and execute rotations that were requested.
+///
+/// # Errors
+///
+/// Returns an error when bus events cannot be drained.
 pub async fn consume_rotation_events(
     broker: &ConnectionBroker,
     bus: &dyn TaskBus,
@@ -758,13 +833,27 @@ fn credential_version_hint(view: &ConnectionView) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
     use opensesame_storage::Db;
-    use opensesame_task_bus::InMemoryTaskBus;
+    use opensesame_task_bus::{BusEvent, InMemoryTaskBus};
 
     use crate::config::{BrokerConfig, ProviderConfig};
     use crate::model::CreateConnection;
 
     const KEY: [u8; 32] = [7u8; 32];
+
+    struct DownBus;
+
+    #[async_trait]
+    impl TaskBus for DownBus {
+        async fn publish(&self, _event: BusEvent) -> anyhow::Result<()> {
+            anyhow::bail!("nats down");
+        }
+
+        async fn drain(&self, _max: usize) -> anyhow::Result<Vec<BusEvent>> {
+            Ok(vec![])
+        }
+    }
 
     fn policy_target() -> RotationTarget {
         RotationTarget::Connection {
@@ -936,20 +1025,6 @@ mod tests {
 
     #[tokio::test]
     async fn request_keeps_the_job_when_the_bus_is_partitioned() {
-        use async_trait::async_trait;
-        use opensesame_task_bus::BusEvent;
-
-        struct DownBus;
-        #[async_trait]
-        impl TaskBus for DownBus {
-            async fn publish(&self, _event: BusEvent) -> anyhow::Result<()> {
-                anyhow::bail!("nats down");
-            }
-            async fn drain(&self, _max: usize) -> anyhow::Result<Vec<BusEvent>> {
-                Ok(vec![])
-            }
-        }
-
         let (_db, broker) = unrefreshable_broker().await;
         let err = request_rotation(
             &broker,

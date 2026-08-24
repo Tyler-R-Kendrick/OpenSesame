@@ -3,20 +3,29 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 /// Versioned deterministic JSON canonicalization (JCS-inspired subset).
-/// Rejects duplicate keys (via serde_json Map uniqueness), non-finite numbers,
+/// Rejects duplicate keys (via `serde_json` Map uniqueness), non-finite numbers,
 /// and unstable representations.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn canonicalize_json(value: &Value) -> Result<Vec<u8>, DomainError> {
     let mut out = Vec::new();
     write_canonical(value, &mut out)?;
     Ok(out)
 }
 
+#[must_use]
 pub fn digest_sha256(bytes: &[u8]) -> String {
     let mut h = Sha256::new();
     h.update(bytes);
     format!("sha256:{}", hex::encode(h.finalize()))
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn digest_json(value: &Value) -> Result<String, DomainError> {
     Ok(digest_sha256(&canonicalize_json(value)?))
 }

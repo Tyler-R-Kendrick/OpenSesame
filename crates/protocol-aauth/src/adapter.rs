@@ -1,31 +1,31 @@
-//! Lossless AAuth draft-10 → OpenSesame domain mappings.
+//! Lossless `AAuth` draft-10 → `OpenSesame` domain mappings.
 
 use crate::error::AAuthError;
 use opensesame_domain::{digest_sha256, ActorId, ActorInstanceId, PrincipalId};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// AAuth Person (draft-10).
+/// `AAuth` `Person` (draft-10).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Person {
     pub id: String,
     pub display_name: Option<String>,
 }
 
-/// AAuth Agent (draft-10).
+/// `AAuth` `Agent` (draft-10).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Agent {
     pub id: String,
     pub instance_id: String,
 }
 
-/// AAuth Mission — opaque policy bytes.
+/// `AAuth` `Mission` — opaque policy bytes.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Mission {
     pub bytes: Vec<u8>,
 }
 
-/// OpenSesame governance context derived from a mission.
+/// `OpenSesame` governance context derived from a mission.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GovernanceContext {
     pub mission_digest: String,
@@ -64,6 +64,7 @@ fn deterministic_uuid(domain: &str, source_id: &str) -> Uuid {
     Uuid::from_bytes(bytes)
 }
 
+#[must_use]
 pub fn map_person(person: &Person) -> MappedPerson {
     MappedPerson {
         principal_id: PrincipalId::from_uuid(deterministic_uuid("aauth-person", &person.id)),
@@ -71,6 +72,7 @@ pub fn map_person(person: &Person) -> MappedPerson {
     }
 }
 
+#[must_use]
 pub fn unmap_person(mapped: &MappedPerson) -> Person {
     Person {
         id: mapped.source_person_id.clone(),
@@ -78,6 +80,7 @@ pub fn unmap_person(mapped: &MappedPerson) -> Person {
     }
 }
 
+#[must_use]
 pub fn unmap_agent(mapped: &MappedAgent) -> Agent {
     Agent {
         id: mapped.source_agent_id.clone(),
@@ -85,6 +88,7 @@ pub fn unmap_agent(mapped: &MappedAgent) -> Agent {
     }
 }
 
+#[must_use]
 pub fn map_agent(agent: &Agent) -> MappedAgent {
     MappedAgent {
         actor_id: ActorId::from_uuid(deterministic_uuid("aauth-agent", &agent.id)),
@@ -97,6 +101,7 @@ pub fn map_agent(agent: &Agent) -> MappedAgent {
     }
 }
 
+#[must_use]
 pub fn mission_to_governance_context(mission: &Mission) -> GovernanceContext {
     GovernanceContext {
         mission_digest: digest_sha256(&mission.bytes),
@@ -105,6 +110,10 @@ pub fn mission_to_governance_context(mission: &Mission) -> GovernanceContext {
 }
 
 /// Single-principal invariant: one person maps to one principal id.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn assert_one_person(persons: &[Person]) -> Result<MappedPerson, AAuthError> {
     match persons {
         [person] => Ok(map_person(person)),

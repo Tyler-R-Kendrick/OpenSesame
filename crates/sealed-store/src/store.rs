@@ -37,6 +37,10 @@ pub enum FormatHint {
 }
 
 /// Initialize a store root with optional recipients and a fresh passphrase-wrapped VRK.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn init_store(root: &Path, recipients: &[String]) -> Result<StoreRoot, StoreError> {
     fs::create_dir_all(root)?;
     Recipients::write(root, recipients)?;
@@ -46,6 +50,10 @@ pub fn init_store(root: &Path, recipients: &[String]) -> Result<StoreRoot, Store
 }
 
 /// Create `.opensesame-key` wrapping a new VRK under `password`.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn init_store_key(root: &Path, password: &[u8]) -> Result<ItemDataKey, StoreError> {
     let vrk = VaultRootKey::generate();
     let wrapper =
@@ -57,6 +65,10 @@ pub fn init_store_key(root: &Path, password: &[u8]) -> Result<ItemDataKey, Store
     Ok(ItemDataKey(vrk.0))
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn unlock_store_key(root: &Path, password: &[u8]) -> Result<ItemDataKey, StoreError> {
     let path = root.join(KEY_FILE);
     if !path.exists() {
@@ -68,6 +80,41 @@ pub fn unlock_store_key(root: &Path, password: &[u8]) -> Result<ItemDataKey, Sto
     let vrk = unwrap_vrk_with_password(password, &wrapper)
         .map_err(|e| StoreError::Crypto(e.to_string()))?;
     Ok(ItemDataKey(vrk.0))
+}
+
+fn collect_entry_names(
+    dir: &Path,
+    root: &Path,
+    prefix: &str,
+    names: &mut Vec<String>,
+) -> Result<(), StoreError> {
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if entry.file_name().to_string_lossy().starts_with('.') {
+            continue;
+        }
+        if path.is_dir() {
+            collect_entry_names(&path, root, prefix, names)?;
+            continue;
+        }
+        let Ok(relative) = path.strip_prefix(root) else {
+            continue;
+        };
+        let Some(extension) = relative.extension().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        if !matches!(extension, "osseal" | "gpg" | "age") {
+            continue;
+        }
+        let Ok(logical) = relative_to_logical(relative) else {
+            continue;
+        };
+        if prefix.is_empty() || logical == prefix || logical.starts_with(&format!("{prefix}/")) {
+            names.push(logical);
+        }
+    }
+    Ok(())
 }
 
 impl StoreRoot {
@@ -110,10 +157,10 @@ impl StoreRoot {
     }
 
     fn entry_path(&self, name: &str, ext: &str) -> Result<PathBuf, StoreError> {
-        Ok(self.path.join(self.entry_relative(name, ext)?))
+        Ok(self.path.join(Self::entry_relative(name, ext)?))
     }
 
-    fn entry_relative(&self, name: &str, ext: &str) -> Result<PathBuf, StoreError> {
+    fn entry_relative(name: &str, ext: &str) -> Result<PathBuf, StoreError> {
         let rel = logical_to_relative(name)?;
         // Append, never `with_extension`: that would swallow the final label of
         // dotted names, colliding `github.com` and `github.org` into one file
@@ -160,6 +207,10 @@ impl StoreRoot {
         }
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn insert(&self, name: &str, entry: &Entry, key: &ItemDataKey) -> Result<(), StoreError> {
         if self.find_existing(name).is_ok() {
             return Err(StoreError::AlreadyExists(name.into()));
@@ -169,6 +220,10 @@ impl StoreRoot {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn insert_or_replace(
         &self,
         name: &str,
@@ -211,20 +266,20 @@ impl StoreRoot {
         let format = format.unwrap_or_else(|| self.preferred_write_format());
         match format {
             FormatHint::Osseal => {
-                let rel = self.entry_relative(name, "osseal")?;
+                let rel = Self::entry_relative(name, "osseal")?;
                 let path = self.path.join(&rel);
                 let revision = self.next_revision(name, &path, key)?;
                 let blob = seal_osseal(&plaintext, key, name, revision)?;
                 confined_write(&self.path, &rel, &blob)?;
             }
             FormatHint::Gpg => {
-                let rel = self.entry_relative(name, "gpg")?;
+                let rel = Self::entry_relative(name, "gpg")?;
                 let recipients = gpg::read_gpg_id(&self.path)?;
                 let ciphertext = gpg::encrypt_gpg(&plaintext, &recipients)?;
                 confined_write(&self.path, &rel, &ciphertext)?;
             }
             FormatHint::Age => {
-                let rel = self.entry_relative(name, "age")?;
+                let rel = Self::entry_relative(name, "age")?;
                 let recipients = age_fmt::read_age_recipients(&self.path)?;
                 let ciphertext = age_fmt::encrypt_age(&plaintext, &recipients)?;
                 confined_write(&self.path, &rel, &ciphertext)?;
@@ -233,6 +288,10 @@ impl StoreRoot {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn show(&self, name: &str, key: &ItemDataKey) -> Result<Entry, StoreError> {
         let (path, hint) = self.find_existing(name)?;
         let mut legacy_osseal = false;
@@ -268,6 +327,10 @@ impl StoreRoot {
     }
 
     /// Show with optional age identity (secret key string).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn show_with_age_identity(
         &self,
         name: &str,
@@ -307,6 +370,10 @@ impl StoreRoot {
         Ok(entry)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn rm(&self, name: &str) -> Result<(), StoreError> {
         let (path, _) = self.find_existing(name)?;
         let rel = path
@@ -317,57 +384,25 @@ impl StoreRoot {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn ls(&self, prefix: &str) -> Result<Vec<String>, StoreError> {
         let prefix = prefix.trim().trim_matches('/');
         let mut names = Vec::new();
         if !self.path.exists() {
             return Ok(names);
         }
-        fn walk(
-            dir: &Path,
-            root: &Path,
-            prefix: &str,
-            names: &mut Vec<String>,
-        ) -> Result<(), StoreError> {
-            for entry in fs::read_dir(dir)? {
-                let entry = entry?;
-                let path = entry.path();
-                let file_name = entry.file_name();
-                let name = file_name.to_string_lossy();
-                if name.starts_with('.') {
-                    continue;
-                }
-                if path.is_dir() {
-                    walk(&path, root, prefix, names)?;
-                    continue;
-                }
-                let rel = match path.strip_prefix(root) {
-                    Ok(r) => r,
-                    Err(_) => continue,
-                };
-                let Some(ext) = rel.extension().and_then(|e| e.to_str()) else {
-                    continue;
-                };
-                if !matches!(ext, "osseal" | "gpg" | "age") {
-                    continue;
-                }
-                let Ok(logical) = relative_to_logical(rel) else {
-                    continue;
-                };
-                if prefix.is_empty()
-                    || logical == prefix
-                    || logical.starts_with(&format!("{prefix}/"))
-                {
-                    names.push(logical);
-                }
-            }
-            Ok(())
-        }
-        walk(&self.path, &self.path, prefix, &mut names)?;
+        collect_entry_names(&self.path, &self.path, prefix, &mut names)?;
         names.sort();
         Ok(names)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn find(&self, query: &str) -> Result<Vec<String>, StoreError> {
         let q = query.to_lowercase();
         Ok(self
@@ -377,6 +412,10 @@ impl StoreRoot {
             .collect())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn cp(
         &self,
         from: &str,
@@ -389,6 +428,10 @@ impl StoreRoot {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn mv(
         &self,
         from: &str,
@@ -404,6 +447,10 @@ impl StoreRoot {
 }
 
 /// List entries for connector-host without unlocking (names only).
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn list_names(store_dir: &Path, prefix: &str) -> Result<Vec<String>, StoreError> {
     let root = StoreRoot::open(store_dir)?;
     root.ls(prefix)

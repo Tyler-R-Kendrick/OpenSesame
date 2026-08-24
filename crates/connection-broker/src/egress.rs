@@ -41,8 +41,12 @@ pub struct GithubRepo {
 }
 
 impl ConnectionBroker {
-    /// GET https://api.github.com/user/repos (authenticated).
+    /// GET <https://api.github.com/user/repos> (authenticated).
     /// Prefer repositories the user owns so History can pick a personal password store.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when authorization, egress, upstream, or response validation fails.
     pub async fn list_github_repos(
         &self,
         organization_id: &OrganizationId,
@@ -60,7 +64,11 @@ impl ConnectionBroker {
         parse_github_repo_list(&body)
     }
 
-    /// POST https://api.github.com/user/repos — **private by default**.
+    /// POST <https://api.github.com/user/repos> — **private by default**.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an invalid name or failed authorized upstream request.
     pub async fn create_github_repo(
         &self,
         organization_id: &OrganizationId,
@@ -103,6 +111,11 @@ impl ConnectionBroker {
 
     /// Perform an egress-constrained HTTP call with the connection's sealed
     /// bearer token. Response JSON is returned to the caller; tokens are not.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when connection state, egress, credential opening, or
+    /// the upstream request fails.
     pub async fn authorized_json(
         &self,
         organization_id: &OrganizationId,
@@ -129,7 +142,7 @@ impl ConnectionBroker {
         let credential = store::get_credential(&self.pool, &row.id)
             .await?
             .ok_or_else(|| BrokerError::NeedsReauth("connection has no credential".into()))?;
-        let tokens = self.open_tokens(&key, &row, &credential)?;
+        let tokens = Self::open_tokens(&key, &row, &credential)?;
         if tokens.access_token.is_empty() {
             return Err(BrokerError::NeedsReauth("access token missing".into()));
         }
@@ -240,22 +253,22 @@ impl ConnectionBroker {
         url: &str,
         body: Option<Value>,
     ) -> std::result::Result<Value, String> {
-        let method = method
+        let parsed_method = method
             .parse::<reqwest::Method>()
             .map_err(|_| format!("unsupported method {method}"))?;
-        let mut req = self
+        let mut request = self
             .http
-            .request(method, url)
+            .request(parsed_method, url)
             .header("Authorization", format!("Bearer {}", tokens.access_token))
             .header("Accept", "application/vnd.github+json")
             .header("User-Agent", "OpenSesame-Host/0.1")
             .header("X-GitHub-Api-Version", "2022-11-28");
         if let Some(body) = body {
-            req = req.json(&body);
+            request = request.json(&body);
         }
-        let res = req.send().await.map_err(|e| e.to_string())?;
-        let status = res.status();
-        let text = res.text().await.map_err(|e| e.to_string())?;
+        let response = request.send().await.map_err(|e| e.to_string())?;
+        let status = response.status();
+        let text = response.text().await.map_err(|e| e.to_string())?;
         if !(200..300).contains(&status.as_u16()) {
             let snippet: String = text.chars().take(240).collect();
             return Err(format!("upstream {status}: {snippet}"));
@@ -335,7 +348,7 @@ mod tests {
         let repo = parse_github_repo(&v).unwrap();
         assert!(repo.private);
         assert_eq!(repo.name, "opensesame-passwords");
-        assert!(repo.clone_url.ends_with(".git"));
+        assert!(repo.clone_url.to_ascii_lowercase().ends_with(".git"));
     }
 
     #[test]

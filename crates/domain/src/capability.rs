@@ -28,6 +28,7 @@ impl ResourceSelector {
     }
 
     /// Whether every resource covered by `self` is also covered by `parent`.
+    #[must_use]
     pub fn is_subset_of(&self, parent: &Self) -> bool {
         match (self, parent) {
             (Self::Exact { value }, Self::Exact { value: p }) => value == p,
@@ -41,6 +42,7 @@ impl ResourceSelector {
         }
     }
 
+    #[must_use]
     pub fn canonicalize(&self) -> Self {
         match self {
             Self::Exact { value } => Self::Exact {
@@ -71,6 +73,7 @@ impl Capability {
         }
     }
 
+    #[must_use]
     pub fn canonicalize(&self) -> Self {
         Self {
             action: self.action.clone(),
@@ -79,6 +82,7 @@ impl Capability {
     }
 
     /// Fail-closed attenuation check against a parent capability.
+    #[must_use]
     pub fn is_attenuation_of(&self, parent: &Self) -> AttenuationResult {
         if self.action != parent.action {
             return AttenuationResult::Disproven;
@@ -98,14 +102,17 @@ pub struct CapabilitySet {
 }
 
 impl CapabilitySet {
+    #[must_use]
     pub fn new(capabilities: Vec<Capability>) -> Self {
         Self { capabilities }
     }
 
+    #[must_use]
     pub fn empty() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn canonicalize(&self) -> Self {
         let mut caps: Vec<Capability> = self
             .capabilities
@@ -121,6 +128,7 @@ impl CapabilitySet {
         Self { capabilities: caps }
     }
 
+    #[must_use]
     pub fn is_subset_of(&self, other: &Self) -> bool {
         let self_c = self.canonicalize();
         let other_c = other.canonicalize();
@@ -132,27 +140,30 @@ impl CapabilitySet {
         })
     }
 
+    #[must_use]
     pub fn intersection(&self, other: &Self) -> Self {
         let self_c = self.canonicalize();
         let other_c = other.canonicalize();
-        let mut out = Vec::new();
-        for a in &self_c.capabilities {
-            for b in &other_c.capabilities {
-                if a.action != b.action {
-                    continue;
-                }
-                if let Some(inter) = intersect_selectors(&a.resource, &b.resource) {
-                    out.push(Capability {
-                        action: a.action.clone(),
-                        resource: inter,
-                    });
-                }
-            }
-        }
+        let out = self_c
+            .capabilities
+            .iter()
+            .flat_map(|left| {
+                other_c.capabilities.iter().filter_map(|right| {
+                    (left.action == right.action)
+                        .then(|| intersect_selectors(&left.resource, &right.resource))
+                        .flatten()
+                        .map(|resource| Capability {
+                            action: left.action.clone(),
+                            resource,
+                        })
+                })
+            })
+            .collect();
         Self::new(out).canonicalize()
     }
 
     /// Remove capabilities matching `action` and covered by `selector`.
+    #[must_use]
     pub fn remove(&self, action: &str, selector: &ResourceSelector) -> Self {
         let self_c = self.canonicalize();
         let mut out = Vec::new();
@@ -164,18 +175,23 @@ impl CapabilitySet {
             if cap.resource.is_subset_of(selector) {
                 continue;
             }
-            if let Some(remainder) = subtract_selector(&cap.resource, selector) {
-                for r in remainder {
-                    out.push(Capability {
+            out.extend(
+                subtract_selector(&cap.resource, selector)
+                    .into_iter()
+                    .flatten()
+                    .map(|resource| Capability {
                         action: cap.action.clone(),
-                        resource: r,
-                    });
-                }
-            }
+                        resource,
+                    }),
+            );
         }
         Self::new(out).canonicalize()
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn digest(&self) -> Result<String, DomainError> {
         let v = serde_json::to_value(self.canonicalize())
             .map_err(|e| DomainError::Canonicalization(e.to_string()))?;

@@ -54,6 +54,7 @@ impl std::fmt::Debug for BrokerConfig {
     }
 }
 
+#[must_use]
 pub fn env_var_name(provider_id: &str, suffix: &str) -> String {
     format!(
         "OPENSESAME_PROVIDER_{}_{suffix}",
@@ -62,6 +63,9 @@ pub fn env_var_name(provider_id: &str, suffix: &str) -> String {
 }
 
 impl BrokerConfig {
+    /// # Errors
+    ///
+    /// Returns an error when the bundled provider catalog is invalid.
     pub fn from_env() -> crate::Result<Self> {
         let mut providers = BTreeMap::new();
         let mut detected_connections = BTreeMap::new();
@@ -124,11 +128,13 @@ impl BrokerConfig {
         }
     }
 
+    #[must_use]
     pub fn with_github_api_base(mut self, base: impl Into<String>) -> Self {
         self.github_api_base = Some(base.into());
         self
     }
 
+    #[must_use]
     pub fn github_api_base(&self) -> &str {
         self.github_api_base
             .as_deref()
@@ -136,16 +142,19 @@ impl BrokerConfig {
             .trim_end_matches('/')
     }
 
+    #[must_use]
     pub fn with_provider(mut self, id: &str, cfg: ProviderConfig) -> Self {
         self.providers.insert(id.to_string(), cfg);
         self
     }
 
+    #[must_use]
     pub fn with_redirect_allowlist(mut self, origins: Vec<String>) -> Self {
         self.redirect_allowlist = origins;
         self
     }
 
+    #[must_use]
     pub fn with_detected_connection(
         mut self,
         id: &str,
@@ -156,22 +165,27 @@ impl BrokerConfig {
         self
     }
 
+    #[must_use]
     pub fn detected_connection(&self, id: &str) -> Option<BTreeMap<String, String>> {
         self.detected_connections.get(id).cloned()
     }
 
+    #[must_use]
     pub fn key(&self) -> Option<&[u8; 32]> {
         self.key.as_ref()
     }
 
+    #[must_use]
     pub fn public_url(&self) -> &str {
         self.public_url.trim_end_matches('/')
     }
 
+    #[must_use]
     pub fn provider(&self, id: &str) -> ProviderConfig {
         self.providers.get(id).cloned().unwrap_or_default()
     }
 
+    #[must_use]
     pub fn authorize_url(&self, provider: &Provider) -> Option<String> {
         let overridden = self.provider(&provider.id).authorize_url;
         match &provider.auth {
@@ -185,6 +199,7 @@ impl BrokerConfig {
         }
     }
 
+    #[must_use]
     pub fn token_url(&self, provider: &Provider) -> Option<String> {
         let overridden = self.provider(&provider.id).token_url;
         match &provider.auth {
@@ -199,6 +214,7 @@ impl BrokerConfig {
     }
 
     /// The callback this deployment publishes for a provider redirect.
+    #[must_use]
     pub fn callback_url(&self, provider_id: &str) -> String {
         format!("{}/api/v1/oauth/callback/{provider_id}", self.public_url())
     }
@@ -206,6 +222,7 @@ impl BrokerConfig {
     /// A redirect target is either our own callback or an explicitly allowlisted
     /// origin. An open redirect here would hand the authorization code away.
     /// Pages return URLs after GitHub App Manifest registration.
+    #[must_use]
     pub fn return_to_allowed(&self, return_to: &str) -> bool {
         let Ok(url) = url::Url::parse(return_to) else {
             return false;
@@ -223,6 +240,7 @@ impl BrokerConfig {
             .any(|allowed| allowed == return_to || allowed.trim_end_matches('/') == origin)
     }
 
+    #[must_use]
     pub fn redirect_allowed(&self, provider_id: &str, redirect_uri: &str) -> bool {
         if redirect_uri == self.callback_url(provider_id) {
             return true;
@@ -255,12 +273,14 @@ impl BrokerConfig {
             .any(|allowed| allowed == redirect_uri || allowed.trim_end_matches('/') == origin)
     }
 
+    #[must_use]
     pub fn configured(&self, provider: &Provider) -> bool {
         self.missing_config(provider).is_empty()
     }
 
     /// The exact environment variable names a deployment must set. Order is
     /// stable so the UI can render it without sorting.
+    #[must_use]
     pub fn missing_config(&self, provider: &Provider) -> Vec<String> {
         let mut missing = Vec::new();
         if self.key.is_none() {
@@ -516,7 +536,7 @@ mod tests {
             ("AUTH0_CLIENT_ID", "client"),
             ("AUTH0_CLIENT_SECRET", "auth0-secret"),
         ]);
-        let read_env = |name: &str| values.get(name).map(|value| value.to_string());
+        let read_env = |name: &str| values.get(name).map(|value| (*value).to_string());
         let read_file = |_path: &PathBuf| None;
         let better_auth = catalog::find("better-auth").unwrap().unwrap();
         assert_eq!(
@@ -554,7 +574,7 @@ mod tests {
     #[test]
     fn host_files_are_detected_without_exposing_partial_configuration() {
         let values = BTreeMap::from([("HOME", "/host-user")]);
-        let read_env = |name: &str| values.get(name).map(|value| value.to_string());
+        let read_env = |name: &str| values.get(name).map(|value| (*value).to_string());
         let read_file = |path: &PathBuf| {
             (path == &PathBuf::from("/host-user/.vault-token")).then(|| "vault-secret\n".into())
         };
@@ -574,7 +594,7 @@ mod tests {
     #[test]
     fn the_selected_aws_profile_is_detected_from_standard_files() {
         let values = BTreeMap::from([("HOME", "/host-user"), ("AWS_PROFILE", "work")]);
-        let read_env = |name: &str| values.get(name).map(|value| value.to_string());
+        let read_env = |name: &str| values.get(name).map(|value| (*value).to_string());
         let read_file = |path: &PathBuf| {
             match path.to_string_lossy().as_ref() {
             "/host-user/.aws/credentials" => Some(
@@ -612,7 +632,7 @@ mod tests {
         ]);
         assert!(detect_connection_configuration_with(
             aws,
-            &|name| partial.get(name).map(|value| value.to_string()),
+            &|name| partial.get(name).map(|value| (*value).to_string()),
             &file,
         )
         .is_none());
@@ -625,7 +645,7 @@ mod tests {
         ]);
         let detected = detect_connection_configuration_with(
             aws,
-            &|name| complete.get(name).map(|value| value.to_string()),
+            &|name| complete.get(name).map(|value| (*value).to_string()),
             &file,
         )
         .unwrap();
@@ -636,7 +656,7 @@ mod tests {
     #[test]
     fn gcp_application_credentials_supply_the_project_and_sealed_json() {
         let values = BTreeMap::from([("GOOGLE_APPLICATION_CREDENTIALS", "/credentials/gcp.json")]);
-        let read_env = |name: &str| values.get(name).map(|value| value.to_string());
+        let read_env = |name: &str| values.get(name).map(|value| (*value).to_string());
         let read_file = |path: &PathBuf| {
             (path == &PathBuf::from("/credentials/gcp.json"))
                 .then(|| r#"{"type":"service_account","project_id":"demo-project"}"#.into())

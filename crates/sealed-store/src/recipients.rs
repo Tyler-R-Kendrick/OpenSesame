@@ -11,6 +11,10 @@ pub struct Recipients {
 }
 
 impl Recipients {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn load(root: &Path) -> Result<Self, StoreError> {
         let path = root.join(RECIPIENTS_FILE);
         if !path.exists() {
@@ -26,6 +30,10 @@ impl Recipients {
         Ok(Self { lines })
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn write(root: &Path, recipients: &[String]) -> Result<(), StoreError> {
         let path = root.join(RECIPIENTS_FILE);
         let mut body = String::from("# OpenSesame sealed-store recipients\n");

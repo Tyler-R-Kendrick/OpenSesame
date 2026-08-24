@@ -8,7 +8,10 @@ use opensesame_authz::{
     AuthZenAction, AuthZenRequest, AuthZenResource, AuthZenSubject, PolicyEngine,
 };
 use opensesame_connector_host::{HostRuntime, InvokeRequest};
-use opensesame_domain::*;
+use opensesame_domain::{
+    AvailabilityClass, DomainError, Grant, Intent, Invocation, InvocationId, InvocationReceipt,
+    InvocationState, ReceiptId, ReceiptOutcome,
+};
 use opensesame_storage::Db;
 use serde_json::{json, Value};
 
@@ -28,6 +31,51 @@ pub struct InvokeInput {
 }
 
 impl Broker {
+    async fn prior_receipt(
+        &self,
+        intent: &Intent,
+        conflict_message: &str,
+    ) -> anyhow::Result<Option<InvocationReceipt>> {
+        let existing = self
+            .db
+            .find_intent_by_idempotency(&intent.organization_id, &intent.idempotency_key)
+            .await?;
+        if existing.is_none() {
+            return Ok(None);
+        }
+        if let Some(receipt) = self
+            .db
+            .find_receipt_by_idempotency(&intent.organization_id, &intent.idempotency_key)
+            .await?
+        {
+            return Ok(Some(receipt));
+        }
+        anyhow::bail!(conflict_message.to_string())
+    }
+
+    fn begin_invocation(
+        intent_id: opensesame_domain::IntentId,
+        now: chrono::DateTime<Utc>,
+    ) -> anyhow::Result<Invocation> {
+        let mut invocation = Invocation {
+            id: InvocationId::new(),
+            intent_id,
+            state: InvocationState::Received,
+            attempt: 1,
+            lease_owner: None,
+            lease_expires_at: None,
+            created_at: now,
+            updated_at: now,
+        };
+        invocation.transition(InvocationState::Authorizing, now)?;
+        Ok(invocation)
+    }
+
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation, authorization, execution, or durable
+    /// receipt persistence fails.
     pub async fn invoke(&self, input: InvokeInput) -> anyhow::Result<InvocationReceipt> {
         let now = Utc::now();
         input.intent.assert_fresh(now)?;
@@ -43,25 +91,14 @@ impl Broker {
             );
         }
 
-        let existing = self
-            .db
-            .find_intent_by_idempotency(
-                &input.intent.organization_id,
-                &input.intent.idempotency_key,
+        if let Some(receipt) = self
+            .prior_receipt(
+                &input.intent,
+                "idempotency conflict: prior intent has no receipt yet",
             )
-            .await?;
-        if existing.is_some() {
-            if let Some(prior_receipt) = self
-                .db
-                .find_receipt_by_idempotency(
-                    &input.intent.organization_id,
-                    &input.intent.idempotency_key,
-                )
-                .await?
-            {
-                return Ok(prior_receipt);
-            }
-            anyhow::bail!("idempotency conflict: prior intent has no receipt yet");
+            .await?
+        {
+            return Ok(receipt);
         }
         self.db.insert_intent(&input.intent).await?;
 
@@ -70,17 +107,7 @@ impl Broker {
             anyhow::bail!("parameter digest mismatch");
         }
 
-        let mut inv = Invocation {
-            id: InvocationId::new(),
-            intent_id: input.intent.id,
-            state: InvocationState::Received,
-            attempt: 1,
-            lease_owner: None,
-            lease_expires_at: None,
-            created_at: now,
-            updated_at: now,
-        };
-        inv.transition(InvocationState::Authorizing, now)?;
+        let mut inv = Self::begin_invocation(input.intent.id, now)?;
 
         let authz_req = AuthZenRequest {
             subject: AuthZenSubject {
@@ -129,11 +156,27 @@ impl Broker {
             return Ok(receipt);
         }
 
-        inv.transition(InvocationState::Authorized, Utc::now())?;
-        inv.transition(InvocationState::Leased, Utc::now())?;
-        inv.lease_owner = Some("worker-local".into());
-        inv.transition(InvocationState::Executing, Utc::now())?;
-        self.db.insert_invocation(&inv).await?;
+        self.execute_authorized(
+            &input,
+            inv,
+            &decision.decision_id,
+            &decision.policy_version_digest,
+        )
+        .await
+    }
+
+    async fn execute_authorized(
+        &self,
+        input: &InvokeInput,
+        mut invocation: Invocation,
+        decision_id: &str,
+        policy_digest: &str,
+    ) -> anyhow::Result<InvocationReceipt> {
+        invocation.transition(InvocationState::Authorized, Utc::now())?;
+        invocation.transition(InvocationState::Leased, Utc::now())?;
+        invocation.lease_owner = Some("worker-local".into());
+        invocation.transition(InvocationState::Executing, Utc::now())?;
+        self.db.insert_invocation(&invocation).await?;
 
         let result = self.host.invoke(
             &input.connection_policy_id,
@@ -150,7 +193,7 @@ impl Broker {
 
         let (outcome, summary, ext) = match result {
             Ok(r) => {
-                inv.transition(InvocationState::Succeeded, Utc::now())?;
+                invocation.transition(InvocationState::Succeeded, Utc::now())?;
                 (
                     ReceiptOutcome::Succeeded,
                     r.safe_summary,
@@ -158,7 +201,7 @@ impl Broker {
                 )
             }
             Err(e) => {
-                inv.transition(InvocationState::Failed, Utc::now())?;
+                invocation.transition(InvocationState::Failed, Utc::now())?;
                 // Connector errors echo upstream URLs and headers; receipts are
                 // durable and readable, so the text is redacted before it lands.
                 let msg = opensesame_redaction::redact_text(&e.to_string());
@@ -167,11 +210,11 @@ impl Broker {
         };
 
         let receipt = self.finish_receipt(
-            &input,
-            &inv,
+            input,
+            &invocation,
             FinishReceiptParts {
-                decision_id: &decision.decision_id,
-                policy_digest: &decision.policy_version_digest,
+                decision_id,
+                policy_digest,
                 outcome,
                 summary,
                 ext,

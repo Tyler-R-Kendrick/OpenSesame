@@ -1,7 +1,7 @@
 //! Capability-moded discovery offers (ADR 0047, offer schema v1).
 //!
 //! Where [`scan`](crate::scan) answers "which providers look configured", the
-//! offer model answers "what could OpenSesame do with each one": import the
+//! offer model answers "what could `OpenSesame` do with each one": import the
 //! credential into the vault ([`CapabilityClass::Importable`]), broker calls
 //! through a local tool without importing ([`CapabilityClass::InvokeThrough`]),
 //! or mint short-lived credentials natively
@@ -113,12 +113,20 @@ pub struct CommandStatus {
 pub trait KeychainBackend: Send + Sync {
     /// Enumerate item labels (display names) visible to the current user.
     /// MUST NOT return secret values. MAY trigger OS unlock prompts.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn enumerate_labels(&self) -> Result<Vec<(KeychainStore, String)>, ProbeError>;
 }
 
 pub trait CommandRunner: Send + Sync {
     /// Run a binary with a scrubbed environment, no shell, strict timeout, output capped.
     /// Returns exit status + whether stdout was non-empty. Callers never receive raw output.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn run_status(&self, argv: &[&str], timeout_ms: u64) -> Result<CommandStatus, ProbeError>;
 }
 
@@ -132,6 +140,10 @@ pub struct ProbeContext {
 
 pub trait CapabilityProbe: Send + Sync {
     fn id(&self) -> &'static str;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn probe(&self, ctx: &ProbeContext) -> Result<Vec<OfferItem>, ProbeError>;
 }
 
@@ -150,15 +162,17 @@ pub const MINT_CAPABLE_PROVIDERS: &[&str] = &[
 ];
 
 /// Whether this provider can mint short-lived credentials natively.
+#[must_use]
 pub fn mint_capable(provider: &str) -> bool {
     MINT_CAPABLE_PROVIDERS.contains(&provider)
 }
 
 // ——— Offer merging and reporting ——————————————————————————————————
 
-/// One [`OfferItem`] per (provider_id, source-kind-identity): capabilities
+/// One [`OfferItem`] per (`provider_id`, source-kind-identity): capabilities
 /// are unioned, confidence takes the max, and MCP env key names are unioned.
 /// Output order is deterministic (provider id, then source identity).
+#[must_use]
 pub fn merge_offers(items: Vec<OfferItem>) -> Vec<OfferItem> {
     let mut merged: BTreeMap<(String, String), OfferItem> = BTreeMap::new();
     for item in items {
@@ -180,7 +194,7 @@ pub fn merge_offers(items: Vec<OfferItem>) -> Vec<OfferItem> {
             existing.confidence = item.confidence;
         }
         if existing.registry_hint.is_none() {
-            existing.registry_hint = item.registry_hint.clone();
+            existing.registry_hint.clone_from(&item.registry_hint);
         }
         if let (
             ProbeSource::McpConfig { env_keys: kept, .. },
@@ -189,11 +203,12 @@ pub fn merge_offers(items: Vec<OfferItem>) -> Vec<OfferItem> {
             },
         ) = (&mut existing.source, &item.source)
         {
-            for key in extra {
-                if !kept.contains(key) {
-                    kept.push(key.clone());
-                }
-            }
+            let additions: Vec<_> = extra
+                .iter()
+                .filter(|key| !kept.contains(*key))
+                .cloned()
+                .collect();
+            kept.extend(additions);
             kept.sort();
         }
     }
@@ -201,11 +216,13 @@ pub fn merge_offers(items: Vec<OfferItem>) -> Vec<OfferItem> {
 }
 
 /// The preferred way to use this offer: the highest capability class.
+#[must_use]
 pub fn preferred_capability(item: &OfferItem) -> Option<CapabilityClass> {
     item.capabilities.iter().copied().max()
 }
 
 /// Assemble a report, stamping it with the current schema version.
+#[must_use]
 pub fn build_report(host_label: String, probed_at_unix: u64, items: Vec<OfferItem>) -> ProbeReport {
     ProbeReport {
         schema_version: OFFER_SCHEMA_VERSION,
@@ -325,10 +342,12 @@ fn dotfile_path(label: &str, home: &Path, env: &BTreeMap<String, String>) -> Pat
         "~/.vault-token" => home.join(".vault-token"),
         "~/.bao-token" => home.join(".bao-token"),
         "~/.aws/credentials" => home.join(".aws/credentials"),
-        "gcloud application default credentials" => env
-            .get("GOOGLE_APPLICATION_CREDENTIALS")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| home.join(".config/gcloud/application_default_credentials.json")),
+        "gcloud application default credentials" => {
+            env.get("GOOGLE_APPLICATION_CREDENTIALS").map_or_else(
+                || home.join(".config/gcloud/application_default_credentials.json"),
+                PathBuf::from,
+            )
+        }
         other => PathBuf::from(other),
     }
 }
@@ -388,6 +407,7 @@ impl CapabilityProbe for McpConfigProbe {
 
 /// Per MCP server, the sorted names of the keys in its `env` block. Malformed
 /// JSON or a missing `mcpServers` object yields an empty list, never an error.
+#[must_use]
 pub fn mcp_server_env_keys(contents: &str) -> Vec<(String, Vec<String>)> {
     let Ok(parsed) = serde_json::from_str::<serde_json::Value>(contents) else {
         return Vec::new();
@@ -418,10 +438,12 @@ pub struct MockKeychain {
 }
 
 impl MockKeychain {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn with_label(mut self, store: KeychainStore, label: impl Into<String>) -> Self {
         self.labels.push((store, label.into()));
         self
@@ -442,10 +464,12 @@ pub struct MockCommandRunner {
 }
 
 impl MockCommandRunner {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn with_status(mut self, argv: &[&str], status: CommandStatus) -> Self {
         self.responses
             .insert(argv.iter().map(|arg| (*arg).to_string()).collect(), status);

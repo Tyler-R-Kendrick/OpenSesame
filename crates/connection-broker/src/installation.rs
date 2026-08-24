@@ -37,6 +37,7 @@ pub struct InstallationToken {
 }
 
 impl InstallationToken {
+    #[must_use]
     pub fn usable(&self) -> bool {
         Utc::now() + Duration::seconds(EXPIRY_MARGIN_SECONDS) < self.expires_at
     }
@@ -51,6 +52,10 @@ struct AppJwtClaims {
 
 /// The app JWT GitHub expects: RS256, issued by the app id, ≤10 min lifetime,
 /// backdated 60 s to absorb clock skew (GitHub's own guidance).
+///
+/// # Errors
+///
+/// Returns an error when the private key is invalid or JWT signing fails.
 pub fn mint_app_jwt(material: &GithubAppSigningMaterial) -> anyhow::Result<String> {
     let key = jsonwebtoken::EncodingKey::from_rsa_pem(material.private_key_pem.as_bytes())
         .map_err(|e| anyhow::anyhow!("GitHub App private key is not a valid RSA PEM: {e}"))?;
@@ -75,6 +80,10 @@ pub enum MintError {
     Transient(anyhow::Error),
 }
 
+/// # Errors
+///
+/// Returns `Suspended` for a revoked installation and `Transient` for signing,
+/// transport, or response failures.
 pub async fn mint_installation_token(
     http: &reqwest::Client,
     api_base: &str,
@@ -136,6 +145,11 @@ struct GithubInstallationAccount {
 }
 
 /// List installations for a GitHub App (JWT auth). Used by backup setup UX.
+///
+/// # Errors
+///
+/// Returns `Suspended` for unavailable app access and `Transient` for signing,
+/// transport, or response failures.
 pub async fn list_app_installations(
     http: &reqwest::Client,
     api_base: &str,
@@ -182,6 +196,7 @@ pub async fn list_app_installations(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::Engine as _;
 
     fn throwaway_rsa_pem() -> Option<String> {
         let output = std::process::Command::new("openssl")
@@ -207,7 +222,6 @@ mod tests {
         let jwt = mint_app_jwt(&material).unwrap();
         let parts: Vec<&str> = jwt.split('.').collect();
         assert_eq!(parts.len(), 3);
-        use base64::Engine as _;
         let engine = base64::engine::general_purpose::URL_SAFE_NO_PAD;
         let header: serde_json::Value =
             serde_json::from_slice(&engine.decode(parts[0]).unwrap()).unwrap();

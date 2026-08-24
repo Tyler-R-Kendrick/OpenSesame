@@ -1,4 +1,4 @@
-//! Policy enforcement: OpenFGA relationships + contextual constraints via AuthZEN-shaped API.
+//! Policy enforcement: `OpenFGA` relationships + contextual constraints via AuthZEN-shaped API.
 
 pub mod authority_use;
 pub mod authzen;

@@ -83,6 +83,10 @@ pub fn seal_osseal_in(
 }
 
 /// Seal plaintext into an `.osseal` blob (magic + JSON envelope).
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn seal_osseal(
     plaintext: &[u8],
     content_key: &ItemDataKey,
@@ -138,6 +142,10 @@ pub fn open_osseal_in(
 }
 
 /// Open an `.osseal` blob.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn open_osseal(
     blob: &[u8],
     content_key: &ItemDataKey,

@@ -25,7 +25,7 @@ const CANARY: &str = "CANARY-TOKEN-chaos-never-leaks";
 const DEADLINE: Duration = Duration::from_secs(10);
 
 /// Executor timeout for the chaos invoker — short, so a Stall case is fast
-/// while still an order of magnitude above the SlowDrip cadence.
+/// while still an order of magnitude above the `SlowDrip` cadence.
 const EXECUTOR_TIMEOUT: Duration = Duration::from_millis(300);
 
 fn loopback_invoker() -> Invoker {
@@ -210,6 +210,10 @@ async fn chaos_failed_acquisition_makes_zero_upstream_connections() {
 }
 
 #[tokio::test]
+#[expect(
+    clippy::excessive_nesting,
+    reason = "the concurrent fault matrix intentionally keeps task creation and collection together"
+)]
 async fn chaos_concurrent_faults_all_fail_closed() {
     tokio::time::timeout(DEADLINE, async {
         let reset = FaultListener::spawn(Fault::Reset).await;

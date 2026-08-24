@@ -63,6 +63,10 @@ fn default_receipt_schema_version() -> u32 {
 impl InvocationReceipt {
     /// Enforce invariants introduced by the receipt schema while retaining
     /// verification compatibility for legacy schema 1 and 2 evidence.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_schema_invariants(&self) -> Result<(), DomainError> {
         if self.receipt_schema_version >= 3 && self.organization_id.is_none() {
             return Err(DomainError::Canonicalization(
@@ -73,6 +77,7 @@ impl InvocationReceipt {
     }
 
     /// Ensure no obvious secret-bearing keys appear in the safe summary.
+    #[must_use]
     pub fn assert_no_secret_leak(&self) -> bool {
         let Some(summary) = &self.safe_result_summary else {
             return true;

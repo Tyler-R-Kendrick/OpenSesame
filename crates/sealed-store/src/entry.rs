@@ -14,6 +14,7 @@ pub struct Entry {
 }
 
 impl Entry {
+    #[must_use]
     pub fn parse(text: &str) -> Self {
         let mut lines = text.split_inclusive('\n');
         let first = lines.next().unwrap_or("");
@@ -28,6 +29,7 @@ impl Entry {
     }
 
     /// Ensure trailer otpauth lines match `self.otp`, then render pass-style plaintext.
+    #[must_use]
     pub fn render(&self) -> String {
         let trailer = crate::otp::sync_trailer_otp(&self.trailer, self.otp.as_ref());
         Entry {
@@ -46,6 +48,7 @@ impl Entry {
         format!("{}\n{}", self.secret, self.trailer)
     }
 
+    #[must_use]
     pub fn with_otp(mut self, otp: Option<crate::otp::OtpUri>) -> Self {
         self.otp = otp;
         self.trailer = crate::otp::sync_trailer_otp(&self.trailer, self.otp.as_ref());

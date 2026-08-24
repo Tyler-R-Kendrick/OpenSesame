@@ -26,6 +26,7 @@ impl RelationshipStore {
         self.tuples.insert(format!("{object}#{relation}@{user}"));
     }
 
+    #[must_use]
     pub fn check(&self, object: &str, relation: &str, user: &str) -> bool {
         self.tuples.contains(&format!("{object}#{relation}@{user}"))
     }
@@ -50,6 +51,109 @@ impl Default for PolicyEngine {
 }
 
 impl PolicyEngine {
+    fn relationship_allowed(&self, req: &AuthZenRequest, grant: Option<&Grant>) -> bool {
+        let subject = &req.subject.id;
+        let object = format!("{}:{}", req.resource.type_, req.resource.id);
+        let connection = || {
+            req.context
+                .get("connection_id")
+                .and_then(|value| value.as_str())
+                .unwrap_or("")
+        };
+        // Delegated grants were attenuation-validated when claimed. Their
+        // lineage and exact connection binding replace the owner's tuple;
+        // requiring both would make every valid delegated exercise fail.
+        let delegated_capability = grant.is_some_and(|grant| {
+            grant.parent_grant_id.is_some()
+                && req
+                    .context
+                    .get("connection_uuid")
+                    .and_then(|value| value.as_str())
+                    .is_some_and(|connection_id| {
+                        grant.connection_id.map(|id| id.to_string()).as_deref()
+                            == Some(connection_id)
+                    })
+        });
+        match req.resource.type_.as_str() {
+            "connector_operation" => {
+                self.relationships
+                    .check(&format!("connection:{}", connection()), "user", subject)
+                    || self.relationships.check(&object, "executor", subject)
+                    || delegated_capability
+            }
+            "project" => ["viewer", "developer", "admin"]
+                .iter()
+                .any(|relation| self.relationships.check(&object, relation, subject)),
+            // Authority use names the connection itself; egress binding fences the target.
+            "connection" => {
+                self.relationships
+                    .check(&format!("connection:{}", connection()), "user", subject)
+                    || self.relationships.check(&object, "user", subject)
+                    || delegated_capability
+            }
+            "organization" => self.relationships.check(&object, "member", subject),
+            _ => self.relationships.check(&object, "viewer", subject),
+        }
+    }
+
+    fn grant_denial(
+        &self,
+        req: &AuthZenRequest,
+        grant: &Grant,
+    ) -> Result<Option<&'static str>, AuthzError> {
+        if !grant
+            .actions
+            .iter()
+            .any(|action| action == &req.action.name)
+        {
+            return Ok(Some("grant_action"));
+        }
+        if req.resource.type_ == "connector_operation" && !grant.permits_resource(&req.resource.id)
+        {
+            return Ok(Some("grant_resource"));
+        }
+        let audience_denied = req
+            .context
+            .get("audience")
+            .and_then(|value| value.as_str())
+            .is_some_and(|audience| {
+                !grant.constraints.audiences.is_empty()
+                    && !grant
+                        .constraints
+                        .audiences
+                        .iter()
+                        .any(|allowed| allowed == audience)
+            });
+        if audience_denied {
+            return Ok(Some("audience"));
+        }
+        if !grant.constraints.raw_credential_export && req.action.name == "credential.export" {
+            return Ok(Some("export_default_deny"));
+        }
+        if let Some(required) = &grant.constraints.required_assurance {
+            let have = self
+                .assurance
+                .get(&req.subject.id)
+                .cloned()
+                .or_else(|| {
+                    req.subject
+                        .properties
+                        .get("assurance")
+                        .and_then(|value| value.as_str())
+                        .map(str::to_string)
+                })
+                .unwrap_or_default();
+            if !assurance_satisfies(&have, required) {
+                return Err(AuthzError::StepUpRequired(required.clone()));
+            }
+        }
+        Ok(None)
+    }
+
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn decide(
         &self,
         req: &AuthZenRequest,
@@ -60,121 +164,35 @@ impl PolicyEngine {
             return Err(AuthzError::AuthorityUnavailable);
         }
         if class == AvailabilityClass::A1Preauthorized {
-            let offline_ok = grant
-                .map(|g| g.constraints.offline_use == OfflineUse::PreAuthorized)
-                .unwrap_or(false);
+            let offline_ok =
+                grant.is_some_and(|g| g.constraints.offline_use == OfflineUse::PreAuthorized);
             if !offline_ok && !self.authority_quorum {
                 return Err(AuthzError::AuthorityUnavailable);
             }
         }
 
-        let subject = &req.subject.id;
-        let object = format!("{}:{}", req.resource.type_, req.resource.id);
-        // A delegated capability is its own eligibility for the connection it
-        // names (ADR 0044). The child grant was attenuation-validated against
-        // the owner's grant when the claim ceremony minted it, and the route
-        // has already pinned the caller to the delegation's claimant before
-        // selecting this grant — so demanding a relationship tuple on top
-        // would refuse every delegate for lacking a tuple only owners get.
-        // The fence that matters is checked here: the grant's lineage
-        // (`parent_grant_id`) and the exact connection being exercised
-        // (`connection_uuid`), so a delegated grant for one connection cannot
-        // stand in for another. Root grants still need their tuple.
-        let delegated_capability = grant.is_some_and(|g| {
-            g.parent_grant_id.is_some()
-                && req
-                    .context
-                    .get("connection_uuid")
-                    .and_then(|v| v.as_str())
-                    .is_some_and(|raw| {
-                        g.connection_id.map(|c| c.to_string()).as_deref() == Some(raw)
-                    })
-        });
-        // Relationship eligibility: connection users may execute connector_operation
-        let rel_ok = match req.resource.type_.as_str() {
-            "connector_operation" => {
-                let conn = req
-                    .context
-                    .get("connection_id")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                self.relationships
-                    .check(&format!("connection:{conn}"), "user", subject)
-                    || self.relationships.check(&object, "executor", subject)
-                    || delegated_capability
-            }
-            "project" => {
-                self.relationships.check(&object, "viewer", subject)
-                    || self.relationships.check(&object, "developer", subject)
-                    || self.relationships.check(&object, "admin", subject)
-            }
-            // Authority use names the connection itself; the target is fenced by the
-            // egress binding, not by a resource id.
-            "connection" => {
-                let conn = req
-                    .context
-                    .get("connection_id")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                self.relationships
-                    .check(&format!("connection:{conn}"), "user", subject)
-                    || self.relationships.check(&object, "user", subject)
-                    || delegated_capability
-            }
-            "organization" => self.relationships.check(&object, "member", subject),
-            _ => self.relationships.check(&object, "viewer", subject),
-        };
-
-        if !rel_ok {
+        if !self.relationship_allowed(req, grant) {
             return Ok(deny(req, "relationship"));
         }
 
-        if let Some(g) = grant {
-            if !g.actions.iter().any(|a| a == &req.action.name) {
-                return Ok(deny(req, "grant_action"));
-            }
-            // The grant names its resources as well as its actions; skipping this
-            // check let a grant for one repository authorize the same action
-            // against any other. Only `connector_operation` ids share the grant's
-            // resource vocabulary — a `connection` request is fenced by the
-            // authority binding instead.
-            if req.resource.type_ == "connector_operation" && !g.permits_resource(&req.resource.id)
-            {
-                return Ok(deny(req, "grant_resource"));
-            }
-            if let Some(aud) = req.context.get("audience").and_then(|v| v.as_str()) {
-                if !g.constraints.audiences.is_empty()
-                    && !g.constraints.audiences.iter().any(|a| a == aud)
-                {
-                    return Ok(deny(req, "audience"));
-                }
-            }
-            if !g.constraints.raw_credential_export && req.action.name == "credential.export" {
-                return Ok(deny(req, "export_default_deny"));
-            }
-            if let Some(required) = &g.constraints.required_assurance {
-                let have = self
-                    .assurance
-                    .get(subject)
-                    .cloned()
-                    .or_else(|| {
-                        req.subject
-                            .properties
-                            .get("assurance")
-                            .and_then(|v| v.as_str())
-                            .map(|s| s.to_string())
-                    })
-                    .unwrap_or_default();
-                if !assurance_satisfies(&have, required) {
-                    return Err(AuthzError::StepUpRequired(required.clone()));
-                }
+        if let Some(reason) = grant
+            .map(|value| self.grant_denial(req, value))
+            .transpose()?
+        {
+            if let Some(reason) = reason {
+                return Ok(deny(req, reason));
             }
         } else if req.action.name == "credential.export" {
             return Ok(deny(req, "export_default_deny"));
         }
 
         // Discoverable MCP tool != executable
-        if req.context.get("discovery_only").and_then(|v| v.as_bool()) == Some(true) {
+        if req
+            .context
+            .get("discovery_only")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
+        {
             return Ok(deny(req, "discovery_not_execute"));
         }
 
@@ -435,7 +453,7 @@ mod tests {
                 authentication_max_age_seconds: None,
                 allowed_networks: vec![],
                 parameter_rules_digest: None,
-                budgets: Default::default(),
+                budgets: std::collections::BTreeMap::default(),
                 maximum_delegation_depth: 0,
                 offline_use: OfflineUse::Forbidden,
                 raw_credential_export: false,

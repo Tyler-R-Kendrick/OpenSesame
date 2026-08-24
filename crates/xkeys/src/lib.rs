@@ -45,6 +45,7 @@ pub struct XKeyPair {
 }
 
 impl XKeyPair {
+    #[must_use]
     pub fn generate() -> Self {
         let secret = StaticSecret::random_from_rng(rand::rngs::OsRng);
         let public = PublicKey::from(&secret);
@@ -54,6 +55,7 @@ impl XKeyPair {
         }
     }
 
+    #[must_use]
     pub fn from_secret_bytes(secret: [u8; 32]) -> Self {
         let sk = StaticSecret::from(secret);
         let public = PublicKey::from(&sk);
@@ -63,10 +65,12 @@ impl XKeyPair {
         }
     }
 
+    #[must_use]
     pub fn public_bytes(&self) -> [u8; 32] {
         self.public
     }
 
+    #[must_use]
     pub fn public_key(&self) -> PublicKey {
         PublicKey::from(self.public)
     }
@@ -82,6 +86,10 @@ impl XKeyPair {
 ///
 /// Uses an ephemeral X25519 keypair + HKDF-SHA256 → XChaCha20-Poly1305. Does
 /// **not** consult any Host deployment / connection sealing key.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn seal(plaintext: &[u8], recipient: &PublicKey) -> Result<Vec<u8>, XkeysError> {
     let eph_secret = StaticSecret::random_from_rng(rand::rngs::OsRng);
     let eph_public = PublicKey::from(&eph_secret);
@@ -116,6 +124,10 @@ pub fn seal(plaintext: &[u8], recipient: &PublicKey) -> Result<Vec<u8>, XkeysErr
 }
 
 /// Open a blob produced by [`seal`] with the recipient's private keypair.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn open(sealed: &[u8], recipient: &XKeyPair) -> Result<Vec<u8>, XkeysError> {
     if sealed.len() < 1 + PK_LEN + NONCE_LEN + 16 {
         return Err(XkeysError::Truncated);
@@ -124,7 +136,7 @@ pub fn open(sealed: &[u8], recipient: &XKeyPair) -> Result<Vec<u8>, XkeysError> 
     if version != SEAL_VERSION {
         return Err(XkeysError::UnsupportedVersion(version));
     }
-    let eph_pk_bytes: [u8; 32] = sealed[1..1 + PK_LEN]
+    let eph_pk_bytes: [u8; 32] = sealed[1..=PK_LEN]
         .try_into()
         .map_err(|_| XkeysError::PublicKeyLength)?;
     let eph_public = PublicKey::from(eph_pk_bytes);

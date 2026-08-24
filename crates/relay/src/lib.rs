@@ -79,6 +79,10 @@ pub struct RelayAdmission<'a> {
 ///
 /// Order matters only for which refusal is reported first; every check is
 /// independently sufficient to refuse.
+///
+/// # Errors
+///
+/// Returns the first fail-closed refusal applicable to the relay request.
 pub fn admit(request: &RelayAdmission<'_>) -> Result<(), RelayRefusal> {
     if request.mode != ExecutionMode::Relay {
         return Err(RelayRefusal::NotRelayMode);

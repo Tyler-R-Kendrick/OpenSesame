@@ -89,15 +89,49 @@ const DEFAULT_MAX_INVOKE_LEVEL: u8 = 2;
 /// a few hundred bytes; anything larger is a payload aimed at the shared store.
 pub const MAX_CREDENTIAL_BYTES: usize = 8 * 1024;
 
+#[derive(Clone, Copy)]
+enum ExplicitCredentialVersion<'a> {
+    Absent,
+    Present(&'a str),
+}
+
+impl<'a> From<Option<&'a str>> for ExplicitCredentialVersion<'a> {
+    fn from(version: Option<&'a str>) -> Self {
+        version.map_or(Self::Absent, Self::Present)
+    }
+}
+
 struct TokenActivation<'a> {
     refreshed_at: Option<chrono::DateTime<Utc>>,
     account_label: Option<&'a str>,
     expected_integration_updated_at: Option<&'a str>,
     event_kind: EventKind,
     event_detail: Option<&'a str>,
-    /// None captures the current local generation immediately before a local-only
-    /// write. Some(None) expects no credential; Some(Some(v)) expects exactly v.
-    expected_credential_version: Option<Option<&'a str>>,
+    /// `None` captures the current local generation immediately before a local-only
+    /// write. `Some(Absent)` expects no credential; `Some(Present(v))` expects `v`.
+    expected_credential_version: Option<ExplicitCredentialVersion<'a>>,
+}
+
+struct RefreshActivation<'a> {
+    row: &'a ConnectionRow,
+    provider: &'a Provider,
+    config: &'a BrokerConfig,
+    key: &'a [u8; 32],
+    credential: &'a CredentialRow,
+    tokens: &'a TokenSet,
+    refreshed_at: chrono::DateTime<Utc>,
+    expected_integration_updated_at: Option<&'a str>,
+}
+
+struct AuthorizationActivation<'a> {
+    row: &'a ConnectionRow,
+    provider: &'a Provider,
+    config: &'a BrokerConfig,
+    key: &'a [u8; 32],
+    tokens: &'a TokenSet,
+    account_label: Option<&'a str>,
+    expected_integration_updated_at: Option<&'a str>,
+    expected_credential_version: ExplicitCredentialVersion<'a>,
 }
 
 fn require_scope_subset(requested: &[String], ceiling: &[String]) -> Result<()> {
@@ -136,6 +170,22 @@ fn generated_connection_configuration(provider_id: &str) -> Option<BTreeMap<Stri
         }
         _ => None,
     }
+}
+
+fn connection_already_imported(
+    rows: &[ConnectionRow],
+    provider_id: &str,
+    owner_subject: Option<&str>,
+) -> bool {
+    rows.iter()
+        .any(|row| row.provider_id == provider_id && row.owner_subject.as_deref() == owner_subject)
+}
+
+fn provider_accepts_automatic_configuration(provider: &Provider) -> bool {
+    matches!(
+        provider.auth,
+        AuthMethod::ApiKey { .. } | AuthMethod::Configuration
+    ) || accepts_pasted_access_token(&provider.id)
 }
 
 pub struct ConnectionBroker {
@@ -199,6 +249,9 @@ impl ConnectionBroker {
         &self.pool
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the provider catalog or HTTP client cannot initialize.
     pub fn new(pool: SqlitePool, config: BrokerConfig) -> Result<Self> {
         catalog::load()?;
         let http = reqwest::Client::builder()
@@ -295,6 +348,9 @@ impl ConnectionBroker {
 
     // ---- catalog -------------------------------------------------------------
 
+    /// # Errors
+    ///
+    /// Returns an error when the provider catalog is invalid.
     pub fn list_providers(&self) -> Result<Vec<ProviderView>> {
         let catalog_revision = catalog::revision()?;
         Ok(catalog::all()?
@@ -314,7 +370,7 @@ impl ConnectionBroker {
             .collect())
     }
 
-    fn provider(&self, id: &str) -> Result<&'static Provider> {
+    fn provider(id: &str) -> Result<&'static Provider> {
         if id == "mock" && flow::is_production_env() {
             return Err(BrokerError::ProviderUnknown(id.to_string()));
         }
@@ -330,6 +386,66 @@ impl ConnectionBroker {
             .or_else(|| generated_connection_configuration(provider_id))
     }
 
+    fn validate_automatic_configuration(
+        &self,
+        provider: &Provider,
+        configuration: Option<&BTreeMap<String, String>>,
+    ) -> Result<()> {
+        let Some(configuration) = configuration else {
+            return Ok(());
+        };
+        if accepts_pasted_access_token(&provider.id) && configuration.contains_key("access_token") {
+            self.sealing_key()?;
+            return Ok(());
+        }
+        let definitions = provider.connection_configuration_fields();
+        configuration::validate_mutation(definitions, configuration, &[])?;
+        if !configuration::complete(definitions, configuration) {
+            return Err(BrokerError::Invalid(format!(
+                "detected {} configuration is incomplete",
+                provider.id
+            )));
+        }
+        self.sealing_key()?;
+        Ok(())
+    }
+
+    async fn configure_automatic_connection(
+        &self,
+        organization_id: &OrganizationId,
+        row: &ConnectionRow,
+        provider: &Provider,
+        configuration: BTreeMap<String, String>,
+    ) -> Result<ConnectionView> {
+        let token = accepts_pasted_access_token(&provider.id)
+            .then(|| {
+                configuration
+                    .get("access_token")
+                    .or_else(|| configuration.get("api_key"))
+                    .cloned()
+            })
+            .flatten();
+        let result = match token {
+            Some(token) => {
+                self.set_access_token(organization_id, &row.id, &token)
+                    .await
+            }
+            None => {
+                self.set_connection_configuration(
+                    organization_id,
+                    &row.id,
+                    configuration,
+                    Vec::new(),
+                )
+                .await
+            }
+        };
+        if result.is_err() {
+            let _ = store::delete_connection(&self.pool, &row.id).await;
+        }
+        result
+    }
+
     fn sealing_key(&self) -> Result<&[u8; 32]> {
         self.config.key().ok_or_else(|| {
             BrokerError::SealUnavailable(format!("{} is not set", config::ENV_CONNECTION_KEY))
@@ -343,12 +459,11 @@ impl ConnectionBroker {
     pub async fn claim_discovery_organization(&self, organization_id: &OrganizationId) -> bool {
         let selected = organization_id.to_string();
         let mut claimed = self.discovery_organization.lock().await;
-        match claimed.as_ref() {
-            Some(existing) => existing == &selected,
-            None => {
-                *claimed = Some(selected);
-                true
-            }
+        if let Some(existing) = claimed.as_ref() {
+            existing == &selected
+        } else {
+            *claimed = Some(selected);
+            true
         }
     }
 
@@ -373,9 +488,7 @@ impl ConnectionBroker {
             return 0;
         };
         for provider in providers {
-            if rows.iter().any(|row| {
-                row.provider_id == provider.id && row.owner_subject.as_deref() == owner_subject
-            }) {
+            if connection_already_imported(&rows, &provider.id, owner_subject) {
                 continue;
             }
             if self
@@ -384,11 +497,7 @@ impl ConnectionBroker {
             {
                 continue;
             }
-            if !matches!(
-                provider.auth,
-                AuthMethod::ApiKey { .. } | AuthMethod::Configuration
-            ) && !accepts_pasted_access_token(&provider.id)
-            {
+            if !provider_accepts_automatic_configuration(provider) {
                 continue;
             }
             let created = match self
@@ -425,6 +534,9 @@ impl ConnectionBroker {
         configured
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when provider, integration, configuration, policy, or storage validation fails.
     pub async fn create_connection(
         &self,
         organization_id: &OrganizationId,
@@ -432,7 +544,7 @@ impl ConnectionBroker {
     ) -> Result<ConnectionView> {
         let requested_provider = request.provider_id.trim();
         if !requested_provider.is_empty() {
-            self.provider(requested_provider)?;
+            Self::provider(requested_provider)?;
         }
         let (integration_id, provider_id, _provider_config, integration_scopes, _) = self
             .resolve_integration(
@@ -441,23 +553,9 @@ impl ConnectionBroker {
                 request.integration_id.as_deref(),
             )
             .await?;
-        let provider = self.provider(&provider_id)?;
+        let provider = Self::provider(&provider_id)?;
         let automatic_configuration = self.automatic_connection_configuration(&provider.id);
-        if let Some(configuration) = automatic_configuration.as_ref() {
-            if !(accepts_pasted_access_token(&provider.id)
-                && configuration.contains_key("access_token"))
-            {
-                let definitions = provider.connection_configuration_fields();
-                configuration::validate_mutation(definitions, configuration, &[])?;
-                if !configuration::complete(definitions, configuration) {
-                    return Err(BrokerError::Invalid(format!(
-                        "detected {} configuration is incomplete",
-                        provider.id
-                    )));
-                }
-            }
-            self.sealing_key()?;
-        }
+        self.validate_automatic_configuration(provider, automatic_configuration.as_ref())?;
         if let Some(scopes) = request.scopes.as_ref() {
             require_scope_subset(scopes, &integration_scopes)?;
         }
@@ -520,34 +618,9 @@ impl ConnectionBroker {
         store::append_event(&self.pool, &row.id, EventKind::Created, Some(&provider.id)).await?;
         tracing::info!(connection_id = %row.id, provider_id = provider.id, "connection created");
         if let Some(configuration) = automatic_configuration {
-            if accepts_pasted_access_token(&provider.id) {
-                if let Some(token) = configuration
-                    .get("access_token")
-                    .or_else(|| configuration.get("api_key"))
-                    .cloned()
-                {
-                    return match self
-                        .set_access_token(organization_id, &row.id, &token)
-                        .await
-                    {
-                        Ok(view) => Ok(view),
-                        Err(error) => {
-                            let _ = store::delete_connection(&self.pool, &row.id).await;
-                            Err(error)
-                        }
-                    };
-                }
-            }
-            return match self
-                .set_connection_configuration(organization_id, &row.id, configuration, Vec::new())
-                .await
-            {
-                Ok(view) => Ok(view),
-                Err(error) => {
-                    let _ = store::delete_connection(&self.pool, &row.id).await;
-                    Err(error)
-                }
-            };
+            return self
+                .configure_automatic_connection(organization_id, &row, provider, configuration)
+                .await;
         }
         self.view(row).await
     }
@@ -570,6 +643,9 @@ impl ConnectionBroker {
         ))
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when connection storage or view construction fails.
     pub async fn list_connections(
         &self,
         organization_id: &OrganizationId,
@@ -580,6 +656,9 @@ impl ConnectionBroker {
     /// Connections in this organization, narrowed to one owner when given. An
     /// organization is not a tenancy boundary here — the gateway serves many
     /// callers out of one — so listing has to be able to answer for a single one.
+    /// # Errors
+    ///
+    /// Returns an error when connection storage or view construction fails.
     pub async fn list_connections_for(
         &self,
         organization_id: &OrganizationId,
@@ -588,10 +667,8 @@ impl ConnectionBroker {
         let rows = store::list_connections(&self.pool, &organization_id.to_string()).await?;
         let mut views = Vec::with_capacity(rows.len());
         for row in rows {
-            if let Some(owner) = owner {
-                if row.owner_subject.as_deref() != Some(owner) {
-                    continue;
-                }
+            if owner.is_some_and(|owner| row.owner_subject.as_deref() != Some(owner)) {
+                continue;
             }
             views.push(self.view(row).await?);
         }
@@ -601,6 +678,9 @@ impl ConnectionBroker {
     /// Who this connection was created for, if anyone. `None` covers rows made
     /// before owners were recorded and those an operator made on nobody's behalf:
     /// both stay operator-only rather than becoming everybody's.
+    /// # Errors
+    ///
+    /// Returns an error when the connection is absent or storage fails.
     pub async fn owner_subject(
         &self,
         organization_id: &OrganizationId,
@@ -609,6 +689,9 @@ impl ConnectionBroker {
         Ok(self.row_in_org(organization_id, id).await?.owner_subject)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the connection is absent or its view cannot be built.
     pub async fn get_connection(
         &self,
         organization_id: &OrganizationId,
@@ -618,6 +701,9 @@ impl ConnectionBroker {
         self.view(row).await
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the connection is absent or event storage fails.
     pub async fn events(
         &self,
         organization_id: &OrganizationId,
@@ -643,8 +729,132 @@ impl ConnectionBroker {
         Ok(row)
     }
 
+    fn authorization_redirect(
+        &self,
+        provider_id: &str,
+        redirect_uri: Option<String>,
+    ) -> Result<String> {
+        let Some(redirect_uri) = redirect_uri.filter(|value| !value.trim().is_empty()) else {
+            return Ok(self.config.callback_url(provider_id));
+        };
+        if !self
+            .config
+            .redirect_allowed(provider_id, redirect_uri.trim())
+        {
+            return Err(BrokerError::RedirectNotAllowed);
+        }
+        Ok(redirect_uri.trim().to_owned())
+    }
+
+    async fn authorization_scopes(
+        &self,
+        row: &ConnectionRow,
+        requested: Option<Vec<String>>,
+        integration_scopes: &[String],
+    ) -> Result<Vec<String>> {
+        let scope_override = requested.filter(|scopes| !scopes.is_empty());
+        let scopes = scope_override
+            .clone()
+            .unwrap_or_else(|| row.requested_scopes.clone());
+        require_scope_subset(&scopes, integration_scopes)?;
+        if scope_override.is_some() {
+            store::set_requested_scopes(&self.pool, &row.id, &scopes).await?;
+        }
+        Ok(scopes)
+    }
+
+    async fn current_integration_scopes(
+        &self,
+        organization_id: &OrganizationId,
+        row: &ConnectionRow,
+        expected_updated_at: Option<&str>,
+    ) -> Result<Vec<String>> {
+        let integration = self
+            .get_integration(organization_id, &row.integration_id)
+            .await
+            .map_err(|_| BrokerError::IntegrationConflict)?;
+        if !integration.enabled
+            || !integration.configured
+            || expected_updated_at.is_some_and(|expected| integration.updated_at != expected)
+        {
+            return Err(BrokerError::IntegrationConflict);
+        }
+        Ok(integration.scopes)
+    }
+
+    async fn consume_authorization_for_provider(
+        &self,
+        provider_id: &str,
+        state: &str,
+    ) -> Result<(AuthorizationRow, ConnectionRow)> {
+        let authorization = {
+            let _claim_guard = self.authorization_lock.lock().await;
+            store::consume_authorization(&self.pool, state, Utc::now()).await?
+        };
+        let row = store::get_connection(&self.pool, &authorization.connection_id)
+            .await?
+            .ok_or(BrokerError::ConnectionNotFound)?;
+        if row.status == ConnectionStatus::Revoked {
+            return Err(BrokerError::Invalid("connection is revoked".into()));
+        }
+        if row.provider_id != provider_id {
+            return Err(BrokerError::InvalidState);
+        }
+        Ok((authorization, row))
+    }
+
+    async fn exchange_authorization_code(
+        &self,
+        row: &ConnectionRow,
+        authorization: &AuthorizationRow,
+        provider: &Provider,
+        config: &BrokerConfig,
+        key: &[u8; 32],
+        code: &str,
+    ) -> Result<token::TokenResponse> {
+        let code_verifier = String::from_utf8(crypto::open(
+            key,
+            &row.id,
+            &row.organization_id,
+            &authorization.code_verifier,
+        )?)
+        .map_err(|_| BrokerError::SealUnavailable("PKCE verifier is not UTF-8".into()))?;
+        match flow::exchange_code(
+            &self.http,
+            provider,
+            config,
+            code,
+            &code_verifier,
+            &authorization.redirect_uri,
+        )
+        .await
+        {
+            Ok(response) => Ok(response),
+            Err(error) => {
+                let detail = error.hint();
+                if !store::transition_unless_revoked(
+                    &self.pool,
+                    &row.id,
+                    ConnectionStatus::Error,
+                    Some(&detail),
+                    EventKind::Error,
+                    Some(&detail),
+                )
+                .await?
+                {
+                    return Err(BrokerError::Invalid("connection is revoked".into()));
+                }
+                tracing::warn!(connection_id = %row.id, provider_id = provider.id, "token exchange failed");
+                Err(error)
+            }
+        }
+    }
+
     // ---- authorization -------------------------------------------------------
 
+    /// # Errors
+    ///
+    /// Returns an error when connection, integration, redirect, scope, PKCE sealing, or storage validation fails.
     pub async fn start_authorization(
         &self,
         organization_id: &OrganizationId,
@@ -658,7 +868,7 @@ impl ConnectionBroker {
                 "connection is revoked; create a new one".into(),
             ));
         }
-        let provider = self.provider(&row.provider_id)?;
+        let provider = Self::provider(&row.provider_id)?;
         let (integration_id, _, provider_config, integration_scopes, _) = self
             .resolve_integration(
                 organization_id,
@@ -688,24 +898,10 @@ impl ConnectionBroker {
         // not store.
         self.sealing_key()?;
 
-        let redirect_uri = match redirect_uri.filter(|r| !r.trim().is_empty()) {
-            Some(uri) => {
-                if !self.config.redirect_allowed(&provider.id, uri.trim()) {
-                    return Err(BrokerError::RedirectNotAllowed);
-                }
-                uri.trim().to_string()
-            }
-            None => self.config.callback_url(&provider.id),
-        };
-
-        let scope_override = scopes.filter(|scopes| !scopes.is_empty());
-        let scopes = scope_override
-            .clone()
-            .unwrap_or_else(|| row.requested_scopes.clone());
-        require_scope_subset(&scopes, &integration_scopes)?;
-        if scope_override.is_some() {
-            store::set_requested_scopes(&self.pool, &row.id, &scopes).await?;
-        }
+        let redirect_uri = self.authorization_redirect(&provider.id, redirect_uri)?;
+        let scopes = self
+            .authorization_scopes(&row, scopes, &integration_scopes)
+            .await?;
 
         let pkce = flow::Pkce::generate();
         let state = flow::new_state();
@@ -768,28 +964,19 @@ impl ConnectionBroker {
         })
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when state, exchange, integration, credential, or activation validation fails.
     pub async fn complete_authorization(
         &self,
         provider_id: &str,
         code: &str,
         state: &str,
     ) -> Result<ConnectionView> {
-        let authorization = {
-            let _claim_guard = self.authorization_lock.lock().await;
-            store::consume_authorization(&self.pool, state, Utc::now()).await?
-        };
-        let row = store::get_connection(&self.pool, &authorization.connection_id)
-            .await?
-            .ok_or(BrokerError::ConnectionNotFound)?;
-        if row.status == ConnectionStatus::Revoked {
-            return Err(BrokerError::Invalid("connection is revoked".into()));
-        }
-        // A state belongs to one connection and therefore to one provider; a
-        // callback arriving on another provider's path is not this state's.
-        if row.provider_id != provider_id {
-            return Err(BrokerError::InvalidState);
-        }
-        let provider = self.provider(&row.provider_id)?;
+        let (authorization, row) = self
+            .consume_authorization_for_provider(provider_id, state)
+            .await?;
+        let provider = Self::provider(&row.provider_id)?;
         let organization_id = OrganizationId::parse(&row.organization_id)
             .map_err(|_| BrokerError::Invalid("stored organization_id is invalid".into()))?;
         let (_, _, provider_config, initial_ceiling, expected_integration_updated_at) = self
@@ -805,43 +992,9 @@ impl ConnectionBroker {
             .clone()
             .with_provider(&provider.id, provider_config);
         let key = *self.sealing_key()?;
-        let code_verifier = String::from_utf8(crypto::open(
-            &key,
-            &row.id,
-            &row.organization_id,
-            &authorization.code_verifier,
-        )?)
-        .map_err(|_| BrokerError::SealUnavailable("PKCE verifier is not UTF-8".into()))?;
-
-        let response = match flow::exchange_code(
-            &self.http,
-            provider,
-            &config,
-            code,
-            &code_verifier,
-            &authorization.redirect_uri,
-        )
-        .await
-        {
-            Ok(r) => r,
-            Err(e) => {
-                let detail = e.hint();
-                if !store::transition_unless_revoked(
-                    &self.pool,
-                    &row.id,
-                    ConnectionStatus::Error,
-                    Some(&detail),
-                    EventKind::Error,
-                    Some(&detail),
-                )
-                .await?
-                {
-                    return Err(BrokerError::Invalid("connection is revoked".into()));
-                }
-                tracing::warn!(connection_id = %row.id, provider_id = provider.id, "token exchange failed");
-                return Err(e);
-            }
-        };
+        let response = self
+            .exchange_authorization_code(&row, &authorization, provider, &config, &key, code)
+            .await?;
 
         let account_label = response.account_label();
         let tokens = match response.into_token_set(Utc::now(), &authorization.scopes) {
@@ -863,34 +1016,26 @@ impl ConnectionBroker {
         };
         #[cfg(test)]
         self.pause_after_token_response().await;
-        let current_integration = match self
-            .get_integration(&organization_id, &row.integration_id)
+        let Ok(current_ceiling) = self
+            .current_integration_scopes(
+                &organization_id,
+                &row,
+                expected_integration_updated_at.as_deref(),
+            )
             .await
-        {
-            Ok(integration)
-                if integration.enabled
-                    && integration.configured
-                    && expected_integration_updated_at
-                        .as_ref()
-                        .is_none_or(|expected| integration.updated_at == *expected) =>
-            {
-                integration
-            }
-            _ => {
-                self.revoke_issued_tokens(provider, &config, &tokens).await;
-                let detail = "integration changed while authorization was in flight";
-                let _ = store::invalidate_credential_unless_revoked(
-                    &self.pool,
-                    &row.id,
-                    ConnectionStatus::Error,
-                    detail,
-                    EventKind::Error,
-                )
-                .await?;
-                return Err(BrokerError::IntegrationConflict);
-            }
+        else {
+            self.revoke_issued_tokens(provider, &config, &tokens).await;
+            let detail = "integration changed while authorization was in flight";
+            let _ = store::invalidate_credential_unless_revoked(
+                &self.pool,
+                &row.id,
+                ConnectionStatus::Error,
+                detail,
+                EventKind::Error,
+            )
+            .await?;
+            return Err(BrokerError::IntegrationConflict);
         };
-        let current_ceiling = current_integration.scopes;
         if let Err(error) = require_scope_subset(&authorization.scopes, &current_ceiling)
             .and_then(|()| require_scope_subset(&tokens.scopes, &current_ceiling))
         {
@@ -906,37 +1051,69 @@ impl ConnectionBroker {
             .await?;
             return Err(error);
         }
+        self.activate_authorized_tokens(AuthorizationActivation {
+            row: &row,
+            provider,
+            config: &config,
+            key: &key,
+            tokens: &tokens,
+            account_label: account_label.as_deref(),
+            expected_integration_updated_at: expected_integration_updated_at.as_deref(),
+            expected_credential_version: authorization.credential_version.as_deref().into(),
+        })
+        .await
+    }
+
+    async fn activate_authorized_tokens(
+        &self,
+        activation: AuthorizationActivation<'_>,
+    ) -> Result<ConnectionView> {
         let activated = self
             .store_tokens(
-                &key,
-                &row,
-                &tokens,
+                activation.key,
+                activation.row,
+                activation.tokens,
                 TokenActivation {
                     refreshed_at: None,
-                    account_label: account_label.as_deref(),
-                    expected_integration_updated_at: expected_integration_updated_at.as_deref(),
+                    account_label: activation.account_label,
+                    expected_integration_updated_at: activation.expected_integration_updated_at,
                     event_kind: EventKind::Authorized,
-                    event_detail: Some(&provider.id),
-                    expected_credential_version: Some(authorization.credential_version.as_deref()),
+                    event_detail: Some(&activation.provider.id),
+                    expected_credential_version: Some(activation.expected_credential_version),
                 },
             )
             .await;
         match activated {
             Ok(store::CredentialActivationOutcome::Activated) => {}
             Ok(store::CredentialActivationOutcome::Revoked) => {
-                self.revoke_issued_tokens(provider, &config, &tokens).await;
+                self.revoke_issued_tokens(
+                    activation.provider,
+                    activation.config,
+                    activation.tokens,
+                )
+                .await;
                 return Err(BrokerError::Invalid("connection is revoked".into()));
             }
             Ok(store::CredentialActivationOutcome::Superseded) => {
-                self.revoke_issued_tokens(provider, &config, &tokens).await;
-                return self.get_connection_unscoped(&row.id).await;
+                self.revoke_issued_tokens(
+                    activation.provider,
+                    activation.config,
+                    activation.tokens,
+                )
+                .await;
+                return self.get_connection_unscoped(&activation.row.id).await;
             }
             Err(error) => {
-                self.revoke_issued_tokens(provider, &config, &tokens).await;
+                self.revoke_issued_tokens(
+                    activation.provider,
+                    activation.config,
+                    activation.tokens,
+                )
+                .await;
                 let detail = error.hint();
                 let _ = store::invalidate_credential_unless_revoked(
                     &self.pool,
-                    &row.id,
+                    &activation.row.id,
                     ConnectionStatus::Error,
                     &detail,
                     EventKind::Error,
@@ -945,11 +1122,18 @@ impl ConnectionBroker {
                 return Err(error);
             }
         }
-        tracing::info!(connection_id = %row.id, provider_id = provider.id, "connection authorized");
+        tracing::info!(
+            connection_id = %activation.row.id,
+            provider_id = activation.provider.id,
+            "connection authorized"
+        );
 
-        self.get_connection_unscoped(&row.id).await
+        self.get_connection_unscoped(&activation.row.id).await
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when state consumption or guarded status persistence fails.
     pub async fn reject_authorization(
         &self,
         provider_id: &str,
@@ -980,13 +1164,180 @@ impl ConnectionBroker {
         Ok(())
     }
 
+    async fn refreshed_tokens_or_invalidate(
+        &self,
+        row: &ConnectionRow,
+        provider: &Provider,
+        config: &BrokerConfig,
+        previous: &TokenSet,
+        response: token::TokenResponse,
+    ) -> Result<TokenSet> {
+        match token::apply_refresh(previous, response.clone(), Utc::now()) {
+            Ok(tokens) => Ok(tokens),
+            Err(error) => {
+                let issued = response.issued_tokens_for_cleanup(&row.requested_scopes);
+                self.revoke_issued_tokens(provider, config, &issued).await;
+                let detail = error.hint();
+                let _ = store::invalidate_credential_unless_revoked(
+                    &self.pool,
+                    &row.id,
+                    ConnectionStatus::NeedsReauth,
+                    &detail,
+                    EventKind::RefreshFailed,
+                )
+                .await?;
+                Err(BrokerError::NeedsReauth(detail))
+            }
+        }
+    }
+
+    async fn validate_refreshed_scopes(
+        &self,
+        organization_id: &OrganizationId,
+        row: &ConnectionRow,
+        provider: &Provider,
+        config: &BrokerConfig,
+        tokens: &TokenSet,
+        expected_updated_at: Option<&str>,
+    ) -> Result<()> {
+        let Ok(current_ceiling) = self
+            .current_integration_scopes(organization_id, row, expected_updated_at)
+            .await
+        else {
+            self.revoke_issued_tokens(provider, config, tokens).await;
+            let detail = "integration changed while refresh was in flight";
+            let _ = store::invalidate_credential_unless_revoked(
+                &self.pool,
+                &row.id,
+                ConnectionStatus::NeedsReauth,
+                detail,
+                EventKind::RefreshFailed,
+            )
+            .await?;
+            return Err(BrokerError::NeedsReauth(detail.into()));
+        };
+        if let Err(error) = require_scope_subset(&row.requested_scopes, &current_ceiling)
+            .and_then(|()| require_scope_subset(&tokens.scopes, &current_ceiling))
+        {
+            self.revoke_issued_tokens(provider, config, tokens).await;
+            let detail = error.hint();
+            let _ = store::invalidate_credential_unless_revoked(
+                &self.pool,
+                &row.id,
+                ConnectionStatus::NeedsReauth,
+                &detail,
+                EventKind::RefreshFailed,
+            )
+            .await?;
+            return Err(BrokerError::NeedsReauth(detail));
+        }
+        Ok(())
+    }
+
+    async fn activate_refreshed_tokens(
+        &self,
+        activation: RefreshActivation<'_>,
+    ) -> Result<ConnectionView> {
+        let activated = self
+            .store_tokens(
+                activation.key,
+                activation.row,
+                activation.tokens,
+                TokenActivation {
+                    refreshed_at: Some(activation.refreshed_at),
+                    account_label: None,
+                    expected_integration_updated_at: activation.expected_integration_updated_at,
+                    event_kind: EventKind::Refreshed,
+                    event_detail: None,
+                    expected_credential_version: Some(ExplicitCredentialVersion::Present(
+                        &activation.credential.version,
+                    )),
+                },
+            )
+            .await;
+        match activated {
+            Ok(store::CredentialActivationOutcome::Activated) => {}
+            Ok(store::CredentialActivationOutcome::Revoked) => {
+                self.revoke_issued_tokens(
+                    activation.provider,
+                    activation.config,
+                    activation.tokens,
+                )
+                .await;
+                return Err(BrokerError::Invalid("connection is revoked".into()));
+            }
+            Ok(store::CredentialActivationOutcome::Superseded) => {
+                self.revoke_issued_tokens(
+                    activation.provider,
+                    activation.config,
+                    activation.tokens,
+                )
+                .await;
+                return self.get_connection_unscoped(&activation.row.id).await;
+            }
+            Err(error) => {
+                self.revoke_issued_tokens(
+                    activation.provider,
+                    activation.config,
+                    activation.tokens,
+                )
+                .await;
+                let detail = error.hint();
+                let _ = store::invalidate_credential_unless_revoked(
+                    &self.pool,
+                    &activation.row.id,
+                    ConnectionStatus::NeedsReauth,
+                    &detail,
+                    EventKind::RefreshFailed,
+                )
+                .await?;
+                return Err(BrokerError::NeedsReauth(detail));
+            }
+        }
+        tracing::info!(connection_id = %activation.row.id, provider_id = activation.provider.id, "connection refreshed");
+        self.get_connection_unscoped(&activation.row.id).await
+    }
+
+    async fn handle_refresh_rejection(
+        &self,
+        key: &[u8; 32],
+        row: &ConnectionRow,
+        tokens: &TokenSet,
+        error: BrokerError,
+    ) -> Result<ConnectionView> {
+        if self.credential_moved_on(key, row, tokens).await {
+            return self.get_connection_unscoped(&row.id).await;
+        }
+        let detail = error.hint();
+        if !store::transition_unless_revoked(
+            &self.pool,
+            &row.id,
+            ConnectionStatus::NeedsReauth,
+            Some(&detail),
+            EventKind::RefreshFailed,
+            Some(&detail),
+        )
+        .await?
+        {
+            return Err(BrokerError::Invalid("connection is revoked".into()));
+        }
+        tracing::warn!(connection_id = %row.id, provider_id = row.provider_id, "refresh rejected");
+        Err(match error {
+            BrokerError::NotRefreshable => BrokerError::NotRefreshable,
+            other => BrokerError::NeedsReauth(other.hint()),
+        })
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error when refresh eligibility, provider exchange, integration, or activation fails.
     pub async fn refresh(
         &self,
         organization_id: &OrganizationId,
         id: &str,
     ) -> Result<ConnectionView> {
         let mut row = self.row_in_org(organization_id, id).await?;
-        let provider = self.provider(&row.provider_id)?;
+        let provider = Self::provider(&row.provider_id)?;
         let (integration_id, _, provider_config, initial_ceiling, expected_integration_updated_at) =
             self.resolve_integration(
                 organization_id,
@@ -1008,7 +1359,7 @@ impl ConnectionBroker {
         let credential = store::get_credential(&self.pool, &row.id)
             .await?
             .ok_or(BrokerError::NotRefreshable)?;
-        let tokens = self.open_tokens(&key, &row, &credential)?;
+        let tokens = Self::open_tokens(&key, &row, &credential)?;
         if !tokens.refreshable() || !provider.auth.supports_refresh() {
             return Err(BrokerError::NotRefreshable);
         }
@@ -1022,145 +1373,40 @@ impl ConnectionBroker {
         #[cfg(test)]
         self.pause_after_refresh_read().await;
 
-        match token::refresh(&self.http, provider, &config, &tokens).await {
-            Ok(response) => {
-                let next = match token::apply_refresh(&tokens, response.clone(), Utc::now()) {
-                    Ok(next) => next,
-                    Err(error) => {
-                        let issued = response.issued_tokens_for_cleanup(&row.requested_scopes);
-                        self.revoke_issued_tokens(provider, &config, &issued).await;
-                        let detail = error.hint();
-                        let _ = store::invalidate_credential_unless_revoked(
-                            &self.pool,
-                            &row.id,
-                            ConnectionStatus::NeedsReauth,
-                            &detail,
-                            EventKind::RefreshFailed,
-                        )
-                        .await?;
-                        return Err(BrokerError::NeedsReauth(detail));
-                    }
-                };
-                let now = Utc::now();
-                #[cfg(test)]
-                self.pause_after_token_response().await;
-                let current_integration = match self
-                    .get_integration(organization_id, &row.integration_id)
-                    .await
-                {
-                    Ok(integration)
-                        if integration.enabled
-                            && integration.configured
-                            && expected_integration_updated_at
-                                .as_ref()
-                                .is_none_or(|expected| integration.updated_at == *expected) =>
-                    {
-                        integration
-                    }
-                    _ => {
-                        self.revoke_issued_tokens(provider, &config, &next).await;
-                        let detail = "integration changed while refresh was in flight";
-                        let _ = store::invalidate_credential_unless_revoked(
-                            &self.pool,
-                            &row.id,
-                            ConnectionStatus::NeedsReauth,
-                            detail,
-                            EventKind::RefreshFailed,
-                        )
-                        .await?;
-                        return Err(BrokerError::NeedsReauth(detail.into()));
-                    }
-                };
-                let current_ceiling = current_integration.scopes;
-                if let Err(error) = require_scope_subset(&row.requested_scopes, &current_ceiling)
-                    .and_then(|()| require_scope_subset(&next.scopes, &current_ceiling))
-                {
-                    self.revoke_issued_tokens(provider, &config, &next).await;
-                    let detail = error.hint();
-                    let _ = store::invalidate_credential_unless_revoked(
-                        &self.pool,
-                        &row.id,
-                        ConnectionStatus::NeedsReauth,
-                        &detail,
-                        EventKind::RefreshFailed,
-                    )
-                    .await?;
-                    return Err(BrokerError::NeedsReauth(detail));
-                }
-                let activated = self
-                    .store_tokens(
-                        &key,
-                        &row,
-                        &next,
-                        TokenActivation {
-                            refreshed_at: Some(now),
-                            account_label: None,
-                            expected_integration_updated_at: expected_integration_updated_at
-                                .as_deref(),
-                            event_kind: EventKind::Refreshed,
-                            event_detail: None,
-                            expected_credential_version: Some(Some(&credential.version)),
-                        },
-                    )
+        let response = match token::refresh(&self.http, provider, &config, &tokens).await {
+            Ok(response) => response,
+            Err(error) => {
+                return self
+                    .handle_refresh_rejection(&key, &row, &tokens, error)
                     .await;
-                match activated {
-                    Ok(store::CredentialActivationOutcome::Activated) => {}
-                    Ok(store::CredentialActivationOutcome::Revoked) => {
-                        self.revoke_issued_tokens(provider, &config, &next).await;
-                        return Err(BrokerError::Invalid("connection is revoked".into()));
-                    }
-                    Ok(store::CredentialActivationOutcome::Superseded) => {
-                        self.revoke_issued_tokens(provider, &config, &next).await;
-                        return self.get_connection_unscoped(&row.id).await;
-                    }
-                    Err(error) => {
-                        self.revoke_issued_tokens(provider, &config, &next).await;
-                        let detail = error.hint();
-                        let _ = store::invalidate_credential_unless_revoked(
-                            &self.pool,
-                            &row.id,
-                            ConnectionStatus::NeedsReauth,
-                            &detail,
-                            EventKind::RefreshFailed,
-                        )
-                        .await?;
-                        return Err(BrokerError::NeedsReauth(detail));
-                    }
-                }
-                tracing::info!(connection_id = %row.id, provider_id = provider.id, "connection refreshed");
-                self.get_connection_unscoped(&row.id).await
             }
-            Err(e) => {
-                // A provider that rotates refresh tokens rejects the older one, so
-                // two refreshes at once means the loser is told `invalid_grant` about
-                // a grant that is in fact alive. Only the tokens on record can say
-                // which happened: if they have moved on, someone else refreshed and
-                // this failure is not the connection's news to carry.
-                if self.credential_moved_on(&key, &row, &tokens).await {
-                    return self.get_connection_unscoped(&row.id).await;
-                }
-                // The grant is gone upstream; keep the row, its bindings and its
-                // history so re-authorization is a step rather than a rebuild.
-                let detail = e.hint();
-                if !store::transition_unless_revoked(
-                    &self.pool,
-                    &row.id,
-                    ConnectionStatus::NeedsReauth,
-                    Some(&detail),
-                    EventKind::RefreshFailed,
-                    Some(&detail),
-                )
-                .await?
-                {
-                    return Err(BrokerError::Invalid("connection is revoked".into()));
-                }
-                tracing::warn!(connection_id = %row.id, provider_id = provider.id, "refresh rejected");
-                Err(match e {
-                    BrokerError::NotRefreshable => BrokerError::NotRefreshable,
-                    other => BrokerError::NeedsReauth(other.hint()),
-                })
-            }
-        }
+        };
+        let next = self
+            .refreshed_tokens_or_invalidate(&row, provider, &config, &tokens, response)
+            .await?;
+        let refreshed_at = Utc::now();
+        #[cfg(test)]
+        self.pause_after_token_response().await;
+        self.validate_refreshed_scopes(
+            organization_id,
+            &row,
+            provider,
+            &config,
+            &next,
+            expected_integration_updated_at.as_deref(),
+        )
+        .await?;
+        self.activate_refreshed_tokens(RefreshActivation {
+            row: &row,
+            provider,
+            config: &config,
+            key: &key,
+            credential: &credential,
+            tokens: &next,
+            refreshed_at,
+            expected_integration_updated_at: expected_integration_updated_at.as_deref(),
+        })
+        .await
     }
 
     /// Whether the stored credential is no longer the one `used` was read from —
@@ -1175,12 +1421,15 @@ impl ConnectionBroker {
         let Ok(Some(current)) = store::get_credential(&self.pool, &row.id).await else {
             return false;
         };
-        let Ok(current) = self.open_tokens(key, row, &current) else {
+        let Ok(current) = Self::open_tokens(key, row, &current) else {
             return false;
         };
         current.access_token != used.access_token || current.refresh_token != used.refresh_token
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when API-key validation, sealing, or storage fails.
     pub async fn set_api_key(
         &self,
         organization_id: &OrganizationId,
@@ -1198,6 +1447,9 @@ impl ConnectionBroker {
 
     /// Seal a pasted personal access token for providers that accept bearer
     /// tokens (GitHub / GitLab). Activates the connection without an OAuth App.
+    /// # Errors
+    ///
+    /// Returns an error when token validation, account probing, sealing, or storage fails.
     pub async fn set_access_token(
         &self,
         organization_id: &OrganizationId,
@@ -1215,7 +1467,7 @@ impl ConnectionBroker {
             )));
         }
         let mut row = self.row_in_org(organization_id, id).await?;
-        let provider = self.provider(&row.provider_id)?;
+        let provider = Self::provider(&row.provider_id)?;
         if !accepts_pasted_access_token(&provider.id) {
             return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
         }
@@ -1255,7 +1507,7 @@ impl ConnectionBroker {
                     expected_integration_updated_at: expected_integration_updated_at.as_deref(),
                     event_kind: EventKind::Authorized,
                     event_detail: Some("personal access token sealed"),
-                    expected_credential_version: Some(expected_version.as_deref()),
+                    expected_credential_version: Some(expected_version.as_deref().into()),
                 },
             )
             .await?
@@ -1310,7 +1562,7 @@ impl ConnectionBroker {
                 Ok(body
                     .get("login")
                     .and_then(|v| v.as_str())
-                    .map(|s| s.to_string()))
+                    .map(std::string::ToString::to_string))
             }
             "gitlab" => {
                 let res = self
@@ -1336,12 +1588,15 @@ impl ConnectionBroker {
                 Ok(body
                     .get("username")
                     .and_then(|v| v.as_str())
-                    .map(|s| s.to_string()))
+                    .map(std::string::ToString::to_string))
             }
             _ => Ok(None),
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when configuration validation, sealing, or storage fails.
     pub async fn set_connection_configuration(
         &self,
         organization_id: &OrganizationId,
@@ -1350,7 +1605,7 @@ impl ConnectionBroker {
         configuration_clear: Vec<String>,
     ) -> Result<ConnectionView> {
         let mut row = self.row_in_org(organization_id, id).await?;
-        let provider = self.provider(&row.provider_id)?;
+        let provider = Self::provider(&row.provider_id)?;
         let (integration_id, _, _, _, expected_integration_updated_at) = self
             .resolve_integration(
                 organization_id,
@@ -1380,7 +1635,7 @@ impl ConnectionBroker {
             .map(|credential| credential.version.clone());
         let mut configuration = match current.as_ref() {
             Some(credential) => {
-                let tokens = self.open_tokens(&key, &row, credential)?;
+                let tokens = Self::open_tokens(&key, &row, credential)?;
                 if tokens.configuration.is_empty() && tokens.token_type == "api_key" {
                     BTreeMap::from([("api_key".into(), tokens.access_token)])
                 } else {
@@ -1428,7 +1683,7 @@ impl ConnectionBroker {
                     expected_integration_updated_at: expected_integration_updated_at.as_deref(),
                     event_kind: EventKind::Authorized,
                     event_detail: Some("connection configuration stored"),
-                    expected_credential_version: Some(expected_version.as_deref()),
+                    expected_credential_version: Some(expected_version.as_deref().into()),
                 },
             )
             .await?
@@ -1445,13 +1700,16 @@ impl ConnectionBroker {
         self.get_connection_unscoped(&row.id).await
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when local revocation or required storage access fails.
     pub async fn revoke(
         &self,
         organization_id: &OrganizationId,
         id: &str,
     ) -> Result<RevokeOutcome> {
         let row = self.row_in_org(organization_id, id).await?;
-        let provider = self.provider(&row.provider_id).ok();
+        let provider = Self::provider(&row.provider_id).ok();
         let config = match provider {
             Some(provider) => {
                 let provider_config = if row.integration_id.is_empty() {
@@ -1476,7 +1734,7 @@ impl ConnectionBroker {
             self.config.key(),
             store::get_credential(&self.pool, &row.id).await?,
         ) {
-            (Some(key), Some(credential)) => self.open_tokens(key, &row, &credential).ok(),
+            (Some(key), Some(credential)) => Self::open_tokens(key, &row, &credential).ok(),
             _ => None,
         };
         store::revoke_local(&self.pool, &row.id).await?;
@@ -1536,6 +1794,9 @@ impl ConnectionBroker {
 
     // ---- bindings ------------------------------------------------------------
 
+    /// # Errors
+    ///
+    /// Returns an error when binding validation or storage fails.
     pub async fn bind(
         &self,
         organization_id: &OrganizationId,
@@ -1564,6 +1825,9 @@ impl ConnectionBroker {
         self.view(row).await
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the binding is absent or storage fails.
     pub async fn unbind(
         &self,
         organization_id: &OrganizationId,
@@ -1576,6 +1840,9 @@ impl ConnectionBroker {
         self.view(row).await
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when policy validation or storage fails.
     pub async fn update_policy(
         &self,
         organization_id: &OrganizationId,
@@ -1612,6 +1879,9 @@ impl ConnectionBroker {
     /// GitHub issues the installation token itself. Fails closed in both
     /// directions — the policy defaults to deny, and a provider without a mint
     /// path is `unmintable` rather than approximate.
+    /// # Errors
+    ///
+    /// Returns an error when authorization, policy, credential, or provider minting fails.
     pub async fn mint_derived_token(
         &self,
         organization_id: &OrganizationId,
@@ -1632,7 +1902,7 @@ impl ConnectionBroker {
             .unwrap_or_else(|| "operator".into());
         match row.provider_id.as_str() {
             "github" => {
-                let provider = self.provider(&row.provider_id)?;
+                let provider = Self::provider(&row.provider_id)?;
                 let (integration_id, _, _, _, _) = self
                     .resolve_integration(
                         organization_id,
@@ -1727,12 +1997,13 @@ impl ConnectionBroker {
         let plaintext = serde_json::to_vec(tokens)?;
         let sealed = crypto::seal(key, &row.id, &row.organization_id, &plaintext)?;
         let previous = store::get_credential(&self.pool, &row.id).await?;
-        let expected_credential_version =
-            activation.expected_credential_version.unwrap_or_else(|| {
-                previous
-                    .as_ref()
-                    .map(|credential| credential.version.as_str())
-            });
+        let expected_credential_version = match activation.expected_credential_version {
+            None => previous
+                .as_ref()
+                .map(|credential| credential.version.as_str()),
+            Some(ExplicitCredentialVersion::Absent) => None,
+            Some(ExplicitCredentialVersion::Present(version)) => Some(version),
+        };
         let credential = CredentialRow {
             connection_id: row.id.clone(),
             version: uuid::Uuid::now_v7().to_string(),
@@ -1772,7 +2043,6 @@ impl ConnectionBroker {
     }
 
     fn open_tokens(
-        &self,
         key: &[u8; 32],
         row: &ConnectionRow,
         credential: &CredentialRow,
@@ -1852,9 +2122,9 @@ fn effective_status(
 /// ADR 0005 URI. Ids that predate the typed form still yield a `conn://` URI —
 /// the agent surface must never be left without a reference to name.
 fn connection_ref_uri(row: &ConnectionRow) -> String {
-    let project = match row.project_id.as_deref() {
-        Some(raw) => match ProjectId::parse(raw) {
-            Ok(p) => Some(p),
+    let project_scope = match row.project_id.as_deref() {
+        Some(candidate) => match ProjectId::parse(candidate) {
+            Ok(project) => Some(project),
             Err(_) => return fallback_ref_uri(row),
         },
         None => None,
@@ -1867,7 +2137,7 @@ fn connection_ref_uri(row: &ConnectionRow) -> String {
     };
     match ConnectionRef::new(
         organization,
-        project,
+        project_scope,
         row.logical_name.clone(),
         connection_id,
     ) {
@@ -1913,10 +2183,12 @@ fn parse_owner_kind(raw: &str) -> ConnectionOwnerKind {
 /// Providers whose REST APIs accept a personal access token as a Bearer
 /// credential (same shape as an OAuth access token). Enables Host-mediated
 /// history setup without registering an OAuth App.
+#[must_use]
 pub fn accepts_pasted_access_token(provider_id: &str) -> bool {
     matches!(provider_id, "github" | "gitlab")
 }
 
+#[must_use]
 pub fn shareability_str(s: Shareability) -> &'static str {
     match s {
         Shareability::Private => "private",
@@ -1925,6 +2197,7 @@ pub fn shareability_str(s: Shareability) -> &'static str {
     }
 }
 
+#[must_use]
 pub fn parse_shareability(raw: &str) -> Shareability {
     match raw {
         "delegable" => Shareability::Delegable,
@@ -1933,6 +2206,7 @@ pub fn parse_shareability(raw: &str) -> Shareability {
     }
 }
 
+#[must_use]
 pub fn materialization_str(policy: MaterializationPolicy) -> &'static str {
     match policy {
         MaterializationPolicy::Deny => "deny",
@@ -1942,6 +2216,7 @@ pub fn materialization_str(policy: MaterializationPolicy) -> &'static str {
 
 /// Unknown stored values parse as deny: a policy we cannot read is a policy we
 /// do not honor.
+#[must_use]
 pub fn parse_materialization(raw: &str) -> MaterializationPolicy {
     match raw {
         "derived_short_lived" => MaterializationPolicy::DerivedShortLived,
@@ -1951,6 +2226,9 @@ pub fn parse_materialization(raw: &str) -> MaterializationPolicy {
 
 /// The egress a provider's credential may reach, for callers wiring ADR 0005
 /// enforcement around a connection.
+/// # Errors
+///
+/// Returns an error when the provider catalog is invalid.
 pub fn provider_egress(provider_id: &str) -> Result<Option<EgressBinding>> {
     Ok(catalog::find(provider_id)?.map(|provider| provider.egress.binding()))
 }

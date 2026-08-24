@@ -17,6 +17,10 @@ pub struct AuthorizedProofRequest {
 }
 
 impl AuthorizedProofRequest {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn binding_digest(&self) -> Result<String, ProofError> {
         let value = serde_json::json!({
             "purpose": self.purpose,
@@ -33,8 +37,16 @@ impl AuthorizedProofRequest {
 
 /// Key custody — only signs proofs for explicitly authorized requests.
 pub trait KeyCustodyProvider: Send + Sync {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn sign_dpop(&self, request: &AuthorizedProofRequest) -> Result<String, ProofError>;
     fn public_jwk(&self) -> DpopPublicJwk;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn jkt(&self) -> Result<String, ProofError>;
 }
 
@@ -48,12 +60,20 @@ pub struct LocalSoftwareKeyCustodyProvider {
 }
 
 impl LocalSoftwareKeyCustodyProvider {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn generate_ed25519() -> Result<Self, ProofError> {
         let mut seed = [0u8; 32];
         rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut seed);
         Self::from_ed25519_seed(seed)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn from_ed25519_seed(seed: [u8; 32]) -> Result<Self, ProofError> {
         let (jwk, encoding_key) = crate::jwk::ed25519_jwk_from_seed(&seed);
         let jkt = crate::jwk::jwk_thumbprint(&jwk)?;
@@ -66,6 +86,10 @@ impl LocalSoftwareKeyCustodyProvider {
     }
 
     /// Authorize exactly one signing request binding.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn authorize(&self, request: &AuthorizedProofRequest) -> Result<(), ProofError> {
         if request.task_state_digest.is_empty() {
             return Err(ProofError::UnauthorizedProofRequest(

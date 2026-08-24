@@ -3,7 +3,10 @@
 use chrono::Utc;
 use opensesame_authz::{AuthZenAction, AuthZenRequest, AuthZenResource, AuthZenSubject};
 use opensesame_connector_host::InvokeRequest;
-use opensesame_domain::*;
+use opensesame_domain::{
+    AvailabilityClass, Capability, DetachedProof, DomainError, FrozenIntentV2, Grant, Intent,
+    Invocation, InvocationReceipt, InvocationState, ReceiptId, ReceiptOutcome,
+};
 use opensesame_task_access::{TaskAccessEngine, TaskStore};
 use serde_json::{json, Value};
 
@@ -31,6 +34,11 @@ pub struct FrozenInvokeInput {
 /// `None` on the grant means unscoped in that dimension. `Some` means the intent
 /// must name the same thing; an intent that names nothing does not satisfy a
 /// grant that names something.
+///
+/// # Errors
+///
+/// Returns an error when any scoped grant field does not cover the frozen
+/// intent.
 pub fn assert_grant_covers_frozen_intent(
     grant: &Grant,
     intent: &FrozenIntentV2,
@@ -74,8 +82,70 @@ pub fn assert_grant_covers_frozen_intent(
     Ok(())
 }
 
+fn legacy_intent(intent: &FrozenIntentV2) -> Result<Intent, DomainError> {
+    Ok(Intent {
+        id: intent.id,
+        organization_id: intent.organization_id,
+        project_id: intent.project_id,
+        principal_id: intent.principal_id,
+        actor_id: intent.actor_id,
+        actor_instance_id: intent.actor_instance_id,
+        client_id: intent.client_id,
+        operator_id: intent.operator_id,
+        connection_id: intent.connection_id,
+        operation: intent.operation.clone(),
+        resource: intent.resource.clone(),
+        audience: intent.audience.clone(),
+        normalized_parameters_hash: Intent::parameters_hash(&intent.canonical_arguments)?,
+        body_hash: intent.body_hash.clone(),
+        nonce: intent.nonce.clone(),
+        idempotency_key: intent.idempotency_key.clone(),
+        issued_at: intent.issued_at,
+        expires_at: intent.expires_at,
+        parent_invocation_id: None,
+        delegation_chain: vec![],
+        proof: DetachedProof {
+            algorithm: "task-bound".into(),
+            key_thumbprint: "task".into(),
+            signature: intent.intent_digest.clone(),
+        },
+    })
+}
+
+fn frozen_authz_request(input: &FrozenInvokeInput, intent: &FrozenIntentV2) -> AuthZenRequest {
+    AuthZenRequest {
+        subject: AuthZenSubject {
+            type_: "user".into(),
+            id: input.subject.clone(),
+            properties: json!({
+                "assurance": input.grant.constraints.required_assurance,
+                "task_run_id": intent.task_run_id.to_string(),
+                "task_state_version": intent.task_state_version,
+            }),
+        },
+        action: AuthZenAction {
+            name: intent.operation.clone(),
+        },
+        resource: AuthZenResource {
+            type_: "connector_operation".into(),
+            id: intent.resource.clone(),
+        },
+        context: json!({
+            "connection_id": input.connection_policy_id,
+            "audience": intent.audience,
+            "intent_digest": intent.intent_digest,
+            "task_state_digest": intent.task_state_digest,
+        }),
+    }
+}
+
 impl Broker {
     /// Persist digest → authorize that digest → execute canonical arguments from the same intent.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation, authorization, execution, or durable
+    /// receipt persistence fails.
     pub async fn invoke_frozen<S: TaskStore>(
         &self,
         tasks: &TaskAccessEngine<S>,
@@ -113,86 +183,20 @@ impl Broker {
         }
 
         // Compatibility: store a V1 projection for idempotency tables that expect Intent.
-        let legacy = Intent {
-            id: intent.id,
-            organization_id: intent.organization_id,
-            project_id: intent.project_id,
-            principal_id: intent.principal_id,
-            actor_id: intent.actor_id,
-            actor_instance_id: intent.actor_instance_id,
-            client_id: intent.client_id,
-            operator_id: intent.operator_id,
-            connection_id: intent.connection_id,
-            operation: intent.operation.clone(),
-            resource: intent.resource.clone(),
-            audience: intent.audience.clone(),
-            normalized_parameters_hash: Intent::parameters_hash(&intent.canonical_arguments)?,
-            body_hash: intent.body_hash.clone(),
-            nonce: intent.nonce.clone(),
-            idempotency_key: intent.idempotency_key.clone(),
-            issued_at: intent.issued_at,
-            expires_at: intent.expires_at,
-            parent_invocation_id: None,
-            delegation_chain: vec![],
-            proof: DetachedProof {
-                algorithm: "task-bound".into(),
-                key_thumbprint: "task".into(),
-                signature: intent.intent_digest.clone(),
-            },
-        };
-
-        let existing = self
-            .db
-            .find_intent_by_idempotency(&legacy.organization_id, &legacy.idempotency_key)
-            .await?;
-        if existing.is_some() {
-            if let Some(prior_receipt) = self
-                .db
-                .find_receipt_by_idempotency(&legacy.organization_id, &legacy.idempotency_key)
-                .await?
-            {
-                return Ok(prior_receipt);
-            }
-            anyhow::bail!("idempotency conflict: prior frozen intent has no receipt yet");
+        let legacy = legacy_intent(&intent)?;
+        if let Some(receipt) = self
+            .prior_receipt(
+                &legacy,
+                "idempotency conflict: prior frozen intent has no receipt yet",
+            )
+            .await?
+        {
+            return Ok(receipt);
         }
         self.db.insert_intent(&legacy).await?;
 
-        let mut inv = Invocation {
-            id: InvocationId::new(),
-            intent_id: intent.id,
-            state: InvocationState::Received,
-            attempt: 1,
-            lease_owner: None,
-            lease_expires_at: None,
-            created_at: now,
-            updated_at: now,
-        };
-        inv.transition(InvocationState::Authorizing, now)?;
-
-        let authz_req = AuthZenRequest {
-            subject: AuthZenSubject {
-                type_: "user".into(),
-                id: input.subject.clone(),
-                properties: json!({
-                    "assurance": input.grant.constraints.required_assurance,
-                    "task_run_id": intent.task_run_id.to_string(),
-                    "task_state_version": intent.task_state_version,
-                }),
-            },
-            action: AuthZenAction {
-                name: intent.operation.clone(),
-            },
-            resource: AuthZenResource {
-                type_: "connector_operation".into(),
-                id: intent.resource.clone(),
-            },
-            context: json!({
-                "connection_id": input.connection_policy_id,
-                "audience": intent.audience,
-                "intent_digest": intent.intent_digest,
-                "task_state_digest": intent.task_state_digest,
-            }),
-        };
+        let mut inv = Self::begin_invocation(intent.id, now)?;
+        let authz_req = frozen_authz_request(&input, &intent);
 
         let decision = self.policy.decide(
             &authz_req,
@@ -218,11 +222,29 @@ impl Broker {
             return Ok(receipt);
         }
 
-        inv.transition(InvocationState::Authorized, Utc::now())?;
-        inv.transition(InvocationState::Leased, Utc::now())?;
-        inv.lease_owner = Some("worker-local".into());
-        inv.transition(InvocationState::Executing, Utc::now())?;
-        self.db.insert_invocation(&inv).await?;
+        self.execute_frozen_authorized(
+            &input,
+            &intent,
+            inv,
+            &decision.decision_id,
+            &decision.policy_version_digest,
+        )
+        .await
+    }
+
+    async fn execute_frozen_authorized(
+        &self,
+        input: &FrozenInvokeInput,
+        intent: &FrozenIntentV2,
+        mut invocation: Invocation,
+        decision_id: &str,
+        policy_digest: &str,
+    ) -> anyhow::Result<InvocationReceipt> {
+        invocation.transition(InvocationState::Authorized, Utc::now())?;
+        invocation.transition(InvocationState::Leased, Utc::now())?;
+        invocation.lease_owner = Some("worker-local".into());
+        invocation.transition(InvocationState::Executing, Utc::now())?;
+        self.db.insert_invocation(&invocation).await?;
 
         // Execute ONLY from frozen canonical_arguments — never a second parameter map.
         let params_digest = Intent::parameters_hash(&intent.canonical_arguments)?;
@@ -241,7 +263,7 @@ impl Broker {
 
         let (outcome, summary, ext) = match result {
             Ok(r) => {
-                inv.transition(InvocationState::Succeeded, Utc::now())?;
+                invocation.transition(InvocationState::Succeeded, Utc::now())?;
                 (
                     ReceiptOutcome::Succeeded,
                     r.safe_summary,
@@ -249,28 +271,27 @@ impl Broker {
                 )
             }
             Err(e) => {
-                inv.transition(InvocationState::Failed, Utc::now())?;
-                (
-                    ReceiptOutcome::Failed,
-                    json!({"error": e.to_string()}),
-                    None,
-                )
+                invocation.transition(InvocationState::Failed, Utc::now())?;
+                let message = opensesame_redaction::redact_text(&e.to_string());
+                (ReceiptOutcome::Failed, json!({"error": message}), None)
             }
         };
 
         let receipt = self.finish_frozen_receipt(
-            &intent,
-            &inv,
+            intent,
+            &invocation,
             FinishReceiptParts {
-                decision_id: &decision.decision_id,
-                policy_digest: &decision.policy_version_digest,
+                decision_id,
+                policy_digest,
                 outcome,
                 summary,
                 ext,
                 connector_digest: self.host.component_digest(&input.connection_policy_id),
             },
         )?;
-        assert!(receipt.assert_no_secret_leak());
+        if !receipt.assert_no_secret_leak() {
+            anyhow::bail!("receipt summary rejected by secret-leak check");
+        }
         self.db.insert_receipt(&receipt).await?;
         Ok(receipt)
     }
@@ -337,9 +358,16 @@ mod tests {
     use opensesame_audit::ReceiptSigner;
     use opensesame_authz::PolicyEngine;
     use opensesame_connector_host::HostRuntime;
-    use opensesame_domain::{AuthorityContext, AuthorityContextMode, ResourceSelector};
+    use opensesame_domain::{
+        ActorId, ActorInstanceId, AuthorityContext, AuthorityContextId, AuthorityContextMode,
+        CapabilitySet, CeilingInput, ClientId, ConnectionId, GrantConstraints, GrantId, IntentId,
+        OfflineUse, OrganizationId, PrincipalId, ProjectId, ResourceSelector, TaskRunId,
+        TaskTemplateId, FROZEN_INTENT_SCHEMA_VERSION,
+    };
     use opensesame_storage::Db;
     use opensesame_task_access::{InMemoryTaskStore, StartTaskParams};
+
+    type Narrowing = (&'static str, fn(&mut Grant));
 
     fn sample_grant(org: OrganizationId, principal: PrincipalId) -> Grant {
         Grant {
@@ -365,7 +393,7 @@ mod tests {
                 authentication_max_age_seconds: None,
                 allowed_networks: vec![],
                 parameter_rules_digest: None,
-                budgets: Default::default(),
+                budgets: std::collections::BTreeMap::default(),
                 maximum_delegation_depth: 2,
                 offline_use: OfflineUse::Forbidden,
                 raw_credential_export: false,
@@ -431,15 +459,14 @@ mod tests {
         in_project.project_id = Some(ProjectId::new());
         assert!(assert_grant_covers_frozen_intent(&scoped, &in_project).is_err());
 
-        type Narrowing = (&'static str, fn(&mut Grant));
         let narrowings: [Narrowing; 4] = [
             ("actor", |g| g.actor_id = Some(ActorId::new())),
             ("actor instance", |g| {
-                g.actor_instance_id = Some(ActorInstanceId::new())
+                g.actor_instance_id = Some(ActorInstanceId::new());
             }),
             ("client", |g| g.client_id = Some(ClientId::new())),
             ("connection", |g| {
-                g.connection_id = Some(ConnectionId::new())
+                g.connection_id = Some(ConnectionId::new());
             }),
         ];
         for (what, narrow) in narrowings {

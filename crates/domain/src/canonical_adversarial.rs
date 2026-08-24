@@ -22,8 +22,8 @@ mod tests {
 
     #[test]
     fn empty_object_and_array_stable() {
-        assert_eq!(canonicalize_json(&json!({})).unwrap(), br#"{}"#.as_slice());
-        assert_eq!(canonicalize_json(&json!([])).unwrap(), br#"[]"#.as_slice());
+        assert_eq!(canonicalize_json(&json!({})).unwrap(), br"{}".as_slice());
+        assert_eq!(canonicalize_json(&json!([])).unwrap(), br"[]".as_slice());
     }
 
     #[test]

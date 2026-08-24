@@ -1,4 +1,4 @@
-//! OpenSesame **host-core sdk** — host logic facade (ADR 0017).
+//! `OpenSesame` **host-core sdk** — host logic facade (ADR 0017).
 //!
 //! WIT: `wit/host/world.wit`.
 
@@ -28,6 +28,7 @@ pub mod daemon {
     pub const ENV_ALLOW_NONLOCAL_DAEMON: &str = "OPENSESAME_DAEMON_ALLOW_NONLOCAL";
 
     /// True when `host` of `host:port` (or bare host) is loopback.
+    #[must_use]
     pub fn listen_host_is_loopback(listen: &str) -> bool {
         let host = match listen.rsplit_once(':') {
             Some((h, port)) if !port.is_empty() && port.chars().all(|c| c.is_ascii_digit()) => {
@@ -46,6 +47,11 @@ pub mod daemon {
 
     /// Refuse non-loopback TCP unless `OPENSESAME_ALLOW_NONLOCAL=1`
     /// (or legacy `OPENSESAME_DAEMON_ALLOW_NONLOCAL=1`).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a non-loopback listener is requested without the
+    /// explicit override.
     pub fn assert_tcp_listen_allowed(listen: &str) -> Result<(), String> {
         if nonlocal_override_enabled() || listen_host_is_loopback(listen) {
             return Ok(());
@@ -55,6 +61,7 @@ pub mod daemon {
         ))
     }
 
+    #[must_use]
     pub fn uds_only_requested() -> bool {
         std::env::var(ENV_UDS_ONLY).ok().as_deref() == Some("1")
     }
@@ -65,14 +72,14 @@ pub mod daemon {
     /// names anywhere else must not be offered it. Userinfo makes the authority
     /// ambiguous — `http://127.0.0.1@evil.test/` is a request to evil.test — so a
     /// base carrying any is not local.
+    #[must_use]
     pub fn base_url_is_local(base: &str) -> bool {
         let trimmed = base.trim();
-        let rest = match trimmed
+        let Some(rest) = trimmed
             .strip_prefix("http://")
             .or_else(|| trimmed.strip_prefix("https://"))
-        {
-            Some(rest) => rest,
-            None => return false,
+        else {
+            return false;
         };
         let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
         if authority.is_empty() || authority.contains('@') {
@@ -90,6 +97,7 @@ pub mod operator {
     use axum::http::{header, HeaderMap};
 
     /// Length-hiding comparison of two secrets (SHA-256 then XOR-fold).
+    #[must_use]
     pub fn constant_time_eq(a: &str, b: &str) -> bool {
         use sha2::{Digest, Sha256};
         let ha = Sha256::digest(a.as_bytes());
@@ -122,6 +130,11 @@ pub mod operator {
         Unauthorized,
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns `Unconfigured` for an empty expected token and `Unauthorized`
+    /// when no constant-time token match exists.
     pub fn check(expected: &str, headers: &HeaderMap) -> Result<(), OperatorDenial> {
         if expected.is_empty() {
             return Err(OperatorDenial::Unconfigured);
@@ -208,6 +221,7 @@ pub mod http_security {
             .collect()
     }
 
+    #[must_use]
     pub fn cors_origins_from_env() -> Vec<String> {
         parse_cors_origins(std::env::var(ENV_CORS_ORIGINS).ok().as_deref())
     }
@@ -215,6 +229,11 @@ pub mod http_security {
     /// Production must list explicit origins; `*` / `null` are never allowed.
     /// An unset `OPENSESAME_CORS_ORIGINS` in production is refused so the
     /// development allowlist (localhost + github.io) cannot silently apply.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for wildcard, null, absent, or empty production origin
+    /// policies.
     pub fn assert_cors_origins_allowed(
         origins: &[String],
         is_production: bool,
@@ -338,6 +357,7 @@ pub mod http_security {
 
     /// Hop-by-hop and client-controlled forwarding headers the daemon must
     /// strip before proxying to loopback Host/Identity APIs.
+    #[must_use]
     pub fn is_hop_or_forwarding_header(name: &str) -> bool {
         matches!(
             name.to_ascii_lowercase().as_str(),
@@ -364,6 +384,7 @@ pub mod http_security {
     }
 
     /// Path-segment ids interpolated into upstream URLs (claim ids, etc.).
+    #[must_use]
     pub fn is_safe_path_id(id: &str) -> bool {
         let bytes = id.as_bytes();
         (8..=128).contains(&bytes.len())
@@ -388,6 +409,10 @@ pub mod http_security {
 /// plane does not invent a one-off assertion style.
 pub mod pact {
     /// Production source must mention `ordered` markers in that sequence.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a marker is absent or appears out of order.
     pub fn assert_source_order(src: &str, ordered: &[&str]) {
         let production = src.split("#[cfg(test)]").next().unwrap_or(src);
         let mut last = 0usize;
@@ -395,13 +420,19 @@ pub mod pact {
             let pos = production
                 .get(last..)
                 .and_then(|rest| rest.find(marker))
-                .map(|offset| last + offset)
-                .unwrap_or_else(|| panic!("pact source oracle missing {marker}"));
+                .map_or_else(
+                    || panic!("pact source oracle missing {marker}"),
+                    |offset| last + offset,
+                );
             last = pos;
         }
     }
 
     /// Exclusive insert: only one concurrent claimant wins.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the test mutex is poisoned or the single-winner invariant fails.
     pub fn exclusive_claim_is_single_winner() {
         use std::collections::HashSet;
         use std::sync::{Arc, Mutex};
@@ -427,6 +458,10 @@ pub mod pact {
     }
 
     /// Check-then-set is the mutant that exclusive claim exists to kill.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the test mutex is poisoned or the modeled race is not observed.
     pub fn check_then_set_admits_double_claim() {
         use std::collections::HashSet;
         use std::sync::Mutex;

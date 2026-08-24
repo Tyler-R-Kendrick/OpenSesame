@@ -296,27 +296,19 @@ pub trait Connector: Send + Sync {
 /// Deterministic mock connector — no external network; never returns secret bytes.
 pub struct MockConnector;
 
+const MOCK_CONNECTOR_ID: &str = "mock";
+const MOCK_CONNECTOR_VERSION: &str = "1.0.0";
+const MOCK_CONNECTOR_DIGEST: &str = "sha256:mock-connector";
+
 impl Connector for MockConnector {
-    #[expect(
-        clippy::unnecessary_literal_bound,
-        reason = "the public Connector trait permits runtime-backed identifiers"
-    )]
     fn id(&self) -> &str {
-        "mock"
+        MOCK_CONNECTOR_ID
     }
-    #[expect(
-        clippy::unnecessary_literal_bound,
-        reason = "the public Connector trait permits runtime-backed versions"
-    )]
     fn version(&self) -> &str {
-        "1.0.0"
+        MOCK_CONNECTOR_VERSION
     }
-    #[expect(
-        clippy::unnecessary_literal_bound,
-        reason = "the public Connector trait permits runtime-backed digests"
-    )]
     fn component_digest(&self) -> &str {
-        "sha256:mock-connector"
+        MOCK_CONNECTOR_DIGEST
     }
     fn operations(&self) -> &[&str] {
         &[

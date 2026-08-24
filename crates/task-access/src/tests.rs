@@ -10,6 +10,15 @@ use opensesame_domain::{
     VerificationEvidenceId,
 };
 
+#[test]
+fn database_state_versions_reject_out_of_range_values() {
+    assert!(crate::db_i64(u64::MAX).is_err());
+    assert!(crate::db_u64(-1).is_err());
+    let maximum_database_version = u64::try_from(i64::MAX).unwrap();
+    assert_eq!(crate::db_i64(maximum_database_version).unwrap(), i64::MAX);
+    assert_eq!(crate::db_u64(i64::MAX).unwrap(), maximum_database_version);
+}
+
 fn cap(action: &str, resource: &str) -> Capability {
     Capability::new(action, ResourceSelector::exact(resource))
 }

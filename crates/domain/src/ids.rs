@@ -10,18 +10,25 @@ macro_rules! opaque_id {
         pub struct $name(Uuid);
 
         impl $name {
+            #[must_use]
             pub fn new() -> Self {
                 Self(Uuid::now_v7())
             }
 
+            #[must_use]
             pub fn from_uuid(id: Uuid) -> Self {
                 Self(id)
             }
 
+            #[must_use]
             pub fn as_uuid(&self) -> Uuid {
                 self.0
             }
 
+            ///
+            /// # Errors
+            ///
+            /// Returns an error when validation or the underlying operation fails.
             pub fn parse(s: &str) -> Result<Self, DomainError> {
                 let rest = s.strip_prefix(concat!($prefix, ":")).unwrap_or(s);
                 let id =
@@ -87,6 +94,7 @@ opaque_id!(TaskCredentialId, "taskcred");
 pub struct ProtocolProfileId(Uuid);
 
 impl ProtocolProfileId {
+    #[must_use]
     pub fn from_slug(slug: &str) -> Self {
         let hash = blake3::hash(slug.as_bytes());
         let mut uuid_bytes = [0u8; 16];
@@ -96,18 +104,25 @@ impl ProtocolProfileId {
         Self(Uuid::from_bytes(uuid_bytes))
     }
 
+    #[must_use]
     pub fn new() -> Self {
         Self(Uuid::now_v7())
     }
 
+    #[must_use]
     pub fn from_uuid(id: Uuid) -> Self {
         Self(id)
     }
 
+    #[must_use]
     pub fn as_uuid(&self) -> Uuid {
         self.0
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn parse(s: &str) -> Result<Self, DomainError> {
         let rest = s.strip_prefix("profile:").unwrap_or(s);
         let id = Uuid::parse_str(rest).map_err(|_| DomainError::InvalidId(s.to_string()))?;

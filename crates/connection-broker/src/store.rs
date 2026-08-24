@@ -65,16 +65,12 @@ pub struct AuthorizationRow {
 }
 
 fn state_digest(state: &str) -> String {
-    Sha256::digest(state.as_bytes())
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+    hex::encode(Sha256::digest(state.as_bytes()))
 }
 
 fn parse_time(raw: &str) -> DateTime<Utc> {
     DateTime::parse_from_rfc3339(raw)
-        .map(|t| t.with_timezone(&Utc))
-        .unwrap_or_else(|_| DateTime::<Utc>::MIN_UTC)
+        .map_or_else(|_| DateTime::<Utc>::MIN_UTC, |t| t.with_timezone(&Utc))
 }
 
 fn parse_list(raw: &str) -> Vec<String> {
@@ -100,7 +96,8 @@ fn connection_from_row(row: &sqlx::sqlite::SqliteRow) -> ConnectionRow {
         owner_kind: row.get("owner_kind"),
         owner_subject: row.get("owner_subject"),
         shareability: row.get("shareability"),
-        max_invoke_level: row.get::<i64, _>("max_invoke_level").clamp(1, 3) as u8,
+        max_invoke_level: u8::try_from(row.get::<i64, _>("max_invoke_level").clamp(1, 3))
+            .unwrap_or(1),
         materialization: row.get("materialization"),
         egress: serde_json::from_str(&row.get::<String, _>("egress_json"))
             .unwrap_or_else(|_| EgressBinding::default()),
@@ -115,6 +112,9 @@ const CONNECTION_COLUMNS: &str =
      owner_kind, owner_subject, shareability, max_invoke_level, materialization, egress_json, \
      created_at, updated_at";
 
+/// # Errors
+///
+/// Returns an error when the connection cannot be inserted.
 pub async fn insert_connection(pool: &SqlitePool, c: &ConnectionRow) -> Result<()> {
     sqlx::query(
         "INSERT INTO connections (id, organization_id, project_id, provider_id, integration_id, logical_name, \
@@ -138,7 +138,7 @@ pub async fn insert_connection(pool: &SqlitePool, c: &ConnectionRow) -> Result<(
     .bind(&c.owner_kind)
     .bind(&c.owner_subject)
     .bind(&c.shareability)
-    .bind(c.max_invoke_level as i64)
+    .bind(i64::from(c.max_invoke_level))
     .bind(&c.materialization)
     .bind(serde_json::to_string(&c.egress)?)
     .bind(c.created_at.to_rfc3339())
@@ -148,6 +148,9 @@ pub async fn insert_connection(pool: &SqlitePool, c: &ConnectionRow) -> Result<(
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when storage cannot be read.
 pub async fn get_connection(pool: &SqlitePool, id: &str) -> Result<Option<ConnectionRow>> {
     // CONNECTION_COLUMNS is a compile-time constant; only `id` is data and it is bound.
     // ast-grep-ignore: sql-format-injection
@@ -160,6 +163,9 @@ pub async fn get_connection(pool: &SqlitePool, id: &str) -> Result<Option<Connec
     Ok(row.as_ref().map(connection_from_row))
 }
 
+/// # Errors
+///
+/// Returns an error when the connection cannot be deleted.
 pub async fn delete_connection(pool: &SqlitePool, id: &str) -> Result<()> {
     sqlx::query("DELETE FROM connections WHERE id = ?")
         .bind(id)
@@ -168,6 +174,9 @@ pub async fn delete_connection(pool: &SqlitePool, id: &str) -> Result<()> {
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when storage cannot be read.
 pub async fn list_connections(
     pool: &SqlitePool,
     organization_id: &str,
@@ -183,6 +192,9 @@ pub async fn list_connections(
     Ok(rows.iter().map(connection_from_row).collect())
 }
 
+/// # Errors
+///
+/// Returns an error when storage cannot be read.
 pub async fn logical_name_taken(
     pool: &SqlitePool,
     organization_id: &str,
@@ -198,6 +210,9 @@ pub async fn logical_name_taken(
     Ok(row.is_some())
 }
 
+/// # Errors
+///
+/// Returns an error when the status cannot be persisted.
 pub async fn set_status(
     pool: &SqlitePool,
     id: &str,
@@ -216,6 +231,9 @@ pub async fn set_status(
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when the guarded transition cannot be persisted.
 pub async fn transition_unless_revoked(
     pool: &SqlitePool,
     id: &str,
@@ -253,6 +271,9 @@ pub async fn transition_unless_revoked(
 
 /// Records a failed post-response transition and removes any superseded local
 /// credential in the same transaction. A concurrent terminal revoke wins.
+/// # Errors
+///
+/// Returns an error when credential invalidation cannot be committed atomically.
 pub async fn invalidate_credential_unless_revoked(
     pool: &SqlitePool,
     id: &str,
@@ -298,6 +319,9 @@ pub async fn invalidate_credential_unless_revoked(
     Ok(true)
 }
 
+/// # Errors
+///
+/// Returns an error when local revocation cannot be committed atomically.
 pub async fn revoke_local(pool: &SqlitePool, id: &str) -> Result<()> {
     let mut transaction = pool.begin().await?;
     sqlx::query("UPDATE connections SET status = 'revoked', status_detail = NULL, updated_at = ? WHERE id = ?")
@@ -324,6 +348,9 @@ pub async fn revoke_local(pool: &SqlitePool, id: &str) -> Result<()> {
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when scopes cannot be persisted.
 pub async fn set_requested_scopes(pool: &SqlitePool, id: &str, scopes: &[String]) -> Result<()> {
     sqlx::query("UPDATE connections SET requested_scopes = ?, updated_at = ? WHERE id = ?")
         .bind(serde_json::to_string(scopes)?)
@@ -334,6 +361,9 @@ pub async fn set_requested_scopes(pool: &SqlitePool, id: &str, scopes: &[String]
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when the integration binding cannot be persisted.
 pub async fn set_integration_id(pool: &SqlitePool, id: &str, integration_id: &str) -> Result<()> {
     sqlx::query("UPDATE connections SET integration_id = ?, updated_at = ? WHERE id = ?")
         .bind(integration_id)
@@ -344,6 +374,9 @@ pub async fn set_integration_id(pool: &SqlitePool, id: &str, integration_id: &st
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when connection policy cannot be persisted.
 pub async fn update_policy(
     pool: &SqlitePool,
     connection_id: &str,
@@ -358,7 +391,7 @@ pub async fn update_policy(
          WHERE id = ? AND organization_id = ? AND status != 'revoked'",
     )
     .bind(shareability)
-    .bind(max_invoke_level as i64)
+    .bind(i64::from(max_invoke_level))
     .bind(materialization)
     .bind(Utc::now().to_rfc3339())
     .bind(connection_id)
@@ -392,6 +425,49 @@ pub enum CredentialActivationOutcome {
     Superseded,
 }
 
+async fn validate_activation_integration(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    activation: CredentialActivation<'_>,
+) -> Result<()> {
+    if activation.integration_id.starts_with("deployment:") {
+        return Ok(());
+    }
+    let integration = sqlx::query(
+        "SELECT enabled, scopes, updated_at FROM integrations WHERE id = ? AND organization_id = ?",
+    )
+    .bind(activation.integration_id)
+    .bind(activation.organization_id)
+    .fetch_optional(&mut **transaction)
+    .await?
+    .ok_or(BrokerError::IntegrationNotFound)?;
+    if integration.get::<i64, _>("enabled") == 0 {
+        return Err(BrokerError::IntegrationNotFound);
+    }
+    if activation
+        .expected_integration_updated_at
+        .is_some_and(|expected| integration.get::<String, _>("updated_at") != expected)
+    {
+        return Err(BrokerError::IntegrationConflict);
+    }
+    let ceiling = parse_list(&integration.get::<String, _>("scopes"));
+    if let Some(scope) = activation
+        .requested_scopes
+        .iter()
+        .chain(activation.granted_scopes)
+        .find(|scope| !ceiling.contains(scope))
+    {
+        return Err(BrokerError::Invalid(format!(
+            "scope `{scope}` exceeds the integration scope ceiling"
+        )));
+    }
+    Ok(())
+}
+
+/// Atomically validates the integration ceiling and activates one credential generation.
+///
+/// # Errors
+///
+/// Returns an error when validation or any transactional write fails.
 pub async fn activate_credential_unless_revoked(
     pool: &SqlitePool,
     activation: CredentialActivation<'_>,
@@ -426,36 +502,7 @@ pub async fn activate_credential_unless_revoked(
         transaction.rollback().await?;
         return Ok(CredentialActivationOutcome::Superseded);
     }
-    if !activation.integration_id.starts_with("deployment:") {
-        let integration = sqlx::query(
-            "SELECT enabled, scopes, updated_at FROM integrations WHERE id = ? AND organization_id = ?",
-        )
-        .bind(activation.integration_id)
-        .bind(activation.organization_id)
-        .fetch_optional(&mut *transaction)
-        .await?
-        .ok_or(BrokerError::IntegrationNotFound)?;
-        if integration.get::<i64, _>("enabled") == 0 {
-            return Err(BrokerError::IntegrationNotFound);
-        }
-        if activation
-            .expected_integration_updated_at
-            .is_some_and(|expected| integration.get::<String, _>("updated_at") != expected)
-        {
-            return Err(BrokerError::IntegrationConflict);
-        }
-        let ceiling = parse_list(&integration.get::<String, _>("scopes"));
-        if let Some(scope) = activation
-            .requested_scopes
-            .iter()
-            .chain(activation.granted_scopes)
-            .find(|scope| !ceiling.contains(scope))
-        {
-            return Err(BrokerError::Invalid(format!(
-                "scope `{scope}` exceeds the integration scope ceiling"
-            )));
-        }
-    }
+    validate_activation_integration(&mut transaction, activation).await?;
     sqlx::query(
         "INSERT INTO connection_credentials (connection_id, version, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, last_refreshed_at, configured_fields, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(connection_id) DO UPDATE SET version = excluded.version, ciphertext = excluded.ciphertext, nonce = excluded.nonce, aad_digest = excluded.aad_digest, token_type = excluded.token_type, expires_at = excluded.expires_at, refreshable = excluded.refreshable, last_refreshed_at = excluded.last_refreshed_at, configured_fields = excluded.configured_fields, updated_at = excluded.updated_at",
     )
@@ -523,6 +570,9 @@ async fn append_backup_outbox(
 
 /// Every sealed credential row, for backup snapshots. Ciphertext only — the
 /// deployment key that opens these never travels with them (ADR 0039).
+/// # Errors
+///
+/// Returns an error when storage cannot be read.
 pub async fn list_sealed_credentials(pool: &SqlitePool) -> Result<Vec<CredentialRow>> {
     let rows = sqlx::query(
         "SELECT connection_id, version, ciphertext, nonce, aad_digest, token_type, expires_at, refreshable, last_refreshed_at, configured_fields \
@@ -553,6 +603,9 @@ pub async fn list_sealed_credentials(pool: &SqlitePool) -> Result<Vec<Credential
         .collect())
 }
 
+/// # Errors
+///
+/// Returns an error when storage cannot be read.
 pub async fn get_credential(
     pool: &SqlitePool,
     connection_id: &str,
@@ -584,6 +637,9 @@ pub async fn get_credential(
     }))
 }
 
+/// # Errors
+///
+/// Returns an error when guarded credential removal cannot be committed.
 pub async fn clear_credential_unless_revoked(
     pool: &SqlitePool,
     connection_id: &str,
@@ -633,6 +689,9 @@ pub async fn clear_credential_unless_revoked(
     Ok(CredentialActivationOutcome::Activated)
 }
 
+/// # Errors
+///
+/// Returns an error when the credential cannot be deleted.
 pub async fn delete_credential(pool: &SqlitePool, connection_id: &str) -> Result<()> {
     let mut transaction = pool.begin().await?;
     sqlx::query("DELETE FROM connection_credentials WHERE connection_id = ?")
@@ -650,6 +709,9 @@ pub async fn delete_credential(pool: &SqlitePool, connection_id: &str) -> Result
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when authorization state cannot be inserted.
 pub async fn insert_authorization(pool: &SqlitePool, a: &AuthorizationRow) -> Result<()> {
     sqlx::query(
         "INSERT INTO connection_authorizations (state, connection_id, code_verifier, verifier_nonce, verifier_aad_digest, redirect_uri, scopes, created_at, expires_at, consumed_at, credential_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)",
@@ -672,6 +734,9 @@ pub async fn insert_authorization(pool: &SqlitePool, a: &AuthorizationRow) -> Re
 /// Claims a `state` exactly once. The verifier is erased in the same statement
 /// that marks consumption, so a replay finds nothing to exchange with — and a
 /// concurrent replay loses the race rather than getting a second copy.
+/// # Errors
+///
+/// Returns an error when authorization state is absent, expired, invalid, or cannot be consumed.
 pub async fn consume_authorization(
     pool: &SqlitePool,
     state: &str,
@@ -738,6 +803,9 @@ pub async fn consume_authorization(
     Ok(authorization)
 }
 
+/// # Errors
+///
+/// Returns an error when the binding cannot be inserted.
 pub async fn insert_binding(
     pool: &SqlitePool,
     connection_id: &str,
@@ -771,6 +839,9 @@ pub async fn insert_binding(
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when the binding cannot be deleted.
 pub async fn delete_binding(
     pool: &SqlitePool,
     connection_id: &str,
@@ -787,6 +858,9 @@ pub async fn delete_binding(
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when storage cannot be read.
 pub async fn list_bindings(pool: &SqlitePool, connection_id: &str) -> Result<Vec<BindingView>> {
     let rows = sqlx::query(
         "SELECT id, target_kind, target_id, target_label, created_at FROM connection_bindings \
@@ -808,6 +882,9 @@ pub async fn list_bindings(pool: &SqlitePool, connection_id: &str) -> Result<Vec
         .collect())
 }
 
+/// # Errors
+///
+/// Returns an error when the event cannot be appended.
 pub async fn append_event(
     pool: &SqlitePool,
     connection_id: &str,
@@ -827,6 +904,9 @@ pub async fn append_event(
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when storage cannot be read.
 pub async fn list_events(pool: &SqlitePool, connection_id: &str) -> Result<Vec<EventView>> {
     let rows = sqlx::query(
         "SELECT id, kind, detail, at FROM connection_events WHERE connection_id = ? ORDER BY at ASC, id ASC",
@@ -888,6 +968,9 @@ const SYNC_TARGET_COLUMNS: &str =
 
 /// Idempotent DDL for sync targets. Lives here so WP-C does not own root
 /// `migrations/` / `crates/storage` registration (orchestrator may promote later).
+/// # Errors
+///
+/// Returns an error when the sync-target schema cannot be initialized.
 pub async fn ensure_sync_targets_schema(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS sync_targets (
@@ -923,6 +1006,9 @@ pub async fn ensure_sync_targets_schema(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when the sync target cannot be inserted.
 pub async fn insert_sync_target(pool: &SqlitePool, row: &SyncTargetRow) -> Result<()> {
     ensure_sync_targets_schema(pool).await?;
     sqlx::query(
@@ -948,6 +1034,9 @@ pub async fn insert_sync_target(pool: &SqlitePool, row: &SyncTargetRow) -> Resul
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when storage cannot be read.
 pub async fn get_sync_target(pool: &SqlitePool, id: &str) -> Result<Option<SyncTargetRow>> {
     ensure_sync_targets_schema(pool).await?;
     // SYNC_TARGET_COLUMNS is a compile-time constant; only `id` is data and it is bound.
@@ -961,6 +1050,9 @@ pub async fn get_sync_target(pool: &SqlitePool, id: &str) -> Result<Option<SyncT
     Ok(row.as_ref().map(sync_target_from_row))
 }
 
+/// # Errors
+///
+/// Returns an error when storage cannot be read.
 pub async fn list_sync_targets(
     pool: &SqlitePool,
     organization_id: &str,
@@ -1022,6 +1114,9 @@ pub async fn list_sync_targets(
     Ok(rows.iter().map(sync_target_from_row).collect())
 }
 
+/// # Errors
+///
+/// Returns an error when the sync target cannot be deleted.
 pub async fn delete_sync_target(
     pool: &SqlitePool,
     organization_id: &str,
@@ -1036,6 +1131,9 @@ pub async fn delete_sync_target(
     Ok(deleted.rows_affected() > 0)
 }
 
+/// # Errors
+///
+/// Returns an error when target status cannot be persisted.
 pub async fn update_sync_target_status(
     pool: &SqlitePool,
     id: &str,

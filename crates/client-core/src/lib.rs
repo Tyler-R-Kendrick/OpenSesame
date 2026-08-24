@@ -1,4 +1,4 @@
-//! OpenSesame **client-core sdk** — local E2EE + sync cursors (ADR 0017).
+//! `OpenSesame` **client-core sdk** — local E2EE + sync cursors (ADR 0017).
 //!
 //! WIT: `wit/client/world.wit`. Server must only ever store ciphertext blobs.
 //! Persist sealed blobs only (native path / JSON); never plaintext on disk.
@@ -70,22 +70,29 @@ pub struct DeviceKey {
 }
 
 impl DeviceKey {
+    #[must_use]
     pub fn generate() -> Self {
         let mut key = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut key);
         Self { key }
     }
 
+    #[must_use]
     pub fn from_bytes(key: [u8; 32]) -> Self {
         Self { key }
     }
 
+    #[must_use]
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.key
     }
 }
 
 /// Seal plaintext with XChaCha20-Poly1305; AAD binds blob id.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn seal(key: &DeviceKey, plaintext: &[u8], aad: &[u8]) -> Result<Vec<u8>, ClientCoreError> {
     let cipher = XChaCha20Poly1305::new(Key::from_slice(&key.key));
     let mut nonce_bytes = [0u8; 24];
@@ -105,6 +112,10 @@ pub fn seal(key: &DeviceKey, plaintext: &[u8], aad: &[u8]) -> Result<Vec<u8>, Cl
     Ok(out)
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn open(key: &DeviceKey, sealed: &[u8], aad: &[u8]) -> Result<Vec<u8>, ClientCoreError> {
     if sealed.len() < 24 {
         return Err(ClientCoreError::Aead);
@@ -135,6 +146,10 @@ impl SyncStore {
         }
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn put_local(
         &mut self,
         key: &DeviceKey,
@@ -163,15 +178,14 @@ impl SyncStore {
                 _ => {
                     self.entries
                         .insert(b.id.clone(), (b.epoch, b.ciphertext.clone()));
-                    if b.epoch > self.cursor.epoch {
-                        self.cursor.epoch = b.epoch;
-                    }
+                    self.cursor.epoch = self.cursor.epoch.max(b.epoch);
                 }
             }
         }
         self.cursor.clone()
     }
 
+    #[must_use]
     pub fn collect_outgoing(&self, since: &SyncCursor) -> Vec<SyncBlob> {
         self.entries
             .iter()
@@ -184,6 +198,7 @@ impl SyncStore {
             .collect()
     }
 
+    #[must_use]
     pub fn digest_ciphertext(ct: &[u8]) -> String {
         let mut h = Hasher::new();
         h.update(ct);
@@ -191,6 +206,10 @@ impl SyncStore {
     }
 
     /// Serialize sealed blobs + cursor (never plaintext).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn to_persisted_json(&self) -> Result<String, ClientCoreError> {
         let blobs: Vec<SyncBlob> = self
             .entries
@@ -208,6 +227,10 @@ impl SyncStore {
         serde_json::to_string(&p).map_err(|e| ClientCoreError::Persist(e.to_string()))
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn from_persisted_json(json: &str) -> Result<Self, ClientCoreError> {
         let p: PersistedStore =
             serde_json::from_str(json).map_err(|e| ClientCoreError::Persist(e.to_string()))?;
@@ -221,6 +244,10 @@ impl SyncStore {
 
     /// Native filesystem persistence (OPFS equivalent for browsers lives in packages/client-core).
     #[cfg(not(target_arch = "wasm32"))]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn save_path(&self, path: &std::path::Path) -> Result<(), ClientCoreError> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| ClientCoreError::Persist(e.to_string()))?;
@@ -236,6 +263,10 @@ impl SyncStore {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn load_path(path: &std::path::Path) -> Result<Self, ClientCoreError> {
         let json =
             std::fs::read_to_string(path).map_err(|e| ClientCoreError::Persist(e.to_string()))?;

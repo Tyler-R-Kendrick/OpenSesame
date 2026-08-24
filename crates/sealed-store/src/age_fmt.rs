@@ -10,6 +10,10 @@ use crate::StoreError;
 
 const AGE_RECIPIENTS: &str = ".age-recipients";
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn read_age_recipients(root: &Path) -> Result<Vec<String>, StoreError> {
     let path = root.join(AGE_RECIPIENTS);
     if !path.exists() {
@@ -26,6 +30,10 @@ pub fn read_age_recipients(root: &Path) -> Result<Vec<String>, StoreError> {
 
 /// Encrypt to every recipient listed, so any one matching identity can open
 /// the file — `pass` multi-key parity, not just the first line.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn encrypt_age_file(
     path: &Path,
     plaintext: &[u8],
@@ -64,6 +72,10 @@ pub(crate) fn encrypt_age(
     Ok(ciphertext)
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn decrypt_age_file(path: &Path, identity_pem_or_key: &str) -> Result<Vec<u8>, StoreError> {
     decrypt_age(&fs::read(path)?, identity_pem_or_key)
 }
@@ -80,6 +92,7 @@ pub(crate) fn decrypt_age(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use age::secrecy::ExposeSecret;
 
     #[test]
     fn age_encrypts_to_every_recipient() {
@@ -96,7 +109,6 @@ mod tests {
             ],
         )
         .unwrap();
-        use age::secrecy::ExposeSecret;
         for id in [&first, &second] {
             let key = id.to_string().expose_secret().to_string();
             assert_eq!(decrypt_age_file(&path, &key).unwrap(), b"shared");

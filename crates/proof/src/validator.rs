@@ -3,7 +3,7 @@ use crate::replay::ReplayCache;
 use crate::ProofError;
 use opensesame_domain::DomainError;
 
-/// Validated DPoP proof context after RFC 9449 checks.
+/// Validated `DPoP` proof context after RFC 9449 checks.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ValidatedDpopProof {
     pub jti: String,
@@ -15,8 +15,12 @@ pub struct ValidatedDpopProof {
     pub jwk: DpopPublicJwk,
 }
 
-/// Advertisement gate: only claim DPoP support when validator + replay are ready.
+/// Advertisement gate: only claim `DPoP` support when validator + replay are ready.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "public compatibility record of independent DPoP readiness facts"
+)]
 pub struct DpopAdvertisement {
     pub validator_configured: bool,
     pub replay_store_healthy: bool,
@@ -25,6 +29,7 @@ pub struct DpopAdvertisement {
 }
 
 impl DpopAdvertisement {
+    #[must_use]
     pub fn is_ready(&self) -> bool {
         self.enabled
             && self.validator_configured
@@ -32,9 +37,14 @@ impl DpopAdvertisement {
             && self.key_policy_available
     }
 
-    /// Build from explicit readiness signals. Once production DPoP middleware
+    /// Build from explicit readiness signals. Once production `DPoP` middleware
     /// is wired end-to-end, the gateway constructs its advertisement this way
     /// from real validator/replay/key-policy health.
+    #[must_use]
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "preserves the public constructor for independent readiness facts"
+    )]
     pub fn from_flags(
         enabled: bool,
         validator_configured: bool,
@@ -49,10 +59,11 @@ impl DpopAdvertisement {
         }
     }
 
-    /// Host API posture. `enabled` follows OPENSESAME_DPOP_ENABLED, but the
-    /// readiness flags stay false until production DPoP middleware is wired
+    /// Host API posture. `enabled` follows `OPENSESAME_DPOP_ENABLED`, but the
+    /// readiness flags stay false until production `DPoP` middleware is wired
     /// end-to-end: claiming validator/replay/key-policy readiness without a
-    /// live validation path would advertise DPoP the host cannot enforce.
+    /// live validation path would advertise `DPoP` the host cannot enforce.
+    #[must_use]
     pub fn host_default() -> Self {
         Self::from_flags(dpop_env_enabled(), false, false, false)
     }
@@ -64,7 +75,7 @@ fn dpop_env_enabled() -> bool {
         .unwrap_or(false)
 }
 
-/// RFC 9449 DPoP proof validator.
+/// RFC 9449 `DPoP` proof validator.
 pub struct DpopValidator<R: ReplayCache> {
     replay_cache: R,
     max_age_secs: i64,
@@ -78,15 +89,19 @@ impl<R: ReplayCache> DpopValidator<R> {
         }
     }
 
-    /// Validate a DPoP proof JWT for an HTTP request.
+    /// Validate a `DPoP` proof JWT for an HTTP request.
     ///
     /// Checks: `typ`, `alg`, `jkt`, `jti`, `htm`, `htu`, `iat`, optional `ath`,
     /// optional `cnf.jkt` against the access token, and replay via `jti`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn validate(
         &self,
         proof_jwt: Option<&str>,
-        htm: &str,
-        htu: &str,
+        http_method: &str,
+        http_uri: &str,
         now: i64,
         access_token: Option<&str>,
         token_cnf_jkt: Option<&str>,
@@ -96,8 +111,8 @@ impl<R: ReplayCache> DpopValidator<R> {
         let expected_ath = access_token.map(crate::jwk::access_token_hash);
         let (claims, jwk, jkt) = decode_dpop_proof(
             proof_jwt,
-            htm,
-            htu,
+            http_method,
+            http_uri,
             expected_ath.as_deref(),
             self.max_age_secs,
             now,
@@ -125,6 +140,10 @@ impl<R: ReplayCache> DpopValidator<R> {
 }
 
 /// Reject presenting a DPoP-bound token as a plain Bearer token.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn reject_dpop_bound_as_bearer(
     token_is_dpop_bound: bool,
     authorization_scheme: &str,
@@ -136,6 +155,10 @@ pub fn reject_dpop_bound_as_bearer(
 }
 
 /// Assert token presentation satisfies a protocol profile minimum.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn assert_token_presentation(
     profile: &opensesame_domain::ProtocolProfile,
     presentation: opensesame_domain::TokenPresentation,

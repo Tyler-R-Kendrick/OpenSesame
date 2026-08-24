@@ -141,12 +141,14 @@ impl Default for Invoker {
 
 impl Invoker {
     /// Production broker: the static catalog-derived allowlist, https only.
+    #[must_use]
     pub fn new() -> Self {
         Self::with_rules(EGRESS_RULES.to_vec())
     }
 
     /// Broker over an explicit rule set. Still https only — see
     /// [`Invoker::allow_http_for_tests`].
+    #[must_use]
     pub fn with_rules(rules: Vec<EgressRule>) -> Self {
         Self {
             client: build_client(),
@@ -160,19 +162,22 @@ impl Invoker {
 
     /// Permit plain HTTP **to loopback hosts only**, for in-process test
     /// stubs. The egress allowlist still applies; this relaxes the scheme
-    /// check alone, and only for 127.0.0.1 / ::1 / localhost.
+    /// check alone, and only for 127.0.0.1 / `::1` / localhost.
+    #[must_use]
     pub fn allow_http_for_tests(mut self) -> Self {
         self.allow_http_for_tests = true;
         self
     }
 
     /// Override the body caps (tests exercise them with small values).
+    #[must_use]
     pub fn with_caps(mut self, request_body_cap: usize, response_body_cap: usize) -> Self {
         self.request_body_cap = request_body_cap;
         self.response_body_cap = response_body_cap;
         self
     }
 
+    #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
@@ -181,6 +186,10 @@ impl Invoker {
     /// Validate every fence that must hold before a credential is touched or
     /// a socket is opened: provider adapter, egress allowlist (exact host
     /// match), https, method, header allowlist, body cap.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn preflight(&self, req: InvokeRequest) -> Result<PreparedRequest, InvokeError> {
         let method = parse_method(&req.method)?;
         let uri: Uri = req.url.parse().map_err(|_| InvokeError::InvalidUrl)?;
@@ -242,6 +251,10 @@ impl Invoker {
     /// is placed into exactly one sensitive header and dropped with the
     /// request; the response is the upstream's status, allowlisted headers,
     /// and capped body — never a redirect chase, never a cookie.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub async fn execute(
         &self,
         token: &SecretString,
@@ -329,7 +342,7 @@ impl Invoker {
                 host: prepared.host,
                 path: prepared.path,
                 status,
-                latency_ms: started.elapsed().as_millis() as u64,
+                latency_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
                 subject: prepared.subject,
                 actor: prepared.actor,
             },
@@ -340,6 +353,10 @@ impl Invoker {
     /// source is cheap. Daemons should instead preflight, acquire on a
     /// blocking thread, then [`Invoker::execute`] — a denied request must
     /// never run the source tool.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub async fn execute_with_source(
         &self,
         source: &dyn TokenSource,
@@ -412,6 +429,10 @@ mod tests {
 
     /// A loopback HTTP stub recording (path, authorization) per hit. The hit
     /// log is how egress tests prove the wire was never touched.
+    #[expect(
+        clippy::excessive_nesting,
+        reason = "the nested tasks model the loopback server's connection and request lifetimes"
+    )]
     async fn spawn_stub(
         responder: impl Fn(
                 &hyper::Request<hyper::body::Incoming>,
@@ -590,6 +611,10 @@ mod tests {
     }
 
     #[tokio::test]
+    #[expect(
+        clippy::excessive_nesting,
+        reason = "the response branches are the test fixture exercised by this redirect test"
+    )]
     async fn redirects_are_returned_never_followed() {
         let (base, recorded) = spawn_stub(|req| {
             if req.uri().path() == "/redirect" {

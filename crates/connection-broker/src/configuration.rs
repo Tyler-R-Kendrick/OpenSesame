@@ -18,6 +18,9 @@ fn valid_name(name: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
 }
 
+/// # Errors
+///
+/// Returns an error when fields are unknown, duplicated, empty, or oversized.
 pub fn validate_mutation(
     definitions: &[ConfigurationFieldDef],
     set: &Configuration,
@@ -79,6 +82,7 @@ pub fn apply(configuration: &mut Configuration, set: Configuration, clear: &[Str
     configuration.extend(set);
 }
 
+#[must_use]
 pub fn complete(definitions: &[ConfigurationFieldDef], configuration: &Configuration) -> bool {
     definitions
         .iter()
@@ -86,6 +90,7 @@ pub fn complete(definitions: &[ConfigurationFieldDef], configuration: &Configura
         .all(|field| configuration.contains_key(&field.name))
 }
 
+#[must_use]
 pub fn views(
     definitions: &[ConfigurationFieldDef],
     configuration: &Configuration,

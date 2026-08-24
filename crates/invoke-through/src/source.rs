@@ -35,6 +35,7 @@ pub struct SourceToolSpec {
 /// Which local tool yields an invoke-through credential for a provider, if
 /// any. `aws`/`gcp` slot in here with their adapters (sigv4/`gcloud auth
 /// print-access-token`) when those providers graduate — v1 is github only.
+#[must_use]
 pub fn source_tool(provider_id: &str) -> Option<SourceToolSpec> {
     match provider_id {
         // `gh auth token` prints the locally stored token (from
@@ -53,6 +54,10 @@ pub fn source_tool(provider_id: &str) -> Option<SourceToolSpec> {
 /// `acquire` on a blocking thread, *after* egress preflight has passed — a
 /// denied call must never touch the credential at all.
 pub trait TokenSource: Send + Sync {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn acquire(&self) -> Result<SecretString, InvokeError>;
 }
 

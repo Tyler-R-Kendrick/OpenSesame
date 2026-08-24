@@ -30,6 +30,10 @@ pub struct ValidatedHttpMessageSignature {
 }
 
 pub trait HttpMessageSignatureValidator: Send + Sync {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     fn validate(
         &self,
         request: &HttpSignedRequest,
@@ -43,6 +47,7 @@ pub struct LocalHttpMessageSignatureValidator {
 }
 
 impl LocalHttpMessageSignatureValidator {
+    #[must_use]
     pub fn new(max_age_secs: i64) -> Self {
         Self {
             keys: HashMap::new(),
@@ -137,6 +142,12 @@ impl HttpMessageSignatureValidator for LocalHttpMessageSignatureValidator {
 }
 
 /// Sign a request for tests and local development.
+///
+/// # Panics
+///
+/// Panics only if the fixed, internally constructed signature component set
+/// cannot be rendered.
+#[must_use]
 pub fn sign_request(
     signing_key: &SigningKey,
     key_id: &str,
@@ -172,6 +183,7 @@ pub fn sign_request(
     HttpSignedRequest { signature, ..req }
 }
 
+#[must_use]
 pub fn content_digest_sha256(body: &[u8]) -> String {
     use sha2::{Digest, Sha256};
     let hash = Sha256::digest(body);

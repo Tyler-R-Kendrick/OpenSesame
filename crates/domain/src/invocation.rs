@@ -19,29 +19,24 @@ pub enum InvocationState {
 }
 
 impl InvocationState {
+    #[must_use]
     pub fn can_transition(self, to: Self) -> bool {
-        use InvocationState::*;
+        use InvocationState::{
+            Authorized, Authorizing, AwaitingApproval, Cancelled, Denied, Executing, Expired,
+            Failed, Leased, Received, Succeeded,
+        };
         matches!(
             (self, to),
-            (Received, Authorizing)
-                | (Authorizing, AwaitingApproval)
-                | (Authorizing, Authorized)
-                | (Authorizing, Denied)
-                | (AwaitingApproval, Authorized)
-                | (AwaitingApproval, Denied)
-                | (AwaitingApproval, Cancelled)
-                | (Authorized, Leased)
-                | (Authorized, Cancelled)
-                | (Leased, Executing)
-                | (Leased, Authorized) // lease expiry return
-                | (Executing, Succeeded)
-                | (Executing, Failed)
-                | (Executing, Cancelled)
-                | (Received, Expired)
-                | (Authorizing, Expired)
-                | (AwaitingApproval, Expired)
-                | (Authorized, Expired)
-                | (Leased, Expired)
+            (Received, Authorizing | Expired)
+                | (
+                    Authorizing,
+                    AwaitingApproval | Authorized | Denied | Expired
+                )
+                | (AwaitingApproval | Leased, Authorized)
+                | (AwaitingApproval, Denied | Cancelled | Expired)
+                | (Authorized, Leased | Cancelled | Expired)
+                | (Leased, Executing | Expired)
+                | (Executing, Succeeded | Failed | Cancelled)
         )
     }
 }
@@ -59,6 +54,10 @@ pub struct Invocation {
 }
 
 impl Invocation {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn transition(
         &mut self,
         to: InvocationState,

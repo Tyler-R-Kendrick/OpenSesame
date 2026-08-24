@@ -43,6 +43,7 @@ pub static EGRESS_RULES: &[EgressRule] = &[EgressRule {
     auth: AuthStyle::Bearer,
 }];
 
+#[must_use]
 pub fn rule_for<'a>(rules: &'a [EgressRule], provider_id: &str) -> Option<&'a EgressRule> {
     rules.iter().find(|rule| rule.provider_id == provider_id)
 }

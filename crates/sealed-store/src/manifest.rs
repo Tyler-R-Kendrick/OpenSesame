@@ -30,6 +30,10 @@ pub struct SealOutcome {
     pub rejected: Vec<(String, String)>,
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn parse_manifest(json: &str) -> Result<Vec<ManifestEntry>, StoreError> {
     serde_json::from_str(json)
         .map_err(|e| StoreError::Other(format!("manifest must be a JSON array of entries: {e}")))
@@ -37,6 +41,10 @@ pub fn parse_manifest(json: &str) -> Result<Vec<ManifestEntry>, StoreError> {
 
 /// Seal every manifest entry into the store under `key`, then record a single
 /// commit. Existing entries are skipped unless `replace` is set.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn seal_manifest(
     root: &StoreRoot,
     key: &ItemDataKey,

@@ -1,8 +1,8 @@
-//! Tailnet caller identity via the tailscaled LocalAPI `whois` (ADR 0048 §8).
+//! Tailnet caller identity via the tailscaled `LocalAPI` `whois` (ADR 0048 §8).
 //!
 //! When the daemon is reachable over Tailscale, a caller proves nothing by
 //! presenting a token — the tailnet already authenticated the machine at the
-//! WireGuard layer. This crate asks the local `tailscaled` *who* a remote
+//! `WireGuard` layer. This crate asks the local `tailscaled` *who* a remote
 //! address is (`GET /localapi/v0/whois?addr=ip:port` over the tailscaled Unix
 //! socket) and authorizes the answer against an explicit user/tag allowlist.
 //! Identity comes from the platform, not from a presented secret — the SPIFFE
@@ -15,12 +15,13 @@
 //! denies.
 
 use serde::Deserialize;
+use std::fmt::Write as _;
 use std::time::Duration;
 
-/// Default tailscaled LocalAPI socket.
+/// Default tailscaled `LocalAPI` socket.
 pub const DEFAULT_SOCKET_PATH: &str = "/var/run/tailscale/tailscaled.sock";
 
-/// Bound on the whole whois exchange; LocalAPI answers are kilobytes at most.
+/// Bound on the whole whois exchange; `LocalAPI` answers are kilobytes at most.
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Hard cap on the response head + body. Anything larger is not a whois
@@ -31,7 +32,7 @@ pub const MAX_RESPONSE_BYTES: usize = 64 * 1024;
 /// a node can have no tags, and a tagged node has no user profile.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct WhoisIdentity {
-    /// `Node.Name` — the node's MagicDNS name.
+    /// `Node.Name` — the node's `MagicDNS` name.
     pub node_name: Option<String>,
     /// `Node.Tags` — e.g. `tag:server`.
     pub tags: Vec<String>,
@@ -42,6 +43,7 @@ pub struct WhoisIdentity {
 impl WhoisIdentity {
     /// A stable label for rate-limit keying and logs. Falls back to the node
     /// name when the node is tagged and has no user profile.
+    #[must_use]
     pub fn key(&self) -> Option<String> {
         self.login_name.clone().or_else(|| self.node_name.clone())
     }
@@ -65,6 +67,10 @@ pub enum AuthnError {
 
 /// Whois a `ip:port` against the default tailscaled socket.
 #[cfg(unix)]
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn whois(addr: &str) -> Result<WhoisIdentity, AuthnError> {
     whois_via(
         std::path::Path::new(DEFAULT_SOCKET_PATH),
@@ -79,6 +85,10 @@ pub fn whois(addr: &str) -> Result<WhoisIdentity, AuthnError> {
 /// EOF under [`MAX_RESPONSE_BYTES`], the status must be exactly 200, and the
 /// body must parse. Nothing is followed, retried, or upgraded.
 #[cfg(unix)]
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn whois_via(
     socket_path: &std::path::Path,
     addr: &str,
@@ -117,7 +127,7 @@ pub fn whois_via(
                     return Err(AuthnError::TooLarge(MAX_RESPONSE_BYTES));
                 }
             }
-            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
             Err(e) => return Err(AuthnError::Io(e.to_string())),
         }
     }
@@ -146,6 +156,7 @@ pub fn whois_via(
 /// who configures neither users nor tags has configured a listener that
 /// serves nobody. A caller passes when its login name is in `allowed_users`
 /// or any of its node tags is in `allowed_tags`.
+#[must_use]
 pub fn authorize(
     identity: &WhoisIdentity,
     allowed_users: &[String],
@@ -183,7 +194,7 @@ fn encode_query_value(value: &str) -> String {
         if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
             out.push(byte as char);
         } else {
-            out.push_str(&format!("%{byte:02X}"));
+            write!(out, "%{byte:02X}").expect("writing to a String cannot fail");
         }
     }
     out
@@ -211,10 +222,14 @@ struct UserProfile {
     login_name: Option<String>,
 }
 
-/// Parse one raw LocalAPI whois response (head + body). Public so the fuzz
+/// Parse one raw `LocalAPI` whois response (head + body). Public so the fuzz
 /// harness and hermetic tests can drive the parsing boundary without a
 /// socket; the transport above is the only network path and it feeds exactly
 /// this function.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn parse_response(raw: &[u8]) -> Result<WhoisIdentity, AuthnError> {
     let head_end = raw
         .windows(4)
