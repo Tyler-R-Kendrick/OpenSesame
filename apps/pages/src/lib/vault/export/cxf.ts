@@ -190,6 +190,14 @@ export type CxfExportOptions = {
   exporter?: string;
 };
 
+type CxfExportAttempt = Omit<CxfExportOptions, "humanConfirmed"> & {
+  humanConfirmed: boolean;
+};
+
+type CxfDocumentCandidate = Omit<CxfDocument, "version"> & {
+  version: number;
+};
+
 export type CxfExportResult = {
   document: CxfDocument;
   /** Items this format cannot carry, and why, for the UI to show. */
@@ -217,7 +225,9 @@ function field(
   fieldType: CxfFieldType = "string",
   label?: string,
 ): CxfEditableField {
-  return label === undefined ? { fieldType, value } : { fieldType, value, label };
+  return label === undefined
+    ? { fieldType, value }
+    : { fieldType, value, label };
 }
 
 function customFieldsCredential(
@@ -243,10 +253,7 @@ function customFieldsCredential(
  * a document written here and read back here is exact even where CXF's own
  * field set cannot express the original label.
  */
-function totpCredential(
-  totp: string,
-  username: string,
-): CxfCredential | null {
+function totpCredential(totp: string, username: string): CxfCredential | null {
   const raw = totp.trim();
   if (raw === "") return null;
   if (!/^otpauth:\/\//iu.test(raw)) {
@@ -277,7 +284,7 @@ function totpCredential(
   const params = url.searchParams;
   const algorithm = (params.get("algorithm") ?? "sha1").toLowerCase();
   const issuer = params.get("issuer");
-  return {
+  const credential: CxfCredential = {
     type: CXF_TYPES.totp,
     secret: params.get("secret") ?? "",
     period: Number.parseInt(params.get("period") ?? "30", 10) || 30,
@@ -285,15 +292,13 @@ function totpCredential(
     algorithm:
       algorithm === "sha256" || algorithm === "sha512" ? algorithm : "sha1",
     username,
-    ...(issuer === null ? {} : { issuer }),
-    extensions: [{ name: CXF_EXTENSION, otpauth: raw }],
   };
+  if (issuer !== null) credential.issuer = issuer;
+  credential.extensions = [{ name: CXF_EXTENSION, otpauth: raw }];
+  return credential;
 }
 
-function itemFor(item: VaultItem): {
-  cxf: CxfItem | null;
-  skipped: SkippedRecord | null;
-} {
+function itemFor(item: VaultItem) {
   const base: CxfItem = {
     id: item.id,
     creationAt: epoch(item.createdAt),
@@ -397,7 +402,7 @@ function itemFor(item: VaultItem): {
 
 function buildCxfExportDefault(
   body: VaultBody,
-  options: CxfExportOptions,
+  options: CxfExportAttempt,
 ): CxfExportResult {
   if (options.humanConfirmed !== true) {
     throw new CxfExportError(
@@ -453,7 +458,7 @@ function buildCxfExportDefault(
   };
 }
 
-function serializeCxfExportDefault(document: CxfDocument): string {
+function serializeCxfExportDefault(document: CxfDocumentCandidate): string {
   if (document.version !== CXF_VERSION) {
     throw new CxfExportError("Refusing to write an unknown CXF version.");
   }

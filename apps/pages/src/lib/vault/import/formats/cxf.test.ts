@@ -1,4 +1,8 @@
-import { overlapCast } from "@opensesame/os-domain";
+import type {
+  BoundaryValue,
+  JsonObject,
+  JsonValue,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 
 import type { DetectInput, ParseInput, ParseResult } from "../types.js";
@@ -10,9 +14,10 @@ import { fidoCxf } from "./cxf.js";
  * through this vault's own writer.
  */
 
-type Json = Record<string, unknown>;
-
-function document(items: Json[], collections: Json[] = []): Json {
+function document(
+  items: JsonValue[],
+  collections: JsonValue[] = [],
+): JsonObject {
   return {
     version: 1,
     exporter: "SomeOtherManager",
@@ -29,17 +34,17 @@ function document(items: Json[], collections: Json[] = []): Json {
   };
 }
 
-function input(json: unknown): ParseInput {
+function input(json: BoundaryValue): ParseInput {
   return {
     fileName: "export.json",
     text: JSON.stringify(json),
     headers: null,
-    json: overlapCast(json),
+    json,
     bytes: null,
   };
 }
 
-function parse(json: unknown): ParseResult {
+function parse(json: BoundaryValue): ParseResult {
   return fidoCxf.parse(input(json));
 }
 
@@ -67,9 +72,7 @@ describe("fidoCxf.detect", () => {
   };
 
   it("claims a document with a version, an exporter, and accounts", () => {
-    expect(fidoCxf.detect({ ...base, json: overlapCast(document([])) })).toBe(
-      true,
-    );
+    expect(fidoCxf.detect({ ...base, json: document([]) })).toBe(true);
   });
 
   it("declines other JSON without throwing", () => {
@@ -83,7 +86,7 @@ describe("fidoCxf.detect", () => {
       // A Bitwarden export, which also has a top-level array of things.
       { encrypted: false, items: [] },
     ]) {
-      expect(fidoCxf.detect({ ...base, json: overlapCast(json) })).toBe(false);
+      expect(fidoCxf.detect({ ...base, json })).toBe(false);
     }
   });
 

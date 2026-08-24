@@ -15,6 +15,14 @@ import type { startServer } from "../server.js";
 import { renderLoginPage } from "../ui/interaction-pages.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
+type TokenClient = { id?: string; secret?: string };
+type FederatedStartForm = { _csrf: string; issuer: string };
+type FederatedTestEnvironment = {
+  OPENSESAME_UPSTREAM_ISSUER?: string;
+  OPENSESAME_UPSTREAM_CLIENT_ID?: string;
+  OPENSESAME_UPSTREAM_CLIENT_SECRET?: string;
+};
+type LoginPageResult = { jar: Jar; uid: string; html: string };
 
 const RP_ORIGIN = "http://127.0.0.1:4311";
 const RP_CLIENT_ID = `origin:${RP_ORIGIN}`;
@@ -85,7 +93,7 @@ async function startStubUpstream(): Promise<StubUpstream> {
   >();
   let lastNonce: string | undefined;
   let tokenOrigin: string | undefined;
-  let tokenClient: { id?: string; secret?: string } = {};
+  let tokenClient: TokenClient = {};
   let subject = "stub-user-1";
 
   const server = createServer((req, res) => {
@@ -217,6 +225,7 @@ async function startStubUpstream(): Promise<StubUpstream> {
   });
 
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  // SAFETY: server.listen established the runtime AddressInfo invariant.
   const port = (server.address() as AddressInfo).port;
 
   return {
@@ -237,7 +246,7 @@ async function startStubUpstream(): Promise<StubUpstream> {
 async function startControlPlane(
   upstreamIssuer: string,
   port: number,
-  extraEnv: Record<string, string> = {},
+  extraEnv: FederatedTestEnvironment = {},
 ): Promise<Started> {
   const { startServer: start } = await import("../server.js");
   return start({
@@ -262,6 +271,7 @@ async function startControlPlane(
 async function reservePort(): Promise<number> {
   const probe = createServer();
   await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
+  // SAFETY: probe.listen established the runtime AddressInfo invariant.
   const port = (probe.address() as AddressInfo).port;
   await new Promise<void>((r) => probe.close(() => r()));
   return port;
@@ -289,7 +299,7 @@ async function req(
   return res;
 }
 
-function postForm(fields: Record<string, string>): RequestInit {
+function postForm(fields: FederatedStartForm): RequestInit {
   return {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -470,11 +480,7 @@ describe("federated interaction leg", () => {
     resetFederatedDiscoveryCache();
   });
 
-  async function loginPage(): Promise<{
-    jar: Jar;
-    uid: string;
-    html: string;
-  }> {
+  async function loginPage(): Promise<LoginPageResult> {
     const jar = new Jar();
     const { challenge } = pkce();
     const params = new URLSearchParams({

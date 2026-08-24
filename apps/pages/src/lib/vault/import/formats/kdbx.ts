@@ -38,9 +38,9 @@
  */
 
 import {
+  type BinaryImportAdapter,
   type DraftItem,
   type DraftLogin,
-  type BinaryImportAdapter,
   type ParseResult,
   type SkippedRecord,
   addField,
@@ -109,6 +109,9 @@ export function sanitiseSegment(raw: string): string {
 type FieldValue = { text: string; protected: boolean };
 
 type KdbxwebModule = typeof import("kdbxweb");
+type KdbxEntryField = import("kdbxweb").KdbxEntryField;
+type KdbxGroup = import("kdbxweb").KdbxGroup;
+type ProtectedValue = import("kdbxweb").ProtectedValue;
 
 let codec: Promise<KdbxwebModule> | null = null;
 
@@ -122,9 +125,7 @@ async function loadCodec(): Promise<KdbxwebModule> {
       import("kdbxweb"),
       import("hash-wasm"),
     ]);
-    const module =
-      (imported as unknown as { default?: KdbxwebModule }).default ??
-      (imported as KdbxwebModule);
+    const module = imported;
 
     module.CryptoEngine.setArgon2Impl(
       async (
@@ -157,7 +158,7 @@ async function loadCodec(): Promise<KdbxwebModule> {
           hashLength: length,
           outputType: "binary",
         });
-        return hash.buffer as ArrayBuffer;
+        return new Uint8Array(hash).buffer;
       },
     );
     return module;
@@ -166,14 +167,14 @@ async function loadCodec(): Promise<KdbxwebModule> {
 }
 
 function readFields(
-  fields: Map<string, unknown>,
-  isProtected: (value: unknown) => value is { getText(): string },
+  fields: Map<string, KdbxEntryField>,
+  isProtected: (value: KdbxEntryField) => value is ProtectedValue,
 ): Map<string, FieldValue> {
   const out = new Map<string, FieldValue>();
   for (const [name, value] of fields) {
     if (isProtected(value)) {
       out.set(name, { text: value.getText(), protected: true });
-    } else if (typeof value === "string") {
+    } else {
       out.set(name, { text: value, protected: false });
     }
     // A binary reference is not a string field and has no place in a draft.
@@ -217,7 +218,8 @@ function totpFromTimeOtp(
       .toUpperCase()
       .replaceAll("HMAC-", "")
       .replaceAll("-", "") || "SHA1";
-  const label = title.trim() === "" ? "entry" : encodeURIComponent(title.trim());
+  const label =
+    title.trim() === "" ? "entry" : encodeURIComponent(title.trim());
   return `otpauth://totp/${label}?secret=${encodeURIComponent(seed)}&digits=${digits}&period=${period}&algorithm=${encodeURIComponent(algorithm)}`;
 }
 
@@ -226,8 +228,8 @@ function wholeNumber(raw: string | undefined, fallback: number): number {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function isoOf(value: unknown): string | null {
-  return value instanceof Date && !Number.isNaN(value.getTime())
+function isoOf(value: Date | undefined): string | null {
+  return value !== undefined && !Number.isNaN(value.getTime())
     ? value.toISOString()
     : null;
 }
@@ -329,21 +331,6 @@ function uniqueName(taken: Set<string>, folder: string, name: string): string {
   }
 }
 
-/** The shape this adapter reads off kdbxweb, kept structural on purpose. */
-type KdbxGroupLike = {
-  name?: string;
-  uuid?: { id?: string };
-  entries: KdbxEntryLike[];
-  groups: KdbxGroupLike[];
-};
-
-type KdbxEntryLike = {
-  fields: Map<string, unknown>;
-  binaries: Map<string, unknown>;
-  tags?: string[];
-  times?: { creationTime?: unknown; lastModTime?: unknown };
-};
-
 export const keepassKdbx: BinaryImportAdapter = {
   id: "keepass-kdbx",
   label: "KeePass / KeePassXC database (.kdbx)",
@@ -367,10 +354,7 @@ export const keepassKdbx: BinaryImportAdapter = {
     }
 
     const kdbxweb = await loadCodec();
-    const buffer = bytes.buffer.slice(
-      bytes.byteOffset,
-      bytes.byteOffset + bytes.byteLength,
-    ) as ArrayBuffer;
+    const buffer = new Uint8Array(bytes).buffer;
     const credentials = new kdbxweb.Credentials(
       kdbxweb.ProtectedValue.fromString(password),
     );
@@ -380,11 +364,10 @@ export const keepassKdbx: BinaryImportAdapter = {
       db = await kdbxweb.Kdbx.load(buffer, credentials);
     } catch (caught) {
       if (caught instanceof KdbxImportError) throw caught;
-      const code =
-        caught !== null && typeof caught === "object" && "code" in caught
-          ? String((caught as { code?: unknown }).code)
-          : "";
-      if (code === kdbxweb.Consts.ErrorCodes.InvalidKey) {
+      if (
+        caught instanceof kdbxweb.KdbxError &&
+        caught.code === kdbxweb.Consts.ErrorCodes.InvalidKey
+      ) {
         throw new KdbxImportError(
           "That password did not open the database. If it also uses a key file, that is not supported yet.",
         );
@@ -394,7 +377,7 @@ export const keepassKdbx: BinaryImportAdapter = {
       );
     }
 
-    const isProtected = (value: unknown): value is { getText(): string } =>
+    const isProtected = (value: KdbxEntryField): value is ProtectedValue =>
       value instanceof kdbxweb.ProtectedValue;
 
     const items: DraftItem[] = [];
@@ -405,12 +388,15 @@ export const keepassKdbx: BinaryImportAdapter = {
     let attachments = 0;
     let passkeys = 0;
 
-    const walk = (node: KdbxGroupLike, path: string[]): void => {
+    const walk = (node: KdbxGroup, path: string[]): void => {
       if (recycleBin !== null && node.uuid?.id === recycleBin) {
         for (const entry of node.entries) {
           const title = entry.fields.get("Title");
           skipped.push({
-            name: typeof title === "string" ? title : "Untitled",
+            name:
+              title instanceof kdbxweb.ProtectedValue
+                ? title.getText()
+                : (title ?? "Untitled"),
             reason: "In the database's recycle bin.",
           });
         }
@@ -445,7 +431,7 @@ export const keepassKdbx: BinaryImportAdapter = {
 
     // The top-level group is the database itself, so it contributes no folder.
     for (const root of db.groups) {
-      walk(root as unknown as KdbxGroupLike, []);
+      walk(root, []);
     }
 
     if (attachments > 0) {

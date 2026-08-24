@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import {
   type PendingFederatedAuth,
   decodePending,
@@ -38,6 +39,15 @@ function makeRng(seed: number): () => number {
 }
 
 const FIELDS = ["issuer", "state", "nonce", "verifier"] as const;
+const pendingSchema = z.object({
+  issuer: z.string(),
+  state: z.string(),
+  nonce: z.string(),
+  verifier: z.string(),
+});
+
+type FuzzValue = string | number | null | { nested: boolean } | string[];
+type FuzzCandidate = Record<string, FuzzValue>;
 
 function randomString(rng: () => number, maxLen: number): string {
   const len = Math.floor(rng() * maxLen);
@@ -52,12 +62,13 @@ function randomString(rng: () => number, maxLen: number): string {
   return out;
 }
 
-function isWellFormed(value: unknown): value is PendingFederatedAuth {
-  if (!value || typeof value !== "object") return false;
-  const record = value as Record<string, unknown>;
+function isWellFormed(
+  value: ReturnType<typeof decodePending>,
+): value is PendingFederatedAuth {
   return (
-    Object.keys(record).length === FIELDS.length &&
-    FIELDS.every((field) => typeof record[field] === "string")
+    value !== undefined &&
+    Object.keys(value).length === FIELDS.length &&
+    pendingSchema.safeParse(value).success
   );
 }
 
@@ -86,7 +97,7 @@ describe("FUZZ — decodePending survives arbitrary cookie bytes", () => {
     for (let i = 0; i < 5_000; i++) {
       // Build an object with a random subset of the fields and random extras,
       // some of which are the right names with the wrong types.
-      const candidate: Record<string, unknown> = {};
+      const candidate: FuzzCandidate = {};
       for (const field of FIELDS) {
         const roll = rng();
         if (roll < 0.25) continue;
@@ -105,9 +116,7 @@ describe("FUZZ — decodePending survives arbitrary cookie bytes", () => {
       expect(decoded === undefined || isWellFormed(decoded)).toBe(true);
 
       // The contract is exact: every field present AND a string, or nothing.
-      const shouldDecode = FIELDS.every(
-        (field) => typeof candidate[field] === "string",
-      );
+      const shouldDecode = pendingSchema.safeParse(candidate).success;
       expect(decoded !== undefined).toBe(shouldDecode);
     }
   });
@@ -129,7 +138,7 @@ describe("FUZZ — decodePending survives arbitrary cookie bytes", () => {
       expect(decoded === undefined || isWellFormed(decoded)).toBe(true);
     }
     // Prototype pollution attempt must not have taken.
-    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect("polluted" in {}).toBe(false);
   });
 
   it("round-trips any well-formed record it accepts", () => {
@@ -143,10 +152,9 @@ describe("FUZZ — decodePending survives arbitrary cookie bytes", () => {
       };
       const decoded = decodePending(encodePending(pending));
       expect(decoded).toEqual(pending);
+      if (!decoded) throw new Error("well-formed pending state was rejected");
       // Stable under a second pass — no lossy normalization creeping in.
-      expect(
-        decodePending(encodePending(decoded as PendingFederatedAuth)),
-      ).toEqual(pending);
+      expect(decodePending(encodePending(decoded))).toEqual(pending);
     }
   });
 });

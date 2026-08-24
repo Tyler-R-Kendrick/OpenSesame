@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import type { DraftItem, ParseInput, ParseResult } from "../types.js";
+import type { ParseInput, ParseResult } from "../types.js";
 import { hasKdbxMagic, keepassKdbx, sanitiseSegment } from "./kdbx.js";
 
 /**
@@ -21,14 +21,15 @@ const FIXTURE_EXPECTED = fileURLToPath(
 );
 
 function input(bytes: Uint8Array, password?: string): ParseInput {
-  return {
+  const parsedInput: ParseInput = {
     fileName: "roundtrip.kdbx",
     text: "",
     headers: null,
     json: null,
     bytes,
-    ...(password === undefined ? {} : { password }),
   };
+  if (password !== undefined) parsedInput.password = password;
+  return parsedInput;
 }
 
 describe("hasKdbxMagic", () => {
@@ -168,8 +169,8 @@ function trailerLines(pairs: [string, string][]): string[] {
   return out;
 }
 
-function toStoreEntries(result: ParseResult): Record<string, StoreEntry> {
-  const out: Record<string, StoreEntry> = {};
+function toStoreEntries(result: ParseResult) {
+  const out = new Map<string, StoreEntry>();
   for (const item of result.items) {
     const path =
       item.folder === null ? item.name : `${item.folder}/${item.name}`;
@@ -187,7 +188,7 @@ function toStoreEntries(result: ParseResult): Record<string, StoreEntry> {
     for (const field of item.fields) {
       pairs.push([sanitiseKey(field.name), field.value]);
     }
-    out[path] = { secret, trailer: trailerLines(pairs), otp };
+    out.set(path, { secret, trailer: trailerLines(pairs), otp });
   }
   return out;
 }
@@ -207,15 +208,13 @@ function toStoreEntries(result: ParseResult): Record<string, StoreEntry> {
  * If kdbxweb ever preserves the tab, the pinning test fails and this entry
  * comes out of the map.
  */
-const READER_LIMITATIONS: Record<string, string> = {
-  "Weird_Name/Tab_here": "Weird_Name/Tabhere",
-};
+const READER_LIMITATIONS = new Map([
+  ["Weird_Name/Tab_here", "Weird_Name/Tabhere"],
+]);
 
 describe("kdbxweb's own handling of a tab inside a field value", () => {
   it("drops it while parsing, which is why the fixture is reconciled", async () => {
-    const codec = await import("kdbxweb");
-    const kdbxweb =
-      (codec as unknown as { default?: typeof codec }).default ?? codec;
+    const kdbxweb = await import("kdbxweb");
     // `\u0009` is a legal XML character that a conforming parser preserves in
     // character data. `@xmldom/xmldom`, which kdbxweb parses the inner XML
     // with, does not — so no KDBX field value read through kdbxweb can hold
@@ -255,18 +254,16 @@ describe("keepassKdbx against the shared conformance fixture", () => {
     );
     const reconciled = Object.fromEntries(
       Object.entries(expected.items).map(([path, entry]) => [
-        READER_LIMITATIONS[path] ?? path,
+        READER_LIMITATIONS.get(path) ?? path,
         entry,
       ]),
     );
-    expect(toStoreEntries(result)).toEqual(reconciled);
+    expect(toStoreEntries(result)).toEqual(new Map(Object.entries(reconciled)));
   });
 
   it("puts an entry from a nested group under the joined group path", () => {
-    const nested = result.items.find(
-      (item) => item.name === "Example Mail",
-    ) as DraftItem;
-    expect(nested.folder).toBe("Personal/Email");
+    const nested = result.items.find((item) => item.name === "Example Mail");
+    expect(nested?.folder).toBe("Personal/Email");
   });
 
   it("carries every field type off one entry", () => {

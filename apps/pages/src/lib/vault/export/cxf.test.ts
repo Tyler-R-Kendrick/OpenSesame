@@ -7,9 +7,10 @@ import {
   CXF_EXTENSION,
   CXF_TYPES,
   CXF_VERSION,
-  CxfExportError,
   type CxfDocument,
+  CxfExportError,
   buildCxfExport,
+  cxfExportSeams,
   cxfFileName,
   serializeCxfExport,
 } from "./cxf.js";
@@ -147,11 +148,11 @@ describe("the human-plane ceremony", () => {
     // The whole point of the flag: a caller that forgets it gets nothing.
     // A CXF document is every secret in the vault, in the clear.
     const body = fullVault();
-    const options = { humanConfirmed: false } as unknown as {
-      humanConfirmed: true;
-    };
-    expect(() => buildCxfExport(body, options)).toThrow(CxfExportError);
-    expect(() => buildCxfExport(body, options)).toThrow(
+    const options = { humanConfirmed: false };
+    expect(() => cxfExportSeams.buildCxfExport(body, options)).toThrow(
+      CxfExportError,
+    );
+    expect(() => cxfExportSeams.buildCxfExport(body, options)).toThrow(
       /explicit human confirmation/,
     );
   });
@@ -163,8 +164,10 @@ describe("the human-plane ceremony", () => {
   });
 
   it("refuses to serialize a document claiming another CXF version", () => {
-    const document = { ...exported(), version: 2 } as unknown as CxfDocument;
-    expect(() => serializeCxfExport(document)).toThrow(/unknown CXF version/);
+    const document = { ...exported(), version: 2 };
+    expect(() => cxfExportSeams.serializeCxfExport(document)).toThrow(
+      /unknown CXF version/,
+    );
   });
 });
 
@@ -204,9 +207,7 @@ describe("what the exported document contains", () => {
   it("never writes a passkey private key, because it never has one", () => {
     const passkey = exported()
       .accounts[0]?.items.find((item) => item.id === "item-passkey")
-      ?.credentials.find(
-        (credential) => credential.type === CXF_TYPES.passkey,
-      );
+      ?.credentials.find((credential) => credential.type === CXF_TYPES.passkey);
     if (passkey?.type !== CXF_TYPES.passkey) throw new Error("no passkey");
     expect(passkey.key).toBe("");
     // base64url on the wire, so it survives a URL and a QR code alike.
@@ -257,7 +258,10 @@ describe("what the exported document contains", () => {
         (credential) => credential.type === CXF_TYPES.creditCard,
       );
     if (card?.type !== CXF_TYPES.creditCard) throw new Error("no card");
-    expect(card.expiryDate).toEqual({ fieldType: "year-month", value: "2031-07" });
+    expect(card.expiryDate).toEqual({
+      fieldType: "year-month",
+      value: "2031-07",
+    });
   });
 
   it("ends the serialized document with a newline and pretty-prints it", () => {

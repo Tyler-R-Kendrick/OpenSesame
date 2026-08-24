@@ -20,29 +20,39 @@ import {
   storedKeyPresent,
   takeStashedSession,
 } from "./guest-auth.js";
-import { IdentityError } from "./identity.js";
+import { IdentityError, type IdentitySession } from "./identity.js";
 import { clearNotices, listNotices, pushNotice } from "./notices.js";
-import { vaultStore } from "./vault/store.js";
+import { type VaultStatus, vaultStore } from "./vault/store.js";
 
 const STASH_KEY = "opensesame:guest-claim-session";
 const PENDING_LINK_KEY = "opensesame:federation:pending-link";
 
 const REAL = { ...guestAuthDependencies };
 
-/**
- * Test doubles are deliberately loose here. `identityJson` is generic over its
- * response body and `connectProvisional` resolves a full session; a double that
- * returns one concrete shape cannot satisfy either signature, and forcing it to
- * would mean building a whole fake session for assertions that never read one.
- * Keys are still constrained to real dependency names, so a typo is caught.
- */
-type Overrides = Partial<Record<keyof typeof guestAuthDependencies, unknown>>;
+type FederationSessionFixture = {
+  idToken: string;
+};
 
-function withDeps(overrides: Overrides): void {
+type GuestAuthDependencyOverrides = {
+  connectProvisional?: () => Promise<IdentitySession | undefined>;
+  currentSession?: () => IdentitySession | null;
+  identityJson?: (
+    path: string,
+    init?: RequestInit,
+  ) => Promise<Record<string, never>>;
+  restoreSession?: (session: IdentitySession) => void;
+  createGuest?: () => Promise<void>;
+  vaultStatus?: () => VaultStatus;
+  loadFederationSession?: () => FederationSessionFixture | null;
+};
+
+type SessionOverrides = Partial<IdentitySession>;
+
+function withDeps(overrides: GuestAuthDependencyOverrides): void {
   Object.assign(guestAuthDependencies, overrides);
 }
 
-function session(extra: Record<string, unknown> = {}) {
+function session(extra: SessionOverrides = {}): IdentitySession {
   return {
     principalId: "prn_1",
     accessToken: "pst_1",
@@ -218,7 +228,7 @@ describe("claimGuestAuth", () => {
 });
 
 describe("adoptFederatedIdentity", () => {
-  function deps(overrides: Overrides = {}) {
+  function deps(overrides: GuestAuthDependencyOverrides = {}): void {
     withDeps({
       vaultStatus: () => "unlocked",
       currentSession: () => session(),
@@ -424,14 +434,13 @@ describe("default dependency wiring", () => {
   it("reads the vault status from the real store", () => {
     // Guards the arrow bodies in guestAuthDependencies: a mutant that empties
     // them returns undefined instead of a real status string.
-    expect(typeof REAL.vaultStatus()).toBe("string");
-    expect(REAL.vaultStatus().length).toBeGreaterThan(0);
+    expect(["empty", "locked", "unlocked"]).toContain(REAL.vaultStatus());
   });
 
   it("exposes the real identity and federation helpers", () => {
-    expect(typeof REAL.createGuest).toBe("function");
-    expect(typeof REAL.loadFederationSession).toBe("function");
-    expect(typeof REAL.connectProvisional).toBe("function");
+    expect(REAL.createGuest).toBeInstanceOf(Function);
+    expect(REAL.loadFederationSession).toBeInstanceOf(Function);
+    expect(REAL.connectProvisional).toBeInstanceOf(Function);
   });
 });
 /**
@@ -489,16 +498,16 @@ describe("when sessionStorage itself throws", () => {
 
 describe("restore passes exactly the fields it has", () => {
   it("omits expiresAt entirely rather than carrying an undefined key", () => {
-    const restoreSession = vi.fn();
+    const restoreSession = vi.fn<(session: IdentitySession) => void>();
     withDeps({ restoreSession });
     sessionStorage.setItem(STASH_KEY, JSON.stringify(session()));
 
     restoreStashedGuestSession();
 
-    const passed = restoreSession.mock.calls[0]?.[0] as Record<string, unknown>;
+    const passed = restoreSession.mock.calls[0]?.[0];
     // toEqual would accept an explicit `expiresAt: undefined`; the key list
     // is what actually distinguishes "absent" from "present but undefined".
-    expect(Object.keys(passed).sort()).toEqual([
+    expect(Object.keys(passed ?? {}).sort()).toEqual([
       "accessToken",
       "issuerOrigin",
       "principalId",
@@ -510,16 +519,15 @@ describe("default dependencies delegate to the real vault store", () => {
   it("createGuest calls through to the store", async () => {
     const spy = vi
       .spyOn(vaultStore, "createGuest")
-      .mockResolvedValue(undefined as never);
+      .mockResolvedValue(undefined);
     await REAL.createGuest();
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
   it("vaultStatus reads the store's current snapshot", () => {
-    const spy = vi
-      .spyOn(vaultStore, "getSnapshot")
-      .mockReturnValue({ status: "locked" } as never);
-    expect(REAL.vaultStatus()).toBe("locked");
+    const expected = vaultStore.getSnapshot().status;
+    const spy = vi.spyOn(vaultStore, "getSnapshot");
+    expect(REAL.vaultStatus()).toBe(expected);
     expect(spy).toHaveBeenCalled();
   });
 });
