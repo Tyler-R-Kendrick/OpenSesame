@@ -35,6 +35,12 @@ pub const MAX_MANIFEST_BODY: usize = 1_048_576;
 
 /// The only provider with an uploader implemented here. Others are refused at
 /// configuration time rather than failing later on the first replicate call.
+/// A sealed chunk is 1 MiB of plaintext plus a 48-byte frame. If either limit
+/// is ever edited below what the store actually writes, replication would
+/// reject the store's own output — so this fails the build, not a test run.
+const _: () = assert!(MAX_CHUNK_BODY > 1_048_576 + 48);
+const _: () = assert!(MAX_MANIFEST_BODY >= 1_048_576);
+
 const SUPPORTED_PROVIDER: &str = "dropbox";
 
 const DROPBOX_UPLOAD_URL: &str = "https://content.dropboxapi.com/2/files/upload";
@@ -417,12 +423,5 @@ mod tests {
         assert!(arg.contains("\"mode\":\"overwrite\""), "{arg}");
         assert!(arg.contains("\"mute\":true"), "{arg}");
         assert!(arg.contains("/OpenSesame/attachments"), "{arg}");
-    }
-
-    #[test]
-    fn body_limits_bracket_what_the_store_writes() {
-        // A sealed chunk is 1 MiB of plaintext plus a 48-byte frame.
-        assert!(MAX_CHUNK_BODY > 1_048_576 + 48);
-        assert!(MAX_MANIFEST_BODY >= 1_048_576);
     }
 }
