@@ -1,6 +1,7 @@
 mod aauth;
 mod admin;
 mod agents;
+mod attachments;
 mod backup;
 mod certs;
 mod changelog;
@@ -90,6 +91,22 @@ pub fn router(state: AppState) -> Router {
             get(github_webhook::webhook_get)
                 .post(github_webhook::webhook)
                 .layer(DefaultBodyLimit::max(1024 * 1024)),
+        )
+        .route(
+            "/api/v1/attachments/target",
+            get(attachments::get_target)
+                .put(attachments::put_target)
+                .delete(attachments::delete_target),
+        )
+        .route(
+            "/api/v1/attachments/replicate/chunk",
+            post(attachments::replicate_chunk)
+                .layer(DefaultBodyLimit::max(attachments::MAX_CHUNK_BODY)),
+        )
+        .route(
+            "/api/v1/attachments/replicate/manifest",
+            post(attachments::replicate_manifest)
+                .layer(DefaultBodyLimit::max(attachments::MAX_MANIFEST_BODY)),
         )
         .route(
             "/api/v1/backup/target",

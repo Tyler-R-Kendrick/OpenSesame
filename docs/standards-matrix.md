@@ -18,7 +18,8 @@
 | RFC 7009 / 7662 Revocation/Introspection | Final | Session lifecycle | authn |
 | OIDC Core / Discovery | Final | IdP integration | `crates/authn`, `apps/gateway` |
 | OIDC CIBA | Final | Optional provider capability | CLI flow resolver |
-| WebAuthn L3 + PRF | Final | Vault unlock (PRF when reported) | human-vault / extension |
+| WebAuthn L3 + PRF | Final | Vault unlock (PRF when reported) | `crates/human-vault`, `apps/pages` |
+| FIDO CXF | Draft/experimental | Proposed Standard, still stabilizing; passkey import/export | `apps/pages` |
 | SCIM 2.0 | Final | When directory sync enabled | future IdP sync path |
 | AuthZEN 1.0 | Final | External PDP contract | `crates/authz` |
 | SPIFFE Workload API | Final | Workload identity model only | `crates/domain` |
