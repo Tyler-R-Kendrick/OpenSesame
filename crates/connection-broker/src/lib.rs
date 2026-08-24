@@ -141,6 +141,11 @@ pub struct ConnectionBroker {
     pool: SqlitePool,
     config: BrokerConfig,
     http: reqwest::Client,
+    /// Separate client for credential-injecting byte uploads. The shared client
+    /// follows redirects; a redirect on a request carrying a bearer token would
+    /// replay that token at an origin the egress allowlist never approved, so
+    /// this one refuses to follow any.
+    http_bytes: reqwest::Client,
     activation_lock: tokio::sync::Mutex<()>,
     authorization_lock: tokio::sync::Mutex<()>,
     discovery_lock: tokio::sync::Mutex<()>,
@@ -192,10 +197,26 @@ impl ConnectionBroker {
             .timeout(Duration::from_secs(20))
             .build()
             .unwrap_or_default();
+        // Deliberately not `unwrap_or_default()` like the client above. The
+        // only reason this client exists is its redirect policy, and the
+        // default client follows up to ten. Falling back would not merely
+        // degrade it — reqwest would follow the redirect and hand back the
+        // final response, so the explicit 3xx check in `authorized_bytes`
+        // would never fire and the bearer token would already have been
+        // replayed at an origin the egress allowlist never vetted. A silent
+        // fallback here is a silent control failure, so it fails loudly.
+        let http_bytes = reqwest::Client::builder()
+            .timeout(Duration::from_secs(60))
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .map_err(|e| {
+                BrokerError::Invalid(format!("could not build a no-redirect http client: {e}"))
+            })?;
         Ok(Self {
             pool,
             config,
             http,
+            http_bytes,
             activation_lock: tokio::sync::Mutex::new(()),
             authorization_lock: tokio::sync::Mutex::new(()),
             discovery_lock: tokio::sync::Mutex::new(()),
