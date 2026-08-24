@@ -1,11 +1,11 @@
 //! `opensesame-kube-exec` — kubectl client-go exec plugin over the daemon
 //! mint path (ADR 0049 §4). Mint mode only.
 //!
-//! v1 fails closed: no provider with a kubernetes-mintable connection exists
+//! v1 fails closed: no provider with a Kubernetes-mintable connection exists
 //! yet, so the daemon answers `422 unmintable` (or the connection id is
 //! unconfigured) and this binary exits non-zero with a clear message. The
 //! success path is wired: a minted `derived_token` is printed as an
-//! ExecCredential.
+//! `ExecCredential`.
 //!
 //! Setup: an `exec` stanza in the kubeconfig with
 //! `command: opensesame-kube-exec`, `apiVersion: client.authentication.k8s.io/v1`,
@@ -14,7 +14,7 @@
 use opensesame_credential_helpers::{kube_protocol, required_env, DaemonClient, HelperError};
 
 const ENV_CONNECTION_ID: &str = "OPENSESAME_KUBE_CONNECTION_ID";
-/// Optional installation id for github-backed clusters.
+/// Optional installation id for GitHub-backed clusters.
 const ENV_INSTALLATION_ID: &str = "OPENSESAME_GITHUB_INSTALLATION_ID";
 
 fn run() -> Result<(), HelperError> {

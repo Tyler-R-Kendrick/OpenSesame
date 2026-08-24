@@ -25,7 +25,7 @@ fn run() -> Result<(), HelperError> {
         Some("get") => get(),
         // A helper that never stores is a correct store/erase: git treats a
         // clean exit as handled.
-        Some("store") | Some("erase") => Ok(()),
+        Some("store" | "erase") => Ok(()),
         _ => Err(HelperError::Unconfigured(
             "usage: git-credential-opensesame get|store|erase",
         )),

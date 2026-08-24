@@ -20,6 +20,10 @@ struct StubDaemon {
     _dir: tempfile::TempDir,
 }
 
+#[expect(
+    clippy::excessive_nesting,
+    reason = "the cohesive stub keeps one scripted HTTP exchange readable in place"
+)]
 fn spawn_stub_daemon(status: u16, body: &str, requests: usize) -> StubDaemon {
     let dir = tempfile::tempdir().expect("tempdir");
     let sock = dir.path().join("agent.sock");
@@ -39,25 +43,25 @@ fn spawn_stub_daemon(status: u16, body: &str, requests: usize) -> StubDaemon {
                 .ok();
             loop {
                 match stream.read(&mut chunk) {
-                    Ok(0) => break,
+                    Ok(0) | Err(_) => break,
                     Ok(n) => {
                         raw.extend_from_slice(&chunk[..n]);
                         let text = String::from_utf8_lossy(&raw);
-                        if let Some((head, body)) = text.split_once("\r\n\r\n") {
-                            let len = head
-                                .lines()
-                                .find_map(|line| {
-                                    line.to_ascii_lowercase()
-                                        .strip_prefix("content-length: ")
-                                        .and_then(|v| v.trim().parse::<usize>().ok())
-                                })
-                                .unwrap_or(0);
-                            if body.len() >= len {
-                                break;
-                            }
+                        let Some((head, body)) = text.split_once("\r\n\r\n") else {
+                            continue;
+                        };
+                        let len = head
+                            .lines()
+                            .find_map(|line| {
+                                line.to_ascii_lowercase()
+                                    .strip_prefix("content-length: ")
+                                    .and_then(|v| v.trim().parse::<usize>().ok())
+                            })
+                            .unwrap_or(0);
+                        if body.len() >= len {
+                            break;
                         }
                     }
-                    Err(_) => break,
                 }
             }
             let text = String::from_utf8_lossy(&raw).to_string();

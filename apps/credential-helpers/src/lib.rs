@@ -1,4 +1,4 @@
-//! Shared plumbing for the OpenSesame credential helper binaries
+//! Shared plumbing for the `OpenSesame` credential helper binaries
 //! (ADR 0049 §4): `git-credential-opensesame`,
 //! `docker-credential-opensesame`, `opensesame-credential-process`, and
 //! `opensesame-kube-exec`.
@@ -75,6 +75,7 @@ impl std::error::Error for HelperError {}
 
 /// The documented default socket path: `$XDG_RUNTIME_DIR/opensesame/agent.sock`
 /// when set, else `~/.opensesame/agent.sock`.
+#[must_use]
 pub fn default_sock_path() -> PathBuf {
     if let Some(dir) = std::env::var_os("XDG_RUNTIME_DIR").filter(|v| !v.is_empty()) {
         return PathBuf::from(dir).join("opensesame/agent.sock");
@@ -86,6 +87,10 @@ pub fn default_sock_path() -> PathBuf {
 }
 
 /// Read a required, non-empty env configuration value.
+///
+/// # Errors
+///
+/// Returns [`HelperError::Unconfigured`] when the variable is missing or empty.
 pub fn required_env(key: &'static str) -> Result<String, HelperError> {
     std::env::var(key)
         .ok()
@@ -101,7 +106,7 @@ pub struct MintedCredential {
     pub derived_token: Zeroizing<String>,
     pub expires_at: Option<String>,
     pub kind: Option<String>,
-    /// The full response body, for credential_process fields beyond the
+    /// The full response body, for `credential_process` fields beyond the
     /// common ones (aws access key id / secret / session token).
     pub raw: Value,
 }
@@ -114,20 +119,26 @@ pub struct DaemonClient {
 
 impl DaemonClient {
     /// Socket from `OPENSESAME_AGENT_SOCK`, else the documented default.
+    #[must_use]
     pub fn from_env() -> Self {
         let sock = std::env::var_os(ENV_SOCK)
             .filter(|v| !v.is_empty())
-            .map(PathBuf::from)
-            .unwrap_or_else(default_sock_path);
+            .map_or_else(default_sock_path, PathBuf::from);
         Self { sock }
     }
 
+    #[must_use]
     pub fn new(sock: PathBuf) -> Self {
         Self { sock }
     }
 
     /// `POST /v1/mint` over the daemon's UDS. Peer-cred attestation is the
     /// auth — no token is sent.
+    ///
+    /// # Errors
+    ///
+    /// Returns a classified error when configuration is invalid, the daemon
+    /// is unavailable or denies the request, or its response is malformed.
     pub fn mint(
         &self,
         connection_id: &str,
@@ -192,15 +203,14 @@ impl DaemonClient {
         let mut raw = Vec::new();
         let mut chunk = [0u8; 4096];
         loop {
-            match stream.read(&mut chunk) {
+            let bytes_read = match stream.read(&mut chunk) {
                 Ok(0) => break,
-                Ok(n) => {
-                    raw.extend_from_slice(&chunk[..n]);
-                    if raw.len() > MAX_RESPONSE_BYTES {
-                        return Err(HelperError::Malformed);
-                    }
-                }
+                Ok(bytes_read) => bytes_read,
                 Err(error) => return Err(HelperError::Unavailable(error.to_string())),
+            };
+            raw.extend_from_slice(&chunk[..bytes_read]);
+            if raw.len() > MAX_RESPONSE_BYTES {
+                return Err(HelperError::Malformed);
             }
         }
         let text = String::from_utf8(raw).map_err(|_| HelperError::Malformed)?;
@@ -225,6 +235,7 @@ impl DaemonClient {
 pub mod git_protocol {
     use std::collections::BTreeMap;
 
+    #[must_use]
     pub fn parse_input(input: &str) -> BTreeMap<String, String> {
         input
             .lines()
@@ -235,6 +246,7 @@ pub mod git_protocol {
     }
 
     /// `get` output: username/password lines, blank-line terminated.
+    #[must_use]
     pub fn render_credential(username: &str, password: &str) -> String {
         format!("username={username}\npassword={password}\n\n")
     }
@@ -244,6 +256,7 @@ pub mod git_protocol {
 pub mod docker_protocol {
     use serde_json::{json, Value};
 
+    #[must_use]
     pub fn render_credential(server_url: &str, username: &str, secret: &str) -> String {
         // serde_json rendering, not string interpolation: a registry URL or
         // username with a quote must not corrupt the JSON.
@@ -255,6 +268,7 @@ pub mod docker_protocol {
         format!("{value}\n")
     }
 
+    #[must_use]
     pub fn render_empty_list() -> &'static str {
         "{}\n"
     }
@@ -264,6 +278,7 @@ pub mod docker_protocol {
 pub mod aws_protocol {
     use serde_json::{json, Value};
 
+    #[must_use]
     pub fn render_credentials(
         access_key_id: &str,
         secret_access_key: &str,
@@ -287,6 +302,7 @@ pub mod aws_protocol {
 pub mod kube_protocol {
     use serde_json::{json, Value};
 
+    #[must_use]
     pub fn render_exec_credential(token: &str, expiration: Option<&str>) -> String {
         let mut status = json!({"token": token});
         if let Some(expiration) = expiration {
@@ -304,6 +320,7 @@ pub mod kube_protocol {
 /// Exit the process with a failure class on stderr and nothing on stdout.
 pub fn fail(error: HelperError) -> ! {
     eprintln!("opensesame: {error}");
+    drop(error);
     std::process::exit(1)
 }
 

@@ -1,11 +1,11 @@
 //! `opensesame-credential-process` — AWS `credential_process` over the daemon
 //! mint path (ADR 0049 §4). Mint mode only.
 //!
-//! v1 fails closed: the gateway's aws mint arm is a `422 unmintable`
+//! v1 fails closed: the gateway's AWS mint arm is a `422 unmintable`
 //! follow-up (ADR 0049 §3), so this binary exits non-zero with a clear
 //! message until STS minting lands. The success path is already wired: when
 //! the daemon returns `access_key_id` / `secret_access_key` / `session_token`
-//! fields, they are printed in the credential_process JSON shape.
+//! fields, they are printed in the `credential_process` JSON shape.
 //!
 //! Setup: `credential_process = opensesame-credential-process` in a
 //! `~/.aws/config` profile, with `OPENSESAME_AWS_CONNECTION_ID` set.
@@ -18,7 +18,7 @@ const ENV_CONNECTION_ID: &str = "OPENSESAME_AWS_CONNECTION_ID";
 fn run() -> Result<(), HelperError> {
     let connection_id = required_env(ENV_CONNECTION_ID)?;
     let minted = DaemonClient::from_env().mint(&connection_id, None)?;
-    // The aws mint response carries STS session fields rather than a single
+    // The AWS mint response carries STS session fields rather than a single
     // bearer token; require all three — a partial credential is no credential.
     let field = |name: &str| {
         minted
@@ -45,7 +45,7 @@ fn run() -> Result<(), HelperError> {
             );
             Ok(())
         }
-        // Reached only if an aws mint lands without the STS shape; failing
+        // Reached only if an AWS mint lands without the STS shape; failing
         // closed here is deliberate — never print a partial credential.
         _ => Err(HelperError::Malformed),
     }
