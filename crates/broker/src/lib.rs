@@ -97,6 +97,9 @@ impl Broker {
             },
             context: json!({
                 "connection_id": input.connection_policy_id,
+                // The durable connection id, so a delegated child grant can be
+                // its own eligibility for exactly the connection it names.
+                "connection_uuid": input.intent.connection_id.map(|c| c.to_string()),
                 "audience": input.intent.audience,
                 "parameters_digest": input.intent.normalized_parameters_hash,
             }),

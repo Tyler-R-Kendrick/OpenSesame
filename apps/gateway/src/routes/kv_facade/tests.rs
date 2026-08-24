@@ -90,12 +90,8 @@ async fn seed_connection(
 
 /// A session, plus the raw opaque token to present as `X-Vault-Token`.
 fn session(state: &AppState, subject: &str, organization_id: OrganizationId) -> String {
-    let headers = app_state::test_session_headers(
-        state,
-        subject,
-        organization_id,
-        OrganizationRole::Owner,
-    );
+    let headers =
+        app_state::test_session_headers(state, subject, organization_id, OrganizationRole::Owner);
     headers
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
@@ -104,7 +100,12 @@ fn session(state: &AppState, subject: &str, organization_id: OrganizationId) -> 
         .to_string()
 }
 
-async fn call(router: &Router, method: &str, uri: &str, token: Option<&str>) -> (StatusCode, Value, Option<String>) {
+async fn call(
+    router: &Router,
+    method: &str,
+    uri: &str,
+    token: Option<&str>,
+) -> (StatusCode, Value, Option<String>) {
     let mut request = Request::builder().method(method).uri(uri);
     if let Some(token) = token {
         request = request.header("X-Vault-Token", token);
@@ -203,7 +204,11 @@ async fn a_missing_vault_token_is_refused_before_anything_is_read() {
     assert_eq!(body["errors"][0], "missing client token");
     assert!(receipt.is_none());
     assert!(!body.to_string().contains("connection_ref"));
-    assert_eq!(receipt_count(&state).await, before, "no receipt for a refusal");
+    assert_eq!(
+        receipt_count(&state).await,
+        before,
+        "no receipt for a refusal"
+    );
 }
 
 #[tokio::test]
@@ -283,7 +288,10 @@ async fn a_session_token_reads_the_kv_v2_envelope_and_gets_a_receipt() {
     assert_eq!(data["provider_id"], "github");
     assert_eq!(data["logical_name"], "gh-prod");
     assert_eq!(data["materialization"], "deny");
-    assert!(data["connection_ref"].as_str().unwrap().starts_with("conn://"));
+    assert!(data["connection_ref"]
+        .as_str()
+        .unwrap()
+        .starts_with("conn://"));
     // Reference-only: the reference view carries no credential bytes.
     assert!(data.get("derived_token").is_none());
 
@@ -301,10 +309,7 @@ async fn a_session_token_reads_the_kv_v2_envelope_and_gets_a_receipt() {
         .verify(&stored.receipt)
         .expect("receipt verifies");
     assert_eq!(stored.receipt.operation, "kv.read");
-    assert_eq!(
-        stored.receipt.resource,
-        "kv/v2/secret/connections/gh-prod"
-    );
+    assert_eq!(stored.receipt.resource, "kv/v2/secret/connections/gh-prod");
     let summary = stored.receipt.safe_result_summary.clone().unwrap();
     assert_eq!(summary["family"], "connections");
     assert!(summary["keys"].as_u64().unwrap() > 0);
@@ -480,7 +485,10 @@ async fn materialize_is_refused_while_the_policy_says_deny() {
     )
     .await;
     assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
-    assert!(body["errors"][0].as_str().unwrap().contains("0049"), "{body}");
+    assert!(
+        body["errors"][0].as_str().unwrap().contains("0049"),
+        "{body}"
+    );
     assert!(receipt.is_none());
     assert_eq!(receipt_count(&state).await, before);
 }
@@ -524,7 +532,15 @@ async fn a_read_whose_receipt_cannot_be_recorded_is_refused() {
     let orphan = OrganizationId::new();
     let subject = "prn_orphan";
     let token = session(&state, subject, orphan);
-    seed_connection(&state, &orphan, "gh-orphan", "github", Some(subject), "deny").await;
+    seed_connection(
+        &state,
+        &orphan,
+        "gh-orphan",
+        "github",
+        Some(subject),
+        "deny",
+    )
+    .await;
 
     let (status, body, receipt) = call(
         &router,
@@ -613,7 +629,15 @@ async fn the_metadata_envelope_matches_a_real_vault_kv_v2_response() {
     let (router, state) = facade().await;
     let organization_id = operator_org(&state).await;
     let operator = state.operator_token.clone();
-    seed_connection(&state, &organization_id, "gh-shape2", "github", None, "deny").await;
+    seed_connection(
+        &state,
+        &organization_id,
+        "gh-shape2",
+        "github",
+        None,
+        "deny",
+    )
+    .await;
 
     let (status, body, _) = call(
         &router,
@@ -654,7 +678,10 @@ async fn our_own_vault_client_can_read_through_the_facade() {
         .await
         .expect("our Vault client reads our Vault facade");
     assert_eq!(data["logical_name"], "gh-loop");
-    assert!(data["connection_ref"].as_str().unwrap().starts_with("conn://"));
+    assert!(data["connection_ref"]
+        .as_str()
+        .unwrap()
+        .starts_with("conn://"));
     server.abort();
 }
 
@@ -703,7 +730,10 @@ fn the_path_grammar_accepts_only_confined_two_segment_paths() {
         "connections/a%2fb",
         "connections/a:b",
     ] {
-        assert!(parse_kv_path("secret", hostile).is_err(), "{hostile:?} parsed");
+        assert!(
+            parse_kv_path("secret", hostile).is_err(),
+            "{hostile:?} parsed"
+        );
     }
     let long = format!("connections/{}", "a".repeat(129));
     assert_eq!(

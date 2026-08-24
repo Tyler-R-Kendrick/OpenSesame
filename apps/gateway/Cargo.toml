@@ -26,9 +26,11 @@ opensesame-connector-host = { path = "../../crates/connector-host" }
 opensesame-client-core = { path = "../../crates/client-core" }
 opensesame-host-core = { path = "../../crates/host-core" }
 opensesame-redaction = { path = "../../crates/redaction" }
+opensesame-relay = { path = "../../crates/relay" }
 opensesame-provider-openfga = { path = "../../crates/provider-openfga" }
 opensesame-provider-openbao = { path = "../../crates/provider-openbao" }
 opensesame-task-bus = { path = "../../crates/task-bus", features = ["jetstream"] }
+sqlx = { workspace = true }
 anyhow = { workspace = true }
 reqwest = { workspace = true }
 axum = { workspace = true }

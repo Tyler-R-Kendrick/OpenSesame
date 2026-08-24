@@ -205,8 +205,9 @@ fn vault_caller(st: &AppState, headers: &HeaderMap) -> Result<Caller, Response> 
     let inserted = match token.strip_prefix("opaque-session:") {
         Some(session) => HeaderValue::from_str(&format!("Bearer opaque-session:{session}"))
             .map(|value| mapped.insert(header::AUTHORIZATION, value)),
-        None => HeaderValue::from_str(token)
-            .map(|value| mapped.insert("x-opensesame-operator", value)),
+        None => {
+            HeaderValue::from_str(token).map(|value| mapped.insert("x-opensesame-operator", value))
+        }
     };
     if inserted.is_err() {
         return Err(permission_denied());
@@ -265,7 +266,16 @@ async fn read_data(
             }
         }
     };
-    respond_read(&st, &caller, &organization_id, &parsed, &view, &events, data).await
+    respond_read(
+        &st,
+        &caller,
+        &organization_id,
+        &parsed,
+        &view,
+        &events,
+        data,
+    )
+    .await
 }
 
 /// `GET /v1/{mount}/metadata/{*path}` — Vault KV v2 "read secret metadata".
@@ -484,7 +494,11 @@ fn envelope(data: Value) -> Value {
 }
 
 /// The KV v2 "read secret version" body.
-pub fn data_envelope(view: &ConnectionView, events: &[EventView], data: Map<String, Value>) -> Value {
+pub fn data_envelope(
+    view: &ConnectionView,
+    events: &[EventView],
+    data: Map<String, Value>,
+) -> Value {
     envelope(json!({
         "data": Value::Object(data),
         "metadata": {
@@ -543,7 +557,11 @@ fn with_receipt(receipt_id: ReceiptId, body: Value) -> Response {
 }
 
 fn receipt_resource(parsed: &KvPath) -> String {
-    format!("kv/v2/{KV_MOUNT}/{}/{}", parsed.family.as_str(), parsed.name)
+    format!(
+        "kv/v2/{KV_MOUNT}/{}/{}",
+        parsed.family.as_str(),
+        parsed.name
+    )
 }
 
 #[allow(clippy::too_many_arguments)]

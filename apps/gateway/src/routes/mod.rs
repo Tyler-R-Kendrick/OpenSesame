@@ -8,6 +8,7 @@ mod connections;
 #[cfg(test)]
 mod contract;
 mod credential_connections;
+mod delegations;
 mod device;
 pub(crate) mod github_app;
 mod health;
@@ -16,6 +17,7 @@ mod kv_facade;
 mod nats_callout;
 mod protected_resource;
 mod receipts;
+mod relay;
 mod rotation;
 mod secret_configs;
 mod session;
@@ -183,6 +185,31 @@ pub fn router(state: AppState) -> Router {
             get(connections::oauth_callback),
         )
         .route("/api/v1/intents", post(intents::create))
+        // ADR 0044: delegation offer lifecycle. Mint/list/revoke are
+        // owner surfaces; present and claim are the shareable ceremony's.
+        .route(
+            "/api/v1/delegations",
+            get(delegations::list).post(delegations::mint),
+        )
+        .route("/api/v1/delegations/present", post(delegations::present))
+        .route("/api/v1/delegations/claim", post(delegations::claim))
+        .route("/api/v1/delegations/offers", get(delegations::list_offers))
+        .route(
+            "/api/v1/delegations/offers/{id}",
+            delete(delegations::revoke_offer),
+        )
+        .route("/api/v1/delegations/{id}", delete(delegations::revoke))
+        .route("/api/v1/delegations/{id}/narrow", post(delegations::narrow))
+        // ADR 0046: relayed execution — dual-RPC tier. The holder's runtime
+        // heartbeats, drains, decides, and reports; the delegate submits and
+        // polls. Admission rules run at submit and at result.
+        .route("/api/v1/relay/heartbeat", post(relay::heartbeat))
+        .route("/api/v1/relay/requests", post(relay::submit))
+        .route("/api/v1/relay/requests/pending", get(relay::pending))
+        .route("/api/v1/relay/requests/{id}", get(relay::get))
+        .route("/api/v1/relay/requests/{id}/approve", post(relay::approve))
+        .route("/api/v1/relay/requests/{id}/deny", post(relay::deny))
+        .route("/api/v1/relay/requests/{id}/result", post(relay::result))
         .route("/api/v1/receipts/keys", get(receipts::keys))
         .route("/api/v1/receipts/{id}", get(receipts::get))
         .route("/api/v1/receipts/{id}/verify", post(receipts::verify))
@@ -309,7 +336,5 @@ pub fn router(state: AppState) -> Router {
     } else {
         router
     };
-    router
-        .with_state(state)
-        .layer(TraceLayer::new_for_http())
+    router.with_state(state).layer(TraceLayer::new_for_http())
 }
