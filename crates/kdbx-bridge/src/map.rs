@@ -510,14 +510,7 @@ pub fn map_entry(view: &KdbxEntryView) -> MappedEntry {
         push_pair(&mut pairs, &mut used, &key, value, &mut warnings);
     }
 
-    let mut trailer = render_trailer(&pairs);
-    // `Entry::render` concatenates an empty secret straight onto the trailer,
-    // so an entry with no `Password` but with fields would come back with its
-    // first trailer line parsed as the secret. Keep line one explicitly empty
-    // so the store round-trips a password-less entry unchanged.
-    if secret.is_empty() && (!trailer.is_empty() || otp.is_some()) {
-        trailer.insert(0, '\n');
-    }
+    let trailer = render_trailer(&pairs);
 
     let entry = Entry {
         secret,

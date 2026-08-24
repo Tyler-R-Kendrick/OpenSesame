@@ -136,7 +136,7 @@ Sanctioned dependencies and references for this work:
 
 | Dependency / reference | Licence | Stance |
 |---|---|---|
-| `keepass` crate (Rust KDBX) | MIT | Permissive dependency, pinned. KDBX4 **write** is experimental upstream, which is why the KDBX writer is constrained to KDBX 4.0 / AES-256 or ChaCha20 / Argon2id and guarded by a cross-implementation conformance fixture |
+| `keepass` crate (Rust KDBX) | MIT | Permissive dependency, pinned. KDBX4 **write** is experimental upstream, which is why the KDBX writer is constrained to KDBX 4.1 / AES-256 or ChaCha20 / Argon2id and guarded by a cross-implementation conformance fixture. 4.1, not 4.0: `dump_kdbx4` rejects any version other than `KDB4(1)`, and KeePass 2.x, KeePassXC and `kdbxweb` all read 4.1 |
 | kdbxweb (TS KDBX) | MIT | Permissive dependency (pages adapter), lazily imported |
 | hash-wasm | MIT | Permissive dependency — supplies Argon2 to kdbxweb via `CryptoEngine.setArgon2Impl`; pages has no Argon2 of its own |
 | `crypto_box` (RustCrypto NaCl box) | MIT OR Apache-2.0 | Permissive dependency — keepassxc-protocol transport crypto |
@@ -331,6 +331,107 @@ consumer password vault, we do not clone anyone's brand, and we do not
 promise to be someone's sync product. We do speak their formats and their
 local protocols, so the tools a person already loves keep working while the
 authority model underneath becomes ConnectionRef + Intent.
+
+### 9. Brokering a passkey held by another manager is rejected, permanently
+
+Decision 1 lists CXF as a file-format bridge, which is the *only* honest way
+a passkey moves. The tempting alternative — leaving the credential where it
+is and proxying the WebAuthn ceremony on the user's behalf — is not a product
+decision we are deferring. It is not implementable: satisfying a ceremony
+requires the private key, and the holder will not release it. There is no
+version of "log in with your 1Password passkey through OpenSesame" behind a
+sufficiently clever integration.
+
+So OpenSesame will not claim, imply, or build toward it. When someone keeps
+using a foreign passkey through its holder's cross-device (hybrid CTAP) flow,
+that is the *holder's* ceremony; we record that the credential exists and that
+it is not ours. **Tracked state, never a proxy.** Any UI copy suggesting
+otherwise is a bug against this ADR, and the phrasing to grep for is
+"your existing passkeys" / "use passkeys from".
+
+### 10. The vault takes custody of passkey private keys it does own
+
+A passkey OpenSesame can actually use is one whose private key sits in the
+human vault's sealed body, under the same E2EE envelope and handling rules as
+`CertificateItem.privateKeyPem` — already precedent for private-key custody
+here. No server plane can read it; the vault root key never leaves the client.
+
+Every passkey item therefore carries `custody: "vault" | "external"`.
+`external` is the default and what every pre-existing item deserializes to: a
+record of a credential we cannot use. `vault` means OpenSesame is the
+authenticator. Provenance (`imported` | `generated` | `recorded`) and
+`importedFrom` are retained so the UI can say where a credential came from
+rather than implying it owns all of them.
+
+This is a real increase in what an XSS in the Pages origin is worth, and that
+has to be said out loud rather than discovered later.
+
+### 11. Regeneration is the answer for everything that cannot move
+
+For a credential no format can carry out, the path is **re-enrollment**:
+generate a new passkey at the relying party under vault custody, confirm it
+works, then retire the old one there. The vault keeps the retired item
+(`supersededById`, `retiredAt`, `reenrollState`) rather than deleting it,
+because "did I actually remove the old one" is a question people need answered
+months later — and retirement is user-asserted, never verified by us. Copy
+must not present it as confirmed.
+
+Where the relying party publishes `/.well-known/change-password` (RFC 8615),
+that is the entry point; where it does not, the flow is a per-RP checklist.
+Deliberately unglamorous: there is no way to make a third party's account
+settings page programmatic, and pretending otherwise ships a feature that
+fails silently.
+
+### 12. Relying-party capability data ships in the bundle, never over the network
+
+Telling someone "this site supports passkeys and you are still using a
+password" requires knowing which relying parties support them. That dataset
+ships as a checked-in static file, refreshed by a scheduled routine. The vault
+does not call a capability service, for the same reason `health.ts` does not
+call a breach service: the health report's privacy property is that *it never
+tells anyone what is in your vault*, and a lookup is a disclosure.
+
+### 13. AI orchestrates; deterministic code holds the secrets
+
+Credential-health automation is bounded by ADR 0005, restated concretely so it
+is checkable:
+
+- **May see**: issue codes (`weak`, `reused`, `old`, `foreign-passkey`,
+  `passkey-eligible`, `retirement-pending`), relying-party identifiers,
+  `ConnectionRef`s, rotation job states, timestamps, failure counts.
+- **May never see**: passwords, private keys, TOTP seeds, derived tokens, or
+  any sealed body. `RotationJob::public_view()` strips these server-side and
+  `apps/worker/src/rotation.ts` asserts it; both fences stay.
+- **Generates secret bytes**: deterministic code only — the CSPRNG generators
+  in `apps/pages/src/lib/vault/password.ts` and
+  `crates/sealed-store/src/generate.rs`, and WebAuthn ceremonies. A model never
+  authors a credential.
+- **Runs as** a Claude Code Routine under `ops/routines/`, consistent with the
+  existing automation substrate. No runtime LLM dependency enters a shipped
+  binary, and no GitHub Actions are introduced (AGENTS.md §8).
+- **Client-side findings stay client-side.** Vault health is computed over
+  decrypted items in the browser. A user may explicitly opt to export a
+  *redacted* task list — relying-party identifiers and issue codes, no
+  usernames, no secrets — for the routine to schedule around. That is a consent
+  ceremony, not a default.
+
+### 14. Automatic and assisted are a user choice; capability sets the ceiling
+
+`rotationMode: "auto" | "assisted"`, chosen globally and overridable per item
+and per connection. `auto` runs capability-backed rotations end to end;
+`assisted` halts every ceremony at a consent step before anything changes at
+the relying party.
+
+Capability sets the ceiling regardless of mode, per ADR 0048 §D4: **MINT**
+(ADR 0049 derived materialization) rotates fully automatically,
+**INVOKE-THROUGH** rotates through the broker under its egress fences, and
+everything else terminates in `needs-human` and surfaces as a guided task.
+`auto` is a statement about *consent*, never a licence to invent a capability
+a provider does not offer — and for consumer web logins, which is exactly
+where the Apple-Passwords comparison points, full automation is structurally
+unavailable. The toggle must not imply otherwise. Sealed-store targets stay
+agent-hostile per ADR 0037: an agent may propose a rotation, the human CLI
+seals it.
 
 ## Consequences
 
