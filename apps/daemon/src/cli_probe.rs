@@ -1,6 +1,6 @@
 //! CLI-tool capability probe (ADR 0048 §3d).
 //!
-//! A live provider CLI on `PATH` is an invoke-through offer: OpenSesame can
+//! A live provider CLI on `PATH` is an invoke-through offer: `OpenSesame` can
 //! broker calls through a credential that stays where the CLI keeps it. The
 //! probe does two things, both networkless by construction:
 //!
@@ -271,6 +271,23 @@ impl CliCapabilityProbe {
             Err(_) => false,
         }
     }
+
+    fn offer(tool: &CliToolSpec, provider_id: &str, confidence: Confidence) -> OfferItem {
+        let mut capabilities = vec![CapabilityClass::InvokeThrough];
+        if mint_capable(provider_id) {
+            capabilities.push(CapabilityClass::Mintable);
+        }
+        OfferItem {
+            provider_id: provider_id.to_string(),
+            source: ProbeSource::CliTool {
+                binary: tool.binary.to_string(),
+                version: None,
+            },
+            capabilities,
+            confidence,
+            registry_hint: None,
+        }
+    }
 }
 
 impl CapabilityProbe for CliCapabilityProbe {
@@ -289,22 +306,11 @@ impl CapabilityProbe for CliCapabilityProbe {
             } else {
                 Confidence::Low
             };
-            for provider_id in tool.provider_ids {
-                let mut capabilities = vec![CapabilityClass::InvokeThrough];
-                if mint_capable(provider_id) {
-                    capabilities.push(CapabilityClass::Mintable);
-                }
-                items.push(OfferItem {
-                    provider_id: (*provider_id).to_string(),
-                    source: ProbeSource::CliTool {
-                        binary: tool.binary.to_string(),
-                        version: None,
-                    },
-                    capabilities,
-                    confidence,
-                    registry_hint: None,
-                });
-            }
+            items.extend(
+                tool.provider_ids
+                    .iter()
+                    .map(|provider_id| Self::offer(tool, provider_id, confidence)),
+            );
         }
         Ok(items)
     }
@@ -325,17 +331,22 @@ mod tests {
         dir: tempfile::TempDir,
     }
 
+    #[cfg(unix)]
+    fn make_executable(path: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o755)).expect("chmod");
+    }
+
+    #[cfg(not(unix))]
+    fn make_executable(_path: &Path) {}
+
     impl FakeBin {
         fn with(binaries: &[&str]) -> Self {
             let dir = tempfile::tempdir().expect("tempdir");
             for binary in binaries {
                 let path = dir.path().join(binary);
                 fs::write(&path, b"#!/bin/sh\n").expect("write fake binary");
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    fs::set_permissions(path, fs::Permissions::from_mode(0o755)).expect("chmod");
-                }
+                make_executable(&path);
             }
             Self { dir }
         }

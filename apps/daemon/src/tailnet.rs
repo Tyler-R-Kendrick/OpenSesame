@@ -5,7 +5,7 @@
 //! exactly two read-only routes there: `GET /health` and `POST /v1/discover`.
 //! Nothing mutating is exposed, and no bearer token is accepted — every
 //! request's remote address is resolved to a tailnet identity through the
-//! tailscaled LocalAPI `whois` (identity from the platform, not a presented
+//! `tailscaled` `LocalAPI` `whois` (identity from the platform, not a presented
 //! secret) and authorized against explicit user/tag allowlists. Every failure
 //! mode is closed: tailscaled unreachable at startup → the listener is never
 //! bound; whois fails or the identity matches nothing → 403; both allowlists
@@ -42,8 +42,10 @@ impl TailnetPolicy {
         let socket = std::env::var(ENV_SOCKET)
             .ok()
             .filter(|s| !s.is_empty())
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(opensesame_tailscale_authn::DEFAULT_SOCKET_PATH));
+            .map_or_else(
+                || PathBuf::from(opensesame_tailscale_authn::DEFAULT_SOCKET_PATH),
+                PathBuf::from,
+            );
         Self {
             allowed_users: opensesame_tailscale_authn::parse_csv(&read(ENV_ALLOW_USERS)),
             allowed_tags: opensesame_tailscale_authn::parse_csv(&read(ENV_ALLOW_TAGS)),
@@ -181,8 +183,8 @@ mod tests {
 
     fn policy(socket: PathBuf, users: &[&str], tags: &[&str]) -> TailnetPolicy {
         TailnetPolicy {
-            allowed_users: users.iter().map(|s| s.to_string()).collect(),
-            allowed_tags: tags.iter().map(|s| s.to_string()).collect(),
+            allowed_users: users.iter().copied().map(str::to_string).collect(),
+            allowed_tags: tags.iter().copied().map(str::to_string).collect(),
             whois_socket: socket,
         }
     }

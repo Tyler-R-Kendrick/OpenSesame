@@ -92,9 +92,8 @@ fn drain_non_empty(mut pipe: impl Read + Send + 'static) -> JoinHandle<bool> {
         let mut buffer = [0u8; MAX_OBSERVED_OUTPUT_BYTES];
         loop {
             match pipe.read(&mut buffer) {
-                Ok(0) => return seen_any,
+                Ok(0) | Err(_) => return seen_any,
                 Ok(_) => seen_any = true,
-                Err(_) => return seen_any,
             }
         }
     })
@@ -111,16 +110,14 @@ fn drain_capped(mut pipe: impl Read + Send + 'static, cap: usize) -> JoinHandle<
         let mut overflow = false;
         let mut buffer = [0u8; 4096];
         loop {
-            match pipe.read(&mut buffer) {
-                Ok(0) => return Capture { captured, overflow },
-                Ok(n) => {
-                    if captured.len() + n > cap {
-                        overflow = true;
-                    } else {
-                        captured.extend_from_slice(&buffer[..n]);
-                    }
-                }
-                Err(_) => return Capture { captured, overflow },
+            let bytes_read = match pipe.read(&mut buffer) {
+                Ok(0) | Err(_) => return Capture { captured, overflow },
+                Ok(bytes_read) => bytes_read,
+            };
+            if captured.len() + bytes_read > cap {
+                overflow = true;
+            } else {
+                captured.extend_from_slice(&buffer[..bytes_read]);
             }
         }
     })
@@ -134,6 +131,28 @@ struct Capture {
 fn kill_and_reap(child: &mut Child) {
     let _ = child.kill();
     let _ = child.wait();
+}
+
+fn wait_for_child(
+    child: &mut Child,
+    executable: &str,
+    timeout_ms: u64,
+) -> Result<Option<std::process::ExitStatus>, ProbeError> {
+    let deadline = Instant::now() + Duration::from_millis(timeout_ms);
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return Ok(Some(status)),
+            Ok(None) if Instant::now() < deadline => std::thread::sleep(WAIT_POLL_INTERVAL),
+            Ok(None) => {
+                kill_and_reap(child);
+                return Ok(None);
+            }
+            Err(error) => {
+                kill_and_reap(child);
+                return Err(ProbeError::Command(format!("wait {executable}: {error}")));
+            }
+        }
+    }
 }
 
 /// Join a drain thread, but only briefly: a grandchild that inherited the
@@ -161,11 +180,11 @@ impl ScrubbedCommandRunner {
     /// names only the failure class (spawn, timeout, exit status, overflow) —
     /// never child output, which on this path *is* the secret.
     pub fn run_capture(&self, argv: &[&str], timeout_ms: u64) -> Result<SecretString, ProbeError> {
-        let (program, args) = argv
+        let (program, arguments) = argv
             .split_first()
             .ok_or_else(|| ProbeError::Command("empty argv".to_string()))?;
         let mut child = Command::new(program)
-            .args(args)
+            .args(arguments)
             .env_clear()
             .envs(&self.env)
             .stdin(Stdio::null())
@@ -179,23 +198,7 @@ impl ScrubbedCommandRunner {
             .map(|pipe| drain_capped(pipe, MAX_CAPTURED_OUTPUT_BYTES));
         let stderr = child.stderr.take().map(drain_non_empty);
 
-        let deadline = Instant::now() + Duration::from_millis(timeout_ms);
-        let status = loop {
-            match child.try_wait() {
-                Ok(Some(status)) => break Some(status),
-                Ok(None) if Instant::now() < deadline => {
-                    std::thread::sleep(WAIT_POLL_INTERVAL);
-                }
-                Ok(None) => {
-                    kill_and_reap(&mut child);
-                    break None;
-                }
-                Err(error) => {
-                    kill_and_reap(&mut child);
-                    return Err(ProbeError::Command(format!("wait {program}: {error}")));
-                }
-            }
-        };
+        let status = wait_for_child(&mut child, program, timeout_ms)?;
         let capture = stdout.and_then(|t| join_briefly(t, Duration::from_millis(200)));
         if let Some(thread) = stderr {
             let _ = join_briefly(thread, Duration::from_millis(200));
@@ -237,11 +240,11 @@ impl ScrubbedCommandRunner {
 
 impl CommandRunner for ScrubbedCommandRunner {
     fn run_status(&self, argv: &[&str], timeout_ms: u64) -> Result<CommandStatus, ProbeError> {
-        let (program, args) = argv
+        let (program, arguments) = argv
             .split_first()
             .ok_or_else(|| ProbeError::Command("empty argv".to_string()))?;
         let mut child = Command::new(program)
-            .args(args)
+            .args(arguments)
             .env_clear()
             .envs(&self.env)
             .stdin(Stdio::null())
@@ -254,23 +257,7 @@ impl CommandRunner for ScrubbedCommandRunner {
         let stdout_seen = stdout.map(drain_non_empty);
         let stderr_seen = stderr.map(drain_non_empty);
 
-        let deadline = Instant::now() + Duration::from_millis(timeout_ms);
-        let status = loop {
-            match child.try_wait() {
-                Ok(Some(status)) => break Some(status),
-                Ok(None) if Instant::now() < deadline => {
-                    std::thread::sleep(WAIT_POLL_INTERVAL);
-                }
-                Ok(None) => {
-                    kill_and_reap(&mut child);
-                    break None;
-                }
-                Err(error) => {
-                    kill_and_reap(&mut child);
-                    return Err(ProbeError::Command(format!("wait {program}: {error}")));
-                }
-            }
-        };
+        let status = wait_for_child(&mut child, program, timeout_ms)?;
         // Drain threads usually end at the child's exit; a leaked grandchild
         // holding the pipe must not extend the wait, so joins are bounded.
         let stdout_non_empty = stdout_seen

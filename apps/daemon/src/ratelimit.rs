@@ -74,7 +74,9 @@ impl TokenBucket {
             Ok(())
         } else {
             let wait = (1.0 - bucket.tokens) / self.refill_per_sec;
-            Err(wait.ceil().max(1.0) as u64)
+            let retry_after = Duration::try_from_secs_f64(wait.ceil().max(1.0))
+                .map_or(u64::MAX, |duration| duration.as_secs());
+            Err(retry_after)
         }
     }
 }

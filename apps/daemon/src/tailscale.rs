@@ -17,6 +17,10 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 const SERVE_TIMEOUT: Duration = Duration::from_secs(5);
+const WINDOWS_CANDIDATES: &[&str] = &[
+    "/mnt/c/Program Files/Tailscale/tailscale.exe",
+    "/mnt/c/Program Files (x86)/Tailscale/tailscale.exe",
+];
 
 static LAST_SERVE_ENABLE_URL: Mutex<Option<String>> = Mutex::new(None);
 static LAST_SERVE_ERROR: Mutex<Option<String>> = Mutex::new(None);
@@ -86,11 +90,7 @@ pub fn resolve_tailscale_bin() -> Option<PathBuf> {
     if let Ok(path) = which("tailscale.exe") {
         return Some(path);
     }
-    const CANDIDATES: &[&str] = &[
-        "/mnt/c/Program Files/Tailscale/tailscale.exe",
-        "/mnt/c/Program Files (x86)/Tailscale/tailscale.exe",
-    ];
-    for candidate in CANDIDATES {
+    for candidate in WINDOWS_CANDIDATES {
         let path = PathBuf::from(candidate);
         if path.is_file() {
             return Some(path);

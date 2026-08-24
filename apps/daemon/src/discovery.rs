@@ -62,7 +62,7 @@ pub fn offers(ctx: &ProbeContext) -> Vec<OfferItem> {
         match probe.probe(ctx) {
             Ok(mut found) => items.append(&mut found),
             Err(error) => {
-                tracing::warn!(probe = probe.id(), %error, "discovery probe failed; continuing")
+                tracing::warn!(probe = probe.id(), %error, "discovery probe failed; continuing");
             }
         }
     }
@@ -113,8 +113,7 @@ pub fn probe_context() -> ProbeContext {
     let home_dir = env
         .get("HOME")
         .filter(|h| !h.is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/"));
+        .map_or_else(|| PathBuf::from("/"), PathBuf::from);
     ProbeContext {
         home_dir,
         keychain: keychain::platform_backend(),
