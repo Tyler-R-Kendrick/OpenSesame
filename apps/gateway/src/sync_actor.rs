@@ -58,8 +58,7 @@ fn tick_interval() -> Duration {
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
         .filter(|v| *v > 0)
-        .map(Duration::from_secs)
-        .unwrap_or(Duration::from_secs(30))
+        .map_or(Duration::from_secs(30), Duration::from_secs)
 }
 
 /// Run the actor until the process exits. Spawned once from `main`; the
@@ -71,8 +70,8 @@ pub async fn run(state: AppState) {
     let interval = tick_interval();
     loop {
         tokio::select! {
-            _ = state.sync_notify.notified() => {}
-            _ = tokio::time::sleep(interval) => {}
+            () = state.sync_notify.notified() => {}
+            () = tokio::time::sleep(interval) => {}
         }
         if let Err(error) = pass(&state, &cfg).await {
             tracing::warn!(%error, "config sync pass failed");
@@ -215,7 +214,8 @@ async fn compensate_retry(
 /// `base * 2^(attempts-1)`, capped. Attempt numbering starts at 1 (the claim
 /// pre-increments), so the first failure parks for exactly the base delay.
 fn backoff_seconds(cfg: &SyncActorConfig, attempts: i64) -> i64 {
-    let doublings = (attempts - 1).clamp(0, 20) as u32;
+    let doublings = u32::try_from((attempts - 1).clamp(0, 20))
+        .expect("a value clamped to 0..=20 always fits in u32");
     cfg.backoff_base_seconds
         .saturating_mul(1i64 << doublings)
         .min(cfg.backoff_cap_seconds)

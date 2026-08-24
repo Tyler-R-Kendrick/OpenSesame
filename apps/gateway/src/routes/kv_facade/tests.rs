@@ -556,7 +556,7 @@ async fn a_read_whose_receipt_cannot_be_recorded_is_refused() {
 
 // ---- contract: byte-shape against real Vault responses ---------------------
 
-/// Sample responses from HashiCorp's public KV v2 API reference
+/// Sample responses from `HashiCorp`'s public KV v2 API reference
 /// (`developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2`), committed so the
 /// envelope this facade emits is diffed against Vault's documented shape rather
 /// than against itself.
@@ -753,15 +753,17 @@ fn property_every_accepted_path_is_confined() {
         for second in alphabet {
             for third in alphabet {
                 let raw = format!("connections/{first}{second}{third}");
-                if let Ok(parsed) = parse_kv_path("secret", &raw) {
-                    assert!(kv_path_is_confined(&parsed), "{raw:?} accepted unconfined");
-                }
+                assert_accepted_path_is_confined(&raw);
                 let raw = format!("{first}{second}/{third}");
-                if let Ok(parsed) = parse_kv_path("secret", &raw) {
-                    assert!(kv_path_is_confined(&parsed), "{raw:?} accepted unconfined");
-                }
+                assert_accepted_path_is_confined(&raw);
             }
         }
+    }
+}
+
+fn assert_accepted_path_is_confined(raw: &str) {
+    if let Ok(parsed) = parse_kv_path("secret", raw) {
+        assert!(kv_path_is_confined(&parsed), "{raw:?} accepted unconfined");
     }
 }
 

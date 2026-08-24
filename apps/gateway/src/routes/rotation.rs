@@ -98,7 +98,7 @@ fn secrets_never_returned(mut view: serde_json::Value) -> serde_json::Value {
     view
 }
 
-fn broker_error(error: opensesame_connection_broker::BrokerError) -> Response {
+fn broker_error(error: &opensesame_connection_broker::BrokerError) -> Response {
     (
         StatusCode::from_u16(error.http_status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
         Json(json!({"error": error.code(), "hint": error.hint()})),
@@ -220,7 +220,7 @@ pub async fn request(
             .await
         {
             Ok(policy) => policy_id = Some(policy.id),
-            Err(e) => return broker_error(e),
+            Err(e) => return broker_error(&e),
         }
     }
 
@@ -251,31 +251,25 @@ pub async fn request(
     }
     let response = secrets_never_returned(response);
 
-    if body.execute_now {
-        if let RotationTarget::Connection { .. } = &target {
-            match execute_connection_rotation(
-                st.connection_broker.as_ref(),
-                bus.as_ref(),
-                &organization_id,
-                &job.id,
-            )
+    if body.execute_now && matches!(target, RotationTarget::Connection { .. }) {
+        let execution = execute_connection_rotation(
+            st.connection_broker.as_ref(),
+            bus.as_ref(),
+            &organization_id,
+            &job.id,
+        )
+        .await;
+        if let Ok(done) = execution {
+            let view = secrets_never_returned(done.public_view());
+            return (StatusCode::OK, Json(view)).into_response();
+        }
+        if let Ok(Some(failed)) = st
+            .connection_broker
+            .get_rotation_job(&organization_id.to_string(), &job.id)
             .await
-            {
-                Ok(done) => {
-                    let view = secrets_never_returned(done.public_view());
-                    return (StatusCode::OK, Json(view)).into_response();
-                }
-                Err(_) => {
-                    if let Ok(Some(failed)) = st
-                        .connection_broker
-                        .get_rotation_job(&organization_id.to_string(), &job.id)
-                        .await
-                    {
-                        let view = secrets_never_returned(failed.public_view());
-                        return (StatusCode::CONFLICT, Json(view)).into_response();
-                    }
-                }
-            }
+        {
+            let view = secrets_never_returned(failed.public_view());
+            return (StatusCode::CONFLICT, Json(view)).into_response();
         }
     }
 
@@ -330,7 +324,7 @@ pub async fn get_job(
             Json(json!({"error": "not_found", "hint": "rotation job not found"})),
         )
             .into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -356,7 +350,7 @@ pub async fn list_jobs(State(st): State<AppState>, headers: axum::http::HeaderMa
                 .collect();
             Json(json!({"rotations": jobs, "secrets_returned": false})).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -399,7 +393,7 @@ pub async fn list_policies(State(st): State<AppState>, headers: axum::http::Head
                 .collect();
             Json(json!({"policies": policies, "secrets_returned": false})).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -468,7 +462,7 @@ pub async fn put_policy(
         .await
     {
         Ok(policy) => Json(secrets_never_returned(policy.public_view())).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
