@@ -1,8 +1,12 @@
+use base64::{engine::general_purpose::STANDARD, Engine};
 use opensesame_domain::{
     AuthenticationMode as Auth, ExecutionTarget as Target, ProviderCapability as Capability,
     ProviderCategory as Category, ProviderDefinition, ProviderSupport,
 };
 use serde_json::Value;
+use std::io::Write;
+#[cfg(unix)]
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 const PERSONAL: &[Target] = &[Target::PersonalDaemon];
@@ -17,8 +21,39 @@ const SECRET_RW: &[Capability] = &[
 ];
 const CRYPTO: &[Capability] = &[Capability::Encrypt, Capability::Decrypt, Capability::Test];
 const LEASE: &[Capability] = &[Capability::Lease, Capability::Revoke, Capability::Test];
+const CONTRACT_TESTED: &[&str] = &[
+    "age",
+    "aws-kms",
+    "gcp-kms",
+    "aws-parameter-store",
+    "aws-secrets-manager",
+    "azure-key-vault-secrets",
+    "azure-app-configuration",
+    "gcp-secret-manager",
+    "doppler",
+    "bitwarden-secrets-manager",
+    "vault",
+    "openbao",
+    "1password",
+    "bitwarden",
+    "vaultwarden",
+    "infisical",
+    "keepass",
+    "password-store",
+    "sealed-local",
+    "encrypted-remote",
+    "plain",
+    "aws-sts",
+    "gcp-iam",
+    "azure-access-token",
+    "github-oauth",
+    "custom-command",
+];
 
-#[allow(clippy::too_many_arguments)] // Mirrors the flat ProviderDefinition catalog rows below.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "arguments mirror one flat ProviderDefinition catalog row"
+)]
 fn provider(
     id: &str,
     display_name: &str,
@@ -44,11 +79,18 @@ fn provider(
     }
 }
 
-/// Native OpenSesame provider catalog pinned to the fnox documentation snapshot
+/// Native `OpenSesame` provider catalog pinned to the fnox documentation snapshot
 /// recorded in `connectors/fnox-parity.json`.
+#[must_use]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the provider catalog is a cohesive declarative compatibility table"
+)]
 pub fn catalog() -> Vec<ProviderDefinition> {
-    use Auth::*;
-    use Category::*;
+    use Auth::{Hardware, HostSession, LocalKeyring, StaticToken, VendorCli, WorkloadIdentity};
+    use Category::{
+        CloudSecretManager, Encryption, Lease, LocalStorage, PasswordManager, RemoteStorage,
+    };
     let mut providers = vec![
         provider(
             "age",
@@ -443,34 +485,6 @@ pub fn catalog() -> Vec<ProviderDefinition> {
             &[],
         ),
     ];
-    const CONTRACT_TESTED: &[&str] = &[
-        "age",
-        "aws-kms",
-        "gcp-kms",
-        "aws-parameter-store",
-        "aws-secrets-manager",
-        "azure-key-vault-secrets",
-        "azure-app-configuration",
-        "gcp-secret-manager",
-        "doppler",
-        "bitwarden-secrets-manager",
-        "vault",
-        "openbao",
-        "1password",
-        "bitwarden",
-        "vaultwarden",
-        "infisical",
-        "keepass",
-        "password-store",
-        "sealed-local",
-        "encrypted-remote",
-        "plain",
-        "aws-sts",
-        "gcp-iam",
-        "azure-access-token",
-        "github-oauth",
-        "custom-command",
-    ];
     for provider in &mut providers {
         if CONTRACT_TESTED.contains(&provider.id.as_str()) {
             provider.support = ProviderSupport::ContractTested;
@@ -479,6 +493,7 @@ pub fn catalog() -> Vec<ProviderDefinition> {
     providers
 }
 
+#[must_use]
 pub fn find(id: &str) -> Option<ProviderDefinition> {
     catalog().into_iter().find(|provider| provider.id == id)
 }
@@ -493,6 +508,7 @@ pub struct ProviderProbe {
 
 /// Harmless local readiness probe. This never reads a secret and never upgrades
 /// support status; provider-specific live tests remain a separate evidence gate.
+#[must_use]
 pub fn probe_local(provider: &ProviderDefinition) -> ProviderProbe {
     if provider.adapter == "http:github-app" {
         let has = |name: &str| std::env::var(name).map(|v| !v.is_empty()).unwrap_or(false);
@@ -551,6 +567,7 @@ pub fn probe_local(provider: &ProviderDefinition) -> ProviderProbe {
 /// Harmless authenticated/runtime probe. Output is discarded and never enters
 /// logs or the response; a successful result is live evidence for this process,
 /// not a permanent support promotion.
+#[must_use]
 pub fn probe_live(provider: &ProviderDefinition) -> ProviderProbe {
     let command: Option<(&str, &[&str])> = match provider.id.as_str() {
         "age" => Some(("age", &["--version"])),
@@ -716,6 +733,14 @@ pub struct CryptoPlan {
     pub stdout_base64: bool,
 }
 
+/// # Errors
+///
+/// Returns an error for an existing output, invalid path, missing provider
+/// configuration, or unsupported provider operation.
+#[expect(
+    clippy::too_many_lines,
+    reason = "provider argv construction is a cohesive declarative command table"
+)]
 pub fn crypto_plan(
     provider_id: &str,
     operation: CryptoOperation,
@@ -827,6 +852,10 @@ pub fn crypto_plan(
     })
 }
 
+/// # Errors
+///
+/// Returns an error when execution fails, output is invalid or oversized, or
+/// the destination cannot be created securely.
 pub fn execute_crypto_plan(plan: CryptoPlan) -> Result<(), ProviderExecutionError> {
     if plan.output.exists() {
         return Err(ProviderExecutionError::OutputExists(
@@ -844,8 +873,6 @@ pub fn execute_crypto_plan(plan: CryptoPlan) -> Result<(), ProviderExecutionErro
         if output.stdout.len() > 10 * 1024 * 1024 {
             return Err(ProviderExecutionError::OutputTooLarge);
         }
-        use base64::{engine::general_purpose::STANDARD, Engine};
-        use std::io::Write;
         let decoded = STANDARD
             .decode(String::from_utf8_lossy(&output.stdout).trim())
             .map_err(|_| ProviderExecutionError::InvalidOutput)?;
@@ -853,7 +880,6 @@ pub fn execute_crypto_plan(plan: CryptoPlan) -> Result<(), ProviderExecutionErro
         options.write(true).create_new(true);
         #[cfg(unix)]
         {
-            use std::os::unix::fs::OpenOptionsExt;
             options.mode(0o600);
         }
         options
@@ -863,7 +889,6 @@ pub fn execute_crypto_plan(plan: CryptoPlan) -> Result<(), ProviderExecutionErro
     }
     #[cfg(unix)]
     if plan.output.exists() {
-        use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&plan.output, std::fs::Permissions::from_mode(0o600))
             .map_err(|error| ProviderExecutionError::WriteFailed(error.to_string()))?;
     }
@@ -910,6 +935,15 @@ fn native_client_enabled(config: &Value) -> bool {
 
 /// Build an argv-only provider operation. The resource is always one argument;
 /// no shell interprets spaces, quotes, substitutions, or metacharacters in it.
+///
+/// # Errors
+///
+/// Returns an error for invalid resources, missing provider configuration, or
+/// unsupported provider operations.
+#[expect(
+    clippy::too_many_lines,
+    reason = "provider argv construction is a cohesive declarative command table"
+)]
 pub fn human_plan(
     provider_id: &str,
     operation: HumanProviderOperation,
@@ -1202,48 +1236,22 @@ pub fn human_plan(
                 resource.into(),
             ],
         ),
-        ("password-store", HumanProviderOperation::Read) => {
+        ("password-store" | "sealed-local", HumanProviderOperation::Read) => {
             let store_dir = public_config
                 .get("store_dir")
                 .and_then(Value::as_str)
-                .map(PathBuf::from)
-                .unwrap_or_else(opensesame_sealed_store::resolve_store_dir);
+                .map_or_else(opensesame_sealed_store::resolve_store_dir, PathBuf::from);
             HumanProviderPlan::SealedStore {
                 operation: HumanProviderOperation::Read,
                 store_dir,
                 name: resource.into(),
             }
         }
-        ("password-store", HumanProviderOperation::List) => {
+        ("password-store" | "sealed-local", HumanProviderOperation::List) => {
             let store_dir = public_config
                 .get("store_dir")
                 .and_then(Value::as_str)
-                .map(PathBuf::from)
-                .unwrap_or_else(opensesame_sealed_store::resolve_store_dir);
-            HumanProviderPlan::SealedStore {
-                operation: HumanProviderOperation::List,
-                store_dir,
-                name: resource.into(),
-            }
-        }
-        ("sealed-local", HumanProviderOperation::Read) => {
-            let store_dir = public_config
-                .get("store_dir")
-                .and_then(Value::as_str)
-                .map(PathBuf::from)
-                .unwrap_or_else(opensesame_sealed_store::resolve_store_dir);
-            HumanProviderPlan::SealedStore {
-                operation: HumanProviderOperation::Read,
-                store_dir,
-                name: resource.into(),
-            }
-        }
-        ("sealed-local", HumanProviderOperation::List) => {
-            let store_dir = public_config
-                .get("store_dir")
-                .and_then(Value::as_str)
-                .map(PathBuf::from)
-                .unwrap_or_else(opensesame_sealed_store::resolve_store_dir);
+                .map_or_else(opensesame_sealed_store::resolve_store_dir, PathBuf::from);
             HumanProviderPlan::SealedStore {
                 operation: HumanProviderOperation::List,
                 store_dir,
@@ -1346,6 +1354,11 @@ pub fn human_plan(
 
 /// Explicit human escape hatch used by the native CLI only. Agent and MCP code
 /// have no call path to this function.
+///
+/// # Errors
+///
+/// Returns an error when the provider is unavailable, execution fails, or its
+/// output is invalid or oversized.
 pub fn execute_human_plan(plan: HumanProviderPlan) -> Result<String, ProviderExecutionError> {
     const MAX_OUTPUT: usize = 10 * 1024 * 1024;
     match plan {
