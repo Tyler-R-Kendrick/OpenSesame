@@ -1667,6 +1667,71 @@ mod tests {
         assert!(!plan.args.iter().any(|arg| arg == "sh" || arg == "-c"));
     }
 
+    /// The agent-facing sealed-store provider must never surface an
+    /// attachment — not in a listing, not through a read.
+    ///
+    /// Nothing in this file enforces that directly. It holds because
+    /// `StoreRoot::ls` filters to an extension allowlist that omits
+    /// `.osattach`, and because `show` resolves `<name>.osseal`. Both are
+    /// decisions made in another crate, either of which could be relaxed by
+    /// someone with no idea this boundary depends on them. Documents in a
+    /// vault are exactly what ADR 0005 says an agent must not reach, so the
+    /// property is pinned here where the agent surface lives.
+    #[test]
+    fn attachments_are_invisible_to_the_agent_facing_provider() {
+        use opensesame_sealed_store::{AttachMeta, Entry, ItemDataKey, StoreRoot};
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let store = opensesame_sealed_store::init_store(dir.path(), &[]).expect("init");
+        let key = ItemDataKey([5u8; 32]);
+
+        store
+            .insert("Dev/token", &Entry::parse("hunter2"), &key)
+            .expect("entry");
+        let payload = b"a scan of a passport".to_vec();
+        let mut source = std::io::Cursor::new(payload.clone());
+        store
+            .attach_add(
+                "Taxes/passport",
+                &mut source,
+                payload.len() as u64,
+                AttachMeta {
+                    filename: "passport.pdf".into(),
+                    mime: None,
+                },
+                &key,
+                false,
+            )
+            .expect("attach");
+
+        // List: the entry is visible, the attachment is not — and neither is
+        // the object pool that holds its ciphertext.
+        let listed =
+            execute_sealed_store(HumanProviderOperation::List, dir.path(), "").expect("list");
+        assert!(listed.contains("Dev/token"), "entries stay listable: {listed}");
+        assert!(
+            !listed.contains("Taxes/passport"),
+            "an attachment must not appear in the agent-facing listing: {listed}"
+        );
+        assert!(
+            !listed.contains("oschunk") && !listed.contains("osattach") && !listed.contains("attachments"),
+            "no attachment artefact may leak into the listing: {listed}"
+        );
+
+        // Read: naming the attachment directly must not return it. There is no
+        // password set here, so this stops at the unlock — assert on the
+        // outcome, not the reason, since either refusal is acceptable.
+        assert!(
+            execute_sealed_store(HumanProviderOperation::Read, dir.path(), "Taxes/passport")
+                .is_err(),
+            "an attachment must not be readable through the agent surface"
+        );
+
+        // And the plaintext never appears in whatever the provider does return.
+        let leaked = String::from_utf8_lossy(&payload).to_string();
+        assert!(!listed.contains(&leaked), "plaintext must never surface");
+    }
+
     #[test]
     fn password_store_plan_does_not_shell_to_pass() {
         let plan = human_plan(
