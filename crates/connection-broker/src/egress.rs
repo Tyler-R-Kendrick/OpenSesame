@@ -18,6 +18,18 @@ use crate::ConnectionBroker;
 /// deciding how much of our memory its message occupies.
 const MAX_ERROR_SNIPPET: usize = 512;
 
+/// Headers the broker owns on a credentialed upload. A caller supplying any of
+/// these would be competing with the injected credential or the framing of the
+/// body, so they are refused rather than appended alongside.
+const RESERVED_HEADERS: &[&str] = &[
+    "authorization",
+    "proxy-authorization",
+    "content-type",
+    "content-length",
+    "host",
+    "transfer-encoding",
+];
+
 #[derive(Debug, Clone)]
 pub struct GithubRepo {
     pub full_name: String,
@@ -182,6 +194,19 @@ impl ConnectionBroker {
             .header("Content-Type", "application/octet-stream")
             .header("User-Agent", "OpenSesame-Host/0.1");
         for (name, value) in extra_headers {
+            // Headers are appended, not set, so a caller passing `Authorization`
+            // would add a second one beside ours rather than replace it —
+            // leaving which credential the provider honours up to the provider.
+            // Today there is one caller passing one constant name; this is here
+            // so that stays safe when there are more.
+            if RESERVED_HEADERS
+                .iter()
+                .any(|reserved| name.eq_ignore_ascii_case(reserved))
+            {
+                return Err(BrokerError::Invalid(format!(
+                    "caller may not set the {name} header on a credentialed upload"
+                )));
+            }
             req = req.header(name.as_str(), value.as_str());
         }
 
@@ -322,5 +347,31 @@ mod tests {
         assert_eq!(mapped.code(), "invalid_request");
         assert!(mapped.hint().contains("Install the tenant GitHub App"));
         assert!(mapped.hint().contains("Re-authorize"));
+    }
+}
+
+#[cfg(test)]
+mod reserved_header_tests {
+    use super::RESERVED_HEADERS;
+
+    #[test]
+    fn reserved_headers_cover_what_the_broker_owns() {
+        // The credential header above all: a caller adding its own would leave
+        // the provider to choose between two Authorization values.
+        for owned in ["authorization", "content-type", "content-length", "host"] {
+            assert!(
+                RESERVED_HEADERS.contains(&owned),
+                "{owned} is set by the broker and must not be caller-supplied"
+            );
+        }
+        // Matching is case-insensitive at the call site, so the table itself
+        // must stay lowercase for that comparison to mean anything.
+        for name in RESERVED_HEADERS {
+            assert_eq!(*name, name.to_ascii_lowercase());
+        }
+        // The one header the only caller legitimately passes is not reserved.
+        assert!(!RESERVED_HEADERS
+            .iter()
+            .any(|r| r.eq_ignore_ascii_case("Dropbox-API-Arg")));
     }
 }
