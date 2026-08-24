@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
-# cargo clippy gate — matches CI (`-D warnings`) for the full workspace.
+# Rust formatting and Clippy gate for the full workspace.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 mkdir -p artifacts/security
 
-echo "==> cargo clippy --workspace --all-targets -- -D warnings"
-cargo clippy --workspace --all-targets --message-format=short -- -D warnings \
+echo "==> cargo +1.88.0 fmt --all -- --check"
+cargo +1.88.0 fmt --all -- --check
+
+echo "==> cargo +1.88.0 clippy --workspace --all-targets --all-features"
+cargo +1.88.0 clippy --workspace --all-targets --all-features --message-format=short -- \
+  -D warnings \
+  -D clippy::pedantic \
+  -D clippy::cognitive_complexity \
+  -D clippy::excessive_nesting \
+  -D clippy::too_many_lines \
+  -D clippy::too_many_arguments \
+  -D clippy::type_complexity \
   2>artifacts/security/clippy.err | tee artifacts/security/clippy.out
 
 if rg -q '^error' artifacts/security/clippy.err; then

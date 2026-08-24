@@ -24,6 +24,7 @@
     "test:redteam": "pnpm --filter @opensesame/redteam redteam",
     "test:visual": "pnpm --filter @opensesame/visual-contract test:visual",
     "test:anti-slop": "diff -ru --exclude=.turbo --exclude=LICENSE --exclude=node_modules --exclude=package.json --exclude=vitest.config.ts skills/install-anti-slop/assets/anti-slop tools/oxlint/anti-slop && pnpm typecheck:anti-slop && vitest run --globals tools/oxlint/anti-slop",
+    "test:rust-lint": "bash scripts/rust-lint-contract-test.sh",
     "typecheck:anti-slop": "tsc --noEmit --allowImportingTsExtensions --module NodeNext --moduleResolution NodeNext --target ESNext --skipLibCheck --types node tools/oxlint/anti-slop/index.ts tools/oxlint/anti-slop/effect/index.ts",
     "test:coverage:ts": "node scripts/ts-coverage-gate.mjs",
     "test:coverage:rust": "cargo +1.88.0 llvm-cov --workspace --all-targets --summary-only --fail-under-lines 69 --fail-under-functions 67 --json --output-path coverage/rust-summary.json",
@@ -56,7 +57,7 @@
     "db:reset": "pnpm --filter @opensesame/database db:reset",
     "generate:openapi": "pnpm --filter @opensesame/control-plane generate:openapi",
     "generate:sbom": "mkdir -p sbom && pnpm --package @cyclonedx/cdxgen@12.8.4 dlx env -u NODE_PATH -u STARSHIP_SESSION_KEY cdxgen -o sbom/bom.json",
-    "verify": "pnpm lint && pnpm lint:anti-slop && pnpm test:anti-slop && pnpm test:all && cargo +1.88.0 test --workspace --all-targets && ./scripts/battle-test.sh"
+    "verify": "pnpm lint && pnpm lint:anti-slop && pnpm test:anti-slop && pnpm test:rust-lint && pnpm audit:clippy && pnpm test:all && cargo +1.88.0 test --workspace --all-targets && ./scripts/battle-test.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

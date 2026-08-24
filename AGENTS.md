@@ -55,6 +55,7 @@ pnpm lint                # Biome gate for files changed from origin/main
 pnpm lint:all            # full-repository Biome + anti-slop audit
 pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disables fail
 pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity
+pnpm test:rust-lint      # contract test for rustfmt/Clippy hook + verify wiring
 pnpm lint:fix            # fix changed and staged files
 pnpm test                # turbo test across every workspace test script
 pnpm test:integration    # turbo run test:integration
@@ -79,14 +80,15 @@ pnpm db:migrate          # @opensesame/database db:migrate
 pnpm db:reset            # @opensesame/database db:reset
 pnpm generate:openapi    # writes apps/control-plane/openapi.json
 pnpm generate:sbom       # CycloneDX SBOM to sbom/bom.json
-pnpm verify              # changed-file lint + anti-slop lint/plugin tests + test:all
+pnpm verify              # changed-file lint + anti-slop lint/plugin tests
+                          #   + rustfmt/full-feature Clippy + test:all
                           #   + cargo +1.88.0 test --workspace --all-targets
                           #   + ./scripts/battle-test.sh — full local gate
 
 # Security/audit gates (each backed by scripts/*-gate.sh)
 pnpm audit:cve-lite
 pnpm audit:ast-grep
-pnpm audit:clippy
+pnpm audit:clippy          # rustfmt + full-feature Clippy; pedantic/complexity denied
 pnpm audit:osv
 pnpm audit:cargo-audit
 pnpm audit:gitleaks
@@ -381,7 +383,7 @@ For the full local gate suite (what `pnpm verify` runs — required before
 anything security-sensitive lands):
 
 ```bash
-pnpm verify   # changed-file lint + test:all (typecheck + test + integration)
+pnpm verify   # lint + rustfmt/full-feature Clippy + test:all
               #   + cargo +1.88.0 test --workspace --all-targets
               #   + ./scripts/battle-test.sh
 ```
