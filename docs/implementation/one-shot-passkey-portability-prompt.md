@@ -277,15 +277,19 @@ field name to the pattern is a real edit, not a no-op, and both
 `LOG_REDACT_PATHS` (bare **and** `*.`-prefixed) and `SENSITIVE_KEY_PATTERN` must
 be extended.
 
-### 14. CXF export is the first plaintext export this codebase has ever had
+### 14. The plaintext CXF export already exists — audit it, do not rebuild it
 
-Today the only bytes that leave the vault are ciphertext: `exportSealed()`
-emits a sealed envelope, and the offline backup path refuses anything else.
-Adding a plaintext CXF exporter is a deliberate change to that posture, not a
-feature increment. It is justified — portability has to be symmetric or ADR
-0052 §11 is hypocrisy — but it must be gated behind an explicit user
-confirmation, flagged in the return value when the payload carries private
-keys, and never reachable from an automated path.
+**This crossing has already been made.** `apps/pages/src/lib/vault/export/cxf.ts`
+shipped in #226, so the first plaintext export out of a vault whose every other
+byte is ciphertext is already in the tree.
+
+That makes the job here an audit rather than a build. Before extending it to
+carry private keys, confirm on the current source that it is gated behind an
+explicit user confirmation, that it flags a payload carrying key material, and
+that no automated path reaches it. If any of those is missing, **say so and fix
+it** — the posture claim above is only true if the existing exporter honours it.
+Creating a second exporter beside it is the duplicate path hard rule 13
+forbids.
 
 ### 15. Health findings live on the wrong side of the E2EE boundary from rotation jobs
 
@@ -355,12 +359,27 @@ usernames, no secrets).
   `weak` / `reused` / `old` / `no-2fa` findings over `LoginItem`s.
   `apps/pages/src/sections/vault/HealthPanel.tsx` renders them, and its "Fix
   this" button currently just links to `/vault/{id}/edit`.
-- `apps/pages/src/lib/vault/import/` — 15 adapters behind an ordered
-  `ADAPTERS` detection chain (`index.ts`), `DraftItem` union in `types.ts`
-  (**no passkey variant today**), merge planning in `merge.ts`, UI in
+- `apps/pages/src/lib/vault/import/` — 18 `SourceId`s behind an ordered
+  `ADAPTERS` detection chain (`index.ts`), merge planning in `merge.ts`, UI in
   `apps/pages/src/sections/settings/ImportPanel.tsx`. Everything runs in-tab;
-  nothing is uploaded. `formats/protonpass.ts` currently counts passkeys and
-  emits a skip reason instead of parsing them.
+  nothing is uploaded.
+
+  **Much of the import half of this feature already shipped in #226 — read
+  this list before you write anything:**
+
+  - `DraftPasskey` and `draftPasskey()` **exist** in `types.ts`, and
+    `DraftPasskey` carries a **required `authenticator` field**.
+  - The CXF `SourceId` is **`"fido-cxf"`**, not `"cxf-json"`, with a
+    registered adapter. There is also `"keepass-kdbx"`.
+  - **CXF export exists** at `apps/pages/src/lib/vault/export/cxf.ts`, with
+    tests beside it.
+  - `planMerge` already has a `case "passkey"` arm (`merge.ts:166`).
+  - `summarise()` already counts passkeys (`index.ts:276`, `289`).
+
+  What is **not** built is the custody half: `PasskeyItem` still says "the
+  vault never holds it" and has no private key, `custody`, or `provenance`
+  field. That gap — not the import plumbing — is what the packages below
+  exist to close.
 
 **The browser extension:**
 
@@ -372,7 +391,8 @@ usernames, no secrets).
   `normalizeLoopbackBaseUrl` so it can never be repointed at a remote host.
   The provider surface is entirely net-new.
 
-**Rotation machinery, built but unwired:**
+**Rotation machinery — wired since the Doppler-parity work (#199). Verify
+before you touch it; the notes below describe the shape, not a gap:**
 
 - `crates/connection-broker/src/rotation.rs` — `RotationPolicy`,
   `RotationTarget::{Connection, StorePath}`, `RotationJob`,
@@ -380,15 +400,17 @@ usernames, no secrets).
   `RotationRegistry`, CloudEvents `credential.rotation.requested|succeeded|failed`
   on the TaskBus, and `RotationJob::public_view()` which strips
   `secret`/`value`/`password`/`token`/`access_token`/`refresh_token`/
-  `client_secret`/`api_key`. **`policy_due_at()` exists and has zero callers —
-  the scheduler was never written.**
+  `client_secret`/`api_key`. `policy_due_at()` **is called** — by
+  `apps/gateway/src/rotation_scheduler.rs:52`. The scheduler exists; the
+  in-memory `RotationRegistry`/`OnceLock` is gone, replaced by durable tables.
 - `crates/rotation/src/lib.rs` — a pure, I/O-free FSM
   (`Scheduled → Discovering → CandidateGenerated → CandidateInstalled →
   CandidateVerified → CandidateActivated → DependentsUpdated → Observing →
   PreviousRevoked → RevocationVerified → Completed`, plus
   `RollbackStarted/Completed/Failed` and `ReconciliationRequired`) with Kani
   proofs (`completed_is_a_sink`, `cannot_revoke_before_observe`), a shuttle
-  test, and a fuzz target. **Orphaned — no caller.**
+  test, and a fuzz target. **No longer orphaned** — `connection-broker`
+  depends on it and drives `RotationState` through the live path.
 - `apps/gateway/src/routes/rotation.rs` — `POST /api/v1/rotations`,
   `GET /api/v1/rotations`, `GET /api/v1/rotations/{id}`, backed by a
   process-local `OnceLock<Arc<RotationRegistry>>`. The route shapes are frozen
@@ -432,8 +454,10 @@ usernames, no secrets).
   INVOKE-THROUGH → IMPORT preference**; D5–D8 invoke-through fences (https
   only, exact-host allowlist, no redirect following, no cookie store).
 - `0049` — derived short-lived materialization; the mint path.
-- `0052` — password-manager ecosystem bridging. **§9–§14 are this feature's
-  decisions. Binding.**
+- `0052` — **`docs/adr/0052-password-manager-ecosystem-bridging.md`**
+  specifically. More than one ADR file carries a `0052` prefix, so always cite
+  the filename, never the bare number. **§9–§14 are this feature's decisions.
+  Binding.**
 
 ### House conventions every TypeScript package must obey
 
@@ -597,30 +621,38 @@ export function activeItems(items: VaultItem[]): VaultItem[];
 *Owner: **WP-IMPORT-CORE** (`apps/pages/src/lib/vault/import/types.ts`).*
 
 ```ts
+> **`DraftPasskey`, `draftPasskey()` and the `"fido-cxf"` `SourceId` already
+> exist** (#226). This is a **delta against what is there**, not a file to
+> create. Read `types.ts` first. Adding a second CXF `SourceId` is exactly the
+> duplicate path hard rule 13's check-what-exists instruction forbids.
+
+Keep every existing field — `authenticator` is **required** today and both
+`formats/cxf.ts` and `formats/kdbx.ts` set it; dropping it breaks them. Add:
+
+```ts
 export type DraftPasskey = DraftBase & {
   kind: "passkey";
   rpId: string;
   username: string;
   credentialIdB64: string;
-  /** Raw COSE public key, base64, when the source provides one. */
-  cosePublicKeyB64: string;
-  /** SPKI/legacy public key, base64, when the source provides one instead. */
   publicKeyB64: string;
-  /** PKCS#8, base64. Empty string when the export carried metadata only. */
-  privateKeyPkcs8B64: string;
-  userHandleB64: string;
-  discoverable: boolean;
-  alg: number;
+  authenticator: "platform" | "cross-platform";   // existing, required
+
+  // --- added by this work, all optional so existing adapters still compile ---
+  /** Raw COSE public key, base64, when the source provides one. */
+  cosePublicKeyB64?: string;
+  /** PKCS#8, base64. Absent when the export carried metadata only. */
+  privateKeyPkcs8B64?: string;
+  userHandleB64?: string;
+  discoverable?: boolean;
+  alg?: number;
   /** Product name for PasskeyItem.importedFrom. */
-  importedFrom: string;
+  importedFrom?: string;
 };
-
-export type DraftItem = DraftLogin | DraftCard | DraftNote | DraftSecret | DraftPasskey;
-
-export function draftPasskey(name: string): DraftPasskey;
 ```
 
-`SourceId` gains `"cxf-json"`. Nothing else in `types.ts` changes shape.
+`DraftItem` already includes `DraftPasskey`. `SourceId` already has
+`"fido-cxf"` and `"keepass-kdbx"` — **add neither**.
 
 **Normalization rule every adapter obeys:** a source may hand you a private key
 as PKCS#8, SEC1, or a JWK. Adapters convert to PKCS#8 base64 using
@@ -754,10 +786,18 @@ the pure FSM does not model:
   activate step.
 - `needs_human` — terminal; the target has no rotation capability.
 
-Migration file name is **assigned by the orchestrator at merge** to avoid two
-packages claiming the same number. Write your migration as
-`migrations/NNNN_rotation_durable.sql` with `NNNN` left as a literal
-placeholder and state in your report that it needs numbering.
+**The durable rotation store already exists and is not a migration.**
+`rotation_policies` and `rotation_jobs` are created by the `ensure_*_schema`
+helpers in `crates/connection-broker/src/store.rs` (#199), not by a file under
+`migrations/`. Read that module before writing DDL: the states above are a
+delta against the schema already there, and `pending_approval` / `needs_human`
+may need adding to an existing column rather than a new table.
+
+If you do end up needing a numbered migration for something else, the number is
+**assigned by the orchestrator at merge** so two packages cannot claim the same
+one. Write it as `migrations/NNNN_<name>.sql` with `NNNN` left as a literal
+placeholder, and say in your report that it needs numbering. Do not hard-code a
+number anywhere, including in an `include_str!`.
 
 ### C7 — Extension ⇄ Pages ceremony protocol
 
@@ -947,10 +987,12 @@ pnpm audit:gitleaks
 
 ### Spec
 
-1. Add `DraftPasskey` and `draftPasskey()` per **contract C2**; add
-   `"cxf-json"` to `SourceId`.
-2. Write `formats/cxf.ts` parsing **plaintext FIDO Credential Exchange Format
-   JSON**. Map CXF credential types: `passkey` → `DraftPasskey`,
+1. **`DraftPasskey`, `draftPasskey()` and the `"fido-cxf"` `SourceId` already
+   exist** (#226). Extend `DraftPasskey` with the optional fields in **contract
+   C2**, keeping the required `authenticator`. Add no new `SourceId`.
+2. **`formats/cxf.ts` already exists and is registered.** Read it before
+   touching it; your job is to carry the new C2 fields through it, not to write
+   a second parser. Confirm it maps CXF credential types: `passkey` → `DraftPasskey`,
    `basic-auth` → `DraftLogin`, `totp` → merged onto the matching login when
    one exists in the same item else a `DraftSecret`, `note` → `DraftNote`.
    Use the `BoundaryValue` / `isString` / `isNumber` guards from
@@ -1061,11 +1103,13 @@ pnpm --filter @opensesame/pages test -- bitwarden onepassword protonpass
 
 ### Spec
 
-1. **`planMerge` needs a `passkey` arm.** Its `switch (draft.kind)` currently
-   has exactly four arms (`login`, `card`, `note`, `secret`); a fifth draft kind
-   without an arm is a silent drop. `summarise()` in `import/index.ts` also
-   needs a passkey counter — coordinate that one line with WP-IMPORT-CORE, who
-   owns that file, by reporting it.
+1. **`planMerge` already has its `passkey` arm** (`merge.ts:166`), and
+   `summarise()` already counts passkeys (`index.ts:276`, `289`). Both landed
+   in #226. Do not add either — adding the counter a second time double-counts.
+   Your job on this file is the **custody upgrade**: an import carrying a
+   private key for a passkey the vault already holds as metadata must promote
+   it (`custody: "external"` → `"vault"`) rather than being skipped as a
+   duplicate, and must never downgrade a custodied item back to metadata.
 2. **Passkey merge identity is `(rpId, credentialIdB64)`** — not name, not
    username. The existing `duplicateKey()` is
    `JSON.stringify([kind, name, username])`, which would collide two passkeys
@@ -1644,20 +1688,23 @@ pnpm --filter @opensesame/pages test -- ceremony
    `navigator.credentials` the same way so tests can swap it without `vi.mock`,
    which anti-slop forbids.
 2. **The demo must be served from `localhost:5174`, not `127.0.0.1:5174`.**
-   The app's dev/preview scripts bind the loopback **IP**, and Chrome rejects a
-   raw IP as a WebAuthn rpId with `SecurityError: This is an invalid domain` —
-   the exact failure `apps/pages`'s `checkWebauthnHost` /
-   `localhostEquivalentHref` helpers exist to route around. Configure the demo
-   and the e2e test to use the hostname. This will otherwise burn an hour on a
-   confusing error.
+   The app's scripts are `vite --port 5174 --strictPort` and
+   `vite preview --port 5174` — no `--host`, so they bind the default
+   `localhost` and are **fine as an rpId**. Keep it that way: if you add a
+   `--host` flag or point the e2e test at `127.0.0.1`, Chrome rejects a raw IP
+   as a WebAuthn rpId with `SecurityError: This is an invalid domain`. That is
+   the failure `apps/pages`'s `checkWebauthnHost` / `localhostEquivalentHref`
+   helpers exist to route around, and it costs an hour to diagnose.
 3. `vitest.config.ts` in this app includes `src/**/*.test.ts` — **`.ts`, not
    `.tsx`** — so write unit tests as `.ts` files.
 4. Playwright end-to-end spec. Note the existing
    `apps/browser-extension/playwright.config.ts` has **no `webServer` and no
    browser launch config** — it only does HTTP `request` fixtures against a
    live gateway, with `baseURL` from `PLAYWRIGHT_BASE_URL`. Loading an unpacked
-   extension needs a persistent context with `--load-extension`, so you must
-   extend that config (add a project, keep the existing spec working). Assert:
+   extension needs a persistent context with `--load-extension`, so that config
+   must gain a project. **You do not own `playwright.config.ts` —
+   WP-EXT-PROVIDER does** (hard rule 10). Report the exact project block you
+   need and let that package apply it; write only the spec file. Assert:
    - register + authenticate succeed through the OpenSesame provider;
    - with the provider disabled, the same flow falls through to the browser's
      native/virtual authenticator;
@@ -1686,10 +1733,22 @@ pnpm --filter @opensesame/browser-extension test:e2e
 
 **OWNS:**
 
-- `migrations/0011_rotation_durable.sql` (new — `0011` is the next free number)
-- `crates/storage/src/lib.rs` — the `MIGRATIONS` table entry and the row
-  structs/accessors your actor needs
-- `apps/gateway/src/rotation_actor.rs` (new)
+> **Read `crates/connection-broker/src/store.rs` and
+> `apps/gateway/src/rotation_scheduler.rs` before anything else.** The durable
+> queue and the scheduler both landed in #199: `policy_due_at` is called from
+> `rotation_scheduler.rs:52`, the `OnceLock` registry is gone, and the tables
+> are created by `ensure_*_schema` rather than a migration. **This package is
+> now a gap-check, not a build.** Report what is already satisfied instead of
+> rebuilding it, and scope yourself to what is genuinely missing — chiefly the
+> `pending_approval` / `needs_human` states and the assisted-mode approval
+> route.
+
+- `migrations/NNNN_<name>.sql` **only if** the gap-check proves one is needed —
+  number left literal, assigned by the orchestrator (C6)
+- `crates/storage/src/lib.rs` — the `MIGRATIONS` entry, only alongside such a
+  migration
+- `apps/gateway/src/rotation_actor.rs` (new, only if not already covered by
+  `rotation_scheduler.rs`)
 - `apps/gateway/src/routes/rotation.rs`
 - `apps/gateway/src/routes/mod.rs` — **only** the new `.route(...)` line and
   `mod` declaration
@@ -1705,7 +1764,8 @@ MCP.
 - **A migration needs two edits.** The `.sql` file alone does nothing:
   `crates/storage/src/lib.rs` holds a `const MIGRATIONS: &[(&str, &str)]` of
   `include_str!`'d files applied in order, and your migration must be appended
-  there as `("0011_rotation_durable", include_str!("../../../migrations/0011_rotation_durable.sql"))`.
+  there as `("NNNN_<name>", include_str!("../../../migrations/NNNN_<name>.sql"))`
+  with the number the orchestrator assigns — never a number you picked.
   Migrations are append-only; never rewrite an applied version. Copy the
   existing test convention that applies `&MIGRATIONS[..N]` and then asserts the
   new migration applies cleanly to an already-migrated database (see
@@ -1740,10 +1800,10 @@ MCP.
    `(5i64 << attempts.min(9)).min(3600)`, and an env-var tick interval with a
    5s default. Never let an error escape `run` — log and continue, as backup
    does.
-3. **The scheduler that was missing:** each tick, evaluate persisted policies
-   with `policy_due_at(&policy, last_run, now)` from
-   `crates/connection-broker` and enqueue due jobs. This function currently has
-   **zero callers**; you are its first. Enqueue must be idempotent — a due
+3. **The scheduler already exists** — `apps/gateway/src/rotation_scheduler.rs`
+   ticks and calls `policy_due_at(&policy, last_run, now)` at line 52. Verify
+   its behaviour rather than writing a second one, and extend it only where the
+   gap-check proves something missing. Enqueue must be idempotent — a due
    policy must not spawn duplicate jobs across ticks or across concurrent
    gateway instances (a lease plus a uniqueness constraint carries this).
    Note `policy_due_at` returns false for a disabled policy or an unparseable
@@ -2008,7 +2068,7 @@ failures back to the owning package.
    skill doc changed. **`pnpm-workspace.yaml` and `turbo.json` need no edits** —
    the former globs `packages/*`, and the latter defines only generic task
    names.
-3. **Confirm exactly one migration landed**, numbered `0011`, and that
+3. **Confirm every migration that landed is numbered by you at merge**, and that
    `crates/storage/src/lib.rs`'s `MIGRATIONS` array carries a matching entry.
    A `.sql` file without that entry is dead code that silently never applies.
 4. Reconcile the extension ⇄ Pages transport (WP-EXT-PROVIDER §4 vs
