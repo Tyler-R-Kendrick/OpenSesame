@@ -1,6 +1,7 @@
-//! DEPRECATED: use `opensesame-daemon` (apps/daemon). Kept for OPENSESAME_AGENT_LISTEN compat.
+//! DEPRECATED: use `opensesame-daemon` (`apps/daemon`). Kept for
+//! `OPENSESAME_AGENT_LISTEN` compatibility.
 //! Host credential agent — issues short-lived session capabilities to WSL/devcontainers.
-//! Never dumps refresh tokens or WebAuthn material.
+//! Never dumps refresh tokens or `WebAuthn` material.
 use axum::{
     extract::State,
     http::{HeaderMap, StatusCode},
@@ -37,7 +38,7 @@ const ENV_ENABLE_LEGACY: &str = "OPENSESAME_LEGACY_CREDENTIAL_AGENT";
 const MAX_CAPABILITIES: usize = 1024;
 
 fn lock_map<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(|e| e.into_inner())
+    m.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 #[derive(Clone)]
@@ -290,7 +291,7 @@ mod pact {
         })
     }
 
-    fn operator_req(uri: &str, method: &str, body: Value) -> Request<Body> {
+    fn operator_req(uri: &str, method: &str, body: &Value) -> Request<Body> {
         Request::builder()
             .method(method)
             .uri(uri)
@@ -332,8 +333,8 @@ mod pact {
                 json!({"audience":"https://api.example"}).to_string(),
             ))
             .unwrap();
-        let res = app.oneshot(req).await.unwrap();
-        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+        let response = app.oneshot(req).await.unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
     #[tokio::test]
@@ -345,8 +346,8 @@ mod pact {
             .header(header::CONTENT_TYPE, "application/json")
             .body(Body::from("{}"))
             .unwrap();
-        let res = app.oneshot(req).await.unwrap();
-        let body = to_bytes(res.into_body(), 2048).await.unwrap();
+        let response = app.oneshot(req).await.unwrap();
+        let body = to_bytes(response.into_body(), 2048).await.unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["error"], "use_mint_capability");
         assert!(json.get("refresh_token").is_none());
@@ -360,7 +361,7 @@ mod pact {
             .oneshot(operator_req(
                 "/v1/mint_capability",
                 "POST",
-                json!({"audience":"https://api.example"}),
+                &json!({"audience":"https://api.example"}),
             ))
             .await
             .unwrap();

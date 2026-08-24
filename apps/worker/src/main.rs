@@ -121,7 +121,10 @@ async fn ready(
         return (status, Json(json!({"ok": false})));
     }
     let cached = {
-        let guard = state.last_probe.lock().unwrap_or_else(|p| p.into_inner());
+        let guard = state
+            .last_probe
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         guard
             .as_ref()
             .filter(|(at, _)| at.elapsed() < Duration::from_secs(10))
@@ -140,7 +143,10 @@ async fn ready(
         .await
         {
             Ok(probes) => {
-                *state.last_probe.lock().unwrap_or_else(|p| p.into_inner()) =
+                *state
+                    .last_probe
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) =
                     Some((Instant::now(), probes.clone()));
                 probes
             }
