@@ -8,6 +8,24 @@ import {
 } from "../ui/interaction-pages.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
+interface AuthorizationOverrides {
+  client_id?: string;
+  redirect_uri?: string;
+  response_type?: string;
+  scope?: string;
+  state?: string;
+  nonce?: string;
+}
+
+interface FormFields {
+  _csrf?: string;
+  action?: string;
+}
+
+interface InteractionPage {
+  uid: string;
+  html: string;
+}
 
 const ORIGIN = "http://127.0.0.1:4101";
 const CLIENT_ID = `origin:${ORIGIN}`;
@@ -22,7 +40,7 @@ function pkce() {
 function authUrl(
   port: number,
   challenge: string,
-  overrides: Record<string, string> = {},
+  overrides: AuthorizationOverrides = {},
 ): string {
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -120,11 +138,11 @@ async function req(
   return res;
 }
 
-function postForm(fields: Record<string, string>): RequestInit {
+function postForm(fields: FormFields): RequestInit {
   return {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(fields),
+    body: new URLSearchParams(Object.entries(fields)),
   };
 }
 
@@ -133,8 +151,8 @@ async function beginAuth(
   started: Started,
   jar: Jar,
   challenge: string,
-  overrides: Record<string, string> = {},
-): Promise<{ uid: string; html: string }> {
+  overrides: AuthorizationOverrides = {},
+): Promise<InteractionPage> {
   const res = await req(
     started,
     jar,
@@ -156,7 +174,7 @@ async function loginAndConsent(
   jar: Jar,
   uid: string,
   loginHtml: string,
-): Promise<{ uid: string; html: string }> {
+): Promise<InteractionPage> {
   const csrf = extractCsrf(loginHtml);
   const login = await req(
     started,

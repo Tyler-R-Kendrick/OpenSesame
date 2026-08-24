@@ -1,4 +1,5 @@
-import type { JSONWebKeySet, JWTPayload, JWTVerifyGetKey } from "jose";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import type { JSONWebKeySet, JWTVerifyGetKey } from "jose";
 import { jwtVerify } from "jose";
 import { AuthError } from "./errors.js";
 import {
@@ -6,6 +7,8 @@ import {
   assertAllowedJwtAlgorithm,
   isJwtString,
   mapJwtVerifyError,
+  parseJwtPayload,
+  readJwtAudience,
   trimSlash,
 } from "./jwt-utils.js";
 import { createJwksKeySource } from "./verifier.js";
@@ -15,7 +18,7 @@ export interface VerifiedIdToken {
   iss: string;
   aud: string | string[];
   nonce?: string;
-  payload: JWTPayload;
+  payload: JsonObject;
 }
 
 export interface VerifyIdTokenOptions {
@@ -49,22 +52,23 @@ export async function verifyIdToken(
       : undefined),
   })();
 
-  let payload: JWTPayload;
+  let payload: JsonObject;
   try {
-    ({ payload } = await jwtVerify(token, getKey, {
+    const verified = await jwtVerify(token, getKey, {
       issuer,
       audience: options.audience,
       algorithms: [...ID_TOKEN_ALGORITHMS],
       clockTolerance: options.clockToleranceSeconds ?? 5,
-    }));
+    });
+    payload = parseJwtPayload(overlapCast(verified.payload));
   } catch (error) {
     throw mapJwtVerifyError(error instanceof Error ? error : undefined);
   }
 
-  if (payload.sub === undefined || payload.sub === "") {
+  if (!isJwtString(payload.sub) || payload.sub === "") {
     throw new AuthError("missing_claim", "Token missing sub");
   }
-  if (payload.iss === undefined) {
+  if (!isJwtString(payload.iss)) {
     throw new AuthError("missing_claim", "Token missing iss");
   }
 
@@ -75,7 +79,7 @@ export async function verifyIdToken(
   const verified: VerifiedIdToken = {
     sub: payload.sub,
     iss: payload.iss,
-    aud: payload.aud ?? options.audience,
+    aud: readJwtAudience(payload.aud) ?? options.audience,
     payload,
   };
   if (isJwtString(payload.nonce)) {

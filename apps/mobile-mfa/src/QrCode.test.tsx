@@ -3,7 +3,7 @@ import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { act } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { QrCode } from "./QrCode.js";
+import { QrCode, type QrCodeProps } from "./QrCode.js";
 
 overlapCast(globalThis).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -23,11 +23,7 @@ afterEach(async () => {
   container.remove();
 });
 
-async function renderQr(props: {
-  value: string;
-  label: string;
-  size?: number;
-}) {
+async function renderQr(props: QrCodeProps) {
   await act(async () => {
     root.render(<QrCode {...props} />);
   });

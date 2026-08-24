@@ -47,7 +47,7 @@ export interface MockUpstream {
 function isAddressInfo(
   address: AddressInfo | string | null,
 ): address is AddressInfo {
-  return address !== null && typeof address !== "string";
+  return address !== null && Object(address) === address;
 }
 
 function matchRoute(

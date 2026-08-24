@@ -202,7 +202,10 @@ async function callIdentity<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 function isThrownString<Value>(value: Value): value is Value & string {
-  return typeof value === "string";
+  return (
+    Object(value) !== value &&
+    Object.prototype.toString.call(value) === "[object String]"
+  );
 }
 
 function errorText<Value>(value: Value): string {
@@ -315,12 +318,16 @@ function quoteList(values: string[]): string {
   return values.map((value) => `"${value}"`).join(", ");
 }
 
-function buildSignInSnippet(input: {
+type SignInSnippetInput = {
   issuer: string;
   clientId: string;
   redirectUri: string;
   scopes: string[];
-}): string {
+};
+
+type CallbackSnippetInput = { redirectUri: string };
+
+function buildSignInSnippet(input: SignInSnippetInput): string {
   return `// auth.js — one module, imported by every page that needs the session.
 import { createOpenSesame } from "@opensesame/sdk-browser";
 
@@ -339,7 +346,7 @@ document.querySelector("#opensesame-signin")?.addEventListener("click", () => {
 });`;
 }
 
-function buildCallbackSnippet(input: { redirectUri: string }): string {
+function buildCallbackSnippet(input: CallbackSnippetInput): string {
   return `// The page served at ${input.redirectUri}
 import { sesame } from "./auth.js";
 
@@ -1708,6 +1715,17 @@ function RegisterPanel({
   );
 }
 
+type SnippetDraft = { host: string; redirectUri: string };
+
+type SnippetPanelProps = {
+  base: string;
+  client: OAuthClient | null;
+  clients: OAuthClient[];
+  draft: SnippetDraft | null;
+  pinned: boolean;
+  onSelect: (id: string | null) => void;
+};
+
 function SnippetPanel({
   base,
   client: selected,
@@ -1715,14 +1733,7 @@ function SnippetPanel({
   draft,
   pinned,
   onSelect,
-}: {
-  base: string;
-  client: OAuthClient | null;
-  clients: OAuthClient[];
-  draft: { host: string; redirectUri: string } | null;
-  pinned: boolean;
-  onSelect: (id: string | null) => void;
-}) {
+}: SnippetPanelProps) {
   const selectId = useId();
   const panelId = `${selectId}-code`;
   const [tab, setTab] = useState<"signin" | "callback">("signin");

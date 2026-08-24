@@ -1,4 +1,5 @@
 import {
+  type BoundaryObject,
   type BoundaryValue,
   type MutableBoundaryObject,
   isTypeofObject,
@@ -59,18 +60,20 @@ const CENSOR = "[Redacted]";
 /** Depth ceiling so a hostile/cyclic object cannot stall the logger. */
 const MAX_REDACT_DEPTH = 12;
 
+type RedactableContainer = BoundaryObject | BoundaryValue[];
+
 /** Recursively censor sensitive keys at any depth; cycle- and array-safe. */
 export function redactDeep<T>(value: T): T {
   // SAFETY: walk preserves T's structure; it only replaces sensitive string
   // values and cycles, never the container type.
   const input: BoundaryValue = overlapCast(value);
-  return overlapCast(walk(input, 0, new WeakSet<object>()));
+  return overlapCast(walk(input, 0, new WeakSet<RedactableContainer>()));
 }
 
 function walk(
   value: BoundaryValue,
   depth: number,
-  seen: WeakSet<object>,
+  seen: WeakSet<RedactableContainer>,
 ): BoundaryValue {
   if (value === null || !isTypeofObject(value)) return value;
   if (depth >= MAX_REDACT_DEPTH) return CENSOR;

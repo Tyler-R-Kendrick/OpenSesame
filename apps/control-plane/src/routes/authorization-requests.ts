@@ -56,6 +56,20 @@ import { authenticatedPrincipalId } from "./organizations.js";
 const DEFAULT_TTL_SECONDS = 300;
 const DEFAULT_INTERVAL_SECONDS = 5;
 
+interface AuthorizationPollState {
+  interval: PollIntervalState;
+  lastPolledAt: number;
+}
+
+interface AuthorizationDigestInput {
+  principalId: string;
+  requesterRef: string;
+  authorizationDetails: JsonObject[];
+  bindingMessage: string;
+  connectionId?: string;
+  delegationId?: string;
+}
+
 /**
  * Pacing state per request, for `slow_down`.
  *
@@ -69,15 +83,9 @@ const DEFAULT_INTERVAL_SECONDS = 5;
  * and the oldest are evicted if the map still grows past its cap.
  */
 const MAX_POLL_STATE_ENTRIES = 10_000;
-const POLL_STATE = new Map<
-  string,
-  { interval: PollIntervalState; lastPolledAt: number }
->();
+const POLL_STATE = new Map<string, AuthorizationPollState>();
 
-function rememberPollState(
-  id: string,
-  state: { interval: PollIntervalState; lastPolledAt: number },
-): void {
+function rememberPollState(id: string, state: AuthorizationPollState): void {
   // Re-inserting moves the key to the back of Map's insertion order, so the
   // eviction below sheds the least recently polled request.
   POLL_STATE.delete(id);
@@ -100,14 +108,7 @@ function newRequestId(): string {
  * different requests cannot produce the same bytes by moving text across a
  * boundary.
  */
-function requestDigest(input: {
-  principalId: string;
-  requesterRef: string;
-  authorizationDetails: JsonObject[];
-  bindingMessage: string;
-  connectionId?: string;
-  delegationId?: string;
-}): string {
+function requestDigest(input: AuthorizationDigestInput): string {
   const parts = [
     "opensesame:authorization-request:v1",
     input.principalId,

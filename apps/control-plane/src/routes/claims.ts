@@ -41,6 +41,13 @@ import { authenticatedPrincipalId } from "./organizations.js";
 /** Wrong user codes tolerated per claim before approval is refused outright. */
 const MAX_CLAIM_APPROVAL_ATTEMPTS = 5;
 
+interface ClaimDenial {
+  claimId: string;
+  principalId: string;
+  reason: string;
+  correlationId?: string;
+}
+
 /**
  * Project a claim for the wire.
  *
@@ -118,12 +125,7 @@ async function loadClaimWithToken(
 /** A refused approval is the event a reviewer needs; success alone shows nothing. */
 async function auditClaimDenial(
   ctx: AppContext,
-  input: {
-    claimId: string;
-    principalId: string;
-    reason: string;
-    correlationId?: string;
-  },
+  input: ClaimDenial,
 ): Promise<void> {
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "claim.complete",

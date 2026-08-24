@@ -19,6 +19,11 @@ export interface CreateProvisionalOptions {
   allowedActions?: string[];
 }
 
+export interface CreateProvisionalResult {
+  mapping: PrincipalMapping;
+  session: ProvisionalSession;
+}
+
 /**
  * Create an anonymous / provisional principal + session mapping.
  * Upgrade paths must preserve `principalId`.
@@ -26,7 +31,7 @@ export interface CreateProvisionalOptions {
 export async function createProvisionalPrincipal(
   store: PrincipalMappingStore,
   options: CreateProvisionalOptions = {},
-): Promise<{ mapping: PrincipalMapping; session: ProvisionalSession }> {
+): Promise<CreateProvisionalResult> {
   const principalId = `prn_${randomUUID()}`;
   const betterAuthUserId = `ba_anon_${randomUUID()}`;
   const now = new Date();

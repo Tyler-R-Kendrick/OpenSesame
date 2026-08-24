@@ -386,8 +386,8 @@ export const bundledProviders: Provider[] = [
 type TursoDb = {
   exec(sql: string): Promise<void>;
   prepare(sql: string): Promise<{
-    get(...values: unknown[]): Promise<JsonObject | undefined>;
-    run(...values: unknown[]): Promise<BoundaryValue>;
+    get(...values: string[]): Promise<JsonObject | undefined>;
+    run(...values: string[]): Promise<BoundaryValue>;
   }>;
   pull(): Promise<boolean>;
   push(): Promise<void>;

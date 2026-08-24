@@ -24,6 +24,13 @@ export type GithubRepoSummary = {
   defaultBranch: string;
 };
 
+export type CreateGithubPasswordRepoOptions = {
+  name?: string;
+  /** Defaults to true — private password store. */
+  private?: boolean;
+  description?: string;
+};
+
 function toRepo(raw: JsonObject): GithubRepoSummary {
   return {
     fullName: String(raw.full_name ?? ""),
@@ -62,12 +69,7 @@ async function listGithubReposDefault(
 
 async function createGithubPasswordRepoDefault(
   connectionId: string,
-  options: {
-    name?: string;
-    /** Defaults to true — private password store. */
-    private?: boolean;
-    description?: string;
-  } = {},
+  options: CreateGithubPasswordRepoOptions = {},
 ): Promise<GithubRepoSummary> {
   const res = await hostFetch(
     `/api/v1/connections/${encodeURIComponent(connectionId)}/github/repos`,

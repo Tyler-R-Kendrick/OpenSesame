@@ -61,10 +61,19 @@ export function createMockFetch(): typeof fetch {
   });
 }
 
-export async function runHeadlessDeviceLogin(options?: {
+export interface HeadlessDeviceLoginOptions {
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
-}): Promise<{ userCode: string; accessTokenPresent: boolean }> {
+}
+
+export interface HeadlessDeviceLoginResult {
+  userCode: string;
+  accessTokenPresent: boolean;
+}
+
+export async function runHeadlessDeviceLogin(
+  options?: HeadlessDeviceLoginOptions,
+): Promise<HeadlessDeviceLoginResult> {
   const client = new DeviceFlowClient({
     issuer,
     clientId,

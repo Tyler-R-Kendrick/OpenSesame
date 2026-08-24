@@ -102,9 +102,6 @@ declare module "oidc-provider" {
     scopes?: string[];
     claims?: import("@opensesame/os-domain").JsonObject;
     interactions?: import("@opensesame/os-domain").JsonObject;
-    renderError?: (
-      ...args: unknown[]
-    ) => import("@opensesame/os-domain").BoundaryValue;
   };
 
   export class Provider {
@@ -113,22 +110,12 @@ declare module "oidc-provider" {
       req: import("@opensesame/os-domain").BoundaryValue,
       res: import("@opensesame/os-domain").BoundaryValue,
     ) => void;
-    app: {
-      callback(): (
-        req: import("@opensesame/os-domain").BoundaryValue,
-        res: import("@opensesame/os-domain").BoundaryValue,
-      ) => void;
-      listen: (
-        ...args: unknown[]
-      ) => import("@opensesame/os-domain").BoundaryValue;
-    };
     Client: {
       find(id: string): Promise<import("@opensesame/os-domain").BoundaryValue>;
     };
-    registerGrantType(...args: unknown[]): void;
   }
 
-  type OidcErrorConstructor = new (...args: unknown[]) => Error;
+  type OidcErrorConstructor = new (message?: string) => Error;
 
   export const errors: Record<string, OidcErrorConstructor | undefined> & {
     InvalidTarget: OidcErrorConstructor;

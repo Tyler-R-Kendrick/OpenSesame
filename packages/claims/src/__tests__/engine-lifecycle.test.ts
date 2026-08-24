@@ -5,6 +5,7 @@ import {
 } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { ClaimEngine, MemoryClaimStore } from "../index.js";
+import type { ClaimCompareAndSwapResult } from "../store.js";
 
 function engine(clock?: () => Date) {
   return new ClaimEngine({
@@ -43,7 +44,7 @@ class LosingStore extends MemoryClaimStore {
     id: string,
     _expectedVersion: number,
     _next: ClaimSession,
-  ): Promise<{ session: ClaimSession; won: boolean }> {
+  ): Promise<ClaimCompareAndSwapResult> {
     const session = await this.get(id);
     if (!session) {
       throw new DomainError("NOT_FOUND", "Claim not found", { id });
@@ -63,7 +64,7 @@ class ConcurrentReviewerStore extends MemoryClaimStore {
     id: string,
     expectedVersion: number,
     next: ClaimSession,
-  ): Promise<{ session: ClaimSession; won: boolean }> {
+  ): Promise<ClaimCompareAndSwapResult> {
     if (!this.injected && next.state === "reviewed") {
       this.injected = true;
       const result = await super.compareAndSwap(id, expectedVersion, next);
@@ -84,7 +85,7 @@ class ConcurrentCompleterStore extends MemoryClaimStore {
     id: string,
     expectedVersion: number,
     next: ClaimSession,
-  ): Promise<{ session: ClaimSession; won: boolean }> {
+  ): Promise<ClaimCompareAndSwapResult> {
     if (!this.injected && next.state === "completed") {
       this.injected = true;
       const result = await super.compareAndSwap(id, expectedVersion, next);
@@ -102,7 +103,7 @@ class ConcurrentDenierStore extends MemoryClaimStore {
     id: string,
     expectedVersion: number,
     next: ClaimSession,
-  ): Promise<{ session: ClaimSession; won: boolean }> {
+  ): Promise<ClaimCompareAndSwapResult> {
     if (!this.injected && next.state === "completed") {
       this.injected = true;
       const current = await this.get(id);

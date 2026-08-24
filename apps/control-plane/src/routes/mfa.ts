@@ -56,6 +56,15 @@ export function base32Encode(bytes: Uint8Array): string {
   return out;
 }
 
+interface MfaDenial {
+  eventType: string;
+  reason: string;
+  principalId?: string;
+  correlationId?: string;
+  targetType?: string;
+  targetId?: string;
+}
+
 /** DEV/test TOTP: HMAC-SHA1 truncated to 6 digits (RFC 6238-style). */
 function totpCode(
   secretB64: string,
@@ -167,14 +176,7 @@ function shouldAuditAnonymousDenial(
  */
 async function auditMfaDenial(
   ctx: AppContext,
-  input: {
-    eventType: string;
-    reason: string;
-    principalId?: string;
-    correlationId?: string;
-    targetType?: string;
-    targetId?: string;
-  },
+  input: MfaDenial,
 ): Promise<void> {
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: input.eventType,

@@ -64,6 +64,20 @@ interface RefreshTokenResponse {
   expires_in?: BoundaryValue;
 }
 
+interface RunDependencies {
+  fetchImpl?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
+  openBrowser?: (url: string) => void;
+}
+
+interface DispatchContext {
+  issuer: string;
+  api: string;
+  clientId: string;
+  fetchImpl: typeof fetch;
+  deps: RunDependencies | undefined;
+}
+
 /**
  * Refuse a session file anyone but its owner can read or write. A bearer token in
  * a group-readable file is a bearer token every account on the box holds, and one
@@ -215,11 +229,7 @@ function publicKeyJktPlaceholder(): string {
 
 export async function runCli(
   argv: string[],
-  deps?: {
-    fetchImpl?: typeof fetch;
-    sleep?: (ms: number) => Promise<void>;
-    openBrowser?: (url: string) => void;
-  },
+  deps?: RunDependencies,
 ): Promise<number> {
   let command: ParsedCommand;
   try {
@@ -254,19 +264,7 @@ export async function runCli(
 
 async function dispatch(
   command: Exclude<ParsedCommand, { name: "help" }>,
-  ctx: {
-    issuer: string;
-    api: string;
-    clientId: string;
-    fetchImpl: typeof fetch;
-    deps:
-      | {
-          fetchImpl?: typeof fetch;
-          sleep?: (ms: number) => Promise<void>;
-          openBrowser?: (url: string) => void;
-        }
-      | undefined;
-  },
+  ctx: DispatchContext,
 ): Promise<number> {
   const { issuer, api, clientId, fetchImpl, deps } = ctx;
 
@@ -502,7 +500,7 @@ async function dispatch(
           ? `Host API up. Daemon ${daemon.available ? "available" : "unavailable"}.`
           : "Host API unreachable.",
         {
-          health,
+          health: { ok: health.ok, body: health.body },
           daemon: {
             available: daemon.available,
             url: daemon.url,

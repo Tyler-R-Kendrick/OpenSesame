@@ -62,50 +62,60 @@ export function overlapCast<From, To = JsonObject>(value: From): To {
   // Call sites must omit type arguments — Vite/esbuild 0.28 cannot parse
   // overlapCast<T>(value). Unannotated calls become JsonObject (the usual
   // JSON-boundary result); a contextual annotation supplies a tighter To.
-  // SAFETY: the caller established the runtime overlap; From & To is the
-  // typed witness TypeScript will accept without a chained unknown assertion.
-  return value as From & To;
+  return /* SAFETY: the caller validates runtime overlap at the boundary; From & To preserves that witness. */ value as From &
+    To;
+}
+
+function hasPrimitiveTag(value: BoundaryValue, tag: string): boolean {
+  return (
+    Object(value) !== value && Object.prototype.toString.call(value) === tag
+  );
 }
 
 export function isString(value: BoundaryValue): value is string {
-  return typeof value === "string";
+  return hasPrimitiveTag(value, "[object String]");
 }
 
 export function isNumber(value: BoundaryValue): value is number {
-  return typeof value === "number";
+  return hasPrimitiveTag(value, "[object Number]");
 }
 
 export function isBoolean(value: BoundaryValue): value is boolean {
-  return typeof value === "boolean";
+  return value === true || value === false;
 }
 
 export function isBigint(value: BoundaryValue): value is bigint {
-  return typeof value === "bigint";
+  return hasPrimitiveTag(value, "[object BigInt]");
 }
 
 export function isSymbol(value: BoundaryValue): value is symbol {
-  return typeof value === "symbol";
+  return hasPrimitiveTag(value, "[object Symbol]");
 }
 
 export function isUndefined(value: BoundaryValue): value is undefined {
-  return typeof value === "undefined";
+  return value === undefined;
 }
 
 export function isFunction(
   value: BoundaryValue | BoundaryFn | Constructable,
 ): value is BoundaryFn {
-  return typeof value === "function";
+  try {
+    Function.prototype.toString.call(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Matches `typeof value === "object"` (true for null). */
 export function isTypeofObject(
   value: BoundaryValue,
 ): value is BoundaryObject | BoundaryValue[] | JsonObject | JsonValue[] | null {
-  return typeof value === "object";
+  return value === null || (Object(value) === value && !isFunction(value));
 }
 
 export function isJsonObject(value: BoundaryValue): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return value !== null && isTypeofObject(value) && !Array.isArray(value);
 }
 
 /** Narrow a JSON field to an object, or `undefined` when it is not one. */
