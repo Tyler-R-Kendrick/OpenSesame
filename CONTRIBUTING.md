@@ -40,16 +40,16 @@ makes the hook scripts executable. `pnpm bootstrap` now runs this automatically,
 fresh clone that runs `pnpm bootstrap` does not need a separate step.
 
 ### What the hooks do
-- **`pre-commit`** — runs `biome check` against staged files only (no full-repo scan on
-  every commit), then runs the gitleaks secret scan (`scripts/gitleaks-gate.sh`) if the
+- **`pre-commit`** — runs `biome check` and anti-slop against staged files, then
+  the gitleaks secret scan (`scripts/gitleaks-gate.sh`) if the
   `gitleaks` binary is available on `PATH`; otherwise it prints a one-line notice and
   continues. On failure it prints remediation hints (e.g. run `pnpm lint:fix` and
   re-stage).
 - **`pnpm lint:anti-slop`** — Oxlint with the vendored anti-slop plugin
-  (`tools/oxlint/anti-slop/`, config `oxlint.config.ts`). Not yet part of
-  `pnpm lint:all` while the existing corpus is being cleaned. New TypeScript
-  must pass it; do not add low-evidence patterns (unjustified `as`,
-  `unknown` dictionaries, `vi.mock`, chained assertions).
+  (`tools/oxlint/anti-slop/`, config `oxlint.config.ts`). It is part of
+  `pnpm lint:all`, both hooks, and `pnpm verify`; nested configs and unused
+  disable directives fail the gate. `pnpm test:anti-slop` runs every plugin
+  RuleTester case and verifies the installer assets match the vendored copy.
 - **`pre-push`** — runs a verification pass sized by the `OPENSESAME_PREPUSH`
   environment variable:
   - `off` — skip entirely.
