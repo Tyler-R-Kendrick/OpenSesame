@@ -2,9 +2,14 @@ import { defineRule } from "@oxlint/plugins";
 
 import type { ESTree, SourceCode } from "@oxlint/plugins";
 
-import { lexicalTypeParameterNames } from "../shared/lexical-type-parameters.ts";
+import {
+	collectTypeEnvironment,
+	lexicalTypeParameterBindings,
+	parameterTypeAnnotation,
+	resolveHazardousType,
+	type TypeEnvironment,
+} from "../shared/lexical-type-parameters.ts";
 
-type Parameter = ESTree.ParamPattern;
 type ParameterOwner =
 	| ESTree.ArrowFunctionExpression
 	| ESTree.Function
@@ -14,32 +19,26 @@ type ParameterOwner =
 	| ESTree.TSFunctionType
 	| ESTree.TSMethodSignature;
 
-function parameterAnnotation(parameter: Parameter): ESTree.TSTypeAnnotation | null | undefined {
+function parameterName(parameter: ESTree.ParamPattern, sourceCode: SourceCode): string {
 	if (parameter.type === "TSParameterProperty") {
-		return parameterAnnotation(parameter.parameter);
-	}
-	if (parameter.type === "RestElement") {
-		return parameter.typeAnnotation ?? parameterAnnotation(parameter.argument);
+		return parameterName(parameter.parameter, sourceCode);
 	}
 	if (parameter.type === "AssignmentPattern") {
-		return parameter.typeAnnotation ?? parameter.left.typeAnnotation;
+		return parameterName(parameter.left, sourceCode);
 	}
-	return parameter.typeAnnotation;
+	if (parameter.type === "RestElement") {
+		return parameterName(parameter.argument, sourceCode);
+	}
+	return parameter.type === "Identifier" ? parameter.name : sourceCode.getText(parameter);
 }
 
-function parameterName(parameter: Parameter, sourceCode: SourceCode): string {
-	return parameter.type === "Identifier"
-		? parameter.name
-		: sourceCode.getText(parameter).replace(/\s*:\s*object\s*$/u, "");
-}
-
-/** Ban the broad object type on function inputs, including local aliases to object. */
+/** Ban function inputs proven to use the broad `object` type. */
 export const noObjectParametersRule = defineRule({
 	meta: {
 		type: "problem",
 		docs: {
 			description:
-				"Disallow object function parameters; inputs must use an owner-provided type and be parsed at their boundary.",
+				"Disallow broad object function parameters while leaving opaque named contracts to TypeScript.",
 		},
 		messages: {
 			objectParameter:
@@ -47,48 +46,21 @@ export const noObjectParametersRule = defineRule({
 		},
 	},
 	createOnce(context) {
-		const aliases = new Map<string, ESTree.TSType>();
-
-		const resolvesToObject = (
-			type: ESTree.TSType,
-			shadowedAliases: ReadonlySet<string>,
-			visited = new Set<string>(),
-		): boolean => {
-			if (type.type === "TSObjectKeyword") return true;
-			if (type.type === "TSParenthesizedType")
-				return resolvesToObject(type.typeAnnotation, shadowedAliases, visited);
-			if (type.type === "TSUnionType") {
-				return type.types.some((member) =>
-					resolvesToObject(member, shadowedAliases, visited),
-				);
-			}
-			if (
-				type.type !== "TSTypeReference" ||
-				type.typeName.type !== "Identifier" ||
-				(type.typeArguments !== null &&
-					type.typeArguments !== undefined &&
-					type.typeArguments.params.length > 0) ||
-				visited.has(type.typeName.name) ||
-				shadowedAliases.has(type.typeName.name)
-			) {
-				return false;
-			}
-			const alias = aliases.get(type.typeName.name);
-			if (alias === undefined) return false;
-			const nextVisited = new Set(visited);
-			nextVisited.add(type.typeName.name);
-			return resolvesToObject(alias, shadowedAliases, nextVisited);
-		};
+		let environment: TypeEnvironment | null = null;
 
 		const checkParameters = (node: ParameterOwner) => {
-			const shadowedAliases = lexicalTypeParameterNames(
-				node,
-				context.sourceCode.visitorKeys,
-			);
+			if (environment === null) return;
+			const bindings = lexicalTypeParameterBindings(node);
 			for (const parameter of node.params) {
-				const annotation = parameterAnnotation(parameter);
+				const annotation = parameterTypeAnnotation(parameter);
 				if (annotation === null || annotation === undefined) continue;
-				if (!resolvesToObject(annotation.typeAnnotation, shadowedAliases)) continue;
+				const resolution = resolveHazardousType(
+					annotation.typeAnnotation,
+					"object",
+					environment,
+					bindings,
+				);
+				if (resolution !== "hazard") continue;
 				context.report({
 					node: annotation.typeAnnotation,
 					messageId: "objectParameter",
@@ -99,17 +71,7 @@ export const noObjectParametersRule = defineRule({
 
 		return {
 			Program(node) {
-				aliases.clear();
-				for (const statement of node.body) {
-					const declaration =
-						statement.type === "ExportNamedDeclaration" ? statement.declaration : statement;
-					if (
-						declaration?.type === "TSTypeAliasDeclaration" &&
-						(declaration.typeParameters === null || declaration.typeParameters === undefined)
-					) {
-						aliases.set(declaration.id.name, declaration.typeAnnotation);
-					}
-				}
+				environment = collectTypeEnvironment(node);
 			},
 			ArrowFunctionExpression: checkParameters,
 			FunctionDeclaration: checkParameters,

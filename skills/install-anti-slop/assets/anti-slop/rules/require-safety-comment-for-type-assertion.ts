@@ -20,17 +20,27 @@ function isConstAssertion(node: TypeAssertion): boolean {
   );
 }
 
-function hasSafetyComment(sourceCode: SourceCode, node: TypeAssertion): boolean {
+type SafetyCommentState = "missing" | "invalid" | "valid";
+
+const safetyEvidence =
+  /\b(?:already|boundary|checked|contract|established|fixture|global|implements|invariant|json|label|matches|owns|parser|preserves|runtime|same|schema|scope|seam|signal|stream|structural(?:ly)?|validated|verified)\b/iu;
+
+function safetyCommentState(
+  sourceCode: SourceCode,
+  node: TypeAssertion,
+): SafetyCommentState {
   let current: ESTree.Node = node;
   while (true) {
-    if (
-      sourceCode
-        .getCommentsBefore(current)
-        .some((comment) => comment.end <= node.start && /\bSAFETY\s*:/u.test(comment.value))
-    ) {
-      return true;
+    const comments = sourceCode.getCommentsBefore(current).slice().reverse();
+    for (const comment of comments) {
+      if (comment.end > node.start || !/\bSAFETY\s*:/u.test(comment.value)) continue;
+      if (!/^\s*$/u.test(sourceCode.text.slice(comment.end, current.start))) continue;
+      const body = comment.value.split(/\bSAFETY\s*:/u, 2)[1]?.trim() ?? "";
+      return safetyEvidence.test(body) ? "valid" : "invalid";
     }
-    if (commentOwnerKinds.has(current.type) || current.parent.type === "Program") return false;
+    if (commentOwnerKinds.has(current.type) || current.parent.type === "Program") {
+      return "missing";
+    }
     current = current.parent;
   }
 }
@@ -44,14 +54,22 @@ export const requireSafetyCommentForTypeAssertionRule = defineRule({
         "Require a nearby SAFETY comment for every TypeScript type assertion except const assertions.",
     },
     messages: {
+      invalidSafetyComment:
+        "This `SAFETY:` comment does not identify checked evidence or the contract boundary that makes the assertion sound.",
       missingSafetyComment:
         "This type assertion has no `SAFETY:` justification. State the checked invariant immediately before the assertion or its containing statement.",
     },
   },
   createOnce(context) {
     const checkAssertion = (node: TypeAssertion) => {
-      if (isConstAssertion(node) || hasSafetyComment(context.sourceCode, node)) return;
-      context.report({ node, messageId: "missingSafetyComment" });
+      if (isConstAssertion(node)) return;
+      const state = safetyCommentState(context.sourceCode, node);
+      if (state === "valid") return;
+      context.report({
+        node,
+        messageId:
+          state === "invalid" ? "invalidSafetyComment" : "missingSafetyComment",
+      });
     };
 
     return {
