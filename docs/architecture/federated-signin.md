@@ -197,19 +197,37 @@ This section adds only what differs because a server is present.
 | Route | Purpose |
 | --- | --- |
 | `POST /interaction/:uid/federated/start` | Begin an authorization-code + PKCE S256 flow against a trusted issuer; respond with a redirect to the upstream `authorization_endpoint` |
-| `GET /interaction/:uid/federated/callback` | Receive `code`/`state`, exchange, resolve a principal, complete the oidc-provider interaction |
+| `GET /interaction/:uid/federated/callback` | **Resume**: take `code`/`state`, exchange, resolve a principal, complete the oidc-provider interaction |
+| `POST /interaction/:uid/federated/callback` | `response_mode=form_post` re-materialization for a leg that used the per-interaction redirect URI: copies the allowlisted parameters into a 303 to the GET above and completes nothing |
+| `GET` and `POST /v1/federated/callback` | **Receive**: the stable, deployment-wide redirect URI every *registered* upstream returns to. Completes nothing; 303s to the interaction callback above — see §8.6 |
 | `POST /interaction/:uid/federated/byo` | Register (or recover) a visitor-supplied issuer, then begin the same flow `start` begins — see §7.8 |
 
-The redirect URI is `{publicUrl}/interaction/{uid}/federated/callback` — one per
-interaction, not one per deployment. It **must** live under `/interaction/:uid`: the
-oidc-provider interaction cookie is path-scoped to that prefix, so a callback landing
-anywhere else arrives without the interaction it exists to complete, and has no session to
-resume. Registering a fixed deployment-wide callback path is not an acceptable substitute.
+**Receiving the upstream's redirect and resuming the interaction are two different steps, and
+only the second one is constrained by the cookie.** oidc-provider's interaction cookie is
+`SameSite=Lax` and path-scoped to `/interaction/:uid`, so the request that *resumes* an
+interaction must be a top-level GET under that path — that constraint is real and unchanged.
+Receiving an authorization response needs no cookie at all: it is `code` and `state` in a
+query string (or a form body), and the `state` binding is what decides whether anything
+completes.
 
-Because the redirect URI varies per interaction, the upstream must accept it. For an
-origin-profile client that is automatic — admission is by origin, and every such URI shares
-the deployment origin. A confidential client (§7.4) requires the pattern to be registered
-upstream.
+Splitting the two is what makes a registered redirect URI possible. Google, Microsoft Entra
+and Apple match a registered URI byte for byte (RFC 6749 §3.1.2; OAuth 2.1 drops the "or a
+prefix" reading entirely) and a URI is registered **once** — by an operator in a console, or
+by RFC 7591 on a visitor's first BYO sign-in. A path naming the interaction it was registered
+from is therefore a redirect URI good for exactly one sign-in, or, where a console demands the
+URI before any sign-in exists, none at all. So:
+
+| Trust resolution | Redirect URI |
+| --- | --- |
+| Static registry provider (§8.1), including the legacy `OPENSESAME_UPSTREAM_*` and allowlist-synthesized descriptors | `{publicUrl}/v1/federated/callback` |
+| BYO record with `registrationSource: "dcr"` | `{publicUrl}/v1/federated/callback` |
+| BYO record with `registrationSource: "manual"` | `{publicUrl}/interaction/{uid}/federated/callback` |
+| Organization issuer (`ssoIssuer` / brokered `samlIssuer`) | `{publicUrl}/interaction/{uid}/federated/callback` |
+
+The two that keep the per-interaction path do so because something outside this server already
+depends on it: a visitor who brought their own client registered a redirect URI at their own
+IdP, and a tenant configured its issuer against a deployment already running this leg. §8.6
+covers the consequence for a tenant whose IdP demands exact-match registration.
 
 ### 7.2 Pending-state cookie
 
@@ -335,7 +353,7 @@ form POST because the hosted pages run under `default-src 'none'` with no `scrip
 | URL fence | Both the issuer and the `registration_endpoint` its discovery document names pass `assertSafeMetadataUrl`: loopback, private, link-local, cloud-metadata and their decimal/IPv6-mapped spellings are refused, and `https` is mandatory. A deployment running with dev defaults additionally accepts a loopback IP **literal** (127/8, `::1`) so the local reference IdP works; names such as `localhost` and `*.localhost` are refused in every mode. |
 | Abuse fence | A module-local per-fingerprint budget — 5 registrations per 10 minutes — spent by every submission that passes URL validation, ahead of the provisional-mint budget. Exhaustion re-renders the form; nothing is fetched. |
 | Discovery | `{issuer}/.well-known/openid-configuration`, redirects refused, 5s timeout, and the document's own `issuer` must match what was typed. |
-| Credentials | A supplied `client_id` is stored as given (`client_secret_post` when a secret came with it, otherwise a public client). With no `client_id`, RFC 7591 dynamic client registration is attempted when — and only when — discovery advertises a `registration_endpoint`, preferring `client_secret_post` and falling back to `none`, registering the deployment-wide `{publicUrl}/v1/federated/byo/callback` as the `redirect_uri` (see §10). With neither, the submission is refused and the visitor is asked for a client id. |
+| Credentials | A supplied `client_id` is stored as given (`client_secret_post` when a secret came with it, otherwise a public client). With no `client_id`, RFC 7591 dynamic client registration is attempted when — and only when — discovery advertises a `registration_endpoint`, preferring `client_secret_post` and falling back to `none`, registering the deployment-wide `{publicUrl}/v1/federated/callback` as the `redirect_uri` (§8.6). With neither, the submission is refused and the visitor is asked for a client id. |
 | Persistence | One `byo_upstreams` row per trailing-slash-normalized issuer, `state: "active"`. The client secret is stored verbatim: it must be presented to the token endpoint as issued, so it cannot be hashed. It is never logged, never audited and never returned by any API. |
 | Re-entry | A second submission naming the same issuer reuses the existing row unchanged — no re-registration, and a submitted credential never overwrites the stored one. The answer is identical whether or not the row already existed: which issuers a deployment has seen is not something an unauthenticated page reveals. |
 | Refusals | Re-render the login page with **422** and a **fresh** CSRF token — the submitted one was consumed by the verify — with the rejected issuer echoed back into the field. |
@@ -472,6 +490,59 @@ beside shoo.dev's "Google" label, the id wins. A matched hint is rendered first 
 and is **never** auto-submitted: an upstream error 303s back to the login page, so a page
 that redirected itself would loop forever. An unknown hint is ignored and never echoed.
 
+### 8.6 The stable federated callback
+
+`GET` and `POST /v1/federated/callback` is the one redirect URI a registered upstream ever
+sees. §7.1 says which trust resolutions use it and why; this section is what it does.
+
+**It completes nothing.** It reads no cookie, verifies no token, and touches no store. It
+copies the authorization response onto the interaction's own callback and stops:
+
+| Property | Value |
+| --- | --- |
+| Parameters copied | `code`, `state`, `error`, `error_description`, `iss` — an allowlist, not a filter. Everything else an upstream sends (Apple's `user`, an `id_token`, whatever a future revision adds) is dropped rather than reflected into a URL this server redirects a browser to. `iss` rides along because RFC 9207 requires a client to check it where the authorization server advertises support, and openid-client does. |
+| Length cap | 2048 bytes per parameter. An authorization code is a few hundred; a redirect URL assembled from unbounded input is a denial of service in a header. |
+| Response | `303` to `/interaction/{uid}/federated/callback` with those parameters. |
+| GET | The ordinary redirect landing. |
+| POST | The `response_mode=form_post` landing — Apple's cross-site POST from `appleid.apple.com` (§8.3). It carries none of this deployment's `SameSite=Lax` cookies and needs none, because this route reads none. There is no CSRF token because there is no authority here to abuse: the redirect target is this server's own interaction callback, and `state` byte-equality against the pending cookie still decides whether anything completes. |
+
+**Routing is carried by `state`, not by server-side state.** One URL serves every interaction,
+so something has to say which one a response belongs to — and a cookie cannot: a second
+sign-in in a second tab would overwrite the first tab's, and Apple's cross-site POST would
+carry no cookie at all. The leg therefore mints `state` as `` `${uid}.${random}` `` for exactly
+the resolutions that use this callback. The random half is unchanged
+(`client.randomState()`) and remains the unguessable part; the uid prefix is not a secret,
+being the same value every per-interaction redirect URI puts in its path.
+
+This is **stateless re-materialization, not a completion code.** Nothing is stored, so there
+is nothing here to expire, to replicate between nodes, or to leak. The SAML ACS does need a
+server-side single-use code (§12.2) for a reason that does not apply here: a signed assertion
+is multiple kilobytes of XML and cannot be put back into a query string, while an
+authorization response is five short parameters and can.
+
+Fail-closed behaviour, in order:
+
+1. A `state` that is absent, that has no separator, that has an empty prefix, or whose prefix
+   is not the base64url uid shape oidc-provider mints → `400` with one sentence, the same for
+   every case. The route is unauthenticated and anybody may reach it with anything.
+2. A well-formed prefix naming an interaction the sender does not hold the pending cookie for
+   → the hand-back happens, and the exchange then fails at the interaction callback, where the
+   **whole** `state` — prefix and random half — is still compared byte for byte against that
+   cookie. The prefix routes; it never authorizes.
+3. The token request quotes `{publicUrl}/v1/federated/callback` with this response's
+   parameters on it, because RFC 6749 §4.1.3 requires the token request to present the
+   `redirect_uri` the authorization request used — which is the registered one, not the path
+   the browser was handed back to. Both legs derive that choice from the trust resolution, on
+   start and on completion, so the two can never quote different values, and a forged pending
+   cookie cannot choose the URI.
+
+**Known limitation.** The organization OIDC leg still uses the per-interaction redirect URI
+(§7.1). A tenant whose IdP accepts a wildcard or a path prefix is unaffected; a tenant whose
+IdP demands exact-match registration has the same problem this section solves for registry and
+DCR upstreams, and no configuration on this side resolves it today. It is a deliberate
+limitation, not an oversight: tenants configured their issuers against a deployment already
+running the per-interaction shape, and moving them is a migration rather than an edit.
+
 ## 9. The generic OAuth2 leg (ADR 0055)
 
 For a provider that issues no `id_token` — GitHub is the shipped one. It shares the routes,
@@ -481,9 +552,12 @@ rides in the pending cookie and the callback dispatches on it; an `"oauth2"` pen
 finished by the OIDC leg, and an absent `kind` means `"oidc"` (the shape of every cookie
 written before this release).
 
-Start: `response_type=code`, the descriptor's `client_id` and `scopes`, the §7.1 redirect URI,
-`state`, PKCE `code_challenge`/`S256`. No `nonce` — there is no id_token to bind one to, and
-the pending cookie's `nonce` is the empty string on this leg.
+Start: `response_type=code`, the descriptor's `client_id` and `scopes`, the **stable**
+redirect URI `{publicUrl}/v1/federated/callback`, an interaction-scoped `state`
+(`` `${uid}.${random}` ``, §8.6), and PKCE `code_challenge`/`S256`. This leg only ever runs
+for a static registry provider — BYO is OIDC-only — so it always uses the stable callback. No
+`nonce`: there is no id_token to bind one to, and the pending cookie's `nonce` is the empty
+string here.
 
 Callback validation, in this order:
 
@@ -493,9 +567,10 @@ Callback validation, in this order:
 2. `code` is present and non-empty.
 3. The token exchange POSTs to the descriptor's pinned `_TOKEN_URL` with
    `grant_type=authorization_code`, the code, the PKCE verifier, `client_id`,
-   `client_secret`, and a `redirect_uri` **rebuilt from `publicUrl`** rather than from the
-   received URL's origin — behind a proxy the two differ, and the value must byte-match the
-   one the authorization request carried. `Accept: application/json` is sent; a
+   `client_secret`, and the same **stable** `redirect_uri` **rebuilt from `publicUrl`** rather
+   than read off the received URL — behind a proxy the two differ, and RFC 6749 §4.1.3
+   requires the value to byte-match the one the authorization request carried.
+   `Accept: application/json` is sent; a
    form-encoded response is still parsed, because a provider that ignores the header would
    otherwise look like a successful exchange with no token in hand.
 4. **The body is inspected before the status.** An `error` key is a refusal even on HTTP 200 —
@@ -530,8 +605,7 @@ rest of the lifecycle.
 | --- | --- |
 | Trust | A `byo_upstreams` row is the second source consulted by §8.2, and only while `state = "active"`. It cannot shadow a registry provider for the same issuer. |
 | Leg | The ordinary §7 OIDC leg, with the record's own client mode (§8.3): the visitor's client id at their IdP, their secret if they supplied one or RFC 7591 minted one, never this deployment's origin profile and never the pinned `Origin` header. |
-| Redirect URI | `registrationSource: "dcr"` uses the **deployment-wide** `{publicUrl}/v1/federated/byo/callback`; `registrationSource: "manual"` keeps the per-interaction `{publicUrl}/interaction/{uid}/federated/callback`. RFC 7591 registers a `redirect_uri` once and the issuing IdP then matches it exactly (RFC 6749 §3.1.2), so a per-interaction URI would admit that visitor exactly once and refuse every later sign-in. A visitor who brought their own client registered a redirect URI at their IdP themselves, and this server does not change it under them. Both legs derive the URI from the durable record on start **and** on completion, so the authorization request and the token request can never quote different values. |
-| Stable-callback routing | `/v1/federated/byo/callback` completes nothing — the interaction cookie is path-scoped to `/interaction/<uid>` and absent there. It re-materializes `code`, `state`, `error`, `error_description` and `iss` (RFC 9207, which openid-client checks) into a 303 to the interaction callback, each value length-capped. Which interaction comes from `state`, which the leg prefixes with the uid (`<uid>.<random>`) for this mode only; a `state` whose prefix is not the uid shape oidc-provider mints answers 400. The prefix routes the hand-back and weakens nothing: the whole `state` is still byte-compared against the pending cookie, so a forged prefix names an interaction whose cookie the attacker does not hold. The exchange is then performed against the registered URI carrying this response's parameters, because RFC 6749 §4.1.3 requires the token request to quote the `redirect_uri` the authorization request used. |
+| Redirect URI | `registrationSource: "dcr"` uses the stable `{publicUrl}/v1/federated/callback` (§8.6) — RFC 7591 registers a `redirect_uri` once and the issuing IdP then matches it exactly, so a per-interaction URI would admit that visitor today and be refused by their own IdP tomorrow. `registrationSource: "manual"` keeps the per-interaction `{publicUrl}/interaction/{uid}/federated/callback`: that visitor registered a redirect URI at their IdP themselves — a wildcard, or whatever it accepts — and this server does not change it under them. Both legs derive the choice from the durable record on start **and** on completion, so the authorization request and the token request can never quote different values. |
 | Pending cookie | Carries `byoId`; completing the leg stamps the record's `lastUsedAt`. |
 | Admission | Unchanged — §7.6 find-or-mint, landing `assurance: "verified"` in the ADR 0033 §1 sense (an upstream vouched for this subject; nobody vetted the human). |
 | Operator lifecycle | `GET /v1/federated/admin/byo-upstreams`, `POST /v1/federated/admin/byo-upstreams/:id/disable`, `.../enable`, all gated on the server-only operator token. An unknown id answers 404 — no existence oracle. The list carries id, issuer, label, client id, client auth, registration source, state and timestamps, and deliberately **never** the client secret. |
@@ -540,6 +614,12 @@ rest of the lifecycle.
 ## 11. Organization sign-in (ADR 0055)
 
 ### 11.1 Durable tenant configuration
+
+> An organization's OIDC issuer keeps the **per-interaction** redirect URI
+> `{publicUrl}/interaction/{uid}/federated/callback` (§7.1), unlike registry and DCR upstreams.
+> A tenant IdP that accepts a wildcard or a path prefix is unaffected; a tenant IdP demanding
+> exact-match registration is the known limitation recorded at the end of §8.6, and no setting
+> on this side works around it.
 
 `organizations` carries `sso_issuer`, `saml_issuer`, `saml_metadata_url`,
 `saml_metadata_xml` and `provisioning_enabled` as columns (queried *by issuer* on the login
@@ -663,8 +743,10 @@ exactly when `samlMetadataUrl` or `samlMetadataXml` is configured.
 
 The ACS receives a cross-site POST from the IdP and therefore carries **no** `SameSite=Lax`
 cookie — not the pending cookie, not oidc-provider's interaction cookie. Apple's `form_post`
-has the same physics, but its remedy does not transfer: four short parameters fit in a
-redirect query and a multi-kilobyte base64 assertion does not.
+has the same physics, but its remedy does not transfer: the five parameters of an
+authorization response fit in a redirect query (§8.6 re-materializes them and stores nothing),
+and a multi-kilobyte base64 assertion does not. That difference — not a difference of trust —
+is the whole reason this flow needs a server-side single-use code and §8.6 does not.
 
 So `beginSamlAuth` generates the AuthnRequest id itself and writes
 `{requestId, interactionUid, organizationId, createdAt}` to a durable, single-use pending

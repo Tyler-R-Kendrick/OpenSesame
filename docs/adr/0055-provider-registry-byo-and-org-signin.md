@@ -114,13 +114,15 @@ interaction cookie are `SameSite=Lax`, which means **neither is on that request*
 that completed the sign-in in the POST would pass a same-origin test and fail against real
 Apple every single time.
 
-So `POST /interaction/:uid/federated/callback` does no completion work whatsoever. It copies
-four allowlisted parameters — `code`, `state`, `error`, `error_description`, each
-length-capped — into a 303 to the existing GET callback. The browser then makes a top-level
-same-site GET, which does carry both cookies, and the unchanged callback runs. It needs no
-CSRF token because it exercises no authority: the redirect target is this server's own
-callback, and `state` byte-equality against the pending cookie is still the only thing that
-decides whether anything completes.
+So the POST does no completion work whatsoever. It lands on `POST /v1/federated/callback` —
+the stable callback of §4a, which serves both verbs for exactly this reason — copies five
+allowlisted, length-capped parameters into a 303 to the interaction's own GET callback, and
+stops. The browser then makes a top-level same-site GET, which does carry both cookies, and
+the unchanged callback runs. It needs no CSRF token because it exercises no authority: the
+redirect target is this server's own callback, and `state` byte-equality against the pending
+cookie is still the only thing that decides whether anything completes. (The equivalent
+re-materialization also exists at `POST /interaction/:uid/federated/callback`, for a leg that
+used the per-interaction redirect URI.)
 
 Apple also has no static client secret. What an operator registers is a P-256 signing key, a
 key id and a team id; the `client_secret` presented at the token endpoint is an ES256 JWT
@@ -129,6 +131,44 @@ minted on the spot (`iss` = team, `sub` = the Services ID, `aud` = `https://appl
 (team, key, client) so the interactive path does not sign per request. A long-lived assertion
 would buy nothing — it travels to one endpoint over TLS and is trivially re-mintable — and
 would cost a bounded blast radius.
+
+### 4a. One registered redirect URI: `{publicUrl}/v1/federated/callback`
+ADR 0052 put the callback at `{publicUrl}/interaction/{uid}/federated/callback` because
+oidc-provider's interaction cookie is `SameSite=Lax` and path-scoped to `/interaction/:uid`.
+That reasoning is correct about **resuming** an interaction and does not apply to
+**receiving** an authorization response, which needs no cookie at all — and conflating the two
+made the leg unshippable for the providers this ADR leads with.
+
+Google, Microsoft Entra and Apple match a registered redirect URI byte for byte (RFC 6749
+§3.1.2; OAuth 2.1 removes the "or a prefix" reading), and a URI is registered **once** — by an
+operator in a console, or by RFC 7591 on a visitor's first BYO sign-in. A URI carrying the uid
+of the interaction it was registered from is therefore good for exactly one sign-in, or, where
+a console demands the URI before any interaction exists, for none. GitHub happened to survive,
+because it accepts any sub-path of its registered callback; the exact-match providers would
+have failed the first live attempt.
+
+So every **registered** upstream — every static registry provider, and every BYO record minted
+by RFC 7591 — is registered against, redirected to, and exchanged at one deployment-wide URL.
+The two resolutions that keep the per-interaction path do so because something outside this
+server already depends on it: a BYO record whose credentials the *visitor* brought (they
+registered a redirect URI at their own IdP), and an organization issuer (the tenant configured
+it against a deployment already running that shape).
+
+The route completes nothing. It reads no cookie, verifies nothing, stores nothing, and 303s
+the response onto the interaction's own callback, which is where the Lax cookies are. Which
+interaction comes from `state`, minted as `` `${uid}.${random}` `` for exactly the resolutions
+that use this callback: one URL serves every interaction, and a cookie could not disambiguate
+them anyway — a second tab would overwrite the first, and Apple's cross-site POST carries no
+cookie at all. The random half is unchanged and remains the unguessable part; the prefix is
+not a secret, being the same uid every per-interaction redirect URI already puts in its path,
+and the **whole** `state` is still compared byte for byte against the pending cookie at the
+exchange. The prefix routes; it never authorizes.
+
+This is **stateless re-materialization, not a completion code.** It was tempting to mirror the
+SAML ACS's single-use store (ADR 0056 §2), and that would have been the wrong lesson: SAML
+needs a store because a signed assertion is multiple kilobytes and cannot be put back into a
+query string. An authorization response is five short parameters and can, so there is no
+server-side state here to expire, to replicate between nodes, or to leak.
 
 ### 5. Microsoft is tenant-pinned, and `common` is refused at boot
 `OPENSESAME_PROVIDER_MICROSOFT_TENANT` is required and may not be `common`,
@@ -164,19 +204,13 @@ admitted by the fence's `byo` branch. Four properties are load-bearing:
   overwrites a stored one, so a stranger who guesses somebody else's issuer cannot swap the
   client out from under it, and a record an operator disabled answers the same refusal a
   stranger's unknown issuer gets rather than being re-created around.
-- **A dynamically registered client needs a stable callback.** Every other leg returns to
-  `{publicUrl}/interaction/{uid}/federated/callback`, which names an interaction that exists
-  for one sign-in. RFC 7591 registers a `redirect_uri` **once**, and the IdP that issued the
-  client then matches it exactly, so a per-interaction URI would admit that visitor today and
-  be refused by their own IdP tomorrow — durable storage would give re-entry the record and
-  nothing to redirect to. So a DCR-registered record registers, redirects to, and exchanges at
-  one deployment-wide URL, `{publicUrl}/v1/federated/byo/callback`, which completes nothing and
-  303s the browser into the interaction (the same hand-back shape Apple and the SAML ACS use,
-  and for the same cookie reason). Which interaction comes from a uid prefix on `state`; the
-  whole `state` is still byte-compared against the pending cookie, so the prefix routes without
-  weakening the binding. A record whose credentials the *visitor* brought keeps the
-  per-interaction callback: they registered a redirect URI at their own IdP, and this server
-  does not get to change it under them.
+- **A dynamically registered client uses the stable callback of §4a.** RFC 7591 registers a
+  `redirect_uri` **once**, on the visitor's first sign-in, and the IdP that issued the client
+  then matches it exactly — so a per-interaction URI would admit that visitor today and be
+  refused by their own IdP tomorrow, leaving durable storage with a record and nothing to
+  redirect to. A record whose credentials the *visitor* brought keeps the per-interaction
+  callback instead: they registered a redirect URI at their own IdP, and this server does not
+  get to change it under them.
 - **A budget in front of the network.** Five registrations per fingerprint per ten minutes,
   module-local, spent by every submission that passes URL validation — including one that
   would have hit an existing row, because answering "already registered" cheaply is what would
@@ -251,8 +285,17 @@ expired, wrong-kind and account-less tokens alike.
   operator-token-gated `/v1/federated/admin/byo-upstreams` list deliberately omits it.
 - Apple, Google, Microsoft and GitHub cannot be verified end to end without live credentials
   (Apple additionally needs a paid developer account). The legs are complete and are exercised
-  against the reference IdP's real implementation of each wire behaviour; the live handshake
-  is operator-gated and has a runbook (`docs/operators/live-provider-verification.md`).
+  against the reference IdP's real implementation of each wire behaviour; what remains
+  operator-gated is the credentials themselves — the redirect URI is now a single value an
+  operator registers once (§4a). The runbook is
+  `docs/operators/live-provider-verification.md`.
+- **The organization OIDC leg still uses the per-interaction redirect URI.** A tenant whose
+  IdP accepts a wildcard or a path prefix is unaffected; a tenant whose IdP demands
+  exact-match registration hits precisely the problem §4a solves for registry and DCR
+  upstreams, and nothing on this side configures around it. That is a deliberate limitation
+  for now rather than an oversight — tenants configured their issuers against a deployment
+  already serving the per-interaction shape, so moving them is a migration and not an edit —
+  and it is recorded here so it is found before a customer finds it.
 - Hint ambiguity is now real. `matchProviderHint` freezes precedence at
   id > issuer > host > label, so the day a genuine `google` registry id sits next to
   shoo.dev's "Google" label, the id wins. A matched hint is rendered first and primary and
