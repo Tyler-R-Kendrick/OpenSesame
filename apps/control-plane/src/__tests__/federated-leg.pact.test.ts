@@ -23,6 +23,10 @@ const routesSource = readFileSync(
   join(here, "../routes/interactions.ts"),
   "utf8",
 );
+const callbackSource = readFileSync(
+  join(here, "../routes/federated-callback.ts"),
+  "utf8",
+);
 
 /**
  * A source oracle reads the file as written, which stops being true the moment
@@ -219,6 +223,45 @@ describe("PACT — federated route ordering", () => {
       "if (pending.orgId)",
       "jitJoinOrganization",
       "finishLoginInteraction",
+    ]);
+  });
+
+  /**
+   * The stable callback (ADR 0055) is one unauthenticated URL serving every
+   * interaction. Its safety rests entirely on doing nothing: no exchange, no
+   * admission, no session. A future edit that "helpfully" completed the
+   * sign-in here would be completing it for a request that carries no
+   * interaction cookie and no pending state, which is how a shared callback
+   * becomes a way to finish somebody else's ceremony.
+   */
+  it("completes nothing at the stable callback", () => {
+    for (const forbidden of [
+      "authorizationCodeGrant",
+      "completeFederatedAuth",
+      "completeOAuth2Auth",
+      "interactionResult",
+      "attachVerifiedExternalIdentity",
+      "mintProvisionalForInteraction",
+      "setCookie",
+      "getCookie",
+    ]) {
+      expect(callbackSource).not.toContain(forbidden);
+    }
+  });
+
+  it("validates the interaction a state names before redirecting to it", () => {
+    // The uid becomes a path this server sends a browser to. Anything that is
+    // not the shape oidc-provider mints is refused, and a state that names no
+    // interaction is refused rather than defaulted.
+    assertSourceOrder(callbackSource, [
+      "function interactionUidFromState",
+      "state.indexOf(STATE_UID_SEPARATOR)",
+      "if (separator <= 0) return undefined",
+      "UID_PATTERN.test(uid)",
+      "function handBack",
+      "if (uid === undefined) return undefined",
+      "for (const name of CALLBACK_PARAMS)",
+      "MAX_CALLBACK_PARAM_LENGTH",
     ]);
   });
 

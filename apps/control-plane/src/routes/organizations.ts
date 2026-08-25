@@ -34,6 +34,11 @@ import {
   originAudiences,
   verifyOrgIdToken,
 } from "./org-assertion.js";
+// One direction of a deliberate cycle: SCIM is per-organization, so its router
+// reuses this module's membership helpers, and this module asks it what role a
+// provisioned subject joins at. Both are functions called per request, never at
+// module load.
+import { provisionedRoleForSubject } from "./scim.js";
 
 export const organizationRoutes = new Hono<{ Variables: Variables }>();
 
@@ -614,12 +619,16 @@ organizationRoutes.post(
       return c.json({ error: attached.error, message: attached.message }, 409);
     }
 
+    // A subject the directory provisioned into a role joins at that role, not
+    // at `member` (C15) — the same answer this tenant's hosted sign-in gives.
+    const role = await provisionedRoleForSubject(ctx, org.id, assertion.sub);
     const joined = await jitJoinOrganization(ctx, {
       organization: org,
       principalId,
       subject: assertion.sub,
       method: parsed.data.method,
       correlationId: c.get("correlationId"),
+      ...(role !== undefined ? { role } : undefined),
     });
     if (!joined.ok) {
       return c.json({ error: joined.error, message: joined.message }, 403);

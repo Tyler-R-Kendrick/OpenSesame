@@ -28,6 +28,7 @@ import {
   usesNativeSaml,
 } from "../routes/organizations.js";
 import { ensurePersonalOnAuthenticatedSession } from "../routes/projects.js";
+import { provisionedRoleForSubject } from "../routes/scim.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import {
   ProvisionalMintRefusedError,
@@ -909,12 +910,21 @@ export async function admitSamlSubject(
     input.result.organizationId,
   );
   if (organization) {
+    // The directory's Groups push, where there is one, names the role this
+    // subject joins at; without one `jitJoinOrganization` falls back to
+    // `member` as it always has (C15).
+    const role = await provisionedRoleForSubject(
+      ctx,
+      organization.id,
+      input.result.subject,
+    );
     const joined = await jitJoinOrganization(ctx, {
       organization,
       principalId,
       subject: input.result.subject,
       method: "saml",
       correlationId: input.correlationId,
+      ...(role !== undefined ? { role } : undefined),
     });
     if (!joined.ok) {
       return { ok: false, status: 403, message: joined.message };

@@ -36,6 +36,8 @@ const BYO_ACTION = "/interaction/uid-fixed-for-snapshots/federated/byo";
 const ORG_ACTION = "/interaction/uid-fixed-for-snapshots/federated/org";
 const EMAIL_ACTION = "/interaction/uid-fixed-for-snapshots/federated/email";
 const REALM_ACTION = "/interaction/uid-fixed-for-snapshots/federated/realm";
+const SAML_ACTION = "/interaction/uid-fixed-for-snapshots/federated/saml";
+const LDAP_ACTION = "/interaction/uid-fixed-for-snapshots/federated/ldap";
 
 /** Every hidden field the page relies on, per form action. */
 function hiddenFields(html: string, action: string): string[] {
@@ -180,6 +182,52 @@ describe("hosted login page characterization", () => {
     expect(html.indexOf("Continue with SSO")).toBeLessThan(
       html.indexOf("Sign in with Google"),
     );
+    expect(html).toMatchSnapshot();
+  });
+
+  /**
+   * Native SAML and a directory, the two tenant methods that are not an OIDC
+   * redirect (ADR 0056 / C21).
+   *
+   * The SAML button posts the SLUG to the SAML action: a SAML entityID is a
+   * name, and posting it to `/federated/start` as an issuer is refused there —
+   * a button that looked right and 403'd is exactly the failure this pins. The
+   * directory is not a button at all but a username and password form, and it
+   * is the one place on this page a credential is typed, so what it posts to
+   * and what it carries with it are worth reading in full.
+   */
+  it("offers native SAML and a directory form for a tenant that has them", () => {
+    const html = renderLoginPage({
+      ...BASE,
+      federated: {
+        startAction: START_ACTION,
+        upstreams: [
+          { issuer: "https://shoo.dev", label: "Google", provider: "shoo" },
+        ],
+      },
+      org: {
+        lookupAction: ORG_ACTION,
+        slug: "acme",
+        samlAction: SAML_ACTION,
+        methods: [
+          { kind: "sso", label: "SSO", issuer: "https://sso.acme.example" },
+          { kind: "saml", label: "SAML", native: true },
+        ],
+      },
+      ldap: { requestAction: LDAP_ACTION, slug: "acme" },
+      realm: { requestAction: REALM_ACTION },
+    });
+    // The native method posts the tenant, not an issuer.
+    expect(hiddenFields(html, SAML_ACTION)).toEqual([
+      "_csrf=csrf-fixed-for-snapshots",
+      "slug=acme",
+    ]);
+    expect(hiddenFields(html, LDAP_ACTION)).toEqual([
+      "_csrf=csrf-fixed-for-snapshots",
+      "slug=acme",
+    ]);
+    // No script anywhere: the page ships under `default-src 'none'` (T5).
+    expect(html).not.toContain("<script");
     expect(html).toMatchSnapshot();
   });
 

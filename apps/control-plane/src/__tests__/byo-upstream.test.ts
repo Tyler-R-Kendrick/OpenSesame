@@ -158,6 +158,7 @@ describe("bring-your-own upstream", () => {
   let reentryIdp: ReferenceIdp;
   let roundTripIdp: ReferenceIdp;
   let dcrRoundTripIdp: ReferenceIdp;
+  let dcrReentryIdp: ReferenceIdp;
   let started: Started;
   let base: string;
 
@@ -174,6 +175,7 @@ describe("bring-your-own upstream", () => {
       reentryIdp,
       roundTripIdp,
       dcrRoundTripIdp,
+      dcrReentryIdp,
     ] = await Promise.all([
       startReferenceIdp(),
       startReferenceIdp(),
@@ -182,6 +184,7 @@ describe("bring-your-own upstream", () => {
       startReferenceIdp({ registration: false }),
       startReferenceIdp(),
       startReferenceIdp(),
+      startReferenceIdp({ registration: true }),
       startReferenceIdp({ registration: true }),
     ]);
     started = await startControlPlane(allowlisted.issuer, await reservePort());
@@ -201,6 +204,7 @@ describe("bring-your-own upstream", () => {
       reentryIdp.close(),
       roundTripIdp.close(),
       dcrRoundTripIdp.close(),
+      dcrReentryIdp.close(),
     ]);
     resetFederatedDiscoveryCache();
   });
@@ -232,9 +236,14 @@ describe("bring-your-own upstream", () => {
     return { jar, uid, html: await page.text() };
   }
 
-  /** The interaction callback a dynamic registration has to name (D5). */
+  /** The per-interaction callback a manually registered client returns to. */
   function callbackFor(uid: string): string {
     return `${base}/interaction/${uid}/federated/callback`;
+  }
+
+  /** The deployment-wide callback a dynamic registration names (ADR 0055). */
+  function stableCallback(): string {
+    return `${base}/v1/federated/callback`;
   }
 
   describe("registration", () => {
@@ -713,5 +722,105 @@ describe("bring-your-own upstream", () => {
       expect(record?.clientAuth).toBe("client_secret_post");
       expect(record?.clientId).toBe(authorize.searchParams.get("client_id"));
     }, 30_000);
+
+    /**
+     * The whole point of the stable callback (ADR 0055): the SECOND sign-in.
+     *
+     * RFC 7591 registers one redirect_uri, and the reference IdP — like most
+     * real ones — matches it exactly (`redirectAllowedForConfidential`). When
+     * that URI named the interaction it was registered from, the first sign-in
+     * worked and every later one died at `/authorize` with
+     * `invalid_redirect_uri`, because tomorrow's interaction has a different
+     * uid. Here both sign-ins quote the same deployment-wide URL, and the
+     * second one resolves to the principal the first one created.
+     */
+    it("signs the same visitor in again on a later interaction", async () => {
+      const subject = `byo-reentry-${randomBytes(4).toString("hex")}`;
+      dcrReentryIdp.setSubject(subject);
+
+      // Inferred rather than annotated: the shape is one helper's own.
+      async function signIn() {
+        const { jar, uid, html } = await loginPage();
+        const start = await req(
+          base,
+          jar,
+          `/interaction/${uid}/federated/byo`,
+          postForm({
+            _csrf: extractCsrf(html),
+            issuer: dcrReentryIdp.issuer,
+            client_id: "",
+            client_secret: "",
+          }),
+        );
+        expect(start.status).toBe(303);
+        const authorize = new URL(start.headers.get("location") ?? "");
+        // Deployment-wide, and deliberately naming no interaction: this is the
+        // URI the registration handed the IdP, on both visits.
+        expect(authorize.searchParams.get("redirect_uri")).toBe(
+          stableCallback(),
+        );
+        // `state` carries the interaction so the shared callback knows which
+        // one to hand the browser back to, and stays the binding openid-client
+        // compares byte for byte against the pending cookie.
+        expect(authorize.searchParams.get("state")).toMatch(
+          new RegExp(`^${uid}\\..+`),
+        );
+
+        // A 302 here is the IdP accepting the redirect_uri as registered; the
+        // per-interaction URI it never saw would be a 400 instead.
+        const upstream = await fetch(authorize, { redirect: "manual" });
+        expect(upstream.status).toBe(302);
+        const back = new URL(upstream.headers.get("location") ?? "");
+        expect(back.href.startsWith(stableCallback())).toBe(true);
+
+        // The shared callback completes nothing: it 303s to a top-level GET
+        // under /interaction/<uid>, which is where the Lax interaction cookie
+        // lives, and that request finishes the leg.
+        const handBack = await req(base, jar, `${back.pathname}${back.search}`);
+        expect(handBack.status).toBe(303);
+        const resume = handBack.headers.get("location") ?? "";
+        expect(
+          resume.startsWith(`/interaction/${uid}/federated/callback?`),
+        ).toBe(true);
+
+        const completed = await req(base, jar, resume);
+        expect(completed.status).toBe(303);
+        expect(completed.headers.get("location")).toContain("/auth/");
+        return { uid, jar };
+      }
+
+      const first = await signIn();
+      const identity = await started.ctx.repos.externalIdentities.findByTuple({
+        kind: "oidc",
+        issuer: dcrReentryIdp.issuer,
+        subject,
+      });
+      expect(identity?.assurance).toBe("verified");
+      const principal = await started.ctx.repos.principals.getById(
+        identity?.principalId ?? "",
+      );
+      expect(principal?.state).toBe("active");
+
+      const second = await signIn();
+      expect(second.uid).not.toBe(first.uid);
+
+      // ONE canonical principal across both sign-ins — the second visit found
+      // the identity row rather than minting a second account beside it.
+      const after = await started.ctx.repos.externalIdentities.findByTuple({
+        kind: "oidc",
+        issuer: dcrReentryIdp.issuer,
+        subject,
+      });
+      expect(after?.principalId).toBe(identity?.principalId);
+      // A returning identity gets no fresh provisional session (T6).
+      expect(second.jar.get("os_provisional")).toBeFalsy();
+
+      // Still one record, reused by issuer rather than re-registered.
+      const record = await started.ctx.repos.byoUpstreams.findByIssuer(
+        dcrReentryIdp.issuer,
+      );
+      expect(record?.registrationSource).toBe("dcr");
+      expect(record?.lastUsedAt).toBeTruthy();
+    }, 45_000);
   });
 });

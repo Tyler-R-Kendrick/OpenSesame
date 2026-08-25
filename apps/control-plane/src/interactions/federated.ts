@@ -350,6 +350,110 @@ export function federatedRedirectUri(
 }
 
 /**
+ * The stable, deployment-wide callback every registered upstream returns to
+ * (ADR 0055).
+ *
+ * `federatedRedirectUri` names the interaction, and `federated-signin.md` §7.1
+ * explains why the callback lives under `/interaction/:uid`: oidc-provider's
+ * interaction cookie is path-scoped there. That reasoning is about RESUMING an
+ * interaction — which is why the hand-back GET in
+ * `routes/federated-callback.ts` exists and still happens under that path — and
+ * not about RECEIVING the upstream's redirect, which needs no cookie at all.
+ * Please do not "fix" this back.
+ *
+ * Receiving it at a path that names the interaction is, in fact, unshippable
+ * for the providers this deployment leads with. Google, Microsoft Entra and
+ * Apple match a registered redirect URI byte for byte (RFC 6749 §3.1.2, and
+ * OAuth 2.1 removes the "or a prefix" reading entirely), and a URI is
+ * registered ONCE — by an operator in a console, or by RFC 7591 on a visitor's
+ * first BYO sign-in. A path carrying the uid of the interaction it was
+ * registered from is therefore a redirect URI that admits exactly one sign-in,
+ * or, for a provider whose console demands the URI up front, none at all.
+ * GitHub happens to accept any sub-path of its registered callback and so
+ * survived; the exact-match providers would have failed the first live attempt.
+ *
+ * So a registered upstream is registered against, redirected to, and exchanged
+ * at this one URL for the life of the deployment.
+ */
+export function stableFederatedRedirectUri(config: ControlPlaneConfig): string {
+  const base = config.publicUrl.replace(/\/+$/, "");
+  return `${base}/v1/federated/callback`;
+}
+
+/**
+ * Whether this leg's authorization response returns to the stable callback
+ * rather than to the interaction's own.
+ *
+ * Two sources say yes, and both for the same reason — the redirect URI was
+ * registered once, somewhere this server cannot change afterwards:
+ *
+ * - a **static registry provider**, whose URI an operator typed into Google's
+ *   or Entra's console (and which Apple, uniquely, `form_post`s to);
+ * - a **BYO record minted by RFC 7591**, whose URI this server itself
+ *   registered on the visitor's first sign-in.
+ *
+ * Two say no, and both because something outside this server already depends
+ * on the per-interaction URI:
+ *
+ * - a BYO record whose credentials the VISITOR brought (`registrationSource:
+ *   "manual"`): they registered a redirect URI at their own IdP themselves — a
+ *   wildcard, or whatever it accepts — and this server does not get to change
+ *   it under them;
+ * - an **organization issuer**, which the tenant configured against a
+ *   deployment already running this leg.
+ *
+ * Derived from the trust resolution on both legs — start and completion — so
+ * the two can never disagree about which redirect_uri the exchange must
+ * present. Deriving it from the pending cookie instead would let a forged
+ * cookie choose the URI, and deriving it twice from different places is how a
+ * token request ends up quoting a redirect_uri the authorization request never
+ * used.
+ */
+export function usesStableCallback(trust: TrustResolution): boolean {
+  if (trust.source === "static") return true;
+  return trust.source === "byo" && trust.record.registrationSource === "dcr";
+}
+
+function legRedirectUri(
+  config: ControlPlaneConfig,
+  uid: string,
+  trust: TrustResolution,
+): string {
+  return usesStableCallback(trust)
+    ? stableFederatedRedirectUri(config)
+    : federatedRedirectUri(config, uid);
+}
+
+/** Separates the interaction uid from the random half of a `state` value. */
+export const STATE_UID_SEPARATOR = ".";
+
+/**
+ * A `state` that also says which interaction it belongs to.
+ *
+ * The stable callback is one URL for every interaction, so something has to
+ * tell it which interaction a response belongs to, and a cookie cannot: a
+ * second sign-in in a second tab would overwrite the first tab's, and Apple's
+ * cross-site `form_post` would carry no cookie at all. `state` already travels
+ * the round trip untouched, is echoed back by the upstream, and is still
+ * compared byte for byte against the pending cookie before anything completes
+ * — so prefixing it with the uid routes the hand-back without taking anything
+ * away from the binding. The random half is `client.randomState()`, unchanged,
+ * and remains the unguessable part; the prefix is not a secret, being the same
+ * uid every other leg puts in its redirect_uri. A response naming an
+ * interaction whose pending cookie the sender does not hold fails closed at the
+ * exchange, exactly as one naming no interaction at all does.
+ */
+export function interactionScopedState(uid: string): string {
+  return `${uid}${STATE_UID_SEPARATOR}${client.randomState()}`;
+}
+
+function stateFor(uid: string, trust: TrustResolution): string {
+  return usesStableCallback(trust)
+    ? interactionScopedState(uid)
+    : client.randomState();
+}
+
+/**
  * A broker validating an origin-profile client checks the `Origin` header
  * byte-equals the origin encoded in the client id (see
  * `apps/mock-upstream-idp/src/server.ts`, which answers `origin_cors_denied`
@@ -475,11 +579,11 @@ export async function beginFederatedAuth(
 
   const verifier = client.randomPKCECodeVerifier();
   const challenge = await client.calculatePKCECodeChallenge(verifier);
-  const state = client.randomState();
+  const state = stateFor(uid, trust);
   const nonce = client.randomNonce();
 
   const url = client.buildAuthorizationUrl(config, {
-    redirect_uri: federatedRedirectUri(ctx.config, uid),
+    redirect_uri: legRedirectUri(ctx.config, uid, trust),
     scope: mode.scopes,
     code_challenge: challenge,
     code_challenge_method: "S256",
@@ -512,9 +616,24 @@ export async function completeFederatedAuth(
   const mode = await clientModeFor(ctx.config, trust);
   const config = await upstreamConfiguration(ctx, pending.issuer, mode);
 
+  /*
+   * openid-client derives the token request's `redirect_uri` from the URL this
+   * response arrived at, and RFC 6749 §4.1.3 requires it to be the one the
+   * authorization request used. For the stable callback those are two
+   * different paths — the response is handed back to `/interaction/:uid/...`
+   * on a 303 so it can carry the interaction cookie (T25's shape, without the
+   * completion code SAML needs for a payload too large to re-materialize) —
+   * so the exchange is given the registered URI with this response's
+   * parameters on it. The parameters are untouched: `state` byte-equality and
+   * the PKCE verifier still decide whether the grant runs.
+   */
+  const exchangeUrl = usesStableCallback(trust)
+    ? new URL(`${stableFederatedRedirectUri(ctx.config)}${currentUrl.search}`)
+    : currentUrl;
+
   let rawIdToken: string;
   try {
-    const tokens = await client.authorizationCodeGrant(config, currentUrl, {
+    const tokens = await client.authorizationCodeGrant(config, exchangeUrl, {
       pkceCodeVerifier: pending.verifier,
       expectedState: pending.state,
       expectedNonce: pending.nonce,

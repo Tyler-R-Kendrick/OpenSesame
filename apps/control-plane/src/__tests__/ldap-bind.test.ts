@@ -24,11 +24,7 @@ import {
   ldapIssuer,
   roleForGroups,
 } from "../interactions/ldap.js";
-import {
-  createLdapInteractionRoutes,
-  resetLdapAttemptBudget,
-} from "../routes/interactions-ldap.js";
-import { createOrgLdapRoutes } from "../routes/org-ldap.js";
+import { resetLdapAttemptBudget } from "../routes/interactions-ldap.js";
 import type { startServer } from "../server.js";
 
 /**
@@ -322,8 +318,6 @@ describe("LDAP configuration fences", () => {
         allowDevDefaults: false,
       },
     });
-    // INTEGRATOR: the same one-line mount `app.ts` needs (see org-ldap.ts).
-    app.route("/v1/organizations", createOrgLdapRoutes());
     const session = overlapCast(
       await (
         await app.request("/v1/principals/provisional", { method: "POST" })
@@ -449,17 +443,6 @@ describe("directory sign-in from the hosted login page", () => {
   let directory: Directory;
   let started: Started;
   let base: string;
-  /**
-   * The sub-router's own CSRF store.
-   *
-   * INTEGRATOR: once `createInteractionRoutes` mounts
-   * `createLdapInteractionRoutes(csrf)` (see the note in the route file), the
-   * token comes from the login page render like every other form and this
-   * local instance goes away. Until then the route is mounted onto the same
-   * running server with its own store — the server, the oidc-provider
-   * interaction, the cookies, the audit trail and the directory are all real.
-   */
-  let issueCsrf: (uid: string) => string;
 
   beforeAll(async () => {
     directory = await startDirectory();
@@ -478,15 +461,6 @@ describe("directory sign-in from the hosted login page", () => {
       },
     });
     base = `http://127.0.0.1:${started.port}`;
-
-    const { createInteractionCsrf } = await import("../interactions/csrf.js");
-    const interactionCsrf = createInteractionCsrf();
-    issueCsrf = (uid: string) => interactionCsrf.issue(uid);
-    started.app.route(
-      "/interaction",
-      createLdapInteractionRoutes(interactionCsrf),
-    );
-    started.app.route("/v1/organizations", createOrgLdapRoutes());
 
     const now = started.ctx.clock();
     await started.ctx.stores.organizations.set(ORG_ID, {
@@ -526,8 +500,20 @@ describe("directory sign-in from the hosted login page", () => {
     return res;
   }
 
-  /** Drive `/auth` the way a static relying party does, to reach a real interaction. */
-  async function loginInteraction() {
+  function extractCsrf(html: string): string {
+    const match = html.match(/name="_csrf" value="([^"]+)"/);
+    if (!match?.[1]) throw new Error("no csrf token in page");
+    return match[1];
+  }
+
+  /**
+   * Drive `/auth` the way a static relying party does, to reach a real
+   * interaction — then render its login page for that tenant, which is where
+   * the directory form and its single-use CSRF token come from. Nothing is
+   * mounted ad hoc: the sub-router under test is the one `createInteractionRoutes`
+   * mounts, reached over a socket on the running server.
+   */
+  async function loginInteraction(slug?: string) {
     const jar = new Jar();
     const verifier = randomBytes(32).toString("base64url");
     const params = new URLSearchParams({
@@ -544,8 +530,14 @@ describe("directory sign-in from the hosted login page", () => {
     expect(res.status).toBe(303);
     const location = res.headers.get("location") ?? "";
     const uid = location.slice("/interaction/".length);
-    await req(jar, location);
-    return { jar, uid };
+    const page = await req(
+      jar,
+      slug === undefined
+        ? location
+        : `${location}?org=${encodeURIComponent(slug)}`,
+    );
+    const html = await page.text();
+    return { jar, uid, html, csrf: extractCsrf(html) };
   }
 
   function postCredentials(
@@ -567,11 +559,20 @@ describe("directory sign-in from the hosted login page", () => {
   }
 
   it("signs a directory user in, as one principal with a JIT role from their groups", async () => {
-    const { jar, uid } = await loginInteraction();
+    const { jar, uid, html, csrf } = await loginInteraction("ldap-acme");
+    // The form the visitor actually fills in: rendered by the login page for a
+    // tenant with a directory, posting to the mounted sub-router, and script-
+    // less because these pages ship under `default-src 'none'` (T5).
+    expect(html).toContain(`/interaction/${uid}/federated/ldap`);
+    expect(html).toContain('name="username"');
+    expect(html).toContain('name="password"');
+    expect(html).toContain('name="slug" value="ldap-acme"');
+    expect(html).not.toContain("<script");
+
     const response = await req(
       jar,
       `/interaction/${uid}/federated/ldap`,
-      postCredentials(issueCsrf(uid), "alice", directory.alicePassword),
+      postCredentials(csrf, "alice", directory.alicePassword),
     );
     expect(response.status).toBe(303);
 
@@ -608,11 +609,11 @@ describe("directory sign-in from the hosted login page", () => {
       issuer: directory.server.url,
       subject: directory.aliceUuid,
     });
-    const { jar, uid } = await loginInteraction();
+    const { jar, uid, csrf } = await loginInteraction();
     const response = await req(
       jar,
       `/interaction/${uid}/federated/ldap`,
-      postCredentials(issueCsrf(uid), "alice", directory.alicePassword),
+      postCredentials(csrf, "alice", directory.alicePassword),
     );
     expect(response.status).toBe(303);
     // A returning user gets no fresh provisional cookie (T6).
@@ -635,17 +636,13 @@ describe("directory sign-in from the hosted login page", () => {
     const wrongResponse = await req(
       wrong.jar,
       `/interaction/${wrong.uid}/federated/ldap`,
-      postCredentials(issueCsrf(wrong.uid), "alice", secret()),
+      postCredentials(wrong.csrf, "alice", secret()),
     );
     const unknown = await loginInteraction();
     const unknownResponse = await req(
       unknown.jar,
       `/interaction/${unknown.uid}/federated/ldap`,
-      postCredentials(
-        issueCsrf(unknown.uid),
-        "not-a-person",
-        directory.alicePassword,
-      ),
+      postCredentials(unknown.csrf, "not-a-person", directory.alicePassword),
     );
 
     expect(wrongResponse.status).toBe(401);
@@ -682,13 +679,13 @@ describe("directory sign-in from the hosted login page", () => {
     const success = await req(
       good.jar,
       `/interaction/${good.uid}/federated/ldap`,
-      postCredentials(issueCsrf(good.uid), "bob", password),
+      postCredentials(good.csrf, "bob", password),
     );
     const bad = await loginInteraction();
     const failure = await req(
       bad.jar,
       `/interaction/${bad.uid}/federated/ldap`,
-      postCredentials(issueCsrf(bad.uid), "bob", secret()),
+      postCredentials(bad.csrf, "bob", secret()),
     );
     vi.restoreAllMocks();
 
@@ -724,19 +721,19 @@ describe("directory sign-in from the hosted login page", () => {
 
   it("rate-limits guessing, and says the same thing to an unknown tenant", async () => {
     for (let attempt = 0; attempt < 10; attempt += 1) {
-      const { jar, uid } = await loginInteraction();
+      const attemptLogin = await loginInteraction();
       const res = await req(
-        jar,
-        `/interaction/${uid}/federated/ldap`,
-        postCredentials(issueCsrf(uid), "alice", secret()),
+        attemptLogin.jar,
+        `/interaction/${attemptLogin.uid}/federated/ldap`,
+        postCredentials(attemptLogin.csrf, "alice", secret()),
       );
       expect(res.status).toBe(401);
     }
-    const { jar, uid } = await loginInteraction();
+    const { jar, uid, csrf } = await loginInteraction();
     const limited = await req(
       jar,
       `/interaction/${uid}/federated/ldap`,
-      postCredentials(issueCsrf(uid), "alice", secret()),
+      postCredentials(csrf, "alice", secret()),
     );
     expect(limited.status).toBe(429);
 
@@ -746,7 +743,7 @@ describe("directory sign-in from the hosted login page", () => {
       unknown.jar,
       `/interaction/${unknown.uid}/federated/ldap`,
       postCredentials(
-        issueCsrf(unknown.uid),
+        unknown.csrf,
         "alice",
         directory.alicePassword,
         "no-such-tenant",

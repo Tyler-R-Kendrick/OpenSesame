@@ -1,4 +1,5 @@
 import { overlapCast } from "@opensesame/os-domain";
+import type { SkippedAttachments } from "./types.js";
 /**
  * Just enough ZIP to read one named entry out of a 1Password .1pux archive.
  *
@@ -205,10 +206,7 @@ function readZipEntryNamesDefault(buffer: ArrayBuffer): string[] {
  * not themselves attachments. Returns a count and a few names, enough for the
  * UI to tell someone what they are about to lose without listing hundreds.
  */
-export function findSkippedAttachments(names: string[]): {
-  count: number;
-  sample: string[];
-} {
+export function findSkippedAttachments(names: string[]): SkippedAttachments {
   const files = names.filter(
     (name) => /(^|\/)files\//.test(name) && !name.endsWith("/"),
   );

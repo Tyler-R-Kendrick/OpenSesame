@@ -9,11 +9,7 @@ import type { OrgLdapConfig } from "@opensesame/os-domain";
 import { overlapCast } from "@opensesame/os-domain";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { syncLdapDirectory } from "../interactions/ldap.js";
-import {
-  createLdapInteractionRoutes,
-  resetLdapAttemptBudget,
-} from "../routes/interactions-ldap.js";
-import { createOrgLdapRoutes } from "../routes/org-ldap.js";
+import { resetLdapAttemptBudget } from "../routes/interactions-ldap.js";
 import type { startServer } from "../server.js";
 
 /**
@@ -76,7 +72,6 @@ describe("LDAP directory sync", () => {
   let directory: ReferenceLdapServer;
   let started: Started;
   let base: string;
-  let issueCsrf: (uid: string) => string;
   const servicePassword = secret();
   const carolPassword = secret();
   const danPassword = secret();
@@ -150,15 +145,6 @@ describe("LDAP directory sync", () => {
     });
     base = `http://127.0.0.1:${started.port}`;
 
-    const { createInteractionCsrf } = await import("../interactions/csrf.js");
-    const interactionCsrf = createInteractionCsrf();
-    issueCsrf = (uid: string) => interactionCsrf.issue(uid);
-    started.app.route(
-      "/interaction",
-      createLdapInteractionRoutes(interactionCsrf),
-    );
-    started.app.route("/v1/organizations", createOrgLdapRoutes());
-
     const now = started.ctx.clock();
     await started.ctx.stores.organizations.set(ORG_ID, {
       id: ORG_ID,
@@ -210,13 +196,17 @@ describe("LDAP directory sync", () => {
     const authorize = await req(jar, `/auth?${params.toString()}`);
     const location = authorize.headers.get("location") ?? "";
     const uid = location.slice("/interaction/".length);
-    await req(jar, location);
+    // The directory form, and its single-use token, come from the login page
+    // the mounted sub-router renders for this tenant.
+    const page = await req(jar, `${location}?org=${SLUG}`);
+    const csrfMatch = (await page.text()).match(/name="_csrf" value="([^"]+)"/);
+    if (!csrfMatch?.[1]) throw new Error("no csrf token in page");
 
     const completed = await req(jar, `/interaction/${uid}/federated/ldap`, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        _csrf: issueCsrf(uid),
+        _csrf: csrfMatch[1],
         slug: SLUG,
         username,
         password,

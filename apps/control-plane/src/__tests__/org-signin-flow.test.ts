@@ -337,6 +337,41 @@ describe("organization tenant join — hardened against the reference IdP", () =
     expect(admitted.status).toBe(201);
   });
 
+  /**
+   * The role a directory pushed is the tenant's own answer about its own
+   * people, so it has to survive the join that first creates the membership
+   * (C15). Before this was wired, a subject the directory had put in the
+   * owners group joined as `member` and stayed there until somebody noticed.
+   */
+  it("joins a provisioned subject at the role its directory assigned", async () => {
+    const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
+    const { org } = await seedTenant(app, idp, "role-org");
+    const guest = await provisional(app);
+    const idToken = await mintOrgIdToken(idp, PAGES_ORIGIN);
+
+    const now = ctx.clock();
+    await ctx.stores.scim.users.create({
+      id: `scim_${randomBytes(8).toString("hex")}`,
+      organizationId: org.id,
+      externalId: subjectOf(idToken),
+      userName: "lead@acme.example",
+      active: true,
+      // What a Groups PATCH stores when the configured owners group matches.
+      raw: { "urn:opensesame:params:scim:2.0:role": "owner" },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const joined = await join(app, "role-org", guest.accessToken, idToken);
+    expect(joined.status).toBe(201);
+    expect(overlapCast(await joined.json()).role).toBe("owner");
+    const membership = await ctx.stores.organizationMemberships.find(
+      org.id,
+      guest.principalId,
+    );
+    expect(membership?.role).toBe("owner");
+  });
+
   it("survives a store round-trip: an org is read back through the interface", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig(idp.issuer) });
     const { org } = await seedTenant(app, idp, "durable-org");

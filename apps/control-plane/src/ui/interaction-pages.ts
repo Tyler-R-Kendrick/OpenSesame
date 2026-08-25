@@ -1,5 +1,24 @@
 import { escapeHtml } from "../middleware/security-headers.js";
 
+/**
+ * One sign-in method a tenant offers, as the login page renders it.
+ *
+ * The two SAML shapes are deliberately different actions, not one action with
+ * a different value (ADR 0056). A brokered method names an OIDC `issuer` and
+ * posts it to the federated start route. Native SAML has no OIDC issuer at all
+ * — its entityID is a name, not something `/federated/start` could redirect to
+ * — so it posts the organization slug to the SAML route, which builds the
+ * AuthnRequest from the tenant's configured metadata.
+ */
+export type OrganizationLoginMethod = {
+  kind: "sso" | "saml";
+  label: string;
+  /** Brokered methods only: the OIDC issuer to hand to `startAction`. */
+  issuer?: string;
+  /** Native SAML: post `slug` to `org.samlAction` instead. */
+  native?: boolean;
+};
+
 export interface LoginPageModel {
   uid: string;
   csrfToken: string;
@@ -44,8 +63,29 @@ export interface LoginPageModel {
     /** POST target (`/interaction/<uid>/federated/org`). */
     lookupAction: string;
     slug?: string;
-    methods?: { issuer: string; label: string; kind: "sso" | "saml" }[];
+    methods?: OrganizationLoginMethod[];
+    /**
+     * POST target for native SAML (`/interaction/<uid>/federated/saml`).
+     * Present whenever a `native` method is, because that method posts the
+     * slug here rather than an issuer to `federated.startAction`.
+     */
+    samlAction?: string;
     error?: string;
+  };
+  /**
+   * Directory sign-in for the resolved organization (C21 / D17).
+   *
+   * Unlike every other block on this page this one collects a credential
+   * rather than starting a redirect, so it is rendered only once a slug has
+   * resolved to a tenant that actually has a directory — there is nothing to
+   * check a username against otherwise. The route it posts to is CSRF-checked
+   * and rate-limited for exactly that reason.
+   */
+  ldap?: {
+    /** POST target (`/interaction/<uid>/federated/ldap`). */
+    requestAction: string;
+    /** The tenant whose directory the credentials are checked against. */
+    slug: string;
   };
   /** Email magic link (C22 / D18): a verified-email admission path. */
   email?: {
@@ -232,10 +272,12 @@ export function renderLoginPage(model: LoginPageModel): string {
 
   // A visitor who arrived through an organization's slug asked a specific
   // question; its answer goes first. Otherwise the shipped providers lead.
-  const orgFirst = (model.org?.methods?.length ?? 0) > 0;
+  const orgFirst =
+    (model.org?.methods?.length ?? 0) > 0 || model.ldap !== undefined;
   const identityBlocks = orgFirst
     ? [
         renderOrgBlock(model),
+        renderLdapBlock(model),
         renderFederatedBlock(model),
         renderEmailBlock(model),
         renderByoBlock(model),
@@ -243,6 +285,7 @@ export function renderLoginPage(model: LoginPageModel): string {
     : [
         renderFederatedBlock(model),
         renderOrgBlock(model),
+        renderLdapBlock(model),
         renderEmailBlock(model),
         renderByoBlock(model),
       ];
@@ -334,20 +377,30 @@ function renderOrgBlock(model: LoginPageModel): string {
 
   const methods = org.methods ?? [];
   const startAction = model.federated?.startAction;
-  const methodForms =
-    startAction === undefined
-      ? ""
-      : methods
-          .map(
-            (
-              method,
-            ) => `<form method="post" action="${escapeHtml(startAction)}">
+  const slug = escapeHtml(org.slug ?? "");
+  const methodForms = methods
+    .map((method) => {
+      // Native SAML posts the organization, not an issuer: the tenant's
+      // entityID is a name and `/federated/start` would refuse it as an
+      // untrusted OIDC issuer, which is exactly the shape ADR 0056 splits.
+      if (method.native === true) {
+        return org.samlAction === undefined
+          ? ""
+          : `<form method="post" action="${escapeHtml(org.samlAction)}">
+         <input type="hidden" name="_csrf" value="${csrf}"/>
+         <input type="hidden" name="slug" value="${slug}"/>
+         <button type="submit" class="btn btn-primary">Continue with ${escapeHtml(method.label)}</button>
+       </form>`;
+      }
+      if (method.issuer === undefined || startAction === undefined) return "";
+      return `<form method="post" action="${escapeHtml(startAction)}">
          <input type="hidden" name="_csrf" value="${csrf}"/>
          <input type="hidden" name="issuer" value="${escapeHtml(method.issuer)}"/>
          <button type="submit" class="btn btn-primary">Continue with ${escapeHtml(method.label)}</button>
-       </form>`,
-          )
-          .join("\n");
+       </form>`;
+    })
+    .filter(Boolean)
+    .join("\n");
 
   const lookupForm = `<form method="post" action="${escapeHtml(org.lookupAction)}">
          <input type="hidden" name="_csrf" value="${csrf}"/>
@@ -363,6 +416,37 @@ function renderOrgBlock(model: LoginPageModel): string {
        ${methodForms}
        ${lookupForm}
        ${realmForm}
+     </div>`;
+}
+
+/**
+ * Directory sign-in (C21 / D17): the one block on this page that asks for a
+ * password.
+ *
+ * A plain POST, like everything else here — the CSP forbids script, so there
+ * is nothing to validate in the browser and nothing to submit for the visitor.
+ * The tenant travels as a hidden field because the page reached this state by
+ * resolving that slug; the route re-resolves it and answers every failure
+ * identically, so neither this form nor its refusal says whether a directory,
+ * a username, or a password was the thing that did not match (T34).
+ */
+function renderLdapBlock(model: LoginPageModel): string {
+  const ldap = model.ldap;
+  if (!ldap) return "";
+  const csrf = escapeHtml(model.csrfToken);
+  return `<div class="panel">
+       <h2>Sign in with your directory account</h2>
+       <form method="post" action="${escapeHtml(ldap.requestAction)}">
+         <input type="hidden" name="_csrf" value="${csrf}"/>
+         <input type="hidden" name="slug" value="${escapeHtml(ldap.slug)}"/>
+         <label class="field" for="ldap-username"><span>Username</span>
+           <input id="ldap-username" name="username" autocomplete="username" required/>
+         </label>
+         <label class="field" for="ldap-password"><span>Password</span>
+           <input id="ldap-password" name="password" type="password" autocomplete="current-password" required/>
+         </label>
+         <button type="submit" class="btn btn-primary">Sign in</button>
+       </form>
      </div>`;
 }
 

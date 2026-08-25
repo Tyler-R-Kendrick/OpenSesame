@@ -35,7 +35,12 @@ import { providerById } from "../interactions/registry.js";
 
 const PUBLIC_URL = "http://127.0.0.1:4318";
 const UID = "int_oauth2";
-const CALLBACK = `${PUBLIC_URL}/interaction/${UID}/federated/callback`;
+/**
+ * The stable, deployment-wide callback (ADR 0055) — not a path naming this
+ * interaction. A registry provider's redirect URI is registered once, in a
+ * console, and matched byte for byte, so it cannot carry a uid.
+ */
+const CALLBACK = `${PUBLIC_URL}/v1/federated/callback`;
 
 /**
  * The provider variables a case may vary, layered onto the real config loader.
@@ -181,7 +186,9 @@ describe("starting the oauth2 leg", () => {
     expect(url.searchParams.get("scope")).toBe("read:user");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("code_challenge")).toBeTruthy();
-    expect(url.searchParams.get("state")).toBeTruthy();
+    // `state` names the interaction, which is how the shared callback knows
+    // which one to hand the browser back to.
+    expect(url.searchParams.get("state")).toMatch(new RegExp(`^${UID}\\..+`));
   });
 
   it("asks for no id_token and carries no nonce", async () => {

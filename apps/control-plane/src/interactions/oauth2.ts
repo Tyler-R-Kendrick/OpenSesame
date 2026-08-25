@@ -14,7 +14,8 @@ import {
   type FederatedAuthStart,
   type FederatedIdentity,
   type PendingFederatedAuth,
-  federatedRedirectUri,
+  interactionScopedState,
+  stableFederatedRedirectUri,
 } from "./federated.js";
 import type { OAuth2ProviderDescriptor } from "./registry.js";
 
@@ -287,13 +288,17 @@ export async function beginOAuth2Auth(
   );
   const verifier = client.randomPKCECodeVerifier();
   const challenge = await client.calculatePKCECodeChallenge(verifier);
-  const state = client.randomState();
+  // The stable callback, and a `state` that names the interaction so the
+  // response can be handed back to it (ADR 0055). This leg only ever runs for
+  // a static registry provider — BYO is OIDC-only — and a registry provider's
+  // redirect URI was registered once, in a console, by an operator.
+  const state = interactionScopedState(uid);
 
   authorize.searchParams.set("response_type", "code");
   authorize.searchParams.set("client_id", provider.clientId);
   authorize.searchParams.set(
     "redirect_uri",
-    federatedRedirectUri(ctx.config, uid),
+    stableFederatedRedirectUri(ctx.config),
   );
   authorize.searchParams.set("scope", provider.scopes);
   authorize.searchParams.set("state", state);
@@ -317,10 +322,11 @@ export async function beginOAuth2Auth(
 /**
  * Finish the leg. `currentUrl` is the callback URL as received.
  *
- * The `redirect_uri` sent on the exchange is rebuilt from `publicUrl` and the
- * callback path rather than from `currentUrl.origin`: behind a proxy the two
- * differ, and the value must byte-match the one the authorization request
- * carried or the provider refuses the code.
+ * The `redirect_uri` sent on the exchange is rebuilt from `publicUrl` rather
+ * than taken from `currentUrl`: behind a proxy the origins differ, the request
+ * arrives at the interaction's own path after the stable callback hands it back
+ * (`routes/federated-callback.ts`), and the value must byte-match the one the
+ * authorization request carried or the provider refuses the code.
  */
 export async function completeOAuth2Auth(
   ctx: AppContext,
@@ -346,7 +352,7 @@ export async function completeOAuth2Auth(
   const accessToken = await exchangeCode(provider, {
     code,
     verifier: pending.verifier,
-    redirectUri: new URL(currentUrl.pathname, ctx.config.publicUrl).href,
+    redirectUri: stableFederatedRedirectUri(ctx.config),
   });
   const profile = await fetchProfile(provider, accessToken);
 

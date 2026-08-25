@@ -452,8 +452,15 @@ describe("federated interaction leg", () => {
     expect(target.searchParams.get("state")).toBeTruthy();
     expect(target.searchParams.get("nonce")).toBeTruthy();
     expect(target.searchParams.get("client_id")).toBe(`origin:${base}`);
+    // The stable, deployment-wide callback (ADR 0055) — a registry provider's
+    // redirect URI is registered once and matched byte for byte, so it cannot
+    // name an interaction. The uid rides in `state` instead, which is how the
+    // shared callback hands the browser back to this interaction.
     expect(target.searchParams.get("redirect_uri")).toBe(
-      `${base}/interaction/${uid}/federated/callback`,
+      `${base}/v1/federated/callback`,
+    );
+    expect(target.searchParams.get("state")).toMatch(
+      new RegExp(`^${uid}\\..+`),
     );
     expect(jar.get(`os.fed.${uid}`)).toBeTruthy();
   });
@@ -1065,8 +1072,11 @@ describe("federated leg, confidential client", () => {
     resetFederatedDiscoveryCache();
     upstream = await startReferenceIdp();
     const port = await reservePort();
+    // What an operator registers in a provider console: ONE redirect URI, for
+    // the whole deployment, matched byte for byte (ADR 0055). Nothing here
+    // names an interaction, and nothing is re-registered between sign-ins.
     upstream.setRedirectUris([
-      `http://127.0.0.1:${port}/interaction/x/federated/callback`,
+      `http://127.0.0.1:${port}/v1/federated/callback`,
     ]);
     started = await startControlPlane(upstream.issuer, port, {
       OPENSESAME_UPSTREAM_ISSUER: upstream.issuer,
@@ -1084,8 +1094,16 @@ describe("federated leg, confidential client", () => {
     resetFederatedDiscoveryCache();
   });
 
-  it("authenticates with the configured secret, not a derived origin", async () => {
-    upstream.setSubject(`conf-${randomBytes(4).toString("hex")}`);
+  /**
+   * One complete sign-in, through the callback a real provider would have.
+   *
+   * The browser is followed the whole way — authorize, the upstream's redirect
+   * to the STABLE callback, the 303 hand-back, and the top-level GET under
+   * `/interaction/:uid` that carries the interaction cookie — rather than
+   * short-cutting to the interaction callback, because the hand-back is the
+   * part that makes one registered URI serve every interaction.
+   */
+  async function signInOnce() {
     const jar = new Jar();
     const { challenge } = pkce();
     const authRes = await req(
@@ -1105,9 +1123,6 @@ describe("federated leg, confidential client", () => {
     const location = authRes.headers.get("location") ?? "";
     const uid = location.slice("/interaction/".length);
     const html = await (await req(base, jar, location)).text();
-    // The confidential client's redirect URIs are registered at the IdP, so
-    // this interaction's callback has to be among them.
-    upstream.setRedirectUris([`${base}/interaction/${uid}/federated/callback`]);
 
     const start = await req(
       base,
@@ -1119,16 +1134,37 @@ describe("federated leg, confidential client", () => {
     const authorize = new URL(start.headers.get("location") ?? "");
     // The authorization request must name the configured client, not origin:.
     expect(authorize.searchParams.get("client_id")).toBe(upstream.clientId);
-
-    const upstreamRes = await fetch(authorize, { redirect: "manual" });
-    const back = new URL(upstreamRes.headers.get("location") ?? "");
-    const res = await req(
-      base,
-      jar,
-      `/interaction/${uid}/federated/callback${back.search}`,
+    // The registered URI, not this interaction's path.
+    expect(authorize.searchParams.get("redirect_uri")).toBe(
+      `${base}/v1/federated/callback`,
     );
+    expect(authorize.searchParams.get("state")).toMatch(
+      new RegExp(`^${uid}\\..+`),
+    );
+
+    // A 302 is the IdP accepting the redirect URI as registered; an exact-match
+    // provider handed a per-interaction path answers 400 here instead.
+    const upstreamRes = await fetch(authorize, { redirect: "manual" });
+    expect(upstreamRes.status).toBe(302);
+    const back = new URL(upstreamRes.headers.get("location") ?? "");
+    expect(back.pathname).toBe("/v1/federated/callback");
+
+    const handBack = await req(base, jar, `${back.pathname}${back.search}`);
+    expect(handBack.status).toBe(303);
+    const resume = handBack.headers.get("location") ?? "";
+    expect(resume.startsWith(`/interaction/${uid}/federated/callback?`)).toBe(
+      true,
+    );
+
+    const res = await req(base, jar, resume);
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toContain("/auth/");
+    return { uid, jar };
+  }
+
+  it("authenticates with the configured secret, not a derived origin", async () => {
+    upstream.setSubject(`conf-${randomBytes(4).toString("hex")}`);
+    await signInOnce();
 
     const seen = upstream.tokenClientSeen();
     expect(seen.id).toBe(upstream.clientId);
@@ -1138,6 +1174,42 @@ describe("federated leg, confidential client", () => {
     // 303 above already proves it — this pins the intent.
     expect(upstream.tokenOriginSeen()).toBeUndefined();
   }, 30_000);
+
+  /**
+   * The reason the callback moved (ADR 0055).
+   *
+   * Google, Entra and Apple match a registered redirect URI byte for byte, and
+   * a URI is registered once. Two sign-ins on two different interactions
+   * against ONE registered URI is therefore the whole claim: with the callback
+   * under `/interaction/:uid` the second `/authorize` here answers 400
+   * `invalid_redirect_uri`, and no amount of retrying fixes it.
+   */
+  it("completes twice across two interactions against one registered URI", async () => {
+    const subject = `conf-reentry-${randomBytes(4).toString("hex")}`;
+    upstream.setSubject(subject);
+
+    const first = await signInOnce();
+    const identity = await started.ctx.repos.externalIdentities.findByTuple({
+      kind: "oidc",
+      issuer: upstream.issuer,
+      subject,
+    });
+    expect(identity?.assurance).toBe("verified");
+
+    const second = await signInOnce();
+    expect(second.uid).not.toBe(first.uid);
+
+    // The same human, one principal — the second visit found the identity row
+    // rather than minting a second account beside it.
+    const after = await started.ctx.repos.externalIdentities.findByTuple({
+      kind: "oidc",
+      issuer: upstream.issuer,
+      subject,
+    });
+    expect(after?.principalId).toBe(identity?.principalId);
+    // A returning identity gets no fresh provisional session (T6).
+    expect(second.jar.get("os_provisional")).toBeFalsy();
+  }, 45_000);
 });
 
 /**
@@ -1209,7 +1281,9 @@ describe("federated leg, form_post callback", () => {
     const authorizeRes = await fetch(form, { redirect: "manual" });
     expect(authorizeRes.status).toBe(200);
     const posted = parseAutoSubmitForm(await authorizeRes.text());
-    expect(posted.action).toBe(`${base}/interaction/${uid}/federated/callback`);
+    // Apple posts to the REGISTERED redirect URI, which is the stable one
+    // (ADR 0055) — its console would not accept a path naming an interaction.
+    expect(posted.action).toBe(`${base}/v1/federated/callback`);
     expect(posted.fields.code).toBeTruthy();
 
     // A cross-site POST carries NO SameSite=Lax cookies. Sending the jar here
@@ -1238,6 +1312,74 @@ describe("federated leg, form_post callback", () => {
     expect(completed.headers.get("location")).toContain("/auth/");
     expect(jar.get("os_provisional")).toBeTruthy();
   }, 30_000);
+
+  /**
+   * The stable callback is one unauthenticated URL serving every interaction,
+   * so what it does with a `state` it cannot place is the whole of its
+   * security: it must refuse, not guess.
+   */
+  describe("the stable callback", () => {
+    it.each([
+      ["no state at all", ""],
+      ["a state naming no interaction", "state=nointeractionhere"],
+      ["a state whose prefix is not an interaction id", "state=..%2Fevil.abc"],
+      ["an empty uid prefix", "state=.abc"],
+    ])("refuses %s", async (_label, query) => {
+      const res = await fetch(`${base}/v1/federated/callback?${query}`, {
+        redirect: "manual",
+      });
+      expect(res.status).toBe(400);
+      expect(res.headers.get("location")).toBeNull();
+      expect(res.headers.getSetCookie()).toEqual([]);
+    });
+
+    it("hands back only to the interaction the state names", async () => {
+      const res = await fetch(
+        `${base}/v1/federated/callback?state=someoneelse.abc&code=c1`,
+        { redirect: "manual" },
+      );
+      expect(res.status).toBe(303);
+      const target = new URL(res.headers.get("location") ?? "", base);
+      expect(target.pathname).toBe(
+        "/interaction/someoneelse/federated/callback",
+      );
+      // And that interaction does not exist, so the flow dies there rather
+      // than falling through to whatever interaction this browser last had.
+      const followed = await fetch(target, { redirect: "manual" });
+      expect(followed.status).toBe(404);
+    });
+
+    it("copies only the allowlisted response parameters", async () => {
+      const res = await fetch(`${base}/v1/federated/callback`, {
+        method: "POST",
+        redirect: "manual",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          state: "someoneelse.abc",
+          code: "c1",
+          error: "e1",
+          error_description: "d1",
+          iss: "https://idp.example",
+          // Apple posts this on first consent; it is not ours to forward.
+          user: '{"name":{"firstName":"A"}}',
+          id_token: "not.a.token",
+          // Longer than the cap: dropped, not truncated.
+          returnTo: "x".repeat(4096),
+        }),
+      });
+      expect(res.status).toBe(303);
+      const target = new URL(res.headers.get("location") ?? "", base);
+      expect([...target.searchParams.keys()].sort()).toEqual([
+        "code",
+        "error",
+        "error_description",
+        "iss",
+        "state",
+      ]);
+      // Nothing was completed here: no session, no interaction result.
+      expect(res.headers.getSetCookie()).toEqual([]);
+    });
+  });
 
   it("copies only the four authorization-response parameters", async () => {
     const { uid } = await startLeg();

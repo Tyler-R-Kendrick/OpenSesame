@@ -44,6 +44,13 @@ import { normalizeIssuer } from "./registry.js";
  *    re-enters the same URL and gets the same record, and the answer is
  *    byte-identical whether or not the record already existed: telling a
  *    stranger which issuers this deployment has seen is an enumeration oracle.
+ *    Durability is only half of re-entry: a record minted by RFC 7591 names a
+ *    redirect_uri its IdP matches exactly, so the leg it starts returns to the
+ *    deployment-wide `stableFederatedRedirectUri`, never to the interaction that
+ *    happened to register it (ADR 0055). A record whose credentials the
+ *    visitor brought (`registrationSource: "manual"`) keeps the
+ *    per-interaction callback — they registered a redirect URI at their IdP
+ *    themselves, and this server does not get to change it under them.
  *
  * The client secret — supplied by the visitor or minted by RFC 7591 — is held
  * verbatim, because it must be presented to the token endpoint as issued and a
@@ -66,12 +73,14 @@ export type ByoRegistrationInput = {
   /**
    * The federated callback RFC 7591 registration must name.
    *
-   * DEVIATION from C9, flagged: the frozen signature carries no interaction
-   * uid, but the callback is `/interaction/<uid>/federated/callback` and a
-   * dynamic registration that named anything else would register a client the
-   * upstream then refuses to redirect to. Only the route knows the uid, so it
-   * passes the URL here. Optional, so every frozen call site still compiles;
-   * the manual path never reads it.
+   * It is `stableFederatedRedirectUri(config)` — one URL for the whole
+   * deployment —
+   * because a registration happens once and the IdP that issued the client
+   * then matches its redirect_uri exactly. A URL naming the interaction it was
+   * registered from would admit that visitor once and refuse every later
+   * sign-in (ADR 0055); `routes/federated-callback.ts` is the callback, and it
+   * hands the browser back to the interaction the `state` names. Optional, so
+   * every frozen C9 call site still compiles; the manual path never reads it.
    */
   redirectUri?: string;
 };

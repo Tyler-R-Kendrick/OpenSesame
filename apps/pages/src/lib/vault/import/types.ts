@@ -153,6 +153,19 @@ export type BinaryImportAdapter = ImportAdapterBase & {
 
 export type ImportAdapter = TextImportAdapter | BinaryImportAdapter;
 
+/**
+ * Attachments an archive carried that the import leaves behind.
+ *
+ * Named rather than written inline at each use: it is one contract shared by
+ * the reader that counts them (`findSkippedAttachments`), the detect input
+ * that carries them, and the UI that warns about them.
+ */
+export type SkippedAttachments = {
+  count: number;
+  /** A few names, so the warning can be concrete without listing hundreds. */
+  sample: string[];
+};
+
 export type DetectInput = {
   fileName: string;
   text: string;
@@ -173,7 +186,7 @@ export type DetectInput = {
    * the data file, so without this a migrating user silently loses every scan
    * and PDF they had stored. Present only for archives that contained any.
    */
-  skippedAttachments?: { count: number; sample: string[] };
+  skippedAttachments?: SkippedAttachments;
 };
 
 export type ParseInput = DetectInput & {

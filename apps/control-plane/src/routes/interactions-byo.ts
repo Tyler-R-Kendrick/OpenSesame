@@ -11,8 +11,8 @@ import {
   FederatedAuthError,
   beginFederatedAuth,
   encodePending,
-  federatedRedirectUri,
   pendingCookieName,
+  stableFederatedRedirectUri,
 } from "../interactions/federated.js";
 import { buildLoginPageModel } from "../interactions/handlers.js";
 import type {
@@ -171,7 +171,11 @@ export function createByoInteractionRoutes(
         ...(submittedClientSecret !== undefined
           ? { clientSecret: submittedClientSecret }
           : undefined),
-        redirectUri: federatedRedirectUri(ctx.config, uid),
+        // The DCR path registers the deployment-wide callback, never this
+        // interaction's: RFC 7591 registers a redirect_uri once and the IdP
+        // then matches it exactly, so a per-interaction URI would sign this
+        // visitor in today and refuse them tomorrow (ADR 0055).
+        redirectUri: stableFederatedRedirectUri(ctx.config),
       },
       fingerprint,
     );

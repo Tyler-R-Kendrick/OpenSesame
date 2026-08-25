@@ -667,13 +667,29 @@ describe("buildLoginPageModel", () => {
     ssoIssuer: "https://sso.acme.example",
   };
 
-  function ctxWith(organizations: readonly Organization[]): AppContext {
+  /**
+   * The login page asks the same `tenantAuthMethods` the public tenant
+   * endpoint does, and that consults the directory store — so a context that
+   * models organizations has to model that store too.
+   */
+  function ctxWith(
+    organizations: readonly Organization[],
+    ldapOrganizationIds: readonly string[] = [],
+  ): AppContext {
     return overlapCast({
       config,
       stores: {
         organizations: {
           getBySlug: async (slug: string) =>
             organizations.find((candidate) => candidate.slug === slug),
+        },
+        orgFederation: {
+          ldapConfigs: {
+            get: async (organizationId: string) =>
+              ldapOrganizationIds.includes(organizationId)
+                ? { organizationId }
+                : null,
+          },
         },
       },
     });
@@ -745,6 +761,56 @@ describe("buildLoginPageModel", () => {
         { kind: "sso", label: "SSO", issuer: "https://sso.acme.example" },
       ],
     });
+  });
+
+  /**
+   * Native SAML has no OIDC issuer to post to `/federated/start` — that route
+   * answers `untrusted_issuer` to an entityID — so the method has to name the
+   * SAML action and carry the slug instead (ADR 0056).
+   */
+  it("points a native-SAML tenant at the SAML action, not the OIDC start", async () => {
+    const model = await buildLoginPageModel(
+      ctxWith([
+        {
+          ...acme,
+          slug: "native",
+          ssoIssuer: undefined,
+          samlMetadataUrl: "https://idp.acme.example/metadata",
+        },
+      ]),
+      details(),
+      "tok",
+      undefined,
+      { orgSlug: "native" },
+    );
+    expect(model.org?.methods).toEqual([
+      { kind: "saml", label: "SAML", native: true },
+    ]);
+    expect(model.org?.samlAction).toBe("/interaction/uid-1/federated/saml");
+    // No issuer to leak into a redirect, and nothing for the OIDC leg to take.
+    expect(model.org?.methods?.[0]?.issuer).toBeUndefined();
+  });
+
+  /**
+   * A tenant with a directory gets a username and password form, which is a
+   * block of its own rather than a button: there is no upstream to redirect to.
+   */
+  it("renders the directory form for a tenant with an LDAP configuration", async () => {
+    const model = await buildLoginPageModel(
+      ctxWith([{ ...acme, slug: "dir" }], ["org:1"]),
+      details(),
+      "tok",
+      undefined,
+      { orgSlug: "dir" },
+    );
+    expect(model.ldap).toEqual({
+      requestAction: "/interaction/uid-1/federated/ldap",
+      slug: "dir",
+    });
+    // The directory is not offered as a redirect method beside the OIDC one.
+    expect(model.org?.methods).toEqual([
+      { kind: "sso", label: "SSO", issuer: "https://sso.acme.example" },
+    ]);
   });
 
   it("answers an unknown and a method-less tenant identically", async () => {

@@ -16,6 +16,7 @@ import { createByoAdminRoutes } from "./routes/byo-admin.js";
 import { claimRoutes } from "./routes/claims.js";
 import { deviceRoutes } from "./routes/device.js";
 import { discoveryRoutes } from "./routes/discovery.js";
+import { createFederatedCallbackRoutes } from "./routes/federated-callback.js";
 import { federatedProviderRoutes } from "./routes/federated-providers.js";
 import { createFederatedSessionRoutes } from "./routes/federated-session.js";
 import { healthRoutes } from "./routes/health.js";
@@ -23,6 +24,7 @@ import { createInteractionRoutes } from "./routes/interactions.js";
 import { mfaRoutes } from "./routes/mfa.js";
 import { oauthClientRoutes } from "./routes/oauth-clients.js";
 import { createOrgDomainRoutes } from "./routes/org-domains.js";
+import { createOrgLdapRoutes } from "./routes/org-ldap.js";
 import { organizationRoutes } from "./routes/organizations.js";
 import { originClientAdminRoutes } from "./routes/origin-clients-admin.js";
 import { principalRoutes } from "./routes/principals.js";
@@ -89,6 +91,12 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   // Public provider catalog (ADR 0055 / C8): id, label, kind, browserCapable —
   // never issuers, endpoints or secrets.
   app.route("/v1/federated", federatedProviderRoutes);
+  // The stable, deployment-wide federated callback (ADR 0055): one registered
+  // redirect URI for every upstream an operator or an RFC 7591 registration
+  // configured, because Google, Entra and Apple match it byte for byte and a
+  // path naming one interaction can never be registered. It completes nothing
+  // — see routes/federated-callback.ts.
+  app.route("/v1/federated", createFederatedCallbackRoutes());
   // Brokered session adoption (C13): a static page exchanges the access token
   // from its origin-profile code flow for a first-party bearer bound to the
   // same principal. Mounted on the principal prefix, in its own router because
@@ -104,6 +112,10 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   // configured with is `/v1/organizations/<id>/scim/v2`.
   app.route("/v1/organizations", createScimRoutes());
   app.route("/v1/organizations", createOrgDomainRoutes());
+  // Owner-facing directory configuration and the manual sync trigger (C21):
+  // `/v1/organizations/:id/ldap`, in its own router because
+  // routes/organizations.ts belongs to another swarm this cycle.
+  app.route("/v1/organizations", createOrgLdapRoutes());
   // OIDC Back-Channel Logout (C17): unauthenticated by design — the issuer's
   // signature is the credential — and rate-limited because of it.
   app.route("/v1/federated", createBackchannelLogoutRoutes());
@@ -114,12 +126,7 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   // and answers 404 to the rest, so social stays unreachable (T22) and the
   // Better Auth user record never crosses this boundary (T33).
   app.route("/v1/auth", createUpstreamAuthRoutes(ctx));
-  // INTEGRATOR — routes whose modules are landing with the other swarms of
-  // this change. Each is mounted here the moment its module exists; the mount
-  // line is the only thing missing, and every owner has left a factory with
-  // the signature its contract names:
-  //   /v1/organizations/:id/ldap             — C21, S12 (routes/org-ldap.ts)
-  // The interaction sub-routers (C9: byo, org, realm, ldap, saml-complete)
+  // The interaction sub-routers (C9: byo, email, ldap, org, realm, saml)
   // mount inside createInteractionRoutes, not here.
   // The oidc-provider interaction slot (ADR 0050 F6): /auth 303-redirects
   // here for login/consent. server.ts only intercepts protocol paths, so
