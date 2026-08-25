@@ -5,6 +5,10 @@ import type { KeyboardEvent } from "react";
 import { Link } from "react-router";
 import { CeremonyLink } from "../components/CeremonyLauncher.js";
 import {
+  type CeremonyAlt,
+  CeremonyShell,
+} from "../components/CeremonyShell.js";
+import {
   IconAlert,
   IconCheck,
   IconClock,
@@ -349,6 +353,7 @@ export function AuthoritySection() {
               session={session}
               online={online}
               onQueue={refreshQueue}
+              onConnect={() => setTab("session")}
             />
           ) : null}
           {entry.id === "claim" ? (
@@ -356,6 +361,7 @@ export function AuthoritySection() {
               session={session}
               online={online}
               onQueue={refreshQueue}
+              onConnect={() => setTab("session")}
             />
           ) : null}
           {entry.id === "protocol" ? (
@@ -772,6 +778,61 @@ function ConnectArea() {
     }
   }
 
+  function ADOPT_ALT(
+    token: string,
+    setToken: (next: string) => void,
+    busy: string | null,
+    adopt: () => Promise<void>,
+  ): CeremonyAlt[] {
+    return [
+      {
+        id: "adopt-token",
+        label: "Adopt a token you already have",
+        icon: <IconTerminal size={18} />,
+        render: () => (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void adopt();
+            }}
+          >
+            <div className="field">
+              <label className="label" htmlFor="authority-adopt-token">
+                Access token
+              </label>
+              <input
+                id="authority-adopt-token"
+                type="password"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="Paste the token from your terminal"
+                value={token}
+                disabled={busy !== null}
+                onChange={(event) => setToken(event.target.value)}
+              />
+              <p className="hint">
+                If <code>opensesame-id</code> already signed you in on this
+                machine, this tab can act as that principal. Held in memory for
+                this tab only — never written to storage, gone when you close
+                the tab.
+              </p>
+            </div>
+            <div className="actions">
+              <button
+                type="submit"
+                className="btn btn--primary"
+                disabled={busy !== null || token.trim().length === 0}
+                aria-busy={busy === "adopt"}
+              >
+                Use this token
+              </button>
+            </div>
+          </form>
+        ),
+      },
+    ];
+  }
+
   async function adopt() {
     const trimmed = token.trim();
     if (!trimmed) {
@@ -819,84 +880,35 @@ function ConnectArea() {
             </span>
           </p>
         ) : null}
-        <div className="authority-onramps">
-          <div className="authority-onramp">
-            <h3>Start anonymously</h3>
-            <p>
-              Creates a provisional principal on the Identity API. You get an
-              identity immediately with no account and no email.
-            </p>
-            <p className="note note--warn">
-              <IconAlert size={18} />
-              <span>
-                A provisional principal has reduced authority. It can approve
-                devices and complete claims, but it cannot register OAuth
-                clients — the Identity API answers{" "}
-                <code>403 assurance_too_low</code>. Raise assurance later by
-                linking a real identity.
-              </span>
-            </p>
-            <div className="actions">
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={() => void connect()}
-                disabled={busy !== null}
-                aria-busy={busy === "provisional"}
-              >
-                {busy === "provisional"
-                  ? "Connecting…"
-                  : "Create provisional principal"}
-              </button>
-            </div>
-          </div>
-
-          <div className="authority-onramp">
-            <h3>Adopt a token you already have</h3>
-            <p>
-              If <code>opensesame-id</code> already signed you in on this
-              machine, paste the access token it printed and this tab will act
-              as that principal.
-            </p>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void adopt();
-              }}
-            >
-              <div className="field">
-                <label className="label" htmlFor="authority-adopt-token">
-                  Access token
-                </label>
-                <input
-                  id="authority-adopt-token"
-                  type="password"
-                  autoComplete="off"
-                  spellCheck={false}
-                  placeholder="Paste the token from your terminal"
-                  value={token}
-                  disabled={busy !== null}
-                  onChange={(event) => setToken(event.target.value)}
-                />
-                <p className="hint">
-                  Held in memory for this tab only. It is never written to
-                  storage, never sent anywhere except the Identity API at{" "}
-                  {identityBase()}, and it is gone when you close the tab.
-                </p>
-              </div>
-              <div className="actions">
-                <button
-                  type="submit"
-                  className="btn"
-                  disabled={busy !== null || token.trim().length === 0}
-                  aria-busy={busy === "adopt"}
-                >
-                  Use this token
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        {/* The same shape as the Identity ceremony this mirrors: what-is
+            card, the immediate way in as the primary, and the way that needs
+            input as an alternative that expands in place. These were two
+            side-by-side cards before — the which-one-is-for-me problem the
+            ceremony shape exists to remove. */}
+        <CeremonyShell
+          ok={false}
+          top="No principal"
+          name="This tab is acting as nobody"
+          facts={[{ key: "Identity API", value: identityBase() }]}
+          primary={{
+            label:
+              busy === "provisional"
+                ? "Connecting…"
+                : "Create provisional principal",
+            onClick: () => void connect(),
+            busy: busy === "provisional",
+            disabled: busy !== null,
+          }}
+          alts={ADOPT_ALT(token, setToken, busy, adopt)}
+        >
+          <p className="hint">
+            A provisional principal needs no account and no email. It has
+            reduced authority: it can approve devices and complete claims, but
+            it cannot register OAuth clients — the Identity API answers{" "}
+            <code>403 assurance_too_low</code>. Raise assurance later by linking
+            a real identity.
+          </p>
+        </CeremonyShell>
 
         {error ? (
           <p className="note note--err" role="alert">
@@ -919,10 +931,13 @@ function DeviceArea({
   session,
   online,
   onQueue,
+  onConnect,
 }: {
   session: IdentitySession | null;
   online: boolean;
   onQueue: () => void;
+  /** Jump to the Session tab's connect ceremony, in place of prose saying to. */
+  onConnect: () => void;
 }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1027,9 +1042,11 @@ function DeviceArea({
           <output className="note note--warn">
             <IconAlert size={18} />
             <span>
-              Approving needs a principal. Connect one on the{" "}
-              <strong>Session</strong> tab first — the Identity API will reject
-              an unauthenticated approval.
+              Approving needs a principal — the Identity API will reject an
+              unauthenticated approval.{" "}
+              <button type="button" className="btn btn--sm" onClick={onConnect}>
+                Connect a principal
+              </button>
             </span>
           </output>
         ) : null}
@@ -1105,10 +1122,13 @@ function ClaimArea({
   session,
   online,
   onQueue,
+  onConnect,
 }: {
   session: IdentitySession | null;
   online: boolean;
   onQueue: () => void;
+  /** Jump to the Session tab's connect ceremony, in place of prose saying to. */
+  onConnect: () => void;
 }) {
   const [token, setToken] = useState("");
   /**
@@ -1370,10 +1390,12 @@ function ClaimArea({
           <output className="note note--warn">
             <IconAlert size={18} />
             <span>
-              Connect a principal on the <strong>Session</strong> tab first.
               Claim tokens are single-use, so presenting one without somewhere
               to attach it would spend the token and leave you nothing to
-              complete.
+              complete.{" "}
+              <button type="button" className="btn btn--sm" onClick={onConnect}>
+                Connect a principal
+              </button>
             </span>
           </output>
         ) : null}

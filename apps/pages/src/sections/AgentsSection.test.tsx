@@ -109,7 +109,7 @@ describe("AgentsSection", () => {
     session.current = null;
     connect.mockResolvedValue(undefined);
     renderAgents();
-    expect(screen.getByText("Not connected to Identity")).toBeTruthy();
+    expect(screen.getByText("No principal on this tab")).toBeTruthy();
     await userEvent.click(
       screen.getByRole("button", { name: /Connect to Identity/i }),
     );
@@ -377,7 +377,7 @@ describe("AgentsSection", () => {
       "claim-secret-token",
     );
     expect(
-      screen.getByRole("link", { name: /Open verification page/i }),
+      screen.getByRole("button", { name: /Open verification page/i }),
     ).toBeTruthy();
   });
 

@@ -363,11 +363,19 @@ describe("AuthoritySection", () => {
     expect(await screen.findByText(/rate-limiting/)).toBeTruthy();
   });
 
+  /** The adopt path is an alternative row now — expand it first. */
+  async function openAdopt() {
+    await userEvent.click(
+      screen.getByRole("button", { name: /Adopt a token you already have/ }),
+    );
+  }
+
   it("adopts a pasted token and rejects an empty one", async () => {
     session.current = null;
     adoptToken.mockResolvedValue(undefined);
     renderAuthority();
     await screen.findByText("Not connected");
+    await openAdopt();
     // Empty paste is refused before the API is touched.
     const form = screen.getByLabelText(/Access token/i).closest("form");
     if (!form) throw new Error("Access token input must belong to its form");
@@ -387,6 +395,7 @@ describe("AuthoritySection", () => {
     adoptToken.mockRejectedValue(new IdentityError("bad token", 401));
     renderAuthority();
     await screen.findByText("Not connected");
+    await openAdopt();
     await userEvent.type(screen.getByLabelText(/Access token/i), "tok_bad");
     await userEvent.click(
       screen.getByRole("button", { name: /Use this token/i }),
@@ -902,6 +911,7 @@ describe("AuthoritySection", () => {
     ).toBeTruthy();
 
     adoptToken.mockRejectedValue(new IdentityError("already adopted", 409));
+    await openAdopt();
     await userEvent.type(screen.getByLabelText(/Access token/i), "tok_x");
     await userEvent.click(
       screen.getByRole("button", { name: /Use this token/i }),
