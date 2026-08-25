@@ -19,13 +19,60 @@
  *   OpenSesame.acceptSession(session) // JWKS verify + pairwise subject
  *
  * Script dataset:
- *   data-opensesame-broker, data-opensesame-scope, data-opensesame-storage-key
+ *   data-opensesame-broker, data-opensesame-scope
+ *   data-opensesame-storage-key — names a memory-only session slot
  *   data-opensesame-auto-bind="false"   — disable [data-opensesame-signin]
  *   data-opensesame-auto-links="false"  — disable authorize-link interception
  *   data-opensesame-verify="true"       — acceptSession before signed_in on auto-bind
  */
 (() => {
-  if (typeof window === "undefined") return;
+  if (!("window" in globalThis) || !("document" in globalThis)) return;
+
+  var sessions = new Map();
+
+  function isString(value) {
+    try {
+      return String.prototype.valueOf.call(value) === value;
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  function isNonEmptyString(value) {
+    return isString(value) && value.length > 0;
+  }
+
+  function isRecord(value) {
+    return Object.prototype.toString.call(value) === "[object Object]";
+  }
+
+  function isElement(value) {
+    return value instanceof Element;
+  }
+
+  function isAnchorLike(value) {
+    return value !== null && Object(value) === value && isNonEmptyString(value.href);
+  }
+
+  function hasOptionalString(record, key) {
+    return record[key] === undefined || isString(record[key]);
+  }
+
+  function isSession(value) {
+    return (
+      isRecord(value) &&
+      isNonEmptyString(value.id_token) &&
+      hasOptionalString(value, "issuer") &&
+      hasOptionalString(value, "audience") &&
+      hasOptionalString(value, "jwks_uri") &&
+      hasOptionalString(value, "expires_at") &&
+      hasOptionalString(value, "state")
+    );
+  }
+
+  function sessionKey(value) {
+    return isNonEmptyString(value) ? value : defaults.storageKey;
+  }
 
   var scriptEl = document.currentScript;
   var dataset = scriptEl && scriptEl.dataset ? scriptEl.dataset : {};
@@ -73,7 +120,7 @@
   }
 
   function normalizeBase(base) {
-    if (typeof base !== "string" || !base) return defaults.brokerBase;
+    if (!isNonEmptyString(base)) return defaults.brokerBase;
     return base.endsWith("/") ? base : base + "/";
   }
 
@@ -82,7 +129,7 @@
   }
 
   function expectedAudience(options) {
-    if (options && typeof options.audience === "string" && options.audience) {
+    if (options && isNonEmptyString(options.audience)) {
       return options.audience;
     }
     var base = (options && options.brokerBase) || defaults.brokerBase;
@@ -105,47 +152,22 @@
     return { url: url.toString(), state: state };
   }
 
-  function parseJson(value) {
-    try {
-      return JSON.parse(value);
-    } catch (_e) {
-      return null;
-    }
-  }
-
   function persistSession(session, storageKey) {
-    try {
-      sessionStorage.setItem(
-        storageKey || defaults.storageKey,
-        JSON.stringify(session),
-      );
-    } catch (_e) {
-      /* private mode */
-    }
+    sessions.set(sessionKey(storageKey), Object.assign({}, session));
   }
 
   function getSession(storageKey) {
-    try {
-      var raw = sessionStorage.getItem(storageKey || defaults.storageKey);
-      if (!raw) return null;
-      var session = parseJson(raw);
-      if (!session || typeof session.id_token !== "string") return null;
-      if (session.expires_at && Date.parse(session.expires_at) <= Date.now()) {
-        clearSession(storageKey);
-        return null;
-      }
-      return session;
-    } catch (_e) {
+    var session = sessions.get(sessionKey(storageKey));
+    if (!isSession(session)) return null;
+    if (session.expires_at && Date.parse(session.expires_at) <= Date.now()) {
+      clearSession(storageKey);
       return null;
     }
+    return Object.assign({}, session);
   }
 
   function clearSession(storageKey) {
-    try {
-      sessionStorage.removeItem(storageKey || defaults.storageKey);
-    } catch (_e) {
-      /* ignore */
-    }
+    sessions.delete(sessionKey(storageKey));
   }
 
   function dispatch(name, detail) {
@@ -212,7 +234,7 @@
           finish(false, new Error(data.error_description || data.error));
           return;
         }
-        if (typeof data.id_token !== "string") {
+        if (!isSession(data)) {
           finish(false, new Error("Broker returned no id_token."));
           return;
         }
@@ -270,7 +292,8 @@
       var parts = token.split(".");
       if (parts.length < 2) return null;
       var json = new TextDecoder().decode(base64UrlToBytes(parts[1]));
-      return JSON.parse(json);
+      var payload = JSON.parse(json);
+      return isRecord(payload) ? payload : null;
     } catch (_e) {
       return null;
     }
@@ -281,7 +304,8 @@
       var parts = token.split(".");
       if (parts.length < 2) return null;
       var json = new TextDecoder().decode(base64UrlToBytes(parts[0]));
-      return JSON.parse(json);
+      var header = JSON.parse(json);
+      return isRecord(header) ? header : null;
     } catch (_e) {
       return null;
     }
@@ -289,7 +313,7 @@
 
   async function derivePairwiseSubject(idToken, rpOrigin) {
     var claims = decodeJwtPayload(idToken);
-    if (!claims || typeof claims.pairwise_sub !== "string") {
+    if (!claims || !isNonEmptyString(claims.pairwise_sub)) {
       throw new Error("Token has no pairwise_sub.");
     }
     var origin = rpOrigin || window.location.origin;
@@ -371,7 +395,7 @@
    */
   async function acceptSession(session, options) {
     var opts = options || {};
-    if (!session || typeof session.id_token !== "string") {
+    if (!isSession(session)) {
       throw new Error("Session is missing id_token.");
     }
     var token = session.id_token;
@@ -392,7 +416,7 @@
     }
 
     var jwksUri = session.jwks_uri || opts.jwksUri;
-    if (!jwksUri || typeof jwksUri !== "string") {
+    if (!isNonEmptyString(jwksUri)) {
       throw new Error("Session is missing jwks_uri.");
     }
 
@@ -430,11 +454,11 @@
       throw new Error("aud mismatch (expected " + expectedAud + ").");
     }
 
-    if (typeof claims.exp !== "number" || claims.exp * 1000 <= Date.now()) {
+    if (!Number.isFinite(claims.exp) || claims.exp * 1000 <= Date.now()) {
       throw new Error("id_token is expired.");
     }
 
-    if (typeof claims.pairwise_sub !== "string" || !claims.pairwise_sub) {
+    if (!isNonEmptyString(claims.pairwise_sub)) {
       throw new Error("id_token has no pairwise_sub.");
     }
 
@@ -475,7 +499,7 @@
   }
 
   function getAuthorizeLinkConfig(anchor) {
-    if (!anchor || typeof anchor.href !== "string" || !anchor.href) return null;
+    if (!isAnchorLike(anchor)) return null;
 
     var parsed;
     try {
@@ -520,7 +544,7 @@
     document.addEventListener("click", (event) => {
       if (!shouldHandleClick(event)) return;
       var target = event.target;
-      if (!target || typeof target.closest !== "function") return;
+      if (!isElement(target)) return;
       var el = target.closest("[data-opensesame-signin]");
       if (!el) return;
 
@@ -543,7 +567,7 @@
     document.addEventListener("click", (event) => {
       if (!shouldHandleClick(event)) return;
       var target = event.target;
-      if (!target || typeof target.closest !== "function") return;
+      if (!isElement(target)) return;
       var anchor = target.closest("a[href]");
       if (!anchor) return;
       if (anchor.target && anchor.target !== "_self") return;
