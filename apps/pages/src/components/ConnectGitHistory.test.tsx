@@ -225,6 +225,13 @@ describe("ConnectGitHistory", () => {
     createConnection.mockResolvedValue(githubConnection);
     setConnectionCredential.mockResolvedValue(githubConnection);
     render(<ConnectGitHistory />);
+    // The PAT path is an alternative row now — it expands in the sheet
+    // rather than sitting open beside the OAuth primary.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /Connect with a personal access token/,
+      }),
+    );
     const input = await screen.findByLabelText(/personal access token/i);
     await userEvent.type(input, "ghp_testtoken");
     await userEvent.click(

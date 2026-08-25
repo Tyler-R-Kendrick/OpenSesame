@@ -22,7 +22,9 @@ use serde_json::json;
 use std::collections::{BTreeMap, HashMap};
 
 use crate::app_state::AppState;
-use crate::middleware::auth::{resolve_caller, Caller};
+#[cfg(test)]
+use crate::middleware::auth::OPERATOR_ORGANIZATION_HEADER;
+use crate::middleware::auth::{resolve_caller, resolve_caller_organization, Caller};
 
 #[allow(clippy::result_large_err)]
 fn authorize(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, Response> {
@@ -44,42 +46,12 @@ fn may_discover(who: &Caller, production: bool) -> bool {
     who.can_configure_integrations() && (matches!(who, Caller::Operator) || !production)
 }
 
-const OPERATOR_ORGANIZATION_HEADER: &str = "x-opensesame-organization";
-
 fn caller_organization(
     st: &AppState,
     who: &Caller,
     headers: &axum::http::HeaderMap,
 ) -> Result<opensesame_domain::OrganizationId, Response> {
-    let selected = headers.get(OPERATOR_ORGANIZATION_HEADER);
-    match who {
-        Caller::Operator => match selected {
-            Some(raw) => match raw.to_str().ok().and_then(|value| {
-                opensesame_domain::OrganizationId::parse(value)
-                    .ok()
-                    .filter(|id| id.to_string() == value)
-            }) {
-                Some(id) => Ok(id),
-                _ => Err((
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error":"invalid_request","hint":"x-opensesame-organization must be a canonical organization id"})),
-                )
-                    .into_response()),
-            },
-            None => Ok(who.organization(st.connection_organization)),
-        },
-        Caller::Session { .. } => {
-            if selected.is_some() {
-                Err((
-                    StatusCode::FORBIDDEN,
-                    Json(json!({"error":"forbidden","hint":"sessions cannot select an organization header"})),
-                )
-                    .into_response())
-            } else {
-                Ok(who.organization(st.connection_organization))
-            }
-        }
-    }
+    resolve_caller_organization(st, who, headers)
 }
 
 macro_rules! organization_or_return {

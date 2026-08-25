@@ -1,47 +1,38 @@
-import { IconClock, IconLock } from "../../components/Icons.js";
 import {
   hostLocalSessionEligible,
   useConnect,
   useIdentitySession,
 } from "../../lib/identity.js";
 import { shouldAutoConnect } from "../../lib/settings.js";
-import { useOnline } from "../../lib/use-online.js";
+import { useStatusNotice } from "../../lib/use-status-notice.js";
 
-/** Shown while the Identity session that backs Host authorization is absent. */
+/** Standing Identity-session trouble goes to the notifications tray, not the
+ *  page (#259). Mount this wherever Host authorization is offered. */
 export function IdentitySessionNote() {
   const session = useIdentitySession();
   const { connecting, error, connect } = useConnect();
-  const online = useOnline();
-  if (hostLocalSessionEligible()) return null;
-  if (session) return null;
-  if (!shouldAutoConnect() && !connecting && !error) return null;
-  return (
-    <div className="note note--warn conn-session-note">
-      <IconLock />
-      <div>
-        <p>
-          {error
-            ? "OpenSesame Identity is unreachable, so Host connectors cannot authorize yet. Vault logins, passkeys, and import still work on this device."
-            : "Starting your OpenSesame session so Host connectors can authorize. Vault items on this identity stay available either way."}
-        </p>
-        {error ? (
-          <>
-            <p>{error}</p>
-            <button
-              type="button"
-              className="btn btn--sm"
-              onClick={() => void connect()}
-              disabled={connecting || !online}
-            >
-              {connecting ? "Connecting…" : "Try Identity again"}
-            </button>
-          </>
-        ) : connecting ? (
-          <p className="hint conn-connecting">
-            <IconClock /> Establishing your private session…
-          </p>
-        ) : null}
-      </div>
-    </div>
+  const relevant =
+    !hostLocalSessionEligible() &&
+    !session &&
+    (shouldAutoConnect() || connecting || Boolean(error));
+  useStatusNotice(
+    relevant
+      ? error
+        ? {
+            id: "identity-session",
+            tone: "err",
+            title: "OpenSesame Identity is unreachable",
+            body: `Host connectors cannot authorize yet. Vault logins, passkeys, and import still work on this device. ${error}`,
+            retry: connect,
+            retryLabel: "Try Identity again",
+          }
+        : {
+            id: "identity-session",
+            tone: "info",
+            title: "Starting your OpenSesame session",
+            body: "Host connectors can authorize once the session is up. Vault items on this identity stay available either way.",
+          }
+      : null,
   );
+  return null;
 }

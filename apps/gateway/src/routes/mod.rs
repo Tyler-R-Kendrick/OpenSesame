@@ -81,6 +81,10 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/certs/issue",
             post(certs::issue).layer(DefaultBodyLimit::max(8 * 1024)),
         )
+        .route(
+            "/api/v1/certs/deliveries/{request_id}/ack",
+            post(certs::acknowledge_delivery),
+        )
         .route("/api/v1/providers", get(connections::list_providers))
         .route(
             "/api/v1/custom-providers",

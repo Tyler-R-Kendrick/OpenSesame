@@ -1704,6 +1704,54 @@ async fn a_fnox_provider_seals_its_declared_configuration() {
 }
 
 #[tokio::test]
+async fn certificate_actor_can_open_only_an_active_issuer_connection() {
+    let (_db, broker) = broker().await;
+    let org = OrganizationId::new();
+    let issuer = broker
+        .create_connection(&org, create("zerossl"))
+        .await
+        .unwrap();
+
+    let pending = broker
+        .certificate_issuer_configuration(&org, &issuer.connection_id)
+        .await
+        .unwrap_err();
+    assert_eq!(pending.code(), "needs_reauth");
+
+    broker
+        .set_connection_configuration(
+            &org,
+            &issuer.connection_id,
+            BTreeMap::from([
+                ("eab_kid".into(), "kid-1".into()),
+                ("eab_hmac_key".into(), "do-not-return".into()),
+            ]),
+            vec![],
+        )
+        .await
+        .unwrap();
+
+    let opened = broker
+        .certificate_issuer_configuration(&org, &issuer.connection_id)
+        .await
+        .unwrap();
+    assert_eq!(opened.provider_id, "zerossl");
+    assert_eq!(opened.values["eab_kid"], "kid-1");
+    assert_eq!(opened.values["eab_hmac_key"], "do-not-return");
+    assert!(!format!("{opened:?}").contains("do-not-return"));
+
+    let ordinary = broker
+        .create_connection(&org, create("azure-sm"))
+        .await
+        .unwrap();
+    let refused = broker
+        .certificate_issuer_configuration(&org, &ordinary.connection_id)
+        .await
+        .unwrap_err();
+    assert_eq!(refused.code(), "invalid_request");
+}
+
+#[tokio::test]
 async fn identity_connectors_seal_their_declared_configuration() {
     let (_db, broker) = broker().await;
     let org = OrganizationId::new();

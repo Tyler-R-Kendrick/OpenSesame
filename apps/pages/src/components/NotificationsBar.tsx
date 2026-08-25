@@ -1,23 +1,26 @@
 /**
  * Notifications glyph in the top status bar. Guest login that skipped
- * registered auth lands a claim-ceremony prompt here.
+ * registered auth lands a claim-ceremony prompt here, and pages mirror their
+ * standing trouble — Host down, Identity unreachable, a list that failed to
+ * load — here instead of stacking banners above their own content.
  */
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { beginSignIn, defaultUpstream } from "../lib/federation.js";
-import { stashCurrentSession } from "../lib/guest-auth.js";
 import {
+  type Notice,
   dismissNotice,
   listNotices,
   subscribeNotices,
 } from "../lib/notices.js";
 import { loadQueue } from "../lib/queue.js";
-import { IconBell, IconX } from "./Icons.js";
+import { CeremonyLink } from "./CeremonyLauncher.js";
+import { CeremonyShell } from "./CeremonyShell.js";
+import { IconAlert, IconBell, IconInfo, IconX } from "./Icons.js";
 
 export const notificationsBarDependencies = {
   beginSignIn,
   defaultUpstream,
-  stashCurrentSession,
 };
 
 function NotificationsBarDefault() {
@@ -78,8 +81,8 @@ function NotificationsBarDefault() {
               <div className="sheet__grow">
                 <h2>Notifications</h2>
                 <p>
-                  Guest sessions that skipped registered sign-in wait here for a
-                  claim ceremony.
+                  Claim ceremonies that still need you, and anything on this
+                  page that is not working right now.
                 </p>
               </div>
               <button
@@ -93,41 +96,46 @@ function NotificationsBarDefault() {
             </div>
             <div className="sheet__body">
               {count === 0 ? <p className="hint">Nothing waiting.</p> : null}
-              {notices.map((notice) => (
-                <article key={notice.id} className="notice-card">
-                  <h3>{notice.title}</h3>
-                  <p>{notice.body}</p>
-                  {notice.userCode ? (
-                    <p className="hint">
-                      Consent code: <code>{notice.userCode}</code>
-                    </p>
-                  ) : null}
-                  <div className="actions">
-                    <button
-                      type="button"
-                      className="btn btn--primary"
-                      onClick={() => {
-                        notificationsBarDependencies.stashCurrentSession();
+              {/* The claim prompt already lived in the ceremony's own sheet
+                  and had all the ceremony's parts — a what-is statement, a
+                  fact, a primary, a dismissal — it just hand-rolled them in a
+                  one-off card. Same shape as every other ceremony now. Status
+                  notices — the standing trouble pages mirror here instead of
+                  stacking banners — keep their own tone-accented card. */}
+              {notices.map((notice) =>
+                notice.kind === "status" ? (
+                  <StatusNoticeCard key={notice.id} notice={notice} />
+                ) : (
+                  <CeremonyShell
+                    key={notice.id}
+                    ok={false}
+                    top="Guest session"
+                    name={notice.title}
+                    facts={
+                      notice.userCode
+                        ? [{ key: "Consent code", value: notice.userCode }]
+                        : []
+                    }
+                    primary={{
+                      label: "Sign in to claim",
+                      onClick: () => {
                         void notificationsBarDependencies.beginSignIn(
                           notificationsBarDependencies.defaultUpstream(),
                           {
                             returnTo: "/",
                           },
                         );
-                      }}
-                    >
-                      Sign in to claim
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--ghost"
-                      onClick={() => dismissNotice(notice.id)}
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </article>
-              ))}
+                      },
+                    }}
+                    secondary={{
+                      label: "Dismiss",
+                      onClick: () => dismissNotice(notice.id),
+                    }}
+                  >
+                    <p className="hint">{notice.body}</p>
+                  </CeremonyShell>
+                ),
+              )}
               {queued > 0 ? (
                 <p className="hint">
                   {queued} staged device or claim action
@@ -139,6 +147,47 @@ function NotificationsBarDefault() {
         </div>
       ) : null}
     </>
+  );
+}
+
+function StatusNoticeCard({ notice }: { notice: Notice }) {
+  const tone = notice.tone ?? "info";
+  return (
+    <article
+      className={`notice-card notice-card--${tone}`}
+      // Standing trouble should be announced when it lands in the open sheet.
+      role={tone === "err" ? "alert" : undefined}
+    >
+      <h3>
+        {tone === "info" ? <IconInfo size={16} /> : <IconAlert size={16} />}
+        {notice.title}
+      </h3>
+      <p>{notice.body}</p>
+      <div className="actions">
+        {notice.retry ? (
+          <button
+            type="button"
+            className="btn btn--sm btn--primary"
+            onClick={() => notice.retry?.()}
+          >
+            {notice.retryLabel ?? "Try again"}
+          </button>
+        ) : null}
+        {notice.ceremony ? (
+          // Repair opens as a ceremony sheet in place — never a route change.
+          <CeremonyLink id={notice.ceremony}>
+            {notice.ceremonyLabel ?? "Repair the connection"}
+          </CeremonyLink>
+        ) : null}
+        <button
+          type="button"
+          className="btn btn--sm btn--ghost"
+          onClick={() => dismissNotice(notice.id)}
+        >
+          Dismiss
+        </button>
+      </div>
+    </article>
   );
 }
 

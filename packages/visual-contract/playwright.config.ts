@@ -4,7 +4,9 @@ import { join } from "node:path";
 import { isFunction } from "@opensesame/os-domain";
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 5180;
+// Pages development owns 5180. Visual tests use a dedicated strict port so
+// Playwright never reuses an unrelated long-running developer server.
+const PORT = 5181;
 const HOST = "127.0.0.1";
 const BASE_URL = `http://${HOST}:${PORT}`;
 
@@ -89,17 +91,14 @@ export default defineConfig({
     screenshot: "off",
   },
   webServer: {
-    command:
-      "pnpm --filter @opensesame/pages build && pnpm --filter @opensesame/pages preview",
+    command: `pnpm --filter @opensesame/pages build && pnpm --filter @opensesame/pages exec vite preview --port ${PORT} --strictPort`,
     // Playwright 1.55.1 rejects a webServer config specifying both `port`
     // and `url` ("Either 'port' or 'url' should be specified"); `url` alone
     // both pins the readiness check and matches `use.baseURL` above, so it's
     // the only one needed.
     url: BASE_URL,
     env: PREVIEW_ENV,
-    // No CI env var is set in this repo by policy, so reuseExistingServer is
-    // effectively always true here — kept as a sane default regardless.
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 180_000,
   },
   projects: [

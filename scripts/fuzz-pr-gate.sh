@@ -55,7 +55,7 @@ map_targets() {
     crates/tailscale-authn/*) echo whois_response ;;
     crates/kdbx-bridge/*) echo kdbx_parse ;;
     apps/daemon/*) echo promote_request mcp_config ;;
-    apps/gateway/*) echo kv_v2_path ;;
+    apps/gateway/*) echo kv_v2_path certificate_request ;;
     fuzz/*) echo ALL ;;
     *) ;;
   esac

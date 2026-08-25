@@ -32,7 +32,16 @@ cargo build -p opensesame-gateway -p opensesame-cli -p opensesame-daemon
 ./target/debug/opensesame-daemon --listen 127.0.0.1:18790
 ./target/debug/opensesame daemon status
 ./target/debug/opensesame login --flow device --no-browser --server http://127.0.0.1:8787
+
+# The Host generates the leaf key and certificate; no PEM input is required.
+./target/debug/opensesame cert issue --cn localhost --out-dir .certs
 ```
+
+Certificate issuance uses the sealed OpenSesame private CA when no external
+issuer is configured. Active `letsencrypt` or `zerossl` connections use
+Cloudflare DNS-01; `cloudflare-origin-ca` is a separate origin-only issuer.
+Production issuance requires durable storage and `OPENSESAME_CONNECTION_KEY`.
+External issuer failure never falls back to a different trust class.
 
 ## Workspace layout
 
