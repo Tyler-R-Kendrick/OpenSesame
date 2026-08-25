@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { clearNotices, listNotices } from "../lib/notices.js";
 
 const env = vi.hoisted(() => ({
   plane: {
@@ -106,7 +107,10 @@ describe("PagesCannotHostNote", () => {
     env.needsPairing = false;
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    clearNotices();
+  });
 
   it("stays quiet while the Host plane is live or pending", () => {
     for (const host of ["live", "pending"]) {
@@ -119,22 +123,31 @@ describe("PagesCannotHostNote", () => {
     }
   });
 
-  it("warns with the configured Host when it is simply down", () => {
+  it("reports a down Host to the notifications tray, not the page", () => {
     env.plane = { ...env.plane, host: "down", hostBase: "https://h.example" };
-    withRouter(<PagesCannotHostNote ceremony="Backup" />);
-    expect(screen.getByText(/Backup needs the Host API/)).toBeTruthy();
-    expect(screen.getByText("https://h.example")).toBeTruthy();
-    expect(
-      screen
-        .getByRole("link", { name: "Change it in Settings" })
-        .getAttribute("href"),
-    ).toBe("/settings/connectivity");
+    const { container, unmount } = withRouter(
+      <PagesCannotHostNote ceremony="Backup" />,
+    );
+    expect(container.firstChild).toBeNull();
+    const notice = listNotices().find((item) => item.id === "host-down");
+    expect(notice?.tone).toBe("warn");
+    expect(notice?.body).toMatch(/Backup needs the Host API/);
+    expect(notice?.body).toMatch(/https:\/\/h\.example/);
+    expect(notice?.linkTo).toBe("/settings/connectivity");
+    expect(notice?.linkLabel).toBe("Change it in Settings");
+    // The notice tracks the condition and this page — unmounting clears it.
+    unmount();
+    expect(listNotices().find((item) => item.id === "host-down")).toBe(
+      undefined,
+    );
   });
 
-  it("shows 'none' when no Host is configured and it is down", () => {
+  it("reports 'none' when no Host is configured and it is down", () => {
     env.plane = { ...env.plane, host: "down", hostBase: "" };
     withRouter(<PagesCannotHostNote ceremony="Sync" />);
-    expect(screen.getByText("none")).toBeTruthy();
+    const notice = listNotices().find((item) => item.id === "host-down");
+    expect(notice?.body).toMatch(/Sync needs the Host API/);
+    expect(notice?.body).toMatch(/Configured Host: none/);
   });
 
   it("renders nothing for non-down hosts that do not need pairing", () => {

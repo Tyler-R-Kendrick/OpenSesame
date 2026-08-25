@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { IconAlert, IconExternal, IconLock } from "../../components/Icons.js";
+import { IconExternal, IconLock } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import {
   CAPABILITIES,
@@ -36,6 +36,7 @@ import {
   shouldAutoConnect,
 } from "../../lib/settings.js";
 import { useOnline } from "../../lib/use-online.js";
+import { useStatusNotice } from "../../lib/use-status-notice.js";
 import { GithubHistoryRemotePicker as GithubHistoryRemotePickerDefault } from "./GithubHistoryRemotePicker.js";
 
 export const capabilityConnectorsSeams = {
@@ -121,6 +122,29 @@ export function CapabilityConnectorsPanel() {
   const online = useOnline();
   const session = useIdentitySession();
   const { connecting, error: connectError, connect } = useConnect();
+  // Session trouble is standing state, so it reports to the notifications
+  // tray rather than a banner above the connector list.
+  useStatusNotice(
+    hostLocalSessionEligible()
+      ? null
+      : connectError
+        ? {
+            id: "identity-session",
+            tone: "err",
+            title: "Could not start an OpenSesame session",
+            body: `${connectError}. Check the Identity URL in Settings (OpenSesame control plane — not a third-party IdP).`,
+            retry: connect,
+            retryLabel: "Try Identity again",
+          }
+        : connecting && !session
+          ? {
+              id: "identity-session",
+              tone: "info",
+              title: "Starting your OpenSesame session",
+              body: "Connector OAuth and personal-access-token sealing unlock once the session is up.",
+            }
+          : null,
+  );
   const [bindings, setBindings] = useState<CapabilityConnectorMap>(
     () => loadSettings().capabilityConnectors,
   );
@@ -461,21 +485,7 @@ export function CapabilityConnectorsPanel() {
         </div>
       </div>
       <div className="panel__body">
-        {!hostLocalSessionEligible() && connectError ? (
-          <p className="note note--err" role="alert">
-            <IconAlert size={18} />
-            <span>
-              Could not start an OpenSesame session: {connectError}. Check the
-              Identity URL in Settings (OpenSesame control plane — not a
-              third-party IdP).
-            </span>
-          </p>
-        ) : !hostLocalSessionEligible() && connecting && !session ? (
-          <output className="note note--warn">
-            <IconLock size={18} />
-            <span>Starting your OpenSesame session…</span>
-          </output>
-        ) : hostLocalSessionEligible() ? (
+        {hostLocalSessionEligible() ? (
           <p className="hint">
             Local Host is the authority for this tab — Identity plane not
             required for connector OAuth.

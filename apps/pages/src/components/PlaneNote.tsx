@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
 import {
   type DaemonHealth,
   applyDaemonPairing,
@@ -22,8 +21,9 @@ import {
   waitForTailnet,
 } from "../lib/tailscale.js";
 import { isLoopbackUrl } from "../lib/urls.js";
+import { useStatusNotice } from "../lib/use-status-notice.js";
 import { FieldShell } from "./FieldShell.js";
-import { IconAlert, IconCheck, IconTerminal } from "./Icons.js";
+import { IconCheck, IconTerminal } from "./Icons.js";
 import { QrCode } from "./QrCode.js";
 
 /**
@@ -449,28 +449,28 @@ function PagesCannotHostNoteDefault({
   ceremony: string;
 }) {
   const status = usePlaneStatus();
+  // A down Host is standing trouble, not page furniture — it lives in the
+  // notifications tray so the section renders its own content clean.
+  const hostDown = status.host === "down" && !needsHostPairing(status);
+  useStatusNotice(
+    hostDown
+      ? {
+          id: "host-down",
+          tone: "warn",
+          title: "Host API unavailable",
+          body:
+            `${ceremony} needs the Host API. ${planeSeams.PAGES_CANNOT_HOST} ` +
+            `Configured Host: ${status.hostBase || "none"} (${hostStatusLabel(
+              status.host,
+            ).toLowerCase()}).`,
+          linkTo: "/settings/connectivity",
+          linkLabel: "Change it in Settings",
+        }
+      : null,
+  );
   // Host plane is ready (or still probing a saved pairing) — do not ask again.
   if (status.host === "live" || status.host === "pending") return null;
-  if (!needsHostPairing(status)) {
-    if (status.host === "down") {
-      return (
-        <output className="note note--warn">
-          <IconAlert />
-          <div>
-            <p>
-              {ceremony} needs the Host API. {planeSeams.PAGES_CANNOT_HOST}
-            </p>
-            <p>
-              Configured Host: <code>{status.hostBase || "none"}</code> (
-              {hostStatusLabel(status.host).toLowerCase()}).{" "}
-              <Link to="/settings/connectivity">Change it in Settings</Link>.
-            </p>
-          </div>
-        </output>
-      );
-    }
-    return null;
-  }
+  if (!needsHostPairing(status)) return null;
   return (
     <div className="panel">
       <div className="panel__body">

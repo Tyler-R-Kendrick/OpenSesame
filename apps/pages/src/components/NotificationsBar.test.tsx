@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { clearNotices, pushNotice } from "../lib/notices.js";
+import { clearNotices, pushNotice, setStatusNotice } from "../lib/notices.js";
 import {
   NotificationsBar,
   notificationsBarDependencies,
@@ -55,5 +55,63 @@ describe("NotificationsBar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in to claim" }));
     expect(stashCurrentSession).toHaveBeenCalledTimes(1);
     expect(beginSignIn).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a status notice with its retry, link, and dismiss actions", () => {
+    const retry = vi.fn();
+    setStatusNotice({
+      id: "host-down",
+      tone: "warn",
+      title: "Host API unavailable",
+      body: "Host authorization needs the Host API.",
+      linkTo: "/settings/connectivity",
+      linkLabel: "Change it in Settings",
+      retry,
+      retryLabel: "Try again",
+    });
+    render(
+      <MemoryRouter>
+        <NotificationsBar />
+      </MemoryRouter>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Notifications — 1 pending" }),
+    );
+    expect(screen.getByText("Host API unavailable")).toBeTruthy();
+    expect(
+      screen.getByText("Host authorization needs the Host API."),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: "Change it in Settings" })
+        .getAttribute("href"),
+    ).toBe("/settings/connectivity");
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(retry).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText("Host API unavailable")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Notifications — none" }),
+    ).toBeTruthy();
+  });
+
+  it("announces an error-tone status notice as an alert", () => {
+    setStatusNotice({
+      id: "connections-load",
+      tone: "err",
+      title: "Connections could not load",
+      body: "fetch failed",
+    });
+    render(
+      <MemoryRouter>
+        <NotificationsBar />
+      </MemoryRouter>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Notifications — 1 pending" }),
+    );
+    expect(screen.getByRole("alert").textContent).toMatch(
+      /Connections could not load/,
+    );
   });
 });

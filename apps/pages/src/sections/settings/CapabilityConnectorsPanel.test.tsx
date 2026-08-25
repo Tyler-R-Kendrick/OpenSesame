@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { clearNotices, listNotices } from "../../lib/notices.js";
 
 const online = vi.hoisted(() => ({ value: true }));
 const planes = vi.hoisted(() => ({
@@ -140,6 +141,7 @@ describe("CapabilityConnectorsPanel", () => {
 
   afterEach(() => {
     cleanup();
+    clearNotices();
     vi.clearAllMocks();
   });
 
@@ -194,7 +196,7 @@ describe("CapabilityConnectorsPanel", () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
-  it("surfaces identity connect errors", () => {
+  it("reports identity connect errors to the notifications tray", () => {
     hostLocalSessionEligible.mockReturnValue(false);
     connectState.error = "identity plane down";
     render(
@@ -202,11 +204,16 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
-    const alert = screen.getByRole("alert");
-    expect(alert.textContent).toMatch(/identity plane down/);
+    const notice = listNotices().find((n) => n.id === "identity-session");
+    expect(notice?.tone).toBe("err");
+    expect(notice?.body).toMatch(/identity plane down/);
+    notice?.retry?.();
+    expect(connect).toHaveBeenCalled();
+    // The panel itself stays clean of the session banner.
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("shows a connecting note while the session starts", () => {
+  it("reports the starting session to the notifications tray", () => {
     hostLocalSessionEligible.mockReturnValue(false);
     session.current = null;
     connectState.connecting = true;
@@ -215,7 +222,9 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
-    expect(screen.getByText(/Starting your OpenSesame session/)).toBeTruthy();
+    const notice = listNotices().find((n) => n.id === "identity-session");
+    expect(notice?.tone).toBe("info");
+    expect(notice?.title).toBe("Starting your OpenSesame session");
   });
 
   it("warns that OAuth needs the GitHub App when none is configured", async () => {
@@ -589,6 +598,7 @@ describe("CapabilityConnectorsPanel edge branches", () => {
 
   afterEach(() => {
     cleanup();
+    clearNotices();
     vi.clearAllMocks();
   });
 
