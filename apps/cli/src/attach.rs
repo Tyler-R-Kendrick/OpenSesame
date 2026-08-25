@@ -8,7 +8,7 @@
 //! never needs the passphrase.
 
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use opensesame_sealed_store::{sanitize_filename, AttachMeta, StoreRoot};
 
@@ -18,15 +18,15 @@ use crate::store::{open_unlocked, require_reveal, resolve_root, shred_file};
 const LARGE_ATTACHMENT_WARN_BYTES: u64 = 50 * 1024 * 1024;
 
 pub fn cmd_attach_add(
-    name: String,
-    file: PathBuf,
+    name: &str,
+    file: &Path,
     mime: Option<String>,
     force: bool,
     shred: bool,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
-    let meta = std::fs::metadata(&file)?;
+    let meta = std::fs::metadata(file)?;
     if !meta.is_file() {
         anyhow::bail!(
             "{} is not a regular file; an attachment needs a known length up front",
@@ -47,11 +47,11 @@ pub fn cmd_attach_add(
         .unwrap_or("attachment")
         .to_string();
 
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
-    let mut source = std::fs::File::open(&file)?;
+    let (root, key) = open_unlocked(path, tomb)?;
+    let mut source = std::fs::File::open(file)?;
     let summary = root
         .attach_add(
-            &name,
+            name,
             &mut source,
             total_bytes,
             AttachMeta { filename, mime },
@@ -62,7 +62,7 @@ pub fn cmd_attach_add(
     drop(source);
 
     if shred {
-        shred_file(&file)?;
+        shred_file(file)?;
     }
     println!(
         "sealed {} ({} bytes, {} chunk(s)) at {}",
@@ -72,33 +72,33 @@ pub fn cmd_attach_add(
 }
 
 pub fn cmd_attach_get(
-    name: String,
-    out: Option<PathBuf>,
+    name: &str,
+    out: Option<&Path>,
     reveal: bool,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
     // Plaintext leaves the store on this path whether it lands on stdout or in
     // a file, so the reveal gate covers both.
     require_reveal(reveal)?;
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let (root, key) = open_unlocked(path, tomb)?;
 
     match out {
         None => {
             let mut stdout = io::stdout();
-            root.attach_get(&name, &mut stdout, &key)
+            root.attach_get(name, &mut stdout, &key)
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
             stdout.flush()?;
         }
         Some(dest) => {
-            let dest = resolve_output_path(&root, &name, &key, dest)?;
+            let dest = resolve_output_path(&root, name, &key, dest)?;
             // Reassemble into a sibling temp file and rename, so a failure part
             // way through never leaves a truncated file that looks like the
             // real document.
             let tmp = dest.with_extension("partial");
             {
                 let mut file = std::fs::File::create(&tmp)?;
-                if let Err(e) = root.attach_get(&name, &mut file, &key) {
+                if let Err(e) = root.attach_get(name, &mut file, &key) {
                     drop(file);
                     let _ = std::fs::remove_file(&tmp);
                     anyhow::bail!("{e}");
@@ -118,10 +118,10 @@ fn resolve_output_path(
     root: &StoreRoot,
     name: &str,
     key: &opensesame_sealed_store::ItemDataKey,
-    dest: PathBuf,
+    dest: &Path,
 ) -> anyhow::Result<PathBuf> {
     if !dest.is_dir() {
-        return Ok(dest);
+        return Ok(dest.to_path_buf());
     }
     let summary = root
         .attach_ls(Some(name), key)
@@ -135,13 +135,13 @@ fn resolve_output_path(
 }
 
 pub fn cmd_attach_ls(
-    prefix: Option<String>,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    prefix: Option<&str>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let (root, key) = open_unlocked(path, tomb)?;
     let listed = root
-        .attach_ls(prefix.as_deref(), &key)
+        .attach_ls(prefix, &key)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     if listed.is_empty() {
         println!("no attachments");
@@ -150,33 +150,23 @@ pub fn cmd_attach_ls(
     for summary in listed {
         println!(
             "{}\t{}\t{} bytes\t{} chunk(s)\t{}",
-            summary.name,
-            summary.filename,
-            summary.total_bytes,
-            summary.chunk_count,
-            summary.mime
+            summary.name, summary.filename, summary.total_bytes, summary.chunk_count, summary.mime
         );
     }
     Ok(())
 }
 
-pub fn cmd_attach_rm(
-    name: String,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
-) -> anyhow::Result<()> {
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
-    root.attach_rm(&name, &key)
+pub fn cmd_attach_rm(name: &str, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
+    let (root, key) = open_unlocked(path, tomb)?;
+    root.attach_rm(name, &key)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     println!("removed {name}");
-    eprintln!(
-        "note: git history still holds the old ciphertext — removal is not erasure"
-    );
+    eprintln!("note: git history still holds the old ciphertext — removal is not erasure");
     Ok(())
 }
 
-pub fn cmd_attach_gc(path: Option<PathBuf>, tomb: Option<String>) -> anyhow::Result<()> {
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+pub fn cmd_attach_gc(path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
+    let (root, key) = open_unlocked(path, tomb)?;
     let outcome = root.attach_gc(&key).map_err(|e| anyhow::anyhow!("{e}"))?;
     println!(
         "removed {} orphan(s), kept {} referenced, skipped {} too recent to be sure",
@@ -231,13 +221,13 @@ fn classify(relative: &str) -> Option<Unit> {
 }
 
 pub async fn cmd_attach_sync(
-    to_dir: Option<PathBuf>,
+    to_dir: Option<&Path>,
     server: &str,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
     // Replication moves sealed bytes only, so it never needs the passphrase.
-    let root_path = resolve_root(path, tomb.as_deref())?;
+    let root_path = resolve_root(path, tomb)?;
     let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
     let units = root
         .attach_replication_units()
@@ -248,7 +238,7 @@ pub async fn cmd_attach_sync(
     }
 
     match to_dir {
-        Some(dir) => sync_to_dir(&units, &dir),
+        Some(dir) => sync_to_dir(&units, dir),
         None => sync_to_target(&units, &root_path, server).await,
     }
 }
@@ -264,7 +254,10 @@ fn sync_to_dir(units: &[(String, PathBuf)], dir: &std::path::Path) -> anyhow::Re
         std::fs::copy(source, &dest)?;
         copied += 1;
     }
-    println!("replicated {copied} ciphertext file(s) to {}", dir.display());
+    println!(
+        "replicated {copied} ciphertext file(s) to {}",
+        dir.display()
+    );
     Ok(())
 }
 
@@ -293,7 +286,7 @@ async fn sync_to_target(
         .map_err(|e| anyhow::anyhow!("could not read the attachment target: {e}"))?
         .json()
         .await?;
-    if target.get("target").is_none_or(|t| t.is_null()) {
+    if target.get("target").is_none_or(serde_json::Value::is_null) {
         anyhow::bail!(
             "no attachment target configured; set one with PUT {base}/api/v1/attachments/target, \
              or use --to-dir to copy ciphertext to a mounted encrypted volume"

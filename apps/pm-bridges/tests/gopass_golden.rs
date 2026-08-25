@@ -65,7 +65,11 @@ fn query_host_walks_subdomains_leftwards() {
 fn query_host_never_matches_on_a_bare_public_suffix() {
     let fixture = Fixture::new();
     // "com" alone must not be queried; that would match everything.
-    let run = run_host(BIN, &fixture, &[json!({ "type": "queryHost", "host": "com" })]);
+    let run = run_host(
+        BIN,
+        &fixture,
+        &[json!({ "type": "queryHost", "host": "com" })],
+    );
     assert_eq!(run.responses[0], json!([]));
 }
 

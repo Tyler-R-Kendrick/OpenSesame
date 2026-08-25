@@ -5,7 +5,7 @@
 //! material in `common`. They are committed so the API-layer tests replay a
 //! fixed wire format rather than whatever the code happens to emit today.
 //!
-//! `committed_fixtures_match_the_generator` is the guard: if the EncString
+//! `committed_fixtures_match_the_generator` is the guard: if the `EncString`
 //! wire form, the KDF composition, or the fixture account material changes,
 //! the committed JSON stops matching and the diff has to be looked at.
 
@@ -61,7 +61,10 @@ fn regenerate_fixtures() {
             let path = dir.join(name);
             std::fs::write(
                 &path,
-                format!("{}\n", serde_json::to_string_pretty(&value).expect("serialize")),
+                format!(
+                    "{}\n",
+                    serde_json::to_string_pretty(&value).expect("serialize")
+                ),
             )
             .expect("write fixture");
             eprintln!("wrote {}", path.display());

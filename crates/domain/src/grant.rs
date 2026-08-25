@@ -149,6 +149,11 @@ impl Grant {
     ///
     /// The replacement keeps the current child's position in the chain
     /// (same depth, same parent); only its authority shrinks.
+    ///
+    /// # Errors
+    ///
+    /// Returns an attenuation error if the replacement changes lineage or
+    /// widens either the parent or current child's authority.
     pub fn validate_replacement(
         parent: &Grant,
         current: &Grant,

@@ -88,7 +88,7 @@ fn valid_folder_path(value: &str) -> bool {
     if value.is_empty() || value.len() > 512 || !value.starts_with('/') || value.ends_with('/') {
         return false;
     }
-    if value.contains('\\') || value.chars().any(|c| c.is_control()) {
+    if value.contains('\\') || value.chars().any(char::is_control) {
         return false;
     }
     value
@@ -109,7 +109,7 @@ fn valid_logical_path(value: &str) -> bool {
     if value.is_empty() || value.len() > 512 || value.starts_with('/') || value.ends_with('/') {
         return false;
     }
-    if value.contains('\\') || value.chars().any(|c| c.is_control()) {
+    if value.contains('\\') || value.chars().any(char::is_control) {
         return false;
     }
     value.split('/').all(|segment| {
@@ -203,7 +203,11 @@ pub async fn put_target(
     if let Err(error) = st.db.upsert_attachment_target(&target).await {
         return internal(error);
     }
-    (StatusCode::OK, Json(json!({ "target": target_view(&target) }))).into_response()
+    (
+        StatusCode::OK,
+        Json(json!({ "target": target_view(&target) })),
+    )
+        .into_response()
 }
 
 pub async fn delete_target(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
@@ -305,7 +309,10 @@ pub async fn replicate_chunk(
     let organization = who.organization(st.connection_organization);
 
     if !valid_digest(&query.digest) {
-        return unprocessable("invalid_digest", "digest must be 64 lowercase hex characters");
+        return unprocessable(
+            "invalid_digest",
+            "digest must be 64 lowercase hex characters",
+        );
     }
     if body.is_empty() {
         return unprocessable("empty_body", "a chunk frame cannot be empty");
@@ -367,10 +374,7 @@ pub async fn replicate_manifest(
         Ok(target) => target,
         Err(resp) => return resp,
     };
-    let remote = format!(
-        "{}/manifests/{}.osattach",
-        target.folder_path, query.path
-    );
+    let remote = format!("{}/manifests/{}.osattach", target.folder_path, query.path);
     upload(&st, &organization, &target, remote, body.to_vec()).await
 }
 
@@ -428,7 +432,7 @@ mod tests {
                             scopes: vec!["files.content.write".into()],
                             client_id: Some("client".into()),
                             client_secret: Some("secret".into()),
-                            configuration: Default::default(),
+                            configuration: std::collections::BTreeMap::default(),
                             created_by: "principal:attach-tester".into(),
                         },
                     )
@@ -458,7 +462,7 @@ mod tests {
             .connection_id
     }
 
-    fn put_target_req(token: &str, body: serde_json::Value) -> Request<Body> {
+    fn put_target_req(token: &str, body: &serde_json::Value) -> Request<Body> {
         Request::builder()
             .method("PUT")
             .uri("/api/v1/attachments/target")
@@ -469,7 +473,9 @@ mod tests {
     }
 
     async fn body_json(res: axum::response::Response) -> serde_json::Value {
-        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null)
     }
 
@@ -484,7 +490,7 @@ mod tests {
             .clone()
             .oneshot(put_target_req(
                 &token,
-                json!({
+                &json!({
                     "connection_id": connection,
                     "folder_path": "/OpenSesame/attachments"
                 }),
@@ -547,7 +553,7 @@ mod tests {
         let res = app(st)
             .oneshot(put_target_req(
                 &token,
-                json!({"connection_id": connection, "folder_path": "/x"}),
+                &json!({"connection_id": connection, "folder_path": "/x"}),
             ))
             .await
             .unwrap();
@@ -569,7 +575,7 @@ mod tests {
                 .clone()
                 .oneshot(put_target_req(
                     &token,
-                    json!({"connection_id": connection, "folder_path": bad}),
+                    &json!({"connection_id": connection, "folder_path": bad}),
                 ))
                 .await
                 .unwrap();
@@ -588,7 +594,7 @@ mod tests {
         let res = app(st)
             .oneshot(put_target_req(
                 &token,
-                json!({"connection_id": "connection:nope", "folder_path": "/x"}),
+                &json!({"connection_id": "connection:nope", "folder_path": "/x"}),
             ))
             .await
             .unwrap();
@@ -609,7 +615,11 @@ mod tests {
             )
             .await
             .unwrap();
-        assert_ne!(res.status(), StatusCode::OK, "must not answer unauthenticated");
+        assert_ne!(
+            res.status(),
+            StatusCode::OK,
+            "must not answer unauthenticated"
+        );
     }
 
     #[tokio::test]
@@ -623,7 +633,7 @@ mod tests {
         app.clone()
             .oneshot(put_target_req(
                 &token,
-                json!({"connection_id": connection, "folder_path": "/OpenSesame"}),
+                &json!({"connection_id": connection, "folder_path": "/OpenSesame"}),
             ))
             .await
             .unwrap();
@@ -657,7 +667,9 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/api/v1/attachments/replicate/chunk?digest={digest}"))
+                    .uri(format!(
+                        "/api/v1/attachments/replicate/chunk?digest={digest}"
+                    ))
                     .header("x-opensesame-operator", &token)
                     .header("content-type", "application/octet-stream")
                     .body(Body::from(payload))
@@ -687,7 +699,9 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/api/v1/attachments/replicate/chunk?digest={digest}"))
+                    .uri(format!(
+                        "/api/v1/attachments/replicate/chunk?digest={digest}"
+                    ))
                     .header("x-opensesame-operator", &token)
                     .header("content-type", "application/octet-stream")
                     .body(Body::from(oversize))
@@ -711,7 +725,9 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/api/v1/attachments/replicate/chunk?digest={digest}"))
+                    .uri(format!(
+                        "/api/v1/attachments/replicate/chunk?digest={digest}"
+                    ))
                     .header("x-opensesame-operator", &token)
                     .header("content-type", "application/octet-stream")
                     .body(Body::from(at_limit))

@@ -25,6 +25,7 @@ use axum::{
 };
 use chrono::{DateTime, Duration, Utc};
 use opensesame_authz::assert_no_secret_in_agent_payload;
+use opensesame_connection_broker::delegation::ResolvedDelegation;
 use opensesame_domain::{AvailabilityClass, Intent};
 use opensesame_relay::{admit, ExecutionMode, HolderLiveness, RelayAdmission, RelayRefusal};
 use serde::Deserialize;
@@ -50,6 +51,35 @@ fn relay_error(refusal: RelayRefusal) -> Response {
         RelayRefusal::MaterializeDenied => (StatusCode::FORBIDDEN, "materialize_denied"),
     };
     (status, Json(json!({"error": code}))).into_response()
+}
+
+fn error_response(status: StatusCode, code: &str) -> Response {
+    (status, Json(json!({"error": code}))).into_response()
+}
+
+fn not_found() -> Response {
+    error_response(StatusCode::NOT_FOUND, "not_found")
+}
+
+fn bootstrap_organization(st: &AppState) -> Result<opensesame_domain::OrganizationId, Response> {
+    st.bootstrap
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|bootstrap| bootstrap.org)
+        .ok_or_else(|| error_response(StatusCode::SERVICE_UNAVAILABLE, "bootstrap_unavailable"))
+}
+
+fn caller_organization(
+    st: &AppState,
+    caller: &Caller,
+) -> Result<opensesame_domain::OrganizationId, Response> {
+    match caller {
+        Caller::Session {
+            organization_id, ..
+        } => Ok(*organization_id),
+        Caller::Operator => bootstrap_organization(st),
+    }
 }
 
 fn holder_online(st: &AppState, holder: &str) -> HolderLiveness {
@@ -82,7 +112,9 @@ fn request_digest(
         resource,
         &params_hash,
     ] {
-        h.update((part.len() as u32).to_be_bytes());
+        let part_len = u32::try_from(part.len())
+            .map_err(|_| error_response(StatusCode::BAD_REQUEST, "invalid_parameters"))?;
+        h.update(part_len.to_be_bytes());
         h.update(part.as_bytes());
     }
     Ok(format!("sha256:{:x}", h.finalize()))
@@ -110,11 +142,111 @@ pub struct SubmitRequest {
     parameters: Option<Value>,
 }
 
+async fn resolve_submit_delegation(
+    st: &AppState,
+    organization: &opensesame_domain::OrganizationId,
+    subject: &str,
+    delegation_id: &str,
+) -> Result<ResolvedDelegation, Response> {
+    let mine = st
+        .connection_broker
+        .list_delegations_for(organization, subject)
+        .await
+        .map_err(|_| not_found())?;
+    let view = mine
+        .iter()
+        .find(|delegation| delegation.id == delegation_id && delegation.claimant_subject == subject)
+        .ok_or_else(not_found)?;
+    match st
+        .connection_broker
+        .find_live_delegation(subject, &view.connection_id)
+        .await
+    {
+        Ok(Some(resolved)) if resolved.delegation_id == delegation_id => Ok(resolved),
+        _ => Err(not_found()),
+    }
+}
+
+fn authorize_relay_request(
+    resolved: &ResolvedDelegation,
+    body: &SubmitRequest,
+) -> Result<(), Response> {
+    if !resolved
+        .grant
+        .actions
+        .iter()
+        .any(|action| action == &body.operation)
+    {
+        return Err(error_response(StatusCode::FORBIDDEN, "action_not_granted"));
+    }
+    if !resolved.grant.permits_resource(&body.resource) {
+        return Err(error_response(
+            StatusCode::FORBIDDEN,
+            "resource_not_granted",
+        ));
+    }
+    Ok(())
+}
+
+fn admit_submission(
+    st: &AppState,
+    resolved: &ResolvedDelegation,
+    digest: &str,
+) -> Result<(), Response> {
+    let admission = RelayAdmission {
+        mode: resolved.execution_mode,
+        liveness: holder_online(st, &resolved.owner_subject),
+        class: AvailabilityClass::A3ExternalSideEffect,
+        offline_use: resolved.grant.constraints.offline_use.clone(),
+        approved_digest: digest,
+        executing_digest: digest,
+        approval_required: false,
+        approved: false,
+        materialize: false,
+    };
+    admit(&admission).map_err(relay_error)
+}
+
+async fn insert_relay_request(
+    st: &AppState,
+    body: &SubmitRequest,
+    resolved: &ResolvedDelegation,
+    organization: opensesame_domain::OrganizationId,
+    subject: &str,
+    parameters: &Value,
+    digest: &str,
+) -> Result<String, Response> {
+    let id = format!("rreq_{}", uuid::Uuid::now_v7().simple());
+    let now = Utc::now();
+    sqlx::query(
+        "INSERT INTO relay_requests
+         (id, delegation_id, connection_id, organization_id, holder_subject, delegate_subject,
+          operation, resource, parameters_json, request_digest, state, expires_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_approval', ?, ?)",
+    )
+    .bind(&id)
+    .bind(&body.delegation_id)
+    .bind(&resolved.connection_id)
+    .bind(organization.to_string())
+    .bind(&resolved.owner_subject)
+    .bind(subject)
+    .bind(&body.operation)
+    .bind(&body.resource)
+    .bind(parameters.to_string())
+    .bind(digest)
+    .bind((now + Duration::seconds(REQUEST_TTL_SECONDS)).to_rfc3339())
+    .bind(now.to_rfc3339())
+    .execute(st.connection_broker.pool())
+    .await
+    .map_err(|_| error_response(StatusCode::SERVICE_UNAVAILABLE, "relay_unavailable"))?;
+    Ok(id)
+}
+
 /// `POST /api/v1/relay/requests` — the delegate submits a frozen request.
 pub async fn submit(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
-    Json(body): Json<SubmitRequest>,
+    Json(mut body): Json<SubmitRequest>,
 ) -> Response {
     let subject = match resolve_caller_subject(&st, &headers) {
         Ok(s) => s,
@@ -133,64 +265,23 @@ pub async fn submit(
 
     // The delegation must be the caller's own, live, and relay-mode. Lookup by
     // id via the caller's delegation list keeps the id space unenumerable.
-    let organization = match &caller {
-        Caller::Session {
-            organization_id, ..
-        } => *organization_id,
-        Caller::Operator => match st.bootstrap.lock().unwrap().as_ref().map(|b| b.org) {
-            Some(org) => org,
-            None => {
-                return (
-                    StatusCode::SERVICE_UNAVAILABLE,
-                    Json(json!({"error":"bootstrap_unavailable"})),
-                )
-                    .into_response()
-            }
-        },
+    let organization = match caller_organization(&st, &caller) {
+        Ok(organization) => organization,
+        Err(response) => return response,
     };
-    let mine = match st
-        .connection_broker
-        .list_delegations_for(&organization, &subject)
-        .await
-    {
-        Ok(list) => list,
-        Err(_) => {
-            return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response()
-        }
-    };
-    let Some(view) = mine
-        .iter()
-        .find(|d| d.id == body.delegation_id && d.claimant_subject == subject)
-    else {
-        return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
-    };
-    let resolved = match st
-        .connection_broker
-        .find_live_delegation(&subject, &view.connection_id)
-        .await
-    {
-        Ok(Some(resolved)) if resolved.delegation_id == body.delegation_id => resolved,
-        _ => return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response(),
-    };
+    let resolved =
+        match resolve_submit_delegation(&st, &organization, &subject, &body.delegation_id).await {
+            Ok(resolved) => resolved,
+            Err(response) => return response,
+        };
 
     // The action must be inside the child grant before anything is parked in
     // front of the holder: an inbox is not a place to launder wider asks.
-    if !resolved.grant.actions.iter().any(|a| a == &body.operation) {
-        return (
-            StatusCode::FORBIDDEN,
-            Json(json!({"error":"action_not_granted"})),
-        )
-            .into_response();
-    }
-    if !resolved.grant.permits_resource(&body.resource) {
-        return (
-            StatusCode::FORBIDDEN,
-            Json(json!({"error":"resource_not_granted"})),
-        )
-            .into_response();
+    if let Err(response) = authorize_relay_request(&resolved, &body) {
+        return response;
     }
 
-    let parameters = body.parameters.unwrap_or_else(|| json!({}));
+    let parameters = body.parameters.take().unwrap_or_else(|| json!({}));
     let digest = match request_digest(
         &body.delegation_id,
         &body.operation,
@@ -205,50 +296,24 @@ pub async fn submit(
     // deliberately not required *yet* — it is what the holder's decision will
     // add — so it is presented to `admit` as not-required here and strictly
     // required at the result fence.
-    let admission = RelayAdmission {
-        mode: resolved.execution_mode,
-        liveness: holder_online(&st, &resolved.owner_subject),
-        class: AvailabilityClass::A3ExternalSideEffect,
-        offline_use: resolved.grant.constraints.offline_use.clone(),
-        approved_digest: &digest,
-        executing_digest: &digest,
-        approval_required: false,
-        approved: false,
-        materialize: false,
-    };
-    if let Err(refusal) = admit(&admission) {
-        return relay_error(refusal);
+    if let Err(response) = admit_submission(&st, &resolved, &digest) {
+        return response;
     }
 
-    let id = format!("rreq_{}", uuid::Uuid::now_v7().simple());
-    let now = Utc::now();
-    let insert = sqlx::query(
-        "INSERT INTO relay_requests
-         (id, delegation_id, connection_id, organization_id, holder_subject, delegate_subject,
-          operation, resource, parameters_json, request_digest, state, expires_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_approval', ?, ?)",
+    let id = match insert_relay_request(
+        &st,
+        &body,
+        &resolved,
+        organization,
+        &subject,
+        &parameters,
+        &digest,
     )
-    .bind(&id)
-    .bind(&body.delegation_id)
-    .bind(&resolved.connection_id)
-    .bind(organization.to_string())
-    .bind(&resolved.owner_subject)
-    .bind(&subject)
-    .bind(&body.operation)
-    .bind(&body.resource)
-    .bind(parameters.to_string())
-    .bind(&digest)
-    .bind((now + Duration::seconds(REQUEST_TTL_SECONDS)).to_rfc3339())
-    .bind(now.to_rfc3339())
-    .execute(st.connection_broker.pool())
-    .await;
-    if insert.is_err() {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({"error":"relay_unavailable"})),
-        )
-            .into_response();
-    }
+    .await
+    {
+        Ok(id) => id,
+        Err(response) => return response,
+    };
     (
         StatusCode::ACCEPTED,
         Json(json!({
@@ -262,9 +327,7 @@ pub async fn submit(
 }
 
 fn expired(row_expires: &str, now: DateTime<Utc>) -> bool {
-    DateTime::parse_from_rfc3339(row_expires)
-        .map(|t| now >= t.with_timezone(&Utc))
-        .unwrap_or(true)
+    DateTime::parse_from_rfc3339(row_expires).map_or(true, |time| now >= time.with_timezone(&Utc))
 }
 
 /// `GET /api/v1/relay/requests/pending` — the holder drains its inbox.
@@ -288,15 +351,8 @@ pub async fn pending(State(st): State<AppState>, headers: axum::http::HeaderMap)
     .bind(&subject)
     .fetch_all(st.connection_broker.pool())
     .await;
-    let rows = match rows {
-        Ok(rows) => rows,
-        Err(_) => {
-            return (
-                StatusCode::SERVICE_UNAVAILABLE,
-                Json(json!({"error":"relay_unavailable"})),
-            )
-                .into_response()
-        }
+    let Ok(rows) = rows else {
+        return error_response(StatusCode::SERVICE_UNAVAILABLE, "relay_unavailable");
     };
     let now = Utc::now();
     let requests: Vec<Value> = rows
@@ -392,6 +448,130 @@ pub struct ResultRequest {
     safe_summary: Option<Value>,
 }
 
+struct ResultContext {
+    delegation_id: String,
+    delegate_subject: String,
+    approved_digest: String,
+    approved: bool,
+}
+
+async fn load_result_context(
+    st: &AppState,
+    id: &str,
+    holder_subject: &str,
+) -> Result<ResultContext, Response> {
+    let row = sqlx::query(
+        "SELECT delegation_id, holder_subject, delegate_subject, request_digest, state, expires_at
+         FROM relay_requests WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(st.connection_broker.pool())
+    .await;
+    let Ok(Some(row)) = row else {
+        return Err(not_found());
+    };
+    if row.get::<String, _>("holder_subject") != holder_subject {
+        return Err(not_found());
+    }
+    if expired(&row.get::<String, _>("expires_at"), Utc::now()) {
+        return Err(error_response(StatusCode::GONE, "expired"));
+    }
+    Ok(ResultContext {
+        delegation_id: row.get("delegation_id"),
+        delegate_subject: row.get("delegate_subject"),
+        approved_digest: row.get("request_digest"),
+        approved: row.get::<String, _>("state") == "approved",
+    })
+}
+
+fn result_organization(
+    st: &AppState,
+    headers: &axum::http::HeaderMap,
+) -> Result<opensesame_domain::OrganizationId, Response> {
+    match crate::middleware::auth::resolve_caller(st, headers) {
+        Ok(Caller::Session {
+            organization_id, ..
+        }) => Ok(organization_id),
+        _ => bootstrap_organization(st),
+    }
+}
+
+async fn live_execution_mode(
+    st: &AppState,
+    headers: &axum::http::HeaderMap,
+    context: &ResultContext,
+) -> Result<ExecutionMode, Response> {
+    let organization = result_organization(st, headers)?;
+    let live = st
+        .connection_broker
+        .list_delegations_for(&organization, &context.delegate_subject)
+        .await
+        .ok()
+        .and_then(|list| {
+            list.into_iter().find(|delegation| {
+                delegation.id == context.delegation_id && delegation.revoked_at.is_none()
+            })
+        });
+    Ok(live.as_ref().map_or(ExecutionMode::Broker, |delegation| {
+        delegation.execution_mode
+    }))
+}
+
+fn validate_result(
+    mode: ExecutionMode,
+    context: &ResultContext,
+    body: &ResultRequest,
+) -> Result<Value, Response> {
+    let admission = RelayAdmission {
+        mode,
+        // The holder is reporting a result; it is by definition reachable.
+        liveness: HolderLiveness::Online,
+        class: AvailabilityClass::A3ExternalSideEffect,
+        offline_use: opensesame_domain::OfflineUse::Forbidden,
+        approved_digest: &context.approved_digest,
+        executing_digest: &body.executed_digest,
+        approval_required: true,
+        approved: context.approved,
+        materialize: false,
+    };
+    admit(&admission).map_err(relay_error)?;
+
+    let summary = body.safe_summary.clone().unwrap_or_else(|| json!({}));
+    assert_no_secret_in_agent_payload(&summary)
+        .map_err(|_| error_response(StatusCode::UNPROCESSABLE_ENTITY, "summary_rejected"))?;
+    Ok(summary)
+}
+
+async fn complete_result(
+    st: &AppState,
+    id: &str,
+    summary: &Value,
+    requested_outcome: &str,
+) -> Response {
+    let outcome = if requested_outcome == "succeeded" {
+        "succeeded"
+    } else {
+        "failed"
+    };
+    let updated = sqlx::query(
+        "UPDATE relay_requests
+         SET state = 'completed', result_json = ?, result_outcome = ?, completed_at = ?
+         WHERE id = ? AND state = 'approved'",
+    )
+    .bind(summary.to_string())
+    .bind(outcome)
+    .bind(Utc::now().to_rfc3339())
+    .bind(id)
+    .execute(st.connection_broker.pool())
+    .await;
+    match updated {
+        Ok(result) if result.rows_affected() == 1 => {
+            Json(json!({"id": id, "state": "completed", "outcome": outcome})).into_response()
+        }
+        _ => error_response(StatusCode::CONFLICT, "conflict"),
+    }
+}
+
 /// `POST /api/v1/relay/requests/{id}/result` — the holder reports back.
 ///
 /// The full admission runs here, at the execution boundary: the request must
@@ -406,108 +586,25 @@ pub async fn result(
         Ok(s) => s,
         Err(resp) => return resp,
     };
-    let row = sqlx::query(
-        "SELECT delegation_id, holder_subject, delegate_subject, request_digest, state, expires_at
-         FROM relay_requests WHERE id = ?",
-    )
-    .bind(&id)
-    .fetch_optional(st.connection_broker.pool())
-    .await;
-    let Ok(Some(row)) = row else {
-        return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
+    let context = match load_result_context(&st, &id, &subject).await {
+        Ok(context) => context,
+        Err(response) => return response,
     };
-    if row.get::<String, _>("holder_subject") != subject {
-        return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
-    }
-    let state: String = row.get("state");
-    if expired(&row.get::<String, _>("expires_at"), Utc::now()) {
-        return (StatusCode::GONE, Json(json!({"error":"expired"}))).into_response();
-    }
 
     // The delegation may have been revoked or narrowed since approval; the
     // stored digest pins the request, but authority is re-read live.
-    let delegation_id: String = row.get("delegation_id");
-    let delegate: String = row.get("delegate_subject");
-    let live = st
-        .connection_broker
-        .list_delegations_for(
-            &match crate::middleware::auth::resolve_caller(&st, &headers) {
-                Ok(Caller::Session {
-                    organization_id, ..
-                }) => organization_id,
-                _ => match st.bootstrap.lock().unwrap().as_ref().map(|b| b.org) {
-                    Some(org) => org,
-                    None => {
-                        return (
-                            StatusCode::SERVICE_UNAVAILABLE,
-                            Json(json!({"error":"bootstrap_unavailable"})),
-                        )
-                            .into_response()
-                    }
-                },
-            },
-            &delegate,
-        )
-        .await
-        .ok()
-        .and_then(|list| {
-            list.into_iter()
-                .find(|d| d.id == delegation_id && d.revoked_at.is_none())
-        });
-    let mode = live
-        .as_ref()
-        .map(|d| d.execution_mode)
-        .unwrap_or(ExecutionMode::Broker);
-
-    let approved_digest: String = row.get("request_digest");
-    let admission = RelayAdmission {
-        mode,
-        // The holder is reporting a result; it is by definition reachable.
-        liveness: HolderLiveness::Online,
-        class: AvailabilityClass::A3ExternalSideEffect,
-        offline_use: opensesame_domain::OfflineUse::Forbidden,
-        approved_digest: &approved_digest,
-        executing_digest: &body.executed_digest,
-        approval_required: true,
-        approved: state == "approved",
-        materialize: false,
+    let mode = match live_execution_mode(&st, &headers, &context).await {
+        Ok(mode) => mode,
+        Err(response) => return response,
     };
-    if let Err(refusal) = admit(&admission) {
-        return relay_error(refusal);
-    }
 
     // The summary is holder-authored and lands where the delegate reads it:
     // hostile-input rules apply in both directions.
-    let summary = body.safe_summary.unwrap_or(json!({}));
-    if assert_no_secret_in_agent_payload(&summary).is_err() {
-        return (
-            StatusCode::UNPROCESSABLE_ENTITY,
-            Json(json!({"error":"summary_rejected"})),
-        )
-            .into_response();
-    }
-    let outcome = if body.outcome == "succeeded" {
-        "succeeded"
-    } else {
-        "failed"
+    let summary = match validate_result(mode, &context, &body) {
+        Ok(summary) => summary,
+        Err(response) => return response,
     };
-    let updated = sqlx::query(
-        "UPDATE relay_requests
-         SET state = 'completed', result_json = ?, result_outcome = ?, completed_at = ?
-         WHERE id = ? AND state = 'approved'",
-    )
-    .bind(summary.to_string())
-    .bind(outcome)
-    .bind(Utc::now().to_rfc3339())
-    .bind(&id)
-    .execute(st.connection_broker.pool())
-    .await;
-    match updated {
-        Ok(result) if result.rows_affected() == 1 => {
-            Json(json!({"id": id, "state": "completed", "outcome": outcome})).into_response()
-        }
-        _ => (StatusCode::CONFLICT, Json(json!({"error":"conflict"}))).into_response(),
-    }
+    complete_result(&st, &id, &summary, &body.outcome).await
 }
 
 /// `GET /api/v1/relay/requests/{id}` — delegate or holder polls.
@@ -667,21 +764,17 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn contract_the_full_relay_round_trip_is_digest_bound() {
-        let state = crate::app_state::test_demo_state().await;
-        let org = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
-        let delegation_id = relay_delegation(&state, org, ExecutionMode::Relay).await;
-        let holder =
-            crate::app_state::test_session_headers(&state, OWNER, org, OrganizationRole::Member);
-        let delegate =
-            crate::app_state::test_session_headers(&state, GUEST, org, OrganizationRole::Member);
-
+    async fn open_relay_request(
+        state: &AppState,
+        holder: &axum::http::HeaderMap,
+        delegate: &axum::http::HeaderMap,
+        delegation_id: &str,
+    ) -> (String, String) {
         // An offline holder is the end of the request, not a queue.
         let refused = submit(
             State(state.clone()),
             delegate.clone(),
-            Json(submit_body(&delegation_id)),
+            Json(submit_body(delegation_id)),
         )
         .await;
         assert_eq!(refused.status(), StatusCode::CONFLICT);
@@ -692,7 +785,7 @@ mod tests {
         let accepted = submit(
             State(state.clone()),
             delegate.clone(),
-            Json(submit_body(&delegation_id)),
+            Json(submit_body(delegation_id)),
         )
         .await;
         assert_eq!(accepted.status(), StatusCode::ACCEPTED);
@@ -719,12 +812,20 @@ mod tests {
         )
         .await;
         assert_eq!(early.status(), StatusCode::FORBIDDEN);
+        (id, digest)
+    }
 
+    async fn approve_and_complete_relay(
+        state: &AppState,
+        holder: &axum::http::HeaderMap,
+        id: &str,
+        digest: &str,
+    ) {
         // Approval binds to bytes: a wrong digest echo approves nothing.
         let wrong = approve(
             State(state.clone()),
             holder.clone(),
-            Path(id.clone()),
+            Path(id.to_string()),
             Json(DecideRequest {
                 request_digest: "sha256:0000".into(),
             }),
@@ -734,9 +835,9 @@ mod tests {
         let approved = approve(
             State(state.clone()),
             holder.clone(),
-            Path(id.clone()),
+            Path(id.to_string()),
             Json(DecideRequest {
-                request_digest: digest.clone(),
+                request_digest: digest.to_string(),
             }),
         )
         .await;
@@ -746,7 +847,7 @@ mod tests {
         let drifted = result(
             State(state.clone()),
             holder.clone(),
-            Path(id.clone()),
+            Path(id.to_string()),
             Json(ResultRequest {
                 executed_digest: "sha256:1111".into(),
                 outcome: "succeeded".into(),
@@ -761,9 +862,9 @@ mod tests {
         let leaking = result(
             State(state.clone()),
             holder.clone(),
-            Path(id.clone()),
+            Path(id.to_string()),
             Json(ResultRequest {
-                executed_digest: digest.clone(),
+                executed_digest: digest.to_string(),
                 outcome: "succeeded".into(),
                 safe_summary: Some(json!({"note": "token ghp_PLANTED"})),
             }),
@@ -774,15 +875,29 @@ mod tests {
         let done = result(
             State(state.clone()),
             holder.clone(),
-            Path(id.clone()),
+            Path(id.to_string()),
             Json(ResultRequest {
-                executed_digest: digest.clone(),
+                executed_digest: digest.to_string(),
                 outcome: "succeeded".into(),
                 safe_summary: Some(json!({"resource": "repo:acme/catalog"})),
             }),
         )
         .await;
         assert_eq!(done.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn contract_the_full_relay_round_trip_is_digest_bound() {
+        let state = crate::app_state::test_demo_state().await;
+        let org = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
+        let delegation_id = relay_delegation(&state, org, ExecutionMode::Relay).await;
+        let holder =
+            crate::app_state::test_session_headers(&state, OWNER, org, OrganizationRole::Member);
+        let delegate =
+            crate::app_state::test_session_headers(&state, GUEST, org, OrganizationRole::Member);
+
+        let (id, digest) = open_relay_request(&state, &holder, &delegate, &delegation_id).await;
+        approve_and_complete_relay(&state, &holder, &id, &digest).await;
 
         // The delegate reads the outcome; a stranger reads nothing.
         let seen = get(State(state.clone()), delegate.clone(), Path(id.clone())).await;

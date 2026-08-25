@@ -1593,7 +1593,10 @@ mod tests {
             &serde_json::json!({ "native_client": true }),
         )
         .unwrap_err();
-        assert_eq!(error, ProviderExecutionError::MissingConfig("server_url".into()));
+        assert_eq!(
+            error,
+            ProviderExecutionError::MissingConfig("server_url".into())
+        );
     }
 
     #[test]
@@ -1721,13 +1724,18 @@ mod tests {
         // the object pool that holds its ciphertext.
         let listed =
             execute_sealed_store(HumanProviderOperation::List, dir.path(), "").expect("list");
-        assert!(listed.contains("Dev/token"), "entries stay listable: {listed}");
+        assert!(
+            listed.contains("Dev/token"),
+            "entries stay listable: {listed}"
+        );
         assert!(
             !listed.contains("Taxes/passport"),
             "an attachment must not appear in the agent-facing listing: {listed}"
         );
         assert!(
-            !listed.contains("oschunk") && !listed.contains("osattach") && !listed.contains("attachments"),
+            !listed.contains("oschunk")
+                && !listed.contains("osattach")
+                && !listed.contains("attachments"),
             "no attachment artefact may leak into the listing: {listed}"
         );
 

@@ -31,7 +31,7 @@ pub const MAX_KV_NAME_BYTES: usize = 128;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KvFamily {
     /// `secret/connections/{logical_name}` — the connection's reference-only
-    /// view: ConnectionRef, provider, status, configured field *names*.
+    /// view: `ConnectionRef`, provider, status, configured field *names*.
     Connections,
     /// `secret/materialize/{logical_name}` — a provider-minted, short-lived
     /// derived credential, served only where the connection's materialization

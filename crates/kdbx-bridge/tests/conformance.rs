@@ -71,8 +71,14 @@ fn committed_fixture_covers_every_mapped_field_type() {
     let mail = by_path["Personal/Email/Example Mail"];
     assert_eq!(mail.entry.secret, "fixture-password-one");
     assert!(mail.entry.trailer.contains("login: alice@example.com"));
-    assert!(mail.entry.trailer.contains("url: https://mail.example.com/"));
-    assert!(mail.entry.trailer.contains("notes: First line of the note."));
+    assert!(mail
+        .entry
+        .trailer
+        .contains("url: https://mail.example.com/"));
+    assert!(mail
+        .entry
+        .trailer
+        .contains("notes: First line of the note."));
     assert!(mail.entry.trailer.contains("  Second line."));
     assert!(mail.entry.trailer.contains("Recovery Code: abcd-efgh-ijkl"));
     assert!(mail.entry.otp.is_some(), "entry 1 carries a TOTP");
@@ -94,7 +100,10 @@ fn committed_fixture_covers_every_mapped_field_type() {
     // Password-less entry keeps an empty line one.
     let note = by_path["Root Note"];
     assert_eq!(note.entry.secret, "");
-    assert!(note.entry.trailer.contains("notes: A note with no password"));
+    assert!(note
+        .entry
+        .trailer
+        .contains("notes: A note with no password"));
 
     assert_eq!(by_path.len(), 5);
 }

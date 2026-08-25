@@ -20,6 +20,10 @@ pub const FIXTURE_OTPAUTH: &str =
 ///
 /// - `Web/example.com` — secret + `login:`/`url:` trailer + TOTP.
 /// - `Dev/github` — secret only, reachable solely by the name heuristic.
+///
+/// # Panics
+///
+/// Panics when the deterministic fixture store cannot be initialized.
 pub fn init_store_fixture(root: &Path) {
     init_store(root, &[]).expect("init store");
     let key = init_store_key(root, FIXTURE_PASSPHRASE).expect("init key");
@@ -30,7 +34,9 @@ pub fn init_store_fixture(root: &Path) {
             "Web/example.com",
             &Entry {
                 secret: "hunter2".into(),
-                trailer: format!("login: alice\nurl: https://example.com/login\n{FIXTURE_OTPAUTH}\n"),
+                trailer: format!(
+                    "login: alice\nurl: https://example.com/login\n{FIXTURE_OTPAUTH}\n"
+                ),
                 otp: None,
             }
             .with_otp(opensesame_sealed_store::parse_otpauth(FIXTURE_OTPAUTH).ok()),

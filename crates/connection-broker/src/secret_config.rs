@@ -68,6 +68,7 @@ pub struct ConfigKeyMeta {
     pub updated_at: String,
 }
 
+#[must_use]
 pub fn valid_slug(slug: &str) -> bool {
     !slug.is_empty()
         && slug.len() <= 64
@@ -78,6 +79,7 @@ pub fn valid_slug(slug: &str) -> bool {
 
 /// Env-var discipline for key names keeps the AAD canonical encoding
 /// unambiguous (no `|` or `$` in names) and matches what sync targets push.
+#[must_use]
 pub fn valid_key_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 128
@@ -95,6 +97,33 @@ pub fn valid_key_name(name: &str) -> bool {
 enum Reference {
     SameConfig { key: String },
     CrossConfig { slug: String, key: String },
+}
+
+fn parse_reference(inner: &str) -> Result<Reference> {
+    if let Some(rest) = inner.strip_prefix("config:") {
+        let (slug, key) = rest.split_once('.').ok_or_else(|| {
+            BrokerError::Invalid(format!(
+                "cross-config reference `{inner}` must be `config:<slug>.<KEY>`"
+            ))
+        })?;
+        if !valid_slug(slug) || !valid_key_name(key) {
+            return Err(BrokerError::Invalid(format!(
+                "invalid cross-config reference `{inner}`"
+            )));
+        }
+        return Ok(Reference::CrossConfig {
+            slug: slug.to_string(),
+            key: key.to_string(),
+        });
+    }
+    if !valid_key_name(inner) {
+        return Err(BrokerError::Invalid(format!(
+            "invalid secret reference `{inner}`"
+        )));
+    }
+    Ok(Reference::SameConfig {
+        key: inner.to_string(),
+    })
 }
 
 /// Scan a value for references. `$${…}` is an escape for a literal `${…}` and
@@ -117,31 +146,7 @@ fn parse_references(value: &str) -> Result<Vec<(usize, usize, Reference)>> {
                 .find('}')
                 .ok_or_else(|| BrokerError::Invalid("unclosed secret reference".into()))?;
             let inner = &value[i + 2..i + close];
-            let reference = if let Some(rest) = inner.strip_prefix("config:") {
-                let (slug, key) = rest.split_once('.').ok_or_else(|| {
-                    BrokerError::Invalid(format!(
-                        "cross-config reference `{inner}` must be `config:<slug>.<KEY>`"
-                    ))
-                })?;
-                if !valid_slug(slug) || !valid_key_name(key) {
-                    return Err(BrokerError::Invalid(format!(
-                        "invalid cross-config reference `{inner}`"
-                    )));
-                }
-                Reference::CrossConfig {
-                    slug: slug.to_string(),
-                    key: key.to_string(),
-                }
-            } else {
-                if !valid_key_name(inner) {
-                    return Err(BrokerError::Invalid(format!(
-                        "invalid secret reference `{inner}`"
-                    )));
-                }
-                Reference::SameConfig {
-                    key: inner.to_string(),
-                }
-            };
+            let reference = parse_reference(inner)?;
             out.push((i, i + close + 1, reference));
             i += close + 1;
             continue;
@@ -176,6 +181,7 @@ pub struct StoreSecretSource {
 }
 
 impl StoreSecretSource {
+    #[must_use]
     pub fn new(pool: SqlitePool, key: [u8; 32]) -> Self {
         Self { pool, key }
     }
@@ -230,7 +236,7 @@ impl StoreSecretSource {
                     &parent.project_id,
                     &parent.id,
                     &row.key_name,
-                    row.version as u64,
+                    store::config_version_from_db(row.version)?,
                 );
                 let plaintext = crate::crypto::open_with_ad(&self.key, &ad, &row.sealed)?;
                 merged.insert(
@@ -246,7 +252,7 @@ impl StoreSecretSource {
                 &config.project_id,
                 &config.id,
                 &row.key_name,
-                row.version as u64,
+                store::config_version_from_db(row.version)?,
             );
             let plaintext = crate::crypto::open_with_ad(&self.key, &ad, &row.sealed)?;
             merged.insert(
@@ -283,31 +289,41 @@ impl StoreSecretSource {
             let mut cursor = 0;
             for (start, end, reference) in references {
                 resolved.push_str(&value[cursor..start]);
-                match reference {
-                    Reference::SameConfig { key: target } => {
-                        let inner = self
-                            .resolve_value(organization_id, config, &target, raw, visited)
-                            .await?;
-                        resolved.push_str(&inner);
-                    }
-                    Reference::CrossConfig { slug, key: target } => {
-                        let other = self
-                            .config_by_slug(organization_id, &config.project_id, &slug)
-                            .await?;
-                        guard_cross_environment(config, &other)?;
-                        let other_raw = self.raw_values(organization_id, &other).await?;
-                        let inner = self
-                            .resolve_value(organization_id, &other, &target, &other_raw, visited)
-                            .await?;
-                        resolved.push_str(&inner);
-                    }
-                }
+                let inner = self
+                    .resolve_reference(organization_id, config, raw, visited, reference)
+                    .await?;
+                resolved.push_str(&inner);
                 cursor = end;
             }
             resolved.push_str(&value[cursor..]);
             visited.remove(&(config.id.clone(), key.to_string()));
             Ok(unescape(&resolved))
         })
+    }
+
+    async fn resolve_reference(
+        &self,
+        organization_id: &str,
+        config: &SecretConfigRow,
+        raw: &BTreeMap<String, String>,
+        visited: &mut HashSet<(String, String)>,
+        reference: Reference,
+    ) -> Result<String> {
+        match reference {
+            Reference::SameConfig { key } => {
+                self.resolve_value(organization_id, config, &key, raw, visited)
+                    .await
+            }
+            Reference::CrossConfig { slug, key } => {
+                let other = self
+                    .config_by_slug(organization_id, &config.project_id, &slug)
+                    .await?;
+                guard_cross_environment(config, &other)?;
+                let other_raw = self.raw_values(organization_id, &other).await?;
+                self.resolve_value(organization_id, &other, &key, &other_raw, visited)
+                    .await
+            }
+        }
     }
 }
 
@@ -348,6 +364,10 @@ use crate::store::{ConfigValueVersionMetaRow, UpsertConfigValue};
 impl crate::ConnectionBroker {
     /// Durable changelog write through this broker's pool (fail closed on an
     /// unknown event name). The one production entry point for Host rows.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when event validation or durable persistence fails.
     pub async fn record_changelog(
         &self,
         input: RecordSecretChangelog,
@@ -356,6 +376,10 @@ impl crate::ConnectionBroker {
     }
 
     /// Durable changelog read, newest first; `before_seq` pages backwards.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when durable changelog storage cannot be read.
     pub async fn list_changelog(
         &self,
         organization_id: &str,
@@ -399,6 +423,31 @@ impl crate::ConnectionBroker {
         .await;
     }
 
+    async fn validate_cross_config_references(
+        &self,
+        organization_id: &str,
+        config: &SecretConfigRow,
+        value: &str,
+    ) -> Result<()> {
+        for (_, _, reference) in parse_references(value)? {
+            let Reference::CrossConfig { slug, .. } = reference else {
+                continue;
+            };
+            let other = store::list_secret_configs(&self.pool, organization_id, &config.project_id)
+                .await?
+                .into_iter()
+                .find(|candidate| candidate.slug == slug)
+                .ok_or_else(|| {
+                    BrokerError::Invalid(format!("referenced config `{slug}` does not exist"))
+                })?;
+            guard_cross_environment(config, &other)?;
+        }
+        Ok(())
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error when validation, parent lookup, or durable insertion fails.
     pub async fn create_secret_config(
         &self,
         organization_id: &str,
@@ -443,6 +492,9 @@ impl crate::ConnectionBroker {
         Ok(row.into())
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when durable config storage cannot be read.
     pub async fn list_secret_configs(
         &self,
         organization_id: &str,
@@ -457,6 +509,9 @@ impl crate::ConnectionBroker {
         )
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the config is absent or durable storage cannot be read.
     pub async fn get_secret_config_view(
         &self,
         organization_id: &str,
@@ -470,6 +525,10 @@ impl crate::ConnectionBroker {
 
     /// Refuses while sync targets still reference the config (delete those
     /// first) — a silent cascade would orphan fan-out state.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the config is absent, referenced, or cannot be deleted atomically.
     pub async fn delete_secret_config(
         &self,
         organization_id: &str,
@@ -494,6 +553,10 @@ impl crate::ConnectionBroker {
     }
 
     /// Write-only value intake. Returns key metadata — never values.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation, sealing, versioning, or durable persistence fails.
     pub async fn put_config_secrets(
         &self,
         organization_id: &str,
@@ -522,21 +585,8 @@ impl crate::ConnectionBroker {
             }
             // Fail closed at write time: malformed references and forbidden
             // cross-environment pulls never enter the store.
-            for (_, _, reference) in parse_references(value)? {
-                if let Reference::CrossConfig { slug, .. } = reference {
-                    let other =
-                        store::list_secret_configs(&self.pool, organization_id, &config.project_id)
-                            .await?
-                            .into_iter()
-                            .find(|c| c.slug == slug)
-                            .ok_or_else(|| {
-                                BrokerError::Invalid(format!(
-                                    "referenced config `{slug}` does not exist"
-                                ))
-                            })?;
-                    guard_cross_environment(&config, &other)?;
-                }
-            }
+            self.validate_cross_config_references(organization_id, &config, value)
+                .await?;
         }
         let mut out = Vec::with_capacity(secrets.len());
         let mut top_version = 0;
@@ -572,6 +622,9 @@ impl crate::ConnectionBroker {
         Ok(out)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the config/value is absent or durable deletion fails.
     pub async fn delete_config_secret(
         &self,
         organization_id: &str,
@@ -598,6 +651,9 @@ impl crate::ConnectionBroker {
         Ok(())
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the config is absent, a stored version is invalid, or storage fails.
     pub async fn config_key_meta(
         &self,
         organization_id: &str,
@@ -606,19 +662,22 @@ impl crate::ConnectionBroker {
         store::get_secret_config(&self.pool, organization_id, config_id)
             .await?
             .ok_or(BrokerError::ConfigNotFound)?;
-        Ok(
-            store::list_config_key_meta(&self.pool, organization_id, config_id)
-                .await?
-                .into_iter()
-                .map(|row| ConfigKeyMeta {
+        store::list_config_key_meta(&self.pool, organization_id, config_id)
+            .await?
+            .into_iter()
+            .map(|row| {
+                Ok(ConfigKeyMeta {
                     key_name: row.key_name,
-                    version: row.version as u64,
+                    version: store::config_version_from_db(row.version)?,
                     updated_at: row.updated_at.to_rfc3339(),
                 })
-                .collect(),
-        )
+            })
+            .collect()
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the config is absent or durable history cannot be read.
     pub async fn config_value_versions(
         &self,
         organization_id: &str,
@@ -630,6 +689,10 @@ impl crate::ConnectionBroker {
 
     /// Rollback = decrypt the old version in-process and re-seal it as a NEW
     /// head version (the AAD binds the version number; old bytes never move).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the version is absent, invalid, cannot be opened, or cannot be re-sealed.
     pub async fn rollback_config_secret(
         &self,
         organization_id: &str,
@@ -698,6 +761,10 @@ impl crate::ConnectionBroker {
     /// The production secret source for sync egress (replaces
     /// `EmptySecretSource`). Errors when the deployment seal key is unset —
     /// fail closed, a keyless deployment cannot sync.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the deployment sealing key is unavailable.
     pub fn sync_secret_source(&self) -> Result<Arc<dyn SyncSecretSource>> {
         let key = *self.sealing_key()?;
         Ok(Arc::new(StoreSecretSource::new(self.pool.clone(), key)))

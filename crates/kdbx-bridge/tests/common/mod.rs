@@ -122,7 +122,8 @@ pub const FIXTURE_ARGON2_PARALLELISM: u32 = 4;
 
 /// The constrained writer profile, rebuilt here independently of
 /// `export::database_config` so the conformance test has a second opinion on
-/// what "KDBX 4.1 / AES-256 / ChaCha20 inner / GZip / Argon2id" means.
+/// what "`KDBX 4.1` / `AES-256` / `ChaCha20` inner / `GZip` / `Argon2id`"
+/// means.
 pub fn fixture_config() -> DatabaseConfig {
     config_with(
         FIXTURE_ARGON2_ITERATIONS,
@@ -179,7 +180,7 @@ fn add_entry(db: &mut Database, parent: GroupId, fields: &[(&str, &str, bool)]) 
 /// Build the conformance database in memory.
 ///
 /// Written against `keepass` directly rather than through `export_kdbx`, so
-/// the fixture exercises KDBX shapes the exporter cannot produce: KeePassXC
+/// the fixture exercises KDBX shapes the exporter cannot produce: `KeePassXC`
 /// `TimeOtp-*` attributes, two entries with the same title in one group, and
 /// group/title names that need sanitizing.
 pub fn build_conformance_db() -> Database {
@@ -272,16 +273,16 @@ pub fn build_conformance_db_with(config: DatabaseConfig) -> Database {
 
 /// Serialize the conformance database with [`FIXTURE_PASSWORD`].
 pub fn build_conformance_bytes() -> Vec<u8> {
-    save(build_conformance_db())
+    save(&build_conformance_db())
 }
 
 /// The same content sealed with [`weak_config`], for tests that open many
 /// databases and do not assert on work factors.
 pub fn build_weak_bytes() -> Vec<u8> {
-    save(build_conformance_db_with(weak_config()))
+    save(&build_conformance_db_with(weak_config()))
 }
 
-fn save(db: Database) -> Vec<u8> {
+fn save(db: &Database) -> Vec<u8> {
     let mut out = Vec::new();
     db.save(&mut out, DatabaseKey::new().with_password(FIXTURE_PASSWORD))
         .expect("save fixture");

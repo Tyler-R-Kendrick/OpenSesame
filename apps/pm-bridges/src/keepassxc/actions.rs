@@ -15,11 +15,12 @@
 //! | `test-associate` | yes | proves one |
 //! | everything else | yes | **yes** |
 //!
-//! That last row is stricter than KeePassXC, which lets an unassociated
+//! That last row is stricter than `KeePassXC`, which lets an unassociated
 //! client generate a password. Constitution C2(b) wants every caller identity
 //! to have passed a human approval once, so the bridge draws the line there.
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::time::Duration;
 
 use serde_json::{json, Map, Value};
@@ -51,6 +52,7 @@ pub struct SessionConfig {
 }
 
 impl SessionConfig {
+    #[must_use]
     pub fn new(window: PairingWindow) -> Self {
         Self {
             window,
@@ -77,6 +79,7 @@ pub struct Session {
 }
 
 impl Session {
+    #[must_use]
     pub fn new(store: StoreAccess, config: SessionConfig) -> Self {
         Self {
             store,
@@ -86,15 +89,15 @@ impl Session {
     }
 
     /// The host's public key, for tests and diagnostics.
+    #[must_use]
     pub fn host_public_b64(&self) -> String {
         self.config.host_keys.public_b64()
     }
 
     /// Handle one raw envelope, returning the response to send back.
     pub fn handle(&mut self, raw: &[u8]) -> Value {
-        let envelope = match parse_envelope(raw) {
-            Ok(envelope) => envelope,
-            Err(_) => return error_reply("", ErrorCode::CannotDecryptMessage, None),
+        let Ok(envelope) = parse_envelope(raw) else {
+            return error_reply("", ErrorCode::CannotDecryptMessage, None);
         };
         if envelope.action.is_empty() {
             return error_reply("", ErrorCode::IncorrectAction, None);
@@ -243,11 +246,8 @@ impl Session {
                 self.require_association(client_id, inner)?;
                 self.database_groups()
             }
-            // Passkeys live in the Pages OPFS vault, not the sealed store, so
-            // there is nothing here to serve. Answering "incorrect action"
-            // is the protocol's own way of saying unsupported; the extension
-            // falls back to the platform authenticator.
-            "passkeys-get" | "passkeys-register" => Err(ErrorCode::IncorrectAction),
+            // Unsupported actions, including passkeys that live in the Pages
+            // OPFS vault, use the protocol's standard refusal code.
             _ => Err(ErrorCode::IncorrectAction),
         }
     }
@@ -276,8 +276,8 @@ impl Session {
             let _ = self.config.window.close();
             return Err(ErrorCode::ActionCancelledOrDenied);
         };
-        let association =
-            pairing::persist_association(&name, &id_key).map_err(|_| ErrorCode::AssociationFailed)?;
+        let association = pairing::persist_association(&name, &id_key)
+            .map_err(|_| ErrorCode::AssociationFailed)?;
         let _ = self.config.window.close();
 
         let id = association.id.clone();
@@ -343,7 +343,10 @@ impl Session {
         if url.trim().is_empty() {
             return Err(ErrorCode::NoUrlProvided);
         }
-        let matches = self.store.find_by_url(&url).map_err(store_error_code)?;
+        let matches = self
+            .store
+            .find_by_url(&url)
+            .map_err(|error| store_error_code(&error))?;
         if matches.is_empty() {
             return Err(ErrorCode::NoLoginsFound);
         }
@@ -370,17 +373,16 @@ impl Session {
             .and_then(|uuid| self.resolve_uuid(&uuid))
             .filter(|name| !name.is_empty());
 
-        let name = match existing {
-            Some(name) => name,
-            None => {
-                let host = host_of(&url).ok_or(ErrorCode::NoUrlProvided)?;
-                let leaf = if login.trim().is_empty() {
-                    host.clone()
-                } else {
-                    sanitize_segment(&login)
-                };
-                format!("{DEFAULT_GROUP}/{}/{leaf}", sanitize_segment(&host))
-            }
+        let name = if let Some(name) = existing {
+            name
+        } else {
+            let host = host_of(&url).ok_or(ErrorCode::NoUrlProvided)?;
+            let leaf = if login.trim().is_empty() {
+                host.clone()
+            } else {
+                sanitize_segment(&login)
+            };
+            format!("{DEFAULT_GROUP}/{}/{leaf}", sanitize_segment(&host))
         };
 
         let previous = self.store.show(&name).ok();
@@ -390,7 +392,9 @@ impl Session {
             trailer,
             otp: previous.and_then(|p| p.otp),
         };
-        self.store.put(&name, &entry).map_err(store_error_code)?;
+        self.store
+            .put(&name, &entry)
+            .map_err(|error| store_error_code(&error))?;
 
         Ok(json!({
             "count": Value::Null,
@@ -405,7 +409,9 @@ impl Session {
     fn get_totp(&mut self, client_id: &str, inner: &Value) -> Result<Value, ErrorCode> {
         self.require_association(client_id, inner)?;
         let uuid = string_field(inner, "uuid").ok_or(ErrorCode::NoValidUuidProvided)?;
-        let name = self.resolve_uuid(&uuid).ok_or(ErrorCode::NoValidUuidProvided)?;
+        let name = self
+            .resolve_uuid(&uuid)
+            .ok_or(ErrorCode::NoValidUuidProvided)?;
         let code = self
             .store
             .totp(&name, now_unix())
@@ -419,7 +425,10 @@ impl Session {
 
     /// Minimal group tree: one root, one child per top-level store prefix.
     fn database_groups(&mut self) -> Result<Value, ErrorCode> {
-        let names = self.store.list("").map_err(store_error_code)?;
+        let names = self
+            .store
+            .list("")
+            .map_err(|error| store_error_code(&error))?;
         let mut tops: Vec<String> = names
             .iter()
             .filter_map(|name| name.split('/').next().map(str::to_string))
@@ -469,7 +478,7 @@ fn login_entry(matched: &StoreMatch) -> Value {
         "name": matched.name,
         "password": matched.entry.secret,
         "uuid": entry_uuid(&matched.name),
-        "group": matched.name.rsplit_once('/').map(|(g, _)| g).unwrap_or(""),
+        "group": matched.name.rsplit_once('/').map_or("", |(g, _)| g),
         "stringFields": Vec::<Value>::new(),
     })
 }
@@ -492,10 +501,10 @@ fn merged_trailer(previous: Option<&Entry>, login: &str, url: &str) -> String {
     }
     let mut out = String::new();
     if !login.trim().is_empty() {
-        out.push_str(&format!("login: {}\n", login.trim()));
+        writeln!(out, "login: {}", login.trim()).expect("writing to a String cannot fail");
     }
     if !url.trim().is_empty() {
-        out.push_str(&format!("url: {}\n", url.trim()));
+        writeln!(out, "url: {}", url.trim()).expect("writing to a String cannot fail");
     }
     for line in lines {
         out.push_str(&line);
@@ -506,17 +515,19 @@ fn merged_trailer(previous: Option<&Entry>, login: &str, url: &str) -> String {
 
 /// Make a store path segment out of arbitrary client-supplied text.
 fn sanitize_segment(raw: &str) -> String {
-    let cleaned: String = raw
-        .trim()
-        .chars()
-        .map(|c| {
-            if c.is_control() || matches!(c, '/' | '\\' | ':') {
-                '-'
-            } else {
-                c
+    let mut cleaned = String::with_capacity(raw.len());
+    let mut replacing = false;
+    for character in raw.trim().chars() {
+        if character.is_control() || matches!(character, '/' | '\\' | ':') {
+            if !replacing {
+                cleaned.push('-');
             }
-        })
-        .collect();
+            replacing = true;
+        } else {
+            cleaned.push(character);
+            replacing = false;
+        }
+    }
     let cleaned = cleaned.trim_matches(['-', '.', ' ']).to_string();
     if cleaned.is_empty() {
         "unnamed".to_string()
@@ -525,7 +536,7 @@ fn sanitize_segment(raw: &str) -> String {
     }
 }
 
-fn store_error_code(error: BridgeError) -> ErrorCode {
+fn store_error_code(error: &BridgeError) -> ErrorCode {
     match error {
         BridgeError::Locked => ErrorCode::DatabaseNotOpened,
         BridgeError::Protocol(_) => ErrorCode::NoUrlProvided,
@@ -597,15 +608,15 @@ mod tests {
     #[test]
     fn store_errors_map_to_protocol_codes() {
         assert_eq!(
-            store_error_code(BridgeError::Locked),
+            store_error_code(&BridgeError::Locked),
             ErrorCode::DatabaseNotOpened
         );
         assert_eq!(
-            store_error_code(BridgeError::Protocol("no host".into())),
+            store_error_code(&BridgeError::Protocol("no host".into())),
             ErrorCode::NoUrlProvided
         );
         assert_eq!(
-            store_error_code(BridgeError::NotFound),
+            store_error_code(&BridgeError::NotFound),
             ErrorCode::NoLoginsFound
         );
     }
@@ -627,7 +638,7 @@ mod tests {
             .keys()
             .map(String::as_str)
             .collect();
-        keys.sort();
+        keys.sort_unstable();
         assert_eq!(
             keys,
             vec!["group", "login", "name", "password", "stringFields", "uuid"]

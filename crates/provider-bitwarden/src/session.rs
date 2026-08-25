@@ -32,7 +32,12 @@ pub struct Session {
 
 impl Session {
     /// Build from a token response and the already-unwrapped user key.
-    pub fn new(token: &TokenResponse, user_key: SymmetricKey, ttl: Duration, now: SystemTime) -> Self {
+    pub fn new(
+        token: &TokenResponse,
+        user_key: SymmetricKey,
+        ttl: Duration,
+        now: SystemTime,
+    ) -> Self {
         let lifetime = Duration::from_secs(token.expires_in.unwrap_or(3600));
         Self {
             access_token: SecretString::from(token.access_token.clone()),
@@ -44,22 +49,29 @@ impl Session {
     }
 
     /// The session TTL, not the token lifetime: the hard wall.
+    #[must_use]
     pub fn is_expired_at(&self, now: SystemTime) -> bool {
         now >= self.expires_at
     }
 
+    #[must_use]
     pub fn is_expired(&self) -> bool {
         self.is_expired_at(SystemTime::now())
     }
 
     /// True when the access token is close enough to expiry to warrant a
-    /// refresh_token grant.
+    /// `refresh_token` grant.
+    #[must_use]
     pub fn needs_refresh_at(&self, now: SystemTime) -> bool {
         now + REFRESH_SKEW >= self.token_expires_at
     }
 
     /// The bearer token, or a named error once the TTL has passed. Callers
     /// cannot reach the token through any other path.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::SessionExpired`] once the hard session TTL has passed.
     pub fn access_token_at(&self, now: SystemTime) -> Result<&str> {
         if self.is_expired_at(now) {
             return Err(Error::SessionExpired);
@@ -67,6 +79,11 @@ impl Session {
         Ok(self.access_token.expose_secret())
     }
 
+    /// Return the current bearer token while the session remains valid.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::SessionExpired`] once the hard session TTL has passed.
     pub fn access_token(&self) -> Result<&str> {
         self.access_token_at(SystemTime::now())
     }
@@ -77,6 +94,10 @@ impl Session {
 
     /// The user key, gated on the same TTL as the token: an expired session
     /// yields no decryption capability either.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::SessionExpired`] once the hard session TTL has passed.
     pub fn user_key_at(&self, now: SystemTime) -> Result<&SymmetricKey> {
         if self.is_expired_at(now) {
             return Err(Error::SessionExpired);
@@ -84,6 +105,11 @@ impl Session {
         Ok(&self.user_key)
     }
 
+    /// Return the decrypted user key while the session remains valid.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::SessionExpired`] once the hard session TTL has passed.
     pub fn user_key(&self) -> Result<&SymmetricKey> {
         self.user_key_at(SystemTime::now())
     }
@@ -111,8 +137,13 @@ impl fmt::Debug for Session {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Session")
             .field("access_token", &"<redacted>")
-            .field("refresh_token", &self.refresh_token.as_ref().map(|_| "<redacted>"))
+            .field(
+                "refresh_token",
+                &self.refresh_token.as_ref().map(|_| "<redacted>"),
+            )
             .field("user_key", &"<redacted>")
+            .field("token_expires_at", &self.token_expires_at)
+            .field("expires_at", &self.expires_at)
             .field("expired", &self.is_expired())
             .finish()
     }

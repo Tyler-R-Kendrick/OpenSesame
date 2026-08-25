@@ -9,6 +9,7 @@
 //! part with branching logic worth testing exhaustively, and they are what
 //! two different bridges (browserpass and keepassxc) share.
 
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use opensesame_sealed_store::{
@@ -47,6 +48,7 @@ pub struct StoreMatch {
 impl StoreMatch {
     /// Best-effort login for the entry: an explicit trailer field, else the
     /// last path segment (the `pass`/gopass convention).
+    #[must_use]
     pub fn login(&self) -> String {
         trailer_value(&self.entry.trailer, &["login", "username", "user"])
             .unwrap_or_else(|| self.name.rsplit('/').next().unwrap_or("").to_string())
@@ -62,6 +64,7 @@ impl StoreMatch {
 /// crate. Bridges deliberately do **not** consult the tomb registry: a
 /// browser-launched host must not silently follow an "active tomb" the human
 /// switched in another terminal.
+#[must_use]
 pub fn resolve_root(explicit: Option<PathBuf>) -> PathBuf {
     if let Some(path) = explicit {
         return path;
@@ -84,6 +87,10 @@ impl StoreAccess {
     /// Open `root_path`, unlocking with `passphrase` when the store carries an
     /// `.opensesame-key`. GPG/age-format stores need no passphrase here (the
     /// agent behind `gpg`/`age` supplies it), so `passphrase` may be `None`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the store cannot be opened or its key cannot be unlocked.
     pub fn open(root_path: &Path, passphrase: Option<&[u8]>) -> Result<Self, BridgeError> {
         let root = StoreRoot::open(root_path)?;
         let keyed = root_path.join(".opensesame-key").exists();
@@ -105,9 +112,15 @@ impl StoreAccess {
 
     /// Open the store a bridge should use, taking the passphrase from
     /// [`ENV_STORE_PASSWORD`] and clearing it from this process's memory.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Self::open`].
     pub fn from_env(explicit: Option<PathBuf>) -> Result<Self, BridgeError> {
         let root_path = resolve_root(explicit);
-        let mut password = std::env::var(ENV_STORE_PASSWORD).ok().filter(|p| !p.is_empty());
+        let mut password = std::env::var(ENV_STORE_PASSWORD)
+            .ok()
+            .filter(|p| !p.is_empty());
         let access = Self::open(&root_path, password.as_deref().map(str::as_bytes));
         if let Some(p) = password.as_mut() {
             p.zeroize();
@@ -115,11 +128,13 @@ impl StoreAccess {
         access
     }
 
+    #[must_use]
     pub fn root_path(&self) -> &Path {
         &self.root_path
     }
 
     /// Whether the store has been locked by a client (`lock-database`).
+    #[must_use]
     pub fn is_locked(&self) -> bool {
         self.locked
     }
@@ -140,21 +155,37 @@ impl StoreAccess {
     }
 
     /// Logical entry names under `prefix` (`""` for the whole store).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the store cannot list the requested prefix.
     pub fn list(&self, prefix: &str) -> Result<Vec<String>, BridgeError> {
         Ok(self.root.ls(prefix)?)
     }
 
     /// Decrypt one entry by logical name.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the store is locked or the entry cannot be read.
     pub fn show(&self, name: &str) -> Result<Entry, BridgeError> {
         Ok(self.root.show(name, self.key()?)?)
     }
 
     /// Insert or overwrite one entry.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the store is locked or the entry cannot be written.
     pub fn put(&self, name: &str, entry: &Entry) -> Result<(), BridgeError> {
         Ok(self.root.insert_or_replace(name, entry, self.key()?)?)
     }
 
     /// Current TOTP for an entry that carries an `otpauth://` trailer line.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the entry cannot be read or has no valid TOTP configuration.
     pub fn totp(&self, name: &str, at_unix: u64) -> Result<String, BridgeError> {
         let entry = self.show(name)?;
         let otp = entry
@@ -168,6 +199,7 @@ impl StoreAccess {
     ///
     /// It is the SHA-256 of the canonical root path — a public fact about
     /// *which* store is bridged, never a function of any entry's contents.
+    #[must_use]
     pub fn database_hash(&self) -> String {
         use sha2::{Digest, Sha256};
         let canonical = std::fs::canonicalize(&self.root_path).unwrap_or(self.root_path.clone());
@@ -183,6 +215,10 @@ impl StoreAccess {
     /// line against the query host. Only if that finds nothing does pass 2
     /// fall back to path-name heuristics — an explicit trailer is always a
     /// stronger signal than a filename that happens to look like a domain.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an invalid URL, locked store, or failed listing.
     pub fn find_by_url(&self, url: &str) -> Result<Vec<StoreMatch>, BridgeError> {
         // Check the lock up front. Without this a locked store would look
         // like an *empty* one — every per-entry decrypt failing quietly and
@@ -191,46 +227,62 @@ impl StoreAccess {
         let host = host_of(url).ok_or_else(|| BridgeError::Protocol("no host in url".into()))?;
         let names = self.list("")?;
 
-        let mut matches = Vec::new();
-        if names.len() <= MAX_SEARCH_ENTRIES {
-            for name in &names {
-                let Ok(entry) = self.show(name) else { continue };
-                if trailer_urls(&entry.trailer)
-                    .iter()
-                    .filter_map(|u| host_of(u))
-                    .any(|candidate| host_matches(&candidate, &host))
-                {
-                    matches.push(StoreMatch {
-                        name: name.clone(),
-                        entry,
-                    });
-                }
-            }
-        }
+        let matches = self.find_trailer_matches(&names, &host);
         if !matches.is_empty() {
             return Ok(matches);
         }
 
-        for name in &names {
-            if !name_matches(name, &host) {
-                continue;
-            }
-            let Ok(entry) = self.show(name) else { continue };
-            matches.push(StoreMatch {
-                name: name.clone(),
-                entry,
-            });
+        Ok(self.find_name_matches(&names, &host))
+    }
+
+    fn find_trailer_matches(&self, names: &[String], host: &str) -> Vec<StoreMatch> {
+        if names.len() > MAX_SEARCH_ENTRIES {
+            return Vec::new();
         }
-        Ok(matches)
+        names
+            .iter()
+            .filter_map(|name| {
+                let entry = self.show(name).ok()?;
+                entry_matches_host(&entry, host).then(|| StoreMatch {
+                    name: name.clone(),
+                    entry,
+                })
+            })
+            .collect()
+    }
+
+    fn find_name_matches(&self, names: &[String], host: &str) -> Vec<StoreMatch> {
+        names
+            .iter()
+            .filter(|name| name_matches(name, host))
+            .filter_map(|name| {
+                self.show(name).ok().map(|entry| StoreMatch {
+                    name: name.clone(),
+                    entry,
+                })
+            })
+            .collect()
     }
 }
 
+fn entry_matches_host(entry: &Entry, host: &str) -> bool {
+    trailer_urls(&entry.trailer)
+        .iter()
+        .filter_map(|url| host_of(url))
+        .any(|candidate| host_matches(&candidate, host))
+}
+
 fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        write!(output, "{byte:02x}").expect("writing to a String cannot fail");
+    }
+    output
 }
 
 /// A stable, non-secret opaque id for an entry, used where a foreign protocol
 /// addresses entries by UUID. Derived from the logical path only.
+#[must_use]
 pub fn entry_uuid(name: &str) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
@@ -240,6 +292,7 @@ pub fn entry_uuid(name: &str) -> String {
 }
 
 /// Read a `key: value` trailer field, first match wins, case-insensitive key.
+#[must_use]
 pub fn trailer_value(trailer: &str, keys: &[&str]) -> Option<String> {
     for line in trailer.lines() {
         let Some((raw_key, value)) = line.split_once(':') else {
@@ -257,6 +310,7 @@ pub fn trailer_value(trailer: &str, keys: &[&str]) -> Option<String> {
 }
 
 /// Every URL-ish trailer line, in file order.
+#[must_use]
 pub fn trailer_urls(trailer: &str) -> Vec<String> {
     const KEYS: [&str; 5] = ["url", "uri", "website", "site", "location"];
     let mut out = Vec::new();
@@ -280,6 +334,7 @@ pub fn trailer_urls(trailer: &str) -> Vec<String> {
 /// Hand-rolled rather than pulling the `url` crate in: the bridges need a
 /// host and nothing else, and the dependency budget argument for this crate
 /// is that its dep set stays small and auditable.
+#[must_use]
 pub fn host_of(url: &str) -> Option<String> {
     let raw = url.trim();
     if raw.is_empty() {
@@ -322,6 +377,7 @@ fn strip_www(host: &str) -> &str {
 /// Exact match, or either side is a subdomain of the other (an entry filed
 /// under `example.com` covers `login.example.com`, and vice versa). `www.` is
 /// ignored on both sides, matching what every password manager does.
+#[must_use]
 pub fn host_matches(entry_host: &str, query_host: &str) -> bool {
     let a = strip_www(&entry_host.to_ascii_lowercase()).to_string();
     let b = strip_www(&query_host.to_ascii_lowercase()).to_string();
@@ -343,6 +399,7 @@ fn base_label(host: &str) -> Option<&str> {
 
 /// Path-name heuristics: does an entry's logical path look like it belongs to
 /// `query_host`? Only reached when no `url:` trailer matched.
+#[must_use]
 pub fn name_matches(name: &str, query_host: &str) -> bool {
     let host = strip_www(&query_host.to_ascii_lowercase()).to_string();
     if host.is_empty() {
@@ -380,7 +437,10 @@ mod tests {
 
     #[test]
     fn host_of_handles_the_shapes_a_browser_sends() {
-        assert_eq!(host_of("https://example.com/login"), Some("example.com".into()));
+        assert_eq!(
+            host_of("https://example.com/login"),
+            Some("example.com".into())
+        );
         assert_eq!(host_of("http://Example.COM"), Some("example.com".into()));
         assert_eq!(host_of("example.com"), Some("example.com".into()));
         assert_eq!(host_of("example.com:8443/x"), Some("example.com".into()));
@@ -403,7 +463,8 @@ mod tests {
 
     #[test]
     fn trailer_urls_collects_every_url_key_in_order() {
-        let trailer = "login: a\nurl: https://one.example\nnotes: x\nURI: https://two.example\nwebsite:  \n";
+        let trailer =
+            "login: a\nurl: https://one.example\nnotes: x\nURI: https://two.example\nwebsite:  \n";
         assert_eq!(
             trailer_urls(trailer),
             vec!["https://one.example", "https://two.example"]
@@ -499,7 +560,9 @@ mod tests {
     #[test]
     fn find_by_url_prefers_a_trailer_match() {
         let (_dir, access) = fixture();
-        let found = access.find_by_url("https://login.example.com/signin").unwrap();
+        let found = access
+            .find_by_url("https://login.example.com/signin")
+            .unwrap();
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].name, "Web/example.com");
         assert_eq!(found[0].login(), "alice");
@@ -518,7 +581,10 @@ mod tests {
     #[test]
     fn find_by_url_returns_empty_for_an_unknown_host() {
         let (_dir, access) = fixture();
-        assert!(access.find_by_url("https://nowhere.invalid/").unwrap().is_empty());
+        assert!(access
+            .find_by_url("https://nowhere.invalid/")
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
@@ -546,7 +612,10 @@ mod tests {
             access.show("Web/example.com"),
             Err(BridgeError::Locked)
         ));
-        assert!(matches!(access.totp("Web/example.com", 0), Err(BridgeError::Locked)));
+        assert!(matches!(
+            access.totp("Web/example.com", 0),
+            Err(BridgeError::Locked)
+        ));
         // A locked store reports *locked*, never a misleading empty result.
         assert!(matches!(
             access.find_by_url("https://example.com/"),

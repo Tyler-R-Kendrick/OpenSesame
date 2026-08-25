@@ -8,7 +8,7 @@
 //! 2. **Self-generated golden vectors** (`tests/vectors/crypto_vectors.json`)
 //!    that pin the *composition* — email normalization, the Argon2id
 //!    SHA-256(email) salt, the `enc`/`mac` HKDF info strings, the master
-//!    password hash construction, and the EncString wire form. Regenerate
+//!    password hash construction, and the `EncString` wire form. Regenerate
 //!    deliberately with `cargo test -p opensesame-provider-bitwarden
 //!    --test crypto_vectors -- --ignored regenerate`; a diff in the committed
 //!    file is a change to the vault format, not a test detail.
@@ -23,7 +23,13 @@ use opensesame_provider_bitwarden::{EncString, Kdf, MasterKey, SymmetricKey};
 use serde_json::{json, Value};
 
 fn to_hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut encoded = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
+        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
+    }
+    encoded
 }
 
 fn from_hex(raw: &str) -> Vec<u8> {
@@ -66,7 +72,9 @@ fn cases() -> Vec<Case> {
             kdf: Kdf::Pbkdf2 {
                 iterations: 100_000,
             },
-            user_key_bytes: (0u8..64).map(|i| i.wrapping_mul(17).wrapping_add(2)).collect(),
+            user_key_bytes: (0u8..64)
+                .map(|i| i.wrapping_mul(17).wrapping_add(2))
+                .collect(),
             plaintext: "s3cr3t-vault-value".into(),
         },
         Case {
@@ -77,7 +85,9 @@ fn cases() -> Vec<Case> {
             kdf: Kdf::Pbkdf2 {
                 iterations: opensesame_provider_bitwarden::DEFAULT_PBKDF2_ITERATIONS,
             },
-            user_key_bytes: (0u8..64).map(|i| i.wrapping_mul(19).wrapping_add(4)).collect(),
+            user_key_bytes: (0u8..64)
+                .map(|i| i.wrapping_mul(19).wrapping_add(4))
+                .collect(),
             plaintext: "s3cr3t-vault-value".into(),
         },
         Case {
@@ -86,7 +96,9 @@ fn cases() -> Vec<Case> {
             email: "argon-user@example.com".into(),
             master_password: "hunter2-hunter2-hunter2".into(),
             kdf: Kdf::argon2id(2, 8 * 1024, 1).expect("valid params"),
-            user_key_bytes: (0u8..64).map(|i| i.wrapping_mul(23).wrapping_add(6)).collect(),
+            user_key_bytes: (0u8..64)
+                .map(|i| i.wrapping_mul(23).wrapping_add(6))
+                .collect(),
             plaintext: "argon-protected-value".into(),
         },
         Case {
@@ -95,7 +107,9 @@ fn cases() -> Vec<Case> {
             email: "argon-user@example.com".into(),
             master_password: "hunter2-hunter2-hunter2".into(),
             kdf: Kdf::argon2id(3, 64 * 1024, 4).expect("valid params"),
-            user_key_bytes: (0u8..64).map(|i| i.wrapping_mul(29).wrapping_add(8)).collect(),
+            user_key_bytes: (0u8..64)
+                .map(|i| i.wrapping_mul(29).wrapping_add(8))
+                .collect(),
             plaintext: "argon-protected-value".into(),
         },
     ]
@@ -119,12 +133,8 @@ fn kdf_json(kdf: &Kdf) -> Value {
 
 /// Recompute everything a vector claims, from the inputs alone.
 fn compute(case: &Case) -> Value {
-    let master = MasterKey::derive(
-        case.master_password.as_bytes(),
-        &case.email,
-        &case.kdf,
-    )
-    .expect("derive");
+    let master =
+        MasterKey::derive(case.master_password.as_bytes(), &case.email, &case.kdf).expect("derive");
     let stretched = master.stretch();
     let user_key = SymmetricKey::from_bytes(&case.user_key_bytes).expect("user key");
     let wrapped = stretched
@@ -170,12 +180,8 @@ fn check(case: &Case, expected: &Value) {
     }
 
     // And the committed ciphertexts must still *open*, not merely match.
-    let master = MasterKey::derive(
-        case.master_password.as_bytes(),
-        &case.email,
-        &case.kdf,
-    )
-    .expect("derive");
+    let master =
+        MasterKey::derive(case.master_password.as_bytes(), &case.email, &case.kdf).expect("derive");
     let wrapped: EncString = expected["wrapped_user_key"]
         .as_str()
         .expect("wrapped_user_key")
@@ -316,7 +322,10 @@ fn regenerate() {
     std::fs::create_dir_all(path.parent().unwrap()).expect("create vectors dir");
     std::fs::write(
         &path,
-        format!("{}\n", serde_json::to_string_pretty(&document).expect("serialize")),
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&document).expect("serialize")
+        ),
     )
     .expect("write vectors");
     eprintln!("wrote {}", path.display());

@@ -429,6 +429,10 @@ mod tests {
 
     /// A loopback HTTP stub recording (path, authorization) per hit. The hit
     /// log is how egress tests prove the wire was never touched.
+    #[expect(
+        clippy::excessive_nesting,
+        reason = "the nested tasks model the loopback server's connection and request lifetimes"
+    )]
     async fn spawn_stub(
         responder: impl Fn(
                 &hyper::Request<hyper::body::Incoming>,
@@ -607,6 +611,10 @@ mod tests {
     }
 
     #[tokio::test]
+    #[expect(
+        clippy::excessive_nesting,
+        reason = "the response branches are the test fixture exercised by this redirect test"
+    )]
     async fn redirects_are_returned_never_followed() {
         let (base, recorded) = spawn_stub(|req| {
             if req.uri().path() == "/redirect" {

@@ -56,7 +56,7 @@ enum Commands {
         no_browser: bool,
         #[arg(long, value_enum, default_value = "auto")]
         open_browser: OpenBrowserArg,
-        /// Print a terminal QR for verification_uri_complete (default: on for TTY).
+        /// Print a terminal QR for `verification_uri_complete` (default: on for TTY).
         #[arg(long, default_value = "false")]
         qr: bool,
         /// Suppress the device-login QR even on a TTY.
@@ -72,7 +72,7 @@ enum Commands {
         cmd: AuthCmd,
     },
     Invoke {
-        /// ConnectionRef URI (conn://...) or logical name — never a SecretRef.
+        /// `ConnectionRef` URI (conn://...) or logical name — never a `SecretRef`.
         #[arg(long = "connection-ref", alias = "connection")]
         connection_ref: String,
         #[arg(long)]
@@ -495,7 +495,7 @@ enum PassCmd {
         #[arg(long)]
         tomb: Option<String>,
     },
-    /// Import a KeePass (.kdbx) database into the store.
+    /// Import a `KeePass` (.kdbx) database into the store.
     ImportKdbx {
         /// KDBX 4.x database to read.
         file: PathBuf,
@@ -513,7 +513,7 @@ enum PassCmd {
         #[arg(long)]
         tomb: Option<String>,
     },
-    /// Export the store as a KeePass (.kdbx) database.
+    /// Export the store as a `KeePass` (.kdbx) database.
     ExportKdbx {
         /// File to write the database to.
         dest: PathBuf,
@@ -743,7 +743,7 @@ enum PassAttachCmd {
     /// Replicate attachment ciphertext to a configured target.
     ///
     /// The Host API base URL comes from the global `--server`, so this verb
-    /// honours OPENSESAME_SERVER like every other authenticated command.
+    /// honours `OPENSESAME_SERVER` like every other authenticated command.
     Sync {
         /// Copy ciphertext into this directory instead of using a connector.
         /// Point it at a mounted encrypted volume.
@@ -885,6 +885,10 @@ enum CompletionShell {
 }
 
 #[tokio::main]
+#[expect(
+    clippy::too_many_lines,
+    reason = "this match is the stable declarative top-level Clap command dispatch catalog"
+)]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter("warn")
@@ -924,7 +928,7 @@ async fn main() -> anyhow::Result<()> {
                 input,
                 invoke_level,
             )
-            .await?
+            .await?;
         }
         Commands::Receipt {
             cmd: ReceiptCmd::Verify { id },
@@ -957,43 +961,49 @@ async fn main() -> anyhow::Result<()> {
                 recipients,
                 git,
                 remote,
-            } => store::cmd_init(path, recipients, git, remote)?,
+            } => store::cmd_init(path.as_deref(), &recipients, git, remote.as_deref())?,
             PassCmd::Insert {
                 name,
                 echo,
                 path,
                 tomb,
-            } => store::cmd_insert(name, echo, path, tomb)?,
+            } => store::cmd_insert(&name, echo, path.as_deref(), tomb.as_deref())?,
             PassCmd::Generate {
                 name,
                 length,
                 no_symbols,
                 path,
                 tomb,
-            } => store::cmd_generate(name, length, no_symbols, path, tomb)?,
+            } => store::cmd_generate(&name, length, no_symbols, path.as_deref(), tomb.as_deref())?,
             PassCmd::Show {
                 name,
                 reveal,
                 path,
                 tomb,
-            } => store::cmd_show(name, reveal, path, tomb)?,
-            PassCmd::Ls { prefix, path, tomb } => store::cmd_ls(prefix, path, tomb)?,
-            PassCmd::Find { query, path, tomb } => store::cmd_find(query, path, tomb)?,
-            PassCmd::Rm { name, path, tomb } => store::cmd_rm(name, path, tomb)?,
+            } => store::cmd_show(&name, reveal, path.as_deref(), tomb.as_deref())?,
+            PassCmd::Ls { prefix, path, tomb } => {
+                store::cmd_ls(prefix.as_deref(), path.as_deref(), tomb.as_deref())?;
+            }
+            PassCmd::Find { query, path, tomb } => {
+                store::cmd_find(&query, path.as_deref(), tomb.as_deref())?;
+            }
+            PassCmd::Rm { name, path, tomb } => {
+                store::cmd_rm(&name, path.as_deref(), tomb.as_deref())?;
+            }
             PassCmd::Cp {
                 from,
                 to,
                 path,
                 tomb,
-            } => store::cmd_cp(from, to, path, tomb)?,
+            } => store::cmd_cp(&from, &to, path.as_deref(), tomb.as_deref())?,
             PassCmd::Mv {
                 from,
                 to,
                 path,
                 tomb,
-            } => store::cmd_mv(from, to, path, tomb)?,
+            } => store::cmd_mv(&from, &to, path.as_deref(), tomb.as_deref())?,
             PassCmd::Git { args, path, tomb } => {
-                let code = store::cmd_git(args, path, tomb)?;
+                let code = store::cmd_git(&args, path.as_deref(), tomb.as_deref())?;
                 if code != 0 {
                     std::process::exit(code);
                 }
@@ -1004,7 +1014,7 @@ async fn main() -> anyhow::Result<()> {
                 shred,
                 path,
                 tomb,
-            } => store::cmd_seal(manifest, replace, shred, path, tomb)?,
+            } => store::cmd_seal(&manifest, replace, shred, path.as_deref(), tomb.as_deref())?,
             PassCmd::ImportKdbx {
                 file,
                 keyfile,
@@ -1012,20 +1022,35 @@ async fn main() -> anyhow::Result<()> {
                 replace,
                 path,
                 tomb,
-            } => store::cmd_import_kdbx(file, keyfile, prefix, replace, path, tomb)?,
+            } => store::cmd_import_kdbx(
+                &file,
+                keyfile,
+                prefix,
+                replace,
+                path.as_deref(),
+                tomb.as_deref(),
+            )?,
             PassCmd::ExportKdbx {
                 dest,
                 prefix,
                 reveal,
                 path,
                 tomb,
-            } => store::cmd_export_kdbx(dest, prefix, reveal, path, tomb)?,
+            } => store::cmd_export_kdbx(
+                &dest,
+                prefix.as_deref(),
+                reveal,
+                path.as_deref(),
+                tomb.as_deref(),
+            )?,
             PassCmd::Backup {
                 remote,
                 auto_push,
                 path,
                 tomb,
-            } => store::cmd_backup(remote, auto_push, path, tomb).await?,
+            } => {
+                store::cmd_backup(remote, auto_push, path.as_deref(), tomb.as_deref()).await?;
+            }
             PassCmd::Attach { cmd } => match cmd {
                 PassAttachCmd::Add {
                     name,
@@ -1035,41 +1060,69 @@ async fn main() -> anyhow::Result<()> {
                     shred,
                     path,
                     tomb,
-                } => attach::cmd_attach_add(name, file, mime, force, shred, path, tomb)?,
+                } => attach::cmd_attach_add(
+                    &name,
+                    &file,
+                    mime,
+                    force,
+                    shred,
+                    path.as_deref(),
+                    tomb.as_deref(),
+                )?,
                 PassAttachCmd::Get {
                     name,
                     out,
                     reveal,
                     path,
                     tomb,
-                } => attach::cmd_attach_get(name, out, reveal, path, tomb)?,
+                } => attach::cmd_attach_get(
+                    &name,
+                    out.as_deref(),
+                    reveal,
+                    path.as_deref(),
+                    tomb.as_deref(),
+                )?,
                 PassAttachCmd::Ls { prefix, path, tomb } => {
-                    attach::cmd_attach_ls(prefix, path, tomb)?
+                    attach::cmd_attach_ls(prefix.as_deref(), path.as_deref(), tomb.as_deref())?;
                 }
-                PassAttachCmd::Rm { name, path, tomb } => attach::cmd_attach_rm(name, path, tomb)?,
-                PassAttachCmd::Gc { path, tomb } => attach::cmd_attach_gc(path, tomb)?,
+                PassAttachCmd::Rm { name, path, tomb } => {
+                    attach::cmd_attach_rm(&name, path.as_deref(), tomb.as_deref())?;
+                }
+                PassAttachCmd::Gc { path, tomb } => {
+                    attach::cmd_attach_gc(path.as_deref(), tomb.as_deref())?;
+                }
                 PassAttachCmd::Sync { to_dir, path, tomb } => {
-                    attach::cmd_attach_sync(to_dir, &cli.server, path, tomb).await?
+                    attach::cmd_attach_sync(
+                        to_dir.as_deref(),
+                        &cli.server,
+                        path.as_deref(),
+                        tomb.as_deref(),
+                    )
+                    .await?;
                 }
             },
             PassCmd::Otp { cmd } => match cmd {
-                PassOtpCmd::Code { name, path, tomb } => store::cmd_otp_code(name, path, tomb)?,
+                PassOtpCmd::Code { name, path, tomb } => {
+                    store::cmd_otp_code(&name, path.as_deref(), tomb.as_deref())?;
+                }
                 PassOtpCmd::Insert {
                     name,
                     force,
                     echo,
                     path,
                     tomb,
-                } => store::cmd_otp_insert(name, force, echo, path, tomb)?,
+                } => store::cmd_otp_insert(name, force, echo, path.as_deref(), tomb.as_deref())?,
                 PassOtpCmd::Append {
                     name,
                     force,
                     echo,
                     path,
                     tomb,
-                } => store::cmd_otp_append(name, force, echo, path, tomb)?,
-                PassOtpCmd::Uri { name, path, tomb } => store::cmd_otp_uri(name, path, tomb)?,
-                PassOtpCmd::Validate { uri } => store::cmd_otp_validate(uri)?,
+                } => store::cmd_otp_append(&name, force, echo, path.as_deref(), tomb.as_deref())?,
+                PassOtpCmd::Uri { name, path, tomb } => {
+                    store::cmd_otp_uri(&name, path.as_deref(), tomb.as_deref())?;
+                }
+                PassOtpCmd::Validate { uri } => store::cmd_otp_validate(&uri)?,
             },
             PassCmd::Update {
                 names,
@@ -1084,8 +1137,8 @@ async fn main() -> anyhow::Result<()> {
                 path,
                 tomb,
             } => store::cmd_update(
-                names,
-                store::UpdateCliOpts {
+                &names,
+                &store::UpdateCliOpts {
                     length,
                     auto_length,
                     no_symbols,
@@ -1095,8 +1148,8 @@ async fn main() -> anyhow::Result<()> {
                     exclude,
                     force,
                 },
-                path,
-                tomb,
+                path.as_deref(),
+                tomb.as_deref(),
             )?,
             PassCmd::Rotate {
                 names,
@@ -1112,8 +1165,8 @@ async fn main() -> anyhow::Result<()> {
                 path,
                 tomb,
             } => store::cmd_rotate(
-                names,
-                store::UpdateCliOpts {
+                &names,
+                &store::UpdateCliOpts {
                     length,
                     auto_length,
                     no_symbols,
@@ -1124,16 +1177,18 @@ async fn main() -> anyhow::Result<()> {
                     force,
                 },
                 reveal,
-                path,
-                tomb,
+                path.as_deref(),
+                tomb.as_deref(),
             )?,
-            PassCmd::History { name, path, tomb } => store::cmd_history(name, path, tomb)?,
+            PassCmd::History { name, path, tomb } => {
+                store::cmd_history(&name, path.as_deref(), tomb.as_deref())?;
+            }
             PassCmd::Restore {
                 name,
                 rev,
                 path,
                 tomb,
-            } => store::cmd_restore(name, rev, path, tomb)?,
+            } => store::cmd_restore(&name, &rev, path.as_deref(), tomb.as_deref())?,
             PassCmd::Tomb { cmd } => match cmd {
                 PassTombCmd::List => store::cmd_tomb_list()?,
                 PassTombCmd::Add {
@@ -1142,12 +1197,12 @@ async fn main() -> anyhow::Result<()> {
                     key,
                     volume,
                     linux,
-                } => store::cmd_tomb_add(name, store_path, key, volume, linux)?,
-                PassTombCmd::Rm { name } => store::cmd_tomb_rm(name)?,
-                PassTombCmd::Use { name } => store::cmd_tomb_use(name)?,
+                } => store::cmd_tomb_add(&name, store_path, key, volume, linux)?,
+                PassTombCmd::Rm { name } => store::cmd_tomb_rm(&name)?,
+                PassTombCmd::Use { name } => store::cmd_tomb_use(&name)?,
             },
-            PassCmd::Open { name } => store::cmd_open(name)?,
-            PassCmd::Close { name } => store::cmd_close(name)?,
+            PassCmd::Open { name } => store::cmd_open(name.as_deref())?,
+            PassCmd::Close { name } => store::cmd_close(name.as_deref())?,
         },
         Commands::Tui => tui(&cli.server).await?,
         Commands::Dev {
@@ -1161,7 +1216,7 @@ async fn main() -> anyhow::Result<()> {
                 DeliveryModeArg::Development => false,
                 DeliveryModeArg::Auto => agent,
             };
-            dev_cmd(cmd, agent, schema)?
+            dev_cmd(cmd, agent, &schema)?;
         }
         Commands::Daemon { url, cmd } => daemon_cmd(&url, cmd).await?,
         Commands::Task { cmd } => task_cmd(&cli.server, &cli.output, cmd).await?,
@@ -1186,7 +1241,7 @@ async fn main() -> anyhow::Result<()> {
                     out_dir,
                     reveal,
                 )
-                .await?
+                .await?;
             }
             CertCmd::Ls => certs::cmd_ls(&cli.server, &cli.output).await?,
         },
@@ -1204,28 +1259,7 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
     match cmd {
         DaemonCmd::Install => {
             let dest = format!("{home}/.local/bin/opensesame-daemon");
-            let src_candidates = [
-                "target/debug/opensesame-daemon".to_string(),
-                "target/release/opensesame-daemon".to_string(),
-            ];
-            let mut installed = false;
-            for src in &src_candidates {
-                if PathBuf::from(src).exists() {
-                    let _ = std::fs::create_dir_all(format!("{home}/.local/bin"));
-                    if std::fs::copy(src, &dest).is_ok() {
-                        installed = true;
-                        #[cfg(unix)]
-                        {
-                            use std::os::unix::fs::PermissionsExt;
-                            let _ = std::fs::set_permissions(
-                                &dest,
-                                std::fs::Permissions::from_mode(0o755),
-                            );
-                        }
-                        break;
-                    }
-                }
-            }
+            let installed = install_daemon_binary(&home, &dest);
             println!(
                 "{}",
                 json!({
@@ -1237,49 +1271,7 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
                 })
             );
         }
-        DaemonCmd::Start => {
-            let _ = std::fs::create_dir_all(format!("{home}/.opensesame"));
-            // The daemon's own output lands here; it is not for other accounts.
-            let mut log_opts = std::fs::OpenOptions::new();
-            log_opts.create(true).append(true);
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::OpenOptionsExt;
-                log_opts.mode(0o600);
-            }
-            let log = log_opts.open(&logfile);
-            let (stdout, stderr) = match log {
-                Ok(f) => {
-                    let f2 = f.try_clone().ok();
-                    (Stdio::from(f), f2.map(Stdio::from).unwrap_or(Stdio::null()))
-                }
-                Err(_) => (Stdio::null(), Stdio::null()),
-            };
-            let child = StdCommand::new("opensesame-daemon")
-                .stdout(stdout)
-                .stderr(stderr)
-                .spawn();
-            match child {
-                Ok(c) => {
-                    let pid = c.id();
-                    let _ = std::fs::write(&pidfile, format!("{pid}\n"));
-                    // Detach: forget Child so Drop doesn't kill it
-                    std::mem::forget(c);
-                    println!(
-                        "{}",
-                        json!({"status":"started","pid": pid, "pidfile": pidfile, "logfile": logfile})
-                    );
-                }
-                Err(e) => println!(
-                    "{}",
-                    json!({
-                        "status": "error",
-                        "error": e.to_string(),
-                        "hint": "build with: cargo build -p opensesame-daemon"
-                    })
-                ),
-            }
-        }
+        DaemonCmd::Start => start_daemon(&home, &pidfile, &logfile),
         DaemonCmd::Status => {
             let client = reqwest::Client::new();
             match client.get(format!("{base}/health")).send().await {
@@ -1293,8 +1285,8 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
                 Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
             }
         }
-        DaemonCmd::Logs => match std::fs::read_to_string(&logfile) {
-            Ok(content) => {
+        DaemonCmd::Logs => {
+            if let Ok(content) = std::fs::read_to_string(&logfile) {
                 let lines: Vec<&str> = content.lines().rev().take(40).collect();
                 let out: Vec<&str> = lines.into_iter().rev().collect();
                 println!("{}", out.join("\n"));
@@ -1304,8 +1296,7 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
                         json!({"status":"empty","logfile": logfile, "hint":"start daemon to capture logs"})
                     );
                 }
-            }
-            Err(_) => {
+            } else {
                 let client = reqwest::Client::new();
                 match client.get(format!("{base}/health")).send().await {
                     Ok(resp) => {
@@ -1319,7 +1310,7 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
                     Err(e) => println!("{}", json!({"status":"down","error": e.to_string()})),
                 }
             }
-        },
+        }
         DaemonCmd::Stop => match std::fs::read_to_string(&pidfile) {
             Ok(raw) => {
                 let pid: u32 = raw.trim().parse().unwrap_or(0);
@@ -1358,16 +1349,81 @@ async fn daemon_cmd(url: &str, cmd: DaemonCmd) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn dev_cmd(cmd: DevCmd, agent: bool, schema: PathBuf) -> anyhow::Result<()> {
+fn install_daemon_binary(home: &str, dest: &str) -> bool {
+    let source = [
+        "target/debug/opensesame-daemon",
+        "target/release/opensesame-daemon",
+    ]
+    .into_iter()
+    .find(|candidate| PathBuf::from(candidate).exists());
+    let Some(source) = source else {
+        return false;
+    };
+    let _ = std::fs::create_dir_all(format!("{home}/.local/bin"));
+    if std::fs::copy(source, dest).is_err() {
+        return false;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(dest, std::fs::Permissions::from_mode(0o755));
+    }
+    true
+}
+
+fn start_daemon(home: &str, pidfile: &str, logfile: &str) {
+    let _ = std::fs::create_dir_all(format!("{home}/.opensesame"));
+    // The daemon's own output lands here; it is not for other accounts.
+    let mut log_opts = std::fs::OpenOptions::new();
+    log_opts.create(true).append(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        log_opts.mode(0o600);
+    }
+    let (stdout, stderr) = match log_opts.open(logfile) {
+        Ok(file) => {
+            let stderr = file.try_clone().ok();
+            (Stdio::from(file), stderr.map_or(Stdio::null(), Stdio::from))
+        }
+        Err(_) => (Stdio::null(), Stdio::null()),
+    };
+    match StdCommand::new("opensesame-daemon")
+        .stdout(stdout)
+        .stderr(stderr)
+        .spawn()
+    {
+        Ok(child) => {
+            let pid = child.id();
+            let _ = std::fs::write(pidfile, format!("{pid}\n"));
+            // Detach: forget Child so Drop doesn't kill it.
+            std::mem::forget(child);
+            println!(
+                "{}",
+                json!({"status":"started","pid": pid, "pidfile": pidfile, "logfile": logfile})
+            );
+        }
+        Err(error) => println!(
+            "{}",
+            json!({
+                "status": "error",
+                "error": error.to_string(),
+                "hint": "build with: cargo build -p opensesame-daemon"
+            })
+        ),
+    }
+}
+
+fn dev_cmd(cmd: DevCmd, agent: bool, schema: &std::path::Path) -> anyhow::Result<()> {
     match cmd {
         DevCmd::Check => {
-            let doc = parse_schema_file(&schema)
+            let doc = parse_schema_file(schema)
                 .map_err(|e| anyhow::anyhow!("env-spec parse failed: {e}"))?;
             let summary = schema_summary(&doc);
             println!("{}", serde_json::to_string_pretty(&summary)?);
         }
         DevCmd::Resolve => {
-            let doc = parse_schema_file(&schema)
+            let doc = parse_schema_file(schema)
                 .map_err(|e| anyhow::anyhow!("env-spec parse failed: {e}"))?;
             let policy = if agent {
                 DevDeliveryPolicy::agent_default()
@@ -1390,7 +1446,7 @@ fn dev_cmd(cmd: DevCmd, agent: bool, schema: PathBuf) -> anyhow::Result<()> {
             if args.is_empty() {
                 anyhow::bail!("usage: opensesame dev run [--agent] -- <cmd>");
             }
-            let doc = parse_schema_file(&schema)
+            let doc = parse_schema_file(schema)
                 .map_err(|e| anyhow::anyhow!("env-spec parse failed: {e}"))?;
             let policy = if agent {
                 DevDeliveryPolicy::agent_default()
@@ -1403,11 +1459,9 @@ fn dev_cmd(cmd: DevCmd, agent: bool, schema: PathBuf) -> anyhow::Result<()> {
             if args.len() > 1 {
                 child.args(&args[1..]);
             }
-            for e in &entries {
+            for e in entries.iter().filter(|entry| !entry.omitted) {
                 if let Some(v) = &e.env_value {
-                    if !e.omitted {
-                        child.env(&e.key, v);
-                    }
+                    child.env(&e.key, v);
                 }
             }
             child
@@ -1629,40 +1683,53 @@ async fn device_login(server: &str, show_qr: bool) -> anyhow::Result<()> {
                 other => anyhow::bail!("device token error: {other}"),
             };
             match state.next_action(chrono::Utc::now(), status) {
-                Err(opensesame_authn::DeviceFlowError::AuthorizationPending)
-                | Err(opensesame_authn::DeviceFlowError::SlowDown) => continue,
+                Err(
+                    opensesame_authn::DeviceFlowError::AuthorizationPending
+                    | opensesame_authn::DeviceFlowError::SlowDown,
+                ) => {}
                 Err(e) => return Err(e.into()),
                 Ok(_) => unreachable!(),
             }
         } else {
-            let mut session = body
-                .get("session")
-                .cloned()
-                .ok_or_else(|| anyhow::anyhow!("missing session metadata"))?;
-            if let Some(at) = body.get("access_token").cloned() {
-                if let Some(obj) = session.as_object_mut() {
-                    obj.insert("access_token".into(), at);
-                }
-            }
-            // Persist opaque session metadata only — no refresh token field expected
-            let path = session_path()?;
-            write_private(&path, &serde_json::to_vec_pretty(&session)?)?;
-            // The session carries the access token. Say that we are logged in, not
-            // what the token is: stdout is scrollback, pipes, and CI logs.
-            let mut shown = session.clone();
-            if let Some(obj) = shown.as_object_mut() {
-                for key in ["access_token", "refresh_token", "id_token"] {
-                    if obj.contains_key(key) {
-                        obj.insert(key.into(), json!("[redacted]"));
-                    }
-                }
-            }
-            println!("{}", json!({"status":"logged_in","session": shown}));
+            complete_device_login(&body)?;
             let _ = state.next_action(chrono::Utc::now(), DeviceServerStatus::Success);
             break;
         }
     }
     Ok(())
+}
+
+fn complete_device_login(body: &serde_json::Value) -> anyhow::Result<()> {
+    let mut session = body
+        .get("session")
+        .cloned()
+        .ok_or_else(|| anyhow::anyhow!("missing session metadata"))?;
+    if let (Some(access_token), Some(object)) =
+        (body.get("access_token").cloned(), session.as_object_mut())
+    {
+        object.insert("access_token".into(), access_token);
+    }
+    // Persist opaque session metadata only — no refresh token field expected.
+    let path = session_path()?;
+    write_private(&path, &serde_json::to_vec_pretty(&session)?)?;
+    // Say that the session exists without putting tokens into scrollback or logs.
+    println!(
+        "{}",
+        json!({"status":"logged_in","session": redact_session_tokens(session)})
+    );
+    Ok(())
+}
+
+fn redact_session_tokens(mut session: serde_json::Value) -> serde_json::Value {
+    let Some(object) = session.as_object_mut() else {
+        return session;
+    };
+    for key in ["access_token", "refresh_token", "id_token"] {
+        if let Some(value) = object.get_mut(key) {
+            *value = json!("[redacted]");
+        }
+    }
+    session
 }
 
 async fn status(server: &str) -> anyhow::Result<()> {
@@ -1852,19 +1919,7 @@ async fn connection_cmd(server: &str, output: &str, cmd: ConnectionCmd) -> anyho
                 .error_for_status()?
                 .json()
                 .await?;
-            for forbidden in [
-                "secret",
-                "password",
-                "token",
-                "access_token",
-                "refresh_token",
-                "api_key",
-                "value",
-            ] {
-                if result.get(forbidden).is_some() {
-                    anyhow::bail!("Host rotation response unexpectedly included `{forbidden}`");
-                }
-            }
+            refuse_rotation_secret_fields(&result)?;
             result
         }
         ConnectionCmd::Remove { id } => {
@@ -1878,6 +1933,23 @@ async fn connection_cmd(server: &str, output: &str, cmd: ConnectionCmd) -> anyho
         }
     };
     print_output(output, &value)
+}
+
+fn refuse_rotation_secret_fields(result: &serde_json::Value) -> anyhow::Result<()> {
+    for forbidden in [
+        "secret",
+        "password",
+        "token",
+        "access_token",
+        "refresh_token",
+        "api_key",
+        "value",
+    ] {
+        if result.get(forbidden).is_some() {
+            anyhow::bail!("Host rotation response unexpectedly included `{forbidden}`");
+        }
+    }
+    Ok(())
 }
 
 async fn secret_cmd(server: &str, cmd: SecretCmd) -> anyhow::Result<()> {
@@ -2114,13 +2186,13 @@ complete -F _opensesame opensesame
 "#
         }
         CompletionShell::Zsh => {
-            r#"#compdef opensesame
+            r"#compdef opensesame
 _arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass tui dev daemon task intent cert)'
-"#
+"
         }
         CompletionShell::Fish => {
-            r#"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass tui dev daemon task intent cert'
-"#
+            r"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass tui dev daemon task intent cert'
+"
         }
     }
 }
@@ -2186,7 +2258,6 @@ async fn tui(server: &str) -> anyhow::Result<()> {
 
 fn run_tui(providers: &[TuiProvider], connections: &[CliConnection]) -> anyhow::Result<()> {
     use crossterm::{
-        event::{self, Event, KeyCode, KeyEventKind},
         execute,
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     };
@@ -2200,14 +2271,8 @@ fn run_tui(providers: &[TuiProvider], connections: &[CliConnection]) -> anyhow::
     let result = (|| -> anyhow::Result<()> {
         loop {
             terminal.draw(|frame| draw_tui(frame, providers, connections))?;
-            if event::poll(Duration::from_millis(250))? {
-                if let Event::Key(key) = event::read()? {
-                    if key.kind == KeyEventKind::Press
-                        && matches!(key.code, KeyCode::Char('q') | KeyCode::Esc)
-                    {
-                        break;
-                    }
-                }
+            if tui_quit_requested()? {
+                break;
             }
         }
         Ok(())
@@ -2216,6 +2281,17 @@ fn run_tui(providers: &[TuiProvider], connections: &[CliConnection]) -> anyhow::
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
     result
+}
+
+fn tui_quit_requested() -> anyhow::Result<bool> {
+    use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+    if !event::poll(Duration::from_millis(250))? {
+        return Ok(false);
+    }
+    let Event::Key(key) = event::read()? else {
+        return Ok(false);
+    };
+    Ok(key.kind == KeyEventKind::Press && matches!(key.code, KeyCode::Char('q') | KeyCode::Esc))
 }
 
 fn draw_tui(
@@ -2428,22 +2504,21 @@ async fn intent_cmd(server: &str, output: &str, cmd: IntentCmd) -> anyhow::Resul
         } => {
             let arguments: serde_json::Value = serde_json::from_str(&args)
                 .map_err(|e| anyhow::anyhow!("invalid --args JSON: {e}"))?;
-            let state_version = match expected_state_version {
-                Some(v) => v,
-                None => {
-                    let status: serde_json::Value = client
-                        .get(format!("{base}/api/v1/tasks/{task}"))
-                        .header("authorization", format!("Bearer operator:{op}"))
-                        .send()
-                        .await?
-                        .error_for_status()?
-                        .json()
-                        .await?;
-                    status
-                        .get("state_version")
-                        .and_then(|v| v.as_u64())
-                        .ok_or_else(|| anyhow::anyhow!("task missing state_version"))?
-                }
+            let state_version = if let Some(v) = expected_state_version {
+                v
+            } else {
+                let status: serde_json::Value = client
+                    .get(format!("{base}/api/v1/tasks/{task}"))
+                    .header("authorization", format!("Bearer operator:{op}"))
+                    .send()
+                    .await?
+                    .error_for_status()?
+                    .json()
+                    .await?;
+                status
+                    .get("state_version")
+                    .and_then(serde_json::Value::as_u64)
+                    .ok_or_else(|| anyhow::anyhow!("task missing state_version"))?
             };
             let body: serde_json::Value = client
                 .post(format!("{base}/api/v1/tasks/intents"))

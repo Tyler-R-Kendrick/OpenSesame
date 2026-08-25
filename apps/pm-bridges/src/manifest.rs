@@ -29,6 +29,7 @@ pub enum BridgeKind {
 impl BridgeKind {
     /// The manifest `name`, which is also the file's basename. These are the
     /// names the *stock* extensions look for — that is the whole point.
+    #[must_use]
     pub fn host_name(self) -> &'static str {
         match self {
             BridgeKind::Browserpass => "com.github.browserpass.native",
@@ -37,6 +38,7 @@ impl BridgeKind {
         }
     }
 
+    #[must_use]
     pub fn description(self) -> &'static str {
         match self {
             BridgeKind::Browserpass => {
@@ -52,6 +54,7 @@ impl BridgeKind {
     }
 
     /// Default binary name shipped by this crate.
+    #[must_use]
     pub fn default_binary(self) -> &'static str {
         match self {
             BridgeKind::Browserpass => "opensesame-browserpass-host",
@@ -61,6 +64,7 @@ impl BridgeKind {
     }
 
     /// Chrome/Chromium extension ids permitted to launch the host.
+    #[must_use]
     pub fn chrome_extension_ids(self) -> &'static [&'static str] {
         match self {
             BridgeKind::Browserpass => &[
@@ -77,6 +81,7 @@ impl BridgeKind {
     }
 
     /// Firefox extension ids permitted to launch the host.
+    #[must_use]
     pub fn firefox_extension_ids(self) -> &'static [&'static str] {
         match self {
             BridgeKind::Browserpass => &["browserpass@maximbaz.com"],
@@ -108,6 +113,7 @@ pub enum Browser {
 }
 
 impl Browser {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             Browser::Chrome => "chrome",
@@ -153,6 +159,10 @@ struct FirefoxManifest<'a> {
 }
 
 /// Render the manifest JSON for `bridge` in `browser`, pointing at `binary`.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be serialized.
 pub fn render_manifest(
     bridge: BridgeKind,
     browser: Browser,
@@ -194,6 +204,7 @@ pub fn render_manifest(
 ///
 /// `home` is passed in rather than read from the environment so this is a
 /// pure function the tests can drive against a tempdir.
+#[must_use]
 pub fn manifest_dir(browser: Browser, home: &Path) -> PathBuf {
     if cfg!(target_os = "macos") {
         let support = home.join("Library").join("Application Support");
@@ -220,6 +231,7 @@ pub fn manifest_dir(browser: Browser, home: &Path) -> PathBuf {
 }
 
 /// Full manifest path for a bridge/browser pair.
+#[must_use]
 pub fn manifest_path(bridge: BridgeKind, browser: Browser, home: &Path) -> PathBuf {
     manifest_dir(browser, home).join(format!("{}.json", bridge.host_name()))
 }
@@ -236,6 +248,10 @@ pub struct Installed {
 ///
 /// This is the C2 approval act: after it, the named browser extensions — and
 /// only those — may launch the bridge.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be rendered or written.
 pub fn install(
     bridge: BridgeKind,
     browser: Browser,
@@ -256,7 +272,15 @@ pub fn install(
 }
 
 /// Remove a previously installed manifest; absent is success.
-pub fn uninstall(bridge: BridgeKind, browser: Browser, home: &Path) -> Result<PathBuf, BridgeError> {
+///
+/// # Errors
+///
+/// Returns an I/O error when an existing manifest cannot be removed.
+pub fn uninstall(
+    bridge: BridgeKind,
+    browser: Browser,
+    home: &Path,
+) -> Result<PathBuf, BridgeError> {
     let path = manifest_path(bridge, browser, home);
     match std::fs::remove_file(&path) {
         Ok(()) => Ok(path),
@@ -267,6 +291,7 @@ pub fn uninstall(bridge: BridgeKind, browser: Browser, home: &Path) -> Result<Pa
 
 /// Guess where a bridge binary lives: next to the running executable, else
 /// the bare name for `PATH` resolution by the browser.
+#[must_use]
 pub fn default_binary_path(bridge: BridgeKind) -> PathBuf {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
@@ -330,7 +355,10 @@ mod tests {
         .unwrap();
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(value["name"], "org.keepassxc.keepassxc_browser");
-        assert_eq!(value["allowed_extensions"][0], "keepassxc-browser@keepassxc.org");
+        assert_eq!(
+            value["allowed_extensions"][0],
+            "keepassxc-browser@keepassxc.org"
+        );
     }
 
     #[test]
@@ -402,9 +430,15 @@ mod tests {
     #[test]
     fn parsers_accept_the_documented_spellings() {
         use std::str::FromStr;
-        assert_eq!(BridgeKind::from_str("Browserpass").unwrap(), BridgeKind::Browserpass);
+        assert_eq!(
+            BridgeKind::from_str("Browserpass").unwrap(),
+            BridgeKind::Browserpass
+        );
         assert_eq!(BridgeKind::from_str("gopass").unwrap(), BridgeKind::Gopass);
-        assert_eq!(BridgeKind::from_str("keepassxc").unwrap(), BridgeKind::KeepassXc);
+        assert_eq!(
+            BridgeKind::from_str("keepassxc").unwrap(),
+            BridgeKind::KeepassXc
+        );
         assert!(BridgeKind::from_str("1password").is_err());
 
         assert_eq!(Browser::from_str("google-chrome").unwrap(), Browser::Chrome);

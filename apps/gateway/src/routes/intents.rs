@@ -22,7 +22,7 @@ use opensesame_connection_broker::store as broker_store;
 use crate::app_state::AppState;
 use crate::middleware::auth::{require_demo_bootstrap, resolve_caller, resolve_caller_subject};
 
-/// What a submitted ConnectionRef resolved to: whose grant will be exercised,
+/// What a submitted `ConnectionRef` resolved to: whose grant will be exercised,
 /// against which connection, through which connector component.
 struct ResolvedInvocation {
     grant: Grant,
@@ -149,6 +149,202 @@ fn build_intent(
     })
 }
 
+fn not_found() -> Response {
+    (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response()
+}
+
+fn bootstrap_invocation(
+    st: &AppState,
+    boot: &crate::app_state::Bootstrap,
+) -> Result<ResolvedInvocation, Response> {
+    let Some(connection_ref) = st.connection_ref.clone() else {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"bootstrap_unavailable"})),
+        )
+            .into_response());
+    };
+    Ok(ResolvedInvocation {
+        grant: boot.grant.clone(),
+        delegation_chain: vec![boot.grant.id],
+        connection_id: boot.connection,
+        principal_id: boot.principal,
+        binding: opensesame_authz::github_binding(connection_ref, "github/main"),
+        connection_policy_id: "demo-conn".into(),
+        spend_budget: None,
+    })
+}
+
+async fn broker_connection(
+    st: &AppState,
+    boot: &crate::app_state::Bootstrap,
+    requested_ref: &str,
+) -> Option<broker_store::ConnectionRow> {
+    if let Ok(Some(row)) =
+        broker_store::get_connection(st.connection_broker.pool(), requested_ref).await
+    {
+        if row.organization_id == boot.org.to_string() {
+            return Some(row);
+        }
+    }
+    let views = st
+        .connection_broker
+        .list_connections(&boot.org)
+        .await
+        .ok()?;
+    let id = views
+        .iter()
+        .find(|view| view.logical_name == requested_ref)?
+        .connection_id
+        .clone();
+    broker_store::get_connection(st.connection_broker.pool(), &id)
+        .await
+        .ok()
+        .flatten()
+}
+
+async fn delegated_invocation(
+    st: &AppState,
+    boot: &crate::app_state::Bootstrap,
+    subject: &str,
+    requested_ref: &str,
+    level: u8,
+) -> Result<ResolvedInvocation, Response> {
+    let Some(row) = broker_connection(st, boot, requested_ref).await else {
+        return Err(not_found());
+    };
+    let Ok(Some(delegation)) = st
+        .connection_broker
+        .find_live_delegation(subject, &row.id)
+        .await
+    else {
+        // Knowing a connection reference must not confirm its existence.
+        return Err(not_found());
+    };
+    // Delegates exercise at L1 in v1 (ADR 0044 decision 6).
+    if level > 1 {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({"error":"invoke_level_not_delegated"})),
+        )
+            .into_response());
+    }
+    let connection_id = ConnectionId::parse(&row.id).map_err(|_| not_found())?;
+    let organization_id = OrganizationId::parse(&row.organization_id).unwrap_or(boot.org);
+    let connection_ref = ConnectionRef::new(
+        organization_id,
+        None,
+        row.logical_name.clone(),
+        connection_id,
+    )
+    .map_err(|_| not_found())?;
+    Ok(ResolvedInvocation {
+        grant: delegation.grant.clone(),
+        delegation_chain: vec![delegation.parent_grant_id, delegation.grant.id],
+        connection_id,
+        principal_id: delegation.grant.beneficiary_principal_id,
+        binding: ConnectionAuthorityBinding {
+            connection_ref,
+            internal_secret: None,
+            credential_handle: None,
+            egress: row.egress.clone(),
+            max_invoke_level: InvokeLevel::TypedOperation,
+        },
+        connection_policy_id: component_for_provider(&row.provider_id).to_string(),
+        spend_budget: Some(delegation.delegation_id.clone()),
+    })
+}
+
+async fn resolve_invocation(
+    st: &AppState,
+    boot: &crate::app_state::Bootstrap,
+    subject: &str,
+    body: &InvokeBody,
+    level: u8,
+) -> Result<ResolvedInvocation, Response> {
+    let default_ref = st
+        .connection_ref
+        .as_ref()
+        .map_or_else(String::new, |connection| connection.handle.uri());
+    let requested_ref = body
+        .connection_ref
+        .as_ref()
+        .or(body.connection.as_ref())
+        .unwrap_or(&default_ref);
+    let logical_name = st
+        .connection_ref
+        .as_ref()
+        .map_or("", |connection| connection.handle.logical_name.as_str());
+    if [default_ref.as_str(), logical_name, ""].contains(&requested_ref.as_str()) {
+        bootstrap_invocation(st, boot)
+    } else {
+        delegated_invocation(st, boot, subject, requested_ref, level).await
+    }
+}
+
+fn authorize_invocation(
+    st: &AppState,
+    subject: &str,
+    body: &InvokeBody,
+    parameters: &Value,
+    resolved: &ResolvedInvocation,
+    level: u8,
+) -> Result<(), Response> {
+    let invoke_level = match level {
+        1 => InvokeLevel::TypedOperation,
+        2 => InvokeLevel::ConstrainedHttp,
+        _ => InvokeLevel::Materialize,
+    };
+    let authority_use = AuthorityUse {
+        subject,
+        grant: &resolved.grant,
+        binding: &resolved.binding,
+        op: AuthorityOperation::Invoke,
+        level: invoke_level,
+        requested_url: parameters.get("url").and_then(Value::as_str),
+        requested_action: Some(&body.operation),
+        connection_policy_id: &resolved.connection_policy_id,
+    };
+    match authorize_authority_use(&st.broker.policy, &authority_use) {
+        Ok(decision) if decision.allowed => Ok(()),
+        Ok(_) => Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({"error":"authority_denied","type":"about:blank"})),
+        )
+            .into_response()),
+        Err(error) => {
+            let message = opensesame_redaction::redact_text(&error.to_string());
+            Err((
+                StatusCode::FORBIDDEN,
+                Json(json!({"error": message, "type":"about:blank"})),
+            )
+                .into_response())
+        }
+    }
+}
+
+async fn spend_delegation_budget(
+    st: &AppState,
+    resolved: &ResolvedInvocation,
+) -> Result<(), Response> {
+    let Some(delegation_id) = &resolved.spend_budget else {
+        return Ok(());
+    };
+    st.connection_broker
+        .spend_delegation_budget(
+            delegation_id,
+            opensesame_connection_broker::delegation::BUDGET_INVOCATIONS,
+        )
+        .await
+        .map_err(|_| {
+            (
+                StatusCode::FORBIDDEN,
+                Json(json!({"error":"budget_exhausted"})),
+            )
+                .into_response()
+        })
+}
+
 pub async fn create(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -184,16 +380,6 @@ pub async fn create(
         return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
     }
     let parameters = body.parameters.take().unwrap_or_else(|| json!({}));
-    let default_ref = st
-        .connection_ref
-        .as_ref()
-        .map(|c| c.handle.uri())
-        .unwrap_or_default();
-    let requested_ref = body
-        .connection_ref
-        .clone()
-        .or_else(|| body.connection.clone())
-        .unwrap_or(default_ref.clone());
     let level = body.invoke_level.unwrap_or(1);
 
     if level >= 3
@@ -211,179 +397,23 @@ pub async fn create(
             .into_response();
     }
 
-    // Resolve the submitted reference. The bootstrap connection answers to
-    // its own URI or logical name; anything else must be a connection the
-    // caller holds a live delegation for. An unresolvable reference is 404 —
-    // never a silent fallback to somebody else's connection, which is what
-    // this route used to do by executing against the bootstrap regardless.
-    let bootstrap_names = [
-        default_ref.as_str(),
-        st.connection_ref
-            .as_ref()
-            .map(|c| c.handle.logical_name.as_str())
-            .unwrap_or(""),
-        "",
-    ];
-    let resolved: ResolvedInvocation = if bootstrap_names.contains(&requested_ref.as_str()) {
-        let connection_ref = match st.connection_ref.clone() {
-            Some(connection_ref) => connection_ref,
-            None => {
-                return (
-                    StatusCode::SERVICE_UNAVAILABLE,
-                    Json(json!({"error":"bootstrap_unavailable"})),
-                )
-                    .into_response()
-            }
-        };
-        ResolvedInvocation {
-            grant: boot.grant.clone(),
-            delegation_chain: vec![boot.grant.id],
-            connection_id: boot.connection,
-            principal_id: boot.principal,
-            binding: opensesame_authz::github_binding(connection_ref, "github/main"),
-            connection_policy_id: "demo-conn".into(),
-            spend_budget: None,
-        }
-    } else {
-        // A broker connection: by id, or by (org, logical name).
-        let row = match broker_store::get_connection(st.connection_broker.pool(), &requested_ref)
-            .await
-        {
-            Ok(Some(row)) if row.organization_id == boot.org.to_string() => Some(row),
-            _ => match st.connection_broker.list_connections(&boot.org).await {
-                Ok(views) => {
-                    let matched = views
-                        .iter()
-                        .find(|view| view.logical_name == requested_ref)
-                        .map(|view| view.connection_id.clone());
-                    match matched {
-                        Some(id) => broker_store::get_connection(st.connection_broker.pool(), &id)
-                            .await
-                            .ok()
-                            .flatten(),
-                        None => None,
-                    }
-                }
-                Err(_) => None,
-            },
-        };
-        let Some(row) = row else {
-            return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
-        };
-        let Ok(Some(delegation)) = st
-            .connection_broker
-            .find_live_delegation(&subject, &row.id)
-            .await
-        else {
-            // The caller holds no live delegation for it. Existence is not
-            // confirmed either way.
-            return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
-        };
-        // Delegates exercise at L1 in v1 (ADR 0044 decision 6).
-        if level > 1 {
-            return (
-                StatusCode::FORBIDDEN,
-                Json(json!({"error":"invoke_level_not_delegated"})),
-            )
-                .into_response();
-        }
-        let connection_id = match ConnectionId::parse(&row.id) {
-            Ok(id) => id,
-            Err(_) => {
-                return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response()
-            }
-        };
-        let organization_id = OrganizationId::parse(&row.organization_id).unwrap_or(boot.org);
-        let connection_ref = match ConnectionRef::new(
-            organization_id,
-            None,
-            row.logical_name.clone(),
-            connection_id,
-        ) {
-            Ok(connection_ref) => connection_ref,
-            Err(_) => {
-                return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response()
-            }
-        };
-        let binding = ConnectionAuthorityBinding {
-            connection_ref,
-            internal_secret: None,
-            credential_handle: None,
-            egress: row.egress.clone(),
-            max_invoke_level: InvokeLevel::TypedOperation,
-        };
-        let chain = vec![delegation.parent_grant_id, delegation.grant.id];
-        let principal_id = delegation.grant.beneficiary_principal_id;
-        let policy_id = component_for_provider(&row.provider_id).to_string();
-        let grant = delegation.grant.clone();
-        let delegation_id = delegation.delegation_id.clone();
-        ResolvedInvocation {
-            grant,
-            delegation_chain: chain,
-            connection_id,
-            principal_id,
-            binding,
-            connection_policy_id: policy_id,
-            spend_budget: Some(delegation_id),
-        }
+    let resolved = match resolve_invocation(&st, &boot, &subject, &body, level).await {
+        Ok(resolved) => resolved,
+        Err(response) => return response,
     };
 
     // The ADR 0005 fence, on the invoke path at last: reference is not
     // capability, level ceilings hold, egress fences L2, and the action must
     // be inside the grant that will be exercised.
-    let invoke_level = match level {
-        1 => InvokeLevel::TypedOperation,
-        2 => InvokeLevel::ConstrainedHttp,
-        _ => InvokeLevel::Materialize,
-    };
-    let requested_url = parameters.get("url").and_then(|v| v.as_str());
-    let authority_use = AuthorityUse {
-        subject: &subject,
-        grant: &resolved.grant,
-        binding: &resolved.binding,
-        op: AuthorityOperation::Invoke,
-        level: invoke_level,
-        requested_url,
-        requested_action: Some(&body.operation),
-        connection_policy_id: &resolved.connection_policy_id,
-    };
-    match authorize_authority_use(&st.broker.policy, &authority_use) {
-        Ok(decision) if decision.allowed => {}
-        Ok(_) => {
-            return (
-                StatusCode::FORBIDDEN,
-                Json(json!({"error":"authority_denied","type":"about:blank"})),
-            )
-                .into_response()
-        }
-        Err(e) => {
-            let msg = opensesame_redaction::redact_text(&e.to_string());
-            return (
-                StatusCode::FORBIDDEN,
-                Json(json!({"error": msg, "type":"about:blank"})),
-            )
-                .into_response();
-        }
+    if let Err(response) = authorize_invocation(&st, &subject, &body, &parameters, &resolved, level)
+    {
+        return response;
     }
 
     // Budgets decrement after authorization and before execution, and deny
     // when the decrement cannot be performed (ADR 0044 decision 10).
-    if let Some(delegation_id) = &resolved.spend_budget {
-        if st
-            .connection_broker
-            .spend_delegation_budget(
-                delegation_id,
-                opensesame_connection_broker::delegation::BUDGET_INVOCATIONS,
-            )
-            .await
-            .is_err()
-        {
-            return (
-                StatusCode::FORBIDDEN,
-                Json(json!({"error":"budget_exhausted"})),
-            )
-                .into_response();
-        }
+    if let Err(response) = spend_delegation_budget(&st, &resolved).await {
+        return response;
     }
 
     // Optional live OpenFGA check when configured — subject from session/operator, not a hard-coded demo user.
@@ -650,9 +680,7 @@ mod delegated_invoke_tests {
         let receipt: Value = serde_json::from_slice(&bytes).expect("receipt json");
         // The receipt names the lineage: parent (owner ceiling) then child.
         assert_eq!(
-            receipt["delegation_chain"]
-                .as_array()
-                .map(|chain| chain.len()),
+            receipt["delegation_chain"].as_array().map(Vec::len),
             Some(2)
         );
         assert_eq!(receipt["credential_bytes_returned"], json!(false));

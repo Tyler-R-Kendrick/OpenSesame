@@ -104,6 +104,29 @@ async fn drain_system_wakes(state: &AppState, bus: &NatsJetStreamTaskBus) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
+    use opensesame_task_bus::{BusEvent, TaskBus};
+    use std::sync::Arc;
+    use tokio::sync::{Notify, RwLock};
+
+    struct DownBus;
+
+    #[async_trait]
+    impl TaskBus for DownBus {
+        async fn publish(&self, _event: BusEvent) -> anyhow::Result<()> {
+            anyhow::bail!("nats down");
+        }
+
+        async fn drain(&self, _max: usize) -> anyhow::Result<Vec<BusEvent>> {
+            Ok(vec![])
+        }
+    }
+
+    async fn expect_notification(notify: Arc<Notify>) {
+        tokio::time::timeout(std::time::Duration::from_secs(2), notify.notified())
+            .await
+            .expect("backup_notify must fire despite bus failure");
+    }
 
     #[test]
     fn wake_publisher_does_not_use_deployment_seal() {
@@ -151,24 +174,8 @@ mod tests {
     /// Chaos: publish failure still wakes the in-process actor via notify.
     #[tokio::test]
     async fn publish_wake_notifies_even_when_bus_is_down() {
-        use async_trait::async_trait;
-        use opensesame_task_bus::{BusEvent, TaskBus};
-        use std::sync::Arc;
-        use tokio::sync::RwLock;
-
         let _guard = crate::app_state::test_env::lock();
         std::env::set_var("OPENSESAME_TASKBUS", "memory");
-
-        struct DownBus;
-        #[async_trait]
-        impl TaskBus for DownBus {
-            async fn publish(&self, _event: BusEvent) -> anyhow::Result<()> {
-                anyhow::bail!("nats down");
-            }
-            async fn drain(&self, _max: usize) -> anyhow::Result<Vec<BusEvent>> {
-                Ok(vec![])
-            }
-        }
 
         let mut state = crate::app_state::build(crate::config::Args {
             listen: "127.0.0.1:0".parse().unwrap(),
@@ -181,14 +188,7 @@ mod tests {
         .unwrap();
         state.task_bus = Arc::new(RwLock::new(Arc::new(DownBus) as Arc<dyn TaskBus>));
 
-        let notified = tokio::spawn({
-            let n = state.backup_notify.clone();
-            async move {
-                tokio::time::timeout(std::time::Duration::from_secs(2), n.notified())
-                    .await
-                    .expect("backup_notify must fire despite bus failure");
-            }
-        });
+        let notified = tokio::spawn(expect_notification(state.backup_notify.clone()));
         // Yield so the waiter is armed.
         tokio::task::yield_now().await;
         publish_backup_wake(&state, "outbox_down").await;

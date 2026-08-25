@@ -355,7 +355,7 @@ mod property {
             let first = seal(&plaintext, &kp.public_key()).unwrap();
             let second = seal(&plaintext, &kp.public_key()).unwrap();
 
-            let eph = |blob: &[u8]| blob[1..1 + PK_LEN].to_vec();
+            let eph = |blob: &[u8]| blob[1..=PK_LEN].to_vec();
             let nonce = |blob: &[u8]| blob[1 + PK_LEN..1 + PK_LEN + NONCE_LEN].to_vec();
 
             prop_assert_ne!(eph(&first), eph(&second), "ephemeral key was reused");

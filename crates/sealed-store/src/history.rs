@@ -87,6 +87,11 @@ fn git_log(root: &Path, rel: &Path) -> Result<Vec<HistoryEntry>, StoreError> {
 
 /// Walk the store's git log for the entry's ciphertext file, newest first.
 /// Works for removed entries too — the log outlives the file.
+///
+/// # Errors
+///
+/// Returns an error when the store is not a Git repository, the logical name
+/// is invalid, Git history cannot be read, or no history exists for the entry.
 pub fn entry_history(root: &StoreRoot, name: &str) -> Result<Vec<HistoryEntry>, StoreError> {
     require_git_repo(&root.path)?;
     for (rel, _ext) in candidate_relatives(name)? {
@@ -148,6 +153,12 @@ fn blob_at(root: &Path, rev: &str, name: &str) -> Result<Option<CommittedBlob>, 
 /// (`None` for `.gpg`/`.age`, which carry no local counter). The counter only
 /// ever advances — see the module docs for why the old blob is re-sealed
 /// rather than copied for `.osseal`.
+///
+/// # Errors
+///
+/// Returns an error when the store or revision is invalid, the entry was absent
+/// at that revision, historical ciphertext cannot be read or authenticated, or
+/// the restored ciphertext and Git commit cannot be written.
 pub fn restore_entry(
     root: &StoreRoot,
     name: &str,
@@ -161,25 +172,21 @@ pub fn restore_entry(
             "{name} is not present at revision {rev}"
         )));
     };
-    match blob.ext {
-        "osseal" => {
-            // Open against the blob's own sealed-in revision (it predates the
-            // current counter), then re-seal through the normal write path so
-            // the counter bumps and the restored blob is the newest valid one.
-            let opened = open_osseal(&blob.bytes, key, name, None)?;
-            let text = String::from_utf8(opened.plaintext)
-                .map_err(|e| StoreError::Crypto(format!("utf8: {e}")))?;
-            let entry = Entry::parse(&text);
-            root.write_entry_unchecked(name, &entry, key)?;
-            auto_commit(&root.path, crate::store::COMMIT_RESTORE)?;
-            Ok(root.revisions()?.get(name).copied())
-        }
-        _ => {
-            confined_write(&root.path, &blob.rel, &blob.bytes)?;
-            auto_commit(&root.path, crate::store::COMMIT_RESTORE)?;
-            Ok(None)
-        }
+    if blob.ext == "osseal" {
+        // Open against the blob's own sealed-in revision (it predates the
+        // current counter), then re-seal through the normal write path so
+        // the counter bumps and the restored blob is the newest valid one.
+        let opened = open_osseal(&blob.bytes, key, name, None)?;
+        let text = String::from_utf8(opened.plaintext)
+            .map_err(|e| StoreError::Crypto(format!("utf8: {e}")))?;
+        let entry = Entry::parse(&text);
+        root.write_entry_unchecked(name, &entry, key)?;
+        auto_commit(&root.path, crate::store::COMMIT_RESTORE)?;
+        return Ok(root.revisions()?.get(name).copied());
     }
+    confined_write(&root.path, &blob.rel, &blob.bytes)?;
+    auto_commit(&root.path, crate::store::COMMIT_RESTORE)?;
+    Ok(None)
 }
 
 #[cfg(test)]

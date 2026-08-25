@@ -1205,6 +1205,16 @@ pub struct ConfigValueVersionMetaRow {
     pub created_at: DateTime<Utc>,
 }
 
+pub(crate) fn config_version_from_db(version: i64) -> Result<u64> {
+    u64::try_from(version)
+        .map_err(|_| BrokerError::Invalid("stored config version is negative".into()))
+}
+
+fn config_version_to_db(version: u64) -> Result<i64> {
+    i64::try_from(version)
+        .map_err(|_| BrokerError::Invalid("config version exceeds the database range".into()))
+}
+
 /// One dirty-config wake event for the sync actor. Kept in a dedicated table
 /// because the shared `outbox_events` table is drained wholesale by the backup
 /// actor (`claim_outbox_batch` has no event-type filter); sharing it would let
@@ -1222,6 +1232,11 @@ pub struct ConfigSyncEventRow {
 
 pub const CONFIG_ENVIRONMENTS: [&str; 4] = ["development", "staging", "production", "custom"];
 
+/// Ensures the durable secret-config, value-history, and sync-outbox schema exists.
+///
+/// # Errors
+///
+/// Returns a database error when any schema statement cannot be applied.
 pub async fn ensure_secret_configs_schema(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS secret_configs (
@@ -1323,6 +1338,11 @@ fn secret_config_from_row(row: &sqlx::sqlite::SqliteRow) -> SecretConfigRow {
 const SECRET_CONFIG_COLUMNS: &str = "id, organization_id, project_id, slug, display_name, \
      environment, parent_config_id, created_at, updated_at";
 
+/// Inserts a tenant-scoped secret-config row.
+///
+/// # Errors
+///
+/// Returns an error when the environment is unsupported or the database rejects the row.
 pub async fn insert_secret_config(pool: &SqlitePool, row: &SecretConfigRow) -> Result<()> {
     ensure_secret_configs_schema(pool).await?;
     if !CONFIG_ENVIRONMENTS.contains(&row.environment.as_str()) {
@@ -1349,6 +1369,11 @@ pub async fn insert_secret_config(pool: &SqlitePool, row: &SecretConfigRow) -> R
     Ok(())
 }
 
+/// Lists secret configs for one organization and project in stable slug order.
+///
+/// # Errors
+///
+/// Returns a database error when the tenant-scoped query fails.
 pub async fn list_secret_configs(
     pool: &SqlitePool,
     organization_id: &str,
@@ -1368,6 +1393,11 @@ pub async fn list_secret_configs(
     Ok(rows.iter().map(secret_config_from_row).collect())
 }
 
+/// Gets a secret config by ID within an organization boundary.
+///
+/// # Errors
+///
+/// Returns a database error when the tenant-scoped lookup fails.
 pub async fn get_secret_config(
     pool: &SqlitePool,
     organization_id: &str,
@@ -1389,6 +1419,10 @@ pub async fn get_secret_config(
 
 /// Deletes a config and its values/versions in one transaction. The caller
 /// (domain layer) is responsible for refusing while sync targets reference it.
+///
+/// # Errors
+///
+/// Returns a database error when the transactional delete cannot complete.
 pub async fn delete_secret_config(
     pool: &SqlitePool,
     organization_id: &str,
@@ -1451,6 +1485,11 @@ async fn append_config_sync_outbox(
 /// upserts the head row, appends an immutable versions row, appends a
 /// `sync.config.dirty` wake for the sync actor, and appends a backup outbox
 /// event so the backup snapshot stays complete. Returns the new head version.
+///
+/// # Errors
+///
+/// Returns an error for a missing or cross-project config, invalid stored version,
+/// encryption failure, version exhaustion, or transactional database failure.
 pub async fn upsert_config_value(
     pool: &SqlitePool,
     key: &[u8; 32],
@@ -1479,13 +1518,18 @@ pub async fn upsert_config_value(
     .bind(p.key_name)
     .fetch_one(&mut *tx)
     .await?;
-    let next = head.unwrap_or(0).max(last_version.unwrap_or(0)) + 1;
+    let next = head
+        .unwrap_or(0)
+        .max(last_version.unwrap_or(0))
+        .checked_add(1)
+        .ok_or_else(|| BrokerError::Invalid("config version space is exhausted".into()))?;
+    let public_version = config_version_from_db(next)?;
     let aad = crate::crypto::config_value_ad(
         p.organization_id,
         p.project_id,
         p.config_id,
         p.key_name,
-        next as u64,
+        public_version,
     );
     let sealed = crate::crypto::seal_with_ad(key, &aad, p.plaintext)?;
     let now = Utc::now().to_rfc3339();
@@ -1534,12 +1578,16 @@ pub async fn upsert_config_value(
     .await?;
     append_backup_outbox(&mut tx, "config.value.changed", p.config_id, p.key_name).await?;
     tx.commit().await?;
-    Ok(next as u64)
+    Ok(public_version)
 }
 
 /// Tombstones the head value: appends a `deleted` versions row (empty
 /// ciphertext — a tombstone has nothing to seal) and removes the head row, in
 /// one transaction with the sync + backup outbox events.
+///
+/// # Errors
+///
+/// Returns an error when the config is missing or the transactional update fails.
 pub async fn delete_config_value(
     pool: &SqlitePool,
     organization_id: &str,
@@ -1562,6 +1610,9 @@ pub async fn delete_config_value(
     let Some(head) = head else {
         return Ok(false);
     };
+    let tombstone_version = head
+        .checked_add(1)
+        .ok_or_else(|| BrokerError::Invalid("config version space is exhausted".into()))?;
     let now = Utc::now().to_rfc3339();
     sqlx::query(
         "INSERT INTO config_secret_value_versions (config_id, key_name, version, ciphertext, \
@@ -1569,7 +1620,7 @@ pub async fn delete_config_value(
     )
     .bind(config_id)
     .bind(key_name)
-    .bind(head + 1)
+    .bind(tombstone_version)
     .bind(actor_id)
     .bind(&now)
     .execute(&mut *tx)
@@ -1592,6 +1643,11 @@ pub async fn delete_config_value(
     Ok(true)
 }
 
+/// Lists metadata for current secret keys without exposing ciphertext or plaintext.
+///
+/// # Errors
+///
+/// Returns a database error when the tenant-scoped query fails.
 pub async fn list_config_key_meta(
     pool: &SqlitePool,
     organization_id: &str,
@@ -1618,6 +1674,10 @@ pub async fn list_config_key_meta(
 
 /// Ciphertext rows for in-process consumers only. Never serialize these onto
 /// an API response.
+///
+/// # Errors
+///
+/// Returns a database error when the tenant-scoped query fails.
 pub async fn load_config_values_sealed(
     pool: &SqlitePool,
     organization_id: &str,
@@ -1646,6 +1706,11 @@ pub async fn load_config_values_sealed(
         .collect())
 }
 
+/// Lists immutable version metadata for one tenant-scoped config key.
+///
+/// # Errors
+///
+/// Returns an error when the config is missing or the database query fails.
 pub async fn list_config_value_versions(
     pool: &SqlitePool,
     organization_id: &str,
@@ -1678,6 +1743,12 @@ pub async fn list_config_value_versions(
         .collect())
 }
 
+/// Gets one non-tombstoned encrypted version within an organization boundary.
+///
+/// # Errors
+///
+/// Returns an error when the config is missing, the version exceeds the database
+/// range, or the database query fails.
 pub async fn get_config_value_version_sealed(
     pool: &SqlitePool,
     organization_id: &str,
@@ -1699,7 +1770,7 @@ pub async fn get_config_value_version_sealed(
     )
     .bind(config_id)
     .bind(key_name)
-    .bind(version as i64)
+    .bind(config_version_to_db(version)?)
     .fetch_optional(pool)
     .await?;
     Ok(row.map(|r| ConfigValueRow {
@@ -1715,6 +1786,11 @@ pub async fn get_config_value_version_sealed(
 
 // ---- config sync outbox (sync actor wake queue) ----------------------------
 
+/// Claims pending sync wake events in durable creation order for a bounded lease.
+///
+/// # Errors
+///
+/// Returns a database error when the atomic claim transaction fails.
 pub async fn claim_config_sync_batch(
     pool: &SqlitePool,
     limit: i64,
@@ -1760,6 +1836,11 @@ pub async fn claim_config_sync_batch(
     Ok(events)
 }
 
+/// Marks the selected sync wake events as published.
+///
+/// # Errors
+///
+/// Returns a database error when any selected event cannot be updated.
 pub async fn mark_config_sync_published(pool: &SqlitePool, ids: &[String]) -> Result<()> {
     let now = Utc::now().to_rfc3339();
     for id in ids {
@@ -1772,6 +1853,11 @@ pub async fn mark_config_sync_published(pool: &SqlitePool, ids: &[String]) -> Re
     Ok(())
 }
 
+/// Parks selected unpublished sync wake events until a retry deadline.
+///
+/// # Errors
+///
+/// Returns a database error when any selected event cannot be updated.
 pub async fn park_config_sync(
     pool: &SqlitePool,
     ids: &[String],
@@ -1793,6 +1879,11 @@ pub async fn park_config_sync(
     Ok(())
 }
 
+/// Permanently dead-letters selected unpublished sync wake events.
+///
+/// # Errors
+///
+/// Returns a database error when any selected event cannot be updated.
 pub async fn dead_letter_config_sync(
     pool: &SqlitePool,
     ids: &[String],
@@ -1820,6 +1911,11 @@ pub async fn dead_letter_config_sync(
 // Host's. Rows carry key names + version metadata only — the changelog_hook
 // redaction runs before anything reaches here.
 
+/// Ensures the durable append-only secret changelog schema exists.
+///
+/// # Errors
+///
+/// Returns a database error when any schema statement cannot be applied.
 pub async fn ensure_secret_changelog_schema(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS secret_changelog (
@@ -1856,6 +1952,11 @@ pub async fn ensure_secret_changelog_schema(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Appends one already-redacted changelog entry and returns its sequence number.
+///
+/// # Errors
+///
+/// Returns an error when metadata serialization or the database insert fails.
 pub async fn insert_changelog_row(
     pool: &SqlitePool,
     entry: &crate::changelog_hook::ChangelogEntry,
@@ -1884,6 +1985,11 @@ pub async fn insert_changelog_row(
     Ok(result.last_insert_rowid())
 }
 
+/// Lists tenant-scoped changelog entries in descending durable sequence order.
+///
+/// # Errors
+///
+/// Returns a database error when the tenant-scoped query fails.
 pub async fn list_changelog_rows(
     pool: &SqlitePool,
     organization_id: &str,
@@ -1974,13 +2080,18 @@ pub struct RotationJobRow {
     pub organization_id: String,
     pub target_kind: String,
     pub target_id: String,
-    /// `RotationState` name (snake_case), or `scheduled` before execution.
+    /// `RotationState` name (`snake_case`), or `scheduled` before execution.
     pub state: String,
     pub detail: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
+/// Ensures durable rotation policy and job schemas exist.
+///
+/// # Errors
+///
+/// Returns a database error when any schema statement cannot be applied.
 pub async fn ensure_rotation_schema(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS rotation_policies (
@@ -2063,6 +2174,10 @@ const ROTATION_JOB_COLUMNS: &str = "id, policy_id, organization_id, target_kind,
 
 /// Insert-or-update by policy id. `last_rotated_at` and `created_at` are
 /// preserved on update — only the schedule shape changes.
+///
+/// # Errors
+///
+/// Returns a database error when the policy cannot be persisted.
 pub async fn upsert_rotation_policy(pool: &SqlitePool, row: &RotationPolicyRow) -> Result<()> {
     ensure_rotation_schema(pool).await?;
     sqlx::query(
@@ -2087,6 +2202,11 @@ pub async fn upsert_rotation_policy(pool: &SqlitePool, row: &RotationPolicyRow) 
     Ok(())
 }
 
+/// Lists rotation policies for one organization in durable creation order.
+///
+/// # Errors
+///
+/// Returns a database error when the tenant-scoped query fails.
 pub async fn list_rotation_policies(
     pool: &SqlitePool,
     organization_id: &str,
@@ -2105,6 +2225,10 @@ pub async fn list_rotation_policies(
 }
 
 /// All enabled policies across every organization — the scheduler's read.
+///
+/// # Errors
+///
+/// Returns a database error when the scheduler query fails.
 pub async fn list_enabled_rotation_policies(pool: &SqlitePool) -> Result<Vec<RotationPolicyRow>> {
     ensure_rotation_schema(pool).await?;
     // ROTATION_POLICY_COLUMNS is a compile-time constant; no data interpolated.
@@ -2118,6 +2242,11 @@ pub async fn list_enabled_rotation_policies(pool: &SqlitePool) -> Result<Vec<Rot
     Ok(rows.iter().map(rotation_policy_from_row).collect())
 }
 
+/// Gets a rotation policy by its opaque internal ID.
+///
+/// # Errors
+///
+/// Returns a database error when the lookup fails.
 pub async fn get_rotation_policy(pool: &SqlitePool, id: &str) -> Result<Option<RotationPolicyRow>> {
     ensure_rotation_schema(pool).await?;
     // ROTATION_POLICY_COLUMNS is a compile-time constant; only `id` is bound data.
@@ -2131,6 +2260,11 @@ pub async fn get_rotation_policy(pool: &SqlitePool, id: &str) -> Result<Option<R
     Ok(row.as_ref().map(rotation_policy_from_row))
 }
 
+/// Records the most recent successful rotation time for a policy.
+///
+/// # Errors
+///
+/// Returns a database error when the update fails.
 pub async fn set_policy_last_rotated(
     pool: &SqlitePool,
     id: &str,
@@ -2146,6 +2280,11 @@ pub async fn set_policy_last_rotated(
     Ok(())
 }
 
+/// Inserts one durable rotation job.
+///
+/// # Errors
+///
+/// Returns a database error when the job cannot be inserted.
 pub async fn insert_rotation_job(pool: &SqlitePool, row: &RotationJobRow) -> Result<()> {
     ensure_rotation_schema(pool).await?;
     sqlx::query(
@@ -2168,6 +2307,10 @@ pub async fn insert_rotation_job(pool: &SqlitePool, row: &RotationJobRow) -> Res
 
 /// Persist one state transition. `detail = None` keeps the previously recorded
 /// detail (e.g. `verify_skipped` survives the transitions after it).
+///
+/// # Errors
+///
+/// Returns a database error when the state transition cannot be persisted.
 pub async fn update_rotation_job_state(
     pool: &SqlitePool,
     id: &str,
@@ -2188,6 +2331,11 @@ pub async fn update_rotation_job_state(
     Ok(())
 }
 
+/// Lists recent rotation jobs for one organization.
+///
+/// # Errors
+///
+/// Returns a database error when the tenant-scoped query fails.
 pub async fn list_rotation_jobs(
     pool: &SqlitePool,
     organization_id: &str,
@@ -2207,6 +2355,11 @@ pub async fn list_rotation_jobs(
     Ok(rows.iter().map(rotation_job_from_row).collect())
 }
 
+/// Gets a durable rotation job by its opaque internal ID.
+///
+/// # Errors
+///
+/// Returns a database error when the lookup fails.
 pub async fn get_rotation_job(pool: &SqlitePool, id: &str) -> Result<Option<RotationJobRow>> {
     ensure_rotation_schema(pool).await?;
     // ROTATION_JOB_COLUMNS is a compile-time constant; only `id` is bound data.
@@ -2224,6 +2377,10 @@ pub async fn get_rotation_job(pool: &SqlitePool, id: &str) -> Result<Option<Rota
 /// every config that has a sync target on the rotated connection. One
 /// `sync.config.dirty` row per distinct config, all in one transaction.
 /// Returns how many configs were dirtied.
+///
+/// # Errors
+///
+/// Returns a database error when discovery or the atomic outbox append fails.
 pub async fn append_config_sync_dirty_for_connection(
     pool: &SqlitePool,
     organization_id: &str,

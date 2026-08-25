@@ -304,7 +304,7 @@ mod tests {
         let mut request = Request::builder().method(method).uri(path);
         match headers {
             Some(map) => {
-                for (name, value) in map.iter() {
+                for (name, value) in &map {
                     request = request.header(name, value);
                 }
             }

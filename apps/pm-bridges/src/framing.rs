@@ -38,6 +38,10 @@ pub enum ReadOutcome {
 /// Fails rather than truncating when the payload exceeds
 /// [`MAX_MESSAGE_BYTES`] — a silently truncated frame would desynchronise
 /// the stream for every message after it.
+///
+/// # Errors
+///
+/// Returns [`BridgeError::Protocol`] when `payload` exceeds the framing cap.
 pub fn encode_frame(payload: &[u8]) -> Result<Vec<u8>, BridgeError> {
     let len = u32::try_from(payload.len())
         .ok()
@@ -59,6 +63,10 @@ pub fn encode_frame(payload: &[u8]) -> Result<Vec<u8>, BridgeError> {
 /// Returns the payload and the number of bytes consumed. A buffer holding
 /// only part of a frame is a [`BridgeError::Protocol`] — callers that stream
 /// should use [`read_message`] instead.
+///
+/// # Errors
+///
+/// Returns [`BridgeError::Protocol`] for an incomplete or oversized frame.
 pub fn decode_frame(buf: &[u8]) -> Result<(Vec<u8>, usize), BridgeError> {
     if buf.len() < 4 {
         return Err(BridgeError::Protocol("truncated length prefix".into()));
@@ -80,6 +88,10 @@ pub fn decode_frame(buf: &[u8]) -> Result<(Vec<u8>, usize), BridgeError> {
 }
 
 /// Read one framed message from `reader`, blocking until it is complete.
+///
+/// # Errors
+///
+/// Returns an I/O error or [`BridgeError::Protocol`] for an invalid frame.
 pub fn read_message(reader: &mut impl Read) -> Result<ReadOutcome, BridgeError> {
     let mut header = [0u8; 4];
     match fill(reader, &mut header)? {
@@ -101,6 +113,10 @@ pub fn read_message(reader: &mut impl Read) -> Result<ReadOutcome, BridgeError> 
 }
 
 /// Write one framed message to `writer` and flush it.
+///
+/// # Errors
+///
+/// Returns an I/O error or the framing error from [`encode_frame`].
 pub fn write_message(writer: &mut impl Write, payload: &[u8]) -> Result<(), BridgeError> {
     let frame = encode_frame(payload)?;
     writer.write_all(&frame)?;
@@ -117,7 +133,7 @@ fn fill(reader: &mut impl Read, buf: &mut [u8]) -> Result<usize, BridgeError> {
         match reader.read(&mut buf[filled..]) {
             Ok(0) => break,
             Ok(n) => filled += n,
-            Err(e) if e.kind() == ErrorKind::Interrupted => continue,
+            Err(e) if e.kind() == ErrorKind::Interrupted => {}
             Err(e) => return Err(BridgeError::Io(e)),
         }
     }
@@ -125,6 +141,10 @@ fn fill(reader: &mut impl Read, buf: &mut [u8]) -> Result<usize, BridgeError> {
 }
 
 /// Read a framed message and parse it as JSON.
+///
+/// # Errors
+///
+/// Returns a framing, I/O, or JSON protocol error.
 pub fn read_json<T: serde::de::DeserializeOwned>(
     reader: &mut impl Read,
 ) -> Result<Option<T>, BridgeError> {
@@ -137,6 +157,10 @@ pub fn read_json<T: serde::de::DeserializeOwned>(
 }
 
 /// Serialize `value` as JSON and write it as a framed message.
+///
+/// # Errors
+///
+/// Returns a serialization, framing, or I/O error.
 pub fn write_json<T: serde::Serialize>(
     writer: &mut impl Write,
     value: &T,
@@ -154,7 +178,8 @@ mod tests {
     fn round_trips_a_message() {
         let payload = br#"{"action":"list"}"#;
         let frame = encode_frame(payload).expect("encode");
-        assert_eq!(&frame[..4], &(payload.len() as u32).to_le_bytes());
+        let payload_len = u32::try_from(payload.len()).expect("test payload fits u32");
+        assert_eq!(&frame[..4], &payload_len.to_le_bytes());
         let (decoded, consumed) = decode_frame(&frame).expect("decode");
         assert_eq!(decoded, payload);
         assert_eq!(consumed, frame.len());

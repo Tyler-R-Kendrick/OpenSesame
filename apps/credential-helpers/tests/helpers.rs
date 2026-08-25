@@ -20,6 +20,10 @@ struct StubDaemon {
     _dir: tempfile::TempDir,
 }
 
+#[expect(
+    clippy::excessive_nesting,
+    reason = "the cohesive stub keeps one scripted HTTP exchange readable in place"
+)]
 fn spawn_stub_daemon(status: u16, body: &str, requests: usize) -> StubDaemon {
     let dir = tempfile::tempdir().expect("tempdir");
     let sock = dir.path().join("agent.sock");
