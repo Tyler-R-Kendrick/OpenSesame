@@ -303,6 +303,38 @@ mod tests {
         state_with(invoker, Arc::new(|_| Some(Box::new(CanarySource))))
     }
 
+    #[cfg(unix)]
+    fn killed_source_factory() -> crate::TokenSourceFactory {
+        use crate::token_source::CliTokenSource;
+        use opensesame_invoke_through::SourceToolSpec;
+
+        let env =
+            std::collections::BTreeMap::from([("PATH".to_string(), "/usr/bin:/bin".to_string())]);
+        Arc::new(move |_| {
+            Some(Box::new(CliTokenSource::with_spec(
+                SourceToolSpec {
+                    binary: "sh",
+                    args: &["-c", "kill -9 $$"],
+                },
+                &env,
+            )) as Box<dyn TokenSource>)
+        })
+    }
+
+    fn sorted_headers(headers: &HeaderMap) -> Vec<(String, String)> {
+        let mut headers = headers
+            .iter()
+            .map(|(name, value)| {
+                (
+                    name.as_str().to_string(),
+                    value.to_str().unwrap_or("").to_string(),
+                )
+            })
+            .collect::<Vec<_>>();
+        headers.sort();
+        headers
+    }
+
     fn request(body: &str, with_token: bool) -> Request<Body> {
         let mut builder = Request::builder()
             .method("POST")
@@ -606,28 +638,13 @@ mod tests {
     #[tokio::test]
     async fn chaos_killed_source_tool_makes_zero_upstream_connections() {
         use crate::tests::fault::{Fault, FaultListener};
-        use crate::token_source::CliTokenSource;
-        use opensesame_invoke_through::SourceToolSpec;
         tokio::time::timeout(CHAOS_DEADLINE, async {
             let upstream = FaultListener::spawn(Fault::Reset).await;
             // The source tool is killed mid-exec (SIGKILL): acquisition
             // fails, so the preflighted call must die before dialing.
-            let env = std::collections::BTreeMap::from([(
-                "PATH".to_string(),
-                "/usr/bin:/bin".to_string(),
-            )]);
             let st = state_with(
                 Invoker::with_rules(vec![loopback_rule()]).allow_http_for_tests(),
-                Arc::new(move |_| {
-                    Some(Box::new(CliTokenSource::with_spec(
-                        SourceToolSpec {
-                            binary: "sh",
-                            args: &["-c", "kill -9 $$"],
-                        },
-                        &env,
-                    ))
-                        as Box<dyn opensesame_invoke_through::TokenSource>)
-                }),
+                killed_source_factory(),
             );
             let app = router(st);
             let res = app
@@ -710,17 +727,7 @@ mod tests {
                 .await
                 .unwrap();
             let status = res.status().as_u16();
-            let mut headers: Vec<(String, String)> = res
-                .headers()
-                .iter()
-                .map(|(name, value)| {
-                    (
-                        name.as_str().to_string(),
-                        value.to_str().unwrap_or("").to_string(),
-                    )
-                })
-                .collect();
-            headers.sort();
+            let headers = sorted_headers(res.headers());
             let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
             let text = String::from_utf8(bytes.to_vec()).unwrap();
             let wire = json!({
