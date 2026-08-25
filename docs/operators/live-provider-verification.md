@@ -160,17 +160,26 @@ These two variables are **shared with the Host plane's connection broker**, whic
 same names for its GitHub OAuth App. One app can serve both planes; if they must not share a
 credential, give the planes separate deployments.
 
-Defaults you should not change without a reason: scope `read:user` (a sign-in needs the
-profile, not the account) and `subjectField = id`. **The subject is GitHub's numeric `id`,
-never `login`.** A login can be renamed and then registered by somebody else, and a subject
-that can change hands is an account-takeover path. If you override
-`OPENSESAME_PROVIDER_GITHUB_SUBJECT_FIELD`, that is the property you are responsible for.
+Defaults you should not change without a reason: scope `read:user user:email` and
+`subjectField = id`. **The subject is GitHub's numeric `id`, never `login`.** A login can be
+renamed and then registered by somebody else, and a subject that can change hands is an
+account-takeover path. If you override `OPENSESAME_PROVIDER_GITHUB_SUBJECT_FIELD`, that is the
+property you are responsible for.
+
+`user:email` is read-only and grants nothing beyond the account's addresses. It is what lets
+the leg call `/user/emails`, where GitHub reports each address with the `verified` flag it set
+itself — the only signal that can satisfy ADR 0057's linking rule, and the reason someone who
+signed in with Google and later with GitHub lands on one account instead of two. `/user` alone
+carries whatever address the account made public, which is absent for a private account and
+never accompanied by a verified flag. Point `OPENSESAME_PROVIDER_GITHUB_EMAILS_URL` elsewhere
+for GitHub Enterprise Server; drop it entirely and the leg degrades to the profile address as
+an unverified hint rather than failing.
 
 **Confirm.** The provider list shows `"kind":"oauth2"`. After a sign-in the identity row has
 `kind = 'oauth2'`, `issuer = 'https://github.com'` and a numeric `subject`, and the audit row
-records `via: "userinfo"`. `email` is present only when the account's profile email is public
-— `/user/emails` is deliberately never called, and a GitHub email never counts as verified for
-ADR 0057 linking because the shipped descriptor names no `emailVerifiedField`.
+records `via: "userinfo"`. `email_normalized` and `email_verified` are set when GitHub reported
+a confirmed address; an account with no confirmed address still signs in, carrying the profile
+address as a hint that joins nothing.
 
 ## Apple
 
