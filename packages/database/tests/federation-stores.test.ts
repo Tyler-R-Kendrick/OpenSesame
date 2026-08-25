@@ -138,6 +138,8 @@ describe.each(backends)("$name federation storage", ({ create }) => {
     it("round-trips a full row and keeps unset optionals absent", async () => {
       const organization = await seedOrganization({
         ssoIssuer: "https://sso.acme.example",
+        ssoClientId: "acme-client-id",
+        ssoClientSecret: "acme-client-secret",
         samlIssuer: "https://saml.acme.example",
         samlMetadataUrl: "https://saml.acme.example/metadata",
         samlMetadataXml: "<EntityDescriptor />",
@@ -153,8 +155,45 @@ describe.each(backends)("$name federation storage", ({ create }) => {
       // Null-vs-undefined: an unset column reads back as an absent key, never
       // as `null` and never as `false`.
       expect(Object.hasOwn(read ?? {}, "ssoIssuer")).toBe(false);
+      expect(Object.hasOwn(read ?? {}, "ssoClientId")).toBe(false);
+      expect(Object.hasOwn(read ?? {}, "ssoClientSecret")).toBe(false);
       expect(Object.hasOwn(read ?? {}, "samlMetadataXml")).toBe(false);
       expect(Object.hasOwn(read ?? {}, "provisioningEnabled")).toBe(false);
+    });
+
+    /**
+     * The credentials the sign-in leg presents at a tenant's own IdP. A store
+     * that quietly dropped either would leave the leg falling back to the
+     * origin-profile client, which every real enterprise IdP refuses — and a
+     * memory-only test run would never have noticed (T8).
+     */
+    it("round-trips the tenant client credentials verbatim", async () => {
+      const organization = await seedOrganization({
+        ssoIssuer: "https://sso.acme.example",
+        ssoClientId: "acme-client-id",
+        // Held as issued: it has to reach the tenant's token endpoint
+        // byte-for-byte, so there is no digest that could stand in for it.
+        ssoClientSecret: "s3cret-with-symbols/+=",
+      });
+      const read = await backend.organizations.organizations.get(
+        organization.id,
+      );
+      expect(read?.ssoClientId).toBe("acme-client-id");
+      expect(read?.ssoClientSecret).toBe("s3cret-with-symbols/+=");
+    });
+
+    it("keeps a client id that has no secret", async () => {
+      // A public client registered at the tenant's IdP: real, and distinct
+      // from having no credentials at all.
+      const organization = await seedOrganization({
+        ssoIssuer: "https://sso.acme.example",
+        ssoClientId: "acme-public-client",
+      });
+      const read = await backend.organizations.organizations.get(
+        organization.id,
+      );
+      expect(read?.ssoClientId).toBe("acme-public-client");
+      expect(Object.hasOwn(read ?? {}, "ssoClientSecret")).toBe(false);
     });
 
     it("drops an explicitly false provisioning flag on write", async () => {
