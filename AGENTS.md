@@ -244,9 +244,9 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 ### Codex Security checker
 
 `codex-security` is an external, model-backed review tool. It supplements the
-deterministic `pnpm audit:*` gates; it does not replace them. CLI `0.1.16` with
-bundled plugin `0.1.22` was the latest release validated in this repository on
-2026-08-21.
+deterministic `pnpm audit:*` gates; it does not replace them. CLI `0.1.20` with
+bundled plugin `0.1.37` was the latest release validated in this repository on
+2026-08-25.
 
 Before a scan, check the installed and published versions. Upgrade only when
 the task authorizes changing user-level tooling, and install an exact version:
@@ -258,24 +258,35 @@ npm install -g @openai/codex-security@<exact-version>
 codex-security --version
 ```
 
-Routine reviews must target a committed diff or explicit paths. Never start a
-bare, uncapped repository-wide scan. Set the budget before permitting network
-access, run preflight first, and retain artifacts outside the checkout:
+Routine reviews must target explicit security-boundary paths or a committed
+diff. Never start a bare, uncapped repository-wide scan. Use the stored ChatGPT
+sign-in, GPT-5.6 Luna, and low reasoning by default so reviews consume the
+user's Codex subscription allowance and preserve it for coverage. Do not use
+`--auth auto`: unattended scans give API keys precedence. Use `--auth api-key`
+only when the human explicitly requests API billing. Set one shared budget
+before permitting network access, run preflight first, and retain artifacts
+outside the checkout:
 
 ```bash
 codex-security scan <clean-checkout> \
-  --diff <base-sha-or-ref> --head HEAD \
+  --path <security-boundary> \
+  --path <another-security-boundary> \
+  --auth chatgpt \
+  --model gpt-5.6-luna --effort low \
+  --mode standard \
   --max-cost 15 \
   --fail-on-severity high \
   --headless --verbose \
   --output-dir <trusted-state-dir> --archive-existing \
   --dry-run
 
-# Remove --dry-run only after checking target, base/head, model, effort,
+# Remove --dry-run only after checking paths, model, effort,
 # authentication method, output directory, and maxCostUsd in preflight output.
 ```
 
-The `$15` cap is the default ceiling, not a promise that the scan will finish.
+The `$15` cap is shared by every repeated `--path` in that invocation; it is
+not a separate allowance per path. The cap is a ceiling, not a promise that
+the scan will finish.
 Raising it or running a whole-repository scan requires explicit human approval.
 With CLI `0.1.16` at `xhigh`, prior runs demonstrated why: a full scan consumed
 `$56.73` after only `64/2,313` files, and a 70-file diff hit `$15.05` after
@@ -330,7 +341,10 @@ bwrap --unshare-user --uid 0 --gid 0 --tmpfs / --dev /dev --proc /proc \
   --setenv HOME /home/codex \
   --setenv PATH /home/codex/.local/bin:/usr/bin:/bin \
   --chdir /workspace /home/codex/.local/bin/codex-security scan /workspace \
-  --diff <base-sha> --head HEAD --max-cost 15 --fail-on-severity high \
+  --path <security-boundary> --path <another-security-boundary> \
+  --auth chatgpt \
+  --model gpt-5.6-luna --effort low --mode standard \
+  --max-cost 15 --fail-on-severity high \
   --headless --verbose --output-dir /state --archive-existing --dry-run
 ```
 
@@ -370,6 +384,7 @@ holds symlinks to the same directories for tools that look there instead.
 | `opensesame-clis` | `skills/opensesame-clis/SKILL.md` | Install, configure, initialize, and use OpenSesame host and client CLIs |
 | `opensesame-mcps` | `skills/opensesame-mcps/SKILL.md` | Install, configure, initialize, and use OpenSesame MCP servers |
 | `install-anti-slop` | `skills/install-anti-slop/SKILL.md` | Install and configure the vendored Oxlint anti-slop plugin |
+| `security-review` | `skills/security-review/SKILL.md` | Run repository security gates and targeted Codex Security reviews |
 
 ## 8. Verification expectations
 
