@@ -9,7 +9,6 @@ import {
   loadConfig,
 } from "../config.js";
 import type { AppContext } from "../context.js";
-import type { AppContext } from "../context.js";
 import { createControlPlane } from "../create-app.js";
 import {
   buildLoginPageModel,
