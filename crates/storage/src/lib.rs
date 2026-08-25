@@ -2610,7 +2610,7 @@ mod tests {
         .await
         .unwrap();
         for statement in split_statements(include_str!(
-            "../../../migrations/0011_certificate_issuance.sql"
+            "../../../migrations/0013_certificate_issuance.sql"
         )) {
             sqlx::query(&statement).execute(&pool).await.unwrap();
         }

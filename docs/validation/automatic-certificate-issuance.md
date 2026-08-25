@@ -2,12 +2,12 @@
 
 ## Reconciled baseline and stack
 
-Base: `09206643aaef76cb2f0f574cf21501e4f3cf9d69` (`origin/main`,
-2026-08-22). Pull requests #188 through #191 are merged in this base; their
-guest-to-registered principal preservation remains intact. The validated
-implementation head before this evidence-only update is `07e7090a`.
+Integration base: `291992f987185c99f24c105397a8411bc7c75a3c`
+(`origin/main`, 2026-08-25). Pull requests #188 through #191 are merged in this
+base; their guest-to-registered principal preservation remains intact. The
+reconciled implementation head before this evidence update is `9c7982d`.
 
-The work is split into three dependency-ordered branches:
+The original work was split into three dependency-ordered branches:
 
 - `feat/auto-certificates-core`: custody ADR, automatic Pages ceremony,
   storage migration, private/external issuer adapters, fuzz and mutation
@@ -18,9 +18,9 @@ The work is split into three dependency-ordered branches:
   formal gates.
 - `feat/auto-certificates-security`: MCP administrative-response minimization.
 
-The exact commits are recorded by `git log
-09206643aaef76cb2f0f574cf21501e4f3cf9d69..HEAD`; no unrelated working-tree
-file is part of the stack.
+Those commits were replayed and conflict-resolved on
+`feat/security-review-integrated`; `git log origin/main..HEAD` records the
+integrated stack. No unrelated working-tree file is part of it.
 
 ## Delivered behavior
 
@@ -53,7 +53,7 @@ Boy-scout fixes made while validating the boundary:
 
 ## Schema and configuration
 
-`migrations/0011_certificate_issuance.sql` adds sealed certificate authorities,
+`migrations/0013_certificate_issuance.sql` adds sealed certificate authorities,
 issuance orders, one-time deliveries, replay/idempotency constraints, and
 public issuance metadata. The application migration validates and seals a
 legacy `certs.dev_ca` pair, reloads it, verifies the key/certificate match, and
@@ -90,14 +90,17 @@ logs/audit/errors. The enforcement boundaries have atomic, adversarial,
 contract, behavior, characterization/snapshot, chaos, property, fuzz,
 concurrency, mutation, and end-to-end tests.
 
-Codex Security CLI `0.1.16` with bundled plugin `0.1.22` passed a dry-run
-preflight for seven selected certificate/custody paths at base
-`09206643aaef76cb2f0f574cf21501e4f3cf9d69`, head `07e7090a`, `xhigh` effort,
-and a USD 15 cap. The model-backed scan itself was not run: the execution
-policy rejected exporting the private certificate and cryptography source to
-the external OpenAI model without a separate explicit source-content egress
-approval. No scanner finding or complete-scan claim is made. Deterministic
-security gates and manual source-to-sink review remain the release evidence.
+Codex Security CLI `0.1.20` with bundled plugin `0.1.37` completed a targeted
+review of all 12 files resolved from seven certificate/custody paths. It used
+ChatGPT subscription authentication, GPT-5.6 Luna at low effort, standard mode,
+and a USD 15 scanner estimate cap. The complete run cost estimate was
+USD 0.09094584 and produced one confirmed medium finding: the development-only
+ephemeral issuance-history fallback used a host-global key and could return one
+organization's metadata to another organization. Commit `5da2361` scopes that
+key by organization and adds
+`adversarial_ephemeral_history_isolated_between_organizations`; no raw
+certificate, key, or claim value was involved. Lower reasoning and the narrow
+path scope remain explicit coverage limitations.
 
 ## Validation results
 
@@ -154,8 +157,8 @@ Depth gates run against the same implementation:
   must validate scoped provider Connections and operational key rotation.
 - The work claims the documented RFC 8555 subset, not general ACME, CA, WebPKI,
   provider, hardware, NIST, or browser-wallet conformance.
-- The external Codex model scan remains incomplete pending explicit approval of
-  the exact source payload and destination.
+- Codex Security covered only the selected certificate/custody boundary; it is
+  not evidence of a complete repository-wide model review.
 
 ## Evidence paths
 
@@ -166,6 +169,8 @@ Depth gates run against the same implementation:
   `docs/security/audit-2026-08-21-certificate-key-custody.md`
 - MCP minimization audit:
   `docs/security/audit-2026-08-22-mcp-response-minimization.md`
+- Certificate tenant-isolation audit:
+  `docs/security/audit-2026-08-25-certificate-tenant-isolation.md`
 - Protocol/support matrix: `docs/protocol-conformance.md`
 - This implementation record:
   `docs/validation/trust-broker-implementation-evidence.md`
