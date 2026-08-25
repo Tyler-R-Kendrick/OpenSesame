@@ -109,7 +109,7 @@ pub async fn list(State(st): State<AppState>, headers: axum::http::HeaderMap) ->
             "connections": records.into_iter().map(ConnectionView::from).collect::<Vec<_>>()
         }))
         .into_response(),
-        Err(error) => server_error(error),
+        Err(error) => server_error(&error),
     }
 }
 
@@ -160,7 +160,7 @@ pub async fn create(
     }
     match st.db.insert_connection(&connection).await {
         Ok(()) => (StatusCode::CREATED, Json(ConnectionView::from(connection))).into_response(),
-        Err(error) => server_error(error),
+        Err(error) => server_error(&error),
     }
 }
 
@@ -177,14 +177,13 @@ pub async fn update(
     if let Err(response) = require_configuration_role(role) {
         return response;
     }
-    let id = match ConnectionId::parse(&raw_id) {
-        Ok(id) => id,
-        Err(_) => return invalid_id(),
+    let Ok(id) = ConnectionId::parse(&raw_id) else {
+        return invalid_id();
     };
     let mut connection = match st.db.get_connection(&organization, &id).await {
         Ok(Some(connection)) => connection,
         Ok(None) => return StatusCode::NOT_FOUND.into_response(),
-        Err(error) => return server_error(error),
+        Err(error) => return server_error(&error),
     };
     if let Some(display_name) = body.display_name {
         if display_name.trim().is_empty() || display_name.len() > 120 {
@@ -210,7 +209,7 @@ pub async fn update(
     match st.db.update_connection(&connection).await {
         Ok(true) => Json(ConnectionView::from(connection)).into_response(),
         Ok(false) => StatusCode::NOT_FOUND.into_response(),
-        Err(error) => server_error(error),
+        Err(error) => server_error(&error),
     }
 }
 
@@ -226,14 +225,13 @@ pub async fn delete(
     if let Err(response) = require_configuration_role(role) {
         return response;
     }
-    let id = match ConnectionId::parse(&raw_id) {
-        Ok(id) => id,
-        Err(_) => return invalid_id(),
+    let Ok(id) = ConnectionId::parse(&raw_id) else {
+        return invalid_id();
     };
     match st.db.delete_connection(&organization, &id).await {
         Ok(true) => StatusCode::NO_CONTENT.into_response(),
         Ok(false) => StatusCode::NOT_FOUND.into_response(),
-        Err(error) => server_error(error),
+        Err(error) => server_error(&error),
     }
 }
 
@@ -270,7 +268,7 @@ pub async fn test_provider(
     }
     match tokio::task::spawn_blocking(move || providers::probe_live(&provider)).await {
         Ok(probe) => Json(json!(probe)).into_response(),
-        Err(error) => server_error(error.into()),
+        Err(error) => server_error(&error.into()),
     }
 }
 
@@ -290,7 +288,7 @@ fn unscoped_session() -> Response {
         .into_response()
 }
 
-fn server_error(error: anyhow::Error) -> Response {
+fn server_error(error: &anyhow::Error) -> Response {
     tracing::error!(error = %error, "connection storage failed");
     (
         StatusCode::INTERNAL_SERVER_ERROR,

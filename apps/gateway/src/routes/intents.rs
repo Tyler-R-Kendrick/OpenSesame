@@ -6,7 +6,12 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use opensesame_broker::InvokeInput;
-use opensesame_domain::*;
+use opensesame_domain::{
+    AuthorityOperation, ConnectionAuthorityBinding, ConnectionId, ConnectionRef, DetachedProof,
+    Grant, GrantId, Intent, IntentId, InvokeLevel, OrganizationId, PrincipalId,
+};
+#[cfg(test)]
+use opensesame_domain::{EgressBinding, OrganizationRole};
 use opensesame_provider_openfga::TupleKey;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -41,10 +46,10 @@ fn component_for_provider(_provider_id: &str) -> &'static str {
 
 #[derive(Deserialize)]
 pub struct InvokeBody {
-    /// Preferred agent API: ConnectionRef URI (conn://...).
+    /// Preferred agent API: `ConnectionRef` URI (conn://...).
     #[serde(default)]
     connection_ref: Option<String>,
-    /// Legacy alias accepted as ConnectionRef logical name or URI.
+    /// Legacy alias accepted as `ConnectionRef` logical name or URI.
     #[serde(default)]
     connection: Option<String>,
     operation: String,
@@ -70,10 +75,84 @@ fn claims_task_authority(body: &InvokeBody, headers: &axum::http::HeaderMap) -> 
         || headers.contains_key("x-opensesame-intent-digest")
 }
 
+async fn authorize_openfga(st: &AppState, subject: &str) -> Result<(), Response> {
+    let Some(openfga) = &st.openfga else {
+        return Ok(());
+    };
+    match openfga
+        .check_tuple(&TupleKey {
+            user: subject.into(),
+            relation: "user".into(),
+            object: "connection:demo-conn".into(),
+        })
+        .await
+    {
+        Ok(true) => Ok(()),
+        Ok(false) => Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({"error":"openfga_denied","type":"about:blank"})),
+        )
+            .into_response()),
+        Err(error) => {
+            // The transport error can embed the store URL and its bearer.
+            tracing::warn!(%error, "openfga check failed");
+            Err((
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error": "openfga_unavailable", "type":"about:blank"})),
+            )
+                .into_response())
+        }
+    }
+}
+
+fn build_intent(
+    body: InvokeBody,
+    parameters: &Value,
+    boot: &crate::app_state::Bootstrap,
+    resolved: &ResolvedInvocation,
+) -> Result<Intent, Response> {
+    let param_hash = Intent::parameters_hash(parameters).map_err(|error| {
+        let message = opensesame_redaction::redact_text(&error.to_string());
+        (StatusCode::BAD_REQUEST, Json(json!({"error": message}))).into_response()
+    })?;
+    let now = Utc::now();
+    Ok(Intent {
+        id: IntentId::new(),
+        organization_id: boot.org,
+        project_id: Some(boot.project),
+        principal_id: resolved.principal_id,
+        actor_id: boot.actor,
+        actor_instance_id: None,
+        client_id: None,
+        operator_id: None,
+        connection_id: Some(resolved.connection_id),
+        operation: body.operation,
+        resource: body.resource,
+        audience: body
+            .audience
+            .unwrap_or_else(|| "https://api.github.com".into()),
+        normalized_parameters_hash: param_hash,
+        body_hash: None,
+        nonce: uuid::Uuid::new_v4().to_string(),
+        idempotency_key: body
+            .idempotency_key
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+        issued_at: now,
+        expires_at: now + Duration::minutes(5),
+        parent_invocation_id: None,
+        delegation_chain: resolved.delegation_chain.clone(),
+        proof: DetachedProof {
+            algorithm: "EdDSA".into(),
+            key_thumbprint: "demo".into(),
+            signature: "demo".into(),
+        },
+    })
+}
+
 pub async fn create(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
-    Json(body): Json<InvokeBody>,
+    Json(mut body): Json<InvokeBody>,
 ) -> Response {
     // This route builds an intent from the request body, so it cannot honour a
     // task ceiling or a frozen digest. Accepting those fields anyway would let a
@@ -104,7 +183,7 @@ pub async fn create(
     if !caller.in_organization(&boot.org) {
         return (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response();
     }
-    let parameters = body.parameters.unwrap_or_else(|| json!({}));
+    let parameters = body.parameters.take().unwrap_or_else(|| json!({}));
     let default_ref = st
         .connection_ref
         .as_ref()
@@ -308,73 +387,12 @@ pub async fn create(
     }
 
     // Optional live OpenFGA check when configured — subject from session/operator, not a hard-coded demo user.
-    if let Some(fga) = &st.openfga {
-        match fga
-            .check_tuple(&TupleKey {
-                user: subject.clone(),
-                relation: "user".into(),
-                object: "connection:demo-conn".into(),
-            })
-            .await
-        {
-            Ok(true) => {}
-            Ok(false) => {
-                return (
-                    StatusCode::FORBIDDEN,
-                    Json(json!({"error":"openfga_denied","type":"about:blank"})),
-                )
-                    .into_response();
-            }
-            Err(e) => {
-                // The transport error can embed the store URL and its bearer.
-                tracing::warn!(error = %e, "openfga check failed");
-                return (
-                    StatusCode::SERVICE_UNAVAILABLE,
-                    Json(json!({"error": "openfga_unavailable", "type":"about:blank"})),
-                )
-                    .into_response();
-            }
-        }
+    if let Err(response) = authorize_openfga(&st, &subject).await {
+        return response;
     }
-
-    let param_hash = match Intent::parameters_hash(&parameters) {
-        Ok(h) => h,
-        Err(e) => {
-            let msg = opensesame_redaction::redact_text(&e.to_string());
-            return (StatusCode::BAD_REQUEST, Json(json!({"error": msg}))).into_response();
-        }
-    };
-    let now = Utc::now();
-    let intent = Intent {
-        id: IntentId::new(),
-        organization_id: boot.org,
-        project_id: Some(boot.project),
-        principal_id: resolved.principal_id,
-        actor_id: boot.actor,
-        actor_instance_id: None,
-        client_id: None,
-        operator_id: None,
-        connection_id: Some(resolved.connection_id),
-        operation: body.operation,
-        resource: body.resource,
-        audience: body
-            .audience
-            .unwrap_or_else(|| "https://api.github.com".into()),
-        normalized_parameters_hash: param_hash,
-        body_hash: None,
-        nonce: uuid::Uuid::new_v4().to_string(),
-        idempotency_key: body
-            .idempotency_key
-            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-        issued_at: now,
-        expires_at: now + Duration::minutes(5),
-        parent_invocation_id: None,
-        delegation_chain: resolved.delegation_chain.clone(),
-        proof: DetachedProof {
-            algorithm: "EdDSA".into(),
-            key_thumbprint: "demo".into(),
-            signature: "demo".into(),
-        },
+    let intent = match build_intent(body, &parameters, &boot, &resolved) {
+        Ok(intent) => intent,
+        Err(response) => return response,
     };
 
     match st
@@ -414,6 +432,7 @@ pub async fn create(
 mod tests {
     use super::*;
     use axum::http::{HeaderMap, HeaderValue};
+    use opensesame_domain::{OrganizationId, OrganizationRole};
 
     fn body() -> InvokeBody {
         InvokeBody {

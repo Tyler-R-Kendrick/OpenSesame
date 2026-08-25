@@ -39,6 +39,10 @@ use crate::app_state::AppState;
 use crate::config;
 use crate::github_webhook;
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the router is the single declarative catalog audited against the OpenAPI contract"
+)]
 pub fn router(state: AppState) -> Router {
     let router = Router::new()
         .route("/health/live", get(health::live))

@@ -1,4 +1,4 @@
-//! Verified GitHub App webhooks → durable outbox → TaskBus wake.
+//! Verified GitHub App webhooks → durable outbox → `TaskBus` wake.
 
 use axum::{
     body::Bytes,
@@ -32,6 +32,75 @@ fn body_claim_key(body: &[u8]) -> String {
     format!("github.body.{digest:x}")
 }
 
+fn webhook_error(status: StatusCode, code: &str) -> Response {
+    (status, Json(json!({"error": code}))).into_response()
+}
+
+async fn configured_webhook_secret(st: &AppState) -> Result<String, Response> {
+    let org = st.connection_organization;
+    let integrations = st
+        .connection_broker
+        .list_integrations(&org)
+        .await
+        .map_err(|_| webhook_error(StatusCode::SERVICE_UNAVAILABLE, "integrations_unavailable"))?;
+    let Some(integration) = integrations.iter().find(|row| {
+        row.provider_id == "github"
+            && row.enabled
+            && row.source == opensesame_connection_broker::IntegrationSource::Organization
+    }) else {
+        return Err(webhook_error(
+            StatusCode::NOT_FOUND,
+            "github_app_not_configured",
+        ));
+    };
+    match st
+        .connection_broker
+        .github_webhook_secret(&org, &integration.id)
+        .await
+    {
+        Ok(Some(secret)) if !secret.is_empty() => Ok(secret),
+        Ok(_) => Err((
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(json!({"error":"webhook_secret_missing","hint":"recreate GitHub App with webhook secret"})),
+        )
+            .into_response()),
+        Err(_) => Err(webhook_error(StatusCode::INTERNAL_SERVER_ERROR, "internal")),
+    }
+}
+
+async fn claim_webhook_body(st: &AppState, body: &[u8]) -> Result<Option<String>, Response> {
+    let claim_key = body_claim_key(body);
+    match st.db.try_claim_host_kv(&claim_key, "pending").await {
+        Ok(true) => Ok(Some(claim_key)),
+        Ok(false) => Ok(None),
+        Err(error) => {
+            tracing::error!(%error, "webhook delivery claim failed");
+            Err(webhook_error(StatusCode::INTERNAL_SERVER_ERROR, "internal"))
+        }
+    }
+}
+
+async fn append_webhook_outbox(
+    st: &AppState,
+    claim_key: &str,
+    payload: &Value,
+) -> Result<String, Response> {
+    match st
+        .db
+        .append_outbox(WEBHOOK_EVENT, &payload.to_string())
+        .await
+    {
+        Ok(id) => Ok(id),
+        Err(error) => {
+            tracing::error!(%error, "webhook outbox append failed");
+            if let Err(release) = st.db.delete_host_kv(claim_key).await {
+                tracing::error!(%release, "webhook claim rollback failed");
+            }
+            Err(webhook_error(StatusCode::INTERNAL_SERVER_ERROR, "internal"))
+        }
+    }
+}
+
 /// `POST /api/v1/webhooks/github` — verify, enqueue, wake. Fast 2xx after durable write.
 pub async fn webhook(State(st): State<AppState>, headers: HeaderMap, body: Bytes) -> Response {
     let signature = headers
@@ -40,11 +109,7 @@ pub async fn webhook(State(st): State<AppState>, headers: HeaderMap, body: Bytes
         .unwrap_or("");
     // Fail closed on a missing/malformed MAC before any DB or secret lookup.
     if !well_formed_hub_signature(signature) {
-        return (
-            StatusCode::UNAUTHORIZED,
-            Json(json!({"error":"invalid_signature"})),
-        )
-            .into_response();
+        return webhook_error(StatusCode::UNAUTHORIZED, "invalid_signature");
     }
 
     let delivery = headers
@@ -58,82 +123,26 @@ pub async fn webhook(State(st): State<AppState>, headers: HeaderMap, body: Bytes
         .unwrap_or("")
         .to_string();
 
-    let org = st.connection_organization;
-    let integrations = match st.connection_broker.list_integrations(&org).await {
-        Ok(rows) => rows,
-        Err(_) => {
-            return (
-                StatusCode::SERVICE_UNAVAILABLE,
-                Json(json!({"error":"integrations_unavailable"})),
-            )
-                .into_response();
-        }
-    };
-    let Some(integration) = integrations.iter().find(|row| {
-        row.provider_id == "github"
-            && row.enabled
-            && row.source == opensesame_connection_broker::IntegrationSource::Organization
-    }) else {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(json!({"error":"github_app_not_configured"})),
-        )
-            .into_response();
-    };
-
-    let secret = match st
-        .connection_broker
-        .github_webhook_secret(&org, &integration.id)
-        .await
-    {
-        Ok(Some(s)) if !s.is_empty() => s,
-        Ok(_) => {
-            return (
-                StatusCode::UNPROCESSABLE_ENTITY,
-                Json(json!({"error":"webhook_secret_missing","hint":"recreate GitHub App with webhook secret"})),
-            )
-                .into_response();
-        }
-        Err(_) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error":"internal"})),
-            )
-                .into_response();
-        }
+    let secret = match configured_webhook_secret(&st).await {
+        Ok(secret) => secret,
+        Err(response) => return response,
     };
 
     if !verify_hub_signature_256(&secret, &body, signature) {
-        return (
-            StatusCode::UNAUTHORIZED,
-            Json(json!({"error":"invalid_signature"})),
-        )
-            .into_response();
+        return webhook_error(StatusCode::UNAUTHORIZED, "invalid_signature");
     }
 
     if delivery.is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":"missing_delivery_id"})),
-        )
-            .into_response();
+        return webhook_error(StatusCode::BAD_REQUEST, "missing_delivery_id");
     }
 
     // HMAC covers the body, not x-github-delivery. Dedup on the verified body
     // so an attacker cannot replay the same payload under a fresh delivery id.
-    let claim_key = body_claim_key(&body);
-    match st.db.try_claim_host_kv(&claim_key, "pending").await {
-        Ok(true) => {}
-        Ok(false) => return StatusCode::NO_CONTENT.into_response(),
-        Err(error) => {
-            tracing::error!(%error, "webhook delivery claim failed");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error":"internal"})),
-            )
-                .into_response();
-        }
-    }
+    let claim_key = match claim_webhook_body(&st, &body).await {
+        Ok(Some(claim_key)) => claim_key,
+        Ok(None) => return StatusCode::NO_CONTENT.into_response(),
+        Err(response) => return response,
+    };
 
     let payload: Value = serde_json::from_slice(&body).unwrap_or(json!({}));
     let action = payload
@@ -143,7 +152,7 @@ pub async fn webhook(State(st): State<AppState>, headers: HeaderMap, body: Bytes
         .to_string();
     let installation_id = payload
         .pointer("/installation/id")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .map(|n| n.to_string());
 
     let outbox_payload = json!({
@@ -153,23 +162,9 @@ pub async fn webhook(State(st): State<AppState>, headers: HeaderMap, body: Bytes
         "installation_id": installation_id,
     });
 
-    let outbox_id = match st
-        .db
-        .append_outbox(WEBHOOK_EVENT, &outbox_payload.to_string())
-        .await
-    {
+    let outbox_id = match append_webhook_outbox(&st, &claim_key, &outbox_payload).await {
         Ok(id) => id,
-        Err(error) => {
-            tracing::error!(%error, "webhook outbox append failed");
-            if let Err(release) = st.db.delete_host_kv(&claim_key).await {
-                tracing::error!(%release, "webhook claim rollback failed");
-            }
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error":"internal"})),
-            )
-                .into_response();
-        }
+        Err(response) => return response,
     };
 
     let _ = st.db.set_host_kv(&claim_key, &outbox_id).await;
@@ -198,15 +193,13 @@ async fn apply_installation_side_effects(
         }
     }
     match (event, action) {
-        ("installation", "deleted") | ("installation", "suspend") => {
+        ("installation", "deleted" | "suspend") => {
             let _ = st
                 .db
                 .record_backup_outcome(&org, "suspended", None, Some("github_app_uninstalled"))
                 .await;
         }
-        ("installation", "unsuspend")
-        | ("installation", "created")
-        | ("installation", "new_permissions_accepted") => {
+        ("installation", "unsuspend" | "created" | "new_permissions_accepted") => {
             target.status = "pending".into();
             target.last_error = None;
             let _ = st.db.upsert_backup_target(&target).await;
@@ -388,7 +381,7 @@ mod tests {
         })
         .await
         .unwrap();
-        let body = br#"{}"#;
+        let body = br"{}";
         let request = Request::builder()
             .method("POST")
             .uri("/api/v1/webhooks/github")

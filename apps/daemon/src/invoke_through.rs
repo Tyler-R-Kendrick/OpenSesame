@@ -43,7 +43,9 @@ use axum::{
     response::{IntoResponse, Response},
     Extension, Json,
 };
-use opensesame_invoke_through::{InvokeError, InvokeRequest};
+use opensesame_invoke_through::{
+    InvokeError, InvokeRequest, InvokeResponse, PreparedRequest, TokenSource,
+};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -92,43 +94,9 @@ pub async fn invoke_through(
     if let Err(retry_after) = st.invoke_limiter.check(key) {
         return rate_limited(retry_after);
     }
-    if !req.confirmed {
-        tracing::info!(provider_id = %req.provider_id, "invoke_through.refused");
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({
-                "error": "invoke_not_confirmed",
-                "hint": "invoke-through exercises a local credential; \
-                         pass confirmed: true (v1 requires per-invoke confirmation)"
-            })),
-        )
-            .into_response();
-    }
-    let Some(source) = (st.token_source_factory)(&req.provider_id) else {
-        tracing::info!(provider_id = %req.provider_id, "invoke_through.refused");
-        return (
-            StatusCode::UNPROCESSABLE_ENTITY,
-            Json(json!({
-                "error": "no_invoke_through_adapter",
-                "hint": "no local credential tool for this provider in v1"
-            })),
-        )
-            .into_response();
-    };
-    let prepared = match st.invoker.preflight(InvokeRequest {
-        provider_id: req.provider_id.clone(),
-        method: req.method,
-        url: req.url,
-        headers: req.headers,
-        body: req.body.map(Bytes::from),
-        subject: req.subject,
-        actor: req.actor,
-    }) {
+    let (source, prepared) = match prepare_request(&st, req) {
         Ok(prepared) => prepared,
-        Err(error) => {
-            tracing::info!(provider_id = %req.provider_id, reason = %error, "invoke_through.refused");
-            return preflight_error(error);
-        }
+        Err(response) => return response,
     };
     // Preflight passed; only now may the source tool run. It blocks (a child
     // process), so it runs off the async driver threads.
@@ -145,46 +113,91 @@ pub async fn invoke_through(
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
     match st.invoker.execute(&token, prepared).await {
-        Ok(upstream) => {
-            // The local, synchronous receipt — see the module docs for why
-            // there is no gateway delivery in v1.
-            let receipt = &upstream.receipt;
-            tracing::info!(
-                target: "opensesame.receipt",
-                provider_id = %receipt.provider_id,
-                scheme = %receipt.scheme,
-                host = %receipt.host,
-                path = %receipt.path,
-                status = receipt.status,
-                latency_ms = receipt.latency_ms,
-                subject = receipt.subject.as_deref().unwrap_or(""),
-                actor = receipt.actor.as_deref().unwrap_or(""),
-                "invoke_through.receipt"
-            );
-            // The caller gets the upstream response: status, allowlisted
-            // headers, body — and nothing else.
-            let mut response = Response::builder()
-                .status(StatusCode::from_u16(upstream.status).unwrap_or(StatusCode::BAD_GATEWAY));
-            for (name, value) in &upstream.headers {
-                if let (Ok(name), Ok(value)) = (
-                    HeaderName::from_bytes(name.as_bytes()),
-                    HeaderValue::from_str(value),
-                ) {
-                    response = response.header(name, value);
-                }
-            }
-            response
-                .body(axum::body::Body::from(upstream.body))
-                .unwrap_or_else(|_| StatusCode::BAD_GATEWAY.into_response())
-        }
-        Err(error) => execute_error(error),
+        Ok(upstream) => upstream_response(upstream),
+        Err(error) => execute_error(&error),
     }
+}
+
+fn prepare_request(
+    st: &App,
+    req: InvokeThroughRequest,
+) -> Result<(Box<dyn TokenSource>, PreparedRequest), Response> {
+    if !req.confirmed {
+        tracing::info!(provider_id = %req.provider_id, "invoke_through.refused");
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "invoke_not_confirmed",
+                "hint": "invoke-through exercises a local credential; \
+                         pass confirmed: true (v1 requires per-invoke confirmation)"
+            })),
+        )
+            .into_response());
+    }
+    let Some(source) = (st.token_source_factory)(&req.provider_id) else {
+        tracing::info!(provider_id = %req.provider_id, "invoke_through.refused");
+        return Err((
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(json!({
+                "error": "no_invoke_through_adapter",
+                "hint": "no local credential tool for this provider in v1"
+            })),
+        )
+            .into_response());
+    };
+    let prepared = match st.invoker.preflight(InvokeRequest {
+        provider_id: req.provider_id.clone(),
+        method: req.method,
+        url: req.url,
+        headers: req.headers,
+        body: req.body.map(Bytes::from),
+        subject: req.subject,
+        actor: req.actor,
+    }) {
+        Ok(prepared) => prepared,
+        Err(error) => {
+            tracing::info!(provider_id = %req.provider_id, reason = %error, "invoke_through.refused");
+            return Err(preflight_error(&error));
+        }
+    };
+    Ok((source, prepared))
+}
+
+fn upstream_response(upstream: InvokeResponse) -> Response {
+    // The local, synchronous receipt — see the module docs for why there is no
+    // gateway delivery in v1.
+    let receipt = &upstream.receipt;
+    tracing::info!(
+        target: "opensesame.receipt",
+        provider_id = %receipt.provider_id,
+        scheme = %receipt.scheme,
+        host = %receipt.host,
+        path = %receipt.path,
+        status = receipt.status,
+        latency_ms = receipt.latency_ms,
+        subject = receipt.subject.as_deref().unwrap_or(""),
+        actor = receipt.actor.as_deref().unwrap_or(""),
+        "invoke_through.receipt"
+    );
+    let mut response = Response::builder()
+        .status(StatusCode::from_u16(upstream.status).unwrap_or(StatusCode::BAD_GATEWAY));
+    for (name, value) in &upstream.headers {
+        if let (Ok(name), Ok(value)) = (
+            HeaderName::from_bytes(name.as_bytes()),
+            HeaderValue::from_str(value),
+        ) {
+            response = response.header(name, value);
+        }
+    }
+    response
+        .body(axum::body::Body::from(upstream.body))
+        .unwrap_or_else(|_| StatusCode::BAD_GATEWAY.into_response())
 }
 
 /// Preflight denials are client-visible and precise: the caller named the
 /// host/method/header, so learning why it was refused tells them nothing new.
-fn preflight_error(error: InvokeError) -> Response {
-    let (status, code) = match &error {
+fn preflight_error(error: &InvokeError) -> Response {
+    let (status, code) = match error {
         InvokeError::InvalidUrl => (StatusCode::BAD_REQUEST, "invalid_url"),
         InvokeError::UnsupportedProvider(_) => (
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -209,8 +222,8 @@ fn preflight_error(error: InvokeError) -> Response {
 /// Execution failures are upstream or acquisition problems; the hint never
 /// carries the credential (the crate's error contract) and the transport
 /// detail names at most the host, which the receipt would record anyway.
-fn execute_error(error: InvokeError) -> Response {
-    let (status, code) = match &error {
+fn execute_error(error: &InvokeError) -> Response {
+    let (status, code) = match error {
         InvokeError::Timeout => (StatusCode::GATEWAY_TIMEOUT, "upstream_timeout"),
         InvokeError::ResponseTooLarge { .. } => (StatusCode::BAD_GATEWAY, "response_too_large"),
         InvokeError::Transport(_) => (StatusCode::BAD_GATEWAY, "upstream_unreachable"),

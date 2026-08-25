@@ -102,37 +102,36 @@ pub async fn mint_installation_token(
     let jwt = mint_app_jwt(config)?;
     let client = reqwest::Client::new();
     let base = config.api_base.trim_end_matches('/');
-    let installation_id = match &config.installation_id {
-        Some(id) => id.clone(),
-        None => {
-            let installations: Vec<Installation> = client
-                .get(format!("{base}/app/installations"))
-                .bearer_auth(&jwt)
-                .header("accept", "application/vnd.github+json")
-                .header("x-github-api-version", API_VERSION)
-                .header("user-agent", USER_AGENT)
-                .send()
-                .await?
-                .error_for_status()
-                .context("listing GitHub App installations")?
-                .json()
-                .await?;
-            match installations.as_slice() {
-                [only] => only.id.to_string(),
-                [] => anyhow::bail!(
-                    "the GitHub App has no installations — install it on the account \
-                     that owns the backup repository"
-                ),
-                many => anyhow::bail!(
-                    "the GitHub App has {} installations — set GITHUB_APP_INSTALLATION_ID \
-                     to one of: {}",
-                    many.len(),
-                    many.iter()
-                        .map(|i| i.id.to_string())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                ),
-            }
+    let installation_id = if let Some(id) = &config.installation_id {
+        id.clone()
+    } else {
+        let installations: Vec<Installation> = client
+            .get(format!("{base}/app/installations"))
+            .bearer_auth(&jwt)
+            .header("accept", "application/vnd.github+json")
+            .header("x-github-api-version", API_VERSION)
+            .header("user-agent", USER_AGENT)
+            .send()
+            .await?
+            .error_for_status()
+            .context("listing GitHub App installations")?
+            .json()
+            .await?;
+        match installations.as_slice() {
+            [only] => only.id.to_string(),
+            [] => anyhow::bail!(
+                "the GitHub App has no installations — install it on the account \
+                 that owns the backup repository"
+            ),
+            many => anyhow::bail!(
+                "the GitHub App has {} installations — set GITHUB_APP_INSTALLATION_ID \
+                 to one of: {}",
+                many.len(),
+                many.iter()
+                    .map(|i| i.id.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
         }
     };
     let token: InstallationToken = client
@@ -204,6 +203,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::items_after_statements,
+        reason = "the test-local decoding import belongs beside the assertion that uses it"
+    )]
     fn app_jwt_is_rs256_with_app_id_issuer() {
         let Some(pem) = throwaway_rsa_pem() else {
             eprintln!("skipping: openssl unavailable");

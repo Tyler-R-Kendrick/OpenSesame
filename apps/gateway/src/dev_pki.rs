@@ -127,12 +127,7 @@ pub fn issue_leaf(ca: &DevCa, request: &IssueRequest) -> Result<IssuedCert, Stri
     let serial = params
         .serial_number
         .as_ref()
-        .map(|n| {
-            n.to_bytes()
-                .iter()
-                .map(|b| format!("{b:02x}"))
-                .collect::<String>()
-        })
+        .map(|number| hex::encode(number.to_bytes()))
         .unwrap_or_default();
     let leaf_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).map_err(|e| e.to_string())?;
     let cert = params

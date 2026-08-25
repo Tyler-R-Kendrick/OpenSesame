@@ -3,7 +3,10 @@ use crate::config::{self, Args};
 use crate::task_engine::{new_task_engine, SharedTaskEngine};
 use opensesame_broker::Broker;
 use opensesame_connection_broker::{BrokerConfig, ConnectionBroker};
-use opensesame_domain::*;
+use opensesame_domain::{
+    ActorId, ClaimSession, ConnectionId, ConnectionRef, FrozenIntentV2, Grant, OrganizationId,
+    OrganizationRole, PrincipalId, ProjectId,
+};
 use opensesame_provider_openbao::OpenBaoHttpAuthority;
 use opensesame_provider_openfga::OpenFgaClient;
 use opensesame_storage::Db;
@@ -61,14 +64,14 @@ pub struct AppState {
     pub broker: Arc<Broker>,
     pub sessions: Arc<Mutex<HashMap<String, Value>>>,
     pub device_codes: Arc<Mutex<HashMap<String, DevicePending>>>,
-    /// Pending GitHub App Manifest handshakes (state → org + return_to).
+    /// Pending GitHub App Manifest handshakes (state → org + `return_to`).
     pub github_app_pending: Arc<Mutex<HashMap<String, GithubAppPending>>>,
     /// Serializes device-token minting with principal/org session revocation.
     pub session_lifecycle: Arc<Mutex<()>>,
     /// Timestamps of failed `user_code` approval guesses (global cooldown fence).
     pub device_approve_failures: Arc<Mutex<Vec<chrono::DateTime<chrono::Utc>>>>,
     pub claims: Arc<Mutex<HashMap<String, ClaimSession>>>,
-    /// claim_id -> failed user-code attempts on completion (brute-force fence).
+    /// `claim_id` -> failed user-code attempts on completion (brute-force fence).
     pub claim_user_code_attempts: Arc<Mutex<HashMap<String, u32>>>,
     pub bootstrap: Arc<Mutex<Option<Bootstrap>>>,
     pub openfga: Option<OpenFgaClient>,
@@ -91,7 +94,7 @@ pub struct AppState {
     pub distributed_task_authority: bool,
     /// In-memory task access engine (immutable ceiling + frozen intents).
     pub task_engine: SharedTaskEngine,
-    /// intent_digest -> frozen intent awaiting execution. Server-side custody is
+    /// `intent_digest` -> frozen intent awaiting execution. Server-side custody is
     /// what makes the digest enforceable: the caller cannot restate the frozen
     /// bytes, so it cannot execute anything other than what it froze.
     pub frozen_intents: Arc<Mutex<HashMap<String, FrozenIntentV2>>>,
@@ -142,8 +145,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
     let connection_organization = boot
         .demo
         .as_ref()
-        .map(|b| b.org)
-        .unwrap_or_else(|| OrganizationId::from_uuid(uuid::Uuid::nil()));
+        .map_or_else(|| OrganizationId::from_uuid(uuid::Uuid::nil()), |b| b.org);
     let connection_broker = Arc::new(ConnectionBroker::new(
         db.pool().clone(),
         BrokerConfig::from_env()?,

@@ -49,7 +49,7 @@ pub async fn get_target(State(st): State<AppState>, headers: axum::http::HeaderM
     let organization = who.organization(st.connection_organization).to_string();
     let target = match st.db.get_backup_target(&organization).await {
         Ok(target) => target,
-        Err(error) => return internal(error),
+        Err(error) => return internal(&error),
     };
     // The Host outbox is gateway-wide. A tenant session must not learn the
     // unpublished depth of every other organization's backup work.
@@ -103,6 +103,92 @@ fn valid_branch(value: &str) -> bool {
             .all(|c| c.is_ascii() && !c.is_control() && c != ' ' && c != '?')
 }
 
+fn validated_branch(body: &PutTargetBody) -> Result<String, Response> {
+    if !valid_repo_segment(&body.owner) || !valid_repo_segment(&body.repo) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_request","hint":"owner and repo must be GitHub name segments"})),
+        )
+            .into_response());
+    }
+    if body.installation_id.is_empty()
+        || !body
+            .installation_id
+            .chars()
+            .all(|char| char.is_ascii_digit())
+    {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_request","hint":"installation_id must be the numeric id from the GitHub App installation"})),
+        )
+            .into_response());
+    }
+    let branch = body
+        .branch
+        .clone()
+        .unwrap_or_else(|| "env/production".into());
+    if !valid_branch(&branch) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_request","hint":"branch must be a Git ref name"})),
+        )
+            .into_response());
+    }
+    Ok(branch)
+}
+
+async fn resolve_integration_id(
+    st: &AppState,
+    organization: &opensesame_domain::OrganizationId,
+    body: &PutTargetBody,
+) -> Result<String, Response> {
+    if let Some(connection_id) = body
+        .connection_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+    {
+        return match st
+            .connection_broker
+            .get_connection(organization, connection_id)
+            .await
+        {
+            Ok(view) if view.provider_id == "github" => view.integration_id.ok_or_else(|| {
+                (
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    Json(json!({
+                        "error": "integration_required",
+                        "hint": "that GitHub connection is not bound to a tenant App integration — Create GitHub App under History first",
+                    })),
+                )
+                    .into_response()
+            }),
+            Ok(_) => Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error":"invalid_request","hint":"connection must be a GitHub connection"})),
+            )
+                .into_response()),
+            Err(_) => Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({"error":"connection_not_found"})),
+            )
+                .into_response()),
+        };
+    }
+    body.integration_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error":"invalid_request","hint":"connection_id or integration_id is required"})),
+            )
+                .into_response()
+        })
+}
+
 pub async fn put_target(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -113,84 +199,13 @@ pub async fn put_target(
         Err(resp) => return resp,
     };
     let organization = who.organization(st.connection_organization);
-    if !valid_repo_segment(&body.owner) || !valid_repo_segment(&body.repo) {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":"invalid_request","hint":"owner and repo must be GitHub name segments"})),
-        )
-            .into_response();
-    }
-    if body.installation_id.is_empty() || !body.installation_id.chars().all(|c| c.is_ascii_digit())
-    {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":"invalid_request","hint":"installation_id must be the numeric id from the GitHub App installation"})),
-        )
-            .into_response();
-    }
-    let branch = body
-        .branch
-        .clone()
-        .unwrap_or_else(|| "env/production".into());
-    if !valid_branch(&branch) {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":"invalid_request","hint":"branch must be a Git ref name"})),
-        )
-            .into_response();
-    }
-    let integration_id = if let Some(connection_id) = body
-        .connection_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|id| !id.is_empty())
-    {
-        match st
-            .connection_broker
-            .get_connection(&organization, connection_id)
-            .await
-        {
-            Ok(view) if view.provider_id == "github" => match view.integration_id {
-                Some(id) => id,
-                None => {
-                    return (
-                            StatusCode::UNPROCESSABLE_ENTITY,
-                            Json(json!({
-                                "error": "integration_required",
-                                "hint": "that GitHub connection is not bound to a tenant App integration — Create GitHub App under History first",
-                            })),
-                        )
-                            .into_response();
-                }
-            },
-            Ok(_) => {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error":"invalid_request","hint":"connection must be a GitHub connection"})),
-                )
-                    .into_response();
-            }
-            Err(_) => {
-                return (
-                    StatusCode::NOT_FOUND,
-                    Json(json!({"error":"connection_not_found"})),
-                )
-                    .into_response();
-            }
-        }
-    } else if let Some(id) = body
-        .integration_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|id| !id.is_empty())
-    {
-        id.to_string()
-    } else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":"invalid_request","hint":"connection_id or integration_id is required"})),
-        )
-            .into_response();
+    let branch = match validated_branch(&body) {
+        Ok(branch) => branch,
+        Err(response) => return response,
+    };
+    let integration_id = match resolve_integration_id(&st, &organization, &body).await {
+        Ok(id) => id,
+        Err(response) => return response,
     };
     // The target is only usable if the integration can mint installation
     // tokens; refusing here beats a silently suspended actor later.
@@ -233,7 +248,7 @@ pub async fn put_target(
         last_error: None,
     };
     if let Err(error) = st.db.upsert_backup_target(&target).await {
-        return internal(error);
+        return internal(&error);
     }
     // A fresh target gets a full snapshot immediately: the resync event both
     // wakes the actor and reconciles anything dead-lettered while unconfigured.
@@ -246,7 +261,7 @@ pub async fn put_target(
         .await
     {
         Ok(id) => id,
-        Err(error) => return internal(error),
+        Err(error) => return internal(&error),
     };
     crate::backup_bus::publish_backup_wake(&st, &outbox_id).await;
     (
@@ -305,7 +320,7 @@ pub async fn delete_target(State(st): State<AppState>, headers: axum::http::Head
     };
     let organization = who.organization(st.connection_organization).to_string();
     if let Err(error) = st.db.delete_backup_target(&organization).await {
-        return internal(error);
+        return internal(&error);
     }
     (StatusCode::OK, Json(json!({"deleted": true}))).into_response()
 }
@@ -332,7 +347,7 @@ pub async fn resync(State(st): State<AppState>, headers: axum::http::HeaderMap) 
         .await
     {
         Ok(id) => id,
-        Err(error) => return internal(error),
+        Err(error) => return internal(&error),
     };
     crate::backup_bus::publish_backup_wake(&st, &outbox_id).await;
     (StatusCode::ACCEPTED, Json(json!({"status":"queued"}))).into_response()
@@ -345,8 +360,8 @@ fn resync_allowed() -> bool {
     let mut stamps = WINDOW
         .get_or_init(|| Mutex::new(Vec::new()))
         .lock()
-        .unwrap_or_else(|p| p.into_inner());
-    let cutoff = Instant::now() - Duration::from_secs(60);
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let cutoff = Instant::now().checked_sub(Duration::from_secs(60)).unwrap();
     stamps.retain(|at| *at > cutoff);
     if stamps.len() >= 6 {
         return false;
@@ -355,7 +370,7 @@ fn resync_allowed() -> bool {
     true
 }
 
-fn internal(error: anyhow::Error) -> Response {
+fn internal(error: &anyhow::Error) -> Response {
     tracing::error!(%error, "backup route failed");
     (
         StatusCode::INTERNAL_SERVER_ERROR,
@@ -365,6 +380,10 @@ fn internal(error: anyhow::Error) -> Response {
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::items_after_statements,
+    reason = "the backup route tests define scenario-local fault fixtures beside their use"
+)]
 mod tests {
     use crate::app_state::{self, test_session_headers, AppState};
     use crate::config::{Args, DEV_OPERATOR_TOKEN};
@@ -402,7 +421,7 @@ mod tests {
         let mut request = Request::builder().method(method).uri(path);
         match headers {
             Some(map) => {
-                for (name, value) in map.iter() {
+                for (name, value) in &map {
                     request = request.header(name, value);
                 }
             }

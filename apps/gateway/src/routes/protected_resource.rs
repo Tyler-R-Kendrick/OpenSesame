@@ -30,7 +30,7 @@ pub async fn metadata(State(st): State<AppState>) -> impl IntoResponse {
 
 pub async fn auth_md(State(st): State<AppState>) -> impl IntoResponse {
     let body = format!(
-        r#"# OpenSesame Authorization
+        r"# OpenSesame Authorization
 
 - Protected Resource Metadata: {resource}/.well-known/oauth-protected-resource
 - Authorization Server: {issuer}/.well-known/openid-configuration
@@ -47,7 +47,7 @@ pub async fn auth_md(State(st): State<AppState>) -> impl IntoResponse {
 - Examples use placeholders only — never paste live credentials
 - Agents exercise ConnectionRef + Intent; credential materialization is denied by default
 
-"#,
+",
         resource = st.resource,
         issuer = st.issuer
     );

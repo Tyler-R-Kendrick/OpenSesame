@@ -177,16 +177,12 @@ pub async fn push_opaque(
     if let Err(code) = assert_opaque_sync_json(&raw) {
         return (StatusCode::BAD_REQUEST, Json(json!({"error": code}))).into_response();
     }
-    let parsed: Result<SyncPushOpaqueBody, _> = serde_json::from_value(raw);
-    let body = match parsed {
-        Ok(body) => body,
-        Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error": "invalid_sync_blobs"})),
-            )
-                .into_response();
-        }
+    let Ok(body) = serde_json::from_value::<SyncPushOpaqueBody>(raw) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid_sync_blobs"})),
+        )
+            .into_response();
     };
     for blob in &body.blobs {
         if let Err(code) = validate_opaque_blob(blob) {

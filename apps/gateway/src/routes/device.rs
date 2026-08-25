@@ -206,8 +206,7 @@ pub async fn token(State(st): State<AppState>, Json(req): Json<DeviceTokenReques
             m.get("expires_at")
                 .and_then(|v| v.as_str())
                 .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
-                .map(|dt| now < dt.with_timezone(&Utc))
-                .unwrap_or(false)
+                .is_some_and(|dt| now < dt.with_timezone(&Utc))
         });
         if sessions.len() >= 1024 {
             return (

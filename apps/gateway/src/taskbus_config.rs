@@ -1,4 +1,4 @@
-//! Host TaskBus / NATS configuration (operator plane).
+//! Host `TaskBus` / NATS configuration (operator plane).
 //!
 //! Precedence: process env (`OPENSESAME_TASKBUS` / `NATS_URL`) wins over durable
 //! `host_kv` so Compose keeps working. Pages never dials NATS — only Host does.
@@ -50,7 +50,7 @@ pub fn validate_nats_url(url: &str) -> Result<(), String> {
     opensesame_task_bus::validate_nats_url(url)
 }
 
-/// Resolve effective TaskBus settings (env overrides stored).
+/// Resolve effective `TaskBus` settings (env overrides stored).
 pub async fn resolve(db: &Db) -> anyhow::Result<ResolvedTaskBus> {
     let env_backend = std::env::var("OPENSESAME_TASKBUS")
         .ok()
@@ -80,7 +80,7 @@ pub async fn resolve(db: &Db) -> anyhow::Result<ResolvedTaskBus> {
         });
     }
 
-    let backend = match stored_backend.as_deref().map(str::trim).unwrap_or("memory") {
+    let backend = match stored_backend.as_deref().map_or("memory", str::trim) {
         "nats" | "jetstream" => TaskBusBackend::Nats,
         _ => TaskBusBackend::Memory,
     };

@@ -62,7 +62,7 @@ pub async fn list_for_project(
         .await
     {
         Ok(events) => events,
-        Err(e) => return crate::routes::connections::broker_error(e),
+        Err(e) => return crate::routes::connections::broker_error(&e),
     };
     let next_cursor = events.iter().filter_map(|e| e.seq).min();
     (
@@ -156,7 +156,7 @@ pub async fn record(
         .await
     {
         Ok(entry) => entry,
-        Err(e) => return crate::routes::connections::broker_error(e),
+        Err(e) => return crate::routes::connections::broker_error(&e),
     };
     let serialized = serde_json::to_value(&entry).unwrap_or_else(|_| json!({}));
     (StatusCode::CREATED, Json(serialized)).into_response()
@@ -213,7 +213,7 @@ mod tests {
             .unwrap();
         // Attach auth headers
         let mut record_req = record_req;
-        for (k, v) in record_headers.iter() {
+        for (k, v) in &record_headers {
             record_req.headers_mut().insert(k, v.clone());
         }
         let record_res = router.clone().oneshot(record_req).await.unwrap();
@@ -236,7 +236,7 @@ mod tests {
             .body(Body::empty())
             .unwrap();
         let mut list_req = list_req;
-        for (k, v) in headers.iter() {
+        for (k, v) in &headers {
             list_req.headers_mut().insert(k, v.clone());
         }
         let list_res = router.oneshot(list_req).await.unwrap();
@@ -296,7 +296,7 @@ mod tests {
                 .to_string(),
             ))
             .unwrap();
-        for (k, v) in record_headers.iter() {
+        for (k, v) in &record_headers {
             record_req.headers_mut().insert(k, v.clone());
         }
         let record_res = router.clone().oneshot(record_req).await.unwrap();
@@ -317,7 +317,7 @@ mod tests {
             ))
             .body(Body::empty())
             .unwrap();
-        for (k, v) in other.iter() {
+        for (k, v) in &other {
             list_req.headers_mut().insert(k, v.clone());
         }
         let list_res = router.oneshot(list_req).await.unwrap();
@@ -356,7 +356,7 @@ mod tests {
                 .to_string(),
             ))
             .unwrap();
-        for (k, v) in headers.iter() {
+        for (k, v) in &headers {
             req.headers_mut().insert(k, v.clone());
         }
         let res = router.oneshot(req).await.unwrap();
@@ -404,7 +404,7 @@ mod tests {
                         .to_string(),
                     ))
                     .unwrap();
-                for (k, v) in headers.iter() {
+                for (k, v) in headers {
                     req.headers_mut().insert(k, v.clone());
                 }
                 let r = router.clone();
@@ -420,7 +420,7 @@ mod tests {
                 .uri(format!("/api/v1/projects/{project}/changelog?limit=200"))
                 .body(Body::empty())
                 .unwrap();
-            for (k, v) in headers.iter() {
+            for (k, v) in headers {
                 list.headers_mut().insert(k, v.clone());
             }
             let res = router.clone().oneshot(list).await.unwrap();

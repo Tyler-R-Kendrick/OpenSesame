@@ -170,7 +170,7 @@ fn secret_source_from_body(
     let source = st
         .connection_broker
         .sync_secret_source()
-        .map_err(broker_error)?;
+        .map_err(|error| broker_error(&error))?;
     if body.key_names.is_empty() {
         Ok(source)
     } else {
@@ -208,7 +208,7 @@ pub async fn list(
             }
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -254,7 +254,7 @@ pub async fn create(
             .await;
             (StatusCode::CREATED, Json(body)).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -281,7 +281,7 @@ pub async fn get(
             }
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -302,7 +302,7 @@ pub async fn delete(
         .await
     {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -353,7 +353,7 @@ pub async fn sync_one(
             }
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -412,7 +412,7 @@ pub async fn sync_all(
             }
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
