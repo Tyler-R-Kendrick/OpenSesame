@@ -1486,6 +1486,14 @@
             "type": ["string", "null"],
             "format": "uri"
           },
+          "ssoClientId": {
+            "type": ["string", "null"],
+            "maxLength": 256
+          },
+          "ssoClientSecret": {
+            "type": ["string", "null"],
+            "maxLength": 1024
+          },
           "samlIssuer": {
             "type": ["string", "null"],
             "format": "uri"
@@ -1589,6 +1597,12 @@
           "ssoIssuer": {
             "type": "string",
             "format": "uri"
+          },
+          "ssoClientId": {
+            "type": "string"
+          },
+          "ssoClientSecretConfigured": {
+            "type": "boolean"
           },
           "samlIssuer": {
             "type": "string",
