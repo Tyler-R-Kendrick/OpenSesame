@@ -195,7 +195,7 @@ impl ConnectionBroker {
         let credential = store::get_credential(&self.pool, &row.id)
             .await?
             .ok_or_else(|| BrokerError::NeedsReauth("connection has no credential".into()))?;
-        let tokens = self.open_tokens(&key, &row, &credential)?;
+        let tokens = Self::open_tokens(&key, &row, &credential)?;
         if tokens.access_token.is_empty() {
             return Err(BrokerError::NeedsReauth("access token missing".into()));
         }

@@ -41,10 +41,6 @@ pub struct FaultListener {
 }
 
 impl FaultListener {
-    #[expect(
-        clippy::excessive_nesting,
-        reason = "the nested tasks model the test listener's accept and connection lifetimes"
-    )]
     pub async fn spawn(fault: Fault) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
