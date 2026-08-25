@@ -95,6 +95,7 @@ export function CoreConnectionsPanel() {
           id={open}
           connectors={connectors}
           onClose={() => setOpen(null)}
+          onSwitch={(next) => setOpen(next)}
         />
       ) : null}
     </section>

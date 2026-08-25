@@ -76,6 +76,7 @@ function target(over: Partial<TargetState> = {}): TargetState {
     failure: null,
     lastCheckedAt: 1_000,
     checking: false,
+    rttMs: 12,
     ...over,
   };
 }

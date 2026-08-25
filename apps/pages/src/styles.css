@@ -2140,6 +2140,164 @@ input[type="radio"] {
   overflow-wrap: anywhere;
 }
 
+/* A ceremony whose subject is not working: same card, warning wash. The tone
+   has to change with the news, or the green card becomes decoration. */
+.found--attn {
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--line));
+  background: var(--warn-wash);
+}
+
+.found--attn .found__top {
+  color: var(--warn);
+}
+
+/* The primary action lives inside the card, beside the facts that justify it,
+   rather than in a row of peers at the bottom. */
+.found__do {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-self: start;
+}
+
+/* ——— Ceremony alternatives ——— */
+
+/* The rule between "what we found" and "or do something else". */
+.or {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.or::before,
+.or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.alt {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.alt__item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.alt__btn {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.8rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 550;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.alt__btn:hover {
+  background: var(--surface-2);
+}
+
+.alt__mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-3);
+}
+
+.alt__grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.alt__chev {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-3);
+  transition: transform 160ms var(--ease);
+}
+
+.alt__chev.is-open {
+  transform: rotate(90deg);
+}
+
+/* An alternative's controls, in the sheet. Never a route change: the whole
+   point of a ceremony is that closing it puts you back where you were. */
+.alt__body {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.15rem 0.8rem 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+/* A short list of mutually exclusive connectors. */
+.picker {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.picker__opt {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.picker__opt:hover {
+  border-color: var(--accent-line);
+}
+
+.picker__opt.is-on {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.qr-block {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: center;
+  text-align: center;
+}
+
+/* One standing sentence per ceremony, pinned below the scroll. */
+.sheet__foot {
+  border-top: 1px solid var(--line);
+  padding: 0.85rem 1.15rem;
+  background: var(--surface-2);
+}
+
+.sheet__foot .hint {
+  margin: 0;
+}
+
 /* Pairing writes three endpoints. Showing them is what makes the Endpoints
    panel safe to collapse — you have already seen the values. */
 .ceremony__done {

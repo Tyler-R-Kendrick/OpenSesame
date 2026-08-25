@@ -27,6 +27,7 @@ function status(over: Partial<ConnectorStatus> = {}): ConnectorStatus {
     name: "Host",
     tone: "live",
     detail: "127.0.0.1:18787",
+    rttMs: 12,
     required: true,
     failure: null,
     lastCheckedAt: null,

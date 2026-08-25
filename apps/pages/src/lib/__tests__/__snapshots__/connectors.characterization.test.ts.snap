@@ -156,8 +156,8 @@ keys sealed-local unauth               live     Sealed local (Host)
 keys sealed-local conn_1               live     Sealed local (Host)
 keys aws-kms unauth                    attn     AWS KMS not authorized
 keys aws-kms conn_1                    live     AWS KMS
-keys yubikey unauth                    attn     yubikey not authorized
-keys yubikey conn_1                    live     yubikey"
+keys yubikey unauth                    attn     YubiKey not authorized
+keys yubikey conn_1                    live     YubiKey"
 `;
 
 exports[`connector copy characterization > says exactly this for every machine state 1`] = `

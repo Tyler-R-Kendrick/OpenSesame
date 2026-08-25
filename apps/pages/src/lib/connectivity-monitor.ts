@@ -59,6 +59,14 @@ export type TargetState = {
   lastCheckedAt: number | null;
   /** A probe is in flight right now. */
   checking: boolean;
+  /**
+   * Round trip of the last completed probe, in ms. Null when never probed.
+   *
+   * Kept because "is it up" and "is it usable" are different questions: a
+   * gateway answering in 40 ms and one answering in 4 s are both `reachable`,
+   * and only the number tells you which you have.
+   */
+  rttMs: number | null;
 };
 
 export type MonitorSnapshot = {
@@ -113,6 +121,7 @@ function blank(): Internal {
     failure: null,
     lastCheckedAt: null,
     checking: false,
+    rttMs: null,
     strikes: 0,
   };
 }
@@ -143,6 +152,7 @@ function buildSnapshot(): MonitorSnapshot {
     failure: state[t].failure,
     lastCheckedAt: state[t].lastCheckedAt,
     checking: state[t].checking,
+    rttMs: state[t].rttMs,
   });
   return {
     offline,
@@ -287,6 +297,10 @@ async function probeOne(target: ProbeTarget): Promise<void> {
 
   let ok = false;
   let failure: FailureClass | null = null;
+  // Wall-clock around the probe itself. Deliberately not performance.now():
+  // this is shown to a person as "42 ms", not used for arithmetic, and
+  // Date.now() is the clock the rest of the monitor already reasons in.
+  const startedAt = Date.now();
   try {
     if (target === "machine") {
       const result = await probeMachine();
@@ -317,6 +331,9 @@ async function probeOne(target: ProbeTarget): Promise<void> {
 
   entry.checking = false;
   entry.lastCheckedAt = Date.now();
+  // Only a completed round trip has a duration worth showing. A failure's
+  // elapsed time is the timeout, which says nothing about the plane.
+  entry.rttMs = ok ? Math.max(0, entry.lastCheckedAt - startedAt) : null;
   if (ok) {
     // Good news is never damped.
     entry.strikes = 0;

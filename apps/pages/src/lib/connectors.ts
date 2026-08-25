@@ -72,6 +72,8 @@ export type ConnectorStatus = {
   lastCheckedAt: number | null;
   /** A probe is in flight — shown as a pulse, never as a tone change. */
   checking: boolean;
+  /** Round trip of the last good probe, in ms. Null when unprobed or failing. */
+  rttMs: number | null;
 };
 
 /** Bar order, left to right. Also the tile order in Settings. */
@@ -103,11 +105,12 @@ function labelFor(target: TargetState, base: string, offline: boolean): string {
 /** Fields every probed connector carries, whatever its tone works out to be. */
 function probed(
   target: TargetState,
-): Pick<ConnectorStatus, "failure" | "lastCheckedAt" | "checking"> {
+): Pick<ConnectorStatus, "failure" | "lastCheckedAt" | "checking" | "rttMs"> {
   return {
     failure: target.failure,
     lastCheckedAt: target.lastCheckedAt,
     checking: target.checking,
+    rttMs: target.rttMs,
   };
 }
 
@@ -116,6 +119,7 @@ const UNPROBED = {
   failure: null,
   lastCheckedAt: null,
   checking: false,
+  rttMs: null,
 } as const;
 
 export function classifyHostConnector(
