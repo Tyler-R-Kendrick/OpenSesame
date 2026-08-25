@@ -737,7 +737,7 @@ impl ConnectionBroker {
                 "connection is not a certificate issuer".into(),
             ));
         }
-        let provider = self.provider(&row.provider_id)?;
+        let provider = Self::provider(&row.provider_id)?;
         if !provider.operations.iter().any(|operation| {
             matches!(
                 operation.as_str(),
@@ -757,7 +757,7 @@ impl ConnectionBroker {
         let credential = store::get_credential(&self.pool, &row.id)
             .await?
             .ok_or_else(|| BrokerError::NeedsReauth("issuer configuration missing".into()))?;
-        let tokens = self.open_tokens(self.sealing_key()?, &row, &credential)?;
+        let tokens = Self::open_tokens(self.sealing_key()?, &row, &credential)?;
         Ok(CertificateIssuerConfiguration {
             connection_id: row.id,
             provider_id: row.provider_id,

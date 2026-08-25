@@ -46,7 +46,6 @@ fn authorize_policies(st: &AppState, headers: &axum::http::HeaderMap) -> Result<
     Ok(who)
 }
 
-const OPERATOR_ORGANIZATION_HEADER: &str = "x-opensesame-organization";
 fn caller_organization(
     st: &AppState,
     who: &Caller,

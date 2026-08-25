@@ -48,6 +48,10 @@ const INTERNAL_ISSUER: &str = "opensesame_private_ca";
 const REQUEST_TTL_MINUTES: i64 = 5;
 const DELIVERY_TTL_MINUTES: i64 = 10;
 
+fn issued_kv_key(organization: &opensesame_domain::OrganizationId) -> String {
+    format!("{KV_ISSUED}:{organization}")
+}
+
 enum ResolvedCa {
     Persisted { authority_id: String, ca: DevCa },
     Ephemeral(DevCa),
@@ -303,10 +307,14 @@ async fn load_or_create_ca(
     ))
 }
 
-async fn load_issued(st: &AppState) -> Result<Vec<IssuedRecord>, Response> {
+async fn load_issued(
+    st: &AppState,
+    organization: &opensesame_domain::OrganizationId,
+) -> Result<Vec<IssuedRecord>, Response> {
+    let key = issued_kv_key(organization);
     let Some(raw) = st
         .db
-        .get_host_kv(KV_ISSUED)
+        .get_host_kv(&key)
         .await
         .map_err(|error| internal(error, "read legacy issued certificate metadata"))?
     else {
@@ -316,11 +324,16 @@ async fn load_issued(st: &AppState) -> Result<Vec<IssuedRecord>, Response> {
         .map_err(|error| internal(error, "decode legacy issued certificate metadata"))
 }
 
-async fn save_issued(st: &AppState, rows: &[IssuedRecord]) -> Result<(), Response> {
+async fn save_issued(
+    st: &AppState,
+    organization: &opensesame_domain::OrganizationId,
+    rows: &[IssuedRecord],
+) -> Result<(), Response> {
     let encoded = serde_json::to_string(rows)
         .map_err(|error| internal(error, "encode legacy issued certificate metadata"))?;
+    let key = issued_kv_key(organization);
     st.db
-        .set_host_kv(KV_ISSUED, &encoded)
+        .set_host_kv(&key, &encoded)
         .await
         .map_err(|error| internal(error, "write legacy issued certificate metadata"))
 }
@@ -393,7 +406,7 @@ pub async fn list_issued(State(st): State<AppState>, headers: axum::http::Header
         Ok(certificates) => certificates,
         Err(error) => return internal(error, "list issued certificates"),
     };
-    let legacy = match load_issued(&st).await {
+    let legacy = match load_issued(&st, &organization).await {
         Ok(certificates) => certificates,
         Err(response) => return response,
     };
@@ -1450,13 +1463,13 @@ pub async fn issue(
                         .into_response();
                 }
             };
-            let mut rows = match load_issued(&st).await {
+            let mut rows = match load_issued(&st, &organization).await {
                 Ok(rows) => rows,
                 Err(response) => return response,
             };
             rows.insert(0, dev_pki::to_record(&issued));
             rows.truncate(MAX_ISSUED);
-            if let Err(response) = save_issued(&st, &rows).await {
+            if let Err(response) = save_issued(&st, &organization, &rows).await {
                 return response;
             }
             issue_response(
@@ -1585,6 +1598,38 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "{list}");
         assert_eq!(list["certificates"][0]["common_name"], "localhost");
         assert!(list["certificates"][0]["private_key"].is_null());
+    }
+
+    #[tokio::test]
+    async fn adversarial_ephemeral_history_isolated_between_organizations() {
+        let _guard = env_lock();
+        let state = memory_state().await;
+        let issuing_headers = test_session_headers(
+            &state,
+            "prn_issuing_owner",
+            state.connection_organization,
+            opensesame_domain::OrganizationRole::Owner,
+        );
+        let (status, body) = call(
+            &state,
+            "POST",
+            "/api/v1/certs/issue",
+            Some(issuing_headers),
+            Some(json!({"common_name": "tenant-a.local"})),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+
+        let foreign_headers = test_session_headers(
+            &state,
+            "prn_foreign_owner",
+            opensesame_domain::OrganizationId::new(),
+            opensesame_domain::OrganizationRole::Owner,
+        );
+        let (status, list) =
+            call(&state, "GET", "/api/v1/certs", Some(foreign_headers), None).await;
+        assert_eq!(status, StatusCode::OK, "{list}");
+        assert_eq!(list["certificates"], json!([]));
     }
 
     #[tokio::test]
