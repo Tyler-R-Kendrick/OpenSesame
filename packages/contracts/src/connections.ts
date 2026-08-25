@@ -23,6 +23,7 @@ export const ProviderCategorySchema = z.enum([
   "payments",
   "identity",
   "testing",
+  "custom",
 ]);
 export type ProviderCategory = z.infer<typeof ProviderCategorySchema>;
 

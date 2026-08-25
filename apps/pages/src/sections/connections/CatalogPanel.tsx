@@ -65,6 +65,9 @@ export function CatalogPanel({
     <section className="panel">
       <div className="panel__head conn-catalog__head">
         <h2>Add a connection</h2>
+        <Link className="btn btn--sm" to="/connections/new">
+          Custom connector
+        </Link>
         <label className="conn-search">
           <span className="sr-only">Search connectors</span>
           <IconSearch size={16} />

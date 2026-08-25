@@ -17,6 +17,7 @@ const CATEGORY_SUMMARY = {
   payments: "Authorize selected payment-platform actions.",
   identity: "Use this identity device or service from the Host.",
   testing: "Exercise the connection flow without a production provider.",
+  custom: "Authorize selected actions in a service this organization defined.",
 };
 
 const FIELD_GUIDANCE = new Map<string, FieldGuidance>(

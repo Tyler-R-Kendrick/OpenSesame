@@ -31,6 +31,7 @@ import { shouldAutoConnect } from "../lib/settings.js";
 import { useOnline } from "../lib/use-online.js";
 import { CatalogPanel } from "./connections/CatalogPanel.js";
 import { ConnectedPanel } from "./connections/ConnectedPanel.js";
+import { CustomConnectorPage } from "./connections/CustomConnectorPage.js";
 import { IdentitySessionNote } from "./connections/IdentitySessionNote.js";
 import { NeedsAttention } from "./connections/NeedsAttention.js";
 import { ConnectorSettingsPage } from "./connections/SettingsPage.js";
@@ -142,6 +143,10 @@ export function ConnectionsSection() {
     if (!shouldAutoConnect()) return;
     void connect();
   }, [session, online, connecting, connectError, connect]);
+
+  if (providerId === "new") {
+    return <CustomConnectorPage />;
+  }
 
   if (providerId) {
     const provider = providers?.find((item) => item.id === providerId) ?? null;

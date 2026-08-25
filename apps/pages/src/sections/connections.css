@@ -846,3 +846,31 @@
   color: var(--ink-2);
   font-weight: 650;
 }
+
+/* --------------------------------------------------------- custom connector */
+
+.conn-custom-form .panel__body {
+  max-width: 40rem;
+}
+
+.conn-custom-grid {
+  display: grid;
+  gap: 0.9rem;
+}
+
+@media (min-width: 40rem) {
+  .conn-custom-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.conn-custom-kind {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.conn-custom-slug {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  color: var(--ink-2);
+}
