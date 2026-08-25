@@ -112,6 +112,44 @@ type RouteMap = BTreeMap<String, BTreeSet<String>>;
 
 const METHODS: [&str; 5] = ["get", "post", "put", "delete", "patch"];
 
+fn documented_method(line: &str) -> Option<&'static str> {
+    METHODS
+        .iter()
+        .copied()
+        .find(|method| line == ["    ", method, ":"].concat())
+}
+
+fn route_call_close(open: usize) -> usize {
+    let mut depth = 0usize;
+    for (index, character) in ROUTES[open..].char_indices() {
+        match character {
+            '(' => depth += 1,
+            ')' if depth == 1 => return open + index,
+            ')' => depth -= 1,
+            _ => {}
+        }
+    }
+    ROUTES.len()
+}
+
+fn contains_method_helper(args: &str, method: &str) -> bool {
+    let token = [method, "("].concat();
+    let mut search = 0;
+    while let Some(position) = args[search..].find(&token) {
+        let at = search + position;
+        let helper = at == 0
+            || !matches!(
+                args.as_bytes()[at - 1],
+                b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b':'
+            );
+        if helper {
+            return true;
+        }
+        search = at + token.len();
+    }
+    false
+}
+
 /// (path, method) pairs documented by the spec, with the `/api/v1` server
 /// prefix applied so they compare directly against route-table paths. The
 /// YAML is parsed line-wise on its stable indentation: path keys are
@@ -132,15 +170,11 @@ fn documented_routes() -> RouteMap {
         }
         if line.starts_with("  /") && line.ends_with(':') {
             current = Some(line.trim_end_matches(':').trim().to_string());
-        } else if let Some(path) = &current {
-            for method in METHODS {
-                if line == ["    ", method, ":"].concat() {
-                    routes
-                        .entry(format!("/api/v1{path}"))
-                        .or_default()
-                        .insert(method.to_uppercase());
-                }
-            }
+        } else if let (Some(path), Some(method)) = (&current, documented_method(line)) {
+            routes
+                .entry(format!("/api/v1{path}"))
+                .or_default()
+                .insert(method.to_uppercase());
         }
     }
     routes
@@ -156,21 +190,7 @@ fn implemented_routes() -> RouteMap {
     let mut offset = 0;
     while let Some(found) = ROUTES[offset..].find(".route(") {
         let open = offset + found + ".route".len(); // index of the call's '('
-        let mut depth = 0usize;
-        let mut close = ROUTES.len();
-        for (i, ch) in ROUTES[open..].char_indices() {
-            match ch {
-                '(' => depth += 1,
-                ')' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        close = open + i;
-                        break;
-                    }
-                }
-                _ => {}
-            }
-        }
+        let close = route_call_close(open);
         let args = &ROUTES[open + 1..close];
         let path = args
             .trim_start()
@@ -180,22 +200,10 @@ fn implemented_routes() -> RouteMap {
             .to_string();
         let mut methods = BTreeSet::new();
         for method in METHODS {
-            let token = [method, "("].concat();
-            let mut search = 0;
-            while let Some(pos) = args[search..].find(&token) {
-                let at = search + pos;
-                // A routing helper is preceded by `(`, `.`, or whitespace —
-                // never by an identifier character or `::` (which would be a
-                // handler path such as `connections::get(`).
-                let helper = at == 0
-                    || !matches!(
-                        args.as_bytes()[at - 1],
-                        b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b':'
-                    );
-                if helper {
-                    methods.insert(method.to_uppercase());
-                }
-                search = at + token.len();
+            // A routing helper is preceded by `(`, `.`, or whitespace — never
+            // by an identifier character or `::` (a handler path).
+            if contains_method_helper(args, method) {
+                methods.insert(method.to_uppercase());
             }
         }
         assert!(

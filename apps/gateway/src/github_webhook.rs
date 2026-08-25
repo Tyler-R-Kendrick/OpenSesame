@@ -235,6 +235,7 @@ mod tests {
     use super::*;
     use crate::app_state::{self, AppState};
     use crate::config::Args;
+    use async_trait::async_trait;
     use axum::body::{to_bytes, Body};
     use axum::http::Request;
     use opensesame_connection_broker::github_app::GithubAppCredentials;
@@ -244,6 +245,28 @@ mod tests {
     use std::sync::Arc;
     use tokio::sync::RwLock;
     use tower::ServiceExt;
+
+    struct PartitionedBus;
+
+    #[async_trait]
+    impl opensesame_task_bus::TaskBus for PartitionedBus {
+        async fn publish(&self, _event: BusEvent) -> anyhow::Result<()> {
+            anyhow::bail!("simulated JetStream partition");
+        }
+
+        async fn drain(&self, _max: usize) -> anyhow::Result<Vec<BusEvent>> {
+            Ok(vec![])
+        }
+    }
+
+    async fn post_shared_webhook(
+        state: Arc<AppState>,
+        secret: &'static str,
+        delivery: &'static str,
+        body: &'static [u8],
+    ) -> StatusCode {
+        post_webhook(&state, secret, delivery, body, true).await
+    }
 
     async fn state_with_webhook_secret(secret: &str) -> AppState {
         let _guard = crate::app_state::test_env::lock();
@@ -478,10 +501,12 @@ mod tests {
         let body: &'static [u8] = br#"{"action":"created","installation":{"id":99}}"#;
         let mut handles = Vec::new();
         for _ in 0..12 {
-            let st = state.clone();
-            handles.push(tokio::spawn(async move {
-                post_webhook(&st, secret, "del-concurrent", body, true).await
-            }));
+            handles.push(tokio::spawn(post_shared_webhook(
+                state.clone(),
+                secret,
+                "del-concurrent",
+                body,
+            )));
         }
         for handle in handles {
             assert_eq!(handle.await.unwrap(), StatusCode::NO_CONTENT);
@@ -541,23 +566,11 @@ mod tests {
     /// Chaos: TaskBus publish failures must not discard a verified durable enqueue.
     #[tokio::test]
     async fn webhook_survives_taskbus_publish_partition() {
-        use async_trait::async_trait;
-        use opensesame_task_bus::{BusEvent, TaskBus};
-
-        struct PartitionedBus;
-        #[async_trait]
-        impl TaskBus for PartitionedBus {
-            async fn publish(&self, _event: BusEvent) -> anyhow::Result<()> {
-                anyhow::bail!("simulated JetStream partition");
-            }
-            async fn drain(&self, _max: usize) -> anyhow::Result<Vec<BusEvent>> {
-                Ok(vec![])
-            }
-        }
-
         let secret = "whsec_chaos";
         let mut state = state_with_webhook_secret(secret).await;
-        state.task_bus = Arc::new(RwLock::new(Arc::new(PartitionedBus) as Arc<dyn TaskBus>));
+        state.task_bus = Arc::new(RwLock::new(
+            Arc::new(PartitionedBus) as Arc<dyn opensesame_task_bus::TaskBus>
+        ));
         let body = br#"{"action":"created","installation":{"id":3}}"#;
         let status = post_webhook(&state, secret, "del-chaos", body, true).await;
         assert_eq!(status, StatusCode::NO_CONTENT);
