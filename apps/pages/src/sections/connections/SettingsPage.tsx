@@ -245,8 +245,7 @@ export function ConnectorSettingsPage({
               <p className="hint">{configureHint}</p>
             </div>
           ) : provider.configured ||
-            provider.id === "github" ||
-            provider.id === "gitlab" ? (
+            provider.authKind === "oauth2_authorization_code" ? (
             <ConnectForm
               provider={provider}
               online={online}
