@@ -205,10 +205,13 @@ function readZipEntryNamesDefault(buffer: ArrayBuffer): string[] {
  * not themselves attachments. Returns a count and a few names, enough for the
  * UI to tell someone what they are about to lose without listing hundreds.
  */
-export function findSkippedAttachments(names: string[]): {
+/** What a `.1pux` archive would leave behind: how many files, a few names. */
+export interface SkippedAttachments {
   count: number;
   sample: string[];
-} {
+}
+
+export function findSkippedAttachments(names: string[]): SkippedAttachments {
   const files = names.filter(
     (name) => /(^|\/)files\//.test(name) && !name.endsWith("/"),
   );

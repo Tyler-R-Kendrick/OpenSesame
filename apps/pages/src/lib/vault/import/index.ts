@@ -148,7 +148,7 @@ export async function readImportFile(file: File): Promise<DetectInput> {
   }
 
   let text: string;
-  let skippedAttachments: { count: number; sample: string[] } | undefined;
+  let skippedAttachments: DetectInput["skippedAttachments"];
   if (isArchive) {
     const buffer = await file.arrayBuffer();
     text = await readZipText(buffer, (entry) => entry.endsWith("export.data"));
@@ -189,14 +189,17 @@ export async function readImportFile(file: File): Promise<DetectInput> {
   const headers =
     json === null && looksLikeCsv(text) ? readHeaderRow(text) : null;
 
-  return {
+  const input: DetectInput = {
     fileName: file.name,
     text,
     headers,
     json,
     bytes: null,
-    ...(skippedAttachments ? { skippedAttachments } : {}),
   };
+  if (skippedAttachments) {
+    input.skippedAttachments = skippedAttachments;
+  }
+  return input;
 }
 
 /**
