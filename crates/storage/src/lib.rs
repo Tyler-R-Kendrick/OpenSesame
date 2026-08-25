@@ -1210,10 +1210,7 @@ impl Db {
     /// # Errors
     ///
     /// Returns an error when the database write fails.
-    pub async fn upsert_attachment_target(
-        &self,
-        target: &AttachmentTarget,
-    ) -> anyhow::Result<()> {
+    pub async fn upsert_attachment_target(&self, target: &AttachmentTarget) -> anyhow::Result<()> {
         let now = Utc::now().to_rfc3339();
         sqlx::query(
             "INSERT INTO attachment_targets (organization_id, connection_id, provider_id, folder_path, enabled, status, updated_at_unix_ms, created_at, updated_at) \
